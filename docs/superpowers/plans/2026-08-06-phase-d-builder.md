@@ -1973,12 +1973,21 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_user_definitions.py -q
 Modelled on `api/services/charts_layout_service.py` — the shipped precedent for user-authored content — with its `_connect()` / `_init_db()` / `_WRITE_LOCK` shape:
 
 ```sql
+> ⚰️ **`rev`'s rule CHANGED after this plan was written.** It said *"increments
+> IFF `ast_hash` moved"*, which was true until multi-plot. Since `ee81ce831`,
+> **`rev` bumps when `ast_hash` moves OR when `treesHash` does** — an alert binds
+> to ONE plot (`u_<12hex>.<plotKey>`), so editing a non-scan tree must force-migrate
+> too. `compute.fn` / `def_hash` are unchanged (`ast_hash(compute.ast)`; 0 of 249
+> rows moved). ⛔ **This block is left as the record of what was PLANNED, not
+> corrected into what shipped** — but the schema comment below read as current,
+> which is why it now points here instead.
+
 CREATE TABLE IF NOT EXISTS user_definitions (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id      INTEGER NOT NULL,
   def_id       TEXT    NOT NULL,   -- 'u_<12 hex>'; ID_RE-legal, dot-free
   version      INTEGER NOT NULL,   -- presentation; increments on EVERY save
-  rev          INTEGER NOT NULL,   -- maths; increments IFF ast_hash moved
+  rev          INTEGER NOT NULL,   -- maths; SUPERSEDED 2026-08-27, see below
   ast_hash     TEXT    NOT NULL,
   definition   TEXT    NOT NULL,   -- the whole schema-v1 definition, JSON
   repaint      TEXT    NOT NULL,   -- the LINTER's verdict, stored at save time

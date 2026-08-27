@@ -47,7 +47,10 @@
 //     refusal. There is no `try` anywhere in this file, and `budget.test.js`
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
-import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE } from './parse.js'
+import {
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
+  ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
+} from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
 // either measurement is a second grammar (there are already two `maxLookback`s
@@ -56,6 +59,15 @@ import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKB
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
+
+// ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
+// THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
+// `_functions_arg_role_kinds` declaration, and this directory has already paid
+// for a second reader of that question: `pine.js::treeYieldsBool` used to walk
+// the table itself, agreed with `yieldsOf` on the day it was written, and said
+// `false` for every `clock` entry the moment tableVersion 2 declared five of
+// them `bool`. `sentence.js` imports only `parse.js`, so this adds no cycle.
+import { yieldsOf, SENTENCE_RULES } from './sentence.js'
 
 // ⭐⭐ THE INDICATORS ARE NOT WRITTEN HERE. `indicators.js` is the maths the
 // CHART draws, and `api/services/indicator_compute.py` is the same maths on the
@@ -71,6 +83,7 @@ import { assertBudget } from './budget.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, AVWAP_MIN_INSTANT,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -104,6 +117,8 @@ export const REFUSALS = Object.freeze({
   'resolve:function': 'unknown function',
   'resolve:arity': 'wrong number of arguments',
   'resolve:window': 'a window must be a whole-number literal',
+  'resolve:condition': 'a condition argument must be a 0/1 column, and this one is a number',
+  'resolve:domain': 'a period reaches past the window its own entry declares',
   'interpret:node': 'not a canonical node',
   'interpret:operator': 'unknown operator',
   'interpret:offset': 'an offset node carries a whole-number count of bars',
@@ -225,18 +240,168 @@ function windowExtreme(series, lo, hi, better) {
   return best
 }
 
-/** POPULATION standard deviation — divisor `n`, not `n - 1`.
+/** WHICH BAR holds the window's extreme, as an offset back from `hi`.
  *
- *  ⚠️ NAMED OUT LOUD BECAUSE THE CORPUS SAYS IT IS INVISIBLE OTHERWISE: a
- *  population/sample disagreement between the lanes has the same tree, the same
- *  column length and the same NaN pad, and shows up only in the number. This
- *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
- *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
- *  Bollinger definition draws. The Python lane must use the same divisor. */
+ *  ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
+ *  NOT THIS FUNCTION'S — `closedTable.json::_functions_arg_extreme` argues it
+ *  out loud. `windowExtreme` returns the same NUMBER whichever of two equal bars
+ *  won, so nothing above it can see the choice; this one names a BAR, and two
+ *  hand-written lanes each picking a side would agree on every fixture that
+ *  happens to contain no tie.
+ *
+ *  ⚰️ AND THIS SENTENCE ENDED *"The committed 579-bar corpus contains none"* —
+ *  WHICH IS FALSE. Measured on that series: **56** of its 5-bar `high` windows
+ *  and **36** of its `low` windows hold their extreme TWICE, and every one of
+ *  them separates the two conventions, so the frozen digests DO move if the
+ *  ruling flips. The blindness is real as a CLASS and not true of THIS corpus.
+ *  ⛔ IT SURVIVED IN FOUR PLACES because it was written once and mirrored —
+ *  the Python twin, the manifest note, and the test's own docstring — and four
+ *  agreeing copies read as certainty. See
+ *  `closedTable.json::_functions_arg_extreme` for what the corpus still cannot
+ *  reach, and why the constructed fixture is not redundant.
+ *
+ *  ⭐ DERIVED FROM THE VALUE RATHER THAN COMPUTED BESIDE IT, so
+ *  `high[highestbars(high, n)] === highest(high, n)` holds BY CONSTRUCTION and
+ *  the NaN rule (*"NaN does not lose a comparison"*) is inherited rather than
+ *  restated — a second scan with its own comparison would be a second authority
+ *  over one window. `ast_interpret._window_arg_extreme` is the same two steps. */
+function windowArgExtreme(series, lo, hi, better) {
+  const best = windowExtreme(series, lo, hi, better)
+  if (Number.isNaN(best)) return NaN
+  // ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
+  // one. Bounded by `lo` rather than run open — a walk that could step past the
+  // window would read `undefined` forever and never terminate.
+  for (let i = hi; i >= lo; i--) if (series[i] === best) return hi - i
+  // ⚠️ UNREACHABLE WHILE `windowExtreme` HOLDS ITS CONTRACT — it only ever
+  // returns a member of `series[lo..hi]`. NaN rather than a throw because a
+  // broken extreme must not become an escape inside the walker.
+  return NaN
+}
+
+/** `pivothigh`/`pivotlow` — the bar's own value where it is the STRICT extreme of
+ *  `[i-left, i+right]`, and NOT COMPUTABLE everywhere else.
+ *
+ *  ⭐⭐ THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and it is
+ *  legal precisely because the entry DECLARES it: `forward: 'arg2'` is what
+ *  `modeFromReach` turns into `preview-repaints`. A user's formula still cannot
+ *  SPELL a forward reference — the `offset` node is backward-only and `parse.js`
+ *  refuses a negative at the door — so the manifest stays the single authority
+ *  on forward reach.
+ *
+ *  ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
+ *  uniquely the extreme. A `>=` reading emits both and looks entirely
+ *  reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
+ *  `high` and 15 in `low`.
+ *
+ *  ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
+ *  The TAIL is the interesting one: those bars are *not yet decidable*, not
+ *  *decided false* — they read the same blank, and the difference only shows
+ *  when more bars arrive. That is what the badge means.
+ *  `ast_interpret._pivot_col` is the same two loops. */
+function pivotCol(series, left, right, beats) {
+  // ⚠️ THE `- right` IS DEFENSIVE HERE AND LOAD-BEARING IN THE PYTHON TWIN.
+  // Deleting it SURVIVES in this lane — an out-of-bounds read is `undefined`,
+  // every comparison against it is false, so the tail bars blank anyway — while
+  // Python raises IndexError and the same mutation is KILLED there. Two lines
+  // that look like twins, doing different work.
+  const out = nan(series.length)
+  for (let i = left; i < series.length - right; i++) {
+    const v = series[i]
+    if (Number.isNaN(v)) continue
+    let ok = true
+    for (let j = i - left; j <= i + right; j++) {
+      if (j === i) continue
+      const w = series[j]
+      // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
+      // `windowExtreme` states out loud.
+      //
+      // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
+      // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
+      // bars on every fixture including a holed one). `v` is finite by the check
+      // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
+      // bar. ⛔ KEPT to state the rule at the site, and because it stops being
+      // redundant the moment `beats` is anything but a strict comparison — not
+      // because it guards anything today (`lesson_gate_that_cannot_fail`).
+      if (Number.isNaN(w) || !beats(v, w)) { ok = false; break }
+    }
+    if (ok) out[i] = v
+  }
+  return out
+}
+
 function windowSum(series, lo, hi) {
   let total = 0
   for (let i = lo; i <= hi; i++) total += series[i]
   return total
+}
+
+// --------------------------------------------------------------------------- //
+// the BOUNDED STATE pair — one forward pass each, not a window scan
+// --------------------------------------------------------------------------- //
+//
+// ⭐ BAR-TO-BAR, NOT `rolling`. A window scan over `n` bars is O(bars × n) and
+// these two have an exact recurrence, so they are one pass. The state is what
+// the recurrence needs and no more:
+//
+//   `since` — bars since the last TRUE condition bar, or `null` when no true bar
+//             lies in the contiguous READABLE run ending here.
+//   `run`   — how many contiguous READABLE condition bars end here, capped at
+//             `n` because nothing above `n` changes an answer.
+//
+// ⛔ `run` IS THE HOLE RULE AND THE LEFT EDGE AT ONCE, which is why it is not a
+// bar counter: a NOT-COMPUTABLE condition bar RESETS it, so a sentinel is never
+// reported across a bar this engine could not read — and the first `n - 1` bars
+// of any series are the same case, because the window runs off the front of the
+// FETCH. See `closedTable.json::_functions_bounded_state`.
+
+/** `barssince(cond, n)` — bars since `cond` was last true, capped at `n`.
+ *
+ *  ⛔ `n` IS A SENTINEL, NOT A COUNT. It means *"not true within the last n
+ *  bars"*, and it may only be said once `n` readable condition bars have been
+ *  seen. ⛔ AND IT IS NOT TC2000's `-1`: that spelling belongs to the PCF
+ *  translation of `SinceTrue`, which already composes it from `accum(-1, …)`. */
+function barsSince(cond, n) {
+  const out = nan(cond.length)
+  let since = null
+  let run = 0
+  for (let i = 0; i < cond.length; i++) {
+    const c = cond[i]
+    if (Number.isNaN(c)) { since = null; run = 0; continue }
+    run = run < n ? run + 1 : n
+    if (c !== 0) since = 0
+    else if (since !== null) since = since < n ? since + 1 : n
+    // ⭐ A HIT THIS ENGINE CAN SEE IS FINAL however short the fetch: no wider one
+    // can insert a NEARER true bar. Only the sentinel is a claim about bars that
+    // had to be read.
+    if (since !== null) out[i] = since
+    else if (run >= n) out[i] = n
+  }
+  return out
+}
+
+/** `valuewhen(cond, src, n)` — `src` as it stood at the most recent true bar
+ *  within `n`.
+ *
+ *  ⛔ NOT COMPUTABLE RATHER THAN STALE once the last hit leaves the window. A
+ *  price carried past its declared window is a confident wrong number, and the
+ *  declaration would stop being true of the value.
+ *
+ *  🔴 THE NaN PREFIX MEETS X23 — a comparison over it reads as a confident FALSE
+ *  and its negation as a confident TRUE, so a scan returns nothing or the whole
+ *  universe. Not this entry's to fix; declared at
+ *  `closedTable.json::_functions_bounded_state`. */
+function valueWhen(cond, src, n) {
+  const out = nan(cond.length)
+  let since = null
+  let held = NaN
+  for (let i = 0; i < cond.length; i++) {
+    const c = cond[i]
+    if (Number.isNaN(c)) { since = null; held = NaN; continue }
+    if (c !== 0) { since = 0; held = src[i] }
+    else if (since !== null) since = since < n ? since + 1 : n
+    if (since !== null && since < n) out[i] = held
+  }
+  return out
 }
 
 /** Pine's `ta.dev`: the MEAN ABSOLUTE deviation about the window's simple average.
@@ -252,6 +417,20 @@ function windowMeanAbsDev(series, lo, hi) {
   return total / (hi - lo + 1)
 }
 
+// ⚰️ THIS DOCSTRING SAT ABOVE `windowSum` AT HEAD, AND W2a.5's
+// `windowArgExtreme` LANDED BETWEEN THE TWO — leaving a pair of stacked
+// `/** … */` blocks describing neither of the functions under them. Moved to
+// its subject rather than re-stacked: a docstring one function away from what
+// it describes is the same claim-about-the-wrong-mechanism defect as a wrong
+// comment, and this one names a DIVISOR the two lanes are held equal on.
+/** POPULATION standard deviation — divisor `n`, not `n - 1`.
+ *
+ *  ⚠️ NAMED OUT LOUD BECAUSE THE CORPUS SAYS IT IS INVISIBLE OTHERWISE: a
+ *  population/sample disagreement between the lanes has the same tree, the same
+ *  column length and the same NaN pad, and shows up only in the number. This
+ *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
+ *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
+ *  Bollinger definition draws. The Python lane must use the same divisor. */
 function windowStdev(series, lo, hi) {
   const avg = windowMean(series, lo, hi)
   let sq = 0
@@ -394,8 +573,15 @@ function finiteTailStart(cols, length) {
  *  `blank(bars)` writes `{time: b.t}` into every output point, and an
  *  `undefined` there is harmless only for as long as nobody looks — a bar index
  *  keeps that honest and costs nothing. ⛔ It is NOT the real timestamp, which
- *  is exactly why `vwap` is refused (`_functions_excluded`): a session anchor
- *  cannot be reconstructed from a column of prices.
+ *  is exactly why `vwap` WAS refused (`_functions_excluded`) for as long as this
+ *  table has existed: a session anchor cannot be reconstructed from a column of
+ *  prices.
+ *
+ *  ⭐ AND THAT IS WHY THE ANSWER WAS NOT A SPECIAL CASE HERE. An entry declaring
+ *  `reads: 'bars'` takes no series arguments, so it has nothing to pack; it is
+ *  handed `interpret`'s OWN bar array by `barColumn` below and reads the real
+ *  instant. This adapter is unchanged, and its fabricated `t` still means
+ *  exactly what it says.
  *
  *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
  *  returns either a bar-aligned array or `[]` (its "too short to compute
@@ -540,6 +726,19 @@ export const FN = Object.freeze({
   ema: (series, n) => emaCol(series, n),
   highest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b)),
   lowest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b)),
+  // ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME SHAPE THE VALUE
+  // FORMS PASS — `windowArgExtreme` asks `windowExtreme` for the value and only
+  // then names the bar, so the pair cannot disagree about one window and the
+  // tie-break is the manifest's ruling rather than this line's.
+  highestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b)),
+  lowestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b)),
+  barssince: (cond, n) => barsSince(cond, n),
+  valuewhen: (cond, src, n) => valueWhen(cond, src, n),
+  // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
+  // STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
+  // both bars of a tie. See `closedTable.json::_functions_pivots`.
+  pivothigh: (series, left, right) => pivotCol(series, left, right, (v, w) => v > w),
+  pivotlow: (series, left, right) => pivotCol(series, left, right, (v, w) => v < w),
   stdev: (series, n) => rolling(series, n, windowStdev),
   sum: (series, n) => rolling(series, n, windowSum),
   dev: (series, n) => rolling(series, n, windowMeanAbsDev),
@@ -660,6 +859,243 @@ function ichimokuLine(h, l, c, tenkan, kijun, senkouB, key) {
 }
 
 // --------------------------------------------------------------------------- //
+// the entries that read the BAR, not a column
+// --------------------------------------------------------------------------- //
+//
+// ⭐⭐ ONE SESSION ACCUMULATOR, TWO NAMES. `computeVWAP` is the ONLY session
+// VWAP on this lane — it is what the chart draws — and the bindings below pass
+// the bars straight to it. A formula's `vwap()` that disagreed with the VWAP the
+// chart draws would be the most legible instance this repo could ship of
+// `a second authority over one value`.
+//
+// ⛔ THE DISPATCH IS DERIVED FROM THE MANIFEST (`BAR_READERS`), never from a
+// name typed here, exactly as `RECURRENCES` is — see
+// `closedTable.json::_functions_bar_readers`. `BAR_FN`'s key set is asserted
+// against it in both directions by `interpret.test.js`, so a declared-but-unbound
+// entry fails by name instead of refusing inside the walker with a message about
+// the wrong thing.
+
+/** `vwap()` — the shipped session accumulator, untouched.
+ *
+ *  ⚠️ ITS LEADING PARTIAL SESSION IS INHERITED AND DELIBERATELY NOT TRIMMED. The
+ *  first ET day in a series may start after its true open, so those bars move if
+ *  the window moves. Trimming them HERE would fork this column away from the one
+ *  the chart draws, which is worse than the caveat; it belongs to `computeVWAP`
+ *  and to whoever changes it, in both lanes at once. */
+const barVwap = (bars) => computeVWAP(bars)
+
+/** `avwap(anchorEpoch)` — the same accumulator restarted at an INSTANT, and
+ *  bounded so that `lookback: 'session'` is a TRUE declaration.
+ *
+ *  ⛔ RULE 1 — THE ANCHOR'S BOUNDARY MUST BE VISIBLE. Some bar of the series must
+ *  fall strictly before the anchor. Otherwise "the first bar at or after the
+ *  anchor" is whichever bar the caller happened to fetch first, and the value
+ *  MOVES when the window moves — `lesson_a_derived_value_must_not_depend_on_the_
+ *  request`, the exact defect `_functions_recurrence` says `accum`'s re-seeded
+ *  window exists to prevent.
+ *
+ *  ⛔ RULE 2 — AND IT MAY NOT REACH PAST THE WINDOW IT DECLARES. A raw epoch
+ *  reaches back however far a member types, so `lookback: 'session'` would
+ *  UNDER-state it — the one direction `_functions_warmup` says a window
+ *  declaration may never take. Bars more than `SESSION_MAX_BARS` past the anchor
+ *  are NOT COMPUTABLE, so every bar this answers for was computed from inside
+ *  the window the manifest promises.
+ *
+ *  Both are the ordinary warm-up bargain turned round. ⚠️ THEY ARE NOT THE SAME
+ *  SHAPE, and saying so matters: RULE 1 refuses the WHOLE COLUMN (nothing about
+ *  this series can be answered), while RULE 2 blanks only the TAIL past the
+ *  declared window and leaves every bar inside it exact. Neither ever returns a
+ *  partial accumulation, which would be a confident wrong number wearing a
+ *  warm-up's clothes. */
+function barAvwap(bars, args) {
+  const anchor = args[0]
+  // ⛔ A SUB-1990 ANCHOR IS A UNIT ERROR IN THE TREE, AND IT IS REFUSED BY NAME
+  // AT THE TOKEN. `avwap(20250101)` is the store's daily key spelled as an
+  // instant; it resolves to 1970 and is wrong for EVERY symbol, on every
+  // timeframe, forever — so it is a formula defect and not a per-symbol data
+  // condition, and this lane's rule for a formula defect is a named refusal
+  // rather than a quiet column. `resolve:window` is the guard that already owns
+  // "this `int` argument is not a value this slot can take".
+  //
+  // ⚠️ THE OTHER REFUSAL BELOW IS DELIBERATELY *NOT* NAMED, and that asymmetry
+  // is the whole point: "no bar precedes the anchor" is true of ONE SYMBOL'S
+  // HISTORY, not of the tree. Refusing it by name would make one short-history
+  // symbol reject a formula that is correct for the rest of the universe —
+  // exactly what `_scalars_node` means by "declared but not known for this
+  // symbol is a HOLE, not `resolve:name`".
+  if (typeof anchor === 'number' && anchor < AVWAP_MIN_INSTANT) {
+    refuse('resolve:window',
+      `— avwap argument 0 is ${anchor}, which is not a unix-second instant `
+      + `(the floor is ${AVWAP_MIN_INSTANT}, 1990-01-01). A date-shaped key like `
+      + '20250101 read as seconds anchors in 1970.')
+  }
+  if (!bars.length) return []
+  const first = bars[0] ? bars[0].t : undefined
+  // ⭐ `>=`, NOT `>`. An anchor EXACTLY on the first bar is well-defined: any
+  // wider fetch adds only bars with `t < bars[0].t`, and those are strictly
+  // before the anchor, so they are excluded from the accumulation whatever the
+  // window is. Refusing it was a NARROW OVER-REFUSAL — corrected 2026-08-26.
+  if (!Number.isFinite(first) || !(anchor >= first)) return []
+  const points = computeAVWAP(bars, anchor)
+  let ceiling = -1
+  for (let i = 0; i < bars.length; i++) {
+    if (Number.isFinite(bars[i].t) && bars[i].t >= anchor) { ceiling = i + SESSION_MAX_BARS; break }
+  }
+  if (ceiling < 0) return points
+  for (let i = ceiling + 1; i < points.length; i++) points[i].value = NaN
+  return points
+}
+
+/** name → `(bars, args) => points`. The key set is `BAR_READERS`'s.
+ *
+ *  ⚠️ EXPORTED FOR THE RAIL ONLY, like `POINTWISE_FOR_PARITY`. `interpret.test.js`
+ *  asserts this against `BAR_READERS` in both directions; nothing in the app
+ *  imports it. */
+/** `obvN(n)` — on-balance volume's CHANGE across the last `n` bars.
+ *
+ *  ⭐⭐ IT READS THE BARS BECAUSE IT NAMES NO SERIES. OBV is close-and-volume by
+ *  definition, so there is no column to hand it and `bindShipped` has nothing to
+ *  pack — the same absence of arguments that finally made `vwap` declarable.
+ *
+ *  ⛔⛔ THE INCREMENT OF THE SHIPPED ACCUMULATOR, NEVER A SECOND SUM.
+ *  `computeOBV` is what the chart draws; differencing it `n` bars apart is the
+ *  same arithmetic in one place instead of two, so `obvN` can never drift from
+ *  the OBV a member sees beside it.
+ *
+ *  ⭐ AND THE DIFFERENCE IS WHY THE BOUNDED FORM IS DECLARABLE WHERE THE LEVEL IS
+ *  REFUSED (`_functions_excluded.obv`): the level's seed is a fact about where the
+ *  fetch started, and it CANCELS — the same bar reads the same number off a
+ *  60-bar fetch and off a 260-bar one. The first `n` bars are NOT COMPUTABLE
+ *  because their window reaches past the front of the fetch, which is exactly
+ *  what `lookback: 'arg0'` declares. */
+function barObvN(bars, args) {
+  const n = args[0]
+  const level = computeOBV(bars)
+  if (level.length !== bars.length) return []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i].t, value: NaN }
+  for (let i = n; i < bars.length; i++) {
+    const near = level[i] ? level[i].value : undefined
+    const far = level[i - n] ? level[i - n].value : undefined
+    out[i].value = (typeof near === 'number' && typeof far === 'number')
+      ? near - far
+      : NaN
+  }
+  return out
+}
+
+/** Chande's Aroon, from the published formula and this table's own arg-extreme.
+ *
+ *  ⭐ THE PUBLISHED FORM, VERBATIM (StockCharts):
+ *  `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. "Days Since" is the
+ *  number of periods elapsed since the most recent extreme — exactly what
+ *  `windowArgExtreme` returns, because `_functions_arg_extreme` ruled that the
+ *  MOST RECENT bar wins a tie.
+ *
+ *  ⛔ THE WINDOW IS `n + 1` BARS, AND THAT IS ARITHMETIC RATHER THAN A CHOICE.
+ *  Aroon's published range is 0–100. Over `n` bars "days since" maxes at `n - 1`
+ *  and the indicator could never print 0; over `n + 1` it reaches exactly 0.
+ *  Pine ships the same reading (`ta.highestbars(high, length + 1)`).
+ *
+ *  ⭐ AND THE SIGN QUESTION FROM W2a.5 CLOSES HERE. Pine's `highestbars` is
+ *  NON-POSITIVE and this table's is the positive distance, so Pine writes
+ *  `100 * (hb + n) / n` where this writes `100 * (n - hb) / n` — the two look
+ *  opposite and compute the SAME number, which is why `ta.highestbars` is
+ *  refused at the Pine door rather than mapped across. */
+function aroonCol(bars, n, field, wantMax) {
+  const values = new Float64Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const v = bars[i] ? bars[i][field] : undefined
+    values[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+  }
+  const better = wantMax ? (v, w) => v > w : (v, w) => v < w
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i] ? bars[i].t : i, value: NaN }
+  for (let i = n; i < bars.length; i++) {
+    const days = windowArgExtreme(values, i - n, i, better)
+    if (Number.isNaN(days)) continue
+    out[i].value = (100 * (n - days)) / n
+  }
+  return out
+}
+
+const barAroonUp = (bars, args) => aroonCol(bars, args[0], 'h', true)
+const barAroonDown = (bars, args) => aroonCol(bars, args[0], 'l', false)
+
+/** Balance of Power — the `n`-bar mean of `(close - open) / (high - low)`.
+ *
+ *  ⭐ DECLARED THOUGH IT IS A COMPOSITION, AND THE CRITERION IS STATED HERE.
+ *  ⚰️ This cited a manifest key named `_functions_compositions` and NO SUCH KEY
+ *  HAS EVER EXISTED — one ruling, three comments in two lanes, all pointing at a
+ *  manifest that never carried it, so the criterion lived only in a commit
+ *  message. The manifest owns the NEGATIVE half in
+ *  `closedTable.json::_functions_excluded` (`variance`, `hl2`, `bbMiddle`:
+ *  already expressible, so declaring one would compute a second copy of a number
+ *  this table already has). The POSITIVE half belongs at the implementation, and
+ *  that is here: `bop` earns an entry because it has a PUBLISHED IDENTITY under
+ *  its own name, its window is one declarable argument, and it reuses the shipped
+ *  rolling mean — so unlike `variance` there is no second average to drift from
+ *  the one `sma` uses.
+ *  ⛔ `tests/test_closed_table_citations.py` now resolves every
+ *  `closedTable.json::<key>` written in source against the manifest, so the next
+ *  dangling citation fails by file AND key instead of standing for a month.
+ *
+ *  ⛔ THE RATIO GOES THROUGH THE SAME SEAM THE OPERATOR PATH USES (IEEE division,
+ *  then the finite-or-NaN collapse), so a zero-range bar answers exactly what
+ *  `sma((close - open) / (high - low), n)` answers rather than nearly. */
+function barBop(bars, args) {
+  const n = args[0]
+  const ratio = new Float64Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i] || {}
+    const r = (b.c - b.o) / (b.h - b.l)
+    ratio[i] = Number.isFinite(r) ? r : NaN
+  }
+  const col = rolling(ratio, n, windowMean)
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    out[i] = { time: bars[i] ? bars[i].t : i, value: col[i] }
+  }
+  return out
+}
+
+export const BAR_FN = Object.freeze({
+  vwap: barVwap, avwap: barAvwap, obvN: barObvN,
+  aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
+})
+
+// ⛔ A DECLARED-BUT-UNBOUND ENTRY IS A FORMULA THE BUILDER OFFERS AND THIS LANE
+// CANNOT DRAW; a bound-but-undeclared one is a callable outside the closed
+// table. Both are refused at import, where a wiring defect belongs, rather than
+// at the bar a member is looking at.
+{
+  const declared = [...BAR_READERS].sort().join(',')
+  const bound = Object.keys(BAR_FN).sort().join(',')
+  if (declared !== bound) {
+    throw new Error(
+      `closedTable.json declares reads:'bars' for [${declared}] and interpret.js `
+      + `binds [${bound}]`)
+  }
+}
+
+/** Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
+ *
+ *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL — the same contract
+ *  `bindShipped` states, against the same `[]` "there is nothing to say here"
+ *  signal both refusals above return. A short array padded from the left would
+ *  put a real value at the wrong bar. */
+function barColumn(name, bars, args, length) {
+  const out = nan(length)
+  const points = BAR_FN[name](bars, args)
+  if (!Array.isArray(points) || points.length !== length) return out
+  for (let i = 0; i < length; i++) {
+    const v = points[i] ? points[i].value : undefined
+    out[i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+  }
+  return out
+}
+
+// --------------------------------------------------------------------------- //
 // the operators
 // --------------------------------------------------------------------------- //
 //
@@ -755,6 +1191,35 @@ function assertNode(node) {
   }
 }
 
+/** Every call in a tree whose entry declares `lookback: 'session'`, sorted.
+ *
+ *  ⭐ EXPORTED FOR THE MESSAGE, NOT FOR A DECISION. `budget.js` refuses on the
+ *  NUMBER, exactly as it always has; this only lets the refusal say WHY a
+ *  formula a member will type first — `crossOver(close, vwap())` — measures 961
+ *  against a cap of 960. A session-anchored call spends the WHOLE lookback
+ *  budget by construction (the cap is derived to hold one session), so anything
+ *  wrapped around it is over by the width of the wrapper, and the bare number
+ *  reads like an arbitrary rejection.
+ *
+ *  ⛔ IT NAMES, IT DOES NOT EXEMPT. Nothing here changes which trees are
+ *  admitted. */
+export function sessionAnchoredIn(ast) {
+  const found = new Set()
+  const stack = [ast]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (Array.isArray(n)) { stack.push(...n); continue }
+    if (n.type === 'call' && typeof n.name === 'string'
+        && own(TABLE.functions, n.name)
+        && TABLE.functions[n.name].lookback === SESSION_LOOKBACK) {
+      found.add(n.name)
+    }
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return [...found].sort()
+}
+
 /** The declared spec for a called name, or `resolve:function`. */
 function fnSpec(name) {
   if (!own(TABLE.functions, name)) {
@@ -767,6 +1232,48 @@ function assertArity(node, spec) {
   if (node.args.length !== spec.args.length) {
     refuse('resolve:arity',
       `— ${node.name} expects ${spec.args.length} arguments, got ${node.args.length}`)
+  }
+}
+
+/** role name → the `yields` kind an argument in that role must settle to.
+ *
+ *  ⭐ READ OFF THE MANIFEST, NEVER TYPED. `_functions_arg_role_kinds` is the
+ *  declaration and `_`-prefixed keys inside it are its own notes — the same
+ *  split `_functions_excluded` carries. A second role declared there is enforced
+ *  the day it lands, without a line of this file moving. */
+const ARG_ROLE_KINDS = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE._functions_arg_role_kinds || {})
+    .filter(([role, kind]) => !role.startsWith('_') && typeof kind === 'string')))
+
+/** ⭐⭐ THE ROLE THAT IS A REQUIREMENT, ENFORCED — because `argRoles` on its own
+ *  is DOCUMENTATION, and two entries landed depending on it as though it were
+ *  not.
+ *
+ *  `barssince(cond, n)` and `valuewhen(cond, src, n)` each declare `args[0]` as
+ *  a plain `series` and `argRoles[0]` as `condition`. Nothing read the second
+ *  half, so `barssince(close, 100)` resolved and answered **0.0 on every bar**
+ *  (`close` is never zero, so "bars since it was last true" is zero forever) and
+ *  `valuewhen(close, high, 5)` answered `high` on every bar. Plausible on every
+ *  bar and wrong on every bar — saveable, scannable and alertable in that state.
+ *
+ *  ⛔ THE KIND IS ASKED OF `sentence.js::yieldsOf`, WHICH IS THIS LANE'S ONE
+ *  RESOLVER of the manifest's `yields`. A `node.type === 'op' && COMPARISONS
+ *  .has(node.name)` test here would be the same hand-list the manifest's
+ *  `_yields` note exists to retire, and it would be the SECOND one in this lane.
+ *
+ *  ⛔ AND IT REFUSES RATHER THAN COERCING. `!= 0` on a price column would make
+ *  every non-zero bar "true", which is the confident-wrong-number shape rather
+ *  than a cure for it. */
+function assertArgRoles(node, spec) {
+  const roles = Array.isArray(spec.argRoles) ? spec.argRoles : null
+  if (!roles) return
+  for (let i = 0; i < roles.length; i++) {
+    const want = ARG_ROLE_KINDS[roles[i]]
+    if (!want) continue
+    if (yieldsOf(node.args[i], SENTENCE_RULES) === want) continue
+    refuse('resolve:condition',
+      `— ${node.name} argument ${i} is its ${roles[i]}: compare it to something, `
+      + 'or use a name this table declares as yielding 0/1')
   }
 }
 
@@ -793,6 +1300,71 @@ function windowLiteral(node, index) {
       + `${JSON.stringify(arg && arg.type === 'num' ? arg.value : arg)}`)
   }
   return arg.value
+}
+
+/** ⭐⭐ THE ARGUMENT DOMAIN THE MANIFEST DECLARES, ENFORCED AT THE RESOLVE PASS —
+ *  because `int` can say "a whole number" and cannot say "no larger than that
+ *  one".
+ *
+ *  🔴 THE DEFECT THIS CLOSES (X41). `macd(close, 26, 12)` is the 12/26 pair
+ *  transposed — one keystroke — and both walkers answer an ALL-NaN COLUMN for it
+ *  by declaration. A comparison then eats the hole: `close > macd(close, 26, 12)`
+ *  measured **0.0 on all 60 bars, one distinct value**, with the scan lane's
+ *  input pre-pass clean and the lookback satisfied. The screen was savable, every symbol was
+ *  reported ANSWERED, and nothing anywhere said the formula was meaningless — a
+ *  member reads "0 matches" as a quiet market. The Ichimoku five carry the same
+ *  shape whenever `max(tenkan, kijun) > senkouB`.
+ *
+ *  ⛔ IT IS A FORMULA DEFECT, SO IT IS DECIDED WHERE THE FORMULA IS ADMITTED AND
+ *  NOWHERE ELSE. `fast > slow` is true of that tree on every bar, for every
+ *  symbol, forever — a per-row check would carry a decision that cannot vary by
+ *  row and would pay for it once per symbol across the universe. This is exactly
+ *  the line `avwap` already draws: its sub-1990 anchor is refused BY NAME
+ *  (`resolve:window`) while "no bar precedes the anchor" stays a quiet per-row
+ *  column, *"and the asymmetry is the point"*.
+ *
+ *  ⛔ THE SET AND THE CEILING ARE BOTH READ OFF THE MANIFEST. `ARG_DOMAINS` is
+ *  `parse.js::argDomainsOf`'s answer; a name typed here would be the hand-list
+ *  `_functions_domain` exists to retire, and it would be the SECOND copy of it
+ *  because the Python lane would need its own.
+ *
+ *  ⛔ AND IT DOES NOT REPLACE THE ADAPTERS' NaN. `FN.macd` and `ichimokuLine`
+ *  still answer an all-NaN column, because they are also reachable directly and
+ *  the two shipped implementations disagree about the out-of-order case (one
+ *  returns empty columns, the other throws a `TypeError` off a negative index).
+ *  What changed is that a tree carrying one no longer resolves.
+ *
+ *  ⚠️ EVERY `int` SLOT IS READ IN INDEX ORDER FIRST, so `resolve:window` still
+ *  wins on a slot that is not a literal at all: a call whose window cannot be
+ *  read has no periods to compare, and reporting the later door would measure
+ *  traversal order instead of the defect. */
+function assertArgDomain(node, spec) {
+  const declaration = ARG_DOMAINS[node.name]
+  if (declaration === undefined) return
+  // ⛔ THE SAME `argN` GRAMMAR `ownLookback` READS, not a second one — and a
+  // declaration that names no argument (`0`, `'session'`) has no ceiling to
+  // compare against, so it is left alone rather than given a fabricated slot.
+  // ⚠️ A MULTIPLIER (`2*arg3`) NAMES THE SAME ARGUMENT: this compares PERIODS,
+  // and `adx`'s doubled REACH says nothing about which slot holds the larger one.
+  const m = LOOKBACK_RE.exec(String(declaration))
+  if (!m) return
+  const ceiling = Number(m[2])
+  if (spec.args[ceiling] !== 'int') return
+  const values = []
+  for (let i = 0; i < spec.args.length; i++) {
+    values[i] = spec.args[i] === 'int' ? windowLiteral(node, i) : null
+  }
+  const roleOf = (i) => (Array.isArray(spec.argRoles) && typeof spec.argRoles[i] === 'string'
+    ? spec.argRoles[i] : 'period')
+  for (let i = 0; i < values.length; i++) {
+    if (i === ceiling || values[i] === null || values[i] <= values[ceiling]) continue
+    refuse('resolve:domain',
+      `— ${node.name} argument ${i} is its ${roleOf(i)} at ${values[i]}, past `
+      + `argument ${ceiling}, its ${roleOf(ceiling)}, at ${values[ceiling]}. This entry `
+      + `declares ${spec[ARG_DOMAIN]} \`${declaration}\`, so every other period must fit `
+      + `inside it — put the larger one in argument ${ceiling}. As written, this call `
+      + 'computes nothing on any bar.')
+  }
 }
 
 /** The bar count of ONE `offset` node, VALIDATED. Refuses `interpret:offset`.
@@ -844,12 +1416,31 @@ function offsetBars(node) {
  *  accepts has to be re-implemented identically in `ast_interpret.py`, and the
  *  two lanes agreeing is what `test_ast_lookback_parity.py` measures. A grammar
  *  that grows past what both sides can trivially mirror is how they drift.
+ *
+ *  ⭐⭐ AND ONE FORM THAT IS NEITHER — `'session'`. It is checked BEFORE the
+ *  regex and it takes no argument, because the bars in a session are decided by
+ *  the CALENDAR and the TIMEFRAME rather than by anything the author typed.
+ *  `SESSION_MAX_BARS` is read off the manifest, not owned here, so the linter
+ *  (whose import graph cannot reach this file) resolves it to the same number —
+ *  which is the only arrangement in which the two `maxLookback`s in this
+ *  directory can go on agreeing.
  */
 
 
-function ownLookback(node, spec) {
+/** ⚠️ EXPORTED FOR ONE REASON: SO ITS BRANCHES CAN BE RAILED IN THIS LANE TOO.
+ *
+ *  `maxLookback` reaches this only through `fnSpec`, which reads a manifest that
+ *  is frozen at import — so a declaration the shipped table does not contain is
+ *  unreachable from a test, and a branch that cannot be reached cannot be proved
+ *  by deleting it. The Python lane never had that problem (`_own_lookback` takes
+ *  the spec directly and its tests call it), and "the rail went to whichever
+ *  consumer happened to be reachable" is exactly how the previous task shipped a
+ *  guard on one side of a mirrored pair. This is a pure reader: it takes a node
+ *  and a spec and returns a number. */
+export function ownLookback(node, spec) {
   const lb = spec.lookback
   if (typeof lb === 'number') return lb
+  if (lb === SESSION_LOOKBACK) return SESSION_MAX_BARS
   const m = LOOKBACK_RE.exec(String(lb))
   if (!m) {
     refuse('interpret:node',
@@ -899,6 +1490,14 @@ export function maxLookback(ast) {
       if (spec.args[i] === 'int') { windowLiteral(node, i); continue }
       best = Math.max(best, seen.get(node.args[i]))
     }
+    // ⛔ THE RESOLVE PASS IS WHERE THE DECLARED ARGUMENT DOMAIN IS DECIDED, and
+    // this pass is the reason it lands at every door at once: `assertBudget`
+    // inside `interpret`, `checkBudget` inside `evaluateFormula`, the concierge's
+    // `_validate` and the sweep's own one-shot resolve all run THIS function, so
+    // a transposed `macd` is refused once per formula rather than once per
+    // symbol. AFTER the loop above, so `resolve:window` still owns a slot that
+    // is not a literal.
+    assertArgDomain(node, spec)
     seen.set(node, ownLookback(node, spec) + best)
   }
   return seen.get(ast)
@@ -1023,12 +1622,26 @@ export function nodeCount(ast) {
  *  @param {object} [scalars] this SYMBOL's values for the table's declared
  *                  scalars. Every declared name is seeded whether or not it
  *                  appears here; an absent or unusable value seeds NaN.
+ *  @param {object} [opts] what the CALLER knows that the tree and the bars do
+ *                  not. Today that is one key, `tf` — the timeframe these bars
+ *                  are — and the clock's four timeframe booleans are its only
+ *                  readers.
  *  @returns {Float64Array} exactly `bars.length` long, NaN-padded
  *
  *  Throws `TableRefusal` for anything the table refuses. Everything else — a
  *  `RangeError` from a tree deep enough to overflow the stack, say — is NOT a
- *  refusal and must never be caught and relabelled as one; see the header. */
-export function interpret(ast, bars, inputs, budget, scalars) {
+ *  refusal and must never be caught and relabelled as one; see the header.
+ *
+ *  ⭐⭐ `opts` IS OPTIONAL AND TRAILING, AND IT IS THE WHOLE tableVersion-2
+ *  INTERFACE CHANGE. Every caller written before it is unaffected — the
+ *  signature is the cross-lane interface and `ast_interpret.interpret` grew the
+ *  SAME trailing argument on the same day. ⛔ AND ITS ABSENCE FAILS CLOSED:
+ *  with no `tf`, `isintraday` and its three siblings are NOT COMPUTABLE, never
+ *  0 and never a guessed default. A caller that HAS a timeframe and drops it
+ *  therefore produces a visibly unanswered column rather than a confident wrong
+ *  one, which is what makes the two threading hand-backs (`nativeRegistry.js`
+ *  and `scan_evaluator.py`) safe to land separately from this. */
+export function interpret(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
@@ -1066,6 +1679,59 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     scope[name] = col
   }
 
+  // ⭐ THE CLOCK (tableVersion 2). Seeded from `computeClock` exactly the way
+  // the indicator functions bind to `computeRSI`: not one line of calendar
+  // arithmetic lives in this file, and it CANNOT — `interpret.test.js` bans
+  // `Date` and `Intl` here by an AST scan over this module's own source and
+  // widens the allowlist for `indicators.js` only. A private calendar would
+  // either break that proof or force it to be widened, and a purity claim that
+  // widens whenever something needs a clock is not a purity claim.
+  //
+  // ⛔ THE MANIFEST DECIDES WHICH NAMES EXIST; `computeClock` DECIDES WHAT EACH
+  // ONE MEANS; A DISAGREEMENT THROWS BY NAME. Seeding a NaN column for a
+  // declared name the maths has no column for would be a clock reading "not
+  // computable" on every bar of every symbol forever with nothing red anywhere.
+  // A plain `Error`, because it is a WIRING defect — somebody edited the
+  // manifest without the maths — not a formula the table refuses.
+  //
+  // ⚠️ COMPUTED EAGERLY, LIKE THE SERIES COLUMNS, AND THAT COSTS SOMETHING
+  // HONEST: thirteen columns per call, for a formula that may name none of
+  // them. It is deliberately NOT made conditional on the tree, because `scope`
+  // is also what the shadow check reads and what `resolve:name` lists — a clock
+  // name seeded only when it is used would let an input named `hour` shadow it
+  // on every OTHER formula, silently.
+  //
+  // ⛔ THE COST IS TENS OF PERCENT OF ONE `interpret` CALL, ON **BOTH** BAR
+  // KINDS -- daily is NOT free. ⚠⚠ A RANGE, DELIBERATELY: four careful A/B
+  // runs on the Python mirror (same module, `clock` section removed) read
+  // 9-38%, with per-configuration min..max spreads of 1.8-7.0 ms on
+  // consecutive runs. The box is noisy; a single figure would invite the next
+  // engineer to read a 2x drift as a regression.
+  //
+  // ⚠⚠ THE UNIT GATE SHORT-CIRCUITS THE **ZONE** WORK, NOT THE **SEEDING**:
+  // `computeClock` allocates thirteen `Float64Array`s BEFORE the gate and
+  // writes all thirteen whichever branch it takes. ⭐ ON THIS LANE THE NUMBER
+  // THAT MATTERS IS ALLOCATION, NOT TIME, and that one IS exact because it is
+  // arithmetic rather than a stopwatch: 13 columns x 5,000 bars x 8 B = ~507 KB
+  // transient per call at full history -- GC churn on every repaint, and the
+  // reason a lazy seed is the first thing to reach for if this shows in a
+  // profile.
+  {
+    const cols = computeClock(bars, opts ? opts.tf : undefined)
+    for (const name of Object.keys(TABLE.clock || {})) {
+      const col = cols[name]
+      if (!col) {
+        throw new Error(
+          `interpret: the table declares the clock name ${JSON.stringify(name)} and `
+          + '`indicators.js::computeClock` produces no such column (it produces '
+          + `${Object.keys(cols).sort().join(', ')}). The manifest is the authority over `
+          + 'WHICH clock names exist and the maths over what each MEANS; seeding NaN here '
+          + 'would make a declared name read `not computable` on every bar forever.')
+      }
+      scope[name] = col
+    }
+  }
+
   // ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
   // RESOLVES — an absent value seeds NaN, exactly like a bar with a missing
   // field. That is what separates "declared but not known for this symbol" (a
@@ -1100,8 +1766,8 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       // formula on that definition means.
       throw new Error(
         `interpret: the input ${JSON.stringify(name)} shadows a table name. `
-        + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.functions)} `
-        + `and ${declared(TABLE.scalars)}.`)
+        + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.clock || {})}, `
+        + `${declared(TABLE.functions)} and ${declared(TABLE.scalars)}.`)
     }
     // Only finite numbers are seeded. An input that is a function, an object or
     // a string is NOT a name this table can resolve, and leaving it out makes
@@ -1173,6 +1839,11 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       case 'call': {
         const spec = fnSpec(n.name)
         assertArity(n, spec)
+        // ⛔ AFTER THE ARITY AND BEFORE THE RECURRENCE ARM. The role check
+        // indexes `n.args`, so it needs the arity settled first; and it sits
+        // above the early return so a recurrence entry that ever declares a
+        // `condition` role is covered without this line moving.
+        assertArgRoles(n, spec)
         // ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and the
         // manifest says so rather than this line asserting it: an entry that
         // declares a `recurrence` carries a per-bar BODY, not a column. See
@@ -1184,6 +1855,12 @@ export function interpret(ast, bars, inputs, budget, scalars) {
             ? windowLiteral(n, i)
             : toColumn(evalNode(n.args[i]), length))
         }
+        // ⭐ THE SECOND ARM THE MANIFEST DECIDES. An entry declaring
+        // `reads: 'bars'` is handed THESE bars — the real instants — and not a
+        // pack of argument columns whose `t` is a bar index. The question asked
+        // is "does this entry declare it", never "is this call `vwap`", so a
+        // third such entry needs no edit here.
+        if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length)
         return FN[n.name](...args)
       }
       default:

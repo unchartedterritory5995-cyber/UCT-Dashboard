@@ -53,7 +53,7 @@ const VOCABULARY = {
  *  once already. */
 const EXPECTED = {
   'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
-  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 8,
+  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 10,
   conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
@@ -95,9 +95,14 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // ⚰️ 35 at the first measurement, 37 with three oscillator spellings, 40 once
     // `CountTrue`/`SinceTrue`/`TrueInRow` were built on the recurrence, 44 with the
     // four derived logical operators, and 57 with the pure-math block, then 59: `SUM` wired to the rolling sum the
-    // table gained, and `BOP` EXPANDED rather than mapped -- there is no `bop`
-    // function to point at, and inventing one to hold four lines of arithmetic
-    // would put a second authority on a formula the table can already say.
+    // table gained, and `BOP` EXPANDED rather than mapped.
+    // ⚰️ THAT LAST CLAUSE ENDED "-- there is no `bop` function to point at, and
+    // inventing one to hold four lines of arithmetic would put a second authority
+    // on a formula the table can already say." W2a.7 declared `bop` and repointed
+    // this spelling at it. The reasoning was right about the DANGER and wrong about
+    // which artifact removes it: an expansion HERE plus an entry THERE is what puts
+    // the formula in two places. One does, and the entry is bound to the shipped
+    // rolling mean so it cannot drift from the `sma` it is defined as.
     //
     // ⭐ 40 → 57 IS THIRTEEN SPELLINGS AND *NO* NEW JUDGEMENT. `^ MOD \`, the five
     // math functions and the five trig functions are deterministic mathematics —
@@ -105,12 +110,21 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // right block to take first. The four logical operators are DERIVED from `&&`
     // `||` `!`, so they added no vocabulary either.
     //
-    // ⛔ WHAT REMAINS IS NOT ALL "MISSING". Of the 14 short, SIX are principled
-    // refusals that must never close: `RSI`/`WSTOC` are different formulas wearing
-    // familiar names, and `MS`/`TSV` are Worden-proprietary and unpublished. A
-    // reading of 71 would mean this table had started answering those with
-    // something they are not — which is worse than refusing, and is the whole
-    // reason the total is pinned in both directions.
+    // ⛔ WHAT REMAINS IS NOT ALL "MISSING", AND THE CEILING IS 65 — MEASURED.
+    // SIX spellings are principled refusals that must never close, and W2a.7
+    // measured them one at a time rather than trusting the roster:
+    //   `RSI14` + `RSI(14, 1, 0)` — Worden says outright its RSI is NOT Wilder's
+    //   `WSTOC14.3.0` — a RANK, `(100/n-1)(Rank)`; this table declares no rank
+    //   `MS20` / `TSV20`   — Worden-proprietary, formula unpublished
+    //   `OBV20`            — an SMA of a CUMULATIVE running total
+    // ⚰️ THE OLD LIST NAMED FOUR OF THOSE AND SAID SIX. `OBV20` was the one it
+    // missed, which matters because A5 was written as "66/71 read; MS/TSV/non-Wilder
+    // RSI refuse" — five names — and a sixth permanent refusal makes 66 unreachable
+    // by construction. The reachable ceiling is 71 - 6 = 65, and the two still open
+    // are `FAVGC20` and `HAVGC20`: two moving averages this table does not declare.
+    // A reading of 71 would mean this table had started answering the six with
+    // something they are not — worse than refusing, and the whole reason the total
+    // is pinned in both directions.
     //
     // ⚠️ Raising it is a deliberate edit, never a side effect — see the header on
     // why a high score is not the goal.
@@ -127,7 +141,13 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // refused in a 16-column sweep of real TC2000 scans. ⛔ `WSTOC` stays refused
     // beside it on purpose: Worden's own stochastic is a DIFFERENT formula, and
     // the two sitting one line apart is the distinction this file exists to keep.
-    expect(expected).toBe(61)
+    // ⭐ 63: `AROONUP25` + `AROONDOWN25` (W2a.7). The syntax is Worden's and the
+    // FORMULA IS CHANDE'S — the Worden table publishes the spelling with NO formula,
+    // so the maths is cited to `((25 - Days Since 25-day High)/25) x 100` and built
+    // on task 5's `highestbars`/`lowestbars`, whose most-recent-bar tie-break IS
+    // "days since". `BOP20` did not move the number: it already read as an
+    // expansion and now reads as a declared entry.
+    expect(expected).toBe(63)
   })
 })
 
@@ -141,7 +161,11 @@ describe('a look-alike refuses with WHY, not with a typo`s message', () => {
     'RSI(14, 1, 0) < 30': 'WRSI',
     'MS20 > 0': 'not published',
     'TSV20 > 0': 'not published',
-    'WSTOC14.3.0 < 20': 'different formula',
+    // 2026-08-27: the reason was upgraded from the un-actionable "is a different
+    // formula" (true of any two formulas) to the CITED one. The phrase asserted
+    // here moved with it deliberately -- a look-alike rail that kept matching the
+    // old words would have gone green against a reason nobody could act on.
+    'WSTOC14.3.0 < 20': 'RANK',
   }
 
   for (const [src, fragment] of Object.entries(CASES)) {
@@ -304,12 +328,22 @@ describe('the coverage map does not disagree with the reader', () => {
     expect(lying.map((b) => `${b.spelling}: ${b.reason}`)).toEqual([])
   })
 
-  it('an EXPANDED family is reported as covered, not as a missing function', () => {
+  it('a MAPPED family is reported as covered, not as a missing function', () => {
+    // 2026-08-27: `BOP` was the only `expand: true` family, and W2a.7 repointed it
+    // at the declared `bop` entry -- so the EXPANDED list is now empty and the
+    // question this case asks moved from "is the expansion reported?" to "is the
+    // mapping reported?". The fact under test is unchanged: a family the reader
+    // READS must never appear in `blocked`.
     const cov = pcfCoverage()
-    expect(cov.expanded.map((e) => e.spelling).join(' | ')).toContain('BOP')
     expect(cov.blocked.map((b) => b.spelling).join(' | ')).not.toContain('BOP')
-    // …and it is genuinely readable, which is the fact the report now matches.
+    expect(cov.blocked.map((b) => b.spelling).join(' | ')).not.toContain('AROONUP')
+    // …and they are genuinely readable, which is the fact the report matches.
     expect(reads('BOP20 > 0')).toBe(true)
+    expect(reads('AROONUP25 > 70')).toBe(true)
+    // ⛔ AND THE EXPANSION MACHINERY IS NOW UNUSED, said out loud rather than
+    // left as a silently-dead branch: if a future family needs it, it still
+    // works; if none ever does, this is the line that says it can go.
+    expect(cov.expanded).toEqual([])
   })
 
   it('…and the control proves a REAL block is still reported', () => {

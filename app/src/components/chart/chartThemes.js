@@ -459,6 +459,49 @@ export function mapThemeToWidgetSettings(base, theme, type) {
   return out
 }
 
+// App themes and chart themes are separate registries that share most ids; a few
+// differ. Map the current APP theme → the chart theme that matches it. Returns a
+// valid chart-theme id or null.
+const _APP_TO_CHART_THEME = {
+  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
+}
+export function appThemeToChartTheme(appTheme) {
+  if (!appTheme) return null
+  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
+  if (appTheme === 'oled') return 'obsidian'
+  if (appTheme === 'light') return 'light'
+  const raw = String(appTheme).replace(/^uct:/, '')
+  const id = _APP_TO_CHART_THEME[raw] || raw
+  return CHART_THEME_BY_ID[id] ? id : null
+}
+
+// The DEFAULT appearance a widget should show when uncustomized, matched to the app
+// theme — i.e. the same look "Apply <matching chart theme> to all widgets" produces,
+// so an untouched widget already matches the app theme (graphite → graphite) instead
+// of a fixed near-black. Returns `base` unchanged when there's no matching theme.
+export function widgetDefaultsForAppTheme(type, appTheme, base) {
+  const id = appThemeToChartTheme(appTheme)
+  const theme = id ? CHART_THEME_BY_ID[id] : null
+  return theme ? mapThemeToWidgetSettings(base, theme, type) : base
+}
+
+// GLOBAL-PREF widgets (theme tracker / breadth / fundamentals / AI search) store
+// appearance in ONE pref shared across every layout, so a value written under one app
+// theme would otherwise shadow another. Stamp every write with the app theme it was
+// made under (`_appTheme`) and honor a saved pref ONLY when its stamp matches the
+// widget's placed theme; otherwise (different theme, or a legacy un-stamped pref)
+// follow the current app theme's default. Net effect: a NEW widget always matches the
+// current app theme, an existing widget keeps what it was set to under that theme, and
+// a genuine per-theme customization is preserved.
+export function tagAppTheme(settings, appTheme) {
+  return { ...(settings || {}), _appTheme: appTheme == null ? null : String(appTheme) }
+}
+export function resolveGlobalPrefSettings(saved, placedTheme, defaultsForTheme) {
+  const pt = placedTheme == null ? null : String(placedTheme)
+  if (saved && typeof saved === 'object' && saved._appTheme === pt) return saved
+  return defaultsForTheme(placedTheme)
+}
+
 /**
  * Patch ONE PER-WIDGET widget's (or widget-tab's) opts to adopt `theme`. Charts get
  * the full chart mapping (incl. chart tabs); watchlist/scanner/optionsflow/calendar/

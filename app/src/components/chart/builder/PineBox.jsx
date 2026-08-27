@@ -24,6 +24,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import UIcon from '../../ui/UIcon'
 import { translatePine } from '../engine/ast/pine'
+import { translateThinkScript } from '../engine/ast/thinkscript'
+import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import styles from './PineBox.module.css'
@@ -52,7 +54,95 @@ export function inspectPine(source) {
     // rules, not a prediction of them — the function itself.
     downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
   }))
-  return { ...translated, outputs }
+  // ⭐ `ignored` IS THE ONE NAME THE UI READS. `notes` is kept because it is this
+  // function's published shape and other callers read it; the alias is what lets
+  // the renderer below have exactly one spelling instead of a fallback chain that
+  // silently misses whichever it was not written for.
+  return { ...translated, outputs, ignored: translated.notes || [] }
+}
+
+/**
+ * ⭐⭐ ONE PASTE BOX, FOUR DIALECTS, THE SAME SAVE DOOR.
+ *
+ * `inspectPine` above answered for Pine alone. This answers for whatever the
+ * member pasted, in ONE shape, so no component downstream has to know which
+ * translator ran.
+ *
+ * ⛔ `ignored` IS THE ONE NAME. Pine spells its skipped lines `notes`;
+ * thinkScript spells them `ignored`. Normalising here — in ONE place, at the
+ * door — is what stops a second spelling entering the UI, where it would become
+ * a component that renders one and silently misses the other.
+ *
+ * ⛔⛔ EVERY REFUSAL IS STAMPED WITH THE TEXT IT WAS MEASURED ON (X13, owed to
+ * W1a). `CodeEditor` applies a lint mark ONLY while `diagnostics.source ===` its
+ * own document, and FAILS CLOSED on a refusal that names no text — because a
+ * refusal without a stamp cannot be told apart from a stale one, and the right
+ * token underlined under the wrong sentence is worse than no mark at all. A
+ * translator refusal carries `line`/`column` INTO THE PASTE, so the stamp is the
+ * PASTE, never the formula: an editor showing the formula then correctly marks
+ * nothing, and an editor showing the paste marks the token the member wrote.
+ * ⭐ THE STAMP IS THE CONTRACT — without it a member sees no mark at all, which
+ * is the failure that deleted the `Diagnostic[]` door.
+ *
+ * @param {string} source the pasted text
+ * @param {'auto'|'pine'|'thinkscript'|'pcf'|'formula'} [dialect]
+ * @returns {{ok, dialect, version, outputs, selected, refusal, ignored, folded}}
+ */
+export function inspectSource(source, dialect = 'auto') {
+  const chosen = dialect === 'auto' ? detectDialect(source) : dialect
+  /* istanbul ignore next — `DIALECTS` is the closed set; a caller typo is a bug */
+  const lang = DIALECTS.includes(chosen) ? chosen : 'formula'
+
+  // ⛔ THE STAMP GOES ON EVERY REFUSAL THIS FUNCTION RETURNS, at the one place
+  // that knows which text produced them. Doing it per call site is how one path
+  // ends up unstamped and silently unmarkable.
+  const stamp = (r) => (r ? { ...r, source } : r)
+
+  if (lang === 'pine' || lang === 'thinkscript') {
+    const t = lang === 'pine' ? translatePine(source) : translateThinkScript(source)
+    const outputs = (t.outputs || []).map((out) => ({
+      ...out,
+      refusal: stamp(out.refusal),
+      downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
+    }))
+    return {
+      ok: t.ok,
+      dialect: lang,
+      version: t.version ?? null,
+      declaration: t.declaration ?? null,
+      title: t.title ?? null,
+      outputs,
+      selected: t.selected,
+      refusal: stamp(t.refusal),
+      // ⭐ Pine's `notes` and thinkScript's `ignored` are the same list.
+      ignored: t.ignored || t.notes || [],
+      folded: t.folded || [],
+    }
+  }
+
+  // ⭐ `pcf` AND `formula` ARE NOT TRANSLATED — they ARE the formula source, so
+  // the ONE downstream door answers for them directly and there is no second
+  // reading of the text. `evaluateFormula` already stamps its own `source`
+  // (that is where the shape came from), so a stamp here would be a second
+  // authority over the same field.
+  const ev = source.trim() === '' ? null : evaluateFormula(source, BUILDER_INPUT_SCOPE)
+  const okNow = !!(ev && ev.ok)
+  return {
+    ok: okNow,
+    dialect: lang,
+    version: null,
+    declaration: null,
+    title: null,
+    outputs: okNow
+      ? [{ kind: 'formula', title: null, line: 1, column: 1, formula: source, refusal: null, downstream: ev }]
+      : [],
+    selected: okNow ? 0 : -1,
+    refusal: okNow || !ev ? null : stamp({
+      guard: ev.guard || null, message: ev.error, line: null, column: null, token: null,
+    }),
+    ignored: [],
+    folded: [],
+  }
 }
 
 function Refusal({ refusal, testId }) {
@@ -72,14 +162,30 @@ function Refusal({ refusal, testId }) {
   )
 }
 
+/** What the box calls the language it is reading, for the heading and the meta
+ *  line. ⛔ Derived from the report's own `dialect`, never from what the box was
+ *  asked to read — with `dialect="auto"` those are different answers, and the
+ *  member needs the one the detector actually reached. */
+const DIALECT_LABEL = Object.freeze({
+  pine: 'Pine script', thinkscript: 'thinkScript study',
+  pcf: 'TC2000 formula', formula: 'formula',
+})
+
 /**
  * @param {Function} onPick     (formulaSource) => void — the ONE output
  * @param {boolean}  [disabled]
  * @param {string}   [initialSource]
+ * @param {'auto'|'pine'|'thinkscript'|'pcf'|'formula'} [dialect] `undefined`
+ *        keeps the Pine-only behaviour `PineBox` shipped with; anything else
+ *        routes through `inspectSource`.
  */
-export default function PineBox({ onPick, disabled = false, initialSource = '' }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
+  const inspect = useCallback(
+    (s) => (dialect === undefined ? inspectPine(s) : inspectSource(s, dialect)),
+    [dialect],
+  )
   const [text, setText] = useState(initialSource)
-  const [report, setReport] = useState(() => (initialSource ? inspectPine(initialSource) : null))
+  const [report, setReport] = useState(() => (initialSource ? inspect(initialSource) : null))
   const [chosen, setChosen] = useState(null)
   const [showNotes, setShowNotes] = useState(false)
   const areaRef = useRef(null)
@@ -87,12 +193,12 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
   useEffect(() => {
     if (text.trim() === '') { setReport(null); setChosen(null); return undefined }
     const id = setTimeout(() => {
-      const next = inspectPine(text)
+      const next = inspect(text)
       setReport(next)
       setChosen(next.selected >= 0 ? next.selected : null)
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
-  }, [text])
+  }, [text, inspect])
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
@@ -104,14 +210,33 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
   }, [active, onPick])
 
   const usable = report ? report.outputs.filter((o) => o.formula) : []
+  const anyDialect = dialect !== undefined
+  // ⛔ THE DETECTED dialect, not the requested one. With `dialect="auto"` the box
+  // is asked to read "whatever this is" and the member has to be told what it
+  // decided — a heading that still said "Pine" over a thinkScript paste would be
+  // a sentence that is false about the text on screen.
+  const seen = report && report.dialect ? report.dialect : null
 
   return (
     <section className={styles.wrap} aria-labelledby="uct-pine-head" data-testid="pine-box">
-      <h3 className={styles.head} id="uct-pine-head">Paste a Pine script</h3>
+      <h3 className={styles.head} id="uct-pine-head">
+        {anyDialect ? 'Paste a script or a formula' : 'Paste a Pine script'}
+      </h3>
       <p className={styles.hint}>
-        A TradingView indicator that <code>plot()</code>s a value or declares an
-        {' '}<code>alertcondition()</code>. Everything the screen would read is listed below,
-        {' '}in this engine&apos;s own words, before anything is saved.
+        {anyDialect ? (
+          <>
+            A TradingView <b>Pine</b> indicator, a thinkorswim <b>thinkScript</b> study, a
+            {' '}<b>TC2000</b> formula, or one of this engine&apos;s own. Everything the screen
+            {' '}would read is listed below, in this engine&apos;s own words, before anything is
+            {' '}saved.
+          </>
+        ) : (
+          <>
+            A TradingView indicator that <code>plot()</code>s a value or declares an
+            {' '}<code>alertcondition()</code>. Everything the screen would read is listed below,
+            {' '}in this engine&apos;s own words, before anything is saved.
+          </>
+        )}
       </p>
 
       <textarea
@@ -125,7 +250,7 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
         autoComplete="off"
         rows={8}
         placeholder={PLACEHOLDER}
-        aria-label="Pine script"
+        aria-label={anyDialect ? 'Script or formula' : 'Pine script'}
         disabled={disabled}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -133,8 +258,11 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
 
       {report && (
         <div className={styles.report}>
-          <p className={styles.meta} data-testid="pine-meta">
-            {report.version != null ? `Pine v${report.version}` : 'No //@version line'}
+          <p className={styles.meta} data-testid="pine-meta" data-dialect={seen || ''}>
+            {anyDialect
+              ? `Read as ${DIALECT_LABEL[seen] || seen}`
+              : (report.version != null ? `Pine v${report.version}` : 'No //@version line')}
+            {anyDialect && seen === 'pine' && report.version != null ? ` v${report.version}` : ''}
             {report.declaration ? ` · ${report.declaration}()` : ''}
             {report.title ? ` · “${report.title}”` : ''}
           </p>
@@ -196,7 +324,7 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
             </p>
           )}
 
-          {report.notes.length > 0 && (
+          {report.ignored.length > 0 && (
             <div className={styles.notesWrap}>
               <button
                 type="button"
@@ -205,12 +333,12 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
                 onClick={() => setShowNotes((v) => !v)}
                 data-testid="pine-notes-toggle"
               >
-                {showNotes ? 'Hide' : 'Show'} {report.notes.length} line
-                {report.notes.length === 1 ? '' : 's'} a screen does not read
+                {showNotes ? 'Hide' : 'Show'} {report.ignored.length} line
+                {report.ignored.length === 1 ? '' : 's'} a screen does not read
               </button>
               {showNotes && (
                 <ul className={styles.notes} data-testid="pine-notes">
-                  {report.notes.map((n, i) => (
+                  {report.ignored.map((n, i) => (
                     <li key={`${n.code}-${n.line}-${i}`} className={styles.note}>
                       <span className={styles.noteWhere}>{n.line != null ? `line ${n.line}` : '—'}</span>
                       <span>{n.message}</span>
@@ -234,4 +362,29 @@ export default function PineBox({ onPick, disabled = false, initialSource = '' }
       )}
     </section>
   )
+}
+
+/**
+ * ⭐⭐ THE IMPORT BOX — one paste box, four dialects, the same Save door.
+ *
+ * ⛔ IT IS THE SAME COMPONENT, not a second one. `PasteBox` renders both, so the
+ * refusal chrome, the per-output read-back, the folded-inputs line, the ignored
+ * lines and the `Use this formula` button cannot drift between the Pine door and
+ * the thinkScript one — which is what a copy of this file would guarantee.
+ *
+ * ⭐ AND THE TESTIDS ARE UNCHANGED. `pine-box`, `pine-use`, `pine-formula-N` and
+ * the rest mean "the paste box", not "the Pine box"; renaming them would have
+ * been churn in W1b's test file for no behaviour, and the hand-back stays the two
+ * lines the brief asked for.
+ */
+export function ImportBox({ onPick, disabled = false, initialSource = '', dialect = 'auto' }) {
+  return (
+    <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} dialect={dialect} />
+  )
+}
+
+/** The Pine-only box, byte-identical in behaviour to what it was: no `dialect`
+ *  prop means `inspectPine`, the Pine heading and the Pine aria-label. */
+export default function PineBox({ onPick, disabled = false, initialSource = '' }) {
+  return <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} />
 }

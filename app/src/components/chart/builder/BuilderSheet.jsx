@@ -87,8 +87,14 @@ import { freshnessFor } from '../engine/ast/freshness'
 // ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
-import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
+import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor } from './builderInputs'
 import { declaredInputs } from '../engine/ast/lint'
+// ⛔ THE TWO BADGE AGGREGATORS, IMPORTED FROM THE ONE MODULE THAT OWNS THEM.
+// `nativeRegistry.validateAstLane` RE-MEASURES `meta.repaint` and
+// `meta.freshness` against the same helpers and refuses a disagreement in both
+// directions — so a document this form aggregated its own way could never be
+// saved, or could be saved under a badge the gate would not have chosen.
+import { treesHash, worstRepaint, stalestFreshness } from '../engine/ast/trees'
 import TABLE from '../engine/ast/closedTable.json'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
@@ -97,10 +103,16 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+// ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
+// a VIEW: it installs the document this form would save under one fixed id and
+// forgets it the moment the draft stops evaluating or the sheet closes.
+import PreviewPane from './editor/PreviewPane'
+import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
-import PineBox from './PineBox'
+import { ImportBox } from './PineBox'
+import EvidenceTab from './EvidenceTab'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -164,15 +176,120 @@ export function chipName(name) {
   return out.trim()
 }
 
-export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
-  readback = '', inputs = BUILDER_INPUTS }) {
-  // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
-  // scope below and the document's own `inputs` are the SAME array, because a
-  // member-declared name that reached one and not the other would badge a
-  // formula off a scope the saved document does not carry.
-  const declared = Array.isArray(inputs) && inputs.length ? inputs : BUILDER_INPUTS
-  const trimmed = String(name || '').trim()
-  const short = chipName(trimmed)
+/** The plot key `levels` is minted by this form, so nobody else may claim it. */
+export const LEVELS_PLOT_KEY = 'levels'
+
+/** The `macd` native's own zero-line spelling — a guide, not a series.
+ *  ⛔ NOT SUBSTITUTABLE AND DELIBERATELY UNTUNABLE: a guide with a colour input
+ *  is a settings row for a dashed line, which is three controls of noise for a
+ *  reference the member already chose by typing the number. */
+const LEVELS_GUIDE = Object.freeze({
+  color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context',
+})
+
+/** The default placement — its own pane, at the height every authored formula
+ *  has shipped with. Named so the v2 branch and the schema-1 one cannot drift. */
+const PANE_PLACEMENT = () => ({ target: 'pane', pane: { height: 0.15 } })
+
+/** Plot 1's label when nothing else names it — `'Value'`, the schema-1
+ *  spelling `legacyDefinition` has always written. ⛔ FIX ROUND 1, MINOR 7:
+ *  `buildDefinition`'s v2 body and `openForEdit`'s restore had each grown
+ *  their OWN fallback for this (`r.key`/`p.key`, i.e. `'value'` — the KEY, not
+ *  a label), so an empty `meta.name` would restore or save a DIFFERENT default
+ *  label depending only on which of the three functions wrote it. Neither is
+ *  reachable through the form today (the Name field is required to save), but
+ *  an unreachable divergence is still two authorities over one fact — named
+ *  once, here, so it cannot reopen the day something else calls
+ *  `buildDefinition` directly with no name, or a hand-rolled POST does. */
+const DEFAULT_PLOT1_LABEL = (short) => short || 'Value'
+
+/**
+ * The styles this form offers, and the words it offers them in.
+ *
+ * ⛔ NO NEW ENUM VALUES. `columns` and `circles` are renderings the vocabulary
+ * ALREADY HAS — LWC's `HistogramSeries` IS the full-width column look, and
+ * `circles` is `markers` (`lineWidth: 0` + `pointMarkersVisible`, `pool.js`
+ * L542–547). Adding either name would need a `case` in `pool.poolKey` AND in
+ * `seriesOptionsForPlot` for a picture the engine can already draw, so the
+ * second name would exist only to be kept in step with the first.
+ *
+ * ⛔ AND `cross` IS NOT HERE BECAUSE IT HAS NO RENDERER. LWC 5.2's marker shapes
+ * are circle/square/arrowUp/arrowDown and its point markers are circles; a cross
+ * needs W6's series primitives. It sits in `RESERVED_PLOT_STYLES` and is refused
+ * with the "schema-reserved for a later phase" sentence rather than quietly
+ * coerced to `markers`, which is what "circles" already is.
+ *
+ * ⛔ `hlines` IS ABSENT ON PURPOSE: it is a GUIDE, not a series — `astPlotKey`
+ * filters it out of the data plots, so a member who chose it for a formula row
+ * would build a plot whose tree nothing ever reads. The Levels box below is how
+ * this form writes one, and it writes exactly one.
+ * ⛔ `band` IS ABSENT TOO: `validateBandEdges` requires `edges` naming two OTHER
+ * plot keys, which is a cross-plot relationship this form has no control for
+ * yet. Offering the style without the edges would be a guaranteed refusal.
+ */
+const PLOT_STYLE_CHOICES = Object.freeze([
+  ['line', 'Line'],
+  ['stepline', 'Step line'],
+  ['histogram', 'Histogram / columns'],
+  ['area', 'Area'],
+  ['baseline', 'Baseline'],
+  ['markers', 'Circles'],
+])
+
+/** A blank plot row. ⛔ ITS COLOUR AND WIDTH ARE `BUILDER_INPUTS`' OWN DEFAULTS,
+ *  read from the array rather than retyped, so "untouched" means one thing to
+ *  the form and to the document.
+ *
+ *  ⭐ `acknowledged` (FIX ROUND 1, IMPORTANT #3) IS PER-ROW, NOT A SHEET-WIDE
+ *  FLAG. `worstVerdict` (below) already picks ONE row's claim to show as THE
+ *  badge; a second row can carry a DIFFERENT `preview-repaints` forward window
+ *  under the same mode, and a single shared checkbox would let ticking one
+ *  row's box silently bless another row's claim the member never read a
+ *  sentence for. Every row — plot 1 included — carries its own, reset the
+ *  moment ITS OWN evaluation changes (`handleEvaluated` / `handlePlotEvaluated`),
+ *  exactly mirroring how the old single flag was invalidated on a new result. */
+function newPlotRow(key) {
+  return {
+    key,
+    label: '',
+    style: 'line',
+    color: BUILDER_INPUTS[0].default,
+    width: BUILDER_INPUTS[1].default,
+    hidden: false,
+    acknowledged: false,
+    source: '',
+    result: evaluateFormula('', BUILDER_INPUT_SCOPE),
+  }
+}
+
+/** Is this row exactly what `newPlotRow` produces, but for its source?
+ *  ⛔ ONE PREDICATE, because it is what decides whether a document takes the
+ *  BYTE-IDENTICAL schema-1 path. Checking a subset of the fields (the brief
+ *  checked key and style) silently discards whichever ones it forgot — a
+ *  recoloured or hidden plot 1 would have written a document that ignored both. */
+function isUntouchedRow(row) {
+  return !!row
+    && row.key === 'value'
+    && row.style === 'line'
+    && row.hidden !== true
+    && String(row.label || '').trim() === ''
+    && row.color === BUILDER_INPUTS[0].default
+    && row.width === BUILDER_INPUTS[1].default
+}
+
+/**
+ * ⛔⛔ THE SCHEMA-1 DOCUMENT, MOVED HERE VERBATIM AND NOT RETYPED.
+ *
+ * `buildDefinition` grew a second shape in W1b.5 (many plots, many trees), and
+ * the ONE property that could not be allowed to move is that a document with a
+ * single default plot is byte-identical to the one this form has written since
+ * Phase D — 21 stored v1 documents were proved against it. Keeping the old body
+ * as its own function makes that true BY CONSTRUCTION rather than by an argument
+ * somebody has to re-check; `BuilderSheet.plots.test.jsx` then proves the v2
+ * body reaches the SAME object for the simplest input, so the two are one
+ * meaning with two spellings rather than two meanings.
+ */
+function legacyDefinition({ defId, version, rev, source, ast, mode, readback, declared, trimmed, short }) {
   return {
     schemaVersion: SCHEMA_VERSION,
     id: defId,
@@ -200,7 +317,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
         inputs: Object.fromEntries(declared.map((spec) => [spec.key, true])),
       }).mode,
     },
-    placement: { target: 'pane', pane: { height: 0.15 } },
+    placement: PANE_PLACEMENT(),
     // ⛔ SPREAD FROM `BUILDER_INPUTS`, WHICH IS ALSO WHAT THE READ-BACK'S SCOPE IS
     // DERIVED FROM. Copied so a caller cannot mutate the frozen source array's
     // members through the document it just received.
@@ -209,7 +326,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     // (`nativeRegistry.validateAstLane`); a second plot is a key nothing fills.
     plots: [{
       key: 'value',
-      label: short || 'Value',
+      // ⛔ FIX ROUND 1, MINOR 7 — a SECOND anti-drift substitution, the same
+      // shape as `PANE_PLACEMENT()` above: `DEFAULT_PLOT1_LABEL(short)` is
+      // `short || 'Value'` by definition, so this line's OUTPUT is unchanged
+      // and the byte-identical guarantee this function exists for still holds.
+      label: DEFAULT_PLOT1_LABEL(short),
       style: 'line',
       color: '$color',
       width: '$lineWidth',
@@ -231,6 +352,174 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // "correctly 0" from "did not compute". The chip IS that distinction.
       legend: { decimals: 2 },
     }],
+  }
+}
+
+/**
+ * The document that gets stored — ONE function, two shapes, and the second one
+ * is a superset the first can never be reached through by accident.
+ *
+ * ⭐ `plots`, `placement` and `levels` ALL `null` ⇒ the schema-1 document, byte
+ * for byte (`legacyDefinition`). Any one of them present ⇒ the v2 body below.
+ * The three-way test is deliberate rather than `plots === null` alone: a member
+ * who only moved the placement, or only added levels, has still changed the
+ * document, and a single-key test would have silently discarded that.
+ *
+ * ⭐ ONE ROW ⇒ NO `trees`. `def_hash == astHash(compute.ast)` never moves, and a
+ * single-plot v2 document is the schema-1 one — `compute` carries the same five
+ * keys. Two or more rows ADD `trees`/`treesHash`/`scanPlot`/`sources` beside
+ * them; nothing existing is renamed or moved.
+ *
+ * ⭐ `scanPlot` NAMES THE PLOT WHOSE TREE **IS** `compute.ast`. It is not a
+ * second copy of the scan tree — `defSchema.validateTrees` refuses the pair if
+ * they ever disagree — so the scan, the alert seam and `def_hash` all keep
+ * reading the field they always read.
+ *
+ * @param {object[]|null} plots every row, FIRST INCLUDED, as
+ *        `{key, label, source, ast, mode, readback, style, color, width, hidden}`
+ * @param {string|null} scanPlot the key of the row whose tree is the scan's; an
+ *        unmatched key falls back to the first row rather than throwing, because
+ *        this is a pure builder and the SHEET is what keeps the choice honest.
+ * @param {object|null} placement `{target:'price'}` or `{target:'pane', pane:{…}}`
+ * @param {number[]|null} levels one trailing `hlines` guide plot
+ */
+export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
+  readback = '', inputs = BUILDER_INPUTS,
+  plots = null, scanPlot = null, placement = null, levels = null }) {
+  // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
+  // scope below and the document's own `inputs` are the SAME array, because a
+  // member-declared name that reached one and not the other would badge a
+  // formula off a scope the saved document does not carry.
+  const declaredMember = Array.isArray(inputs) && inputs.length ? inputs : BUILDER_INPUTS
+  const trimmed = String(name || '').trim()
+  const short = chipName(trimmed)
+
+  if (plots === null && placement === null && levels === null) {
+    return legacyDefinition({
+      defId, version, rev, source, ast, mode, readback,
+      declared: declaredMember, trimmed, short,
+    })
+  }
+
+  const rows = Array.isArray(plots) && plots.length ? plots : [{
+    key: 'value', label: '', source, ast, mode, readback, style: 'line',
+    color: BUILDER_INPUTS[0].default, width: BUILDER_INPUTS[1].default,
+  }]
+  const scan = rows.find((r) => r.key === scanPlot) || rows[0]
+
+  // ⛔ THE CHROME IS DERIVED FROM THE ROWS AND THE MEMBER'S OWN INPUTS ARE KEPT
+  // BESIDE IT — with the chrome names filtered OUT of the member half, so a
+  // caller that hands `[...BUILDER_INPUTS, ...memberInputs]` (which every caller
+  // does) cannot declare `color` twice. `defSchema.validateInput` refuses a
+  // duplicate key, so this is the difference between a save and a refusal.
+  const member = declaredMember.filter((spec) => !BUILDER_INPUTS.some((b) => b.key === spec.key))
+  const declared = [...chromeInputsFor(rows), ...member]
+  const scope = { inputs: Object.fromEntries(declared.map((spec) => [spec.key, true])) }
+
+  const trees = Object.fromEntries(rows.map((r) => [r.key, r.ast]))
+  const multi = rows.length > 1
+  const dataPlots = rows.map((r, i) => {
+    const keys = chromeInputKeys(r, i)
+    return {
+      key: r.key,
+      // ⭐ AN UNLABELLED PLOT 1 IS THE INDICATOR ITSELF, so it wears the
+      // indicator's chip name — the schema-1 spelling, preserved. A later row
+      // has no such name to borrow and wears its own key.
+      // ⛔ FIX ROUND 1, MINOR 7 — `DEFAULT_PLOT1_LABEL(short)`, NOT a second
+      // hand-typed `short || r.key`. The two used to disagree the moment
+      // `short` was falsy: this line fell back to `r.key` (`'value'`, the KEY)
+      // while `legacyDefinition` falls back to `'Value'` (the LABEL). Neither
+      // is reachable through the form (Name is required to save), but a stored
+      // document opened with an empty name would have restored or saved a
+      // DIFFERENT default depending only on which function wrote it — an
+      // unreachable divergence is still two authorities over one fact.
+      label: r.label || (i === 0 ? DEFAULT_PLOT1_LABEL(short) : r.key),
+      style: r.style || 'line',
+      color: `$${keys.color}`,
+      width: `$${keys.width}`,
+      role: i === 0 ? 'primary' : 'secondary',
+      // ⛔⛔ EVERY DATA PLOT GETS A LEGEND BLOCK — see `legacyDefinition`. A plot
+      // with none gets no chip, and no chip means no name, no hide, no settings
+      // and no remove. That includes a HIDDEN one: hidden is about the CANVAS,
+      // and its column still reaches the alert seam and the scan.
+      legend: { decimals: 2 },
+      ...(r.hidden ? { hidden: true } : {}),
+    }
+  })
+  const guides = Array.isArray(levels) && levels.length
+    ? [{ key: LEVELS_PLOT_KEY, label: 'Levels', style: 'hlines', levels: [...levels], ...LEVELS_GUIDE }]
+    : []
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    id: defId,
+    version,
+    compute: {
+      kind: 'ast', fn: astHash(scan.ast), rev, ast: scan.ast, source: scan.source,
+      ...(multi ? {
+        trees,
+        treesHash: treesHash(trees),
+        scanPlot: scan.key,
+        // ⛔ EVERY TREE CARRIES THE TEXT THE MEMBER EDITS. `compute.source` is
+        // ONE string — the scan tree's — so without this a multi-plot document
+        // could be computed and never reopened: the edit path would have three
+        // trees and one source text and no honest way to fill the other boxes.
+        sources: Object.fromEntries(rows.map((r) => [r.key, r.source])),
+      } : {}),
+    },
+    meta: {
+      name: trimmed,
+      shortName: short,
+      category: 'Custom',
+      description: scan.readback || readback,
+      tags: ['custom'],
+      tier: 'premium',
+      // ⛔ THE WORST AND THE STALEST, because a document draws every plot at
+      // once. `validateAstLane` re-measures both the same way and refuses a
+      // disagreement in either direction.
+      repaint: worstRepaint(rows.map((r) => r.mode)),
+      freshness: stalestFreshness(rows.map((r) => freshnessFor(r.ast, scope).mode)),
+    },
+    placement: placement || PANE_PLACEMENT(),
+    inputs: declared.map((spec) => ({ ...spec })),
+    plots: [...dataPlots, ...guides],
+  }
+}
+
+/**
+ * ⭐⭐ ONE ASSEMBLY FOR THE FIELDS A DOCUMENT TAKES FROM A SETTLED EVALUATION —
+ * the source, the tree, the mode, the read-back and the declared inputs.
+ *
+ * ⛔ IT EXISTS BECAUSE TWO CALLERS WERE HAND-COPYING THE SAME FIVE ARGUMENTS.
+ * `save()` and the live preview's memo both call `buildDefinition`, so the
+ * DOCUMENT BUILDER was already one authority — but the ARGUMENTS were a copy,
+ * and a copy drifts silently: the day W1b adds a field or changes what the
+ * `plain` shape means, the preview keeps drawing the old document and NO TEST
+ * REDDENS, because both sides would still be internally consistent. A second
+ * authority over one value is this repo's most repeated defect, and "they call
+ * the same function" is not the same thing as "they ask it the same question".
+ *
+ * ⚠️ WHAT DELIBERATELY STAYS AT THE CALL SITE, because the two genuinely differ:
+ * `defId` (a draft id vs `PREVIEW_DEF_ID`), `version` (an edit bumps it; a
+ * preview has none), `name` (Save REQUIRES one — `canSave` gates on it — while a
+ * preview must draw for a member who has not named the thing yet), and the
+ * multi-plot half of the document (`plots`/`scanPlot`/`placement`/`levels`),
+ * which the preview does not attempt at all. Each of those is an override
+ * written beside the reason for it, not a silent second copy.
+ *
+ * ⚠️ THE FIELDS BELOW ARE PASSED THROUGH VERBATIM, `readback` included. The
+ * preview overrides it with `|| ''` because it runs on every keystroke and
+ * `evaluateFormula` can answer `null`; `save()` runs only past `canSave` and its
+ * byte-identical document must not move. That divergence is now VISIBLE at the
+ * one call site that needs it instead of being invisible in two copies.
+ */
+function evaluatedDocArgs(evaluation, memberInputs) {
+  return {
+    source: evaluation.source,
+    ast: evaluation.ast,
+    mode: evaluation.verdict.mode,
+    readback: evaluation.readback,
+    inputs: [...BUILDER_INPUTS, ...memberInputs],
   }
 }
 
@@ -258,31 +547,229 @@ export class BuilderBoundary extends Component {
   }
 }
 
+// ── WHICH DOOR A FRESHLY-OPENED SHEET LANDS ON (W4a) ───────────────────────
+//
+// ⛔ ONE RULE, THREE READERS, AND THAT IS WHY IT IS A FUNCTION. `buildMode` is
+// written at open by the `useState` SEED (before the first paint) and by the
+// `[open]` RESET (on every later open of the same mounted sheet) — two writers
+// that cannot be collapsed, because one runs before paint and the other on a
+// prop change. What must not be duplicated is the DECISION, so the decision
+// lives here and both call it.
+//
+// ⚰️ THE EDIT DOOR WAS LEFT OUT OF THIS ONCE, AND IT COST A FRAME. The first
+// version of this hand-back seeded from `initialMode` alone, so opening a saved
+// formula seeded `'library'` and `openForEdit`'s own `setBuildMode` — a PASSIVE
+// effect — landed after paint: a member opening their own work was shown the
+// firm's starter gallery first. The New-scan door had exactly this defect and
+// exactly this fix; the edit door simply was not asked the same question.
+/** The data plots of a stored document, in document order.
+ *
+ *  ⛔ GUIDES ARE NOT ROWS. An `hlines` plot carries levels, not editable text,
+ *  so it has no box and no source. Lifted out of `openForEdit` rather than
+ *  copied beside it: two filters that agree today are the second-authority
+ *  defect this repo keeps paying for. */
+export function dataPlotDefs(def) {
+  const plots = Array.isArray(def && def.plots) ? def.plots : []
+  return plots.filter((p) => p && typeof p.key === 'string' && p.style !== 'hlines')
+}
+
+/** The STORED text for one data plot, or `null` when the document has none.
+ *
+ *  ⛔⛔ `compute.source` IS THE SCAN TREE'S TEXT, NOT PLOT 1'S. The document's
+ *  own construction site says it in as many words — *"an ALIAS, not the first
+ *  plot's source"* — so on a multi-plot document whose scan is not plot 1,
+ *  `compute.source` and the plot-1 box are TWO DIFFERENT PLOTS. Anything asking
+ *  "has this box changed?" must ask per plot, keyed, and only fall back to the
+ *  alias for a single-tree document that carries no `sources` map.
+ *
+ *  ⭐ AND THIS IS THE FUNCTION THE RESTORE FILLS THE BOXES WITH, so "the box has
+ *  moved on" is answered by the same authority that decided what was in it. */
+export function storedSourceFor(compute, key, i) {
+  const c = compute || {}
+  const stored = c.sources && c.sources[key]
+  if (typeof stored === 'string' && stored.trim() !== '') return stored
+  return (i === 0 && !c.sources && typeof c.source === 'string') ? c.source : null
+}
+
+const DEFAULT_MODE = 'library'
+/** ⛔ AN EDIT OPENS ON THE FORMULA. A member editing their OWN definition has no
+ *  use for a gallery of starters above it, and leaving one there invites a click
+ *  that replaces their work. Spelled once; `openForEdit` reads the same name. */
+const EDIT_MODE = 'formula'
+const openingMode = (editRow, initialMode) => (
+  editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
+)
+
+/**
+ * ⭐ THE EVIDENCE BODY — the receipt for the SAVED definition, and a sentence
+ * when that is not what the member is looking at.
+ *
+ * ⛔ THE HASH IS READ OFF THE STORE'S ROW, NEVER OFF THE DRAFT IN THE BOX. A
+ * receipt is keyed to the tree that actually RAN, and `compute.fn` on the stored
+ * row is that tree's hash; the box may already hold something else.
+ *
+ * ⚠️ WHICH IS EXACTLY WHY THE DIFFERENCE HAS TO BE SAID OUT LOUD. Open an edit,
+ * retype the formula, click Evidence — three keystrokes — and the panel is a
+ * truthful receipt for a definition that is no longer on screen. The receipt is
+ * not wrong; the SURFACE would be implying it describes the draft. That is the
+ * same defect as a spinner saying "Replaying…" when nothing was requested, and
+ * it is the one this lane keeps finding: a correct value under a false sentence.
+ */
+function EvidenceBody({ editing, rows, source, plotRows }) {
+  const row = (Array.isArray(rows) ? rows : []).find((r) => r.def_id === editing.defId)
+  const def = (row && row.definition) || {}
+  const compute = def.compute || {}
+  // ⛔⛔ PER PLOT, KEYED — AND FIX ROUND 1 IS WHY. The first version of this
+  // compared `compute.source` against the plot-1 box. On a multi-plot document
+  // whose scan is not plot 1 those are TWO DIFFERENT PLOTS, so the note fired on
+  // a document nobody had touched — telling the member "which you have changed
+  // since" about an untouched formula — while an edit to plot 2 produced no note
+  // at all. A guard against a misleading surface that was itself misleading, in
+  // both directions.
+  //
+  // ⛔ THE COMPARISON IS AGAINST WHAT THE RESTORE PUT IN EACH BOX, via the same
+  // `storedSourceFor` it fills them with. Plot 1's live text is the `source`
+  // state (the box); every later row carries its own.
+  const keys = dataPlotDefs(def).map((p) => p.key)
+  const live = [source, ...(Array.isArray(plotRows) ? plotRows : []).map((r) => r.source)]
+  const drifted = keys.length > 0 && (
+    // a row added or removed is a changed document too
+    keys.length !== live.length
+    || keys.some((key, i) => {
+      const was = storedSourceFor(compute, key, i)
+      return typeof was === 'string' && was !== live[i]
+    })
+  )
+  return (
+    <>
+      {drifted && (
+        <p className={styles.pickerNote} role="status" data-testid="evidence-draft-differs">
+          This is the evidence for the saved version of this definition — not the formula in
+          the box, which you have changed since. Save the edit and the receipt below will be
+          about what you just wrote.
+        </p>
+      )}
+      {/* ⛔ A ROW THE STORE NO LONGER HAS (deleted in another tab, or a list still
+          loading) yields no hash, and `EvidenceTab` names that state itself rather
+          than rendering an empty panel. Nothing is invented here. */}
+      <EvidenceTab defId={editing.defId} defHash={compute.fn || null} tf="D" />
+    </>
+  )
+}
+
+/**
+ * ⭐ `initialMode` / `editRow` (W4a HAND-BACK) — the two things a SECOND opener
+ * needs to say. The chart toolbar passes neither and behaves exactly as before.
+ *
+ * `initialMode` names the door this sheet opens on; the open-reset applies it,
+ * so there is one writer of that value and no paint on the wrong tab.
+ *
+ * ⛔ IT IS NOT VALIDATED AGAINST A LIST HERE. A typed set of mode names beside
+ * the tabs that own them is a second authority — the one written for this task
+ * read `library | picker | formula` and had already missed `pine`, so it would
+ * have silently ignored a mode this sheet does have. The caller names a door;
+ * `ScreensManager.door.test.jsx` derives the real set off this file's AST.
+ *
+ * `editRow` is a STORE row to open for editing — it runs this sheet's own
+ * `openForEdit`, so a second opener cannot invent a second restore path.
+ */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
+  sym = null, tf = null,
+  initialMode = null, editRow = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
    *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
   const [memberInputs, setMemberInputs] = useState([])
-  /** ⛔ ONE SCOPE, DERIVED, AND `useMemo` IS LOAD-BEARING. `FormulaField` keeps
-   *  `inputs` in its debounce dependency list, so a fresh object per render would
-   *  restart the 250 ms timer every render and the box would never settle —
-   *  the reason `BUILDER_INPUT_SCOPE` was frozen at module level to begin with. */
-  const inputScope = useMemo(
-    () => declaredInputs({ inputs: [...BUILDER_INPUTS, ...memberInputs] }),
-    [memberInputs],
+
+  // ── THE PLOTS (W1b.5) ──────────────────────────────────────────────────────
+  //
+  // ⭐ PLOT 1 IS THE FORMULA BOX AT THE TOP OF THE SHEET, not a fourth row of
+  // chrome: its source lives in `source`/`result` exactly as it always has, and
+  // this state holds only the things a plot has BESIDES its maths. That is what
+  // keeps a single-plot document byte-identical — the default row IS the shape
+  // this form has written since Phase D.
+  const [plot0, setPlot0] = useState(() => newPlotRow('value'))
+  /** Rows 2..n — each with its OWN source and its own evaluation. */
+  const [plotRows, setPlotRows] = useState([])
+  /**
+   * ⛔ THE SCAN CHOICE IS AN INDEX, NOT A KEY, AND THAT IS NOT A DETAIL. The
+   * DOCUMENT names a key (`compute.scanPlot`), because a stored key is the only
+   * thing a scan can bind to. But while the member is typing, the key is a
+   * FIELD THEY ARE EDITING — hold the choice by key and renaming the chosen row
+   * detaches the scan from the radio that still shows it selected, and
+   * `buildDefinition` silently falls back to plot 1. The index is stable across
+   * a rename by construction; `save()` turns it into the key at the one moment a
+   * key is real.
+   */
+  const [scanIndex, setScanIndex] = useState(0)
+  /** `'pane'` | `'price'`. ⛔ THE DOCUMENT VALUE IS `'price'`; "Overlay on
+   *  price" is the SELECT'S LABEL. Three consumers read `PLACEMENT_TARGETS`
+   *  (`placement.js`, `instances.js`, `instanceControls.placementFor`) and a
+   *  fourth spelling of "the candles' scale" would need all three to learn it. */
+  const [target, setTarget] = useState('pane')
+  const [levelsText, setLevelsText] = useState('')
+
+  /** Every plot row in document order — plot 1 first. */
+  const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
+
+  /**
+   * ⛔ THE SCOPE'S IDENTITY IS ITS NAME SET, NOT THE ROWS IT WAS DERIVED FROM.
+   * `FormulaField` keeps `inputs` in its debounce dependency list, so an object
+   * that changed whenever a COLOUR moved — or whenever ANOTHER ROW'S SOURCE did
+   * — would restart every row's 250 ms timer on every keystroke in any of them,
+   * and a box would never settle while a sibling was being typed in. The
+   * signature is the only thing the memo depends on, so the scope is a new
+   * object exactly when a declared NAME appears or disappears.
+   *
+   * ⛔ JOINED ON `'\n'`, NOT A SPACE (FIX ROUND 1, MINOR 6). A legal key can
+   * never contain either character — `inputKeyProblem`'s regex is the one
+   * place that decides that — but the member INPUT key box below only
+   * `.trim()`s, so an interior space survives while the key is still being
+   * typed and is still invalid. A space delimiter round-tripped `my period`
+   * into TWO phantom names (`my`, `period`); a newline cannot, because a
+   * single-line `<input>` cannot hold one — a human cannot type it and a
+   * paste is sanitised to remove it (the HTML value-sanitisation algorithm for
+   * `type="text"`). This is a serialisation fix, not a second legality check:
+   * `inputKeyProblem` stays the one place a key's legality is decided, and
+   * Save is blocked on it regardless — the only thing this changes is what the
+   * READ-BACK sees while the box is mid-edit.
+   */
+  const inputKeySig = useMemo(
+    () => [
+      ...chromeInputsFor(allRows).map((spec) => spec.key),
+      ...memberInputs.map((spec) => spec.key),
+    ].join('\n'),
+    [allRows, memberInputs],
   )
+  const inputScope = useMemo(
+    () => declaredInputs({
+      inputs: inputKeySig.split('\n').filter(Boolean).map((key) => ({ key })),
+    }),
+    [inputKeySig],
+  )
+
   /** Every name the closed table already owns — DERIVED from the manifest, never
    *  a list typed here. ⛔ An input called `close` would be shadowed by the real
    *  series and silently do nothing: the formula would parse, lint, save and draw
    *  the wrong thing, which is the exact failure this builder keeps finding. */
-  const RESERVED = useMemo(() => new Set([
+  const TABLE_NAMES = useMemo(() => new Set([
     ...Object.keys(TABLE.series || {}),
     ...Object.keys(TABLE.functions || {}),
     ...Object.keys(TABLE.scalars || {}),
-    ...BUILDER_INPUTS.map((spec) => spec.key),
   ]), [])
+  /** The settings the PLOTS own — `color`/`lineWidth` plus a pair per later row.
+   *  ⛔ READ OFF `chromeInputsFor`, THE SAME FUNCTION `buildDefinition` BUILDS
+   *  `inputs[]` WITH. A `${key}Color` typed here would be a second authority
+   *  over one naming rule, and the day it moved a member could declare an input
+   *  that collides with a plot's own setting — refused by `defSchema` as a
+   *  duplicate key, which is a true sentence about the wrong thing. */
+  const chromeKeys = useMemo(
+    () => new Set(chromeInputsFor(allRows).map((spec) => spec.key)),
+    [allRows],
+  )
 
   /** Why this key cannot be used, or `null`. Returned as a SENTENCE, because the
    *  refusal messages elsewhere in this engine are the part members can act on. */
@@ -291,12 +778,102 @@ export default function BuilderSheet({
     if (!/^[a-z][a-zA-Z0-9_]*$/.test(key)) {
       return 'a name starts with a lowercase letter and holds letters, digits and underscores'
     }
-    if (RESERVED.has(key)) return `\`${key}\` is already a name this engine computes`
+    if (TABLE_NAMES.has(key)) return `\`${key}\` is already a name this engine computes`
+    // ⛔ A DIFFERENT SENTENCE, BECAUSE IT IS A DIFFERENT FACT. `signalColor` is
+    // not something the engine computes — it is a setting the member's own plot
+    // brought with it, and saying otherwise sends them looking in the manual.
+    if (chromeKeys.has(key)) return `\`${key}\` is a setting one of your plots already uses`
+    if (allRows.some((r) => r.key === key)) return `\`${key}\` is the key of one of your plots`
     if (memberInputs.some((spec, i) => i !== atIndex && spec.key === key)) {
       return `this formula already declares \`${key}\``
     }
     return null
-  }, [RESERVED, memberInputs])
+  }, [TABLE_NAMES, chromeKeys, allRows, memberInputs])
+
+  /**
+   * Why this PLOT key cannot be used, or `null`. Same shape as `inputKeyProblem`
+   * — and DELIBERATELY A SHORTER LIST, which is the difference between the two
+   * namespaces rather than an omission.
+   *
+   * ⚰️ THE BRIEF SAID A CLOSED-TABLE NAME MUST BE REFUSED HERE TOO, AND ITS OWN
+   * FLAGSHIP EXAMPLE DISPROVES IT: `macd` IS a declared function in
+   * `closedTable.json` (measured), so that rule refuses the MACD document this
+   * whole task exists to make authorable — and the SHIPPED `macd` native already
+   * uses `macd` as a plot key.
+   *
+   * ⛔ THE REASON THE INPUT RULE DOES NOT TRANSFER: `parse.js` turns every
+   * identifier into a `series` node, so an INPUT called `close` is shadowed by
+   * the real series and silently computes something else. A PLOT key is not an
+   * identifier in any formula — it is an addressing handle (`defId.macd`), a
+   * column name and a `compute.trees` key, all of them namespaced by the
+   * definition's id. `defSchema.validatePlot` agrees: it checks `KEY_RE` and
+   * uniqueness and says nothing about the table.
+   */
+  const plotKeyProblem = useCallback((key, atIndex) => {
+    if (!key) return 'give the plot a key'
+    if (!/^[a-z][a-zA-Z0-9_]*$/.test(key)) {
+      return 'a key starts with a lowercase letter and holds letters, digits and underscores'
+    }
+    if (key === LEVELS_PLOT_KEY) return `\`${key}\` is reserved for the levels guide`
+    if (allRows.some((r, i) => i !== atIndex && r.key === key)) {
+      return `this formula already has a plot called \`${key}\``
+    }
+    // The other direction of the collision `inputKeyProblem` guards: a plot
+    // named `x` needs the settings `xColor`/`xWidth`, and a member input may
+    // already have taken one of them. This one IS a real collision — the two
+    // land in the same `inputs[]` array.
+    const keys = chromeInputKeys({ key }, atIndex)
+    if (memberInputs.some((spec) => spec.key === keys.color || spec.key === keys.width)) {
+      return `a plot called \`${key}\` needs the settings \`${keys.color}\` and \`${keys.width}\`, `
+        + 'and this formula already declares one of them'
+    }
+    return null
+  }, [allRows, memberInputs])
+
+  /** The comma list, as numbers. ⛔ PARSED ONCE — the guide plot, the save gate
+   *  and the refusal sentence all read this, never `levelsText` a second time. */
+  const levels = useMemo(
+    () => levelsText.split(',').map((s) => s.trim()).filter(Boolean).map(Number),
+    [levelsText],
+  )
+  const levelsProblem = levels.some((n) => !Number.isFinite(n))
+    ? 'levels are numbers separated by commas'
+    : null
+
+  const patchPlot = useCallback((i, patch) => {
+    if (i === 0) { setPlot0((prev) => ({ ...prev, ...patch })); return }
+    setPlotRows((prev) => prev.map((r, j) => (j === i - 1 ? { ...r, ...patch } : r)))
+  }, [])
+  const addPlot = useCallback(() => {
+    setPlotRows((prev) => [...prev, newPlotRow('')])
+  }, [])
+  const removePlot = useCallback((i) => {
+    setPlotRows((prev) => prev.filter((_, j) => j !== i - 1))
+    // ⛔ THE SCAN MOVES WITH THE LIST. Removing the chosen row must not leave the
+    // choice pointing at whatever slid into its place, and removing a row ABOVE
+    // it must not slide the choice off the row the member picked.
+    setScanIndex((k) => (k === i ? 0 : (k > i ? k - 1 : k)))
+  }, [])
+  /** A row's own settle. ⛔ Compared by SOURCE, like `handleEvaluated`, so a
+   *  late timer from an older keystroke cannot overwrite a newer verdict.
+   *
+   *  ⭐ AND ITS OWN ACKNOWLEDGEMENT GOES WITH IT (FIX ROUND 1, IMPORTANT #3) —
+   *  the same invalidation `handleEvaluated` gives plot 1, so a row's tick
+   *  cannot survive past the evaluation it was read against. */
+  const handlePlotEvaluated = useCallback((i, next) => {
+    setPlotRows((prev) => {
+      const cur = prev[i - 1]
+      if (!cur || (cur.result && cur.result.source === next.source)) return prev
+      return prev.map((r, j) => (j === i - 1 ? { ...r, result: next, acknowledged: false } : r))
+    })
+  }, [])
+  /** ⛔ ONE RESET, THREE CALLERS (open, cancel-edit, and the edit restore's own
+   *  refusal path). Five `setX` lines copied three times is how one of them ends
+   *  up with four. */
+  const resetPlots = useCallback(() => {
+    setPlot0(newPlotRow('value')); setPlotRows([]); setScanIndex(0)
+    setTarget('pane'); setLevelsText('')
+  }, [])
 
   const inputsValid = memberInputs.every((spec, i) => inputKeyProblem(spec.key, i) === null)
 
@@ -313,7 +890,15 @@ export default function BuilderSheet({
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
-  const [acknowledged, setAcknowledged] = useState(false)
+  // ⛔ NO SHEET-WIDE `acknowledged` STATE (FIX ROUND 1, IMPORTANT #3) — it lived
+  // here as one flag for the whole sheet while the badge above it was already
+  // the WORST row's, which a mutation could not discriminate because every
+  // table-legal tree was believed to be `non-repainting`. Measured false: a
+  // literal-argument `ichimokuChikou(...)` call IS table-legal and IS
+  // `preview-repaints` today (see the report). Each row's own acknowledgement
+  // now lives ON the row (`newPlotRow`'s `acknowledged` field; `plot0` is a row
+  // like any other), reset by that row's own evaluation, read by that row's own
+  // gate below.
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [savedRow, setSavedRow] = useState(null)
@@ -349,7 +934,14 @@ export default function BuilderSheet({
   // formula they already own has no use for starters above their own work, so
   // `openForEdit` moves the sheet to Formula. `BuilderSheet.starters.test.jsx`
   // holds both halves.
-  const [buildMode, setBuildMode] = useState('library')
+  // ⛔ W4a — SEEDED FROM THE RULE, not merely reset to it. The chart keeps ONE
+  // sheet mounted and toggles `open`; the screener mounts a fresh one per click,
+  // so its first paint happens before any effect runs. `useEffect` is passive —
+  // it fires AFTER that paint — so a seed that ignored the caller would show the
+  // wrong tab for a frame and then switch. (`Screener.door.test.jsx` measured
+  // this, twice; the prop-level test could see neither, because a mock has no
+  // tabs to be on the wrong one of.)
+  const [buildMode, setBuildMode] = useState(() => openingMode(editRow, initialMode))
   const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
@@ -360,9 +952,29 @@ export default function BuilderSheet({
   useEffect(() => {
     if (!open) return
     setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
-    setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    setEditing(null); setBuildMode('library'); setPickerNote(null)
-  }, [open])
+    // ⛔ NO `setAcknowledged` HERE ANY MORE — `resetPlots()` below already puts a
+    // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
+    // that flag now lives on. A second reset of a value `resetPlots` already
+    // resets is the shape that drifts the day one of the two is edited alone.
+    setStoreError(null); setSavedRow(null); setCopied(false)
+    // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
+    // used to be the literal `'library'`, and the screener's door was written as
+    // a SECOND effect setting it again afterwards. That is a second writer over
+    // one value, and it is VISIBLE: both are passive effects, so the sheet
+    // paints on the library and then switches. Both props are null for the
+    // chart's door, which is what keeps the Library the default it has been.
+    setEditing(null); setBuildMode(openingMode(editRow, initialMode)); setPickerNote(null)
+    // ⛔ THE PLOTS RESET TOO. A sheet reopened with the previous formula's second
+    // plot still in it would offer a Save whose document names a tree the box no
+    // longer shows — the same reason `source` and `name` are cleared here.
+    resetPlots()
+    // ⚠️ BOTH OPENING PROPS ARE DEPENDENCIES, which means changing either
+    // re-runs the whole reset. That is correct — a sheet re-aimed at a different
+    // door, or at a different row, is a new formula — and `editRow` is why the
+    // warning on that prop matters: a string compares by value, an object
+    // compares by identity, so a row rebuilt inline per render would empty this
+    // form on every parent render.
+  }, [open, editRow, initialMode, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -374,16 +986,111 @@ export default function BuilderSheet({
    *  edited here and says so rather than opening an empty box over a live
    *  definition. */
   const openForEdit = useCallback((row) => {
-    const src = row?.definition?.compute?.source
-    setStoreError(null); setSavedRow(null); setCopied(false); setAcknowledged(false)
+    const def = row?.definition || null
+    const compute = def?.compute || {}
+    const src = compute.source
+    // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
+    // own fresh `acknowledged: false`, which is where that flag lives now.
+    setStoreError(null); setSavedRow(null); setCopied(false)
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
       return
     }
+
+    // ── the v2 restore ───────────────────────────────────────────────────────
+    //
+    // ⛔⛔ THE ROWS COME FROM `compute.sources`, NOT FROM `compute.source`. On a
+    // multi-tree document `compute.source` is the SCAN tree's text and nothing
+    // else — it is an ALIAS, not the first plot's source — so a restore that
+    // read it would put the scan's formula in plot 1's box and lose the rest.
+    // That is exactly why `sources` is REQUIRED on a v2 document: an unstated
+    // per-plot source is a document that can be computed and never reopened.
+    //
+    // ⛔ AND THE SCOPE IS THE DOCUMENT'S OWN, not this render's `inputScope`.
+    // The stored `inputs[]` is what the definition declares; reading the sheet's
+    // current scope here would evaluate a formula against knobs from whatever
+    // was in the box a moment ago — and it is why a saved formula naming
+    // `period` used to reopen with `period` undeclared and refused on sight.
+    const scope = declaredInputs(def)
+    // ⚠️ `defPlots` STAYS — the guide row below is its second consumer, and
+    // fix round 1 deleted this line without enumerating them. Only the DATA
+    // filter moved out, because that is the half `EvidenceBody` also needs.
+    const defPlots = Array.isArray(def?.plots) ? def.plots : []
+    const dataDefs = dataPlotDefs(def)
+    const guide = defPlots.find((p) => p && p.style === 'hlines' && Array.isArray(p.levels))
+    const inputsByKey = new Map(
+      (Array.isArray(def?.inputs) ? def.inputs : []).map((spec) => [spec?.key, spec]),
+    )
+    const metaShort = chipName(String(def?.meta?.name || ''))
+    // A single-tree document carries no `sources` map and `compute.source` IS its
+    // one plot's text; anything else has a row with nothing to edit. That rule
+    // now lives in `storedSourceFor` so the Evidence panel can ask the same
+    // question this restore answers.
+    const restored = dataDefs.map((p, i) => {
+      const rowSrc = storedSourceFor(compute, p.key, i)
+      if (rowSrc === null) return null
+      const keys = chromeInputKeys(p, i)
+      const colorSpec = inputsByKey.get(keys.color)
+      const widthSpec = inputsByKey.get(keys.width)
+      // ⭐ AN EMPTY LABEL BOX MEANS "USE THE DERIVED ONE", so a label that IS the
+      // derived one comes back empty. Restoring the derived string into the box
+      // would turn a default into a typed value the member never typed, and the
+      // next rename would silently stop moving the plot's chip with it.
+      // ⛔ FIX ROUND 1, MINOR 7 — `DEFAULT_PLOT1_LABEL`, the SAME fallback
+      // `buildDefinition`'s v2 body writes, not a third hand-typed spelling.
+      const derived = i === 0 ? DEFAULT_PLOT1_LABEL(metaShort) : p.key
+      return {
+        key: p.key,
+        label: (typeof p.label === 'string' && p.label !== derived) ? p.label : '',
+        style: typeof p.style === 'string' ? p.style : 'line',
+        color: (colorSpec && typeof colorSpec.default === 'string' && colorSpec.default)
+          ? colorSpec.default : BUILDER_INPUTS[0].default,
+        width: (widthSpec && Number.isFinite(widthSpec.default))
+          ? widthSpec.default : BUILDER_INPUTS[1].default,
+        hidden: p.hidden === true,
+        // ⭐ A REOPENED FORMULA STARTS UNACKNOWLEDGED, ONE ROW AT A TIME. A
+        // stored document carries no acknowledgement (it is a save-time gate,
+        // never persisted), so there is nothing honest to restore here beyond
+        // the same clean slate `newPlotRow` gives a brand new row.
+        acknowledged: false,
+        source: rowSrc,
+        result: evaluateFormula(rowSrc, scope),
+      }
+    })
+    if (!restored.length || restored.some((r) => r === null)) {
+      // ⛔ THE SAME SENTENCE, FOR THE SAME FACT, one plot down. A row whose text
+      // was never stored cannot be edited here either, and opening the other
+      // rows over it would offer a Save that silently dropped a plot.
+      setEditing(null)
+      resetPlots()
+      setStoreError('This formula was stored without its source text, so it cannot be edited here.')
+      return
+    }
+
+    const chromeKeySet = new Set(chromeInputsFor(restored).map((spec) => spec.key))
+    setPlot0(restored[0])
+    setPlotRows(restored.slice(1))
+    // The DOCUMENT names a key; the sheet holds the index it points at. An
+    // unrecognised key is plot 1, which is what `buildDefinition` would have
+    // resolved it to anyway — one fallback, not two.
+    const scanAt = dataDefs.findIndex((p) => p.key === compute.scanPlot)
+    setScanIndex(scanAt >= 0 ? scanAt : 0)
+    setTarget(def?.placement?.target === 'price' ? 'price' : 'pane')
+    setLevelsText(guide ? guide.levels.join(', ') : '')
+    // ⚰️ AND THE MEMBER'S OWN INPUTS COME BACK, WHICH THEY DID NOT BEFORE. A
+    // saved formula naming `period` reopened with `period` undeclared — so the
+    // box the member had just opened refused their own stored formula at
+    // `sentence:name` and the Save button was dead on arrival.
+    setMemberInputs(
+      (Array.isArray(def?.inputs) ? def.inputs : [])
+        .filter((spec) => spec && typeof spec.key === 'string' && !chromeKeySet.has(spec.key))
+        .map((spec) => ({ ...spec })),
+    )
+
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
-    setName(String(row?.definition?.meta?.name || ''))
-    setSource(src)
+    setName(String(def?.meta?.name || ''))
+    setSource(restored[0].source)
     // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
     // every `setSource` site rather than patching the two I happened to have
     // tested: a member with a description in the box who opens one of their own
@@ -396,28 +1103,74 @@ export default function BuilderSheet({
     // still the natural next thing to draft from; and the open-reset unmounts the
     // box entirely (`if (!open) return null`), so its prompt is already gone.
     setReplacedAt((n) => n + 1)
-    setResult(evaluateFormula(src, inputScope))
-    // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
-    // because a member with nothing in the box is helped by worked examples; a
-    // member editing their OWN definition is not, and leaving a gallery of
-    // starters above their work invites a click that replaces it.
-    setBuildMode('formula')
+    // ⛔ THE DOCUMENT'S OWN SCOPE AGAIN, NOT THIS RENDER'S. `inputScope` is a
+    // render value and this callback has an empty dependency list on purpose, so
+    // it would be the scope from the FIRST render — empty of the very inputs the
+    // stored definition declares.
+    setResult(evaluateFormula(restored[0].source, scope))
+    // ⛔ AND THE SHEET MOVES TO THE FORMULA — the SAME `EDIT_MODE` the seed and
+    // the open-reset read, because this is the same rule arriving by a different
+    // route: `openForEdit` is also called for a row that shows up while the
+    // sheet is already open, when no seed is going to run again.
+    setBuildMode(EDIT_MODE)
     setPickerNote(null)
-  }, [])
+  }, [resetPlots])
 
   const cancelEdit = useCallback(() => {
-    setEditing(null); setSource(''); setName('')
-    setResult(evaluateFormula('', inputScope))
-    setAcknowledged(false); setStoreError(null); setSavedRow(null)
-  }, [])
+    setEditing(null); setSource(''); setName(''); setMemberInputs([])
+    setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
+    // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
+    // unacknowledged `plot0` back, which is where the flag lives now.
+    setStoreError(null); setSavedRow(null)
+    // ⛔ AND THE PLOTS GO WITH IT. "New formula" empties the form; a second
+    // plot left behind would be a tree in a document whose box shows nothing.
+    resetPlots()
+    // ⛔ AND THE EVIDENCE DOOR CANNOT BE LEFT STANDING OPEN. Its tab is gated on
+    // `editing`, so leaving edit mode removes the tab — but `buildMode` is a
+    // separate value and would still read `'evidence'`, leaving a member on a
+    // panel with no tab selected and nothing to show. Only that mode is moved:
+    // a member who was on Formula or Conditions stays where they were.
+    setBuildMode((m) => (m === 'evidence' ? EDIT_MODE : m))
+  }, [resetPlots])
+
+  // ── W4a HAND-BACK: the `/screener` door opens the sheet ON A ROW ──────────
+  //
+  // The chart toolbar opens this sheet one way. The screener opens the SAME
+  // sheet two ways — a new screen (`initialMode`, handled by the open-reset
+  // above, which is the ONE writer of the opening mode) and an existing row.
+  // This effect owns only the second, because `openForEdit` is a callback and
+  // the reset cannot call it without taking on the row-restore's whole job.
+  //
+  // ⛔ DECLARED AFTER THE `[open]` RESET AND AFTER `openForEdit`, ON PURPOSE:
+  // effects run in declaration order, so the reset empties the form first and
+  // this fills it from the row. Move it above the reset and every edit opens
+  // on a blank box.
+  //
+  // ⛔ AND AN `editRow` WINS OVER AN `initialMode` BY CONSTRUCTION — not by
+  // this effect arbitrating, but because `openForEdit` ends by moving the
+  // sheet to the Formula itself. That is the sheet's own rule (a member
+  // editing their own work is not helped by a gallery of starters above it),
+  // and it is the rule precisely so no caller has to know it.
+  //
+  // ⚠️ `editRow` MUST BE HELD IN THE CALLER'S STATE (a stable identity), never
+  // built inline, or this re-opens the row on every parent render and throws
+  // away whatever the member has typed since.
+  useEffect(() => {
+    if (!open || !editRow) return
+    openForEdit(editRow)
+  }, [open, editRow, openForEdit])
 
   // A new evaluation invalidates an acknowledgement of the OLD one. Carrying it
   // forward would let a user acknowledge a bounded forward reference and then
   // save a different formula under that acknowledgement.
+  //
+  // ⭐ PLOT 1's OWN ACKNOWLEDGEMENT LIVES ON `plot0` NOW (FIX ROUND 1,
+  // IMPORTANT #3), so invalidating it is a `plot0` patch, the same shape
+  // `handlePlotEvaluated` uses for every later row below.
   const handleEvaluated = useCallback((next) => {
     setResult((prev) => {
       if (prev && prev.source === next.source) return prev
-      setAcknowledged(false)
+      setPlot0((p) => (p.acknowledged ? { ...p, acknowledged: false } : p))
       setStoreError(null)
       setSavedRow(null)
       // A note about a formula the picker could not show describes the OLD
@@ -428,7 +1181,59 @@ export default function BuilderSheet({
     })
   }, [])
 
-  const mode = result?.verdict?.mode || null
+  /**
+   * ⛔⛔ THE BADGE ON SCREEN IS THE BADGE THE DOCUMENT WILL CARRY — the WORST of
+   * every row, because a document draws all its plots at once and
+   * `buildDefinition` stores `worstRepaint(...)`. Showing plot 1's verdict beside
+   * a second plot that repaints would ask the member to acknowledge a claim the
+   * saved definition does not make, and `validateAstLane` re-measures and refuses
+   * that disagreement in both directions — so the sheet would offer a Save the
+   * registry then rejects, with a badge as the explanation.
+   *
+   * ⭐ AND THE REASONS ARE THE REASONS OF THE ROW THAT PRODUCED IT, found rather
+   * than merged: a list of every row's reasons under one badge reads as one
+   * formula with many problems. `worstRepaint([])` fails CLOSED, so an empty list
+   * is turned into `null` here — "nothing has been typed yet" is not a verdict.
+   */
+  const worstVerdict = useMemo(() => {
+    const verdicts = allRows
+      .map((r, i) => (i === 0 ? result : r.result))
+      .map((ev) => (ev && ev.ok && ev.verdict) || null)
+      .filter(Boolean)
+    if (!verdicts.length) return null
+    const worst = worstRepaint(verdicts.map((v) => v.mode))
+    return verdicts.find((v) => v.mode === worst) || verdicts[0]
+  }, [allRows, result])
+  const mode = worstVerdict?.mode || null
+
+  /** W1a hand-back: the draft as a DOCUMENT, built by the one function that
+   *  builds every document this surface writes — so the preview draws exactly
+   *  what Save would store, member inputs included. `null` while it refuses.
+   *
+   *  ⚠️ PLOT 1 ONLY. This is `save()`'s `plain` path verbatim (a single
+   *  default plot, own pane, no levels). A multi-plot draft previews its FIRST
+   *  plot rather than all of them — partial, and deliberately so: the extra
+   *  rows are W1b's shape and a preview that guessed at them would be a second
+   *  authority on what `save()` writes.
+   *
+   *  ⛔ FIX ROUND 1 — THE ARGUMENTS ARE DERIVED FROM `save()`'s, NOT RE-TYPED.
+   *  `evaluatedDocArgs` is the one assembly both callers ask (see its docblock);
+   *  only the three things that genuinely differ are overridden below, each
+   *  beside its reason. */
+  const previewDefinition = useMemo(() => (
+    result && result.ok && result.ast && result.verdict && inputsValid
+      ? buildDefinition({
+        ...evaluatedDocArgs(result, memberInputs),
+        defId: PREVIEW_DEF_ID,
+        // A preview must draw before the member has named the thing; `save()`
+        // requires a name and `canSave` is the one authority on that.
+        name: name.trim() || 'Preview',
+        // This runs on EVERY keystroke, where `evaluateFormula` can answer a
+        // null read-back; `save()` runs only past `canSave`.
+        readback: result.readback || '',
+      })
+      : null
+  ), [result, name, memberInputs, inputsValid])
 
   // ⭐⭐ ONE AUTHORITY FOR "CAN THIS SAVE", AND THE HINT IS DERIVED FROM IT.
   //
@@ -442,7 +1247,9 @@ export default function BuilderSheet({
   // no explanation, because the member now has a reason that is false. Both read
   // the same `saveGates` object.
   const saveGates = useMemo(() => ({
-    formula: canSaveFormula(result, acknowledged),
+    // ⛔ PLOT 1's OWN `acknowledged` (FIX ROUND 1, IMPORTANT #3) — it lives on
+    // `plot0` now, not on a sheet-wide flag every row shared.
+    formula: canSaveFormula(result, plot0.acknowledged),
     named: name.trim() !== '',
     idle: !saving,
     // ⛔ THE INPUT GATE BELONGS HERE, NOT BESIDE `save()`. Checking it only in the
@@ -450,9 +1257,25 @@ export default function BuilderSheet({
     // a dead control, and a second authority over one decision, which is the
     // defect the comment above this object exists to prevent.
     inputs: inputsValid,
-  }), [result, acknowledged, name, saving, inputsValid])
+    // ⛔ EVERY ROW, THROUGH THE SAME TWO DOORS PLOT 1 GOES THROUGH. `canSaveFormula`
+    // is the shipped gate — it is what runs the tree over four probe bars, so a
+    // plot that only refuses at interpret time cannot reach Save on ANY row.
+    // ⭐ AND EACH ROW'S OWN `acknowledged`, NOT A SHARED ONE (FIX ROUND 1,
+    // IMPORTANT #3) — a row that reads `preview-repaints` for a DIFFERENT
+    // forward window than whichever row `worstVerdict` happens to be showing
+    // must not save on the strength of a tick the member read a different
+    // sentence for. And the key gate is here rather than beside `save()`, for
+    // the reason the comment above this object gives: a shut gate that only
+    // fires in the handler is a live button that silently does nothing.
+    plots: plotKeyProblem(plot0.key, 0) === null
+      && plotRows.every((r, i) => plotKeyProblem(r.key, i + 1) === null
+        && canSaveFormula(r.result, r.acknowledged))
+      && !levelsProblem,
+  }), [result, plot0.acknowledged, name, saving, inputsValid,
+    plotKeyProblem, plot0.key, plotRows, levelsProblem])
 
-  const canSave = saveGates.formula && saveGates.named && saveGates.idle && saveGates.inputs
+  const canSave = saveGates.formula && saveGates.named && saveGates.idle
+    && saveGates.inputs && saveGates.plots
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
@@ -463,7 +1286,13 @@ export default function BuilderSheet({
     // WHICH gate is shut without restating the reason a second time.
     : (saveGates.idle && saveGates.formula && saveGates.named && !saveGates.inputs)
       ? 'Fix the input names above to save.'
-      : null
+      // Same rule as the line above it: every plot problem already names itself
+      // on its own row (a key sentence, or its own refusal chip), so this points
+      // at WHICH gate is shut without restating the reason a second time.
+      : (saveGates.idle && saveGates.formula && saveGates.named && saveGates.inputs
+        && !saveGates.plots)
+        ? 'Fix the plots above to save.'
+        : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -536,15 +1365,40 @@ export default function BuilderSheet({
     // is SKIPPED, leaving the registry (and therefore the legend, the settings row
     // and the pane label) showing the old name. The store's `version` column moves
     // on every append; the blob's copy of it now moves with it.
+    // ⭐ THE ROWS, EACH CARRYING ITS OWN SETTLED EVALUATION. Plot 1's lives in
+    // `result`; every later row's lives on the row. `buildDefinition` is handed
+    // the SOURCE, the TREE, the MODE and the READ-BACK that were measured
+    // together, never a source paired with someone else's tree.
+    const rows = allRows.map((r, i) => {
+      const ev = i === 0 ? result : r.result
+      return {
+        ...r, source: ev.source, ast: ev.ast, mode: ev.verdict.mode, readback: ev.readback,
+      }
+    })
+    // ⛔⛔ THE BYTE-IDENTICAL PATH, AND THE CONDITION IS "NOTHING WAS TOUCHED"
+    // STATED ONCE. A single default plot in its own pane with no levels is the
+    // document this form has written since Phase D, and 21 stored definitions
+    // depend on it not moving. `isUntouchedRow` is the whole test — a hand-written
+    // subset of the fields silently discards whichever ones it forgets, and the
+    // first draft of this forgot colour, width, label and hidden.
+    const plain = plotRows.length === 0 && target === 'pane' && levels.length === 0
+      && isUntouchedRow(plot0)
     const doc = buildDefinition({
+      // ⭐ THE FIVE FIELDS EVERY DOCUMENT TAKES FROM A SETTLED EVALUATION, from
+      // the ONE assembly the live preview also asks — so the two cannot drift
+      // apart the day a field moves. See `evaluatedDocArgs`.
+      ...evaluatedDocArgs(result, memberInputs),
       defId: editing ? editing.defId : draftDefId(),
       version: editing ? editing.version + 1 : 1,
       name,
-      source: result.source,
-      ast: result.ast,
-      mode: result.verdict.mode,
-      readback: result.readback,
-      inputs: [...BUILDER_INPUTS, ...memberInputs],
+      ...(plain ? {} : {
+        plots: rows,
+        // The DOCUMENT names a key. This is the one moment the index the sheet
+        // held becomes one, so a rename can never have detached the two.
+        scanPlot: rows[scanIndex] ? rows[scanIndex].key : null,
+        placement: target === 'price' ? { target: 'price' } : null,
+        levels: levels.length ? levels : null,
+      }),
     })
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
@@ -621,7 +1475,8 @@ export default function BuilderSheet({
       onChange(addInstance(settings, installed[0].id, engineRegistry))
     }
     onSaved?.(res.row)
-  }, [result, acknowledged, name, onSaved, settings, onChange, editing])
+  }, [canSave, result, allRows, plot0, plotRows, scanIndex, target, levels,
+    memberInputs, name, onSaved, settings, onChange, editing])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
@@ -654,7 +1509,30 @@ export default function BuilderSheet({
   // ⛔ "DIRTY" IS UNSAVED WORK, NOT ANY WORK. Once `savedRow` exists for the text
   // currently in the box there is nothing to lose, so the prompt does not fire and
   // Escape stays instant — a confirm on every close trains people to dismiss it.
-  const dirty = (source.trim() !== '' || name.trim() !== '')
+  // ⛔ A SECOND PLOT IS UNSAVED WORK TOO. Escape with three typed formulas in
+  // the sheet and only the first one counted would discard the other two
+  // without a prompt — the exact loss this gate was added for.
+  //
+  // ⛔⛔ AND SO IS PLOT 1's OWN CHROME, THE PLACEMENT AND THE LEVELS (FIX ROUND
+  // 1, MINOR 5). This used to check only `source`/`name`/the EXTRA rows'
+  // sources — so recolouring plot 1, resizing it, hiding it, labelling it,
+  // switching to Overlay or typing a level, all with the FORMULA BOX still
+  // empty or unchanged, tripped none of the three conditions above and Escape
+  // discarded the change with no prompt: the same loss this gate was added for
+  // on 8/10, one field over. `isUntouchedRow` is already the one place that
+  // knows what "plot 1 has nothing worth keeping" means — read from there
+  // rather than re-typing a second, narrower list of its fields here.
+  //
+  // ⚠️ NOT CLOSED BY THIS: an edit made to plot 1's chrome, the placement or
+  // the levels AFTER a save, with the formula text left exactly as saved, can
+  // still slip past the `savedRow.source === source` check below (it compares
+  // only the source text against what was last saved). Closing that fully
+  // needs `savedRow` to snapshot the whole shape at save time, which is a
+  // bigger change than this round's fix; recorded rather than silently
+  // claimed as solved.
+  const dirty = (source.trim() !== '' || name.trim() !== ''
+      || plotRows.some((r) => String(r.source || '').trim() !== '')
+      || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
 
   const requestClose = useCallback(() => {
@@ -769,13 +1647,28 @@ export default function BuilderSheet({
               className={`${styles.modeTab} ${buildMode === 'pine' ? styles.modeTabActive : ''}`}
               aria-selected={buildMode === 'pine'}
               onClick={() => setBuildMode('pine')}
-            >Pine</button>
+            >Import</button>
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
               aria-selected={buildMode === 'formula'}
               onClick={() => setBuildMode('formula')}
             >Formula</button>
+            {/* ── THE FIFTH DOOR SHOWS ONLY FOR A SAVED DEFINITION (W5a) ──────
+                Evidence is a fact about a definition the STORE holds — a receipt
+                keyed by its hash and a forward record filed under its hash — so a
+                NEW sheet has nothing to show it for, and a tab offering it would
+                be an affordance that is false about the thing it sits on.
+                `editing` is the store's own row id, which is precisely the
+                condition under which evidence can exist. */}
+            {editing && (
+              <button
+                type="button" role="tab"
+                className={`${styles.modeTab} ${buildMode === 'evidence' ? styles.modeTabActive : ''}`}
+                aria-selected={buildMode === 'evidence'}
+                onClick={() => setBuildMode('evidence')}
+              >Evidence</button>
+            )}
           </div>
 
           {buildMode === 'library' && (
@@ -806,13 +1699,57 @@ export default function BuilderSheet({
           )}
 
           {buildMode === 'pine' && (
-            <PineBox
+            <ImportBox
+              dialect="auto"
               disabled={saving}
-              onPick={(formula) => {
+              onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
                 // (that one exists only to prove the printed text reads back the
                 // same), not a prebuilt document, not a hash.
+                //
+                // ⭐ …PLUS THE SCRIPT'S OWN DECLARED INPUTS, WHEN IT HAS ANY
+                // (W1b.9). A Pine script's `input.int(14, "Length")` is the
+                // author's KNOB, and `translatePine` folds it to a literal so
+                // the tree stays statically decidable — which is right for the
+                // maths and wrong for the member, who gets somebody else's
+                // constant welded shut. `builderInputs.inputsFromFolded` decides
+                // which of those folds can come back as a row (a WINDOW cannot —
+                // `interpret.js::windowLiteral`; a threshold or a multiplier
+                // can) and refuses the rest BY NAME. This door only lands what
+                // it was handed.
+                //
+                // ⛔ THE STRING FORM IS UNCHANGED, BYTE FOR BYTE. `StarterLibrary`
+                // and today's `ImportBox` both send a bare string; a door that
+                // only understood the object would write `[object Object]` into
+                // the formula box for every shipped caller.
+                const declared = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                  && Array.isArray(picked.inputs)) ? picked.inputs : []
+                const formula = typeof picked === 'string'
+                  ? picked
+                  : (picked && typeof picked.source === 'string' ? picked.source : '')
+                // ⛔ REPLACE RATHER THAN APPEND: `defSchema.validateInput`
+                // refuses a duplicate key outright, so pasting the same script
+                // twice would produce a document that cannot be saved.
+                //
+                // ⚠️ AND THE ORDER OF THESE TWO WRITES READS AS LOAD-BEARING AND
+                // IS NOT — MEASURED, not assumed. Swapping them moves ZERO
+                // assertions (`differing=0`, W1b.9 mutation M11): React batches
+                // both into ONE commit, and `FormulaField`'s debounce reads the
+                // scope off the render that commit produces, so the read-back
+                // never sees a formula whose names are not declared yet. The
+                // rows are still written first because that is the order the
+                // contract reads in, and because a `flushSync` or a read BETWEEN
+                // them would make it load-bearing tomorrow. ⛔ DO NOT WRITE A
+                // TEST THAT CLAIMS TO PIN THIS ORDER — there is nothing here for
+                // it to see, and a green test naming a mechanism it cannot
+                // discriminate is worse than no test at all.
+                if (declared.length) {
+                  setMemberInputs((prev) => [
+                    ...prev.filter((p) => !declared.some((d) => d && d.key === p.key)),
+                    ...declared.map((d) => ({ ...d })),
+                  ])
+                }
                 setSource(formula)
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
@@ -832,6 +1769,10 @@ export default function BuilderSheet({
             <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
           )}
 
+          {buildMode === 'evidence' && editing && (
+            <EvidenceBody editing={editing} rows={rows} source={source} plotRows={plotRows} />
+          )}
+
           <FormulaField
             value={source}
             onChange={setSource}
@@ -840,6 +1781,8 @@ export default function BuilderSheet({
             autoFocus
             inputs={inputScope}
           />
+          {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
+          <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
 
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
@@ -897,6 +1840,223 @@ export default function BuilderSheet({
             </button>
           </section>
 
+          {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
+              ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
+              a member could only ever write ONE line: `buildDefinition` hard-coded
+              a single `value` plot, so MACD — three lines and a histogram — was
+              three separate indicators that could not share a pane, a legend or
+              a hash.
+
+              ⛔ PLOT 1 IS THE FORMULA BOX ABOVE, NOT A ROW OF ITS OWN. Its maths
+              lives in `source`/`result` exactly where it always has; this row
+              only carries what a plot has BESIDES its maths. That is what keeps
+              a one-plot document byte-identical to every one already stored.
+
+              ⛔ AND THE SCAN RADIO APPEARS ONLY WITH A SECOND PLOT, because with
+              one there is nothing to choose: `compute.ast` IS that plot's tree
+              and no `scanPlot` is written at all. */}
+          <section className={styles.readbackWrap} aria-labelledby="uct-plots-head">
+            <h3 className={styles.sectionHead} id="uct-plots-head">Plots</h3>
+            {plotRows.length === 0 && (
+              <p className={styles.measured} data-testid="one-plot">
+                One line, drawn from the formula above. Add a plot to draw a second
+                series from the same indicator — a signal line, a histogram, a
+                0/1 flag to scan on.
+              </p>
+            )}
+            {allRows.map((row, i) => {
+              const n = i + 1
+              const problem = plotKeyProblem(row.key, i)
+              const rowResult = i === 0 ? result : row.result
+              return (
+                <div className={styles.plotRow} key={`plot-${i}`} data-testid={`plot-row-${n}`}>
+                  {/* ⛔ ONE FIELD COMPONENT, ONE GRAMMAR. A second plot's formula
+                      goes through the same parse, the same budget walk, the same
+                      linter, the same read-back and the same four-bar interpret
+                      gate as the first — a second box with its own rules would be
+                      a second grammar, which is the seam this whole lane closes.
+                      `label` is HB-6: without it every field is called "Formula"
+                      and nothing on screen says which plot it belongs to. */}
+                  {i > 0 && (
+                    <FormulaField
+                      label={`Formula for plot ${n}`}
+                      inputId={`uct-formula-plot-${n}`}
+                      value={row.source}
+                      onChange={(next) => patchPlot(i, { source: next })}
+                      onEvaluated={(ev) => handlePlotEvaluated(i, ev)}
+                      result={row.result}
+                      inputs={inputScope}
+                    />
+                  )}
+                  <div className={styles.plotControls}>
+                    <input
+                      className={styles.plotKey}
+                      value={row.key}
+                      placeholder="value"
+                      aria-label={`Plot ${n} key`}
+                      aria-invalid={problem ? 'true' : undefined}
+                      onChange={(e) => patchPlot(i, { key: e.target.value.trim() })}
+                    />
+                    <input
+                      className={styles.plotLabel}
+                      value={row.label}
+                      placeholder="Signal"
+                      aria-label={`Plot ${n} label`}
+                      onChange={(e) => patchPlot(i, { label: e.target.value })}
+                    />
+                    <select
+                      className={styles.plotStyle}
+                      value={row.style}
+                      aria-label={`Plot ${n} style`}
+                      onChange={(e) => patchPlot(i, { style: e.target.value })}
+                    >
+                      {PLOT_STYLE_CHOICES.map(([value, text]) => (
+                        <option key={value} value={value}>{text}</option>
+                      ))}
+                    </select>
+                    {/* ⛔ A PLAIN SWATCH, NOT `ColorPicker`. That component opens a
+                        portal popup and belongs to the settings dialog; a second
+                        portal inside this sheet is where focus traps and outside-
+                        mousedown handlers start fighting. */}
+                    <input
+                      className={styles.plotColor}
+                      type="color"
+                      value={row.color}
+                      aria-label={`Plot ${n} colour`}
+                      onChange={(e) => patchPlot(i, { color: e.target.value })}
+                    />
+                    <input
+                      className={styles.plotWidth}
+                      type="number"
+                      min={1}
+                      max={4}
+                      step={1}
+                      value={row.width}
+                      aria-label={`Plot ${n} width`}
+                      onChange={(e) => patchPlot(i, { width: Number(e.target.value) })}
+                    />
+                    {/* ⭐ HIDDEN IS ABOUT THE CANVAS ONLY. The column is still
+                        computed, still reaches the alert seam and still is what a
+                        scan reads — which is the whole point of the 0/1 plot a
+                        scannable document carries. */}
+                    <label className={styles.plotToggle}>
+                      <input
+                        type="checkbox"
+                        checked={row.hidden === true}
+                        aria-label={`Hide plot ${n}`}
+                        onChange={(e) => patchPlot(i, { hidden: e.target.checked })}
+                      />
+                      <span>Hide</span>
+                    </label>
+                    {plotRows.length > 0 && (
+                      <label className={styles.plotToggle}>
+                        <input
+                          type="radio"
+                          name="uct-scan-plot"
+                          checked={scanIndex === i}
+                          aria-label={`Scan on plot ${n}`}
+                          onChange={() => setScanIndex(i)}
+                        />
+                        <span>Scan</span>
+                      </label>
+                    )}
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        className={styles.inputRemove}
+                        data-testid={`remove-plot-${n}`}
+                        aria-label={`Remove plot ${n}`}
+                        onClick={() => removePlot(i)}
+                      >
+                        <UIcon name="trash" size={14} />
+                      </button>
+                    )}
+                  </div>
+                  {/* ⛔ THE REASON, NOT A RED BORDER — the same rule the member
+                      inputs above follow. */}
+                  {problem && (
+                    <p className={styles.inputProblem} role="alert" data-testid={`plot-problem-${n}`}>
+                      {problem}
+                    </p>
+                  )}
+                  {/* Each extra row gets its OWN read-back. `data-testid="readback"`
+                      stays plot 1's, because that is the sentence every existing
+                      caller and test means by "the read-back". */}
+                  {i > 0 && rowResult?.ok && (
+                    <p className={styles.measured} data-testid={`plot-readback-${n}`}>
+                      {rowResult.readback}
+                    </p>
+                  )}
+                  {/* ── EACH ROW'S OWN ACKNOWLEDGEMENT (FIX ROUND 1, IMPORTANT #3) ──
+                      ⛔⛔ NOT THE SHEET'S ONE SHARED FLAG. The badge below this
+                      section shows the WORST row's claim — `worstVerdict` — and a
+                      DIFFERENT row can carry a DIFFERENT `preview-repaints` forward
+                      window under the same mode (measured live: two
+                      `ichimokuChikou(...)` calls with different literal periods).
+                      Ticking a box captioned with one row's sentence must not save
+                      a different row whose sentence the member never read. Plot 1
+                      carries the identical control near the Save button, for the
+                      same reason it always has (its formula box sits above this
+                      section, not inside the row loop). */}
+                  {i > 0 && rowResult?.ok && rowResult.verdict?.mode === 'preview-repaints' && (
+                    <label className={styles.ack}>
+                      <input
+                        type="checkbox"
+                        checked={row.acknowledged === true}
+                        onChange={(e) => patchPlot(i, { acknowledged: e.target.checked })}
+                        data-testid={`repaint-ack-${n}`}
+                        aria-label={`Acknowledge plot ${n} repaint`}
+                      />
+                      <span>
+                        I understand this value is not final until {rowResult.verdict.forward} more bar(s) close.
+                      </span>
+                    </label>
+                  )}
+                </div>
+              )
+            })}
+            <button type="button" className={styles.addPlot} onClick={addPlot} data-testid="add-plot">
+              + Add a plot
+            </button>
+
+            <div className={styles.placementRow}>
+              {/* ⛔ THE VALUE IS `price`; "Overlay on price" IS THE LABEL. Three
+                  consumers read `PLACEMENT_TARGETS` and a fourth spelling of
+                  "the candles' scale" would need every one of them to learn it. */}
+              <label className={styles.label} htmlFor="uct-placement">Placement</label>
+              <select
+                id="uct-placement"
+                className={styles.plotStyle}
+                value={target}
+                aria-label="Placement"
+                onChange={(e) => setTarget(e.target.value)}
+              >
+                <option value="pane">Own pane</option>
+                <option value="price">Overlay on price</option>
+              </select>
+              {/* ⛔ ONE `hlines` PLOT, NOT ONE PER NUMBER. `pool.guidePlots` attaches
+                  a definition's hlines levels to the FIRST data plot's series as
+                  price lines, so a second guide plot would be a second attachment
+                  of the same kind — and `levels` is an array precisely so it does
+                  not have to be. */}
+              <label className={styles.label} htmlFor="uct-levels">Levels</label>
+              <input
+                id="uct-levels"
+                className={styles.plotKey}
+                value={levelsText}
+                placeholder="70, 30"
+                aria-label="Levels"
+                aria-invalid={levelsProblem ? 'true' : undefined}
+                onChange={(e) => setLevelsText(e.target.value)}
+              />
+              {levelsProblem && (
+                <p className={styles.inputProblem} role="alert" data-testid="levels-problem">
+                  {levelsProblem}
+                </p>
+              )}
+            </div>
+          </section>
+
           {/* ── THE READ-BACK ────────────────────────────────────────────────
               ⛔ `{result.readback}` AND NOTHING ELSE. See the header. */}
           {result?.ok && (
@@ -915,7 +2075,15 @@ export default function BuilderSheet({
           {/* ── THE BADGE ────────────────────────────────────────────────────
               Shown only for an ADMISSIBLE formula: a repaint verdict printed
               beside "unknown function `foo`" describes a formula that does not
-              exist, and would read as the reason it was refused. */}
+              exist, and would read as the reason it was refused.
+              ⛔⛔ `worstVerdict.reasons`, NOT `result.verdict.reasons` (FIX ROUND
+              1, IMPORTANT #3). `mode` above is already `worstVerdict.mode` — the
+              worst across every row — but this text used to read PLOT 1's OWN
+              reasons unconditionally. The moment a LATER row is the one carrying
+              the worst verdict, that put a warning-coloured badge beside plot 1's
+              `non-repainting` explanation: a caption stating something false
+              beside a correctly-coloured badge. Measured live via
+              `ichimokuChikou`, not hypothetical — see the report. */}
           {result?.ok && badge && (
             <p
               className={`${styles.badge} ${mode === 'non-repainting' ? styles.badgeClean : styles.badgeWarn}`}
@@ -924,16 +2092,31 @@ export default function BuilderSheet({
             >
               <UIcon name={mode === 'non-repainting' ? 'check' : 'warning'} size={14} />
               {badge}
-              <span className={styles.badgeWhy}>{(result.verdict.reasons || []).join('; ')}</span>
+              <span className={styles.badgeWhy}>{(worstVerdict?.reasons || []).join('; ')}</span>
             </p>
           )}
 
-          {mode === 'preview-repaints' && result?.ok && (
+          {/* ── PLOT 1's OWN ACKNOWLEDGEMENT ─────────────────────────────────
+              ⛔⛔ GATED AND WORDED ON PLOT 1's OWN VERDICT, NOT THE SHEET-WIDE
+              WORST (FIX ROUND 1, IMPORTANT #3). This used to key off `mode` (the
+              worst row across the WHOLE sheet) and write to one flag every row's
+              `canSaveFormula` call read — so ticking a box captioned with
+              WHICHEVER row's claim `worstVerdict` happened to surface also
+              silently cleared every OTHER row's own, possibly-different,
+              `preview-repaints` claim. `patchPlot(0, …)` is the same setter every
+              other row's checkbox uses below (`plot0` is a row like any other),
+              so plot 1 is not a special case any more — it is simply the row
+              whose checkbox lives beside the Save button instead of inside the
+              row loop, because its formula box is above that loop too. For a
+              single-plot document this is behaviourally IDENTICAL to before:
+              `worstVerdict` reduces to `result.verdict` when there is only one
+              row. */}
+          {result?.ok && result.verdict?.mode === 'preview-repaints' && (
             <label className={styles.ack}>
               <input
                 type="checkbox"
-                checked={acknowledged}
-                onChange={(e) => setAcknowledged(e.target.checked)}
+                checked={plot0.acknowledged === true}
+                onChange={(e) => patchPlot(0, { acknowledged: e.target.checked })}
                 data-testid="repaint-ack"
               />
               <span>

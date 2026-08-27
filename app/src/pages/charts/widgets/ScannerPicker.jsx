@@ -13,12 +13,21 @@ import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import UIcon from '../../../components/ui/UIcon'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
+import PickerHeader from './PickerHeader'
 import {
   WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme,
 } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
-import sc from './ScannerPicker.module.css'
+
+// Same three tabs as the Watchlist picker so the two are laid out identically. The
+// scan builder + shared scans aren't live yet, so Community / My Scans show a
+// coming-soon state; Prebuilt carries the curated PRESET_SCANS.
+const SCANNER_TABS = [
+  { key: 'prebuilt', label: 'Prebuilt' },
+  { key: 'community', label: 'Community' },
+  { key: 'mine', label: 'My Scans' },
+]
 
 // Preset scans. Each entry { key, name, description }; `key` maps to a scan
 // endpoint in ScannerResults. Picking one loads its live results.
@@ -87,6 +96,7 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
   const resetSettings = useCallback(() => onSettingsPersist?.({ ...WATCHLIST_DEFAULTS }), [onSettingsPersist])
 
   const [q, setQ] = useState('')
+  const [tab, setTab] = useState('prebuilt')   // presets live under Prebuilt
   const query = q.trim().toLowerCase()
   const presets = PRESET_SCANS.filter(s => !query || String(s.name).toLowerCase().includes(query))
 
@@ -103,56 +113,55 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
           themeVars={menuVars}
         />
       )}
-      <div className={styles.header}>
-        <div className={styles.titleRow}>
-          <div className={styles.title}>Add a Scanner</div>
-          {onSettingsPersist && (
-            <button
-              ref={setGearEl}
-              type="button"
-              className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-              onClick={() => setSettingsOpen(o => !o)}
-              title="Scanner settings"
-              aria-label="Scanner settings"
-            ><UIcon name="gear" size={13} /></button>
-          )}
-        </div>
-
-        <div className={styles.searchWrap}>
-          <UIcon name="search" size={13} gold={false} />
-          <input
-            className={styles.search}
-            placeholder="Search scans…"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-          />
-        </div>
-      </div>
+      <PickerHeader
+        tabs={SCANNER_TABS}
+        tab={tab}
+        onTab={setTab}
+        query={q}
+        onQuery={setQ}
+        searchPlaceholder="Search scans…"
+        onNew={() => {}}
+        newTitle="Custom scan builder — coming soon"
+        newDisabled
+        newHint="Soon"
+        showSettings={!!onSettingsPersist}
+        settingsOpen={settingsOpen}
+        onToggleSettings={() => setSettingsOpen(o => !o)}
+        settingsTitle="Scanner settings"
+        gearRef={setGearEl}
+      />
 
       <div className={styles.body}>
-        {/* Create your own — disabled until the custom scan-builder ships. */}
-        <button
-          type="button"
-          className={`${styles.newBtn} ${sc.createDisabled}`}
-          disabled
-          title="Custom scan builder — coming soon"
-        >
-          <UIcon name="plus" size={14} gold={false} />
-          <span>Create your own scan</span>
-          <span className={sc.soon}>Soon</span>
-        </button>
+        {/* ── Prebuilt: the curated preset scans ── */}
+        {tab === 'prebuilt' && (
+          presets.length === 0 ? (
+            <div className={styles.empty}>{query ? 'No matches.' : 'No preset scans yet.'}</div>
+          ) : presets.map(s => (
+            <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
+              <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
+              <span className={styles.rowName}>{s.name}</span>
+              {s.description && <span className={styles.rowMeta}>{s.description}</span>}
+            </button>
+          ))
+        )}
 
-        {/* Preset scanners */}
-        <div className={sc.sectionLabel}>Preset Scanners</div>
-        {presets.length === 0 ? (
-          <div className={styles.empty}>{query ? 'No matches.' : 'No preset scans yet.'}</div>
-        ) : presets.map(s => (
-          <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
-            <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
-            <span className={styles.rowName}>{s.name}</span>
-            {s.description && <span className={styles.rowMeta}>{s.description}</span>}
-          </button>
-        ))}
+        {/* ── Community: shared scans (not live yet) ── */}
+        {tab === 'community' && (
+          <div className={styles.emptyWrap}>
+            <UIcon name="community" size={22} gold />
+            <div className={styles.emptyTitle}>Community scans</div>
+            <div className={styles.emptyText}>Shared scans from the community are coming soon.</div>
+          </div>
+        )}
+
+        {/* ── My Scans: the custom scan builder (coming soon) ── */}
+        {tab === 'mine' && (
+          <div className={styles.emptyWrap}>
+            <UIcon name="library" size={22} gold />
+            <div className={styles.emptyTitle}>Your scans</div>
+            <div className={styles.emptyText}>Build and save your own scans — the scan builder is coming soon.</div>
+          </div>
+        )}
       </div>
     </div>
   )

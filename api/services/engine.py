@@ -49,7 +49,18 @@ if MORNING_WIRE_PATH not in sys.path:
 
 STATE_FILE = os.path.join(MORNING_WIRE_PATH, "morning_wire_state.json")
 WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
-PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"  # Railway volume mount
+# ⛔ ENV-PINNED, AND IT WAS NOT UNTIL 2026-08-27. On this box `/data` is the
+# owner's real `C:\\data`, and this literal was hardcoded in TWO modules with
+# no env read at all -- while `WIRE_DATA_FILE` beside it IS pinned and is tried
+# SECOND, so the unpinned copy always won. A runtime probe caught a local
+# backend opening the live file from a daemon thread during boot.
+#
+# ⚠️ The AST census in `conftest.py` reported this literal as PINNED, and it was
+# right about the question it asks -- *is there an env var for this literal?* --
+# which is not the question that matters here: *does every call site go through
+# it?* A pin that exists is not a pin that is used.
+PERSISTENT_WIRE_DATA_FILE = os.environ.get(
+    "PERSISTENT_WIRE_DATA_FILE", "/data/wire_data.json")  # Railway volume mount
 
 from api.services import yf_util
 from api.services.cache import cache

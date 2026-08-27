@@ -1,6 +1,14 @@
 import useSWR from 'swr'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// ⛔ `r.ok` FIRST. `jsonFetcher.test.js` sweeps every shipped surface for
+// exactly this shape and named this file: a 4xx/5xx body parsed and handed to
+// the consumer reads as DATA, so an error page becomes a session path and the
+// chart draws it. SWR needs the THROW to mark the key errored — returning
+// null would make a failed read indistinguishable from a quiet day.
+const fetcher = url => fetch(url).then((r) => {
+  if (!r.ok) throw new Error(`session-path ${r.status}`)
+  return r.json()
+})
 
 /**
  * A finished session's intraday shape.

@@ -65,6 +65,25 @@ describe('a member can declare an input and use it in the formula', () => {
     expect(screen.getByTestId('readback').textContent).toContain('period')
   })
 
+  it('⛔ a key mid-typed WITH A SPACE does not split into two phantom names (FIX ROUND 1, MINOR 6)', async () => {
+    // ⛔⛔ THE KEY BOX ONLY `.trim()`s — nothing stops an INTERIOR space while
+    // the key is still invalid. `inputKeySig` used to join every declared name
+    // with `' '` and split the same string back apart to rebuild the scope, so
+    // a key typed `my period` — invalid (`inputKeyProblem`'s regex refuses a
+    // space; Save stays shut on it) but still LIVE in the scope this render
+    // hands the box — silently declared TWO names, `my` and `period`, through
+    // that round trip. `period` is a name a LOT of authored indicators want.
+    // The delimiter is now `'\n'`, which a single-line `<input>` cannot hold —
+    // this is a serialisation fix, not a second legality check; the regex in
+    // `inputKeyProblem` stays the one place a key's legality is decided.
+    mount()
+    await act(async () => { fireEvent.click(addInput()) })
+    await act(async () => { fireEvent.change(keyBox(), { target: { value: 'my period' } }) })
+    await typeFormula('close * period')
+    expect(screen.queryByTestId('readback'),
+      '`period` must stay undeclared — the key typed is `my period`, ONE name, not two').toBeNull()
+  })
+
   it('⛔ a name the engine already computes is REFUSED, with the reason', async () => {
     // `close` as an input would be shadowed by the real series: the formula
     // would parse, lint, save and draw the wrong thing. Silent, so it refuses.

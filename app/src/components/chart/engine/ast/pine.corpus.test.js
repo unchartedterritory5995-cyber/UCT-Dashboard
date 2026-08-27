@@ -262,8 +262,26 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:function', // 09 (`cum`)
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
-      'pine:builtin', // 05, 06, 11, 15
-      'pine:undefined', // 12
+      'pine:builtin', // 05, 06, 11, 12, 14, 15
+      // ⚰️ `pine:undefined` LEFT THIS LIST 2026-08-27, and it left because the
+      // door stopped being WRONG rather than because it stopped being strict.
+      // This module keeps a hand-typed `PINE_KNOWN_BUILTINS` whose own comment
+      // says it exists "to tell 'a Pine name we know and cannot hold' apart from
+      // 'a name your script never defined' -- two different sentences for two
+      // different mistakes". `tableVersion` 2 added a `clock` section and that
+      // set never moved, so a member who wrote `dayofweek` -- a column this
+      // engine HOLDS -- was told their script never defined it.
+      //
+      // ⭐ The refusal is now DERIVED from `TABLE.clock`: 12 and 14 moved from
+      // `pine:undefined` to `pine:builtin` with a sentence that says the engine
+      // holds the column and names what would unblock it. Same line, same
+      // column, same token -- only the sentence and the guard changed.
+      //
+      // ⛔ THE GUARD IS STILL LIVE and still right for a genuinely undefined
+      // name; `plot(zzNotARealName)` still trips it. It simply has no published
+      // script left in this corpus that does -- so it is railed by CONSTRUCTED
+      // cases in `pine.test.js` and `pine.variables.test.js` instead, which is
+      // where a guard belongs once the corpus stops reaching it.
     ]) {
       expect(fired, guard).toContain(guard)
     }
@@ -277,7 +295,14 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // index that cannot be reduced; it is simply no longer reachable from these
     // 21 scripts. Exactly the movement this number exists to force somebody to
     // acknowledge, rather than a list going quietly stale.
-    expect(fired.size).toBe(10)
+    // ⚰️ 10 → 9 ON 2026-08-27, AND THIS ASSERTION IS WHAT NOTICED — again.
+    // `pine:undefined` stopped firing on the corpus because the door stopped
+    // being wrong: 12 and 14 name clock columns this engine HOLDS, and telling a
+    // member their script never defined one of those was the wrong one of this
+    // module's own two sentences. The guard is still live and still railed, by
+    // constructed cases (`pine.test.js`'s `mystery`, and `pine.variables.test.js`)
+    // rather than by a published script.
+    expect(fired.size).toBe(9)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

@@ -47,8 +47,9 @@ MANIFEST_PATH: pathlib.Path = (
 )
 
 #: The section keys of the manifest. STRUCTURE, not vocabulary — these name the
-#: four dictionaries, never an entry inside one.
+#: dictionaries, never an entry inside one.
 SERIES_SECTION = "series"
+CLOCK_SECTION = "clock"
 OPERATORS_SECTION = "operators"
 FUNCTIONS_SECTION = "functions"
 SCALARS_SECTION = "scalars"
@@ -57,8 +58,16 @@ SCALARS_SECTION = "scalars"
 #: partition identity; see ``excluded_columns``.
 EXCLUDED_KEY = "_scalars_excluded"
 
-#: ⭐ THE THREE SECTIONS A BAR-CORPUS CASE CAN EXERCISE — see ``bar_names``.
-BAR_SECTIONS = (SERIES_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
+#: ⭐ THE SECTIONS A BAR-CORPUS CASE CAN EXERCISE — see ``bar_names``.
+#:
+#: ⭐ ``clock`` IS ONE OF THEM (tableVersion 2). A clock value is a property of
+#: the BAR — the calendar moment it sits at — so it varies down the replay
+#: series exactly as ``close`` does and a bar-corpus case measures it the same
+#: way. That is the whole test for this tuple: a scalar is one number per SYMBOL
+#: and has nothing to say about a 579-bar series, which is why it has its own
+#: floor against its own fixture; a clock column has something to say about
+#: every bar of it.
+BAR_SECTIONS = (SERIES_SECTION, CLOCK_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
 
 #: Every section that declares a NAME a formula may spell.
 SECTIONS = BAR_SECTIONS + (SCALARS_SECTION,)
@@ -157,6 +166,21 @@ def scalar_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
     return set(m.get(SCALARS_SECTION) or {})
 
 
+def clock_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """Every bar-clock name the table declares.
+
+    ⭐ A SUBSET OF ``bar_names``, NOT A THIRD FLOOR. The clock rides the
+    ``series`` node and varies per bar, so the bar corpus already owes it a case
+    and ``assert_the_two_floors_partition_the_table`` already covers it. This
+    accessor exists so a reader that has to treat a clock leaf DIFFERENTLY — the
+    two interpreters seeding it from ``compute_clock`` rather than from a bar
+    field, the two linters resolving it to reach (0, 0) — can ask the manifest
+    which names those are instead of carrying a list.
+    """
+    m = manifest if manifest is not None else TABLE
+    return set(m.get(CLOCK_SECTION) or {})
+
+
 def series_field(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
     """The bar key a declared series reads. Raises ``KeyError`` for anything else."""
     m = manifest if manifest is not None else TABLE
@@ -229,7 +253,20 @@ def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
     fail-closed is the answer until somebody declares it.
     """
     m = manifest if manifest is not None else TABLE
-    for section in (OPERATORS_SECTION, FUNCTIONS_SECTION, SCALARS_SECTION):
+    # ⛔ THE SECTION LIST IS DERIVED, NEVER TYPED, AND THAT IS THE FIX FOR A
+    # MEASURED DEFECT. It read ``(OPERATORS, FUNCTIONS, SCALARS)`` -- a hand-list
+    # of four sections' worth of table with one missing -- so when ``clock``
+    # landed, every one of its thirteen ``yields`` declarations was INERT: this
+    # function raised ``KeyError`` on ``isintraday`` and ``is_boolean_tree`` fell
+    # to False, which refused a bare ``isintraday`` as a scan while the identical
+    # 0/1 shape on a scalar was accepted. Worse, a later engineer who "fixed" the
+    # declaration would have changed nothing, because no consumer read the
+    # section -- ``lesson_a_measured_knob_is_inert_if_the_consumer_skips_its_stage``.
+    # ``SERIES_SECTION`` is deliberately absent from the derivation and that is
+    # not a second hand-list: a bar field declares no ``yields`` at all (it is a
+    # price, always ``num``), so including it would only ever return the default
+    # by a longer route. Everything else that declares names is consulted.
+    for section in (sec for sec in SECTIONS if sec != SERIES_SECTION):
         entry = (m.get(section) or {}).get(name)
         if entry is not None:
             value = entry.get("yields")
@@ -286,6 +323,78 @@ def recurrence_bindings(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
     """The reserved names the bodies bind — the set a scope must refuse to let an
     input shadow. Derived from the entries above, never listed."""
     return tuple(sorted({r["binds"] for r in recurrences(manifest).values()}))
+
+
+#: The declaration that says an entry is computed over the BAR ARRAY rather than
+#: over the columns its arguments name. See ``closedTable.json``'s
+#: ``_functions_bar_readers``.
+BAR_READS = "bars"
+
+
+def bar_readers(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
+    """Every function entry declaring ``reads: "bars"``, sorted.
+
+    ⭐ THE ``recurrence`` IDIOM, APPLIED TO THE OTHER THING A CALL CAN NEED.
+    ``_bind_shipped`` packs bars out of ARGUMENT COLUMNS and therefore fabricates
+    ``t`` as a bar index — which is exactly why ``vwap`` was refused for as long
+    as this table has existed. An entry declaring this is handed ``interpret``'s
+    own bar array instead, so its anchor is a real instant.
+
+    ⛔ DERIVED, NEVER LISTED, and that is not tidiness: both walkers ask *"does
+    this entry read the bars"* rather than *"is this call ``vwap``"*, so a third
+    such entry needs no change in either lane. ``parse.js::BAR_READERS`` is the
+    same read on the same manifest — one declaration, two readings, no third
+    list.
+    """
+    m = manifest if manifest is not None else TABLE
+    return tuple(sorted(
+        name for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
+        if isinstance(spec, Mapping) and spec.get("reads") == BAR_READS))
+
+
+#: The declaration that says an entry's OTHER ``int`` arguments must fit inside
+#: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
+#: it; this is the key both lanes match on, and its VALUE names which of the
+#: entry's own reach declarations supplies the ceiling.
+ARG_DOMAIN = "domain"
+
+
+def arg_domains(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """Every function entry declaring an argument domain → the CEILING
+    DECLARATION it points at. ``{"macd": "arg2", "ichimokuTenkan": "arg4", ...}``.
+
+    ⭐ THE ``reads: "bars"`` IDIOM, APPLIED TO THE OTHER THING A DECLARATION CAN
+    BE WRONG ABOUT. ``lookback: "arg2"`` is a promise about how many bars of
+    history an entry needs, and for these six it holds only while the argument it
+    names is the LARGEST period in the call — ``macd(close, 26, 12)`` reaches 26
+    bars back under a declaration that promised 12, and every line of the
+    Ichimoku family starts at the longest of its three periods. The entry says so
+    itself; nothing here knows the name ``macd``.
+
+    ⛔ ONE INDIRECTION, NEVER A RE-TYPED SLOT. The value of ``domain`` is the NAME
+    of another key on the same entry (``"lookback"``), and what comes back is that
+    key's own declaration — so moving an entry's lookback to another slot moves
+    its domain with it, and no argument index is written down twice.
+
+    ⛔ THE INDEX IS NOT RESOLVED HERE, AND THAT IS THE SPLIT. ``arg3`` is spelled
+    in ONE grammar per lane (``ast_interpret._LOOKBACK_RE`` here,
+    ``parse.js::LOOKBACK_RE`` there) and the walker already reads it; resolving it
+    a second time in this module would be the fifth hand-written copy of a pattern
+    whose fourth branded ADX as repainting in production.
+    ``parse.js::argDomainsOf`` answers the same question in the same shape.
+    """
+    m = manifest if manifest is not None else TABLE
+    out = {}
+    for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items():
+        if not isinstance(spec, Mapping):
+            continue
+        key = spec.get(ARG_DOMAIN)
+        if not isinstance(key, str) or not key:
+            continue
+        declaration = spec.get(key)
+        if isinstance(declaration, str) and declaration:
+            out[name] = declaration
+    return out
 
 
 def is_pointwise(spec: Any) -> bool:

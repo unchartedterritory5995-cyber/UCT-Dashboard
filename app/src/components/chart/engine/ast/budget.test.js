@@ -17,7 +17,9 @@ import {
 import {
   interpret, maxLookback, nodeCount, TableRefusal, REFUSALS as INTERPRET_REFUSALS,
 } from './interpret.js'
-import { parseFormula, canonicalise, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
+import {
+  parseFormula, canonicalise, TABLE, REFUSALS as PARSE_REFUSALS, SESSION_MAX_BARS,
+} from './parse.js'
 
 /** The repo root, found by walking up — the same helper `interpret.test.js` and
  *  `lint.test.js` use, and it THROWS BY NAME rather than defaulting, because a
@@ -171,9 +173,87 @@ describe('the three caps are a closed set, declared once', () => {
       }
     }
     for (const cap of Object.keys(DEFAULT_BUDGET)) {
+      // ⭐⭐ `maxLookback` IS THE ONE CAP THE CORPUS IS SUPPOSED TO REACH, and
+      // that is a consequence of ruling O7 rather than a relaxation. The cap is
+      // DERIVED as `max(NESTED_RECURRENCE_WARMUP, sessionMaxBars)`, so a
+      // session-anchored entry does not merely approach it — it IS it, by
+      // construction, at whatever number a session turns out to be. Demanding
+      // headroom there would demand that the cap be bigger than the thing it was
+      // sized to hold, which is a rail asking for its own subject to be wrong.
+      // ⛔ EQUALITY IS STILL THE CEILING: one bar past it refuses, and the case
+      // below measures exactly which shapes that costs.
+      if (cap === 'maxLookback') {
+        expect(worst[cap], `${cap}: the corpus is OVER the cap`)
+          .toBeLessThanOrEqual(DEFAULT_BUDGET[cap])
+        continue
+      }
       expect(worst[cap], `${cap}: the corpus already sits AT the cap`).toBeLessThan(DEFAULT_BUDGET[cap])
     }
+    // …and the equality is REAL rather than a widening nothing uses: some case
+    // in the committed corpus must actually sit at the lookback cap, or the arm
+    // above is an exemption granted to nobody.
+    expect(worst.maxLookback, 'no corpus case reaches the lookback cap — the arm above is dead')
+      .toBe(DEFAULT_BUDGET.maxLookback)
     expect(CORPUS.cases.length).toBeGreaterThanOrEqual(17)
+  })
+
+  it('⛔ A SESSION-ANCHORED CALL SATURATES THE LOOKBACK BUDGET — what that COSTS, by name', () => {
+    // 🔴 THE MEMBER-VISIBLE CONSEQUENCE OF RULING O7, MEASURED RATHER THAN
+    // DISCOVERED IN SUPPORT. `maxLookback` was derived to hold exactly one ET
+    // session and `vwap()` declares exactly one ET session — so it uses the
+    // WHOLE budget and there is nothing left for anything wrapped around it.
+    // Bare and in pointwise arithmetic it is fine; ANY windowed or offset
+    // composition refuses `budget:lookback`, at the save door and at compute.
+    //
+    // ⚠️ THIS IS NOT A BUG TO FIX HERE. The alternatives are a bigger cap (which
+    // widens every other window AND the bar-offset ceiling with it — they are
+    // one number by design) or a session-anchored entry that UNDER-declares its
+    // window, which `_functions_warmup` forbids. It is written down so the next
+    // lane reads it instead of finding it in a member's screenshot.
+    const usable = ['vwap()', 'avwap(1762189200)', 'close > vwap()',
+                    'vwap() - avwap(1762189200)']
+    for (const src of usable) {
+      const tree = parseFormula(src).ast
+      expect(maxLookback(tree), src).toBe(DEFAULT_BUDGET.maxLookback)
+      expect(checkBudget(tree, null).ok, `${src} must still be usable`).toBe(true)
+    }
+    // ⛔ `crossOver(close, vwap())` IS FIRST IN THIS LIST BECAUSE IT IS FIRST
+    // IN A MEMBER'S HEAD. The original version of this case named `sma`,
+    // `change` and the bar offset and omitted the one formula anybody actually
+    // types — a rail that covers the shapes an engineer thinks of is not a rail
+    // over the shapes a member writes.
+    const refused = ['crossOver(close, vwap())', 'highest(vwap(), 2)',
+                     'sma(vwap(), 20)', 'change(vwap())', 'vwap()[1]']
+    for (const src of refused) {
+      const tree = parseFormula(src).ast
+      expect(maxLookback(tree), src).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
+      const r = checkBudget(tree, null)
+      expect(r.ok, `${src} unexpectedly fits`).toBe(false)
+      expect(r.guard, src).toBe('budget:lookback')
+      // ⭐ AND THE MESSAGE SAYS WHICH BUDGET AND WHY, NOT JUST "too long". Two
+      // bare numbers one apart read as an arbitrary rejection; the member has no
+      // way to know the fix is not a smaller window.
+      expect(r.error, src).toMatch(/lookback budget/)
+      expect(r.error, src).toMatch(/vwap\(\)/)
+      expect(r.error, src).toMatch(/one whole trading session/)
+      expect(r.error, src).toMatch(/nothing can be wrapped around it/)
+    }
+    // ⛔ AND IT IS NOT GLUED TO EVERY REFUSAL. A node-budget refusal, and a
+    // lookback refusal with no session-anchored call in it, say nothing about
+    // sessions — otherwise the clause is decoration rather than a reason.
+    // ⛔ THE CONTROL CARRIES A CALL, and that is what makes it a control. A
+    // first version used `close[cap+1]` — no call at all — and a mutation that
+    // matched EVERY call rather than the session-anchored ones SURVIVED it in
+    // both lanes. `sma` is over the cap here and names no session, so a filter
+    // that stopped reading `lookback` would spell `sma()` in this message.
+    for (const src of [`sma(close, ${DEFAULT_BUDGET.maxLookback + 1})`,
+                       `close[${DEFAULT_BUDGET.maxLookback + 1}]`]) {
+      const plain = checkBudget(parseFormula(src).ast, null)
+      expect(plain.ok, src).toBe(false)
+      expect(plain.guard, src).toBe('budget:lookback')
+      expect(plain.error, src).not.toMatch(/trading session/)
+      expect(plain.error, src).not.toMatch(/sma\(\)/)
+    }
   })
 })
 
@@ -240,14 +320,23 @@ describe('a budget is checked at REGISTRATION and again at COMPUTE', () => {
   })
 
   it('the lookback budget is a TREE SUM, not the largest single argument', () => {
-    // `sma(sma(close, 300), 300)` looks back 600 bars, not 300. A budget that read
-    // the largest argument would admit a formula that needs more history than the
+    // `sma(sma(close, n), n)` looks back 2n bars, not n. A budget that read the
+    // largest argument would admit a formula that needs more history than the
     // chart holds — and a column that is NaN for its whole visible range is a line
     // the user cannot see and cannot debug.
-    expect(maxLookback(parseFormula('sma(sma(close, 300), 300)').ast)).toBe(600)
-    // …and the budget REFUSES it, while neither 300 alone comes near the cap.
-    expect(checkBudget(parseFormula('sma(close, 300)').ast, null).ok).toBe(true)
-    expect(checkBudget(parseFormula('sma(sma(close, 300), 300)').ast, null))
+    //
+    // ⚰️ THE WINDOW WAS THE LITERAL 300, CHOSEN SO 600 CLEARED A CAP OF 550. When
+    // the cap moved to hold one session, 600 stopped tripping it and this case
+    // went green while measuring nothing — a hand-typed number beside the cap it
+    // was derived from. `n` is now derived FROM the cap, so the pair straddles it
+    // wherever it sits.
+    const cap = DEFAULT_BUDGET.maxLookback
+    const n = Math.ceil((cap + 1) / 2)
+    expect(2 * n).toBeGreaterThan(cap)      // the nest must exceed it…
+    expect(n).toBeLessThanOrEqual(cap)      // …and one leg alone must not.
+    expect(maxLookback(parseFormula(`sma(sma(close, ${n}), ${n})`).ast)).toBe(2 * n)
+    expect(checkBudget(parseFormula(`sma(close, ${n})`).ast, null).ok).toBe(true)
+    expect(checkBudget(parseFormula(`sma(sma(close, ${n}), ${n})`).ast, null))
       .toMatchObject({ ok: false, guard: 'budget:lookback' })
   })
 })
@@ -545,3 +634,73 @@ function generated(spec) {
   }
   throw new Error(`unknown AST generator spec: ${spec}`)
 }
+
+// --------------------------------------------------------------------------- //
+// 🔴 THE SESSION WINDOW DOES NOT FIT THIS BUDGET — DECLARED, NOT SMOOTHED OVER
+// --------------------------------------------------------------------------- //
+
+describe('the `session` lookback and the lookback cap', () => {
+  it('⭐ the cap HOLDS at least one session — the ruling that made the grammar usable', () => {
+    // ⭐ CONTROLLER RULING O7 (2026-08-26). One extended ET session is longer than
+    // the nested-recurrence warmup the cap used to be, so before this every
+    // `lookback: "session"` call refused `budget:lookback` at the save door AND at
+    // compute — a declared grammar that shipped unusable.
+    //
+    // ⛔ THE CAP WAS NOT MOVED "TO MAKE ONE SCRIPT PASS", which the note above it
+    // forbids. It moved for a reason of the same KIND as the 500 → 550 move: a
+    // whole declared grammar the spec requires, with the number derived from this
+    // engine's own definition of a session rather than chosen to fit.
+    expect(DEFAULT_BUDGET.maxLookback).toBeGreaterThanOrEqual(SESSION_MAX_BARS)
+
+    // …and the refusal is really gone, measured through the same cap on the one
+    // shape that can reach `maxLookback` with a session-sized window today.
+    const sessionDeep = { type: 'offset', value: SESSION_MAX_BARS, args: [{ type: 'series', name: 'close' }] }
+    expect(maxLookback(sessionDeep)).toBe(SESSION_MAX_BARS)
+    expect(checkBudget(sessionDeep, undefined).ok).toBe(true)
+
+    // ⛔ AND THE CAP IS STILL A GUARD, NOT A LATCH. One bar past it still refuses —
+    // `lesson_gate_that_cannot_fail` is what this line is against.
+    const tooDeep = { type: 'offset', value: DEFAULT_BUDGET.maxLookback + 1, args: [{ type: 'series', name: 'close' }] }
+    expect(checkBudget(tooDeep, undefined)).toMatchObject({ ok: false, guard: CAP_GUARD.maxLookback })
+    let guard = null
+    try { assertBudget(tooDeep, undefined) } catch (err) { guard = err.guard }
+    expect(guard, 'the SAFETY half must refuse it too, not just the UX half').toBe(CAP_GUARD.maxLookback)
+  })
+
+  it('⛔⛔ the cap is DERIVED from the session constant, never typed to match it', () => {
+    // The binding condition of the ruling. Two numbers that must agree, typed in
+    // two places, is this repo's most repeated defect — and it would be a poor
+    // thing to introduce in the change that removed the FIFTH hand-written copy of
+    // the lookback grammar.
+    const src = readSource('budget.js')
+    const cap = DEFAULT_BUDGET.maxLookback
+    expect(new RegExp(`(?<![\\d.])${cap}(?![\\d.])`).test(src),
+      `budget.js spells the lookback cap as the literal ${cap} instead of deriving it ` +
+      'from the session constant',
+    ).toBe(false)
+    expect(src.includes('Math.max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS)'),
+      'the cap no longer reads as "the larger of the two families it holds"').toBe(true)
+
+    // ⚠️ THE `Math.max` IS LOAD-BEARING IN BOTH DIRECTIONS. If a corrected session
+    // were ever SHORTER than the floor, dropping the floor would silently refuse
+    // the nested-recurrence family the 2026-08-22 move was made to admit.
+    const floor = Number(/const NESTED_RECURRENCE_WARMUP = (\d+)/.exec(src)?.[1])
+    expect(Number.isInteger(floor)).toBe(true)
+    expect(floor).toBeGreaterThanOrEqual(524)   // accum-in-accum: 250 + 250 + ATR's 22 + 1
+    expect(cap).toBe(Math.max(floor, SESSION_MAX_BARS))
+  })
+
+  it('the budget holds no READER of a lookback declaration — it thresholds the measurement', () => {
+    // ⭐ THE DISTINCTION THE RULING TURNS ON, AND IT IS NARROW. The budget MAY read
+    // the session CONSTANT — its cap is derived from it. What it must never hold is
+    // a second READER of a `lookback` declaration: the thing that turns `'session'`
+    // into a number is `maxLookback`, once, in `interpret.js`.
+    const src = readSource('budget.js')
+    for (const reader of ['spec.lookback', 'SESSION_LOOKBACK']) {
+      expect(src.includes(reader),
+        `budget.js resolves a lookback declaration itself (${reader}) instead of ` +
+        'thresholding the measurement that already does',
+      ).toBe(false)
+    }
+  })
+})

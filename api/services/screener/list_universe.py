@@ -115,7 +115,7 @@ def resolve(selector, user_id):
                          (user_id,))
             label = "Flagged" if sel == FLAGGED else "Unflagged"
             return _finish(syms, {"selector": sel, "label": label,
-                                  "complement": sel == UNFLAGGED})
+                                  "complement": is_complement(sel)})
 
         if sel.startswith(_WL_PREFIX):
             wl_id = sel[len(_WL_PREFIX):].strip()
@@ -176,6 +176,28 @@ def _finish(syms, receipt):
     return out, receipt
 
 
+def is_complement(selector) -> bool:
+    """⛔ THE ONE PLACE THAT DECIDES WHETHER A SELECTOR IS A COMPLEMENT.
+
+    X15: `available()` offers `unflagged` and `scan_run.submit_run` ALWAYS
+    refuses it — *"a complement (everything NOT on a list), not a list — a run
+    needs a bounded set of names"*. A member picking "Unflagged (everything
+    else)" from the run-now selector could therefore only ever be refused.
+
+    ⭐ The option is not broken; its validity is CONTEXT-DEPENDENT. A complement
+    is a perfectly good screen (it is a `NOT IN` in a WHERE clause) and a
+    perfectly bad run universe (a run needs a bounded set). So the fix is not
+    "stop offering it" and it is certainly not "filter it out in the client" —
+    that would put a second authority on the selector grammar. It is: **the
+    side that knows stamps its answer**, and each door decides for itself.
+
+    `resolve()` already stamped `complement` on its receipt; `available()` did
+    not, so a consumer holding only the option list had no way to tell. Both
+    now ask this function, so the two doors cannot drift apart.
+    """
+    return selector == UNFLAGGED
+
+
 def available(user_id):
     """Every selector this member can screen by, for ``meta(user_id)``.
 
@@ -211,6 +233,15 @@ def available(user_id):
                     (user_id,)):
                 out.append({"value": f"{_TAG_PREFIX}{r['c']}",
                             "label": f"{str(r['c']).title()} tag ({r['n']})"})
+            # ⭐ STAMPED ONCE, AT THE ONE EXIT (X15). Four option kinds are
+            # built above; writing `is_complement(...)` into each of them
+            # would be four hand-written copies of one rule, which is the
+            # defect this fix exists to remove. Stamping here also means an
+            # option kind added tomorrow is covered with no edit — and the
+            # rail compares this flag against `resolve()`'s receipt, so the
+            # two doors cannot drift.
+            for o in out:
+                o["complement"] = is_complement(o["value"])
             return out
     except Exception:  # noqa: BLE001 — see the docstring
         return []

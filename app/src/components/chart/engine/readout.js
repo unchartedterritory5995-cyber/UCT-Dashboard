@@ -227,6 +227,44 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
 }
 
 /**
+ * The suffix that tells a group of siblings apart — one per sibling, in the order
+ * given: the inputs that DIFFER across the group (`" (fastPeriod 5)"`), or an
+ * ordinal (`" #2"`) when nothing does.
+ *
+ * ⭐ EXPORTED BECAUSE THE LEGEND IS NO LONGER THE ONLY SURFACE THAT HAS TO NAME
+ * TWO COPIES OF ONE INDICATOR. The chart's indicator-pane context menu builds one
+ * `<label> settings…` row per live instance (two copies of a definition share ONE
+ * pane, so that menu is the only door once the legend collapses to compact), and
+ * it takes the suffix from HERE rather than from a rendered chip label — one
+ * grammar, two surfaces, and no string-stripping of a formatted label to recover
+ * a suffix that was computed in the first place.
+ *
+ * ⛔ WHETHER THE GROUP IS AMBIGUOUS AT ALL IS THE CALLER'S QUESTION, NOT THIS
+ * FUNCTION'S. `disambiguateSiblings` below asks *"do these chips' labels
+ * collide?"* and skips a group that already reads apart (`RSI(14)` vs `RSI(7)`);
+ * the menu's rows all wear the same catalog noun, so for it the answer is always
+ * yes. Folding that test in here would give one of the two callers the wrong
+ * answer.
+ *
+ * @param {object[]} inputsList one resolved-inputs object per sibling, in order
+ * @returns {string[]} one suffix per sibling, same order, each already spaced
+ */
+export function siblingSuffixes(inputsList) {
+  const rows = (Array.isArray(inputsList) ? inputsList : [])
+    .map(o => (o && typeof o === 'object' ? o : {}))
+  const keys = [...new Set(rows.flatMap(o => Object.keys(o)))].sort()
+  const differing = keys.filter((k) => {
+    const seen = new Set(rows.map(o => JSON.stringify(o[k])))
+    return seen.size > 1
+  })
+  // Identical siblings draw on top of each other; an ordinal is thin but it is
+  // not a lie, and it beats two rows claiming to be the same thing.
+  return rows.map((inputs, n) => (differing.length
+    ? ` (${differing.map(k => `${k} ${inputs[k]}`).join(', ')})`
+    : ` #${n + 1}`))
+}
+
+/**
  * Suffix the chips of a plot that has MORE THAN ONE instance on the chart, so a
  * member can tell their two copies apart.
  *
@@ -269,21 +307,12 @@ function disambiguateSiblings(chips, inputsByChip) {
     // carry explicit `legend.label`s that short-circuit `legendParams` entirely.
     if (new Set(idxs.map(i => chips[i].label)).size === idxs.length) continue
 
-    const inputsFor = idxs.map(i => inputsByChip.get(i) || {})
-    const keys = [...new Set(inputsFor.flatMap(o => Object.keys(o)))].sort()
-    const differing = keys.filter((k) => {
-      const seen = new Set(inputsFor.map(o => JSON.stringify(o[k])))
-      return seen.size > 1
-    })
+    // The suffix grammar lives in `siblingSuffixes` above — CALLED here, so the
+    // legend and the pane menu cannot word two copies of one indicator differently.
+    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}))
 
     idxs.forEach((chipIdx, n) => {
-      const inputs = inputsFor[n]
-      // Identical siblings draw on top of each other; an ordinal is thin but it
-      // is not a lie, and it beats two chips claiming to be the same thing.
-      const suffix = differing.length
-        ? ` (${differing.map(k => `${k} ${inputs[k]}`).join(', ')})`
-        : ` #${n + 1}`
-      const label = `${chips[chipIdx].label}${suffix}`
+      const label = `${chips[chipIdx].label}${suffixes[n]}`
       chips[chipIdx].label = label
       chips[chipIdx].text = `${label} ${chips[chipIdx].value.toFixed(chips[chipIdx].decimals)}`
     })

@@ -15,6 +15,7 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import UIcon from '../../../components/ui/UIcon'
 import { useWatchlistTemplates } from '../../watchlist/watchlistTemplates'
 import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
+import PickerHeader from './PickerHeader'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { aliasKey } from '../../watchlist/communityPick'
@@ -204,49 +205,22 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
           themeVars={menuVars}
         />
       )}
-      <div className={styles.header}>
-        <div className={styles.titleRow}>
-          <div className={styles.title}>Add a Watchlist</div>
-          {onSettingsPersist && (
-            <button
-              ref={settingsBtnRef}
-              type="button"
-              className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-              onClick={() => setSettingsOpen(o => !o)}
-              title="Watchlist settings"
-              aria-label="Watchlist settings"
-            ><UIcon name="gear" size={13} /></button>
-          )}
-        </div>
-
-        {/* Segmented tab control */}
-        <div className={styles.tabs} role="tablist">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              className={`${styles.tab}${tab === t.key ? ' ' + styles.tabActive : ''}`}
-              onClick={() => setTab(t.key)}
-            >
-              <UIcon name={t.icon} size={12} gold={false} />
-              <span>{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.searchWrap}>
-          <UIcon name="search" size={13} gold={false} />
-          <input
-            className={styles.search}
-            placeholder="Search watchlists…"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            autoFocus
-          />
-        </div>
-      </div>
+      <PickerHeader
+        tabs={TABS}
+        tab={tab}
+        onTab={setTab}
+        query={q}
+        onQuery={setQ}
+        searchPlaceholder="Search watchlists…"
+        autoFocus
+        onNew={() => { setTab('mine'); setCreating(true) }}
+        newTitle="New watchlist"
+        showSettings={!!onSettingsPersist}
+        settingsOpen={settingsOpen}
+        onToggleSettings={() => setSettingsOpen(o => !o)}
+        settingsTitle="Watchlist settings"
+        gearRef={settingsBtnRef}
+      />
 
       <div className={styles.body}>
         {/* ── Prebuilt ── */}
@@ -292,8 +266,8 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
         {/* ── My Lists ── */}
         {tab === 'mine' && (
           <>
-            {/* Quick inline create */}
-            {creating ? (
+            {/* Quick inline create (opened by the header "＋ New") */}
+            {creating && (
               <form className={styles.createForm} onSubmit={submitCreate}>
                 <input
                   className={styles.createInput}
@@ -320,11 +294,6 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                   <button type="submit" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
                 </div>
               </form>
-            ) : (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
-                <UIcon name="plus" size={14} gold={false} />
-                <span>New watchlist</span>
-              </button>
             )}
 
             {showFlagged && (

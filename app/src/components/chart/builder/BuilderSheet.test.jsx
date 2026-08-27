@@ -10,9 +10,22 @@ import BuilderSheet, { BuilderBoundary, buildDefinition, draftDefId } from './Bu
 import FormulaField, { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
+
+//: ⛔ DERIVED, NEVER TYPED. This was `sma(close, 600)` in four places. The O7
+//: cap raise (550 -> 960) took 600 from OVER the cap to UNDER it, and these
+//: four assertions went red for a reason that had nothing to do with what they
+//: test -- the FIFTH stale literal that one constant move left behind, and the
+//: one that crossed a lane boundary so no sweep found it. The window now comes
+//: from the cap itself, so it can never be on the wrong side of it again.
+//: The `+ 2` is slack, not magic: `sma(close, n)` reaches back `n - 1` bars, so
+//: `maxLookback + 2` is the first window that is over the cap on any reading of
+//: the off-by-one -- and the assertions below prove it refuses rather than
+//: assuming it.
+const OVER_CAP = DEFAULT_BUDGET.maxLookback + 2
+const OVER_CAP_SRC = `sma(close, ${OVER_CAP})`
 import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint, REPAINT_MODES } from '../engine/ast/lint'
-import { checkBudget } from '../engine/ast/budget'
+import { checkBudget, DEFAULT_BUDGET } from '../engine/ast/budget'
 import { validateUserDefinitions, getDefinition, clearUserDefinitions } from '../engine/nativeRegistry'
 // ⚠️ THE NAMESPACE, because `normalizeInstances` takes a REGISTRY and the
 // namespace import is the shape `StockChart.jsx` hands it.
@@ -142,7 +155,7 @@ describe('the builder refuses without dying', () => {
     const cases = [
       { src: 'sma(close,', guard: 'parser' },
       { src: 'close.length', guard: 'canonicalise:member' },
-      { src: 'sma(close, 600)', guard: 'budget:lookback' },
+      { src: OVER_CAP_SRC, guard: 'budget:lookback' },
       { src: 'foo(close, 3)', guard: 'resolve:function' },
       { src: 'close + high + low + open + volume + above_50sma + accdis + adr_pct + atr_pct', guard: 'budget:series' },
     ]
@@ -163,7 +176,7 @@ describe('the builder refuses without dying', () => {
 
   it('the five doors say five DIFFERENT things — a shared phrase is a gate nothing can tell apart', () => {
     const msgs = [
-      'sma(close,', 'close.length', 'sma(close, 600)', 'foo(close, 3)',
+      'sma(close,', 'close.length', OVER_CAP_SRC, 'foo(close, 3)',
       'close + high + low + open + volume + above_50sma + accdis + adr_pct + atr_pct',
     ].map((s) => evaluateFormula(s).error)
     expect(msgs.every(Boolean)).toBe(true)
@@ -831,11 +844,11 @@ describe('evaluateFormula', () => {
   })
 
   it('reports the FIRST admissibility failure, and the doors answer in order', () => {
-    // `sma(close, 600)` is over the lookback cap AND has a perfectly good
+    // `OVER_CAP_SRC` is over the lookback cap AND has a perfectly good
     // read-back; the budget is the door that must answer, and the answer is the
     // budget's own.
-    expect(evaluateFormula('sma(close, 600)').guard).toBe('budget:lookback')
-    expect(checkBudget(parseFormula('sma(close, 600)').ast, undefined).guard).toBe('budget:lookback')
+    expect(evaluateFormula(OVER_CAP_SRC).guard).toBe('budget:lookback')
+    expect(checkBudget(parseFormula(OVER_CAP_SRC).ast, undefined).guard).toBe('budget:lookback')
     // …a computed window is refused by the guard that OWNS windows, not by the
     // read-back that also cannot spell it.
     expect(evaluateFormula('sma(close, 5 + 5)').guard).toBe('resolve:window')
@@ -1155,6 +1168,26 @@ describe('🔴 closing with unsaved work asks first', () => {
 
     expect(screen.queryByTestId('discard-confirm')).toBeNull()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('🔴 recolouring plot 1 with the FORMULA BOX untouched is dirty too (FIX ROUND 1, MINOR 5)', async () => {
+    // ⛔⛔ `dirty` used to OR only `source`/`name`/an extra row's source, so a
+    // member who only touched plot 1's swatch — with the formula box still
+    // empty — tripped none of the three and lost the recolour with no prompt,
+    // the very loss this gate exists to prevent, one field over. Same for the
+    // width, the Hide toggle, the label, Overlay placement and a typed level —
+    // this one case stands for all of them because `isUntouchedRow` is the
+    // single predicate that covers every one of plot 1's chrome fields at once.
+    const onClose = vi.fn()
+    mount({ onClose })
+    fireEvent.change(screen.getByLabelText('Plot 1 colour'), { target: { value: '#ff0000' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    expect(screen.getByTestId('discard-confirm'),
+      'a recoloured plot 1 must not close silently even with an empty formula box').toBeTruthy()
+    expect(onClose).not.toHaveBeenCalled()
   })
 })
 

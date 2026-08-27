@@ -54,7 +54,10 @@ const BARS = Array.from({ length: 6 }, (_, i) => ({
 describe('the closed table declares scalars, and both lanes read the same one', () => {
   it('declares a fourth section whose entries carry a source, an as-of column, a cadence and a yield', () => {
     const names = Object.keys(TABLE.scalars)
-    expect(names.length).toBe(108)
+    // 108 -> 111 on 2026-08-25: the three NUMERIC columns of the 8/24 candle
+    // library (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared, all
+    // `bars_asof` off the candle producer. Mirrored in `tests/test_ast_scalars.py`.
+    expect(names.length).toBe(111)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
@@ -77,7 +80,12 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // this went red: the Python side was updated with the columns and this
     // one was not, so the JS lane failed on a table the Python lane had
     // already accepted. Change them together or not at all.
-    expect(Object.keys(excluded).length).toBe(77)
+    // 77 -> 89 on 2026-08-25: the 8/24 candle library's twelve TEXT labels
+    // (`candle_label`, `candle_matches`, `candle_trend`, `bar_character*`,
+    // `candle_recent*`, `candle_weekly*`, `candle_monthly*`) refused for
+    // `candle_type`'s reason — a classification is not a magnitude — while its
+    // three numerics were DECLARED (108 -> 111 above). Same Python mirror.
+    expect(Object.keys(excluded).length).toBe(89)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)
@@ -276,8 +284,97 @@ describe('the badge is a MEASUREMENT — the schema and the lane gate', () => {
     expect(validateDefinition(astDoc()).ok).toBe(true)
   })
 
+  it('⭐ A CLOCK LEAF IS `live`, AND THE BRANCH THAT SAYS SO CAN BE DELETED — the control', () => {
+    // ⛔ THIS RAIL EXISTS BECAUSE THE BRANCH SHIPPED WITHOUT ONE.
+    // `freshness.js` gained `if (own(clock, name)) continue` with the `clock`
+    // section (closed table v2) and nothing in this file mentioned a clock name,
+    // so DELETING that line kept every suite green —
+    // `lesson_built_tested_green_and_unreachable`, in the module whose whole job
+    // is to fail closed.
+    //
+    // The two halves are what make it a rail rather than an observation: WITH the
+    // section a clock leaf is `live`, and WITHOUT it — the same tree, the same
+    // walker, a table missing only that section — it is `unknown`. That second
+    // half is exactly what deleting the branch produces.
+    const names = Object.keys(TABLE.clock)
+    expect(names.length).toBeGreaterThan(0)
+    for (const name of names) {
+      const tree = { type: 'series', name }
+      const got = freshnessFor(tree)
+      expect(got.mode, `${name} is not live`).toBe('live')
+      expect(got.scalars, `${name} was counted as a per-symbol value`).toEqual([])
+      expect(got.reasons).toEqual(['every value this formula reads comes from the bar it draws on'])
+      // THE CONTROL, per name: strip the section and the SAME leaf reads unknown.
+      const without = freshnessFor(tree, { table: { ...TABLE, clock: {} } })
+      expect(without.mode, `${name} read live off a table that does not declare it`)
+        .toBe('unknown')
+    }
+    // ⚠️ AND A CLOCK LEAF DOES NOT LAUNDER A SCALAR. `hour > market_cap` still
+    // reads the snapshot, or the branch above would be a way to make anything live.
+    const mixed = freshnessFor(parseFormula('hour > market_cap').ast)
+    expect(mixed.mode).toBe('as-of-snapshot')
+    expect(mixed.scalars).toEqual(['market_cap'])
+  })
+
+  it('…and a clock leaf is `non-repainting`, with the same control on the LINTER', () => {
+    // ⛔ THE LINTER'S OWN CLOCK BRANCH (`lint.js::astReach`), which shipped with
+    // no rail either. Same shape: with the section a clock leaf is bounded; with
+    // the section gone the walker cannot resolve the name and fails closed to
+    // `repaints`, which is what deleting the branch produces.
+    for (const name of Object.keys(TABLE.clock)) {
+      const tree = { type: 'series', name }
+      expect(lintRepaint(tree).mode, `${name} repaints`).toBe('non-repainting')
+      expect(lintRepaint(tree, { table: { ...TABLE, clock: {} } }).mode,
+        `${name} was bounded by a table that does not declare it`).toBe('repaints')
+    }
+  })
+
   it('⛔ refuses a `meta.freshness` outside the vocabulary at the SCHEMA door', () => {
     const { errors } = validateDefinition(astDoc({ meta: { freshness: 'snapshot:nightly' } }))
     expect(errors.join('\n')).toMatch(/meta\.freshness/)
+  })
+})
+
+describe("a FUNCTION's declared cadence is a CLAIM this reader checks", () => {
+  // ⭐⭐ WHY THIS EXISTS AT ALL. The cross-lane contract fixes `cadence` on
+  // functions, and `vwap`/`avwap` declare `cadence: "live"`. A declared field
+  // nothing reads is an INERT KNOB — this lane has already shipped two of those
+  // this wave — so the reader reads it. Today every declared value is `live`, so
+  // the arm changes no shipped answer, which is exactly the shape a mutation
+  // sweep found SURVIVING one task earlier (`budget`'s floor arm, C5). It is
+  // therefore railed through the PLANTED-MANIFEST seam this module already
+  // takes, not by a value that happens to differ.
+  const tree = { type: 'call', name: 'vwap', args: [] }
+  const withCadence = (cadence) => ({
+    ...TABLE,
+    functions: { ...TABLE.functions, vwap: { ...TABLE.functions.vwap, cadence } },
+  })
+
+  it('`live` adds NO ceiling — the shipped answer', () => {
+    const got = freshnessFor(tree, {})
+    expect(got.mode).toBe('live')
+    expect(got.cadences).toEqual([])
+    expect(got.scalars).toEqual([])
+  })
+
+  it('⛔ any OTHER cadence makes the tree `as-of-snapshot`, exactly as a scalar leaf does', () => {
+    const got = freshnessFor(tree, { table: withCadence('nightly') })
+    expect(got.mode).toBe('as-of-snapshot')
+    expect(got.cadences).toEqual(['nightly'])
+    expect(got.scalars).toEqual(['vwap'])
+    expect(got.reasons.join(' ')).toMatch(/rebuilt nightly/)
+  })
+
+  it('⛔ and an UNUSABLE cadence is `unknown` — fail-closed, never a quiet `live`', () => {
+    for (const bad of [null, 7, '']) {
+      expect(freshnessFor(tree, { table: withCadence(bad) }).mode, String(bad)).toBe('unknown')
+    }
+  })
+
+  it('the plant is load-bearing — without it the same tree is `live`', () => {
+    // ⛔ THE NON-VACUITY CONTROL. Without this, a reader that answered
+    // `as-of-snapshot` for the mere PRESENCE of a `cadence` key would pass the
+    // case above and every other row in this file.
+    expect(freshnessFor(tree, { table: withCadence('live') }).mode).toBe('live')
   })
 })

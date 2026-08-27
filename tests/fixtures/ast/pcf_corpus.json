@@ -327,8 +327,8 @@
       "cite": "help-indicator-templates",
       "what": "Balance of Power: the n-bar average of (close-open)/(high-low), Worden's own definition",
       "source": "BOP20 > 0",
-      "note": "was a refusal fixture until the rolling sum / BOP expansion landed",
-      "native": "sma((close - open) / (high - low), 20) > 0"
+      "note": "was a refusal fixture, then a PCF EXPANSION, and is a declared table entry since 2026-08-27. ⚠️ THE ARITHMETIC GUARANTEE MOVED WITH IT: this row now pins that the PCF spelling and the picker build the SAME TREE, while `tests/test_ast_tc2000_remainder.py::test_bop_equals_the_sma_of_the_published_ratio` pins that `bop(n)` equals `sma((close-open)/(high-low), n)` bar for bar at 1e-9 -- which is the claim the old `native` was making and the one that would otherwise have been lost when the tree stopped being the arithmetic.",
+      "native": "bop(20) > 0"
     },
     {
       "id": "smoothed_stochastic",
@@ -343,6 +343,22 @@
       "what": "the smoothing a member wrote is neither dropped nor refused — dropping it would show them a DIFFERENT indicator under the name they typed",
       "source": "STOC14.3 < 20",
       "native": "sma(stoch(close, high, low, 14), 3) < 20"
+    },
+    {
+      "id": "aroon",
+      "cite": "help-indicator-templates",
+      "what": "AROONUPx.z / AROONDOWNx.z. ⭐ THE SYNTAX IS WORDEN'S AND THE FORMULA IS CHANDE'S: the Worden table publishes `AROONUP(x, z)` with x=Period, z=Offset and NO formula at all, so the maths is cited to the published definition `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. ⛔ THE WINDOW IS n+1 BARS, and that is arithmetic rather than a reading: Aroon's published range is 0-100, and over n bars \"days since\" maxes at n-1 so it could never print 0.",
+      "source": "AROONUP25 > 70",
+      "native": "aroonUp(25) > 70",
+      "note": "was refused as \"an indicator family this table does not declare\" until W2a.7 declared `aroonUp`/`aroonDown` on task 5's `highestbars`/`lowestbars`."
+    },
+    {
+      "id": "aroon_down",
+      "cite": "help-indicator-templates",
+      "what": "AROONDOWNx.z -- the OTHER leg, and not a duplicate of `aroon`. ⛔ IT EXISTS BECAUSE THE MUTATION SWEEP PROVED THE FIRST ROW DID NOT COVER IT: pointing `AROONDOWN` at `aroonUp` is a one-word edit yielding a perfectly plausible 0-100 column off the wrong field, and with only an `AROONUP` row in this corpus it stayed green. The two legs read DIFFERENT fields through OPPOSITE comparisons, so this row is the only place the mapping's DIRECTION is pinned.",
+      "source": "AROONDOWN25 < 30",
+      "native": "aroonDown(25) < 30",
+      "note": "`< 30` rather than `> 70` on purpose: an Aroon-Down reading is the mirror of an Aroon-Up one, so a row that asked the SAME question of both legs would still pass with the two columns swapped."
     }
   ],
   "refused": [
@@ -365,15 +381,6 @@
       "names": "HAVG"
     },
     {
-      "id": "aroon",
-      "cite": "help-indicator-templates",
-      "what": "AROONUPx.z — an indicator family this table does not declare",
-      "source": "AROONUP25 > 70",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "AROONUP25"
-    },
-    {
       "id": "moneystream",
       "cite": "help-indicator-templates",
       "what": "MSy.z — Worden's proprietary MoneyStream",
@@ -394,7 +401,7 @@
     {
       "id": "worden_stochastic",
       "cite": "help-indicator-templates",
-      "what": "WSTOCx.y.z",
+      "what": "WSTOCx.y.z — a RANK, not a range. Worden publishes \"Worden Stochastic = (100/n-1)(Rank)\" on its own indicator page, where Rank is the ascending position of the newest close among the closes of the period; its worked example gives 25 where a standard stochastic gives 16.7. This table declares no rank function, so the formula is INEXPRESSIBLE rather than merely different. ⭐ UNBLOCKED BY ONE ENTRY: declare `rank(source, n)` and `WSTOC(x, y, z)` becomes `sma(100 / (x - 1) * rank(close, x), y)`.",
       "source": "WSTOC14 > 80",
       "guard": "pcf:name",
       "at": 0,
@@ -547,7 +554,7 @@
     {
       "id": "obv_is_cumulative",
       "cite": "worden-syntax-table",
-      "what": "OBV is a running total from the first bar. This engine's accumulator re-seeds a fixed number of bars back, so it cannot express one -- the same reason Pine's ta.cum refuses.",
+      "what": "OBVy.z — `y` is an SMA, so this is the mean OF A CUMULATIVE RUNNING TOTAL. TC2000's own page calls that level \"statistically irrelevant, just as it would be with a cumulative advance/decline line\", which is exactly the ground `_functions_excluded.obv` refuses on: a running total from the first bar is a fact about where the fetch started. ⛔ IT IS NOT `obvN(n)` — the bounded signed-volume SUM W2a.5 declared is a different quantity, and pointing this spelling at it would be the MIN/lowest trap.",
       "source": "OBV20 > 0",
       "guard": "pcf:name",
       "at": 0,

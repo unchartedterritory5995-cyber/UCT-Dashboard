@@ -112,10 +112,13 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         "operators": {"@@": {"arity": 2}},
         "functions": {"zzz_probe_fn": {"args": ["series"], "lookback": 3,
                                        "sentence": "probe {0}"}},
-        # ⭐ THE FOURTH SECTION IS PART OF THE SHAPE, so the probe carries one:
-        # `load_manifest` refuses a manifest missing any of the four, and a probe
-        # that skipped this one would be proving the reader reads a document the
-        # product could never ship.
+        # ⭐ EVERY DECLARED SECTION IS PART OF THE SHAPE, so the probe carries
+        # one of each: `load_manifest` refuses a manifest missing ANY section in
+        # `ast_table.SECTIONS`, and a probe that skipped one would be proving the
+        # reader reads a document the product could never ship. The `clock`
+        # entry joined them with tableVersion 2.
+        "clock": {"zzz_probe_clock": {
+            "lookback": 0, "yields": "num", "sentence": "the probe clock value"}},
         "scalars": {"zzz_probe_scalar": {
             "source": {"store": "zzz_store", "column": "zzz_probe_scalar"},
             "as_of": {"column": "zzz_dated_by", "grain": "date"},
@@ -128,9 +131,14 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         got = ast_table.load_manifest(tmp)
         assert set(got["functions"]) == {"zzz_probe_fn"}
         assert ast_table.declared_names(got) == {
-            "zzz_probe_series", "@@", "zzz_probe_fn", "zzz_probe_scalar"}
+            "zzz_probe_series", "zzz_probe_clock", "@@", "zzz_probe_fn",
+            "zzz_probe_scalar"}
+        # ⭐ AND THE CLOCK IS INSIDE THE BAR FLOOR, NOT BESIDE IT. A clock value
+        # varies down the replay series exactly as `close` does, so a bar-corpus
+        # case can measure it and the bar corpus therefore OWES it one.
         assert ast_table.bar_names(got) == {
-            "zzz_probe_series", "@@", "zzz_probe_fn"}
+            "zzz_probe_series", "zzz_probe_clock", "@@", "zzz_probe_fn"}
+        assert ast_table.clock_names(got) == {"zzz_probe_clock"}
         assert ast_table.series_field("zzz_probe_series", got) == "zzz"
         assert ast_table.scalar_as_of("zzz_probe_scalar", got)["column"] == "zzz_dated_by"
         assert ast_table.yields_of("zzz_probe_scalar", got) == "num"
@@ -200,9 +208,45 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # that goes stale takes the real check down with it, so the two numbers move
     # with the manifest and the SPLIT is what makes "which half moved" answerable
     # at a glance. The bar half has not moved once across any scalar bump.
-    assert len(ast_table.bar_names()) == 70, len(ast_table.bar_names())
-    assert len(ast_table.scalar_names()) == 108, len(ast_table.scalar_names())
-    assert len(declared) == 178, f"the table declares {len(declared)} names, not 178"
+    # ⭐ 108 -> 111 (2026-08-25): the three numerics of the 8/24 candle library
+    # (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared; the twelve
+    # TEXT labels beside them refused in `_scalars_excluded`. Bar half unmoved.
+    # ⭐ 70 -> 83 IS THE `clock` SECTION (tableVersion 2, 2026-08-26) AND IT IS
+    # THE FIRST TIME THE BAR HALF MOVED FOR SOMETHING THAT IS NOT A FUNCTION.
+    # Thirteen bar-clock values -- the seven ET wall-clock fields, `sessionfirst`,
+    # `barindex` and the four timeframe booleans -- declared as a FIFTH section
+    # that rides the existing `series` node, so no node type, no persisted key
+    # and no `astHash` moved. The scalar half is untouched at 111, which is the
+    # whole reason these are two assertions and not one total.
+    # ⭐ 83 -> 85 (2026-08-26): ``vwap()`` and ``avwap(anchorEpoch)``. Both bind
+    # the SHIPPED session accumulator rather than a private one, and both declare
+    # ``reads: "bars"`` -- the property that finally made ``vwap`` declarable
+    # after it sat in ``_functions_excluded`` since this table opened. What made
+    # it possible is that ``vwap()`` takes NO ARGUMENTS: ``_bind_shipped``
+    # fabricates ``t`` as a bar index precisely because it packs bars out of
+    # argument COLUMNS, so an entry with no columns to pack is handed the real
+    # bars. The scalar half is untouched at 111.
+    # ⭐ 85 -> 90 (2026-08-26): the BOUNDED-STATE five -- `barssince`,
+    # `valuewhen`, `highestbars`, `lowestbars` and `obvN`. Each declares its OWN
+    # `int` slot as its lookback, so `maxLookback` stays a tree sum and no node
+    # type, argument kind or lookback form moved. `obvN` is the THIRD
+    # ``reads: "bars"`` entry -- it names no series because on-balance volume is
+    # close-and-volume by definition -- and it is what lets
+    # ``_functions_excluded.obv`` point at a bounded successor instead of only
+    # refusing. The scalar half is untouched at 111.
+    # ⭐ 90 -> 92 (2026-08-27): `pivothigh`/`pivotlow`. They are the SECOND and
+    # THIRD entries in this table to declare a `forward` -- the property that
+    # makes `modeFromReach` say `preview-repaints` -- and the first a member can
+    # reach in three arguments. Until now only `ichimokuChikou` had one, behind a
+    # six-argument call, and that scarcity is why three separate claims about the
+    # repaint machinery went unfalsified. The scalar half is untouched at 111.
+    # 92 -> 95 (2026-08-27): the TC2000 remainder -- `aroonUp`, `aroonDown`, `bop`.
+    # All three are BAR READERS: none names a series, because Aroon is defined on
+    # high/low and Balance of Power on all four fields, exactly as `obvN` is
+    # defined on close-and-volume. The scalar half is untouched at 111.
+    assert len(ast_table.bar_names()) == 95, len(ast_table.bar_names())
+    assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
+    assert len(declared) == 206, f"the table declares {len(declared)} names, not 206"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -265,16 +309,49 @@ def test_every_declared_FUNCTION_has_an_implementation_and_vice_versa():
     # nothing for `FN` to hold. An ignore-list here would be a second roster;
     # asking the table means a SECOND recurrent entry needs no edit, and an entry
     # that stopped declaring one lands red with its own name in the message.
-    by_walker = sorted(ast_table.recurrences())
+    # ⭐ AND A SECOND KIND, DERIVED THE SAME WAY (2026-08-26). An entry
+    # declaring ``reads: "bars"`` is handed ``interpret``'s own bar array rather
+    # than a pack of argument columns, so its implementation lives in
+    # ``_BAR_FN`` and not in ``FN`` -- the split is what lets ``vwap()`` read a
+    # real instant where ``_bind_shipped`` can only offer a bar index. Same rule:
+    # the roster is the MANIFEST's, so a third such entry needs no edit here.
+    bar_readers = sorted(ast_table.bar_readers())
+    by_walker = sorted(set(ast_table.recurrences()) | set(bar_readers))
     assert by_walker, "the exception must be non-empty or this rail widened for nothing"
+    assert bar_readers, "the bar-reading exception must be non-empty too"
     missing, extra = totality(ast_table.TABLE, ast_interpret.FN, "functions")
     assert missing == by_walker, f"declared but not implemented: {missing}"
     assert not extra, f"implemented but not declared: {extra}"
     assert sorted(ast_interpret.FN) == sorted(
         n for n in ast_table.TABLE["functions"] if n not in by_walker)
+    # ⛔ AND ``_BAR_FN`` IS THE OTHER HALF OF THE SAME EQUALITY, both
+    # directions. (``ast_interpret`` refuses a mismatch at IMPORT as well, which
+    # is where a wiring defect belongs; this is the rail that names it.)
+    assert sorted(ast_interpret._BAR_FN) == bar_readers
+    for name in bar_readers:
+        spec = ast_table.TABLE["functions"][name]
+        # …and it EVALUATES, so "no FN entry" cannot quietly mean "no
+        # behaviour". The tree is built from the manifest's own arity AND its own
+        # ``argRoles``.
+        #
+        # ⚰️ IT USED TO PUT ``BARS[1]["t"]`` IN EVERY ``int`` SLOT -- "the one
+        # ``int`` slot the anchor form carries" -- and that sentence stopped being
+        # true the moment a third bar reader landed whose ``int`` is a PERIOD:
+        # ``obvN(1780000300)`` measures 1.7 BILLION bars of lookback and this rail
+        # died inside ``budget:lookback``, naming a guard it was not asserting
+        # anything about. A probe that claims to be derived and types one entry's
+        # units is the hand-list defect one layer down, so the ROLE decides.
+        args = [
+            NUM(3) if str(spec["argRoles"][i]).lower().endswith("period")
+            else NUM(BARS[1]["t"])
+            for i in range(len(spec["args"]))
+        ]
+        col = run(CALL(name, *args))
+        assert len(col) == len(BARS), (
+            f"{name} declares reads:'bars' and produced nothing")
     # ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
     # EVALUATE, or "no implementation" would quietly mean "no behaviour".
-    for name in by_walker:
+    for name in sorted(ast_table.recurrences()):
         spec = ast_table.TABLE["functions"][name]
         rec = spec["recurrence"]
         args = [
@@ -336,7 +413,9 @@ def test_a_planted_manifest_entry_lands_RED():
         # legitimately "declared and not in FN", so leaving it in would make this
         # rail assert a list with a permanent resident — and the next entry that
         # went missing for a BAD reason would hide inside that expectation.
-        missing = [m for m in missing if m not in ast_table.recurrences()]
+        missing = [m for m in missing
+                   if m not in ast_table.recurrences()
+                   and m not in ast_table.bar_readers()]
         assert missing == [planted], (
             f"a planted {section} entry {planted!r} did NOT land red — the "
             f"totality rail is a hand-list, not a derivation (got {missing!r})")
@@ -517,6 +596,52 @@ def test_the_six_refusal_sentences_are_PAIRWISE_DISJOINT():
                 assert a not in b, f"{a!r} is a substring of {b!r}"
 
 
+def _a_miscast_condition_call():
+    """A call putting a PRICE where the manifest declares a condition role.
+
+    ⛔ EVERY PART READ OFF THE MANIFEST. Typing `barssince(close, 10)` here would
+    be a rail that stops covering the day the role moves to a different entry —
+    and the defect this guard exists for is precisely a declaration nobody read.
+    """
+    from api.services import scan_definition
+    role = next(iter(scan_definition.arg_role_kinds()))
+    functions = ast_table.TABLE[ast_table.FUNCTIONS_SECTION]
+    name, spec = next((n, s) for n, s in sorted(functions.items())
+                      if role in tuple(s.get("argRoles") or ()))
+    slot = tuple(spec["argRoles"]).index(role)
+    # A bar field in the condition slot; a whole number in every `int` slot.
+    price = sorted(ast_table.TABLE[ast_table.SERIES_SECTION])[0]
+    args = [NUM(5) if kind == "int" else SER(price)
+            for kind in tuple(spec["args"])]
+    args[slot] = SER(price)
+    return CALL(name, *args)
+
+
+def _an_out_of_domain_call():
+    """A call whose periods are out of the domain its OWN entry declares.
+
+    ⭐ DERIVED, NOT TYPED, exactly as ``_a_miscast_condition_call`` is. The ENTRY
+    comes from ``ast_table.arg_domains`` — the manifest's own ``domain``
+    declaration — and the CEILING SLOT from that entry's own ``lookback``, so a
+    seventh such entry, a renamed key or a moved lookback is covered here on the
+    day it lands. Nothing below spells ``macd``.
+
+    Every ``int`` slot gets 1 and one NON-ceiling ``int`` slot gets 2, which is
+    the smallest tree that is out of domain by exactly one bar.
+    """
+    domains = ast_table.arg_domains()
+    name = sorted(domains)[0]
+    spec = ast_table.TABLE[ast_table.FUNCTIONS_SECTION][name]
+    m = ast_interpret._LOOKBACK_RE.fullmatch(str(domains[name]))
+    ceiling = int(m.group(2))
+    price = sorted(ast_table.TABLE[ast_table.SERIES_SECTION])[0]
+    ints = [i for i, kind in enumerate(tuple(spec["args"])) if kind == "int"]
+    over = next(i for i in ints if i != ceiling)
+    args = [NUM(1) if kind == "int" else SER(price) for kind in tuple(spec["args"])]
+    args[over] = NUM(2)
+    return CALL(name, *args)
+
+
 def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED():
     """⛔ BOTH DIRECTIONS. A guard nobody can fire is a comment; a guard that
     fires without a declared sentence is a refusal with no read-back."""
@@ -525,6 +650,17 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         "resolve:function": lambda: run(CALL("rugpull", SER("close"))),
         "resolve:arity": lambda: run(CALL("sma", SER("close"))),
         "resolve:window": lambda: run(CALL("sma", SER("close"), SER("close"))),
+        # ⭐ DERIVED, NOT TYPED. The ROLE comes from the manifest's own
+        # `_functions_arg_role_kinds` declaration and the FUNCTION from the first
+        # entry that declares it, so a renamed role, a second such role, or a
+        # third such function is covered here the day it lands. The offending
+        # argument is a BAR FIELD — a price, which declares no `yields` and is
+        # therefore a number, which is exactly the tree that shipped.
+        "resolve:condition": lambda: run(_a_miscast_condition_call()),
+        # ⭐ THE SAME ARRANGEMENT ONE DECLARATION ALONG: the ENTRY and its
+        # CEILING SLOT are read off `_functions_domain`'s own `domain` key, so
+        # this fires for whatever the manifest declares rather than for `macd`.
+        "resolve:domain": lambda: run(_an_out_of_domain_call()),
         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
         # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is
@@ -1091,12 +1227,22 @@ def test_the_offset_ceiling_IS_the_existing_lookback_budget():
     arrangement in which they cannot drift apart. And `effective_budget` clamps
     DOWNWARD ONLY, so a stored blob cannot raise it.
     """
+    from api.services import ast_budget as _ab
+    _cap = _ab.DEFAULT_BUDGET["maxLookback"]
     assert ast_interpret.max_lookback(OFF(100000, SER("close"))) == 100000
     with pytest.raises(ast_interpret.TableRefusal) as exc:
         run(OFF(100000, SER("close")))
     assert exc.value.guard == "budget:lookback"
+    # ⚰️ THIS WAS `OFF(400) + sma(…, 200)` — a hand-typed 600 chosen to clear a cap
+    # of 550. When the cap moved to hold one ET session the pair stopped tripping
+    # it and this line went GREEN while measuring nothing, which is the very
+    # second-authority defect the note below already records one boundary later.
+    # The offset and the window are now derived FROM the cap, and each half is
+    # asserted to be UNDER it so the composition is what refuses.
+    _off, _win = _cap - 100, 200
+    assert _off + _win > _cap and _off <= _cap and _win <= _cap
     with pytest.raises(ast_interpret.TableRefusal) as deep:
-        run(CALL("sma", OFF(400, SER("close")), NUM(200)))
+        run(CALL("sma", OFF(_off, SER("close")), NUM(_win)))
     assert deep.value.guard == "budget:lookback"
     # ⛔ THE BOUNDARY IS DERIVED, NOT TYPED. This read `499`/`501` against a
     # hard-typed 500 until 2026-08-23, when the JS lane raised the cap to 550

@@ -548,3 +548,103 @@
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* ── the plots (W1b.5) ─────────────────────────────────────────────────────
+   ⭐ The `.inputRow` family one section up, widened: a plot carries more than a
+   name and a number, so the controls wrap instead of forcing a fixed grid onto
+   a 320px phone.
+   ⛔ Tokens only — this file declares no colour literals. */
+.plotRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.plotRow:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.plotControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.plotKey,
+.plotLabel,
+.plotStyle,
+.plotWidth {
+  min-height: var(--tap-min);
+  padding: 6px 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+}
+
+.plotKey { flex: 1 1 8ch; min-width: 8ch; }
+.plotLabel { flex: 1 1 10ch; min-width: 10ch; }
+.plotStyle { flex: 0 1 auto; font-family: inherit; }
+.plotWidth { flex: 0 0 5.5ch; }
+
+.plotKey[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+/* ⛔ A NATIVE SWATCH. `ColorPicker` opens a portal popup and belongs to the
+   settings dialog; a second portal inside this sheet is where the focus trap and
+   the outside-mousedown handler start fighting. The tap target is the standard
+   one because a colour well is the easiest control on this row to miss. */
+.plotColor {
+  flex: 0 0 var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 2px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.plotToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--tap-min);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.addPlot {
+  min-height: var(--tap-min);
+  padding: 6px 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.addPlot:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* Placement + levels sit together: both answer "where does this land", and
+   splitting them across two rows on a phone reads as two unrelated settings. */
+.placementRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}

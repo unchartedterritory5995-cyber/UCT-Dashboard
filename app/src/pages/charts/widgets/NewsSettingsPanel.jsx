@@ -71,6 +71,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
+      if (e.target.closest?.('[data-uct-theme-gallery]')) return
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()

@@ -1,0 +1,144 @@
+/* app/src/components/screener/RunNowButton.module.css
+   Run a saved scan NOW, on a list the member names (spec §5.5, W4a).
+
+   ⛔ NO NEW CHROME (spec §1.5). Every token here is one the app already
+   declares — the same set `ScanResults.module.css` beside it uses — every glyph
+   in the JSX is a `UIcon`, and the two controls a finger has to hit clear
+   `--tap-min`. Nothing here is measured in JS: a panel that sized itself from
+   `useMediaQuery` would seed at MOUNT and never correct on a phone whose
+   viewport does not change. */
+
+.wrap { display: flex; flex-direction: column; gap: 6px; }
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+}
+.trigger:hover { background: var(--bg-surface); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
+.modes {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.mode { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+.textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  resize: vertical;
+}
+
+.select {
+  min-height: var(--tap-min);
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.field { display: inline-flex; align-items: center; gap: 6px; }
+
+.count { color: var(--text-muted); }
+
+/* Over the cap: the count is already on screen beside it, so this says what to
+   DO rather than repeating the number twice in two colours. */
+.over { color: var(--color-danger); }
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  margin-left: auto;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+}
+.go:hover:not(:disabled) { background: var(--bg-elevated, var(--bg-surface)); }
+.go:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.state,
+.done,
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  border-radius: var(--radius-md);
+}
+.state { border: 1px solid var(--border-accent); }
+.done { border: 1px solid var(--border-accent); color: var(--text-muted); }
+.error { border: 1px solid var(--color-danger); }
+
+/* ⛔ THE REFUSAL IS THE SERVER'S OWN SENTENCE and it arrives with its
+   `[gate:…]` token and its counts intact, so it wraps rather than truncates —
+   an ellipsis here would hide the number the member has to act on. */
+.error { overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .row { gap: 8px; }
+  .go { margin-left: 0; }
+}
+
+/* The way back out of an on-demand answer, inline in the done caption. It is
+   a control inside a sentence, so it reads as a link rather than a button. */
+.restore {
+  margin-left: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--ut-gold);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.restore:hover { color: var(--text-bright); }

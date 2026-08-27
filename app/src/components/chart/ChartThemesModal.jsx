@@ -153,7 +153,7 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
   const pick = (theme) => { onApply?.(theme, effScope); onClose?.() }
 
   return createPortal(
-    <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={isWidget ? 'UCT Themes' : 'UCT Chart Themes'}>
+    <div className={styles.backdrop} data-uct-theme-gallery onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={isWidget ? 'UCT Themes' : 'UCT Chart Themes'}>
       <div className={styles.panel} style={themeVars || undefined} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleWrap}>

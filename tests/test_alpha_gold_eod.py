@@ -95,11 +95,17 @@ def test_summary_line_has_premium_and_counts():
 def test_render_card_returns_png():
     png = age.render_card([_a(), _a(ticker="EWY", cp="P", _direction="Bear",
                                     source="indexes", volumeOIRatio=None)],
-                          "July 31, 2026", top_n=30)
+                          "July 31, 2026")
+    # ⚰️ WAS `top_n=30`, AND IT HAD BEEN RED SINCE THE CAP SPLIT. `render_card`
+    # takes `stock_cap` / `etf_cap` (one cap per section, from the Stocks/ETFs
+    # rework); `top_n` appears NOWHERE in `api/alpha_gold_eod.py` and has not
+    # since. The test kept the pre-split spelling, so it raised TypeError rather
+    # than asserting anything. Defaults are used here deliberately — this case is
+    # about the PNG coming back, not about the caps.
     assert isinstance(png, bytes) and len(png) > 1000
     assert png[:8] == b"\x89PNG\r\n\x1a\n"    # PNG magic
 
 
 def test_render_card_empty_day_ok():
-    png = age.render_card([], "July 31, 2026", top_n=30)
+    png = age.render_card([], "July 31, 2026")  # ⚰️ `top_n` — see above
     assert png[:8] == b"\x89PNG\r\n\x1a\n"    # renders a valid (empty) card

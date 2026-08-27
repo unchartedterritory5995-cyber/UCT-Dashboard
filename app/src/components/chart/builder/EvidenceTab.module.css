@@ -1,0 +1,55 @@
+/* app/src/components/chart/builder/EvidenceTab.module.css
+   ⛔ NO NEW CHROME. Every colour is an app token (`--gain`, `--loss`, `--warn-*`,
+   `--text-*`, `--bg-surface`, `--border*`, `--radius-md`) — each verified present
+   in `app/src/styles/tokens.css` in BOTH the default and the light-theme block,
+   so nothing here paints a colour the theme cannot restate. The only breakpoint
+   is 640; the table scrolls inside its own wrapper so a phone never scrolls the
+   page sideways. */
+.wrap { display: flex; flex-direction: column; gap: 12px; }
+.block { display: flex; flex-direction: column; gap: 8px; }
+.head { margin: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.method { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; font-size: 12px; }
+.method dt { color: var(--text-muted); }
+.method dd { margin: 0; color: var(--text-bright); overflow-wrap: anywhere; }
+
+/* ⛔ THE NUMBER AND ITS SENTENCE ARE ONE CELL. `hit_rate` is an occurrence rate,
+   and it renders inches from the study's strategy/baseline pair — so the sentence
+   the route sends is stacked directly under the figure inside the SAME `dd`,
+   where no layout change can leave the figure standing alone. */
+.rateValue { font-variant-numeric: tabular-nums; }
+.means { display: block; margin-top: 2px; font-size: 11px; line-height: 1.45; color: var(--text-muted); }
+
+.caveat {
+  margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.45; color: var(--text);
+  background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius-md);
+}
+.line { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+.note, .refusal {
+  display: flex; align-items: flex-start; gap: 6px; margin: 0; padding: 8px 10px;
+  font-size: 13px; line-height: 1.45; color: var(--text-bright);
+  background: var(--bg-surface); border-radius: var(--radius-md);
+}
+.refusal { border: 1px solid var(--loss-border); }
+.note { border: 1px solid var(--border-accent); }
+.refusalCell { color: var(--text-bright); white-space: normal; }
+
+.names { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.names code { font-size: 12px; padding: 1px 6px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.table th { text-align: left; font-weight: 500; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.table td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--text-bright); white-space: nowrap; }
+
+.gain { color: var(--gain); }
+.loss { color: var(--loss); }
+.muted { color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .method { grid-template-columns: 1fr; }
+  /* The refusal cell is the one td that carries prose, so it must be allowed to
+     wrap once the table is being scrolled by hand. */
+  .refusalCell { min-width: 16rem; }
+}

@@ -132,9 +132,15 @@ const DEFINITION = Object.freeze({
   plots: [{ key: 'value', label: 'A50', style: 'line', color: '$color', width: 1, role: 'primary' }],
 })
 
-/** The row shape `/api/user-definitions` answers with. */
+/** The row shape `/api/user-definitions` answers with.
+ *
+ *  ⛔ INCLUDING `scannable`, which the route stamps per row by running
+ *  `scan_definition.assert_scannable` (`routers/user_definitions.py::_stamped`).
+ *  `scannableScreens` reads that field and decides nothing itself, so a fixture
+ *  without it describes a response no server sends. */
 const DEF_ROW = Object.freeze({
   def_id: DEF_ID, version: 1, rev: 1, ast_hash: DEF_HASH, definition: DEFINITION,
+  scannable: true, scan_refusal: null,
   repaint: DEFINITION.meta.repaint, created_at: '2026-08-07T04:00:00Z',
 })
 
@@ -546,6 +552,31 @@ describe('the controls that keep the rail honest', () => {
     }
   })
 
+  it('⛔ the screens popup can SCROLL — the receipt is useless below the fold', () => {
+    // 🔴 X89, measured in a browser rather than reasoned about. Expanding a
+    // scan's detail grew this popup to 1,408px inside a 945px viewport;
+    // `.shell` is `overflow: hidden`, no ancestor scrolled, and `window.scrollY`
+    // stayed 0 after scrolling every element on the page. 463px — Run now,
+    // Evidence, the four counts, the causes line and every hit — was simply
+    // unreachable. It would have taken a 1,416px-tall viewport to read it.
+    //
+    // ⚠️ A SOURCE-TEXT GUARD, AND IT SAYS SO. jsdom does no layout, so no test
+    // in this suite can measure a clipped popup; asserting the two declarations
+    // that make it scrollable is the most this lane can hold. It is worth having
+    // anyway — every other assertion about the coverage receipt in this file
+    // passes happily while the receipt is off-screen, which is exactly how this
+    // shipped (`lesson_built_tested_green_and_unreachable`).
+    const css = read('app/src/pages/screener/ScannerPro.module.css')
+    const rule = css.split('\n').find((l) => l.trim().startsWith('.saveMenuPop {'))
+    expect(rule, '.saveMenuPop is gone or renamed — this rail is measuring nothing')
+      .toBeTruthy()
+    expect(rule, '.saveMenuPop must cap its height against the viewport')
+      .toMatch(/max-height:\s*calc\(100vh/)
+    expect(rule, 'a capped popup with no overflow CLIPS instead of scrolling — '
+      + 'that is strictly worse than the unbounded version it replaced')
+      .toMatch(/overflow-y:\s*auto/)
+  })
+
   it('the four counts are markup only CoverageLine writes', () => {
     // If any other module on the page emitted `coverage-line`, the headline
     // assertion could pass without `CoverageLine` ever being reached.
@@ -559,11 +590,33 @@ describe('the controls that keep the rail honest', () => {
   })
 
   it('the panel offers only screens the scan route can be ASKED about', () => {
-    // The filter, asserted directly rather than inferred from what rendered: a
-    // definition with no tree has no `def_hash`, so a row for it would be a
-    // control that can only ever produce silence.
+    // The filter, asserted directly rather than inferred from what rendered.
+    //
+    // 🔴 THE DISCRIMINATING ROW IS `refusedByTheSweep` — canonical tree, real
+    // `compute.fn`, passes every SHAPE check — and the server stamped it
+    // unscannable. It is the X88 case: `macd(close, 12, 26)` marked Scan, offered
+    // as a filter, and refused by `run_sweep` every night with `[gate:yields]`,
+    // so its chip read `first sweep tonight` FOREVER over the unfiltered market.
+    // The predicate this replaced accepted it. A fixture of only `noTree` rows
+    // would pass a broken filter trivially
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
     const noTree = { def_id: 'u_notree', definition: { compute: { kind: 'native', fn: 'rsi' } } }
-    expect(scannableScreens([DEF_ROW, noTree]).map((r) => r.def_id)).toEqual([DEF_ID])
+    const refusedByTheSweep = {
+      def_id: 'u_macd', ast_hash: 'sha256:eee', scannable: false,
+      scan_refusal: { gate: 'yields', detail: 'this tree returns a number, not a 0/1 column.' },
+      definition: {
+        compute: {
+          kind: 'ast', fn: 'sha256:eee',
+          ast: { type: 'call', name: 'macd', args: [{ type: 'series', name: 'close' }] },
+        },
+      },
+    }
+    // …and one carrying NO stamp at all: the server is the only thing that can
+    // say yes, so silence is not a yes. Fail closed.
+    const unstamped = { def_id: 'u_unstamped', ast_hash: 'sha256:fff',
+      definition: { compute: { kind: 'ast', fn: 'sha256:fff', ast: { op: '>' } } } }
+    expect(scannableScreens([DEF_ROW, noTree, refusedByTheSweep, unstamped])
+      .map((r) => r.def_id)).toEqual([DEF_ID])
     expect(scannableScreens(null)).toEqual([])
   })
 })

@@ -1,0 +1,18 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ZenAndTheArtOfTrading | PineScriptMastery
+// @version=6
+indicator(title="Higher Timeframe EMA (HTF EMA)", shorttitle="EMA+", overlay=true)
+
+// Get user input
+res     = input.timeframe(title="EMA Timeframe", defval="D")
+len     = input.int(title="EMA Length", defval=50)
+col     = input.bool(title="Color EMA", defval=true)
+smooth  = input.bool(title="Smooth", defval=false)
+
+// Calculate EMA
+ema = ta.ema(close, len)
+emaStep = request.security(syminfo.tickerid, res, ema[barstate.isrealtime ? 1 : 0])[barstate.isrealtime ? 0 : 1]
+emaSmooth = request.security(syminfo.tickerid, res, ema[barstate.isrealtime ? 1 : 0], gaps=barmerge.gaps_on)[barstate.isrealtime ? 0 : 1]
+
+// Draw EMA
+plot(smooth ? emaSmooth : emaStep, color=col ? (close > emaStep ? color.green : color.red) : color.black, linewidth=2, title="HTF EMA")

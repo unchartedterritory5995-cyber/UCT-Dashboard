@@ -27,7 +27,10 @@ from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
-PICKS_FILE = "/data/top_flow_picks.json"
+# `TOP_FLOW_PICKS_FILE` is the override; its DEFAULT is the literal that has
+# always been here, so production with nothing set is unchanged.
+PICKS_FILE = os.environ.get(
+    "TOP_FLOW_PICKS_FILE", "/data/top_flow_picks.json")
 ET = ZoneInfo("America/New_York")
 
 _data: dict = {"active": [], "archived": []}

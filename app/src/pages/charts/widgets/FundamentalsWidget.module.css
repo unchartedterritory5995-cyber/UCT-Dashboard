@@ -9,7 +9,7 @@
   padding: 5px 8px 6px;
   font-family: var(--font-sans);
   font-size: var(--text-base, 12px);
-  background: var(--fw-bg, #0e0f0d);
+  background: var(--fw-bg, var(--bg-surface));
   color: var(--fw-text, var(--text));
 }
 .hint {
@@ -72,7 +72,7 @@
   gap: 2px;
   padding: 2px;
   margin: 0;
-  background: var(--fw-elev, #14151a);
+  background: var(--fw-elev, var(--bg-elevated));
   border: 1px solid var(--fw-divider, var(--border));
   border-radius: var(--radius-md);
 }
@@ -177,7 +177,7 @@
 .qBlock {
   flex: 1 1 116px; min-width: 104px;
   font-size: 11px;
-  background: var(--fw-elev, #14151a);
+  background: var(--fw-elev, var(--bg-elevated));
   border: 1px solid var(--fw-divider, var(--border));
   border-radius: 5px;
   padding: 4px 7px;
@@ -190,7 +190,7 @@
   border-color: var(--fw-divider, #43483d);
   background:
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 1px, transparent 1px, transparent 7px),
-    var(--fw-elev, #14151a);
+    var(--fw-elev, var(--bg-elevated));
 }
 .qHead {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;

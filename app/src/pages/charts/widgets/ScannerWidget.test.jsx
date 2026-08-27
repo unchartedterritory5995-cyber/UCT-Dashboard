@@ -12,15 +12,17 @@ vi.mock('../../../hooks/usePreferences', () => ({
 // ScannerResults pulls in (keeps the test focused + fast).
 vi.mock('../../Watchlists', () => ({ default: () => null }))
 
-test('renders the scanner picker (title + preset section)', () => {
+test('renders the scanner picker (tabs + Prebuilt presets)', () => {
   render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
-  expect(screen.getByText('Add a Scanner')).toBeInTheDocument()
-  expect(screen.getByText('Preset Scanners')).toBeInTheDocument()
+  // Shared PickerHeader tabs (mirrors the Watchlist picker), Prebuilt is the default.
+  expect(screen.getByRole('tab', { name: /prebuilt/i })).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: /community/i })).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: /my scans/i })).toBeInTheDocument()
 })
 
-test('"Create your own scan" is present but disabled', () => {
+test('the "New" scan action is present but disabled (builder coming soon)', () => {
   render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
-  const btn = screen.getByRole('button', { name: /create your own scan/i })
+  const btn = screen.getByRole('button', { name: /custom scan builder — coming soon/i })
   expect(btn).toBeInTheDocument()
   expect(btn).toBeDisabled()
 })

@@ -760,7 +760,14 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
       const maxY = Math.max(0, cr.height - elH)
       // Default (no saved pos): top-right of the chart, clear of the OHLC legend.
       const dflt = { x: Math.max(0, cr.width - elW - 12), y: 8 }
-      const p = pos ?? dflt
+      // The saved position is a FRACTION of the container (fx, fy) so the bar keeps
+      // its RELATIVE spot when the widget is resized OR a new chart of a different
+      // size is placed — an absolute px offset just clamped it into a corner. (Legacy
+      // absolute {x, y} is still honored; the next drag rewrites it as a fraction.)
+      let p
+      if (pos && (pos.fx != null || pos.fy != null)) p = { x: (pos.fx || 0) * cr.width, y: (pos.fy || 0) * cr.height }
+      else if (pos && pos.x != null) p = { x: pos.x, y: pos.y }
+      else p = dflt
       const relX = Math.max(0, Math.min(maxX, p.x))
       const relY = Math.max(0, Math.min(maxY, p.y))
       setBox({ left: cr.left + relX, top: cr.top + relY, relX, relY, maxX, maxY })
@@ -812,7 +819,11 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
     const up = () => {
       document.removeEventListener('pointermove', move)
       document.removeEventListener('pointerup', up)
-      onMove(last)   // commit + persist the final position a single time
+      // Persist as a FRACTION of the container (cr was measured at drag start) so the
+      // bar keeps its relative spot across resizes and new same/different-size charts.
+      const W = cr && cr.width ? cr.width : 1
+      const H = cr && cr.height ? cr.height : 1
+      onMove({ fx: last.x / W, fy: last.y / H })
     }
     document.addEventListener('pointermove', move)
     document.addEventListener('pointerup', up)
@@ -1487,6 +1498,9 @@ function ChartToolbar({
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
+            /* W1a hand-back: the preview draws on this chart */
+            sym={currentSym}
+            tf={tf}
           />
         )}
 

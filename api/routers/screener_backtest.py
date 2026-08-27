@@ -35,8 +35,17 @@ already uses. ⛔ **NO NEW PROVIDER PATH**: every bar comes from ``bars_sqlite``
 off the 2026-07-01 fan-out.
 
 ⛔ THE JOB ID IS A DIGEST OF THE REQUEST, NOT A UUID. Same inputs, same id, same
-receipt — no clock and no RNG anywhere on this path, which is what makes "run it
-twice, get the same answer" checkable instead of aspirational.
+receipt — no RNG anywhere on this path, which is what makes "run it twice, get
+the same answer" checkable instead of aspirational.
+
+⚠️ AND THE ONE CLOCK READ IS NAMED RATHER THAN DENIED. This block used to say
+"no clock ANYWHERE on this path", and a ``def_id`` body that omits ``from``/``to``
+is asking for *"as of today"*: its window is derived from
+``bars_fetch._expected_latest_session_yyyymmdd()`` BEFORE the digest is taken, so
+two such requests agree within a session and move to a new window when the
+session does — which is the answer that body asked for. Every other body reaches
+the digest with a window it stated itself, and the ENGINE never reads a clock at
+all (it is handed literal dates).
 
 ⛔ THIS FILE OWNS NO NUMBER THE ENGINE OWNS. ``_envelope`` REFUSES to write a key
 the receipt already carries, so "the route says 812 symbols, the receipt says 806"
@@ -58,6 +67,7 @@ from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import ast_interpret, bars_fetch, bars_sqlite
+from api.services import user_definitions as defs
 from api.services.screener import saved_screens as scr_saved
 from api.services.screener import snapshot_builder
 from api.services.screener import query as scr_query
@@ -206,6 +216,77 @@ def bars_wanted(frm: int, to: int, warmup: int, max_horizon: int) -> int:
     return max(1, min(want, MAX_BARS_PER_SYMBOL))
 
 
+#: The derived-window search space, in calendar days. The floor is the smallest
+#: window worth replaying.
+#:
+#: ⛔⛔ THE CEILING IS AN INDEPENDENT BOUND, NOT A REDUNDANT ONE, WHICH IS WHY IT
+#: IS DISCLOSED (``window_request.max_days``). This comment used to defend it as
+#: harmless — *"past which MAX_BARS_PER_SYMBOL caps the read anyway"* — and that
+#: is MEASURED FALSE: at 3,650 days with ``sma(close, 3)`` and a 20-bar horizon a
+#: symbol reads **2,655** bars against a clamp of **5,000**, and the clamp does
+#: not begin to bind until **6,932 days (19.0 years)**. So raising this ceiling
+#: really would widen every derived window, and below roughly 450 symbols
+#: (451 at that warmup, 444 at a 50-bar one) it — not
+#: ``SCREEN_BACKTEST_MAX_CELLS`` — is the bound that decides the window. A
+#: ``window_request`` naming only the cap told those members the wrong reason.
+MIN_DERIVED_WINDOW_DAYS = 30
+MAX_DERIVED_WINDOW_DAYS = 3650
+
+
+def _as_date(session: int) -> datetime.date:
+    """``20240628`` → ``date(2024, 6, 28)``."""
+    return datetime.date(session // 10_000, (session // 100) % 100, session % 100)
+
+
+def _session_back(end: int, days: int) -> int:
+    d = _as_date(end) - datetime.timedelta(days=days)
+    return d.year * 10_000 + d.month * 100 + d.day
+
+
+def fit_window_start(end: int, symbols: int, warmup: int, max_horizon: int,
+                     cap: int) -> Optional[int]:
+    """The earliest ``from`` (YYYYMMDD) whose read fits ``cap`` — or ``None``
+    when even the floor window does not.
+
+    ⛔ SIZED BY THE SAME ``bars_wanted`` THE REQUEST IS CHARGED AGAINST, so a
+    window derived here can never be refused by the ceiling it was fitted to. A
+    binary search over calendar days: ``bars_wanted`` is monotone in the span.
+
+    ⚠️ ``cap`` IS ONE OF **TWO** BOUNDS. The span is also capped at
+    ``MAX_DERIVED_WINDOW_DAYS``, and for a universe of a few hundred symbols that
+    is the one that binds — ``window_bound`` says which, and the payload names
+    both, because "we picked the widest window your memory ceiling allows" is a
+    false sentence for exactly the narrow saved screen this surface serves best.
+    """
+    def fits(days: int) -> bool:
+        return symbols * bars_wanted(_session_back(end, days), end,
+                                     warmup, max_horizon) <= cap
+
+    lo, hi = MIN_DERIVED_WINDOW_DAYS, MAX_DERIVED_WINDOW_DAYS
+    if not fits(lo):
+        return None
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if fits(mid):
+            lo = mid
+        else:
+            hi = mid - 1
+    return _session_back(end, lo)
+
+
+def window_bound(start: int, end: int) -> str:
+    """``"cap"`` or ``"max_days"`` — which bound actually decided a DERIVED window.
+
+    ⭐ READ OFF THE WINDOW THAT CAME BACK, not off the search that produced it: a
+    span that reached the day ceiling is one the search never had to shrink for
+    memory, so the ceiling is what stopped it. Deriving it here rather than
+    returning a second value from ``fit_window_start`` keeps that function's
+    contract (a ``from``, or ``None``) intact and keeps one answer to "how wide".
+    """
+    span = (_as_date(end) - _as_date(start)).days
+    return "max_days" if span >= MAX_DERIVED_WINDOW_DAYS else "cap"
+
+
 #: ⛔ ONE WORKER. Two concurrent whole-universe sweeps would double this single
 #: pod's SQLite read pressure for no member benefit; a second request for the
 #: same job dedupes onto the first, and a different job queues behind it.
@@ -223,12 +304,51 @@ def _receipt_key(job: str) -> str:
     return f"screen_backtest::{job}"
 
 
+#: ⛔⛔ THE PER-CALLER FACTS — the keys that describe WHO ASKED rather than WHAT
+#: WAS COMPUTED. ``job_id`` is a digest of the request and deliberately excludes
+#: the caller, so everything stored under it is served to whoever polls it; a key
+#: in this tuple therefore may NEVER travel in the shared entry. Declared ONCE and
+#: read by both halves of the split — the door that builds the entry and the door
+#: that serves it — because two lists of "what is private here" is how one of them
+#: stops matching the other.
+PER_CALLER_KEYS: tuple = ("definition", "window_request")
+
+#: The same rule one level down. ``universe_request`` is mostly shared — ``kind``,
+#: ``matched`` and ``truncated`` describe the symbol list the digest already keys
+#: on — but it also names the member's OWN saved screen, and ``screen_name`` is
+#: FREE TEXT A MEMBER TYPED, which is strictly worse than an opaque id: there is
+#: no shape it has to have and no way to un-read it.
+PER_CALLER_UNIVERSE_KEYS: tuple = ("screen_id", "screen_name")
+
+
+def _shared_only(payload: dict) -> dict:
+    """``payload`` with every per-caller fact removed.
+
+    ⛔ THIS IS THE GUARANTEE, AND THE MERGE ON THE WAY OUT IS NOT. A route that
+    only merged the caller's own facts OVER a cached payload would still hand a
+    stale entry's ``definition`` to a caller who has none of their own —
+    ``{**cached, **{}}`` is ``cached``. So the read door SUBTRACTS, and the answer
+    is true of any entry it is handed, including one written by an older pod.
+
+    ⚠️ NOTHING IS MUTATED. The cached object belongs to the cache; both levels are
+    rebuilt into new dicts.
+    """
+    if not isinstance(payload, dict):                          # pragma: no cover
+        return payload
+    out = {k: v for k, v in payload.items() if k not in PER_CALLER_KEYS}
+    universe = out.get("universe_request")
+    if isinstance(universe, dict):
+        out["universe_request"] = {k: v for k, v in universe.items()
+                                   if k not in PER_CALLER_UNIVERSE_KEYS}
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # the request
 # --------------------------------------------------------------------------- #
 
 class BacktestRequest(BaseModel):
-    """``{ast, universe, from, to, horizons, tf}``.
+    """``{ast | def_id, universe, from, to, horizons, tf}``.
 
     ⚠️ ``from`` IS THE WIRE NAME. The spec's payload says ``from``, which is a
     Python keyword, so it is ALIASED rather than renamed — a member-facing body
@@ -262,12 +382,55 @@ class BacktestRequest(BaseModel):
     #: is the difference between "invalid" and "here is the ceiling".
     horizons: list[Any] | None = None
     tf: str = "D"
+    #: A member's OWN saved definition, replayed by id. Mutually exclusive with
+    #: `ast`: two trees for one backtest are two authorities over which screen is
+    #: being replayed. The tree is `compute.ast` — the scan tree by the v2
+    #: document contract — read through the same member-scoped store door
+    #: `GET /api/user-definitions/{def_id}` answers through.
+    def_id: str | None = None
 
     model_config = {"populate_by_name": True}
 
 
-def _tree_of(body: BacktestRequest) -> dict:
-    """The canonical tree, or a 400 that says which half is missing.
+def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
+    """``(tree, provenance)`` for a member's OWN definition.
+
+    ⛔ SCOPED TO THE MEMBER AT THE STORE (`user_definitions.get(user_id, def_id)`)
+    so another member's id is a 404, not a leak. ⭐ `compute.ast` IS THE SCAN
+    TREE by the v2 document contract (the plot `scanPlot` names; single-tree
+    documents unchanged) — reading `compute.trees` here would put a second
+    opinion on "which tree is the scan" beside the one the sweep uses.
+    """
+    try:
+        row = defs.get(user_id, def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if row is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no definition {def_id!r} for this member")
+    doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
+    compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
+    tree = compute.get("ast")
+    if compute.get("kind") != "ast" or not isinstance(tree, dict) or not tree:
+        raise HTTPException(
+            status_code=400,
+            detail=f"definition {def_id!r} carries no `compute.ast` tree to replay")
+    # ⚠️⚠️ TWO SOURCES, ON PURPOSE, BECAUSE THERE ARE TWO `rev` NUMBERS IN THIS
+    # SYSTEM AND THEY DIVERGE. `version` is the STORE's (one per saved version,
+    # the row). `rev` is the BLOB's `compute.rev` — the number
+    # `scan_evaluator.evaluate_one` reads (`rev = compute.get("rev")`) and writes
+    # into the E-6 rule record, which is the thing this receipt is rendered
+    # BESIDE. The row's own `rev` column is a different number: it moves when
+    # `ast_hash` moves, while `compute.rev` sat at 1 for every stored blob until
+    # `PUT /api/user-definitions/{def_id}` gained a product caller. Reading both
+    # from the row would look tidier and would silently stop matching the record.
+    return tree, {"def_id": def_id, "version": row.get("version"),
+                  "rev": compute.get("rev")}
+
+
+def _tree_of(body: BacktestRequest, user_id: Any = None) -> tuple[dict, dict]:
+    """``(tree, provenance)`` — the canonical tree, or a 400 that says which half
+    is missing. ``provenance`` is ``{}`` for an ``ast`` body.
 
     ⛔ ``source`` IS REFUSED BY NAME, NOT IGNORED. There is no server-side parser
     in this repo: ``canonicalise`` lives in
@@ -277,8 +440,15 @@ def _tree_of(body: BacktestRequest) -> dict:
     browser lane parses and this door takes the tree. Accepting ``source`` and
     silently doing nothing with it is the shape that ships a field nobody serves.
     """
+    if body.def_id:
+        if isinstance(body.ast, dict) and body.ast:
+            raise HTTPException(
+                status_code=400,
+                detail=("send `def_id` OR `ast`, not both — two trees for one "
+                        "backtest are two authorities over which screen is replayed"))
+        return _definition_tree(body.def_id, user_id)
     if isinstance(body.ast, dict) and body.ast:
-        return body.ast
+        return body.ast, {}
     if body.source:
         raise HTTPException(
             status_code=400,
@@ -286,7 +456,18 @@ def _tree_of(body: BacktestRequest) -> dict:
                     "the parser is the browser lane (engine/ast/parse.js), and "
                     "running node per request is the fan-out this surface is "
                     "bounded to avoid. Send `ast`."))
-    raise HTTPException(status_code=400, detail="a backtest needs an `ast` — the screen to replay")
+    raise HTTPException(status_code=400,
+                        detail="a backtest needs an `ast` (or a `def_id`) — the screen to replay")
+
+
+def _hash_of(tree: dict) -> Optional[str]:
+    """``astHash`` of the tree the engine is about to RUN — the maths, not a
+    stored field. ``None`` when a hand-posted ``ast`` is not canonical (the
+    store never hands one back that is not), stated rather than guessed."""
+    try:
+        return defs.ast_hash(tree)
+    except (ValueError, TypeError):
+        return None
 
 
 def _session(value: Any, field: str) -> int:
@@ -427,7 +608,17 @@ def _universe_for(spec: Any, user_id: Any) -> tuple[list[str], dict]:
     # rarely fires.
     screen_spec = dict(screen.get("spec") or {})
     screen_spec.update({"page": 1, "page_size": MAX_SYMBOLS})
-    result = scr_query.run_scan(screen_spec) or {}
+    # ⛔ FIX ROUND 1 MINOR (reviewed 2026-08-26) — `run_scan` can REFUSE a
+    # screen's own stored spec (an unknown sort key, or — since X27's fix
+    # round 1 — a filter/rank/sort/columns naming a column declared but not
+    # yet live on this pod) with a `ValueError`, exactly like the live
+    # `POST /api/scan` endpoint does. Every OTHER validation failure in this
+    # function is a deliberate `HTTPException(400, ...)`; this was the one
+    # call left to fall through as an unhandled 500.
+    try:
+        result = scr_query.run_scan(screen_spec) or {}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     rows = result.get("rows") or []
     syms = sorted({str(r.get("ticker")).strip().upper() for r in rows
                    if isinstance(r, dict) and r.get("ticker")})
@@ -636,8 +827,17 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
 
 
 def _stored(job: str) -> Optional[dict]:
+    """The cached receipt for ``job``, WITH every per-caller fact subtracted.
+
+    ⛔ THE STRIP IS HERE BECAUSE THIS IS THE ONE READ DOOR — ``status_for`` (the
+    poll), ``_submit`` (the background dedupe) and the inline path all come
+    through it, so one subtraction covers every way a shared entry reaches a
+    caller. The WRITE side builds the entry clean already (`extras` carries only
+    the shared half); this is what makes that true of entries this process did not
+    write.
+    """
     hit = _cache().get(_receipt_key(job))
-    return hit if isinstance(hit, dict) else None
+    return _shared_only(hit) if isinstance(hit, dict) else None
 
 
 def status_for(job: str) -> dict:
@@ -709,14 +909,57 @@ def run_screen_backtest(body: BacktestRequest,
     A screen that reads a declared scalar comes back ``200`` with
     ``{backtestable: false, refused: "scalar_no_history", names: [...]}`` — a
     refusal is an ANSWER about what we hold, not an error.
+
+    ``def_id`` replays the member's OWN saved definition instead of a posted
+    ``ast`` (never both), and MAY omit ``from``/``to``: the window is then the
+    widest one BOTH bounds allow — the memory ceiling and the ~10-year span cap —
+    with ``window_request`` naming both and saying which one bound.
+
+    ``def_hash`` — the hash of the tree that RAN — rides on every answer THIS
+    route gives, including the ``?background=1`` acknowledgement and every
+    refusal. ⚠️ It is NOT on a ``running``/``unknown`` poll of
+    ``GET /api/screener/backtest/{job}``: a job id is a digest of the request and
+    carries no tree, so there is nothing there to derive it from. Poll answers
+    have it once they are ``ready``.
+
+    ⛔ THE PER-CALLER FACTS ARE NOT SHARED — ``definition{def_id, version, rev}``,
+    ``window_request``, and ``universe_request``'s ``screen_id``/``screen_name``
+    (``PER_CALLER_KEYS`` / ``PER_CALLER_UNIVERSE_KEYS``). They ride on the answer
+    THIS member's request produces — the synchronous receipt and the
+    ``?background=1`` acknowledgement — and are absent from the cached entry, so a
+    ``ready`` poll of a job another member started names neither their saved row
+    nor their private screen. ``def_hash`` is the shareable identity: a digest of
+    the maths, identical by construction for identical maths. A surface that needs
+    to say WHICH definition this is about echoes the ``def_id`` it posted.
+
+    ⚠️ SO A ``ready`` POLL CARRIES THE RECEIPT AND THE SHARED HALF ONLY. That is
+    the honest shape — the poll has no caller to speak for — and the consumer
+    already holds what it asked with. ``universe_request``'s ``kind``, ``matched``
+    and ``truncated`` DO survive on the poll: they describe the symbol list the
+    job id already keys on, and ``truncated`` is an honest-none disclosure that
+    must not go missing.
     """
-    tree = _tree_of(body)
+    tree, definition = _tree_of(body, user.get("id"))
     tf = _tf(body.tf)
-    start = _session(body.from_, "from")
-    end = _session(body.to, "to")
-    if start > end:
-        raise HTTPException(status_code=400,
-                            detail=f"`from` {start} is after `to` {end}")
+
+    # ⛔⛔ THE WINDOW THE MEMBER TYPED IS PARSED **HERE**, BEFORE THE UNIVERSE IS
+    # BUILT — where it was before this door learned to derive one. Only a body
+    # that states no window at all waits, because deriving one needs the symbol
+    # count. Moving the whole block below `_universe_for` changed which refusal a
+    # body with two defects gets: a mistyped `from` beside a saved-screen id
+    # answered a 404, and on a box with an empty snapshot it answered 503. The
+    # shipped refusal parametrisation could not see it — every fixture there
+    # carries exactly one defect — so the rail that CAN lives in
+    # `tests/test_screener_backtest_def_id.py`.
+    derived = bool(definition) and body.from_ is None and body.to is None
+    start = end = 0
+    if not derived:
+        start = _session(body.from_, "from")
+        end = _session(body.to, "to")
+        if start > end:
+            raise HTTPException(status_code=400,
+                                detail=f"`from` {start} is after `to` {end}")
+
     horizons = _horizons(body.horizons)
 
     # ⛔ THE TREE IS RESOLVED ONCE, AT THE DOOR. `max_lookback` walks every call on
@@ -730,6 +973,48 @@ def run_screen_backtest(body: BacktestRequest,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     symbols, universe = _universe_for(body.universe, user.get("id"))
+
+    # ⛔ THE CEILING IS READ ONCE PER REQUEST, and it is the SAME number the
+    # derived window is fitted to and the sweep is charged against. Two reads
+    # would let a window fitted to one ceiling be refused by another.
+    cap = max_cells()
+
+    # ── the derived window: the widest one BOTH bounds allow ──────────────── #
+    # ⭐ A `def_id` body may omit the window, and then it is DERIVED from the same
+    # bounds that would otherwise refuse it, ending at the lane's own latest
+    # session. It is STATED in `window_request` and the engine echoes the dates it
+    # actually compared bars against in `window`.
+    window_request: Optional[dict] = None
+    if derived:
+        # ⛔ THE DERIVED END GOES THROUGH THE SAME VALIDATOR THE MEMBER'S `to`
+        # DOES. It is our own fact, not theirs, but "is this a session key" has
+        # one owner — and an unvalidated int from a helper would have raised
+        # somewhere downstream as a 500 instead of refusing by name.
+        end = _session(bars_fetch._expected_latest_session_yyyymmdd(),
+                       "to (derived from the latest session)")
+        start = fit_window_start(end, len(symbols), warmup, max(horizons), cap)
+        if start is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"even a {MIN_DERIVED_WINDOW_DAYS}-day window over "
+                        f"{len(symbols):,} symbols exceeds the memory ceiling of "
+                        f"{cap:,} bars. Narrow the universe."))
+        window_request = {
+            "derived": True,
+            # ⛔ BOTH BOUNDS, AND WHICH ONE BOUND. This sentence named only the
+            # cap for one round, and it was FALSE for the case this surface serves
+            # best: under ~450 symbols the cap is nowhere near binding (a 20-name
+            # screen used 4% of it) and the span is decided by the day ceiling —
+            # so the member was told the wrong reason beside a number that would
+            # not have moved the window by a day if it were raised 100×.
+            "rule": ("the widest window under BOTH bounds: symbols x bars must "
+                     "fit SCREEN_BACKTEST_MAX_CELLS, and the span itself is "
+                     "capped at MAX_DERIVED_WINDOW_DAYS calendar days"),
+            "bound": window_bound(start, end),
+            "cap": cap,
+            "max_days": MAX_DERIVED_WINDOW_DAYS,
+        }
+
     want = bars_wanted(start, end, warmup, max(horizons))
     to_key = padded_end(end, max(horizons))
 
@@ -740,7 +1025,6 @@ def run_screen_backtest(body: BacktestRequest,
     # truncated to a smaller universe, which would publish a win rate for a screen
     # the member did not ask about.
     cells = len(symbols) * want
-    cap = max_cells()
     if cells > cap:
         raise HTTPException(
             status_code=400,
@@ -759,6 +1043,73 @@ def run_screen_backtest(body: BacktestRequest,
     # made `_envelope` raise `EnvelopeCollision`, which was that guard working
     # exactly as designed: two writers had reached for one value.
 
+    # ⭐ THE REQUEST-FACTS, KEPT TOGETHER BECAUSE THEY RIDE ON TWO ANSWERS. They
+    # go into the receipt envelope below AND onto the queued acknowledgement a
+    # `?background=1` POST returns — which is the FIRST answer the Evidence tab
+    # ever sees, so it cannot be the one that does not say which definition it is
+    # about. ⚠️ The POLL is a different matter: a job id is a digest of the
+    # request and holds no tree, so a `running` / `unknown` poll has nothing to
+    # derive a hash from. The claim is therefore "every POST answer and every
+    # `ready` receipt", and the route docstring says so rather than leaving a
+    # consumer to find out.
+    asked = {
+        # ⭐ THE MATHS THAT RAN, HASHED — `astHash(tree)`, the same string the
+        # chart, the scan and the record key on. The consumer compares it to the
+        # definition it asked about and refuses a receipt for any other. DERIVED
+        # from the tree, never the store's `ast_hash` column: the column describes
+        # the row, this describes what the engine was handed.
+        #
+        # ⭐ AND IT IS THE ONE IDENTITY THAT MAY BE SHARED, BY CONSTRUCTION. It is
+        # a digest of the tree, so two members running identical maths compute the
+        # identical string — there is nothing of either member in it. See `mine`
+        # below for the half that is not like this.
+        "def_hash": _hash_of(tree),
+    }
+
+    # ⛔⛔ PER-CALLER, AND THEREFORE NEVER WRITTEN INTO THE SHARED ENTRY.
+    # (Controller ruling, 2026-08-26.) `job_id` is a digest of the REQUEST —
+    # tree, symbols, tf, window, horizons — and deliberately does NOT include the
+    # caller, so two members whose maths is identical cost the pod ONE sweep.
+    # Everything stored under that id is therefore served to whoever polls it, and
+    # `definition{def_id, version, rev}` describes a saved row belonging to
+    # whichever member happened to run it first: two members who saved the same
+    # starter screen collide on one entry and the second was being handed the
+    # first's `def_id`. Measured, not theorised —
+    # `test_a_SECOND_member_on_the_same_content_key_gets_NO_TRACE_of_the_firsts_definition`
+    # reproduced it before this split existed.
+    #
+    # ⛔ THE FIX IS NOT A WIDER CACHE KEY. Adding the caller to `job_id` would
+    # make identical maths cost a full backtest per member and destroy the
+    # content-keyed contract this door was built on. The fix is that the shared
+    # entry carries only content-derived facts and the caller's own facts ride on
+    # the caller's own answer — a surface that wants to say WHICH of the member's
+    # definitions produced this already knows: it is the `def_id` it posted.
+    #
+    # ⭐ AND THE OLDER SHAPE OF THE SAME DEFECT IS IN HERE TOO (ruled in on review,
+    # 2026-08-26). `universe_request` named the member's own SAVED SCREEN, and
+    # `screen_name` is free text a member typed. Measured before the fix: member A
+    # over their screen 7 and member B over THEIR screen 12, both resolving to
+    # [AAA, BBB], collide on one job id and B was served
+    # `{"screen_id": 7, "screen_name": "A's PRIVATE momentum list"}` — so B was
+    # shown A's private data AND misinformed about B's own request, because B's
+    # own `screen_id` had been replaced. `kind`/`matched`/`truncated` stay shared:
+    # they describe the symbol list the digest already keys on.
+    #
+    # ⚠️ `window_request` IS IN HERE FOR A WEAKER REASON AND IT IS STILL A REASON.
+    # It carries no identity, but it describes how THIS request's window was
+    # arrived at — so a member who typed their dates by hand was being told
+    # `derived: true` off an entry another member's omitted window had written.
+    mine: dict = {}
+    if definition:
+        mine["definition"] = definition
+    if window_request:
+        mine["window_request"] = window_request
+    # ⛔ THE CALLER'S OWN BLOCK, WHOLE — not merely the private half. The shared
+    # entry keeps `{kind, matched, truncated}`, and this hands THIS member the
+    # provenance of the request THEY made, so a collision cannot restate any part
+    # of it. It is the same dict `_universe_for` built; `extras` gets the subset.
+    mine["universe_request"] = universe
+
     extras = {
         "job": job,
         "status": "ready",
@@ -770,7 +1121,12 @@ def run_screen_backtest(body: BacktestRequest,
         # receipt, because the engine is handed bars and never asks what timeframe
         # they are, so this route is its only writer.
         "tf": tf,
-        "universe_request": universe,
+        # ⛔ THE SHARED HALF ONLY — the private half rides on `mine` above. The
+        # subset is DERIVED from `PER_CALLER_UNIVERSE_KEYS` rather than rebuilt by
+        # hand, so the two doors cannot disagree about what "private" means.
+        "universe_request": {k: v for k, v in universe.items()
+                             if k not in PER_CALLER_UNIVERSE_KEYS},
+        **asked,
     }
 
     def _run() -> dict:
@@ -781,7 +1137,14 @@ def run_screen_backtest(body: BacktestRequest,
         return _envelope(receipt, extras)
 
     if background:
-        return _submit(job, _run)
+        # ⛔ THE STORED PAYLOAD WINS OVER `asked`, AND NOTHING IS MUTATED.
+        # `_submit` may hand back a receipt already in the cache; that dict is the
+        # cache's own object, so it is merged INTO a new one rather than written
+        # to, and its own keys outrank these. ⛔ `mine` GOES LAST because it is the
+        # only part of this answer the cache can never speak for: a shared entry
+        # written by another member must not name this one, and (since the split
+        # above) holds no `definition` to collide with in the first place.
+        return {**asked, **_submit(job, _run), **mine}
 
     if len(symbols) > INLINE_MAX_SYMBOLS:
         # ⛔ THE BOUND, QUOTED. Not a silent truncation and not a slow 504: the
@@ -793,12 +1156,16 @@ def run_screen_backtest(body: BacktestRequest,
                     "with ?background=1 and poll "
                     "GET /api/screener/backtest/{job} for the receipt."))
 
+    # ⛔ THE CACHE ENTRY IS SHARED; THE ANSWER IS THIS MEMBER'S. Both spellings
+    # merge `mine` onto a NEW dict — the cached object is never written to, and
+    # the freshly-run one is recorded BEFORE the merge so nothing per-caller can
+    # reach the entry a later poll by somebody else will read.
     cached = _stored(job)
     if cached is not None:
-        return cached
+        return {**cached, **mine}
     out = _run()
     _record(job, out)
-    return out
+    return {**out, **mine}
 
 
 @router.get("/api/screener/backtest/{job}")

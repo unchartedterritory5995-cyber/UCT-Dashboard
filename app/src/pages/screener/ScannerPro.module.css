@@ -87,7 +87,20 @@
 
 /* ── Saved-screens menu ── */
 .saveMenuWrap { position: relative; display: inline-block; }
-.saveMenuPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 240px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; }
+/* ⛔⛔ `max-height` + `overflow-y` ARE LOAD-BEARING, NOT POLISH — X89.
+   Expanding a scan's detail grows this popup by the whole `ScanResults` block:
+   Run now, Evidence, the four-count coverage receipt, the causes line and the
+   hit list. Measured live at 127.0.0.1 on a 945px viewport: the popup ran to
+   **1,408px**, `.shell` is `overflow: hidden`, NO ancestor scrolled, and
+   `window.scrollY` stayed 0 after scrolling every element on the page — so
+   **463px was unreachable and it would have taken a 1,416px-tall viewport** to
+   read the receipt. Every one of those surfaces is built, tested and green;
+   they were simply below the fold with no way down
+   (`lesson_built_tested_green_and_unreachable`).
+   ⚠️ The 176px is this popup's own top offset under the sticky toolbar
+   (measured at 157px) plus a margin — it is a literal because CSS cannot read
+   its own position, so if the toolbar grows, grow this with it. */
+.saveMenuPop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 240px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,.4)); padding: 6px; max-height: calc(100vh - 176px); overflow-y: auto; overscroll-behavior: contain; }
 .saveMenuSection { padding: 4px 0; border-bottom: 1px solid var(--border); }
 .saveMenuHdr { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); padding: 2px 8px; }
 .saveMenuEmpty { color: var(--text-muted); font-size: 11.5px; padding: 4px 8px; }

@@ -9,7 +9,7 @@
   min-height: 0;
   overflow: hidden;
   font-family: var(--font-sans);
-  background: var(--bw-bg, #0e0f0d);
+  background: var(--bw-bg, var(--bg-surface));
   color: var(--text);
 }
 
@@ -29,7 +29,7 @@
   padding: 1px 8px 0;
   min-height: 34px;
   box-sizing: border-box;
-  background: var(--bw-elev, #14151a);
+  background: var(--bw-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--bw-divider, var(--border));
   flex-shrink: 0;
 }
@@ -277,7 +277,7 @@
   min-height: 34px;
   box-sizing: border-box;
   position: relative;   /* anchors the ＋ add-menu */
-  background: var(--bw-elev, #14151a);
+  background: var(--bw-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--bw-divider, var(--border));
   flex-shrink: 0;
 }
@@ -340,7 +340,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--bw-text-dim, var(--text-muted));
   border-top: 1px solid var(--bw-divider, var(--border));
-  background: var(--bw-elev, #14151a);
+  background: var(--bw-elev, var(--bg-elevated));
   white-space: nowrap;
   overflow: hidden;
 }

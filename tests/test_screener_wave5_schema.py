@@ -1,13 +1,41 @@
 """Wave 5 schema: the 13 new columns exist, type-set membership holds, and the
 widen path still works (a pre-Wave-5 table gains exactly those 13 on init).
 
-⚠️ THE WIDTH PINS BELOW ARE HAND-TYPED ON PURPOSE and they are the ONLY
-hand-typed numbers here. `len(snapshot_db.COLUMNS)` is a tripwire: a column
-added or dropped anywhere in the screener schema should make somebody look, so
-deriving it from `COLUMNS` itself would make the assertion say nothing. Every
-OTHER number in this file is derived, and the prose no longer restates a width
--- three waves in a row bumped an assert and left a stale count in a docstring
-or a test NAME, which is what sent the last reader to the wrong number."""
+⛔⛔ X20(a) -- THIS FILE USED TO PIN `len(snapshot_db.COLUMNS) == 185` AS A
+LITERAL IN TWO PLACES, ARGUING (right here) THAT A HAND-TYPED WIDTH WAS A
+"tripwire" WORTH THE STALENESS. It was not: the width had already drifted
+FOUR TIMES (158 -> 160 -> 185 -> 200 -> ...) because every legitimate wave
+adds columns, and it keeps not stopping there -- the literal never once caught
+a mistake, it only ever caught the next correct wave, and got bumped without a
+second look. ⚠️ NOTE THE TRAILING "-> ...": a drift history is not exempt from
+the rule it is illustrating. Ending it on "200" would make 200 read as the
+current, stable fact -- the exact second-authority shape this fix removes from
+the assert, reappearing one level up, in the prose. Its cost was not merely
+cosmetic: in `test_init_db_creates_every_declared_column` it sat directly
+AFTER `assert set(snapshot_db.COLUMNS) <= have` -- a genuine, non-vacuous rail
+proving `init_db()` creates every declared column -- and dragged that REAL
+rail red for this entire branch, waved through by every lane that hit it as a
+"known red" (the same shape as X7: nobody triages a red they believe they
+already understand).
+
+⭐ DO NOT ADD A LITERAL WIDTH BACK. If the fix for a red here looks like
+`assert len(snapshot_db.COLUMNS) == <today's count>`, that is drift #5, not a
+repair. The invariants that survive every future wave without an edit are
+about the MANIFEST'S SHAPE, never its size:
+  * no column is declared TWICE (`test_wave5_columns_are_declared`) --
+    checked against a FLOOR, never an exact count, so it never needs raising
+    (mirrors `test_cross_module_imports_resolve.py`'s `seen_imports >= 500`:
+    a non-vacuity control, not a tripwire);
+  * a wave's own declared family is still PRESENT in `COLUMNS`
+    (`missing = [c for c in WAVE5 if c not in snapshot_db.COLUMNS]` below, and
+    the `<=` in `test_init_db_creates_every_declared_column`) -- unchanged by
+    this fix, and it is the rot control: it fails the day WAVE5 silently
+    disappears from `COLUMNS`, the same way `test_cross_module_imports_
+    resolve.py`'s `KNOWN_DEAD` entries fail the day one quietly resolves.
+
+Every OTHER number in this file was already derived rather than typed -- see
+`test_init_db_widens_a_pre_wave5_shaped_table`, whose pre-Wave-5 width is
+`len(real_columns) - len(WAVE5)`, never a second literal."""
 import sqlite3
 
 
@@ -27,12 +55,26 @@ WAVE5 = ("pattern_engine_ids", "pattern_engine_conf", "pattern_engine_dir",
 def test_wave5_columns_are_declared(monkeypatch, tmp_path):
     _fresh(monkeypatch, tmp_path)
     from api.services.screener import snapshot_db
+    # ⭐ THE ROT CONTROL: fails the day WAVE5 silently disappears from
+    # COLUMNS (a rename, a merge conflict, a copy-paste that dropped a line).
     missing = [c for c in WAVE5 if c not in snapshot_db.COLUMNS]
     assert not missing, missing
-    assert len(WAVE5) == 13  # the reference table's own count, pinned
-    # Width tripwire. Moved 158 -> 160 by the Wave-6 per-pattern engine flags
-    # (`pattern_engine_vcp`, `pattern_engine_flat_base`).
-    assert len(snapshot_db.COLUMNS) == 185
+    assert len(WAVE5) == 13  # WAVE5's OWN count, pinned beside the literal
+                             # tuple three lines up -- CLOSED history (Wave 5
+                             # is done), never widened by a later wave the way
+                             # snapshot_db.COLUMNS is. Not the drifting number.
+    # ⛔ NO WIDTH HERE (X20(a) -- see the module docstring). What replaces the
+    # old `== 185` is the manifest's own shape, not its size:
+    #   * no duplicate entries -- a column declared twice would double an
+    #     ALTER attempt in init_db() and desync upsert_rows()'s `?`
+    #     placeholder count from its column list.
+    assert len(snapshot_db.COLUMNS) == len(set(snapshot_db.COLUMNS)), \
+        "a column name is declared more than once in COLUMNS"
+    # ⭐ THE NON-VACUITY CONTROL: a FLOOR, never an exact pin, so it never
+    # needs raising on a legitimate wave -- it only fires if COLUMNS is
+    # accidentally emptied or truncated.
+    assert len(snapshot_db.COLUMNS) > 100, \
+        "COLUMNS looks truncated -- this floor should not need raising"
 
 
 def test_wave5_type_set_membership(monkeypatch, tmp_path):
@@ -56,14 +98,30 @@ def test_init_db_creates_every_declared_column(monkeypatch, tmp_path):
     """⚠️ Named `test_init_db_creates_all_151` through three schema waves that
     each bumped the assert below and left the NAME saying 151 -- a count in a
     test name is a second authority over a width nothing checks it against.
-    The width lives in the assert, once."""
+
+    ⛔⛔ X20(a): the assert it pointed to drifted too (158 -> 160 -> 185 ->
+    200 -> ...) -- "the width lives in the assert, once" moved the drift, it
+    did not remove it. It sat directly after the genuine, non-vacuous rail below and
+    dragged that rail red for a cosmetic reason for this entire branch. There
+    is no width here now, and see the module docstring before adding one
+    back."""
     _fresh(monkeypatch, tmp_path)
     from api.services.screener import snapshot_db
     snapshot_db.init_db()
     with snapshot_db.connect() as c:
         have = {r[1] for r in c.execute("PRAGMA table_info(screener_rows)")}
+    # ⭐ THE ROT CONTROL, for THIS pod's actual table: fails the day init_db()
+    # stops creating a column it still declares.
+    #
+    # ⛔ THE MANIFEST'S SHAPE (no duplicate entries) is NOT re-checked here.
+    # `test_wave5_columns_are_declared` already asserts it, over the identical
+    # `snapshot_db.COLUMNS` list, and the check does not depend on `init_db()`
+    # having run -- a second copy of the same boolean would be exactly the
+    # kind of restated fact this fix spent its whole effort removing, one
+    # level up (`test_scan_store.py::test_the_screener_COLUMN_SET_still_
+    # partitions_into_E1s_frozen_manifest` already carries a THIRD, for an
+    # unrelated invariant -- three is enough).
     assert set(snapshot_db.COLUMNS) <= have
-    assert len(snapshot_db.COLUMNS) == 185
 
 
 def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):

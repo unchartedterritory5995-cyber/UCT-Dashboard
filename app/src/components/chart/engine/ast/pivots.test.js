@@ -13,9 +13,19 @@
 // filing as unbuilt.
 //
 // ⭐ AND THE R-BAR LAG IS THE WHOLE REASON IT WORKS HERE. A pivot cannot be known
-// until R bars after it happens — in a repainting engine that is a forward reference,
-// which this table refuses BY CONSTRUCTION. Confirming it LATE is not a compromise;
-// it is the only honest reading, and it is what makes the value non-repainting.
+// until R bars after it happens, and a COMPOSED formula has no way to say so: the
+// `offset` node is backward-only, so confirming LATE is the only reading available
+// to this construction — which is what makes THIS value non-repainting.
+//
+// ⚰️ THIS SAID A FORWARD REFERENCE IS ONE "which this table refuses BY
+// CONSTRUCTION", AND THAT IS NO LONGER TRUE. W2a.6 declared `pivothigh`/`pivotlow`
+// with `forward: "arg2"`: they emit ON the pivot bar, declare the forward reach in
+// the manifest, and are badged `preview-repaints` for it. What the table still
+// refuses is a forward reference a member can SPELL — `parse.js` takes no negative
+// offset — so the manifest remains the single authority on forward reach. ⭐ THE
+// TWO SPELLINGS COEXIST ON PURPOSE: this composed one to ACT on (it is final when
+// it fires), the declared entry to DRAW where the pivot actually is.
+// `tests/test_ast_pivots.py` measures the declared one and quotes line 54 below.
 
 import { describe, it, expect } from 'vitest'
 import { parseFormula } from './parse.js'

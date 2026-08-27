@@ -17,7 +17,7 @@
 // reworded. `data-guard` carries the door's NAME beside it, so a diagnostic
 // names the gate rather than describing the symptom.
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
@@ -25,6 +25,7 @@ import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint } from '../engine/ast/lint'
 import { interpret } from '../engine/ast/interpret'
 import styles from './BuilderSheet.module.css'
+import editorStyles from './editor/CodeEditor.module.css'
 
 /**
  * ⭐ TWO SURFACE DIALECTS, ONE TREE, AND THE CHOICE IS MADE BEFORE THE READ —
@@ -115,7 +116,16 @@ export const FORMULA_DEBOUNCE_MS = 250
  *            measured: object|null, dialect: string}}
  */
 export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
-  const read = readFormulaSource(source, dialect)
+  // ⛔⛔ THE SCOPE GOES TO THE READ DOOR TOO, NOT ONLY TO THE LINTER AND THE
+  // READ-BACK (W1b.5). `readFormulaSource` hands it to `letPrepass.prepareSource`,
+  // whose docblock warns that ABSENT IS NOT EMPTY: without it a binding could
+  // shadow a DECLARED input, the pre-pass would rewrite every use of that name
+  // away, and the document would SAVE with its knob inert. `editor/completions.js`
+  // was already handing the scope in, so the completion popup refused text this
+  // gate accepted — one grammar, two readings, and the stricter one could not
+  // stop a save. This function is the one place that knows the scope on the
+  // authoring path, so it is the one place that can close it.
+  const read = readFormulaSource(source, dialect, inputs)
   const blank = {
     source: typeof source === 'string' ? source : '',
     ok: false, ast: null, guard: null, error: null,
@@ -128,7 +138,26 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
 
   const parsed = read.result
   if (!parsed.ok) {
-    return { ...blank, guard: parsed.guard || 'parser', error: parsed.error }
+    // ⭐ THE READER'S OWN POSITION, WHEN IT HAS ONE. `parsePcf` answers with the
+    // index and the token it refused at; jsep puts its offset in the message.
+    // Neither is re-derived here — the editor reads what the door said, and
+    // `editor/diagnostics.js` turns whichever of the two is present into a range.
+    //
+    // ⭐ AND A `let:*` REFUSAL NOW REACHES HERE WITH A LINE AND A COLUMN.
+    // `prepareSource` always named them; `pcf.js::READERS.native` used to keep
+    // only the guard and the sentence, so there was nothing to forward and
+    // `diagnostics.js` recovered the position by asking the same door again.
+    // W1b.5 widened the reader (the hand-back W1a.4's report asked for), so the
+    // position rides on the refusal and `diagnostics.js`'s path 2 places it —
+    // which is the ONLY path open for an input-shadow refusal, because that
+    // recovery deliberately asks without a scope and so cannot see one.
+    return {
+      ...blank, guard: parsed.guard || 'parser', error: parsed.error,
+      ...(Number.isInteger(parsed.index) ? { index: parsed.index } : {}),
+      ...(Number.isInteger(parsed.line) && Number.isInteger(parsed.column)
+        ? { line: parsed.line, column: parsed.column } : {}),
+      ...(typeof parsed.token === 'string' && parsed.token ? { token: parsed.token } : {}),
+    }
   }
   const ast = parsed.ast
 
@@ -229,16 +258,28 @@ const PROBE_BARS = Object.freeze([
  *                         a user can accept — but only having read it.
  *   `non-repainting`    → save.
  *
- * ⚠️ A PROPERTY OF TODAY'S MANIFEST, DECLARED RATHER THAN DISCOVERED: every
- * `lookback` in the shipped `closedTable.json` is `≥ 0` or `"argK"`, so
- * `astReach` returns forward `0` for every table-legal tree and the only trees
- * that carry another badge are the ones `checkBudget` has ALREADY refused at
- * `resolve:function` / `resolve:window`. In the product as it ships today this
- * gate therefore admits only `non-repainting`. That is the same declared
- * property `nativeRegistry.validateAstLane` carries, for the same reason, and it
- * is why the gate is a PURE function with its own test rather than something
- * only reachable through the form: the day the manifest declares a negative
- * lookback the gate moves with it and not a line of this file changes.
+ * ⚠️ A PROPERTY OF TODAY'S MANIFEST, MEASURED — NOT THE CONCLUSION A NEARBY FACT
+ * ONCE SEEMED TO IMPLY. Every `lookback` in the shipped `closedTable.json` is
+ * `≥ 0` or `"argK"` (checked: `0`, `1`, `argK`, `2*arg3`, `"session"` — no
+ * negatives). But `lookback` and `forward` are TWO DIFFERENT DECLARED FIELDS —
+ * `astReach` reads both off the same node, independently — and a fact about one
+ * says nothing about the other. Exactly ONE entry declares a `forward`:
+ * `ichimokuChikou` (`forward: "arg4"`), which `closedTable.json`'s own
+ * `_ichimoku_forward_cloud` note calls "the table's first and only entry whose
+ * repaint verdict is `preview-repaints` rather than `non-repainting`." So the
+ * gate admits BOTH outcomes today, not one: `non-repainting` for every other
+ * table-legal tree, and `preview-repaints` — the acknowledgement branch below,
+ * confirmed LIVE, not dead code — for any tree that reaches `ichimokuChikou`.
+ * Measured directly: `evaluateFormula('ichimokuChikou(high, low, close, 9, 26,
+ * 52) > 0', BUILDER_INPUT_SCOPE)` returns `ok: true`, un-refused by
+ * `checkBudget`, with `verdict.mode === 'preview-repaints'`. (`nativeRegistry
+ * .validateAstLane`'s GATE 3 enforces the same badge-vs-measurement contract —
+ * refused in both directions on disagreement — but by a route that never
+ * reasons about which manifest entries declare a `forward`, so it does not
+ * carry this property and is not evidence for it.) None of this changes why the
+ * gate is a PURE function with its own test rather than something only
+ * reachable through the form: the day the manifest declares a SECOND `forward`,
+ * this gate moves with it and not a line of this file changes.
  */
 export function canSaveFormula(result, acknowledged = false) {
   if (!result || !result.ok) return false
@@ -252,11 +293,21 @@ function msg(err) {
   return String(err && err.message ? err.message : err)
 }
 
+/** The editor chunk. ⛔ A FAILED LOAD IS THE TEXTAREA, NOT A RELOAD: this is an
+ *  inline enhancement of a box that already works, so `lazyWithRetry`'s
+ *  hard-reload (right for a ROUTE) would throw away a member's draft here. */
+function loadEditor() {
+  return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
+}
+
 /**
  * The box, its error chip, and nothing else.
  *
  * The read-back, the badge and Save live in `BuilderSheet` — this component
  * owns the TEXT and the 250 ms settle, and hands the evaluation up.
+ *
+ * The textarea is the value carrier and the fallback; when the editor chunk
+ * loads it is hidden (never unmounted) and CodeEditor renders beside it.
  *
  * @param {string}   value        the current source (controlled)
  * @param {Function} onChange     (source) => void, on every keystroke
@@ -269,6 +320,16 @@ function msg(err) {
  *                                definition actually declares.
  * @param {string}   [dialect]    `'auto'` (the default) lets the source decide;
  *                                `'native'` or `'pcf'` forces one reader.
+ * @param {string}   [label]      what this box is CALLED — the visible `<label>`
+ *                                and the `aria-label`, which are one string on
+ *                                purpose.
+ *
+ *   ⛔ ONE PROP, TWO SITES, BECAUSE A SECOND FIELD MUST NOT BE A SECOND
+ *   "FORMULA". The component already took an `inputId` so two of it could
+ *   coexist, and then hard-coded the word `Formula` in both places — so the
+ *   moment W1b.5's Plots editor rendered a field per plot, `getByLabelText`
+ *   (and a screen reader) saw N controls with one name and no way to say which
+ *   plot each belonged to. The default keeps every existing caller byte-identical.
  */
 export default function FormulaField({
   value,
@@ -280,10 +341,22 @@ export default function FormulaField({
   autoFocus = false,
   inputs = undefined,
   dialect = 'auto',
+  label = 'Formula',
 }) {
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
   const inputRef = useRef(null)
+  const [Editor, setEditor] = useState(null)
+  const editorRef = useRef(null)
+  useEffect(() => {
+    let alive = true
+    loadEditor().then((component) => { if (alive && component) setEditor(() => component) })
+    return () => { alive = false }
+  }, [])
+  // The editor arrives after the textarea took the autofocus: hop once, never forward.
+  useEffect(() => {
+    if (Editor && document.activeElement === inputRef.current) editorRef.current?.focus()
+  }, [Editor])
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
@@ -304,6 +377,11 @@ export default function FormulaField({
     return () => clearTimeout(id)
   }, [value, debounceMs, inputs, dialect])
 
+  /** `Mod-Enter`: apply the draft NOW — the settle's own evaluation, without the wait. */
+  const applyNow = useCallback(() => {
+    onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
+  }, [value, inputs, dialect])
+
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])
 
   const refused = !!(result && result.error)
@@ -315,11 +393,17 @@ export default function FormulaField({
 
   return (
     <div className={styles.fieldWrap}>
-      <label className={styles.label} htmlFor={inputId}>Formula</label>
+      <label className={styles.label} htmlFor={inputId}>{label}</label>
       <textarea
         id={inputId}
         ref={inputRef}
-        className={styles.field}
+        // ⛔ NOT combined with `styles.field` once the editor has mounted: two
+        // classes on one element leaves which `width`/`border` wins to import
+        // order between two different CSS modules. Standalone, `editorStyles.model`
+        // is the whole story regardless of load order (see its own comment).
+        className={Editor ? editorStyles.model : styles.field}
+        tabIndex={Editor ? -1 : undefined}
+        aria-hidden={Editor ? 'true' : undefined}
         // ⚠️ `spellCheck` off and `autoCapitalize` off: a phone keyboard that
         // capitalises `Close` produces a name the table does not declare, and
         // the refusal would be correct and completely baffling.
@@ -329,13 +413,32 @@ export default function FormulaField({
         autoComplete="off"
         rows={2}
         placeholder="sma(close, 20)"
-        aria-label="Formula"
+        aria-label={label}
         aria-invalid={refused || undefined}
         aria-describedby={refused ? `${inputId}-error` : undefined}
         value={value}
         onChange={handle}
         data-dialect={result?.dialect || 'native'}
       />
+      {Editor && (
+        <Editor
+          ref={editorRef}
+          value={value}
+          onChange={onChange}
+          /* ⛔ READ OFF THE RESULT, never a second `detectDialect` (see `readAs`). */
+          dialect={result && result.dialect === 'pcf' ? 'pcf' : 'formula'}
+          inputs={inputs}
+          diagnostics={result}
+          // ⛔ NOT `label` verbatim: `getAllByLabelText('Formula')` must still
+          // resolve to exactly ONE element (the hidden textarea) — the same
+          // "ONE PROP, TWO SITES" reason this component takes `label` at all.
+          // A distinguishing suffix keeps that true per-instance once W1b.5's
+          // Plots editor mounts N of these with N different `label`s.
+          ariaLabel={`${label} editor`}
+          testId="formula-editor"
+          onApply={applyNow}
+        />
+      )}
       {readAs && (
         <p
           className={`${styles.badge} ${styles.badgeClean}`}

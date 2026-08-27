@@ -2,10 +2,15 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES } from './parse.js'
 import {
-  interpret, maxLookback, nodeCount, FN, TableRefusal, REFUSALS, MAX_RECURRENCE_STEPS,
+  parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES, BAR_READERS,
+  SESSION_MAX_BARS, ARG_DOMAINS, LOOKBACK_RE,
+} from './parse.js'
+import {
+  interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS,
+  MAX_RECURRENCE_STEPS,
 } from './interpret.js'
+import { computeVWAP, computeAVWAP } from '../../indicators.js'
 import { DEFAULT_BUDGET } from './budget.js'
 
 /** The repo root, found by walking up — same helper `parse.test.js` uses, and it
@@ -452,18 +457,60 @@ describe('the implementation and the manifest are the same list', () => {
     // here would be a second roster; asking the table which entries are
     // recurrences means a second one needs no edit, and an entry that stopped
     // declaring one would land RED with its own name in the message.
-    const byWalker = Object.keys(RECURRENCES).sort()
+    //
+    // ⭐ AND A SECOND KIND, DERIVED THE SAME WAY (2026-08-26). An entry
+    // declaring `reads: 'bars'` is handed `interpret`'s own bar array rather
+    // than a pack of argument columns, so its implementation lives in `BAR_FN`
+    // and not in `FN` — the split is what lets `vwap()` read a real instant
+    // where `bindShipped` can only offer a bar index. Same rule as above: the
+    // roster is the MANIFEST's, so a third such entry needs no edit here.
+    const byWalker = [...Object.keys(RECURRENCES), ...BAR_READERS].sort()
     expect(byWalker.length, 'the exception must be non-empty or this rail widened for nothing')
+      .toBeGreaterThan(0)
+    expect(BAR_READERS.length, 'the bar-reading exception must be non-empty too')
       .toBeGreaterThan(0)
     const expected = Object.keys(TABLE.functions).filter((n) => !byWalker.includes(n)).sort()
     expect(Object.keys(FN).sort()).toEqual(expected)
+    // ⛔ AND `BAR_FN` IS THE OTHER HALF OF THE SAME EQUALITY, both directions: a
+    // declared-but-unbound bar reader is a formula the builder offers and the
+    // chart cannot draw, and a bound-but-undeclared one is a callable outside
+    // the closed table. (`interpret.js` refuses this at IMPORT as well, which is
+    // where a wiring defect belongs; this is the rail that names it.)
+    expect(Object.keys(BAR_FN).sort()).toEqual([...BAR_READERS].sort())
+    for (const name of BAR_READERS) {
+      expect(typeof BAR_FN[name], `${name} declares reads:'bars' and is not callable`)
+        .toBe('function')
+      // …and it EVALUATES, so "declared and bound" cannot quietly mean "bound to
+      // something that refuses". The tree is built from the manifest's own
+      // arity AND its own `argRoles`, so a third entry is exercised the day it
+      // lands.
+      //
+      // ⚰️ THE VALUE USED TO BE `BARS[1].t` FOR EVERY `int` SLOT — "a plausible
+      // instant for the one `int` slot the anchor form carries" — and that
+      // sentence stopped being true the moment a third bar reader landed whose
+      // `int` is a PERIOD. `obvN(1761897900)` measures 1.7 BILLION bars of
+      // lookback and this rail died inside `budget:lookback`, naming a guard
+      // that has nothing to do with what it was asserting. A probe that claims
+      // to be derived and types one entry's units is the same
+      // hand-list-beside-the-source defect one layer down, so the ROLE decides:
+      // a `…period` slot gets a window, anything else gets an instant.
+      const spec = TABLE.functions[name]
+      const args = spec.args.map((kind, i) => ({
+        type: 'num',
+        value: String(spec.argRoles[i] ?? '').toLowerCase().endsWith('period')
+          ? 3
+          : BARS[1].t,
+      }))
+      const column = interpret({ type: 'call', name, args }, BARS, {})
+      expect(column.length, `${name} did not produce a bar-aligned column`).toBe(BARS.length)
+    }
     expect(Object.keys(FN).length).toBeGreaterThanOrEqual(11)      // non-vacuity
     for (const name of expected) {
       expect(typeof FN[name], `${name} is declared but not callable`).toBe('function')
     }
     // ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
     // EVALUATE, or "no implementation" would quietly mean "no behaviour".
-    for (const name of byWalker) {
+    for (const name of Object.keys(RECURRENCES)) {
       const spec = TABLE.functions[name]
       const rec = spec.recurrence
       const args = spec.args.map((kind, i) => (i === rec.warmup
@@ -628,6 +675,47 @@ describe('maxLookback and nodeCount — measurements, not guards', () => {
 // REFUSAL HYGIENE
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** A call putting a PRICE where the manifest declares a condition role.
+ *
+ *  ⛔ EVERY PART READ OFF THE MANIFEST. Typing `barssince(close, 10)` here would
+ *  be a rail that stops covering the day the role moves to a different entry —
+ *  and the defect this guard exists for is precisely a declaration nobody read. */
+function miscastConditionCall() {
+  const kinds = Object.entries(TABLE._functions_arg_role_kinds || {})
+    .filter(([role]) => !role.startsWith('_'))
+  const role = kinds[0][0]
+  const [name, spec] = Object.entries(TABLE.functions).sort(([a], [b]) => (a < b ? -1 : 1))
+    .find(([, s]) => Array.isArray(s.argRoles) && s.argRoles.includes(role))
+  const price = Object.keys(TABLE.series).sort()[0]
+  const args = spec.args.map((kind) => (kind === 'int'
+    ? { type: 'num', value: 5 }
+    : { type: 'series', name: price }))
+  args[spec.argRoles.indexOf(role)] = { type: 'series', name: price }
+  return { type: 'call', name, args }
+}
+
+/** A call whose periods are out of the domain its OWN entry declares.
+ *
+ *  ⛔ EVERY PART READ OFF THE MANIFEST, for the reason above. The ENTRY comes
+ *  from `ARG_DOMAINS` — `_functions_domain`'s own `domain` key — and the CEILING
+ *  SLOT from that entry's `lookback`, so a seventh such entry, a renamed key or a
+ *  moved lookback is covered the day it lands. Nothing here spells `macd`.
+ *
+ *  Every `int` slot gets 1 and one NON-ceiling `int` slot gets 2: the smallest
+ *  tree that is out of domain by exactly one bar. */
+function outOfDomainCall() {
+  const name = Object.keys(ARG_DOMAINS).sort()[0]
+  const spec = TABLE.functions[name]
+  const ceiling = Number(LOOKBACK_RE.exec(String(ARG_DOMAINS[name]))[2])
+  const price = Object.keys(TABLE.series).sort()[0]
+  const args = spec.args.map((kind) => (kind === 'int'
+    ? { type: 'num', value: 1 }
+    : { type: 'series', name: price }))
+  const over = spec.args.findIndex((kind, i) => kind === 'int' && i !== ceiling)
+  args[over] = { type: 'num', value: 2 }
+  return { type: 'call', name, args }
+}
+
 describe('the refusals', () => {
   it('every guard this module declares is REACHABLE, and the trigger set is total', () => {
     // ⛔ A GUARD NOBODY CAN TRIGGER IS A COMMENT. Both directions: a declared
@@ -638,6 +726,17 @@ describe('the refusals', () => {
       'resolve:function': () => interpret(ast('rugpull(close, 3)'), BARS, {}),
       'resolve:arity': () => interpret(ast('sma(close)'), BARS, {}),
       'resolve:window': () => interpret(ast('sma(close, close)'), BARS, {}),
+      // ⭐ DERIVED, NOT TYPED. The ROLE comes from the manifest's own
+      // `_functions_arg_role_kinds` declaration and the FUNCTION from the first
+      // entry that declares it, so a renamed role, a second such role, or a
+      // third such function is covered the day it lands. The offending argument
+      // is a BAR FIELD — a price, which declares no `yields` and is therefore a
+      // number, which is exactly the tree that shipped.
+      'resolve:condition': () => interpret(miscastConditionCall(), BARS, {}),
+      // ⭐ THE SAME ARRANGEMENT ONE DECLARATION ALONG: the ENTRY and its
+      // CEILING SLOT are read off `_functions_domain`'s own `domain` key, so this
+      // fires for whatever the manifest declares rather than for `macd`.
+      'resolve:domain': () => interpret(outOfDomainCall(), BARS, {}),
       'interpret:node': () => interpret({ type: 'member', name: 'x', args: [] }, BARS, {}),
       'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
       // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative
@@ -755,6 +854,110 @@ describe('the arithmetic, against hand-computed values', () => {
     expect(values(ab).slice(1).every((v) => v >= 0)).toBe(true)
   })
 
+  it('aroon and bop, hand-computed in the JS lane', () => {
+    // ⛔ WHY THIS CASE EXISTS AT ALL. `aroonUp`/`aroonDown`/`bop` shipped with
+    // their JS numbers pinned ONLY from the Python side, behind
+    // `@pytest.mark.skipif(not ac.js_lane_available())`. Node is present here, so
+    // that reported 0 skips and looked like coverage — but on a box without node
+    // the entire JS half of this mirror goes green and unguarded, and pytest
+    // reports a SKIP rather than a gap. A rail that can silently cover nothing is
+    // `lesson_gate_that_cannot_fail`. This one cannot skip: it runs wherever
+    // vitest runs, and it reads NUMBERS rather than asserting a shape.
+    const highs = BARS.map((b) => b.h)
+    const lows = BARS.map((b) => b.l)
+
+    // ── AROON, from the PUBLISHED formula, over a window of `n + 1` bars ──
+    // `Aroon-Up = ((n - days since the n-day high) / n) x 100`. ⛔ THE WINDOW IS
+    // THIS BAR PLUS THE `n` BEFORE IT, and that is arithmetic rather than a
+    // choice: over `n` bars "days since" maxes at `n - 1`, so 0 — a published
+    // end of the range — would be unreachable. The oracle is written from the
+    // formula, not from `aroonCol`, so an `n`-vs-`n+1` slip lands red here.
+    const daysSince = (arr, i, n, better) => {
+      let best = i
+      for (let k = i - n; k <= i; k++) if (better(arr[k], arr[best])) best = k
+      return i - best                     // the MOST RECENT bar wins a tie
+    }
+    const n = 10
+    const up = col(`aroonUp(${n})`)
+    const down = col(`aroonDown(${n})`)
+    for (const i of [n, 50, 200, BARS.length - 1]) {
+      expect(up[i], `aroonUp at ${i}`)
+        .toBeCloseTo((100 * (n - daysSince(highs, i, n, (a, b) => a > b))) / n, 12)
+      expect(down[i], `aroonDown at ${i}`)
+        .toBeCloseTo((100 * (n - daysSince(lows, i, n, (a, b) => a < b))) / n, 12)
+    }
+    // …the warm-up is exactly `n`, and BOTH published ends actually occur on
+    // this series — which is what an off-by-one window silently removes.
+    expect(isNaNAt(up, n - 1)).toBe(true)
+    expect(isNaNAt(up, n)).toBe(false)
+    const upv = values(up).filter((v) => !Number.isNaN(v))
+    expect(upv.every((v) => v >= 0 && v <= 100)).toBe(true)
+    expect(upv.some((v) => v === 100), 'aroonUp never reaches 100').toBe(true)
+    expect(upv.some((v) => v === 0), 'aroonUp never reaches 0 — the n+1 window is gone').toBe(true)
+    // ⛔ AND THE TWO READ DIFFERENT FIELDS. Without this, `aroonDown` bound to
+    // the high would satisfy every assertion above.
+    expect(values(down).filter((v, i) => v !== up[i]).length).toBeGreaterThan(20)
+
+    // ── BOP: the `n`-bar mean of `(close - open) / (high - low)` ──
+    const ratio = BARS.map((b) => {
+      const r = (b.c - b.o) / (b.h - b.l)
+      return Number.isFinite(r) ? r : NaN
+    })
+    const bop5 = col('bop(5)')
+    for (const i of [4, 100, 300]) {
+      const w = ratio.slice(i - 4, i + 1)
+      expect(bop5[i], `bop(5) at ${i}`).toBeCloseTo(w.reduce((s, v) => s + v, 0) / 5, 12)
+    }
+    // ⭐ NO SECOND AVERAGE: the entry is the composition, bar for bar, through
+    // the operator path's own division — which is the reason `bop` was declared
+    // rather than expanded, asserted rather than argued.
+    expect(values(bop5)).toEqual(values(col('sma((close - open) / (high - low), 5)')))
+    // ⭐ AND `bop(1)` IS THE UNSMOOTHED PER-BAR RATIO. That identity is what
+    // `pine.derived.test.js` leans on when it says TradingView's BOP — which is
+    // unsmoothed — agrees with ours at n=1 and NOWHERE ELSE. Both halves are
+    // asserted, or "equal at n=1" would be true by degeneracy.
+    const bop1 = col('bop(1)')
+    for (const i of [1, 100, 300]) expect(bop1[i], `bop(1) at ${i}`).toBeCloseTo(ratio[i], 12)
+    expect(values(bop1).filter((v, i) => Math.abs(v - bop5[i]) > 1e-9).length,
+      'bop(1) and bop(5) agree everywhere, so the smoothing is not being applied')
+      .toBeGreaterThan(100)
+  })
+
+  it('…and a ZERO-RANGE bar leaves `bop` a HOLE, not a confident extreme', () => {
+    // ⛔⛔ `barBop`'s `Number.isFinite(r) ? r : NaN` IS INVISIBLE FROM THE COLUMN
+    // and invisible on the shared series. `high === low` with a non-zero body
+    // cannot occur in 579 bars of real market data, so nothing above this line —
+    // and nothing in the 103-ast conformance corpus — says a word about it. The
+    // guard was railed only from Python behind `skipif(not js_lane_available())`,
+    // which is the same silent-skip gap the case above exists to close.
+    //
+    // ⭐ AND IT MUST BE ASSERTED THROUGH THE COMPARISON DOOR, NOT THE COLUMN.
+    // `1/0` is `+Infinity`; the interpret boundary collapses a non-finite to NaN
+    // on the way OUT, so the raw `bop(3)` column prints identically with the
+    // guard and without it. The comparison happens first, and `+Infinity > 0` is
+    // a confident TRUE — BOP is bounded -1..+1, so the defect prints the
+    // strongest reading this indicator has, on a bar nobody can compute.
+    const bars = [[10, 12, 8, 11], [11, 13, 9, 12], [12, 14, 10, 13],
+                  [13, 15, 15, 14],                   // high === low, body !== 0
+                  [14, 16, 12, 15], [15, 17, 13, 16],
+                  [16, 18, 14, 17], [17, 19, 15, 18]]
+      .map(([o, h, l, c], i) => ({ t: 1780000000 + i * 300, o, h, l, c, v: 1000 }))
+    const run = (source) => {
+      const res = parseFormula(source)
+      expect(res.ok, `${source} did not parse: ${res.error}`).toBe(true)
+      return Array.from(interpret(res.ast, bars, {}))
+    }
+    // bars 3, 4 and 5 are the three windows that touch the malformed bar
+    const gt = run('bop(3) > 0')
+    expect([gt[3], gt[4], gt[5]], `bop(3) > 0 fired on a hole: ${gt}`).toEqual([0, 0, 0])
+    // …and NOT vacuously: the computable bars beside them still answer 1
+    expect([gt[2], gt[6]], `nothing answers true, so this proves nothing: ${gt}`).toEqual([1, 1])
+    // ⛔ AND THE MIRRORED READING MUST NOT FIRE EITHER, or a guard that pinned
+    // the column to a constant would pass this.
+    const lt = run('bop(3) < 0')
+    expect([lt[3], lt[4], lt[5]]).toEqual([0, 0, 0])
+  })
+
   it('min / max are ELEMENTWISE over two series and NaN PROPAGATES', () => {
     // ⛔ THE ONE PLACE THE TWO LANGUAGES DIVERGE BY DEFAULT: JS's
     // `Math.max(NaN, x)` is NaN and Python's `max` returns whichever it meets
@@ -786,7 +989,12 @@ describe('the arithmetic, against hand-computed values', () => {
     const broken = []
     for (const c of CORPUS.cases) {
       try {
-        const out = interpret(c.ast, BARS, {})
+        // ⛔ `c.opts` IS PASSED, AND IT IS THE SAME KEY `tools/ast_conformance.py`
+        // READS OFF THE SAME CASE (`case_opts`). The four clock-boolean cases are
+        // NOT COMPUTABLE without a timeframe, by design — evaluating them with no
+        // `opts` here would land every one of them in `broken` as "entirely NaN"
+        // for a reason that is the fail-closed path working, not a defect.
+        const out = interpret(c.ast, BARS, {}, undefined, undefined, c.opts || {})
         if (out.length !== BARS.length) broken.push(`${c.id}: length ${out.length}`)
         // ⛔ AN ALL-NaN COLUMN IS STILL A FAILURE *UNLESS THE CASE DECLARES IT*.
         // The domain-refusal cases (sqrt of a negative, log of zero, an overflow,
@@ -944,12 +1152,18 @@ describe('the interpreter is PURE', () => {
     // simply being admitted — the claim is about the closure of the import graph,
     // not about one file. `budget.js` imports only this module back (the declared
     // cycle), so scanning the two closes it.
-    expect(got.imports.sort()).toEqual(['../../indicators.js', './budget.js', './parse.js'])
+    expect(got.imports.sort())
+      .toEqual(['../../indicators.js', './budget.js', './parse.js', './sentence.js'])
     const budgetSrc = fs.readFileSync(path.join(path.dirname(SELF), 'budget.js'), 'utf8')
     expect(budgetSrc.length).toBeGreaterThan(2000)
     const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))
     expect(budgetScan.findings, 'budget.js reached something outside pure arithmetic').toEqual([])
-    expect(budgetScan.imports).toEqual(['./interpret.js'])
+    // ⭐ `./parse.js` IS THE SAME EDGE `interpret.js` ALREADY DECLARES ABOVE, not a
+    // new module in the closure: the budget's lookback cap is derived from the
+    // session constant, and that constant is GRAMMAR, so it lives with the table
+    // where both the interpreter and the repaint linter can see it. Admitting an
+    // edge to a module already inside the scanned set widens nothing.
+    expect(budgetScan.imports.sort()).toEqual(['./interpret.js', './parse.js'])
 
     // ─── AND THE THIRD EDGE, ADDED BY PHASE F, MEASURED THE SAME WAY ────────
     //
@@ -984,6 +1198,25 @@ describe('the interpreter is PURE', () => {
     // the file does not even use, which is a licence nobody measured).
     expect(scan(indicatorsTree).findings)
       .toEqual(WIDENED_BY.map((n) => `free identifier: ${n}`).sort())
+
+    // ─── AND THE FOURTH EDGE — `sentence.js`, ADDED BY THE `condition` ROLE ──
+    //
+    // ⭐ `assertArgRoles` ASKS THIS LANE'S ONE `yields` RESOLVER (`yieldsOf`)
+    // RATHER THAN WALKING THE TABLE ITSELF, so the closure this case is about
+    // now includes that module. ⛔ ADMITTING THE EDGE WITHOUT SCANNING IT WOULD
+    // BE THE HOLLOW WIDENING THE NOTE ABOVE WARNS AGAINST — the interpreter's
+    // purity is worth nothing if it imports an impure module — so it is scanned
+    // exactly like `budget.js` and `indicators.js`.
+    const SENTENCE = path.join(path.dirname(SELF), 'sentence.js')
+    const sentenceSrc = fs.readFileSync(SENTENCE, 'utf8')
+    expect(sentenceSrc.length).toBeGreaterThan(2000)
+    const sentenceScan = scan(acorn.parse(sentenceSrc, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(sentenceScan.findings,
+      'sentence.js reached something outside pure arithmetic').toEqual([])
+    // ⛔ AND IT CLOSES. Its only edge is `./parse.js` — already inside the
+    // scanned set, so admitting it widens nothing. A new edge here would be
+    // inside this closure and UNSCANNED, and this case would keep passing.
+    expect(sentenceScan.imports.sort()).toEqual(['./parse.js'])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {
@@ -1096,9 +1329,21 @@ describe('the bounded backward offset, evaluated', () => {
     try { col('close[100000]') } catch (e) { err = e }
     expect(err).toBeInstanceOf(TableRefusal)
     expect(err.guard).toBe('budget:lookback')
-    // and a deep tree is still bounded through the offset
+    // and a deep tree is still bounded through the offset.
+    //
+    // ⚰️ THE PAIR WAS `close[400]` + a 200 window — a hand-typed 600 chosen to
+    // clear a cap of 550. When the cap moved to hold one ET session the pair
+    // stopped tripping it and this line went GREEN while measuring nothing, which
+    // is the identical defect the note below already records one boundary later.
+    // Both halves are derived from the cap now, and each is asserted UNDER it so
+    // the COMPOSITION is what refuses.
+    const capForDeep = DEFAULT_BUDGET.maxLookback
+    const off = capForDeep - 100
+    const win = 200
+    expect(off + win).toBeGreaterThan(capForDeep)
+    expect(Math.max(off, win)).toBeLessThanOrEqual(capForDeep)
     let deep = null
-    try { col('sma(close[400], 200)') } catch (e) { deep = e }
+    try { col(`sma(close[${off}], ${win})`) } catch (e) { deep = e }
     expect(deep?.guard).toBe('budget:lookback')
     // ⛔ THE BOUNDARY IS DERIVED FROM THE CAP, NOT RETYPED BESIDE IT. This read
     // `close[499]` / `close[501]` against a hard-coded 500, so when the cap moved
@@ -1205,5 +1450,131 @@ describe('the node budget may only discount what the interpreter actually shares
     // chain collapsed to TWO distinct shapes — `nodeCount` answered 2. Silent
     // fallback = under-count = the one direction that stops a budget guarding.
     expect(SRC).toMatch(/throw new Error\('structuralMaps: a child was keyed after its parent/)
+  })
+})
+// ══════════════════════════════════════════════════════════════════════════════
+// `avwap`'s TWO DECLARED-WINDOW REFUSALS — THIS LANE'S HALF
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// ⛔ WRITTEN TWICE ON PURPOSE, here and in `tests/test_ast_vwap_parity.py`, the
+// same arrangement `outOfOrder` / `_functions_domain` already has. The
+// conformance corpus can only reach ONE of these two rules — it holds 579 bars
+// and the other needs a series longer than a session — so a single-lane rail
+// would leave the second free to drift, which is exactly the shape this lane has
+// already paid three fix rounds for.
+
+describe("`avwap`'s window is ENFORCED, not merely declared", () => {
+  const avwap = (epoch) => ({ type: 'call', name: 'avwap', args: [{ type: 'num', value: epoch }] })
+  const finite = (c) => [...c].filter((v) => Number.isFinite(v))
+
+  it('⛔ an anchor BEFORE the first bar is NOT COMPUTABLE, never request-dependent', () => {
+    // With the anchor before the series, "the first bar at or after it" is
+    // whichever bar the caller happened to fetch — so the value moves when the
+    // window moves. The control below is what makes this a measurement: the
+    // shipped accumulator, called directly, really does answer differently on
+    // two slices of the same tape.
+    const before = BARS[0].t - 1
+    expect(finite(interpret(avwap(before), BARS, {}))).toHaveLength(0)
+    // ⭐ …BUT EXACTLY ON THE FIRST BAR IS COMPUTABLE, and this case read the other
+    // way until 2026-08-26. It was a NARROW OVER-REFUSAL: a wider fetch can only
+    // add bars with `t < BARS[0].t`, and every one of those is STRICTLY before an
+    // anchor equal to `BARS[0].t`, so none of them can enter the accumulation.
+    // The answer does not depend on the request, so refusing it withheld a
+    // well-defined column.
+    expect(finite(interpret(avwap(BARS[0].t), BARS, {})).length).toBeGreaterThan(0)
+    // …and the accumulation really does START at bar 0, which is what "the
+    // anchor selects the first bar" means: bar 0's value is its own typical
+    // price. One second LATER excludes bar 0 and is a different column, which is
+    // the control proving the boundary is where it is claimed to be.
+    const onFirst = interpret(avwap(BARS[0].t), BARS, {})
+    const tp0 = (BARS[0].h + BARS[0].l + BARS[0].c) / 3
+    expect(onFirst[0]).toBeCloseTo(tp0, 12)
+    expect(interpret(avwap(BARS[0].t + 1), BARS, {})[0]).not.toBeCloseTo(tp0, 12)
+
+    const full = computeAVWAP(BARS, before)
+    const short = computeAVWAP(BARS.slice(2), before)
+    expect(full[full.length - 1].value, 'the accumulator is not request-dependent on this fixture '
+      + '— the refusal above is defending against nothing')
+      .not.toBeCloseTo(short[short.length - 1].value, 9)
+
+    // NON-VACUITY: the same call with a VISIBLE boundary answers.
+    expect(finite(interpret(avwap(BARS[1].t), BARS, {})).length).toBeGreaterThan(0)
+  })
+
+  it('⛔ a bar past `sessionMaxBars` from the anchor is NOT COMPUTABLE', () => {
+    // ⭐ THE DECLARED PROPERTY IS MADE TRUE RATHER THAN ASSERTED. `sessionMaxBars`
+    // is far longer than any fixture in this file, which is why this case builds
+    // its own series: a ceiling that cannot be reached is not a ceiling.
+    const n = SESSION_MAX_BARS + 40
+    const bars = Array.from({ length: n }, (_, i) => ({
+      t: BARS[0].t + i * 300, o: 10, h: 11, l: 9, c: 10 + (i % 3), v: 100 + i,
+    }))
+    const anchor = bars[5].t
+    const column = interpret(avwap(anchor), bars, {})
+    expect(column).toHaveLength(n)
+    expect(Number.isFinite(column[4]), 'a bar BEFORE the anchor must not answer').toBe(false)
+    expect(Number.isFinite(column[5]), 'the anchor bar must answer').toBe(true)
+    const last = 5 + SESSION_MAX_BARS
+    expect(Number.isFinite(column[last]), 'the last bar INSIDE the window must answer').toBe(true)
+    expect(Number.isFinite(column[last + 1]), 'a bar PAST the window must not answer').toBe(false)
+    expect(finite(column.slice(last + 1))).toHaveLength(0)
+    // NON-VACUITY: the trim is real — the shipped accumulator on its own keeps
+    // answering all the way to the end, so this is a bound and not a coincidence.
+    const raw = computeAVWAP(bars, anchor)
+    expect(Number.isFinite(raw[raw.length - 1].value)).toBe(true)
+  })
+
+  it('⛔ a DATE-SHAPED anchor refuses BY NAME; a short history does NOT', () => {
+    // ⛔ THE ASYMMETRY BETWEEN THE TWO REFUSALS. `avwap(20250101)` is the bars
+    // store's daily key spelled as an instant: it resolves to 1970 and is wrong
+    // for EVERY symbol, on every timeframe, forever — a defect in the TREE, and
+    // this lane's rule for a tree defect is a refusal NAMED AT THE TOKEN.
+    //
+    // ⚠️ "No bar precedes the anchor" is the opposite kind of fact: it is true
+    // of ONE SYMBOL'S HISTORY, so it stays a NOT-COMPUTABLE column. A rail on
+    // only the loud half would let the quiet one quietly become a refusal.
+    let caught = null
+    try { interpret(avwap(20250101), BARS, {}) } catch (e) { caught = e }
+    expect(caught, 'a date-shaped anchor did not refuse').toBeTruthy()
+    expect(caught.guard).toBe('resolve:window')
+    expect(caught.message).toMatch(/20250101/)
+    expect(caught.message).toMatch(/1970/)
+
+    // …and the OTHER refusal is a column, not a throw.
+    expect(finite(interpret(avwap(BARS[0].t - 1), BARS, {}))).toHaveLength(0)
+    // NON-VACUITY: a legal anchor throws nothing at all.
+    expect(finite(interpret(avwap(BARS[1].t), BARS, {})).length).toBeGreaterThan(0)
+  })
+
+  it('⛔ the ANCHOR carries the same UNIT GUARD the bars do', () => {
+    // ⛔ A `YYYYMMDD` INTEGER HANDED IN AS AN INSTANT RESOLVES TO 1970.
+    // `AVWAP_MIN_INSTANT` exists because that defect was LIVE and MEASURED on
+    // the BAR side. The anchor is the same kind of value from the same kind of
+    // caller, so it takes the same guard — and a mutation sweep proved the guard
+    // was unrailed: deleting it survived every suite until this case existed.
+    //
+    // ⚠️ MEASURED ON `computeAVWAP` DIRECTLY rather than through the table,
+    // because the AST binding's own visible-boundary rule already refuses a
+    // sub-1990 anchor for a different reason — so a rail that only went through
+    // `interpret` would be green with the guard deleted.
+    for (const bad of [20250101, 5]) {
+      const col = computeAVWAP(BARS, bad)
+      expect(col.every((p) => !Number.isFinite(p.value)), String(bad)).toBe(true)
+    }
+    // NON-VACUITY: a real instant inside the series still answers.
+    const ok = computeAVWAP(BARS, BARS[1].t)
+    expect(ok.some((p) => Number.isFinite(p.value))).toBe(true)
+  })
+
+  it('⭐ and `vwap()` is the SHIPPED accumulator, bar for bar — not a second one', () => {
+    const got = interpret({ type: 'call', name: 'vwap', args: [] }, BARS, {})
+    const want = computeVWAP(BARS)
+    expect(got).toHaveLength(BARS.length)
+    for (let i = 0; i < BARS.length; i++) {
+      const w = want[i] && Number.isFinite(want[i].value) ? want[i].value : NaN
+      if (Number.isNaN(w)) expect(Number.isFinite(got[i]), String(i)).toBe(false)
+      else expect(got[i], String(i)).toBeCloseTo(w, 9)
+    }
+    expect(finite(got).length).toBeGreaterThan(0)
   })
 })

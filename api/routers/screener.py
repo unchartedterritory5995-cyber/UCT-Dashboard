@@ -867,7 +867,15 @@ def screener_saved_update(sid: int, payload: dict = Body(...), user=Depends(requ
 
 @router.delete("/api/screener/saved-screens/{sid}")
 def screener_saved_delete(sid: int, user=Depends(require_paid)):
-    return {"deleted": scr_saved.delete(sid, user["id"])}
+    # ⛔ X26 (W9c.1). `scr_saved.delete` answers a bare bool — no row matched
+    # (never existed, already gone, or belongs to someone else) is
+    # indistinguishable from "deleted" unless SOMETHING raises. This used to
+    # return `{"deleted": False}` at 200 OK, which is not a refusal a fetcher
+    # checking `r.ok` can ever see — mirrors `screener_saved_update` two
+    # routes above, which has always raised 404 on the identical miss.
+    if not scr_saved.delete(sid, user["id"]):
+        raise HTTPException(status_code=404, detail="not found")
+    return {"deleted": True}
 
 
 @router.get("/api/screener/shared/{share_token}")

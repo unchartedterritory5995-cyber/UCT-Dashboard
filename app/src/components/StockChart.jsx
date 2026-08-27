@@ -101,7 +101,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips } from './chart/engine/readout'
+import { legendChips, siblingSuffixes } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
@@ -1371,6 +1371,29 @@ function firstLiveInstanceId(cs, defId) {
     if (findInstance(cs, i.instanceId)) return i.instanceId
   }
   return null
+}
+
+/** EVERY live instance of `defId`, in `indicatorInstances` order — the same
+ *  `findInstance` liveness ask as `firstLiveInstanceId`, asked of every element.
+ *  Two copies of one indicator share ONE pane (`paneLayout.orderedPaneKeys` keys
+ *  panes by definition id), so that pane's menu must offer each of them a door. */
+function liveInstanceIdsFor(cs, defId) {
+  const list = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  const out = []
+  for (const i of list) {
+    if (!i || typeof i !== 'object' || i.defId !== defId) continue
+    if (findInstance(cs, i.instanceId)) out.push(i.instanceId)
+  }
+  return out
+}
+
+/** What each of these siblings gets APPENDED to its shared name, in the same order:
+ *  `readout.siblingSuffixes` CALLED, not re-implemented, so ` (fastPeriod 5)` here is
+ *  the legend's own disambiguation grammar. Inputs are read per instance exactly as
+ *  `engineChips` reads them (`inst.inputs`), so the two surfaces compare the same
+ *  values; an empty list of siblings yields an empty list of suffixes. */
+function instanceMenuSuffixes(cs, instIds) {
+  return siblingSuffixes(instIds.map((instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {}))
 }
 
 export default function StockChart({
@@ -3619,8 +3642,29 @@ export default function StockChart({
       // drawing only through the legacy projection) the row falls back to the
       // global surface rather than opening a dialog on nothing.
       const instId = firstLiveInstanceId(cs, key)
+      // ⭐ W0.2 — ONE ROW PER LIVE INSTANCE. Two copies of an indicator share one
+      // pane, and once the legend collapses to compact (no chips, no gears) this
+      // menu is the only door left; a single "first MACD" row left the second copy
+      // with no settings surface at all (production, 2026-08-15; owner call: keep
+      // the compact behaviour, the door must survive). A lone instance keeps the
+      // exact row it always had, byte for byte.
+      //
+      // ⛔ THE NOUN IS THE CATALOG'S ON BOTH PATHS — only the SUFFIX is the
+      // legend's. Labelling a sibling row from its first chip renames the
+      // indicator the moment a copy appears: `stoch`'s first chip-declaring plot
+      // is labelled `%K`, so one Stochastic read `Stoch settings…` and two read
+      // `%K (kPeriod 14) settings…`. In a menu whose whole job is naming which
+      // copy you are about to edit, the definition's name must not disappear.
+      const siblings = (showDrawingTools && instId) ? liveInstanceIdsFor(cs, key) : []
+      const sibSuffixes = siblings.length > 1 ? instanceMenuSuffixes(cs, siblings) : null
       const settingsRow = (showDrawingTools && instId)
-        ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
+        ? (siblings.length > 1
+            ? siblings.map((sib, n) => ({
+                id: `i-set:${sib}`,
+                label: `${label}${sibSuffixes[n]} settings…`,
+                onSelect: () => setSettingsInstanceId(sib),
+              }))
+            : [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }])
         : settingsLink('i-set', `${label} settings…`)
       // ⭐ chart-UX-walls TASK 4 — the region menu's own alert door, beside
       // `Hide <label>` and `<label> settings…`. It opens the SAME popover the 🔔
@@ -11113,13 +11157,25 @@ export default function StockChart({
   // legend vanishes off-hover and only reappears (compact) on crosshair move.
   useEffect(() => {
     if (!chartReady) return
-    // ⭐ THROUGH `readoutIsOwned()` — a hover, a synced crosshair, OR a bar pinned
-    // by 'on click' mode. The pin is the new third owner; without it this effect
-    // replaces the clicked bar with the latest one on the next data tick.
+    // ⭐ THROUGH `readoutIsOwned()` — a hover OR a synced crosshair, the TWO owners
+    // it names. (A third, a bar pinned by 'on click' mode, lived there for a day and
+    // is retired: 'hold' mode ends the peek when the pointer is released, so it
+    // needs no ownership.) Without the gate this effect replaces the owned bar with
+    // the latest one on the next data tick.
     if (readoutIsOwned()) return
     setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
+    // ⭐ W0.1 (2026-08-25) — AND WHEN THE INSTANCE LIST MOVES. A colour (or period)
+    // edit in the settings dialog re-syncs the engine through `updateChart` (its
+    // deps carry `cs`; it is declared above this effect, so `engineInstancesRef`
+    // is already rewritten when this runs) — but nothing re-derived the OFF-CURSOR
+    // payload: the pointer is on the dialog, so no crosshair event fires, and a
+    // daily chart after hours never ticks. Measured on production 2026-08-15 as
+    // "the chip keeps the old colour until a reload". The LINE was never stale
+    // (`binder.test.js` → a recolour reaches `applyOptions`); the chip was.
+    // `readoutIsOwned()` above still stands this down under a hover or a synced
+    // crosshair, exactly as it does for a data tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effAlwaysShow, chartReady, ohlcData, overlayData])
+  }, [effAlwaysShow, chartReady, ohlcData, overlayData, cs.indicatorInstances])
 
   // Live legend ticking. Two pieces, deliberately split so the legend tracks the
   // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole

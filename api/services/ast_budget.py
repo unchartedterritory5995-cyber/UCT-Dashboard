@@ -41,7 +41,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
-from api.services.ast_interpret import TableRefusal, max_lookback, node_count
+from api.services.ast_interpret import (
+    SESSION_MAX_BARS, TableRefusal, max_lookback, node_count, session_anchored_in,
+)
 
 # --------------------------------------------------------------------------- #
 # the caps
@@ -54,11 +56,12 @@ from api.services.ast_interpret import TableRefusal, max_lookback, node_count
 #:                      past anything a human composes and far short of anything
 #:                      that blocks a frame at the 5,000-bar cap. Measured: the
 #:                      whole committed AST corpus tops out at NINE nodes.
-#:   maxLookback 550  — the chart holds 5,000 bars on every timeframe, and a
-#:                      550-bar warmup still leaves 89% of a full window
-#:                      drawable. Above that the user sees a mostly-empty pane
-#:                      and reads it as broken. Measured: the corpus tops out
-#:                      at 524.
+#:   maxLookback      — the chart holds 5,000 bars on every timeframe, and the
+#:                      warmup a formula may ask for is capped so the user is not
+#:                      left reading a mostly-empty pane as broken. ⭐⭐ IT IS
+#:                      DERIVED, NOT TYPED: ``max(NESTED_RECURRENCE_WARMUP,
+#:                      SESSION_MAX_BARS)`` — the larger of the two families it
+#:                      has to hold. See both constants below.
 #:                      ⚠️ 500 UNTIL 2026-08-23 IN THIS LANE — the JS twin moved
 #:                      to 550 on 2026-08-22 (`942415444`) and this half was
 #:                      missed, so for a day the browser ACCEPTED what the server
@@ -67,10 +70,9 @@ from api.services.ast_interpret import TableRefusal, max_lookback, node_count
 #:                      `accum`: 250 + 250 + ATR's 22 + 1 = 524), which is the
 #:                      very family that change was made to admit — and every
 #:                      one of them still died here on save. The two-lane rail
-#:                      caught it; no gate list ran that rail for a day.
-#:                      ⛔ The UX rule did NOT change, only the number it yields:
-#:                      90% became 89%. If this ever moves again, move it for a
-#:                      reason of the same kind — never to make one script pass.
+#:                      caught it; no gate list ran that rail for a day. That is
+#:                      also why the number is now an EXPRESSION over two named
+#:                      constants rather than a digit either lane can retype.
 #:   maxSeriesRefs 8  — spec §5's perf budget is ≤60 series and ≤8 panes per
 #:                      chart; eight base-series reads inside ONE definition is
 #:                      already the whole pane budget's worth of data in a single
@@ -81,13 +83,52 @@ from api.services.ast_interpret import TableRefusal, max_lookback, node_count
 #: move. The three numbers are asserted EQUAL to the JS lane's, read out of
 #: ``budget.js`` rather than re-typed.
 #:
+#: ⚠️ THE LOOKBACK CAP IS ALSO THE CEILING ON A BAR OFFSET, AND THERE IS NO SECOND
+#: NUMBER -- ``max_lookback`` counts an offset node as ``value + child``, so
+#: ``close[600]`` and ``sma(close, 600)`` are the same 600 bars of warmup meeting
+#: the same cap. SO RAISING IT TO HOLD A SESSION RAISED THE OFFSET CEILING WITH
+#: IT, by design rather than as an uncosted side effect: ``close[<one session>]``
+#: is now well-formed and one bar past the cap still refuses. Stated so the next
+#: reader does not discover a second moved ceiling by surprise -- nothing else
+#: widens: ``DEFAULT_BUDGET`` has no non-test consumer outside this module and its
+#: JS twin, and ``effective_budget`` still clamps a stored budget DOWNWARD only.
+#:
 #: ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. ``maxSeriesRefs`` counts
 #: OCCURRENCES, not distinct names: the closed table declares FIVE series, so a
 #: distinct-name count could never exceed 8 and ``budget:series`` would be a latch
 #: nothing can trip.
+#: The nested-recurrence family's warmup — the driver the lookback cap had
+#: BEFORE a session had to fit inside it, kept and named rather than deleted.
+#: ``accum`` inside ``accum`` needs TWO warmups: 250 + 250 + ATR's 22 + 1 = 524,
+#: rounded up. ⛔ IT IS STILL LOAD-BEARING: if a corrected session were ever
+#: SHORTER than this, dropping it would silently refuse the whole trailing-stop
+#: family the 2026-08-22 move was made to admit.
+NESTED_RECURRENCE_WARMUP = 550
+
+#: ⭐⭐ THE LOOKBACK CAP — DERIVED FROM THE LARGER OF THE TWO FAMILIES IT HOLDS,
+#: AND NEVER TYPED. Controller ruling O7, 2026-08-26.
+#:
+#: ⛔ WHY IT MOVED, so the next reader does not see a raised budget and assume
+#: somebody was making a script pass. ``lookback: "session"`` bounds to one ET
+#: calendar day (``closedTable.json::sessionMaxBars``), which is LONGER than
+#: ``NESTED_RECURRENCE_WARMUP``. Under the old cap every session-anchored call
+#: refused ``budget:lookback`` at the save door and at compute — the declared
+#: grammar shipped unusable, which is worse than the depth it costs. The cap's
+#: own note forbids moving it *"to make one script pass"*, and that prohibition
+#: is right; this is not one script but an entire declared grammar the spec
+#: requires, and the number comes from this engine's own definition of a session
+#: rather than being chosen to fit. That is the distinction the note protects.
+#:
+#: 📏 THE MEASURED COST, at the site rather than only in a report: on the 5,000-bar
+#: window the chart holds, a 550-bar warmup left **89%** drawable and one session
+#: leaves **81%**. Eight points of one pane, against a grammar that otherwise
+#: cannot be used at all. Reversible in one constant.
+#:
+#: ⚠️ THE UX RULE DID NOT CHANGE, only the number it yields — the same sentence
+#: the 500 → 550 move was recorded with.
 DEFAULT_BUDGET: Mapping[str, int] = {
     "maxNodes": 128,
-    "maxLookback": 550,
+    "maxLookback": max(NESTED_RECURRENCE_WARMUP, SESSION_MAX_BARS),
     "maxSeriesRefs": 8,
 }
 
@@ -230,6 +271,35 @@ def effective_budget(stored: Optional[Mapping[str, Any]]) -> Dict[str, int]:
 # the check
 # --------------------------------------------------------------------------- #
 
+def _why_over_budget(key: str, ast: Any) -> str:
+    """The half-sentence that turns a number into a reason, for the one case
+    where the number alone reads as an arbitrary rejection.
+
+    🔴 THE MEASURED CASE. ``crossOver(close, vwap())`` is the formula a member
+    types first, and it measures ONE BAR over the cap -- because the cap is
+    DERIVED to hold exactly one trading session and a session-anchored call
+    spends all of it. ``sma(vwap(), 20)``, ``change(vwap())``,
+    ``highest(vwap(), 2)`` and ``vwap()[1]`` are the same story. Without this
+    clause the member reads two bare numbers one apart and has no way to know
+    that the fix is not a smaller window.
+
+    ⛔ IT CHANGES NO VERDICT -- the refusal is decided by the number, above.
+    And it is DERIVED: ``session_anchored_in`` reads the manifest, so a third
+    session-anchored entry names itself here on the day it lands, and this
+    module still spells ``session`` nowhere.
+    """
+    if key != "maxLookback":
+        return ""
+    names = session_anchored_in(ast)
+    if not names:
+        return ""
+    listed = " and ".join("`%s()`" % n for n in names)
+    return (". %s reaches back one whole trading session, which is the entire "
+            "lookback budget — so it can be compared and combined, but nothing "
+            "can be wrapped around it (no moving average of it, no bar offset "
+            "on it)" % listed)
+
+
 def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     """Measure a tree against its budget and RETURN the verdict.
 
@@ -242,7 +312,7 @@ def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[
     caps = effective_budget(budget)
     measured: Dict[str, int] = {}
     for key in CAP_ORDER:
-        value = _MEASURE[key](ast)
+        value = _MEASURE[key](ast)  # noqa: E501 - see _why_over_budget below
         measured[key] = value
         if value > caps[key]:
             guard = CAP_GUARD[key]
@@ -250,7 +320,8 @@ def budget_result(ast: Any, budget: Optional[Mapping[str, Any]] = None) -> Dict[
                 "ok": False,
                 "guard": guard,
                 "error": (f"{REFUSALS[guard]} — this formula measures {value} "
-                          f"and the cap is {caps[key]}"),
+                          f"and the cap is {caps[key]}"
+                          + _why_over_budget(key, ast)),
                 "caps": caps,
                 "measured": measured,
             }

@@ -70,11 +70,18 @@
 //     is the whole condition — one control, no relation and no second side.
 //
 // ⛔ NEITHER SECTION NOR NAME IS LISTED. `flags` is read off `yields` across the
-// `series` AND `scalars` sections, so a 55th boolean scalar — or the first
-// boolean BAR FIELD, which today's manifest has none of — reaches the picker the
-// day it is declared, with no edit here. And it fails the SAFE way: an entry
-// with no `yields` reads as `num` (the manifest's own `_yields` rule), so a bare
-// `close` still refuses exactly as it did.
+// `series`, `clock` AND `scalars` sections, so a 55th boolean scalar — or the
+// first boolean BAR FIELD, which today's manifest has none of — reaches the
+// picker the day it is declared, with no edit here. And it fails the SAFE way:
+// an entry with no `yields` reads as `num` (the manifest's own `_yields` rule),
+// so a bare `close` still refuses exactly as it did.
+//
+// ⭐ THE CLOCK SECTION (tableVersion 2) IS OFFERED AS A FLAG ROW ONLY — the
+// ruling that added it here scoped it to this ONE row shape, not to `series`/
+// `scalars` TERM membership. A clock name reads back as a flag (`isintraday`
+// alone), but it is not also usable as a comparison operand (`isintraday == 1`
+// still refuses) the way a scalar or bar field is — see `readTerm`/`termSource`,
+// which are unchanged. `criteria.test.js` records that asymmetry as a decision.
 //
 // ⭐ AND A NEGATIVE NUMBER IS A NUMBER. The same confusion of a node's TYPE with
 // what it DENOTES, a third time: this grammar has no negative literal —
@@ -420,11 +427,13 @@ export function vocabulary(table = TABLE) {
 
   // ── the THIRD row shape, read off `yields` and NOTHING ELSE ────────────────
   //
-  // ⛔ NOT A SECTION AND NOT A NAME. A bar field and a table scalar are the same
-  // NODE (E-1), so which section an entry lives in cannot be what decides
-  // whether it is a condition — only `yields` can. Both sections are read, in
-  // the manifest's own order, so the first boolean BAR field is offered on the
-  // day it is declared without an edit here.
+  // ⛔ NOT A SECTION AND NOT A NAME. A bar field, a clock value and a table
+  // scalar are the same NODE (E-1), so which section an entry lives in cannot
+  // be what decides whether it is a condition — only `yields` can. All three
+  // sections are read, in the manifest's own order (series, then clock, then
+  // scalars — `sentence.js::renderName`'s and `lint.js::astReach`'s), so the
+  // first boolean BAR field is offered on the day it is declared without an
+  // edit here.
   const boolNames = (section) => Object.entries(section || {})
     .filter(([, spec]) => spec && spec.yields === 'bool')
 
@@ -464,7 +473,7 @@ export function vocabulary(table = TABLE) {
         args: Object.freeze([...(spec.args || [])]),
         label: manifestLabel(name, spec),
       }])),
-    flags: new Map([...boolNames(table.series), ...boolNames(table.scalars)]
+    flags: new Map([...boolNames(table.series), ...boolNames(table.clock), ...boolNames(table.scalars)]
       .map(([name, spec]) => [name, { label: manifestLabel(name, spec) }])),
     boolFunctions,
     comparators,

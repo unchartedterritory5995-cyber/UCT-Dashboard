@@ -202,6 +202,78 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
     return kinds[id(ast)] == _KIND_BOOL
 
 
+#: The manifest key holding role name -> the ``yields`` kind an argument in that
+#: role must settle to. STRUCTURE, not vocabulary: it names a SECTION of the
+#: table, never an entry inside one, so the anti-copy scan is untouched.
+_ARG_ROLE_KINDS_KEY = "_functions_arg_role_kinds"
+
+#: The per-function key naming what each argument position IS.
+_ARG_ROLES_KEY = "argRoles"
+
+
+def arg_role_kinds(table: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """The roles the table makes REQUIREMENTS, and the kind each demands.
+
+    ⭐ READ OFF THE MANIFEST, NEVER TYPED. ``_``-prefixed keys inside the section
+    are its own notes — the same split ``_functions_excluded`` carries — so a
+    second role declared there is enforced the day it lands.
+    """
+    m = table if table is not None else ast_table.TABLE
+    section = m.get(_ARG_ROLE_KINDS_KEY) or {}
+    return {role: kind for role, kind in section.items()
+            if not role.startswith("_") and isinstance(kind, str)}
+
+
+def arg_role_violation(node: Any, spec: Any,
+                       table: Optional[Mapping[str, Any]] = None) -> Optional[dict]:
+    """The first argument whose ROLE demands a kind its tree does not settle to.
+
+    Returns ``{"index", "role", "want", "got"}`` or ``None``. The CALLER refuses
+    — this module answers the question and names no guard, because the guard
+    vocabulary belongs to the walker that owns the refusal table.
+
+    ⭐⭐ THE ROLE THAT IS A REQUIREMENT, MADE ENFORCEABLE — because ``argRoles``
+    on its own is DOCUMENTATION, and two entries landed depending on it as
+    though it were not. ``barssince(cond, n)`` and ``valuewhen(cond, src, n)``
+    each declare ``args[0]`` as a plain ``series`` and ``argRoles[0]`` as a
+    condition. Nothing read the second half, so ``barssince(close, 100)``
+    resolved and answered **0.0 on every bar** — a price is never zero, so
+    *"bars since it was last true"* is zero forever — while
+    ``valuewhen(close, high, 5)`` handed back its source column on every bar.
+    Plausible on every bar and wrong on every bar, saveable, scannable and
+    alertable in that state.
+
+    ⛔ THE KIND COMES FROM ``is_boolean_tree`` ABOVE, NEVER A SECOND WALK. A
+    ``node["name"] in _COMPARISONS`` test would be the hand-list this module's
+    own header exists to retire, arriving one function later.
+
+    ⛔ AND IT REPORTS RATHER THAN COERCING. ``!= 0`` over a price column would
+    make every non-zero bar "true", which is the confident-wrong-number shape
+    rather than a cure for it.
+    """
+    wanted = arg_role_kinds(table)
+    if not wanted:
+        return None
+    roles = spec.get(_ARG_ROLES_KEY) if hasattr(spec, "get") else None
+    if not isinstance(roles, (list, tuple)):
+        return None
+    args = node.get("args") if hasattr(node, "get") else None
+    if not isinstance(args, (list, tuple)):
+        return None
+    for i, role in enumerate(roles):
+        want = wanted.get(role)
+        if want is None or i >= len(args):
+            continue
+        # ⭐ THE RESOLVER ANSWERS A BOOLEAN AND THE MANIFEST NAMES A KIND. One
+        # mapping, through this module's own spelling of the kinds — which is
+        # pinned to `ast_table.yields_of`'s vocabulary by its own test — so the
+        # comparison can never become a third spelling of the same word.
+        got = _KIND_BOOL if is_boolean_tree(args[i], table) else _KIND_NUM
+        if got != want:
+            return {"index": i, "role": role, "want": want, "got": got}
+    return None
+
+
 def def_hash(definition: Any) -> str:
     """A scan's identity: ``compute.fn``, which IS ``astHash`` over its tree.
 
@@ -263,8 +335,11 @@ def assert_scannable(definition: Any) -> dict:
     ``kind``    the definition is not on the ``ast`` lane. A native or server
                 definition names maths this lane cannot walk.
     ``tree``    ``compute.ast`` is not a canonical tree — four node types with
-                exact key sets. The persisted shape is the contract between the
-                two lanes and is deliberately smaller than jsep's.
+                exact key sets — or it is canonical and does not RESOLVE: an
+                undeclared name, the wrong arity, a window that is not a literal,
+                or an argument outside the domain its own entry declares
+                (``resolve:domain``). Both are properties of the tree alone, and
+                the resolve pass is where a whole-formula defect is decided.
     ``hash``    a stored ``compute.fn`` disagrees with the tree it sits beside.
     ``yields``  the tree returns a NUMBER. ``<tree> != 0`` over a price column is
                 true for every symbol trading above zero, so this is the gate
@@ -286,6 +361,22 @@ def assert_scannable(definition: Any) -> dict:
     handle = def_hash(definition)
 
     try:
+        # ⛔⛔ THE RESOLVE PASS, RUN ONCE, AT THE DOOR. `is_boolean_tree` below
+        # classifies the tree's KIND and resolves nothing — it reads `yields` off
+        # the manifest and defaults an unknown name to `num` — so until X41 a
+        # tree could pass this gate and still be un-runnable. The measured case
+        # was `close > macd(close, 26, 12)`: `fast > slow` is a DECLARED argument
+        # domain (`closedTable.json::_functions_domain`), both walkers answer an
+        # all-NaN column for it, and the comparison turned that hole into `0.0` on
+        # every bar — a screen this function called `bool`, that saved, and that
+        # reported every symbol ANSWERED while matching nothing.
+        #
+        # ⭐ `max_lookback` IS THE PASS, NOT A NEW ONE. It resolves every call on
+        # its way to a number and is already what `scan_evaluator` runs before its
+        # loop *"once, loudly — rather than 3,742 times inside"*. Running it HERE
+        # moves the refusal from the worker to the request, so a member is told at
+        # the door instead of watching a job come back empty.
+        ast_interpret.max_lookback(tree)
         boolean = is_boolean_tree(tree)
     except ast_interpret.TableRefusal as exc:
         raise ScanRefused("tree", str(exc)) from exc

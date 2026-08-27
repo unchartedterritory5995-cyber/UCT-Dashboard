@@ -701,6 +701,17 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
             lambda: aus.admit_user_definition(USER_A, OTHER_DEF_ID, bars=real_bars))
     capture("lane", lambda: aus._gate_lane(
         {"def_id": DEF_ID, "definition": {"compute": {"kind": "server"}}}))
+    # ⛔ DRIVEN DIRECTLY, LIKE `lane` ABOVE, AND FOR THE SAME REASON.
+    # `user_definitions.save` refuses an empty `compute.trees` by name, so this
+    # document cannot be created today — the gate exists for a row stored before
+    # that door existed, and the READ path never re-validates. The product-path
+    # drive (save legally, corrupt the stored blob, read it back) lives beside the
+    # rest of the v2 rules in `tests/test_user_definitions_v2.py`; what this roster
+    # needs is the SENTENCE, so the disjointness rail below can see it.
+    capture("plot", lambda: aus._make_value_fn(
+        DEF_ID, "value",
+        {"compute": {"kind": "ast", "ast": _ast_sma(), "trees": {},
+                     "treesHash": "sha256:" + "0" * 64, "scanPlot": "value"}}))
     capture("bars", lambda: aus.admit_user_definition(USER_A, DEF_ID, bars=[]))
 
     save(USER_B, defn(), repaint={"value": "repaints"})

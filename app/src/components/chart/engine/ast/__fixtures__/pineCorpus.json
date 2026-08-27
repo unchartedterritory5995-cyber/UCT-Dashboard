@@ -187,7 +187,7 @@
     "refusal": null,
     "perOutputRefusals": {
       "pine:plot-offset": 3,
-      "pine:undefined": 1,
+      "pine:builtin": 1,
       "pine:request": 2
     }
   },
@@ -213,14 +213,14 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:undefined",
+      "guard": "pine:builtin",
       "line": 13,
       "column": 15,
       "token": "isintraday"
     },
     "perOutputRefusals": {
       "pine:plot-offset": 3,
-      "pine:undefined": 2
+      "pine:builtin": 2
     }
   },
   "15-anchored-vwap.pine": {

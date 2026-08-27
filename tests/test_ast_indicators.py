@@ -176,7 +176,7 @@ def test_the_acceptance_expression_EVALUATES_to_a_0_1_column(bars):
 # the repaint decision Phase F owed: chikou is a FORWARD reference
 # ═══════════════════════════════════════════════════════════════════════════ #
 
-def test_the_ichimoku_lagging_span_lints_PREVIEW_REPAINTS_and_it_is_the_only_one():
+def test_the_lagging_span_lints_PREVIEW_REPAINTS_and_the_forward_ROSTER_is_pinned():
     """⭐⭐ `chikou[j]` IS `close[j + 26]` — the exact construction
     ``closedTable.json::_no_offset`` names as the thing the repaint linter has to
     be able to decide, and until Phase F nothing in the table could express it.
@@ -203,19 +203,57 @@ def test_the_ichimoku_lagging_span_lints_PREVIEW_REPAINTS_and_it_is_the_only_one
         "cannot act on"
     )
 
-    # ⛔ AND IT IS THE ONLY ONE. Declaring `forward` on the two cloud spans would
-    # brand them for a displacement the shipped compute does NOT perform (see
-    # `_functions_excluded._ichimoku_forward_cloud`), so every other declared
-    # function must still reach 0 forward. A blanket `preview-repaints` would be
-    # as useless as a blanket `non-repainting`.
+    # ⛔ AND THE ROSTER IS PINNED — every entry, with the ruling that admitted it.
+    #
+    # ⚰️ THIS ASSERTED `== {"ichimokuChikou": "arg4"}` AND THE CASE WAS NAMED
+    # `..._and_it_is_the_only_one`. The REASON below is right and unchanged — a
+    # forward declaration is a repaint claim about a member's chart and belongs
+    # to the owner of that claim — but a hard-coded SINGLETON encoded scarcity as
+    # if it were the rule, and that scarcity is exactly what let three false
+    # claims about this machinery survive (a defect called "latent because every
+    # table-legal tree is non-repainting today", a mutation that "did not
+    # discriminate", and `canSaveFormula`'s `acknowledged` branch believed dead).
+    #
+    # ⭐ THE TEETH ARE UNCHANGED: a FOURTH entry growing a `forward` still lands
+    # RED here by name. What changed is that the roster can hold a ruling.
     forwards = {name: spec.get("forward")
                 for name, spec in ast_table.TABLE["functions"].items()
                 if "forward" in spec}
-    assert forwards == {"ichimokuChikou": "arg4"}, (
-        f"more than one function declares a forward window: {sorted(forwards)}. "
-        "Each one is a repaint claim about a member's chart and belongs with the "
-        "owner of that claim, not with an implementation task."
+    assert forwards == {
+        # the lagging span IS `close[j + 26]`; the displacement is the compute's own
+        "ichimokuChikou": "arg4",
+        # W2a.6, owner-ruled: TV-native confirmed-late. The value is drawn on the
+        # pivot bar once the right-hand bars exist, and the badge is honest about
+        # the k-bar wait instead of hiding it behind a lag.
+        "pivothigh": "arg2",
+        "pivotlow": "arg2",
+    }, (
+        f"the forward roster changed: {sorted(forwards)}. Each entry is a repaint "
+        "claim about a member's chart and belongs with the owner of that claim, "
+        "not with an implementation task -- so a new one lands here, by name."
     )
+    # ⛔ AND THE TWO CLOUD SPANS ARE STILL OUT, which is the half the singleton
+    # was really protecting: declaring `forward` on them would brand them for a
+    # displacement the shipped compute does NOT perform
+    # (`_functions_excluded._ichimoku_forward_cloud`).
+    #
+    # ⚰️ AND THIS LOOP LINTED `ichimoku_span_a` ON BOTH ITERATIONS. `span` was
+    # dropped from the second assertion, so `ichimokuSpanB`'s mode was never
+    # measured and the rail carried HALF the coverage it appeared to have -- in
+    # the very case written to replace a rail that had encoded a singleton. The
+    # case id is DERIVED from the entry name now, so the two cannot drift apart.
+    for span, case_id in (("ichimokuSpanA", "ichimoku_span_a"),
+                          ("ichimokuSpanB", "ichimoku_span_b")):
+        assert case_id.replace("_", "").lower() == span.lower(), (span, case_id)
+        assert "forward" not in ast_table.TABLE["functions"][span], span
+        reach = ast_lint.ast_reach(_corpus_case(case_id)["ast"])
+        assert reach["forward"] == 0, (span, reach)
+        assert ast_lint.mode_from_reach(reach["forward"]) == "non-repainting", span
+        # ⛔ AND THE CASE REALLY CALLS THE ENTRY IT CLAIMS TO -- a corpus id that
+        # stopped pointing at this function would make the lines above a
+        # measurement of some other tree, which is exactly how the duplicated
+        # `ichimoku_span_a` above went unnoticed.
+        assert _corpus_case(case_id)["ast"]["name"] == span, (span, case_id)
 
 
 def test_the_lagging_span_really_does_read_a_LATER_bar(bars):
@@ -338,6 +376,15 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
     )
 
 
+#: The role names an ``int`` slot may carry that are NOT windows. ⛔ CLOSED, and
+#: kept to one entry on purpose: the note inside ``accum``'s own generic-set
+#: widening warns against "a vocabulary that grows one adjective at a time", and
+#: this is the same widening. ``anchor`` earned it because ``avwap``'s instant is
+#: inexpressible any other way — the table has two argument kinds and no string
+#: literal node.
+_INT_ROLES = frozenset({"anchor"})
+
+
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     """⭐ `args` SAYS A SLOT IS A SERIES; `argRoles` SAYS WHICH SERIES.
 
@@ -359,7 +406,13 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     for name, spec in functions.items():
         args = list(spec.get("args") or ())
         roles = list(spec.get("argRoles") or ())
-        if not roles:
+        # ⛔ A ZERO-ARGUMENT ENTRY HAS ZERO ROLES, AND THAT IS NOT THE SAME FACT
+        # AS "somebody forgot the key" (2026-08-26, `vwap()`). The two are told
+        # apart by asking whether the KEY IS PRESENT, not whether the list is
+        # truthy — an emptiness test conflated them, and would have reported a
+        # correct nullary entry as a translator hazard while a genuinely missing
+        # key on a 4-argument indicator reported the same words.
+        if "argRoles" not in spec:
             problems.append(f"{name}: no argRoles — a translator cannot place its arguments")
             continue
         if len(roles) != len(args):
@@ -371,24 +424,90 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
             if not isinstance(role, str) or not role:
                 problems.append(f"{name}: slot {i} has no role")
                 continue
-            # ⭐ THE TWO DESCRIPTIONS MUST AGREE ON WHICH SLOTS ARE WINDOWS. An
-            # `int` slot is a whole-number period and a `series` slot never is;
-            # a translator reads the roles to find the window, so the roles must
-            # not be able to point at the wrong one.
+            # ⭐ THE TWO DESCRIPTIONS MUST AGREE ON WHICH SLOTS ARE WINDOWS. A
+            # translator reads the roles to find the window, so a `series` slot
+            # must never claim to be one — that half is absolute.
             says_period = role.lower().endswith("period")
-            if (kind == "int") != says_period:
+            if kind != "int" and says_period:
                 problems.append(
-                    f"{name}: slot {i} is declared {kind!r} but its role is {role!r}"
-                )
+                    f"{name}: slot {i} is a series and its role {role!r} claims to be a window")
+            # ⚠️ AND AN `int` SLOT IS NOT ALWAYS A PERIOD ANY MORE. This read
+            # `(kind == "int") != says_period` until 2026-08-26, when
+            # `avwap(anchorEpoch)` landed: its `int` is an INSTANT, not a window,
+            # and the table has no other argument kind that can carry one (two
+            # kinds, `series` and `int`, and no string literal node). So the int
+            # roles are a CLOSED SET instead — the same treatment `seed`/`update`
+            # got when `accum` landed — and the window slots are PINNED below so
+            # `anchor` can never sit on one.
+            if kind == "int" and not says_period and role not in _INT_ROLES:
+                problems.append(
+                    f"{name}: slot {i} is an int whose role {role!r} is outside "
+                    f"{sorted(_INT_ROLES)} and does not name a period")
     assert not problems, problems
+
+    # ⛔ AND THE SLOT A WINDOW DECLARATION NAMES MUST BE A PERIOD ROLE. This is
+    # what keeps the closed set above from being a hole: `lookback`/`forward`
+    # spell `argN` (optionally `k*argN`), so the manifest itself says which slot
+    # IS the window, and a translator following the roles can never be sent to
+    # the anchor instead. DERIVED from the shipped grammar's own pattern, never a
+    # copy of it.
+    misdeclared = []
+    for name, spec in functions.items():
+        roles = list(spec.get("argRoles") or ())
+        for field in ("lookback", "forward"):
+            decl = spec.get(field)
+            if not isinstance(decl, str):
+                continue
+            m = ast_lint._ARG_REF.match(decl)
+            if not m:
+                continue                     # `session` names no slot at all
+            slot = int(m.group(2))
+            role = roles[slot] if slot < len(roles) else None
+            if not (isinstance(role, str) and role.lower().endswith("period")):
+                misdeclared.append(
+                    f"{name}: {field} names slot {slot}, whose role is {role!r} "
+                    "and must name a period")
+    assert not misdeclared, misdeclared
+    assert any(isinstance(s.get("lookback"), str)
+               and ast_lint._ARG_REF.match(s["lookback"])
+               for s in functions.values()), (
+        "no function declares an argument window — the pin above has no subject")
 
     # ⛔ AND THE ROLE NAMES ARE NOT FREE TEXT. Every `series` slot's role is
     # either a bar field this table declares or one of the two generic shapes
     # (`source` for a single input, `left`/`right` for a symmetric pair), so a
     # translator has a closed set to match against rather than a vocabulary that
     # grows one adjective at a time.
-    generic = {"source", "left", "right", "seed", "update"}
+    # ⭐ `condition` JOINED ON 2026-08-26, AND IT IS NOT AN ADJECTIVE. Two of the
+    # bounded-state entries take a slot the maths reads as a 0/1 EVENT rather than
+    # as a price — `barssince(condition, n)`, `valuewhen(condition, source, n)` —
+    # and a translator that filled that slot with `close` because the role said
+    # `source` would produce a plausible column off a price compared to zero. It
+    # is PINNED below, the way `seed`/`update` are, so it cannot spread to a slot
+    # whose entry does not yield a condition there.
+    generic = {"source", "left", "right", "seed", "update", "condition"}
     allowed = set(ast_table.TABLE["series"]) | generic
+
+    # ⛔ AND `condition` IS ONLY LEGAL WHERE THE ENTRY REALLY READS AN EVENT.
+    # Derived from the manifest: the slot must be a `series`, and the entry must
+    # be one whose own sentence says the slot is TRUE or FALSE rather than a
+    # quantity. A role that could sit anywhere is the free text this set exists
+    # to prevent.
+    for name, spec in functions.items():
+        for i, role in enumerate(spec.get("argRoles") or ()):
+            if role != "condition":
+                continue
+            assert spec["args"][i] == "series", (name, i, spec["args"])
+            # ⚰️ THIS READ `("{%d} was" % i) in phrase or ("{%d} was" % i) in
+            # phrase` -- THE SAME EXPRESSION ON BOTH SIDES OF AN `or`, so the
+            # `or` could never change the verdict and half the check was
+            # decoration. Both halves are real now: the slot must be SPOKEN in
+            # the sentence, and the sentence must say what makes it a condition.
+            phrase = spec.get("sentence", "")
+            assert ("{%d}" % i) in phrase, (name, i, phrase)
+            assert "true" in phrase.lower(), (name, phrase)
+    assert any("condition" in (s.get("argRoles") or ()) for s in functions.values()), (
+        "no function declares a `condition` slot — the pin above has no subject")
 
     # ⭐ THE TWO RECURRENCE SHAPES ARE NOT FREE TEXT EITHER, AND THIS IS WHAT
     # KEEPS THEM CLOSED. `seed` and `update` were added to the generic set above

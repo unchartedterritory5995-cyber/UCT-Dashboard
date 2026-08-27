@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import { interpret, FN, TableRefusal, MAX_RECURRENCE_STEPS } from './interpret.js'
 import { astReach, maxLookback, modeFromReach } from './lint.js'
-import { TABLE, RECURRENCES, RECURRENCE_BINDINGS, isPointwise } from './parse.js'
+import { TABLE, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, isPointwise } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // fixtures
@@ -405,12 +405,22 @@ describe('the recurrence is DECLARED, so neither lane types its shape', () => {
     // table entry that is deliberately NOT in `FN`: `accum` is evaluated by the
     // walker itself, so the equality had to grow an exception and an exception
     // nobody states is how a roster rots.
+    //
+    // ⭐ A SECOND KIND OF EXCEPTION JOINED IT ON 2026-08-26, AND IT IS DERIVED
+    // THE SAME WAY. An entry declaring `reads: 'bars'` is handed `interpret`'s
+    // own bar array rather than a pack of argument columns, so its
+    // implementation lives in `BAR_FN`. Both exceptions are read off the
+    // MANIFEST here, never listed, so a third entry of either kind needs no edit
+    // in this file.
     const declared = Object.keys(TABLE.functions).sort()
     const implemented = Object.keys(FN).sort()
     const missing = declared.filter((n) => !implemented.includes(n))
     const extra = implemented.filter((n) => !declared.includes(n))
+    const byWalker = [...new Set([...Object.keys(RECURRENCES), ...BAR_READERS])].sort()
+    expect(BAR_READERS.length, 'the bar-reading exception must be non-empty')
+      .toBeGreaterThan(0)
     expect(extra.join(', '), 'an implemented function the table never declared').toBe('')
     expect(missing.join(', '), 'a declared function with no implementation')
-      .toBe(Object.keys(RECURRENCES).sort().join(', '))
+      .toBe(byWalker.join(', '))
   })
 })

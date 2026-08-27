@@ -86,18 +86,62 @@ _ET = ZoneInfo("America/New_York")
 #: at the priciest known rate -- never $0, because a $0 estimate makes every cap
 #: unenforceable. Both readings keep the cap enforced; the named one keeps it
 #: honest.
-MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-sonnet-5")
+MODEL: str = os.environ.get("CONCIERGE_MODEL", "claude-opus-5")
 
-#: Enough for a tree, nowhere near enough for an essay. The tool call is the only
-#: output that matters and a tree over this table is small.
-MAX_TOKENS: int = 1200
+#: A ceiling on THINKING PLUS the tool call. Opus 5 thinks by default when
+#: ``thinking`` is omitted and ``max_tokens`` caps both, so 1200 — sized for the
+#: tool call ALONE — would truncate a thought mid-tree into a repair call and a
+#: refusal. The call itself stays small (the largest starter tree the firm ships
+#: serialises to under 500 bytes), so nearly all of this is thinking headroom.
+#: ⛔ A TRUNCATION GUARD, NOT A COST LEVER: tokens are billed as GENERATED, and
+#: the spend is bounded by ``cost_guard`` and by the per-user cap below.
+MAX_TOKENS: int = 8192
 
 #: ⭐ ONE GENERATE, ONE REPAIR. Not "retry until clean" -- see the header.
 MAX_MODEL_CALLS: int = 2
 
+#: ⛔ HTTP ATTEMPTS PER MODEL CALL, AND THE REASON IS THE LEDGER, NOT LATENCY.
+#: A call that TIMES OUT has already generated (and been billed for) tokens, but
+#: returns no ``usage``, so ``cost_guard.record`` below never sees them. The SDK
+#: default of 2 retries makes that up to THREE billed attempts the ledger counts
+#: as zero -- and, because the 60 s timeout is PER ATTEMPT, up to 180 s of wall
+#: clock. At 1200 tokens a timeout was barely reachable; at 8192 with default
+#: adaptive thinking it is not. 0 retries = exactly one attempt off the ledger.
+#:
+#: ⛔ THE TIMEOUT IS NOT THE LEVER HERE. ``desk_session_insights`` buys headroom
+#: with ``with_options(timeout=300)``, but that runs on a SCHEDULER thread. This
+#: is the REQUEST PATH, where an unbounded external call pins one of the single
+#: web pod's 64 shared anyio workers -- the 2026-07-01 outage class, and the
+#: reason `tests/test_llm_timeout_census.py` exists. The shared client's 60 s
+#: stays; only the attempt COUNT moves.
+#:
+#: The trade: a transient 429/503 is no longer retried for free. It also is not
+#: BILLED (nothing generated), and a member's own retry is ledgered and
+#: cap-checked -- which an SDK retry is not.
+MAX_HTTP_RETRIES: int = 0
+
 #: The per-user daily cap, ON TOP OF ``cost_guard``'s global one. The global cap
 #: protects the bill; this one protects one account from spending everyone
 #: else's.
+#:
+#: ⚠️ RE-DERIVE THIS WHENEVER THE MODEL OR THE CEILING MOVES — W0.4 moved BOTH
+#: and the cap was inherited, not rechecked. Measured 2026-08-26 against the real
+#: ``estimate_cost`` and the real prompt (SYSTEM_PROMPT + ``vocabulary_text()`` +
+#: the tool JSON = 17,724 chars ≈ 4.4k input tokens):
+#:
+#:   before  claude-sonnet-5 @ 1200  ->  $0.0313/call, $0.063 worst case (2 calls)
+#:   after   claude-opus-5   @ 8192  ->  $0.2270/call, $0.454 worst case (2 calls)
+#:
+#: Price is 1.67× on BOTH legs and the ceiling is 6.83×, so a worst-case proposal
+#: is 7.25× dearer: it now costs 60% of one member's daily allowance, and $0.75
+#: admits ~1.7 of them where it admitted ~12. The VALUE below is the owner's call
+#: and is unchanged here; this note exists so the next reader sees the arithmetic
+#: rather than inheriting it a second time.
+#:
+#: ⛔ AND IT IS A FLOOR TEST, NOT A RESERVATION. The loop head asks whether spend
+#: ALREADY EXCEEDS the cap, so a member at $0.74 may still start a proposal that
+#: lands them at $1.19 — 159% of the cap. That overshoot was $0.80 before this
+#: change. Nothing here reserves the cost of the call it is about to authorise.
 def _user_cap_usd() -> float:
     return float(os.environ.get("CONCIERGE_USER_CAP_DAILY", "0.75"))
 
@@ -846,6 +890,7 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     conditions = (condition_phrases if condition_phrases is not None
                   else OPERATOR_SENTENCE_CONDITIONS)
     series: Dict[str, Any] = {}
+    clock: Dict[str, Any] = {}
     scalars: Dict[str, Any] = {}
     operators: Dict[str, Any] = {}
     functions: Dict[str, Any] = {}
@@ -853,6 +898,27 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     for name in sorted(t[ast_table.SERIES_SECTION]):
         gap = None if _SAYABLE.match(name) else "unsayable"
         series[name] = {"gap": gap}
+
+    # ⭐ THE FIFTH SECTION (closed table v2), AND IT IS SAID LIKE A SCALAR RATHER
+    # THAN LIKE A SERIES. A series is spoken AS ITS OWN NAME; a clock value has a
+    # declared `sentence` -- "the hour of the bar on a 24-hour clock, 0 to 23, in
+    # New York time" -- because `hour` alone in a read-back is a word a member
+    # cannot check the maths against, and `dayofweek` says nothing about whether
+    # Sunday is 1. `sentence.js::compileRules` makes exactly these two decisions
+    # and the two lanes are compared entry for entry by
+    # `test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED`.
+    #
+    # ⚠️ Arity zero, so `_placeholder_gap(phrase, 0)` is the same derived check the
+    # scalars get. `.get(...) or {}` because a synthetic probe manifest may declare
+    # fewer sections, exactly as the scalars block below does.
+    clock_table = t.get(ast_table.CLOCK_SECTION) or {}
+    for name in sorted(clock_table):
+        phrase = (clock_table[name] or {}).get("sentence")
+        if not isinstance(phrase, str) or phrase == "":
+            gap = "no-template"
+        else:
+            gap = _placeholder_gap(phrase, 0)
+        clock[name] = {"phrase": phrase, "gap": gap}
 
     # ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series --
     # which is SAID AS ITS OWN NAME, so an unsayable name is what breaks it -- a
@@ -910,8 +976,8 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
             gap = _placeholder_gap(phrase, len(args))
         functions[name] = {"phrase": phrase, "args": args, "gap": gap}
 
-    return {"series": series, "scalars": scalars, "operators": operators,
-            "functions": functions, _TABLE_KEY: t}
+    return {"series": series, "clock": clock, "scalars": scalars,
+            "operators": operators, "functions": functions, _TABLE_KEY: t}
 
 
 SENTENCE_RULES = compile_rules()
@@ -1044,6 +1110,18 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     # ⛔ NOT A FALLBACK TO THE COLUMN NAME. A scalar the table declares and
     # nobody wrote English for is refused BY NAME, because `market_cap` in a
     # sentence is a read-back the member cannot check the maths against.
+    # ⭐ THE TABLE'S CLOCK, CONSULTED AFTER THE SERIES AND BEFORE THE SCALARS --
+    # the same order, for the same reason, as `renderName` and `lint.js::astReach`.
+    # ⛔ NOT A FALLBACK TO THE COLUMN NAME: a clock entry the table declares and
+    # nobody wrote English for is refused BY NAME, because `dayofweek` in a
+    # sentence is a read-back the member cannot check the maths against.
+    clock_rules = rules.get("clock") or {}
+    if name in clock_rules:
+        rule = clock_rules[name]
+        if rule["gap"]:
+            _refuse_gap(rule["gap"], "clock value", name, path)
+        trace.append({"path": path, "rule": "series:clock"})
+        return rule["phrase"]
     scalar_rules = rules.get("scalars") or {}
     if name in scalar_rules:
         rule = scalar_rules[name]
@@ -1060,7 +1138,8 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     raise _SentenceRefused(
         "sentence:name",
         f"at {path}: {json.dumps(name)} -- this table declares "
-        f"{', '.join(sorted(rules['series']))}, its scalars are "
+        f"{', '.join(sorted(rules['series']))}, its clock is "
+        f"{', '.join(sorted(clock_rules)) or 'none'}, its scalars are "
         f"{', '.join(sorted(scalar_rules)) or 'none'}, and this definition declares "
         f"{', '.join(sorted(inputs)) or 'no inputs'}")
 
@@ -1245,29 +1324,29 @@ def _call_model(messages: List[dict], briefing: str = "") -> Tuple[Any, int, int
     Both are resolved here, against files, so the model is TOLD rather than
     asked to guess.
 
-    ⚠️ THE TEMPERATURE RETRY IS THE SHIPPED IDIOM: newer models reject
-    ``temperature`` as deprecated, and on that specific error the parameter is
-    popped and the call retried once so any model id stays usable.
+    ⛔ NO SAMPLING PARAMETER. Claude 5 models REMOVED ``temperature``/``top_p``/
+    ``top_k`` — they answer 400. This call used to send ``temperature=0`` and pop
+    it on that error, which made every proposal TWO HTTP round-trips: the 400, then
+    the real call. Sending nothing is the same determinism for one round-trip, and
+    it leaves no pop-and-retry branch that no longer has a way to fire.
+
+    ⛔ ``thinking``/``output_config`` ARE DELIBERATELY ABSENT. Opus 5 thinks by
+    default, which is what ``MAX_TOKENS`` is now sized for; naming either one would
+    400 the moment ``CONCIERGE_MODEL`` pointed at a model that does not take it.
     """
     from api.services.engine import _get_anthropic_client
-    client = _get_anthropic_client()
-    kwargs = dict(
+    # ``with_options`` returns a configured copy; the shared client's bounded
+    # timeout is preserved (see MAX_HTTP_RETRIES for why the count, not the
+    # clock, is what moves).
+    client = _get_anthropic_client().with_options(max_retries=MAX_HTTP_RETRIES)
+    msg = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
-        temperature=0,
         system=SYSTEM_PROMPT + vocabulary_text() + briefing,
         tools=[anthropic_tool()],
         tool_choice={"type": "tool", "name": TOOL_NAME},
         messages=messages,
     )
-    try:
-        msg = client.messages.create(**kwargs)
-    except Exception as exc:                       # noqa: BLE001 -- rethrown below
-        if "temperature" in str(exc).lower():
-            kwargs.pop("temperature", None)
-            msg = client.messages.create(**kwargs)
-        else:
-            raise
     usage = getattr(msg, "usage", None)
     return msg, int(getattr(usage, "input_tokens", 0) or 0), \
         int(getattr(usage, "output_tokens", 0) or 0)
@@ -1475,6 +1554,19 @@ CONCEPT_ENTRY, REFUSED_ENTRY, TABLE_ENTRY, EXCLUDED_ENTRY = (
 #: declared bar field and the anti-copy rail would report it, correctly.
 PLAN_PATHS: Tuple[str, ...] = ("concept", "composition", "mixed", "unanchored")
 
+#: ⚠️ STRUCTURE, NOT VOCABULARY. ``_surface_forms`` opens a declared name's
+#: underscores into spaces because a member writes the words, not the joiner; the
+#: shape registries join their machine keys with a hyphen instead, and this is
+#: that same one character. It is the separator, never a name.
+_KEY_SEP = "-"
+
+#: ⚠️ STRUCTURE AGAIN, NOT VOCABULARY. A shape registry writes a
+#: direction variant by parenthesising the direction — the name is outside
+#: the brackets and the qualifier is inside. Stripping the bracketed part is
+#: the same move as opening a camel hump: it recovers the words a member
+#: actually writes.
+_QUALIFIER = re.compile(r"\([^)]*\)")
+
 
 def _surface_forms(name: str, spec: Mapping[str, Any]) -> List[str]:
     """Every way a member might write ONE declared entry, off its declaration.
@@ -1526,6 +1618,178 @@ def _filter_labels() -> List[Tuple[str, str, str]]:
             "the screener's filter registry yielded no labelled columns; its "
             "shape changed and the firm's own wording for every column would "
             "silently stop reaching the plain-language door")
+    return out
+
+
+def _named_shape_phrases() -> List[Tuple[str, str]]:
+    """``(column, phrase)`` for every named bar shape the screener filters on.
+
+    ⭐ WHY THIS EXISTS AT ALL. The screener ships filters over two whole
+    libraries of named bar shapes, and until this landed NO AI door in the product
+    could anchor one of their names. Measured 2026-08-27: of the candle library's
+    own labels, 62 came back with ``concepts``, ``terms``, ``not_understood`` and
+    ``unavailable`` ALL empty. ⛔ AND THAT IS THE WORST OF THE FOUR OUTCOMES,
+    NOT THE MILDEST — the phrasing reached the model as bare English wearing
+    the appearance of a normal request, so nothing marked the miss. An
+    over-refusal is at least visible to whoever reads the refusal; a silent
+    non-understanding is visible to nobody.
+
+    ⭐⭐ TWO REGISTRIES, BECAUSE THE FIRM WROTE TWO. ``candle_catalog``
+    names what the bar IS in the Japanese vocabulary; ``bar_character`` names what
+    the bar DID, and its own header opens by explaining why that had to be a
+    second registry rather than more candle labels. They are the same question
+    about the same bar, they sit in the same filter category, and a member has no
+    idea which library a word came out of. Reading one and not the other would
+    leave this door fluent in half a vocabulary — measured: three of the
+    firm's own starter screens are worded entirely out of the second one.
+
+    ⛔ NOTHING HERE IS TYPED, IN EITHER HALF. The NAMES come from the
+    registries that own them — each one's own header calls itself the single
+    place its names live — and the COLUMN each name is stored in is ASKED OF
+    THE SCREENER'S FILTER REGISTRY rather than asserted: a preset's stored value
+    is decoded through the catalog's own ``decode_matches`` and kept only when it
+    names a shape a registry declares. So a shape registered tomorrow is sayable
+    with no edit here, and a library the screener stops filtering on stops being
+    promised. A hand-typed copy of these names would be this repo's most repeated
+    defect — a second authority over one value — at library scale.
+
+    ⚠️ FIRST DECLARATION WINS, AND IT IS LOAD-BEARING RATHER THAN TIDY.
+    Four separate filters ship the candle library (today, the recent five
+    sessions, the weekly bar, the monthly bar). Indexing a name under each of
+    their columns would put FOUR identities at one distance under one phrase, and
+    ``_resolve_run`` answers a tie with silence — every candle name would have
+    gone straight back to being invisible, which is the defect this function
+    exists to remove. So the registry's own declaration order decides, and the
+    answer is the screener's rather than one made here.
+
+    ⚠️ THE SURFACE FORMS, AND THE ONE THAT IS DELIBERATELY MISSING. The
+    display label; the machine key with its hyphens opened out, exactly as
+    ``_surface_forms`` opens a declared name's underscores; and the label with a
+    parenthesised direction qualifier removed, because a library that writes
+    ``Hikkake Confirmed (Bull)`` is spelling the direction, not the name, and a
+    member says the name. The ``desc`` is NOT indexed: it is a paragraph of
+    ordinary English, and indexing prose would let a fragment of somebody's
+    description match a whole request.
+
+    ⭐ AND THE CLASSIFICATION WORDS THE CATALOG DECLARES ON EVERY PATTERN
+    — the ``kind`` field, which is how the library itself says reversal /
+    continuation / indecision / plain. The screener ships no filter on it, so a
+    member who asks for "a reversal candle" has named something the registry
+    really does declare and no column stores; that is precisely the
+    ``EXCLUDED_ENTRY`` contract, and saying so is better than silence.
+    ⚠️ These are the widest words this function adds and the likeliest to
+    be said by accident. They are here because they are DECLARED, not because two
+    starter screens happen to need them, and an exact spelling is required before
+    any of them is surfaced.
+
+    ⚠️ THE OVER-CAPTURE QUESTION IS ANSWERED BY THE DERIVATION, NOT BY
+    THIS PARAGRAPH. Every library name built out of an ordinary English word
+    — star, harami, inside, engulfing, bar — exists only inside a
+    multi-word form, so ``_matches``'s longest-first, non-overlapping pass can
+    never spend one of those words on a shape when the member meant the ordinary
+    word; and an ``EXCLUDED_ENTRY`` is surfaced only on an EXACT spelling, so no
+    amount of stemming widens any of them. The rail measures both properties over
+    the WHOLE of both libraries rather than over a handful of names somebody
+    picked.
+
+    ⛔⛔ AND HERE IS WHAT THAT COSTS, STATED, BECAUSE IT WAS NOT (X83). A member
+    who types the bare word — ``harami``, ``star``, ``engulfing``, ``inside bar``
+    — reaches **SILENT**. Not a match, and not an ``EXCLUDED_ENTRY`` either:
+    nothing at all. Only the multi-word forms are declared (``bullish harami``,
+    ``bearish harami``, ``harami cross``; ``morning star``, ``evening star``,
+    ``shooting star``, ``tri star``), so there is no phrase for the bare word to
+    hit.
+
+    ⭐ THE RULING, SO NOBODY HAS TO GUESS WHETHER IT IS AN OVERSIGHT: bare shape
+    words STAY SILENT, deliberately. ``harami`` names a FAMILY of three different
+    shapes, and answering it with one of them would be a guess between a bullish
+    reversal, a bearish reversal and a cross — the silent-mistranslation failure
+    this whole door exists against, one level up. Widening ``_matches`` to spend
+    the word on a shape is precisely the over-capture the longest-first pass
+    prevents, and the rail above would go red for the right reason.
+
+    ⚠️ IF THAT IS EVER REVISITED, the shape of the answer is an
+    ``EXCLUDED_ENTRY``-style *"you named a family; here are its declared
+    members"* — NEVER a match. That keeps the member informed without this door
+    picking one of three shapes on their behalf.
+    ``test_a_BARE_SHAPE_WORD_stays_SILENT_and_the_multi_word_form_does_not``
+    pins the consequence, in both directions, so a change here is a decision
+    rather than a drift.
+
+    ⭐ THE LEGACY SPELLINGS RIDE ALONG. The catalog carries a compatibility
+    map for a stored value that changed spelling, and that old token is still
+    written into the column, so it is still a word a member may say. It resolves
+    to the same column as the shape it aliases.
+
+    It RAISES rather than returning nothing, the ``_filter_labels`` idiom: a
+    registry whose shape had moved would otherwise make this door quietly narrower
+    with every rail still green.
+    """
+    from api.services.screener import bar_character  # noqa: PLC0415
+    from api.services.screener import candle_catalog as catalog  # noqa: PLC0415
+    from api.services.screener import filters as screener_filters  # noqa: PLC0415
+
+    registries = (catalog.ALL_PATTERNS, bar_character.CASCADE)
+    declared = {shape.key for registry in registries for shape in registry}
+
+    column_of: Dict[str, str] = {}
+    for entry in screener_filters.FILTERS.values():
+        column = entry.get("column")
+        if not isinstance(column, str) or not column:
+            continue
+        for preset in entry.get("presets") or ():
+            stored = preset.get("value") if isinstance(preset, Mapping) else None
+            if not isinstance(stored, str):
+                continue
+            for key in catalog.decode_matches(stored):
+                if key in declared:
+                    column_of.setdefault(key, column)
+
+    out: List[Tuple[str, str]] = []
+    kinds: Dict[str, str] = {}
+    for registry in registries:
+        #: ⭐ THE COLUMN IS A FACT ABOUT THE LIBRARY, NOT ABOUT ONE SHAPE, and
+        #: asking it per-shape was WRONG in a way only the both-directions rail
+        #: could see: a shape registered but not yet given a filter preset got no
+        #: column, so it was silently dropped — the newest name in the library
+        #: would be the one name this door could not say.
+        column = next((column_of[shape.key] for shape in registry
+                       if shape.key in column_of), None)
+        if not column:
+            continue
+        for shape in registry:
+            out.append((column, shape.label))
+            out.append((column, shape.key.replace(_KEY_SEP, " ")))
+            undirected = _QUALIFIER.sub(" ", shape.label)
+            if _form_tokens(undirected) != _form_tokens(shape.label):
+                out.append((column, undirected))
+            classification = getattr(shape, "kind", None)
+            # ⛔ `plain` IS ORDINARY ENGLISH AND IS EXCLUDED BY RULING, 2026-08-27.
+            # The other three `kind` words -- `reversal`, `continuation`,
+            # `indecision` -- are words a member only types when they mean
+            # structure, so indexing them costs nothing and closes two starter
+            # screens. `plain` is a filler adjective: indexing it made
+            # "a plain english description" answer `unavailable: candle_matches`,
+            # which is over-capture of exactly the kind the first PCF dialect
+            # derivation was caught doing to `log10(close)`.
+            #
+            # ⚠️ Dropping the whole `kind` read would be the wrong trade -- it
+            # reopens those two starters to buy back one adjective. And a named
+            # constant here would NOT trip the anti-copy rail, because `plain` is
+            # neither a catalog key nor a label; it is a classification value, so
+            # this exclusion has to be stated where it is read.
+            if isinstance(classification, str) and classification and classification != "plain":
+                kinds.setdefault(classification, column)
+    for key, legacy in catalog.LEGACY_ALIASES.items():
+        column = column_of.get(key)
+        if column:
+            out.append((column, legacy.replace(_KEY_SEP, " ")))
+    out.extend((column, classification) for classification, column in kinds.items())
+    if not out:
+        raise ValueError(
+            "the screener's named bar-shape libraries reached no filter column; a "
+            "registry or the filter registry moved, and every one of the firm's "
+            "own shape names would silently stop reaching the plain-language door")
     return out
 
 
@@ -1596,6 +1860,25 @@ def build_lexicon(table: Optional[Mapping[str, Any]] = None,
             add(EXCLUDED_ENTRY, column, None, label)
         elif column in ast_table.declared_names(t):
             add(TABLE_ENTRY, column, ast_table.SCALARS_SECTION, label)
+
+    #: ⭐ AND EVERY NAMED BAR SHAPE THE SCREENER FILTERS ON. See
+    #: `_named_shape_phrases` for why: without this the door was silently blind
+    #: to the firm's own candle and bar-character libraries — not refusing
+    #: them, not naming them, just handing the words to the model as if they had
+    #: been understood.
+    #:
+    #: ⛔ THE SAME TWO-WAY SPLIT AS THE FILTER LABELS ABOVE, AND FOR THE SAME
+    #: REASON. Today the manifest declares these columns EXCLUDED and says why in
+    #: its own words, so a candle name lands in `unavailable` carrying that
+    #: sentence — which itself names the screener filter that does ship the
+    #: pattern and the scalars a member CAN write instead. That is a refusal that
+    #: names what would unblock it. If the table ever declares the column, the
+    #: identical line grounds the same names as terms with no edit here.
+    for column, phrase in _named_shape_phrases():
+        if column in _excluded(t):
+            add(EXCLUDED_ENTRY, column, None, phrase)
+        elif column in ast_table.declared_names(t):
+            add(TABLE_ENTRY, column, ast_table.SCALARS_SECTION, phrase)
 
     for word in concept_vocabulary.concepts(v):
         add(CONCEPT_ENTRY, word, None, word)
@@ -1823,6 +2106,8 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          "terms":       [{name, section, matched_as}] -- the manifest's own entries
          "numbers":     [{wrote, value}]         -- the member's thresholds
          "not_understood": [{phrase, clause, gate, reason}]
+         "unavailable": [{phrase, name, reason}] -- a column this grammar
+                        cannot express, NAMED rather than excised (see below)
          "path":        one of PLAN_PATHS,
          "briefing":    the text appended to the system prompt}
 

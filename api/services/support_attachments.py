@@ -16,7 +16,10 @@ from pathlib import Path
 
 from api.services.auth_db import get_connection
 
-ATTACH_DIR = Path("/data/support_attachments")
+# `SUPPORT_ATTACHMENTS_DIR` is the override; its DEFAULT is the literal that
+# has always been here, so production with nothing set is unchanged.
+ATTACH_DIR = Path(os.environ.get(
+    "SUPPORT_ATTACHMENTS_DIR", "/data/support_attachments"))
 MAX_SOURCE_BYTES = 5 * 1024 * 1024  # 5 MB source cap
 MAX_DIM = 2000                       # long-side pixel cap
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}

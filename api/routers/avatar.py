@@ -12,7 +12,9 @@ from api.middleware.auth_middleware import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["avatar"])
 
-AVATAR_DIR = Path("/data/avatars")
+# `AVATARS_DIR` is the override; its DEFAULT is the literal that has always
+# been here, so production with nothing set resolves byte-identically.
+AVATAR_DIR = Path(os.environ.get("AVATARS_DIR", "/data/avatars"))
 MAX_SIZE = 2 * 1024 * 1024  # 2 MB
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 

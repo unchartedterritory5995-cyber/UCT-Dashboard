@@ -258,15 +258,36 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
  *
- * ⭐ THIS LIST CAN ONLY SHRINK. A test below asserts every path here still
- * exists, so an entry outlives its file by exactly zero commits — the failure
- * mode of every allow-list (quietly accumulating names of things that are gone)
- * cannot happen here.
+ * ⭐ THIS LIST CAN ONLY SHRINK, AND TWO TESTS BELOW ARE WHY — read both before
+ * concluding a guard is missing. An entry cannot outlive its FILE ('the
+ * allow-list cannot outlive its files'), and it cannot outlive its REASON
+ * either ('and it cannot excuse something that is actually wired', which fails
+ * the moment a recorded path becomes reachable). Together they close the two
+ * failure modes of every allow-list: quietly keeping names of things that are
+ * gone, and quietly keeping an exemption for something that got wired — the
+ * second being the worse one, because the day that wire is cut again the rail
+ * would stay green. Their control is in the second describe.
+ *
+ * ⚠️ SO AN ENTRY HERE IS A COUNTDOWN, NOT A PARKING SPACE. The five W1a/W3
+ * entries below name the task that mounts them; when W1a.6 and W3.7 land, this
+ * rail goes RED until those entries are deleted. That is the intended
+ * behaviour, not a regression — do not re-green it by widening anything.
  *
  * ⛔ AND IT IS NOT A PLACE TO PARK A NEW ORPHAN. Adding a line is a decision
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  'app/src/components/EmptyState.jsx':
+    'ORPHANED BY MASTER, NOT BY THIS BRANCH, on the 2026-08-27 merge. Its last '
+    + 'importer was pages/Patterns.jsx (line 7), which master DELETED when it '
+    + 'retired the Patterns page for 15.7% precision. ⛔ Not deleted here for the '
+    + 'same reason useTapeFeed is not: it is a 31-line BRANDED PRIMITIVE that '
+    + 'exists so tiles and pages share one visual language instead of scattered '
+    + 'bare empties, it mirrors ErrorState (still live), and the pattern ENGINE was '
+    + 'deliberately KEPT behind PATTERN_VISION_ENABLED=0 pending a confirmed-only '
+    + 'surface — which is exactly the kind of page that would reach for it again. '
+    + 'Deleting a shared primitive while its sibling ships and its consumer is '
+    + 'paused would be guessing at an owner\'s intent during a merge.',
   'app/src/components/chart/engine/registrySizes.js':
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
@@ -307,6 +328,24 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
+  // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
+  // AND ITS ENTRY SAID "MOUNTS AT W3.7 … through ImportBox's translateThinkScript".
+  // W3.7 mounted it and the entry became FALSE, which is what this rail caught —
+  // an allow-list entry is a CLAIM THAT A MODULE IS NOT YET WIRED, and a claim
+  // that has come true is not a claim any more.
+  //
+  // ⭐ NOTE THE DIRECTION, because it is the reassuring one: the module became
+  // REACHABLE while its excuse stayed, and the rail went red immediately. The
+  // dangerous direction is the opposite — a module that goes UNREACHABLE while
+  // its entry sits here, where the entry silences the very rail that would have
+  // said so. That is why an entry is deleted the moment the wire lands rather
+  // than left as harmless history: the day this wire is CUT, this rail has to be
+  // the thing that notices.
+  //
+  // ⛔ Its neighbours are deliberately ABSENT rather than listed: `dialect.js`,
+  // `PineBox.jsx`/`ImportBox` and `pine.js` are all reachable through the real
+  // import graph (`BuilderSheet.jsx` imports `ImportBox`, which imports
+  // `dialect`), so listing any of them would be the same false claim.
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
@@ -395,8 +434,12 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   // `ImportExpression` disabled. As the repo grew that crossed vitest's 5s
   // default: both went red under full-suite load, then red in isolation. ⛔ A
   // rail that ALWAYS fails is as useless as one that CANNOT fail — nobody reads
-  // either, and this one is the standing guard on reachability. The assertions
-  // are untouched; only the budget is stated out loud.
+  // either, and this one is the standing guard on reachability. Only the budget
+  // is stated out loud.
+  // ⚠️ W5a.7 CORRECTION: "the assertions are untouched" stopped being true when
+  // the CoverageLine arm below was rewritten (see its own note). A sentence that
+  // says nothing moved, beside something that moved, is the defect this wave has
+  // found most often — so it is corrected here rather than left to age.
   // ⚠️ 60s, not 30: measured at 30.6s for the file under a full parallel suite
   // run on this box. The budget exists to absorb machine load, and the failure
   // this rail is FOR is a severed import edge, which takes microseconds.
@@ -404,9 +447,16 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // Wave 4 Task 7 re-points this anchor: the My-scans definition detail
     // (`SavedScreensPanel.jsx`, deleted this task) moved into
     // `pages/screener/ScreensManager.jsx`, which is the sole remaining
-    // importer of `ScanResults` — and, by Task 6's constraint, never imports
-    // `CoverageLine` directly, so the (b) assertion below still holds: cutting
-    // this one line orphans BOTH.
+    // importer of `ScanResults`.
+    //
+    // ⛔ W5a.7 CORRECTION — "cutting this one line orphans BOTH" IS NO LONGER
+    // TRUE, and the `toBe(true)` fifteen lines down now says so directly. That
+    // premise rested on ScreensManager never importing `CoverageLine` itself,
+    // which is still the case — but `CoverageLine` gained a SECOND door from a
+    // different subtree entirely (`BuilderSheet → EvidenceTab → CoverageLine`),
+    // which no constraint on ScreensManager could ever have prevented. Cutting
+    // this line orphans `ScanResults`; it takes `CoverageLine` with it only when
+    // the OTHER door is cut too, which is what the double cut below does.
     const manager = path.join(SRC, 'pages', 'screener', 'ScreensManager.jsx')
     const src = read(manager)
     const IMPORT = "import ScanResults from '../../components/screener/ScanResults'\n"
@@ -425,9 +475,45 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     expect(after.has(path.join(SCREENER_DIR, 'ScanResults.jsx')),
       'cutting the mount left ScanResults reachable, so this rail cannot see a '
       + 'severed wire and every assertion above is decoration').toBe(false)
+    // ⚠️ COVERAGE LINE HAS TWO DOORS SINCE W5a.7, and this control measured it on
+    // the day that changed. `EvidenceTab` renders `CoverageLine` (the symbol
+    // coverage on a backtest receipt) and `BuilderSheet` now mounts `EvidenceTab`,
+    // so `BuilderSheet → EvidenceTab → CoverageLine` reaches it independently of
+    // this mount. The premise this assertion was written on — "reached only
+    // through ScanResults" — was true then and is false now, so asserting it would
+    // go red for a CORRECT graph. It is replaced, not deleted.
     expect(after.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
-      'CoverageLine is reached only through ScanResults; cutting the mount must '
-      + 'take it with it').toBe(false)
+      'CoverageLine should still be reachable through the builder door — if this is '
+      + 'false that door is gone and the stronger check below is measuring one edge')
+      .toBe(true)
+
+    // ⭐ AND TRANSITIVITY IS STILL PROVEN — by cutting EVERY door rather than
+    // assuming there is one. This is the form that does not go stale the next time
+    // a shared component gains a second importer: the previous assertion encoded a
+    // door COUNT, which is exactly the kind of hand-held fact this file exists to
+    // stop trusting.
+    const builder = path.join(SRC, 'components', 'chart', 'builder', 'BuilderSheet.jsx')
+    const bsrc = read(builder)
+    const EV_IMPORT = "import EvidenceTab from './EvidenceTab'\n"
+    expect(bsrc.includes(EV_IMPORT),
+      `the builder's Evidence import moved — this control cannot cut a wire it `
+      + `cannot find in ${key(builder)}`).toBe(true)
+    const bothCut = reachableFrom(ROOTS, new Map([
+      [manager, cut], [builder, bsrc.replace(EV_IMPORT, '')],
+    ]))
+    // ⛔ NON-VACUITY FOR THIS ARM, on the same argument the single cut makes one
+    // line above its own assertions. Measured: `reachableFrom([])` returns a set
+    // of size 0, which satisfies BOTH `toBe(false)` checks below — so a walk that
+    // collapsed for any reason would read as a perfect result.
+    expect(bothCut.has(builder), 'the builder itself must stay reachable — otherwise '
+      + 'this double cut proves nothing about the two edges it cut').toBe(true)
+    expect(bothCut.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
+      'with BOTH doors cut CoverageLine must fall out — otherwise this walk is not '
+      + 'propagating unreachability downstream at all and every assertion above is '
+      + 'decoration').toBe(false)
+    expect(bothCut.has(path.join(SRC, 'components', 'chart', 'builder', 'EvidenceTab.jsx')),
+      'with both doors cut EvidenceTab must fall out too — it has exactly these two '
+      + 'importers, which `EvidenceTab.doors.test.js` derives and pins').toBe(false)
   }, 60000)
 
   it('THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page', () => {
@@ -512,6 +598,54 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // 145s against a usual 91s) while passing 11/11 on its own.
     // ⛔ A gate that fails at random gets ignored, which is worse than no gate —
     // the flake is a defect in the RAIL, not a reason to distrust the sweep.
+  }, 60000)
+
+  it('THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught', () => {
+    // ⛔ BOTH ALLOW-LIST ASSERTIONS ABOVE ARE GREEN FOR A REASON THAT LOOKS
+    // EXACTLY LIKE PASSING VACUOUSLY. Every key in AWAITING_A_DECISION is, today,
+    // present on disk AND unreachable — so `[].toEqual([])` is what they measure,
+    // and a broken predicate (a bad path join, a `reachable` set that came back
+    // empty) would read green forever. Neither has ever been SEEN to fail.
+    //
+    // ⭐ AND THE SECOND ONE IS ABOUT TO MATTER. Five entries above are exemptions
+    // for modules W1a.6 and W3.7 will MOUNT. On the day they do, those entries
+    // stop being true and start silently excusing a module nobody is watching —
+    // the rail must go RED and demand their deletion. This is the proof it will.
+    //
+    // The two predicates are exercised on a SYNTHETIC allow-list, the same way
+    // the sweep control above exercises `classify` on synthetic tracked-sets.
+    const reachableNow = reachableFrom(ROOTS)
+    const present = (k) => fs.existsSync(path.join(ROOT, k))
+    const wired = (k) => reachableNow.has(path.join(ROOT, k))
+
+    // (a) A module the app really imports — 222 import statements, asserted
+    //     reachable above. An entry for it is a stale exemption.
+    const WIRED = 'app/src/components/ui/UIcon.jsx'
+    expect(present(WIRED) && wired(WIRED),
+      'the wired anchor moved — this control cannot show the reachability guard '
+      + 'firing, so it proves nothing').toBe(true)
+
+    // (b) A path that has never existed. An entry for it outlived its file.
+    const GONE = 'app/src/components/screener/__never_existed__.js'
+    expect(present(GONE), 'the vanished anchor must NOT exist — it is fabricated')
+      .toBe(false)
+
+    // (c) ⛔ THE NON-VACUITY HALF, AND IT IS DERIVED, NEVER TYPED: a real recorded
+    //     module — present AND unreachable — that BOTH predicates must stay
+    //     silent about. Without it these checks could just be answering "yes".
+    const PARKED = Object.keys(AWAITING_A_DECISION).find((k) => present(k) && !wired(k))
+    expect(PARKED, 'no recorded module is both present and unreachable, so this '
+      + 'control has no negative case and cannot tell a real guard from one that '
+      + 'reports everything').toBeTruthy()
+
+    const SYNTHETIC = { [WIRED]: 'stale — wired', [GONE]: 'stale — deleted', [PARKED]: 'genuinely parked' }
+    expect(Object.keys(SYNTHETIC).filter(wired),
+      'the reachability guard did not report an allow-listed module the app '
+      + 'imports 222 times — an entry could outlive its REASON unnoticed')
+      .toEqual([WIRED])
+    expect(Object.keys(SYNTHETIC).filter((k) => !present(k)),
+      'the existence guard did not report an allow-listed path that is not there — '
+      + 'an entry could outlive its FILE unnoticed').toEqual([GONE])
   }, 60000)
 
   it('a specifier that is prose, not an import, is not an edge', () => {

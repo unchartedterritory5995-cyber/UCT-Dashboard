@@ -48,14 +48,48 @@ from __future__ import annotations
 import json
 import pathlib
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+# ⚠️ `Mapping` COMES FROM `typing`, NOT `collections.abc`, AND THAT IS ON
+# PURPOSE. `test_no_evaluator_is_reachable_from_the_linter` pins this
+# module's import closure to an EXACT stdlib allow-list, because a linter
+# that can reach an evaluator could reach its verdict by RUNNING the
+# formula instead of by reading the tree. Importing `collections.abc`
+# widens that closure by one module for zero benefit -- `typing` is
+# already in the list and already exports what this needs.
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 # --------------------------------------------------------------------------- #
 # the vocabulary
 # --------------------------------------------------------------------------- #
 
+# ⭐⭐ IF YOU CHANGE WHAT THIS MODULE RETURNS, THERE IS A STORE THAT ALREADY
+# WROTE THE OLD ANSWER DOWN. `user_definitions.save()` PERSISTS this linter's
+# verdict per plot and `alert_user_series._gate_repaint` admits or refuses an
+# alert from the STORED copy -- deliberately, so a linter improvement cannot
+# silently re-badge a definition somebody already armed. Nothing recomputes.
+#
+# So a grammar fix here does NOT reach the definitions already in the store, and
+# the direction that bites is invisible: a formula this linter now agrees is
+# sound stays PERMANENTLY UN-ARMABLE for its owner, with nothing to tell them
+# why. That is not hypothetical -- it is what a retired ``^arg(N)$`` lookback
+# grammar did to every stored definition using a compound window.
+#
+# ⛔ AFTER ANY CHANGE TO THIS MODULE OR TO ``closedTable.json``, RUN:
+#
+#     python -m api.services.user_definition_relint [--dry-run]
+#
+# It re-lints every live definition, heals only the safe direction, and reports
+# the dangerous one (a stored badge LOOSER than this linter now measures -- an
+# alert may be armed under a claim that is no longer true) with the affected
+# alert ids, for a human decision. It is a command, never a hook: this module
+# imports nothing and must keep importing nothing.
+
 #: Spec section 3's three badge values. ONE declaration per lane, and the two
 #: lanes are asserted equal by ``tests/test_ast_lint.py``.
+#:
+#: ⚠️ ADDING A FOURTH VALUE IS NOT A LOCAL CHANGE. Both severity scales derive
+#: from this tuple's members -- ``user_definition_relint.ranks()`` (Python) and
+#: ``repaintVerdict.severityScale()`` (JS) -- and each has a rail that FAILS
+#: until somebody decides which direction the new mode is. That is deliberate.
 REPAINT_MODES: Tuple[str, ...] = ("non-repainting", "preview-repaints", "repaints")
 
 #: The two answers to *"could the linter decide this at all?"* -- record
@@ -95,6 +129,29 @@ def load_table(path: Optional[pathlib.Path] = None) -> Dict[str, Any]:
 
 TABLE: Dict[str, Any] = load_table()
 
+#: The one ``lookback`` that names a window instead of measuring one -- the bars
+#: back to the first bar of this bar's own New York calendar day.
+SESSION_LOOKBACK = "session"
+
+#: How far back that reaches, in bars -- READ OFF THE MANIFEST, never owned here.
+#:
+#: ⛔⛔ THIS MODULE COULD NOT HOLD IT EVEN IF IT WANTED TO.
+#: ``test_no_evaluator_is_reachable_from_the_linter`` pins this file's imports to
+#: ``{__future__, json, pathlib, re, typing}``, so ``ast_interpret``'s copy is
+#: unreachable from here -- and the JS lane is pinned the same way
+#: (``lint.js`` may import ``./parse.js`` and nothing else). The ONE artifact all
+#: four readers can see is the table, which is DATA for exactly that reason.
+#: ``closedTable.json::_session`` carries the argument for the number; this is a
+#: reader, not an authority.
+SESSION_MAX_BARS = TABLE["sessionMaxBars"]
+if not isinstance(SESSION_MAX_BARS, int) or isinstance(SESSION_MAX_BARS, bool) \
+        or SESSION_MAX_BARS < 1:
+    # ⛔ REFUSE AT IMPORT RATHER THAN FALL BACK. A default here would BE the
+    # per-lane copy this constant exists to prevent.
+    raise ValueError(
+        f"closedTable.json declares sessionMaxBars={SESSION_MAX_BARS!r}; the session "
+        "window must be a whole number of bars, and no lane may supply one of its own")
+
 # --------------------------------------------------------------------------- #
 # the window, DERIVED FROM THE MANIFEST
 # --------------------------------------------------------------------------- #
@@ -120,7 +177,47 @@ TABLE: Dict[str, Any] = load_table()
 # window is wider than its declaration would be branded on the declaration and
 # the linter would be wrong -- and no static analysis of the TREE can see that,
 # because the tree does not contain the compute.
-_ARG_REF = re.compile(r"^arg(\d+)$")
+#
+# ⚰️⚰️ THIS WAS `^arg(\d+)$` AND IT BRANDED ADX AS REPAINTING -- IN THIS LANE,
+# AFTER THE SAME DEFECT WAS FIXED IN THE OTHER ONE.
+#
+# `lint.js` records the JS half: *"IT WAS THE FOURTH HAND-WRITTEN COPY OF ONE
+# GRAMMAR. Three were found and removed when `2*argN` landed ... and this one
+# survived because no test had ever declared a function with a multiplied window
+# AND asked the linter about it."* There was a FIFTH, here, and it survived the
+# same sweep for the same reason: the Python agreement rail
+# (`test_the_two_lookback_readings_AGREE_through_an_offset`) exercised offsets and
+# `sma`, never a multiplied window. Measured 2026-08-26 before the fix:
+#
+#     ast_lint.lint_repaint(adx(high, low, close, 14))
+#       -> {'mode': 'repaints', 'back': 'unknown',
+#           'reasons': ['unanalysable: `adx` declares a window this linter cannot bound']}
+#     ast_interpret.max_lookback(same tree)  -> 28
+#
+# ⛔⛔ AND THE DOOR THIS REFUSED AT IS NOT THE ONE THIS COMMENT FIRST NAMED.
+# It credited `canSaveFormula` -- which is `FormulaField.jsx:271`, the BROWSER's
+# gate reading the BROWSER's linter, and `lint.js` had already been fixed. That
+# door would have answered `non-repainting` and PERMITTED the save. Naming it was
+# the 'refused by a different door' mistake `budget.js` records three prior
+# instances of on this branch -- committed, the fourth time, inside the fix for it.
+#
+# The doors that actually read THIS verdict, measured 2026-08-26:
+#   * `definition_concierge.py:2075` -- `raise _Refused("lint:repaint", ...)` when the
+#     mode is not `non-repainting`. An AI-composed ADX definition was refused outright.
+#   * `user_definitions.lint_verdict` -- STORES `{plotKey: mode}` from `lint_definition`.
+#     This is the worse path: the BROWSER lints the same formula `non-repainting` and
+#     saves it happily, and THIS lane writes `repaints` into the row.
+#   * `alert_user_series._gate_repaint` -- reads that STORED mode, and is deliberately
+#     NOT a recompute, so the alert could never arm AND fixing the linter does not heal
+#     a row already written. Saved-and-unable-to-fire is the B5 shape
+#     `test_ast_budget` names: *"an alert naming a JS-only indicator could be STORED
+#     and could never FIRE"*.
+#   * `starter_library.py:365` -- publishes the badge, so a starter would advertise it.
+#
+# ⛔ IT MIRRORS `parse.js::LOOKBACK_RE` AND `ast_interpret._LOOKBACK_RE`, and the
+# three are held equal by `tests/test_ast_lookback_parity.py` -- which now reads
+# all three rather than two, because "two agree" is what let this one drift.
+_ARG_REF = re.compile(r"^(?:(\d+)\s*\*\s*)?arg(\d+)$")
 
 
 def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
@@ -133,9 +230,21 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
     its window is a computed value; bounding it would need a constant folder,
     which is the dataflow analysis the manifest's ``_no_offset`` note exists to
     avoid. Fail closed.
+
+    ⭐⭐ ``"session"`` RESOLVES TO A NUMBER RATHER THAN TO ``UNKNOWN``, and the
+    number comes off the MANIFEST. A lane that read it as ``UNKNOWN`` would brand
+    every session-anchored indicator ``repaints``, which is not hypothetical --
+    the narrow ``argN`` regex above did exactly that to ADX.
+
+    ⚠️ IT IS READ IN BOTH SLOTS, DELIBERATELY. A ``forward: "session"`` would be a
+    window reaching to the session's LAST bar -- a coherent declaration that would
+    decide ``preview-repaints``. Nothing declares it today; special-casing the
+    lookback slot would be a second grammar for one word.
     """
     if decl == UNBOUNDED:
         return UNBOUNDED
+    if decl == SESSION_LOOKBACK:
+        return SESSION_MAX_BARS
     if isinstance(decl, bool):
         return UNKNOWN
     if isinstance(decl, int):
@@ -144,7 +253,10 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         m = _ARG_REF.match(decl)
         if not m:
             return UNKNOWN
-        idx = int(m.group(1))
+        # ⭐ GROUP 2 IS THE ARGUMENT, GROUP 1 THE OPTIONAL MULTIPLIER (`2*arg3`).
+        # The multiplier is applied HERE so the linter bounds the SAME window the
+        # interpreter and the budget walker do -- three readers, one grammar.
+        idx = int(m.group(2))
         if idx >= len(arg_nodes):
             return UNKNOWN
         node = arg_nodes[idx]
@@ -153,7 +265,8 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
         value = node.get("value")
         if isinstance(value, bool) or not isinstance(value, int):
             return UNKNOWN
-        return value
+        times = int(m.group(1)) if m.group(1) else 1
+        return times * value
     return UNKNOWN
 
 
@@ -204,7 +317,26 @@ def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
     Both come out of ONE object so they cannot drift apart: ``max_lookback`` and
     the repaint verdict are two readings of the same declaration.
     """
-    if not isinstance(spec, dict):
+    # ⛔ `Mapping`, NOT `dict` — AND THAT IS THE WHOLE BUG THIS LINE ONCE HAD.
+    # `spec` is a MANIFEST entry, and `ast_table.TABLE` is a DEEP-FROZEN
+    # `mappingproxy`, which is not a `dict`. So `isinstance(spec, dict)` was
+    # False for every real entry the moment anyone passed the frozen manifest as
+    # `opts["table"]` -- the obvious thing to pass, since it is THE manifest
+    # object -- and every tree came back `repaints`.
+    #
+    # ⚠️ THE DIRECTION IS WHAT MADE IT INVISIBLE. It fails CONSERVATIVELY:
+    # refusals everywhere, no wrong values, no crash. It reads as a careful
+    # linter rather than a blind one. Measured 2026-08-27 on `sma(close, 20)`:
+    #   opts absent (ast_lint's own plain-dict TABLE) -> non-repainting, back 20
+    #   opts["table"] = ast_table.TABLE (frozen)      -> repaints, "unanalysable"
+    #   opts["table"] = a plain-dict copy            -> non-repainting, back 20
+    # so the shipped default was right and the trap was one caller away.
+    #
+    # ⚠️ The other `isinstance(..., dict)` checks in this module are NOT this
+    # bug and must not be "fixed" alongside it: they receive AST nodes and
+    # definition documents, which arrive from `json.loads` and are always plain
+    # dicts. Only the manifest is frozen.
+    if not isinstance(spec, Mapping):
         return UNKNOWN, UNKNOWN
 
     lookback = _resolve_declaration(spec.get("lookback"), arg_nodes)
@@ -283,6 +415,9 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
     #: the freshness question it does NOT answer is asked by ``ast_freshness``
     #: over this same section.
     scalar_names = table.get("scalars") or {}
+    #: ⭐ THE CLOCK (tableVersion 2), read from the SAME manifest. A clock leaf is
+    #: a property of the bar it draws on, so it reaches neither way.
+    clock_names = table.get("clock") or {}
     #: ⭐ ``opts["inputs"]`` -- the definition's declared inputs, BY NAME. The same
     #: shape ``sentence.js::explainSentence`` already takes and the same shape
     #: ``interpret`` takes; only the KEYS are read here (see ``declared_inputs``).
@@ -323,6 +458,27 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # let the ANSWER depend on which map was consulted second.
             if isinstance(name, str) and name in series_names:
                 reach_of[id(node)] = (0, 0)
+            elif isinstance(name, str) and name in clock_names:
+                # ⭐ A CLOCK LEAF'S WINDOW IS READ OFF ITS OWN DECLARATION,
+                # THROUGH THE SAME ``_own_window`` A CALL'S IS. Not a widening of
+                # the scalar test and not a zero: a scalar reaches nothing because
+                # it is ONE number for the whole column, whereas most clock values
+                # reach nothing because they are THIS bar's own -- and
+                # ``sessionfirst`` reaches ONE bar, because it compares this bar's
+                # ET day against the previous bar's, exactly as ``change(close)``.
+                #
+                # ⛔ IT WAS HARDCODED ``(0, 0)`` AND THAT WAS A DECLARED PROPERTY
+                # THAT WAS FALSE. True for twelve of thirteen, false for the
+                # thirteenth, and it would go on being false for the next entry
+                # that declares a window. Reading ``lookback`` makes the manifest
+                # the one authority: a fourteenth entry is bounded on the day it
+                # lands, with no edit here.
+                #
+                # ⛔ AND UNLIKE A SCALAR, THERE IS NO SECOND VERDICT TO ASK FOR.
+                # ``ast_freshness`` exists because a scalar's zero hides a
+                # day-old value; a clock leaf is read off the bar being drawn, so
+                # it answers ``live`` and this window is the whole truth.
+                reach_of[id(node)] = _own_window(clock_names[name], [])
             elif isinstance(name, str) and name in scalar_names:
                 # ⭐ A TABLE-DECLARED SCALAR, AND IT IS THE SAME (0, 0) AS A
                 # DECLARED INPUT FOR THE SAME REASON: one number for the whole
@@ -514,8 +670,17 @@ def lint_definition(defn: Dict[str, Any], opts: Optional[Dict[str, Any]] = None)
         address = "%s.%s" % (defn.get("id"), plot_key)
 
         if lane == "ast":
-            verdict = lint_repaint(compute.get("ast"),
-                                   dict(opts, inputs=declared_inputs(defn)))
+            # W1b -- A PLOT LINTS **ITS** TREE; the scan alias (``compute.ast``) is
+            # what a plot with no tree of its own lints, which is every plot of a
+            # tree-less (pre-W1b) document and every ``hlines`` guide. Reading
+            # ``compute.ast`` for all of them would report one tree's verdict under
+            # four plot keys. ``.get(key, default)`` rather than ``or`` on purpose:
+            # a tree that is present and falsy is a document defect for
+            # ``defSchema``/``user_definitions`` to name, not something to paper
+            # over with the scan tree's answer -- and the JS lane's
+            # ``hasOwnProperty`` says exactly the same thing.
+            tree = (compute.get("trees") or {}).get(plot_key, compute.get("ast"))
+            verdict = lint_repaint(tree, dict(opts, inputs=declared_inputs(defn)))
             rows.append(dict(address=address, defId=defn.get("id"), plotKey=plot_key,
                              lane=lane, decidability="decided", **verdict))
             continue

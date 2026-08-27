@@ -547,6 +547,85 @@ def test_a_symbol_the_screen_could_not_ANSWER_is_not_a_hit(wired, parsed):
                                    + result["not_computable"])
 
 
+def test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED(wired, parsed, capsys):
+    """⭐ THE FIFTH SURFACE (W4a). A member runs the SAME definition on symbols
+    they named: the on-demand `def_hash` is the nightly one, the hits agree on
+    the same universe, the coverage closes — and the shared store is
+    byte-for-byte what the nightly sweep left, because the run writes nothing.
+
+    ⛔ CONTROLLER-CORRECTED. The brief this test answers called
+    `scan_run.run_now(...)`, which does not exist — run-now is a JOB
+    (`submit_run` queues it, `_POOL`'s single thread runs it via `_run_job`,
+    `job_status` reads it back), not a synchronous call. Adding a `run_now`
+    shim to make the old text true would put a SECOND authority beside the
+    standing rail that only `_run_job` may reach `evaluate_one`. This drives
+    the real API and reuses `tests/test_scan_run.py`'s own `_wait` to drain the
+    pool deterministically rather than inventing a second polling loop.
+    """
+    from api.services.screener import scan_run
+    from tests.test_scan_run import _wait
+
+    scan = add_comparison(parsed, a_shipped_ast_definition(parsed))
+    h = scan["compute"]["fn"]
+    nightly = scan_evaluator.evaluate_one(scan, TF, universe=UNIVERSE, as_of=SESSION)
+    before = (scan_store.coverage(h, TF, SESSION), sorted(scan_store.hits(h, TF, SESSION)))
+    assert before[0] is not None, "the nightly leg wrote no receipt to compare against"
+
+    job_id = scan_run.submit_run(USER_ID, scan["id"], symbols=list(UNIVERSE), tf=TF, as_of=SESSION)
+    st = _wait(job_id, USER_ID)
+    # ⛔ STATE FIRST, so a refusal fails BY NAME (`st["gate"]`/`st["detail"]`)
+    # instead of as a bare KeyError on `def_hash` three lines down.
+    assert st["state"] == "done", st
+
+    assert st["def_hash"] == h == nightly["def_hash"]
+    # ⭐ `mode`, NOT `tier` (measured correction: `job_status` DOES carry a
+    # `tier` key — `_public`'s hardcoded job-shape constant, stamped the same
+    # on every job regardless of outcome, even a refusal. `mode` is
+    # `env["mode"]`, read back off the artifact `_run_job` actually handed the
+    # evaluator, so it is the one that can tell a real on-demand run from a
+    # mislabeled one).
+    assert st["mode"] == "on-demand"
+
+    # ⛔ TWO CLAIMS, KEPT SEPARATE. `persisted` is the KNOWING SIDE (the
+    # evaluator) stamping its own answer about itself; the before/after store
+    # comparison below is the INDEPENDENT CHECK that the stamp is not lying. A
+    # stamp alone is a promise; a comparison alone leaves the reader deriving
+    # intent — together they prove "writes nothing" instead of asserting it
+    # once from either side.
+    assert st["persisted"] is False
+
+    assert sorted(r["symbol"] for r in st["hits"]) == sorted(nightly["hits"])
+
+    # ⛔ THE KEY SET IS RE-DERIVED FROM THE MODULE, NOT TYPED — `_COVERAGE_KEYS`,
+    # not four names spelled by hand, so a key added later stays covered.
+    cov = st["coverage"]
+    assert set(cov) == set(scan_run._COVERAGE_KEYS)
+    # ⚠️ X23: on THIS fixture `not_computable` is 0 by construction (bars-only
+    # comparison, no NaN-producing input, >=50 bars of lookback for sma(50) on
+    # every symbol) — the identity below closes, but it cannot be driven
+    # non-vacuous here. Re-derived from the evaluator's own guard rather than
+    # restated, so it is at least the SAME arithmetic the sweep enforces on
+    # itself, not a second copy of it — see the report for what it does and
+    # does not prove.
+    scan_evaluator._assert_coverage_closes(
+        evaluated=cov["evaluated"], answered=cov["answered"], dropped=cov["dropped"],
+        not_computable=cov["not_computable"], withheld=cov.get("withheld") or 0,
+        universe=len(UNIVERSE))
+    assert cov["evaluated"] == len(UNIVERSE)
+    assert cov["answered"] == nightly["answered"]
+
+    after = (scan_store.coverage(h, TF, SESSION), sorted(scan_store.hits(h, TF, SESSION)))
+    assert after == before, "the on-demand run moved the shared nightly receipt"
+    assert _definition_rows_for(h) == 1
+
+    with capsys.disabled():
+        print("\n  -- A2.5 + W4a: one definition, five surfaces ----------------")
+        print(f"  store           : {h}")
+        print(f"  nightly sweep   : {nightly['def_hash']}")
+        print(f"  run-now         : {st['def_hash']}   hits={sorted(r['symbol'] for r in st['hits'])}")
+        print(f"  receipt moved?  : {after != before}")
+
+
 # ═══ the refusals the path must keep ════════════════════════════════════════
 
 def test_the_comparison_uses_a_function_THE_TABLE_DECLARES(wired, parsed):

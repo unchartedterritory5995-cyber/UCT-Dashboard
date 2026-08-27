@@ -2165,10 +2165,391 @@
           }
         ]
       }
+    },
+    {
+      "id": "clock_time",
+      "source": "time",
+      "why": "the bar's own `t`, and the case that pins the UNIT: this platform's `t` is unix SECONDS everywhere and Pine's `time` is milliseconds, so a lane that adopted Pine's unit would be out by 1000x on every bar and every comparison a member writes against it",
+      "ast": {
+        "type": "series",
+        "name": "time"
+      }
+    },
+    {
+      "id": "clock_year",
+      "source": "year",
+      "why": "the ET calendar year. Flat across this corpus (all 2025), which is exactly why it is here: it is the cheapest column on which a lane resolving the zone WRONG still agrees, so it pins the plumbing while `hour` below pins the zone",
+      "ast": {
+        "type": "series",
+        "name": "year"
+      }
+    },
+    {
+      "id": "clock_month",
+      "source": "month",
+      "why": "the ET calendar month, 1-12. The corpus spans 2025-10-31 into 2025-11-04, so the value CHANGES inside the series -- a lane that computed the month once and filled the column would pass on any single-day fixture and fails here",
+      "ast": {
+        "type": "series",
+        "name": "month"
+      }
+    },
+    {
+      "id": "clock_dayofmonth",
+      "source": "dayofmonth",
+      "why": "the ET day of month. It rolls 31 -> 3 across the weekend gap, so a lane deriving the day by counting bars rather than reading the instant is red",
+      "ast": {
+        "type": "series",
+        "name": "dayofmonth"
+      }
+    },
+    {
+      "id": "clock_dayofweek",
+      "source": "dayofweek",
+      "why": "⛔ THE CONVENTION CASE. `dayofweek` is PINE'S -- 1 on Sunday through 7 on Saturday -- not `Date.getDay()`'s 0-6 and not Python's 0=Monday. This corpus is Fri/Mon/Tue, so the three lanes' three natural answers are all DIFFERENT numbers here and any two of them disagreeing is a red digest rather than an off-by-one nobody notices",
+      "ast": {
+        "type": "series",
+        "name": "dayofweek"
+      }
+    },
+    {
+      "id": "clock_hour",
+      "source": "hour",
+      "why": "⛔⛔ THE DST CASE, AND THE REASON THE CLOCK IS NOT ARITHMETIC. These 579 bars cross the end of US DST (Fri 2025-10-31 EDT -> Mon 2025-11-03 EST). An implementation holding ONE UTC offset captured at import is correct on the Friday and an hour wrong on the Monday -- the `VWAP_SESSION_ANCHOR` defect exactly, in a new column. Both lanes must resolve the zone PER INSTANT from the IANA database",
+      "ast": {
+        "type": "series",
+        "name": "hour"
+      }
+    },
+    {
+      "id": "clock_minute",
+      "source": "minute",
+      "why": "the ET minute, 0-59. On 5-minute bars it cycles 0,5,...,55 and NEVER repeats a value inside an hour, so a lane that memoised the minute alongside the hour (the memo is on the UTC hour) returns a constant and is red on the second bar",
+      "ast": {
+        "type": "series",
+        "name": "minute"
+      }
+    },
+    {
+      "id": "clock_sessionfirst",
+      "source": "sessionfirst",
+      "why": "1 on the first bar of an ET calendar day. ⛔ THE UTC-MIDNIGHT TRAP: 20:00 ET on the EDT session IS 00:00 UTC the next day, so a lane bucketing by the UTC day opens a session on the LAST bar of a session that has not ended -- the measured $14.45 open-gap defect `VWAP_SESSION_ANCHOR` retired. Three ET days here means exactly three 1s",
+      "ast": {
+        "type": "series",
+        "name": "sessionfirst"
+      }
+    },
+    {
+      "id": "clock_barindex",
+      "source": "barindex",
+      "why": "the bar's position in the series, 0 on the oldest. The one clock column that reads no timestamp at all, so it is also the control: it must still be right on a series whose `t` the unit gate refuses, and a lane that folded it into the gate would answer all-null",
+      "ast": {
+        "type": "series",
+        "name": "barindex"
+      }
+    },
+    {
+      "id": "clock_isintraday",
+      "source": "isintraday",
+      "why": "1 when the timeframe is intraday, carried with `opts: {tf: '5'}` -- the FIRST corpus case to use `interpret`'s tableVersion-2 sixth argument at all. Without the opts thread both lanes answer all-null and agree perfectly about nothing, which is why `case_opts` is a single reader for both",
+      "ast": {
+        "type": "series",
+        "name": "isintraday"
+      },
+      "opts": {
+        "tf": "5"
+      }
+    },
+    {
+      "id": "clock_isdaily",
+      "source": "isdaily",
+      "why": "1 when the timeframe is daily, measured with `opts: {tf: 'D'}` on a five-minute series. ⭐ THE TIMEFRAME IS THE CALLER'S CLAIM, NOT AN INFERENCE FROM THE BARS: these bars are 5 minutes apart and this case must still answer 1, because a lane that 'helpfully' derived the timeframe from the bar spacing would silently overrule the definition's own chart",
+      "ast": {
+        "type": "series",
+        "name": "isdaily"
+      },
+      "opts": {
+        "tf": "D"
+      }
+    },
+    {
+      "id": "clock_isweekly",
+      "source": "isweekly",
+      "why": "1 when the timeframe is weekly. Paired with `isdaily` above so the two 0/1 answers cross: with `tf: 'W'` this is 1 and `isdaily` is 0, and a lane that mapped every non-intraday code to one flag passes one case and fails the other",
+      "ast": {
+        "type": "series",
+        "name": "isweekly"
+      },
+      "opts": {
+        "tf": "W"
+      }
+    },
+    {
+      "id": "clock_ismonthly",
+      "source": "ismonthly",
+      "why": "1 when the timeframe is monthly, and the LAST of the eight codes this platform ships. The four booleans are a partition over a known code: exactly one is 1 for any code in the vocabulary, and NONE is 1 for a code outside it -- `tests/fixtures/ast/clock_parity.json`'s `tf_booleans` block carries that half",
+      "ast": {
+        "type": "series",
+        "name": "ismonthly"
+      },
+      "opts": {
+        "tf": "M"
+      }
+    },
+    {
+      "id": "vwap_session",
+      "source": "vwap()",
+      "why": "⛔⛔ THE ONE ACCUMULATOR, MEASURED ACROSS THE LANES. `vwap()` binds `indicators.js::computeVWAP` and `indicator_compute.compute_vwap_raw` -- the session VWAP the chart draws and the one the alert engine fires on -- so this digest is what stops a formula's VWAP and the product's VWAP from ever becoming two numbers. ⭐ IT IS ALSO THE UTC-MIDNIGHT REGRESSION FIXTURE: these 579 bars carry the Friday 20:00 ET print that IS 00:00 UTC the next day, and the retired UTC-day bucketing wiped the accumulator there -- a measured $14.45 at the following open. A revert to it moves this digest in BOTH lanes. ⭐ AND IT IS THE FIRST ZERO-ARGUMENT CASE IN THIS CORPUS, which is the whole reason the entry is declarable at all: with no argument columns to pack there is no fabricated bar-index `t`, so the binding reads the real instant",
+      "ast": {
+        "type": "call",
+        "name": "vwap",
+        "args": []
+      }
+    },
+    {
+      "id": "avwap_from_a_mid_series_instant",
+      "source": "avwap(1762189200)",
+      "why": "the same accumulator restarted at an INSTANT -- 2025-11-03 12:00 ET, the middle of this corpus's second ET session -- which is the only anchor a closed-table formula can spell, because the table has exactly two argument kinds and no string literal. ⛔ THE COLUMN IS BLANK BEFORE THE ANCHOR AND EXACT AFTER IT, never a partial accumulation of the bars that came first, so a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ The anchor is INSIDE the series on purpose: an anchor before the first bar is NOT COMPUTABLE by declaration, because 'the first bar at or after it' would be whichever bar the caller happened to fetch",
+      "ast": {
+        "type": "call",
+        "name": "avwap",
+        "args": [
+          {
+            "type": "num",
+            "value": 1762189200
+          }
+        ]
+      }
+    },
+    {
+      "id": "avwap_anchor_before_the_series_is_not_computable",
+      "source": "avwap(1761897599)",
+      "why": "⛔ THE REQUEST-DEPENDENCE REFUSAL, MEASURED ACROSS THE LANES. The anchor is ONE SECOND before the corpus's first bar, so 'the first bar at or after it' would be whichever bar the caller happened to fetch first -- and the value at every bar would then move when the window moved, which is `lesson_a_derived_value_must_not_depend_on_the_request` and the exact defect `_functions_recurrence` says `accum`'s re-seeded window exists to prevent. Both lanes must answer NOT COMPUTABLE rather than a plausible column, and a lane that dropped the refusal produces finite rows -- which this case's `allNaN` flag turns into a named failure rather than a moved digest nobody can attribute. ⭐ IT IS THE ONLY ONE OF `avwap`'S TWO DECLARED-WINDOW REFUSALS A 579-BAR CORPUS CAN REACH: the other -- a bar more than `sessionMaxBars` past the anchor -- needs a series longer than a session, so it is railed per-lane in `tests/test_ast_vwap_parity.py` and `interpret.test.js` instead, twice on purpose.",
+      "ast": {
+        "type": "call",
+        "name": "avwap",
+        "args": [
+          {
+            "type": "num",
+            "value": 1761897599
+          }
+        ]
+      },
+      "allNaN": true
+    },
+    {
+      "id": "barssince_the_last_up_bar",
+      "source": "barssince(close > open, 10)",
+      "why": "⭐ THE BOUNDED COUNTER, AND THE ROW THAT PINS ITS SENTINEL ACROSS THE LANES. Two numbers live in one column here and they are not the same kind of fact: a COUNT (`0`..`9`) says which bar was true, and the SENTINEL `10` says none of the last ten was. A lane that let the count run past its window would still produce a plausible column -- larger numbers, no NaN, nothing red -- so the digest is what holds the cap. ⛔ AND THE LEFT EDGE IS HALF OF IT: the first bars of the series are NOT COMPUTABLE unless a true bar is actually visible in them, because `10` there would be a claim about bars nobody fetched.",
+      "ast": {
+        "type": "call",
+        "name": "barssince",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "valuewhen_the_last_up_bars_close",
+      "source": "valuewhen(close > open, close, 10)",
+      "why": "⭐ THE CARRIED VALUE, AND THE ONLY ROW IN THIS CORPUS WHOSE HOLES ARE INTERIOR RATHER THAN A WARM-UP PREFIX. `valuewhen` blanks again whenever ten bars pass with no true one, so the column alternates between answered and not-computable down the middle of the series -- a lane that held the last value past its window would produce a fully finite column, which is exactly the confident-wrong-number shape the declaration exists to forbid. 🔴 ITS NaN IS LAUNDERED ON THE SCAN LANE (X23): under a comparison the holes read as a confident FALSE. Declared at `closedTable.json::_functions_bounded_state`.",
+      "ast": {
+        "type": "call",
+        "name": "valuewhen",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "highestbars_the_offset_back_to_the_high",
+      "source": "highestbars(high, 5)",
+      "why": "⛔⛔ THE ROW THAT SPENDS THE CORPUS'S TIES. Measured on these very bars: 56 of the 5-bar `high` windows hold their maximum TWICE, and on every one of them 'the most recent bar wins' and 'the oldest bar wins' name a DIFFERENT bar -- so this digest moves if the tie-break declared in `closedTable.json::_functions_arg_extreme` is flipped in either lane. ⭐ THAT IS WHY THE WINDOW IS 5 AND NOT 20: the ruling is only pinned here for the window this case uses, and a smaller one spends more of the series' ties per bar. The CONSTRUCTED tie in `tests/test_ast_bounded_state.py` covers what a real series cannot -- a TOTAL tie, and the declared number asserted per lane rather than the two lanes agreeing with each other.",
+      "ast": {
+        "type": "call",
+        "name": "highestbars",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "num",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "lowestbars_the_offset_back_to_the_low",
+      "source": "lowestbars(low, 5)",
+      "why": "⭐ THE MIRROR, AND IT IS NOT A DUPLICATE. `low` ties 36 times over these bars where `high` ties 56, and the two entries pass OPPOSITE comparisons into the same helper -- a lane that inverted one of them would answer a perfectly plausible column of offsets and only this row would move.",
+      "ast": {
+        "type": "call",
+        "name": "lowestbars",
+        "args": [
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "obvN_bounded_signed_volume",
+      "source": "obvN(20)",
+      "why": "⭐ THE THIRD `reads: \"bars\"` ENTRY, AND THE ONE THAT RETIRES AN EXCLUSION. `_functions_excluded.obv` refuses the unbounded LEVEL because it is a fact about where the fetch started; this is that level's CHANGE across a declared window, and the seed cancels. ⛔ IT IS BOUND TO THE SHIPPED ACCUMULATOR (`computeOBV` / `compute_obv_raw`, differenced 20 bars apart) rather than to a private second sum, so this digest is also the rail on those two staying one number. ⚠️ VOLUME IS THE ONLY BAR FIELD IN THIS CORPUS WITH NO TIE ANYWHERE, and it is also the field with the largest magnitudes, so this row is where a float-associativity difference between the lanes would show first.",
+      "ast": {
+        "type": "call",
+        "name": "obvN",
+        "args": [
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "pivothigh_strict_two_two",
+      "source": "pivothigh(high, 2, 2)",
+      "why": "⭐⭐ THE FIRST CORPUS ROW WHOSE ENTRY DECLARES A `forward`, and one of only three rows in this file whose entry can repaint at all -- `ichimokuChikou` and the `pivotlow` row added beside it are the others. ⚠️ NO ORDINAL IS WRITTEN HERE: the first draft of this sentence said \"only the second\" while the SAME COMMIT added a third, two lines further down. `_pivots` in this file states the pair, and `tests/test_ast_indicators.py` asserts the whole forward roster by name. It answers on 54 of these 579 bars — the bars that are the STRICT high of their own [i-2, i+2] window. ⛔ THE STRICTNESS IS VISIBLE HERE, WHICH IS WHY THE WINDOW IS 2: measured on these very bars, 20 of them equal their 5-bar `high` extreme WITHOUT being unique, so a `>=` reading would emit 20 extra rows and move this digest. A count, not an absence — the last brief in this lane claimed a corpus could not see a ruling and was wrong by 56. ⚠️ BOTH EDGES ARE BLANK, in opposite directions: the first 2 bars and the last 2 have a window running off the fetch. The TAIL is the interesting one — those bars are NOT YET DECIDABLE rather than decided-false, which is exactly what `preview-repaints` means and what `tests/test_ast_pivots.py` measures by widening the fetch.",
+      "ast": {
+        "type": "call",
+        "name": "pivothigh",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "pivotlow_strict_two_two",
+      "source": "pivotlow(low, 2, 2)",
+      "why": "⭐ THE MIRROR, AND NOT A DUPLICATE. It answers on 54 bars too, but over a different column and through the OPPOSITE comparison — a lane that inverted one predicate would produce a perfectly plausible column of prices and only this row would move. `low` also ties its 5-bar extreme 15 times against `high`'s 20, so the two rows spend different plateau evidence.",
+      "ast": {
+        "type": "call",
+        "name": "pivotlow",
+        "args": [
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "aroon_up_25",
+      "source": "aroonUp(25)",
+      "why": "⭐ CHANDE'S AROON, AND THE FIRST CORPUS ROW WHOSE FORMULA CAME FROM THE INVENTOR RATHER THAN THE VENDOR. Worden publishes the SPELLING (`AROONUP(x, z)`, x=Period, z=Offset) and NO formula, so the maths is cited to `Aroon-Up = ((25 - Days Since 25-day High)/25) x 100`. ⛔ THE WINDOW IS n+1 BARS AND THAT IS ARITHMETIC, NOT A READING: Aroon's published range is 0-100, and over n bars \"days since\" maxes at n-1 so the indicator could never print 0. ⭐ IT SPENDS TASK 5's ARG-EXTREME RULING: \"days since the high\" IS `highestbars`, whose most-recent-bar tie-break `_functions_arg_extreme` fixed — so a flipped tie-break moves this digest too, on every bar where the window's high is not unique.",
+      "ast": {
+        "type": "call",
+        "name": "aroonUp",
+        "args": [
+          {
+            "type": "num",
+            "value": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "aroon_down_25",
+      "source": "aroonDown(25)",
+      "why": "⭐ THE MIRROR, AND NOT A DUPLICATE. It reads `low` through the OPPOSITE comparison, so a lane that inverted one predicate would produce a perfectly plausible 0-100 column and only this row would move.",
+      "ast": {
+        "type": "call",
+        "name": "aroonDown",
+        "args": [
+          {
+            "type": "num",
+            "value": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "bop_twenty",
+      "source": "bop(20)",
+      "why": "⭐ BALANCE OF POWER — a COMPOSITION that is DECLARED, and this row is half of why that is safe. `bop(n)` is `sma((close - open) / (high - low), n)`, built over the SHIPPED rolling mean rather than a private average, and `tests/test_ast_tc2000_remainder.py` pins the two equal bar for bar at 1e-9 — so there is no second implementation to drift, which is the test `_functions_excluded.variance` applies. ⚠️ IT DIVIDES BY THE BAR'S RANGE, so a zero-range bar is the one place this column can go NOT COMPUTABLE, and it goes there through the SAME IEEE division and finite-collapse the operator path uses rather than a private guard.",
+      "ast": {
+        "type": "call",
+        "name": "bop",
+        "args": [
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
   "_recurrence": "⭐ FIVE CASES PIN THE RECURRENCE, AND EACH PINS A DIFFERENT HALF OF IT. The bounded counter pins that the window RE-SEEDS -- a single forward pass reads 1,2,3... where the shipped one reads 12 -- the running maximum pins the scalar/column equality by being `highest(close, 20)` under another name, the sticky flag pins the ternary spine, the windowed case pins the pure/impure PARTITION and the composed lookback, and the offset case pins the line between shifting a finished column (legal) and reading the binding through a bar offset (refused). ⛔ THE BINDING IS SPELLED `self` HERE BECAUSE A CORPUS CASE IS DATA A HUMAN READS; every WALKER reads that name from `functions.accum.recurrence.binds` instead, which is why renaming it would move these five digests and nothing else.",
   "_indicators": "⭐ THE INDICATOR ROWS (Phase F). One case per newly declared function, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a function with no case is a function whose two lanes may already disagree with every gate green. Two rows are not a function at all -- `macd_signal_by_composition` and `stoch_d_by_composition` are the COMPOSITIONS `_functions_excluded` offers in place of the two entries it refuses, so a refusal that quietly stopped being survivable moves a digest. ⛔ THE SEVENTEEN EXISTING DIGESTS DO NOT MOVE, and that is a measurement rather than a hope: not one row here edits an existing tree, and the re-record was diffed against the previous log key by key.",
-  "_allNaN": "A case that is NOT COMPUTABLE ON EVERY BAR, deliberately. The domain refusals (sqrt of a negative, log of zero, an overflow, a zero divisor) are the cases where the two languages natively disagree, so they are exactly the cases worth having -- and their correct column IS all-NaN. ⛔ The flag is per-case and opt-in so the rail keeps its teeth: an UNEXPECTED all-NaN column still fails, which is what it was written to catch."
+  "_allNaN": "A case that is NOT COMPUTABLE ON EVERY BAR, deliberately. The domain refusals (sqrt of a negative, log of zero, an overflow, a zero divisor) are the cases where the two languages natively disagree, so they are exactly the cases worth having -- and their correct column IS all-NaN. ⛔ The flag is per-case and opt-in so the rail keeps its teeth: an UNEXPECTED all-NaN column still fails, which is what it was written to catch.",
+  "_bar_readers": "⭐⭐ THE BAR-READING ROWS. ⛔ NO COUNT IS WRITTEN HERE, AND THAT IS A CORRECTION: this note opened \"THE TWO BAR-READING ROWS\" and `obvN(20)` made it three on 2026-08-26 — the identical claim was corrected in `closedTable.json::_functions_bar_readers` in the SAME commit and this copy was missed, which is the whole hazard of a count mirrored across artifacts. `ast_table.bar_readers` answers it; read that. Every other case in this file is measured over columns; these two are measured over the BARS, `t` included, because their entries declare `reads: \"bars\"` -- and that declaration is the whole reason `vwap` stopped being refused (`closedTable.json::_functions_bar_readers`). ⛔ THEY ARE THE ONLY CASES HERE WHOSE ANSWER DEPENDS ON A TIMEZONE DATABASE RATHER THAN ON ARITHMETIC, which is what makes the cross-lane digest worth having: `Intl.DateTimeFormat` against `zoneinfo`, over a corpus that crosses a DST fallback, a weekend and the Friday 20:00 ET bar that is 00:00 UTC the next day. ⚠️ NEITHER CARRIES `opts`: a session is decided by the CALENDAR, so unlike the four timeframe booleans these answer the same column whatever timeframe the caller claims.",
+  "_bounded_state": "⭐ FIVE ROWS, ONE PER BOUNDED-STATE ENTRY, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and an entry with no case is an entry whose two lanes may already disagree with every gate green. ⛔⛔ TWO OF THEM CARRY A RULING NO OTHER ROW HERE DOES: `highestbars`/`lowestbars` return an OFFSET, so when two bars of the window tie they have an answer where `highest`/`lowest` do not. Measured on these bars, 56 `high` windows and 36 `low` windows tie at 5, and every one of them separates the two conventions -- so these digests are a real rail on `closedTable.json::_functions_arg_extreme` rather than a formality. ⚠️ AND THEY ARE NOT THE WHOLE RAIL: a corpus can only pin the window a case happens to use, and it cannot contain a TOTAL tie at all. `tests/test_ast_bounded_state.py` carries the constructed one.",
+  "_pivots": "⭐⭐ THE FORWARD-DECLARING ROWS. `pivothigh`/`pivotlow` declare `forward: \"arg2\"`, so they are the second and third entries in this table that `modeFromReach` badges `preview-repaints` — and the first a member can reach in three arguments. ⛔ THAT SCARCITY WAS ITSELF A DEFECT: with only `ichimokuChikou` declaring one, a review concluded a repaint bug was \"latent because every table-legal tree is non-repainting today\" (false), and a mutation \"did not discriminate\" because no fixture could produce two differing verdicts. These two rows make the repaint machinery non-hypothetical. ⚠️ Their digests pin the STRICT rule as well as the maths: 20 bars of this series equal their 5-bar `high` extreme without being unique (15 in `low`), so a plateau-admitting implementation moves them.",
+  "_tc2000_remainder": "⭐ THE TC2000 REMAINDER (2026-08-27). Three entries that exist because a TC2000 spelling had to READ, not because the chart lane asked for a name — `AROONUP25`, `AROONDOWN25` and `BOP20` are the last oscillator spellings this reader could close. ⛔ TWO SPELLINGS BESIDE THEM STAY REFUSED FOREVER AND THAT IS THE POINT: `WSTOC` is a RANK this table cannot express and `OBV` is an SMA of a cumulative level it refuses by construction. A count is not the deliverable -- these three rows exist to prove the spellings COMPUTE, over the same 579 bars, and not merely that they parse.",
+  "_clock": "⭐ THE CLOCK ROWS (tableVersion 2). One case per declared clock name, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a clock entry with no case is a name whose two lanes may already disagree with every gate green. ⛔ THESE ARE THE ONLY CASES IN THIS FILE WHOSE ANSWER DOES NOT COME FROM A PRICE -- they come from a CALENDAR, which is a second implementation on each side (`Intl.DateTimeFormat` against `zoneinfo`) rather than one formula written twice. The four `opts`-bearing rows are also the first cases in this corpus to exercise `interpret`'s trailing `opts` argument at all; a clock boolean measured WITHOUT it is two lanes agreeing on an all-null column, which is a pass about nothing."
 }

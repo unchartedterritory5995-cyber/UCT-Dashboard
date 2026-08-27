@@ -13,10 +13,11 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
+import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import MobileWorkspace from './widgets/MobileWorkspace'
 import { findPlacement } from './findOpenSlot'
@@ -144,23 +145,6 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
   if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
   return opts
-}
-
-// App themes and chart themes are separate registries but share most ids; a few
-// differ. This maps the current APP theme → the chart theme that matches it, so a
-// NEW widget (crucially the chart, which otherwise ignores the app theme) adopts
-// the app theme's look by default. Returns a valid chart-theme id or null.
-const _APP_TO_CHART_THEME = {
-  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
-}
-function appThemeToChartTheme(appTheme) {
-  if (!appTheme) return null
-  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
-  if (appTheme === 'oled') return 'obsidian'
-  if (appTheme === 'light') return 'light'
-  const raw = String(appTheme).replace(/^uct:/, '')
-  const id = _APP_TO_CHART_THEME[raw] || raw
-  return CHART_THEME_BY_ID[id] ? id : null
 }
 
 // A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only
@@ -360,6 +344,12 @@ export function repackAroundMoved(widgets, movedId, rect, cols = GRID_COLS, rows
   const moved0 = widgets.find(w => w.id === movedId)
   if (!moved0) return widgets
   const moved = clampOne({ ...moved0, x: rect.x, y: rect.y, w: rect.w, h: rect.h }, cols, rows)
+  // AUTO-SHRINK the dropped widget so it fits BELOW whatever it was dropped under,
+  // instead of getting stuck: the board is height-locked, so a tall widget dragged
+  // low simply caps its height to the rows left beneath its top. A normal drop (it
+  // already fits) is untouched — this only bites when y sits near the bottom.
+  const movedMinH = (WIDGET_DEFAULTS[moved.type] || {}).minH || 3
+  moved.h = Math.max(movedMinH, Math.min(moved.h, rows - moved.y))
 
   // Cell-occupancy grid. Seed it with the moved widget; everything else fits around it.
   const occ = Array.from({ length: rows }, () => new Array(cols).fill(false))
@@ -571,27 +561,22 @@ function readWatchlistColumns() {
   } catch { return null }
 }
 
-function nextColor(currentColors) {
-  // Cycle A→B→C→D→A based on what's already in use.
-  const order = ['A', 'B', 'C', 'D']
-  for (const c of order) {
-    if (!currentColors.includes(c)) return c
-  }
-  return 'A'
-}
-
 // Color to assign a NEWLY added widget. Prefer the group of an existing chart
 // that already has a symbol (so the new widget lands on the ticker you're
 // looking at — not an empty group showing a blank Fundamentals panel or a chart
 // stuck on the SPY fallback). Fall back to the first populated group, then to
 // the next free color for a genuinely empty board.
 function pickWidgetColor(widgets, groupSyms) {
+  // Owner request: every NEW widget defaults to the YELLOW color group (A) no matter
+  // what — a consistent dot instead of the A→B→C→D cycle. A tickered chart still wins
+  // so a new widget lands on the ticker you're looking at (that chart is normally
+  // group A too); otherwise 'A', never the next free colour.
   const g = groupSyms || {}
   const chartW = widgets.find((w) => w.type === 'chart' && g[w.color])
   if (chartW) return chartW.color
   const anyW = widgets.find((w) => g[w.color])
   if (anyW) return anyW.color
-  return nextColor(widgets.map((w) => w.color))
+  return 'A'
 }
 
 // Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
@@ -614,12 +599,6 @@ export default function ChartsWorkspace() {
   // placement color across reloads; only NEW widgets pick up the current theme).
   const themeRef = useRef(prefs?.theme)
   themeRef.current = prefs?.theme
-  // LEGACY global "all widgets/charts" theme ({ id, scope }). Per-layout themes
-  // (layout.layoutTheme) superseded this — new applies write the layout, not this pref —
-  // but it's still honored as a fallback so a global theme set before the per-layout
-  // change keeps seeding new widgets on layouts that have no layoutTheme of their own.
-  const newWidgetThemeRef = useRef(parsePref(prefs?.charts_widget_theme, null))
-  useEffect(() => { newWidgetThemeRef.current = parsePref(prefs?.charts_widget_theme, null) }, [prefs?.charts_widget_theme])
 
   // "Merge widgets": lock the board in place (no move / resize / delete / color
   // edits), drop every widget border + header bar, and tighten the inter-widget gap
@@ -816,13 +795,16 @@ export default function ChartsWorkspace() {
     const chart = chartsTheme === 'sunrise'
       ? '#eaf1fa'
       : (cs.bgMode === 'gradient' ? (cs.bgGradient?.top || cs.background) : cs.background)
-    const tt = mergeThemeTrackerSettings(parsePref(prefs.theme_tracker_settings, null) ?? themeTrackerDefaultsForTheme(prefs.theme))
+    // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
+    // (--widget-canvas) follows the current app theme instead of a stale-themed pref —
+    // otherwise a widget whose body follows graphite gets a white header/border.
+    const tt = mergeThemeTrackerSettings(resolveGlobalPrefSettings(parsePref(prefs.theme_tracker_settings, null), prefs.theme, themeTrackerDefaultsForTheme))
     const themes = tt.bgMode === 'gradient' ? (tt.bgGradient?.top || tt.bg) : tt.bg
-    const fw = mergeFundamentalsSettings(parsePref(prefs.fundamentals_settings, null) ?? fundamentalsDefaultsForTheme(prefs.theme))
+    const fw = mergeFundamentalsSettings(resolveGlobalPrefSettings(parsePref(prefs.fundamentals_settings, null), prefs.theme, fundamentalsDefaultsForTheme))
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
-    const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
+    const bw = mergeBreadthWidgetSettings(resolveGlobalPrefSettings(parsePref(prefs.breadth_widget_settings, null), prefs.theme, breadthDefaultsForTheme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
-    const ais = mergeBasicWidgetSettings(parsePref(prefs.aisearch_settings, null) ?? basicDefaultsForTheme(prefs.theme))
+    const ais = mergeBasicWidgetSettings(resolveGlobalPrefSettings(parsePref(prefs.aisearch_settings, null), prefs.theme, basicDefaultsForTheme))
     const aisearch = ais.bgMode === 'gradient' ? (ais.bgGradient?.top || ais.bg) : ais.bg
     // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
     // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
@@ -1276,7 +1258,9 @@ export default function ChartsWorkspace() {
     for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
       if (!presentTypes.has(type)) continue
       const base = parsePref(prefs?.[key], null) || {}
-      setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
+      // Stamp the app theme this apply was made under so it's honored on same-theme
+      // widgets but a differently-themed new widget still follows its own app theme.
+      setPref(key, JSON.stringify(tagAppTheme(mapThemeToWidgetSettings(base, theme, type), themeRef.current)))
     }
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
@@ -1404,12 +1388,12 @@ export default function ChartsWorkspace() {
         newOpts.settings = chartDefaultsForTheme('light')
       }
       // Theme a new widget. Precedence: (1) THIS LAYOUT's own theme (from "Apply to All
-      // widgets/charts" on this board) — scoped to the layout so it never leaks to
-      // another; (2) the legacy global default (honored on layouts that predate per-
-      // layout themes); (3) the chart theme that MATCHES the current app theme, so every
-      // new widget adopts the app theme's look by default. themeNewWidgetOpts routes each
-      // type (chart -> full skin; per-widget -> themed settings; global-pref -> tokens).
-      let storedTheme = pickSeedTheme(prev.layoutTheme, type) || pickSeedTheme(newWidgetThemeRef.current, type)
+      // widgets/charts" on this board) — the per-layout override; else (2) the chart
+      // theme that MATCHES the CURRENT app theme, so a new widget always adopts whatever
+      // app theme is active (light → light, graphite → graphite) unless this layout was
+      // explicitly re-themed. themeNewWidgetOpts routes each type (chart -> full skin;
+      // per-widget -> themed settings; global-pref -> its own default fn, tokens).
+      let storedTheme = pickSeedTheme(prev.layoutTheme, type)
       if (!storedTheme) {
         const cid = appThemeToChartTheme(themeRef.current)
         if (cid) storedTheme = { id: cid, scope: 'widgets' }
@@ -1458,7 +1442,7 @@ export default function ChartsWorkspace() {
         newOpts.settings = chartDefaultsForTheme('light')
       }
       // Same precedence as handleAddWidget: layout theme -> legacy global -> app-theme match.
-      let storedTheme = pickSeedTheme(prev.layoutTheme, cur.type) || pickSeedTheme(newWidgetThemeRef.current, cur.type)
+      let storedTheme = pickSeedTheme(prev.layoutTheme, cur.type)
       if (!storedTheme) {
         const cid = appThemeToChartTheme(themeRef.current)
         if (cid) storedTheme = { id: cid, scope: 'widgets' }
@@ -1598,10 +1582,13 @@ export default function ChartsWorkspace() {
     // template that carries none) so a locked/prebuilt template never inherits the
     // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
     // follow the same rule.
+    // Defaults are the APP-THEME-MATCHED look (graphite → graphite), not the raw
+    // theme-blind blob — otherwise a template with no styling stamps #0e0f0d and the
+    // widget stops matching the app theme.
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || breadthDefaultsForTheme(themeRef.current)))
     // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
     // pref) rides the template too: owner-reported bug — added columns vanished after
     // switching layouts and back, because Save captured them nowhere and opening a
@@ -1715,9 +1702,9 @@ export default function ChartsWorkspace() {
     // reset column config from localStorage.
     setPref('chart_settings', uctDefaultChartSettings())
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
@@ -1995,6 +1982,28 @@ export default function ChartsWorkspace() {
     // auto-measurement.
     const GridComp = widthOverride > 0 ? Responsive : ResponsiveGridLayout
     const widthProps = widthOverride > 0 ? { width: widthOverride } : {}
+    // In MERGED mode the board is locked EXCEPT the seam drags. But a widget EDGE that
+    // touches no other widget (a free edge — empty space or the grid boundary) is safe
+    // to resize: it has no seam, so it can't clash with the seam feature (which only
+    // ever moves a SHARED edge). So resize is allowed PER-EDGE — the free edges get
+    // handles, the shared (seam) edge keeps the seam drag. `freeEdgesFor` marks which
+    // of a widget's four edges are free; a handle renders only if EVERY edge it moves
+    // is free. A fully-free widget (all four) is also draggable (isStandalone).
+    const seamData = merged ? computeSeams(widgets, GRID_COLS, FIXED_ROWS) : null
+    const freeEdgesFor = (w) => {
+      const free = { n: true, e: true, s: true, w: true }
+      if (!seamData) return free
+      for (const v of seamData.vertical) {
+        if (v.c === w.x + w.w && v.leftIds.includes(w.id)) free.e = false
+        if (v.c === w.x && v.rightIds.includes(w.id)) free.w = false
+      }
+      for (const hh of seamData.horizontal) {
+        if (hh.r === w.y + w.h && hh.topIds.includes(w.id)) free.s = false
+        if (hh.r === w.y && hh.bottomIds.includes(w.id)) free.n = false
+      }
+      return free
+    }
+    const isStandalone = (w) => merged && (() => { const f = freeEdgesFor(w); return f.n && f.e && f.s && f.w })()
     return (
     <GridComp
       className={`layout${resizingId ? ' charts-resizing' : ''}`}
@@ -2005,6 +2014,9 @@ export default function ChartsWorkspace() {
           return {
             i: w.id, x: w.x, y: w.y, w: w.w, h: w.h,
             minW: defaults.minW || 4, minH: defaults.minH || 3,
+            // Per-item override: a fully-free widget stays draggable in merged mode
+            // (via its own grip below); everything else inherits the grid default.
+            ...(isStandalone(w) ? { isDraggable: true } : {}),
           }
         }),
       }}
@@ -2012,7 +2024,11 @@ export default function ChartsWorkspace() {
       cols={COLS}
       rowHeight={rowHeightOverride ?? rowHeight}
       maxRows={FIXED_ROWS}
-      isBounded={true}
+      /* NOT bounded: a bounded drag caps a widget's top at (rows - its height), so a
+         tall widget can't be dragged down UNDER another one on the height-locked board
+         (it gets stuck). Unbounded lets the top go low; handleDragStop → repackAroundMoved
+         then clamps it on-grid and auto-shrinks it to the rows left beneath the drop. */
+      isBounded={false}
       onLayoutChange={h.onLayoutChange}
       onDragStart={h.onDragStart}
       onDragStop={h.onDragStop}
@@ -2069,17 +2085,33 @@ export default function ChartsWorkspace() {
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
               onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
-            {/* Custom resize handles (main board only) — drive layout state
-                directly so a neighbour shrinks live as you drag an edge into it.
-                8 handles: 4 edges + 4 corners (corners carry the gold "L" mark). */}
-            {!merged && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
+            {/* Merged mode: a FULLY-FREE widget (no shared edge) gets a small drag grip
+                so it can be moved even though the header chrome is hidden. Carries the
+                RGL draggableHandle class; per-item isDraggable (above) re-enables drag. */}
+            {isStandalone(w) && (
               <div
-                key={dir}
-                onPointerDown={(e) => h.onStartResize(e, w, dir)}
-                className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
-                style={{ ...style, cursor }}
-              />
-            ))}
+                className={`${styles.mergedGrip} charts-widget-drag-handle`}
+                title="Drag to move"
+                aria-label="Drag to move widget"
+              >⠿</div>
+            )}
+            {/* Custom resize handles. Unmerged: all 8. Merged: only the handles whose
+                edges are FREE (not a seam) — so a widget can still be resized from an
+                edge/corner that touches empty space or the grid boundary, while a shared
+                edge keeps the seam drag. */}
+            {h.onStartResize && (() => {
+              const free = merged ? freeEdgesFor(w) : null
+              return CUSTOM_RESIZE_HANDLES
+                .filter(({ dir }) => !free || dir.split('').every(ch => free[ch]))
+                .map(({ dir, style, cursor, corner }) => (
+                  <div
+                    key={dir}
+                    onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                    className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}${merged ? ' ' + styles.rzNoMark : ''}` : styles.rzHandle}
+                    style={{ ...style, cursor }}
+                  />
+                ))
+            })()}
             {/* Gold placeholder highlight while THIS widget is being resized. */}
             {resizingId === w.id && <div className={styles.rzPlaceholder} />}
           </div>

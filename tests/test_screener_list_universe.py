@@ -244,3 +244,61 @@ def test_an_unreadable_auth_db_costs_one_category_not_the_screener(monkeypatch):
     assert LU.available("alice") == []
     from api.services.screener import filters as F
     assert F._my_lists_entry("alice") is None
+
+
+# ─── X15: the two doors agree about what a complement is ─────────────────────
+
+
+def test_every_offered_selector_carries_the_SAME_complement_flag_resolve_gives_it(auth_db):
+    """⛔ THE TWO DOORS ARE COMPARED, NOT RE-STATED.
+
+    `available()` is what a member picks from; `resolve()` is what the run
+    actually gets. X15: a member could pick "Unflagged (everything else)" from
+    the run-now selector and `scan_run.submit_run` would ALWAYS refuse it,
+    because a complement is not a bounded set of names — and nothing in the
+    option list said so.
+
+    This asserts the offered flag equals the resolved receipt's, option by
+    option, so the two can never drift. It is deliberately NOT a check that
+    `unflagged` is the complement: that would restate the rule the code states,
+    and then both copies could be wrong together.
+    """
+    from api.services.screener import list_universe
+
+    options = list_universe.available("alice")
+    assert options, "no options — the comparison below would be vacuous"
+    seen_complement = False
+    for opt in options:
+        _syms, receipt = list_universe.resolve(opt["value"], "alice")
+        assert "complement" in opt, f"{opt['value']} carries no complement flag"
+        assert opt["complement"] == receipt["complement"], (
+            f"{opt['value']}: offered complement={opt['complement']} but "
+            f"resolve says {receipt['complement']} — the selector a member "
+            "picks and the universe they get disagree")
+        seen_complement = seen_complement or opt["complement"]
+    assert seen_complement, (
+        "no offered selector is a complement — this fixture cannot tell a "
+        "carried flag from a hardcoded False")
+
+
+def test_the_complement_rule_has_exactly_ONE_definition(auth_db):
+    """⭐ The point of `is_complement` is that `resolve` and `available` ask the
+    same function. If a second copy appears, this notices: flipping the one
+    definition must flip BOTH doors together.
+    """
+    from api.services.screener import list_universe
+
+    original = list_universe.is_complement
+    try:
+        list_universe.is_complement = lambda selector: False
+        offered = list_universe.available("alice")
+        assert not any(o["complement"] for o in offered), \
+            "available() did not go through is_complement"
+        _syms, receipt = list_universe.resolve(list_universe.UNFLAGGED, "alice")
+        assert receipt["complement"] is False, \
+            "resolve() did not go through is_complement"
+    finally:
+        list_universe.is_complement = original
+    # …and the control: restored, the complement is a complement again.
+    _syms, receipt = list_universe.resolve(list_universe.UNFLAGGED, "alice")
+    assert receipt["complement"] is True

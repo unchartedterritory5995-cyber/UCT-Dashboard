@@ -19,7 +19,6 @@ import {
   CARVED_OUT_INDICATOR_KEYS,
   MACD_HEAD_MASK,
   SERVER_DEFS,
-  AST_DEFS,
   getDefinition,
   listDefinitions,
   computeFor,
@@ -186,9 +185,9 @@ describe('native registry — membership', () => {
     expect(getDefinition('nope')).toBe(null)
     expect(getDefinition('rsi').id).toBe('rsi')
     // The lanes are DIFFERENT sizes, which is the whole reason
-    // `listDefinitions()` had to become a union — of THREE lanes since Phase D
-    // Task 8.
-    expect(NATIVE_DEFS.length + SERVER_DEFS.length + AST_DEFS.length).toBe(listDefinitions().length)
+    // `listDefinitions()` had to become a union — of the two lanes that ship
+    // members; the ast lane is session-only (W0.3) and ships no array.
+    expect(NATIVE_DEFS.length + SERVER_DEFS.length).toBe(listDefinitions().length)
     // ⭐ THE INTEGER USED TO BE TYPED HERE (`toBe(16)`). It is now read from the
     // one hand-written manifest — see `registrySizes.js`'s header for the §A5
     // measurement that made thirty-three of these a problem worth solving.
@@ -875,9 +874,12 @@ describe('⭐⭐ THE registry manifest — every definition, by lane, BY NAME', 
     // thing it exists to check); this is the assertion that pays for the copy.
     expect(REGISTRY_LANES).toEqual([...SUPPORTED_KINDS])
     // …and the third lane is EMPTY, which is a claim: Task 8 built the lane and
-    // registered nothing on it.
+    // registered nothing on it. ⛔ W0.3 dropped the second reading of that claim
+    // (`AST_DEFS`); the manifest is the one declaration, and the registry proving
+    // it is the partition — see the W0.3 case for the control that makes the
+    // empty answer a measurement rather than `idsByLane`'s own seeding.
     expect(REGISTRY_SIZES.ast).toBe(0)
-    expect(AST_DEFS).toEqual([])
+    expect(idsByLane(listDefinitions()).ast).toEqual([])
   })
 
   it('`idsByLane` files an UNKNOWN lane under its own name rather than dropping it', () => {
@@ -1103,7 +1105,6 @@ describe('🔴 the RUNTIME lane — a user definition installs, and the SHIPPED 
       'an installed user definition reached the SHIPPED manifest').toEqual(SHIPPED_DEF_IDS)
     expect(listDefinitions()).toHaveLength(REGISTRY_SIZES.total)
     expect(REGISTRY_SIZES.ast, 'REGISTRY_SIZES started counting user definitions').toBe(0)
-    expect(AST_DEFS, 'the frozen ast lane was mutated').toEqual([])
     expect(SHIPPED_DEF_IDS.ast).toEqual([])
 
     // …and `listAllDefinitions` is the one that DID move, by exactly one, with
@@ -1112,6 +1113,42 @@ describe('🔴 the RUNTIME lane — a user definition installs, and the SHIPPED 
     expect(listAllDefinitions().slice(0, REGISTRY_SIZES.total).map(d => d.id))
       .toEqual(listDefinitions().map(d => d.id))
     expect(listAllDefinitions()[REGISTRY_SIZES.total].id).toBe(USER_ID)
+  })
+
+  it('⛔ W0.3 — there is NO shipped `AST_DEFS` array: the ast lane is session-only BY DESIGN', () => {
+    // The lane's one install path is `installUserDefinitions` (the session index
+    // exercised by the case above). A frozen-empty export beside it was a SECOND
+    // AUTHORITY over "what ships on the ast lane"; the manifest
+    // (`SHIPPED_DEF_IDS.ast`) is the only one now, and the partition below proves
+    // the claim without any array to spread.
+    expect('AST_DEFS' in REGISTRY_MODULE,
+      'AST_DEFS is back — the session index is the ONLY ast install path').toBe(false)
+
+    // ⭐ THE PARTITION IS MEASURED, NOT SEEDED — the positive control that makes
+    // the two empties below load-bearing. `idsByLane` seeds every lane from
+    // `REGISTRY_LANES`, so `.ast === []` reads identically for a catalogue that
+    // ships an ast definition the helper cannot see. Feed it one and watch it
+    // land: the empty answer is then the CATALOGUE's, not the helper's default.
+    expect(idsByLane([...listDefinitions(), { id: 'u_ctl', compute: { kind: 'ast' } }]).ast,
+      'the control definition did not reach the ast bucket — the empties below measure nothing')
+      .toEqual(['u_ctl'])
+    expect(idsByLane(listDefinitions()).ast,
+      'a definition SHIPPED on the ast lane — `registrySizes.js` is where that gets declared')
+      .toEqual([])
+    expect(SHIPPED_DEF_IDS.ast).toEqual([])
+
+    // …and the shipped catalogue is exactly the two lanes that HAVE members, read
+    // off the manifest PER LANE. ⛔ Not `REGISTRY_SIZES.total`: that absorbs an
+    // ast definition on both sides at once and would stay green through the very
+    // change this case exists to catch.
+    expect(listDefinitions()).toHaveLength(REGISTRY_SIZES.native + REGISTRY_SIZES.server)
+
+    // …and "session-only" is a DESIGN, not a deletion: the door is still open and
+    // still lands outside the shipped catalogue.
+    expect(installUserDefinitions([userDef()]).installed).toHaveLength(1)
+    expect(getDefinition(USER_ID)).toBeTruthy()
+    expect(idsByLane(listDefinitions()).ast,
+      'an installed formula reached the SHIPPED catalogue').toEqual([])
   })
 
   it('⛔ an INVALID definition does not install — the negative, asserted', () => {

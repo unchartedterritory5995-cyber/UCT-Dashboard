@@ -66,18 +66,31 @@ def _build_ticker_list() -> list[str]:
             active.append(s)
 
     # Watchlists + tags (what users actually track).
+    # X24 (2026-08-26): this imported `auth_db.get_db_path`, a name that has
+    # never existed there -- the module's only public door is `get_connection`.
+    # The ImportError was swallowed by the bare `except Exception: pass` below,
+    # so deep history has never once warmed a symbol a member actually tracks.
+    # One of THREE copies, in three spellings; the rail that makes the class
+    # impossible is `tests/test_auth_db_names_are_real.py`.
     try:
-        from api.services.auth_db import get_db_path
-        db = sqlite3.connect(get_db_path())
-        for tbl, col in [("watchlist_items", "sym"), ("ticker_tags", "sym")]:
-            try:
-                for (sym,) in db.execute(f"SELECT DISTINCT {col} FROM {tbl}").fetchall():
-                    _add(sym)
-            except Exception:
-                pass
-        db.close()
-    except Exception:
-        pass
+        from api.services.auth_db import get_connection
+        db = get_connection()
+    except (ImportError, AttributeError, NameError, TypeError):
+        _LOGX24 = __import__("logging").getLogger(__name__)
+        _LOGX24.exception("[deep_history] auth.db door is broken -- watchlists NOT read")
+        db = None
+    except Exception:                                              # noqa: BLE001
+        db = None
+    if db is not None:
+        try:
+            for tbl, col in (("watchlist_items", "sym"), ("ticker_tags", "sym")):
+                try:
+                    for (sym,) in db.execute(f"SELECT DISTINCT {col} FROM {tbl}"):
+                        _add(sym)
+                except Exception:                                  # noqa: BLE001
+                    pass
+        finally:
+            db.close()
 
     # Theme holdings (the Theme Tracker navigation surface).
     try:

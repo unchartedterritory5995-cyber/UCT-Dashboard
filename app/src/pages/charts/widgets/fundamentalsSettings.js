@@ -1,4 +1,5 @@
 import { dividerFor, chromeFor, toolbarFor } from '../../../utils/dividerColor'
+import { widgetDefaultsForAppTheme, tagAppTheme } from '../../../components/chart/chartThemes'
 
 // Fundamentals-widget appearance settings — the model behind its ⚙ Settings panel.
 // Sibling of watchlistSettings.js / themeTrackerSettings.js: usePreferences-backed,
@@ -36,9 +37,10 @@ export const FUNDAMENTALS_LIGHT_OVERRIDES = {
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function fundamentalsDefaultsForTheme(theme) {
-  return theme === 'light'
+  const base = theme === 'light'
     ? { ...FUNDAMENTALS_DEFAULTS, ...FUNDAMENTALS_LIGHT_OVERRIDES }
-    : FUNDAMENTALS_DEFAULTS
+    : widgetDefaultsForAppTheme('fundamentals', theme, FUNDAMENTALS_DEFAULTS)
+  return tagAppTheme(base, theme)
 }
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */

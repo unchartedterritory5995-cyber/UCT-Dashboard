@@ -2,8 +2,25 @@ import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 import { vi } from 'vitest'
 import FuturesStrip from './FuturesStrip'
 
+// ⛔ `mutate` AND `isLoading` ARE NOT DECORATION — leaving them off made this file
+// exit 1 while reporting "1 passed". `usePreferences.js:92` destructures
+// `{ data, mutate, isLoading }` off useSWR's return, and FuturesStrip reaches
+// `setPref`, which calls `mutate(...)` inside an async function nobody awaits. A
+// missing `mutate` therefore surfaced as an UNHANDLED REJECTION —
+// `TypeError: mutate is not a function` — which vitest counts toward the process
+// exit code but NOT toward the failure count.
+//
+// ⭐ That is why this one line mattered: `npx vitest run` was exiting 1 across the
+// whole suite with 0 failed tests, so every "the frontend is green, exit 0" claim
+// was being read off a runner whose exit code did not mean what it said. vitest
+// warns in its own output that unhandled errors "may cause false positives" — the
+// same 1 can hide a real failure just as easily as it invented this one.
+//
+// ⚠️ A mock is a hand-written copy of another module's contract, and it drifts like
+// any other copy. Mirror what the consumer DESTRUCTURES, not what today's assertions
+// happen to read.
 vi.mock('swr', () => ({
-  default: () => ({ data: undefined, error: undefined }),
+  default: () => ({ data: undefined, error: undefined, mutate: vi.fn(), isLoading: false }),
   useSWRConfig: () => ({ mutate: vi.fn() }),
   preload: vi.fn(),
 }))

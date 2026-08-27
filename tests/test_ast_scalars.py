@@ -160,9 +160,34 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     grows.
     """
     columns = set(COLUMNS)
-    assert len(columns) == len(COLUMNS) == 185, (
-        f"snapshot_db declares {len(COLUMNS)} columns ({len(columns)} distinct); "
-        "the partition below is a claim about that exact list")
+    # ⛔ NO WIDTH IS ASSERTED HERE, AND ITS ABSENCE IS DELIBERATE — DO NOT ADD ONE
+    # BACK. This read `len(columns) == len(COLUMNS) == 200`, and the `== 200` tail
+    # was a hand-typed schema width sitting in front of a real partition rail. It
+    # is the FIFTH copy of a defect this branch has already paid for four times:
+    # the same literal went `158 -> 160 -> 185 -> 200` in
+    # `test_screener_wave5_schema.py`, where it dragged a genuine `init_db` rail
+    # red for a whole build while every lane waved it through as a known red. A
+    # width is green until the next column lands and then it is a false red in
+    # front of a true check.
+    #
+    # ⭐ AND FOUR SWEEPS FOR "stale width" MISSED IT, which is the part worth
+    # keeping: this file imports `COLUMNS` BY NAME, so the literal never appears
+    # beside the symbol anybody was grepping for. A grep finds a SPELLING; it does
+    # not find a FACT.
+    #
+    # ⭐ WHAT THE NUMBER WAS STANDING FOR SURVIVES, split out and stated: the
+    # column list has no DUPLICATES, so the set below can be compared to it
+    # without a duplicate silently making the partition look total. That is an
+    # invariant, not a size, and it does not drift when column 201 lands.
+    assert len(columns) == len(COLUMNS), (
+        f"snapshot_db declares {len(COLUMNS)} columns but only {len(columns)} are "
+        f"distinct — duplicates: "
+        f"{sorted({c for c in COLUMNS if list(COLUMNS).count(c) > 1})}. The "
+        "partition below compares a SET against that list, so a duplicate would "
+        "make an incomplete partition read as total.")
+    # …and the subject is non-empty, which is the only floor a partition needs:
+    # `set() | set() == set()` is a perfectly true identity about nothing.
+    assert columns, "snapshot_db declares no columns — the partition is vacuous"
     declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
     excluded = ast_table.excluded_columns()
 
@@ -193,7 +218,23 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # one re-decided columns the schema already had, so its total held and only
     # the split moved. Adding columns moves the total; promoting them moves the
     # split. Never both in one commit.
-    assert (len(declared), len(excluded)) == (108, 77)
+    # (108, 77) -> (111, 89) on 2026-08-25: the 8/24 CANDLE LIBRARY's fifteen
+    # columns, decided in one pass. ⚠️ The total above reads 185 -> 200 in the
+    # SAME commit, and that is not the "never both" case: the fifteen landed in
+    # `COLUMNS` on 8/24 with NO partition decision at all (this rail sat red for
+    # a day), so this is the decision made late for columns the schema already
+    # had — nothing is added here. Three numerics DECLARED:
+    # `candle_recent_bars_ago` (INT sessions since the most recent multi-bar
+    # pattern — a `_range` filter and the "Age" view column), `avg_body` and
+    # `avg_range` (the per-symbol levels the live tier reuses). All three are
+    # written by the shipped library (`candles.py`), so R8 is met on arrival,
+    # and all three ride `bars_asof` because that producer is what the as-of
+    # rail below reads. Twelve TEXT labels EXCLUDED (`candle_label`,
+    # `candle_matches`, `candle_trend`, `bar_character*`, `candle_recent*`,
+    # `candle_weekly*`, `candle_monthly*`) for `candle_type`'s reason: a
+    # classification is not a magnitude, and `candle_matches` is a
+    # delimiter-wrapped membership list the filter reads, not a number.
+    assert (len(declared), len(excluded)) == (111, 89)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -607,11 +648,50 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     reporting one omission -- and the corpus case ``adx_trend_strength`` was
     written in response. ⛔ THE FIX IS THE CORPUS CASE; MOVING THIS NUMBER IS
     ONLY THE ACKNOWLEDGEMENT. Bumping the literal alone would have left the
-    indicator unproven across the lanes and both rails quiet about it."""
+    indicator unproven across the lanes and both rails quiet about it.
+
+    ⭐ 108 -> 111 (2026-08-25): the three NUMERIC columns of the 8/24 candle
+    library — `candle_recent_bars_ago`, `avg_body`, `avg_range` — declared,
+    every one `bars_asof` off the `candles` producer the as-of rail above reads,
+    each with its own `scalars.json` case; the twelve TEXT labels beside them
+    EXCLUDED. The bar floor did not move — a scalar rides the `series` node, so
+    no astHash and no frozen digest moved, and `tableVersion` was still 1.
+
+    ⭐ 70 -> 83 ON 2026-08-26 WITH THE `clock` SECTION (tableVersion 2), AND IT IS
+    THE BAR HALF THAT MOVED THIS TIME — the first move for something that is not a
+    function. Thirteen bar-clock values (the seven ET wall-clock fields,
+    `sessionfirst`, `barindex` and the four timeframe booleans) are a FIFTH manifest
+    section that still rides the `series` node, so no node type and no persisted key
+    changed and every stored `astHash` is unmoved. They sit inside the BAR floor
+    because a clock value varies down the replay series exactly as `close` does, so
+    the bar corpus OWES each one a case — thirteen were written and the frozen
+    digests were re-recorded with them. The scalar half is untouched at 111, which is
+    the whole point of the split: "which half moved" stays answerable at a glance.
+    `tableVersion` went to 2 because `interpret` grew an ARGUMENT (`opts={tf}`), not
+    because the vocabulary grew.
+
+    ⭐ 83 -> 85 (2026-08-26): `vwap()` and `avwap(anchorEpoch)`, the first entries
+    in this table that read the BAR rather than a column their arguments name
+    (`reads: "bars"`). Both bind the SHIPPED session accumulator, so the digest
+    they owe the bar corpus is a cross-lane agreement about a TIMEZONE DATABASE
+    rather than about arithmetic. The scalar half is untouched at 111 again."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 108
+    # ⭐ 85 -> 90 (2026-08-26): the BOUNDED-STATE five (`barssince`, `valuewhen`,
+    # `highestbars`, `lowestbars`, `obvN`). The scalar half is untouched at 111
+    # for the tenth bump running -- a bounded-state entry rides the `call` node and
+    # has nothing to say about a per-symbol column.
+    # ⭐ 90 -> 92 (2026-08-27): the two pivots, the first member-reachable
+    # `forward` entries. The scalar half is untouched at 111 again.
+    #
+    # ⚰️ AND NO ORDINAL IS WRITTEN HERE. This said "for the eleventh bump" -- a
+    # hand-typed count, in the one file whose entire subject is that hand-typed
+    # counts rot, three commits after `== 200` was deleted from the case below
+    # for being exactly that. Nobody counts the bumps; the two numbers ARE the
+    # claim, and git carries the history.
+    # 92 -> 95 (2026-08-27): the TC2000 remainder. Scalar half untouched again.
+    assert len(parts["bar"]) == 95 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

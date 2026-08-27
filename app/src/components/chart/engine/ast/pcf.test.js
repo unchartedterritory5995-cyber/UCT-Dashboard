@@ -80,7 +80,11 @@ describe('genuine TC2000 formulas produce the tree the engine already runs', () 
     // real graduation is honest; padding it back to 25 with a near-duplicate of
     // the ADX case to keep a number intact would be the thing it exists to stop.
     // The one that must not move is the TOTAL, asserted below.
-    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(24)
+    // 24 -> 23 (2026-08-27): `aroon` GRADUATED to `accepted` when `aroonUp`/
+    // `aroonDown` were declared. The floor moves for the reason the note above
+    // sanctions -- a real graduation -- and the TOTAL below is UNMOVED, because
+    // the case changed bucket rather than leaving the corpus.
+    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(23)
     expect(CORPUS.offset_dependent.length).toBeGreaterThanOrEqual(7)
     expect(every.length).toBeGreaterThanOrEqual(65)
     const ids = every.map((c) => c.id)
