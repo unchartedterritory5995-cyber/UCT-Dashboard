@@ -58,8 +58,25 @@ def set_endpoint(client: httpx.Client, url: str) -> dict:
     return r.json()
 
 
-def invite_url(app_id: str) -> str:
-    return f"https://discord.com/oauth2/authorize?client_id={app_id}&scope=applications.commands"
+# What a chart bot actually needs, and nothing else. Measured 2026-08-26: the
+# app was installed in Uncharted Territory with `scope=applications.commands`
+# and NO permissions, so it inherited whatever the pre-existing role happened to
+# have - Send Messages but NOT Attach Files. A chart IS a file attachment, so
+# every /chart there accepted the command, rendered fine, and then Discord
+# refused the upload: 0 of 71 channels could post one.
+INVITE_PERMISSIONS = (
+    0x400          # View Channel      - see the channel it is answering in
+    | 0x800        # Send Messages     - post the reply
+    | 0x8000       # Attach Files      - THE CHART ITSELF
+    | 0x80000000   # Use Application Commands
+)
+
+
+def invite_url(app_id: str, permissions: int = INVITE_PERMISSIONS) -> str:
+    """Re-authorising an app the server already has UPDATES its permissions, so
+    this link is also the fix when a chart cannot be attached."""
+    return ("https://discord.com/oauth2/authorize"
+            f"?client_id={app_id}&scope=bot+applications.commands&permissions={permissions}")
 
 
 def _load_env(path: str | None) -> None:

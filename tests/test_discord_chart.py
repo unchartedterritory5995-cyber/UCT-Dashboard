@@ -2590,3 +2590,20 @@ def test_a_ticker_outside_our_universe_is_still_offered_by_the_autocomplete(monk
     monkeypatch.setattr(ts, "ticker_search", lambda **k: {"results": []})
     assert rt.fetch_ticker_choices("not a ticker!") == []
     assert len(rt.fetch_ticker_choices("A" * 40)) == 0
+
+
+def test_the_invite_asks_for_exactly_what_a_chart_needs_and_nothing_dangerous():
+    """2026-08-26: the app was installed in the member server with
+    `scope=applications.commands` and NO permissions, so it inherited a role
+    that could Send Messages but not Attach Files — and a chart IS an
+    attachment. 0 of 71 channels could post one, which read to members as the
+    bot not knowing their ticker."""
+    from tools.discord_chart_commands import invite_url, INVITE_PERMISSIONS
+    url = invite_url("123")
+    assert "scope=bot+applications.commands" in url          # commands alone grants nothing
+    assert f"permissions={INVITE_PERMISSIONS}" in url
+    assert INVITE_PERMISSIONS & 0x8000, "Attach Files — the chart itself"
+    assert INVITE_PERMISSIONS & 0x400 and INVITE_PERMISSIONS & 0x800
+    for bit, name in ((0x8, "administrator"), (0x10000000, "manage roles"), (0x2000, "manage messages"),
+                      (0x4, "ban"), (0x2, "kick"), (0x20, "manage guild"), (0x40000000, "manage threads")):
+        assert not (INVITE_PERMISSIONS & bit), f"the invite must never ask for {name}"
