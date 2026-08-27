@@ -160,9 +160,34 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     grows.
     """
     columns = set(COLUMNS)
-    assert len(columns) == len(COLUMNS) == 200, (
-        f"snapshot_db declares {len(COLUMNS)} columns ({len(columns)} distinct); "
-        "the partition below is a claim about that exact list")
+    # ⛔ NO WIDTH IS ASSERTED HERE, AND ITS ABSENCE IS DELIBERATE — DO NOT ADD ONE
+    # BACK. This read `len(columns) == len(COLUMNS) == 200`, and the `== 200` tail
+    # was a hand-typed schema width sitting in front of a real partition rail. It
+    # is the FIFTH copy of a defect this branch has already paid for four times:
+    # the same literal went `158 -> 160 -> 185 -> 200` in
+    # `test_screener_wave5_schema.py`, where it dragged a genuine `init_db` rail
+    # red for a whole build while every lane waved it through as a known red. A
+    # width is green until the next column lands and then it is a false red in
+    # front of a true check.
+    #
+    # ⭐ AND FOUR SWEEPS FOR "stale width" MISSED IT, which is the part worth
+    # keeping: this file imports `COLUMNS` BY NAME, so the literal never appears
+    # beside the symbol anybody was grepping for. A grep finds a SPELLING; it does
+    # not find a FACT.
+    #
+    # ⭐ WHAT THE NUMBER WAS STANDING FOR SURVIVES, split out and stated: the
+    # column list has no DUPLICATES, so the set below can be compared to it
+    # without a duplicate silently making the partition look total. That is an
+    # invariant, not a size, and it does not drift when column 201 lands.
+    assert len(columns) == len(COLUMNS), (
+        f"snapshot_db declares {len(COLUMNS)} columns but only {len(columns)} are "
+        f"distinct — duplicates: "
+        f"{sorted({c for c in COLUMNS if list(COLUMNS).count(c) > 1})}. The "
+        "partition below compares a SET against that list, so a duplicate would "
+        "make an incomplete partition read as total.")
+    # …and the subject is non-empty, which is the only floor a partition needs:
+    # `set() | set() == set()` is a perfectly true identity about nothing.
+    assert columns, "snapshot_db declares no columns — the partition is vacuous"
     declared = {ast_table.scalar_source(n)["column"] for n in SCALARS}
     excluded = ast_table.excluded_columns()
 
