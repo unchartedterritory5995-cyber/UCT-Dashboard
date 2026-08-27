@@ -267,6 +267,7 @@ def test_the_pin_behind_a_MEASURED_write_still_moves_off_the_shared_root():
         assert not (norm == root or norm.startswith(root + os.sep)), (
             f"{var} still points inside the shared root: {value}")
 
+
 # ─── W9j.1: the eight paths that had no env override at all ─────────────────
 
 #: ⭐ A DECLARED ROSTER WITH A REASON PER ENTRY — never a count. A count froze a
