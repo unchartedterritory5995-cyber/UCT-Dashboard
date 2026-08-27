@@ -366,3 +366,24 @@ def test_tolerance_is_dollar_capped_for_whale_accounts(env):
     out = _check()
     assert out["tolerance"] == 1000.0
     assert out["verdict"] == "structural"
+
+
+def test_daily_pulse_always_posts_green_or_red(env, monkeypatch):
+    posts = []
+    monkeypatch.setattr(live_sentinel, "_post_discord",
+                        lambda t, d: posts.append((t, d)))
+    # Quiet healthy fleet → still posts (silence must never read as health).
+    live_sentinel.run_daily_pulse_blocking()
+    assert len(posts) == 1 and posts[0][0].startswith("🟢")
+    # A structural verdict flips it red.
+    _seed_account(cash=-1000.0, mv=500.0, equity=1000.0)
+    _seed_position("AAPL", 5, 100.0)
+    _seed_position("GHOST", 100, 25.0)
+    conn = auth_db.get_connection()
+    try:
+        out = live_sentinel.check_account(USER, BACCT, J2, conn)
+        live_sentinel._persist(conn, USER, BACCT, out)
+    finally:
+        conn.close()
+    live_sentinel.run_daily_pulse_blocking()
+    assert len(posts) == 2 and posts[1][0].startswith("🔴")

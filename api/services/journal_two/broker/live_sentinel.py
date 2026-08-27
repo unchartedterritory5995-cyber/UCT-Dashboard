@@ -484,6 +484,60 @@ def fleet_snapshot(conn=None) -> dict[str, Any]:
             "worstResidualDollar": round(worst, 2), "rows": rows}
 
 
+def run_daily_pulse_blocking() -> None:
+    """Post-close daily fidelity pulse — ALWAYS posts, green or red.
+
+    Every other rail is silent when healthy, so "is the journal accurate?"
+    required trusting the silence. This is the affirmative artifact: one
+    line after each close stating, in dollars, how the whole fleet
+    reconciled today. Never raises into the scheduler."""
+    try:
+        conn = get_connection()
+        try:
+            et_today = datetime.now(_ET).strftime("%Y-%m-%d")
+            syncs = conn.execute(
+                "SELECT COUNT(*) AS n, "
+                "SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS errs "
+                "FROM j2_broker_sync_log WHERE started_at >= ?",
+                (datetime.now(timezone.utc).strftime("%Y-%m-%d"),),
+            ).fetchone()
+            mirror = conn.execute(
+                "SELECT COUNT(*) AS n, "
+                "SUM(CASE WHEN ok=1 THEN 0 ELSE 1 END) AS bad, "
+                "MAX(ABS(COALESCE(drift_dollar, 0))) AS worst "
+                "FROM j2_broker_mirror_checks",
+            ).fetchone()
+            snap = fleet_snapshot(conn)
+        finally:
+            conn.close()
+        bv = snap["byVerdict"]
+        structural = bv.get("structural", 0)
+        red = structural or (mirror["bad"] or 0) or (syncs["errs"] or 0)
+        tone = "🔴" if red else "🟢"
+        _post_discord(
+            f"{tone} Journal fidelity pulse — {et_today}",
+            f"{syncs['n'] or 0} syncs today, {syncs['errs'] or 0} failed · "
+            f"{mirror['n'] or 0} accounts mirror-checked, "
+            f"{mirror['bad'] or 0} drifting, worst gap "
+            f"${(mirror['worst'] or 0):,.2f} · live checks: "
+            f"{bv.get('ok', 0)} ok / {bv.get('book_lag', 0)} fills-pending / "
+            f"{structural} structural (worst residual "
+            f"${snap['worstResidualDollar']:,.2f}).\n"
+            + ("Everything reconciled. This line posts every close — a "
+               "missing pulse means the pulse itself broke, not that all is "
+               "well." if not red else
+               "Something needs eyes — details are in the tables "
+               "(j2_broker_live_checks / mirror_checks / sync_log)."),
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("daily pulse failed: %s", e)
+        try:
+            _post_discord("🔴 Journal fidelity pulse CRASHED",
+                          f"The pulse itself errored: {e}")
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def run_weekly_summary_blocking() -> None:
     """Sunday digest — ALWAYS posts, green or red (a silent-green digest is
     indistinguishable from a dead one). Never raises into the scheduler."""
