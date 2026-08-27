@@ -5,6 +5,8 @@ import { AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from './pool'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLayout'
 import * as registry from './nativeRegistry'
+import { macdV2Doc } from './__tests__/macdV2'
+import { interpret } from './ast/interpret'
 
 // ─── The contract under test ─────────────────────────────────────────────────
 //
@@ -1029,5 +1031,68 @@ describe('FLIP C — the stretch factors are the pixel heights (PANE_MODE panes)
       })
       expect(written).toEqual([])
     } finally { __setPaneModeForTest(null) }
+  })
+})
+
+describe('W1b — a USER multi-tree definition draws one series per tree', () => {
+  const macdInst = (id = 'u_0123456789ab') => ({ instanceId: `legacy:${id}`, defId: id, inputs: {}, hidden: false })
+  afterEach(() => registry.clearUserDefinitions())
+
+  it('🔴 three VISIBLE plots ⇒ three addSeries with the declared constructors; the hidden scan plot draws nothing', () => {
+    registry.installUserDefinitions([macdV2Doc()])
+    binder.sync(ctxFor([macdInst()]))
+    const ctors = fake.callsOf('addSeries').map((c) => c.args[0].__type)
+    expect(ctors).toEqual(['LineSeries', 'LineSeries', 'HistogramSeries'])
+    expect(fake.count('setData')).toBe(3)
+  })
+  it('each series is fed ITS tree\'s column — the routing oracle is the single-tree interpreter', () => {
+    const doc = macdV2Doc()
+    registry.installUserDefinitions([doc])
+    binder.sync(ctxFor([macdInst()]))
+    const inputs = Object.fromEntries(doc.inputs.map((i) => [i.key, i.default]))
+    const own = (k) => [...interpret(doc.compute.trees[k], bars, inputs, undefined, {})]
+    const fed = fake.callsOf('setData').map((c) => c.args[0].map((p) => (p.value === undefined ? NaN : p.value)))
+    const eq = (a, b) => a.length === b.length && a.every((v, i) => (Number.isNaN(v) && Number.isNaN(b[i])) || Math.abs(v - b[i]) < 1e-9)
+    expect(eq(fed[0], own('macd'))).toBe(true)
+    expect(eq(fed[1], own('signal'))).toBe(true)
+    expect(eq(fed[2], own('hist'))).toBe(true)
+    expect(eq(fed[1], own('macd'))).toBe(false)
+  })
+  it('the zero guide is ONE createPriceLine on the FIRST plot\'s series, largeDashed', () => {
+    registry.installUserDefinitions([macdV2Doc()])
+    binder.sync(ctxFor([macdInst()]))
+    const lines = fake.callsOf('createPriceLine')
+    expect(lines).toHaveLength(1)
+    expect(lines[0].id).toBe(fake.callsOf('addSeries')[0].result.__id)
+    expect(lines[0].args[0]).toMatchObject({ price: 0, lineStyle: fake.LWC.LineStyle.LargeDashed })
+  })
+  it('an OVERLAY definition lands on pane 0 on the candles\' scale, asserting nothing on that scale', () => {
+    registry.installUserDefinitions([macdV2Doc({ target: 'price' })])
+    binder.sync(ctxFor([macdInst()], { placement: realPlacement }))
+    for (const c of fake.callsOf('addSeries')) {
+      expect(c.args[2]).toBe(0)
+      expect(c.args[1].priceScaleId).toBe(MAIN_PRICE_SCALE_ID)
+    }
+    expect(fake.callsOf('priceScale.applyOptions')).toHaveLength(0)
+  })
+  it('hiding a plot on a later VERSION releases the series it was carrying', () => {
+    registry.installUserDefinitions([macdV2Doc({ hiddenScan: false })])
+    binder.sync(ctxFor([macdInst()]))
+    expect(fake.count('addSeries')).toBe(4)
+    fake.reset()
+    registry.installUserDefinitions([macdV2Doc({ hiddenScan: true, version: 2 })])
+    binder.sync(ctxFor([macdInst()]))
+    expect(fake.count('removeSeries')).toBe(1)
+    expect(fake.count('addSeries')).toBe(0)
+  })
+  it('a pane recolour of ONE plot is applyOptions on THAT series only — zero addSeries, zero removeSeries', () => {
+    registry.installUserDefinitions([macdV2Doc()])
+    binder.sync(ctxFor([macdInst()]))
+    fake.reset()
+    binder.sync(ctxFor([{ ...macdInst(), inputs: { signalColor: '#123456' } }]))
+    expect(fake.count('addSeries')).toBe(0)
+    expect(fake.count('removeSeries')).toBe(0)
+    const recoloured = fake.callsOf('applyOptions').filter((c) => c.args[0].color === '#123456')
+    expect(recoloured).toHaveLength(1)
   })
 })
