@@ -19,7 +19,7 @@ scans on a member's own script, and evidence.
 
 | # | Acceptance | Yardstick (pinned in a test, both directions) |
 |---|---|---|
-| A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash |
+| A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash ✅ **HOLDS, measured 2026-08-27 — 8 surfaces on one hash. But the hash join is NOT a compute check; see the amendment below.** |
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` ⛔ **Measured 2026-08-27 at 12/21; the 17 needs W2b + W7 + W8. See the amendment below.** |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token — ⛔ **NOT a W3b criterion. Measured 2026-08-27 at 10/30; 10 of the 20 refusals are gated on W6/W7/W2b.** See the 2026-08-27 amendment below. | `pine.community.test.js` snapshot, pinned both directions |
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
@@ -361,3 +361,38 @@ against a partition already in this file, and nobody had done the subtraction.
 with the corpus effect measured after the fact — not projected before it.**
 
 **With this, every acceptance row A1–A12 has been derived from the artifact.**
+
+### A1 amended 2026-08-27 — it HOLDS, and it needed one more clause
+
+**Measured, not believed.** `BuilderSheet.endzone.test.jsx` joins **8 surfaces** on
+`sha256:9f433d40…4e4680`, including Python's `scan_definition.assert_scannable`
+(`yields: 'bool'`) measured directly, and transitively pinned in both lanes through the
+published `multi_tree_parity.json` and its pinned `treesHash`. A1 was the last criterion
+resting on separate verifications by different tasks at different times; it now rests on
+one test that can fail.
+
+⛔ **AND THE LANE FOUND THE HOLE IN THE CRITERION AS WRITTEN.** Perturbation **P6** —
+make *every* plot interpret plot 1's tree, so the "MACD with histogram" draws **three
+identical lines** — left the whole hash-agreement case **GREEN**. Only a sibling
+cross-check in a different case saw it.
+
+> ⭐ **`def_hash` agreement across every surface is NECESSARY and NOT SUFFICIENT.**
+> It proves the surfaces agree about *which* definition they hold. It proves nothing
+> about whether the plots compute *different things*.
+
+**A1 restated:** three plots, member inputs, overlay/pane, styles; draws, scans on
+`hist > 0`, alerts; **one `def_hash` at every surface — AND the three plots produce
+pairwise-distinct columns on the same bars.** The second half is the part a hash can
+never carry.
+
+⚠️ **Propagate this.** Every criterion in this document that is stated as *"one
+identity, many surfaces"* has the same blind spot. An identity join answers *"do they
+agree?"*; it does not answer *"is the thing they agree on correct?"* Where the answer
+matters, the criterion needs a **distinctness or a value** clause beside the identity.
+
+**Honest ceiling, recorded by the lane rather than implied:** alerting is **half**
+testable in jsdom — the JS address→instance seam is asserted, but
+`alert_user_series.user_catalog` could refuse this definition outright and the file
+would stay green. That, the renderer, and the live recolour are the held live-surface
+audit's load-bearing items, and the report hands the audit a **falsifiable prediction**:
+the browser's POST must carry that exact `compute.fn`.
