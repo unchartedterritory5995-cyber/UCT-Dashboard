@@ -80,6 +80,9 @@ import { declaredInputs } from '../chart/engine/ast/lint'
 import * as engineRegistry from '../chart/engine/nativeRegistry'
 import { installUserDefinitions } from '../chart/engine/nativeRegistry'
 import { addInstance } from '../chart/engine/instanceControls'
+import Sheet from '../mobile/Sheet'
+import EvidenceTab from '../chart/builder/EvidenceTab'
+import { SESSION_TZ } from './scanSession'
 import styles from './ScanResults.module.css'
 
 /** The route E-4 registered. Spelled once, and the query builder below is the
@@ -94,6 +97,58 @@ export function scanResultsUrl(defHash, tf, asOf) {
     + `&tf=${encodeURIComponent(tf)}&as_of=${encodeURIComponent(asOf)}`
 }
 
+/** ⛔ THE SESSION TIMEZONE IS `scanSession`'s, never typed here — and the
+ *  locale is explicit for `CoverageLine`'s reason: an unqualified formatter
+ *  answers a different string per member. */
+const ET_TIME = new Intl.DateTimeFormat('en-US', { timeZone: SESSION_TZ, hour: 'numeric', minute: '2-digit' })
+
+/** The tick a live row was written at, as an ET clock time — or `null`.
+ *
+ *  ⛔ `typeof === 'number'` FIRST, NEVER `Number(v)`. `Number(null)`,
+ *  `Number('')` and `Number(false)` are all `0`, which IS finite, so a
+ *  Number()-based guard formats the Unix epoch into a confident-looking
+ *  "7:00 PM ET" from 1969 and prints it beside a hit as if it were this
+ *  morning. A stamp this surface cannot vouch for is not shown at all.
+ */
+function liveStamp(tick) {
+  if (typeof tick !== 'number' || !Number.isFinite(tick) || tick <= 0) return null
+  return ET_TIME.format(new Date(tick * 1000))
+}
+
+/** The chip for one hit's provenance, read off the route's OWN row.
+ *
+ *  ⚠️ MEASURED, NOT ASSUMED. `api/routers/scan_results.py` answers an
+ *  evaluated session with `hits` — an ARRAY of rows shaped by
+ *  `scan_store.hits_for`: `{symbol, tier, in_nightly, live_as_of, value,
+ *  src_price, live_cols}`, `tier` one of `LIVE_TIERS = ("nightly", "live")`.
+ *  There is NO `tiers` map on this payload and the tick is `live_as_of`, not
+ *  `as_of`. Reading a shape this route does not speak would render a chip that
+ *  is green in a fixture and absent for every member.
+ *
+ *  `null` for anything else: an unknown tier is not rendered as one we know.
+ */
+export function tierLabel(row) {
+  if (!row || typeof row !== 'object') return null
+  if (row.tier === 'live') {
+    const at = liveStamp(row.live_as_of)
+    return at ? `live ${at} ET` : 'live'
+  }
+  if (row.tier === 'nightly') return 'nightly'
+  return null
+}
+
+/** The route's `hits` rows keyed by symbol. The route sends a LIST (its order is
+ *  the page's) and this surface renders by ticker, so the keying happens here
+ *  rather than asking the route for a second spelling of one answer. */
+function hitsBySymbol(payload) {
+  const rows = payload && Array.isArray(payload.hits) ? payload.hits : []
+  const out = {}
+  for (const row of rows) {
+    if (row && typeof row.symbol === 'string') out[row.symbol] = row
+  }
+  return out
+}
+
 /**
  * ONE HIT, AND THE BUTTON THAT CHARTS IT WITH THE DEFINITION THAT FOUND IT.
  *
@@ -102,10 +157,19 @@ export function scanResultsUrl(defHash, tf, asOf) {
  * role, and `getByRole('button', {name: /chart NVDA/i})` is what the wire-cut
  * case binds to.
  */
-export function ScanResultRow({ ticker, definition, onChart }) {
+export function ScanResultRow({ ticker, definition, onChart, tier = null }) {
+  // ⭐ THE ROW SAYS WHERE IT CAME FROM. A live hit and a nightly hit answer
+  // DIFFERENT questions — this tick's forming bar vs. that session's closed bar
+  // — and `hits_for` already decided which; this renders that decision and adds
+  // nothing to it. A row the route sent no provenance for gets NO chip: silence
+  // is honest, and defaulting it to "nightly" would claim a fact nobody stated.
+  const label = tierLabel(tier)
   return (
     <li className={styles.row} data-testid={`scan-hit-${ticker}`}>
-      <span className={styles.ticker}>{ticker}</span>
+      <span className={styles.tickerCell}>
+        <span className={styles.ticker}>{ticker}</span>
+        {label && <span className={styles.tier} data-testid={`scan-hit-tier-${ticker}`}>{label}</span>}
+      </span>
       <button
         type="button"
         className={styles.chartBtn}
@@ -141,6 +205,7 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
   const [loadError, setLoadError] = useState(null)
   const [charted, setCharted] = useState(null)
   const [refusal, setRefusal] = useState(null)
+  const [evidenceOpen, setEvidenceOpen] = useState(false)
   // This surface's OWN chart settings. `stored` + `onStore` is ChartPane's
   // "isolated surface" contract — the alternative (stored=null, no onStore)
   // resolves the member's /charts widget settings, and adding a scan's formula
@@ -159,6 +224,10 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
       setLoadError(null)
       setCharted(null)
       setRefusal(null)
+      // ⛔ AND THE OPEN EVIDENCE SHEET GOES WITH THE ANSWER SET TOO. It is a
+      // receipt ABOUT the definition on screen; left open across a switch it
+      // would show one screen's study over another screen's hits.
+      setEvidenceOpen(false)
       return undefined
     }
     if (!defHash || asOf === null || asOf === undefined || asOf === '') return undefined
@@ -174,6 +243,7 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
     // the session that is no longer being asked about.
     setCharted(null)
     setRefusal(null)
+    setEvidenceOpen(false)
     fetch(scanResultsUrl(defHash, tf, asOf), { credentials: 'include' })
       .then((r) => {
         // ⚠️ A NON-OK ANSWER IS REPORTED, NOT RENDERED AS EMPTY. A swallowed 402
@@ -239,9 +309,75 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
 
   const status = payload && payload.status
   const tickers = payload && Array.isArray(payload.tickers) ? payload.tickers : []
+  // Keyed ONCE per answer set, not per row: N rows x a linear scan of N hits is
+  // the same N+1 shape `hits_for`'s own docstring warns about, one layer up.
+  const provenance = useMemo(() => hitsBySymbol(payload), [payload])
+  const screenName = (definition && definition.meta && definition.meta.name)
+    || (definition && definition.id) || ''
 
   return (
     <div className={styles.wrap}>
+      {/* ⭐ EVERY AFFORDANCE IS TRUE OF THE DEFINITION IT SITS ON. Evidence keys
+          on BOTH a hash (the receipt is bound to it) and a saved id (the study
+          replays by id and the forward record is filed under one). A definition
+          missing either can never have evidence — so it gets a NAMED SENTENCE
+          rather than a button that does nothing, or worse, a silent gap beside a
+          list of hits that leaves the member wondering what they did wrong. */}
+      {definition && !defHash && (
+        <p className={styles.notRun} role="status" data-testid="scan-evidence-no-hash">
+          <UIcon name="warning" size={14} />
+          This screen&rsquo;s formula carries no hash here, so a study receipt could not be
+          {' '}checked against it — Evidence stays shut rather than binding a receipt to the
+          {' '}wrong definition.
+        </p>
+      )}
+
+      {definition && defHash && !definition.id && (
+        <p className={styles.notRun} role="status" data-testid="scan-evidence-unsaved">
+          <UIcon name="clock" size={14} />
+          This screen has not been saved, so there is no forward record filed under it and
+          {' '}nothing to replay by id. Save it and Evidence opens.
+        </p>
+      )}
+
+      {definition && definition.id && defHash && (
+        <div className={styles.toolbar}>
+          <button
+            type="button"
+            className={styles.chartBtn}
+            data-testid="scan-evidence-open"
+            aria-label={`Evidence for ${screenName}`}
+            onClick={() => setEvidenceOpen(true)}
+          >
+            <UIcon name="equity" size={13} />
+            <span className={styles.chartBtnLabel}>Evidence</span>
+          </button>
+        </div>
+      )}
+
+      {/* ⭐ THE SAME COMPONENT THE BUILDER MOUNTS, behind a Sheet: one door
+          fewer to keep honest. No study is requested until a member asks for
+          one, because `Sheet` returns null while closed (its own L120) and so
+          never renders these children.
+
+          ⚠️ WHICH MAKES THE `evidenceOpen &&` BELOW REDUNDANT TODAY, and it is
+          recorded as such rather than described as a guard that fires: the
+          W5a.6 sweep deleted it and all 32 tests stayed green (the lane's ONE
+          survivor, named in the report). It is kept as the local statement of
+          "this costs a paid backtest POST, so it mounts only when asked" — if
+          Sheet ever renders closed children, this is what stops it. */}
+      <Sheet
+        open={evidenceOpen}
+        onClose={() => setEvidenceOpen(false)}
+        variant="auto"
+        title={`Evidence — ${screenName}`}
+        maxWidth={760}
+      >
+        {evidenceOpen && definition && (
+          <EvidenceTab defId={definition.id} defHash={defHash} tf={tf} />
+        )}
+      </Sheet>
+
       {loadError && (
         <p className={styles.error} role="alert" data-testid="scan-results-error">
           <UIcon name="warning" size={14} />
@@ -267,6 +403,7 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
               ticker={ticker}
               definition={definition}
               onChart={chartHit}
+              tier={provenance[ticker] || null}
             />
           ))}
         </ul>

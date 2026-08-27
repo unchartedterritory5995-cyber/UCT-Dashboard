@@ -89,3 +89,14 @@
   .row { padding: 0 4px; }
   .chartBtnLabel { display: none; }
 }
+
+/* The Evidence door sits at the right of the receipt, out of the hit list's way. */
+.toolbar { display: flex; justify-content: flex-end; }
+
+/* The ticker and its provenance chip travel together: the chip is a fact ABOUT
+   this row, so it must not be able to drift to another one. */
+.tickerCell { display: inline-flex; align-items: center; gap: 8px; }
+.tier {
+  font-size: 11px; color: var(--text-muted); padding: 1px 7px;
+  border: 1px solid var(--border); border-radius: 999px; white-space: nowrap;
+}
