@@ -203,8 +203,11 @@ def _known_columns(conn=None) -> frozenset:
     declared here and still be mid-rollout: `init_db()` ALTER-adds a
     newly-declared column on boot, so a pod between deploy and its first
     `init_db()` call (or one that has not redeployed since the column was
-    added) can be declared-but-not-yet-widened. ⚠️ Not live on prod today
-    (200/200 columns present) — latent on any such pod.
+    added) can be declared-but-not-yet-widened. ⚠️ Not observed on the one pod
+    measured while writing this fix (all declared columns were already
+    present there) — that is a fact about ONE pod at ONE moment, not a claim
+    this function can make about prod in general; the check exists precisely
+    because THIS pod, right now, is the only thing it is ever safe to trust.
     """
     if conn is not None:
         try:
@@ -218,6 +221,39 @@ def _known_columns(conn=None) -> frozenset:
     # still a REAL check: it catches a filter key whose registered column was
     # never declared at all, just not a pod-specific ALTER lag.
     return frozenset(snapshot_db.COLUMNS)
+
+
+def _member_label(name: str) -> str:
+    """The trader-facing name for a column — its filter registry LABEL when
+    one exists (most declared columns are also filter keys), the raw column
+    name otherwise (a handful of view-only columns, e.g. `company`/`sector`,
+    carry no filter entry of their own)."""
+    f = filters.FILTERS.get(name)
+    return f["label"] if f else name
+
+
+def _readiness_refusal(label: str) -> ValueError:
+    """The ONE member-facing sentence for a column not yet live on this pod —
+    the same words regardless of which of the four places found it (a filter,
+    a rank criterion, a sort key, an explicit column request) or whether the
+    live overlay is on or off. ⛔ PINNED VERBATIM by
+    tests/test_screener_absent_column_refusal.py, so an edit here cannot drift
+    without a test naming it — "rail the SENTENCE, not just the guard": a
+    correct guard beside a false or unusable sentence is still a defect a
+    member reads.
+
+    ⛔ WORDS A MEMBER CAN ACT ON, NOT AN INTERNAL FACT ABOUT US. A prior
+    version read *"filter key 'price' names column 'price', which does not
+    exist on this pod"* — three problems, all fixed here: "pod" is an
+    internals word no trader has a mental model for; the name was said TWICE
+    (the common case is a filter key that equals its own column, so the old
+    sentence read literally "'price' names column 'price'"); and "does not
+    exist" blames the member for a gap that is entirely ours. `_known_columns`
+    is LATENCY, not absence — a column `init_db()` has declared but not yet
+    ALTER-added on THIS process — so the honest, single-mention sentence says
+    "isn't ready", never "does not exist", and names what to DO about it.
+    """
+    return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
 def _overlay(conn) -> _Overlay:
@@ -434,9 +470,7 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
         if not filters.is_valid_op(key, op):
             raise ValueError(f"bad op {op} for {key}")
         if name not in known:
-            raise ValueError(
-                f"filter key {key!r} names column {name!r}, which does not "
-                f"exist on this pod")
+            raise _readiness_refusal(filters.FILTERS[key]["label"])
         col = overlay.col_expr(name)
         if op in filters.COL_OPS:
             # 🔴 FIELD-TO-FIELD (benchmark metric 423). The right-hand side is a
@@ -449,9 +483,7 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
                 raise ValueError(
                     f"bad comparison field {other_key!r} for {key}")
             if other_name not in known:
-                raise ValueError(
-                    f"filter key {other_key!r} names column {other_name!r}, "
-                    f"which does not exist on this pod")
+                raise _readiness_refusal(filters.FILTERS[other_key]["label"])
             # ⛔ BOTH SIDES THROUGH `col_expr`. A comparison that read the raw
             # column on one side and the overlaid value on the other would be the
             # second-authority defect this whole module exists to prevent — the
@@ -978,6 +1010,25 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     see `_known_columns`. `run_scan`/`preview_count` always pass the same
     connection `_overlay(conn)` was resolved from.
 
+    ⛔⛔ X27 FIX-ROUND-1 (F1) — THE SAME REFUSAL REACHES THE THREE OTHER PLACES
+    A COLUMN NAME REACHES `col_expr`. `build_where` only guarded the WHERE
+    clause; a rank criterion, an explicit `columns=` request and the `sort`
+    key all named `overlay.col_expr` unguarded, and each one failed a
+    DIFFERENT and WORSE way than a filter did:
+      * a RANK criterion on an absent column did not merely mis-filter — it
+        CERTIFIED a fake receipt (`excluded_incomplete: 0`, `share_pct:
+        100.0`, every row scoring `rank_score: 0.0`), which attests to a
+        criterion that was never applied;
+      * an explicit `columns=` request put the column's own NAME, as a
+        string, into the member's cell — measured, under a mangled key
+        (`'"vol_ratio"'`, quote characters and all — SELECT never aliases the
+        pre-overlay statement);
+      * a `sort` on an absent column was a silent no-op (sorting by a
+        constant changes nothing).
+    All three raised a raw `sqlite3.OperationalError` with the overlay ON —
+    the identical two-paths-disagree asymmetry X27 fixed for filters, now
+    closed for the other three.
+
     Returns the sql/params, the WHERE and FROM/date expressions
     `snapshot_db.describe_rows` must reuse (never rebuild — see its docstring),
     and the response scaffolding.
@@ -986,6 +1037,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     spec = spec or {}
     scan_joins = []
     list_joins = []
+    # One PRAGMA read for every absent-column check in THIS function (a rank
+    # criterion's, the sort key's, an explicit column request's) — a second
+    # read from the one `build_where` takes internally via `conn`, not a
+    # second AUTHORITY: both call the identical `_known_columns(conn)`.
+    known = _known_columns(conn)
     # ⛔ `user_id` IS A PARAMETER, NOT A SPEC FIELD. The spec is client-supplied
     # JSON; a `list` filter resolved against a user_id read out of it would let
     # any member screen any other member's watchlist. It arrives from the route's
@@ -997,6 +1053,13 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     # anything else uses it so a malformed rank REFUSES rather than degrading to
     # an unranked list the member did not ask for.
     rank = ranking.parse(spec.get("rank"))
+    if rank:
+        # ⛔ F1 — BEFORE `completeness_clauses`/`score_expr` EVER CALL
+        # `col_expr`. See the docstring above for the fake-receipt this used
+        # to certify instead of refusing.
+        for c in rank["criteria"]:
+            if c["column"] not in known:
+                raise _readiness_refusal(c["label"])
     base_where, base_params = where, list(where_params)
     if rank:
         # A row missing a weighted criterion cannot be ranked against rows that
@@ -1014,6 +1077,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # ⛔ No silent substitution: a member sorting a column that does not
         # exist deserves a 400 naming it, not a quiet uct_composite reorder.
         raise ValueError(f"unknown sort key: {sort_key}")
+    if sort_key not in known:
+        # ⛔ F1 — declared (passed the check above) but not yet live is a
+        # silent no-op otherwise: sorting by a constant changes nothing, and
+        # the member reads an unsorted list as "the screen answered this way".
+        raise _readiness_refusal(_member_label(sort_key))
     sort_dir = "ASC" if (sort.get("dir") == "asc") else "DESC"
     page = max(int(spec.get("page", 1)), 1)
     page_size = min(max(int(spec.get("page_size", 50)), 1), _MAX_PAGE)
@@ -1024,6 +1092,13 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         bad = [c for c in cols_req if c not in set(snapshot_db.COLUMNS)]
         if bad:
             raise ValueError(f"unknown columns: {', '.join(sorted(bad))}")
+        # ⛔ F1 — declared (passed the check above) but not yet live used to
+        # put the column's own NAME, as a string, into the member's cell
+        # (see the docstring above). First one found, same as everywhere else
+        # in this module refuses on the first problem rather than batching.
+        unready = [c for c in cols_req if c not in known]
+        if unready:
+            raise _readiness_refusal(_member_label(unready[0]))
         # ticker first, then the request's own order, then the sort column so
         # the client can always show why the rows are in this order. Dedupe
         # preserves first position.

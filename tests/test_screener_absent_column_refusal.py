@@ -31,9 +31,26 @@ table-qualify": either still leaves the two paths disagreeing about the
 MESSAGE. The fix instead REFUSES before either rendering is built, by
 consulting the table's REAL, LIVE columns (`PRAGMA table_info`) — never
 `snapshot_db.COLUMNS` alone, which is the schema's INTENT and can name a
-column `init_db()` has declared but not yet ALTER-added on this pod (⚠️ not
-live on prod today — 200/200 columns present — but latent on any pod whose
-`init_db()` has not run since the column was declared).
+column `init_db()` has declared but not yet ALTER-added on this pod (⚠️ latent
+on any pod whose `init_db()` has not run since the column was declared —
+"200/200 columns present" was measured on ONE pod, once, and is not a claim
+about prod generally).
+
+⛔⛔ FIX ROUND 1 (reviewed 2026-08-26) added two more layers, below the filter
+tests:
+  * **F1** — `build_where` only guarded the WHERE clause. A rank criterion, a
+    `sort` key and an explicit `columns=` request all name `col_expr` directly
+    in `build_scan_sql`, unguarded, and each failed WORSE than a filter did: a
+    rank CERTIFIED a fake receipt instead of refusing, a sort was a silent
+    no-op, and an explicit column request put the column's own NAME into the
+    member's cell as a value. Same fix, same `_known_columns(conn)` check,
+    now at all five call sites.
+  * **F2** — the refusal is member-facing (it reaches an HTTP 400 verbatim),
+    and the first sentence said "pod" (an internals word), named the column
+    TWICE for the common case where a filter key equals its own column, and
+    read "does not exist" (permanent-sounding, and wrong — this is latency,
+    not absence). The sentence is now `_readiness_refusal`, ONE function every
+    call site shares, pinned verbatim by a test below.
 
 Every regression test below builds its OWN throwaway `screener.db` in
 `tmp_path` and monkeypatches `SCREENER_DB_PATH` — nothing here reads
@@ -151,7 +168,7 @@ def test_gte_filter_on_an_absent_column_refuses_instead_of_returning_the_univers
     _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
     with pytest.raises(ValueError) as exc:
         query.run_scan({"filters": [{"key": "vol_ratio", "op": "gte", "min": 3}]})
-    assert "vol_ratio" in str(exc.value)
+    assert "Volume Ratio" in str(exc.value)  # the member-facing LABEL (F2), not the raw key
 
 
 def test_eq_filter_on_an_absent_column_refuses_instead_of_silently_returning_nothing(
@@ -159,7 +176,7 @@ def test_eq_filter_on_an_absent_column_refuses_instead_of_silently_returning_not
     _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
     with pytest.raises(ValueError) as exc:
         query.run_scan({"filters": [{"key": "vol_ratio", "op": "eq", "value": 3}]})
-    assert "vol_ratio" in str(exc.value)
+    assert "Volume Ratio" in str(exc.value)
 
 
 # ─── the same two polarities, one level down, with the overlay explicitly ON ─
@@ -189,7 +206,7 @@ def test_the_overlay_ON_path_refuses_the_SAME_controlled_way(
     # ⛔ THE POINT: our OWN named refusal, not sqlite3's raw
     # "no such column" — the two overlay states must fail identically.
     assert not isinstance(exc.value, sqlite3.OperationalError)
-    assert "vol_ratio" in str(exc.value)
+    assert "Volume Ratio" in str(exc.value)
 
 
 def test_both_overlay_states_produce_the_identical_refusal_text(tmp_path, monkeypatch):
@@ -216,4 +233,78 @@ def test_a_field_to_field_comparison_against_an_absent_column_also_refuses(
             query.build_where(
                 [{"key": "price", "op": "gte_col", "other": "vol_ratio"}],
                 overlay=query.OFF, conn=conn)
-    assert "vol_ratio" in str(exc.value)
+    assert "Volume Ratio" in str(exc.value)
+
+
+def test_the_refusal_sentence_is_pinned_member_facing_and_names_the_label_once(
+        tmp_path, monkeypatch):
+    _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    with pytest.raises(ValueError) as exc:
+        query.run_scan({"filters": [{"key": "vol_ratio", "op": "gte", "min": 3}]})
+    msg = str(exc.value)
+    assert msg == "Volume Ratio isn't ready on this screen yet " + chr(8212) + " remove it and try again"
+    assert "pod" not in msg.lower(), "an internals word no trader has a mental model for"
+    assert msg.count("Volume Ratio") == 1, "the label must not be said twice"
+    assert "vol_ratio" not in msg, "the raw internal column name must never reach a member"
+    assert "does not exist" not in msg, \
+        "permanent-sounding and wrong -- this is latency (_known_columns), not absence"
+
+
+def test_the_pinned_sentence_is_the_SAME_function_every_refusal_site_calls():
+    assert query._readiness_refusal("Volume Ratio").args[0] == \
+        "Volume Ratio isn't ready on this screen yet " + chr(8212) + " remove it and try again"
+    import inspect
+    src = inspect.getsource(query.build_scan_sql) + inspect.getsource(query.build_where)
+    # 5 call sites: build_where's filter LHS + field-to-field RHS, and
+    # build_scan_sql's rank criterion + sort key + explicit columns request.
+    assert src.count("_readiness_refusal(") == 5, src.count("_readiness_refusal(")
+
+
+def test_a_rank_criterion_on_an_absent_column_refuses_instead_of_certifying_a_fake_receipt(
+        tmp_path, monkeypatch):
+    _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    with pytest.raises(ValueError) as exc:
+        query.run_scan({"rank": {"criteria": [{"key": "vol_ratio", "weight": 1}]}})
+    assert "Volume Ratio" in str(exc.value)
+
+
+def test_sorting_by_an_absent_column_refuses_instead_of_a_silent_noop(tmp_path, monkeypatch):
+    _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    with pytest.raises(ValueError) as exc:
+        query.run_scan({"sort": {"key": "vol_ratio"}})
+    assert "Volume Ratio" in str(exc.value)
+
+
+def test_requesting_an_absent_column_explicitly_refuses_instead_of_leaking_the_literal_name(
+        tmp_path, monkeypatch):
+    _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    with pytest.raises(ValueError) as exc:
+        query.run_scan({"columns": ["vol_ratio"]})
+    assert "Volume Ratio" in str(exc.value)
+
+
+@pytest.mark.parametrize("label,spec", [
+    ("rank", {"rank": {"criteria": [{"key": "vol_ratio", "weight": 1}]}}),
+    ("sort", {"sort": {"key": "vol_ratio"}}),
+    ("columns", {"columns": ["vol_ratio"]}),
+])
+def test_rank_sort_and_columns_all_refuse_the_SAME_controlled_way_with_the_overlay_ON(
+        tmp_path, monkeypatch, label, spec):
+    db = _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    with db.connect() as conn:
+        with pytest.raises(ValueError) as exc:
+            query.build_scan_sql(spec, overlay=_on_overlay(), conn=conn)
+    assert not isinstance(exc.value, sqlite3.OperationalError)
+    assert "Volume Ratio" in str(exc.value)
+
+
+def test_a_rank_columns_and_sort_request_on_columns_that_really_exist_still_work(
+        tmp_path, monkeypatch):
+    _pod_missing_a_declared_column(monkeypatch, tmp_path, "vol_ratio")
+    res = query.run_scan({
+        "rank": {"criteria": [{"key": "uct_composite", "weight": 1}]},
+        "sort": {"key": "uct_composite"},
+        "columns": ["uct_composite"],
+    })
+    assert res["total"] == 3
+    assert res["rank"]["excluded_incomplete"] == 0
