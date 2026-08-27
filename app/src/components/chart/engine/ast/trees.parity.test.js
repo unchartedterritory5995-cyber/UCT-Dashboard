@@ -90,8 +90,32 @@ describe('multi_tree_parity.json — the fixture IS the parser\'s output, and th
     const col = (k) => [...interpret(fx.trees[k], bars, {}, undefined, {})]
     const [m, s, h, u] = ['macd', 'signal', 'hist', 'hist_up'].map(col)
     let finite = 0
+    let warmup = 0
     for (let i = 0; i < bars.length; i++) {
-      if (!Number.isFinite(h[i])) continue
+      if (!Number.isFinite(h[i])) {
+        // ⛔ THE BARS THIS LOOP USED TO STEP OVER IN SILENCE, AND WHAT THEY
+        // MEAN. `hist` is computable from bar 33 (MACD(12,26,9)'s warmup);
+        // `hist_up` is computable on ALL 300, because a comparison against NaN
+        // is 0 and not NaN — `interpret.js` says exactly that above `BINARY`
+        // ("A COMPARISON AGAINST NaN IS 0, NOT NaN … it is pinned rather than
+        // assumed"). So a plot column and its comparison column DISAGREE about
+        // being computable on precisely these bars, by design. Skipping them
+        // left that disagreement invisible to the fixture on either lane; it is
+        // PINNED here instead, in both halves: the comparison has a value on
+        // every bar, and during warmup that value is 0 — "not yet computable"
+        // reads as "no", never as "yes" and never as a hole.
+        //
+        // ⭐ THE PYTHON LANE HOLDS THE SAME RULE FROM THE OTHER SIDE:
+        // `test_the_lanes_agree_on_a_tree_that_is_NOT_COMPUTABLE_on_every_bar`
+        // reads an all-null column beside its comparison, which is 1 on every
+        // bar — same decision, opposite verdict, because there the operand is
+        // +Infinity rather than NaN.
+        warmup += 1
+        expect(Number.isFinite(u[i]),
+          `bar ${i}: hist is not computable and hist_up has a HOLE — a comparison must answer on every bar`).toBe(true)
+        expect(u[i], `bar ${i}: hist is not computable and hist_up did not read 0`).toBe(0)
+        continue
+      }
       finite += 1
       expect(Math.abs(h[i] - (m[i] - s[i]))).toBeLessThan(1e-9)
       expect(u[i]).toBe(h[i] > 0 ? 1 : 0)
@@ -102,6 +126,13 @@ describe('multi_tree_parity.json — the fixture IS the parser\'s output, and th
     // pass. 300 synthetic bars minus MACD(12,26,9)'s ~33-bar warmup leaves
     // comfortably more than 200 finite bars; this is the number, not a guess.
     expect(finite).toBeGreaterThan(200)
+    // ⚠️ …AND THE WARMUP HALF NEEDS THE SAME GUARD, for the same reason in the
+    // other direction: a `hist` that was finite on every bar would satisfy the
+    // branch above by never entering it. Both counts are asserted to partition
+    // the series, so neither half can quietly stop running.
+    expect(warmup, 'no bar was skipped — the warmup half of this case asserts nothing')
+      .toBeGreaterThan(0)
+    expect(warmup + finite, 'the two halves do not partition the series').toBe(bars.length)
   })
 
   it('⛔ THE `>` BOUNDARY, EXERCISED: a FLAT series puts `hist` exactly ON 0, and `hist_up` reads 0', () => {
