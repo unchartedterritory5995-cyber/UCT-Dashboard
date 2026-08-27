@@ -15,6 +15,7 @@ import TickerActionsMenu, { useTickerActions } from '../components/TickerActions
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
+import { resolveGlobalPrefSettings, tagAppTheme } from '../components/chart/chartThemes'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { menuThemeVars } from '../utils/dividerColor'
 import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel'
@@ -263,15 +264,15 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
   // canvas + dark text), so the ⚙ swatches and the surface follow the site theme.
   const ttSettings = useMemo(
-    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null) ?? themeTrackerDefaultsForTheme(placedTheme)),
-    [prefs],
+    () => mergeThemeTrackerSettings(resolveGlobalPrefSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null), placedTheme, themeTrackerDefaultsForTheme)),
+    [prefs, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const pageRef = useRef(null)
   const patchSettings = useCallback((patch) => {
-    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify({ ...ttSettings, ...patch }))
-  }, [ttSettings, setPref])
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(tagAppTheme({ ...ttSettings, ...patch }, placedTheme)))
+  }, [ttSettings, setPref, placedTheme])
   const resetSettings = useCallback(() => {
     setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(themeTrackerDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])

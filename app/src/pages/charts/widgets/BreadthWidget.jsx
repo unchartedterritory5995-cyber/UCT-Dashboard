@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -338,8 +339,8 @@ export default function BreadthWidget({
   const { prefs, setPref } = usePreferences()
   const placedTheme = usePlacedTheme()
   const bwSettings = useMemo(
-    () => mergeBreadthWidgetSettings(frozen?.settings ?? parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(placedTheme)),
-    [prefs, frozen],
+    () => mergeBreadthWidgetSettings(frozen?.settings ?? resolveGlobalPrefSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null), placedTheme, breadthDefaultsForTheme)),
+    [prefs, frozen, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -347,8 +348,8 @@ export default function BreadthWidget({
   const addBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback((patch) => {
-    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify({ ...bwSettings, ...patch }))
-  }, [bwSettings, setPref])
+    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(tagAppTheme({ ...bwSettings, ...patch }, placedTheme)))
+  }, [bwSettings, setPref, placedTheme])
   const resetSettings = useCallback(() => {
     setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(breadthDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])

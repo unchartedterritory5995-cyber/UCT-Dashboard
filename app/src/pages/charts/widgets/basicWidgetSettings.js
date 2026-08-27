@@ -1,5 +1,5 @@
 import { dividerFor, chromeFor, toolbarFor } from '../../../utils/dividerColor'
-import { widgetDefaultsForAppTheme } from '../../../components/chart/chartThemes'
+import { widgetDefaultsForAppTheme, tagAppTheme } from '../../../components/chart/chartThemes'
 
 // A minimal appearance model (canvas + text color) shared by the widgets that have
 // NO rich settings of their own — Scanner and AI Search. Rather than invent a new
@@ -21,9 +21,10 @@ export const BASIC_WIDGET_LIGHT_OVERRIDES = { bg: '#ffffff', textColor: '#1f2328
 
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function basicDefaultsForTheme(theme) {
-  return theme === 'light'
+  const base = theme === 'light'
     ? { ...BASIC_WIDGET_DEFAULTS, ...BASIC_WIDGET_LIGHT_OVERRIDES }
     : widgetDefaultsForAppTheme('aisearch', theme, BASIC_WIDGET_DEFAULTS)
+  return tagAppTheme(base, theme)
 }
 
 /** Deep-merge saved settings over the defaults (tolerates partial/older blobs). */

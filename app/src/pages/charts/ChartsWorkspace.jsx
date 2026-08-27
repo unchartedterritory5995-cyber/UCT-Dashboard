@@ -13,7 +13,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, tagAppTheme } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -1248,7 +1248,9 @@ export default function ChartsWorkspace() {
     for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
       if (!presentTypes.has(type)) continue
       const base = parsePref(prefs?.[key], null) || {}
-      setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
+      // Stamp the app theme this apply was made under so it's honored on same-theme
+      // widgets but a differently-themed new widget still follows its own app theme.
+      setPref(key, JSON.stringify(tagAppTheme(mapThemeToWidgetSettings(base, theme, type), themeRef.current)))
     }
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
