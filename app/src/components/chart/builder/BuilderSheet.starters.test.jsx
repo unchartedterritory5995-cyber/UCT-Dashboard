@@ -167,7 +167,37 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     expect(screen.queryByTestId('starter-library')).toBeNull()
   })
 
-  it('picking a starter fills the SHARED source, and Conditions shows it as ROWS or REFUSES BY NAME', async () => {
+  // ⭐ ONE CASE PER STARTER, NOT ONE LOOP OVER ALL OF THEM.
+  //
+  // This was a single `it` that mounted the sheet once per starter inside ONE
+  // 5,000 ms budget, and it passed alone while failing in the full run — the
+  // shape that is indistinguishable from a state leak until you read the error,
+  // which said `Test timed out in 5000ms`, not a wrong value.
+  //
+  // ⚠️ MEASURED 2026-08-27, BOTH HALVES: the loop cost **1,911 ms alone** (the
+  // next slowest case in this file is 468 ms), and the full 774-file run is a
+  // `pool: 'forks'` pool where the SAME work costs 2-3x — `vite.config.js`
+  // already documents six tests across five unrelated files timing out at
+  // 5,000 ms starved rather than slow. Forks run each file with `isolate: true`,
+  // so no earlier suite CAN leave module state behind here; the budget was the
+  // whole story.
+  //
+  // ⛔ AND THE FIX IS NOT A BIGGER TIMEOUT. Every assertion below is unchanged;
+  // what changed is that each starter's ~240 ms of work gets its own budget
+  // instead of eight sharing one — and, the part that matters on the day it goes
+  // red, it FAILS BY THE STARTER'S NAME instead of "the loop timed out", which
+  // says nothing about which setup broke.
+  const STARTER_CASES = Object.values(STARTERS)
+
+  it('⛔ CONTROL — every shipped starter got a case of its own below', () => {
+    // `it.each([])` registers NOTHING and reports green, so an empty catalogue
+    // would DELETE this claim rather than fail it. The loop asserted the same
+    // thing inline; parametrising moved it out here, it did not drop it.
+    expect(STARTER_CASES.length).toBeGreaterThan(0)
+    expect(STARTER_CASES.length).toBe(Object.keys(STARTERS).length)
+  })
+
+  it.each(STARTER_CASES)('picking $setup fills the SHARED source, and Conditions shows it as ROWS or REFUSES BY NAME', async (entry) => {
     // ⭐ ASSERTED FOR EVERY STARTER, AND THE BRANCH IS THE PICKER'S OWN VERDICT.
     // This case used to select one starter with a hand-rolled "every leaf is a
     // comparison" walk — a SECOND AUTHORITY over a decision `criteria.fromAst`
@@ -189,25 +219,23 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     // other half of the same starter) is now a picker TERM. The gate on the
     // model side is `criteria.test.js`'s starter block, which walks the frozen
     // trees; this case is the one that fails when the SHEET stops showing them.
-    expect(Object.keys(STARTERS).length).toBeGreaterThan(0)
-    for (const entry of Object.values(STARTERS)) {
-      mount()
-      await pickStarter(entry.setup)
-      expect(field()).toHaveValue(STARTERS[entry.setup].source)
-      fireEvent.click(tab(/conditions/i))
-      await settle()
-      const read = fromAst(entry.ast)
-      if (read.ok) {
-        expect(screen.getAllByTestId('picker-row').length).toBeGreaterThan(0)
-      } else {
-        expect(screen.queryAllByTestId('picker-row')).toHaveLength(0)
-        // ⛔ THE REFUSAL'S OWN SENTENCE, read off `criteria.REFUSALS` through
-        // `fromAst` — never retyped here. A member who cannot edit a starter in
-        // the picker must be told why, in the words the manifest owns.
-        expect(screen.getByTestId('picker-note')).toHaveTextContent(read.reason)
-      }
-      cleanup()
+    mount()
+    await pickStarter(entry.setup)
+    expect(field()).toHaveValue(STARTERS[entry.setup].source)
+    fireEvent.click(tab(/conditions/i))
+    await settle()
+    const read = fromAst(entry.ast)
+    if (read.ok) {
+      expect(screen.getAllByTestId('picker-row').length).toBeGreaterThan(0)
+    } else {
+      expect(screen.queryAllByTestId('picker-row')).toHaveLength(0)
+      // ⛔ THE REFUSAL'S OWN SENTENCE, read off `criteria.REFUSALS` through
+      // `fromAst` — never retyped here. A member who cannot edit a starter in
+      // the picker must be told why, in the words the manifest owns.
+      expect(screen.getByTestId('picker-note')).toHaveTextContent(read.reason)
     }
+    // ⚠️ No `cleanup()` here — the file's own `afterEach` calls it, and one
+    // mount per case is exactly what makes that enough.
   })
 
   it('and it lands on the FORMULA tab with the tree\'s own read-back showing', async () => {
