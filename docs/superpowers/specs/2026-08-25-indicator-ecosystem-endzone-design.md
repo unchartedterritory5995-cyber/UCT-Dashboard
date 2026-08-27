@@ -20,7 +20,7 @@ scans on a member's own script, and evidence.
 | # | Acceptance | Yardstick (pinned in a test, both directions) |
 |---|---|---|
 | A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash |
-| A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` |
+| A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` ⛔ **Measured 2026-08-27 at 12/21; the 17 needs W2b + W7 + W8. See the amendment below.** |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token — ⛔ **NOT a W3b criterion. Measured 2026-08-27 at 10/30; 10 of the 20 refusals are gated on W6/W7/W2b.** See the 2026-08-27 amendment below. | `pine.community.test.js` snapshot, pinned both directions |
 | A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
 | A5 | TC2000: **63/71 shipped against a MEASURED ceiling of 65/71** — 66 was not reachable; the five named refusals were right but **incomplete**. Partition asserted TOTAL and DISJOINT. See the 2026-08-27 amendment below. | `pcf.vocabulary.test.js` EXPECTED table, every claimed spelling asserted to **compute** end-to-end, not merely parse |
@@ -287,3 +287,41 @@ gains is **absent** from this corpus.
 ⇒ **Third acceptance number measured, third one below what was written** (A4 15→8,
 A5 66→65, A3 24→10 today). Treat every remaining figure as a forecast until a task
 derives it.
+
+### A2 amended 2026-08-27 — measured **12/21**, and 17 is not a W3b number either
+
+Read from the committed corpus snapshot `__fixtures__/pineCorpus.json` and
+confirmed live: `pine.corpus.test.js` **43 tests, exit 0** — so 12 is today's
+gate-enforced truth, not an estimate. The written 17 was the **ceiling** measured
+in the 2026-08-12 parity work and has been carried ever since as if it were a
+target W3b could reach alone.
+
+| class | n | scripts | gated on |
+|---|---|---|---|
+| **translating, >= 1 visible column** | **12** | | -- |
+| **RULED -- declared inexpressible, with the reason stated** | 2 | 09 `cum` · 20 `ta.pivothigh` | -- |
+| **W2b `tf`/`sym`** (`pine:request`) | 2 | 04 · 05 | **A7 / W2b** |
+| **W7 programs / state** (`pine:state`) | 2 | 02 · 21 | **A11 / W7** |
+| **W8 strategies** (`pine:declaration-strategy`) | 1 | 19 | **A12 / W8** |
+| **needs a ruling** | 2 | 14 `isintraday` · 15 `time` | W3b |
+
+⭐ **Partition asserted total and disjoint: 12+2+2+2+1+2 = 21.**
+⇒ **W3b alone tops out at 14/21.** The written **17 requires W2b, W7 and W8** —
+essentially the whole program.
+
+⭐ **`PINE_INEXPRESSIBLE` is the model to copy**: six names refused with a stated
+reason each, not a silent gap. `ta.pivothigh` is the sharpest — the manifest
+*has* `pivothigh`, and translating it anyway would be **wrong on every bar**,
+because Pine returns the pivot at the CONFIRMATION bar while this table emits it
+ON the pivot bar. A manifest gain that reaches the import door unexamined is not
+a gain.
+⚠️ The two "needs a ruling" refusals both name their token and their reason
+(*"never given a value in the pasted script -- `isintraday`"*, *"names something
+the engine grammar does not hold -- `time`"*). `isintraday` is a pre-v4 spelling;
+`time` may be newly reachable now that the **clock leaf** landed. **Neither is
+asserted here** -- they are queued, because a refusal re-read is not a refusal
+re-derived.
+
+⇒ **Three acceptance figures derived so far, and all three carry the same
+structural defect: the criterion is assigned to ONE wave and gated on SEVERAL.**
+A4 15→8 · A5 66→65 · A3 24→10 · A2 17→12.
