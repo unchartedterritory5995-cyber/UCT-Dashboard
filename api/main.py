@@ -705,17 +705,31 @@ def _discord_chart_hot_warm() -> None:
             return
         # The day's names, so the FIRST member to ask gets a hit too. Seeded with
         # zero hits, so anything a member actually asked for outranks them.
+        # ⛔ The two sources are read SEPARATELY on purpose. They were one try
+        # block, and `engine.get_movers` does not exist (movers live in
+        # api.services.massive) - so the AttributeError killed the leaders too
+        # and the seed was a silent no-op from the day it shipped. One bad
+        # source must never take the other down with it.
+        size, _ = di.roster_budget()
+        roster: list = []
         try:
             from api.services import engine
-            roster = [r.get("sym") or r.get("ticker") for r in (engine.get_leadership() or [])[:6]]
-            movers = engine.get_movers() or {}
-            roster += [m.get("sym") for m in (movers.get("ripping") or [])[:3]]
-            roster += [m.get("sym") for m in (movers.get("drilling") or [])[:2]]
-            di.seed_roster([s for s in roster if s])
-        except Exception as e:  # noqa: BLE001 — a roster we cannot read is not a reason to skip the warm
-            log.debug("[discord-chart] roster seed skipped: %s", e)
+            roster += [r.get("sym") or r.get("ticker") for r in (engine.get_leadership() or [])[: size // 2]]
+        except Exception as e:  # noqa: BLE001
+            log.debug("[discord-chart] roster: no leadership (%s)", e)
+        try:
+            from api.services import massive
+            movers = massive.get_movers() or {}
+            roster += [x.get("sym") for x in (movers.get("ripping") or [])[: size // 4]]
+            roster += [x.get("sym") for x in (movers.get("drilling") or [])[: size // 4]]
+        except Exception as e:  # noqa: BLE001
+            log.debug("[discord-chart] roster: no movers (%s)", e)
+        seeded = di.seed_roster([s for s in roster if s], limit=size)
+        if seeded:
+            log.info("[discord-chart] roster seeded %d chart(s) from %d name(s)", seeded, len(roster))
+        _, limit = di.roster_budget()
         di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
-                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote)
+                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit)
     except Exception:
         log.exception("[discord-chart] hot warm cycle failed")
 
@@ -2499,7 +2513,12 @@ async def lifespan(app: FastAPI):
         _start_dashboard_warm_background()
         _start_chart_renderer_warm_background()
         # Keep the charts members actually ask for rendered ahead of demand.
-        _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=2,
+        # Every minute, not every two: a live-hours chart holds for 120 s, so a
+        # two-minute cycle let warmed entries expire between passes and warmed
+        # nothing that lasted. `due()` keeps the cost down - it only returns
+        # entries past 70% of their TTL, so a quiet-hours cycle usually renders
+        # nothing at all.
+        _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
                            id="discord_chart_hot_warm", max_instances=1,
                            coalesce=True, misfire_grace_time=60)
         _start_calendar_enrichment_warm_background()

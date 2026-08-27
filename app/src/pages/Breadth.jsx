@@ -247,40 +247,6 @@ export const COLS = [
   { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
 ]
 
-// ── Group spans ────────────────────────────────────────────────────────────
-function buildGroupSpans(cols) {
-  const spans = []
-  let cur = null
-  for (const c of cols) {
-    if (cur && cur.group === c.group) {
-      cur.span++
-    } else {
-      cur = { group: c.group, span: 1 }
-      spans.push(cur)
-    }
-  }
-  return spans
-}
-
-// GROUP_SPANS removed — group spans are now derived from visibleCols inside
-// the component (see `groupSpans = useMemo(...)`) so customize-hidden metrics
-// shrink the header correctly.
-
-// ── Heatmap column set (curated — most color-meaningful metrics) ───────────
-const HEATMAP_COL_KEYS = new Set([
-  'breadth_score', 'uct_exposure',
-  'up_4pct_today', 'down_4pct_today', 'ratio_5day', 'ratio_10day',
-  'up_20pct_5d', 'down_20pct_5d',
-  'up_25pct_quarter', 'down_25pct_quarter', 'magna_up', 'magna_down',
-  'spy_ma_stack', 'qqq_ma_stack',
-  'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
-  'sp500_close', 'qqq_close', 'vix', 'mcclellan_osc', 'stage2_count', 'stage4_count',
-  'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows', 'new_ath', 'hvc_52w',
-  'cnn_fear_greed', 'aaii_spread', 'cboe_putcall',
-])
-const HEATMAP_COLS = COLS.filter(c => HEATMAP_COL_KEYS.has(c.key))
-const HEATMAP_GROUP_SPANS = buildGroupSpans(HEATMAP_COLS)
-
 function getCellTier(col, row) {
   if (col.type === 'ma_stack') return getMaStackTier(col, row)
   const val = row[col.key]
@@ -351,17 +317,6 @@ function cellClass(col, val, row = null) {
   if (c === 'r2') return styles.bgR2
   if (c === 'r3') return styles.bgR3
   return ''
-}
-
-const GROUP_HEADER_CLASS = {
-  [G.SCORE]:     styles.ghScore,
-  [G.REGIME]:    styles.ghRegime,
-  [G.PRIMARY]:   styles.ghPrimary,
-  [G.MA]:        styles.ghMA,
-  [G.HIGHS]:     styles.ghHighs,
-  [G.SETUPS]:    styles.ghSetups,
-  [G.VOLUME]:    styles.ghVolume,
-  [G.SENTIMENT]: styles.ghSentiment,
 }
 
 // ── CopyTickersButton ─────────────────────────────────────────────────────
@@ -842,12 +797,13 @@ const phaseClass = (phase, styles) => {
 }
 
 // Shared tab strip (DRY — was duplicated across every render branch). On mobile
-// it scrolls horizontally as a chip strip. "Overview" is the mobile-default
-// readable landing; the dense Monitor/Views are a tap away.
+// it scrolls horizontally as a chip strip. Monitor leads — it's what people
+// come for. "Overview" stays the mobile-default readable landing but sits
+// demoted in the strip.
 const BREADTH_TAB_ITEMS = [
-  { key: 'overview', label: 'Overview' },
   { key: 'breadth', label: 'Monitor' },
   { key: 'heatmap', label: 'Views' },
+  { key: 'overview', label: 'Overview' },
   { key: 'cot', label: 'COT Data' },
   { key: 'charts', label: 'Data Charts' },
 ]
@@ -886,13 +842,6 @@ export default function Breadth() {
     fetcher,
     { refreshInterval: 5 * 60 * 1000 }
   )
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      const raw = localStorage.getItem('breadth_collapsed_groups')
-      return raw ? new Set(JSON.parse(raw)) : new Set()
-    } catch { return new Set() }
-  })
-
   const [collapsedCols, setCollapsedCols] = useState(() => {
     try {
       const raw = localStorage.getItem('breadth_collapsed_cols')
@@ -902,15 +851,6 @@ export default function Breadth() {
 
   const customize = useBreadthCustomize()
   const [customizeOpen, setCustomizeOpen] = useState(false)
-  const toggleGroup = group => {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      next.has(group) ? next.delete(group) : next.add(group)
-      try { localStorage.setItem('breadth_collapsed_groups', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }
-
   const toggleCol = key => {
     setCollapsedCols(prev => {
       const next = new Set(prev)
@@ -960,15 +900,19 @@ export default function Breadth() {
       + `The 4:15 PM collector writes the day's authoritative row.`
     : undefined
   const visibleCols = useMemo(
-    () => COLS.filter(col => !collapsed.has(col.group) && !customize.hidden.has(col.key)),
-    [collapsed, customize.hidden],
-  )
-  // groupSpans must include collapsed groups so their header <th> always renders
-  // as a click target. Only exclude cols that are fully hidden via Customize.
-  const groupSpans = useMemo(
-    () => buildGroupSpans(COLS.filter(col => !customize.hidden.has(col.key))),
+    () => COLS.filter(col => !customize.hidden.has(col.key)),
     [customize.hidden],
   )
+  // First visible column of each metric family after the first — a hairline
+  // rule keeps the families scannable now that the colored group-header row
+  // is gone.
+  const groupStartKeys = useMemo(() => {
+    const keys = new Set()
+    visibleCols.forEach((col, i) => {
+      if (i > 0 && col.group !== visibleCols[i - 1].group) keys.add(col.key)
+    })
+    return keys
+  }, [visibleCols])
 
   const sparkData = useMemo(() => {
     const out = {}
@@ -1117,22 +1061,7 @@ export default function Breadth() {
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
-          {collapsed.size > 0
-            ? <>
-                All column groups are collapsed —{' '}
-                <button
-                  className={styles.emptyAction}
-                  onClick={() => {
-                    setCollapsed(new Set())
-                    try { localStorage.removeItem('breadth_collapsed_groups') } catch {}
-                  }}
-                >
-                  Expand all
-                </button>
-                {customize.hidden.size > 0 && <> or open <strong>Customize</strong> to show hidden metrics.</>}
-              </>
-            : <>All metrics hidden — open <strong>Customize</strong> to show some.</>
-          }
+          All metrics hidden — open <strong>Customize</strong> to show some.
         </div>
       )}
 
@@ -1145,45 +1074,18 @@ export default function Breadth() {
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
-              {/* Group header row */}
+              {/* Single column-label row — the colored group-header strip was
+                  retired 2026-08-26; families are separated by a hairline rule
+                  on each group's first column instead. */}
               <tr>
-                <th
-                  className={`${styles.th} ${styles.dateCol} ${styles.ghDate}`}
-                  rowSpan={2}
-                >
-                  Date
-                </th>
-                {groupSpans.map((gs, i) => {
-                  const isCollapsed = collapsed.has(gs.group)
-                  // Count how many individual cols in this group are visible (they still occupy 1 slot each, including collapsed-narrow ones)
-                  const groupCols = visibleCols.filter(c => c.group === gs.group)
-                  const visibleSpan = isCollapsed ? 1 : groupCols.reduce((acc, c) => acc + 1, 0)
-                  return (
-                    <th
-                      key={i}
-                      colSpan={visibleSpan}
-                      rowSpan={isCollapsed ? 2 : 1}
-                      title={isCollapsed ? `Click to expand ${gs.group}` : `Click to collapse ${gs.group}`}
-                      className={`${styles.th} ${styles.groupHeader} ${GROUP_HEADER_CLASS[gs.group] ?? ''} ${styles.groupHeaderClickable} ${isCollapsed ? styles.groupHeaderCollapsed : ''}`}
-                      onClick={() => toggleGroup(gs.group)}
-                    >
-                      {isCollapsed
-                        ? <span className={styles.groupCollapsedLabel}>{gs.group}</span>
-                        : <span className={styles.groupExpandedLabel}>{gs.group} <span className={styles.groupChevron}>▾</span></span>
-                      }
-                    </th>
-                  )
-                })}
-              </tr>
-              {/* Column label row — only visible (non-collapsed) groups */}
-              <tr>
+                <th className={`${styles.th} ${styles.dateCol}`}>Date</th>
                 {visibleCols.map(col => {
                   const isColCollapsed = collapsedCols.has(col.key)
                   return (
                     <th
                       key={col.key}
                       title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
-                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''}`}
+                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}
                       onClick={() => toggleCol(col.key)}
                     >
                       {isColCollapsed
@@ -1210,106 +1112,100 @@ export default function Breadth() {
                       )
                       : row.date}
                   </td>
-                  {groupSpans.flatMap(gs => {
-                    if (collapsed.has(gs.group)) {
-                      // Placeholder cell to match the colSpan=1 rowSpan=2 header cell
-                      return [<td key={`grp-${gs.group}`} className={styles.td} />]
+                  {visibleCols.map(col => {
+                    const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
+                    if (collapsedCols.has(col.key)) {
+                      return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell} ${groupStart}`} />
                     }
-                    const groupCols = visibleCols.filter(c => c.group === gs.group)
-                    return groupCols.map(col => {
-                      if (collapsedCols.has(col.key)) {
-                        return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell}`} />
-                      }
-                      if (col.type === 'sparkline') {
-                        const val = row[col.key]
-                        const last10 = sparkData[col.key]?.[row.date] ?? []
-                        // Determine line color from cell color class
-                        const colorResult = col.colorFn ? col.colorFn(val) : ''
-                        const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'
-                          : colorResult === 'red' ? 'var(--loss)' : 'var(--text-muted)'
-                        return (
-                          <td key={col.key} className={`${styles.td} ${styles.sparklineCell}`} title={val != null ? String(val) : '—'}>
-                            <Sparkline values={last10} color={lineColor} />
-                          </td>
-                        )
-                      }
-                      if (col.type === 'ma_stack') {
-                        // keys order: [10sma, 20sma, 50sma, 200sma]
-                        const above10  = row[col.keys[0]] === 1
-                        const above20  = row[col.keys[1]] === 1
-                        const above50  = row[col.keys[2]] === 1
-                        const above200 = row[col.keys[3]] === 1
-                        const hasData  = col.keys.some(k => row[k] != null)
-                        let stackBg = ''
-                        if (hasData) {
-                          if (above50) {
-                            // Green side — above 50SMA
-                            if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
-                            else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
-                            else if (above200)                         stackBg = styles.bgG1  // 50+200 only
-                            else                                       stackBg = styles.bgA   // above 50, not 200
-                          } else {
-                            // Red side — below 50SMA
-                            if (above200)              stackBg = styles.bgR1  // below 50, still above 200
-                            else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
-                            else                         stackBg = styles.bgR3  // below all
-                          }
-                        }
-                        return (
-                          <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
-                            <div className={styles.maStack}>
-                              {col.keys.map((k, i) => {
-                                const v = row[k]
-                                const isCheck = v === 1
-                                const isCross = v === 0
-                                return (
-                                  <div key={k} className={styles.maItem}>
-                                    <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
-                                      {v === null || v === undefined ? '—' : isCheck ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </td>
-                        )
-                      }
+                    if (col.type === 'sparkline') {
                       const val = row[col.key]
-                      const isStaleAaii = AAII_KEYS.has(col.key) &&
-                        row.aaii_survey_date &&
-                        row.aaii_survey_date !== row.date
-                      // A live cell drills what was MEASURED live; a carried one
-                      // drills the session its number came from. `drillTarget`
-                      // owns that choice so the tiles below make it identically.
-                      const drillTo = drillTarget(row, col, liveBreadth)
-                      const isDrillable = !!drillTo
-                      // A number carried from last night is not a live reading,
-                      // and one that reconciles to ~8% should not look like one
-                      // that reconciles to a point.
-                      const liveGrade = row._live
-                        ? (liveBreadth.carried?.has(col.key) ? 'carried'
-                          : liveBreadth.accuracy?.[col.key] ?? null)
-                        : null
+                      const last10 = sparkData[col.key]?.[row.date] ?? []
+                      // Determine line color from cell color class
+                      const colorResult = col.colorFn ? col.colorFn(val) : ''
+                      const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'
+                        : colorResult === 'red' ? 'var(--loss)' : 'var(--text-muted)'
                       return (
-                        <td
-                          key={col.key}
-                          className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
-                          title={
-                            liveGrade === 'carried'
-                              ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
-                              : liveGrade === 'approximate'
-                                ? 'Provisional, reconciles to roughly 10%'
-                                : liveBreadth.partial?.has(col.key) && row._live
-                                  ? 'Builds through the session — only complete at the close'
-                                  : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
-                                    : isDrillable ? 'Click to see stocks' : undefined
-                          }
-                          onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
-                        >
-                          {fmtCell(col, val)}
+                        <td key={col.key} className={`${styles.td} ${styles.sparklineCell}`} title={val != null ? String(val) : '—'}>
+                          <Sparkline values={last10} color={lineColor} />
                         </td>
                       )
-                    })
+                    }
+                    if (col.type === 'ma_stack') {
+                      // keys order: [10sma, 20sma, 50sma, 200sma]
+                      const above10  = row[col.keys[0]] === 1
+                      const above20  = row[col.keys[1]] === 1
+                      const above50  = row[col.keys[2]] === 1
+                      const above200 = row[col.keys[3]] === 1
+                      const hasData  = col.keys.some(k => row[k] != null)
+                      let stackBg = ''
+                      if (hasData) {
+                        if (above50) {
+                          // Green side — above 50SMA
+                          if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
+                          else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
+                          else if (above200)                         stackBg = styles.bgG1  // 50+200 only
+                          else                                       stackBg = styles.bgA   // above 50, not 200
+                        } else {
+                          // Red side — below 50SMA
+                          if (above200)              stackBg = styles.bgR1  // below 50, still above 200
+                          else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
+                          else                         stackBg = styles.bgR3  // below all
+                        }
+                      }
+                      return (
+                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
+                          <div className={styles.maStack}>
+                            {col.keys.map((k, i) => {
+                              const v = row[k]
+                              const isCheck = v === 1
+                              const isCross = v === 0
+                              return (
+                                <div key={k} className={styles.maItem}>
+                                  <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
+                                    {v === null || v === undefined ? '—' : isCheck ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </td>
+                      )
+                    }
+                    const val = row[col.key]
+                    const isStaleAaii = AAII_KEYS.has(col.key) &&
+                      row.aaii_survey_date &&
+                      row.aaii_survey_date !== row.date
+                    // A live cell drills what was MEASURED live; a carried one
+                    // drills the session its number came from. `drillTarget`
+                    // owns that choice so the tiles below make it identically.
+                    const drillTo = drillTarget(row, col, liveBreadth)
+                    const isDrillable = !!drillTo
+                    // A number carried from last night is not a live reading,
+                    // and one that reconciles to ~8% should not look like one
+                    // that reconciles to a point.
+                    const liveGrade = row._live
+                      ? (liveBreadth.carried?.has(col.key) ? 'carried'
+                        : liveBreadth.accuracy?.[col.key] ?? null)
+                      : null
+                    return (
+                      <td
+                        key={col.key}
+                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                        title={
+                          liveGrade === 'carried'
+                            ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
+                            : liveGrade === 'approximate'
+                              ? 'Provisional, reconciles to roughly 10%'
+                              : liveBreadth.partial?.has(col.key) && row._live
+                                ? 'Builds through the session — only complete at the close'
+                                : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
+                                  : isDrillable ? 'Click to see stocks' : undefined
+                        }
+                        onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
+                      >
+                        {fmtCell(col, val)}
+                      </td>
+                    )
                   })}
                 </tr>
               ))}

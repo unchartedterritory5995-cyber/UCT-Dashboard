@@ -113,3 +113,30 @@ def test_a_seeded_chart_is_warmed_so_the_first_member_to_ask_gets_a_hit():
     assert warm_hot_charts(bars_fn=lambda *a: bars(), render_fn=lambda *a, **k: PNG,
                            house_fn=lambda t, tf, s, o: PNG) == [key]
     assert cache.get(key) is not None            # the first asker pays nothing
+
+
+def test_the_roster_seed_reads_the_modules_that_actually_have_those_functions(monkeypatch):
+    """It shipped calling engine.get_movers(), which does not exist — movers live
+    in api.services.massive — and because both sources sat in ONE try block the
+    AttributeError took the leaders down with them: the seed was a silent no-op.
+    Pin both the real owners and the independence."""
+    import api.main as m
+    from api.services import engine, massive, discord_chart_house as house, discord_interactions as di
+    from api.services import discord_chart_hotset as hs
+    assert hasattr(massive, "get_movers") and not hasattr(engine, "get_movers")
+    monkeypatch.setenv("DISCORD_CHART_HOTWARM_ENABLED", "1")
+    monkeypatch.setattr(house, "house_enabled", lambda: True)
+    monkeypatch.setattr(di, "warm_hot_charts", lambda **k: [])
+    monkeypatch.setattr(engine, "get_leadership", lambda: [{"sym": "LEAD1"}, {"sym": "LEAD2"}])
+    monkeypatch.setattr(massive, "get_movers", lambda: {"ripping": [{"sym": "RIP1"}], "drilling": [{"sym": "DRL1"}]})
+    hs.clear_for_tests()
+    m._discord_chart_hot_warm()
+    assert {k.split(":")[0] for k, _, _ in hs.snapshot()} == {"LEAD1", "LEAD2", "RIP1", "DRL1"}
+    # one broken source must not take the other down
+    hs.clear_for_tests()
+    def boom():
+        raise AttributeError("module has no attribute 'get_movers'")
+    monkeypatch.setattr(massive, "get_movers", boom)
+    m._discord_chart_hot_warm()
+    assert {k.split(":")[0] for k, _, _ in hs.snapshot()} == {"LEAD1", "LEAD2"}, "a dead source silenced the whole seed"
+    hs.clear_for_tests()
