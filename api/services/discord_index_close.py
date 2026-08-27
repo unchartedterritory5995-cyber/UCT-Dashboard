@@ -201,14 +201,20 @@ def session_line(now_et: _dt.datetime) -> str:
     return now_et.strftime("%A, %B ") + str(now_et.day)
 
 
-def build_messages(now_et: _dt.datetime, index_charts, etf_charts, notable) -> list[tuple[str, list]]:
+def build_messages(now_et: _dt.datetime, index_charts, etf_charts, notable, note: str = "") -> list[tuple[str, list]]:
     """The two messages, as (content, charts). Two rather than one: Discord
     shrinks every tile as the grid grows, and eight charts in a single message
-    are a wall of thumbnails nobody can read. Four is a clean 2x2."""
+    are a wall of thumbnails nobody can read. Four is a clean 2x2.
+
+    `note` is the written read (see `discord_close_note`). It leads the first
+    message because it is the part a member reads; an empty note simply leaves
+    the post as charts, which is what it was before."""
     msgs = []
     if index_charts:
-        msgs.append((f"**Into the close · {session_line(now_et)}**\n"
-                     + " · ".join(sym for sym, _, _ in index_charts), index_charts))
+        head = f"**Into the close · {session_line(now_et)}**\n" + " · ".join(sym for sym, _, _ in index_charts)
+        if note:
+            head += "\n\n" + note
+        msgs.append((head, index_charts))
     if etf_charts:
         line = "**ETFs into the close**\n" + " · ".join(sym for sym, _, _ in etf_charts)
         movers = [f"**{sym}** {pct:+.1f}%" for sym, pct in notable]
@@ -218,8 +224,54 @@ def build_messages(now_et: _dt.datetime, index_charts, etf_charts, notable) -> l
     return msgs
 
 
+def session_moves(etf_syms=(), notable=(), snapshot_fn=None) -> dict:
+    """Percent change for the indexes and the ETFs on the post, as one dict.
+    The movers already carry their number from `pick_notable`, so only the rest
+    is quoted - one snapshot call, not two."""
+    known = {s: p for s, p in (notable or ())}
+    want = [s for s in list(INDEXES) + list(etf_syms) if s not in known]
+    fn = snapshot_fn
+    if fn is None:
+        try:
+            from api.services.massive import get_etf_snapshots
+            fn = get_etf_snapshots
+        except Exception:  # noqa: BLE001
+            return dict(known)
+    try:
+        quotes = fn(want) or {}
+    except Exception as e:  # noqa: BLE001
+        log.warning("[index-close] session quotes failed: %s", e)
+        quotes = {}
+    out = {}
+    for sym in list(INDEXES) + list(etf_syms):
+        v = known.get(sym, quotes.get(sym))
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            continue
+        if f == f:                       # not NaN
+            out[sym] = f
+    return out
+
+
+def write_note(etf_syms=(), notable=(), note_fn=None, snapshot_fn=None) -> str:
+    """The written read, or "" - a note that cannot be written well is simply
+    left out. Never raises: the charts are the product."""
+    try:
+        moves = session_moves(etf_syms, notable, snapshot_fn=snapshot_fn)
+        if not moves:
+            return ""
+        if note_fn is not None:
+            return note_fn(moves) or ""
+        from api.services import discord_close_note as note_mod
+        return note_mod.compose(moves) or ""
+    except Exception as e:  # noqa: BLE001
+        log.warning("[index-close] note failed: %s", e)
+        return ""
+
+
 def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et=None,
-                   post_fn=None, force: bool = False, dry_run: bool = False) -> dict:
+                   post_fn=None, note_fn=None, force: bool = False, dry_run: bool = False) -> dict:
     """The 15:45 ET job. Returns a report dict - `posted` is what actually went
     out. Never raises: a scheduled public post that throws is a stack trace in a
     log nobody reads, so every failure is a reported reason instead."""
@@ -243,13 +295,15 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
     notable = pick_notable(exclude=list(INDEXES) + list(CORE_ETFS))
     etf_syms = list(CORE_ETFS) + [s for s, _ in notable]
     report["notable"] = [[s, round(p, 2)] for s, p in notable]
+    note = write_note(etf_syms, notable, note_fn=note_fn)
+    report["note"] = note
 
     index_charts = render_charts(INDEXES, bars_fn=bars_fn, house_fn=house_fn,
                                  stats_fn=stats_fn, name_fn=name_fn, options=options)
     etf_charts = render_charts(etf_syms, bars_fn=bars_fn, house_fn=house_fn,
                                stats_fn=stats_fn, name_fn=name_fn, options=options)
     report["symbols"] = [s for s, _, _ in index_charts] + [s for s, _, _ in etf_charts]
-    messages = build_messages(now, index_charts, etf_charts, notable)
+    messages = build_messages(now, index_charts, etf_charts, notable, note)
     report["messages"] = [c for c, _ in messages]
     if dry_run:
         report["bytes"] = [len(png) for _, png, _ in index_charts + etf_charts]
