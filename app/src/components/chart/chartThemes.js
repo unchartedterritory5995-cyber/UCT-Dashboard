@@ -485,6 +485,23 @@ export function widgetDefaultsForAppTheme(type, appTheme, base) {
   return theme ? mapThemeToWidgetSettings(base, theme, type) : base
 }
 
+// GLOBAL-PREF widgets (theme tracker / breadth / fundamentals / AI search) store
+// appearance in ONE pref shared across every layout, so a value written under one app
+// theme would otherwise shadow another. Stamp every write with the app theme it was
+// made under (`_appTheme`) and honor a saved pref ONLY when its stamp matches the
+// widget's placed theme; otherwise (different theme, or a legacy un-stamped pref)
+// follow the current app theme's default. Net effect: a NEW widget always matches the
+// current app theme, an existing widget keeps what it was set to under that theme, and
+// a genuine per-theme customization is preserved.
+export function tagAppTheme(settings, appTheme) {
+  return { ...(settings || {}), _appTheme: appTheme == null ? null : String(appTheme) }
+}
+export function resolveGlobalPrefSettings(saved, placedTheme, defaultsForTheme) {
+  const pt = placedTheme == null ? null : String(placedTheme)
+  if (saved && typeof saved === 'object' && saved._appTheme === pt) return saved
+  return defaultsForTheme(placedTheme)
+}
+
 /**
  * Patch ONE PER-WIDGET widget's (or widget-tab's) opts to adopt `theme`. Charts get
  * the full chart mapping (incl. chart tabs); watchlist/scanner/optionsflow/calendar/

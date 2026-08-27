@@ -11,6 +11,7 @@ import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalT
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
+import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import styles from './AiSearchWidget.module.css'
 
 const AIS_SETTINGS_KEY = 'aisearch_settings'
@@ -280,9 +281,9 @@ export default function AiSearchWidget({
       // app theme (dark on OLED) like the sibling widgets; genuine picks are kept.
       const saved = parsePref(prefs?.[AIS_SETTINGS_KEY], null)
       const eff = isLegacyBasicLightDefault(saved) ? null : saved
-      return mergeBasicWidgetSettings(eff ?? basicDefaultsForTheme(placedTheme))
+      return mergeBasicWidgetSettings(resolveGlobalPrefSettings(eff, placedTheme, basicDefaultsForTheme))
     },
-    [prefs],
+    [prefs, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   // ── Send this conversation to the Journal (the capture door — shared flow:
@@ -296,7 +297,7 @@ export default function AiSearchWidget({
     const v = basicWidgetStyleVars(aisSettings)
     return v['--basic-canvas'] ? { ...v, background: v['--basic-canvas'] } : v
   }, [aisSettings])
-  const patchSettings = useCallback((patch) => setPref(AIS_SETTINGS_KEY, JSON.stringify({ ...aisSettings, ...patch })), [aisSettings, setPref])
+  const patchSettings = useCallback((patch) => setPref(AIS_SETTINGS_KEY, JSON.stringify(tagAppTheme({ ...aisSettings, ...patch }, placedTheme))), [aisSettings, setPref, placedTheme])
   const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(placedTheme))), [setPref, prefs])
   const menuVars = useMemo(() => {
     const canvas = aisSettings.bgMode === 'gradient' ? (aisSettings.bgGradient?.top || aisSettings.bg) : aisSettings.bg

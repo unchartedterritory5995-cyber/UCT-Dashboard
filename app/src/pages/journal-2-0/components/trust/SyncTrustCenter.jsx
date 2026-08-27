@@ -146,10 +146,22 @@ export default function SyncTrustCenter({ onSynced }) {
                 journal against the broker payload after EVERY sync. Members
                 see the proof themselves instead of trusting us blind. */}
             {a.mirror?.checkedAt && (a.mirror.ok ? (
-              <p className={styles.mirrorOk}>
-                <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="shield" size={13} /></span>
-                Verified against your broker on last sync
-              </p>
+              // HONESTY OVER REASSURANCE: "Verified" over a four-figure gap
+              // reads as broken or lying to a member comparing their broker
+              // app (a $1.6M account sat $1,918 off — within the % tolerance,
+              // glaring in dollars). Above $100 the chip shows the actual
+              // reconciliation gap instead of overclaiming.
+              Math.abs(a.mirror.driftDollar || 0) < 100 ? (
+                <p className={styles.mirrorOk}>
+                  <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="shield" size={13} /></span>
+                  Verified against your broker on last sync
+                </p>
+              ) : (
+                <p className={styles.mirrorOk}>
+                  <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="shield" size={13} /></span>
+                  {`Reconciled with your broker — $${Math.abs(a.mirror.driftDollar).toFixed(2)} mark-timing gap at last sync`}
+                </p>
+              )
             ) : (
               <p className={styles.mirrorDrift} role="alert">
                 <span className={styles.mirrorIcon} aria-hidden="true"><UIcon name="warning" size={13} gold={false} /></span>

@@ -4729,6 +4729,18 @@ async def lifespan(app: FastAPI):
                 id="broker_live_sentinel_weekly", max_instances=1,
                 replace_existing=True,
             )
+            # Daily fidelity PULSE — 16:35 ET weekdays, after the close:
+            # one green-or-red line stating in dollars how the whole fleet
+            # reconciled today. Every other rail is silent when healthy;
+            # this is the affirmative artifact the owner reads instead of
+            # trusting silence.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_daily_pulse_blocking,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=35,
+                                    timezone=_ET),
+                id="broker_live_sentinel_daily_pulse", max_instances=1,
+                replace_existing=True,
+            )
             # Weekly DRILL — Sunday 09:40 ET, before the digest: injects the
             # incident shape into a robot account and proves the sentinel
             # actually detects it (a guard nobody has seen fire is not a

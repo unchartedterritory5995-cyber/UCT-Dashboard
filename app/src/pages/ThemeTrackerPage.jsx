@@ -15,6 +15,7 @@ import TickerActionsMenu, { useTickerActions } from '../components/TickerActions
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
+import { resolveGlobalPrefSettings, tagAppTheme } from '../components/chart/chartThemes'
 import usePlacedTheme from '../hooks/usePlacedTheme'
 import { menuThemeVars } from '../utils/dividerColor'
 import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel'
@@ -263,15 +264,15 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
   // canvas + dark text), so the ⚙ swatches and the surface follow the site theme.
   const ttSettings = useMemo(
-    () => mergeThemeTrackerSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null) ?? themeTrackerDefaultsForTheme(placedTheme)),
-    [prefs],
+    () => mergeThemeTrackerSettings(resolveGlobalPrefSettings(parsePref(prefs?.[THEME_TRACKER_SETTINGS_KEY], null), placedTheme, themeTrackerDefaultsForTheme)),
+    [prefs, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const pageRef = useRef(null)
   const patchSettings = useCallback((patch) => {
-    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify({ ...ttSettings, ...patch }))
-  }, [ttSettings, setPref])
+    setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(tagAppTheme({ ...ttSettings, ...patch }, placedTheme)))
+  }, [ttSettings, setPref, placedTheme])
   const resetSettings = useCallback(() => {
     setPref(THEME_TRACKER_SETTINGS_KEY, JSON.stringify(themeTrackerDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])
@@ -704,7 +705,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
-        {/* Period tabs */}
+        {/* Period tabs + the Journal / ⚙ cluster on the right (same layout as the
+            Watchlist / Scanner pickers — buttons ride the tab row, not the search). */}
         <div className={styles.periodBar}>
           {RANK_TABS.map(tab => (
             <button
@@ -715,6 +717,23 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
+          <span className={styles.periodBarSpacer} />
+          {/* → Journal: freeze the visible ranking into a note (payload capture). */}
+          {filteredThemes.length > 0 && (
+            <button
+              className={styles.settingsBtn}
+              onClick={sendThemesToJournal}
+              title="Send this ranking to Journal (frozen list)"
+              aria-label="Send this ranking to Journal"
+            ><UIcon name="journal" size={14} /></button>
+          )}
+          <button
+            ref={settingsBtnRef}
+            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+            onClick={() => setSettingsOpen(o => !o)}
+            title="Theme Tracker settings"
+            aria-label="Theme Tracker settings"
+          ><UIcon name="gear" size={14} /></button>
         </div>
 
         {/* Search */}
@@ -728,25 +747,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
           )}
-          {/* → Journal: freeze the visible ranking into a note (payload
-              capture — owner decision). Door-left-of-gear, the house cluster. */}
-          {filteredThemes.length > 0 && (
-            <button
-              className={styles.settingsBtn}
-              onClick={sendThemesToJournal}
-              title="Send this ranking to Journal (frozen list)"
-              aria-label="Send this ranking to Journal"
-            ><UIcon name="journal" size={14} /></button>
-          )}
-          {/* ⚙ Theme Tracker settings — rides the search row (a gear on its own
-              wrapped period-bar row wasted a full strip of vertical space). */}
-          <button
-            ref={settingsBtnRef}
-            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
-            onClick={() => setSettingsOpen(o => !o)}
-            title="Theme Tracker settings"
-            aria-label="Theme Tracker settings"
-          ><UIcon name="gear" size={14} /></button>
         </div>
 
         <div className={styles.tableHeader}>

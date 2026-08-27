@@ -55,18 +55,19 @@ _ET = ZoneInfo("America/New_York")
 # Tolerance absorbs same-day P&L between a fill and its first stamped mark,
 # fees, and rounding — generous enough to stay quiet on honest books, tiny
 # next to the failures it exists to catch (the incident was a $10,990 miss
-# on a $10.7k account).
+# on a $10.7k account). DOLLAR-CAPPED: the conservation residual is
+# mark-invariant (same marks on both sides), so its noise does NOT scale
+# with book size — but a pure percentage does: 1.5% of the fleet's $1.6M
+# account is $24,594 of invisible error headroom. Percentage floor for
+# small books, hard dollar ceiling for whales.
 _TOL_DOLLARS = 150.0
 _TOL_PCT = 0.015
+_TOL_CAP_DOLLARS = 1000.0
 _PAGE_AFTER_CONSECUTIVE = 2
 _MAX_ANCHOR_AGE_HOURS = 36
 
-# One page per account per ET day (in-process; a redeploy risks one repeat).
-_paged: dict[str, str] = {}
-
-
 def _reset_for_tests() -> None:
-    _paged.clear()
+    pass  # dedup is durable (j2_broker_digest_dedup); tests use fresh DBs
 
 
 def _enabled() -> bool:
@@ -167,7 +168,9 @@ def check_account(user_id: str, broker_account_id: str, j2_account_id: str,
 
     composed = cash_live + book_now
     anchor = cash_s + book_s
-    tol = max(_TOL_DOLLARS, _TOL_PCT * max(abs(_f(acct["broker_total_equity"]) or anchor), 1.0))
+    tol = max(_TOL_DOLLARS, min(
+        _TOL_PCT * max(abs(_f(acct["broker_total_equity"]) or anchor), 1.0),
+        _TOL_CAP_DOLLARS))
 
     # Fully-reflected expectation: each fill moved cash AND the book
     # (buy: −cost/+cost; sell: +proceeds/−basis) → composed ≈ anchor.
@@ -237,13 +240,34 @@ def _persist(conn, user_id: str, broker_account_id: str, out: dict[str, Any]) ->
 
 
 def _maybe_page(user_id: str, broker_account_id: str, out: dict[str, Any],
-                fails: int) -> None:
+                fails: int, conn=None) -> None:
     if fails < _PAGE_AFTER_CONSECUTIVE:
         return
+    # DURABLE once-per-account-per-ET-day dedup (j2_broker_digest_dedup, the
+    # repo's standing pattern). The first version used an in-process dict —
+    # and on 2026-08-27, four same-day deploys each wiped it while the v1
+    # classifier still misread the owner's trading morning as structural, so
+    # ONE false alarm paged twice. An in-process dedup on a pod that
+    # redeploys several times a day is not a dedup.
     today = datetime.now(_ET).strftime("%Y-%m-%d")
-    if _paged.get(broker_account_id) == today:
-        return
-    _paged[broker_account_id] = today
+    dd_id = f"live_sentinel:{broker_account_id}"
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT et_day FROM j2_broker_digest_dedup WHERE id = ?", (dd_id,),
+        ).fetchone()
+        if row and row["et_day"] == today:
+            return
+        conn.execute(
+            "INSERT OR REPLACE INTO j2_broker_digest_dedup "
+            "(id, fingerprint, et_day) VALUES (?, ?, ?)",
+            (dd_id, broker_account_id, today),
+        )
+        conn.commit()
+    finally:
+        if owned:
+            conn.close()
     c = out.get("components") or {}
     _post_discord(
         "🔴 Broker live-composition drift (structural)",
@@ -253,7 +277,10 @@ def _maybe_page(user_id: str, broker_account_id: str, out: dict[str, Any],
         f"cash {c.get('cashSynced')}→{c.get('cashLive')} · book "
         f"{c.get('bookSynced')}→{c.get('bookNow')} · fills {c.get('fills')} "
         f"(buys ${c.get('buyCost')}, sells ${c.get('sellProceeds')}).\n"
-        "Component snapshot persisted in j2_broker_live_checks (flight recorder).",
+        "This is the between-sync LIVE composition check — synced data is "
+        "graded separately by the mirror check, and a full sync re-anchors "
+        "this one. Component snapshot persisted in j2_broker_live_checks "
+        "(flight recorder). One page per account per day.",
     )
 
 
@@ -285,7 +312,7 @@ def run_sentinel_sweep() -> dict[str, Any]:
                 checked += 1
                 if out["verdict"] == "structural":
                     structural += 1
-                    _maybe_page(ba["userId"], ba["id"], out, fails)
+                    _maybe_page(ba["userId"], ba["id"], out, fails, conn=conn)
             except Exception:  # noqa: BLE001
                 logger.warning("live sentinel failed for %s", ba.get("id"),
                                exc_info=True)
@@ -455,6 +482,60 @@ def fleet_snapshot(conn=None) -> dict[str, Any]:
             worst = res
     return {"accounts": len(rows), "byVerdict": by_verdict,
             "worstResidualDollar": round(worst, 2), "rows": rows}
+
+
+def run_daily_pulse_blocking() -> None:
+    """Post-close daily fidelity pulse — ALWAYS posts, green or red.
+
+    Every other rail is silent when healthy, so "is the journal accurate?"
+    required trusting the silence. This is the affirmative artifact: one
+    line after each close stating, in dollars, how the whole fleet
+    reconciled today. Never raises into the scheduler."""
+    try:
+        conn = get_connection()
+        try:
+            et_today = datetime.now(_ET).strftime("%Y-%m-%d")
+            syncs = conn.execute(
+                "SELECT COUNT(*) AS n, "
+                "SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS errs "
+                "FROM j2_broker_sync_log WHERE started_at >= ?",
+                (datetime.now(timezone.utc).strftime("%Y-%m-%d"),),
+            ).fetchone()
+            mirror = conn.execute(
+                "SELECT COUNT(*) AS n, "
+                "SUM(CASE WHEN ok=1 THEN 0 ELSE 1 END) AS bad, "
+                "MAX(ABS(COALESCE(drift_dollar, 0))) AS worst "
+                "FROM j2_broker_mirror_checks",
+            ).fetchone()
+            snap = fleet_snapshot(conn)
+        finally:
+            conn.close()
+        bv = snap["byVerdict"]
+        structural = bv.get("structural", 0)
+        red = structural or (mirror["bad"] or 0) or (syncs["errs"] or 0)
+        tone = "🔴" if red else "🟢"
+        _post_discord(
+            f"{tone} Journal fidelity pulse — {et_today}",
+            f"{syncs['n'] or 0} syncs today, {syncs['errs'] or 0} failed · "
+            f"{mirror['n'] or 0} accounts mirror-checked, "
+            f"{mirror['bad'] or 0} drifting, worst gap "
+            f"${(mirror['worst'] or 0):,.2f} · live checks: "
+            f"{bv.get('ok', 0)} ok / {bv.get('book_lag', 0)} fills-pending / "
+            f"{structural} structural (worst residual "
+            f"${snap['worstResidualDollar']:,.2f}).\n"
+            + ("Everything reconciled. This line posts every close — a "
+               "missing pulse means the pulse itself broke, not that all is "
+               "well." if not red else
+               "Something needs eyes — details are in the tables "
+               "(j2_broker_live_checks / mirror_checks / sync_log)."),
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("daily pulse failed: %s", e)
+        try:
+            _post_discord("🔴 Journal fidelity pulse CRASHED",
+                          f"The pulse itself errored: {e}")
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def run_weekly_summary_blocking() -> None:

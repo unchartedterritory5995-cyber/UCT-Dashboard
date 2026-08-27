@@ -9,6 +9,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
@@ -144,15 +145,15 @@ export default function FundamentalsWidget({
   // Uncustomized (no saved pref) → the DEFAULTS FOR THE CURRENT APP THEME (light →
   // white canvas + dark text), so the ⚙ swatches and the surface follow the theme.
   const fwSettings = useMemo(
-    () => mergeFundamentalsSettings(frozen?.settings ?? parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(placedTheme)),
-    [prefs, frozen],
+    () => mergeFundamentalsSettings(frozen?.settings ?? resolveGlobalPrefSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null), placedTheme, fundamentalsDefaultsForTheme)),
+    [prefs, frozen, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback((patch) => {
-    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify({ ...fwSettings, ...patch }))
-  }, [fwSettings, setPref])
+    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(tagAppTheme({ ...fwSettings, ...patch }, placedTheme)))
+  }, [fwSettings, setPref, placedTheme])
   const resetSettings = useCallback(() => {
     setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(fundamentalsDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])

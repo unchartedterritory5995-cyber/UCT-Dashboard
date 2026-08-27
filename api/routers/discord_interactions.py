@@ -376,22 +376,65 @@ def run_index_close(*, force: bool = False, dry_run: bool = False) -> dict:
         force=force, dry_run=dry_run)
 
 
+# The last hand-fired run, so its outcome can be READ BACK. Rendering eight
+# charts takes about a minute, which is longer than Cloudflare will hold a
+# connection (it answered 524 on 2026-08-27), and a caller who never sees the
+# result cannot tell "it posted" from "it died" - which, for a public channel,
+# is the difference between firing again and double-posting.
+_LAST_INDEX_CLOSE: dict = {"state": "never run"}
+
+
+def _index_close_worker(force: bool, dry: bool) -> None:
+    global _LAST_INDEX_CLOSE
+    _LAST_INDEX_CLOSE = {"state": "running", "force": force, "dry_run": dry}
+    try:
+        report = run_index_close(force=force, dry_run=dry)
+        report.pop("bytes", None)
+        _LAST_INDEX_CLOSE = {"state": "done", **report}
+        log.info("[index-close] manual run %s", report)
+    except Exception as e:  # noqa: BLE001
+        log.exception("[index-close] manual run failed")
+        _LAST_INDEX_CLOSE = {"state": "error", "error": str(e)}
+
+
 @router.post("/api/discord/index-close/run")
-async def index_close_run(request: Request, force: bool = False, dry: bool = False):
+def index_close_run(request: Request, background: BackgroundTasks,
+                    force: bool = False, dry: bool = False):
     """Fire (or dry-run) the into-the-close post by hand. Gated by the
     PUSH_SECRET bearer like sessions-status. `dry=1` renders everything and
     reports what WOULD go out without posting - the way to look at a change
     before a public channel does. `force=1` ignores the flag, the trading-day
-    check and the already-posted marker; it is the deliberate one-off."""
+    check and the already-posted marker; it is the deliberate one-off.
+
+    ⛔ IT RETURNS IMMEDIATELY AND RENDERS IN THE BACKGROUND. Two reasons, both
+    learned the hard way on 2026-08-27: eight house renders take about a minute,
+    which is past Cloudflare's patience (it answered 524 while the job was still
+    working, leaving the caller unable to tell whether it had posted), and this
+    was an `async def` calling straight into that blocking work - on a pod that
+    is ONE uvicorn process with ONE event loop, that pins every other member's
+    request for the duration. Read the outcome from /index-close/status."""
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
     if not expected or auth != f"Bearer {expected}":
         return JSONResponse(status_code=401, content={"error": "unauthorized"})
-    try:
-        return run_index_close(force=force, dry_run=dry)
-    except Exception as e:  # noqa: BLE001
-        log.exception("[index-close] manual run failed")
-        return {"error": str(e)}
+    if _LAST_INDEX_CLOSE.get("state") == "running":
+        return {"started": False, "reason": "a run is already in flight"}
+    background.add_task(_index_close_worker, force, dry)
+    return {"started": True, "force": force, "dry_run": dry,
+            "read_the_result_at": "/api/discord/index-close/status"}
+
+
+@router.get("/api/discord/index-close/status")
+def index_close_status(request: Request):
+    """What the last hand-fired run did, plus the session already posted for.
+    Gated by the PUSH_SECRET bearer."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return JSONResponse(status_code=401, content={"error": "unauthorized"})
+    from api.services import discord_index_close as idx
+    return {"last_run": _LAST_INDEX_CLOSE, "last_posted_session": idx.last_posted(),
+            "armed": idx.enabled(), "webhook_configured": bool(idx.webhook_url())}
 
 
 @router.get("/api/discord/activity/handoff")

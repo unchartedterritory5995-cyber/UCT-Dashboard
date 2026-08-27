@@ -286,3 +286,35 @@ describe('live verdict chip', () => {
     expect(screen.queryByText(/Live balance check/i)).toBeNull()
   })
 })
+
+describe('honest mirror chip over a dollar gap', () => {
+  it('shows the actual reconciliation gap instead of claiming Verified', () => {
+    // The $1.6M Schwab account sat $1,918 off its broker total, "ok" under
+    // the % tolerance — and the chip said "Verified". To a member comparing
+    // their broker app, that reads as broken or lying.
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        mirror: { ok: true, checkedAt: RECENT, driftDollar: 1918.01, consecutiveDrifts: 0 },
+      }] },
+      syncLog: [], orphans: [], reattachOrphan: reattach,
+      dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByText(/Reconciled with your broker — \$1918\.01 mark-timing gap/i)).toBeTruthy()
+    expect(screen.queryByText(/Verified against your broker/i)).toBeNull()
+  })
+
+  it('still says Verified when the gap is genuinely small', () => {
+    trustState = {
+      trust: { anyBroker: true, accounts: [{
+        ...okAccount(),
+        mirror: { ok: true, checkedAt: RECENT, driftDollar: 2.14, consecutiveDrifts: 0 },
+      }] },
+      syncLog: [], orphans: [], reattachOrphan: reattach,
+      dupPending: 0, syncNow: vi.fn(), syncBusy: false,
+    }
+    render(<SyncTrustCenter />)
+    expect(screen.getByText(/Verified against your broker/i)).toBeTruthy()
+  })
+})
