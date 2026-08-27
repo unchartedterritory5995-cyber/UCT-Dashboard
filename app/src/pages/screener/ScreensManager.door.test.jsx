@@ -29,8 +29,13 @@ vi.mock('./hooks/useScreenerMeta', () => ({
   default: () => META, META_KEY: '/api/screener/meta',
 }))
 
+// ⛔ `scannable` is stamped by the LIST route per row
+// (`routers/user_definitions.py::_stamped`) and `scannableScreens` reads it
+// rather than deciding for itself — see X88. A fixture without it is a
+// response no server sends.
 const ROW = Object.freeze({
   def_id: 'u_breakout', version: 2, rev: 1, ast_hash: 'sha256:aaa',
+  scannable: true, scan_refusal: null,
   definition: {
     compute: { kind: 'ast', fn: 'sha256:aaa', ast: { type: 'op' }, source: 'close > open' },
     meta: { name: 'Breakout base' },

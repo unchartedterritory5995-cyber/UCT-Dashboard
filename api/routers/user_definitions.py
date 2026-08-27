@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services import scan_definition
 from api.services import user_definitions as svc
 from api.services.entitlements import Limits, limits_dependency
 
@@ -161,9 +162,72 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+def _stamped(row: dict) -> dict:
+    """One definition, plus THE SERVER'S OWN ANSWER to "can this be a screen?".
+
+    ⛔⛔ THIS EXISTS BECAUSE THE CLIENT WAS ANSWERING IT SECOND, AND WEAKER.
+    `components/screener/scanSession.js::scannableScreens` checked that `compute`
+    was an object, `compute.ast` was present and `compute.fn` was a non-empty
+    string -- a SHAPE check wearing the name of a SCANNABILITY check -- and
+    `ScreensManager` offered every row that passed as `Use as filter`.
+
+    Measured end-to-end in a browser (X88): `macd(close, 12, 26)` saved with that
+    plot marked Scan, listed under My Scans, applied as a filter, and the chip
+    read `first sweep tonight` -- while `run_sweep` refused it every night with
+    `[gate:yields] this tree returns a number, not a 0/1 column`. A refused
+    definition never earns a receipt, so the join stayed `applied: false` and the
+    chip said "tonight" FOREVER, over the UNFILTERED universe. That is verbatim
+    the state `screener/filters.py::_my_scans_entry` gates against -- and that
+    gate works; it is simply on the other door.
+
+    ⭐ SO THE KNOWING SIDE STAMPS ITS ANSWER, rather than a second reader
+    re-deriving it. `assert_scannable` runs the canonical check, the
+    `max_lookback` RESOLVE pass and `is_boolean_tree`; a client cannot reach the
+    middle one at all, which is why "just tighten the JS predicate" would have
+    closed `yields` and left `tree` open -- a `resolve:domain` refusal produces
+    the same forever-chip by the same mechanism.
+
+    ⚠️ THE LIST IS STAMPED; `POST ""` AND `PUT /{def_id}` ARE NOT, deliberately.
+    `useUserDefinitions` re-reads the list after a write (`mutate(
+    USER_DEFINITIONS_KEY)`) rather than inserting the write's answer, so `rows`
+    only ever holds stamped rows and the write path keeps its resolve pass. ⛔ A
+    future caller that DID insert a write's answer straight into that list would
+    silently lose the row from My Scans -- stamp the write too at that point
+    rather than teaching the client to default it.
+
+    ⚠️ `refusal` IS THE POINT, not a debug field. Everything else in this engine
+    refuses BY NAME and says what would unblock it; a formula that silently fails
+    to appear under My Scans is the one place a member is told nothing
+    (`lesson_an_over_refusal_is_invisible`). The sentence is shipped so a surface
+    can show it. `gate` is a closed set (`scan_definition.GATES`) -- branch on the
+    gate, never on the prose.
+    """
+    out = dict(row)
+    try:
+        scan_definition.assert_scannable(row.get("definition") or {})
+    except scan_definition.ScanRefused as exc:
+        out["scannable"] = False
+        out["scan_refusal"] = {"gate": exc.gate, "detail": exc.detail}
+    except Exception as exc:  # noqa: BLE001
+        # ⛔ NEVER let one bad row take the list down, and never call an
+        # unclassifiable row scannable -- offering it is the failure this
+        # function exists to stop. Fail CLOSED, and say the classifier is what
+        # broke so the member is not told their formula is wrong when it is ours.
+        out["scannable"] = False
+        out["scan_refusal"] = {
+            "gate": "tree",
+            "detail": "this formula could not be checked for screening "
+                      f"({type(exc).__name__}), so it is not offered as a scan.",
+        }
+    else:
+        out["scannable"] = True
+        out["scan_refusal"] = None
+    return out
+
+
 @router.get("")
 def list_definitions(user: dict = Depends(require_paid)):
-    return {"definitions": svc.list_for_user(user["id"])}
+    return {"definitions": [_stamped(r) for r in svc.list_for_user(user["id"])]}
 
 
 @router.post("")

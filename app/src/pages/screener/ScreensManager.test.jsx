@@ -22,8 +22,13 @@ vi.mock('./hooks/useSavedScreens', () => ({
   default: () => ({ ...savedScreensState, create, update, remove }),
 }))
 
+// ⛔ `scannable` IS PART OF THE WIRE SHAPE, not decoration. `GET
+// /api/user-definitions` runs `scan_definition.assert_scannable` per row and
+// stamps the answer (`routers/user_definitions.py::_stamped`); `scannableScreens`
+// reads that field and decides nothing itself. A fixture without it is a row no
+// server sends, and it would test a predicate that no longer exists.
 const SCANNABLE_ROW = {
-  def_id: 'u_breakout', ast_hash: 'sha256:aaa',
+  def_id: 'u_breakout', ast_hash: 'sha256:aaa', scannable: true, scan_refusal: null,
   definition: { compute: { kind: 'ast', fn: 'sha256:aaa', ast: { op: '>' } }, meta: { name: 'Breakout base' } },
 }
 // `refresh` is the store's own revalidation, called by the authoring door's
@@ -146,13 +151,52 @@ test('use-as-filter calls onUseScan with (hash, name)', () => {
 })
 
 test('a non-scannable definition never shows a Use-as-filter row', () => {
+  // ⚰️ THIS TEST WAS GREEN THROUGH X88, AND THAT IS THE POINT. Its fixture used
+  // to be `ast: null` — a MALFORMED definition, not a NON-SCANNABLE one — so it
+  // proved the menu drops a row with no tree and said nothing about a row with a
+  // perfectly good tree that the nightly sweep refuses. Its NAME promised the
+  // second. `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`.
+  //
+  // 🔴 THE REAL CASE, measured in a browser: `macd(close, 12, 26)` saved with its
+  // plot marked Scan. Canonical, hashed, resolves — it passes every shape check
+  // there is — and `run_sweep` refuses it nightly with `[gate:yields] this tree
+  // returns a number, not a 0/1 column`. Offered as a filter it produced a chip
+  // reading `first sweep tonight` FOREVER over the unfiltered universe.
   userDefinitionsState.rows = [{
     def_id: 'u_indicator', ast_hash: 'sha256:bbb',
-    definition: { compute: { kind: 'ast', fn: 'sha256:bbb', ast: null }, meta: { name: 'Just an indicator' } },
+    scannable: false,
+    scan_refusal: {
+      gate: 'yields',
+      detail: 'this tree returns a number, not a 0/1 column. A scan is '
+        + '`<tree> != 0` on the last confirmed bar, so a real-valued tree '
+        + 'matches every symbol whose value is not exactly zero.',
+    },
+    definition: {
+      compute: {
+        kind: 'ast', fn: 'sha256:bbb',
+        ast: { type: 'call', name: 'macd', args: [{ type: 'series', name: 'close' }] },
+      },
+      meta: { name: 'Just an indicator' },
+    },
   }]
   render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
   open()
   expect(screen.queryByText('Just an indicator')).not.toBeInTheDocument()
+  expect(screen.getByText('No scannable formulas yet')).toBeInTheDocument()
+})
+
+test('⛔ an UNSTAMPED row is not offered either — absence is not consent', () => {
+  // The deploy-shaped case, and the one a `!== false` predicate would miss: a
+  // payload carrying no `scannable` at all (a cached bundle, a hand-built
+  // fixture, a future caller). The server is the only thing that can say yes, so
+  // a row it has not said yes about is not offered. Fail CLOSED.
+  userDefinitionsState.rows = [{
+    def_id: 'u_unstamped', ast_hash: 'sha256:ddd',
+    definition: { compute: { kind: 'ast', fn: 'sha256:ddd', ast: { op: '>' } }, meta: { name: 'Unstamped scan' } },
+  }]
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(screen.queryByText('Unstamped scan')).not.toBeInTheDocument()
   expect(screen.getByText('No scannable formulas yet')).toBeInTheDocument()
 })
 
@@ -289,7 +333,7 @@ test('⛔ changing the SESSION drops the run — that answer was for a different
 
 test('⛔ and a run belongs to the SCAN it was run for, never the next row opened', async () => {
   const OTHER = {
-    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    def_id: 'u_other', ast_hash: 'sha256:ccc', scannable: true, scan_refusal: null,
     definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
   }
   userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]
@@ -553,7 +597,7 @@ test('⛔ …and a REFUSED delete retracts NOTHING — nothing was destroyed', a
 
 test("⛔ and it is the DELETED scan that is retracted, never a neighbour's", async () => {
   const OTHER = {
-    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    def_id: 'u_other', ast_hash: 'sha256:ccc', scannable: true, scan_refusal: null,
     definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
   }
   userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]
@@ -583,7 +627,7 @@ test("⛔ a delete that SUCCEEDS does not disarm a DIFFERENT row's pending confi
   // that holds on two of three lines is not a rule, and the member who armed B
   // watches their prompt vanish for no reason they can see.
   const OTHER = {
-    def_id: 'u_other', ast_hash: 'sha256:ccc',
+    def_id: 'u_other', ast_hash: 'sha256:ccc', scannable: true, scan_refusal: null,
     definition: { compute: { kind: 'ast', fn: 'sha256:ccc', ast: { op: '<' } }, meta: { name: 'Other scan' } },
   }
   userDefinitionsState.rows = [SCANNABLE_ROW, OTHER]

@@ -78,8 +78,13 @@ const DEFINITION = Object.freeze({
   inputs: BUILDER_INPUTS,
   plots: [{ key: 'value', label: 'A50', style: 'line', color: '$color', width: 1, role: 'primary' }],
 })
+// ⛔ `scannable` is stamped by the LIST route per row
+// (`routers/user_definitions.py::_stamped`) and `scannableScreens` reads it
+// rather than deciding for itself — see X88. A fixture without it is a
+// response no server sends.
 const DEF_ROW = Object.freeze({
   def_id: DEF_ID, version: 1, rev: 1, ast_hash: DEF_HASH, definition: DEFINITION,
+  scannable: true, scan_refusal: null,
   repaint: DEFINITION.meta.repaint, created_at: '2026-08-21T04:00:00Z',
 })
 
@@ -92,6 +97,7 @@ const NO_SOURCE_ID = 'u_9d1f0c4a7b22'
 const NO_SOURCE_NAME = 'Stored without its text'
 const NO_SOURCE_ROW = Object.freeze({
   def_id: NO_SOURCE_ID, version: 1, rev: 1, ast_hash: DEF_HASH,
+  scannable: true, scan_refusal: null,
   definition: {
     ...DEFINITION,
     id: NO_SOURCE_ID,
@@ -155,7 +161,14 @@ beforeEach(async () => {
         definition: { ...body.definition, id: NEW_DEF_ID },
         repaint: body.definition.meta.repaint, created_at: '2026-08-21T05:00:00Z',
       }
-      H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW, row] }
+      // ⛔ THE STAMP GOES ON THE LIST, NOT ON THIS ANSWER, because that is
+      // where the shipped route puts it: `POST ""` returns `_save_or_400`'s row
+      // unstamped and `useUserDefinitions` re-reads the list rather than
+      // inserting this object (`mutate(USER_DEFINITIONS_KEY)`), so `rows` only
+      // ever holds stamped rows. Stamping it here too would make the fixture
+      // claim a wire shape the server does not send.
+      H.defs = { definitions: [DEF_ROW, NO_SOURCE_ROW,
+        { ...row, scannable: true, scan_refusal: null }] }
       return json(row)
     }
     if (u.startsWith(`${USER_DEFINITIONS_KEY}/`) && method === 'DELETE') {
