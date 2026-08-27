@@ -885,8 +885,15 @@ def _my_lists_entry(user_id):
     return {
         "key": "list", "label": "My Lists", "category": "my_lists",
         "type": "enum", "allow_custom": False, "unit": None,
+        # ⭐ `complement` is CARRIED, not re-derived (X15). A complement is a
+        # good screen and a bad RUN universe — `scan_run.submit_run` always
+        # refuses one — so the run-now selector needs to be able to tell,
+        # and the only side that knows is `list_universe`. Re-deciding it
+        # here, or in the client, would be a second authority over the
+        # selector grammar.
         "presets": [{"label": "Any"}] + [
-            {"label": o["label"], "op": "in", "value": o["value"]}
+            {"label": o["label"], "op": "in", "value": o["value"],
+             "complement": bool(o.get("complement"))}
             for o in options],
         "desc": "Screen only the symbols on one of your own lists — a "
                 "watchlist, your flagged names, or a colour tag. "
