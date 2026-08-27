@@ -1,0 +1,332 @@
+/* Daily tab — today's tape, readable in ten seconds.
+   Everything derives from the app's graphite/gold/tier tokens; the one loud
+   element is the session line. Tone is carried on data attributes so the JSX
+   never juggles color classes. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0 8px;
+}
+
+[data-tone='gain'] { color: #2faf68; }
+[data-tone='loss'] { color: #df4646; }
+[data-tone='gold'] { color: var(--accent, #dcbb5e); }
+
+/* ── Masthead ── */
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dateLine {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.stateRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stateBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.stateBadge[data-kind='live'] { color: var(--accent, #dcbb5e); }
+.stateBadge[data-kind='provisional'],
+.stateBadge[data-kind='final'] { color: var(--text-muted); }
+
+.pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ut-gold, #dcbb5e);
+  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
+  animation: dailyBeat 2.4s ease-out infinite;
+  flex: none;
+}
+@keyframes dailyBeat {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(220, 187, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
+}
+
+.phaseChip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-transform: capitalize;
+}
+.phaseGreen { color: #2faf68; border-color: rgba(47, 175, 104, 0.45); }
+.phaseAmber { color: var(--accent, #dcbb5e); border-color: rgba(220, 187, 94, 0.45); }
+.phaseRed   { color: #df4646; border-color: rgba(223, 70, 70, 0.45); }
+
+.scores {
+  display: flex;
+  gap: 22px;
+}
+.scoreMini {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.scoreLabel {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.scoreValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.delta {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── The session (hero) ── */
+.hero {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px 10px;
+}
+
+.heroHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chipRail {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip:hover { color: var(--text-bright); }
+.chipActive {
+  color: var(--accent, #dcbb5e);
+  border-color: rgba(220, 187, 94, 0.55);
+}
+
+.heroReadout {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 10px 0 6px;
+  flex-wrap: wrap;
+}
+.heroValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(38px, 5vw, 58px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  color: var(--text-bright);
+}
+.sinceOpen {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.canvas {
+  position: relative;
+  height: 200px;
+}
+.canvas svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.hourLine {
+  stroke: rgba(255, 255, 255, 0.05);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.openLine {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+}
+.heroArea {
+  fill: var(--hero-hue);
+  opacity: 0.1;
+  stroke: none;
+}
+.heroLine {
+  fill: none;
+  stroke: var(--hero-hue);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: heroDraw 0.7s ease-out;
+}
+@keyframes heroDraw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.tipDot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ut-gold, #dcbb5e);
+  transform: translate(-50%, -50%);
+}
+.tipLive {
+  box-shadow: 0 0 0 0 rgba(220, 187, 94, 0.55);
+  animation: dailyBeat 2.4s ease-out infinite;
+}
+
+.openLabel,
+.hiLabel,
+.loLabel {
+  position: absolute;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.openLabel {
+  right: 4px;
+  transform: translateY(-100%);
+  padding-bottom: 2px;
+}
+.hiLabel { top: 2px; transform: translateX(-50%); }
+.loLabel { bottom: 2px; transform: translateX(-50%); }
+
+.hourRow {
+  position: relative;
+  height: 16px;
+  margin-top: 4px;
+}
+.hourRow span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* ── Today's tape ── */
+.tapeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.tileDrill { cursor: pointer; }
+.tileDrill:hover,
+.tileDrill:focus-visible {
+  border-color: rgba(220, 187, 94, 0.5);
+  outline: none;
+}
+
+.tileLabel {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.tileValue {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1.1;
+}
+.tileFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  min-height: 16px;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text);
+  padding: 24px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse, .tipLive { animation: none; }
+  .heroLine { animation: none; stroke-dashoffset: 0; }
+}
+
+/* PHONE */
+@media (max-width: 640px) {
+  .canvas { height: 150px; }
+  .heroValue { font-size: 34px; }
+  .scores { gap: 14px; }
+  .scoreValue { font-size: 18px; }
+  .tapeGrid { grid-template-columns: repeat(2, 1fr); }
+}

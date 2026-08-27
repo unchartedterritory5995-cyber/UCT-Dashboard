@@ -431,6 +431,29 @@ def get_breadth_live(force: bool = False,
     return payload
 
 
+@router.get("/api/breadth-monitor/session-path/{session_date}")
+def get_breadth_session_path(session_date: str,
+                             _user: dict = Depends(require_paid)):
+    """A finished session's intraday shape, straight from the store.
+
+    `/live` withholds everything once the collector writes the day — right for
+    the provisional row, but the session's PATH is history, not an estimate,
+    and the Daily Overview hero still wants it after the close. Retention is
+    `breadth_intraday.RETENTION_DAYS`; an unrecorded day is `ok: False`, not an
+    error, so the surface can fall back without treating it as an outage.
+    """
+    import re
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", session_date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    from api.services import breadth_intraday
+    try:
+        path = breadth_intraday.session_path(session_date)
+        opens = breadth_intraday.session_open(session_date)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return {"ok": bool(path), "date": session_date, "path": path, "open": opens}
+
+
 @router.get("/api/breadth-monitor/live/reconcile")
 def reconcile_breadth_live(date: str, request: Request,
                            dividend_basis: int | None = None):
