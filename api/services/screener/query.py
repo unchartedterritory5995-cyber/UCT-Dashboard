@@ -172,6 +172,54 @@ def _table_exists(conn, name: str) -> bool:
     return row is not None
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# X27 — A FILTER ON AN ABSENT COLUMN MUST REFUSE, NEVER ANSWER SILENTLY.
+#
+# `_Overlay.col_expr` turns a column name into SQL by string formatting —
+# `f'"{col}"'` when the overlay is off, `f'{_ROWS}."{col}"'` for a column the
+# overlay does not own. Both forms trust that `col` names a REAL column. When
+# it does not, SQLite's own behaviour depends on which of those two forms was
+# emitted, and neither is an honest refusal:
+#
+#   * BARE, unqualified (`"vol_ratio"`) — SQLite's double-quoted-string
+#     misfeature degrades an unresolvable double-quoted identifier into a
+#     STRING LITERAL. TEXT sorts ABOVE every number, so `"vol_ratio" >= 3` is
+#     TRUE for every row (THE ENTIRE UNIVERSE — and screener filters are
+#     overwhelmingly `>=`), while `= 3` / `< 3` / `<= 3` are FALSE for every
+#     row (silently empty).
+#   * TABLE-QUALIFIED (`screener_rows."vol_ratio"`) — an unresolvable
+#     qualified identifier RAISES (`no such column`) instead.
+#
+# So whether the live overlay happens to be armed decides whether a missing
+# column is an exception or a wrong answer — a second authority over one
+# question. The fix is to refuse BEFORE either form is ever built, the same
+# way regardless of overlay state.
+def _known_columns(conn=None) -> frozenset:
+    """The columns a filter is allowed to name RIGHT NOW.
+
+    ⛔ NEVER `snapshot_db.COLUMNS` ALONE. That list is the SCHEMA'S INTENT —
+    what `init_db()` will ALTER-add the next time it runs — not what is
+    physically on `screener_rows` on THIS pod at THIS moment. A column can be
+    declared here and still be mid-rollout: `init_db()` ALTER-adds a
+    newly-declared column on boot, so a pod between deploy and its first
+    `init_db()` call (or one that has not redeployed since the column was
+    added) can be declared-but-not-yet-widened. ⚠️ Not live on prod today
+    (200/200 columns present) — latent on any such pod.
+    """
+    if conn is not None:
+        try:
+            have = {r[1] for r in conn.execute("PRAGMA table_info(screener_rows)")}
+        except Exception:  # noqa: BLE001 — an unreadable catalog falls back below
+            have = set()
+        if have:
+            return frozenset(have)
+    # No connection given (a unit test exercising build_where with no
+    # database) — the declared list is the best available answer, and it is
+    # still a REAL check: it catches a filter key whose registered column was
+    # never declared at all, just not a pod-specific ALTER lag.
+    return frozenset(snapshot_db.COLUMNS)
+
+
 def _overlay(conn) -> _Overlay:
     """Decide ONCE, for this statement, whether the overlay is served.
 
@@ -329,7 +377,7 @@ def _list_clauses(f, clauses, params, list_joins, user_id):
 
 
 def build_where(filter_specs, scan_joins=None, overlay=None, *,
-                list_joins=None, user_id=None):
+                list_joins=None, user_id=None, conn=None):
     """The WHERE clause — over the SERVED value of every column.
 
     ⛔ `overlay.col_expr(col)` IS THE ONLY WAY A COLUMN NAME BECOMES SQL HERE,
@@ -338,6 +386,16 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
     `COALESCE(l.chg_pct_1d, …)` is the second-authority defect this whole
     design exists to prevent: the member sees a number their own filter is
     silently disagreeing with, and the row they were looking for never arrives.
+
+    ⛔⛔ X27 — A FILTER'S COLUMN IS CHECKED AGAINST `_known_columns(conn)`
+    **BEFORE** `col_expr` IS EVER CALLED ON IT. `col_expr` trusts its input;
+    an absent column reaching it renders either a bare double-quoted
+    identifier (which SQLite silently degrades to a STRING LITERAL — TEXT
+    sorts above every number, so `>=`/`>`/`!=` match the WHOLE table and
+    `<`/`<=`/`=` match NONE of it) or a table-qualified one (which raises a
+    raw `sqlite3.OperationalError`), depending on whether the live overlay
+    happens to be armed. Refusing here, by name, before either rendering
+    exists, is what makes the two overlay states agree.
 
     ⚠️ THE `{key:"scan"}` BRANCH IS DELIBERATELY NOT OVERLAID, and it is not an
     oversight. It binds a whole `EXISTS (…)` fragment from `scan_store` rather
@@ -350,9 +408,13 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
 
     `overlay` defaults to `OFF`, which renders the quoted identifier alone — so
     every caller that predates the overlay (and every test of the clause in
-    isolation) gets the pre-overlay statement.
+    isolation) gets the pre-overlay statement. `conn` defaults to `None`,
+    which checks against the DECLARED schema (`snapshot_db.COLUMNS`) rather
+    than the live one — real callers (`build_scan_sql`) always have a
+    connection and pass it, so production checks the pod's ACTUAL table.
     """
     overlay = overlay or OFF
+    known = _known_columns(conn)
     clauses, params = [], []
     for f in filter_specs or []:
         key, op = f.get("key"), f.get("op")
@@ -371,6 +433,10 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             raise ValueError(f"unknown filter key: {key}")
         if not filters.is_valid_op(key, op):
             raise ValueError(f"bad op {op} for {key}")
+        if name not in known:
+            raise ValueError(
+                f"filter key {key!r} names column {name!r}, which does not "
+                f"exist on this pod")
         col = overlay.col_expr(name)
         if op in filters.COL_OPS:
             # 🔴 FIELD-TO-FIELD (benchmark metric 423). The right-hand side is a
@@ -382,6 +448,10 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             if not other_name or other_key not in filters.comparable_keys():
                 raise ValueError(
                     f"bad comparison field {other_key!r} for {key}")
+            if other_name not in known:
+                raise ValueError(
+                    f"filter key {other_key!r} names column {other_name!r}, "
+                    f"which does not exist on this pod")
             # ⛔ BOTH SIDES THROUGH `col_expr`. A comparison that read the raw
             # column on one side and the overlaid value on the other would be the
             # second-authority defect this whole module exists to prevent — the
@@ -890,7 +960,7 @@ def live_screen_state(rows, tier=None) -> dict:
     }
 
 
-def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
+def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     """The EXACT statement `run_scan` executes, plus what describes its rows.
 
     Split out of `run_scan` for ONE reason: the rollback guarantee has to be
@@ -902,6 +972,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
     ⛔ `run_scan` CALLS THIS. If it composed its own SQL beside it, the rail
     would be pinning a string the member never runs; the connection spy in that
     same file is what pins the wire.
+
+    ⛔ `conn` IS THREADED TO `build_where` UNCHANGED (X27) so a filter's column
+    is checked against THIS POD'S REAL table, not merely the declared schema —
+    see `_known_columns`. `run_scan`/`preview_count` always pass the same
+    connection `_overlay(conn)` was resolved from.
 
     Returns the sql/params, the WHERE and FROM/date expressions
     `snapshot_db.describe_rows` must reuse (never rebuild — see its docstring),
@@ -916,7 +991,8 @@ def build_scan_sql(spec, overlay=None, *, user_id=None) -> dict:
     # any member screen any other member's watchlist. It arrives from the route's
     # authenticated dependency and nowhere else.
     where, where_params = build_where(spec.get("filters"), scan_joins, overlay,
-                                      list_joins=list_joins, user_id=user_id)
+                                      list_joins=list_joins, user_id=user_id,
+                                      conn=conn)
     # 🔴 THE MEMBER'S OWN WEIGHTED COMPOSITE (benchmark 432-435). Parsed before
     # anything else uses it so a malformed rank REFUSES rather than degrading to
     # an unranked list the member did not ask for.
@@ -1046,7 +1122,7 @@ def preview_count(spec, user_id=None):
     """
     spec = spec or {}
     with snapshot_db.connect() as conn:
-        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id)
+        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
         total = conn.execute(
             f"SELECT COUNT(*) FROM {plan['from_sql']}{plan['where']}",
             plan["describe_params"]).fetchone()[0]
@@ -1068,7 +1144,7 @@ def run_scan(spec, user_id=None):
         # ⛔ ONE DECISION PER STATEMENT. The overlay is resolved once and threaded
         # through the SELECT, the WHERE, the ORDER BY and the description, so
         # they cannot disagree about which values are being served.
-        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id)
+        plan = build_scan_sql(spec, _overlay(conn), user_id=user_id, conn=conn)
         rows = conn.execute(plan["sql"], plan["params"]).fetchall()
         # 🔴 THE DATE MUST DESCRIBE THE ROWS BEING SERVED, so the SAME `where`,
         # the SAME params AND THE SAME `FROM` that selected them select the
