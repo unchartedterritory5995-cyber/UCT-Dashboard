@@ -193,20 +193,18 @@
 
 /* ── Ratio Bars view — premium gauge CARDS ── */
 .ratioWrap { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
-/* Each pair is a subtle raised card so the set reads as a designed panel, not a
-   couple of bars floating in a void. */
+/* Each pair is a flat card — same idiom as the heatmap tiles (flat fill + a
+   hairline that follows the canvas), so it reads as native, not a glossy widget. */
 .ratioCard {
   display: flex;
   flex-direction: column;
   gap: 9px;
   padding: 12px 14px 11px;
-  border-radius: 11px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.008));
-  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.07));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.06));
 }
-.ratioCardEmpty { opacity: 0.55; }
+.ratioCardEmpty { opacity: 0.5; }
 /* Header: title centered across the card; winning % pinned top-right. */
 .ratioHead { position: relative; display: flex; align-items: baseline; justify-content: center; min-height: 16px; }
 .ratioLabel {
@@ -226,23 +224,23 @@
   font-variant-numeric: tabular-nums;
   color: var(--bw-text-dim, var(--text-muted));
 }
-/* Glossy split pill. Down side = the bar's own (glossed) background; a single
-   up-fill overlays it, so both halves are always the same height. A soft inset
-   shadow gives the track depth; the up-fill casts a crisp seam onto the down. */
+/* Flat split bar. Down side = the bar's own background; a single up-fill overlays
+   it, so both halves are always the same height. The up-fill casts a thin seam
+   onto the down so the two flat colors read cleanly. Empty cards show the bare
+   track. */
 .ratioBar {
   position: relative;
-  height: 11px;
-  border-radius: 999px;
+  height: 10px;
+  border-radius: 5px;
   overflow: hidden;
-  background: var(--bw-elev, rgba(255, 255, 255, 0.05));
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 .ratioFillUp {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.35);
   transition: width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 /* Faint 50% reference tick — anchors the eye to the midpoint. */
@@ -252,7 +250,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.14);
   transform: translateX(-0.5px);
   z-index: 1;
   pointer-events: none;

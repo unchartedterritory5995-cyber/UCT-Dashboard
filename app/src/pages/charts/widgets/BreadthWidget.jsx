@@ -52,9 +52,9 @@ const GROUP_LABELS = {
 const RATIO_PAIRS = [
   { key: 'nhnl',   label: 'New Highs / New Lows',   up: 'new_52w_highs', upLabel: 'New Highs',     dn: 'new_52w_lows',   dnLabel: 'New Lows' },
   { key: 'advdec', label: 'Advance / Decline',      up: 'advancing',     upLabel: 'Advancing',     dn: 'declining',      dnLabel: 'Declining' },
+  { key: 'p4',     label: 'Up 4% / Down 4%',        up: 'up_4pct_today', upLabel: 'Up 4%',         dn: 'down_4pct_today', dnLabel: 'Down 4%' },
   { key: 'open',   label: 'Up / Down from Open',    up: 'up_from_open',  upLabel: 'Up from Open',  dn: 'down_from_open', dnLabel: 'Down from Open' },
   { key: 'vol',    label: 'Up / Down on Volume',    up: 'up_on_volume',  upLabel: 'Up on Volume',  dn: 'down_on_volume', dnLabel: 'Down on Volume' },
-  { key: 'p4',     label: 'Up 4% / Down 4%',        up: 'up_4pct_today', upLabel: 'Up 4%',         dn: 'down_4pct_today', dnLabel: 'Down 4%' },
 ]
 
 // FLIP: animate tiles sliding to their new spot when one is removed/added. Reads
@@ -188,10 +188,6 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
 // absolutely-positioned up-fill over it, so both halves are always identical
 // height. Live-only pairs with no reading yet (outside RTH) render a calm
 // "awaiting session" card instead of vanishing — so the set never looks empty. ──
-function ratioGloss(base) {
-  // A top-down white gloss over the base hue gives the flat fill some depth.
-  return `linear-gradient(180deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.04) 45%, rgba(0,0,0,0.10) 100%), ${base}`
-}
 function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
   const bars = RATIO_PAIRS.map(p => {
     const u = ratioRow?.[p.up]
@@ -218,10 +214,10 @@ function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
           </div>
           <div
             className={styles.ratioBar}
-            style={b.has ? { background: ratioGloss(dnColor) } : undefined}
+            style={b.has ? { background: dnColor } : undefined}
           >
             {b.has && (
-              <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: ratioGloss(upColor) }} />
+              <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: upColor }} />
             )}
             <span className={styles.ratioMid} aria-hidden="true" />
           </div>
@@ -451,10 +447,11 @@ export default function BreadthWidget({
     onOptsChange?.({ ...(opts || {}), view: v })
   }, [opts, onOptsChange])
 
-  // Ratio-bar hues: the custom up/down override wins (pure hue), else a MUTED
-  // UCT green/red (deliberately desaturated — the bright default read garish).
-  const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#1f8a52' : '#2f8f5e')
-  const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#c0392f' : '#b8453f')
+  // Ratio-bar hues: the custom up/down override wins, else the UCT green/red —
+  // the same family as the heatmap tiles + the app's up/down values (medium,
+  // flat; NOT the neon bright and NOT the dark tile fill).
+  const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#15833f' : '#1c9b54')
+  const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#c0392f' : '#bf3b34')
 
   // The row the Ratio-Bars view reads: REAL-TIME only during the regular session;
   // otherwise the frozen last-close internals (held until the next 9:30 open).
