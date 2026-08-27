@@ -23,7 +23,7 @@
   padding: 0 8px 0 10px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border))));
-  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated))));
+  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, #14151a)));
   flex: 0 0 auto;
 }
 .spacer { flex: 1 1 auto; }
