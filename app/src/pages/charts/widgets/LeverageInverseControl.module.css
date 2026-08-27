@@ -18,12 +18,12 @@
   border: 1px solid var(--border, #1f2937);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  /* Directional tint tokens — the app's chart up/down family (#1ae51a /
-     #ff3b47, same values ChartWidget + ChartDayGain use). Overridden for
+  /* Directional tint tokens — the app's chart up/down family (var(--ut-green-bright) /
+     var(--ut-red-bright), same values ChartWidget + ChartDayGain use). Overridden for
      the Sunrise light theme below. */
-  --li-up: #1ae51a;
+  --li-up: var(--ut-green-bright);
   --li-up-bg: rgba(26, 229, 26, 0.09);
-  --li-down: #ff3b47;
+  --li-down: var(--ut-red-bright);
   --li-down-bg: rgba(255, 59, 71, 0.1);
 }
 
@@ -167,8 +167,8 @@
   padding: 5px 6px 1px;
 }
 .groupStock { color: var(--menu-accent, #dcbb5e); opacity: 0.75; }
-.groupLong { color: var(--li-up, #1ae51a); opacity: 0.75; }
-.groupShort { color: var(--li-down, #ff3b47); opacity: 0.75; }
+.groupLong { color: var(--li-up, var(--ut-green-bright)); opacity: 0.75; }
+.groupShort { color: var(--li-down, var(--ut-red-bright)); opacity: 0.75; }
 
 .row {
   display: flex;

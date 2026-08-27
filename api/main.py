@@ -6175,6 +6175,8 @@ from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
 from api.routers import volume_scan as volume_scan_router
 app.include_router(volume_scan_router.router)
+from api.routers import scatter as scatter_router
+app.include_router(scatter_router.router)
 # ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
 # SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
 # filter branch; the freshness objection is answered by disclosure (each joined

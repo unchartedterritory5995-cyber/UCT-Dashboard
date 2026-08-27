@@ -14,6 +14,7 @@ import PeriodSortWidget from './widgets/PeriodSortWidget'
 import NewHighsLowsWidget from './widgets/NewHighsLowsWidget'
 import NhnlPulseWidget from './widgets/NhnlPulseWidget'
 import VolumeScanWidget from './widgets/VolumeScanWidget'
+import ScatterWidget from './widgets/ScatterWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
@@ -58,6 +59,7 @@ export const WORKSPACE_WIDGETS = {
   nhnl: { component: NewHighsLowsWidget, props: standardProps },
   nhnlPulse: { component: NhnlPulseWidget, props: standardProps },
   volumescan: { component: VolumeScanWidget, props: standardProps },
+  scatter: { component: ScatterWidget, props: standardProps },
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {

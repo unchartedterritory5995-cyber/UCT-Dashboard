@@ -1286,3 +1286,67 @@ existed. 171 green.
 ⭐ The general lesson, sharpened from v22: **the default shape is the one that
 gets charged to every reader.** Everything a member might want is still one
 press away — it just no longer bills the whole channel for the possibility.
+
+### v24 — the deploy window, and the stand-in that heals itself (2026-08-27, ~08:00-09:00 CT)
+
+Owner, posting a member-server chart drawn by the plain renderer: *"wtf why
+does it look like this, the shitty chart version?!"*
+
+**It was a deploy swap, and the timestamps say so.** The web deployment was
+created at **07:58:49 CT**; the member ran `/chart SPCX` at **07:59:00** —
+eleven seconds in. The `/r/chart` page the renderer screenshots was mid-restart,
+so both house attempts returned `422 selector not found: #chart-export` and the
+reply fell back to mplfinance. Reproduced exactly on a pod 22 seconds old, where
+**NVDA fails identically**; warm, both symbols render in 4.1 s.
+
+Three theories were checked and killed before the timestamps were believed, and
+the order is worth keeping:
+
+1. *Is it even the stand-in?* — yes. `discord_chart_render.py` owns the
+   `SMA10 … Avg Vol(50)` header and the `as of … · uctintelligence.com` footer.
+2. *Is it SPCX?* — no. NVDA fails the same way in the same window.
+3. *Is the service asleep?* — no. `sleepApplication=False` on all four services
+   (`railway status --json`). `railway ssh` **suggests** sleeping when it cannot
+   connect, which is a plausible and wrong answer; the refusal was the swap.
+
+**The defect was the CACHE, not the fallback.** The stand-in is working as
+designed — a chart beats an apology. What was wrong is that it was cached under
+the SAME key as a real chart, for the quiet-hours TTL of 900 s. One unlucky
+second would have served the plain chart to every member asking for SPCX for
+fifteen minutes, and re-running the command would have *confirmed* the wrong
+diagnosis. `produce_chart` now returns a distinct **`fallback`** outcome —
+delivered (`DELIVERED = ("ok", "fallback")`, the job still reports `ok`) but
+cached for **`FALLBACK_TTL_S = 60`**. `single_flight`'s `ttl_s` takes a callable,
+because only the producer knows which of the two it just made.
+
+⭐ **A degraded artifact cached beside the real one turns a one-second blip into
+a fifteen-minute outage.** Any fallback sharing a cache key with the thing it
+stands in for needs its own, much shorter TTL.
+
+**Then the member's own message heals.** 60 s fixes the spread but not the chart
+already sitting in the channel, so a delivered stand-in now schedules one look at
+45 s and another at 120 s and swaps the image in. Two guards, because a
+background edit a minute later is not obviously safe:
+
+- **It never clobbers a chart the member moved on from.** A minute is long enough
+  to press W. The reply is read back first (`fetch_original`); anything that is
+  not still our headline is left alone, and a read-back that FAILS counts as
+  *cannot confirm* — the cost of skipping is a stand-in, the cost of guessing
+  wrong is undoing someone's click.
+- **It sends no components.** The rows are whatever the member is looking at now
+  (they may have opened the controls), and `edit_original` leaves rows alone only
+  when it is given none. It writes the message's OWN content back, so the context
+  line the first edit added survives.
+
+Bounded and off the reply path: two heals at a time, a daemon thread, and
+`DISCORD_CHART_SELF_HEAL=0` restores the previous behaviour.
+`SELF_HEAL_DELAYS_S` is read at call time rather than frozen as a default
+argument — the first thing anyone wants to change about a retry schedule is the
+schedule.
+
+Seven rails; each of the five guards mutation-checked (drop the read-back · treat
+an unreadable message as permission · send components · remove the slot cap ·
+stop scheduling on a fallback) turns exactly one red. Plus an autouse fixture
+stopping every OTHER test from spawning a real heal thread that would make live
+Discord calls after the test finished. 182 green.
+
