@@ -1513,9 +1513,14 @@ const PCF_MARKERS = [
   //   · two branches could only both complete here if one key were another key
   //     followed by DIGITS (`\d+` comes next) — impossible for alphabetic keys,
   //     and checked: zero such pairs among the 32.
-  // Measured before deleting it, over 242 sources (103 native · 48 accepted PCF ·
-  // the 71-spelling vocabulary · 15 hand-built prefix adversaries including
-  // `SIN5` and `SINH5`, the one real prefix pair in the union): 27 captured, and
+  // ⚰️ THE TOTAL USED TO SAY "242" AND THE PARTS SUM TO 237 — corrected
+  // 2026-08-27, and the number is now simply not restated. The parts ARE the
+  // count, and a sum written beside its own derivation is the exact defect the
+  // fix round that produced this comment was cleaning out of a doc; it left one
+  // in a comment. Measured before deleting the sort, over every source in
+  // 103 native · 48 accepted PCF · the 71-spelling vocabulary · 15 hand-built
+  // prefix adversaries (including `SIN5` and `SINH5`, the one real prefix pair
+  // in the union): 27 captured, and
   // sorted vs declaration order disagreed on NOTHING — not the boolean, not even
   // the captured branch.
   // ⛔ A LINE WHOSE ONLY ROLE IS TO LOOK LIKE A RAIL IS WORSE THAN NO LINE — it
