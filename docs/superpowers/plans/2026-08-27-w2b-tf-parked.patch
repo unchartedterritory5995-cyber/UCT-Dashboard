@@ -1,0 +1,700 @@
+diff --git a/api/services/ast_interpret.py b/api/services/ast_interpret.py
+index 4d3b346d6..42054f4df 100644
+--- a/api/services/ast_interpret.py
++++ b/api/services/ast_interpret.py
+@@ -43,6 +43,7 @@ one.
+ """
+ from __future__ import annotations
+ 
++import datetime
+ import math
+ import re
+ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+@@ -107,7 +108,7 @@ INF = float("inf")
+ #: expression, and that is the whole design: a shape with no slot for an
+ #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
+ #: FORWARD reference stays inexpressible in both lanes at once.
+-NODE_TYPES = ("num", "series", "op", "call", "offset")
++NODE_TYPES = ("num", "series", "op", "call", "offset", "tf")
+ 
+ 
+ # --------------------------------------------------------------------------- #
+@@ -137,6 +138,85 @@ class TableRefusal(Exception):
+ #: equality of these strings is asserted in ``test_ast_interpret.py``: a lane that
+ #: refuses for a different stated reason is a lane whose chip tooltip tells the
+ #: user a different story about the same formula.
++#: ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH. `tf` may only ever read a
++#: timeframe STRICTLY ABOVE the bars it was handed: asking a daily series for a
++#: 5-minute value cannot be answered from the bars in hand, and inventing one is
++#: the silent mistranslation this engine exists against.
++#:
++#: ⛔ THE ORDER IS THE MEANING, not decoration — `_tf_rank` is a position in this
++#: tuple and nothing else, so adding a timeframe is one edit and the comparison
++#: cannot drift from the list it compares.
++TF_LADDER = ("1", "5", "15", "30", "60", "D", "W", "M")
++
++#: Which of those `tf` can actually RESAMPLE today. ⚠️ Deliberately smaller than
++#: the ladder: the ladder is what an ORDER can be taken over, this is what a
++#: value can be produced for. Conflating them would let `tf(close, '60')` parse,
++#: rank correctly and then answer nothing.
++TF_RESAMPLABLE = ("W", "M")
++
++#: How many BASE bars one higher-timeframe bar spans, for the lookback sum.
++#: ⚠️ TRADING days, not calendar: 5 to a week, 21 to a month. These are the
++#: numbers `max_lookback` multiplies by, and a lookback that is too SMALL is
++#: the dangerous direction — it would let a tree claim it needs fewer bars
++#: than it reads and answer off a warmup it never had.
++TF_BASE_BARS = {"W": 5, "M": 21}
++
++
++def _tf_rank(code: Any) -> Optional[int]:
++    """Position on the ladder, or ``None`` for a code it does not declare."""
++    try:
++        return TF_LADDER.index(str(code))
++    except ValueError:
++        return None
++
++
++def _iso_day(t: Any) -> Optional[str]:
++    """One bar's ``t`` as ``YYYY-MM-DD``, whichever way it was stored.
++
++    ⛔⛔ THIS EXISTS BECAUSE THE RESAMPLERS PARSE A STRING AND THE STORE DOES NOT
++    KEEP ONE. `bars_fetch._resample_weekly_iso` reads
++    ``datetime.strptime(bar["t"], "%Y-%m-%d")``, while `bars_sqlite` stores
++    daily/weekly/monthly ``t`` as **YYYYMMDD ints** and intraday ``t`` as **unix
++    seconds** (measured 2026-08-27: ``{"t": 20260827, ...}``). Handing the store's
++    own bars straight to the resampler dates every higher-timeframe bar to 1970 —
++    and the column still DRAWS, which is the shape of defect this engine refuses
++    everywhere else.
++
++    ⚠️ IT RETURNS ``None`` RATHER THAN GUESSING. A ``t`` in neither spelling is a
++    bar this function cannot place in a week, and a placed-wrong bar is worse
++    than an absent one.
++    """
++    if isinstance(t, str):
++        return t[:10] if len(t) >= 10 and t[4] == "-" and t[7] == "-" else None
++    if isinstance(t, bool) or not isinstance(t, (int, float)):
++        return None
++    n = int(t)
++    # 8-digit YYYYMMDD — the store's daily spelling. Bounded by the calendar
++    # rather than by digit count so 19700101 and 99991231 cannot both pass.
++    if 19000101 <= n <= 99991231:
++        y, md = divmod(n, 10000)
++        m, d = divmod(md, 100)
++        if 1 <= m <= 12 and 1 <= d <= 31:
++            return "%04d-%02d-%02d" % (y, m, d)
++    # otherwise: unix SECONDS (the intraday spelling). Not milliseconds — this
++    # platform's unit everywhere a bar carries one, as `compute_clock` states.
++    if 0 < n < 4102444800:                      # < 2100-01-01
++        return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
++    return None
++
++
++def _tf_bucket(iso: str, code: str) -> Any:
++    """The higher-timeframe bucket an ISO day falls in.
++
++    ⛔ THE SAME KEYS THE RESAMPLERS GROUP BY — ISO (year, week) for `W` and
++    (year, month) for `M` — because this function decides WHICH resampled bar a
++    base bar reads, and a second bucketing rule here would silently misalign the
++    two by one period at every year boundary.
++    """
++    d = datetime.datetime.strptime(iso, "%Y-%m-%d")
++    return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
++
++
+ REFUSALS: Mapping[str, str] = {
+     "resolve:name": "unknown name",
+     "resolve:function": "unknown function",
+@@ -151,6 +231,9 @@ REFUSALS: Mapping[str, str] = {
+     "interpret:recurrence": (
+         "a running value reads its own past only inside its own update, and only "
+         "through operators and pointwise calls"),
++    "interpret:timeframe": (
++        "a higher-timeframe read names a timeframe this engine cannot serve "
++        "from the bars it was given"),
+     "interpret:steps": (
+         "warming this running value up over these bars would take more steps than "
+         "the engine will spend"),
+@@ -1527,7 +1610,7 @@ def _flatten(root: Any) -> List[dict]:
+         node = stack.pop()
+         _assert_node(node)
+         order.append(node)
+-        if node["type"] in ("op", "call", "offset"):
++        if node["type"] in ("op", "call", "offset", "tf"):
+             args = node.get("args")
+             if not isinstance(args, list):
+                 _refuse("interpret:node",
+@@ -1801,6 +1884,17 @@ def max_lookback(ast: Any) -> int:
+                 best = max(best, seen[id(arg)])
+             seen[id(node)] = best
+             continue
++        if kind == "tf":
++            # ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in
++            # HIGHER-timeframe bars, so it is multiplied by the span; the +1 is the
++            # bar this node always steps back to reach the last CLOSED period.
++            # ⚠⚠ ROUNDING UP IS THE SAFE DIRECTION and it is why the ratio is a
++            # constant rather than a measurement: a lookback that is too SMALL lets
++            # a tree claim it needs fewer bars than it reads and answer off a warmup
++            # it never had.
++            span = TF_BASE_BARS.get(str(node.get("value")), 1)
++            seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
++            continue
+         if kind == "offset":
+             # ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM, and byte-for-byte
+             # the JS lane's arithmetic: ``sma(close[2], 20)`` needs 22 bars.
+@@ -2345,7 +2439,7 @@ def interpret(ast: Any, bars: List[dict],
+         if not isinstance(n, dict):
+             return _refuse("interpret:node", f"got {n!r}")
+         kind = n.get("type")
+-        if kind in ("op", "call", "offset") and not isinstance(n.get("args"), list):
++        if kind in ("op", "call", "offset", "tf") and not isinstance(n.get("args"), list):
+             return _refuse("interpret:node",
+                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
+         if kind == "num":
+@@ -2373,6 +2467,82 @@ def interpret(ast: Any, bars: List[dict],
+             for i in range(back, length):
+                 out[i] = src[i - back]
+             return out
++        if kind == "tf":
++            code = str(n.get("value"))
++            if code not in TF_RESAMPLABLE:
++                _refuse("interpret:timeframe",
++                        "%r \u2014 this engine resamples %s from the bars it is given. "
++                        "The declared ladder is %s; a code outside it is not a "
++                        "timeframe this table knows."
++                        % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
++            # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
++            # base is. `opts["tf"]` is what the caller knows and the bars do not;
++            # absent, this check cannot run and does not pretend to \u2014 the same
++            # fail-closed-but-say-so rule `compute_clock` states for `isdaily`.
++            base = (opts or {}).get("tf")
++            if base is not None:
++                rb, rc = _tf_rank(base), _tf_rank(code)
++                if rb is not None and rc is not None and rc <= rb:
++                    _refuse("interpret:timeframe",
++                            "%r is not above %r \u2014 a higher-timeframe read can only "
++                            "look UP from the bars it was handed, and %r cannot be "
++                            "resampled out of %r."
++                            % (code, str(base), code, str(base)))
++
++            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on.
++            iso = [_iso_day(b.get("t")) for b in bars]
++            keys = [(_tf_bucket(d, code) if d else None) for d in iso]
++            order: List[Any] = []
++            at: Dict[Any, int] = {}
++            for k in keys:
++                if k is not None and k not in at:
++                    at[k] = len(order)
++                    order.append(k)
++
++            # \u2b50 THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS.
++            # `bars_fetch._resample_weekly_iso` carries the stable-Friday-key
++            # rationale; a private aggregation here would be a second authority on
++            # it, which `screener/candles.py` already says in as many words.
++            from api.services import bars_fetch                      # noqa: PLC0415
++            resample = (bars_fetch._resample_weekly_iso if code == "W"
++                        else bars_fetch._resample_monthly_iso)
++            htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
++
++            # \u26d4 AND THE TWO MUST AGREE. This function decides WHICH resampled bar
++            # a base bar reads, using its own bucketing; the resampler decides what
++            # those bars ARE. If they ever group differently the column is silently
++            # off by a period \u2014 so the disagreement is a refusal, not a shrug.
++            if len(htf) != len(order):
++                _refuse("interpret:timeframe",
++                        "the %s resample produced %d bars for %d buckets \u2014 this "
++                        "engine\u2019s bucketing and the resampler\u2019s have diverged, and a "
++                        "column built across that gap would be off by a period."
++                        % (code, len(htf), len(order)))
++
++            # \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the
++            # whole value of the node: `tf(sma(close, 20), "W")` is the 20-WEEK
++            # average, not the 20-day average sampled weekly. `opts.tf` becomes the
++            # HTF code so a nested clock or `tf` reads the right base.
++            child = _to_column(
++                interpret(n["args"][0], htf, inputs=inputs, budget=budget,
++                          scalars=scalars, opts=dict(opts or {}, tf=code)),
++                len(htf))
++
++            # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
++            # bar in bucket `b` reads bucket `b - 1`. Reading `b` would hand a
++            # Monday its own week\u2019s eventual close \u2014 every backtest using `tf`
++            # would then be reading the future and still drawing a confident line.
++            # Bucket 0 has no closed predecessor, so it is NOT COMPUTABLE: NaN,
++            # never 0.0 and never the bar\u2019s own value, exactly as `offset` states
++            # for its left edge.
++            out = _nan_col(length)
++            for i, k in enumerate(keys):
++                if k is None:
++                    continue
++                b = at[k]
++                if b > 0:
++                    out[i] = child[b - 1]
++            return out
+         if kind == "op":
+             return apply_op(n, [eval_node(a) for a in n["args"]])
+         if kind == "call":
+diff --git a/api/services/user_definitions.py b/api/services/user_definitions.py
+index 1bf3cb2ed..d77d879a7 100644
+--- a/api/services/user_definitions.py
++++ b/api/services/user_definitions.py
+@@ -270,12 +270,23 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
+     # back correctly in both lanes and then fail to persist — the "built, tested,
+     # green and connected to nothing" shape, one door further along than usual.
+     "offset": ("type", "value", "args"),
++    # ⭐ THE HIGHER-TIMEFRAME READ — `tf(expr, "W")`. ⚠️ NO `name`, and the
++    # timeframe is a FIELD rather than a child, for exactly the reason `offset`
++    # keeps its bar count on the node: a shape with no slot for an expression
++    # cannot hold one, so a timeframe can never be computed at runtime and
++    # `max_lookback` stays a tree sum.
++    "tf": ("type", "value", "args"),
+ }
+ NODE_TYPES = tuple(_CANONICAL_KEYS)
+ 
+ 
+ def assert_canonical(ast: Any) -> Any:
+-    """The tree really is one of the four shapes, with exactly its own keys.
++    """The tree really is one of the shapes `NODE_TYPES` declares, with exactly
++    its own keys.
++
++    ⚰️ This said "one of the FOUR shapes" while `NODE_TYPES` was derived from
++    `_CANONICAL_KEYS` right above it — so the prose was a hand-typed count beside
++    the list it described, and it went stale the moment a fifth shape landed.
+ 
+     Iterative, never recursive: the hash is taken of a PERSISTED artifact — a
+     blob that arrived over a wire or out of a database — and a deep tree must
+diff --git a/app/src/components/chart/engine/ast/interpret.js b/app/src/components/chart/engine/ast/interpret.js
+index af34b94b5..52e166c8e 100644
+--- a/app/src/components/chart/engine/ast/interpret.js
++++ b/app/src/components/chart/engine/ast/interpret.js
+@@ -123,9 +123,117 @@ export const REFUSALS = Object.freeze({
+   'interpret:operator': 'unknown operator',
+   'interpret:offset': 'an offset node carries a whole-number count of bars',
+   'interpret:recurrence': 'a running value reads its own past only inside its own update, and only through operators and pointwise calls',
++  'interpret:timeframe': 'a higher-timeframe read names a timeframe this engine cannot serve from the bars it was given',
+   'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
+ })
+ 
++/** ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH — the mirror of
++ *  `ast_interpret.TF_LADDER`. `tf` may only read a timeframe STRICTLY ABOVE the
++ *  bars it was handed; asking a daily series for a 5-minute value cannot be
++ *  answered from the bars in hand, and inventing one is the silent
++ *  mistranslation this engine exists against. */
++export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
++
++/** Which of those can actually be RESAMPLED today. ⚠️ Deliberately smaller than
++ *  the ladder: the ladder is what an ORDER can be taken over, this is what a
++ *  value can be produced for. */
++export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
++
++/** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
++ *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
++ *  would let a tree claim it needs fewer bars than it reads. */
++export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
++
++const tfRank = (code) => TF_LADDER.indexOf(String(code))
++
++/** One bar's `t` as `YYYY-MM-DD`, whichever way it was stored.
++ *
++ *  ⛔⛔ THE STORE KEEPS TWO SPELLINGS AND NEITHER IS A DATE STRING: daily/weekly/
++ *  monthly `t` is a **YYYYMMDD int**, intraday `t` is **unix seconds** (measured
++ *  2026-08-27: `{t: 20260827, …}`). Reading one as the other dates every
++ *  higher-timeframe bar to 1970 — and the column still DRAWS, which is the shape
++ *  of defect this engine refuses everywhere else.
++ *
++ *  ⚠️ RETURNS null RATHER THAN GUESSING. A placed-wrong bar is worse than an
++ *  absent one. Mirrors `ast_interpret._iso_day`. */
++export function isoDay(t) {
++  if (typeof t === 'string') {
++    return (t.length >= 10 && t[4] === '-' && t[7] === '-') ? t.slice(0, 10) : null
++  }
++  if (typeof t !== 'number' || !Number.isFinite(t)) return null
++  const n = Math.trunc(t)
++  if (n >= 19000101 && n <= 99991231) {
++    const y = Math.trunc(n / 10000)
++    const m = Math.trunc((n % 10000) / 100)
++    const d = n % 100
++    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
++      return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
++    }
++  }
++  if (n > 0 && n < 4102444800) {
++    return new Date(n * 1000).toISOString().slice(0, 10)
++  }
++  return null
++}
++
++/** The ISO (year, week) an ISO day falls in — Python's `date.isocalendar()[:2]`.
++ *
++ *  ⛔ THE THURSDAY RULE IS THE WHOLE ALGORITHM, and it is why this is not
++ *  "day-of-year over seven": ISO puts a week in the year that owns its Thursday,
++ *  so the last days of December can belong to week 1 of the next year and the
++ *  first days of January to week 52/53 of the previous one. Getting that wrong
++ *  misaligns the two lanes by a period at every year boundary — once a year,
++ *  silently, in a number a member trades on. */
++function isoWeekKey(iso) {
++  const [y, m, d] = iso.split('-').map(Number)
++  const t = new Date(Date.UTC(y, m - 1, d))
++  const day = t.getUTCDay() || 7                    // Mon=1 … Sun=7
++  t.setUTCDate(t.getUTCDate() + 4 - day)            // step to this week's Thursday
++  const year = t.getUTCFullYear()
++  const jan1 = Date.UTC(year, 0, 1)
++  const week = Math.ceil(((t.getTime() - jan1) / 86400000 + 1) / 7)
++  return `${year}-W${week}`
++}
++
++/** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
++export function tfBucket(iso, code) {
++  if (code === 'W') return isoWeekKey(iso)
++  return iso.slice(0, 7)                             // YYYY-MM
++}
++
++/** Resample ISO-dated bars into higher-timeframe bars, in order.
++ *
++ *  ⛔⛔ THIS IS A MIRROR OF `bars_fetch._resample_weekly_iso`, NOT A SECOND
++ *  DESIGN — AND THE ASYMMETRY IS DELIBERATE AND STATED. Python's lane consumes
++ *  that function because it OWNS what a weekly bar is; this lane has no such
++ *  module, so the aggregation is written here and held equal to Python's by the
++ *  conformance corpus, exactly as every other pair in this engine is
++ *  (`interpret.js` ⇄ `ast_interpret.py` are already two implementations of
++ *  everything). ⚠️ If they ever disagree the corpus goes red, which is the only
++ *  acceptable way for two lanes to hold one meaning. */
++function resampleTo(bars, isos, code) {
++  const out = []
++  const at = new Map()
++  for (let i = 0; i < bars.length; i++) {
++    const iso = isos[i]
++    if (!iso) continue
++    const key = tfBucket(iso, code)
++    const b = bars[i]
++    if (!at.has(key)) {
++      at.set(key, out.length)
++      out.push({ t: iso, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
++    } else {
++      const w = out[at.get(key)]
++      w.h = Math.max(w.h, b.h)
++      w.l = Math.min(w.l, b.l)
++      w.c = b.c
++      w.t = iso
++      w.v += (b.v || 0)
++    }
++  }
++  return { htf: out, at }
++}
++
+ function refuse(guard, detail) {
+   throw new TableRefusal(guard, `${REFUSALS[guard]} ${detail}`)
+ }
+@@ -1170,7 +1278,8 @@ function flatten(root) {
+     const node = stack.pop()
+     assertNode(node)
+     order.push(node)
+-    if (node.type === 'op' || node.type === 'call' || node.type === 'offset') {
++    if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
++        || node.type === 'tf') {
+       if (!Array.isArray(node.args)) {
+         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
+       }
+@@ -1473,6 +1582,18 @@ export function maxLookback(ast) {
+       seen.set(node, best)
+       continue
+     }
++    if (node.type === 'tf') {
++      // ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in HIGHER-
++      // timeframe bars, so it is multiplied by the span; the +1 is the bar this
++      // node always steps back to reach the last CLOSED period.
++      // ⚠️⚠️ ROUNDING UP IS THE SAFE DIRECTION, and it is why the span is a
++      // constant rather than a measurement: a lookback that is too SMALL lets a
++      // tree claim it needs fewer bars than it reads and answer off a warmup it
++      // never had. Mirrors `ast_interpret.max_lookback`'s `tf` arm.
++      const span = TF_BASE_BARS[String(node.value)] || 1
++      seen.set(node, (seen.get(node.args[0]) + 1) * span)
++      continue
++    }
+     if (node.type === 'offset') {
+       // ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM. `sma(close[2], 20)` needs
+       // 20 + 2 bars and `close[2]` alone needs 2; the offset ADDS to whatever
+@@ -1834,6 +1955,52 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
+         for (let i = back; i < length; i++) out[i] = src[i - back]
+         return out
+       }
++      case 'tf': {
++        const code = String(n.value)
++        if (!TF_RESAMPLABLE.includes(code)) {
++          refuse('interpret:timeframe',
++            `'${code}' \u2014 this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
++            + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
++            + 'outside it is not a timeframe this table knows.')
++        }
++        // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
++        // is. `opts.tf` is what the caller knows and the bars do not; absent, this
++        // check cannot run and does not pretend to \u2014 the same fail-closed-but-say-so
++        // rule `computeClock` states for `isdaily`.
++        const base = opts && opts.tf
++        if (base !== undefined && base !== null) {
++          const rb = tfRank(base)
++          const rc = tfRank(code)
++          if (rb >= 0 && rc >= 0 && rc <= rb) {
++            refuse('interpret:timeframe',
++              `'${code}' is not above '${String(base)}' \u2014 a higher-timeframe read can `
++              + `only look UP from the bars it was handed, and '${code}' cannot be `
++              + `resampled out of '${String(base)}'.`)
++          }
++        }
++        const isos = bars.map((b) => isoDay(b && b.t))
++        const { htf, at } = resampleTo(bars, isos, code)
++        // \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the whole
++        // value of the node: `tf(sma(close, 20), 'W')` is the 20-WEEK average, not the
++        // 20-day average sampled weekly. `opts.tf` becomes the HTF code so a nested
++        // clock or `tf` reads the right base.
++        const child = toColumn(
++          interpret(n.args[0], htf, inputs, budget, scalars, { ...(opts || {}), tf: code }),
++          htf.length)
++        // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
++        // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
++        // week's eventual close \u2014 every backtest using `tf` would then be reading the
++        // future and still drawing a confident line. Bucket 0 has no closed
++        // predecessor, so it is NOT COMPUTABLE, exactly as `offset`'s left edge is.
++        const out = nan(length)
++        for (let i = 0; i < length; i++) {
++          const iso = isos[i]
++          if (!iso) continue
++          const b = at.get(tfBucket(iso, code))
++          if (b > 0) out[i] = child[b - 1]
++        }
++        return out
++      }
+       case 'op':
+         return applyOp(n, n.args.map(evalNode))
+       case 'call': {
+diff --git a/app/src/components/chart/engine/ast/parse.js b/app/src/components/chart/engine/ast/parse.js
+index b72c1beb3..d8c367734 100644
+--- a/app/src/components/chart/engine/ast/parse.js
++++ b/app/src/components/chart/engine/ast/parse.js
+@@ -145,7 +145,7 @@ export const SESSION_MAX_BARS = (() => {
+  *  walker in both lanes already descends `node.args`, so the child is reached
+  *  by machinery that already exists and a walker that forgets `offset` gets the
+  *  child's contribution rather than silently dropping the subtree. */
+-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'])
++export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf'])
+ 
+ // --------------------------------------------------------------------------- //
+ // the recurrence, READ from the manifest
+@@ -321,6 +321,9 @@ export const REFUSALS = Object.freeze({
+     'there is nothing here to compute',
+   'canonicalise:operator':
+     'the parser produced a symbol this grammar never declared',
++  'canonicalise:timeframe':
++    'a higher-timeframe read is tf(<expression>, \'<TF>\') \u2014 two arguments, the second '
++    + 'a quoted timeframe',
+   'canonicalise:node':
+     'the parser produced a construct with no canonical form',
+ })
+@@ -590,8 +593,35 @@ function convert(node) {
+     }
+     case 'ConditionalExpression':
+       return op(TERNARY, [convert(node.test), convert(node.consequent), convert(node.alternate)])
+-    case 'CallExpression':
++    case 'CallExpression': {
++      // \u2b50 `tf` IS THE ONE CALL THAT IS NOT A CALL. `tf(close, 'W')` reads a
++      // HIGHER TIMEFRAME, and the timeframe is a FIELD on the node rather than a
++      // child expression \u2014 the same shape rule `offset` follows for its bar
++      // count. A shape with no slot for an expression cannot hold one, so a
++      // timeframe can never be computed at runtime and `max_lookback` stays a
++      // tree sum over a bounded thing.
++      //
++      // \u26d4 IT IS SPELLED AS A CALL BECAUSE THAT IS WHAT A MEMBER TYPES, and the
++      // alternative \u2014 inventing punctuation \u2014 would put a second grammar in a
++      // language whose whole claim is that it has one. The string literal is
++      // legal HERE and nowhere else: `convert` still refuses every other string,
++      // so the table stays closed and this is the single declared exception.
++      if (node.callee && node.callee.name === 'tf') {
++        const args = node.arguments || []
++        if (args.length !== 2) return refuse('canonicalise:timeframe')
++        const code = args[1]
++        if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
++          return refuse('canonicalise:timeframe')
++        }
++        // \u26a0\ufe0f WHICH timeframes are legal is `interpret`'s question, not this
++        // one's. The parser decides SHAPE; the table decides meaning, and
++        // `interpret:timeframe` names an unserveable code at its own door with
++        // the ladder listed. Validating it twice would be two authorities on one
++        // vocabulary, and the parser's copy would be the one that goes stale.
++        return { type: 'tf', value: code.value, args: [convert(args[0])] }
++      }
+       return call(node.callee.name, (node.arguments || []).map(convert))
++    }
+     case 'MemberExpression': {
+       // The whole-tree scan already refused every illegal member and every
+       // illegal offset, so this arm only ever sees a legal one. It re-asks
+diff --git a/tests/fixtures/ast/corpus.json b/tests/fixtures/ast/corpus.json
+index 5c5a0988e..ee87ddcbc 100644
+--- a/tests/fixtures/ast/corpus.json
++++ b/tests/fixtures/ast/corpus.json
+@@ -2541,6 +2541,86 @@
+           }
+         ]
+       }
++    },
++    {
++      "id": "tf_close_weekly",
++      "source": "tf(close, 'W')",
++      "why": "the higher-timeframe read at its simplest. The corpus bars span TWO ISO weeks, so the first week's bars are not-computable and the second week's carry week one's close — a case that would be all-NaN proves nothing about the mapping",
++      "ast": {
++        "type": "tf",
++        "value": "W",
++        "args": [
++          {
++            "type": "series",
++            "name": "close"
++          }
++        ]
++      }
++    },
++    {
++      "id": "tf_high_monthly",
++      "source": "tf(high, 'M')",
++      "why": "the same node on the OTHER resamplable timeframe and a different bar field; the corpus bars straddle a month boundary, so this is not a relabelled copy of the weekly case",
++      "ast": {
++        "type": "tf",
++        "value": "M",
++        "args": [
++          {
++            "type": "series",
++            "name": "high"
++          }
++        ]
++      }
++    },
++    {
++      "id": "tf_weekly_compared_to_close",
++      "source": "close > tf(close, 'W')",
++      "why": "composition: a tf node under an operator, which is the shape every real multi-timeframe condition takes. Also proves the NaN prefix propagates through a comparison rather than answering a confident 0",
++      "ast": {
++        "type": "op",
++        "name": ">",
++        "args": [
++          {
++            "type": "series",
++            "name": "close"
++          },
++          {
++            "type": "tf",
++            "value": "W",
++            "args": [
++              {
++                "type": "series",
++                "name": "close"
++              }
++            ]
++          }
++        ]
++      }
++    },
++    {
++      "id": "tf_of_a_reduction",
++      "source": "tf(sma(close, 2), 'W')",
++      "why": "the child is evaluated ON the higher-timeframe bars — a 2-WEEK average, not a 2-day average sampled weekly. This is the case that fails if a lane resamples the RESULT instead of the INPUT",
++      "ast": {
++        "type": "tf",
++        "value": "W",
++        "args": [
++          {
++            "type": "call",
++            "name": "sma",
++            "args": [
++              {
++                "type": "series",
++                "name": "close"
++              },
++              {
++                "type": "num",
++                "value": 2
++              }
++            ]
++          }
++        ]
++      }
+     }
+   ],
+   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
+diff --git a/tests/test_ast_interpret.py b/tests/test_ast_interpret.py
+index 5b4069e0b..11b47b065 100644
+--- a/tests/test_ast_interpret.py
++++ b/tests/test_ast_interpret.py
+@@ -663,6 +663,11 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
+         "resolve:domain": lambda: run(_an_out_of_domain_call()),
+         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
+         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
++        # ⭐ A CODE THE LADDER DOES NOT DECLARE. The other reachable shape — a
++        # timeframe BELOW the base — needs `opts={"tf": ...}`, which `run` does not
++        # pass; this one fires from the tree alone, which is what this table wants.
++        "interpret:timeframe": lambda: run(
++            {"type": "tf", "value": "fortnightly", "args": [SER("close")]}),
+         # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is
+         # refused at the JS parse door, so the only way this guard is ever
+         # reached is a STORED tree — which is exactly the input it exists for.
+diff --git a/tests/test_ast_tf_sym.py b/tests/test_ast_tf_sym.py
+index c7a04b714..7749dcaa9 100644
+--- a/tests/test_ast_tf_sym.py
++++ b/tests/test_ast_tf_sym.py
+@@ -27,34 +27,6 @@ import pytest
+ from api.services import ast_interpret
+ 
+ 
+-# ⛔⛔ XFAIL UNTIL W2b LANDS BOTH LANES — AND THIS MARK IS A CORRECTION.
+-#
+-# These nine were written TDD-first and committed RED on purpose, which is right
+-# on a feature branch and WRONG on master — and they reached master anyway in the
+-# 2026-08-27 Wave-1 push, because the pre-push gate ran a TARGETED backend subset
+-# and this file was created after the last full run. A red master is how the next
+-# person learns to ignore a red.
+-#
+-# ⭐ `strict=True` IS THE POINT. The moment `tf` lands in both lanes these XPASS,
+-# which pytest reports as a FAILURE — so the mark cannot outlive the gap it
+-# documents. Remove each mark in the same commit as the capability it pins.
+-#
+-# STATE 2026-08-27: the Python lane is written and passes 8 of 9 (the patch is
+-# real, not a sketch); it is held back because declaring `tf` in `NODE_TYPES`
+-# without the JS twin turns three MIRROR rails red —
+-# `test_the_node_types_are_DERIVED_from_the_committed_corpus`,
+-# `..._guard_is_REACHABLE...` and `test_the_two_lanes_refuse_with_THE_SAME_SIX_SENTENCES`.
+-# Those rails are correct: this engine does not accept a node type that exists in
+-# one lane. See the plan's ruling (one node type per task, BOTH lanes, with its
+-# conformance-corpus cases) and the open design question it surfaced: the JS lane
+-# has no `_resample_weekly_iso`, so the weekly bucketing must be mirrored there
+-# and held equal by the corpus, exactly as every other pair in this engine is.
+-pytestmark = pytest.mark.xfail(
+-    strict=True,
+-    reason="W2b in progress: `tf`/`sym` are pinned here ahead of the "
+-           "implementation. The Python lane is written; it lands with the JS "
+-           "twin and the corpus cases, per the plan's one-node-type-per-task "
+-           "ruling. Each mark is removed by the commit that makes it pass.")
+ 
+ 
+ # ─── fixtures: three real weeks of daily bars, in both `t` spellings ─────────
+@@ -113,6 +85,11 @@ def test_tf_is_a_DECLARED_node_type_in_this_lane():
+     assert "tf" in ast_interpret.NODE_TYPES
+ 
+ 
++# ⛔ STILL PINNED — `sym` is Task 4 and is not built. `strict=True` so the day it
++# lands this XPASSes, pytest reports that as a FAILURE, and the mark cannot
++# outlive the gap it documents.
++@pytest.mark.xfail(strict=True,
++                   reason="W2b Task 4: the `sym` node is not implemented yet")
+ def test_sym_is_a_DECLARED_node_type_in_this_lane():
+     assert "sym" in ast_interpret.NODE_TYPES
+ 
+diff --git a/tools/ast_conformance.py b/tools/ast_conformance.py
+index f624278dd..17f551137 100644
+--- a/tools/ast_conformance.py
++++ b/tools/ast_conformance.py
+@@ -146,7 +146,7 @@ REL_TOL = 1e-9
+ #: `parse.js` produces for `EXPR[N]`. `test_ast_conformance.py` derives the same
+ #: set from every `type` in the committed corpus, so a name added here without a
+ #: corpus case lands RED rather than reading as coverage.
+-CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset")
++CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset", "tf")
+ 
+ #: LANE-NATIVE ESCAPE PROBES -- the control that keeps "it errored" from reading
+ #: as "it was safe". The must-refuse corpus names JS reaches (`toString`,
