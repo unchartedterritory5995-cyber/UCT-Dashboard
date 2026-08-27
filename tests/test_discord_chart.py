@@ -408,7 +408,7 @@ def test_endpoint_bad_ticker_is_immediate_ephemeral_and_schedules_nothing(monkey
     assert r.status_code == 200
     assert r.json()["type"] == 4
     assert r.json()["data"]["flags"] == 64
-    assert "Ticker" in r.json()["data"]["content"]
+    assert "not a ticker" in r.json()["data"]["content"]
 
 
 def test_endpoint_unknown_command_is_ephemeral(monkeypatch):
@@ -1149,13 +1149,18 @@ def test_endpoint_applies_per_call_overrides_on_top_of_saved_prefs_without_savin
     assert p.get_prefs("9001")["mas"] == "10-20-50" and p.get_prefs("9001")["volume"] is True   # nothing saved
 
 
-def test_chart_command_options_expose_mas_and_volume_and_house_description():
+def test_chart_advertises_three_options_the_rest_live_on_the_chart_itself():
+    """The look overrides (mas/volume/style/theme) were three ways to say one
+    thing - a slash option, a dropdown under the chart, and a saved default.
+    Only the dropdown and the default remain; the command stays small enough to
+    read in the picker."""
     from api.services.discord_interactions import build_chart_command
     cmd = build_chart_command()
     opts = {o["name"]: o for o in cmd["options"]}
-    assert set(opts) == {"ticker", "tf", "compare", "mas", "volume", "style", "theme"}
-    assert {c["value"] for c in opts["mas"]["choices"]} == {"house", "10-20-50", "off"}
-    assert opts["volume"]["type"] == 5 and not opts["volume"].get("required")
+    assert set(opts) == {"ticker", "tf", "compare"}
+    assert opts["ticker"]["required"] and opts["ticker"].get("autocomplete")
+    assert "several" in opts["ticker"]["description"].lower()      # the multi door is discoverable
+    assert {c["value"] for c in opts["tf"]["choices"]} >= {"D", "W", "5"}
     assert "EMA 9/20" in cmd["description"] and "10/20/50 SMA" not in cmd["description"]
     assert len(cmd["description"]) <= 100 and all(len(o["description"]) <= 100 for o in cmd["options"])
 
@@ -1650,7 +1655,8 @@ def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch
     rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi", style="line", theme="oled"),
                                dict(p.DEFAULTS))
     look = rows[3]["components"][0]
-    assert look["options"][-1]["value"] == di.SAVE_VALUE and not look["options"][-1].get("default")
+    assert [o["value"] for o in look["options"][-2:]] == [di.SAVE_VALUE, di.HELP_VALUE]
+    assert not any(o.get("default") for o in look["options"][-2:])
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4242"}},
              "message": {"id": "m1", "content": "NVDA · Weekly",
                          "attachments": [{"id": "555", "filename": "NVDA_W_2026-08-26_Chart.png"}]},
@@ -1830,10 +1836,10 @@ def test_parse_charts_command_orders_dedupes_caps_and_validates():
             di.parse_charts_command({"data": {"options": [{"name": "tickers", "value": bad}]}})
     with pytest.raises(di.CommandError):
         di.parse_charts_command({"data": {"options": [{"name": "tickers", "value": "NVDA"}, {"name": "tf", "value": "2h"}]}})
-    cmds = {c["name"]: c for c in di.build_commands()}
-    assert "charts" in cmds and cmds["charts"]["integration_types"] == [0] and cmds["charts"]["contexts"] == [0]
-    assert [o["name"] for o in cmds["charts"]["options"]] == ["tickers", "tf"]
-    assert len(cmds["charts"]["description"]) <= 100
+    # …and /charts is no longer its own command: the same thing is /chart with
+    # several tickers, which also stops Discord's picker offering three
+    # "chart"-prefixed rows. The parser stays one deploy cycle for stale clients.
+    assert "charts" not in {c["name"] for c in di.build_commands()}
 
 
 def test_multi_chart_job_posts_every_chart_in_order_names_the_misses_and_reuses_the_cache():
@@ -2521,3 +2527,44 @@ def test_no_preview_when_there_are_no_bars_or_the_flag_is_off(monkeypatch):
                   house_fn=lambda *a, **k: PNG_MAGIC + b"house", prefs=dict(p.DEFAULTS))
     assert [k["png"] for k in sent] == [PNG_MAGIC + b"house"]
     cc.clear()
+
+
+# ── one door: /chart takes a ticker or several ──
+
+def test_chart_takes_one_ticker_or_several_and_compare_belongs_to_the_single_case():
+    from api.services import discord_interactions as di
+    one = di.parse_chart_requests(_cmd(ticker="nvda"))
+    assert [r.ticker for r in one] == ["NVDA"]
+    many = di.parse_chart_requests(_cmd(ticker="nvda, $amd avgo nvda"), default_tf="W")
+    assert [r.ticker for r in many] == ["NVDA", "AMD", "AVGO"] and {r.tf for r in many} == {"W"}
+    assert di.parse_chart_requests(_cmd(ticker="NVDA", compare="SPY QQQ"))[0].compare == ("SPY", "QQQ")
+    with pytest.raises(di.CommandError) as e:
+        di.parse_chart_requests(_cmd(ticker="NVDA AMD", compare="SPY"))
+    assert "one ticker at a time" in str(e.value)
+    for bad in ("", "   ", "nvda amd avgo smci pltr", "nvda y!"):
+        with pytest.raises(di.CommandError):
+            di.parse_chart_requests(_cmd(ticker=bad))
+    # a stale client may still send the retired look overrides; they still parse
+    assert di.parse_chart_requests(_cmd(ticker="NVDA", style="line", theme="oled"))[0].style == "line"
+
+
+def test_the_help_pick_explains_the_controls_without_touching_the_chart(monkeypatch):
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    di.reset_rate_for_tests()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    sent = []
+    monkeypatch.setattr(rt.di, "followup_ephemeral", lambda a, b, content: sent.append(content) or True)
+    monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("help must not re-render"))
+    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[3]["components"][0]
+    click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "808"}},
+             "message": {"id": "m1", "content": "NVDA · Daily", "attachments": [{"id": "42"}]},
+             "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.HELP_VALUE]}}
+    r = _post(client, sk, click).json()
+    assert r["type"] == 7                                   # the dropdown goes back to the style
+    assert r["data"]["attachments"] == [{"id": "42"}] and r["data"]["content"] == "NVDA · Daily"
+    body = sent[0]
+    for must in ("/chart NVDA AMD AVGO", "compare:SPY", "UCTA5", "/chartsettings", "Earlier"):
+        assert must in body, must
+    assert len(body) <= 2000                                 # a Discord message

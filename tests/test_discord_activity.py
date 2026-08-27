@@ -89,7 +89,7 @@ def test_chart_reply_components_carry_the_guild_so_the_launch_button_can_be_scop
 
 def test_launch_command_is_an_admin_only_entry_point_registered_only_on_request():
     from api.services.discord_interactions import build_commands, build_launch_command
-    assert [c["name"] for c in build_commands()] == ["chart", "c", "charts", "chartsettings"]
+    assert [c["name"] for c in build_commands()] == ["chart", "c", "chartsettings"]
     cmds = {c["name"]: c for c in build_commands(activity=True)}
     launch = cmds["launch"]
     assert launch["type"] == 4 and launch["handler"] == 1 and launch["default_member_permissions"] == "8"
