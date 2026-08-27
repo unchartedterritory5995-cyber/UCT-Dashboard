@@ -107,6 +107,7 @@ import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
+import EvidenceTab from './EvidenceTab'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -527,6 +528,43 @@ const EDIT_MODE = 'formula'
 const openingMode = (editRow, initialMode) => (
   editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
 )
+
+/**
+ * ⭐ THE EVIDENCE BODY — the receipt for the SAVED definition, and a sentence
+ * when that is not what the member is looking at.
+ *
+ * ⛔ THE HASH IS READ OFF THE STORE'S ROW, NEVER OFF THE DRAFT IN THE BOX. A
+ * receipt is keyed to the tree that actually RAN, and `compute.fn` on the stored
+ * row is that tree's hash; the box may already hold something else.
+ *
+ * ⚠️ WHICH IS EXACTLY WHY THE DIFFERENCE HAS TO BE SAID OUT LOUD. Open an edit,
+ * retype the formula, click Evidence — three keystrokes — and the panel is a
+ * truthful receipt for a definition that is no longer on screen. The receipt is
+ * not wrong; the SURFACE would be implying it describes the draft. That is the
+ * same defect as a spinner saying "Replaying…" when nothing was requested, and
+ * it is the one this lane keeps finding: a correct value under a false sentence.
+ */
+function EvidenceBody({ editing, rows, source }) {
+  const row = (Array.isArray(rows) ? rows : []).find((r) => r.def_id === editing.defId)
+  const compute = (row && row.definition && row.definition.compute) || {}
+  const stored = typeof compute.source === 'string' ? compute.source : null
+  const drifted = stored !== null && stored !== source
+  return (
+    <>
+      {drifted && (
+        <p className={styles.pickerNote} role="status" data-testid="evidence-draft-differs">
+          This is the evidence for the saved version of this definition — not the formula in
+          the box, which you have changed since. Save the edit and the receipt below will be
+          about what you just wrote.
+        </p>
+      )}
+      {/* ⛔ A ROW THE STORE NO LONGER HAS (deleted in another tab, or a list still
+          loading) yields no hash, and `EvidenceTab` names that state itself rather
+          than rendering an empty panel. Nothing is invented here. */}
+      <EvidenceTab defId={editing.defId} defHash={compute.fn || null} tf="D" />
+    </>
+  )
+}
 
 /**
  * ⭐ `initialMode` / `editRow` (W4a HAND-BACK) — the two things a SECOND opener
@@ -994,6 +1032,12 @@ export default function BuilderSheet({
     // ⛔ AND THE PLOTS GO WITH IT. "New formula" empties the form; a second
     // plot left behind would be a tree in a document whose box shows nothing.
     resetPlots()
+    // ⛔ AND THE EVIDENCE DOOR CANNOT BE LEFT STANDING OPEN. Its tab is gated on
+    // `editing`, so leaving edit mode removes the tab — but `buildMode` is a
+    // separate value and would still read `'evidence'`, leaving a member on a
+    // panel with no tab selected and nothing to show. Only that mode is moved:
+    // a member who was on Formula or Conditions stays where they were.
+    setBuildMode((m) => (m === 'evidence' ? EDIT_MODE : m))
   }, [resetPlots])
 
   // ── W4a HAND-BACK: the `/screener` door opens the sheet ON A ROW ──────────
@@ -1489,6 +1533,21 @@ export default function BuilderSheet({
               aria-selected={buildMode === 'formula'}
               onClick={() => setBuildMode('formula')}
             >Formula</button>
+            {/* ── THE FIFTH DOOR SHOWS ONLY FOR A SAVED DEFINITION (W5a) ──────
+                Evidence is a fact about a definition the STORE holds — a receipt
+                keyed by its hash and a forward record filed under its hash — so a
+                NEW sheet has nothing to show it for, and a tab offering it would
+                be an affordance that is false about the thing it sits on.
+                `editing` is the store's own row id, which is precisely the
+                condition under which evidence can exist. */}
+            {editing && (
+              <button
+                type="button" role="tab"
+                className={`${styles.modeTab} ${buildMode === 'evidence' ? styles.modeTabActive : ''}`}
+                aria-selected={buildMode === 'evidence'}
+                onClick={() => setBuildMode('evidence')}
+              >Evidence</button>
+            )}
           </div>
 
           {buildMode === 'library' && (
@@ -1544,6 +1603,10 @@ export default function BuilderSheet({
 
           {buildMode === 'picker' && pickerNote && (
             <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
+          )}
+
+          {buildMode === 'evidence' && editing && (
+            <EvidenceBody editing={editing} rows={rows} source={source} />
           )}
 
           <FormulaField
