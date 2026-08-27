@@ -1581,10 +1581,13 @@ export default function ChartsWorkspace() {
     // template that carries none) so a locked/prebuilt template never inherits the
     // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
     // follow the same rule.
+    // Defaults are the APP-THEME-MATCHED look (graphite → graphite), not the raw
+    // theme-blind blob — otherwise a template with no styling stamps #0e0f0d and the
+    // widget stops matching the app theme.
     setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || breadthDefaultsForTheme(themeRef.current)))
     // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
     // pref) rides the template too: owner-reported bug — added columns vanished after
     // switching layouts and back, because Save captured them nowhere and opening a
@@ -1698,9 +1701,9 @@ export default function ChartsWorkspace() {
     // reset column config from localStorage.
     setPref('chart_settings', uctDefaultChartSettings())
     setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(themeRef.current)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(themeRef.current)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
     // Blank board is not a named template.
