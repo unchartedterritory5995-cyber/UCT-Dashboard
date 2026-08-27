@@ -515,6 +515,39 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
     + 'pins the sign, then apply `-` at this door. Meanwhile write '
     + '`lowestbars(source, n)` yourself, which is the positive distance.',
+  // ⛔⛔ THE BAR. This table's `pivothigh(source, left, right)` emits ON THE
+  // PIVOT BAR; Pine's `ta.pivothigh` returns the price at the CONFIRMATION bar,
+  // `rightbars` later — which is why published Pine pairs it with
+  // `offset=-rightbars` to draw it back where the pivot actually is. Same
+  // values, different index. Translating the name straight across shifts the
+  // whole column by `rightbars`, and a shifted pivot column is plausible on
+  // every bar and wrong on every bar.
+  //
+  // 🔴 THE SAME CLASS AS `ta.highestbars`, ONE AXIS OVER — that one differed by
+  // a SIGN and shipped green; this one differs by an OFFSET. Both are "the same
+  // number, indexed differently", which is the shape a member cannot see.
+  //
+  // ⭐ AND THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, in countable terms.
+  pivothigh: 'the price of a pivot high — and Pine RETURNS it at the '
+    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
+    + 'scripts draw it with `offset=-rightbars`. This table\'s '
+    + '`pivothigh(source, left, right)` emits ON THE PIVOT BAR instead, and '
+    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
+    + 'rather than hiding it behind a lag. Same values, different index: '
+    + 'translating the name straight across shifts the column by `rightbars`. '
+    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
+    + 'value lands on, then apply that shift at this door. Meanwhile write '
+    + '`pivothigh(source, left, right)` yourself, which emits on the pivot bar.',
+  pivotlow: 'the price of a pivot low — and Pine RETURNS it at the '
+    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
+    + 'scripts draw it with `offset=-rightbars`. This table\'s '
+    + '`pivotlow(source, left, right)` emits ON THE PIVOT BAR instead, and '
+    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
+    + 'rather than hiding it behind a lag. Same values, different index: '
+    + 'translating the name straight across shifts the column by `rightbars`. '
+    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
+    + 'value lands on, then apply that shift at this door. Meanwhile write '
+    + '`pivotlow(source, left, right)` yourself, which emits on the pivot bar.',
   // ⚠️ THIS ONE IS NOW A NAME THE TABLE ALSO DECLARES, AND THAT MAKES IT MORE
   // DANGEROUS RATHER THAN LESS — see the `own(PINE_INEXPRESSIBLE, …)` gate below.
   barssince: 'the number of bars since a condition was last true, UNBOUNDED. '

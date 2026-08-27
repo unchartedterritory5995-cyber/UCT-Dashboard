@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 57 functions and 111 scalars — 201 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 59 functions and 111 scalars — 203 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -452,7 +452,11 @@ describe('the manifest', () => {
     // it names no series because on-balance volume is close-and-volume by
     // definition — and it retires `_functions_excluded.obv`'s reason by giving
     // it a bounded successor to point at.
-    expect(Object.keys(TABLE.functions)).toHaveLength(57)
+    // ⭐ 57 -> 59 (2026-08-27): `pivothigh`/`pivotlow`, the SECOND and THIRD
+    // entries in this table that declare a `forward` and so badge
+    // `preview-repaints`. No new node type, argument kind or lookback form —
+    // `forward` is a grammar `ichimokuChikou` already used.
+    expect(Object.keys(TABLE.functions)).toHaveLength(59)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -518,9 +522,10 @@ describe('the manifest', () => {
     // ⭐ 83 -> 85 IS `vwap` AND `avwap`. The SCALAR half is untouched at 111,
     // which is the whole reason these are two assertions and not one total.
     // ⭐ 85 -> 90 IS THE BOUNDED-STATE FIVE. The SCALAR half is untouched at 111.
-    expect(bar.size).toBe(90)
+    // ⭐ 90 -> 92 IS THE PIVOT PAIR. Scalar half untouched at 111.
+    expect(bar.size).toBe(92)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(201)
+    expect(declared.size).toBe(203)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

@@ -176,7 +176,7 @@ def test_the_acceptance_expression_EVALUATES_to_a_0_1_column(bars):
 # the repaint decision Phase F owed: chikou is a FORWARD reference
 # ═══════════════════════════════════════════════════════════════════════════ #
 
-def test_the_ichimoku_lagging_span_lints_PREVIEW_REPAINTS_and_it_is_the_only_one():
+def test_the_lagging_span_lints_PREVIEW_REPAINTS_and_the_forward_ROSTER_is_pinned():
     """⭐⭐ `chikou[j]` IS `close[j + 26]` — the exact construction
     ``closedTable.json::_no_offset`` names as the thing the repaint linter has to
     be able to decide, and until Phase F nothing in the table could express it.
@@ -203,19 +203,44 @@ def test_the_ichimoku_lagging_span_lints_PREVIEW_REPAINTS_and_it_is_the_only_one
         "cannot act on"
     )
 
-    # ⛔ AND IT IS THE ONLY ONE. Declaring `forward` on the two cloud spans would
-    # brand them for a displacement the shipped compute does NOT perform (see
-    # `_functions_excluded._ichimoku_forward_cloud`), so every other declared
-    # function must still reach 0 forward. A blanket `preview-repaints` would be
-    # as useless as a blanket `non-repainting`.
+    # ⛔ AND THE ROSTER IS PINNED — every entry, with the ruling that admitted it.
+    #
+    # ⚰️ THIS ASSERTED `== {"ichimokuChikou": "arg4"}` AND THE CASE WAS NAMED
+    # `..._and_it_is_the_only_one`. The REASON below is right and unchanged — a
+    # forward declaration is a repaint claim about a member's chart and belongs
+    # to the owner of that claim — but a hard-coded SINGLETON encoded scarcity as
+    # if it were the rule, and that scarcity is exactly what let three false
+    # claims about this machinery survive (a defect called "latent because every
+    # table-legal tree is non-repainting today", a mutation that "did not
+    # discriminate", and `canSaveFormula`'s `acknowledged` branch believed dead).
+    #
+    # ⭐ THE TEETH ARE UNCHANGED: a FOURTH entry growing a `forward` still lands
+    # RED here by name. What changed is that the roster can hold a ruling.
     forwards = {name: spec.get("forward")
                 for name, spec in ast_table.TABLE["functions"].items()
                 if "forward" in spec}
-    assert forwards == {"ichimokuChikou": "arg4"}, (
-        f"more than one function declares a forward window: {sorted(forwards)}. "
-        "Each one is a repaint claim about a member's chart and belongs with the "
-        "owner of that claim, not with an implementation task."
+    assert forwards == {
+        # the lagging span IS `close[j + 26]`; the displacement is the compute's own
+        "ichimokuChikou": "arg4",
+        # W2a.6, owner-ruled: TV-native confirmed-late. The value is drawn on the
+        # pivot bar once the right-hand bars exist, and the badge is honest about
+        # the k-bar wait instead of hiding it behind a lag.
+        "pivothigh": "arg2",
+        "pivotlow": "arg2",
+    }, (
+        f"the forward roster changed: {sorted(forwards)}. Each entry is a repaint "
+        "claim about a member's chart and belongs with the owner of that claim, "
+        "not with an implementation task -- so a new one lands here, by name."
     )
+    # ⛔ AND THE TWO CLOUD SPANS ARE STILL OUT, which is the half the singleton
+    # was really protecting: declaring `forward` on them would brand them for a
+    # displacement the shipped compute does NOT perform
+    # (`_functions_excluded._ichimoku_forward_cloud`).
+    for span in ("ichimokuSpanA", "ichimokuSpanB"):
+        assert "forward" not in ast_table.TABLE["functions"][span], span
+        assert ast_lint.mode_from_reach(
+            ast_lint.ast_reach(_corpus_case("ichimoku_span_a")["ast"])["forward"]
+        ) == "non-repainting"
 
 
 def test_the_lagging_span_really_does_read_a_LATER_bar(bars):

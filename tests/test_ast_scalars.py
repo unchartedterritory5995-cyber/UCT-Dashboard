@@ -682,7 +682,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # `highestbars`, `lowestbars`, `obvN`). The scalar half is untouched at 111
     # for the tenth bump running -- a bounded-state entry rides the `call` node and
     # has nothing to say about a per-symbol column.
-    assert len(parts["bar"]) == 90 and len(parts["scalar"]) == 111
+    # ⭐ 90 -> 92 (2026-08-27): the two pivots, the first member-reachable
+    # `forward` entries. Scalar half untouched at 111 for the eleventh bump.
+    assert len(parts["bar"]) == 92 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

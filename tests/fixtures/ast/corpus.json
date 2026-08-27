@@ -2450,6 +2450,52 @@
           }
         ]
       }
+    },
+    {
+      "id": "pivothigh_strict_two_two",
+      "source": "pivothigh(high, 2, 2)",
+      "why": "⭐⭐ THE FIRST CORPUS ROW WHOSE ENTRY DECLARES A `forward`, and only the second in the file that can repaint at all (the other is `ichimokuChikou`). It answers on 54 of these 579 bars — the bars that are the STRICT high of their own [i-2, i+2] window. ⛔ THE STRICTNESS IS VISIBLE HERE, WHICH IS WHY THE WINDOW IS 2: measured on these very bars, 20 of them equal their 5-bar `high` extreme WITHOUT being unique, so a `>=` reading would emit 20 extra rows and move this digest. A count, not an absence — the last brief in this lane claimed a corpus could not see a ruling and was wrong by 56. ⚠️ BOTH EDGES ARE BLANK, in opposite directions: the first 2 bars and the last 2 have a window running off the fetch. The TAIL is the interesting one — those bars are NOT YET DECIDABLE rather than decided-false, which is exactly what `preview-repaints` means and what `tests/test_ast_pivots.py` measures by widening the fetch.",
+      "ast": {
+        "type": "call",
+        "name": "pivothigh",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "pivotlow_strict_two_two",
+      "source": "pivotlow(low, 2, 2)",
+      "why": "⭐ THE MIRROR, AND NOT A DUPLICATE. It answers on 54 bars too, but over a different column and through the OPPOSITE comparison — a lane that inverted one predicate would produce a perfectly plausible column of prices and only this row would move. `low` also ties its 5-bar extreme 15 times against `high`'s 20, so the two rows spend different plateau evidence.",
+      "ast": {
+        "type": "call",
+        "name": "pivotlow",
+        "args": [
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 2
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
@@ -2458,5 +2504,6 @@
   "_allNaN": "A case that is NOT COMPUTABLE ON EVERY BAR, deliberately. The domain refusals (sqrt of a negative, log of zero, an overflow, a zero divisor) are the cases where the two languages natively disagree, so they are exactly the cases worth having -- and their correct column IS all-NaN. ⛔ The flag is per-case and opt-in so the rail keeps its teeth: an UNEXPECTED all-NaN column still fails, which is what it was written to catch.",
   "_bar_readers": "⭐⭐ THE BAR-READING ROWS. ⛔ NO COUNT IS WRITTEN HERE, AND THAT IS A CORRECTION: this note opened \"THE TWO BAR-READING ROWS\" and `obvN(20)` made it three on 2026-08-26 — the identical claim was corrected in `closedTable.json::_functions_bar_readers` in the SAME commit and this copy was missed, which is the whole hazard of a count mirrored across artifacts. `ast_table.bar_readers` answers it; read that. Every other case in this file is measured over columns; these two are measured over the BARS, `t` included, because their entries declare `reads: \"bars\"` -- and that declaration is the whole reason `vwap` stopped being refused (`closedTable.json::_functions_bar_readers`). ⛔ THEY ARE THE ONLY CASES HERE WHOSE ANSWER DEPENDS ON A TIMEZONE DATABASE RATHER THAN ON ARITHMETIC, which is what makes the cross-lane digest worth having: `Intl.DateTimeFormat` against `zoneinfo`, over a corpus that crosses a DST fallback, a weekend and the Friday 20:00 ET bar that is 00:00 UTC the next day. ⚠️ NEITHER CARRIES `opts`: a session is decided by the CALENDAR, so unlike the four timeframe booleans these answer the same column whatever timeframe the caller claims.",
   "_bounded_state": "⭐ FIVE ROWS, ONE PER BOUNDED-STATE ENTRY, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and an entry with no case is an entry whose two lanes may already disagree with every gate green. ⛔⛔ TWO OF THEM CARRY A RULING NO OTHER ROW HERE DOES: `highestbars`/`lowestbars` return an OFFSET, so when two bars of the window tie they have an answer where `highest`/`lowest` do not. Measured on these bars, 56 `high` windows and 36 `low` windows tie at 5, and every one of them separates the two conventions -- so these digests are a real rail on `closedTable.json::_functions_arg_extreme` rather than a formality. ⚠️ AND THEY ARE NOT THE WHOLE RAIL: a corpus can only pin the window a case happens to use, and it cannot contain a TOTAL tie at all. `tests/test_ast_bounded_state.py` carries the constructed one.",
+  "_pivots": "⭐⭐ THE FORWARD-DECLARING ROWS. `pivothigh`/`pivotlow` declare `forward: \"arg2\"`, so they are the second and third entries in this table that `modeFromReach` badges `preview-repaints` — and the first a member can reach in three arguments. ⛔ THAT SCARCITY WAS ITSELF A DEFECT: with only `ichimokuChikou` declaring one, a review concluded a repaint bug was \"latent because every table-legal tree is non-repainting today\" (false), and a mutation \"did not discriminate\" because no fixture could produce two differing verdicts. These two rows make the repaint machinery non-hypothetical. ⚠️ Their digests pin the STRICT rule as well as the maths: 20 bars of this series equal their 5-bar `high` extreme without being unique (15 in `low`), so a plateau-admitting implementation moves them.",
   "_clock": "⭐ THE CLOCK ROWS (tableVersion 2). One case per declared clock name, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a clock entry with no case is a name whose two lanes may already disagree with every gate green. ⛔ THESE ARE THE ONLY CASES IN THIS FILE WHOSE ANSWER DOES NOT COME FROM A PRICE -- they come from a CALENDAR, which is a second implementation on each side (`Intl.DateTimeFormat` against `zoneinfo`) rather than one formula written twice. The four `opts`-bearing rows are also the first cases in this corpus to exercise `interpret`'s trailing `opts` argument at all; a clock boolean measured WITHOUT it is two lanes agreeing on an all-null column, which is a pass about nothing."
 }

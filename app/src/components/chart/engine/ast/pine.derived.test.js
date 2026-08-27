@@ -209,25 +209,37 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     }
   })
 
-  it('⛔ …and the two SIGN-FLIP doors are REFUSED, with an ACTIONABLE reason', () => {
+  it('⛔ …and every INDEXING-MISMATCH door is REFUSED, with an ACTIONABLE reason', () => {
     // ⭐ THE REFUSAL MUST NAME WHAT WOULD UNBLOCK IT. "Unmappable" is what let a
     // false refusal hide for a whole task elsewhere in this wave — an unactionable
     // refusal is never revisited because nobody knows what would change it.
+    // ⭐ TWO KINDS OF INDEXING MISMATCH, ONE RULING. `highestbars`/`lowestbars`
+    // differ from Pine by a SIGN; `pivothigh`/`pivotlow` differ by an OFFSET
+    // (Pine returns at the CONFIRMATION bar, `rightbars` later — which is why
+    // published scripts pair it with `offset=-rightbars`). Both are "the same
+    // number, indexed differently", which is the shape a member cannot see, so
+    // both refuse and both must name what would settle it.
     for (const [expr, ours] of [['ta.highestbars(high, 5)', 'highestbars'],
-                                ['ta.lowestbars(low, 5)', 'lowestbars']]) {
+                                ['ta.lowestbars(low, 5)', 'lowestbars'],
+                                ['ta.pivothigh(high, 5, 5)', 'pivothigh'],
+                                ['ta.pivotlow(low, 5, 5)', 'pivotlow']]) {
       const r = refusalOf(expr)
       expect(r, `${expr} still translates — that is a sign-flipped column`).toBeTruthy()
       expect(r.guard).toBe('pine:function')
-      // the DEFECT, named
-      expect(r.message).toMatch(/non-positive/i)
-      expect(r.message).toMatch(/sign-flipped|negation/i)
-      // the two COUNTABLE things that would unblock it
+      // the DEFECT, named — each kind in its own words, never a shared vague one
+      expect(r.message).toMatch(/non-positive|confirmation bar/i)
+      expect(r.message).toMatch(/sign-flipped|negation|shifts the column/i)
+      // ⭐ THE COUNTABLE UNBLOCKER. "Unmappable" is what let a false refusal
+      // hide for a whole task in this wave — an unactionable refusal is never
+      // revisited because nobody knows what would change it.
       expect(r.message).toMatch(/cite the Pine reference/i)
-      expect(r.message).toMatch(/apply `-`/i)
+      expect(r.message).toMatch(/apply `-`|apply that shift/i)
       // …and what to write meanwhile — which MUST be a spelling this door accepts.
-      expect(r.message).toContain(`${ours}(source, n)`)
-      expect(treeOfOrNull(`${ours}(high, 5)`),
-        `the refusal recommends \`${ours}(source, n)\` and the same door rejects it`)
+      const sig = ours.startsWith('pivot') ? `${ours}(source, left, right)` : `${ours}(source, n)`
+      const call = ours.startsWith('pivot') ? `${ours}(high, 5, 5)` : `${ours}(high, 5)`
+      expect(r.message).toContain(sig)
+      expect(treeOfOrNull(call),
+        `the refusal recommends \`${sig}\` and the same door rejects it`)
         .toBeTruthy()
     }
   })

@@ -267,6 +267,44 @@ function windowArgExtreme(series, lo, hi, better) {
   return NaN
 }
 
+/** `pivothigh`/`pivotlow` — the bar's own value where it is the STRICT extreme of
+ *  `[i-left, i+right]`, and NOT COMPUTABLE everywhere else.
+ *
+ *  ⭐⭐ THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and it is
+ *  legal precisely because the entry DECLARES it: `forward: 'arg2'` is what
+ *  `modeFromReach` turns into `preview-repaints`. A user's formula still cannot
+ *  SPELL a forward reference — the `offset` node is backward-only and `parse.js`
+ *  refuses a negative at the door — so the manifest stays the single authority
+ *  on forward reach.
+ *
+ *  ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
+ *  uniquely the extreme. A `>=` reading emits both and looks entirely
+ *  reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
+ *  `high` and 15 in `low`.
+ *
+ *  ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
+ *  The TAIL is the interesting one: those bars are *not yet decidable*, not
+ *  *decided false* — they read the same blank, and the difference only shows
+ *  when more bars arrive. That is what the badge means.
+ *  `ast_interpret._pivot_col` is the same two loops. */
+function pivotCol(series, left, right, beats) {
+  const out = nan(series.length)
+  for (let i = left; i < series.length - right; i++) {
+    const v = series[i]
+    if (Number.isNaN(v)) continue
+    let ok = true
+    for (let j = i - left; j <= i + right; j++) {
+      if (j === i) continue
+      const w = series[j]
+      // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
+      // `windowExtreme` states: NaN does not lose a comparison.
+      if (Number.isNaN(w) || !beats(v, w)) { ok = false; break }
+    }
+    if (ok) out[i] = v
+  }
+  return out
+}
+
 function windowSum(series, lo, hi) {
   let total = 0
   for (let i = lo; i <= hi; i++) total += series[i]
@@ -672,6 +710,11 @@ export const FN = Object.freeze({
   lowestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b)),
   barssince: (cond, n) => barsSince(cond, n),
   valuewhen: (cond, src, n) => valueWhen(cond, src, n),
+  // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
+  // STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
+  // both bars of a tie. See `closedTable.json::_functions_pivots`.
+  pivothigh: (series, left, right) => pivotCol(series, left, right, (v, w) => v > w),
+  pivotlow: (series, left, right) => pivotCol(series, left, right, (v, w) => v < w),
   stdev: (series, n) => rolling(series, n, windowStdev),
   sum: (series, n) => rolling(series, n, windowSum),
   dev: (series, n) => rolling(series, n, windowMeanAbsDev),

@@ -206,6 +206,17 @@ const FORMS = [
     name: 'lowestbars',
     parts: ['the number of bars back to the most recent bar holding the lowest ', 0,
             ' of the last ', 1, ' bars'] },
+  // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
+  // row here — deriving them would make the oracle agree with the renderer by
+  // construction and the round trip would prove nothing.
+  { kind: 'call',
+    name: 'pivothigh',
+    parts: ['the ', 0, ' of a bar that is the highest in the ', 1,
+            ' bars before it and the ', 2, ' bars after it'] },
+  { kind: 'call',
+    name: 'pivotlow',
+    parts: ['the ', 0, ' of a bar that is the lowest in the ', 1,
+            ' bars before it and the ', 2, ' bars after it'] },
   { kind: 'call',
     name: 'obvN',
     parts: ['the signed volume of the last ', 0,
@@ -846,6 +857,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      'function:pivothigh',
+      'function:pivotlow',
       'function:plusDI',
       'function:pow',
       'function:rma',
@@ -865,7 +878,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(90)
+    expect(entries.length).toBe(92)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -875,7 +888,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(90)
+    expect(subjects.length).toBe(92)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2066,6 +2079,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'highestbars_the_offset_back_to_the_high',
       'lowestbars_the_offset_back_to_the_low',
       'obvN_bounded_signed_volume',
+      // ⭐ THE FORWARD-DECLARING PAIR (2026-08-27) — the corpus's only rows
+      // besides `ichimokuChikou` whose entry can badge `preview-repaints`.
+      'pivothigh_strict_two_two',
+      'pivotlow_strict_two_two',
     ])
   })
 
@@ -2108,7 +2125,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 90)
+    expect(sentences.length).toBe(CORPUS.cases.length + 92)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

@@ -22,8 +22,16 @@
 //
 // ⭐⭐ ALL THREE ARE REACHABLE, AND THAT IS THE POINT OF THE TRICHOTOMY. The
 // decision record's §3 warns that *"a vocabulary value nothing can ever emit is
-// a value that does not exist"* — it says that about `preview-repaints`, which
-// today is emitted by nothing at all. A design in which every forward reference
+// a value that does not exist"* — it says that about `preview-repaints`.
+// ⚰️ THIS SENTENCE ENDED "which today is emitted by nothing at all" AND THAT
+// STOPPED BEING TRUE TWICE. `ichimokuChikou` (forward: arg4) made it one, and
+// `pivothigh`/`pivotlow` (forward: arg2, 2026-08-27) made it three — the first
+// two a member can reach in three arguments. The scarcity was not harmless: it
+// is why a defect was called "latent because every table-legal tree is
+// non-repainting today" (false), why a mutation "did not discriminate", and why
+// `canSaveFormula`'s `acknowledged` branch was believed to be dead code. Read
+// the roster off the manifest — `tests/test_ast_indicators.py` pins it. A design
+// in which every forward reference
 // is `repaints` would make `preview-repaints` unreachable; a design in which
 // every forward reference is `preview-repaints` would make `repaints`
 // unreachable and hand the brand a badge that only ever means "we could not

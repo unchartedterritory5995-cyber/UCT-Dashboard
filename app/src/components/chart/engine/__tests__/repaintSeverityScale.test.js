@@ -24,7 +24,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { modeFromReach, REPAINT_MODES, UNBOUNDED, UNKNOWN } from '../ast/lint'
-import { definitionRollUp, severityOf, severityScale } from '../repaintVerdict'
+import {
+  definitionRollUp, plotRepaintNotice, repaintNotices, severityOf, severityScale,
+} from '../repaintVerdict'
 
 /** A definition whose one plot lints to whatever `tree` reaches. */
 function defWith(plots) {
@@ -135,5 +137,78 @@ describe('the repaint severity scale', () => {
     produced.forEach((mode) => {
       expect(severityOf(mode)).toBeLessThan(severityScale().unplaceable)
     })
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════ //
+// ⭐⭐ A TWO-PLOT DOCUMENT WITH TWO DIFFERENT VERDICTS — buildable since W2a.6
+// ═══════════════════════════════════════════════════════════════════════════ //
+//
+// 🔴 WHY THIS CASE DID NOT EXIST BEFORE. `definitionRollUp` has always reduced
+// per-plot verdicts with `severityOf`, and `repaintNotices` has always filtered
+// clean plots out — but with exactly ONE `forward`-declaring entry in the whole
+// manifest (`ichimokuChikou`, behind a six-argument call), no ordinary document
+// could hold two DIFFERING verdicts. So the reduce was only ever exercised over
+// rows that agreed, and three claims about this machinery went unfalsified: a
+// defect called "latent because every table-legal tree is non-repainting today",
+// a mutation that "did not discriminate", and `canSaveFormula`'s `acknowledged`
+// branch believed to be dead code.
+//
+// `pivothigh(high, 2, 2)` is that document's second plot, in three arguments.
+describe('a MIXED document — one clean plot, one that previews', () => {
+  const SER = (name) => ({ type: 'series', name })
+  const NUM = (value) => ({ type: 'num', value })
+  const MIXED = {
+    id: 'zz_mixed_pivot',
+    compute: {
+      kind: 'ast',
+      trees: {
+        avg: { type: 'call', name: 'sma', args: [SER('close'), NUM(20)] },
+        pivot: { type: 'call', name: 'pivothigh', args: [SER('high'), NUM(2), NUM(2)] },
+      },
+    },
+    plots: [{ key: 'avg', label: 'Average' }, { key: 'pivot', label: 'Pivot high' }],
+  }
+
+  it('rolls up to the WORSE of the two, not the first or the last', () => {
+    expect(definitionRollUp(MIXED)).toBe('preview-repaints')
+    // ⛔ AND ORDER DOES NOT DECIDE IT. A reduce that returned the last row would
+    // pass the line above and fail here.
+    const flipped = { ...MIXED, plots: [...MIXED.plots].reverse() }
+    expect(definitionRollUp(flipped)).toBe('preview-repaints')
+  })
+
+  it('notices ONLY the plot that is not clean, and names the bar it settles on', () => {
+    // ⚠️ `repaintNotices` RETURNS THE ARRAY ITSELF, not a `{notices, byPlot}`
+    // wrapper — the wrapper is the private cache entry. The per-plot lookup is
+    // its own export, `plotRepaintNotice`.
+    const notices = repaintNotices(MIXED)
+    // ⭐ THE CLEAN PLOT RENDERS NOTHING — the owner's per-plot ruling exists so
+    // four clean columns are not slandered by a fifth. This is the first time a
+    // shipped-table document could show that happening.
+    expect(notices.map((n) => n.plotKey)).toEqual(['pivot'])
+    expect(plotRepaintNotice(MIXED, 'avg')).toBeNull()
+    const pivot = plotRepaintNotice(MIXED, 'pivot')
+    expect(pivot.mode).toBe('preview-repaints')
+    expect(pivot.forward).toBe(2)
+    expect(pivot.label).toBe('Pivot high')
+    // …and `preview-repaints` can NAME the settling bar, which is the only
+    // distinction the vocabulary draws against `repaints`.
+    expect(pivot.sentence).toMatch(/2 bar/)
+  })
+
+  it('⛔ the CONTROL — two clean plots roll up clean and notice nothing', () => {
+    const clean = {
+      ...MIXED,
+      compute: {
+        kind: 'ast',
+        trees: {
+          avg: MIXED.compute.trees.avg,
+          pivot: { type: 'call', name: 'highest', args: [SER('high'), NUM(2)] },
+        },
+      },
+    }
+    expect(definitionRollUp(clean)).toBe('non-repainting')
+    expect(repaintNotices(clean)).toEqual([])
   })
 })

@@ -381,6 +381,52 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
     return NAN
 
 
+def _pivot_col(series: Sequence[float], left: int, right: int,
+               beats: Callable[[float, float], bool]) -> List[float]:
+    """``pivothigh``/``pivotlow`` -- the bar's own value where it is the STRICT
+    extreme of ``[i-left, i+right]``, and NOT COMPUTABLE everywhere else.
+
+    ⭐⭐ THIS IS THE ONLY IMPLEMENTATION IN THIS FILE THAT READS A LATER BAR, and
+    it is legal precisely because the entry DECLARES it: ``forward: "arg2"`` is
+    what ``ast_lint.mode_from_reach`` turns into ``preview-repaints``. A user's
+    formula still cannot SPELL a forward reference -- the ``offset`` node is
+    backward-only and ``parse.js`` refuses a negative at the door -- so the
+    manifest stays the single authority on forward reach.
+
+    ⛔ STRICT, SO A PLATEAU IS NOT A PIVOT. Two equal maxima mean neither bar is
+    uniquely the extreme. A ``>=`` reading emits both and looks entirely
+    reasonable; on the committed 579-bar corpus it would emit 20 extra bars in
+    ``high`` and 15 in ``low``, which is why those counts are asserted rather
+    than an absence.
+
+    ⛔ AND BOTH EDGES ARE NOT COMPUTABLE, FOR THE SAME REASON IN TWO DIRECTIONS.
+    The first ``left`` bars and the last ``right`` bars have a window that runs
+    off the fetch. The TAIL is the interesting one: those bars are *not yet
+    decidable*, not *decided false* -- they read the same blank, and the
+    difference only shows when more bars arrive. That is what the badge means.
+    """
+    out = _nan_col(len(series))
+    for i in range(left, len(series) - right):
+        v = series[i]
+        if math.isnan(v):
+            continue
+        ok = True
+        for j in range(i - left, i + right + 1):
+            if j == i:
+                continue
+            w = series[j]
+            # ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN, the same
+            # rule `_window_extreme` states: NaN does not lose a comparison, so a
+            # bar cannot be declared the strict extreme over bars nobody could
+            # read.
+            if math.isnan(w) or not beats(v, w):
+                ok = False
+                break
+        if ok:
+            out[i] = v
+    return out
+
+
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
     total = 0.0
     for i in range(lo, hi + 1):
@@ -1015,6 +1061,13 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
+    # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
+    # STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
+    # both bars of a tie. See `closedTable.json::_functions_pivots`.
+    "pivothigh": lambda series, left, right: _pivot_col(
+        series, left, right, lambda v, w: v > w),
+    "pivotlow": lambda series, left, right: _pivot_col(
+        series, left, right, lambda v, w: v < w),
     "stdev": lambda series, n: _rolling(series, n, _window_stdev),
     "sum": lambda series, n: _rolling(series, n, _window_sum),
     "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
