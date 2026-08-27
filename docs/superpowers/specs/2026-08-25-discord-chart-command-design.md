@@ -1164,3 +1164,37 @@ actually contained. The sources are read independently now, from the modules
 that own them, and a successful seed logs its count so "seeded nothing" can
 never again look like "seeded quietly". Verified: 24 names seeded, 8 warmed per
 cycle, 16 cached after two.
+
+### v19 — one door for charts, one for settings (2026-08-26, ~16:30 CT)
+
+Owner: *"any way we can simplify the commands to make it easier to navigate and
+the additional features easier to find?"* Typing `/chart` offered SIX rows —
+`chart`, `c`, `charts`, `chartsettings show|set|reset` — and Discord ranked
+`/chartsettings reset` above `/charts`. Worse, one setting lived in three
+places: a slash option, a dropdown under the chart, and a saved default.
+
+**Three rows now: `/chart` · `/c` · `/chartsettings`.**
+
+- **`/chart` takes one ticker OR several.** `/chart NVDA AMD AVGO` is what
+  `/charts` was, so the multi-chart reply is found by typing rather than by
+  being told about it. `/charts` is retired as a command; its handler stays one
+  deploy cycle for clients holding the older set.
+- **`/chart` drops to three options** — ticker, tf, compare. `mas`, `volume`,
+  `style` and `theme` live on the Look dropdown under every chart and in
+  `/chartsettings`; they still PARSE if a stale client sends them.
+- **`/chartsettings` loses `show|set|reset`.** Bare = show, any option = set,
+  `reset:True` = reset. Three picker rows collapse to one, and the retired
+  shape still parses.
+- **"❔ How these controls work"** sits at the foot of the Look dropdown and
+  answers privately: compare, panning, several charts at once, breadth
+  symbols, saved defaults. No new button, no new command — and it puts the
+  dropdown back where it was rather than leaving "❔" standing where the style
+  belongs.
+- **Breadth symbols surface in the ticker autocomplete** (`UCTA` → UCTA5,
+  UCTA10, UCTA20, UCTA40, UCTA50). That is the only place a member would ever
+  discover `/chart UCTA5` works.
+
+Verified on the pod after deploy: three commands, `/chart` carrying exactly
+ticker/tf/compare, `parse_chart_requests("nvda amd avgo")` → three charts, bare
+`/chartsettings` → show, the Look dropdown ending `save, help`, and the breadth
+autocomplete answering. Commands re-registered globally (instant, no deploy).
