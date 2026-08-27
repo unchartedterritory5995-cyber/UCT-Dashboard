@@ -182,13 +182,13 @@ def jobs_db(monkeypatch):
 
 
 class _RecordingYT(_FakeYT):
-    """Records the privacy each upload was asked for."""
+    """Records the title/description/privacy each upload was asked for."""
     def __init__(self):
         super().__init__()
         self.uploads = []
 
     def upload(self, path, title, description="", privacy="unlisted"):
-        self.uploads.append({"title": title, "privacy": privacy})
+        self.uploads.append({"title": title, "description": description, "privacy": privacy})
         return "VIDX"
 
 
@@ -870,3 +870,43 @@ def test_retry_queue_failure_never_breaks_a_publish(edu_db, jobs_db, monkeypatch
     yt = _ByteThumbYT()
     out = _publish_one(jobs_db, yt)
     assert len(out) == 1 and yt.thumb_bytes
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-26 — YouTube description (links + disclaimer). Every upload used to
+# ship `description=""`. Static only — NEVER a claim about what was discussed
+# (that's the same hallucination shape that got DESK_CREATIVE_TITLES turned
+# off permanently: the transcript doesn't exist yet at upload time and the
+# `youtube.upload` token can't patch it in later).
+# ---------------------------------------------------------------------------
+
+def test_compose_description_names_the_show():
+    assert dds._compose_description("Live Trading Session").startswith(
+        "Live Trading Session — full session replay.")
+
+
+def test_compose_description_includes_product_links():
+    desc = dds._compose_description("Sunday Scans")
+    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://uctintelligence.com" in desc
+
+
+def test_compose_description_includes_disclaimer():
+    desc = dds._compose_description("Live Trading Session").lower()
+    assert "not investment advice" in desc
+
+
+def test_upload_receives_the_composed_description(edu_db, jobs_db):
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt, topic="Live Trading Session")
+    desc = yt.uploads[0]["description"]
+    assert desc.startswith("Live Trading Session — full session replay.")
+    assert "https://whop.com/uncharted/uncharted" in desc
+
+
+def test_upload_description_names_the_actual_routed_show(edu_db, jobs_db):
+    # A different show gets its own name in the description, not a hardcoded
+    # "Live Trading Session" — same derive-don't-restate pattern as the title.
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt, topic="Sunday Scans")
+    assert yt.uploads[0]["description"].startswith("Sunday Scans — full session replay.")
