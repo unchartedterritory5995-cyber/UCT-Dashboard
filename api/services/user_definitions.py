@@ -60,9 +60,21 @@ only free if the row it points at CANNOT CHANGE UNDER ITS HOLDER. So:
 `version` vs `rev` — TWO NUMBERS, AND THE SECOND ONE IS THE DANGEROUS ONE
 ────────────────────────────────────────────────────────────────────────────────
 `version` is PRESENTATION and increments on EVERY save (a rename, a colour, a
-tooltip). `rev` is MATHS and increments IFF `ast_hash` moved. Deriving `rev` from
-the hash removes an entire class of "the user forgot to bump it", and it is one
-assertion in both directions.
+tooltip). `rev` is MATHS and increments IFF ANY PLOT'S TREE MOVED — `ast_hash`
+(the scan tree) OR `treesHash` (every plot's tree, via `trees_identity`).
+Deriving `rev` from the hashes removes an entire class of "the user forgot to
+bump it", and it is one assertion in both directions.
+
+⛔ THE **OR** IS THE WHOLE RULING, AND IT WAS `ast_hash` ALONE UNTIL W9i. A
+definition carries many plots now and an alert binds to ONE of them
+(`u_<12 hex>.<plotKey>`), so a member could change what plot 2 computes and the
+alert on plot 2 kept evaluating the tree they had just replaced — no migration,
+no `last_value` reset, no notice. `ast_hash` never moves on that edit, because
+`compute.ast` is an ALIAS of the SCAN plot's tree and only that one.
+⛔ AND `ast_hash` IS STILL THE FIRST IDENTITY. It is what this table STORES, what
+`compute.fn` and `scan_definition.def_hash` are, what keys every `scan_hits` row
+and what the migration is handed as `def_hash`. `treesHash` widens the QUESTION
+and replaces NO byte of the answer.
 
 ⭐ AND A `rev` BUMP CALLS PHASE C, IT DOES NOT REBUILD IT. `save()` calls
 `alert_rev_migration.migrate_bindings_to_rev` — the same function, the same
@@ -353,6 +365,14 @@ def ast_hash(ast: Any) -> str:
 # plot's tree, and it exists for change detection and the `compute.rev`
 # migration; it never replaces the first.
 #
+# ⭐ AND THAT SENTENCE IS CODE NOW, NOT AN INTENT. `trees_identity` (below) is
+# what `save()` ORs into `rev_bumped` beside `prev["ast_hash"] != new_hash`.
+# Until W9i it was a claim about a mechanism NOBODY HAD WRITTEN: the rev decision
+# read the scan tree alone, so an edit to plot 2 migrated nothing and the alert
+# bound to plot 2 went on evaluating the tree its owner had just replaced. The
+# sentence survived because it reads like a description — which is the whole
+# defect class, and why it is worth saying here that it is now true.
+#
 # ⛔ THIS IS A MIRROR, AND THE ONLY HONEST TEST OF A MIRROR IS THE OTHER LANE.
 # `app/src/components/chart/engine/ast/trees.js` (`assertTrees`, `treesHash`) and
 # `engine/defSchema.js` (`validateTrees`, `validateTreesAgainstPlots`) are the
@@ -432,6 +452,48 @@ def trees_hash(trees: Any) -> str:
             raise ValueError(f"compute.trees.{k}: {exc}") from exc
         pairs.append(f"{json.dumps(k, ensure_ascii=False)}:{h}")
     return "sha256:" + hashlib.sha256(",".join(pairs).encode("utf-8")).hexdigest()
+
+
+#: What a stored document's trees hash to when this lane cannot hash them at all.
+#: It is not a hash and cannot collide with one (no `sha256:` prefix), and it is
+#: not `None`, so it compares UNEQUAL to every single-tree document AND to every
+#: legal multi-tree one — see `trees_identity` for why that direction is the safe
+#: one.
+UNHASHABLE_TREES = "trees:unhashable"
+
+
+def trees_identity(definition: Any) -> Optional[str]:
+    """The SECOND identity of a whole document — ``None`` for a single-tree one.
+
+    ⭐ THIS IS WHAT MAKES THE SENTENCE ABOVE `_PLOT_KEY_RE` TRUE. `treesHash` was
+    declared to exist *"for change detection and the `compute.rev` migration"* and
+    it did neither: `save()` computed `rev_bumped` from `ast_hash(compute.ast)` —
+    the SCAN tree — alone, so editing plot 2 bumped nothing and an alert bound to
+    `u_<id>.plot2` went on evaluating the tree its owner had just replaced. A
+    comment stating an intent as though it were implemented is a defect this
+    branch has caught repeatedly; this function is the half that was missing.
+
+    ⛔ IT IS DERIVED FROM THE TREES, NEVER READ OFF `compute.treesHash`. The
+    stamp is CHECKED by `validate_v2` and checked is not the same as owned:
+    `lesson_a_second_authority_over_one_value`. Reading the stamp would make a
+    document that lied about its own hash decide its own migration, and the one
+    document that would lie is the one a partial write produced.
+
+    ⛔ AND AN UNHASHABLE `trees` MAP IS `UNHASHABLE_TREES`, NOT A RAISE AND NOT
+    `None`. `None` would read as "single-tree" and silently retire the bump; a
+    raise would mean a member whose stored row is malformed can never save again.
+    `UNHASHABLE_TREES` compares unequal to everything, so the edit MIGRATES —
+    over-migrating costs one idempotent re-arm, under-migrating fires an alert on
+    maths the member replaced. Only a STORED predecessor can reach it: `save()`
+    runs `validate_v2` on the incoming document first, and that refuses by name.
+    """
+    compute = (definition or {}).get("compute") or {}
+    if "trees" not in compute:
+        return None
+    try:
+        return trees_hash(compute["trees"])
+    except ValueError:
+        return UNHASHABLE_TREES
 
 
 def validate_v2(definition: dict) -> None:
@@ -696,6 +758,14 @@ def save(user_id: Any, def_id: str, definition: dict,
     # reproduce. `assert_canonical` runs inside `ast_hash`.
     new_hash = ast_hash(compute.get("ast"))
 
+    # ⭐ THE SECOND IDENTITY, AND IT DECIDES A BUMP WITHOUT TOUCHING THE FIRST.
+    # `new_hash` above is still `ast_hash(compute.ast)` and it is still what gets
+    # STORED, what keys `scan_hits` and what the migration is handed as
+    # `def_hash` — none of those bytes move. This one only ever widens the
+    # QUESTION `rev_bumped` asks, from "did the scan tree move" to "did ANY
+    # plot's tree move". `None` on a v1 document, so a v1 save is unchanged.
+    new_trees = trees_identity(definition)
+
     # ⭐ THE LAST DOOR, AND IT IS NOT THE BROWSER'S. `validate_v2` re-applies
     # `defSchema`'s compute rules here because the browser's validation is a
     # property of one client at one version, while `def_hash` keys a results
@@ -752,7 +822,27 @@ def save(user_id: Any, def_id: str, definition: dict,
             prev_version = prev["version"]
             prior_rev = prev["rev"]
             version = prev["version"] + 1
-            rev_bumped = prev["ast_hash"] != new_hash
+            # 🔴 THE SCAN TREE **OR** ANY OTHER PLOT'S TREE. `prev["ast_hash"]`
+            # is the stored SCAN hash and it stays the first identity; the second
+            # term is `treesHash`, which the file has claimed since W1b exists
+            # "for change detection and the `compute.rev` migration" and did not.
+            #
+            # Measured before this line: save a two-plot document, edit ONLY the
+            # non-scan tree, and `rev_bumped` came back False — no migration, no
+            # `last_value` reset, no notice. An alert on `u_<id>.macd` kept
+            # evaluating the tree the member had just replaced, and the only
+            # thing that told them was nothing.
+            #
+            # ⛔ A PER-PLOT `rev` WOULD BE MORE PRECISE AND IS NOT WHAT THIS IS.
+            # `rev` is one number per definition and the migration's blast radius
+            # is `plot_base` — every binding on the def id, whichever plot it
+            # names. So editing plot 2 re-arms plot 1's bindings too. That costs
+            # one idempotent re-arm (`migrate_bindings_to_rev` resets
+            # `last_value` and suppresses one cycle); the other direction fires a
+            # member's alert on maths they replaced. Over-migrating is the safe
+            # side of this asymmetry, and it is chosen deliberately.
+            rev_bumped = (prev["ast_hash"] != new_hash
+                          or trees_identity(json.loads(prev["definition"])) != new_trees)
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
 
     # ── phase 2: MIGRATE — outside the lock, because it delivers ─────────────

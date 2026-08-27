@@ -487,3 +487,403 @@ def test_HB5_a_PRESENT_but_FALSY_tree_is_NOT_papered_over_with_the_scan_tree(sto
     fn = aus._make_value_fn(DEF_ID, "macd", d)
     with pytest.raises(ast_interpret.TableRefusal):
         fn(_bars(), {})
+
+# ─── W9i: `rev` moves when the SCAN tree moves **OR** when `treesHash` moves ──
+#
+# 🔴 THE DEFECT, MEASURED. `save()` computed `rev_bumped` from
+# `ast_hash(compute.ast)` — the SCAN tree — alone, while an alert binds to ONE
+# PLOT (`u_<12 hex>.<plotKey>`) and `_make_value_fn` evaluates
+# `compute.trees[plotKey]`. So a member could change what plot 2 computes and the
+# alert on plot 2 went on evaluating the tree they had just replaced: no
+# migration, no `last_value` reset, no notice. `treesHash` was declared in
+# `user_definitions.py` to exist "for change detection and the `compute.rev`
+# migration" and appeared nowhere near the rev decision — a comment stating an
+# intent as though it were implemented.
+#
+# ⛔ THE RULING IS A WIDENED QUESTION, NOT A NEW IDENTITY. `compute.fn`,
+# `scan_definition.def_hash`, the stored `ast_hash` column and the `def_hash`
+# handed to the migration all stay `ast_hash(compute.ast)`, byte for byte —
+# `test_W9i_the_bump_does_NOT_move_a_single_STORED_hash` is that claim's rail.
+#
+# ⛔ AND OVER-MIGRATING IS THE DELIBERATE DIRECTION. `rev` is one number per
+# definition and `migrate_bindings_to_rev` scopes by `plot_base`, so editing plot
+# 2 re-arms plot 1's bindings too. That costs one idempotent re-arm; the other
+# direction fires a member's alert on maths they replaced.
+
+
+def _bind(plot_key: str, *, last_value: float, def_id: str = DEF_ID) -> int:
+    """One armed alert on ONE plot of the definition, inserted DIRECTLY.
+
+    ⛔ NOT `ias.create`, AND NOT A FAKE EITHER. `create` runs `arm_for_alert` for
+    a user address, which spawns a node process for the 1e-9 cross-lane equality —
+    that is Phase D's gate and it has its own suite. What is under test here is
+    what the MIGRATION does to a row that already exists, so the row is written in
+    the exact shape `create` writes and nothing is stubbed.
+    """
+    import sqlite3
+    con = sqlite3.connect(str(ias._DB_PATH))
+    try:
+        cur = con.execute(
+            "INSERT INTO indicator_alerts "
+            "(user_id, sym, indicator, condition, threshold, tf, params_json, "
+            " active, trigger_count, created_at, state, state_at, arm_epoch, "
+            " instance_id, scope, def_source, last_value, last_evaluated_at) "
+            "VALUES (?,?,?,?,?,?,NULL,1,0,?,?,?,0,NULL,NULL,?,?,?)",
+            (USER, "PARITY", f"{def_id}.{plot_key}", "below", 0.0, "5",
+             1_700_000_000, ias.STATE_ARMED, 1_700_000_000,
+             ias.DEF_SOURCE_USER, float(last_value), 1_700_000_000),
+        )
+        con.commit()
+        return int(cur.lastrowid)
+    finally:
+        con.close()
+
+
+def _first_num(node):
+    """The first `num` node in a canonical tree, in document order."""
+    if isinstance(node, dict):
+        if node.get("type") == "num":
+            return node
+        for child in node.get("args") or []:
+            found = _first_num(child)
+            if found is not None:
+                return found
+    elif isinstance(node, list):
+        for child in node:
+            found = _first_num(child)
+            if found is not None:
+                return found
+    return None
+
+
+def _retune(d: dict, plot_key: str, new_value: float) -> dict:
+    """Edit ONE plot's tree the way a member does, and RESTAMP the document.
+
+    The first `num` node in `trees[plot_key]` takes `new_value` — a real maths
+    change to exactly one plot — and then every derived field the store validates
+    is recomputed: `treesHash` always, plus `ast`/`fn`/`source` when the edited
+    plot IS the scan plot (`compute.ast` is an alias of `trees[scanPlot]`).
+
+    ⛔ IT RESTAMPS RATHER THAN HAND-WRITING, so the mutation cannot accidentally
+    be testing `validate_v2`'s refusal instead of the rev decision.
+    """
+    compute = d["compute"]
+    _first_num(compute["trees"][plot_key])["value"] = new_value
+    compute["sources"][plot_key] = compute["sources"][plot_key] + f"  # {new_value}"
+    compute["treesHash"] = svc.trees_hash(compute["trees"])
+    if plot_key == compute["scanPlot"]:
+        compute["ast"] = compute["trees"][plot_key]
+        compute["fn"] = svc.ast_hash(compute["ast"])
+        compute["source"] = compute["sources"][plot_key]
+    return d
+
+
+# ─── the helper, alone ───────────────────────────────────────────────────────
+
+def test_W9i_trees_identity_is_None_for_v1_and_the_trees_hash_for_v2():
+    """The three answers the rev decision is built on, asserted separately.
+
+    ⛔ `None` FOR A SINGLE-TREE DOCUMENT IS THE WHOLE v1-INVARIANCE ARGUMENT: two
+    v1 documents both answer `None`, `None != None` is False, and no v1 save can
+    gain a bump it did not have before.
+    """
+    assert svc.trees_identity(_v1()) is None
+    assert svc.trees_identity({}) is None
+    assert svc.trees_identity({"compute": {"kind": "ast"}}) is None
+
+    d = _v2()
+    assert svc.trees_identity(d) == d["compute"]["treesHash"] == _fixture()["treesHash"]
+
+    # ⛔ DERIVED, NEVER READ OFF THE STAMP. A document that LIES about its own
+    # `treesHash` still answers with the truth of its trees — which is what keeps
+    # a partial write from deciding its own migration.
+    liar = _v2()
+    liar["compute"]["treesHash"] = "sha256:" + "0" * 64
+    assert svc.trees_identity(liar) == _fixture()["treesHash"]
+
+    # A ONE-KEY map is legal at the hash layer (refused at save, by name), so the
+    # identity answers rather than raising — mirroring `trees_hash` itself.
+    one = _v2()
+    one["compute"]["trees"] = {"only": {"type": "num", "value": 1}}
+    assert svc.trees_identity(one).startswith("sha256:")
+
+
+def test_W9i_an_UNHASHABLE_trees_map_is_neither_None_nor_a_hash():
+    """⛔ THE THIRD ANSWER, AND IT EXISTS TO PICK THE SAFE DIRECTION.
+
+    `None` would read as "single-tree" and retire the bump; a raise would mean a
+    member whose stored row is malformed can never save again. `UNHASHABLE_TREES`
+    compares unequal to `None` AND to every real hash, so the edit MIGRATES.
+    """
+    broken = _v2()
+    broken["compute"]["trees"]["macd"] = {"type": "num"}      # no `value`
+    answer = svc.trees_identity(broken)
+    assert answer == svc.UNHASHABLE_TREES
+    assert answer is not None and not answer.startswith("sha256:")
+    assert answer != svc.trees_identity(_v2()) and answer != svc.trees_identity(_v1())
+
+
+# ─── both directions, on the real save path ──────────────────────────────────
+
+def test_W9i_editing_a_NON_SCAN_tree_BUMPS_and_MIGRATES_the_bound_alert(store):
+    """🔴 THE DEFECT, END TO END — and the assertions are on the CONSUMER.
+
+    A rev that bumps while nothing migrates is the "computed but never applied"
+    failure this repo keeps rediscovering, so `migrated` / `notified` /
+    `bindings_on_this_tree` are asserted beside the integer, and the alert row is
+    read back for the `last_value` reset that is the point of the whole exercise.
+    """
+    created = svc.save(USER, DEF_ID, _v2())
+    assert created["rev"] == svc.FIRST_REV and created["rev_bumped"] is False
+
+    bound = _bind("macd", last_value=1.25)          # an alert on a NON-scan plot
+    other = _bind("hist_up", last_value=1.0)        # and one on the scan plot
+
+    edited = svc.save(USER, DEF_ID, _retune(_v2(), "macd", 11))
+
+    assert edited["rev_bumped"] is True, (
+        "editing what plot 2 computes did not bump `rev` — the alert bound to "
+        "plot 2 keeps evaluating the tree the member just replaced, and nothing "
+        "tells them")
+    assert edited["rev"] == created["rev"] + 1
+    assert edited["version"] == 2
+
+    # ⭐ THE MIGRATION'S OWN NUMBERS, not the rev integer.
+    assert edited["migrated"] == 2 and edited["notified"] == 2, (
+        f"the bump reported migrated={edited['migrated']} — a rev that moves "
+        "while nothing migrates leaves every binding on the old maths")
+    assert edited["bindings_on_this_tree"] == 2
+
+    # ⭐ AND THE THREE EFFECTS ON THE ROW ITSELF.
+    for aid, from_plot in ((bound, "macd"), (other, "hist_up")):
+        row = rev.rev_row(aid)
+        assert row is not None, f"{from_plot} binding was never recorded"
+        assert row["def_rev"] == edited["rev"] and row["from_rev"] == created["rev"]
+        assert row["def_hash"] == edited["ast_hash"]
+        assert ias.get(aid)["last_value"] is None, (
+            f"alert on {from_plot} still holds an old-formula number after the edit")
+
+
+def test_W9i_a_save_that_moves_NO_tree_does_NOT_bump(store):
+    """⛔ THE CONTROL. An over-eager rev that bumps on every save is a DIFFERENT
+    bug wearing the same fix — it eats a cycle and delivers a "your maths changed"
+    notice on every colour change.
+
+    Two shapes of "nothing moved", because they leave `save()` by different doors:
+    a PRESENTATIONAL edit reaches the rev decision with a different blob, and a
+    byte-identical re-save short-circuits before it.
+    """
+    created = svc.save(USER, DEF_ID, _v2())
+    bound = _bind("macd", last_value=1.25)
+
+    renamed = _v2()
+    renamed["meta"]["name"] = "MACD v2 (renamed)"
+    renamed["plots"][0]["color"] = "#123456"
+    out = svc.save(USER, DEF_ID, renamed)
+    assert out["version"] == 2 and out["appended"] is True   # it really was a save
+    assert out["rev_bumped"] is False and out["rev"] == created["rev"]
+    assert out["migrated"] == 0 and out["notified"] == 0
+    assert rev.rev_row(bound) is None, (
+        "a RENAME migrated the bindings — every label change would eat a cycle "
+        "and tell the member their maths moved")
+    assert ias.get(bound)["last_value"] == 1.25
+
+    again = svc.save(USER, DEF_ID, renamed)                  # byte-identical
+    assert again["appended"] is False and again["rev_bumped"] is False
+    assert again["version"] == 2 and again["migrated"] == 0
+
+
+def test_W9i_key_ORDER_alone_is_not_an_edit(store):
+    """⛔ ADVERSARIAL: the same trees, a different insertion order.
+
+    `trees_hash` sorts its keys and `save()`'s blob is `sort_keys=True`, so both
+    lanes already agree that order is not identity — but they agree for two
+    DIFFERENT reasons, and a hasher that read insertion order would bump here
+    while the blob stayed identical. Paired with a rename so the save cannot exit
+    through the byte-identical short-circuit and skip the rev decision entirely.
+    """
+    created = svc.save(USER, DEF_ID, _v2())
+    bound = _bind("macd", last_value=1.25)
+
+    shuffled = _v2()
+    shuffled["compute"]["trees"] = dict(reversed(list(shuffled["compute"]["trees"].items())))
+    shuffled["compute"]["sources"] = dict(reversed(list(shuffled["compute"]["sources"].items())))
+    shuffled["meta"]["name"] = "MACD v2 (reordered)"
+    assert list(shuffled["compute"]["trees"]) != list(_v2()["compute"]["trees"])
+
+    out = svc.save(USER, DEF_ID, shuffled)
+    assert out["appended"] is True and out["version"] == 2
+    assert out["rev_bumped"] is False and out["rev"] == created["rev"]
+    assert out["migrated"] == 0
+    assert rev.rev_row(bound) is None
+    assert ias.get(bound)["last_value"] == 1.25
+
+
+def test_W9i_the_SCAN_tree_moving_still_bumps_exactly_as_it_always_did(store):
+    """The other arm of the OR, unchanged. Editing the scan plot moves BOTH
+    identities (`compute.ast` IS `trees[scanPlot]`), so this case was already
+    correct — it is here so the widening cannot be "fixed" by replacing the first
+    identity with the second."""
+    created = svc.save(USER, DEF_ID, _v2())
+    bound = _bind("hist_up", last_value=1.0)
+
+    edited = svc.save(USER, DEF_ID, _retune(_v2(), "hist_up", 1))
+    assert edited["rev_bumped"] is True and edited["rev"] == created["rev"] + 1
+    assert edited["ast_hash"] != created["ast_hash"], (
+        "the SCAN tree moved and the stored hash did not — `compute.ast` is no "
+        "longer an alias of `trees[scanPlot]`")
+    assert edited["migrated"] == 1 and edited["bindings_on_this_tree"] == 1
+    assert ias.get(bound)["last_value"] is None
+
+
+# ─── ⛔ the claim that must NOT move: no existing hash did ────────────────────
+
+def test_W9i_the_bump_does_NOT_move_a_single_STORED_hash(store):
+    """⛔ THE RULING'S HARD HALF, ON THE REAL PATH.
+
+    A non-scan edit bumps `rev` — and every byte an existing binding or a
+    `scan_hits` row is filed under must be IDENTICAL either side of it. The stored
+    `ast_hash` column, `compute.fn`, `scan_definition.def_hash` and the `def_hash`
+    the migration stamps are all one number, and this asserts they are the SAME
+    STRING across the bump rather than merely well-formed.
+    """
+    before = svc.save(USER, DEF_ID, _v2())
+    _bind("macd", last_value=1.25)
+    edited_doc = _retune(_v2(), "macd", 11)
+    after = svc.save(USER, DEF_ID, edited_doc)
+
+    assert after["rev_bumped"] is True and after["rev"] == before["rev"] + 1
+    assert after["ast_hash"] == before["ast_hash"], (
+        "a NON-SCAN edit moved the stored scan hash — every `scan_hits` key and "
+        "every alert binding filed under it would be orphaned")
+    assert edited_doc["compute"]["fn"] == before["ast_hash"]
+    assert scan_definition.def_hash(edited_doc) == before["ast_hash"]
+    assert svc.trees_identity(edited_doc) != svc.trees_identity(_v2())   # the SECOND one moved
+
+    # …and the migration filed the bindings under that same unmoved hash.
+    for b in rev.bindings_on(DEF_ID):
+        assert b["def_hash"] == before["ast_hash"]
+
+    # The census row this file has kept since v2 shipped: the plainest v1 hash.
+    sma20 = {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"}, {"type": "num", "value": 20}]}
+    assert svc.ast_hash(sma20) == V1_SMA20_HASH
+
+
+# ─── adversarial documents the corpus does not contain ───────────────────────
+
+def test_W9i_a_v1_documents_behaviour_is_COMPLETELY_unchanged(store):
+    """⛔ THE INVARIANCE CLAIM, DRIVEN IN BOTH DIRECTIONS.
+
+    Every stored definition that predates multi-plot is single-tree, so the OR's
+    second term must be inert for all of them: `None != None` is False on a
+    presentational save, and the scan hash still decides a maths save. One
+    direction alone is satisfied by a term that never fires at all.
+    """
+    v1_id = "u_ffffffffffff"
+    base = _v1()
+    base["id"] = v1_id
+    created = svc.save(USER, v1_id, copy.deepcopy(base))
+    assert created["rev"] == svc.FIRST_REV
+
+    renamed = copy.deepcopy(base)
+    renamed["meta"]["name"] = "v1 renamed"
+    out = svc.save(USER, v1_id, renamed)
+    assert out["appended"] is True and out["rev_bumped"] is False
+    assert out["rev"] == created["rev"] and out["ast_hash"] == created["ast_hash"]
+
+    edited = copy.deepcopy(base)
+    _first_num(edited["compute"]["ast"])["value"] = 11
+    edited["compute"]["fn"] = svc.ast_hash(edited["compute"]["ast"])
+    out2 = svc.save(USER, v1_id, edited)
+    assert out2["rev_bumped"] is True and out2["rev"] == created["rev"] + 1
+    assert out2["ast_hash"] != created["ast_hash"]
+
+
+def test_W9i_COLLAPSING_a_v2_document_back_to_ONE_tree_bumps(store):
+    """⛔ THE CASE THAT LOOKS COSMETIC AND IS THE MOST DANGEROUS ONE.
+
+    A member deletes plot 2. `compute.ast` can be byte-identical, so the scan
+    hash does not move — but `_make_value_fn` resolves a plot with no tree as
+    `.get(key, compute.ast)`, so the alert that was on plot 2 now evaluates the
+    SCAN tree. Its maths did not merely change, it became a different formula
+    entirely. `None != <hash>` is what makes that migrate.
+    """
+    created = svc.save(USER, DEF_ID, _v2())
+    bound = _bind("macd", last_value=1.25)
+
+    collapsed = _v2()
+    scan_tree = collapsed["compute"]["trees"][collapsed["compute"]["scanPlot"]]
+    for k in ("trees", "treesHash", "sources", "scanPlot"):
+        collapsed["compute"].pop(k)
+    collapsed["compute"]["ast"] = scan_tree
+    collapsed["compute"]["fn"] = svc.ast_hash(scan_tree)
+    collapsed["plots"] = [{"key": "hist_up", "style": "line", "color": "$color"}]
+
+    out = svc.save(USER, DEF_ID, collapsed)
+    assert out["ast_hash"] == created["ast_hash"], "the scan tree did NOT move here"
+    assert out["rev_bumped"] is True, (
+        "collapsing to one tree left `rev` still — the alert on the deleted plot "
+        "silently switched to the scan tree's formula")
+    assert out["migrated"] == 1 and ias.get(bound)["last_value"] is None
+
+
+def test_W9i_an_UNHASHABLE_STORED_predecessor_MIGRATES_rather_than_going_quiet(store):
+    """⛔ CONSTRUCTED, BECAUSE NO CORPUS CONTAINS IT.
+
+    A stored row whose `trees` map this lane cannot hash cannot be produced by
+    `save()` — `validate_v2` refuses it by name — so it is written straight into
+    the table, which is what a partial write or a hand-repair leaves behind. The
+    safe answer is a BUMP: the member's next save re-arms their alerts instead of
+    inheriting a comparison nobody can make.
+    """
+    import sqlite3
+    svc.save(USER, DEF_ID, _v2())
+    corrupt = _v2()
+    corrupt["compute"]["trees"]["macd"] = {"type": "num"}       # no `value`
+    blob = json.dumps(corrupt, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    con = sqlite3.connect(str(svc._DB_PATH))
+    try:
+        con.execute(
+            "INSERT INTO user_definitions (user_id, def_id, version, rev, ast_hash, "
+            "definition, repaint, deleted_at, created_at) VALUES (?,?,?,?,?,?,?,NULL,?)",
+            (USER, DEF_ID, 2, 1, svc.ast_hash(corrupt["compute"]["ast"]), blob,
+             "{}", 1_700_000_000))
+        con.commit()
+    finally:
+        con.close()
+    assert svc.trees_identity(json.loads(blob)) == svc.UNHASHABLE_TREES
+
+    bound = _bind("macd", last_value=1.25)
+    out = svc.save(USER, DEF_ID, _v2())          # a perfectly legal document
+    assert out["rev_bumped"] is True, (
+        "a predecessor this lane cannot hash was read as 'nothing moved' — the "
+        "unsafe direction, and the one a partial write actually produces")
+    assert out["migrated"] == 1 and ias.get(bound)["last_value"] is None
+
+
+def test_W9i_the_rev_decision_reads_BOTH_hashes_from_saves_own_body():
+    """⛔ A RULE WITH NO CALL SITE IS NOT A RULE, and every behavioural test above
+    would still pass if the OR lived in a helper only they reached.
+
+    ⚠️ RE-PARSED FROM THE FILE BY NAME, never `inspect.getsource` — that helper
+    slices at import-time line numbers and a co-worker's edit above `save` hands
+    it the wrong lines (measured for real on this branch).
+    """
+    import ast as _ast
+    module = _ast.parse(Path(svc.__file__).read_text(encoding="utf-8"))
+    saves = [n for n in module.body
+             if isinstance(n, _ast.FunctionDef) and n.name == "save"]
+    assert len(saves) == 1, f"expected one save(), found {len(saves)}"
+    src = _ast.unparse(saves[0])
+    assert "trees_identity" in src, (
+        "save() no longer consults the SECOND identity — an edit to a non-scan "
+        "plot would bump nothing and migrate nothing")
+    assert "ast_hash" in src, "save() no longer consults the scan hash"
+
+    # The control: the same parse of a DIFFERENT function does not contain it, so
+    # the assertion above read `save`'s own body and not the whole module.
+    others = [n for n in module.body
+              if isinstance(n, _ast.FunctionDef) and n.name == "soft_delete"]
+    assert len(others) == 1
+    assert "trees_identity" not in _ast.unparse(others[0])
