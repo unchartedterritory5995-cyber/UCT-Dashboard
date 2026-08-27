@@ -197,7 +197,11 @@ if _SENTRY_DSN:
         environment=os.environ.get("RAILWAY_ENVIRONMENT", "development"),
     )
 
-PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
+# ⛔ IMPORTED, NOT RESTATED. This was a second hardcoded copy of the same
+# literal, and two copies of one path is how the pinned one loses: `engine`
+# tries this value FIRST and `WIRE_DATA_FILE` second. `engine` owns it now,
+# the way `auth.py` was made to import `watchlist_tracker.WATCHLIST_FILE`.
+from api.services.engine import PERSISTENT_WIRE_DATA_FILE  # noqa: E402
 
 def _cot_seed_background():
     try:
@@ -2194,7 +2198,14 @@ async def lifespan(app: FastAPI):
     # as a defensive belt against any accidental future reinsertion.
     try:
         import sqlite3 as _sq
-        with _sq.connect("/data/flow.db", timeout=30) as _conn:
+        # ⛔ `FLOW_DB_PATH`, NOT THE LITERAL. About twenty flow modules read this
+        # var; this one call site did not, so a local backend connected to the
+        # owner's live `C:\\data\\flow.db` on boot and left `-wal`/`-shm` beside
+        # it. Caught by a runtime probe, not by the census -- the census had
+        # already counted the literal as pinned, because another module reads
+        # the var. A defensive one-shot is exactly where a literal survives.
+        _flow_db = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+        with _sq.connect(_flow_db, timeout=30) as _conn:
             _cur = _conn.execute(
                 "SELECT COUNT(*) FROM flow WHERE source LIKE 'reconcile_%'"
             )
