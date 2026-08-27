@@ -489,3 +489,103 @@ def test_the_pin_clears_when_holdings_match_the_ledger(env):
     n = conn.execute("SELECT COUNT(*) AS n FROM j2_broker_opt_holdings_memo").fetchone()["n"]
     conn.close()
     assert n == 0
+
+
+# ── broker-closed pin: the ledger rebuild must not resurrect sold contracts ──
+#
+# 2026-08-26 (second defect of the stale-hero incident): the owner's BABA/BA
+# calls were sold 8/25; the 8/26 pre-market sync's holdings reconcile deleted
+# their open strategies (holdings-as-truth — the sale's activity is T+1). The
+# 14:55Z fills-rail rebuild then re-emitted them from the ledger, and under the
+# DAILY sync cadence the resurrected rows stood until the next morning.
+
+def _oev(kind, side, oc, contracts, price, date, *, cp="call", strike=200.0,
+         underlying="AAPL", exp="2026-06-19", fee=0.0, aid="x", row=1):
+    return {
+        "externalId": aid, "row": row, "eventKind": kind, "side": side,
+        "openClose": oc, "underlying": underlying, "strike": strike,
+        "expiration": exp, "contractType": cp, "contracts": contracts,
+        "price": price, "fee": fee, "date": date, "currency": "USD",
+    }
+
+
+def _buy3(aid="o1", row=1):
+    return _oev("option_trade", "buy", "open", 3, 5.50,
+                "2026-08-17T16:15:08Z", aid=aid, row=row)
+
+
+def _rebuild(env, events):
+    return oro.reconstruct_options("u1", env["ba"]["id"], env["j2"], events)
+
+
+def _memo_rows():
+    conn = _adb.get_connection()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT contract_key, min_held, ledger_total "
+            "FROM j2_broker_opt_holdings_memo")]
+    finally:
+        conn.close()
+
+
+def test_broker_closed_contract_is_not_resurrected_by_the_ledger_rebuild(env):
+    _rebuild(env, [_buy3()])
+    assert _open_ba_qtys() == [3]
+
+    # Broker reports the contract GONE (sold; activity undelivered) → the
+    # reconcile removes the rows and pins the contract at zero-held.
+    out = oro.reconcile_option_holdings("u1", env["ba"], [])
+    assert out["removed"] == 1
+    assert _open_ba_qtys() == []
+    memos = _memo_rows()
+    assert len(memos) == 1 and memos[0]["min_held"] == 0
+    assert memos[0]["ledger_total"] == 3
+
+    # The fills-rail ledger rebuild runs (same ledger, sale still missing) —
+    # the open lot must STAY suppressed instead of standing all day.
+    _rebuild(env, [_buy3()])
+    assert _open_ba_qtys() == []
+
+
+def test_a_new_fill_lifts_the_broker_closed_pin(env):
+    _rebuild(env, [_buy3()])
+    oro.reconcile_option_holdings("u1", env["ba"], [])
+    assert _open_ba_qtys() == []
+
+    # A REAL re-buy lands in the ledger (fills rail): total moves 3 → 5 —
+    # the pin no longer describes reality, both lots must show instantly.
+    _rebuild(env, [_buy3(), _oev("option_trade", "buy", "open", 2, 6.0,
+                                 "2026-08-26T15:00:00Z", aid="o2", row=2)])
+    assert _open_ba_qtys() == [2, 3]
+    assert _memo_rows() == []          # stale pin dropped
+
+
+def test_the_pin_clears_once_the_closing_activity_delivers(env):
+    _rebuild(env, [_buy3()])
+    oro.reconcile_option_holdings("u1", env["ba"], [])
+    assert _memo_rows() != []
+
+    # The sale's real activity lands: the ledger closes the lot itself — no
+    # open strategy, and the now-obsolete pin row is swept.
+    sell = _oev("option_trade", "sell", "close", 3, 6.10,
+                "2026-08-25T17:36:02Z", aid="o3", row=2)
+    _rebuild(env, [_buy3(), sell])
+    assert _open_ba_qtys() == []
+    conn = _adb.get_connection()
+    closed = conn.execute(
+        "SELECT COUNT(*) AS n FROM j2_option_strategies "
+        "WHERE user_id='u1' AND status='closed'").fetchone()["n"]
+    conn.close()
+    assert closed == 1
+    assert _memo_rows() == []
+
+
+def test_a_partially_settled_pin_still_suppresses_only_while_ledger_unchanged(env):
+    # Pin written at ledger_total 3; a rebuild that computes a DIFFERENT total
+    # (e.g. a split-adjusted lot) must emit rather than suppress on a mismatch.
+    _rebuild(env, [_buy3()])
+    oro.reconcile_option_holdings("u1", env["ba"], [])
+    _rebuild(env, [_oev("option_trade", "buy", "open", 4, 5.50,
+                        "2026-08-17T16:15:08Z", aid="o1")])
+    assert _open_ba_qtys() == [4]
+    assert _memo_rows() == []

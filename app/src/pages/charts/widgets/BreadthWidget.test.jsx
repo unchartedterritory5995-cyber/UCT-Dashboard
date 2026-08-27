@@ -77,8 +77,10 @@ test('the Ratio Bars pill switches to split gauges (persisted via opts.view)', (
   expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'ratio' }))
   // The gauge for Advance / Decline renders with its raw counts (localized) in the footer.
   expect(screen.getByText('Advance / Decline')).toBeInTheDocument()
-  expect(screen.getByText(/3,200 Advancing/)).toBeInTheDocument()
-  expect(screen.getByText(/1,400 Declining/)).toBeInTheDocument()
+  expect(screen.getByText('3,200')).toBeInTheDocument()
+  expect(screen.getByText(/Advancing/)).toBeInTheDocument()
+  expect(screen.getByText('1,400')).toBeInTheDocument()
+  expect(screen.getByText(/Declining/)).toBeInTheDocument()
 })
 
 test('Ratio Bars shows ALL five pairs, including the live-only internals', () => {

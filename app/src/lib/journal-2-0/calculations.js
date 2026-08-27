@@ -309,6 +309,19 @@ export const currentPriceFor = (position, prices) => {
 }
 
 /**
+ * The broker cash to pair with LIVE position values. `brokerCash` is only as
+ * fresh as the last balance sync (daily pre-market for most accounts), while
+ * the fills rail moves the served book within minutes — the backend derives
+ * `brokerCashLive` (stored cash carried forward over post-sync fills) so
+ * net-liq never mixes a stale cash with live positions. Falls back to the
+ * stored figure when the derivation is absent.
+ */
+export const effectiveBrokerCash = (account) => {
+  const live = account?.brokerCashLive
+  return Number.isFinite(live) ? live : account?.brokerCash
+}
+
+/**
  * Live broker net-liquidation summary, computed the way Robinhood does — cash
  * plus the live market value of holdings — so it matches the broker's actual
  * number and reflects today's intraday move. This SUPERSEDES anchoring on the
@@ -384,7 +397,7 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     }
     // Without a live mark, options contribute 0 to Today (sync mark only).
   }
-  const cash = account?.brokerCash
+  const cash = effectiveBrokerCash(account)
   const netLiq = Number.isFinite(cash) ? cash + marketValue : null
   const prevCloseEquity = netLiq != null ? netLiq - today : null
   const todayPct =

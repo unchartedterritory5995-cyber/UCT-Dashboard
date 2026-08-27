@@ -188,9 +188,109 @@ def reconstruct_options(
             if lot["qty"] > 0:
                 open_built.append(_mk_open_strategy(key, s, lot))
 
+    # BROKER-CLOSED PIN (2026-08-26 incident, second defect): when the
+    # holdings reconcile deleted a contract's open lots because the broker no
+    # longer holds it (sale executed, activity T+1-delayed), this ledger-only
+    # reconstruction would cheerfully re-emit them — and under the DAILY sync
+    # cadence the resurrected rows then stand ALL DAY (the fills-rail rebuild
+    # is the only thing that runs between syncs). The reconcile records a
+    # zero-held pin per contract; while the ledger total is unchanged, the
+    # open lots stay suppressed. Any ledger movement (the sale delivering, a
+    # genuine re-buy via activities or the fills rail) invalidates the pin
+    # instantly — real trades still apply in minutes.
+    open_built, stale_pins = _filter_broker_closed(
+        user_id, broker_account_id, open_built, conn)
+
     res = _persist(user_id, broker_account_id, j2_account_id, built + open_built, conn)
     res["orphanCloses"] = orphan_closes
+    if stale_pins:
+        _drop_holdings_memos(user_id, broker_account_id, stale_pins, conn)
     return res
+
+
+def _memo_key(key: tuple) -> str:
+    """Canonical j2_broker_opt_holdings_memo contract key. The strike is
+    normalized through float so an int-typed event strike (200) and the REAL
+    the legs table returns (200.0) produce the same string."""
+    underlying, strike, expiration, ctype = key
+    try:
+        strike = float(strike)
+    except (TypeError, ValueError):
+        pass
+    return f"{underlying}|{strike}|{expiration}|{ctype}"
+
+
+def _filter_broker_closed(
+    user_id: str, broker_account_id: str, open_built: list[dict],
+    conn: sqlite3.Connection | None,
+) -> tuple[list[dict], list[str]]:
+    """Drop open strategies for contracts pinned broker-closed (min_held 0 at
+    an unchanged ledger total). Returns (kept, stale_memo_keys) — stale keys
+    are pins whose ledger total moved (or whose contract has no open lots
+    left), to be deleted AFTER the persist transaction."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        memos = conn.execute(
+            "SELECT contract_key, min_held, ledger_total "
+            "FROM j2_broker_opt_holdings_memo "
+            "WHERE user_id = ? AND broker_account_id = ? AND min_held = 0",
+            (user_id, broker_account_id),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    if not memos:
+        return open_built, []
+
+    totals: dict[str, float] = {}
+    for s in open_built:
+        ck = _memo_key((s["underlying"], s["strike"], s["expiration"], s["contractType"]))
+        signed = s["qty"] if s["side"] == "buy" else -s["qty"]
+        totals[ck] = totals.get(ck, 0.0) + signed
+
+    suppressed: set[str] = set()
+    stale: list[str] = []
+    for m in memos:
+        ck = m["contract_key"]
+        total = totals.get(ck)
+        if total is None:
+            # No open lots for this contract any more — the closing activity
+            # delivered; the pin is obsolete.
+            stale.append(ck)
+        elif abs(total - float(m["ledger_total"])) <= 1e-9:
+            suppressed.add(ck)
+        else:
+            # Ledger moved since the pin (new fill / delivered sale) → the pin
+            # no longer describes reality; emit and drop it.
+            stale.append(ck)
+
+    if not suppressed:
+        return open_built, stale
+    kept = [
+        s for s in open_built
+        if _memo_key((s["underlying"], s["strike"], s["expiration"], s["contractType"]))
+        not in suppressed
+    ]
+    return kept, stale
+
+
+def _drop_holdings_memos(
+    user_id: str, broker_account_id: str, contract_keys: list[str],
+    conn: sqlite3.Connection | None,
+) -> None:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        conn.executemany(
+            "DELETE FROM j2_broker_opt_holdings_memo "
+            "WHERE user_id = ? AND broker_account_id = ? AND contract_key = ?",
+            [(user_id, broker_account_id, ck) for ck in contract_keys],
+        )
+        conn.commit()
+    finally:
+        if owned:
+            conn.close()
 
 
 def _mk_strategy(ev, cur_side_label, lot, *, exit_price, exit_date, exit_fee, status) -> dict:
@@ -498,7 +598,7 @@ def reconcile_option_holdings(
             real trades still apply instantly."""
             units = float(c["units"])
             ledger_total = sum(_signed_qty(r) for r in group if not _is_carried(r))
-            ckey = f"{key[0]}|{key[1]}|{key[2]}|{key[3]}"
+            ckey = _memo_key(key)
             same_sign = (units > 0) == (ledger_total > 0)
             pending_sale = (same_sign and abs(units) < abs(ledger_total) - 1e-9
                             and abs(units) > 1e-9)
@@ -537,6 +637,21 @@ def reconcile_option_holdings(
                 # balances.reconcile_positions does for equities. When the
                 # closing activity lands, the reconstruction emits the real
                 # CLOSED strategy with the true exit.
+                # PIN the contract at zero-held meanwhile: the fills-rail's
+                # ledger-only rebuild re-emits these open lots otherwise
+                # (undelivered sale = the ledger still says open), and under
+                # daily sync cadence the resurrected rows would stand all day
+                # (2026-08-26). reconstruct_options suppresses pinned
+                # contracts until the ledger total moves.
+                ledger_total = sum(_signed_qty(r) for r in group if not _is_carried(r))
+                if abs(ledger_total) > 1e-9:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO j2_broker_opt_holdings_memo "
+                        "(user_id, broker_account_id, contract_key, min_held, "
+                        " ledger_total, updated_at) VALUES (?, ?, ?, 0, ?, ?)",
+                        (user_id, broker_account_id, _memo_key(key),
+                         ledger_total, now),
+                    )
                 for r in group:
                     _delete(r)
                     removed += 1

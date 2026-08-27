@@ -224,25 +224,23 @@
   font-variant-numeric: tabular-nums;
   color: var(--bw-text-dim, var(--text-muted));
 }
-/* Flat split bar. Down side = the bar's own background; a single up-fill overlays
-   it, so both halves are always the same height. The up-fill casts a thin seam
-   onto the down so the two flat colors read cleanly. Empty cards show the bare
-   track. */
+/* Single-accent bar (DeepVue-style): a neutral track with ONE fill — the winning
+   side, growing from ITS end, coloured by direction. Bar length = dominance. */
 .ratioBar {
   position: relative;
   height: 10px;
   border-radius: 5px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.055);
 }
-.ratioFillUp {
+.ratioFill {
   position: absolute;
-  left: 0;
   top: 0;
   bottom: 0;
-  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.35);
   transition: width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+.ratioFillL { left: 0; border-radius: 5px 0 0 5px; }
+.ratioFillR { right: 0; border-radius: 0 5px 5px 0; }
 /* Faint 50% reference tick — anchors the eye to the midpoint. */
 .ratioMid {
   position: absolute;
@@ -259,13 +257,15 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2px;
   font-variant-numeric: tabular-nums;
 }
 .ratioFoot > span:last-child { text-align: right; }
-.ratioFootMuted { color: var(--bw-text-dim, var(--text-muted)); opacity: 0.75; }
+/* The count number is the eye-catch — bold + a touch larger than its label. */
+.ratioCount { font-weight: 800; font-size: 12px; }
+.ratioFootMuted { color: var(--bw-text-dim, var(--text-muted)); opacity: 0.7; font-weight: 600; }
 
 /* ── Header row ("Breadth Monitor" · ＋ · ⚙) — same 34px rhythm as .bar so the
    bottom divider still lands on the chart widget's gridline beside it. ── */

@@ -4613,6 +4613,21 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(hour=3, minute=40, timezone=_ET),
                 id="broker_fidelity_audit", max_instances=1, replace_existing=True,
             )
+            # Live-composition sentinel — the between-sync conservation law
+            # (trades cannot create equity) over every account's COMPOSED
+            # net-liq: mirror_check/fidelity_audit grade the synced state,
+            # this grades the number members actually see between syncs (the
+            # 2026-08-26 stale-cash hero lived exactly there). Persists a
+            # component snapshot per check (flight recorder) + pages the
+            # owner on 2 consecutive structural misses. Self-gates on market
+            # window + BROKER_LIVE_SENTINEL_ENABLED (default ON). Cron
+            # :11/:41 keeps it off the other broker jobs' minutes.
+            from api.services.journal_two.broker import live_sentinel as _broker_live_sentinel
+            _scheduler.add_job(
+                _broker_live_sentinel.run_sentinel_blocking,
+                trigger=CronTrigger(minute="11,41", timezone=_ET),
+                id="broker_live_sentinel", max_instances=1, replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")

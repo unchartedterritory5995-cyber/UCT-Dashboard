@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
-import { money, moneySigned } from '../../../lib/journal-2-0'
+import { money, moneySigned, effectiveBrokerCash } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 
 const METRICS = [
@@ -74,6 +74,9 @@ export default function PerformancePanel({ accountId, account }) {
     symbolRotate: f.amount >= 0 ? 0 : 180,
     itemStyle: { color: f.amount >= 0 ? GREEN : RED },
   }))
+  // Fill-derived live cash when the backend serves it; sync-stale otherwise.
+  const brokerCash = effectiveBrokerCash(account)
+
   const option = {
     grid: { left: 56, right: 16, top: 16, bottom: 28 },
     textStyle: { fontFamily: CHART_FONT_FAMILY },
@@ -138,7 +141,7 @@ export default function PerformancePanel({ accountId, account }) {
         <Stat label="Fees" value={moneySigned(data.fees)} tone={data.fees < 0 ? 'neg' : undefined} />
       </div>
 
-      {account && (account.brokerBuyingPower != null || account.brokerCash != null) && (
+      {account && (account.brokerBuyingPower != null || brokerCash != null) && (
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap',
                       paddingTop: 4, borderTop: '1px solid var(--border, #2a2a2a)' }}>
           {account.brokerBuyingPower != null && (
@@ -146,8 +149,8 @@ export default function PerformancePanel({ accountId, account }) {
           )}
           <Stat
             label="Margin Used"
-            value={money(account.brokerCash < 0 ? -account.brokerCash : 0)}
-            tone={account.brokerCash < 0 ? 'neg' : undefined}
+            value={money(brokerCash < 0 ? -brokerCash : 0)}
+            tone={brokerCash < 0 ? 'neg' : undefined}
           />
         </div>
       )}
