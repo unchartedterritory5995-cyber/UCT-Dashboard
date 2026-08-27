@@ -42,6 +42,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest  # noqa: E402
 
+from tests.mainreload import app_built_with  # noqa: E402
+
 FLAG = "SCREEN_BACKTEST_ENABLED"
 
 #: A route this file is NOT looking for, used as the non-vacuity control. It is
@@ -55,39 +57,30 @@ SIBLING = ("POST", "/api/screener/scan")
 def _app_with(flag: str):
     """`api.main:app` as it is built with `SCREEN_BACKTEST_ENABLED=<flag>`.
 
-    ⚠️ `importlib.reload` and not a locally constructed `FastAPI()`. The mount is
-    a module-level statement in `api/main.py`, so the only honest way to ask
-    "what does main.py build under this flag" is to make main.py build it. The
-    heavy imports are already cached, so the reload is fast.
+    ⚠️ `importlib.reload` and not a locally constructed `FastAPI()` — that
+    reason is unchanged, and it is why `tests/mainreload.py` exists instead of a
+    local `FastAPI()` helper. The mount is a module-level statement in
+    `api/main.py`, so the only honest way to ask "what does main.py build under
+    this flag" is to make main.py build it. The heavy imports are already
+    cached, so the reload is fast.
+
+    ⛔ WHAT CHANGED IS WHERE THE RELOAD LANDS, NOT WHETHER IT HAPPENS.
+    `app_built_with` puts `api.main`'s namespace back before it returns, so
+    `api.main.app` is never left rebound and this file's subject cannot leak
+    into anybody else's fixtures. It used to — measured: this module runs three
+    files ahead of `tests/test_backtest_endpoint.py` in the branch baseline and
+    made all 8 of its assertions read `assert 401 == 200`, because that file
+    pins `api.main.app` at import while `tests/authclients.py` resolves it per
+    call, so the override landed on an app nobody was driving. A module-teardown
+    fixture that reloaded once more could not fix it: a third reload builds a
+    THIRD app, not the one the victim is holding.
     """
-    prior = os.environ.get(FLAG)
-    os.environ[FLAG] = flag
-    try:
-        import api.main
-        importlib.reload(api.main)
-        return api.main.app
-    finally:
-        if prior is None:
-            os.environ.pop(FLAG, None)
-        else:
-            os.environ[FLAG] = prior
+    return app_built_with(**{FLAG: flag})
 
 
 @pytest.fixture(scope="module")
 def app_on():
     return _app_with("1")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _restore_default_mount():
-    """Leave the process holding the app the DEFAULT env builds.
-
-    Without this, every test module importing `api.main` after this one would
-    inherit a flag-on app from a reload it never asked for — this file's
-    subject leaking into everybody else's fixtures.
-    """
-    yield
-    _app_with(os.environ.get(FLAG, "0"))
 
 
 @pytest.fixture(scope="module")
