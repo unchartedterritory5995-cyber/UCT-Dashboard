@@ -3,10 +3,14 @@ widen path still works (a pre-Wave-5 table gains exactly those 13 on init).
 
 ⛔⛔ X20(a) -- THIS FILE USED TO PIN `len(snapshot_db.COLUMNS) == 185` AS A
 LITERAL IN TWO PLACES, ARGUING (right here) THAT A HAND-TYPED WIDTH WAS A
-"tripwire" WORTH THE STALENESS. It was not: the width has drifted FOUR TIMES
-now (158 -> 160 -> 185 -> 200) because every legitimate wave adds columns, so
-the literal never once caught a mistake -- it only ever caught the next
-correct wave, and got bumped without a second look. Its cost was not merely
+"tripwire" WORTH THE STALENESS. It was not: the width had already drifted
+FOUR TIMES (158 -> 160 -> 185 -> 200 -> ...) because every legitimate wave
+adds columns, and it keeps not stopping there -- the literal never once caught
+a mistake, it only ever caught the next correct wave, and got bumped without a
+second look. ⚠️ NOTE THE TRAILING "-> ...": a drift history is not exempt from
+the rule it is illustrating. Ending it on "200" would make 200 read as the
+current, stable fact -- the exact second-authority shape this fix removes from
+the assert, reappearing one level up, in the prose. Its cost was not merely
 cosmetic: in `test_init_db_creates_every_declared_column` it sat directly
 AFTER `assert set(snapshot_db.COLUMNS) <= have` -- a genuine, non-vacuous rail
 proving `init_db()` creates every declared column -- and dragged that REAL
@@ -96,8 +100,8 @@ def test_init_db_creates_every_declared_column(monkeypatch, tmp_path):
     test name is a second authority over a width nothing checks it against.
 
     ⛔⛔ X20(a): the assert it pointed to drifted too (158 -> 160 -> 185 ->
-    200) -- "the width lives in the assert, once" moved the drift, it did not
-    remove it. It sat directly after the genuine, non-vacuous rail below and
+    200 -> ...) -- "the width lives in the assert, once" moved the drift, it
+    did not remove it. It sat directly after the genuine, non-vacuous rail below and
     dragged that rail red for a cosmetic reason for this entire branch. There
     is no width here now, and see the module docstring before adding one
     back."""
@@ -108,13 +112,16 @@ def test_init_db_creates_every_declared_column(monkeypatch, tmp_path):
         have = {r[1] for r in c.execute("PRAGMA table_info(screener_rows)")}
     # ⭐ THE ROT CONTROL, for THIS pod's actual table: fails the day init_db()
     # stops creating a column it still declares.
+    #
+    # ⛔ THE MANIFEST'S SHAPE (no duplicate entries) is NOT re-checked here.
+    # `test_wave5_columns_are_declared` already asserts it, over the identical
+    # `snapshot_db.COLUMNS` list, and the check does not depend on `init_db()`
+    # having run -- a second copy of the same boolean would be exactly the
+    # kind of restated fact this fix spent its whole effort removing, one
+    # level up (`test_scan_store.py::test_the_screener_COLUMN_SET_still_
+    # partitions_into_E1s_frozen_manifest` already carries a THIRD, for an
+    # unrelated invariant -- three is enough).
     assert set(snapshot_db.COLUMNS) <= have
-    # ⛔ THE MANIFEST'S SHAPE, again -- checked here too (not just in
-    # test_wave5_columns_are_declared above) because THIS test is the one
-    # that actually builds a table from COLUMNS: a duplicate here means
-    # init_db() tried to ALTER-add the same column twice.
-    assert len(snapshot_db.COLUMNS) == len(set(snapshot_db.COLUMNS)), \
-        "a column name is declared more than once in COLUMNS"
 
 
 def test_init_db_widens_a_pre_wave5_shaped_table(monkeypatch, tmp_path):
