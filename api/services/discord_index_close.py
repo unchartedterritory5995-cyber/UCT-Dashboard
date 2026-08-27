@@ -23,6 +23,7 @@ import logging
 import os
 import pathlib
 import tempfile
+import time
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +45,13 @@ CANDIDATE_ETFS = (
     "TLT", "HYG", "GLD",
 )
 NOTABLE_N = 2
+# One retry per symbol, after a pause. A member watching /chart wants an answer
+# now; this post is once a day and nobody is waiting, so completeness is worth
+# more than latency. Measured 2026-08-27: on a pod seconds out of a deploy, QQQ,
+# IWM and XME all came back empty and all three rendered in 2-13 s once it was
+# serving - exactly the deploy window that produced the stand-in that morning.
+RENDER_RETRIES = 1
+RENDER_RETRY_PAUSE_S = 6.0
 CHART_TF = "D"                      # "post daily charts"
 # A mover has to actually have moved. Below this the "two notable ETFs" are just
 # the two least-flat ones, which is a claim the post should not make.
@@ -150,25 +158,32 @@ def pick_notable(exclude=(), n: int = NOTABLE_N, snapshot_fn=None) -> list[tuple
     return moves[:max(0, n)]
 
 
-def render_charts(symbols, *, bars_fn, house_fn, stats_fn, name_fn, options=None) -> list[tuple[str, bytes, str]]:
-    """(symbol, png, filename) for each symbol that rendered. A symbol that
-    fails is DROPPED, not faked and not fatal - eight charts where one ticker's
-    feed is late is still a good post, and a stand-in would put a chart in the
-    community channel that does not match the one `/chart` serves."""
+def render_charts(symbols, *, bars_fn, house_fn, stats_fn, name_fn, options=None,
+                  sleep_fn=None) -> list[tuple[str, bytes, str]]:
+    """(symbol, png, filename) for each symbol that rendered, RETRIED once. A
+    symbol that still fails is DROPPED, not faked and not fatal - seven charts
+    where one ticker's feed is late is still a good post, and a stand-in would
+    put a chart in the community channel that does not match the one `/chart`
+    serves."""
+    sleep = sleep_fn or time.sleep
     out = []
     for sym in symbols:
-        try:
-            daily = bars_fn(sym, CHART_TF, 5000)
-            if not daily:
-                log.warning("[index-close] no bars for %s", sym)
-                continue
-            png = house_fn(sym, CHART_TF, stats_fn(daily), dict(options or {}))
-            if not png:
-                log.warning("[index-close] house render empty for %s", sym)
-                continue
-            out.append((sym, png, name_fn(sym, CHART_TF, daily[-1]["t"])))
-        except Exception as e:  # noqa: BLE001
-            log.warning("[index-close] %s failed: %s", sym, e)
+        for attempt in range(RENDER_RETRIES + 1):
+            if attempt:
+                sleep(RENDER_RETRY_PAUSE_S)
+            try:
+                daily = bars_fn(sym, CHART_TF, 5000)
+                if not daily:
+                    log.warning("[index-close] no bars for %s (attempt %d)", sym, attempt + 1)
+                    continue
+                png = house_fn(sym, CHART_TF, stats_fn(daily), dict(options or {}))
+                if not png:
+                    log.warning("[index-close] house render empty for %s (attempt %d)", sym, attempt + 1)
+                    continue
+                out.append((sym, png, name_fn(sym, CHART_TF, daily[-1]["t"])))
+                break
+            except Exception as e:  # noqa: BLE001
+                log.warning("[index-close] %s failed (attempt %d): %s", sym, attempt + 1, e)
     return out
 
 
@@ -224,12 +239,12 @@ def build_messages(now_et: _dt.datetime, index_charts, etf_charts, notable, note
     return msgs
 
 
-def session_moves(etf_syms=(), notable=(), snapshot_fn=None) -> dict:
-    """Percent change for the indexes and the ETFs on the post, as one dict.
-    The movers already carry their number from `pick_notable`, so only the rest
-    is quoted - one snapshot call, not two."""
+def session_moves(shown=(), notable=(), snapshot_fn=None) -> dict:
+    """Percent change for the symbols ACTUALLY ON THE POST, as one dict. The
+    movers already carry their number from `pick_notable`, so only the rest is
+    quoted - one snapshot call, not two."""
     known = {s: p for s, p in (notable or ())}
-    want = [s for s in list(INDEXES) + list(etf_syms) if s not in known]
+    want = [s for s in shown if s not in known]
     fn = snapshot_fn
     if fn is None:
         try:
@@ -243,7 +258,7 @@ def session_moves(etf_syms=(), notable=(), snapshot_fn=None) -> dict:
         log.warning("[index-close] session quotes failed: %s", e)
         quotes = {}
     out = {}
-    for sym in list(INDEXES) + list(etf_syms):
+    for sym in shown:
         v = known.get(sym, quotes.get(sym))
         try:
             f = float(v)
@@ -254,11 +269,12 @@ def session_moves(etf_syms=(), notable=(), snapshot_fn=None) -> dict:
     return out
 
 
-def write_note(etf_syms=(), notable=(), note_fn=None, snapshot_fn=None) -> str:
-    """The written read, or "" - a note that cannot be written well is simply
-    left out. Never raises: the charts are the product."""
+def write_note(shown=(), notable=(), note_fn=None, snapshot_fn=None) -> str:
+    """The written read for the symbols on the post, or "" - a note that cannot
+    be written well is simply left out. Never raises: the charts are the
+    product. `shown` is what RENDERED, never what was asked for."""
     try:
-        moves = session_moves(etf_syms, notable, snapshot_fn=snapshot_fn)
+        moves = session_moves(shown, notable, snapshot_fn=snapshot_fn)
         if not moves:
             return ""
         if note_fn is not None:
@@ -271,7 +287,8 @@ def write_note(etf_syms=(), notable=(), note_fn=None, snapshot_fn=None) -> str:
 
 
 def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et=None,
-                   post_fn=None, note_fn=None, force: bool = False, dry_run: bool = False) -> dict:
+                   post_fn=None, note_fn=None, sleep_fn=None, force: bool = False,
+                   dry_run: bool = False) -> dict:
     """The 15:45 ET job. Returns a report dict - `posted` is what actually went
     out. Never raises: a scheduled public post that throws is a stack trace in a
     log nobody reads, so every failure is a reported reason instead."""
@@ -295,15 +312,25 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
     notable = pick_notable(exclude=list(INDEXES) + list(CORE_ETFS))
     etf_syms = list(CORE_ETFS) + [s for s, _ in notable]
     report["notable"] = [[s, round(p, 2)] for s, p in notable]
-    note = write_note(etf_syms, notable, note_fn=note_fn)
-    report["note"] = note
 
-    index_charts = render_charts(INDEXES, bars_fn=bars_fn, house_fn=house_fn,
-                                 stats_fn=stats_fn, name_fn=name_fn, options=options)
-    etf_charts = render_charts(etf_syms, bars_fn=bars_fn, house_fn=house_fn,
-                               stats_fn=stats_fn, name_fn=name_fn, options=options)
-    report["symbols"] = [s for s, _, _ in index_charts] + [s for s, _, _ in etf_charts]
-    messages = build_messages(now, index_charts, etf_charts, notable, note)
+    index_charts = render_charts(INDEXES, bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
+                                 name_fn=name_fn, options=options, sleep_fn=sleep_fn)
+    etf_charts = render_charts(etf_syms, bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
+                               name_fn=name_fn, options=options, sleep_fn=sleep_fn)
+    shown = [s for s, _, _ in index_charts] + [s for s, _, _ in etf_charts]
+    report["symbols"] = shown
+    # ⭐ THE NOTE IS WRITTEN AFTER THE CHARTS, ABOUT THE CHARTS. Composing it
+    # from the roster we INTENDED produced a post whose prose discussed QQQ, IWM
+    # and XME while none of the three had a chart in the message (2026-08-27 dry
+    # run, on a pod seconds out of a deploy). Prose describing something the
+    # member cannot see reads as broken, and it is the kind of wrong nobody
+    # notices until it is public.
+    # ONE filtered list, used by both the note and the header: a mover named in
+    # the text with no chart beside it is the same defect in a different place.
+    posted_movers = [sp for sp in notable if sp[0] in shown]
+    note = write_note(shown, posted_movers, note_fn=note_fn)
+    report["note"] = note
+    messages = build_messages(now, index_charts, etf_charts, posted_movers, note)
     report["messages"] = [c for c, _ in messages]
     if dry_run:
         report["bytes"] = [len(png) for _, png, _ in index_charts + etf_charts]

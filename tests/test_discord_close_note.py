@@ -122,10 +122,12 @@ def test_the_movers_number_is_reused_rather_than_re_quoted():
     """`pick_notable` already paid for those quotes. Asking again would be a
     second authority over the same number and could disagree with the header."""
     asked = {}
-    moves = idx.session_moves(("SMH", "IGV", "XBI"), [("XBI", -3.9)],
+    shown = ("QQQ", "SMH", "IGV", "XBI")          # exactly what rendered
+    moves = idx.session_moves(shown, [("XBI", -3.9)],
                               snapshot_fn=lambda pool: asked.update(pool=pool) or {"QQQ": 1.0, "SMH": 2.0})
     assert "XBI" not in asked["pool"], "the mover is already known"
     assert moves["XBI"] == -3.9 and moves["QQQ"] == 1.0
+    assert "IWM" not in moves, "a chart that did not render is not described"
     assert idx.session_moves((), [], snapshot_fn=lambda p: (_ for _ in ()).throw(RuntimeError("down"))) == {}
 
 
@@ -144,3 +146,34 @@ def test_a_note_that_cannot_be_written_still_posts_the_charts(monkeypatch, tmp_p
         now_et=_dt.datetime(2026, 8, 27, 15, 45))
     assert rep["posted"] == 2 and rep["note"] == ""
     assert posts and "Into the close" in posts[0]
+
+
+def test_the_note_only_ever_describes_charts_that_actually_posted(monkeypatch, tmp_path):
+    """⛔ CAUGHT BY THE 2026-08-27 DRY RUN, before anything was public. The note
+    was composed from the roster we INTENDED, so on a pod seconds out of a deploy
+    it discussed QQQ, IWM and XME while none of the three had a chart in the
+    message. Prose about something the member cannot see reads as broken."""
+    import datetime as _dt
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+    monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://discord.test/hook")
+    monkeypatch.setattr(idx, "pick_notable", lambda **k: [("XME", 2.2), ("XLK", 3.1)])
+    dead = {"QQQ", "IWM", "XME"}                      # exactly the three that failed that day
+    import api.services.massive as massive
+    monkeypatch.setattr(massive, "get_etf_snapshots",
+                        lambda pool, **k: {s: 1.0 for s in pool}, raising=False)
+    seen = {}
+    rep = idx.run_close_post(
+        bars_fn=lambda s, tf, n: ([] if s in dead else
+                                  [{"t": 20260827, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 9}]),
+        house_fn=lambda *a: b"png", stats_fn=lambda b: {}, name_fn=lambda s, tf, t: f"{s}.png",
+        note_fn=lambda moves: seen.update(moves=moves) or "A quiet, narrow tape with leadership "
+                                                         "concentrated in a handful of places, and "
+                                                         "little confirmation underneath it so far.",
+        post_fn=lambda url, p, f: True, sleep_fn=lambda s: None,
+        now_et=_dt.datetime(2026, 8, 27, 15, 45))
+    assert rep["symbols"] == ["SPY", "DIA", "SMH", "IGV", "XLK"]
+    assert set(seen["moves"]) == set(rep["symbols"]), "the note is told about the post, not the plan"
+    assert not (dead & set(seen["moves"])), "a chart nobody can see is never described"
+    # the mover that failed to render is dropped from the header too
+    assert "XME" not in rep["messages"][1] and "XLK" in rep["messages"][1]

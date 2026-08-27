@@ -34,6 +34,13 @@ def _kit(fail_on=(), house=None):
                 name_fn=lambda s, tf, t: f"{s}_{tf}_2026-08-27_Chart.png")
 
 
+def _render_kit(**kw):
+    """render_charts only - no real waiting through the retry pause."""
+    k = _kit(**kw)
+    k["sleep_fn"] = lambda s: None
+    return k
+
+
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
@@ -136,10 +143,18 @@ def test_a_flat_tape_produces_no_movers_rather_than_two_arbitrary_ones():
 def test_the_post_is_still_worth_making_when_one_symbol_has_no_bars():
     """A late feed on one ticker drops that chart. It does not fake one, and it
     does not lose the other seven."""
-    charts = idx.render_charts(idx.INDEXES, **_kit(fail_on=("IWM",)))
+    charts = idx.render_charts(idx.INDEXES, **_render_kit(fail_on=("IWM",)))
     assert [s for s, _, _ in charts] == ["QQQ", "SPY", "DIA"]
-    assert idx.render_charts(("QQQ",), **_kit(house=lambda s: None)) == []
-    boom = _kit(); boom["house_fn"] = lambda *a: (_ for _ in ()).throw(RuntimeError("renderer down"))
+    # …and a symbol that fails ONCE is retried and kept: a scheduled daily post
+    # can afford six seconds, and a cold pod drops charts without it
+    flaky = {"n": 0}
+    def once(sym, tf, n):
+        flaky["n"] += 1
+        return [] if flaky["n"] == 1 else _bars()
+    k = _render_kit(); k["bars_fn"] = once
+    assert [s for s, _, _ in idx.render_charts(("QQQ",), **k)] == ["QQQ"] and flaky["n"] == 2
+    assert idx.render_charts(("QQQ",), **_render_kit(house=lambda s: None)) == []
+    boom = _render_kit(); boom["house_fn"] = lambda *a: (_ for _ in ()).throw(RuntimeError("renderer down"))
     assert idx.render_charts(("QQQ", "SPY"), **boom) == []
 
 
