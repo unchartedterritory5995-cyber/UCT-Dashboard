@@ -191,6 +191,82 @@
   .hmTileVal { font-size: 13px; }
 }
 
+/* ── Ratio Bars view — premium gauge CARDS ── */
+.ratioWrap { display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 2px; }
+/* Each pair is a flat card — same idiom as the heatmap tiles (flat fill + a
+   hairline that follows the canvas), so it reads as native, not a glossy widget. */
+.ratioCard {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 14px 11px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.06));
+}
+.ratioCardEmpty { opacity: 0.5; }
+/* Header: title centered across the card; winning % pinned top-right. */
+.ratioHead { position: relative; display: flex; align-items: baseline; justify-content: center; min-height: 16px; }
+.ratioLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-align: center;
+  color: var(--bw-header, var(--bw-text-strong, var(--text)));
+}
+.ratioPct {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--bw-text-dim, var(--text-muted));
+}
+/* Single-accent bar (DeepVue-style): a neutral track with ONE fill — the winning
+   side, growing from ITS end, coloured by direction. Bar length = dominance. */
+.ratioBar {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.055);
+}
+.ratioFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transition: width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.ratioFillL { left: 0; border-radius: 5px 0 0 5px; }
+.ratioFillR { right: 0; border-radius: 0 5px 5px 0; }
+/* Faint 50% reference tick — anchors the eye to the midpoint. */
+.ratioMid {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateX(-0.5px);
+  z-index: 1;
+  pointer-events: none;
+}
+.ratioFoot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+}
+.ratioFoot > span:last-child { text-align: right; }
+/* The count number is the eye-catch — bold + a touch larger than its label. */
+.ratioCount { font-weight: 800; font-size: 12px; }
+.ratioFootMuted { color: var(--bw-text-dim, var(--text-muted)); opacity: 0.7; font-weight: 600; }
+
 /* ── Header row ("Breadth Monitor" · ＋ · ⚙) — same 34px rhythm as .bar so the
    bottom divider still lands on the chart widget's gridline beside it. ── */
 .header {
@@ -349,6 +425,44 @@
 }
 .addMenuCheckOn { background: var(--menu-accent, var(--ut-gold)); border-color: var(--menu-accent, var(--ut-gold)); }
 .addMenuLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Compact 2-col chip grid (mirrors the widget-catalog quick-add chips). An ON
+   chip is accented (it's a currently-shown reading); OFF is muted. */
+.addChipGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 2px 6px 4px; }
+.addChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--menu-border, #26262a);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--menu-text, #e6e6e8);
+  font-family: inherit;
+  font-size: 10.5px;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0.72;
+  transition: background 120ms, border-color 120ms, color 120ms, opacity 120ms;
+}
+.addChip:hover { opacity: 1; border-color: var(--menu-accent, var(--ut-gold)); background: var(--menu-hover, rgba(255, 255, 255, 0.06)); }
+.addChipOn {
+  opacity: 1;
+  color: var(--menu-accent, var(--ut-gold));
+  border-color: var(--menu-accent, var(--ut-gold));
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
+}
+.addChipDot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+}
+.addChipOn .addChipDot { background: currentColor; }
+.addChipLbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Tile sparkline styles (⚙ Tile style) ── */
 /* Inline line strip under the value ('spark'). */

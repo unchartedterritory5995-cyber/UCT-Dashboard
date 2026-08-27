@@ -163,6 +163,7 @@ class ChartRequest:
     indicators: str | None = None  # per-call lower-pane indicators (prefs key)
     to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
     compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
+    expanded: bool = False       # controls opened out? (the gear; a display state, not a chart one)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -358,7 +359,11 @@ def public_site_url() -> str:
 STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
 SAVE_VALUE = "save"              # the Look dropdown's "save these as my defaults" pick
 HELP_VALUE = "help"              # …and its "how do these work?" pick
-SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"
+SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"   # retired; older messages still parse
+SELECT_OPTS = "opt"              # the one dropdown that replaced those three
+# The timeframes that keep a button when the controls are closed. One slot goes
+# to the gear, so this is four of the five; expanding shows them all.
+COLLAPSED_TFS = ("D", "W", "60", "5")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Calendar days one "Earlier"/"Later" step moves the window, per zoom.
 _PAN_DAYS_D = {"auto": 95, "1m": 31, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
@@ -379,6 +384,7 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
         "theme": req.theme if req.theme is not None else p["theme"],
         "to": req.to or "",
         "cmp": "+".join(req.compare) if req.compare else "",
+        "exp": "1" if req.expanded else "0",
     }
 
 
@@ -389,7 +395,8 @@ def _encode(st: dict, tag: str = "") -> str:
     # active timeframe button and a disabled "Later" both mean "this chart").
     # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
     # minted before it (one field shorter) still parse - see parse_component.
-    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
+    flags = (1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], str(flags),
                      st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
 
 
@@ -412,17 +419,20 @@ def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
     st = {"ticker": ticker, "tf": tf, "mas": mas, "vol": bool(volume),
           "zoom": rest.get("zoom", "auto"), "ind": rest.get("ind", "none"),
           "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", ""),
-          "cmp": rest.get("cmp", "")}
+          "cmp": rest.get("cmp", ""), "exp": rest.get("exp", "0")}
     return _encode(st)
 
 
 def _request_from_state(parts: list) -> ChartRequest:
-    """10 fields (ids minted before the compare overlay) or 11 (with it)."""
+    """10 fields (ids minted before the compare overlay) or 11 (with it). The
+    fifth field is a FLAGS digit - bit 0 volume, bit 1 controls-open - so "0"
+    and "1" from an older id still mean what they meant, with the gear closed."""
+    parts = list(parts)
     if len(parts) == 10:
-        parts = list(parts) + [""]
-    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts
+        parts = parts + [""]
+    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts[:11]
     ticker = ticker.strip().upper()
-    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1")
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1", "2", "3")
           and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
           and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
           and (to == "" or _DATE_RE.match(to)))
@@ -432,8 +442,9 @@ def _request_from_state(parts: list) -> ChartRequest:
         compare = parse_compare(cmp, ticker) if cmp else None
     except CommandError:
         raise CommandError("Unknown button.")
-    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"), zoom=zoom, indicators=ind,
-                        style=style, theme=theme, to=to or None, compare=compare)
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=bool(int(vol) & 1), zoom=zoom, indicators=ind,
+                        style=style, theme=theme, to=to or None, compare=compare,
+                        expanded=bool(int(vol) & 2))
 
 
 def component_kind(interaction: dict) -> str:
@@ -444,7 +455,7 @@ def component_kind(interaction: dict) -> str:
         return "activity"
     if head == MULTI_PREFIX:
         return "charts"
-    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK):
+    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS):
         return "chart"
     raise CommandError("Unknown button.")
 
@@ -466,18 +477,24 @@ def parse_component(interaction: dict) -> ChartRequest:
         return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
     if head == STATE_PREFIX and len(parts) in (11, 12):
         return _request_from_state(parts[:-1])          # the last part = the control tag
-    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) in (12, 13):
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS) and len(parts) in (12, 13):
         req = _request_from_state(parts[1:-1])
         values = data.get("values") or []
         value = str(values[0]) if values else ""
-        if head == SELECT_ZOOM:
+        if head == SELECT_ZOOM:                       # retired select, older messages
             if value not in prefs_mod.ZOOM_CHOICES:
                 raise CommandError("Unknown zoom.")
             return dataclasses.replace(req, zoom=value, to=None)     # a new window starts from live
-        if head == SELECT_IND:
+        if head == SELECT_IND:                        # retired select, older messages
             if value not in prefs_mod.INDICATOR_CHOICES:
                 raise CommandError("Unknown indicator set.")
             return dataclasses.replace(req, indicators=value)
+        if head == SELECT_OPTS:
+            kind, _, choice = value.partition(":")
+            if kind == "zoom" and choice in prefs_mod.ZOOM_CHOICES:
+                return dataclasses.replace(req, zoom=choice, to=None)
+            if kind == "ind" and choice in prefs_mod.INDICATOR_CHOICES:
+                return dataclasses.replace(req, indicators=choice)
         if value in (SAVE_VALUE, HELP_VALUE):
             return req                          # the router saves this state, or explains it
         kind, _, choice = value.partition(":")
@@ -494,7 +511,8 @@ def chart_help_text() -> str:
     can do that a member would otherwise have to be told about."""
     return "\n".join([
         "**The chart you're looking at**",
-        "\u2022 The five buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
+        "\u2022 \u2699\ufe0f opens the rest of the controls; \u25b2 closes them again.",
+        "\u2022 The buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
         "\u2022 **Zoom** sets how much history is in frame. **Indicators** adds RSI or MACD underneath.",
         "\u2022 **Look** changes the candle style or the theme - and saves the whole lot as your defaults.",
         "",
@@ -507,6 +525,8 @@ def chart_help_text() -> str:
         "",
         "**Your defaults**",
         "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
+        "",
+        "The full interactive chart lives on the site: <" + public_site_url() + "/research/NVDA>",
     ])
 
 
@@ -515,7 +535,8 @@ def is_help_pick(interaction: dict) -> bool:
     data = interaction.get("data") or {}
     cid = str(data.get("custom_id") or "")
     values = data.get("values") or []
-    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == HELP_VALUE
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == HELP_VALUE
 
 
 def is_save_pick(interaction: dict) -> bool:
@@ -523,7 +544,8 @@ def is_save_pick(interaction: dict) -> bool:
     data = interaction.get("data") or {}
     cid = str(data.get("custom_id") or "")
     values = data.get("values") or []
-    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == SAVE_VALUE
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == SAVE_VALUE
 
 
 def prefs_from_request(req: ChartRequest) -> dict:
@@ -553,29 +575,61 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     Discord's ceiling: timeframes · Zoom · Indicators · Look · pan/MAs/volume."""
     st = _state_of(req, prefs)
     sid = lambda tag="", **changes: _encode({**st, **changes}, tag)  # noqa: E731
+    # ⭐ CLOSED BY DEFAULT — ONE ROW. Owner, 2026-08-26, after the five-row stack
+    # was cut to three: "I like option 3 the best" - the most compact of the
+    # three shapes offered. A chart in a busy channel is now the image plus a
+    # single row; the gear opens the full surface for the member who wants it,
+    # and the open/closed state rides in the ids so it survives every click.
+    #
+    # Six buttons do not fit a row of five, so ONE timeframe gives up its slot
+    # when closed: 15m, because 5m and 60m carry the intraday work. It is one
+    # entry in COLLAPSED_TFS to change, and expanding shows every timeframe.
     tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
+    if not st["exp"] == "1":
+        closed = [(tf, label) for tf, label in tf_choices if tf in COLLAPSED_TFS]
+        row = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
+                "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+               for tf, label in closed]
+        # …and if the chart is ON the timeframe that lost its slot, it keeps one
+        # so the member can still see which timeframe they are looking at.
+        if st["tf"] not in COLLAPSED_TFS:
+            row = row[:len(row) - 1] + [{"type": 2, "style": _STYLE_PRIMARY,
+                                         "label": dict(BUTTON_TFS).get(st["tf"], st["tf"]),
+                                         "custom_id": sid("t", tf=st["tf"])}]
+        row.append({"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u2699\ufe0f"},
+                    "custom_id": sid("g", exp="1")})
+        return [{"type": 1, "components": row}]
     tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
             "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
            for tf, label in tf_choices]
+    # ── ONE dropdown, not three ────────────────────────────────────────────
+    # Owner, 2026-08-26, looking at a chart in the member server: "this looks
+    # mega clunky and really clogs up a decent portion of channels… it really
+    # takes up a lot of space". Three full-width selects stacked under the image
+    # cost as much vertical space as the chart itself. Zoom, Indicators and Look
+    # were 6 + 4 + 13 = 23 options - inside Discord's 25 - so they are one
+    # select now, and the CURRENT state moves into the placeholder where it is
+    # still readable at a glance. Five action rows become three.
     zooms = prefs_mod.zoom_choices(st["tf"])
     zoom_now = st["zoom"] if st["zoom"] in zooms else "auto"
-    zoom_sel = {"type": 3, "custom_id": f"{SELECT_ZOOM}|{sid()}", "placeholder": "Zoom",
-                "options": [{"label": f"Zoom: {label}", "value": v, "default": v == zoom_now} for v, label in zooms.items()]}
-    ind_sel = {"type": 3, "custom_id": f"{SELECT_IND}|{sid()}", "placeholder": "Indicators",
-               "options": [{"label": f"Indicators: {label}", "value": v, "default": v == st["ind"]}
-                           for v, label in prefs_mod.INDICATOR_CHOICES.items()]}
-    look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
-                "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
-                             for v, label in prefs_mod.STYLE_CHOICES.items()] +
-                            # ONE default per single-select (Discord: COMPONENT_TOO_MANY_DEFAULT_VALUES) -
-                            # the style carries it; the theme is read off the image.
-                            [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": False}
-                             for v, label in prefs_mod.THEME_CHOICES.items()] +
-                            # last, so the first option stays the chart's own style
-                            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
-                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
-                             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
-                              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])}
+    opts = ([{"label": f"Zoom: {label}", "value": f"zoom:{v}"} for v, label in zooms.items()] +
+            [{"label": f"Indicators: {label}", "value": f"ind:{v}"} for v, label in prefs_mod.INDICATOR_CHOICES.items()] +
+            [{"label": f"Style: {label}", "value": f"style:{v}"} for v, label in prefs_mod.STYLE_CHOICES.items()] +
+            [{"label": f"Theme: {label}", "value": f"theme:{v}"} for v, label in prefs_mod.THEME_CHOICES.items()] +
+            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
+              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
+             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
+              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])
+    # ⛔ No option carries `default`: the state is in the placeholder instead, so
+    # the TOO_MANY_DEFAULT_VALUES class of rejection cannot come back, and a pick
+    # never leaves its own label standing where the chart's setting should be.
+    state_line = " \u00b7 ".join([
+        f"Zoom {zooms.get(zoom_now, zoom_now)}",
+        prefs_mod.INDICATOR_CHOICES.get(st["ind"], st["ind"]),
+        prefs_mod.STYLE_CHOICES.get(st["style"], st["style"]),
+    ])
+    opts_sel = {"type": 3, "custom_id": f"{SELECT_OPTS}|{sid()}",
+                "placeholder": f"\u2699\ufe0f {state_line}"[:150], "options": opts[:25]}
     ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
     ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
     can_pan = st["tf"] in ("D", "W")
@@ -590,15 +644,29 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
                  "custom_id": sid("v", vol=not st["vol"])})
     if guild_id and str(guild_id) in activity_guilds():
-        # The (parked) Activity: in an activity guild the last slot launches it instead of linking out.
+        # The (parked) Activity: in an activity guild the last slot launches it instead.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
                      "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{st['mas']}|{1 if st['vol'] else 0}"})
+    # ⛔ The "Open interactive" LINK button is gone. With five buttons in this row
+    # Discord wrapped it onto a line of its own in a normal-width channel, so a
+    # link to the site cost a whole row of the member's screen. The help pick
+    # names the site instead.
+    # open: the gear closes it again, in the slot the link button used to hold.
+    # \u26d4 It gets a row of its OWN rather than being truncated away when the
+    # toggle row is already full (an activity guild spends the fifth slot on
+    # "Open in Discord") - dropping it silently would strand the member in the
+    # expanded view with no way back to the one-row chart.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+                "custom_id": sid("g", exp="0")}
+    rows = [{"type": 1, "components": tfs}]
+    if len(row5) < 5:
+        row5.append(collapse)
+        rows.append({"type": 1, "components": row5})
     else:
-        row5.append({"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
-                     "url": f"{public_site_url()}/research/{req.ticker}"})
-    return [{"type": 1, "components": tfs}, {"type": 1, "components": [zoom_sel]},
-            {"type": 1, "components": [ind_sel]}, {"type": 1, "components": [look_sel]},
-            {"type": 1, "components": row5}]
+        rows.append({"type": 1, "components": row5[:5]})
+        rows.append({"type": 1, "components": [collapse]})
+    rows.append({"type": 1, "components": [opts_sel]})
+    return rows
 
 
 MULTI_PREFIX = "m2"              # /charts timeframe row: m2|SYM+SYM+SYM|tf

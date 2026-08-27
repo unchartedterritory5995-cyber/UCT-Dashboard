@@ -282,6 +282,26 @@ def test_live_matches_collector_with_gaps_and_short_histories(seed):
         assert live[key] == expected, f"{key}: live={live[key]} collector={expected}"
 
 
+def test_new_intraday_internals_advance_open_and_on_volume():
+    # advancing/declining counts, up/down-from-open, up/down-on-volume — the ratio-bar readings.
+    cdf, vdf = _frame(seed=7)
+    levels, prices, vols = _split(cdf, vdf)
+    live = bl.compute_metrics(levels, prices, vols)
+    # advance/decline counts are consistent with the published net
+    assert live["advancing"] - live["declining"] == live["adv_decline"]
+    assert live["advancing"] >= 0 and live["declining"] >= 0
+    # on-volume names are a SUBSET of advancers/decliners (elevated-volume filter)
+    assert isinstance(live["up_on_volume"], int) and isinstance(live["down_on_volume"], int)
+    assert live["up_on_volume"] <= live["advancing"]
+    assert live["down_on_volume"] <= live["declining"]
+    # from-open needs the session open: None without it, real counts with it
+    assert live["up_from_open"] is None and live["down_from_open"] is None
+    up = bl.compute_metrics(levels, prices, vols, opens={t: prices[t] * 0.99 for t in prices})
+    assert up["up_from_open"] == len(prices) and up["down_from_open"] == 0     # all above open
+    dn = bl.compute_metrics(levels, prices, vols, opens={t: prices[t] * 1.01 for t in prices})
+    assert dn["down_from_open"] == len(prices) and dn["up_from_open"] == 0     # all below open
+
+
 def test_a_zero_prior_close_is_excluded_rather_than_counted_as_infinite_gain():
     """The one place the live path deliberately does NOT mirror the collector.
 

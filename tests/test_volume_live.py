@@ -448,6 +448,24 @@ def test_a_flagged_name_holds_then_eases_down_through_the_tiers_then_drops():
     assert q2["held"] is False
 
 
+def test_tier_needs_a_big_move_AND_a_big_spike_at_the_same_instant():
+    # The pre-market false-T5 fix: T5 requires a MAJOR fast move ON a big volume spike.
+    # A latched/held Extreme-level spike whose CURRENT move has faded (DG/CRDO consolidating,
+    # or BBY minutes after its drop) is capped LOW by the move — even though the held spike
+    # alone would read Extreme.
+    faded = {"eff": 12.0, "move": 0.3}        # held 12× spike, but only +0.3% right now
+    assert volume_live._rvol_tier(volume_live._eff(faded)) == 5   # spike alone → Extreme…
+    assert volume_live._tier(faded) == 1                          # …but the tiny move caps it to Notable
+
+    # BBY at 7:07 — a −6% move in 2-3 min on that same big spike → the REAL Extreme.
+    violent = {"eff": 12.0, "move": -6.0}
+    assert volume_live._tier(violent) == 5
+
+    # DG/CRDO grind — a solid spike on a ~1% 2-min move is real but not violent → T3 max.
+    grind = {"eff": 8.0, "move": 1.0}
+    assert volume_live._tier(grind) == 3
+
+
 def test_a_name_that_never_flagged_is_not_held():
     # The hold only latches a GENUINE signal. A quiet name (no catch, not accelerating) is never
     # flagged, so it is never held on the scanner.
