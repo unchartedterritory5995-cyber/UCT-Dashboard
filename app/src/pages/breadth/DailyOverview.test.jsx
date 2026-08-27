@@ -109,6 +109,12 @@ describe('DailyOverview — final register', () => {
 
   it('fetches the finished session path and says FINAL', async () => {
     const fetchMock = vi.fn(() => Promise.resolve({
+      // ⚠️ `ok: true` IS THE RESPONSE'S, and it is NOT the `ok` in the body
+      // below. A real `fetch` always resolves a Response carrying HTTP `ok`;
+      // this mock modelled only the body, so `useSessionPath`'s `r.ok` guard
+      // read `undefined` and threw. The body's own `ok` is the PAYLOAD's
+      // "is there a stored path" flag and is left exactly as written.
+      ok: true,
       json: () => Promise.resolve({
         ok: true, date: '2026-08-26',
         path: { pct_above_50sma: p([60.0, 61.0, 63.1]) },
@@ -128,6 +134,7 @@ describe('DailyOverview — final register', () => {
     // empty. The hero shows yesterday's finished shape, says so, and the
     // tiles drop their mini paths rather than caption the wrong session.
     const fetchMock = vi.fn(url => Promise.resolve({
+      ok: true,                       // the RESPONSE's — see the note above
       json: () => Promise.resolve(
         url.endsWith('/2026-08-26')
           ? { ok: false, date: '2026-08-26', path: {}, open: {} }
@@ -149,6 +156,7 @@ describe('DailyOverview — final register', () => {
 
   it('with no stored path it falls back to the last 30 sessions of Health', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,                       // HTTP 200; the BODY says there is no path
       json: () => Promise.resolve({ ok: false, date: '2026-08-26', path: {}, open: {} }),
     })))
     fresh(<DailyOverview rows={[storedToday, prevRow, { date: '2026-08-24', breadth_score: 64 }]}

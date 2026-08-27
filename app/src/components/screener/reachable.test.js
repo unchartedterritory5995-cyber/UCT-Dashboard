@@ -277,6 +277,17 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  'app/src/components/EmptyState.jsx':
+    'ORPHANED BY MASTER, NOT BY THIS BRANCH, on the 2026-08-27 merge. Its last '
+    + 'importer was pages/Patterns.jsx (line 7), which master DELETED when it '
+    + 'retired the Patterns page for 15.7% precision. ⛔ Not deleted here for the '
+    + 'same reason useTapeFeed is not: it is a 31-line BRANDED PRIMITIVE that '
+    + 'exists so tiles and pages share one visual language instead of scattered '
+    + 'bare empties, it mirrors ErrorState (still live), and the pattern ENGINE was '
+    + 'deliberately KEPT behind PATTERN_VISION_ENABLED=0 pending a confirmed-only '
+    + 'surface — which is exactly the kind of page that would reach for it again. '
+    + 'Deleting a shared primitive while its sibling ships and its consumer is '
+    + 'paused would be guessing at an owner\'s intent during a merge.',
   'app/src/components/chart/engine/registrySizes.js':
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
