@@ -390,19 +390,32 @@ def _insert_strategy(conn, user_id, account_id, s, external_id, *,
         pnl = opt.compute_pnl(net_entry, net_exit or 0.0, entry_fee, exit_fee)
         pnl_pct = round(pnl / abs(net_entry), 4) if net_entry else None
         result = "Win" if pnl > 0 else ("Loss" if pnl < 0 else "BE")
+        # DAY SPINE (2026-08-27 books-audit finding): broker strategies never
+        # stamped trading_day_et, so every calendar surface fell back to
+        # tz-converting closed_at — and Schwab stamps activities at MIDNIGHT
+        # UTC, which converts to 8pm ET the PREVIOUS day: the member's option
+        # P&L appeared one day early ($6,800 of the whale's losses on the
+        # wrong calendar day vs their statements). compute_trading_day_et is
+        # the ONE authority (date-only stamps keep their date; real
+        # timestamps convert to ET) — the same rule the trades table has
+        # used all along (5,742/5,742 stamped, strategies 5,343 NULL).
+        from api.services.journal_two.timeutil import compute_trading_day_et
+        trading_day = compute_trading_day_et(s.get("closed_at"))
         conn.execute(
             """
             INSERT INTO j2_option_strategies (
                 id, user_id, account_id, underlying, strategy_type, direction,
                 net_entry, fees, entry_date, setup, notes, context_at_entry,
                 status, closed_at, net_exit, exit_fees, pnl_dollar, pnl_percent,
-                r_multiple, result, created_at, updated_at, source, external_id
+                r_multiple, result, created_at, updated_at, source, external_id,
+                trading_day_et
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, '{}', ?, ?, ?, ?, ?, ?,
-                      NULL, ?, ?, ?, 'broker', ?)
+                      NULL, ?, ?, ?, 'broker', ?, ?)
             """,
             (sid, user_id, account_id, s["underlying"], s["strategy_type"],
              s["direction"], net_entry, entry_fee, s["entry_date"], s["status"],
-             s["closed_at"], net_exit, exit_fee, pnl, pnl_pct, result, now, now, external_id),
+             s["closed_at"], net_exit, exit_fee, pnl, pnl_pct, result, now, now,
+             external_id, trading_day),
         )
 
     conn.execute(

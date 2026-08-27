@@ -221,3 +221,32 @@ def test_same_day_round_trip_with_expiration_event(env):
     s = _strategies()[0]
     assert s["status"] == "closed"
     assert s["net_exit"] == 500.0 and s["pnl_dollar"] == 200.0
+
+
+def test_closed_strategies_carry_the_trading_day_spine(env):
+    """2026-08-27 books-audit finding: broker strategies never stamped
+    trading_day_et, so calendar surfaces tz-converted Schwab's midnight-UTC
+    closed_at stamps and put option P&L one day early ($6,800 of the whale's
+    losses on the wrong day vs their statements). Date-only stamps keep
+    their date; real timestamps convert to ET — same rule as trades."""
+    events = [
+        # Schwab shape: midnight-UTC date-only stamps.
+        _ev("option_trade", "buy", "open", 1, 5.0, "2026-08-26T00:00:00Z", aid="b1"),
+        _ev("option_trade", "sell", "close", 1, 6.0, "2026-08-27T00:00:00Z", aid="s1"),
+        # Real-timestamp shape: 00:30 UTC genuinely IS the prior ET day.
+        _ev("option_trade", "buy", "open", 1, 3.0, "2026-08-20T14:00:00Z",
+            strike=250, aid="b2"),
+        _ev("option_trade", "sell", "close", 1, 4.0, "2026-08-27T00:30:00Z",
+            strike=250, aid="s2"),
+    ]
+    oro.reconstruct_options("u1", "ba1", env["j2"], events)
+    conn = auth_db.get_connection()
+    try:
+        rows = {r["external_id"]: dict(r) for r in conn.execute(
+            "SELECT external_id, closed_at, trading_day_et "
+            "FROM j2_option_strategies WHERE user_id='u1' AND status='closed'")}
+    finally:
+        conn.close()
+    by_close = {r["closed_at"]: r["trading_day_et"] for r in rows.values()}
+    assert by_close["2026-08-27T00:00:00Z"] == "2026-08-27"   # date-only: keep the date
+    assert by_close["2026-08-27T00:30:00Z"] == "2026-08-26"   # real ts: ET day
