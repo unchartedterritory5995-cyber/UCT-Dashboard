@@ -87,28 +87,25 @@
   .tierName { display: none; }
 }
 
-/* ── Lit rows fill by RVOL tier. Deliberately MUTED for everything but the extreme:
-   t1–t4 are deep, desaturated blocks with BLACK text (low contrast → they recede), and
-   ONLY t5 (Extreme, 10×+) is a bright, saturated red with white text + a glow — so the
-   eye is drawn only to the extremes. ──────── */
-/* Opacity ramp of ONE signal colour — each tier up is more opaque, so the strength of the
-   volume signal reads at a glance: t1 barely there → t5 the brightest, loudest alert. */
-.t1 { background: rgba(48, 165, 90, 0.13); }   /* Notable   2–3×  — barely there */
-.t2 { background: rgba(48, 165, 90, 0.27); }   /* Elevated  3–4×  */
-.t3 { background: rgba(48, 165, 90, 0.45); }   /* High      4–6×  */
-.t4 { background: rgba(48, 165, 90, 0.67); }   /* Very High 6–10× */
-.t5 {                                          /* Extreme   10×+  — brightest + a glow */
-  background: rgba(48, 165, 90, 0.92);
-  box-shadow: 0 0 11px rgba(48, 165, 90, 0.45);
+/* ── Lit rows fill by tier on a green→red HEAT RAMP: the higher the tier, the hotter
+   the block. t1 darkest green → t2 brighter green → t3 bright yellow → t4 bright
+   orange → t5 the loudest red (+ a glow). Text colour flips per fill so it stays
+   readable: white on the dark green + loud red tiers, near-black on the bright
+   yellow/orange tiers. ──────── */
+.t1 { background: #0e3a1f; }                   /* Notable   — darkest green   */
+.t2 { background: #1a7d3c; }                   /* Elevated  — brighter green  */
+.t3 { background: #e8b90a; }                   /* High      — bright yellow   */
+.t4 { background: #ee7a12; }                   /* Very High — bright orange   */
+.t5 {                                          /* Extreme   — loudest red + glow */
+  background: #e01d24;
+  box-shadow: 0 0 12px rgba(224, 29, 36, 0.5);
 }
-/* ONLY the RVOL reading brightens with the tier — t1 just above the unlit grey,
-   climbing to pure white at t5 — so the number itself signals strength. The SYMBOL
-   stays one consistent colour across every tier (it must never change by tier). */
-.t1 .surge { color: rgba(255, 255, 255, 0.68); }
-.t2 .surge { color: rgba(255, 255, 255, 0.78); }
-.t3 .surge { color: rgba(255, 255, 255, 0.87); }
-.t4 .surge { color: rgba(255, 255, 255, 0.94); }
-.t5 .surge { color: #fff; }
+/* Readable text per fill: white on green/red, near-black ink on yellow/orange. Both
+   the symbol AND the signal cell flip together so the whole row stays legible. */
+.t1 .sym, .t2 .sym, .t5 .sym,
+.t1 .surge, .t2 .surge, .t5 .surge { color: #ffffff; }
+.t3 .sym, .t4 .sym,
+.t3 .surge, .t4 .surge { color: #1c1400; }
 .lit:hover { filter: brightness(1.08); }
 
 /* Unlit rows: dark, with a dimmed RVOL so the full ranking is still readable. */
@@ -138,26 +135,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .surgeFlash { animation: none; }
-}
-
-/* "Igniting now": a PERSISTENT pulsing ring on a lit row whose volume is bursting
-   AND price is moving — the "look up, this is moving fast right now" state, distinct
-   from the one-shot surge flash. A thin inset ring so it never covers the text. */
-.ignite {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  border-radius: 2px;
-  box-shadow: inset 0 0 0 1.5px var(--ut-gold-bright, #e9cd77);
-  animation: volIgnite 1.3s ease-in-out infinite;
-}
-@keyframes volIgnite {
-  0%, 100% { opacity: 0.16; }
-  50%      { opacity: 0.58; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ignite { animation: none; opacity: 0.5; }
 }
 
 .none {

@@ -58,12 +58,29 @@ describe('VolumeScanWidget', () => {
     expect(screen.getByLabelText(/AAPL.*below criteria/)).toBeInTheDocument()   // …flagged below-criteria
   })
 
-  it('flags an igniting name (burst + move) with the burst in its tooltip', () => {
+  it('carries the burst in a lit name\'s tooltip (no more gold "igniting now" ring)', () => {
     swr.mockReturnValue({ data: LIVE })
     render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByLabelText(/SMCI.*9\.2× burst.*igniting now/)).toBeInTheDocument()
-    // PLUG is lit but not igniting — no "igniting now" in its tooltip.
-    expect(screen.getByLabelText(/^PLUG —/).getAttribute('aria-label')).not.toMatch(/igniting now/)
+    expect(screen.getByLabelText(/SMCI.*9\.2× burst/)).toBeInTheDocument()
+    // The gold igniting pulse was removed — nothing describes itself as "igniting now".
+    expect(screen.getByLabelText(/^SMCI —/).getAttribute('aria-label')).not.toMatch(/igniting now/)
+  })
+
+  it('always ranks the highest tier on top (a T5 print sits above a T2)', () => {
+    // Server order puts the T2 first; the widget must re-rank so the T5 leads.
+    const T2FIRST = {
+      window: 'rth', asof: TS, total: 2, shown: 2,
+      rows: [
+        { sym: 'TD', price: 90, pct: 1.2, rvol: 6.0, move: 0.9, tier: 2, lit: true },
+        { sym: 'FSLR', price: 190, pct: 4.0, rvol: 3.1, move: 2.2, tier: 5, lit: true },
+      ],
+    }
+    swr.mockReturnValue({ data: T2FIRST })
+    render(<VolumeScanWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    const order = [...document.querySelectorAll('[role="listitem"]')]
+      .map(n => (n.getAttribute('aria-label') || '').split(' ')[0])
+    expect(order[0]).toBe('FSLR')   // T5 leads despite lower sustained RVOL + later server rank
+    expect(order[1]).toBe('TD')
   })
 
   it('no longer renders the RVOL / Burst / Δ% / $K filter boxes', () => {
