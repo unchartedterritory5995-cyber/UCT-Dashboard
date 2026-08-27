@@ -109,7 +109,10 @@ function isApplied(settings, theme) {
  * `canApplyAll` is true). Applies and closes so the user immediately sees the
  * reskinned chart behind the (now dismissed) blur.
  */
-export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, canApplyAllWidgets = false, currentSettings = null, themeVars = null }) {
+export default function ChartThemesModal({ open, onClose, onApply, canApplyAll = false, canApplyAllWidgets = false, currentSettings = null, themeVars = null, variant = 'chart' }) {
+  // 'widget' variant: opened from a non-chart widget's ⚙ settings. Same gallery, but
+  // the copy + scope reads "this widget" and the chart-only "All charts" scope is gone.
+  const isWidget = variant === 'widget'
   const [family, setFamily] = useState('all')
   const [query, setQuery] = useState('')
   // The apply scope STICKS across opens (owner request) — a member who picks
@@ -150,12 +153,12 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
   const pick = (theme) => { onApply?.(theme, effScope); onClose?.() }
 
   return createPortal(
-    <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label="UCT Chart Themes">
+    <div className={styles.backdrop} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={isWidget ? 'UCT Themes' : 'UCT Chart Themes'}>
       <div className={styles.panel} style={themeVars || undefined} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleWrap}>
-            <span className={styles.title}>UCT Chart Themes</span>
-            <span className={styles.subtitle}>Pick a look — your indicators, timeframes and layout stay put.</span>
+            <span className={styles.title}>{isWidget ? 'UCT Themes' : 'UCT Chart Themes'}</span>
+            <span className={styles.subtitle}>{isWidget ? 'Pick a look — this widget’s data and layout stay put.' : 'Pick a look — your indicators, timeframes and layout stay put.'}</span>
           </div>
           <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -203,7 +206,8 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
         <div className={styles.footer}>
           <span className={styles.footLabel}>Apply to:</span>
           <div className={styles.scopeSeg}>
-            <button type="button" className={`${styles.scopeBtn} ${effScope === 'one' ? styles.scopeOn : ''}`} onClick={() => setScope('one')}>This chart</button>
+            <button type="button" className={`${styles.scopeBtn} ${effScope === 'one' ? styles.scopeOn : ''}`} onClick={() => setScope('one')}>{isWidget ? 'This widget' : 'This chart'}</button>
+            {!isWidget && (
             <button
               type="button"
               className={`${styles.scopeBtn} ${effScope === 'all' ? styles.scopeOn : ''}`}
@@ -211,6 +215,7 @@ export default function ChartThemesModal({ open, onClose, onApply, canApplyAll =
               disabled={!canApplyAll}
               title={canApplyAll ? 'Apply the next pick to every chart in the layout' : 'Available on the Charts workspace'}
             >All charts</button>
+            )}
             <button
               type="button"
               className={`${styles.scopeBtn} ${effScope === 'allwidgets' ? styles.scopeOn : ''}`}
