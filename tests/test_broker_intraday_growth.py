@@ -237,3 +237,55 @@ def test_served_shape_carries_the_provisional_flag(env):
     assert len(served) == 1
     assert served[0]["provisional"] is True
     assert served[0]["source"] == "broker"
+
+
+# ── backlog trigger: a fill that landed while the growth pass was down ───────
+
+def _seed_balance_sync(env, synced_at="2026-08-27T07:40:21+00:00"):
+    conn = auth_db.get_connection()
+    conn.execute(
+        "UPDATE j2_accounts SET balance_source='broker', broker_cash=-100.0, "
+        "broker_balance_synced_at=? WHERE id = ?", (synced_at, env["acct_id"]))
+    conn.commit()
+    conn.close()
+
+
+def _store_fill(env, act_id, typ, sym, units, price, ts):
+    from api.services.journal_two.broker import activities_store
+    activities_store.store_activities("u1", env["ba"]["id"], [
+        {"id": act_id, "type": typ, "units": units, "price": price, "fee": 0,
+         "symbol": {"symbol": sym}, "trade_date": ts, "currency": "USD"}])
+
+
+def test_backlog_due_when_a_window_buy_has_no_served_row(env):
+    from api.services.journal_two.broker import recent_orders as ro
+    ro._reset_backlog_throttle_for_tests()
+    _seed_balance_sync(env)
+    _store_fill(env, "intraday:th", "BUY", "TH", 150.0, 18.89,
+                "2026-08-27T14:52:59.859000Z")
+    assert ro._growth_backlog_due("u1", env["ba"]) is True
+    # Throttled: no immediate re-trigger loop for a fill the growth gates
+    # might legitimately refuse.
+    assert ro._growth_backlog_due("u1", env["ba"]) is False
+
+
+def test_no_backlog_once_the_row_is_served(env):
+    from api.services.journal_two.broker import recent_orders as ro
+    ro._reset_backlog_throttle_for_tests()
+    _seed_balance_sync(env)
+    _store_fill(env, "intraday:th", "BUY", "TH", 150.0, 18.89,
+                "2026-08-27T14:52:59.859000Z")
+    balances.apply_intraday_growth(
+        "u1", env["ba"], [_fifo("TH", "Long", 150.0, 18.89,
+                                "2026-08-27T14:52:59.859000Z")],
+        traded_symbols={"TH": "2026-08-27T14:52:59.859000Z"})
+    assert ro._growth_backlog_due("u1", env["ba"]) is False
+
+
+def test_a_window_sell_alone_is_not_a_backlog(env):
+    from api.services.journal_two.broker import recent_orders as ro
+    ro._reset_backlog_throttle_for_tests()
+    _seed_balance_sync(env)
+    _store_fill(env, "intraday:nexa", "SELL", "NEXA", 750.0, 13.8917,
+                "2026-08-27T14:50:00.178000Z")
+    assert ro._growth_backlog_due("u1", env["ba"]) is False

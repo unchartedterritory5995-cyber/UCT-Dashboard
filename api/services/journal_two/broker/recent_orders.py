@@ -290,6 +290,53 @@ async def _fetch_orders(user_id: str, ba: dict) -> list[dict] | None:
         bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"])
 
 
+# A growth BACKLOG (a window fill whose symbol has no served row — e.g. the
+# growth pass deployed/recovered after the fill landed) triggers one full
+# local rebuild on a no-new-fills poll. Throttled per account so a fill the
+# growth gates legitimately refuse (carried history, estimated basis) can't
+# re-trigger the ledger reconstruction every 5 minutes all day.
+_BACKLOG_RETRY_SECONDS = 900.0
+_backlog_last_attempt: dict[str, float] = {}
+
+
+def _reset_backlog_throttle_for_tests() -> None:
+    _backlog_last_attempt.clear()
+
+
+def _growth_backlog_due(user_id: str, ba: dict) -> bool:
+    import time as _time
+    if (_time.monotonic() - _backlog_last_attempt.get(ba["id"], -1e12)
+            < _BACKLOG_RETRY_SECONDS):
+        return False
+    try:
+        from api.services.journal_two import accounts as accounts_service
+        from api.services.journal_two.broker import live_cash as _live_cash
+        from api.services.auth_db import get_connection as _gc
+        acct_row = accounts_service.get_account(user_id, ba["j2AccountId"])
+        window = _live_cash.window_fill_starts(
+            user_id, ba["id"], (acct_row or {}).get("brokerBalanceSyncedAt"),
+            types=("BUY",))
+        if not window:
+            return False
+        conn = _gc()
+        try:
+            for sym in window:
+                row = conn.execute(
+                    "SELECT 1 FROM j2_positions WHERE user_id = ? "
+                    "AND account_id = ? AND symbol = ? AND closed_at IS NULL "
+                    "LIMIT 1",
+                    (user_id, ba["j2AccountId"], sym),
+                ).fetchone()
+                if row is None:
+                    _backlog_last_attempt[ba["id"]] = _time.monotonic()
+                    return True
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001 — a failed check never blocks the poll
+        logger.warning("growth backlog check failed", exc_info=True)
+    return False
+
+
 def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
     """DB phase — serialized by the caller (auth.db single-writer)."""
     provisional = []
@@ -301,11 +348,11 @@ def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
             act = order_to_provisional_option_activity(o)
         if act is not None:
             provisional.append(act)
-    if not provisional:
+    stored = {"new": 0}
+    if provisional:
+        stored = activities_store.store_activities(user_id, ba["id"], provisional)
+    if stored["new"] == 0 and not _growth_backlog_due(user_id, ba):
         return {"orders": len(orders or []), "new": 0}
-    stored = activities_store.store_activities(user_id, ba["id"], provisional)
-    if stored["new"] == 0:
-        return {"orders": len(orders), "new": 0}
 
     # Local-only rebuild: ledger → FIFO trades/positions. No SnapTrade
     # holdings/activities calls (polling-cap compliance); balances/marks

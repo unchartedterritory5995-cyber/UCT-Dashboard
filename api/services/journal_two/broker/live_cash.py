@@ -181,6 +181,8 @@ def window_fill_starts(
     broker_account_id: str,
     balance_synced_at: str | None,
     conn: sqlite3.Connection | None = None,
+    *,
+    types: tuple[str, ...] = _TRADE_TYPES,
 ) -> dict[str, str]:
     """{SYMBOL: earliest occurred_at} for EQUITY fills since the balance
     write — the growth pass's work list. Scoping growth to only 'this
@@ -195,11 +197,12 @@ def window_fill_starts(
     conn = conn or get_connection()
     try:
         floor = (synced - timedelta(days=1)).date().isoformat()
+        marks = ", ".join("?" for _ in types)
         rows = conn.execute(
             "SELECT raw_json, occurred_at FROM j2_broker_activities "
             "WHERE user_id = ? AND broker_account_id = ? "
-            "  AND UPPER(activity_type) IN (?, ?) AND occurred_at >= ?",
-            (user_id, broker_account_id, *_TRADE_TYPES, floor),
+            f"  AND UPPER(activity_type) IN ({marks}) AND occurred_at >= ?",
+            (user_id, broker_account_id, *types, floor),
         ).fetchall()
     finally:
         if owned:
