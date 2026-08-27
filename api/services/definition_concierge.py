@@ -1740,7 +1740,21 @@ def _named_shape_phrases() -> List[Tuple[str, str]]:
             if _form_tokens(undirected) != _form_tokens(shape.label):
                 out.append((column, undirected))
             classification = getattr(shape, "kind", None)
-            if isinstance(classification, str) and classification:
+            # ⛔ `plain` IS ORDINARY ENGLISH AND IS EXCLUDED BY RULING, 2026-08-27.
+            # The other three `kind` words -- `reversal`, `continuation`,
+            # `indecision` -- are words a member only types when they mean
+            # structure, so indexing them costs nothing and closes two starter
+            # screens. `plain` is a filler adjective: indexing it made
+            # "a plain english description" answer `unavailable: candle_matches`,
+            # which is over-capture of exactly the kind the first PCF dialect
+            # derivation was caught doing to `log10(close)`.
+            #
+            # ⚠️ Dropping the whole `kind` read would be the wrong trade -- it
+            # reopens those two starters to buy back one adjective. And a named
+            # constant here would NOT trip the anti-copy rail, because `plain` is
+            # neither a catalog key nor a label; it is a classification value, so
+            # this exclusion has to be stated where it is read.
+            if isinstance(classification, str) and classification and classification != "plain":
                 kinds.setdefault(classification, column)
     for key, legacy in catalog.LEGACY_ALIASES.items():
         column = column_of.get(key)
