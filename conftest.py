@@ -279,8 +279,61 @@ def shared_data_root_census():
     return literals, dict(sorted(pins.items())), unpinnable
 
 
+#: ⛔ PAIRINGS THE CENSUS IS *CORRECT* TO MISS, DECLARED BY HAND.
+#:
+#: Derivation (B) requires the env var and the literal to share a word, and the
+#: census docstring records why: a looser version pinned `UCT_INTEL_PATH` (a
+#: directory) to `/data/wire_data.json` (a file). Conservative is right there —
+#: *"a wrong pin is worse than no pin"*.
+#:
+#: But conservative leaves ABBREVIATIONS unpinned, and an unpinned literal is
+#: one a test can only be saved from by the tripwire — which fires on a DAEMON
+#: THREAD as an invisible raise while the spawning test passes GREEN. That is
+#: exactly how `test_user_definition_edit_forget` reached the real
+#: `C:\data\single_stock_etfs.db` (X18): it kicks a screener-warm thread.
+#:
+#: ⛔ So the fix is NOT to loosen the heuristic. It is to declare what a human
+#: can see and a name-similarity check cannot — with the `file:line` that proves
+#: the pairing, and a rail (below) that FAILS if a declaration stops being true.
+#: Shrink this map; never grow it to silence a red.
+EXPLICIT_ENV_PINS = {
+    # api/services/single_stock_etfs.py:86 reads the var; :90 returns the
+    # literal. Two statements, and "SSETF" shares no word with
+    # "single_stock_etfs" — invisible to both derivations, real to a reader.
+    "SSETF_DB_PATH": "/data/single_stock_etfs.db",
+}
+
+
+def _explicit_pin_is_still_real(var, literal):
+    """Does some file under `api/` still read `var` AND name `literal`?
+
+    ⛔ THE ANTI-ROT CHECK. A declared exception that has quietly stopped being
+    true is a lie the next reader inherits — this branch has already paid for a
+    stale declared count sitting next to a real rail and reddening it for
+    cosmetic reasons. Deliberately loose (same FILE, not same scope): it exists
+    to catch a pin that has become fiction, not to re-derive the pairing.
+    """
+    for path in _api_source_files():
+        try:
+            src = path.read_text(encoding="utf-8") if hasattr(path, "read_text") \
+                else io.open(path, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if var in src and literal in src.replace("\\", "/"):
+            return True
+    return False
+
+
 SHARED_DATA_LITERALS, SHARED_DATA_ENV_PINS, UNPINNABLE_SHARED_LITERALS = \
     shared_data_root_census()
+
+# ⭐ MERGED, NOT REPLACED — a declared pin never overrides a derived one. If the
+# census learns to see a pairing on its own, the derivation wins and the hand
+# declaration becomes redundant rather than authoritative.
+for _v, _l in EXPLICIT_ENV_PINS.items():
+    SHARED_DATA_ENV_PINS.setdefault(_v, _l)
+UNPINNABLE_SHARED_LITERALS = sorted(
+    set(UNPINNABLE_SHARED_LITERALS) - set(SHARED_DATA_ENV_PINS.values()))
 
 
 def unguarded_literal_sites():

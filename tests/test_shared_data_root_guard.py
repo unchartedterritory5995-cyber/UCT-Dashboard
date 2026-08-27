@@ -151,17 +151,77 @@ def test_the_screener_default_would_still_name_the_live_database(monkeypatch):
 def test_the_literals_no_env_var_can_move_are_named_not_forgotten():
     """The tripwire is the ONLY cover for these — so they are printed by name.
 
-    A pin needs an env var; 8 of the 55 literals have none (`/data/trades.json`,
-    `/data/avatars`, `/data/watchlists.json`, …). Growing that set silently is
-    how the next `C:\\data` write gets in, so this rail fails when it grows and
-    names the newcomer.
+    A pin needs an env var and some literals have none. Growing that set
+    silently is how the next `C:\\data` write gets in, so this rail fails when
+    it grows and names the newcomer.
+
+    ⛔ THE CEILING RATCHETS DOWN, NEVER UP. It was 8; `SSETF_DB_PATH` was
+    declared in `EXPLICIT_ENV_PINS` (X18) and it is 7. If you close another,
+    lower this number in the same commit — a ceiling left slack is a ceiling
+    that stops meaning anything, and this repo has already paid for a hand-typed
+    width that drifted four times.
+
+    ⚠️ The literal totals that used to be written into this docstring are gone
+    on purpose: the invariant is `unpinnable == literals - pinned`, asserted
+    below, and it does not drift. A count beside it is one more number to go
+    stale every time a path is added.
     """
     unpinnable = set(rootconf.UNPINNABLE_SHARED_LITERALS)
     pinned = set(rootconf.SHARED_DATA_ENV_PINS.values())
     assert unpinnable == set(rootconf.SHARED_DATA_LITERALS) - pinned
-    assert len(unpinnable) <= 8, (
+    assert len(unpinnable) <= 7, (
         "more product paths are now unreachable by any env override:\n  "
         + "\n  ".join(sorted(unpinnable)))
+
+
+def test_every_hand_declared_env_pin_is_STILL_REAL():
+    """⛔ ANTI-ROT. A declared exception that has quietly stopped being true is
+    a lie the next reader inherits.
+
+    `EXPLICIT_ENV_PINS` exists for pairings the census is *correct* to miss —
+    derivation (B) demands the env var and the literal share a word, because a
+    looser version once pinned a DIRECTORY var to a FILE. `SSETF_DB_PATH` <->
+    `/data/single_stock_etfs.db` is an abbreviation: no shared word, and the
+    read and the literal live in two separate statements, so neither derivation
+    can see it. A human can.
+
+    ⭐ The rule that shape teaches: **when a heuristic is right to be
+    conservative, do not loosen it — declare the exceptions it cannot see, and
+    rail the declarations.**
+    """
+    assert rootconf.EXPLICIT_ENV_PINS, "nothing declared — this rail proves nothing"
+    for var, literal in rootconf.EXPLICIT_ENV_PINS.items():
+        assert rootconf._explicit_pin_is_still_real(var, literal), (
+            f"{var} -> {literal} is declared in EXPLICIT_ENV_PINS but no file "
+            "under api/ still reads that var and names that literal. Delete the "
+            "declaration rather than leaving a false claim behind.")
+        assert rootconf.SHARED_DATA_ENV_PINS.get(var) == literal, (
+            f"{var} is declared but did not reach SHARED_DATA_ENV_PINS")
+
+    # ⭐ CONTROL — the check can say NO. Without this, a function that returned
+    # True unconditionally would read as a clean bill of health.
+    assert not rootconf._explicit_pin_is_still_real(
+        "A_VAR_THAT_IS_NOT_READ_ANYWHERE", "/data/no_such_file.db")
+
+
+def test_the_declared_pin_actually_MOVED_the_path_off_the_shared_root():
+    """🔴 A pin that is recorded but not APPLIED protects nothing.
+
+    This is the half that matters at runtime: `SSETF_DB_PATH` must now resolve
+    inside the sandbox, not `C:\\data`. Before X18 it was unset, so
+    `single_stock_etfs._resolve_db_path()` fell through to
+    `os.path.isdir("/data")` — which is TRUE on this box — and a screener-warm
+    DAEMON THREAD wrote to the real file while the spawning test passed green.
+    """
+    import os
+
+    for var in rootconf.EXPLICIT_ENV_PINS:
+        value = os.environ.get(var)
+        assert value, f"{var} declared but not set in the environment"
+        norm = rootconf._norm(value)
+        for root in rootconf.SHARED_DATA_ROOTS:
+            assert not (norm == root or norm.startswith(root + os.sep)), (
+                f"{var} still points inside the shared root: {value}")
 
 
 # ─── the tripwire: watched firing, on a probe directory ─────────────────────
