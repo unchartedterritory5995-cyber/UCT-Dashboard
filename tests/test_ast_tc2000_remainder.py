@@ -491,6 +491,8 @@ REACHABLE_ELSEWHERE = {
     "FAVGC20 > C": "front-weighted moving average — a new table entry, not an oscillator",
     "HAVGC20 > C": "Hull moving average — a new table entry, not an oscillator",
 }
+
+
 def _run_node(driver_body):
     """Drive the SHIPPED reader through node, via the conformance tool's own plumbing.
 
