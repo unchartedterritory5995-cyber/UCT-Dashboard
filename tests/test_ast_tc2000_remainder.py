@@ -110,14 +110,61 @@ def bars_of(rows):
             for i, (o, h, lo, c) in enumerate(rows)]
 
 
-#: A shaped series: a clear high at bar 4, a clear low at bar 12, then a ramp.
-#: Every value distinct, so "the most recent extreme" is never a tie.
-SHAPE = [(10.0 + i * 0.5, h, h - 2.0, 10.0 + i * 0.5)
-         for i, h in enumerate([12, 14, 16, 18, 30, 17, 16, 15, 14, 13,
-                                12, 11, 5, 11, 12, 13, 14, 15, 16, 17,
-                                18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                                28, 29, 31, 32, 33, 34, 35, 36, 37, 38])]
+#: ⛔⛔ THE HIGH AND THE LOW MOVE INDEPENDENTLY, AND THE BODY IS NOT ALWAYS
+#: ZERO. Both halves are corrections the mutation sweep forced, and each was
+#: hiding a whole class of defect behind a green test:
+#:
+#:   ⚰️ `low = high - 2.0` put the low's extreme on the SAME BAR as the high's,
+#:      so `aroonDown` reading `high` was invisible -- and so was the PCF row
+#:      mapping `AROONDOWN` to `aroonUp`. Two mutations, no red test.
+#:   ⚰️ `open == close` on every bar made `(close - open) / (high - low)` zero
+#:      everywhere, so BOP was identically 0 and a SUM, a MEAN or a private
+#:      average all agreed. The whole `bop` section passed vacuously.
+#:
+#: So: `high` peaks at bar 4 and again at 22; `low` bottoms at bar 12 and again
+#: at 30 -- deliberately different bars -- and the body alternates sign with a
+#: magnitude that varies, so the ratio is a real series rather than a constant.
+def _shape():
+    highs = [12, 14, 16, 18, 30, 17, 16, 15, 14, 13,
+             12, 11, 13, 11, 12, 13, 14, 15, 16, 17,
+             18, 19, 31, 21, 22, 23, 24, 25, 26, 27,
+             28, 29, 20, 32, 33, 34, 35, 36, 37, 38]
+    lows = [8, 9, 10, 11, 12, 11, 10, 9, 8, 7,
+            6, 5, 1, 6, 7, 8, 9, 10, 11, 12,
+            13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+            2, 20, 15, 24, 25, 26, 27, 28, 29, 30]
+    rows = []
+    for i, (h, lo) in enumerate(zip(highs, lows)):
+        mid = (h + lo) / 2.0
+        # a body that changes sign and size, always inside the bar's range
+        # period 7, coprime with the 5-bar window under test: a period that
+        # DIVIDES the window averages to exactly zero and the column is constant
+        # again -- the same vacuity in a new disguise, caught on the first run.
+        body = ((i % 7) - 3) * (h - lo) / 8.0
+        o = mid - body / 2.0
+        c = mid + body / 2.0
+        rows.append((o, float(h), float(lo), c))
+    return rows
+
+
+SHAPE = _shape()
 BARS = bars_of(SHAPE)
+
+#: ⚠️ A MALFORMED BAR, ON PURPOSE AND NOWHERE NEAR THE MAIN FIXTURE. A bar
+#: whose range is zero while its body is not cannot occur in real data (`low`
+#: bounds `open` and `close`), so it is the ONLY way to reach `(c-o)/(h-l)` =
+#: +/-Infinity -- which is the one input where `bop`'s finite-collapse and the
+#: operator path could disagree. Hand-built because the claim in `_fn_bop`'s
+#: docstring is about that seam, and a claim with no reachable input is a
+#: claim nobody can check.
+DEGENERATE = bars_of([(10.0, 12.0, 8.0, 11.0),
+                      (11.0, 13.0, 9.0, 12.0),
+                      (12.0, 14.0, 10.0, 13.0),
+                      (13.0, 15.0, 15.0, 14.0),   # high == low, body != 0
+                      (14.0, 16.0, 12.0, 15.0),
+                      (15.0, 17.0, 13.0, 16.0),
+                      (16.0, 18.0, 14.0, 17.0),
+                      (17.0, 19.0, 15.0, 18.0)])
 
 
 def at(col, i):
@@ -234,6 +281,63 @@ def test_bop_equals_the_sma_of_the_published_ratio():
         if a is not None:
             assert a == pytest.approx(b, rel=1e-9), (i, a, b)
     assert sum(1 for v in declared if v is not None) >= 30
+
+
+def test_aroonUp_and_aroonDown_read_DIFFERENT_FIELDS_and_the_fixture_can_tell():
+    """⛔ THE MUTATION THAT SURVIVED THE FIRST FIXTURE. `aroonDown` reading
+    `high` produces a perfectly plausible 0-100 column, and on a series where
+    `low = high - 2` it produces the IDENTICAL column -- so nothing was red.
+
+    This asserts the two legs DISAGREE on this fixture, which is the property
+    that makes every other aroon case in this file able to fail. It also covers
+    the PCF row: `AROONDOWN` pointed at `aroonUp` is the same defect one layer up.
+    """
+    up = ast_interpret.interpret(CALL("aroonUp", NUM(10)), BARS, {})
+    down = ast_interpret.interpret(CALL("aroonDown", NUM(10)), BARS, {})
+    differing = [i for i in range(len(BARS))
+                 if at(up, i) is not None and at(up, i) != at(down, i)]
+    assert len(differing) >= 20, (len(differing), differing[:8])
+    # …and the extremes really do sit on different bars, which is WHY they differ.
+    highs = [b["h"] for b in BARS]
+    lows = [b["l"] for b in BARS]
+    assert highs.index(max(highs)) != lows.index(min(lows))
+
+
+def test_bop_is_a_REAL_SERIES_on_this_fixture_not_a_constant_zero():
+    """⛔ THE OTHER SURVIVOR. With `open == close` on every bar the ratio is 0
+    everywhere, so `bop` was identically zero and a rolling SUM, a rolling MEAN
+    and a private average were indistinguishable. This asserts the column varies
+    and takes both signs, which is what makes the equality case above load-bearing.
+    """
+    col = ast_interpret.interpret(CALL("bop", NUM(5)), BARS, {})
+    finite = [v for v in col if v is not None]
+    assert len(finite) >= 30, len(finite)
+    assert any(v > 0 for v in finite), finite[:8]
+    assert any(v < 0 for v in finite), finite[:8]
+    assert len(set(round(v, 9) for v in finite)) > 5, sorted(set(finite))[:6]
+
+
+def test_bop_matches_the_composition_even_on_a_bar_whose_RANGE_IS_ZERO():
+    """⛔ THE SEAM `_fn_bop`'s DOCSTRING CLAIMS, MEASURED. It says the ratio goes
+    through the same IEEE division and finite-collapse the operator path uses, so
+    a zero-range bar answers exactly what the composition answers. That claim is
+    only checkable on a bar real data cannot produce -- `low` bounds `open` and
+    `close`, so a zero range forces a zero body and the ratio is 0/0 either way.
+    `DEGENERATE` carries the malformed bar that reaches +/-Infinity instead."""
+    n = 3
+    declared = ast_interpret.interpret(CALL("bop", NUM(n)), DEGENERATE, {})
+    ratio = OP("/", OP("-", SER("close"), SER("open")),
+               OP("-", SER("high"), SER("low")))
+    composed = ast_interpret.interpret(CALL("sma", ratio, NUM(n)), DEGENERATE, {})
+    for i in range(len(DEGENERATE)):
+        a, b = at(declared, i), at(composed, i)
+        assert (a is None) == (b is None), (i, a, b)
+        if a is not None:
+            assert a == pytest.approx(b, rel=1e-9), (i, a, b)
+    # ⛔ AND THE DEGENERATE BAR REALLY IS UNCOMPUTABLE, so this is not a pair of
+    # all-finite columns agreeing for a trivial reason.
+    assert at(declared, 3) is None and at(declared, 4) is None
+    assert sum(1 for v in declared if v is not None) >= 2
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #
