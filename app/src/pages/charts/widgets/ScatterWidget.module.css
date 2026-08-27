@@ -1,0 +1,102 @@
+/* Market Map (scatter/bubble) widget. Chrome (.wrap/.toolbar/.live/.asof/.gear)
+   is REUSED from NewHighsLowsWidget.module.css; this file is the scatter stage,
+   the axis-title dropdowns, the universe/metric menus and the zoom controls. It
+   rides the same --nh-* / --widget-* token chain, so a chart theme themes it. */
+
+/* Toolbar universe pill — a ghost chip that names the current universe. */
+.uniBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 180px; height: 24px; padding: 0 9px;
+  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.16)));
+  border-radius: 7px;
+  background: transparent;
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s;
+}
+.uniBtn:hover { border-color: var(--ut-gold); background: rgba(255, 255, 255, 0.04); }
+.uniLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uniCount {
+  font-size: 10px; font-weight: 700; color: var(--nh-text, var(--text-muted));
+  font-variant-numeric: tabular-nums;
+}
+
+/* The scatter stage: the ECharts canvas fills it; the axis dropdowns + zoom
+   controls float on top. */
+.stage { position: relative; flex: 1; min-height: 0; }
+.chartWrap { position: absolute; inset: 0; }
+
+/* Axis-title dropdowns — the signature: you change the metric by clicking the
+   axis. X sits centered under the plot; Y sits rotated up the left edge. */
+.axisSel {
+  position: absolute; z-index: 3;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px;
+  border: 1px solid transparent;
+  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+  cursor: pointer; white-space: nowrap; transition: border-color .12s, background .12s, color .12s;
+}
+.axisSel:hover { border-color: var(--ut-gold); color: var(--ut-gold); background: rgba(255, 255, 255, 0.07); }
+.axisSel svg { opacity: 0.7; }
+.axisX { left: 50%; bottom: 4px; transform: translateX(-50%); }
+.axisY { left: 2px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+.axisSize {
+  position: absolute; z-index: 3; right: 8px; top: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid transparent;
+  background: var(--nh-elev, rgba(255, 255, 255, 0.04));
+  color: var(--nh-text, var(--text-muted));
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; letter-spacing: 0.2px;
+  cursor: pointer; white-space: nowrap;
+}
+.axisSize:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* Zoom controls — a compact vertical stack, bottom-right, our own styling. */
+.zoom {
+  position: absolute; z-index: 3; right: 8px; bottom: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.zoomBtn {
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  border-radius: 6px; background: var(--nh-elev, rgba(16, 18, 22, 0.72));
+  color: var(--nh-sym, var(--text-bright)); cursor: pointer;
+  font-size: 15px; line-height: 1; font-weight: 600;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.zoomBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
+/* ── Shared dropdown menu (universe + metric pickers), portaled to <body> ── */
+.menu {
+  position: fixed; z-index: 4200;
+  min-width: 190px; max-width: 260px; max-height: 62vh; overflow-y: auto;
+  padding: 5px; border-radius: 10px;
+  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
+  background: var(--menu-bg, var(--nh-elev, #14171d));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  scrollbar-width: thin;
+}
+.menuGroup { padding-top: 3px; }
+.menuGroupLabel {
+  padding: 6px 8px 3px; font-size: 9px; letter-spacing: 0.09em; font-weight: 700;
+  text-transform: uppercase; color: var(--nh-text, var(--text-muted)); opacity: 0.7;
+}
+.menuItem {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 28px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 12px; text-align: left; cursor: pointer;
+}
+.menuItem:hover { background: var(--menu-hover, var(--nh-hover, rgba(255, 255, 255, 0.07))); }
+.menuItemOn { color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.menuItemLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menuItemHint { font-size: 9px; color: var(--nh-text, var(--text-muted)); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; }
+.menuDot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+
+.hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 16px; text-align: center; font-size: 12px;
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
+}
