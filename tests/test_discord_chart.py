@@ -1353,7 +1353,9 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
     from api.services import discord_interactions as di
     monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
-    rows = di.chart_components(di.ChartRequest("NVDA", "15"), {**di.prefs_mod.DEFAULTS})
+    # expanded=True: this test is about the FULL control surface. A chart posts
+    # collapsed now (one row + a gear) - that shape has its own test below.
+    rows = di.chart_components(di.ChartRequest("NVDA", "15", expanded=True), {**di.prefs_mod.DEFAULTS})
     # THREE rows, not five: the owner called the five-row stack "mega clunky…
     # it really takes up a lot of space", so Zoom + Indicators + Look became one
     # dropdown (23 options, inside Discord's 25) with the state in its placeholder.
@@ -1384,17 +1386,19 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
     picked = di.parse_component({"data": {"custom_id": sel["custom_id"], "values": ["style:line"]}})
     assert picked.style == "line" and picked.theme == "house"
     row5 = rows[1]["components"]
-    assert [b["label"] for b in row5] == ["MAs: House", "Volume off"]   # intraday: no pan, no link button
+    assert [b["label"] for b in row5[:2]] == ["MAs: House", "Volume off"]   # intraday: no pan, no link button
+    assert row5[-1]["emoji"]["name"] == "▲" and len(row5) == 3         # ...and the control that closes it all
     assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).mas == "10-20-50"
     assert di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}}).volume is False
     # daily: pan buttons, Later disabled while live, Earlier steps back a window
-    rows = di.chart_components(di.ChartRequest("NVDA", "D", mas="off", volume=False), {**di.prefs_mod.DEFAULTS})
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", mas="off", volume=False, expanded=True),
+                               {**di.prefs_mod.DEFAULTS})
     row5 = rows[1]["components"]
-    assert [b["label"] for b in row5] == ["◀ Earlier", "Later ▶", "MAs: off", "Volume on"]
+    assert [b["label"] for b in row5[:4]] == ["◀ Earlier", "Later ▶", "MAs: off", "Volume on"]
     assert row5[1]["disabled"] is True
     earlier = di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}})
     assert earlier.to is not None and earlier.tf == "D"
-    rows = di.chart_components(di.ChartRequest("NVDA", "D", to="2026-05-15"), {**di.prefs_mod.DEFAULTS})
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", to="2026-05-15", expanded=True), {**di.prefs_mod.DEFAULTS})
     row5 = rows[1]["components"]
     assert row5[1].get("disabled") is False
     assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).to < "2026-05-15"
@@ -1535,9 +1539,10 @@ def test_breadth_adjust_makes_the_daily_basis_explicit_and_names_the_metric():
     assert req.tf == "W"                                                    # weekly stays weekly
     req, prefs = breadth_adjust(di.ChartRequest("NVDA", "15"), {**p.DEFAULTS, "stats": True})
     assert req == di.ChartRequest("NVDA", "15") and prefs["stats"] is True   # a stock passes through untouched
-    rows = di.chart_components(req.__class__("UCTA5", "D", daily_only=True), dict(p.DEFAULTS))
+    rows = di.chart_components(req.__class__("UCTA5", "D", daily_only=True, expanded=True), dict(p.DEFAULTS))
     assert [b["label"] for b in rows[0]["components"]] == ["D", "W"]         # no intraday buttons for a daily series
-    assert [b["label"] for b in di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
+    stock = di.chart_components(di.ChartRequest("NVDA", "D", expanded=True), dict(p.DEFAULTS))
+    assert [b["label"] for b in stock[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
 
 
 def test_endpoint_routes_a_breadth_symbol_as_daily_with_its_name(monkeypatch):
@@ -1665,8 +1670,8 @@ def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch
     monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
     client, rt = _app_client()
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("a save must not render"))
-    rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi", style="line", theme="oled"),
-                               dict(p.DEFAULTS))
+    rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi",
+                                               style="line", theme="oled", expanded=True), dict(p.DEFAULTS))
     look = rows[-1]["components"][0]        # the one options dropdown
     assert [o["value"] for o in look["options"][-2:]] == [di.SAVE_VALUE, di.HELP_VALUE]
     assert not any(o.get("default") for o in look["options"][-2:])
@@ -1952,7 +1957,7 @@ def test_no_control_id_can_exceed_discords_100_char_limit_even_at_the_worst_case
     req = di.ChartRequest(worst_ticker, "60", mas=longest(p.MA_CHOICES), volume=True,
                           zoom=longest(p.ZOOM_CHOICES), indicators=longest(p.INDICATOR_CHOICES),
                           style=longest(p.STYLE_CHOICES), theme=longest(p.THEME_CHOICES),
-                          to="2026-12-31", compare=tuple(cmp_syms))
+                          to="2026-12-31", compare=tuple(cmp_syms), expanded=True)
     ids = [c["custom_id"] for row in di.chart_components(req, dict(p.DEFAULTS))
            for c in row["components"] if "custom_id" in c]
     assert ids
@@ -2041,7 +2046,7 @@ def test_a_save_on_a_message_with_no_attachment_declares_none_and_still_confirms
     client, rt = _app_client()
     sent = []
     monkeypatch.setattr(rt.di, "followup_ephemeral", lambda app_id, token, content: sent.append(content) or True)
-    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[-1]["components"][0]
+    look = di.chart_components(di.ChartRequest("NVDA", "D", expanded=True), dict(p.DEFAULTS))[-1]["components"][0]
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4343"}},
              "message": {"id": "m1", "content": "NVDA · Daily"},          # no attachments key at all
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
@@ -2570,7 +2575,7 @@ def test_the_help_pick_explains_the_controls_without_touching_the_chart(monkeypa
     sent = []
     monkeypatch.setattr(rt.di, "followup_ephemeral", lambda a, b, content: sent.append(content) or True)
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("help must not re-render"))
-    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[-1]["components"][0]
+    look = di.chart_components(di.ChartRequest("NVDA", "D", expanded=True), dict(p.DEFAULTS))[-1]["components"][0]
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "808"}},
              "message": {"id": "m1", "content": "NVDA · Daily", "attachments": [{"id": "42"}]},
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.HELP_VALUE]}}
@@ -2650,3 +2655,101 @@ def test_a_refused_attachment_tells_the_member_why_instead_of_hanging():
     # a different 4xx is not blamed on permissions
     assert attachment_refused_note('{"code": 50035}') == ""
     assert "too large" in attachment_refused_note('{"code": 40005}').lower()
+
+
+# ── option 3: a posted chart is ONE row ──
+
+def test_a_posted_chart_is_one_row_and_the_gear_opens_the_rest(monkeypatch):
+    """Owner, looking at a chart in the member server: "this looks mega clunky and
+    really clogs up a decent portion of channels... anyway to make those parts more
+    compact" -> of the three shapes offered, "I like options 3 the best", the most
+    compact. A chart is now the image plus ONE row; the gear opens everything."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
+    rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))
+    assert len(rows) == 1, "a chart in a busy channel is one row"
+    row = rows[0]["components"]
+    assert [b.get("label") for b in row[:-1]] == ["D", "W", "60m", "5m"]
+    assert row[0]["style"] == 1 and row[-1]["emoji"]["name"] == "⚙️"
+    assert "label" not in row[-1], "the gear is an icon; a label would cost width"
+    assert all(len(b["custom_id"]) <= di.CUSTOM_ID_MAX for b in row)
+
+    # the gear opens the full surface, carrying every chart setting untouched
+    opened = di.parse_component({"data": {"custom_id": row[-1]["custom_id"]}})
+    assert opened.expanded is True
+    assert (opened.ticker, opened.tf, opened.mas, opened.zoom) == ("NVDA", "D", "house", "auto")
+    full = di.chart_components(opened, dict(p.DEFAULTS))
+    assert len(full) == 3 and [b["label"] for b in full[0]["components"]] == ["D", "W", "60m", "15m", "5m"]
+
+    # ...and the collapse control closes it again, back to the one row
+    back = di.parse_component({"data": {"custom_id": full[1]["components"][-1]["custom_id"]}})
+    assert back.expanded is False and back.tf == "D"
+    assert len(di.chart_components(back, dict(p.DEFAULTS))) == 1
+
+    # a timeframe pressed while closed STAYS closed - opening is a deliberate act
+    fifteen = di.parse_component({"data": {"custom_id": full[0]["components"][3]["custom_id"]}})
+    assert fifteen.tf == "15" and fifteen.expanded is True
+    closed_5m = di.parse_component({"data": {"custom_id": row[3]["custom_id"]}})
+    assert closed_5m.tf == "5" and closed_5m.expanded is False
+
+
+def test_the_closed_row_always_shows_the_timeframe_the_chart_is_actually_on():
+    """15m gives up its slot to the gear when closed. It must not vanish while it
+    is the timeframe being VIEWED - a member on 15m would otherwise see four
+    buttons, none of them lit, and no way to tell what they were looking at."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    row = di.chart_components(di.ChartRequest("NVDA", "15"), dict(p.DEFAULTS))[0]["components"]
+    assert [b.get("label") for b in row[:-1]] == ["D", "W", "60m", "15m"]
+    lit = [b for b in row if b.get("style") == 1]
+    assert len(lit) == 1 and lit[0]["label"] == "15m"
+    assert di.parse_component({"data": {"custom_id": lit[0]["custom_id"]}}).tf == "15"
+    # every closed row lights exactly the timeframe in play, and always offers the gear
+    for tf in ("D", "W", "60", "15", "5"):
+        r = di.chart_components(di.ChartRequest("NVDA", tf), dict(p.DEFAULTS))[0]["components"]
+        assert [b.get("style") for b in r].count(1) == 1, tf
+        assert r[-1]["emoji"]["name"] == "⚙️" and len(r) <= 5
+    # breadth keeps its two timeframes plus the gear
+    b = di.chart_components(di.ChartRequest("UCTA5", "D", daily_only=True), dict(p.DEFAULTS))[0]["components"]
+    assert [x.get("label") for x in b[:-1]] == ["D", "W"] and len(b) == 3
+
+
+def test_the_collapse_control_survives_a_full_toggle_row(monkeypatch):
+    """In an activity guild the toggle row already holds five buttons. The collapse
+    control takes a row of its own there rather than being truncated off - dropping
+    it would strand the member in the expanded view with no way back."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "1524909611054792786")
+    rows = di.chart_components(di.ChartRequest("NVDA", "D", expanded=True), dict(p.DEFAULTS),
+                               guild_id="1524909611054792786")
+    assert all(len(r["components"]) <= 5 for r in rows) and len(rows) <= 5
+    buttons = [c for r in rows for c in r["components"] if c["type"] == 2]
+    collapse = [b for b in buttons if b.get("emoji", {}).get("name") == "▲"]
+    assert len(collapse) == 1, "the way back must exist exactly once"
+    assert di.parse_component({"data": {"custom_id": collapse[0]["custom_id"]}}).expanded is False
+    assert "Open in Discord" in [b.get("label") for b in buttons]     # ...and nothing was displaced
+
+
+def test_an_id_minted_before_the_gear_still_parses():
+    """A chart posted before this deploy carries 11-field ids. Those messages keep
+    working - the missing field reads as "closed", which is the new default."""
+    from api.services import discord_interactions as di
+    P = di.STATE_PREFIX
+    old = f"{P}|NVDA|D|house|1|auto|none|candles|house||SPY+QQQ|t"     # 11 fields + tag
+    req = di.parse_component({"data": {"custom_id": old}})
+    assert (req.ticker, req.tf, req.volume, req.compare, req.expanded) == ("NVDA", "D", True, ("SPY", "QQQ"), False)
+    older = f"{P}|NVDA|W|off|0|1y|rsi|line|oled|2026-05-15|t"          # pre-compare, 10 fields + tag
+    req = di.parse_component({"data": {"custom_id": older}})
+    assert (req.tf, req.mas, req.volume, req.zoom, req.to, req.compare, req.expanded) == \
+        ("W", "off", False, "1y", "2026-05-15", None, False)
+    # the flags digit is the ONLY thing that changed shape: 2 and 3 are the new
+    # values, and they carry volume exactly as 0 and 1 always did
+    for flags, (vol, exp) in {"0": (False, False), "1": (True, False),
+                              "2": (False, True), "3": (True, True)}.items():
+        r = di.parse_component({"data": {"custom_id": f"{P}|NVDA|D|house|{flags}|auto|none|candles|house|||t"}})
+        assert (r.volume, r.expanded) == (vol, exp), flags
+    for bad in ("4", "9", "x", "-1", ""):
+        with pytest.raises(di.CommandError):
+            di.parse_component({"data": {"custom_id": f"{P}|NVDA|D|house|{bad}|auto|none|candles|house|||t"}})
+    # and an id is no LONGER than it was before the gear existed - the flag is a
+    # spare bit, not a field, so it never eats into the compare budget
+    assert di.compare_budget("NVDA") >= len("+".join(["BBBB0"] * di.COMPARE_MAX))

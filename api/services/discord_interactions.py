@@ -163,6 +163,7 @@ class ChartRequest:
     indicators: str | None = None  # per-call lower-pane indicators (prefs key)
     to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
     compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
+    expanded: bool = False       # controls opened out? (the gear; a display state, not a chart one)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
@@ -360,6 +361,9 @@ SAVE_VALUE = "save"              # the Look dropdown's "save these as my default
 HELP_VALUE = "help"              # …and its "how do these work?" pick
 SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"   # retired; older messages still parse
 SELECT_OPTS = "opt"              # the one dropdown that replaced those three
+# The timeframes that keep a button when the controls are closed. One slot goes
+# to the gear, so this is four of the five; expanding shows them all.
+COLLAPSED_TFS = ("D", "W", "60", "5")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Calendar days one "Earlier"/"Later" step moves the window, per zoom.
 _PAN_DAYS_D = {"auto": 95, "1m": 31, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
@@ -380,6 +384,7 @@ def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
         "theme": req.theme if req.theme is not None else p["theme"],
         "to": req.to or "",
         "cmp": "+".join(req.compare) if req.compare else "",
+        "exp": "1" if req.expanded else "0",
     }
 
 
@@ -390,7 +395,8 @@ def _encode(st: dict, tag: str = "") -> str:
     # active timeframe button and a disabled "Later" both mean "this chart").
     # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
     # minted before it (one field shorter) still parse - see parse_component.
-    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], "1" if st["vol"] else "0",
+    flags = (1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], str(flags),
                      st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
 
 
@@ -413,17 +419,20 @@ def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
     st = {"ticker": ticker, "tf": tf, "mas": mas, "vol": bool(volume),
           "zoom": rest.get("zoom", "auto"), "ind": rest.get("ind", "none"),
           "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", ""),
-          "cmp": rest.get("cmp", "")}
+          "cmp": rest.get("cmp", ""), "exp": rest.get("exp", "0")}
     return _encode(st)
 
 
 def _request_from_state(parts: list) -> ChartRequest:
-    """10 fields (ids minted before the compare overlay) or 11 (with it)."""
+    """10 fields (ids minted before the compare overlay) or 11 (with it). The
+    fifth field is a FLAGS digit - bit 0 volume, bit 1 controls-open - so "0"
+    and "1" from an older id still mean what they meant, with the gear closed."""
+    parts = list(parts)
     if len(parts) == 10:
-        parts = list(parts) + [""]
-    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts
+        parts = parts + [""]
+    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts[:11]
     ticker = ticker.strip().upper()
-    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1")
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1", "2", "3")
           and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
           and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
           and (to == "" or _DATE_RE.match(to)))
@@ -433,8 +442,9 @@ def _request_from_state(parts: list) -> ChartRequest:
         compare = parse_compare(cmp, ticker) if cmp else None
     except CommandError:
         raise CommandError("Unknown button.")
-    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"), zoom=zoom, indicators=ind,
-                        style=style, theme=theme, to=to or None, compare=compare)
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=bool(int(vol) & 1), zoom=zoom, indicators=ind,
+                        style=style, theme=theme, to=to or None, compare=compare,
+                        expanded=bool(int(vol) & 2))
 
 
 def component_kind(interaction: dict) -> str:
@@ -501,7 +511,8 @@ def chart_help_text() -> str:
     can do that a member would otherwise have to be told about."""
     return "\n".join([
         "**The chart you're looking at**",
-        "\u2022 The five buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
+        "\u2022 \u2699\ufe0f opens the rest of the controls; \u25b2 closes them again.",
+        "\u2022 The buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
         "\u2022 **Zoom** sets how much history is in frame. **Indicators** adds RSI or MACD underneath.",
         "\u2022 **Look** changes the candle style or the theme - and saves the whole lot as your defaults.",
         "",
@@ -564,7 +575,30 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     Discord's ceiling: timeframes · Zoom · Indicators · Look · pan/MAs/volume."""
     st = _state_of(req, prefs)
     sid = lambda tag="", **changes: _encode({**st, **changes}, tag)  # noqa: E731
+    # ⭐ CLOSED BY DEFAULT — ONE ROW. Owner, 2026-08-26, after the five-row stack
+    # was cut to three: "I like option 3 the best" - the most compact of the
+    # three shapes offered. A chart in a busy channel is now the image plus a
+    # single row; the gear opens the full surface for the member who wants it,
+    # and the open/closed state rides in the ids so it survives every click.
+    #
+    # Six buttons do not fit a row of five, so ONE timeframe gives up its slot
+    # when closed: 15m, because 5m and 60m carry the intraday work. It is one
+    # entry in COLLAPSED_TFS to change, and expanding shows every timeframe.
     tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
+    if not st["exp"] == "1":
+        closed = [(tf, label) for tf, label in tf_choices if tf in COLLAPSED_TFS]
+        row = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
+                "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+               for tf, label in closed]
+        # …and if the chart is ON the timeframe that lost its slot, it keeps one
+        # so the member can still see which timeframe they are looking at.
+        if st["tf"] not in COLLAPSED_TFS:
+            row = row[:len(row) - 1] + [{"type": 2, "style": _STYLE_PRIMARY,
+                                         "label": dict(BUTTON_TFS).get(st["tf"], st["tf"]),
+                                         "custom_id": sid("t", tf=st["tf"])}]
+        row.append({"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u2699\ufe0f"},
+                    "custom_id": sid("g", exp="1")})
+        return [{"type": 1, "components": row}]
     tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
             "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
            for tf, label in tf_choices]
@@ -617,9 +651,22 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     # Discord wrapped it onto a line of its own in a normal-width channel, so a
     # link to the site cost a whole row of the member's screen. The help pick
     # names the site instead.
-    return [{"type": 1, "components": tfs},
-            {"type": 1, "components": row5},
-            {"type": 1, "components": [opts_sel]}]
+    # open: the gear closes it again, in the slot the link button used to hold.
+    # \u26d4 It gets a row of its OWN rather than being truncated away when the
+    # toggle row is already full (an activity guild spends the fifth slot on
+    # "Open in Discord") - dropping it silently would strand the member in the
+    # expanded view with no way back to the one-row chart.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+                "custom_id": sid("g", exp="0")}
+    rows = [{"type": 1, "components": tfs}]
+    if len(row5) < 5:
+        row5.append(collapse)
+        rows.append({"type": 1, "components": row5})
+    else:
+        rows.append({"type": 1, "components": row5[:5]})
+        rows.append({"type": 1, "components": [collapse]})
+    rows.append({"type": 1, "components": [opts_sel]})
+    return rows
 
 
 MULTI_PREFIX = "m2"              # /charts timeframe row: m2|SYM+SYM+SYM|tf
