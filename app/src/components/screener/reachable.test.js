@@ -453,9 +453,39 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     expect(after.has(path.join(SCREENER_DIR, 'ScanResults.jsx')),
       'cutting the mount left ScanResults reachable, so this rail cannot see a '
       + 'severed wire and every assertion above is decoration').toBe(false)
+    // ⚠️ COVERAGE LINE HAS TWO DOORS SINCE W5a.7, and this control measured it on
+    // the day that changed. `EvidenceTab` renders `CoverageLine` (the symbol
+    // coverage on a backtest receipt) and `BuilderSheet` now mounts `EvidenceTab`,
+    // so `BuilderSheet → EvidenceTab → CoverageLine` reaches it independently of
+    // this mount. The premise this assertion was written on — "reached only
+    // through ScanResults" — was true then and is false now, so asserting it would
+    // go red for a CORRECT graph. It is replaced, not deleted.
     expect(after.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
-      'CoverageLine is reached only through ScanResults; cutting the mount must '
-      + 'take it with it').toBe(false)
+      'CoverageLine should still be reachable through the builder door — if this is '
+      + 'false that door is gone and the stronger check below is measuring one edge')
+      .toBe(true)
+
+    // ⭐ AND TRANSITIVITY IS STILL PROVEN — by cutting EVERY door rather than
+    // assuming there is one. This is the form that does not go stale the next time
+    // a shared component gains a second importer: the previous assertion encoded a
+    // door COUNT, which is exactly the kind of hand-held fact this file exists to
+    // stop trusting.
+    const builder = path.join(SRC, 'components', 'chart', 'builder', 'BuilderSheet.jsx')
+    const bsrc = read(builder)
+    const EV_IMPORT = "import EvidenceTab from './EvidenceTab'\n"
+    expect(bsrc.includes(EV_IMPORT),
+      `the builder's Evidence import moved — this control cannot cut a wire it `
+      + `cannot find in ${key(builder)}`).toBe(true)
+    const bothCut = reachableFrom(ROOTS, new Map([
+      [manager, cut], [builder, bsrc.replace(EV_IMPORT, '')],
+    ]))
+    expect(bothCut.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
+      'with BOTH doors cut CoverageLine must fall out — otherwise this walk is not '
+      + 'propagating unreachability downstream at all and every assertion above is '
+      + 'decoration').toBe(false)
+    expect(bothCut.has(path.join(SRC, 'components', 'chart', 'builder', 'EvidenceTab.jsx')),
+      'with both doors cut EvidenceTab must fall out too — it has exactly these two '
+      + 'importers, which `EvidenceTab.doors.test.js` derives and pins').toBe(false)
   }, 60000)
 
   it('THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page', () => {
