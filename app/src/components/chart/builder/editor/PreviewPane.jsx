@@ -136,8 +136,14 @@ export default function PreviewPane({ sym = null, tf = null, settings = null, de
     // `non-repainting`, and refuses. Before this line
     // `listUserDefinitions()` answered `['u_editor-preview']` holding
     // `sma(close, 20) + period` — a definition naming an input the member no
-    // longer has. `PreviewPane.test.jsx`'s fourth discriminator is that
-    // sequence.
+    // longer has.
+    //
+    // ⚠️ `PreviewPane.test.jsx`'s fourth discriminator reaches the SAME refusal
+    // by the shorter route (a document whose `meta.repaint` disagrees with what
+    // the linter measures, handed to the pane after a good one). The rename is
+    // how a MEMBER gets there; the badge is what the DOOR refuses on. Do not
+    // read the case as a reproduction of the rename — it is a reproduction of
+    // the refusal.
     engineRegistry.uninstallUserDefinition(PREVIEW_DEF_ID)
     setInstalled(null)
     return undefined
