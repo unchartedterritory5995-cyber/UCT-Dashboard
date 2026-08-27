@@ -54,6 +54,11 @@ _CALL = "call"
 #: ⭐ THE BOUNDED BACKWARD OFFSET. It changes *when* a value is read and never
 #: *what* it is, so its result kind is its child's — see ``yields_bool``.
 _OFFSET = "offset"
+#: ⚠️ A HIGHER-TIMEFRAME READ. Declared here because this module BRANCHES on it
+#: — `test_the_node_types_this_module_branches_on_ARE_the_declared_ones` asserts
+#: this set equals `ast_interpret.NODE_TYPES`, and it is what caught `tf` being
+#: added to the engine while the classifier below still knew five types.
+_TF = "tf"
 
 #: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
 #: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
@@ -185,6 +190,23 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             # declaration of the name `None`, settle to `num`, and quietly refuse
             # every offset condition at the `yields` gate — a screen that says
             # "this formula is not a filter" about a formula that plainly is.
+            children = list(node.get("args") or [])
+            kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
+                               else _KIND_NUM)
+            continue
+        if node_type == _TF:
+            # ⭐ A TIMEFRAME CHANGES *WHICH PERIOD*, NEVER *WHAT*, so the kind
+            # passes through from the child exactly as an offset's does.
+            # `tf(close > open, 'W')` is the same yes/no, read on the last CLOSED
+            # week — a perfectly good screen.
+            # ⛔⛔ AND WITHOUT THIS ARM IT FELL TO THE LOOKUP BELOW, which is the
+            # trap the comment directly above already spells out: a `tf` node has
+            # no `name` (its canonical keys are type/value/args), so the table
+            # would be asked to declare `None`, settle to `num`, and the `yields`
+            # gate would tell a member *"this formula is not a filter"* about a
+            # weekly condition that plainly is. The node type was added to the
+            # engine and this classifier was not taught it; the branch census
+            # rail is what said so, not a bug report from a member.
             children = list(node.get("args") or [])
             kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
                                else _KIND_NUM)

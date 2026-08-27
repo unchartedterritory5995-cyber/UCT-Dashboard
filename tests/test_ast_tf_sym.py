@@ -195,3 +195,101 @@ def test_an_UNDECLARED_timeframe_code_is_refused_and_the_legal_set_is_LISTED():
     with pytest.raises(ast_interpret.TableRefusal) as exc:
         ast_interpret.interpret(_tf("fortnightly", CLOSE), _bars())
     assert "fortnightly" in str(exc.value)
+
+
+# ─── the two gates must refuse the SAME set ─────────────────────────────
+
+#: Every code worth asking about: the two that resample, the ones on the ladder
+#: that cannot, and spellings that are not on it at all.
+_TF_CODES = ("W", "M", "D", "60", "30", "15", "5", "1", "3M", "w", "", "Q", "fortnightly")
+
+
+@pytest.mark.parametrize("code", _TF_CODES)
+def test_max_lookback_and_interpret_refuse_THE_SAME_timeframes(code):
+    """⛔⛔ THE GATE THAT RUNS AND THE GATE THAT ANSWERS MUST AGREE.
+
+    ``assert_scannable`` runs ``max_lookback``; it never runs ``interpret``. So
+    while ``max_lookback``'s ``tf`` arm defaulted an unknown code to span 1
+    instead of refusing, ``tf(close, '60')`` was stamped **scannable: true** on a
+    member's saved-scan list — and then every row of the sweep refused at
+    ``interpret:timeframe``. The member is told the scan will run; it answers
+    nothing, for every symbol, forever, and the coverage receipt reads as a quiet
+    universe rather than a formula this engine declined.
+
+    ⭐ THIS ASSERTS AGREEMENT, NOT A LIST. A rail that retyped the legal set would
+    be the third authority over the same value — the defect one layer up. It asks
+    both gates the same question and requires the same answer, so ``TF_RESAMPLABLE``
+    can grow tomorrow without touching this file
+    (`lesson_a_second_authority_over_one_value`).
+    """
+    tree = _tf(code, CLOSE)
+
+    def refuses(fn):
+        try:
+            fn()
+        except ast_interpret.TableRefusal:
+            return True
+        return False
+
+    lookback_refused = refuses(lambda: ast_interpret.max_lookback(tree))
+    interpret_refused = refuses(
+        lambda: ast_interpret.interpret(tree, _bars(), opts={"tf": "D"}))
+
+    assert lookback_refused == interpret_refused, (
+        "max_lookback and interpret disagree about %r: max_lookback %s, interpret %s. "
+        "The gate that runs before the sweep and the gate that answers inside it "
+        "must refuse the same set, or a definition is accepted and then fails "
+        "every symbol." % (code,
+                           "refused" if lookback_refused else "ACCEPTED",
+                           "refused" if interpret_refused else "ACCEPTED"))
+
+
+def test_and_the_agreement_is_NOT_vacuous_it_accepts_and_refuses_within_the_set():
+    """⭐ THE CONTROL. The parametrised test above is satisfied by two gates that
+    refuse EVERYTHING, which would be a total engine and a useless one. This pins
+    that the shared answer actually discriminates — W and M through, the rest out
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`)."""
+    accepted, refused = [], []
+    for code in _TF_CODES:
+        try:
+            ast_interpret.max_lookback(_tf(code, CLOSE))
+            accepted.append(code)
+        except ast_interpret.TableRefusal:
+            refused.append(code)
+    assert accepted, "both gates refuse every timeframe — the agreement is vacuous"
+    assert refused, "both gates accept every timeframe — the guard is gone"
+    assert set(accepted) == set(ast_interpret.TF_RESAMPLABLE), (
+        "the set that survives max_lookback is not TF_RESAMPLABLE: %r" % (accepted,))
+
+
+def test_a_timeframe_the_engine_cannot_resample_is_NOT_stamped_scannable():
+    """⛔ THE MEMBER-VISIBLE SYMPTOM, pinned at the surface that shows it.
+
+    ``user_definitions.list_definitions`` stamps each row with
+    ``scannable`` / ``scan_refusal`` straight off ``assert_scannable``. This is
+    the assertion that a scan which cannot answer is never advertised as one that
+    can — the thing the split gate got wrong.
+    """
+    from api.services import scan_definition
+
+    def stamp(code, fn):
+        tree = {"type": "op", "name": ">", "args": [CLOSE, _tf(code, CLOSE)]}
+        definition = {"compute": {"kind": "ast", "ast": tree, "fn": fn,
+                                  "trees": {"p": tree}, "scanPlot": "p"}}
+        try:
+            scan_definition.assert_scannable(definition)
+            return None
+        except scan_definition.ScanRefused as exc:
+            return str(exc)
+
+    # ⚠️ The hashes are the JS lane's, for `close > tf(close, <code>)`. They are
+    # literals because `astHash` lives in `parse.js` and this lane must not grow a
+    # second implementation of it to write a test.
+    ok = stamp("W", "sha256:c9ee0b6981cad5d362021c91152ba31a133baeb8fdd196df496c8e98d055bf12")
+    assert ok is None, "the CONTROL failed: a weekly read must stay scannable (%s)" % (ok,)
+
+    bad = stamp("60", "sha256:f41aee20b26feb6be54d19447d02ef1a4d0834247a17cb3a3efc558ec01cc247")
+    assert bad is not None, (
+        "tf(close, '60') was stamped scannable, but interpret refuses every row of it")
+    assert "60" in bad, "the refusal must name the timeframe the member typed; got %r" % (bad,)
+

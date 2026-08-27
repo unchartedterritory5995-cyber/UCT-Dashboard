@@ -419,7 +419,7 @@ def test_the_node_types_this_module_branches_on_ARE_the_declared_ones():
     engineer reads in a failure report."""
     branched = (scan_definition._NUM, scan_definition._SERIES,
                 scan_definition._OP, scan_definition._CALL,
-                scan_definition._OFFSET)
+                scan_definition._OFFSET, scan_definition._TF)
     assert set(branched) == set(ast_interpret.NODE_TYPES)
     assert len(set(branched)) == len(ast_interpret.NODE_TYPES)
     assert set(branched) == set(user_definitions.NODE_TYPES)
@@ -522,3 +522,61 @@ def test_the_symbols_E2_CONSUMES_exist_and_fail_BY_NAME_if_they_moved():
         assert not undeclared, (
             f"{section} entries {undeclared} carry no `yields`; E-1 owns that "
             "declaration and E-2 derives from it — it does not hand-list.")
+
+
+# ─── a HIGHER-TIMEFRAME condition is still a condition ───────────────────
+
+_CLOSE = {"type": "series", "name": "close"}
+_OPEN = {"type": "series", "name": "open"}
+_COND = {"type": "op", "name": ">", "args": [_CLOSE, _OPEN]}
+
+
+def test_a_weekly_CONDITION_is_a_filter_and_a_weekly_PRICE_is_not():
+    """⭐ A TIMEFRAME CHANGES *WHICH PERIOD*, NEVER *WHAT*.
+
+    ⛔⛔ THE `tf` NODE WALKED STRAIGHT INTO THE TRAP `_OFFSET`'S OWN COMMENT
+    DESCRIBES. A `tf` node's canonical keys are type/value/args — it has no
+    `name` — so with no branch of its own it fell to the table lookup, which was
+    asked to declare `None`, settled to `num`, and made the `yields` gate tell a
+    member *"this formula is not a filter"* about `tf(close > open, 'W')`, which
+    plainly is one. Exactly the sentence written one branch above, reproduced by
+    the next node type to arrive.
+
+    ⚠️ NOBODY REPORTED THIS. The branch census
+    (`test_the_node_types_this_module_branches_on_ARE_the_declared_ones`) is what
+    said so, by comparing this module's branch set against
+    `ast_interpret.NODE_TYPES` — a rail that fails the moment the ENGINE learns a
+    node type this classifier has not been taught, rather than when a member
+    finally tries one.
+
+    ⭐ AND THE SECOND ASSERTION IS THE CONTROL, not decoration: passing the child's
+    kind through must not collapse into “a tf is always a filter”. A weekly CLOSE
+    is a number and must stay refused as a screen, or the gate would admit a
+    formula that hands back a price where a yes/no belongs.
+    """
+    weekly_condition = {"type": "tf", "value": "W", "args": [_COND]}
+    assert scan_definition.is_boolean_tree(weekly_condition, None) is True, (
+        "tf(close > open, 'W') is a yes/no read on the last closed week — a filter")
+
+    weekly_price = {"type": "tf", "value": "W", "args": [_CLOSE]}
+    assert scan_definition.is_boolean_tree(weekly_price, None) is False, (
+        "tf(close, 'W') is a PRICE; classifying it as a filter would let a screen "
+        "hand back a number where a condition belongs")
+
+
+def test_the_weekly_passthrough_matches_the_offset_passthrough_it_was_modelled_on():
+    """⛔ THE TWO WHEN-CHANGING NODES MUST CLASSIFY ALIKE.
+
+    `offset` and `tf` both answer “the same thing, at another time”, so any tree
+    is the same KIND wrapped in either. Asserting the agreement rather than the
+    values means the day one of them changes, this fails instead of silently
+    letting the pair drift (`lesson_rail_the_mirror_not_just_the_lane`, applied
+    inside a single lane)."""
+    for child, label in ((_COND, "a condition"), (_CLOSE, "a price")):
+        offset_kind = scan_definition.is_boolean_tree(
+            {"type": "offset", "value": 1, "args": [child]}, None)
+        tf_kind = scan_definition.is_boolean_tree(
+            {"type": "tf", "value": "W", "args": [child]}, None)
+        assert offset_kind == tf_kind, (
+            "offset and tf disagree about %s: offset=%s tf=%s" % (label, offset_kind, tf_kind))
+
