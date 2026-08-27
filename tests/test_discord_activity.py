@@ -29,11 +29,13 @@ def test_handoff_store_keeps_the_newest_per_channel_and_expires():
 def test_open_in_discord_button_only_in_activity_guilds_and_it_launches(monkeypatch):
     from api.services import discord_interactions as di
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "1524909611054792786")
-    last = lambda rows: rows[-1]["components"]  # noqa: E731
+    # every BUTTON in the message; the merged options dropdown is its own row now
+    last = lambda rows: [c for r in rows for c in r["components"] if c["type"] == 2]  # noqa: E731
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS), guild_id="1524909611054792786")
     assert last(rows)[-1]["label"] == "Open in Discord" and last(rows)[-1]["custom_id"] == "activity|NVDA|D|house|1"
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS), guild_id="882293203485720596")
     assert "Open in Discord" not in [b["label"] for b in last(rows)]   # members' server: not until verified
+    assert not any(b.get("url") for b in last(rows)), "the link button was retired for vertical space"
     rows = di.chart_components(di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS))
     assert "Open in Discord" not in [b["label"] for b in last(rows)]
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
@@ -84,7 +86,7 @@ def test_chart_reply_components_carry_the_guild_so_the_launch_button_can_be_scop
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: seen.update(k) or "ok")
     assert _post(client, sk, _interaction("NVDA")).json() == {"type": 5}
     rows = seen["components_fn"](di.ChartRequest("NVDA", "D"), dict(di.prefs_mod.DEFAULTS))
-    assert rows[-1]["components"][-1]["label"] == "Open in Discord"
+    assert [c for r in rows for c in r["components"] if c["type"] == 2][-1]["label"] == "Open in Discord"
 
 
 def test_launch_command_is_an_admin_only_entry_point_registered_only_on_request():

@@ -1354,7 +1354,11 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
     monkeypatch.setenv("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     monkeypatch.setenv("DISCORD_ACTIVITY_GUILDS", "")
     rows = di.chart_components(di.ChartRequest("NVDA", "15"), {**di.prefs_mod.DEFAULTS})
-    assert len(rows) == 5 and all(r["type"] == 1 for r in rows)               # Discord's ceiling, all used
+    # THREE rows, not five: the owner called the five-row stack "mega clunky…
+    # it really takes up a lot of space", so Zoom + Indicators + Look became one
+    # dropdown (23 options, inside Discord's 25) with the state in its placeholder.
+    assert len(rows) == 3 and all(r["type"] == 1 for r in rows)
+    assert sum(1 for r in rows for c in r["components"] if c["type"] == 3) == 1
     tfs = rows[0]["components"]
     assert [b["label"] for b in tfs] == ["D", "W", "60m", "15m", "5m"]
     assert [b["style"] for b in tfs] == [2, 2, 2, 1, 2]                    # the active timeframe is primary
@@ -1363,39 +1367,44 @@ def test_chart_components_reflect_the_image_and_round_trip_through_parse_compone
         req = di.parse_component({"data": {"custom_id": b["custom_id"]}})
         assert (req.ticker, req.tf, req.mas, req.volume, req.zoom, req.indicators, req.style, req.theme, req.to) == \
             ("NVDA", tf, "house", True, "auto", "none", "candles", "house", None)
-    zoom_sel, ind_sel, look_sel = (rows[i]["components"][0] for i in (1, 2, 3))
-    assert zoom_sel["type"] == 3 and [o["value"] for o in zoom_sel["options"]] == ["auto", "1d", "2d", "5d", "10d"]   # intraday zooms
-    assert ind_sel["type"] == 3 and [o["value"] for o in ind_sel["options"]] == ["none", "rsi", "macd", "rsi+macd"]
-    assert look_sel["type"] == 3 and look_sel["options"][0]["value"] == "style:candles" and look_sel["options"][0]["default"]
-    assert any(o["value"] == "theme:oled" for o in look_sel["options"])
-    # a pick applies ONE field over the state the select carried
-    picked = di.parse_component({"data": {"custom_id": zoom_sel["custom_id"], "values": ["5d"]}})
+    # ONE dropdown carries zoom + indicators + look; the state is in its placeholder
+    sel = rows[-1]["components"][0]
+    assert sel["type"] == 3 and len(sel["options"]) <= 25
+    vals = [o["value"] for o in sel["options"]]
+    assert [v for v in vals if v.startswith("zoom:")] == ["zoom:auto", "zoom:1d", "zoom:2d", "zoom:5d", "zoom:10d"]
+    assert [v for v in vals if v.startswith("ind:")] == ["ind:none", "ind:rsi", "ind:macd", "ind:rsi+macd"]
+    assert "style:candles" in vals and "theme:oled" in vals
+    assert not any(o.get("default") for o in sel["options"])          # state lives in the placeholder
+    assert "Zoom Auto" in sel["placeholder"] and "Candles" in sel["placeholder"]
+    picked = di.parse_component({"data": {"custom_id": sel["custom_id"], "values": ["zoom:5d"]}})
     assert (picked.zoom, picked.tf, picked.mas) == ("5d", "15", "house")
-    picked = di.parse_component({"data": {"custom_id": ind_sel["custom_id"], "values": ["rsi+macd"]}})
-    assert picked.indicators == "rsi+macd"
-    picked = di.parse_component({"data": {"custom_id": look_sel["custom_id"], "values": ["theme:oled"]}})
+    assert di.parse_component({"data": {"custom_id": sel["custom_id"], "values": ["ind:rsi+macd"]}}).indicators == "rsi+macd"
+    picked = di.parse_component({"data": {"custom_id": sel["custom_id"], "values": ["theme:oled"]}})
     assert picked.theme == "oled" and picked.style == "candles"
-    picked = di.parse_component({"data": {"custom_id": look_sel["custom_id"], "values": ["style:line"]}})
+    picked = di.parse_component({"data": {"custom_id": sel["custom_id"], "values": ["style:line"]}})
     assert picked.style == "line" and picked.theme == "house"
-    row5 = rows[4]["components"]
-    assert [b["label"] for b in row5] == ["MAs: House", "Volume off", "Open interactive \u2197"]   # intraday: no pan
-    assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).mas == "10-20-50"    # MAs cycle house -> 10/20/50 -> off
+    row5 = rows[1]["components"]
+    assert [b["label"] for b in row5] == ["MAs: House", "Volume off"]   # intraday: no pan, no link button
+    assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).mas == "10-20-50"
     assert di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}}).volume is False
-    assert row5[2]["style"] == 5 and row5[2]["url"] == "https://uctintelligence.com/research/NVDA"
     # daily: pan buttons, Later disabled while live, Earlier steps back a window
     rows = di.chart_components(di.ChartRequest("NVDA", "D", mas="off", volume=False), {**di.prefs_mod.DEFAULTS})
-    row5 = rows[4]["components"]
-    assert [b["label"] for b in row5] == ["\u25c0 Earlier", "Later \u25b6", "MAs: off", "Volume on", "Open interactive \u2197"]
+    row5 = rows[1]["components"]
+    assert [b["label"] for b in row5] == ["◀ Earlier", "Later ▶", "MAs: off", "Volume on"]
     assert row5[1]["disabled"] is True
     earlier = di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}})
     assert earlier.to is not None and earlier.tf == "D"
     rows = di.chart_components(di.ChartRequest("NVDA", "D", to="2026-05-15"), {**di.prefs_mod.DEFAULTS})
-    row5 = rows[4]["components"]
+    row5 = rows[1]["components"]
     assert row5[1].get("disabled") is False
     assert di.parse_component({"data": {"custom_id": row5[0]["custom_id"]}}).to < "2026-05-15"
     later = di.parse_component({"data": {"custom_id": row5[1]["custom_id"]}})
     assert later.to is None or later.to > "2026-05-15"
-    assert [o["default"] for o in rows[1]["components"][0]["options"]][0] is True                  # daily zoom list, auto selected
+    # the current state reads off the placeholder now — no option carries
+    # `default`, which is what makes TOO_MANY_DEFAULT_VALUES unreachable
+    sel = rows[-1]["components"][0]
+    assert not any(o.get("default") for o in sel["options"])
+    assert "Zoom Auto" in sel["placeholder"] and sel["placeholder"].startswith("\u2699")
     for bad in ("", "chart|NVDA|D|house", "chart|NV DA|D|house|1", "chart|NVDA|2|house|1", "chart|NVDA|D|sma|1", "other|NVDA|D|house|1",
                 "c2|NVDA|D|house|1|9y|none|candles|house||t", "c2|NVDA|D|house|1|auto|none|candles|house|2026-13-01x|t",
                 "c2|NVDA|D|house|1|auto|none|candles|house|"):
@@ -1611,7 +1620,7 @@ def test_every_custom_id_in_a_message_is_unique():
         assert len(ids) == len(set(ids)), ids
         assert all(len(i) <= 100 for i in ids)
         for i in ids:                                    # and every one still parses to its chart
-            values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+            values = ["style:line"] if i.startswith(("look|", "opt|")) else ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else []
             assert di.parse_component({"data": {"custom_id": i, "values": values}}).ticker == req.ticker
 
 
@@ -1658,7 +1667,7 @@ def test_save_pick_writes_the_messages_state_to_the_members_defaults(monkeypatch
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("a save must not render"))
     rows = di.chart_components(di.ChartRequest("NVDA", "W", mas="off", volume=False, zoom="1y", indicators="rsi", style="line", theme="oled"),
                                dict(p.DEFAULTS))
-    look = rows[3]["components"][0]
+    look = rows[-1]["components"][0]        # the one options dropdown
     assert [o["value"] for o in look["options"][-2:]] == [di.SAVE_VALUE, di.HELP_VALUE]
     assert not any(o.get("default") for o in look["options"][-2:])
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4242"}},
@@ -1789,7 +1798,7 @@ def test_compare_option_parses_validates_and_rides_every_control():
     ids = [c["custom_id"] for row in rows for c in row["components"] if "custom_id" in c]
     assert ids and all(len(i) <= 100 for i in ids) and len(ids) == len(set(ids))
     for i in ids:
-        values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+        values = ["style:line"] if i.startswith(("look|", "opt|")) else ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else []
         back = di.parse_component({"data": {"custom_id": i, "values": values}})
         assert back.ticker == "NVDA" and back.compare == ("SPY", "QQQ", "IWM"), i
     # ids minted before the compare field (one part shorter) still parse, with no comparison
@@ -1951,7 +1960,7 @@ def test_no_control_id_can_exceed_discords_100_char_limit_even_at_the_worst_case
     assert not over, over
     # and every one of them still round-trips to the same chart
     for i in ids:
-        values = ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else ["style:line"] if i.startswith("look|") else []
+        values = ["style:line"] if i.startswith(("look|", "opt|")) else ["auto"] if i.startswith("zoom|") else ["none"] if i.startswith("ind|") else []
         assert di.parse_component({"data": {"custom_id": i, "values": values}}).compare == tuple(cmp_syms)
 
 
@@ -2032,7 +2041,7 @@ def test_a_save_on_a_message_with_no_attachment_declares_none_and_still_confirms
     client, rt = _app_client()
     sent = []
     monkeypatch.setattr(rt.di, "followup_ephemeral", lambda app_id, token, content: sent.append(content) or True)
-    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[3]["components"][0]
+    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[-1]["components"][0]
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "4343"}},
              "message": {"id": "m1", "content": "NVDA · Daily"},          # no attachments key at all
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.SAVE_VALUE]}}
@@ -2069,7 +2078,7 @@ def test_the_charts_row_flips_every_symbol_and_round_trips_through_its_button():
     assert len(rows) == 1                                        # exactly one row
     ids = [c["custom_id"] for c in rows[0]["components"]]
     assert len(ids) == len(set(ids)) and all(len(i) <= di.CUSTOM_ID_MAX for i in ids)
-    labels = [c["label"] for c in rows[0]["components"]]
+    labels = [c.get("label") for c in rows[0]["components"]]
     assert labels == [l for _, l in di.BUTTON_TFS]
     active = [c for c in rows[0]["components"] if c["style"] == di._STYLE_PRIMARY]
     assert len(active) == 1 and active[0]["label"] == "D"        # the timeframe shown
@@ -2561,7 +2570,7 @@ def test_the_help_pick_explains_the_controls_without_touching_the_chart(monkeypa
     sent = []
     monkeypatch.setattr(rt.di, "followup_ephemeral", lambda a, b, content: sent.append(content) or True)
     monkeypatch.setattr(rt.di, "run_chart_job", lambda *a, **k: pytest.fail("help must not re-render"))
-    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[3]["components"][0]
+    look = di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[-1]["components"][0]
     click = {"type": 3, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "member": {"user": {"id": "808"}},
              "message": {"id": "m1", "content": "NVDA · Daily", "attachments": [{"id": "42"}]},
              "data": {"custom_id": look["custom_id"], "component_type": 3, "values": [di.HELP_VALUE]}}

@@ -358,7 +358,8 @@ def public_site_url() -> str:
 STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
 SAVE_VALUE = "save"              # the Look dropdown's "save these as my defaults" pick
 HELP_VALUE = "help"              # …and its "how do these work?" pick
-SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"
+SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"   # retired; older messages still parse
+SELECT_OPTS = "opt"              # the one dropdown that replaced those three
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Calendar days one "Earlier"/"Later" step moves the window, per zoom.
 _PAN_DAYS_D = {"auto": 95, "1m": 31, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
@@ -444,7 +445,7 @@ def component_kind(interaction: dict) -> str:
         return "activity"
     if head == MULTI_PREFIX:
         return "charts"
-    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK):
+    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS):
         return "chart"
     raise CommandError("Unknown button.")
 
@@ -466,18 +467,24 @@ def parse_component(interaction: dict) -> ChartRequest:
         return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
     if head == STATE_PREFIX and len(parts) in (11, 12):
         return _request_from_state(parts[:-1])          # the last part = the control tag
-    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK) and len(parts) in (12, 13):
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS) and len(parts) in (12, 13):
         req = _request_from_state(parts[1:-1])
         values = data.get("values") or []
         value = str(values[0]) if values else ""
-        if head == SELECT_ZOOM:
+        if head == SELECT_ZOOM:                       # retired select, older messages
             if value not in prefs_mod.ZOOM_CHOICES:
                 raise CommandError("Unknown zoom.")
             return dataclasses.replace(req, zoom=value, to=None)     # a new window starts from live
-        if head == SELECT_IND:
+        if head == SELECT_IND:                        # retired select, older messages
             if value not in prefs_mod.INDICATOR_CHOICES:
                 raise CommandError("Unknown indicator set.")
             return dataclasses.replace(req, indicators=value)
+        if head == SELECT_OPTS:
+            kind, _, choice = value.partition(":")
+            if kind == "zoom" and choice in prefs_mod.ZOOM_CHOICES:
+                return dataclasses.replace(req, zoom=choice, to=None)
+            if kind == "ind" and choice in prefs_mod.INDICATOR_CHOICES:
+                return dataclasses.replace(req, indicators=choice)
         if value in (SAVE_VALUE, HELP_VALUE):
             return req                          # the router saves this state, or explains it
         kind, _, choice = value.partition(":")
@@ -507,6 +514,8 @@ def chart_help_text() -> str:
         "",
         "**Your defaults**",
         "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
+        "",
+        "The full interactive chart lives on the site: <" + public_site_url() + "/research/NVDA>",
     ])
 
 
@@ -515,7 +524,8 @@ def is_help_pick(interaction: dict) -> bool:
     data = interaction.get("data") or {}
     cid = str(data.get("custom_id") or "")
     values = data.get("values") or []
-    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == HELP_VALUE
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == HELP_VALUE
 
 
 def is_save_pick(interaction: dict) -> bool:
@@ -523,7 +533,8 @@ def is_save_pick(interaction: dict) -> bool:
     data = interaction.get("data") or {}
     cid = str(data.get("custom_id") or "")
     values = data.get("values") or []
-    return cid.startswith(SELECT_LOOK + "|") and bool(values) and str(values[0]) == SAVE_VALUE
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == SAVE_VALUE
 
 
 def prefs_from_request(req: ChartRequest) -> dict:
@@ -557,25 +568,34 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
             "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
            for tf, label in tf_choices]
+    # ── ONE dropdown, not three ────────────────────────────────────────────
+    # Owner, 2026-08-26, looking at a chart in the member server: "this looks
+    # mega clunky and really clogs up a decent portion of channels… it really
+    # takes up a lot of space". Three full-width selects stacked under the image
+    # cost as much vertical space as the chart itself. Zoom, Indicators and Look
+    # were 6 + 4 + 13 = 23 options - inside Discord's 25 - so they are one
+    # select now, and the CURRENT state moves into the placeholder where it is
+    # still readable at a glance. Five action rows become three.
     zooms = prefs_mod.zoom_choices(st["tf"])
     zoom_now = st["zoom"] if st["zoom"] in zooms else "auto"
-    zoom_sel = {"type": 3, "custom_id": f"{SELECT_ZOOM}|{sid()}", "placeholder": "Zoom",
-                "options": [{"label": f"Zoom: {label}", "value": v, "default": v == zoom_now} for v, label in zooms.items()]}
-    ind_sel = {"type": 3, "custom_id": f"{SELECT_IND}|{sid()}", "placeholder": "Indicators",
-               "options": [{"label": f"Indicators: {label}", "value": v, "default": v == st["ind"]}
-                           for v, label in prefs_mod.INDICATOR_CHOICES.items()]}
-    look_sel = {"type": 3, "custom_id": f"{SELECT_LOOK}|{sid()}", "placeholder": "Look",
-                "options": ([{"label": f"Style: {label}", "value": f"style:{v}", "default": v == st["style"]}
-                             for v, label in prefs_mod.STYLE_CHOICES.items()] +
-                            # ONE default per single-select (Discord: COMPONENT_TOO_MANY_DEFAULT_VALUES) -
-                            # the style carries it; the theme is read off the image.
-                            [{"label": f"Theme: {label}", "value": f"theme:{v}", "default": False}
-                             for v, label in prefs_mod.THEME_CHOICES.items()] +
-                            # last, so the first option stays the chart's own style
-                            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
-                              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
-                             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
-                              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])}
+    opts = ([{"label": f"Zoom: {label}", "value": f"zoom:{v}"} for v, label in zooms.items()] +
+            [{"label": f"Indicators: {label}", "value": f"ind:{v}"} for v, label in prefs_mod.INDICATOR_CHOICES.items()] +
+            [{"label": f"Style: {label}", "value": f"style:{v}"} for v, label in prefs_mod.STYLE_CHOICES.items()] +
+            [{"label": f"Theme: {label}", "value": f"theme:{v}"} for v, label in prefs_mod.THEME_CHOICES.items()] +
+            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
+              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
+             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
+              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])
+    # ⛔ No option carries `default`: the state is in the placeholder instead, so
+    # the TOO_MANY_DEFAULT_VALUES class of rejection cannot come back, and a pick
+    # never leaves its own label standing where the chart's setting should be.
+    state_line = " \u00b7 ".join([
+        f"Zoom {zooms.get(zoom_now, zoom_now)}",
+        prefs_mod.INDICATOR_CHOICES.get(st["ind"], st["ind"]),
+        prefs_mod.STYLE_CHOICES.get(st["style"], st["style"]),
+    ])
+    opts_sel = {"type": 3, "custom_id": f"{SELECT_OPTS}|{sid()}",
+                "placeholder": f"\u2699\ufe0f {state_line}"[:150], "options": opts[:25]}
     ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
     ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
     can_pan = st["tf"] in ("D", "W")
@@ -590,15 +610,16 @@ def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str
     row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
                  "custom_id": sid("v", vol=not st["vol"])})
     if guild_id and str(guild_id) in activity_guilds():
-        # The (parked) Activity: in an activity guild the last slot launches it instead of linking out.
+        # The (parked) Activity: in an activity guild the last slot launches it instead.
         row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
                      "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{st['mas']}|{1 if st['vol'] else 0}"})
-    else:
-        row5.append({"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
-                     "url": f"{public_site_url()}/research/{req.ticker}"})
-    return [{"type": 1, "components": tfs}, {"type": 1, "components": [zoom_sel]},
-            {"type": 1, "components": [ind_sel]}, {"type": 1, "components": [look_sel]},
-            {"type": 1, "components": row5}]
+    # ⛔ The "Open interactive" LINK button is gone. With five buttons in this row
+    # Discord wrapped it onto a line of its own in a normal-width channel, so a
+    # link to the site cost a whole row of the member's screen. The help pick
+    # names the site instead.
+    return [{"type": 1, "components": tfs},
+            {"type": 1, "components": row5},
+            {"type": 1, "components": [opts_sel]}]
 
 
 MULTI_PREFIX = "m2"              # /charts timeframe row: m2|SYM+SYM+SYM|tf
