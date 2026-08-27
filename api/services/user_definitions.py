@@ -387,7 +387,32 @@ def ast_hash(ast: Any) -> str:
 # `compute.sources[k]` and checks it hashes to `trees[k]`. There is exactly one
 # parser and it is in JS (D-A1), so this lane CANNOT do that and does not
 # pretend to. What it checks instead is everything that is decidable without a
-# parser, which is every rule but that one.
+# parser, which is every rule but that one. Concretely: set
+# `sources["macd"] = "ema(close, 9)"` on a document whose `trees["macd"]` is the
+# MACD line and this lane stores it; the browser refuses it. The member is then
+# shown source text that is not the maths their plot computes.
+#
+# ⛔ AND WHAT WOULD UNBLOCK IT, WHICH IS THE HALF A REFUSAL IS USELESS WITHOUT.
+# EITHER of these closes it, and neither has been done:
+#
+#   1. a Python parser (D-A1) — the expensive one, and it would put a SECOND
+#      parser on one grammar, which is the defect this repo names most often;
+#   2. a per-source hash the browser STAMPS at save time — e.g. a
+#      `compute.sourceHashes[k]` written beside `treesHash` by the one lane that
+#      can parse. This lane would then check the correspondence by comparing two
+#      strings and would need no parser at all.
+#
+# (2) is the cheaper one and it is the shape this repo already prefers: make the
+# knowing side stamp its answer rather than making a second side re-derive it.
+#
+# ⚰️ THIS PARAGRAPH NAMED THE CAUSE AND STOPPED THERE, and the W1b.8 report then
+# stated the unblocking condition as though it were written here — it was not; it
+# existed only in the report, and a report is a document nobody greps
+# (`lesson_an_over_refusal_is_invisible`: every doc-blocked refusal must NAME what
+# would unblock it, and `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`:
+# a comment explaining why something was NOT checked is how a false premise never
+# gets revisited). Caught by the W1b.8 review, which grepped this block for
+# `unblock` and `stamp` and found zero hits.
 
 _PLOT_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 
