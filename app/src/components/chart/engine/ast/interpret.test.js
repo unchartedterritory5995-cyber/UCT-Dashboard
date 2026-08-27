@@ -828,6 +828,110 @@ describe('the arithmetic, against hand-computed values', () => {
     expect(values(ab).slice(1).every((v) => v >= 0)).toBe(true)
   })
 
+  it('aroon and bop, hand-computed in the JS lane', () => {
+    // ⛔ WHY THIS CASE EXISTS AT ALL. `aroonUp`/`aroonDown`/`bop` shipped with
+    // their JS numbers pinned ONLY from the Python side, behind
+    // `@pytest.mark.skipif(not ac.js_lane_available())`. Node is present here, so
+    // that reported 0 skips and looked like coverage — but on a box without node
+    // the entire JS half of this mirror goes green and unguarded, and pytest
+    // reports a SKIP rather than a gap. A rail that can silently cover nothing is
+    // `lesson_gate_that_cannot_fail`. This one cannot skip: it runs wherever
+    // vitest runs, and it reads NUMBERS rather than asserting a shape.
+    const highs = BARS.map((b) => b.h)
+    const lows = BARS.map((b) => b.l)
+
+    // ── AROON, from the PUBLISHED formula, over a window of `n + 1` bars ──
+    // `Aroon-Up = ((n - days since the n-day high) / n) x 100`. ⛔ THE WINDOW IS
+    // THIS BAR PLUS THE `n` BEFORE IT, and that is arithmetic rather than a
+    // choice: over `n` bars "days since" maxes at `n - 1`, so 0 — a published
+    // end of the range — would be unreachable. The oracle is written from the
+    // formula, not from `aroonCol`, so an `n`-vs-`n+1` slip lands red here.
+    const daysSince = (arr, i, n, better) => {
+      let best = i
+      for (let k = i - n; k <= i; k++) if (better(arr[k], arr[best])) best = k
+      return i - best                     // the MOST RECENT bar wins a tie
+    }
+    const n = 10
+    const up = col(`aroonUp(${n})`)
+    const down = col(`aroonDown(${n})`)
+    for (const i of [n, 50, 200, BARS.length - 1]) {
+      expect(up[i], `aroonUp at ${i}`)
+        .toBeCloseTo((100 * (n - daysSince(highs, i, n, (a, b) => a > b))) / n, 12)
+      expect(down[i], `aroonDown at ${i}`)
+        .toBeCloseTo((100 * (n - daysSince(lows, i, n, (a, b) => a < b))) / n, 12)
+    }
+    // …the warm-up is exactly `n`, and BOTH published ends actually occur on
+    // this series — which is what an off-by-one window silently removes.
+    expect(isNaNAt(up, n - 1)).toBe(true)
+    expect(isNaNAt(up, n)).toBe(false)
+    const upv = values(up).filter((v) => !Number.isNaN(v))
+    expect(upv.every((v) => v >= 0 && v <= 100)).toBe(true)
+    expect(upv.some((v) => v === 100), 'aroonUp never reaches 100').toBe(true)
+    expect(upv.some((v) => v === 0), 'aroonUp never reaches 0 — the n+1 window is gone').toBe(true)
+    // ⛔ AND THE TWO READ DIFFERENT FIELDS. Without this, `aroonDown` bound to
+    // the high would satisfy every assertion above.
+    expect(values(down).filter((v, i) => v !== up[i]).length).toBeGreaterThan(20)
+
+    // ── BOP: the `n`-bar mean of `(close - open) / (high - low)` ──
+    const ratio = BARS.map((b) => {
+      const r = (b.c - b.o) / (b.h - b.l)
+      return Number.isFinite(r) ? r : NaN
+    })
+    const bop5 = col('bop(5)')
+    for (const i of [4, 100, 300]) {
+      const w = ratio.slice(i - 4, i + 1)
+      expect(bop5[i], `bop(5) at ${i}`).toBeCloseTo(w.reduce((s, v) => s + v, 0) / 5, 12)
+    }
+    // ⭐ NO SECOND AVERAGE: the entry is the composition, bar for bar, through
+    // the operator path's own division — which is the reason `bop` was declared
+    // rather than expanded, asserted rather than argued.
+    expect(values(bop5)).toEqual(values(col('sma((close - open) / (high - low), 5)')))
+    // ⭐ AND `bop(1)` IS THE UNSMOOTHED PER-BAR RATIO. That identity is what
+    // `pine.derived.test.js` leans on when it says TradingView's BOP — which is
+    // unsmoothed — agrees with ours at n=1 and NOWHERE ELSE. Both halves are
+    // asserted, or "equal at n=1" would be true by degeneracy.
+    const bop1 = col('bop(1)')
+    for (const i of [1, 100, 300]) expect(bop1[i], `bop(1) at ${i}`).toBeCloseTo(ratio[i], 12)
+    expect(values(bop1).filter((v, i) => Math.abs(v - bop5[i]) > 1e-9).length,
+      'bop(1) and bop(5) agree everywhere, so the smoothing is not being applied')
+      .toBeGreaterThan(100)
+  })
+
+  it('…and a ZERO-RANGE bar leaves `bop` a HOLE, not a confident extreme', () => {
+    // ⛔⛔ `barBop`'s `Number.isFinite(r) ? r : NaN` IS INVISIBLE FROM THE COLUMN
+    // and invisible on the shared series. `high === low` with a non-zero body
+    // cannot occur in 579 bars of real market data, so nothing above this line —
+    // and nothing in the 103-ast conformance corpus — says a word about it. The
+    // guard was railed only from Python behind `skipif(not js_lane_available())`,
+    // which is the same silent-skip gap the case above exists to close.
+    //
+    // ⭐ AND IT MUST BE ASSERTED THROUGH THE COMPARISON DOOR, NOT THE COLUMN.
+    // `1/0` is `+Infinity`; the interpret boundary collapses a non-finite to NaN
+    // on the way OUT, so the raw `bop(3)` column prints identically with the
+    // guard and without it. The comparison happens first, and `+Infinity > 0` is
+    // a confident TRUE — BOP is bounded -1..+1, so the defect prints the
+    // strongest reading this indicator has, on a bar nobody can compute.
+    const bars = [[10, 12, 8, 11], [11, 13, 9, 12], [12, 14, 10, 13],
+                  [13, 15, 15, 14],                   // high === low, body !== 0
+                  [14, 16, 12, 15], [15, 17, 13, 16],
+                  [16, 18, 14, 17], [17, 19, 15, 18]]
+      .map(([o, h, l, c], i) => ({ t: 1780000000 + i * 300, o, h, l, c, v: 1000 }))
+    const run = (source) => {
+      const res = parseFormula(source)
+      expect(res.ok, `${source} did not parse: ${res.error}`).toBe(true)
+      return Array.from(interpret(res.ast, bars, {}))
+    }
+    // bars 3, 4 and 5 are the three windows that touch the malformed bar
+    const gt = run('bop(3) > 0')
+    expect([gt[3], gt[4], gt[5]], `bop(3) > 0 fired on a hole: ${gt}`).toEqual([0, 0, 0])
+    // …and NOT vacuously: the computable bars beside them still answer 1
+    expect([gt[2], gt[6]], `nothing answers true, so this proves nothing: ${gt}`).toEqual([1, 1])
+    // ⛔ AND THE MIRRORED READING MUST NOT FIRE EITHER, or a guard that pinned
+    // the column to a constant would pass this.
+    const lt = run('bop(3) < 0')
+    expect([lt[3], lt[4], lt[5]]).toEqual([0, 0, 0])
+  })
+
   it('min / max are ELEMENTWISE over two series and NaN PROPAGATES', () => {
     // ⛔ THE ONE PLACE THE TWO LANGUAGES DIVERGE BY DEFAULT: JS's
     // `Math.max(NaN, x)` is NaN and Python's `max` returns whichever it meets
