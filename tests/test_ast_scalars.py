@@ -683,7 +683,13 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # for the tenth bump running -- a bounded-state entry rides the `call` node and
     # has nothing to say about a per-symbol column.
     # ⭐ 90 -> 92 (2026-08-27): the two pivots, the first member-reachable
-    # `forward` entries. Scalar half untouched at 111 for the eleventh bump.
+    # `forward` entries. The scalar half is untouched at 111 again.
+    #
+    # ⚰️ AND NO ORDINAL IS WRITTEN HERE. This said "for the eleventh bump" -- a
+    # hand-typed count, in the one file whose entire subject is that hand-typed
+    # counts rot, three commits after `== 200` was deleted from the case below
+    # for being exactly that. Nobody counts the bumps; the two numbers ARE the
+    # claim, and git carries the history.
     assert len(parts["bar"]) == 92 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 

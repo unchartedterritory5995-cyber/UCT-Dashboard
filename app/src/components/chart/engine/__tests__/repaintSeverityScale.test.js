@@ -194,7 +194,71 @@ describe('a MIXED document — one clean plot, one that previews', () => {
     expect(pivot.label).toBe('Pivot high')
     // …and `preview-repaints` can NAME the settling bar, which is the only
     // distinction the vocabulary draws against `repaints`.
-    expect(pivot.sentence).toMatch(/2 bar/)
+    //
+    // ⚰️ THIS WAS `toMatch(/2 bar/)` AND IT LOOKED LIKE IT COVERED THE SENTENCE.
+    // It matched "next 2 **bars** form" in the FIRST half and never read the
+    // second, where the member was being told the value settles on "the **2th**
+    // bar after it closes". A substring rail on a rendered sentence tests the
+    // words you happened to quote; the WHOLE string is the thing a member reads.
+    expect(pivot.sentence).toBe(
+      'Each point moves while the next 2 bars form, and is final the moment '
+      + 'the 2nd bar after it closes.')
+  })
+
+  it('⛔ the ORDINAL is rendered for every k a member can reach, not just k=26', () => {
+    // ⭐ WHY THIS CASE EXISTS AT ALL. Until pivots landed, the only `forward` in
+    // the manifest was `ichimokuChikou`'s k = 26 — and "26th" is correct English,
+    // so `${forward}th` read perfectly and nobody proof-read it. k = 2 became
+    // typeable and the sentence became "the 2th bar". A defect that is
+    // unreachable-by-vocabulary is not absent; it is unwitnessed.
+    //
+    // ⛔ DRIVEN THROUGH THE REAL SURFACE, not through a private copy of the
+    // formatter: the sentence is read back off `repaintNotices` for a document
+    // built out of the shipped table, so a formatter that stopped being called
+    // fails here too.
+    const SER = (name) => ({ type: 'series', name })
+    const NUM = (value) => ({ type: 'num', value })
+    const sentenceForK = (k) => {
+      const def = {
+        id: `zz_k_${k}`,
+        compute: { kind: 'ast', trees: { p: { type: 'call', name: 'pivothigh', args: [SER('high'), NUM(1), NUM(k)] } } },
+        plots: [{ key: 'p', label: 'Pivot' }],
+      }
+      const [notice] = repaintNotices(def)
+      expect(notice, `k=${k} produced no notice`).toBeTruthy()
+      expect(notice.forward, `k=${k} did not reach forward ${k}`).toBe(k)
+      return notice.sentence
+    }
+
+    // 2nd and 3rd exercise different ordinal rules; 11/12/13 are the exceptions
+    // that make a naive `%10` wrong; 21/22/23 are where the exception stops.
+    expect(sentenceForK(2)).toContain('the 2nd bar after it closes.')
+    expect(sentenceForK(3)).toContain('the 3rd bar after it closes.')
+    expect(sentenceForK(4)).toContain('the 4th bar after it closes.')
+    expect(sentenceForK(11)).toContain('the 11th bar after it closes.')
+    expect(sentenceForK(12)).toContain('the 12th bar after it closes.')
+    expect(sentenceForK(13)).toContain('the 13th bar after it closes.')
+    expect(sentenceForK(21)).toContain('the 21st bar after it closes.')
+    expect(sentenceForK(22)).toContain('the 22nd bar after it closes.')
+    expect(sentenceForK(23)).toContain('the 23rd bar after it closes.')
+    // …and the one that was always right, so the fix is not a regression there.
+    expect(sentenceForK(26)).toContain('the 26th bar after it closes.')
+
+    // ⛔ THE CONTROL: no k renders a bare `<n>th` where English wants st/nd/rd.
+    // A sweep, so a future `k` nobody listed above cannot slip through.
+    const wrong = []
+    for (let k = 2; k <= 40; k++) {
+      const s = sentenceForK(k)
+      const t = k % 100
+      const want = (t >= 11 && t <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[k % 10] || 'th'
+      if (!s.includes(`the ${k}${want} bar after it closes.`)) wrong.push(`${k} -> ${s}`)
+    }
+    expect(wrong.join(' | ')).toBe('')
+
+    // ⭐ AND k = 1 IS A DIFFERENT SENTENCE ON PURPOSE — "the next bar closes"
+    // rather than "the 1st bar after it closes", which would be true and clumsy.
+    expect(sentenceForK(1)).toContain('is final the moment the next bar closes.')
+    expect(sentenceForK(1)).toContain('the next 1 bar form')
   })
 
   it('⛔ the CONTROL — two clean plots roll up clean and notice nothing', () => {

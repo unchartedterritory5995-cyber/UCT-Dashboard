@@ -236,11 +236,24 @@ def test_the_lagging_span_lints_PREVIEW_REPAINTS_and_the_forward_ROSTER_is_pinne
     # was really protecting: declaring `forward` on them would brand them for a
     # displacement the shipped compute does NOT perform
     # (`_functions_excluded._ichimoku_forward_cloud`).
-    for span in ("ichimokuSpanA", "ichimokuSpanB"):
+    #
+    # ⚰️ AND THIS LOOP LINTED `ichimoku_span_a` ON BOTH ITERATIONS. `span` was
+    # dropped from the second assertion, so `ichimokuSpanB`'s mode was never
+    # measured and the rail carried HALF the coverage it appeared to have -- in
+    # the very case written to replace a rail that had encoded a singleton. The
+    # case id is DERIVED from the entry name now, so the two cannot drift apart.
+    for span, case_id in (("ichimokuSpanA", "ichimoku_span_a"),
+                          ("ichimokuSpanB", "ichimoku_span_b")):
+        assert case_id.replace("_", "").lower() == span.lower(), (span, case_id)
         assert "forward" not in ast_table.TABLE["functions"][span], span
-        assert ast_lint.mode_from_reach(
-            ast_lint.ast_reach(_corpus_case("ichimoku_span_a")["ast"])["forward"]
-        ) == "non-repainting"
+        reach = ast_lint.ast_reach(_corpus_case(case_id)["ast"])
+        assert reach["forward"] == 0, (span, reach)
+        assert ast_lint.mode_from_reach(reach["forward"]) == "non-repainting", span
+        # ⛔ AND THE CASE REALLY CALLS THE ENTRY IT CLAIMS TO -- a corpus id that
+        # stopped pointing at this function would make the lines above a
+        # measurement of some other tree, which is exactly how the duplicated
+        # `ichimoku_span_a` above went unnoticed.
+        assert _corpus_case(case_id)["ast"]["name"] == span, (span, case_id)
 
 
 def test_the_lagging_span_really_does_read_a_LATER_bar(bars):

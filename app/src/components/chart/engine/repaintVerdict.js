@@ -129,10 +129,30 @@ export function severityScale() {
  *  bar after which the value settles and `repaints` cannot (record §3.2). A
  *  sentence that blurred them would throw away the only information the
  *  trichotomy carries. */
+/** `1 -> '1st'`, `2 -> '2nd'`, `3 -> '3rd'`, `11..13 -> 'th'`, else `'th'`.
+ *
+ *  ⚰️ THIS DID NOT EXIST AND THE SENTENCE BELOW SAID `${forward}th` FOR EVERY k.
+ *  A member with a two-bar pivot read *"is final the moment the **2th** bar after
+ *  it closes"* — broken English, on the one badge whose whole job is to be
+ *  believed. So did 3th, 21th, 22th, 23th, 31th…
+ *
+ *  ⛔ AND IT HID BECAUSE OF WHICH k WAS REACHABLE. Until W2a.6 the only entry in
+ *  the manifest declaring a `forward` was `ichimokuChikou`, k = 26 — and "26th"
+ *  is correct English. The bug was unreachable-by-vocabulary rather than absent,
+ *  which is the same shape as `preview-repaints` itself being "emitted by nothing
+ *  at all": a thing nobody could produce is a thing nobody proof-reads.
+ *  `pivothigh(high, 2, 2)` made k = 2 typeable and the defect surfaced the same
+ *  afternoon. */
+function ordinal(n) {
+  const tens = n % 100
+  if (tens >= 11 && tens <= 13) return `${n}th`
+  return `${n}${({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th'}`
+}
+
 function sentenceFor(mode, forward) {
   if (mode === 'preview-repaints' && Number.isInteger(forward) && forward > 0) {
     return `Each point moves while the next ${forward} bar${forward === 1 ? '' : 's'} form, `
-      + `and is final the moment the ${forward === 1 ? 'next bar closes' : `${forward}th bar after it closes`}.`
+      + `and is final the moment the ${forward === 1 ? 'next bar closes' : `${ordinal(forward)} bar after it closes`}.`
   }
   return 'No bar makes a point on this line final — it can move at any time.'
 }
