@@ -103,6 +103,11 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+// ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
+// a VIEW: it installs the document this form would save under one fixed id and
+// forgets it the moment the draft stops evaluating or the sheet closes.
+import PreviewPane from './editor/PreviewPane'
+import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
@@ -633,6 +638,8 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
+  sym = null, tf = null,
   initialMode = null, editRow = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
@@ -1162,6 +1169,25 @@ export default function BuilderSheet({
   }, [allRows, result])
   const mode = worstVerdict?.mode || null
 
+  /** W1a hand-back: the draft as a DOCUMENT, built by the one function that
+   *  builds every document this surface writes — so the preview draws exactly
+   *  what Save would store, member inputs included. `null` while it refuses.
+   *
+   *  ⚠️ PLOT 1 ONLY. This is `save()`'s `plain` path verbatim (a single
+   *  default plot, own pane, no levels). A multi-plot draft previews its FIRST
+   *  plot rather than all of them — partial, and deliberately so: the extra
+   *  rows are W1b's shape and a preview that guessed at them would be a second
+   *  authority on what `save()` writes. */
+  const previewDefinition = useMemo(() => (
+    result && result.ok && result.ast && result.verdict && inputsValid
+      ? buildDefinition({
+        defId: PREVIEW_DEF_ID, name: name.trim() || 'Preview', source: result.source, ast: result.ast,
+        mode: result.verdict.mode, readback: result.readback || '',
+        inputs: [...BUILDER_INPUTS, ...memberInputs],
+      })
+      : null
+  ), [result, name, memberInputs, inputsValid])
+
   // ⭐⭐ ONE AUTHORITY FOR "CAN THIS SAVE", AND THE HINT IS DERIVED FROM IT.
   //
   // ⚰️ A valid formula with an empty Name left Save greyed and said NOTHING —
@@ -1666,6 +1692,8 @@ export default function BuilderSheet({
             autoFocus
             inputs={inputScope}
           />
+          {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
+          <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
 
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
