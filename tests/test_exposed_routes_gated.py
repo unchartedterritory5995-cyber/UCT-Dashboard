@@ -122,8 +122,6 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/j2/compass-health"): "admin",
     ("GET", "/api/delisted/list"): "paid",
     ("GET", "/api/delisted/{sym}"): "paid",
-    ("GET", "/api/patterns/scan"): "paid",
-    ("GET", "/api/patterns/types"): "paid",
     ("GET", "/api/patterns/{sym}"): "paid",
     ("GET", "/api/breadth"): "paid",
     ("GET", "/api/themes"): "paid",

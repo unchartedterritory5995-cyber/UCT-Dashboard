@@ -281,7 +281,7 @@ def _run_patterns_recompute_stats():
 
 
 # ---------------------------------------------------------------------------
-# RTH gate — used by the intraday pass inside _run_patterns_universe_scan
+# RTH gate — used by the intraday pass inside _run_patterns_leaders_scan
 #
 # RESTORED 2026-07-23. Shipped in 208d6297, then removed wholesale on 2026-05-21
 # by 7b787e46 ("Update main.py") — a 186-line deletion carrying the GitHub-web-UI
@@ -307,42 +307,90 @@ def _is_rth_now() -> bool:
         return False
 
 
+def _load_patterns_leader_universe(_plog) -> list[str]:
+    """Load the curated leader-universe tickers (best-effort, [] on any failure)."""
+    leader_path = os.path.join(
+        os.path.dirname(__file__), "data", "leader_universe.json"
+    )
+    if not os.path.exists(leader_path):
+        leader_path = os.path.join("api", "data", "leader_universe.json")
+    if not os.path.exists(leader_path):
+        return []
+    try:
+        with open(leader_path) as f:
+            leader_data = json.load(f)
+        return leader_data.get("tickers", []) if isinstance(leader_data, dict) else []
+    except Exception as le:
+        _plog.warning("[patterns] failed to load leader_universe: %s", le)
+        return []
+
+
+def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
+    """Daily-TF detector pass over `symbols`, storing detections.
+
+    ONE implementation shared by the hourly leaders job and the daily universe
+    job — a second copy of this loop would be a second authority over what a
+    stored detection is. Returns (scanned, stored).
+    """
+    from api.services import bars_sqlite
+    from api.services.pattern_engine import detect_all
+    from api.services.pattern_engine import memory
+    from api.services.pattern_engine.primitives.context import build_context
+    # Importing patterns router triggers detector registration:
+    from api.routers import patterns as _patterns  # noqa: F401
+
+    scanned = 0
+    stored = 0
+    for sym in symbols:
+        try:
+            bars = bars_sqlite.get_bars(sym, "D", 200)
+        except Exception as bars_err:
+            _plog.debug("[patterns] get_bars failed for %s D: %s", sym, bars_err)
+            continue
+        if not bars or len(bars) < 30:
+            continue
+        bars_list = [
+            {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+            for r in bars
+        ]
+        try:
+            ctx = build_context(bars_list, sym=sym)
+            detections = detect_all(bars_list, ctx)
+            for d in detections:
+                d["sym"] = sym
+                d["tf"] = "D"
+                # Tag detection origin (leader vs cap universe)
+                try:
+                    geom = d.setdefault("geometry", {})
+                    extras = geom.setdefault("extras", {})
+                    extras["from_leader_universe"] = sym in leader_set
+                except Exception:
+                    pass
+                try:
+                    memory.store_detection(d)
+                    stored += 1
+                except Exception as store_err:
+                    _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
+            scanned += 1
+        except Exception as scan_err:
+            _plog.debug("[patterns] scan failed for %s D: %s", sym, scan_err)
+    return scanned, stored
+
+
 def _run_patterns_universe_scan():
-    """APScheduler job: scan leaders + a rotating chunk of cap_universe, store detections.
+    """APScheduler job (daily, 1:00 AM ET): full cap_universe daily-TF scan.
 
-    Strategy:
-      - Leader universe (curated ~80-200 liquid thematic stocks) scanned EVERY run.
-      - Cap universe rotates through 4 chunks; one chunk per hourly run.
-      - Each detection tagged with `from_leader_universe` flag for downstream filtering.
-
-    Populates pattern_detections so the admin dashboard /admin/patterns has data
-    for Gate 5 operator review and the /patterns scanner page can filter to leaders.
+    Was HOURLY with a rotating 1/4 chunk until 2026-08-26. Daily-TF detections
+    only change when a new daily bar lands, so intra-day re-scans were pure
+    dedup-upserts burning CPU in the pod that serves members. One full pass
+    before the 3:00 AM screener build (pattern_join — the only universe-wide
+    reader) covers every consumer; leaders keep an hourly pass in
+    _run_patterns_leaders_scan for intraday freshness.
     """
     _plog = logging.getLogger(__name__)
     try:
-        import time as _time
-        from api.services import bars_sqlite
-        from api.services.pattern_engine import detect_all
-        from api.services.pattern_engine import memory
-        from api.services.pattern_engine.primitives.context import build_context
-        # Importing patterns router triggers detector registration:
-        from api.routers import patterns as _patterns  # noqa: F401
-
-        # Resolve leader_universe path
-        leader_path = os.path.join(
-            os.path.dirname(__file__), "data", "leader_universe.json"
-        )
-        if not os.path.exists(leader_path):
-            leader_path = os.path.join("api", "data", "leader_universe.json")
-
-        leader_tickers: list[str] = []
-        if os.path.exists(leader_path):
-            try:
-                with open(leader_path) as f:
-                    leader_data = json.load(f)
-                leader_tickers = leader_data.get("tickers", []) if isinstance(leader_data, dict) else []
-            except Exception as le:
-                _plog.warning("[patterns] universe_scan: failed to load leader_universe: %s", le)
+        leader_tickers = _load_patterns_leader_universe(_plog)
+        leader_set = {t for t in leader_tickers if isinstance(t, str)}
 
         # Resolve the cap_universe path
         universe_path = os.path.join(
@@ -365,83 +413,62 @@ def _run_patterns_universe_scan():
         else:
             cap_tickers = data.get("tickers", []) if isinstance(data, dict) else []
 
-        # Rotate through cap_universe in 4 chunks: one chunk per hourly run.
-        hour_index = (int(_time.time()) // 3600) % 4
-        cap_chunk_size = max(1, len(cap_tickers) // 4)
-        cap_start = hour_index * cap_chunk_size
-        cap_end = cap_start + cap_chunk_size
-        cap_to_scan = cap_tickers[cap_start:cap_end]
-
-        leader_set = {t for t in leader_tickers if isinstance(t, str)}
-
-        timeframes = ["D"]
-        scanned = 0
-        stored = 0
-        leader_stored = 0
-
-        def _scan_one(sym: str, from_leader: bool) -> tuple[int, int]:
-            """Scan a single sym; return (scanned, stored)."""
-            s_scanned = 0
-            s_stored = 0
-            for tf in timeframes:
-                try:
-                    bars = bars_sqlite.get_bars(sym, tf, 200)
-                except Exception as bars_err:
-                    _plog.debug("[patterns] get_bars failed for %s %s: %s", sym, tf, bars_err)
-                    continue
-                if not bars or len(bars) < 30:
-                    continue
-                bars_list = [
-                    {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
-                    for r in bars
-                ]
-                try:
-                    ctx = build_context(bars_list, sym=sym)
-                    detections = detect_all(bars_list, ctx)
-                    for d in detections:
-                        d["sym"] = sym
-                        d["tf"] = tf
-                        # Tag detection origin (leader vs cap rotation)
-                        try:
-                            geom = d.setdefault("geometry", {})
-                            extras = geom.setdefault("extras", {})
-                            extras["from_leader_universe"] = bool(from_leader)
-                        except Exception:
-                            pass
-                        try:
-                            memory.store_detection(d)
-                            s_stored += 1
-                        except Exception as store_err:
-                            _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
-                    s_scanned += 1
-                except Exception as scan_err:
-                    _plog.debug("[patterns] scan failed for %s %s: %s", sym, tf, scan_err)
-            return s_scanned, s_stored
-
-        # Scan leaders FIRST (every run)
-        for sym in leader_tickers:
-            sc, st = _scan_one(sym, from_leader=True)
-            scanned += sc
-            stored += st
-            leader_stored += st
-
-        # Scan rotating cap_universe chunk (skipping symbols already scanned as leaders)
-        for sym in cap_to_scan:
-            if sym in leader_set:
-                continue
-            sc, st = _scan_one(sym, from_leader=False)
-            scanned += sc
-            stored += st
+        # Leaders first (tagged), then the rest of the universe.
+        ordered = list(leader_tickers) + [s for s in cap_tickers if s not in leader_set]
+        scanned, stored = _scan_patterns_daily(ordered, leader_set, _plog)
 
         _plog.info(
-            "[patterns] universe_scan: scanned %d symbol-TFs (leaders=%d, cap chunk %d/4), stored %d (leader %d)",
-            scanned, len(leader_tickers), hour_index + 1, stored, leader_stored,
+            "[patterns] universe_scan: scanned %d symbols (full universe, leaders=%d), stored %d",
+            scanned, len(leader_tickers), stored,
         )
         print(
-            f"[patterns] universe_scan: scanned {scanned} symbol-TFs "
-            f"(leaders={len(leader_tickers)}, cap chunk {hour_index + 1}/4), "
-            f"stored {stored} detections ({leader_stored} from leader universe)"
+            f"[patterns] universe_scan: scanned {scanned} symbols "
+            f"(full universe, leaders={len(leader_tickers)}), stored {stored} detections"
         )
+    except Exception as e:
+        _plog.exception("[patterns] universe_scan failed: %s", e)
+        print(f"[patterns] universe_scan failed: {e}")
+
+
+def _run_patterns_prune():
+    """APScheduler job (daily, 0:40 AM ET): retention sweep on pattern_detections.
+
+    See memory.PRUNE_RETENTION_DAYS for the window and why — nothing reads
+    older rows, and without a prune the table reached 13.57 GB / 1.54M rows in
+    six weeks (measured in prod, 2026-08-26).
+    """
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services.pattern_engine.memory import prune_old
+        r = prune_old()
+        _plog.info("[patterns] prune: deleted %d detections, %d orphan outcomes",
+                   r["deleted"], r["orphan_outcomes"])
+        print(f"[patterns] prune: deleted {r['deleted']} detections, "
+              f"{r['orphan_outcomes']} orphan outcomes")
+    except Exception as e:
+        _plog.exception("[patterns] prune failed: %s", e)
+        print(f"[patterns] prune failed: {e}")
+
+
+def _run_patterns_leaders_scan():
+    """APScheduler job (hourly): leader-universe daily-TF scan + the RTH-gated
+    intraday pass. The full universe runs daily in _run_patterns_universe_scan.
+    """
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services import bars_sqlite
+        from api.services.pattern_engine import detect_all
+        from api.services.pattern_engine import memory
+        from api.services.pattern_engine.primitives.context import build_context
+        # Importing patterns router triggers detector registration:
+        from api.routers import patterns as _patterns  # noqa: F401
+
+        leader_tickers = _load_patterns_leader_universe(_plog)
+        leader_set = {t for t in leader_tickers if isinstance(t, str)}
+
+        scanned, stored = _scan_patterns_daily(leader_tickers, leader_set, _plog)
+        _plog.info("[patterns] leaders_scan: scanned %d leaders, stored %d", scanned, stored)
+        print(f"[patterns] leaders_scan: scanned {scanned} leaders, stored {stored} detections")
 
         # -----------------------------------------------------------------------
         # Intraday pass — leader-only, RTH-gated
@@ -538,8 +565,8 @@ def _run_patterns_universe_scan():
             _plog.info("[patterns] intraday pass: scanned=%d stored=%d", intra_scanned, intra_stored)
             print(f"[patterns] intraday pass: scanned={intra_scanned} stored={intra_stored}")
     except Exception as e:
-        _plog.exception("[patterns] universe_scan failed: %s", e)
-        print(f"[patterns] universe_scan failed: {e}")
+        _plog.exception("[patterns] leaders_scan failed: %s", e)
+        print(f"[patterns] leaders_scan failed: {e}")
 
 
 def _seed_cache_from_volume():
@@ -5515,9 +5542,27 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
         _scheduler.add_job(
-            _run_patterns_universe_scan,
+            _run_patterns_leaders_scan,
             trigger=IntervalTrigger(hours=1),
+            id="patterns_leaders_scan",
+            max_instances=1,
+            replace_existing=True,
+        )
+        # Full-universe pass ONCE daily at 1:00 AM ET — after the 0:40 prune,
+        # before the 3:00 AM screener build (pattern_join, the only
+        # universe-wide reader). Hourly full-universe re-scans were retired
+        # 2026-08-26: daily-TF rows only change with a new daily bar.
+        _scheduler.add_job(
+            _run_patterns_universe_scan,
+            trigger=CronTrigger(hour=1, minute=0, timezone=_ET),
             id="patterns_universe_scan",
+            max_instances=1,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _run_patterns_prune,
+            trigger=CronTrigger(hour=0, minute=40, timezone=_ET),
+            id="patterns_prune",
             max_instances=1,
             replace_existing=True,
         )

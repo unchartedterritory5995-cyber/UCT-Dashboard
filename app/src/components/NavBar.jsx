@@ -18,7 +18,6 @@ const NAV_ITEMS = [
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
-  { to: '/patterns',     label: 'Patterns',      icon: 'patterns' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },

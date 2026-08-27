@@ -101,7 +101,6 @@ const EarnCardsRender = lazy(() => import('./pages/EarnCardsRender'))
 const EarnResultsRender = lazy(() => import('./pages/EarnResultsRender'))
 const MoversRender = lazy(() => import('./pages/MoversRender'))
 const LegacyRedirect = lazy(() => import('./pages/charts/LegacyRedirect'))
-const Patterns = lazy(() => import('./pages/Patterns'))
 const CatalystsHistory = lazy(() => import('./pages/CatalystsHistory'))
 const Support = lazy(() => import('./pages/Support'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -429,7 +428,6 @@ export default function App() {
                 <Route path="/journal-2-0/report" element={<J2ReportPage />} />
                 <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
                 <Route path="/journal-2-0/trade/:id" element={<J2TradeDetailPage />} />
-                <Route path="/patterns" element={<Patterns />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

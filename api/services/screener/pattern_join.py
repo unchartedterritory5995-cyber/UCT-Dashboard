@@ -1,17 +1,19 @@
 """Pattern-engine join — active 7-day detections, regime-blind expectancy.
 
-ONE bulk read per build (K4: `pattern_detections` has no index on
-`detected_at` and no prune job — a per-ticker loop would scan the whole
-table once per symbol). This module never loops the universe against
-patterns.db; it reads once, groups in Python.
+ONE bulk read per build. This module never loops the universe against
+patterns.db; it reads once, groups in Python. (K4's original rationale —
+"no index on detected_at and no prune job" — was fixed 2026-08-26:
+`idx_pd_detected` exists and a nightly prune caps retention. The bulk-read
+shape stays; one query is still cheaper than 3,700.)
 
-**"Active" copies the `/scan` endpoint's WHERE shape VERBATIM**
-(`api/routers/patterns.py::scan_universe`, map 1 §6):
+**"Active" mirrors the shared window definition** — `ACTIVE_WINDOW_SECS`
+in `api/services/pattern_engine/memory.py` (the `/scan` endpoint this
+originally copied verbatim was removed 2026-08-26 with the Patterns page):
 
     tf = 'D' AND status IN ('forming', 'ready', 'triggered')
       AND detected_at >= now - 7*86400
 
-with ONE deliberate deviation from that endpoint: no `confidence >= min_conf`
+with ONE deliberate deviation from the old endpoint: no `confidence >= min_conf`
 floor (ruling D5) — the screener column reports every active detection, not
 just the ones above some arbitrary UI default. The window is on
 `detected_at` (first sighting), never `last_seen_at`, matching the reader

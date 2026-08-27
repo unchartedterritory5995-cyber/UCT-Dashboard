@@ -15,14 +15,17 @@ from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)
 client = TestClient(app)
 
 
-def test_list_pattern_types():
-    """GET /api/patterns/types returns the registered patterns."""
-    r = client.get("/api/patterns/types")
-    assert r.status_code == 200
-    data = r.json()
-    assert "patterns" in data
-    ids = {p["id"] for p in data["patterns"]}
-    assert "bull_flag" in ids
+def test_scan_and_types_routes_are_gone():
+    """/scan and /types were removed 2026-08-26 with the Patterns page.
+
+    The SPA catch-all can answer unrouted GETs with 200 HTML, so assert on the
+    ROUTE TABLE, not a status code (the broker_sync 405 lesson).
+    """
+    paths = {getattr(r, "path", None) for r in app.routes}
+    assert "/api/patterns/scan" not in paths
+    assert "/api/patterns/types" not in paths
+    # Control: the per-symbol read (chart overlay) is still routed.
+    assert "/api/patterns/{sym}" in paths
 
 
 def test_get_detections_for_symbol_no_data():

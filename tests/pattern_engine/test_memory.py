@@ -1,3 +1,4 @@
+import time
 import unittest.mock
 
 from api.services.pattern_engine import memory
@@ -26,7 +27,10 @@ def _detection(**overrides):
         "narrative": {"headline": "test", "what_it_is": "", "why_it_matters": "",
                       "what_to_watch_for": "", "failure_signal": ""},
         "status": "ready", "outcome": None,
-        "detected_at": 1700100100, "last_seen_at": 1700100100,
+        # Recent, not a 2023 literal: get_active_detections windows on
+        # detected_at (ACTIVE_WINDOW_SECS) since 2026-08-26, so a historic
+        # timestamp here would silently empty every active-read assertion.
+        "detected_at": int(time.time()) - 60, "last_seen_at": int(time.time()) - 60,
     }
     base.update(overrides)
     return base
@@ -380,3 +384,91 @@ def test_recompute_stats_clears_before_rewrite():
         assert rows[0]["n_total"] == 2
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Active window + retention sweep (added 2026-08-26 with the Patterns page
+# retirement — before this, "active" had no time bound on the per-symbol read
+# and the store had no prune at all; prod hit 13.57 GB in six weeks).
+# ---------------------------------------------------------------------------
+
+
+def test_get_active_detections_windows_on_detected_at():
+    """A stale 'ready' row is NOT active — statuses freeze once a row ages past
+    track_outcomes' 48h lookback, so recency is part of the definition."""
+    init_db()
+    now = int(time.time())
+    stale = now - memory.ACTIVE_WINDOW_SECS - 3600
+    memory.store_detection(_detection(id="det-win-old", sym="WNDW",
+                                      start_t=1, end_t=2,
+                                      detected_at=stale, last_seen_at=stale))
+    memory.store_detection(_detection(id="det-win-new", sym="WNDW",
+                                      start_t=3, end_t=4,
+                                      detected_at=now - 60, last_seen_at=now - 60))
+    rows = memory.get_active_detections("WNDW", "D")
+    ids = {r["id"] for r in rows}
+    assert "det-win-new" in ids
+    assert "det-win-old" not in ids
+
+
+def test_prune_old_deletes_past_retention_and_orphans():
+    init_db()
+    now = int(time.time())
+    old_ts = now - (memory.PRUNE_RETENTION_DAYS + 2) * 86400
+    memory.store_detection(_detection(id="det-prune-old", sym="PRNE",
+                                      start_t=1, end_t=2,
+                                      detected_at=old_ts, last_seen_at=old_ts))
+    memory.store_detection(_detection(id="det-prune-new", sym="PRNE",
+                                      start_t=3, end_t=4,
+                                      detected_at=now - 60, last_seen_at=now - 60))
+    # An outcome row attached to the old detection must go with it.
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO pattern_outcomes"
+            " (detection_id, entry_hit, stop_hit, target_hit, resolved_at)"
+            " VALUES (?, 1, 0, 1, ?)",
+            ("det-prune-old", old_ts),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    result = memory.prune_old()
+    assert result["deleted"] >= 1
+    assert result["orphan_outcomes"] >= 1
+
+    assert memory.get_detection_by_id("det-prune-old") is None
+    assert memory.get_detection_by_id("det-prune-new") is not None
+    conn = get_connection()
+    try:
+        left = conn.execute(
+            "SELECT COUNT(*) FROM pattern_outcomes WHERE detection_id = ?",
+            ("det-prune-old",),
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert left == 0
+
+
+def test_prune_old_is_a_noop_on_fresh_rows():
+    """Control: a store holding only in-window rows loses nothing."""
+    init_db()
+    now = int(time.time())
+    memory.store_detection(_detection(id="det-prune-keep", sym="KEEP",
+                                      start_t=9, end_t=10,
+                                      detected_at=now - 3600, last_seen_at=now - 3600))
+    memory.prune_old()
+    assert memory.get_detection_by_id("det-prune-keep") is not None
+
+
+def test_detected_at_index_exists():
+    """The window/prune queries lean on idx_pd_detected; without it every
+    7-day read full-scanned the table (the prod 13.6 GB lesson)."""
+    init_db()
+    conn = get_connection()
+    try:
+        names = {r[1] for r in conn.execute("PRAGMA index_list(pattern_detections)")}
+    finally:
+        conn.close()
+    assert "idx_pd_detected" in names

@@ -11,7 +11,7 @@ const TABS = [
   { key: 'home', label: 'Home', icon: 'dashboard', to: '/dashboard', match: ['/dashboard'], paidOnly: true },
   { key: 'wire', label: 'Wire', icon: 'wire', to: '/morning-wire', match: ['/morning-wire'], freeOnly: true },
   { key: 'markets', label: 'Markets', icon: 'markets', to: '/breadth',
-    match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/patterns', '/calendar', '/catalysts'],
+    match: ['/breadth', '/options-flow', '/dark-pool', '/post-market', '/screener', '/calendar', '/catalysts'],
     paidOnly: true },
   { key: 'charts', label: 'Charts', icon: 'chart', to: '/charts',
     match: ['/charts', '/watchlists', '/theme-tracker'], paidOnly: true },

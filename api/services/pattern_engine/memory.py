@@ -24,6 +24,22 @@ logger = logging.getLogger(__name__)
 
 _VALID_FEEDBACK_RATINGS = {"great", "good", "miss", "wrong"}
 
+#: One authority for what "active" means, time-wise. Every reader of live
+#: detections (chart overlay via the router, voice tools, screener pattern_join)
+#: windows on detected_at over 7 days; before 2026-08-26 the per-symbol read had
+#: NO window, so a July VCP still rendered on charts as active — statuses never
+#: expire once a row is older than track_outcomes' 48h lookback.
+ACTIVE_WINDOW_SECS = 7 * 24 * 60 * 60
+
+#: Retention for pattern_detections. Nothing reads past ACTIVE_WINDOW_SECS
+#: (scan/join/voice window 7d; track_outcomes looks back 48h; stats aggregate
+#: from what remains), so rows past this only grow the file: measured 2026-08-26,
+#: prod patterns.db hit 13.57 GB / 1.54M rows in 6 weeks with no prune. With this
+#: retention, pattern_stats becomes a ROLLING-window aggregate rather than
+#: since-forever — the honest read, and the n_resolved>0 gate downstream already
+#: handles thin windows.
+PRUNE_RETENTION_DAYS = 10
+
 
 def _hash_key(sym: str, tf: str, pattern_id: str, start_t: int, end_t: int) -> str:
     """Stable hash for dedup. Identical pattern geometry on same symbol/TF/range
@@ -109,8 +125,12 @@ def get_active_detections(
     pattern_ids: Optional[list[str]] = None,
     min_conf: float = 0.0,
 ) -> list[dict]:
-    """Return detections for (sym, tf) with status not in ('completed', 'failed', 'expired'),
-    sorted by detected_at desc."""
+    """Return recent detections for (sym, tf) with status not in
+    ('completed', 'failed', 'expired'), sorted by detected_at desc.
+
+    Windowed to ACTIVE_WINDOW_SECS — an active status alone is not enough,
+    because statuses freeze once a row ages past track_outcomes' 48h lookback.
+    """
     conn = get_connection()
     try:
         sql = """
@@ -118,8 +138,10 @@ def get_active_detections(
             WHERE sym = ? AND tf = ?
               AND status NOT IN ('completed', 'failed', 'expired')
               AND confidence >= ?
+              AND detected_at >= ?
         """
-        params: list = [sym.upper(), tf, min_conf]
+        params: list = [sym.upper(), tf, min_conf,
+                        int(time.time()) - ACTIVE_WINDOW_SECS]
         if pattern_ids:
             placeholders = ",".join(["?"] * len(pattern_ids))
             sql += f" AND pattern_id IN ({placeholders})"
@@ -156,6 +178,42 @@ def record_feedback(detection_id: str, user_id: str, rating: str, note: Optional
         """, (detection_id, user_id, rating, note, int(time.time())))
         conn.commit()
         return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def prune_old(retention_days: int = PRUNE_RETENTION_DAYS, batch: int = 50_000) -> dict:
+    """Delete detections older than the retention window, plus their now-orphaned
+    outcome rows. Batched so the WAL stays bounded and writers are never locked
+    out for the whole sweep. Returns {"deleted": n, "orphan_outcomes": n}.
+    """
+    conn = get_connection()
+    try:
+        cutoff = int(time.time()) - retention_days * 86400
+        deleted = 0
+        while True:
+            cur = conn.execute(
+                """
+                DELETE FROM pattern_detections WHERE rowid IN (
+                    SELECT rowid FROM pattern_detections
+                    WHERE detected_at < ? LIMIT ?
+                )
+                """,
+                (cutoff, batch),
+            )
+            conn.commit()
+            if cur.rowcount <= 0:
+                break
+            deleted += cur.rowcount
+        orphans = conn.execute(
+            """
+            DELETE FROM pattern_outcomes WHERE detection_id NOT IN (
+                SELECT id FROM pattern_detections
+            )
+            """
+        )
+        conn.commit()
+        return {"deleted": deleted, "orphan_outcomes": orphans.rowcount}
     finally:
         conn.close()
 
