@@ -470,6 +470,26 @@ function readOffsetSentence(s) {
   return { via: 'offset', ast: { type: 'offset', value, args: [readOperand(m[1])] } }
 }
 
+/** ⭐ THE HIGHER-TIMEFRAME FORM, and like the offset above it is NOT a `FORMS`
+ *  row: a `tf` node is `{type, value, args}` — the timeframe rides ON THE NODE,
+ *  which is the property that makes a computed timeframe inexpressible. So it
+ *  gets its own clause, hand-typed from `renderTf`'s words, so a re-phrasing
+ *  there lands here as `0 parses` rather than as a reader that moved with it.
+ *
+ *  ⚠️ A SUFFIX, UNAMBIGUOUS FOR THE SAME REASON THE OFFSET'S IS: a composite
+ *  child is bracketed, so anything ending in `) on the weekly timeframe` ends in
+ *  this form's own chrome and nothing else's. The unambiguity is not assumed —
+ *  `the grammar is UNAMBIGUOUS` asserts exactly one production reads each
+ *  sentence, and it would fail if this collided. */
+const TF_SUFFIX = /^(.+) on the (weekly|monthly) timeframe$/
+const TF_CODE_OF = { weekly: 'W', monthly: 'M' }
+
+function readTfSentence(s) {
+  const m = TF_SUFFIX.exec(s)
+  if (!m) return null
+  return { via: 'tf', ast: { type: 'tf', value: TF_CODE_OF[m[2]], args: [readOperand(m[1])] } }
+}
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -480,6 +500,10 @@ function readSentenceCandidates(s) {
   try {
     const off = readOffsetSentence(s)
     if (off) found.push(off)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
+    const htf = readTfSentence(s)
+    if (htf) found.push(htf)
   } catch { /* the chrome matched but the child did not read */ }
   for (const form of FORMS) {
     const slots = matchForm(form.parts, s)
@@ -608,6 +632,15 @@ function predictTrace(node, at = '$') {
     // use. Read from the manifest, never typed.
     if (own(TABLE.clock || {}, node.name)) return [{ path: at, rule: 'series:clock' }]
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
+  }
+  if (node.type === 'tf') {
+    // ⭐ THE HIGHER-TIMEFRAME READ, predicted the same way the offset is: one
+    // `tf` frame, then the child's own walk. ⚠️ NO branch on the CODE — `W` and
+    // `M` are the same rule producing different words, and predicting a
+    // per-code rule here would make this walk agree with the renderer only
+    // because both were hand-typed twice.
+    return [{ path: at, rule: 'tf' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'offset') {
     // ⚠️ NO `value === 0` BRANCH, and the absence is the point: the parse door
@@ -2141,6 +2174,16 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'aroon_up_25',
       'aroon_down_25',
       'bop_twenty',
+      // ⭐ THE HIGHER-TIMEFRAME FOUR (W2b, 2026-08-27) — the corpus's only rows
+      // whose value comes from a bar the base series does not contain. The
+      // fixture spans TWO ISO weeks and TWO months on purpose: a `tf` case over
+      // a single period would be all-NaN and would prove only that nothing
+      // crashed. `tf_of_a_reduction` is the discriminating one — it fails if a
+      // lane resamples the RESULT instead of the INPUT.
+      'tf_close_weekly',
+      'tf_high_monthly',
+      'tf_weekly_compared_to_close',
+      'tf_of_the_weekly_range',
     ])
   })
 
@@ -2394,10 +2437,24 @@ describe('the refusals', () => {
     // ENFORCEABLE, so `macd(close, 26, 12)` — the 12/26 pair transposed — is
     // refused at the resolve pass instead of computing an all-NaN column that a
     // comparison then reads as a confident NO on every bar.
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(11)
+    // ⚠️ 12 -> 13 with `canonicalise:timeframe` (W2b): `tf(expr, 'W')` is the one
+    // call whose second argument is a QUOTED TIMEFRAME rather than an
+    // expression, so a malformed one is refused at the parse door by its own
+    // name instead of reading as an ordinary call to a function nobody declared.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(13)
+    // ⚠️ 11 -> 12 with `interpret:timeframe` (W2b): a higher-timeframe read can
+    // name a code the ladder does not declare, or one at or BELOW the bars it
+    // was handed — neither is answerable from those bars, and inventing an
+    // answer is the silent mistranslation this engine exists against.
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(12)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(33)
+    // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
+    // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
+    // `interpret:timeframe` (a code the ladder cannot serve). The count is the
+    // floor; the assertion that matters is the loop below, which proves no
+    // message CONTAINS another — so a member reading one refusal can never be
+    // reading a prefix of a different door's.
+    expect(all.length).toBe(35)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

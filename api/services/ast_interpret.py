@@ -43,6 +43,7 @@ one.
 """
 from __future__ import annotations
 
+import datetime
 import math
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
@@ -107,7 +108,7 @@ INF = float("inf")
 #: expression, and that is the whole design: a shape with no slot for an
 #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
 #: FORWARD reference stays inexpressible in both lanes at once.
-NODE_TYPES = ("num", "series", "op", "call", "offset")
+NODE_TYPES = ("num", "series", "op", "call", "offset", "tf")
 
 
 # --------------------------------------------------------------------------- #
@@ -137,6 +138,85 @@ class TableRefusal(Exception):
 #: equality of these strings is asserted in ``test_ast_interpret.py``: a lane that
 #: refuses for a different stated reason is a lane whose chip tooltip tells the
 #: user a different story about the same formula.
+#: ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH. `tf` may only ever read a
+#: timeframe STRICTLY ABOVE the bars it was handed: asking a daily series for a
+#: 5-minute value cannot be answered from the bars in hand, and inventing one is
+#: the silent mistranslation this engine exists against.
+#:
+#: ⛔ THE ORDER IS THE MEANING, not decoration — `_tf_rank` is a position in this
+#: tuple and nothing else, so adding a timeframe is one edit and the comparison
+#: cannot drift from the list it compares.
+TF_LADDER = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+#: Which of those `tf` can actually RESAMPLE today. ⚠️ Deliberately smaller than
+#: the ladder: the ladder is what an ORDER can be taken over, this is what a
+#: value can be produced for. Conflating them would let `tf(close, '60')` parse,
+#: rank correctly and then answer nothing.
+TF_RESAMPLABLE = ("W", "M")
+
+#: How many BASE bars one higher-timeframe bar spans, for the lookback sum.
+#: ⚠️ TRADING days, not calendar: 5 to a week, 21 to a month. These are the
+#: numbers `max_lookback` multiplies by, and a lookback that is too SMALL is
+#: the dangerous direction — it would let a tree claim it needs fewer bars
+#: than it reads and answer off a warmup it never had.
+TF_BASE_BARS = {"W": 5, "M": 21}
+
+
+def _tf_rank(code: Any) -> Optional[int]:
+    """Position on the ladder, or ``None`` for a code it does not declare."""
+    try:
+        return TF_LADDER.index(str(code))
+    except ValueError:
+        return None
+
+
+def _iso_day(t: Any) -> Optional[str]:
+    """One bar's ``t`` as ``YYYY-MM-DD``, whichever way it was stored.
+
+    ⛔⛔ THIS EXISTS BECAUSE THE RESAMPLERS PARSE A STRING AND THE STORE DOES NOT
+    KEEP ONE. `bars_fetch._resample_weekly_iso` reads
+    ``datetime.strptime(bar["t"], "%Y-%m-%d")``, while `bars_sqlite` stores
+    daily/weekly/monthly ``t`` as **YYYYMMDD ints** and intraday ``t`` as **unix
+    seconds** (measured 2026-08-27: ``{"t": 20260827, ...}``). Handing the store's
+    own bars straight to the resampler dates every higher-timeframe bar to 1970 —
+    and the column still DRAWS, which is the shape of defect this engine refuses
+    everywhere else.
+
+    ⚠️ IT RETURNS ``None`` RATHER THAN GUESSING. A ``t`` in neither spelling is a
+    bar this function cannot place in a week, and a placed-wrong bar is worse
+    than an absent one.
+    """
+    if isinstance(t, str):
+        return t[:10] if len(t) >= 10 and t[4] == "-" and t[7] == "-" else None
+    if isinstance(t, bool) or not isinstance(t, (int, float)):
+        return None
+    n = int(t)
+    # 8-digit YYYYMMDD — the store's daily spelling. Bounded by the calendar
+    # rather than by digit count so 19700101 and 99991231 cannot both pass.
+    if 19000101 <= n <= 99991231:
+        y, md = divmod(n, 10000)
+        m, d = divmod(md, 100)
+        if 1 <= m <= 12 and 1 <= d <= 31:
+            return "%04d-%02d-%02d" % (y, m, d)
+    # otherwise: unix SECONDS (the intraday spelling). Not milliseconds — this
+    # platform's unit everywhere a bar carries one, as `compute_clock` states.
+    if 0 < n < 4102444800:                      # < 2100-01-01
+        return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+    return None
+
+
+def _tf_bucket(iso: str, code: str) -> Any:
+    """The higher-timeframe bucket an ISO day falls in.
+
+    ⛔ THE SAME KEYS THE RESAMPLERS GROUP BY — ISO (year, week) for `W` and
+    (year, month) for `M` — because this function decides WHICH resampled bar a
+    base bar reads, and a second bucketing rule here would silently misalign the
+    two by one period at every year boundary.
+    """
+    d = datetime.datetime.strptime(iso, "%Y-%m-%d")
+    return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
+
+
 REFUSALS: Mapping[str, str] = {
     "resolve:name": "unknown name",
     "resolve:function": "unknown function",
@@ -151,6 +231,9 @@ REFUSALS: Mapping[str, str] = {
     "interpret:recurrence": (
         "a running value reads its own past only inside its own update, and only "
         "through operators and pointwise calls"),
+    "interpret:timeframe": (
+        "a higher-timeframe read names a timeframe this engine cannot serve "
+        "from the bars it was given"),
     "interpret:steps": (
         "warming this running value up over these bars would take more steps than "
         "the engine will spend"),
@@ -1527,7 +1610,7 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call", "offset"):
+        if node["type"] in ("op", "call", "offset", "tf"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -1800,6 +1883,17 @@ def max_lookback(ast: Any) -> int:
             for arg in node["args"]:
                 best = max(best, seen[id(arg)])
             seen[id(node)] = best
+            continue
+        if kind == "tf":
+            # ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in
+            # HIGHER-timeframe bars, so it is multiplied by the span; the +1 is the
+            # bar this node always steps back to reach the last CLOSED period.
+            # ⚠⚠ ROUNDING UP IS THE SAFE DIRECTION and it is why the ratio is a
+            # constant rather than a measurement: a lookback that is too SMALL lets
+            # a tree claim it needs fewer bars than it reads and answer off a warmup
+            # it never had.
+            span = TF_BASE_BARS.get(str(node.get("value")), 1)
+            seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
             continue
         if kind == "offset":
             # ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM, and byte-for-byte
@@ -2345,7 +2439,7 @@ def interpret(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -2372,6 +2466,82 @@ def interpret(ast: Any, bars: List[dict],
             out = _nan_col(length)
             for i in range(back, length):
                 out[i] = src[i - back]
+            return out
+        if kind == "tf":
+            code = str(n.get("value"))
+            if code not in TF_RESAMPLABLE:
+                _refuse("interpret:timeframe",
+                        "%r \u2014 this engine resamples %s from the bars it is given. "
+                        "The declared ladder is %s; a code outside it is not a "
+                        "timeframe this table knows."
+                        % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
+            # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
+            # base is. `opts["tf"]` is what the caller knows and the bars do not;
+            # absent, this check cannot run and does not pretend to \u2014 the same
+            # fail-closed-but-say-so rule `compute_clock` states for `isdaily`.
+            base = (opts or {}).get("tf")
+            if base is not None:
+                rb, rc = _tf_rank(base), _tf_rank(code)
+                if rb is not None and rc is not None and rc <= rb:
+                    _refuse("interpret:timeframe",
+                            "%r is not above %r \u2014 a higher-timeframe read can only "
+                            "look UP from the bars it was handed, and %r cannot be "
+                            "resampled out of %r."
+                            % (code, str(base), code, str(base)))
+
+            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on.
+            iso = [_iso_day(b.get("t")) for b in bars]
+            keys = [(_tf_bucket(d, code) if d else None) for d in iso]
+            order: List[Any] = []
+            at: Dict[Any, int] = {}
+            for k in keys:
+                if k is not None and k not in at:
+                    at[k] = len(order)
+                    order.append(k)
+
+            # \u2b50 THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS.
+            # `bars_fetch._resample_weekly_iso` carries the stable-Friday-key
+            # rationale; a private aggregation here would be a second authority on
+            # it, which `screener/candles.py` already says in as many words.
+            from api.services import bars_fetch                      # noqa: PLC0415
+            resample = (bars_fetch._resample_weekly_iso if code == "W"
+                        else bars_fetch._resample_monthly_iso)
+            htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
+
+            # \u26d4 AND THE TWO MUST AGREE. This function decides WHICH resampled bar
+            # a base bar reads, using its own bucketing; the resampler decides what
+            # those bars ARE. If they ever group differently the column is silently
+            # off by a period \u2014 so the disagreement is a refusal, not a shrug.
+            if len(htf) != len(order):
+                _refuse("interpret:timeframe",
+                        "the %s resample produced %d bars for %d buckets \u2014 this "
+                        "engine\u2019s bucketing and the resampler\u2019s have diverged, and a "
+                        "column built across that gap would be off by a period."
+                        % (code, len(htf), len(order)))
+
+            # \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the
+            # whole value of the node: `tf(sma(close, 20), "W")` is the 20-WEEK
+            # average, not the 20-day average sampled weekly. `opts.tf` becomes the
+            # HTF code so a nested clock or `tf` reads the right base.
+            child = _to_column(
+                interpret(n["args"][0], htf, inputs=inputs, budget=budget,
+                          scalars=scalars, opts=dict(opts or {}, tf=code)),
+                len(htf))
+
+            # \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base
+            # bar in bucket `b` reads bucket `b - 1`. Reading `b` would hand a
+            # Monday its own week\u2019s eventual close \u2014 every backtest using `tf`
+            # would then be reading the future and still drawing a confident line.
+            # Bucket 0 has no closed predecessor, so it is NOT COMPUTABLE: NaN,
+            # never 0.0 and never the bar\u2019s own value, exactly as `offset` states
+            # for its left edge.
+            out = _nan_col(length)
+            for i, k in enumerate(keys):
+                if k is None:
+                    continue
+                b = at[k]
+                if b > 0:
+                    out[i] = child[b - 1]
             return out
         if kind == "op":
             return apply_op(n, [eval_node(a) for a in n["args"]])

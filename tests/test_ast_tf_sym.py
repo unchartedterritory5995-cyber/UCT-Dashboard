@@ -27,34 +27,6 @@ import pytest
 from api.services import ast_interpret
 
 
-# ⛔⛔ XFAIL UNTIL W2b LANDS BOTH LANES — AND THIS MARK IS A CORRECTION.
-#
-# These nine were written TDD-first and committed RED on purpose, which is right
-# on a feature branch and WRONG on master — and they reached master anyway in the
-# 2026-08-27 Wave-1 push, because the pre-push gate ran a TARGETED backend subset
-# and this file was created after the last full run. A red master is how the next
-# person learns to ignore a red.
-#
-# ⭐ `strict=True` IS THE POINT. The moment `tf` lands in both lanes these XPASS,
-# which pytest reports as a FAILURE — so the mark cannot outlive the gap it
-# documents. Remove each mark in the same commit as the capability it pins.
-#
-# STATE 2026-08-27: the Python lane is written and passes 8 of 9 (the patch is
-# real, not a sketch); it is held back because declaring `tf` in `NODE_TYPES`
-# without the JS twin turns three MIRROR rails red —
-# `test_the_node_types_are_DERIVED_from_the_committed_corpus`,
-# `..._guard_is_REACHABLE...` and `test_the_two_lanes_refuse_with_THE_SAME_SIX_SENTENCES`.
-# Those rails are correct: this engine does not accept a node type that exists in
-# one lane. See the plan's ruling (one node type per task, BOTH lanes, with its
-# conformance-corpus cases) and the open design question it surfaced: the JS lane
-# has no `_resample_weekly_iso`, so the weekly bucketing must be mirrored there
-# and held equal by the corpus, exactly as every other pair in this engine is.
-pytestmark = pytest.mark.xfail(
-    strict=True,
-    reason="W2b in progress: `tf`/`sym` are pinned here ahead of the "
-           "implementation. The Python lane is written; it lands with the JS "
-           "twin and the corpus cases, per the plan's one-node-type-per-task "
-           "ruling. Each mark is removed by the commit that makes it pass.")
 
 
 # ─── fixtures: three real weeks of daily bars, in both `t` spellings ─────────
@@ -113,6 +85,11 @@ def test_tf_is_a_DECLARED_node_type_in_this_lane():
     assert "tf" in ast_interpret.NODE_TYPES
 
 
+# ⛔ STILL PINNED — `sym` is Task 4 and is not built. `strict=True` so the day it
+# lands this XPASSes, pytest reports that as a FAILURE, and the mark cannot
+# outlive the gap it documents.
+@pytest.mark.xfail(strict=True,
+                   reason="W2b Task 4: the `sym` node is not implemented yet")
 def test_sym_is_a_DECLARED_node_type_in_this_lane():
     assert "sym" in ast_interpret.NODE_TYPES
 

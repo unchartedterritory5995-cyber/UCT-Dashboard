@@ -185,6 +185,16 @@ export const REFUSALS = Object.freeze({
  *  keeps this from being the list-that-rots. The guard names WHY the whole
  *  namespace is out, and a namespace with several reasons would be several
  *  entries. */
+/** Pine timeframe strings \u2192 this engine's codes.
+ *
+ *  \u26a0\ufe0f ONLY THE ONES `tf` CAN RESAMPLE. Pine spells a week `"W"` or `"1W"`, a
+ *  month `"M"` or `"1M"`; everything else it can say \u2014 `"60"`, `"D"`, `"3M"` \u2014
+ *  is deliberately absent, so those requests fall through to `pine:request`
+ *  rather than translating into a timeframe the engine would then refuse at
+ *  `interpret:timeframe`. Refusing at the DOOR the member typed at is the whole
+ *  point of the translator. */
+const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
+
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
   strategy: 'pine:strategy-call',
@@ -1319,6 +1329,13 @@ export function printFormula(node, parentBp = 0) {
       // which is the way Pine spells it too, so what a member sees in the formula
       // box is the sub-expression they pasted.
       return `${printFormula(node.args[0], POSTFIX_BP)}[${printNumber(node.value)}]`
+    case 'tf':
+      // The SIXTH node type, spelled the way this engine's own parser reads it:
+      // `tf(<expr>, '<TF>')`. ⚠️ The child prints at precedence 0 so a composite
+      // one is fully parenthesised inside the call — the same reason `call`
+      // above does it, and what keeps `tf(a > b, 'W')` from re-parsing as
+      // something else.
+      return `tf(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'op': {
       if (node.name === 'u-' || node.name === '!') {
         const sym = node.name === 'u-' ? '-' : '!'
@@ -2160,6 +2177,22 @@ class Resolver {
     const asType = this.typeRefusalFor(name, node.tok)
     if (asType) throw asType
 
+    // ⭐⭐ THE ONE CARVE-OUT IN `request`, AND IT IS NARROW ON PURPOSE.
+    // `request.security(syminfo.tickerid, '<TF>', expr)` is the higher-timeframe
+    // read this engine now HAS a node for, so refusing it would be refusing
+    // something we can honestly answer. Everything else under `request` — another
+    // SYMBOL, a computed timeframe, `security_lower_tf`, `lookahead_on` — still
+    // refuses under the namespace guard below, by name.
+    //
+    // ⛔ IT IS TRIED BEFORE THE GUARD AND FALLS THROUGH TO IT. `securityAsTf`
+    // returns null for every shape it cannot honestly take, so a request that is
+    // ALMOST this one lands on `pine:request` with the namespace's own sentence
+    // rather than on a special-case message that would have to be maintained
+    // twice.
+    if (name === 'request.security' || name === 'security') {
+      const asTf = this.securityAsTf(node)
+      if (asTf) return asTf
+    }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
@@ -2183,6 +2216,65 @@ class Resolver {
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     return this.resolveTableCall(name, base, node.args, node.tok)
+  }
+
+  /** `request.security(syminfo.tickerid, '<TF>', expr)` \u2192 a `tf` node, or null.
+   *
+   *  \u2b50 NULL, NEVER A REFUSAL OF ITS OWN. Returning null lets the caller fall
+   *  through to `pine:request`, so every shape this cannot take keeps the ONE
+   *  sentence the namespace already publishes. A second message here would be a
+   *  second authority on why `request` is out.
+   *
+   *  \u26d4\u26d4 `lookahead_on` IS THE DANGEROUS ONE AND IT FALLS THROUGH TO REFUSED.
+   *  Our `tf` is `lookahead_off` + `[1]`: each base bar reads the LAST CLOSED
+   *  higher-timeframe bar. `barmerge.lookahead_on` asks for the bar the base bar
+   *  is INSIDE \u2014 i.e. the future, mid-week \u2014 and translating it as if it were
+   *  `off` would silently turn a look-ahead script into a look-behind one and
+   *  backtest beautifully. A refusal is the only honest answer.
+   *
+   *  \u26a0\ufe0f THE SYMBOL MUST BE THE CHART\u2019S OWN. `syminfo.tickerid` (or
+   *  `syminfo.ticker`) means "this symbol"; a string literal means ANOTHER symbol
+   *  and that is `sym`, which is not built yet \u2014 so it stays refused rather than
+   *  quietly reading the wrong instrument.
+   */
+  securityAsTf(node) {
+    const args = node.args || []
+
+    // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
+    // arguments — `name` is the label (`lookahead=`) or null for a positional
+    // one, and `value` is the parsed node. Reading the wrapper as if it WERE the
+    // node is how the first draft returned null for every shape, including the
+    // ones it exists to take; the four accept-cases in `pine.security.test.js`
+    // are what caught it.
+    const positional = args.filter((a) => a && !a.name).map((a) => a.value)
+    if (positional.length < 3) return null
+
+    // 1. the symbol: this chart's own, or nothing. A string literal is ANOTHER
+    //    symbol — that is `sym`, which is not built — and a variable alias is a
+    //    binding this method deliberately does not chase.
+    const sym = positional[0]
+    const symName = sym && sym.type === 'name' ? sym.name : null
+    if (symName !== 'syminfo.tickerid' && symName !== 'syminfo.ticker') return null
+
+    // 2. the timeframe: a STRING LITERAL this engine can resample. A computed
+    //    timeframe is exactly what the node shape forbids — the code rides ON the
+    //    node so `max_lookback` stays a tree sum — so it falls through.
+    const tfNode = positional[1]
+    const raw = tfNode && tfNode.type === 'string' ? tfNode.value : null
+    const code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
+    if (!code) return null
+
+    // 3. `lookahead`, wherever it appears: only OFF may translate.
+    for (const a of args) {
+      if (!a) continue
+      const v = a.value
+      const spelled = v && v.type === 'name' ? v.name : null
+      const isLookahead = a.name === 'lookahead'
+        || (typeof spelled === 'string' && spelled.includes('lookahead'))
+      if (isLookahead && spelled !== 'barmerge.lookahead_off') return null
+    }
+
+    return { type: 'tf', value: code, args: [this.resolve(positional[2])] }
   }
 
   /**

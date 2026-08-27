@@ -2541,6 +2541,86 @@
           }
         ]
       }
+    },
+    {
+      "id": "tf_close_weekly",
+      "source": "tf(close, 'W')",
+      "why": "the higher-timeframe read at its simplest. The corpus bars span TWO ISO weeks, so the first week's bars are not-computable and the second week's carry week one's close — a case that would be all-NaN proves nothing about the mapping",
+      "ast": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tf_high_monthly",
+      "source": "tf(high, 'M')",
+      "why": "the same node on the OTHER resamplable timeframe and a different bar field; the corpus bars straddle a month boundary, so this is not a relabelled copy of the weekly case",
+      "ast": {
+        "type": "tf",
+        "value": "M",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tf_weekly_compared_to_close",
+      "source": "close > tf(close, 'W')",
+      "why": "composition: a tf node under an operator, which is the shape every real multi-timeframe condition takes. Also proves the NaN prefix propagates through a comparison rather than answering a confident 0",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "tf",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tf_of_the_weekly_range",
+      "source": "tf(high - low, 'W')",
+      "why": "the child is evaluated ON the higher-timeframe bars — the WEEKLY range, which is a different number from any daily bar's range. ⚠️ This case replaced `tf(sma(close, 2), 'W')`, which was entirely NaN: the fixture spans only TWO buckets, so a child needing two HTF bars of history can never resolve, and an all-NaN case proves only that nothing crashed",
+      "ast": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

@@ -270,12 +270,23 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # back correctly in both lanes and then fail to persist — the "built, tested,
     # green and connected to nothing" shape, one door further along than usual.
     "offset": ("type", "value", "args"),
+    # ⭐ THE HIGHER-TIMEFRAME READ — `tf(expr, "W")`. ⚠️ NO `name`, and the
+    # timeframe is a FIELD rather than a child, for exactly the reason `offset`
+    # keeps its bar count on the node: a shape with no slot for an expression
+    # cannot hold one, so a timeframe can never be computed at runtime and
+    # `max_lookback` stays a tree sum.
+    "tf": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 
 
 def assert_canonical(ast: Any) -> Any:
-    """The tree really is one of the four shapes, with exactly its own keys.
+    """The tree really is one of the shapes `NODE_TYPES` declares, with exactly
+    its own keys.
+
+    ⚰️ This said "one of the FOUR shapes" while `NODE_TYPES` was derived from
+    `_CANONICAL_KEYS` right above it — so the prose was a hand-typed count beside
+    the list it described, and it went stale the moment a fifth shape landed.
 
     Iterative, never recursive: the hash is taken of a PERSISTED artifact — a
     blob that arrived over a wire or out of a database — and a deep tree must

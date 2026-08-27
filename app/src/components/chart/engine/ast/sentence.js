@@ -360,6 +360,15 @@ export function yieldsOf(node, rules) {
       const functions = (r && r.functions) || EMPTY
       return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
     }
+    case 'tf':
+      // ⭐ A HIGHER-TIMEFRAME READ CHANGES *WHERE FROM*, NEVER *WHAT*. `tf(close >
+      // open, 'W')` is still the yes/no it is, read off last week's bar, so the
+      // kind passes through from the child — the same rule, and the same
+      // failure if it did not: every multi-timeframe condition would be quietly
+      // demoted out of the boolean lane and stop being scannable.
+      return Array.isArray(node.args) && node.args.length === 1
+        ? yieldsOf(node.args[0], r)
+        : NUM
     case 'offset':
       // ⭐ AN OFFSET CHANGES *WHEN*, NEVER *WHAT*. `(close > open)[1]` is still
       // the yes/no it was a bar ago, so the kind passes straight through from
@@ -943,6 +952,38 @@ function renderOffset(node, rules, inputs, depth, path, trace) {
   return `${inner} ${n} bar${n === 1 ? '' : 's'} ago`
 }
 
+/** The English for a timeframe code. ⛔ A CLOSED MAP, not a `.toLowerCase()`:
+ *  "W" has exactly one reading here, and a code with no word is a code this
+ *  grammar cannot say — which must REFUSE rather than leak `W` into a sentence a
+ *  member is asked to trust. */
+const TF_WORD = Object.freeze({ W: 'weekly', M: 'monthly' })
+
+/** ⭐ A SUFFIX, THE WAY `renderOffset` IS ONE, and for the same reason: a
+ *  higher-timeframe read changes *WHERE THE VALUE COMES FROM*, never what the
+ *  child says, so the child's own sentence stays intact and the chrome is
+ *  appended. `(close > open) on the weekly timeframe` reads exactly as it
+ *  computes.
+ *
+ *  ⚠️ THE WORDS ARE THE READER'S CONTRACT. `sentence.test.js` hand-types this
+ *  phrase into its own independent reader, so a re-phrasing here lands there as
+ *  `0 parses` — loudly — rather than as a reader that quietly moved with it. */
+function renderTf(node, rules, inputs, depth, path, trace) {
+  if (!Array.isArray(node.args) || node.args.length !== 1) {
+    refuse('sentence:arity',
+      `at ${path}: a higher-timeframe read has exactly one child column, got `
+      + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
+  }
+  const word = TF_WORD[String(node.value)]
+  if (!word) {
+    refuse('sentence:window',
+      `at ${path}: no English is declared for timeframe ${JSON.stringify(node.value)} `
+      + `\u2014 this grammar says ${Object.keys(TF_WORD).join(', ')}`)
+  }
+  trace.push({ path, rule: 'tf' })
+  const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  return `${inner} on the ${word} timeframe`
+}
+
 function renderNode(node, rules, inputs, depth, path, trace) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) {
     refuse('sentence:node', `at ${path}: got ${JSON.stringify(node) ?? String(node)}`)
@@ -959,6 +1000,8 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderCall(node, rules, inputs, depth, path, trace)
     case 'offset':
       return renderOffset(node, rules, inputs, depth, path, trace)
+    case 'tf':
+      return renderTf(node, rules, inputs, depth, path, trace)
     default:
       // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. A catch-all that returned
       // "the value" would produce English for a node type nobody wrote a rule

@@ -663,6 +663,11 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         "resolve:domain": lambda: run(_an_out_of_domain_call()),
         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
+        # ⭐ A CODE THE LADDER DOES NOT DECLARE. The other reachable shape — a
+        # timeframe BELOW the base — needs `opts={"tf": ...}`, which `run` does not
+        # pass; this one fires from the tree alone, which is what this table wants.
+        "interpret:timeframe": lambda: run(
+            {"type": "tf", "value": "fortnightly", "args": [SER("close")]}),
         # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is
         # refused at the JS parse door, so the only way this guard is ever
         # reached is a STORED tree — which is exactly the input it exists for.

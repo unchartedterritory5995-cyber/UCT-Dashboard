@@ -212,17 +212,42 @@ const NOT_PICKABLE = Object.freeze({
   },
 })
 
-/** ⭐ THE TYPE-LEVEL EXEMPT MAP, AND IT IS EMPTY — WHICH IS THE FINDING.
+/** ⭐ THE TYPE-LEVEL EXEMPT MAP. It was EMPTY, and its own comment said what to
+ *  do the day that changed:
  *
- *  Every one of today's five canonical node types opens in at least one formula.
- *  That is a genuine measurement and it is why the (type, position) axis exists
- *  above: a rail that only asked "does each TYPE open somewhere" would carry an
+ *      "the day a SIXTH node type lands with no picker row at all, the honest
+ *       answer is a named entry here — not a silent refusal, and not a rail
+ *       somebody edits until it passes."
+ *
+ *  ⚰️ That day was 2026-08-27 and the sixth type is `tf`. The entry below is the
+ *  honest answer, written rather than worked around. (For the record of what the
+ *  map used to say: every one of the then-five canonical node types opened in at
+ *  least one formula, which is why the (type, position) axis above exists — a
+ *  rail that only asked "does each TYPE open somewhere" would have carried an
  *  empty exclusion map, and an exclusion idiom with nothing in it is one nobody
- *  maintains. This map is kept anyway, empty, because the day a SIXTH node type
- *  lands with no picker row at all, the honest answer is a named entry here —
- *  not a silent refusal, and not a rail somebody edits until it passes.
+ *  maintains.)
  */
-const TYPES_NOT_PICKABLE = Object.freeze({})
+const TYPES_NOT_PICKABLE = Object.freeze({
+  tf: {
+    guard: 'picker:no-row',
+    why: '🔴 A LIVE GAP, ON THE RECORD, NOT A REFUSAL. `tf(close, \'W\')` parses, '
+      + 'canonicalises, evaluates in both lanes at 1e-9 and round-trips through '
+      + 'the sentence grammar — a member CAN write it, on the Formula tab. What it '
+      + 'has no row for is the CONDITIONS picker: the picker builds rows out of a '
+      + 'shape vocabulary, and "on a higher timeframe" is a modifier on a row '
+      + 'rather than a row of its own, so giving it one is a picker DESIGN task '
+      + '(W4c) and not a walker somebody forgot. ⛔ The exemption is therefore '
+      + 'about the picker only — if `fromSource` ever stops opening a `tf` '
+      + 'formula, that is a stale walker and this entry does NOT excuse it, '
+      + 'because the tooth measures OPENING and this map records the missing ROW.',
+  },
+})
+
+/** The types the picker is on record as having no row for — subtracted wherever
+ *  a census counts cells, so an exemption is stated ONCE and every count that
+ *  depends on it moves with it. */
+const EXEMPT_TYPES = Object.keys(TYPES_NOT_PICKABLE)
+const notExempt = (t) => !EXEMPT_TYPES.includes(t)
 
 // --------------------------------------------------------------------------- //
 // the checks, as PURE FUNCTIONS so the controls can run them on mutated input
@@ -322,7 +347,12 @@ describe('⭐ EVERY CANONICAL NODE TYPE OPENS IN THE PICKER, OR IS A NAMED REFUS
   it('the grammar this census reads is not empty', () => {
     // ⛔ A census over an empty roster passes for the worst possible reason.
     expect(NODE_TYPES.length).toBeGreaterThan(3)
-    expect(SHAPES.length).toBeGreaterThanOrEqual(NODE_TYPES.length * POSITIONS.length)
+    // ⚠️ THE NON-EXEMPT ROSTER, not the whole one. A type with a recorded
+    // "no picker row" decision cannot contribute probes, so counting it here
+    // would make this floor unmeetable and invite somebody to lower it — which
+    // is the one thing a floor must never teach.
+    expect(SHAPES.length)
+      .toBeGreaterThanOrEqual(NODE_TYPES.filter(notExempt).length * POSITIONS.length)
     expect(VOCAB.crossings.size, 'no crossing declared — call@condition is unreachable')
       .toBeGreaterThan(0)
     expect(VOCAB.notOp).toBeTruthy()
@@ -347,22 +377,28 @@ describe('⭐ EVERY CANONICAL NODE TYPE OPENS IN THE PICKER, OR IS A NAMED REFUS
   it('⛔ AND IT IS DERIVED: a SIXTH node type fails BY NAME, in every position', () => {
     // The control that makes the tooth above load-bearing rather than a list
     // somebody keeps in step by hand.
-    const sixth = coverageGaps(SHAPES, [...NODE_TYPES, 'lambda'])
+    // ⚠️ `notExempt` FILTERS THE ROSTER, NOT THE RESULT. Planting `lambda` and
+    // then dropping the exempted `tf` from the gap LIST would let a future
+    // exemption hide a real gap of the same name; dropping it from the ROSTER
+    // asks the census a question `tf` was never in.
+    const roster = [...NODE_TYPES.filter(notExempt), 'lambda']
+    const sixth = coverageGaps(SHAPES, roster)
     expect(sixth.gaps).toEqual([
       'lambda@condition', 'lambda@term', 'lambda@call-argument',
     ])
-    expect(typesWithNoOpenShape(SHAPES, [...NODE_TYPES, 'lambda'])).toEqual(['lambda'])
+    expect(typesWithNoOpenShape(SHAPES, roster)).toEqual(['lambda'])
   })
 
   it('⛔ AND A DELETED CASE IS NAMED, not silently uncovered', () => {
     // Delete every `call` probe: the census must say which cells lost cover.
     const without = SHAPES.filter((s) => s.type !== 'call')
-    expect(coverageGaps(without, NODE_TYPES).gaps).toEqual([
+    const roster = NODE_TYPES.filter(notExempt)
+    expect(coverageGaps(without, roster).gaps).toEqual([
       'call@condition', 'call@term', 'call@call-argument',
     ])
-    expect(typesWithNoOpenShape(without, NODE_TYPES)).toEqual(['call'])
+    expect(typesWithNoOpenShape(without, roster)).toEqual(['call'])
     // …and the real table has none of that.
-    expect(coverageGaps(SHAPES, NODE_TYPES)).toEqual({ gaps: [], unknown: [] })
+    expect(coverageGaps(SHAPES, roster)).toEqual({ gaps: [], unknown: [] })
   })
 
   it('⛔ AND THE TOOTH MEASURES — a census that merely CLAIMED to open would pass', () => {
@@ -382,7 +418,9 @@ describe('⭐ EVERY CANONICAL NODE TYPE OPENS IN THE PICKER, OR IS A NAMED REFUS
     // The failure mode a one-sided check misses: the shape table still probes
     // something, it is simply no longer the thing the grammar declares.
     const renamed = SHAPES.map((s) => (s.type === 'offset' ? { ...s, type: 'offsett' } : s))
-    const got = coverageGaps(renamed, NODE_TYPES)
+    // The non-exempt roster, for the same reason as above: `tf` has a recorded
+    // "no picker row" decision, so it is not a cell this census asks about.
+    const got = coverageGaps(renamed, NODE_TYPES.filter(notExempt))
     expect(got.gaps).toEqual(['offset@condition', 'offset@term', 'offset@call-argument'])
     expect(got.unknown).toEqual(['offsett'])
   })

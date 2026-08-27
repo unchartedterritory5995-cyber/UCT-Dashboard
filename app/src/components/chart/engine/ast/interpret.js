@@ -123,8 +123,156 @@ export const REFUSALS = Object.freeze({
   'interpret:operator': 'unknown operator',
   'interpret:offset': 'an offset node carries a whole-number count of bars',
   'interpret:recurrence': 'a running value reads its own past only inside its own update, and only through operators and pointwise calls',
+  'interpret:timeframe': 'a higher-timeframe read names a timeframe this engine cannot serve from the bars it was given',
   'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
 })
+
+/** ⭐ THE HIGHER-TIMEFRAME LADDER, LOW TO HIGH — the mirror of
+ *  `ast_interpret.TF_LADDER`. `tf` may only read a timeframe STRICTLY ABOVE the
+ *  bars it was handed; asking a daily series for a 5-minute value cannot be
+ *  answered from the bars in hand, and inventing one is the silent
+ *  mistranslation this engine exists against. */
+export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M'])
+
+/** Which of those can actually be RESAMPLED today. ⚠️ Deliberately smaller than
+ *  the ladder: the ladder is what an ORDER can be taken over, this is what a
+ *  value can be produced for. */
+export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
+
+/** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
+ *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
+ *  would let a tree claim it needs fewer bars than it reads. */
+export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
+
+const tfRank = (code) => TF_LADDER.indexOf(String(code))
+
+/** One bar's `t` as `YYYY-MM-DD`, whichever way it was stored.
+ *
+ *  ⛔⛔ THE STORE KEEPS TWO SPELLINGS AND NEITHER IS A DATE STRING: daily/weekly/
+ *  monthly `t` is a **YYYYMMDD int**, intraday `t` is **unix seconds** (measured
+ *  2026-08-27: `{t: 20260827, …}`). Reading one as the other dates every
+ *  higher-timeframe bar to 1970 — and the column still DRAWS, which is the shape
+ *  of defect this engine refuses everywhere else.
+ *
+ *  ⚠️ RETURNS null RATHER THAN GUESSING. A placed-wrong bar is worse than an
+ *  absent one. Mirrors `ast_interpret._iso_day`. */
+export function isoDay(t) {
+  if (typeof t === 'string') {
+    return (t.length >= 10 && t[4] === '-' && t[7] === '-') ? t.slice(0, 10) : null
+  }
+  if (typeof t !== 'number' || !Number.isFinite(t)) return null
+  const n = Math.trunc(t)
+  if (n >= 19000101 && n <= 99991231) {
+    const y = Math.trunc(n / 10000)
+    const m = Math.trunc((n % 10000) / 100)
+    const d = n % 100
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    }
+  }
+  if (n > 0 && n < 4102444800) {
+    const [y, m, d] = civilFromDays(Math.floor(n / 86400))
+    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+  return null
+}
+
+/** Days since 1970-01-01 \u2192 (year, month, day), and back. Howard Hinnant's civil
+ *  algorithms, in integer arithmetic only.
+ *
+ *  \u26d4\u26d4 `Date` IS FORBIDDEN IN THIS MODULE, AND A RAIL SAYS SO BY NAME:
+ *  `NO clock, NO randomness, NO I/O, NO globals \u2014 by AST over its own source`
+ *  walks this file and refuses a free identifier `Date`. It caught the first
+ *  draft of `isoDay`, which used `new Date(n * 1000).toISOString()`.
+ *
+ *  \u2b50 AND THE RAIL IS RIGHT EVEN THOUGH THAT CALL WAS DETERMINISTIC. `new
+ *  Date(x)` with an argument reads no clock \u2014 but a source-level rail cannot
+ *  tell it from `new Date()`, and a rail that had to would be one that could be
+ *  argued with. Integer arithmetic removes the question instead of answering it,
+ *  and it removes the TIMEZONE surface with it: there is no locale, no DST and no
+ *  host offset anywhere in a bar's date now. */
+function civilFromDays(z0) {
+  const z = z0 + 719468
+  const era = Math.floor(z / 146097)
+  const doe = z - era * 146097
+  const yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524)
+    - Math.floor(doe / 146096)) / 365)
+  const y = yoe + era * 400
+  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100))
+  const mp = Math.floor((5 * doy + 2) / 153)
+  const d = doy - Math.floor((153 * mp + 2) / 5) + 1
+  const m = mp + (mp < 10 ? 3 : -9)
+  return [y + (m <= 2 ? 1 : 0), m, d]
+}
+
+function daysFromCivil(y0, m, d) {
+  const y = y0 - (m <= 2 ? 1 : 0)
+  const era = Math.floor(y / 400)
+  const yoe = y - era * 400
+  const doy = Math.floor((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy
+  return era * 146097 + doe - 719468
+}
+
+/** The ISO (year, week) an ISO day falls in — Python's `date.isocalendar()[:2]`.
+ *
+ *  ⛔ THE THURSDAY RULE IS THE WHOLE ALGORITHM, and it is why this is not
+ *  "day-of-year over seven": ISO puts a week in the year that owns its Thursday,
+ *  so the last days of December can belong to week 1 of the next year and the
+ *  first days of January to week 52/53 of the previous one. Getting that wrong
+ *  misaligns the two lanes by a period at every year boundary — once a year,
+ *  silently, in a number a member trades on. */
+function isoWeekKey(iso) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  // 1970-01-01 was a THURSDAY, so `((z + 3) mod 7) + 1` is Mon=1 \u2026 Sun=7 with no
+  // calendar object involved. `%` is remainder, not modulo, so the +7 keeps it
+  // non-negative for pre-epoch dates rather than answering a negative weekday.
+  const dow = (((z + 3) % 7) + 7) % 7 + 1
+  const zThu = z + (4 - dow)                        // this week's Thursday
+  const [year] = civilFromDays(zThu)
+  const week = Math.floor((zThu - daysFromCivil(year, 1, 1)) / 7) + 1
+  return `${year}-W${week}`
+}
+
+/** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
+export function tfBucket(iso, code) {
+  if (code === 'W') return isoWeekKey(iso)
+  return iso.slice(0, 7)                             // YYYY-MM
+}
+
+/** Resample ISO-dated bars into higher-timeframe bars, in order.
+ *
+ *  ⛔⛔ THIS IS A MIRROR OF `bars_fetch._resample_weekly_iso`, NOT A SECOND
+ *  DESIGN — AND THE ASYMMETRY IS DELIBERATE AND STATED. Python's lane consumes
+ *  that function because it OWNS what a weekly bar is; this lane has no such
+ *  module, so the aggregation is written here and held equal to Python's by the
+ *  conformance corpus, exactly as every other pair in this engine is
+ *  (`interpret.js` ⇄ `ast_interpret.py` are already two implementations of
+ *  everything). ⚠️ If they ever disagree the corpus goes red, which is the only
+ *  acceptable way for two lanes to hold one meaning. */
+function resampleTo(bars, isos, code) {
+  const out = []
+  const at = new Map()
+  for (let i = 0; i < bars.length; i++) {
+    const iso = isos[i]
+    if (!iso) continue
+    const key = tfBucket(iso, code)
+    const b = bars[i]
+    if (!at.has(key)) {
+      at.set(key, out.length)
+      out.push({ t: iso, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
+    } else {
+      const w = out[at.get(key)]
+      w.h = Math.max(w.h, b.h)
+      w.l = Math.min(w.l, b.l)
+      w.c = b.c
+      w.t = iso
+      w.v += (b.v || 0)
+    }
+  }
+  return { htf: out, at }
+}
 
 function refuse(guard, detail) {
   throw new TableRefusal(guard, `${REFUSALS[guard]} ${detail}`)
@@ -1170,7 +1318,8 @@ function flatten(root) {
     const node = stack.pop()
     assertNode(node)
     order.push(node)
-    if (node.type === 'op' || node.type === 'call' || node.type === 'offset') {
+    if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
+        || node.type === 'tf') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -1471,6 +1620,18 @@ export function maxLookback(ast) {
       let best = 0
       for (const arg of node.args) best = Math.max(best, seen.get(arg))
       seen.set(node, best)
+      continue
+    }
+    if (node.type === 'tf') {
+      // ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in HIGHER-
+      // timeframe bars, so it is multiplied by the span; the +1 is the bar this
+      // node always steps back to reach the last CLOSED period.
+      // ⚠️⚠️ ROUNDING UP IS THE SAFE DIRECTION, and it is why the span is a
+      // constant rather than a measurement: a lookback that is too SMALL lets a
+      // tree claim it needs fewer bars than it reads and answer off a warmup it
+      // never had. Mirrors `ast_interpret.max_lookback`'s `tf` arm.
+      const span = TF_BASE_BARS[String(node.value)] || 1
+      seen.set(node, (seen.get(node.args[0]) + 1) * span)
       continue
     }
     if (node.type === 'offset') {
@@ -1832,6 +1993,52 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // spent a week removing. `nan(length)` already fills the prefix; the loop
         // deliberately starts AT `back` rather than clamping an index.
         for (let i = back; i < length; i++) out[i] = src[i - back]
+        return out
+      }
+      case 'tf': {
+        const code = String(n.value)
+        if (!TF_RESAMPLABLE.includes(code)) {
+          refuse('interpret:timeframe',
+            `'${code}' \u2014 this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
+            + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
+            + 'outside it is not a timeframe this table knows.')
+        }
+        // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
+        // is. `opts.tf` is what the caller knows and the bars do not; absent, this
+        // check cannot run and does not pretend to \u2014 the same fail-closed-but-say-so
+        // rule `computeClock` states for `isdaily`.
+        const base = opts && opts.tf
+        if (base !== undefined && base !== null) {
+          const rb = tfRank(base)
+          const rc = tfRank(code)
+          if (rb >= 0 && rc >= 0 && rc <= rb) {
+            refuse('interpret:timeframe',
+              `'${code}' is not above '${String(base)}' \u2014 a higher-timeframe read can `
+              + `only look UP from the bars it was handed, and '${code}' cannot be `
+              + `resampled out of '${String(base)}'.`)
+          }
+        }
+        const isos = bars.map((b) => isoDay(b && b.t))
+        const { htf, at } = resampleTo(bars, isos, code)
+        // \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the whole
+        // value of the node: `tf(sma(close, 20), 'W')` is the 20-WEEK average, not the
+        // 20-day average sampled weekly. `opts.tf` becomes the HTF code so a nested
+        // clock or `tf` reads the right base.
+        const child = toColumn(
+          interpret(n.args[0], htf, inputs, budget, scalars, { ...(opts || {}), tf: code }),
+          htf.length)
+        // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
+        // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
+        // week's eventual close \u2014 every backtest using `tf` would then be reading the
+        // future and still drawing a confident line. Bucket 0 has no closed
+        // predecessor, so it is NOT COMPUTABLE, exactly as `offset`'s left edge is.
+        const out = nan(length)
+        for (let i = 0; i < length; i++) {
+          const iso = isos[i]
+          if (!iso) continue
+          const b = at.get(tfBucket(iso, code))
+          if (b > 0) out[i] = child[b - 1]
+        }
         return out
       }
       case 'op':
