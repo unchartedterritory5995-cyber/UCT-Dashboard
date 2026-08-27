@@ -134,3 +134,37 @@
 :global([data-theme='light']) .keyword { color: #a1136b; }
 :global([data-theme='light']) .string { color: #4d7c0f; }
 :global([data-theme='light']) .number { color: #8a5a00; }
+
+/* ── the hidden value-carrier (W1a.6) ────────────────────────────────────────
+ * `FormulaField.jsx`'s textarea, once this editor has mounted beside it and
+ * become the visible typing surface. ⛔ NOT `display: none` — the textarea
+ * stays a real, focusable node so `BuilderSheet`'s own tab-order rail
+ * (`BuilderSheet.test.jsx`'s "focus is trapped" ring) still finds it, and it
+ * stays the ONE element every existing sheet test resolves via
+ * `getByLabelText('Formula')`. The standard clip-based recipe: visually gone,
+ * in the layout and the tab order (`tabIndex={-1}` on the element itself is
+ * what actually pulls it OUT of tab order — this class only hides pixels).
+ *
+ * Applied STANDALONE, never combined with `.field` (`BuilderSheet.module.css`)
+ * on the same element — two classes from two different CSS modules on one
+ * node leaves `width`/`border` decided by import order between them, which
+ * this file's own `.cm-scroller` comment above already flags as a real
+ * cascade fact in this codebase, not a hypothetical. `position: absolute` is
+ * the one property that MUST win regardless of ordering (it is what removes
+ * the box from flow), hence the sole `!important`.
+ *
+ * NOTE: this replaces a class of the same name and same recipe that shipped
+ * in commit `411c92179` and was deleted in `76be68db7` for having zero
+ * consumers — see that commit's report. This is a fresh definition written
+ * against an actual consumer (`FormulaField.jsx`), not a revival. */
+.model {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

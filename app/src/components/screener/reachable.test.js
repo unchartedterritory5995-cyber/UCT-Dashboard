@@ -317,49 +317,6 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
-  'app/src/components/chart/builder/editor/completions.js':
-    'W1a\'s CodeMirror completion source, and DERIVED end to end: the closed table '
-    + '(name, arity/lookback, the manifest\'s own sentence), the definition\'s declared '
-    + 'inputs, and every `let` binding in the buffer. It types no name of its own, so it '
-    + 'cannot offer one parse.js would refuse. MOUNTS AT W1a.6, which lands the editor in '
-    + 'FormulaField.jsx behind a dynamic `import()` — the textarea stays the value carrier '
-    + 'and the fallback, so the chart bundle does not grow. Built ahead of its door on '
-    + 'purpose; the walk follows ImportExpression, so the day that one line lands this '
-    + 'entry stops being true and must be deleted.',
-  'app/src/components/chart/builder/editor/diagnostics.js':
-    'W1a\'s refusal-to-lint-mark mapping, 1:1: the message is the door\'s VERBATIM and only '
-    + 'the RANGE is derived (line/column, index/token, jsep\'s own "at character N", or the '
-    + 'token the sentence quotes; the whole buffer when none of those is present, because '
-    + 'guessing where a refusal probably is would be a second authority over the door). '
-    + 'MOUNTS AT W1a.6 through the same dynamic `import()` from FormulaField.jsx — whose own '
-    + 'L134 comment already names this file as the thing that turns a refusal into a range, '
-    + 'so the door is written and only the wire is outstanding.',
-  'app/src/components/chart/builder/editor/CodeEditor.jsx':
-    'W1a\'s editor COMPONENT — the one place the three modules below are composed into a '
-    + 'CodeMirror view over a controlled `value`. It owns two decisions worth reading before '
-    + 'mounting it: onChange fires SYNCHRONOUSLY per doc change (FormulaField keeps the one '
-    + '250 ms settle; a second timer over the same value would snap the doc back mid-keystroke), '
-    + 'and a refusal is applied ONLY while `refusal.source` equals the doc — because every range '
-    + 'diagnostics.js produces is an offset into the doc it was handed, so a refusal measured '
-    + '250 ms ago mis-marks the text that replaced it. MOUNTS AT W1a.6, which lands it in '
-    + 'FormulaField.jsx behind the same dynamic `import()`; the textarea stays the value carrier '
-    + 'and the accessible `Formula` control, so the nine sheet test files keep driving it.',
-  'app/src/components/chart/builder/editor/languages.js':
-    'W1a\'s four CodeMirror tokenizers (formula, pine, thinkscript, pcf) over ONE vocabulary '
-    + 'authority: the formula dialect\'s names are read off the closed table at module load '
-    + 'and the foreign dialects\' overlapping names off the translator maps, so a name it '
-    + 'colours as a function is a name the parser resolves. MOUNTS AT W1a.6 via the same '
-    + 'dynamic `import()` from FormulaField.jsx; CodeMirror is deliberately absent from '
-    + 'vite\'s manualChunks, so that one lazy edge is the only thing keeping it out of the '
-    + 'chart bundle.',
-  'app/src/components/chart/engine/ast/dialect.js':
-    'W3\'s "which language is this?" decision — ONE answer over pine/thinkscript/pcf/formula, '
-    + 'made once BEFORE any read and never as a fallback (trying Pine, failing, then trying '
-    + 'thinkScript reports a thinkScript refusal for a Pine typo). It CALLS pcf.js\'s own '
-    + 'detector rather than re-typing TC2000\'s marker set, which would be a second authority '
-    + 'over one value. MOUNTS AT W3.7, which renames PineBox\'s component to `ImportBox` — one '
-    + 'paste box over all four dialects — and has BuilderSheet mount it with dialect="auto". '
-    + 'ImportBox is this module\'s only intended caller.',
   'app/src/components/chart/engine/ast/thinkscript.js':
     'W3\'s thinkScript reader: `def x = Average(close, 50); plot scan = close > x;` reaching '
     + 'the SAME canonical tree parse.js produces, so the chart, the scan and the alert all get '

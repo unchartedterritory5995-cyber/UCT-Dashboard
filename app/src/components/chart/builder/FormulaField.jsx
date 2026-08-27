@@ -17,7 +17,7 @@
 // reworded. `data-guard` carries the door's NAME beside it, so a diagnostic
 // names the gate rather than describing the symptom.
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import UIcon from '../../ui/UIcon'
 import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
@@ -25,6 +25,7 @@ import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint } from '../engine/ast/lint'
 import { interpret } from '../engine/ast/interpret'
 import styles from './BuilderSheet.module.css'
+import editorStyles from './editor/CodeEditor.module.css'
 
 /**
  * ⭐ TWO SURFACE DIALECTS, ONE TREE, AND THE CHOICE IS MADE BEFORE THE READ —
@@ -280,11 +281,21 @@ function msg(err) {
   return String(err && err.message ? err.message : err)
 }
 
+/** The editor chunk. ⛔ A FAILED LOAD IS THE TEXTAREA, NOT A RELOAD: this is an
+ *  inline enhancement of a box that already works, so `lazyWithRetry`'s
+ *  hard-reload (right for a ROUTE) would throw away a member's draft here. */
+function loadEditor() {
+  return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
+}
+
 /**
  * The box, its error chip, and nothing else.
  *
  * The read-back, the badge and Save live in `BuilderSheet` — this component
  * owns the TEXT and the 250 ms settle, and hands the evaluation up.
+ *
+ * The textarea is the value carrier and the fallback; when the editor chunk
+ * loads it is hidden (never unmounted) and CodeEditor renders beside it.
  *
  * @param {string}   value        the current source (controlled)
  * @param {Function} onChange     (source) => void, on every keystroke
@@ -323,6 +334,17 @@ export default function FormulaField({
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
   const inputRef = useRef(null)
+  const [Editor, setEditor] = useState(null)
+  const editorRef = useRef(null)
+  useEffect(() => {
+    let alive = true
+    loadEditor().then((component) => { if (alive && component) setEditor(() => component) })
+    return () => { alive = false }
+  }, [])
+  // The editor arrives after the textarea took the autofocus: hop once, never forward.
+  useEffect(() => {
+    if (Editor && document.activeElement === inputRef.current) editorRef.current?.focus()
+  }, [Editor])
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
@@ -343,6 +365,11 @@ export default function FormulaField({
     return () => clearTimeout(id)
   }, [value, debounceMs, inputs, dialect])
 
+  /** `Mod-Enter`: apply the draft NOW — the settle's own evaluation, without the wait. */
+  const applyNow = useCallback(() => {
+    onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
+  }, [value, inputs, dialect])
+
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])
 
   const refused = !!(result && result.error)
@@ -358,7 +385,13 @@ export default function FormulaField({
       <textarea
         id={inputId}
         ref={inputRef}
-        className={styles.field}
+        // ⛔ NOT combined with `styles.field` once the editor has mounted: two
+        // classes on one element leaves which `width`/`border` wins to import
+        // order between two different CSS modules. Standalone, `editorStyles.model`
+        // is the whole story regardless of load order (see its own comment).
+        className={Editor ? editorStyles.model : styles.field}
+        tabIndex={Editor ? -1 : undefined}
+        aria-hidden={Editor ? 'true' : undefined}
         // ⚠️ `spellCheck` off and `autoCapitalize` off: a phone keyboard that
         // capitalises `Close` produces a name the table does not declare, and
         // the refusal would be correct and completely baffling.
@@ -375,6 +408,25 @@ export default function FormulaField({
         onChange={handle}
         data-dialect={result?.dialect || 'native'}
       />
+      {Editor && (
+        <Editor
+          ref={editorRef}
+          value={value}
+          onChange={onChange}
+          /* ⛔ READ OFF THE RESULT, never a second `detectDialect` (see `readAs`). */
+          dialect={result && result.dialect === 'pcf' ? 'pcf' : 'formula'}
+          inputs={inputs}
+          diagnostics={result}
+          // ⛔ NOT `label` verbatim: `getAllByLabelText('Formula')` must still
+          // resolve to exactly ONE element (the hidden textarea) — the same
+          // "ONE PROP, TWO SITES" reason this component takes `label` at all.
+          // A distinguishing suffix keeps that true per-instance once W1b.5's
+          // Plots editor mounts N of these with N different `label`s.
+          ariaLabel={`${label} editor`}
+          testId="formula-editor"
+          onApply={applyNow}
+        />
+      )}
       {readAs && (
         <p
           className={`${styles.badge} ${styles.badgeClean}`}
