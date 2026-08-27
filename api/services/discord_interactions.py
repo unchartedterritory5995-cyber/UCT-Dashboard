@@ -967,8 +967,13 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 
 def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
                   bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0) -> tuple:
-    """ONE chart: (outcome, png, filename). outcome = ok | busy | no_bars |
-    render_failed. Takes a render slot for the duration; never raises.
+    """ONE chart: (outcome, png, filename). outcome = ok | fallback | busy |
+    no_bars | render_failed. Takes a render slot for the duration; never raises.
+
+    `fallback` is a delivered chart drawn by the mplfinance stand-in AFTER the
+    house renderer was asked and came back with nothing. It is a real reply -
+    every caller treats it as delivered - but it is not the product, so it is
+    cached for a minute rather than a session (see FALLBACK_TTL_S).
 
     `slot_wait` seconds to WAIT for a slot instead of answering "busy". A
     single /chart answers immediately (0.0): the member is watching one reply
@@ -1007,6 +1012,7 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
             daily = _fetch("D", STATS_DAILY_BARS)
         png = None
         warm = None
+        house_missed = False
         if house_fn is not None and daily:
             # Pre-warm the page's OWN fetch, on every timeframe and at the size
             # the page will actually ask for: a shallow first-paint window
@@ -1051,6 +1057,10 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
                 png = None
             if png:
                 return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
+            # The house renderer was configured, was asked, and produced nothing.
+            # Whatever comes back below is a stand-in, and the caller has to know
+            # that - otherwise it gets cached as though it were the real chart.
+            house_missed = True
         if bars is None:
             bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
             if not bars:
@@ -1065,9 +1075,36 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         except Exception as e:  # noqa: BLE001
             log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
             return ("render_failed", None, None)
-        return ("ok", png, attachment_name(req.ticker, req.tf, bars[-1]["t"]))
+        return ("fallback" if house_missed else "ok", png,
+                attachment_name(req.ticker, req.tf, bars[-1]["t"]))
     finally:
         RENDER_SLOTS.release()
+
+
+# ⛔ A STAND-IN MUST NOT HOLD THE CACHE SLOT FOR A SESSION. 2026-08-27, 07:59
+# CT: a web deploy began at 07:58:49 and a member ran `/chart SPCX` eleven
+# seconds into the swap. The page the renderer screenshots was mid-restart, so
+# both house attempts came back "selector not found: #chart-export", the reply
+# fell back to mplfinance - and that stand-in was then cached under the SAME key
+# as a real chart, for the quiet-hours TTL of 900 s. One unlucky second would
+# have served the plain chart to every member asking for SPCX for fifteen
+# minutes, which reads as "the charts are broken now" rather than "a deploy was
+# in flight". Warm, the same two symbols render in 4.1 s.
+#
+# So a stand-in is cached, but only for a minute: long enough that a renderer
+# outage cannot turn every request into a fresh 40 s of failing attempts, short
+# enough that a deploy blip clears itself before anyone notices.
+FALLBACK_TTL_S = 60
+# Both outcomes put a chart in front of the member. Only "ok" is the product.
+DELIVERED = ("ok", "fallback")
+
+
+def cache_ttl_for(tf: str):
+    """Seconds to keep what `produce_chart` made: a session for the house
+    chart, FALLBACK_TTL_S for a stand-in. Returned as a callable because the
+    answer depends on the result, which does not exist yet at the call site."""
+    full = png_cache.ttl_for(tf)
+    return lambda r: FALLBACK_TTL_S if (r and r[0] == "fallback") else full
 
 
 MULTI_SLOT_WAIT_S = 25.0         # how long one chart of a /charts set waits for a render slot
@@ -1095,8 +1132,8 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         r = png_cache.single_flight(
             key, lambda: produce_chart(req, options, prefs, bars_fn=bars_fn, render_fn=render_fn,
                                        house_fn=house_fn, quote_fn=quote_fn, slot_wait=MULTI_SLOT_WAIT_S),
-            ttl_s=png_cache.ttl_for(req.tf),
-            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+            ttl_s=cache_ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
         return (req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None)
 
     def _warm_bars(item) -> None:
@@ -1133,13 +1170,13 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
             with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
                 results = list(ex.map(_one, items))
         label = TF_LABEL[items[0][0].tf]
-        oks = [(png, fn) for _, o, png, fn in results if o == "ok"]
+        oks = [(png, fn) for _, o, png, fn in results if o in DELIVERED]
         why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
-        skipped = [f"{req.ticker} ({why.get(o, o)})" for req, o, _, _ in results if o != "ok"]
+        skipped = [f"{req.ticker} ({why.get(o, o)})" for req, o, _, _ in results if o not in DELIVERED]
         if not oks:
             edit_fn(app_id, token, content="No charts: " + ", ".join(skipped) + ". Unknown tickers, or the feed is still catching up.")
             return "no_bars"
-        content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o == "ok") + f" · {label}"
+        content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o in DELIVERED) + f" · {label}"
         if skipped:
             content += "\nSkipped: " + ", ".join(skipped)
         extra = {"components": components_fn(items)} if components_fn is not None else {}
@@ -1255,8 +1292,8 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
                 key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn,
                                            render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
                                            slot_wait=MULTI_SLOT_WAIT_S),
-                ttl_s=png_cache.ttl_for(req.tf),
-                cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+                ttl_s=cache_ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
             if result and result[0] == "ok":
                 warmed.append(key)
         except Exception as e:  # noqa: BLE001
@@ -1387,8 +1424,8 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         produce = lambda: png_cache.single_flight(  # noqa: E731
             key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
                                        house_fn=house_fn, quote_fn=quote_fn),
-            ttl_s=png_cache.ttl_for(req.tf),
-            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+            ttl_s=cache_ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
 
         # The house image is the product, so it gets first refusal. Only when it
         # is taking longer than a member should stare at nothing does the plain
@@ -1414,9 +1451,18 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             # …and rather than hand a member an apology, stand in now.
             previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
                                           edit_fn=edit_fn, content=headline, extra=extra)
-        if outcome == "ok":
+        if outcome in DELIVERED:
             sent = edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
             _context_follow_up(sent)
+            if outcome == "fallback":
+                # A chart, drawn by the stand-in because the house renderer had
+                # nothing. The member is served, so the JOB succeeded - the
+                # distinction exists for the cache, which keeps this one for a
+                # minute instead of a session - but it is worth a line in the
+                # log, because a run of these means the renderer needs looking at.
+                log.info("[discord-chart] %s %s: stand-in delivered, house render empty",
+                         req.ticker, req.tf)
+            return "ok"
         elif previewed and outcome in ("busy", "render_failed"):
             # The member already HAS a chart. Replacing it with an apology would
             # be a downgrade, so the preview is the answer.

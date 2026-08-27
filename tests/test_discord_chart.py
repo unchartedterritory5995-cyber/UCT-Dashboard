@@ -2775,3 +2775,99 @@ def test_working_inside_the_opened_surface_leaves_it_open():
     for button in di.chart_components(di.ChartRequest("NVDA", "D"), dict(p.DEFAULTS))[0]["components"][:-1]:
         assert di.parse_component({"data": {"custom_id": button["custom_id"]}}).expanded is False
 
+
+# ── a stand-in must not hold the cache slot for a session ──
+
+def test_a_stand_in_is_marked_as_one_and_never_cached_for_a_session():
+    """2026-08-27 07:59 CT: a web deploy began at 07:58:49 and a member ran
+    `/chart SPCX` eleven seconds into the swap. The page the renderer
+    screenshots was mid-restart, both house attempts came back "selector not
+    found: #chart-export", and the mplfinance stand-in was cached under the SAME
+    key as a real chart - for the quiet-hours TTL of 900 s. One unlucky second
+    would have served the plain chart to everyone asking for SPCX for fifteen
+    minutes, which reads as "the charts are broken" rather than "a deploy was in
+    flight". Warm, the same symbols render in 4.1 s."""
+    from api.services.discord_interactions import (produce_chart, ChartRequest, cache_ttl_for,
+                                                   FALLBACK_TTL_S, DELIVERED)
+    from api.services import discord_chart_prefs as p, discord_chart_cache as cache
+    prefs = dict(p.DEFAULTS)
+    args = dict(bars_fn=lambda *a: daily_bars(30), render_fn=lambda *a, **k: PNG_MAGIC + b"mpl")
+
+    house = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
+                          house_fn=lambda *a, **k: PNG_MAGIC + b"house", **args)
+    assert house[0] == "ok" and house[1].endswith(b"house")
+    # the renderer answered with nothing - the member still gets a chart, and it
+    # is labelled for what it is
+    stand_in = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
+                             house_fn=lambda *a, **k: None, **args)
+    assert stand_in[0] == "fallback" and stand_in[1].endswith(b"mpl")
+    assert stand_in[0] in DELIVERED, "a stand-in is a delivered chart, not a failure"
+    # …and when the house renderer is switched off entirely, mplfinance IS the
+    # product, so nothing is downgraded
+    off = produce_chart(ChartRequest("SPCX", "D"), p.render_options(prefs, "D"), prefs,
+                        house_fn=None, **args)
+    assert off[0] == "ok"
+
+    # the TTL follows the result, not the timeframe alone
+    ttl = cache_ttl_for("D")
+    assert ttl(house) == cache.ttl_for("D")
+    assert ttl(stand_in) == FALLBACK_TTL_S
+    # the incident happened on the QUIET ttl (900 s pre-market), so measure
+    # against that one rather than whatever the clock says while tests run
+    import datetime as _d
+    sunday = _d.datetime(2026, 8, 30, 12, 0, tzinfo=cache._ET)
+    assert cache.market_quiet(sunday)
+    assert FALLBACK_TTL_S < cache.ttl_for("D", sunday) / 3, "a stand-in must expire far sooner than a real chart"
+
+
+def test_single_flight_lets_the_producer_decide_how_long_its_work_is_kept(monkeypatch):
+    """The TTL has to reach the cache, not just be computed. A callable that is
+    quietly stored as an int would keep the stand-in for 60 s worth of
+    arithmetic and 900 s worth of behaviour."""
+    from api.services import discord_chart_cache as cache
+    from api.services.discord_interactions import cache_ttl_for, FALLBACK_TTL_S
+    seen = []
+    monkeypatch.setattr(cache, "put", lambda k, png, fn, ttl_s: seen.append(ttl_s))
+    cache.single_flight("k-fallback", lambda: ("fallback", b"png", "f.png"),
+                        ttl_s=cache_ttl_for("D"),
+                        cache_value=lambda r: (r[1], r[2]))
+    cache.single_flight("k-house", lambda: ("ok", b"png", "f.png"),
+                        ttl_s=cache_ttl_for("D"),
+                        cache_value=lambda r: (r[1], r[2]))
+    assert seen == [FALLBACK_TTL_S, cache.ttl_for("D")], seen
+    # a plain int still works - every other caller passes one
+    cache.single_flight("k-int", lambda: ("ok", b"png", "f.png"), ttl_s=42,
+                        cache_value=lambda r: (r[1], r[2]))
+    assert seen[-1] == 42
+
+
+def test_a_deploy_blip_does_not_serve_the_stand_in_to_the_next_member(monkeypatch):
+    """End to end: the renderer fails once, then recovers. The member who asked
+    during the blip gets a chart; the NEXT member gets the real one rather than
+    the cached stand-in."""
+    from api.services import discord_interactions as di, discord_chart_prefs as p
+    from api.services import discord_chart_cache as cache
+    cache.clear()
+    di.reset_rate_for_tests()
+    stored = []
+    monkeypatch.setattr(cache, "put", lambda k, png, fn, ttl_s: stored.append((k, png, ttl_s)))
+    edits = []
+    healthy = {"ok": False}
+
+    def house_fn(*a, **k):
+        return (PNG_MAGIC + b"house") if healthy["ok"] else None
+
+    def edit_fn(app_id, token, **kw):
+        edits.append(kw.get("png")); return {"id": "m"}
+
+    common = dict(bars_fn=lambda *a: daily_bars(30), render_fn=lambda *a, **k: PNG_MAGIC + b"mpl",
+                  edit_fn=edit_fn, house_fn=house_fn, prefs=dict(p.DEFAULTS))
+    assert di.run_chart_job("1", "t", di.ChartRequest("SPCX", "D"), **common) == "ok"
+    assert edits[-1].endswith(b"mpl"), "the member during the blip still gets a chart"
+    assert stored and stored[-1][2] == di.FALLBACK_TTL_S, stored
+
+    healthy["ok"] = True
+    assert di.run_chart_job("1", "t", di.ChartRequest("SPCX", "D"), **common) == "ok"
+    assert edits[-1].endswith(b"house"), "the next member must not be served the cached stand-in"
+    assert stored[-1][2] == cache.ttl_for("D")
+

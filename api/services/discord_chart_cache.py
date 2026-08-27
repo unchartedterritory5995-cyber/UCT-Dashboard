@@ -147,14 +147,18 @@ def put(key: str, png: bytes, filename: str, *, ttl_s: int, now: Callable[[], fl
         _evict_locked(now())
 
 
-def single_flight(key: str, producer: Callable[[], object], *, ttl_s: int,
+def single_flight(key: str, producer: Callable[[], object], *, ttl_s,
                   cache_value: Callable[[object], tuple | None] | None = None,
                   wait_s: float = 75.0):
     """Run `producer` once per key at a time. Concurrent callers for the same
     key wait for the leader's result instead of producing again. The leader's
     result is cached when `cache_value(result)` yields a (png, filename) pair
     (default: the result itself when it is not None). A producer that raises
-    releases the waiters with None and caches nothing."""
+    releases the waiters with None and caches nothing.
+
+    `ttl_s` is seconds, or a callable taking the produced result - some results
+    are worth keeping for a session and some for a minute, and only the producer
+    knows which of the two it just made."""
     cache_value = cache_value or (lambda r: r if r is not None else None)
     with _lock:
         ev = _inflight.get(key)
@@ -174,7 +178,7 @@ def single_flight(key: str, producer: Callable[[], object], *, ttl_s: int,
         cv = cache_value(result)
         if cv is not None:
             png, filename = cv
-            put(key, png, filename, ttl_s=ttl_s)
+            put(key, png, filename, ttl_s=(ttl_s(result) if callable(ttl_s) else ttl_s))
         return result
     finally:
         with _lock:
