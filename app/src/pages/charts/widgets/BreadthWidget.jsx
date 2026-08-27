@@ -39,11 +39,23 @@ const LIVE_URL = '/api/breadth-monitor/live'
 const ALL_METRICS = HM_METRICS.filter(m => !m.isHeader)
 
 // Heatmap group display order + labels (match the /breadth board).
-const HEATMAP_GROUPS = ['Score', 'Primary', 'MA', 'Regime', 'Highs/Lows', 'Sentiment']
+const HEATMAP_GROUPS = ['Score', 'Primary', 'Internals', 'MA', 'Regime', 'Highs/Lows', 'Sentiment']
 const GROUP_LABELS = {
-  Score: 'Score', Primary: 'Primary Breadth', MA: 'MA Breadth',
+  Score: 'Score', Primary: 'Primary Breadth', Internals: 'Internals', MA: 'MA Breadth',
   Regime: 'Regime', 'Highs/Lows': 'Highs / Lows', Sentiment: 'Sentiment',
 }
+
+// ── Ratio Bars view: horizontal split gauges for the paired bull/bear internals.
+// Each pair renders one bar — the winning side's share fills from its end in the
+// up/down color, with the raw counts flanking and the dominant % centered. Values
+// resolve straight off the live currentRow; a pair with no data is skipped. ──
+const RATIO_PAIRS = [
+  { key: 'nhnl',   label: 'New Highs / New Lows',   up: 'new_52w_highs', upLabel: 'New Highs',     dn: 'new_52w_lows',   dnLabel: 'New Lows' },
+  { key: 'advdec', label: 'Advance / Decline',      up: 'advancing',     upLabel: 'Advancing',     dn: 'declining',      dnLabel: 'Declining' },
+  { key: 'open',   label: 'Up / Down from Open',    up: 'up_from_open',  upLabel: 'Up from Open',  dn: 'down_from_open', dnLabel: 'Down from Open' },
+  { key: 'vol',    label: 'Up / Down on Volume',    up: 'up_on_volume',  upLabel: 'Up on Volume',  dn: 'down_on_volume', dnLabel: 'Down on Volume' },
+  { key: 'p4',     label: 'Up 4% / Down 4%',        up: 'up_4pct_today', upLabel: 'Up 4%',         dn: 'down_4pct_today', dnLabel: 'Down 4%' },
+]
 
 // FLIP: animate tiles sliding to their new spot when one is removed/added. Reads
 // [data-mkey] positions before/after each layout and plays the delta. No-ops under
@@ -169,10 +181,53 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
   )
 }
 
+// ── Ratio Bars: one split gauge per pair, up-color vs down-color ──
+function RatioBarsView({ currentRow, upColor, dnColor, trackColor, textColor }) {
+  const bars = RATIO_PAIRS.map(p => {
+    const u = currentRow?.[p.up]
+    const d = currentRow?.[p.dn]
+    if (u == null && d == null) return null
+    const uu = Math.max(0, Number(u) || 0)
+    const dd = Math.max(0, Number(d) || 0)
+    const tot = uu + dd
+    const upPct = tot > 0 ? (uu / tot) * 100 : 50
+    const bullWins = uu >= dd
+    return { ...p, uu, dd, tot, upPct, bullWins }
+  }).filter(Boolean)
+
+  if (!bars.length) {
+    return <div className={styles.hint}>No ratio readings yet.</div>
+  }
+  return (
+    <div className={styles.ratioWrap}>
+      {bars.map(b => (
+        <div key={b.key} className={styles.ratioRow}>
+          <div className={styles.ratioHead}>
+            <span className={styles.ratioLabel} style={textColor ? { color: textColor } : undefined}>{b.label}</span>
+            <span className={styles.ratioPct} style={{ color: b.bullWins ? upColor : dnColor }}>
+              {b.tot > 0 ? `${Math.round(b.bullWins ? b.upPct : 100 - b.upPct)}%` : '—'}
+            </span>
+          </div>
+          <div className={styles.ratioBar} style={{ background: trackColor }}>
+            <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: upColor }} />
+            <div className={styles.ratioFillDn} style={{ width: `${100 - b.upPct}%`, background: dnColor }} />
+            {b.uu > 0 && <span className={styles.ratioCountUp}>{b.uu}</span>}
+            {b.dd > 0 && <span className={styles.ratioCountDn}>{b.dd}</span>}
+          </div>
+          <div className={styles.ratioFoot}>
+            <span style={{ color: upColor }}>{b.upLabel}</span>
+            <span style={{ color: dnColor }}>{b.dnLabel}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── ＋ menu: every reading, grouped, with a checkmark on the shown ones. Opens
 // BESIDE the widget (portaled to <body>, placed toward the layout middle) just
 // like the ⚙ settings panel — so it never covers the tiles you're toggling. ──
-const ADD_MENU_W = 244
+const ADD_MENU_W = 300
 function AddMenu({ hidden, onToggle, onClose, anchorEl, hostEl, themeVars }) {
   const ref = useRef(null)
   const [pos, setPos] = useState(null)
@@ -220,15 +275,22 @@ function AddMenu({ hidden, onToggle, onClose, anchorEl, hostEl, themeVars }) {
           return (
             <div key={g} className={styles.addMenuGroup}>
               <div className={styles.addMenuGroupLabel}>{GROUP_LABELS[g] || g}</div>
-              {metrics.map(m => {
-                const on = !hidden.has(m.key)
-                return (
-                  <button key={m.key} type="button" className={styles.addMenuItem} onClick={() => onToggle(m.key)} role="menuitemcheckbox" aria-checked={on}>
-                    <span className={`${styles.addMenuCheck}${on ? ' ' + styles.addMenuCheckOn : ''}`}>{on ? <UIcon name="sparkle" size={9} gold={false} /> : null}</span>
-                    <span className={styles.addMenuLabel}>{m.label}</span>
-                  </button>
-                )
-              })}
+              <div className={styles.addChipGrid}>
+                {metrics.map(m => {
+                  const on = !hidden.has(m.key)
+                  return (
+                    <button
+                      key={m.key} type="button"
+                      className={`${styles.addChip}${on ? ' ' + styles.addChipOn : ''}`}
+                      onClick={() => onToggle(m.key)} role="menuitemcheckbox" aria-checked={on}
+                      title={on ? `Hide ${m.label}` : `Show ${m.label}`}
+                    >
+                      <span className={styles.addChipDot} aria-hidden="true" />
+                      <span className={styles.addChipLbl}>{m.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )
         })}
@@ -360,6 +422,21 @@ export default function BreadthWidget({
   const cellColors = custom ? custom.cellColors : (lightCanvas ? LIGHT_TIER_CELL_COLORS : TIER_CELL_COLORS)
   const tipColors = custom ? custom.tipColors : (lightCanvas ? LIGHT_TIER_TIP_COLORS : TIER_TIP_COLORS)
 
+  // ── View: Heatmap (default) ⇄ Ratio Bars (persist via workspace opts; a local
+  // fallback keeps the toggle live in frozen/journal embeds with no onOptsChange) ──
+  const [localView, setLocalView] = useState(null)
+  const view = localView ?? (opts?.view === 'ratio' ? 'ratio' : 'heatmap')
+  const setView = useCallback((v) => {
+    setLocalView(v)
+    onOptsChange?.({ ...(opts || {}), view: v })
+  }, [opts, onOptsChange])
+
+  // Ratio-bar hues: the custom up/down override wins (pure hue), else the UCT
+  // palette green/red — light-canvas variants stay legible on a white surface.
+  const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#16a34a' : '#22c55e')
+  const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#dc2626' : '#ef4444')
+  const ratioTrack = cellColors[''] || (lightCanvas ? '#ececec' : '#181818')
+
   return (
     <div ref={rootRef} className={styles.root} style={bwStyle}>
       {settingsOpen && (
@@ -416,20 +493,41 @@ export default function BreadthWidget({
         )}
       </div>
 
+      {/* View pill bar: Heatmap (default) ⇄ Ratio Bars */}
+      {currentRow && (
+        <div className={styles.bar}>
+          <button
+            type="button"
+            className={`${styles.pill}${view === 'heatmap' ? ' ' + styles.pillOn : ''}`}
+            onClick={() => setView('heatmap')} aria-pressed={view === 'heatmap'}
+          >Heatmap</button>
+          <button
+            type="button"
+            className={`${styles.pill}${view === 'ratio' ? ' ' + styles.pillOn : ''}`}
+            onClick={() => setView('ratio')} aria-pressed={view === 'ratio'}
+          >Ratio Bars</button>
+        </div>
+      )}
+
       {!currentRow && (
         <div className={styles.hint}>{data || liveBreadth.meta ? 'No breadth data yet.' : 'Loading breadth…'}</div>
       )}
 
       {currentRow && (
         <div className={styles.viewArea}>
-          {visibleKeys.length === 0
-            ? <div className={styles.hint}>All readings hidden — add some with ＋.</div>
-            : <HeatmapView
-                currentRow={currentRow} visibleKeys={visibleKeys}
-                tileStyle={tileStyle} seriesFor={seriesFor}
-                onDrill={readOnly ? null : drill} onRemove={readOnly ? null : removeMetric}
-                cellColors={cellColors} tipColors={tipColors} textColor={bwSettings.valueColor || null}
-              />}
+          {view === 'ratio'
+            ? <RatioBarsView
+                currentRow={currentRow} upColor={ratioUp} dnColor={ratioDn}
+                trackColor={ratioTrack} textColor={bwSettings.valueColor || null}
+              />
+            : visibleKeys.length === 0
+              ? <div className={styles.hint}>All readings hidden — add some with ＋.</div>
+              : <HeatmapView
+                  currentRow={currentRow} visibleKeys={visibleKeys}
+                  tileStyle={tileStyle} seriesFor={seriesFor}
+                  onDrill={readOnly ? null : drill} onRemove={readOnly ? null : removeMetric}
+                  cellColors={cellColors} tipColors={tipColors} textColor={bwSettings.valueColor || null}
+                />}
         </div>
       )}
 

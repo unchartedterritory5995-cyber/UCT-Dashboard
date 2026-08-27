@@ -25,6 +25,9 @@ const row = (date, score) => ({
   stage2_count: 900, stage4_count: 300,
   new_52w_highs: 180, new_52w_lows: 40, new_20d_highs: 400, new_20d_lows: 90,
   new_ath: 60, hvc_52w: 25, atr_ext_7: 12,
+  advancing: 3200, declining: 1400,
+  up_from_open: 2600, down_from_open: 1900,
+  up_on_volume: 1800, down_on_volume: 700,
   cnn_fear_greed: 55, aaii_spread: 6.5, cboe_putcall: 0.85,
 })
 
@@ -49,11 +52,41 @@ test('renders the heatmap with grouped tier tiles from the live metric defs', ()
   expect(screen.getAllByText(/61\.0%/).length).toBeGreaterThan(0) // pct_above_50sma fmt
 })
 
-test('header reads "Breadth Monitor" (no view pills)', () => {
+test('header reads "Breadth Monitor" with Heatmap ⇄ Ratio Bars view pills', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
   expect(screen.getByText('Breadth Monitor')).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /^rings$/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^heatmap$/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /^ratio bars$/i })).toBeInTheDocument()
+})
+
+test('the Internals group + its readings appear (advance/decline, from-open, on-volume)', () => {
+  mockData.mockReturnValue(ROWS)
+  render(<Wrap />)
+  expect(screen.getByText('Internals')).toBeInTheDocument()
+  expect(screen.getByText('Advancing')).toBeInTheDocument()
+  expect(screen.getByText('Up from Open')).toBeInTheDocument()
+  expect(screen.getByText('Up on Volume')).toBeInTheDocument()
+})
+
+test('the Ratio Bars pill switches to split gauges (persisted via opts.view)', () => {
+  mockData.mockReturnValue(ROWS)
+  const onOpts = vi.fn()
+  render(<Wrap onOpts={onOpts} />)
+  fireEvent.click(screen.getByRole('button', { name: /^ratio bars$/i }))
+  expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'ratio' }))
+  // The gauge for Advance / Decline renders with its raw counts.
+  expect(screen.getByText('Advance / Decline')).toBeInTheDocument()
+  expect(screen.getByText('3200')).toBeInTheDocument()
+  expect(screen.getByText('1400')).toBeInTheDocument()
+})
+
+test('opts.view=ratio renders Ratio Bars on mount', () => {
+  mockData.mockReturnValue(ROWS)
+  render(<Wrap initialOpts={{ view: 'ratio' }} />)
+  expect(screen.getByText('New Highs / New Lows')).toBeInTheDocument()
+  // Heatmap group headers are absent in ratio view.
+  expect(screen.queryByText('Primary Breadth')).not.toBeInTheDocument()
 })
 
 test('footer shows a last-updated TIME (like the Scanner) + a refresh button', () => {
