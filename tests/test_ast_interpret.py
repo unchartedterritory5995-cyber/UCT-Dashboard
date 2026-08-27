@@ -226,9 +226,17 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # fabricates ``t`` as a bar index precisely because it packs bars out of
     # argument COLUMNS, so an entry with no columns to pack is handed the real
     # bars. The scalar half is untouched at 111.
-    assert len(ast_table.bar_names()) == 85, len(ast_table.bar_names())
+    # ⭐ 85 -> 90 (2026-08-26): the BOUNDED-STATE five -- `barssince`,
+    # `valuewhen`, `highestbars`, `lowestbars` and `obvN`. Each declares its OWN
+    # `int` slot as its lookback, so `maxLookback` stays a tree sum and no node
+    # type, argument kind or lookback form moved. `obvN` is the THIRD
+    # ``reads: "bars"`` entry -- it names no series because on-balance volume is
+    # close-and-volume by definition -- and it is what lets
+    # ``_functions_excluded.obv`` point at a bounded successor instead of only
+    # refusing. The scalar half is untouched at 111.
+    assert len(ast_table.bar_names()) == 90, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 196, f"the table declares {len(declared)} names, not 196"
+    assert len(declared) == 201, f"the table declares {len(declared)} names, not 201"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -313,9 +321,21 @@ def test_every_declared_FUNCTION_has_an_implementation_and_vice_versa():
     for name in bar_readers:
         spec = ast_table.TABLE["functions"][name]
         # …and it EVALUATES, so "no FN entry" cannot quietly mean "no
-        # behaviour". The tree is built from the manifest's own arity, with a
-        # plausible instant in the one ``int`` slot the anchor form carries.
-        args = [NUM(BARS[1]["t"]) for _ in spec["args"]]
+        # behaviour". The tree is built from the manifest's own arity AND its own
+        # ``argRoles``.
+        #
+        # ⚰️ IT USED TO PUT ``BARS[1]["t"]`` IN EVERY ``int`` SLOT -- "the one
+        # ``int`` slot the anchor form carries" -- and that sentence stopped being
+        # true the moment a third bar reader landed whose ``int`` is a PERIOD:
+        # ``obvN(1780000300)`` measures 1.7 BILLION bars of lookback and this rail
+        # died inside ``budget:lookback``, naming a guard it was not asserting
+        # anything about. A probe that claims to be derived and types one entry's
+        # units is the hand-list defect one layer down, so the ROLE decides.
+        args = [
+            NUM(3) if str(spec["argRoles"][i]).lower().endswith("period")
+            else NUM(BARS[1]["t"])
+            for i in range(len(spec["args"]))
+        ]
         col = run(CALL(name, *args))
         assert len(col) == len(BARS), (
             f"{name} declares reads:'bars' and produced nothing")

@@ -80,6 +80,7 @@ from api.services.indicator_compute import (
     compute_ichimoku_raw,
     compute_macd_raw,
     compute_mfi_raw,
+    compute_obv_raw,
     compute_rsi_raw,
     compute_stoch_raw,
     compute_vwap_raw,
@@ -336,6 +337,39 @@ def _window_extreme(series: Sequence[float], lo: int, hi: int,
     return best
 
 
+def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
+                        better: Callable[[float, float], bool]) -> float:
+    """WHICH BAR holds the window's extreme, as an offset back from ``hi``.
+
+    ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
+    NOT THIS FUNCTION'S -- ``closedTable.json::_functions_arg_extreme`` argues it
+    out loud. ``_window_extreme`` returns the same NUMBER whichever of two equal
+    bars won, so nothing above it can see the choice; this one names a BAR, and
+    two hand-written lanes each picking a side would agree on every fixture that
+    happens to contain no tie. The committed 579-bar corpus contains none.
+
+    ⭐ DERIVED FROM THE VALUE RATHER THAN COMPUTED BESIDE IT, so
+    ``high[highestbars(high, n)] == highest(high, n)`` holds BY CONSTRUCTION and
+    the NaN rule (*"NaN does not lose a comparison"*) is inherited rather than
+    restated -- a second scan with its own comparison would be a second authority
+    over one window. ``interpret.js::windowArgExtreme`` is the same two steps.
+    """
+    best = _window_extreme(series, lo, hi, better)
+    if math.isnan(best):
+        return NAN
+    # ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
+    # one. Bounded by ``lo`` rather than run open -- a walk that could step past
+    # the window would read a negative index (Python wraps; JS yields
+    # ``undefined`` and never terminates).
+    for i in range(hi, lo - 1, -1):
+        if series[i] == best:
+            return float(hi - i)
+    # ⚠️ UNREACHABLE WHILE ``_window_extreme`` HOLDS ITS CONTRACT -- it only ever
+    # returns a member of ``series[lo..hi]``. NaN rather than a raise because a
+    # broken extreme must not become an escape inside the walker.
+    return NAN
+
+
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
     total = 0.0
     for i in range(lo, hi + 1):
@@ -467,6 +501,88 @@ def _fn_change(series: Sequence[float]) -> List[float]:
     out = _nan_col(len(series))
     for i in range(1, len(series)):
         out[i] = series[i] - series[i - 1]
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# the BOUNDED STATE pair -- one forward pass each, not a window scan
+# --------------------------------------------------------------------------- #
+#
+# ⭐ BAR-TO-BAR, NOT ``_rolling``. A window scan over ``n`` bars is O(bars x n)
+# and these two have an exact recurrence, so they are one pass. The three state
+# variables are what the recurrence needs and no more:
+#
+#   ``since`` -- bars since the last TRUE condition bar, or ``None`` when no true
+#                bar lies in the contiguous READABLE run ending here.
+#   ``run``   -- how many contiguous READABLE condition bars end here, capped at
+#                ``n`` because nothing above ``n`` changes an answer.
+#
+# ⛔ ``run`` IS THE HOLE RULE AND THE LEFT EDGE AT ONCE, which is why it is not a
+# bar counter: a NOT-COMPUTABLE condition bar RESETS it, so a sentinel is never
+# reported across a bar this engine could not read -- and the first ``n - 1`` bars
+# of any series are the same case, because the window runs off the front of the
+# FETCH. See ``closedTable.json::_functions_bounded_state``.
+
+
+def _fn_barssince(cond: Sequence[float], n: int) -> List[float]:
+    """``barssince(cond, n)`` -- bars since ``cond`` was last true, capped at ``n``.
+
+    ⛔ ``n`` IS A SENTINEL, NOT A COUNT. It means *"not true within the last n
+    bars"*, and it may only be said once ``n`` readable condition bars have been
+    seen. ⛔ AND IT IS NOT TC2000's ``-1``: that spelling belongs to the PCF
+    translation of ``SinceTrue``, which already composes it from ``accum(-1, …)``.
+    """
+    out = _nan_col(len(cond))
+    since: Optional[int] = None
+    run = 0
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            since, run = None, 0
+            continue
+        run = run + 1 if run < n else n
+        if c != 0.0:
+            since = 0
+        elif since is not None:
+            since = since + 1 if since < n else n
+        if since is not None:
+            # ⭐ A HIT THIS ENGINE CAN SEE IS FINAL however short the fetch: no
+            # wider one can insert a NEARER true bar. Only the sentinel below is
+            # a claim about bars that had to be read.
+            out[i] = float(since)
+        elif run >= n:
+            out[i] = float(n)
+    return out
+
+
+def _fn_valuewhen(cond: Sequence[float], src: Sequence[float], n: int) -> List[float]:
+    """``valuewhen(cond, src, n)`` -- ``src`` as it stood at the most recent true
+    bar within ``n``.
+
+    ⛔ NOT COMPUTABLE RATHER THAN STALE once the last hit leaves the window. A
+    price carried past its declared window is a confident wrong number, and the
+    declaration would stop being true of the value.
+
+    🔴 THE NaN PREFIX MEETS X23 -- a comparison over it reads as a confident
+    FALSE and its negation as a confident TRUE, so a scan returns nothing or the
+    whole universe. Not this entry's to fix; declared at
+    ``closedTable.json::_functions_bounded_state`` and measured at
+    ``tests/test_ast_bounded_state.py``.
+    """
+    out = _nan_col(len(cond))
+    since: Optional[int] = None
+    held = NAN
+    for i in range(len(cond)):
+        c = cond[i]
+        if math.isnan(c):
+            since, held = None, NAN
+            continue
+        if c != 0.0:
+            since, held = 0, src[i]
+        elif since is not None:
+            since = since + 1 if since < n else n
+        if since is not None and since < n:
+            out[i] = held
     return out
 
 
@@ -878,6 +994,16 @@ FN: Dict[str, Callable[..., List[float]]] = {
         series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v > b)),
     "lowest": lambda series, n: _rolling(
         series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
+    # ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME OBJECT SHAPE THE
+    # VALUE FORMS PASS -- `_window_arg_extreme` asks `_window_extreme` for the
+    # value and only then names the bar, so the pair cannot disagree about one
+    # window and the tie-break is the manifest's ruling rather than this line's.
+    "highestbars": lambda series, n: _rolling(
+        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b)),
+    "lowestbars": lambda series, n: _rolling(
+        series, n, lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b)),
+    "barssince": _fn_barssince,
+    "valuewhen": _fn_valuewhen,
     "stdev": lambda series, n: _rolling(series, n, _window_stdev),
     "sum": lambda series, n: _rolling(series, n, _window_sum),
     "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
@@ -1064,10 +1190,44 @@ def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
     return out
 
 
+def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``obvN(n)`` -- on-balance volume's CHANGE across the last ``n`` bars.
+
+    ⭐⭐ IT READS THE BARS BECAUSE IT NAMES NO SERIES. OBV is close-and-volume by
+    definition, so there is no column to hand it and ``_bind_shipped`` has nothing
+    to pack -- the same absence of arguments that finally made ``vwap`` declarable.
+
+    ⛔⛔ THE INCREMENT OF THE SHIPPED ACCUMULATOR, NEVER A SECOND SUM.
+    ``compute_obv_raw`` is what the chart draws and what
+    ``indicator_alert_evaluator`` fires on; differencing it ``n`` bars apart is
+    the same arithmetic in one place instead of two, so ``obvN`` can never drift
+    from the OBV a member sees beside it.
+
+    ⭐ AND THE DIFFERENCE IS WHY THE BOUNDED FORM IS DECLARABLE WHERE THE LEVEL IS
+    REFUSED (``_functions_excluded.obv``): the level's seed is a fact about where
+    the fetch started, and it CANCELS -- the same bar reads the same number off a
+    60-bar fetch and off a 260-bar one. The first ``n`` bars are NOT COMPUTABLE
+    because their window reaches past the front of the fetch, which is exactly
+    what ``lookback: "arg0"`` declares.
+    """
+    n = int(args[0])
+    level = compute_obv_raw(bars)
+    out: List[MaybeNum] = [None] * len(bars)
+    if len(level) != len(bars):
+        return out
+    for i in range(n, len(bars)):
+        near, far = level[i], level[i - n]
+        if not (_is_number(near) and _is_number(far)):
+            continue
+        out[i] = float(near) - float(far)
+    return out
+
+
 #: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
 _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
     "avwap": _fn_avwap,
+    "obvN": _fn_obvn,
 }
 
 #: The declared set, read off the manifest. ``parse.js::BAR_READERS`` is the same
@@ -1404,18 +1564,33 @@ def unresolved_scalars(ast: Any,
     RATHER THAN FEARED. ``_cmp`` answers **0** when either side is NaN --
     *"A COMPARISON AGAINST NaN IS 0, NOT NaN ... the one place JS and Python
     agree by luck"* -- and that rule is correct for a bar warmup (the crossing
-    did not happen) and PINNED by 17 frozen cross-lane digests. Applied to a
-    scalar it is the ``scan_volume._job`` bug at the leaf: with no market cap,
+    did not happen) and PINNED by the frozen cross-lane digests in
+    ``tests/fixtures/ast/conformance_log.json``. Applied to a scalar it is the
+    ``scan_volume._job`` bug at the leaf: with no market cap,
 
         interpret(market_cap > 1e9)        -> [0.0, 0.0, ...]   a confident False
         interpret(market_cap)              -> [None, None, ...] the honest hole
 
     So the hole is visible at the LEAF and invisible one node up, and a sweep
     that read the column would count a symbol it knows nothing about as a symbol
-    that did not match. ⛔ THE ANSWER IS NOT TO CHANGE `_cmp`: propagating NaN
-    through comparisons would move every digest in the conformance log and
-    change what a warmup means on the chart. The answer is to ask THIS question
-    before evaluating, which is why it is a function and not a comment.
+    that did not match. ⛔ THE ANSWER IS NOT TO CHANGE `_cmp` — but NOT for the
+    reason this docstring used to give.
+
+    ⚰️ IT SAID *"PINNED BY 17 FROZEN CROSS-LANE DIGESTS"* AND *"propagating NaN
+    through comparisons would move EVERY digest in the conformance log"*. Both
+    halves are wrong, and the second is the expensive one. The count went stale
+    the first time a case was added (point at the log, which owns the number, and
+    write none here); the COST was measured by W9a at **270 of 53,847 rows,
+    0.501%**, and the rows that move are exactly the warm-up prefix. ⛔ A WRONG
+    COST ESTIMATE THAT DISCOURAGES A CHEAP FIX IS ITS OWN DEFECT CLASS — this
+    branch has already paid for it once, on a security fix priced at *"~40 rows in
+    an unowned file"* and measured at ONE.
+
+    ⭐ THE RULING IS UNCHANGED AND IT RESTS ON THE OTHER HALF: answering 0 against
+    NaN is CORRECT for a bar warm-up — the crossing did not happen — so changing
+    it would change what a warm-up MEANS on every chart. The member-facing hole is
+    closed by asking THIS question BEFORE evaluating, which is why it is a
+    function and not a comment.
 
     ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN. Its consumer is the
     server-side universe sweep; a browser evaluates one symbol whose row it does
@@ -1530,7 +1705,8 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     🔴 THIS EXISTS FOR THE SAME REASON ``unresolved_scalars`` DOES, ONE AXIS
     OVER — and it was measured, not feared. ``_cmp`` answers **0** when either
     side is NaN, which is correct for a warmup on the chart (the crossing did not
-    happen) and is pinned by 17 frozen cross-lane digests. Applied to a tree the
+    happen) and is pinned by the frozen cross-lane digests in
+    ``tests/fixtures/ast/conformance_log.json``. Applied to a tree the
     series is too SHORT to answer, it is a confident False forever. Evaluated on
     200 real AAPL bars:
 
@@ -1541,10 +1717,17 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     which is the SMA200 SEED, not an EMA — so ``close > ema(close, 200)`` returned
     ``1.0`` and an alert fired on a number that is not the indicator it names.
 
-    ⛔ THE ANSWER IS NOT TO CHANGE ``_cmp``. Propagating NaN through comparisons
-    would move every conformance digest and change what a warmup means on the
-    chart. The answer is to ask THIS question BEFORE evaluating — which is why it
-    is a function and not a comment, and why it is shaped exactly like
+    ⛔ THE ANSWER IS NOT TO CHANGE ``_cmp`` — and ⚰️ THIS SAID *"pinned by 17
+    frozen cross-lane digests"* AND *"propagating NaN through comparisons would
+    move EVERY conformance digest"*. Neither is true: the count went stale the
+    first time a corpus case was added (the log owns the number; none is written
+    here), and W9a MEASURED the cost at **270 of 53,847 rows, 0.501%**, all of
+    them in the warm-up prefix. A cost estimate that overstates a cheap fix in a
+    sentence written to stop anyone from checking is a deterrent, not a reason.
+    ⭐ THE RULING STANDS ON THE OTHER HALF ALONE: 0 against NaN is CORRECT for a
+    warm-up, so changing it would change what a warm-up MEANS on every chart. The
+    answer is to ask THIS question BEFORE evaluating — which is why it is a
+    function and not a comment, and why it is shaped exactly like
     ``unresolved_scalars``.
 
     ⚠️ ``max_lookback`` is the tree's OWN declaration — the same number the

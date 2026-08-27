@@ -653,7 +653,11 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 85 and len(parts["scalar"]) == 111
+    # ⭐ 85 -> 90 (2026-08-26): the BOUNDED-STATE five (`barssince`, `valuewhen`,
+    # `highestbars`, `lowestbars`, `obvN`). The scalar half is untouched at 111
+    # for the tenth bump running -- a bounded-state entry rides the `call` node and
+    # has nothing to say about a per-symbol column.
+    assert len(parts["bar"]) == 90 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

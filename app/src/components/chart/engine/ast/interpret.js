@@ -74,7 +74,7 @@ import { assertBudget } from './budget.js'
 import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
-  computeClock, computeVWAP, computeAVWAP, AVWAP_MIN_INSTANT,
+  computeClock, computeVWAP, computeAVWAP, computeOBV, AVWAP_MIN_INSTANT,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -237,10 +237,106 @@ function windowExtreme(series, lo, hi, better) {
  *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
  *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
  *  Bollinger definition draws. The Python lane must use the same divisor. */
+/** WHICH BAR holds the window's extreme, as an offset back from `hi`.
+ *
+ *  ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
+ *  NOT THIS FUNCTION'S — `closedTable.json::_functions_arg_extreme` argues it
+ *  out loud. `windowExtreme` returns the same NUMBER whichever of two equal bars
+ *  won, so nothing above it can see the choice; this one names a BAR, and two
+ *  hand-written lanes each picking a side would agree on every fixture that
+ *  happens to contain no tie. The committed 579-bar corpus contains none.
+ *
+ *  ⭐ DERIVED FROM THE VALUE RATHER THAN COMPUTED BESIDE IT, so
+ *  `high[highestbars(high, n)] === highest(high, n)` holds BY CONSTRUCTION and
+ *  the NaN rule (*"NaN does not lose a comparison"*) is inherited rather than
+ *  restated — a second scan with its own comparison would be a second authority
+ *  over one window. `ast_interpret._window_arg_extreme` is the same two steps. */
+function windowArgExtreme(series, lo, hi, better) {
+  const best = windowExtreme(series, lo, hi, better)
+  if (Number.isNaN(best)) return NaN
+  // ⭐ BACKWARD FROM THE BAR BEING WRITTEN: the FIRST match is the MOST RECENT
+  // one. Bounded by `lo` rather than run open — a walk that could step past the
+  // window would read `undefined` forever and never terminate.
+  for (let i = hi; i >= lo; i--) if (series[i] === best) return hi - i
+  // ⚠️ UNREACHABLE WHILE `windowExtreme` HOLDS ITS CONTRACT — it only ever
+  // returns a member of `series[lo..hi]`. NaN rather than a throw because a
+  // broken extreme must not become an escape inside the walker.
+  return NaN
+}
+
 function windowSum(series, lo, hi) {
   let total = 0
   for (let i = lo; i <= hi; i++) total += series[i]
   return total
+}
+
+// --------------------------------------------------------------------------- //
+// the BOUNDED STATE pair — one forward pass each, not a window scan
+// --------------------------------------------------------------------------- //
+//
+// ⭐ BAR-TO-BAR, NOT `rolling`. A window scan over `n` bars is O(bars × n) and
+// these two have an exact recurrence, so they are one pass. The state is what
+// the recurrence needs and no more:
+//
+//   `since` — bars since the last TRUE condition bar, or `null` when no true bar
+//             lies in the contiguous READABLE run ending here.
+//   `run`   — how many contiguous READABLE condition bars end here, capped at
+//             `n` because nothing above `n` changes an answer.
+//
+// ⛔ `run` IS THE HOLE RULE AND THE LEFT EDGE AT ONCE, which is why it is not a
+// bar counter: a NOT-COMPUTABLE condition bar RESETS it, so a sentinel is never
+// reported across a bar this engine could not read — and the first `n - 1` bars
+// of any series are the same case, because the window runs off the front of the
+// FETCH. See `closedTable.json::_functions_bounded_state`.
+
+/** `barssince(cond, n)` — bars since `cond` was last true, capped at `n`.
+ *
+ *  ⛔ `n` IS A SENTINEL, NOT A COUNT. It means *"not true within the last n
+ *  bars"*, and it may only be said once `n` readable condition bars have been
+ *  seen. ⛔ AND IT IS NOT TC2000's `-1`: that spelling belongs to the PCF
+ *  translation of `SinceTrue`, which already composes it from `accum(-1, …)`. */
+function barsSince(cond, n) {
+  const out = nan(cond.length)
+  let since = null
+  let run = 0
+  for (let i = 0; i < cond.length; i++) {
+    const c = cond[i]
+    if (Number.isNaN(c)) { since = null; run = 0; continue }
+    run = run < n ? run + 1 : n
+    if (c !== 0) since = 0
+    else if (since !== null) since = since < n ? since + 1 : n
+    // ⭐ A HIT THIS ENGINE CAN SEE IS FINAL however short the fetch: no wider one
+    // can insert a NEARER true bar. Only the sentinel is a claim about bars that
+    // had to be read.
+    if (since !== null) out[i] = since
+    else if (run >= n) out[i] = n
+  }
+  return out
+}
+
+/** `valuewhen(cond, src, n)` — `src` as it stood at the most recent true bar
+ *  within `n`.
+ *
+ *  ⛔ NOT COMPUTABLE RATHER THAN STALE once the last hit leaves the window. A
+ *  price carried past its declared window is a confident wrong number, and the
+ *  declaration would stop being true of the value.
+ *
+ *  🔴 THE NaN PREFIX MEETS X23 — a comparison over it reads as a confident FALSE
+ *  and its negation as a confident TRUE, so a scan returns nothing or the whole
+ *  universe. Not this entry's to fix; declared at
+ *  `closedTable.json::_functions_bounded_state`. */
+function valueWhen(cond, src, n) {
+  const out = nan(cond.length)
+  let since = null
+  let held = NaN
+  for (let i = 0; i < cond.length; i++) {
+    const c = cond[i]
+    if (Number.isNaN(c)) { since = null; held = NaN; continue }
+    if (c !== 0) { since = 0; held = src[i] }
+    else if (since !== null) since = since < n ? since + 1 : n
+    if (since !== null && since < n) out[i] = held
+  }
+  return out
 }
 
 /** Pine's `ta.dev`: the MEAN ABSOLUTE deviation about the window's simple average.
@@ -551,6 +647,14 @@ export const FN = Object.freeze({
   ema: (series, n) => emaCol(series, n),
   highest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b)),
   lowest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b)),
+  // ⭐ THE ARG-EXTREMES, AND THE `better` PREDICATE IS THE SAME SHAPE THE VALUE
+  // FORMS PASS — `windowArgExtreme` asks `windowExtreme` for the value and only
+  // then names the bar, so the pair cannot disagree about one window and the
+  // tie-break is the manifest's ruling rather than this line's.
+  highestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b)),
+  lowestbars: (series, n) => rolling(series, n, (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b)),
+  barssince: (cond, n) => barsSince(cond, n),
+  valuewhen: (cond, src, n) => valueWhen(cond, src, n),
   stdev: (series, n) => rolling(series, n, windowStdev),
   sum: (series, n) => rolling(series, n, windowSum),
   dev: (series, n) => rolling(series, n, windowMeanAbsDev),
@@ -763,7 +867,40 @@ function barAvwap(bars, args) {
  *  ⚠️ EXPORTED FOR THE RAIL ONLY, like `POINTWISE_FOR_PARITY`. `interpret.test.js`
  *  asserts this against `BAR_READERS` in both directions; nothing in the app
  *  imports it. */
-export const BAR_FN = Object.freeze({ vwap: barVwap, avwap: barAvwap })
+/** `obvN(n)` — on-balance volume's CHANGE across the last `n` bars.
+ *
+ *  ⭐⭐ IT READS THE BARS BECAUSE IT NAMES NO SERIES. OBV is close-and-volume by
+ *  definition, so there is no column to hand it and `bindShipped` has nothing to
+ *  pack — the same absence of arguments that finally made `vwap` declarable.
+ *
+ *  ⛔⛔ THE INCREMENT OF THE SHIPPED ACCUMULATOR, NEVER A SECOND SUM.
+ *  `computeOBV` is what the chart draws; differencing it `n` bars apart is the
+ *  same arithmetic in one place instead of two, so `obvN` can never drift from
+ *  the OBV a member sees beside it.
+ *
+ *  ⭐ AND THE DIFFERENCE IS WHY THE BOUNDED FORM IS DECLARABLE WHERE THE LEVEL IS
+ *  REFUSED (`_functions_excluded.obv`): the level's seed is a fact about where the
+ *  fetch started, and it CANCELS — the same bar reads the same number off a
+ *  60-bar fetch and off a 260-bar one. The first `n` bars are NOT COMPUTABLE
+ *  because their window reaches past the front of the fetch, which is exactly
+ *  what `lookback: 'arg0'` declares. */
+function barObvN(bars, args) {
+  const n = args[0]
+  const level = computeOBV(bars)
+  if (level.length !== bars.length) return []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i].t, value: NaN }
+  for (let i = n; i < bars.length; i++) {
+    const near = level[i] ? level[i].value : undefined
+    const far = level[i - n] ? level[i - n].value : undefined
+    out[i].value = (typeof near === 'number' && typeof far === 'number')
+      ? near - far
+      : NaN
+  }
+  return out
+}
+
+export const BAR_FN = Object.freeze({ vwap: barVwap, avwap: barAvwap, obvN: barObvN })
 
 // ⛔ A DECLARED-BUT-UNBOUND ENTRY IS A FORMULA THE BUILDER OFFERS AND THIS LANE
 // CANNOT DRAW; a bound-but-undeclared one is a callable outside the closed

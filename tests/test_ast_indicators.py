@@ -440,8 +440,32 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     # (`source` for a single input, `left`/`right` for a symmetric pair), so a
     # translator has a closed set to match against rather than a vocabulary that
     # grows one adjective at a time.
-    generic = {"source", "left", "right", "seed", "update"}
+    # ⭐ `condition` JOINED ON 2026-08-26, AND IT IS NOT AN ADJECTIVE. Two of the
+    # bounded-state entries take a slot the maths reads as a 0/1 EVENT rather than
+    # as a price — `barssince(condition, n)`, `valuewhen(condition, source, n)` —
+    # and a translator that filled that slot with `close` because the role said
+    # `source` would produce a plausible column off a price compared to zero. It
+    # is PINNED below, the way `seed`/`update` are, so it cannot spread to a slot
+    # whose entry does not yield a condition there.
+    generic = {"source", "left", "right", "seed", "update", "condition"}
     allowed = set(ast_table.TABLE["series"]) | generic
+
+    # ⛔ AND `condition` IS ONLY LEGAL WHERE THE ENTRY REALLY READS AN EVENT.
+    # Derived from the manifest: the slot must be a `series`, and the entry must
+    # be one whose own sentence says the slot is TRUE or FALSE rather than a
+    # quantity. A role that could sit anywhere is the free text this set exists
+    # to prevent.
+    for name, spec in functions.items():
+        for i, role in enumerate(spec.get("argRoles") or ()):
+            if role != "condition":
+                continue
+            assert spec["args"][i] == "series", (name, i, spec["args"])
+            phrase = spec.get("sentence", "")
+            assert ("{%d} was" % i) in phrase or ("{%d} was" % i) in phrase, (
+                name, phrase)
+            assert "true" in phrase.lower(), (name, phrase)
+    assert any("condition" in (s.get("argRoles") or ()) for s in functions.values()), (
+        "no function declares a `condition` slot — the pin above has no subject")
 
     # ⭐ THE TWO RECURRENCE SHAPES ARE NOT FREE TEXT EITHER, AND THIS IS WHAT
     # KEEPS THEM CLOSED. `seed` and `update` were added to the generic set above

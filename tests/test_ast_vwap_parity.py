@@ -323,7 +323,18 @@ def test_both_entries_declare_the_session_window_and_READ_THE_BARS(bars):
         assert len(spec["args"]) == arity, (name, spec["args"])
         assert spec["yields"] == "num", (name, spec.get("yields"))
         assert spec["cadence"] == "live", (name, spec.get("cadence"))
-    assert set(ast_table.bar_readers()) == {"vwap", "avwap"}, ast_table.bar_readers()
+    # ⛔ THE SUBSET THAT IS SESSION-ANCHORED, NOT THE WHOLE ROSTER. This read
+    # `set(bar_readers()) == {"vwap", "avwap"}` and went red the day `obvN(n)`
+    # landed -- a THIRD `reads: "bars"` entry that is NOT session-anchored, because
+    # on-balance volume names no series and needs no instant. The property this
+    # file is about is the SESSION window, so it is read off the manifest's own
+    # `lookback` rather than off a roster that rots on the next bar reader.
+    fns_all = ast_table.TABLE["functions"]
+    session_readers = {n for n in ast_table.bar_readers()
+                       if fns_all[n]["lookback"] == "session"}
+    assert session_readers == {"vwap", "avwap"}, sorted(session_readers)
+    assert set(ast_table.bar_readers()) - session_readers == {"obvN"}, (
+        sorted(ast_table.bar_readers()))
 
 
 def test_the_bar_reader_set_is_DERIVED_from_the_manifest_not_listed(bars):
@@ -545,7 +556,13 @@ def test_the_CONSUMERS_bar_reader_roster_is_derived_at_IMPORT_not_hand_listed():
     # …and the value agrees with the reader today, so the shape rail above is
     # not standing in for a number nobody checked.
     assert tuple(ast_interpret.BAR_READERS) == tuple(ast_table.bar_readers())
-    assert set(ast_interpret.BAR_READERS) == {"vwap", "avwap"}, ast_interpret.BAR_READERS
+    # ⛔ A FLOOR AND A MEMBERSHIP, NEVER A ROSTER. This asserted the exact set
+    # `{"vwap", "avwap"}` and went red the day a third bar reader landed -- a
+    # hand-typed list inside the very case whose subject is "not hand-listed".
+    # What it needs is that the value is non-empty and still holds this file's two
+    # subjects; WHICH names are in it is `bar_readers`' answer, asserted above.
+    assert len(ast_interpret.BAR_READERS) >= 2, ast_interpret.BAR_READERS
+    assert {"vwap", "avwap"} <= set(ast_interpret.BAR_READERS), ast_interpret.BAR_READERS
 
 
 def test_the_vwap_BINDING_NAMES_the_shipped_accumulator_in_its_own_SOURCE():

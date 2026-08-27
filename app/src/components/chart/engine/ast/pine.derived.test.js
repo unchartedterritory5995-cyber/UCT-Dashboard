@@ -7,8 +7,8 @@
 // to a neighbour that would parse, lint, save, scan and be wrong.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine } from './pine.js'
-import { parseFormula, astHash } from './parse.js'
+import { translatePine, PINE_INEXPRESSIBLE } from './pine.js'
+import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
 
 /** A one-plot script, so the translator's own door is the thing under test. */
@@ -104,6 +104,39 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // If `cum` ever silently became `sum`, this is what would catch it.
     for (const expr of ['ta.cum(volume)', 'ta.barssince(close > open)']) {
       expect(() => treeOf(expr)).toThrow(/refused/)
+    }
+  })
+
+  it('⛔⛔ …AND A TABLE ENTRY OF THE SAME SPELLING DOES NOT LET ONE THROUGH', () => {
+    // ⚰️ THE MEASURED REGRESSION. `barssince` landed in `closedTable.json` on
+    // 2026-08-26 as the BOUNDED `barssince(condition, n)`. `PINE_INEXPRESSIBLE`
+    // was consulted only when the table had NO such name, so `ta.barssince(cond)`
+    // stopped reporting the unbounded reason and started reporting an ARITY
+    // message — *"this table takes 2"* — which reads as "just add a number", and
+    // the number a member adds silently CAPS a count Pine leaves uncapped.
+    //
+    // ⭐ THE SUBJECT IS DERIVED: every inexpressible name the table ALSO declares
+    // is exercised, so the next collision is covered on the day it lands.
+    const collisions = [...Object.keys(PINE_INEXPRESSIBLE)]
+      .filter((n) => Object.prototype.hasOwnProperty.call(TABLE.functions, n))
+    // NON-VACUITY — a rail about collisions with none to look at proves nothing.
+    expect(collisions, 'no inexpressible name collides with the table any more; '
+      + 'if that is deliberate, delete this rail rather than letting it pass '
+      + 'vacuously').toContain('barssince')
+
+    for (const name of collisions) {
+      const spec = TABLE.functions[name]
+      // The PINE spelling, with PINE's arity — one argument for `ta.barssince`.
+      const r = refusalOf(`ta.${name}(close > open)`)
+      expect(r, `ta.${name} resolved instead of refusing`).toBeTruthy()
+      expect(r.guard, `ta.${name} refused at the wrong door`).toBe('pine:function')
+      expect(r.message, `ta.${name}'s refusal lost its REASON and reports arity`)
+        .not.toMatch(/different signature/i)
+      // …and the reason names the engine's own bounded entry, so the member is
+      // told what to write rather than only what not to.
+      expect(r.message).toContain(`${name}(`)
+      expect(spec.args.length, `${name} is a collision only while the arities differ`)
+        .toBeGreaterThan(1)
     }
   })
 })

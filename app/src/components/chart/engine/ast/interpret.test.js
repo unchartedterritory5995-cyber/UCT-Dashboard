@@ -482,10 +482,25 @@ describe('the implementation and the manifest are the same list', () => {
         .toBe('function')
       // …and it EVALUATES, so "declared and bound" cannot quietly mean "bound to
       // something that refuses". The tree is built from the manifest's own
-      // arity, with a plausible instant for the one `int` slot the anchor form
-      // carries, so a third entry is exercised the day it lands.
+      // arity AND its own `argRoles`, so a third entry is exercised the day it
+      // lands.
+      //
+      // ⚰️ THE VALUE USED TO BE `BARS[1].t` FOR EVERY `int` SLOT — "a plausible
+      // instant for the one `int` slot the anchor form carries" — and that
+      // sentence stopped being true the moment a third bar reader landed whose
+      // `int` is a PERIOD. `obvN(1761897900)` measures 1.7 BILLION bars of
+      // lookback and this rail died inside `budget:lookback`, naming a guard
+      // that has nothing to do with what it was asserting. A probe that claims
+      // to be derived and types one entry's units is the same
+      // hand-list-beside-the-source defect one layer down, so the ROLE decides:
+      // a `…period` slot gets a window, anything else gets an instant.
       const spec = TABLE.functions[name]
-      const args = spec.args.map(() => ({ type: 'num', value: BARS[1].t }))
+      const args = spec.args.map((kind, i) => ({
+        type: 'num',
+        value: String(spec.argRoles[i] ?? '').toLowerCase().endsWith('period')
+          ? 3
+          : BARS[1].t,
+      }))
       const column = interpret({ type: 'call', name, args }, BARS, {})
       expect(column.length, `${name} did not produce a bar-aligned column`).toBe(BARS.length)
     }

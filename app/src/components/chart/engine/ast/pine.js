@@ -475,16 +475,24 @@ const BUILTIN_CALL_TREE = Object.freeze({
  *  ⭐ MEASURED, NOT ASSUMED: `accum(0, self + 1, 10)` reads 10 at bar 20 AND at
  *  bar 49 over a 50-bar series. It is a RE-SEEDED WINDOW, not a running total.
  */
-const PINE_INEXPRESSIBLE = Object.freeze({
+// ⚠️ EXPORTED FOR THE RAIL ONLY, like `PINE_CALL_SHAPES`. `pine.derived.test.js`
+// intersects it with `TABLE.functions` to exercise every name this list and the
+// closed table SHARE — nothing in the app imports it.
+export const PINE_INEXPRESSIBLE = Object.freeze({
   cum: 'a running total from the first bar. This engine\'s only accumulator '
     + 're-seeds a fixed number of bars back, so `cum` would silently become a '
     + 'rolling sum — and a true cumulative would change value with how many bars '
     + 'the chart requested, which this engine forbids by construction. '
     + 'Use `sum(source, n)` when a fixed window is what you meant.',
-  barssince: 'the number of bars since a condition was last true, UNBOUNDED. This '
-    + 'engine\'s accumulator is bounded by a declared warm-up, so the answer would '
-    + 'silently cap at that window instead of counting back as far as the condition '
-    + 'requires — a different number wearing the same name.',
+  // ⚠️ THIS ONE IS NOW A NAME THE TABLE ALSO DECLARES, AND THAT MAKES IT MORE
+  // DANGEROUS RATHER THAN LESS — see the `own(PINE_INEXPRESSIBLE, …)` gate below.
+  barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
+    + 'This table declares `barssince(condition, n)`, and it is NOT the same '
+    + 'function: ours saturates at a declared window and answers `n` for "not '
+    + 'true within the last n bars", while Pine\'s counts back as far as the '
+    + 'condition requires. Translating the one-argument form onto it would '
+    + 'silently cap the count — a different number wearing the same name. '
+    + 'Write `barssince(condition, n)` with the window you actually mean.',
 })
 
 /** Pine keywords that begin a construct with no single-expression form. */
@@ -2199,7 +2207,24 @@ class Resolver {
       return BUILTIN_CALL_TREE[bare](built)
     }
     // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
-    if (!key && own(PINE_INEXPRESSIBLE, bare)) {
+    //
+    // ⛔⛔ AND THIS ONE IS **NOT** GATED ON `!key`, UNLIKE THE EXPANSIONS ABOVE.
+    // The difference is what each list is FOR. `BUILTIN_CALL_TREE` holds exact
+    // IDENTITIES, so a native entry of the same name is strictly better and
+    // should win. `PINE_INEXPRESSIBLE` holds names whose PINE MEANING this engine
+    // cannot say — and a table entry that happens to share the spelling does not
+    // change that; it makes the near-miss REACHABLE, which is the whole failure
+    // this list exists to prevent.
+    //
+    // ⚰️ MEASURED, NOT ARGUED. `barssince` landed in `closedTable.json` on
+    // 2026-08-26 as the BOUNDED `barssince(condition, n)`, and with the `!key`
+    // gate in place `ta.barssince(close > open)` stopped reporting the unbounded
+    // reason and started reporting *"this table takes 2 — barssince(series,
+    // int)"*. That reads as **"just add a number"**, and a member who adds one
+    // gets a silently capped count under the name Pine gave an uncapped one.
+    // `pine.derived.test.js` caught it; the gate is what stops it recurring for
+    // the next same-named entry.
+    if (own(PINE_INEXPRESSIBLE, bare)) {
       throw new PineRefusal('pine:function',
         `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }

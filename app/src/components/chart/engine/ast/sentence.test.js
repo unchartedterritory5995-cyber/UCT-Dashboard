@@ -176,6 +176,41 @@ const FORMS = [
     parts: ['the volume-weighted average price accumulated from the first bar at or after epoch ', 0] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
 
+  // ⭐ THE BOUNDED-STATE FIVE (2026-08-26), hand-typed from the manifest's words
+  // like every row above — deriving them would make the oracle agree with the
+  // renderer by construction and the round trip would prove nothing.
+  //
+  // ⛔ EACH SLOT APPEARS EXACTLY ONCE, AND THAT IS A CONSTRAINT ON THE MANIFEST,
+  // NOT ON THIS TABLE. `barssince`'s sentence first read *"…, or {1} when it has
+  // not been true within the last {1} bars"* — the sentinel and the window are
+  // the same number, so saying it twice is the honest English — and `matchForm`
+  // captures a slot once, so it read as `0 parses`. The template says it once;
+  // `_functions_bounded_state` carries the fact that the two numbers are equal.
+  //
+  // ⚠️ `highestbars` IS NOT AMBIGUOUS WITH `highest` even though its phrase
+  // ENDS with `highest` chrome: a form's first literal must match at position 0,
+  // and this one opens with `the number of bars back to`.
+  { kind: 'call',
+    name: 'barssince',
+    parts: ['the number of bars since ', 0,
+            ' was last true, and ', 1, ' when it has not been true that recently'] },
+  { kind: 'call',
+    name: 'valuewhen',
+    parts: ['the value of ', 1, ' on the most recent of the last ', 2,
+            ' bars where ', 0, ' was true'] },
+  { kind: 'call',
+    name: 'highestbars',
+    parts: ['the number of bars back to the most recent bar holding the highest ', 0,
+            ' of the last ', 1, ' bars'] },
+  { kind: 'call',
+    name: 'lowestbars',
+    parts: ['the number of bars back to the most recent bar holding the lowest ', 0,
+            ' of the last ', 1, ' bars'] },
+  { kind: 'call',
+    name: 'obvN',
+    parts: ['the signed volume of the last ', 0,
+            ' bars, which is on-balance volume\'s change across that window'] },
+
   // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
   // table, and that is the whole design: this grammar is a DELIBERATE second
   // authority, written from the manifest's words by a reader rather than derived
@@ -778,6 +813,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:atan',
       'function:atr',
       'function:avwap',
+      'function:barssince',
       'function:cci',
       'function:change',
       'function:cos',
@@ -790,6 +826,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:ema',
       'function:exp',
       'function:highest',
+      'function:highestbars',
       'function:ichimokuChikou',
       'function:ichimokuKijun',
       'function:ichimokuSpanA',
@@ -799,6 +836,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:ln',
       'function:log10',
       'function:lowest',
+      'function:lowestbars',
       'function:macd',
       'function:max',
       'function:mfi',
@@ -807,6 +845,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:mod',
       'function:na',
       'function:nz',
+      'function:obvN',
       'function:plusDI',
       'function:pow',
       'function:rma',
@@ -821,11 +860,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:stoch',
       'function:sum',
       'function:tan',
+      'function:valuewhen',
       'function:vwap',
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(85)
+    expect(entries.length).toBe(90)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -835,7 +875,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(85)
+    expect(subjects.length).toBe(90)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2018,6 +2058,14 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // so `avwap` answers NOT COMPUTABLE rather than a column that would move
       // when the caller's window moved.
       'avwap_anchor_before_the_series_is_not_computable',
+      // ⭐ THE BOUNDED-STATE FIVE (2026-08-26). A LIST, never a count: these
+      // five are the corpus's only rows whose read-back has to say what a
+      // SENTINEL means, and two of them carry the arg-extreme tie-break ruling.
+      'barssince_the_last_up_bar',
+      'valuewhen_the_last_up_bars_close',
+      'highestbars_the_offset_back_to_the_high',
+      'lowestbars_the_offset_back_to_the_low',
+      'obvN_bounded_signed_volume',
     ])
   })
 
@@ -2060,7 +2108,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 85)
+    expect(sentences.length).toBe(CORPUS.cases.length + 90)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

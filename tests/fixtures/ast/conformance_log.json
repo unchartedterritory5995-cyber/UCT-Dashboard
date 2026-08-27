@@ -13,6 +13,7 @@
     "atr_of_hlc": "4dddeefee0023120fd6aaea12111274fbb937a673f6369817419650c26a45b4c",
     "avwap_anchor_before_the_series_is_not_computable": "e15166565e8f122bfe061f1717801c4857ce6a53f1d4874c8029cbda15f6bae0",
     "avwap_from_a_mid_series_instant": "8f4ed4c0a9dc839873ac6dee92d1dffad0cdace3df7258656dae685a85020800",
+    "barssince_the_last_up_bar": "8eb94e85c8721da9db32194228d3d132de30f17fb12ad375f22d35a459dec37e",
     "bounds_inclusive": "a3320dbb6668317a3f8b83120bdf5349450ef54e9fb86388b7ec2e4ec4ffac81",
     "cci_20": "b6e6a56d07f2b75e50b4fa941a963bfac25fad7ae6a304f0ddc6392602cf449a",
     "clock_barindex": "f1dbb6b765ce566e3e03f7c6c80339efdb4549bd4a44928197f6d1d131e5ea00",
@@ -42,6 +43,7 @@
     "exp_of_a_small_number": "4d296577ee3ca4c7d7c6d648b9dc4d52d10137786cf2632abc31630aff67bae6",
     "exp_overflow": "3d7472a231446fa27716d81eea82d25e33bd6fd0351663c4fbcab647c00a9c4d",
     "float_division": "73cda8db44d16b45d6df5cb11e114bd483d3779a53b1f8184e8ca43b6b7a4c2b",
+    "highestbars_the_offset_back_to_the_high": "8424b0cebfbe4437cdc746cbf3c085c0969051f01133f888b57cf234ab926804",
     "ichimoku_chikou": "96004ec3131f7b937775a18014e70cce082af3ced59ff0a4ced475c0472203e0",
     "ichimoku_kijun": "d5749257d33430cc1a11749e662709d4b09cb938f70d0e8e9d8e0dfd175756da",
     "ichimoku_span_a": "b272b83b024e00b1cbdaa9665bebbffc030d4843fde77c553322c4baa71f8816",
@@ -52,6 +54,7 @@
     "ln_of_zero": "639ed026ca8dd974f5cb547810b23a0aaa6a0af33ee868399d172d3a6be35717",
     "log10_of_close": "955560a2c1f5f463d74439816d45642919070ee7bd134cce0c017c95c160849b",
     "lowest_of_low": "110769cabcfcffbaf3e281923f5fbb88eb494b843ca0a05738b1f87632e709e5",
+    "lowestbars_the_offset_back_to_the_low": "865fb7ecc4f4adfa1a1b511448cd71685ba84cfde754b57984b80f9586c83de5",
     "macd_line": "197e0548065dc0a5959ed1bd1c6572275da9062084640df6fabc098472ece50a",
     "macd_signal_by_composition": "fa197ebca667ab91d0cb4c27d00e4a0ce32f7c13b59850cc6c1efd493ebb7e7e",
     "mfi_14": "661c2933ed7e5018dbdac88cc0df72b882c4966dd8dbfdd3830f5f3b6d5d89ef",
@@ -60,6 +63,7 @@
     "mod_by_zero": "1ce4da0a103428992e7656d01bd21e1db12f53118ad3826643dc4f7feb832469",
     "mod_truncated": "a4a6172d6371d5b72f56f7354d8b5b06afad26fd21e6df13f231dc3e77eb461e",
     "nan_propagates": "229b24e2449e6d8c14df63ecc1186cee4476d5c9abb3033fc2a2d1680aac337c",
+    "obvN_bounded_signed_volume": "eb7143ac0533b32345802f6e6301bf9a74aed1f154fd3e3e050915ae1ba57021",
     "offset_change_idiom": "8acb6fbd806e3c3d96020c54b2273aaf1a38402a9179302ad081a114530a366e",
     "offset_inside_a_reduction": "52f225951ee1a752eb37112a0210e4184297a00c881198110ff52cb024807a52",
     "offset_of_a_condition": "19b751bfdc0ebf040806ad30c664478ffbcb9d5a53782ab6c5c0b58cb3c0a8c1",
@@ -92,6 +96,7 @@
     "tan_of_close": "6e4a12ba9aeda445fae4ed81ccce1e2cd29e4e195a7a625f9ba5d3c065a9b71d",
     "ternary": "8e06c51905d69a6b63926217eaa2b2448fa2efb2984c6f6b7ac8724903042653",
     "unary_minus": "734397d94f5a4336b25154f7d844309f1b663cb6e4436cdd43321158595e29da",
+    "valuewhen_the_last_up_bars_close": "9c220ff809bdacd28f148a01d48ebd3aef1557c8e1b076dd5f9ffb6aea2f9da1",
     "volume_relative": "f2877b525d0e6a245133c9d2e36409745e989994d5dc50f4569ed62ab24a3022",
     "vwap_session": "4bcf46099c9c311065857b55638f49c7185a004321684c46598000dde6041e60",
     "williams_r": "298654bca7ce453a3b289af812b7d70412073d7ae570f6a6adc121a1601d1b76"
@@ -180,6 +185,20 @@
       "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 2 added, 0 removed` for the first two rows and `0 MOVED [], 1 added, 0 removed` for the third, with a final `non-vacuity : 48454 finite of 53847 rows, every case non-empty, 85 table entries covered`, and `--check` is green afterwards at 93 asts x 579 bars. ⭐ THE ZERO IS THE LOAD-BEARING HALF: these two entries BIND the shipped session accumulator (`computeVWAP` / `compute_vwap_raw`) rather than a new one, so nothing that already had a digest could move -- and an unmoved digest set is the only evidence of that anybody can re-run. Separately, `tests/test_ast_vwap_parity.py` measures the Python binding against `compute_vwap_raw` bar-for-bar at 1e-9, against a hand-rolled accumulate-from-epoch, and against a rebuilt UTC-DAY reading which it requires to DIFFER -- so a revert to the retired bucketing reds this lane as well as `vwapUtcBucketing.test.js`.",
       "what_moved": "NOTHING MOVED. 0 of the 90 pre-existing digests changed, 0 were dropped, and 3 were added, so the log went 90 -> 93 per-ast digests over the same 579 bars at the same 1e-9. `bars`, `bar_count` and `rel_tol` are byte-identical. ⭐ `vwap_session` IS THE FIRST ZERO-ARGUMENT CASE IN THIS CORPUS, which is exactly why its entry became declarable: `bindShipped`/`_bind_shipped` fabricate `t` as a bar INDEX because they pack bars out of argument COLUMNS, so an entry with no columns to pack is handed the real bar array and reads a real instant. That fabricated `t` is the reason `_functions_excluded` carried `vwap` from the day this table opened. ⛔ AND `avwap_anchor_before_the_series_is_not_computable` IS AN `allNaN` ROW ON PURPOSE: its correct column IS all-NaN, so the flag turns a lane that dropped the request-dependence refusal into a NAMED failure (`declared allNaN but produced finite rows`) rather than a moved digest nobody can attribute.",
       "why": "W2a.4 declared `vwap()` and `avwap(anchorEpoch)`. `assert_corpus_covers_the_table` derives its floor FROM the manifest, so each owed a bar-corpus case or `--record` aborts -- and it did abort, naming both, before these were written. The bar floor went 83 -> 85 and the partition 194 -> 196; the scalar half is untouched at 111. ⚠️ THE THIRD ROW IS NOT A COVERAGE OBLIGATION, IT IS A REFUSAL: `avwap`'s declared window is ENFORCED rather than asserted, and the anchor-before-the-series half is the only one of its two rules a 579-bar corpus can reach. The other (a bar more than `sessionMaxBars` past the anchor) needs a series longer than a session and is railed in both lanes' own tests instead, twice on purpose."
+    },
+    {
+      "added": [
+        "barssince_the_last_up_bar",
+        "valuewhen_the_last_up_bars_close",
+        "highestbars_the_offset_back_to_the_high",
+        "lowestbars_the_offset_back_to_the_low",
+        "obvN_bounded_signed_volume"
+      ],
+      "at_head": "994138b1cf8f50df6e8970bffa18b036cedb1bc9",
+      "moved": [],
+      "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 5 added, 0 removed` with `non-vacuity : 51304 finite of 56742 rows, every case non-empty, 90 table entries covered`, and `--check` is green afterwards at 98 asts x 579 bars. ⭐ THE SHAPE WAS DIFFED BEFORE THE COMMIT, NOT ONLY THE NUMBERS: the committed log was copied aside first, and the TOP-LEVEL KEY SETS were compared key by key -- `['bar_count', 'bars', 'digests', 'rel_tol', 'rerecorded']` on both sides, with `bars`, `bar_count`, `rel_tol` byte-identical and all EIGHT prior `rerecorded` entries carried forward verbatim (heads 78aa8d46 .. d6a13e5e). W2a.4 lost an oracle's provenance to a from-scratch record on the alert fire log two days ago; a numbers-only diff would not have seen it. ⛔ THE ZERO IS THE LOAD-BEARING HALF, and here it is a real claim rather than a formality: `obvN` BINDS the shipped OBV accumulator (`computeOBV` / `compute_obv_raw`) differenced n bars apart rather than summing a private second series, and `highestbars`/`lowestbars` ask the EXISTING `windowExtreme` for the value before naming a bar -- so if either had forked, `highest`/`lowest`/`obv`-adjacent digests would have moved and did not.",
+      "what_moved": "NOTHING MOVED. 0 of the 93 pre-existing digests changed, 0 were dropped, and 5 were added, so the log went 93 -> 98 per-ast digests over the same 579 bars at the same 1e-9. ⭐⭐ TWO OF THE FIVE ARE A RAIL ON A RULING RATHER THAN ON ARITHMETIC. `highestbars`/`lowestbars` return an OFFSET, so a tie at the window's extreme has an answer where `highest`/`lowest` do not, and the manifest now DECLARES which bar wins (`_functions_arg_extreme`: the most recent). ⚰️ THE TASK, AND MY OWN FIRST DRAFT OF THAT NOTE, SAID THIS CORPUS COULD NOT SEE THAT CHOICE. Measured on these very bars: 56 of the 5-bar `high` windows and 36 of the `low` windows hold their extreme TWICE, and every one of them separates the two conventions -- so these two digests DO move if the tie-break is flipped in either lane. The constructed fixture in `tests/test_ast_bounded_state.py` is still not redundant: no window of `high` or `low` here is FLAT, `volume` ties nowhere at all, and a cross-lane equality is satisfied by two lanes that are wrong together, so the declared offset is asserted per lane.",
+      "why": "W2a.5 declared five BOUNDED STATE entries -- `barssince`, `valuewhen`, `highestbars`, `lowestbars`, `obvN` -- and `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST, so the recorder ABORTS until each has a case. ⛔ THE RE-RECORD IS THEREFORE FORCED BY THE FLOOR AND NOT BY A NUMBER SOMEBODY WANTED TO MOVE, which is exactly the distinction `--record`'s one-shot warning protects. ⭐ `obvN` ALSO RETIRES AN EXCLUSION: `_functions_excluded.obv` refused OBV's unbounded LEVEL because it is a fact about where the fetch started, and the bounded form is that level's CHANGE across a declared window, in which the arbitrary seed cancels. The reason now ends by naming `obvN(n)`, and `test_the_obv_refusal_points_at_obvN_and_the_pointer_resolves` asserts the pointer resolves while the unbounded name stays refused."
     }
   ]
 }

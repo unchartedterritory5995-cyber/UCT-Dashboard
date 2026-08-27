@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 52 functions and 111 scalars — 196 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 57 functions and 111 scalars — 201 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -444,7 +444,15 @@ describe('the manifest', () => {
     // per-bar body, which is the warm-up and what name the body reads its own
     // past through. That is why `tableVersion` below is STILL 1: every stored
     // `astHash` is unmoved, because the tree shape did not change.
-    expect(Object.keys(TABLE.functions)).toHaveLength(52)
+    // ⭐ 52 -> 57 IS THE BOUNDED-STATE FIVE (2026-08-26): `barssince`,
+    // `valuewhen`, `highestbars`, `lowestbars` and `obvN`. Each declares its
+    // OWN `int` slot as its lookback, so `maxLookback` stays a tree sum; none
+    // adds a node type, an argument kind or a lookback form, and
+    // `tableVersion` is unmoved. `obvN` is the THIRD `reads: "bars"` entry —
+    // it names no series because on-balance volume is close-and-volume by
+    // definition — and it retires `_functions_excluded.obv`'s reason by giving
+    // it a bounded successor to point at.
+    expect(Object.keys(TABLE.functions)).toHaveLength(57)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -509,9 +517,10 @@ describe('the manifest', () => {
     // them (0 moved, 13 added).
     // ⭐ 83 -> 85 IS `vwap` AND `avwap`. The SCALAR half is untouched at 111,
     // which is the whole reason these are two assertions and not one total.
-    expect(bar.size).toBe(85)
+    // ⭐ 85 -> 90 IS THE BOUNDED-STATE FIVE. The SCALAR half is untouched at 111.
+    expect(bar.size).toBe(90)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(196)
+    expect(declared.size).toBe(201)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
