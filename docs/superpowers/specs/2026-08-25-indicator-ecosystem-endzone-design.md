@@ -27,7 +27,7 @@ scans on a member's own script, and evidence.
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
 | A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 ⛔ **Measured 2026-08-27: the capability is at ZERO, and the "19/24" is ARITHMETICALLY IMPOSSIBLE against A4's own partition — the ceiling is 12. See the amendment below.** |
 | A8 | Every 0/1 definition has an **Evidence** tab: forward record (E-6) beside a retro study with baseline, fill-at-open, coverage, horizons 1/5/10/20 — never a naked hit rate | `screener/backtest.py` receipt rendered; a rail refuses a `strategy` stat without its `baseline` |
-| A9 | Share a definition: the recipient gets a copy carrying author + origin hash + the record; export/import JSON round-trips byte-identically | `test_definition_sharing.py` |
+| A9 | Share a definition: the recipient gets a copy carrying author + origin hash + the record; export/import JSON round-trips byte-identically | `test_definition_sharing.py` ⛔ **Amended 2026-08-27 (X81): a byte-identical round-trip is an IDENTITY check, and identity is not meaning. See below.** |
 | A10 | Drawing outputs on the chart lane: `hline`, `fill`, `bgcolor`, `plotshape`, `label` (series-derived) and bounded objects (`line`/`box`) | pixel parity harness case per output kind |
 | A11 | Chart-lane programs: arrays, bounded `for`, records, under a step budget; badged **chart-only**; the scan lane refuses them by name | `program.budget.test.js` (a step over the cap refuses) |
 | A12 | Strategies: entry/exit conditions + sizing → equity curve, trade list, stats; Pine `strategy.*` and ToS `AddOrder` translate into it | `test_strategy_engine.py` + a translated corpus strategy |
@@ -396,3 +396,52 @@ testable in jsdom — the JS address→instance seam is asserted, but
 would stay green. That, the renderer, and the live recolour are the held live-surface
 audit's load-bearing items, and the report hands the audit a **falsifiable prediction**:
 the browser's POST must carry that exact `compute.fn`.
+
+### A9 amended 2026-08-27 — X81 applied: identity preserved is not meaning preserved
+
+A1 was amended today because an 8-surface `def_hash` join stayed **green** while every
+plot computed the *same* tree — a "MACD with histogram" drawing three identical lines.
+**A9 is stated the same way**, so it inherits the same hole. Swept and confirmed:
+
+A9 asks that the recipient get *"a copy carrying author + origin hash + the record"* and
+that *"export/import round-trips byte-identically."* ⛔ **Every one of those is an
+identity claim.** They prove the ARTIFACT survived the trip. **None of them proves the
+recipient's copy COMPUTES what the author's computed.**
+
+**And the gap is concrete, not theoretical.** Measured 2026-08-27:
+- `closedTable.json` declares **`tableVersion: 2`**.
+- **No stored definition records the manifest version it was authored against** — the
+  string appears in `api/services/user_definitions.py` and `engine/defSchema.js` **zero**
+  times, and every occurrence anywhere in `app/src` or `api/` is a **comment**.
+- `tableVersion` has already moved once: **1 → 2** for the `clock` leaf, which added 13
+  names, and a lane measured that the JS twin answered `false` *"for every clock entry
+  the moment tableVersion 2 declared five of them."*
+
+⇒ When it moves to 3, a recipient can hold a **byte-identical, origin-hash-verified**
+copy that **computes differently or refuses**, and A9 as written still reads satisfied.
+
+**A9 restated:** share a definition; the recipient's copy carries author + origin hash +
+the record, round-trips byte-identically, **AND either produces the same columns on the
+same bars as the author's, or REFUSES BY NAME saying which name it can no longer
+resolve.** ⭐ The refusal branch is the important half — silently computing something
+else is the failure this whole program is built to prevent, and *"the artifact arrived
+intact"* is exactly the evidence that would hide it.
+
+**Design note for the owning lane (W5b), not a decision made here:** the cheapest thing
+that makes the refusal branch possible is **stamping the authoring `tableVersion` into
+the document**, so the receiving side can compare rather than guess. It is one field, it
+moves no existing hash, and without it the recipient has no way to tell "the same" from
+"the same-looking."
+
+### X81 sweep — the other criteria, checked
+| # | stated as | verdict |
+|---|---|---|
+| A1 | one `def_hash` at every surface | **amended today** — distinctness clause added |
+| A9 | byte-identical round-trip + origin hash | **amended above** |
+| A7 | both lanes at 1e-9 | ✅ already a **value** check, not an identity one |
+| A10 | pixel-parity harness per output kind | ✅ pixel parity is a value check |
+| A2 A3 A4 A5 | corpus coverage counts | ✅ not identity joins |
+| A6 A8 A11 A12 | receipts, refusals, curves and stats | ✅ not identity joins |
+
+⇒ **Two of twelve were identity joins wearing the appearance of correctness proofs.
+Both are now fixed.**
