@@ -333,7 +333,14 @@ def _make_value_fn(def_id: str, plot_key: str,
     real number from a real bar.
     """
     compute = definition.get("compute") or {}
-    tree = compute.get("ast")
+    # W1b — a plot evaluates ITS tree; the scan alias is a tree-less document's.
+    # ⛔ `.get(key, default)` RATHER THAN `or`: a tree that is present and falsy
+    # is a document defect for `user_definitions.validate_v2` to name, not
+    # something to paper over with the scan tree's answer — and `ast_lint` and
+    # the JS lane's `hasOwnProperty` branch say exactly the same thing. Reading
+    # `compute.ast` for every plot answered an alert on the MACD line with
+    # `hist > 0`: a 0/1 flag reported to a member as a price distance.
+    tree = (compute.get("trees") or {}).get(plot_key, compute.get("ast"))
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
 
