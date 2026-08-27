@@ -2611,3 +2611,33 @@ def test_the_invite_asks_for_exactly_what_a_chart_needs_and_nothing_dangerous():
     for bit, name in ((0x8, "administrator"), (0x10000000, "manage roles"), (0x2000, "manage messages"),
                       (0x4, "ban"), (0x2, "kick"), (0x20, "manage guild"), (0x40000000, "manage threads")):
         assert not (INVITE_PERMISSIONS & bit), f"the invite must never ask for {name}"
+
+
+def test_a_refused_attachment_tells_the_member_why_instead_of_hanging():
+    """Uncharted Territory, 2026-08-26: the app had Send Messages but not Attach
+    Files, so every chart was refused by Discord — and because a failed edit is
+    silent the member sat on 'thinking…' and concluded the bot did not know
+    their ticker. The reply now names the missing permission."""
+    from api.services.discord_interactions import edit_original, attachment_refused_note
+    seen = []
+    class R:
+        def __init__(self, ok, code=200, text=""):
+            self.is_success, self.status_code, self.text = ok, code, text
+        def json(self): return {"id": "m"}
+    class C:
+        def patch(self, url, **kw):
+            seen.append(kw)
+            if "files" in kw:                       # the upload is refused
+                return R(False, 403, '{"message": "Missing Permissions", "code": 50013}')
+            return R(True)                           # …but plain text gets through
+    out = edit_original("1", "t", content="TRAX · Daily", png=PNG_MAGIC + b"x",
+                        filename="TRAX_D_2026-08-26_Chart.png", client=C())
+    assert out, "the member got nothing at all"
+    assert len(seen) == 2 and "files" not in seen[-1]
+    body = seen[-1]["json"]["content"]
+    assert body.startswith("TRAX · Daily")           # they still learn what was charted
+    assert "Attach Files" in body and "admin" in body.lower()
+    assert len(body) <= 2000
+    # a different 4xx is not blamed on permissions
+    assert attachment_refused_note('{"code": 50035}') == ""
+    assert "too large" in attachment_refused_note('{"code": 40005}').lower()

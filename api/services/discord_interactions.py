@@ -857,6 +857,20 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                     payload["attachments"] = [{"id": i} for i in keep_attachments]
                 return c.patch(url, json=payload)
             r = _send(components)
+            if not r.is_success and images and 400 <= r.status_code < 500:
+                # ⛔ THE CHART WAS REFUSED, NOT THE RENDER. Discord rejects the
+                # upload when the app lacks Attach Files in that channel - which
+                # is exactly the state Uncharted Territory was in on 2026-08-26:
+                # 0 of 71 channels could post one, and because a failed edit is
+                # SILENT the member sat on "thinking…" forever and concluded the
+                # bot did not know their ticker. Say what happened instead.
+                note = attachment_refused_note(r.text)
+                if note:
+                    alt = c.patch(url, json={"content": (content + chr(10) + note)[:1900]})
+                    if alt.is_success:
+                        log.warning("[discord-chart] attachment refused (%s); replied in text instead",
+                                    r.status_code)
+                        return alt.json() if alt.text else True
             if not r.is_success and components is not None and 400 <= r.status_code < 500:
                 # Discord validates the whole control tree and refuses the edit as a
                 # unit; the member would sit on "thinking..." forever. The chart is
@@ -1070,6 +1084,20 @@ def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render
         except Exception:  # noqa: BLE001
             pass
         return "error"
+
+
+def attachment_refused_note(body: str) -> str:
+    """The line to send when Discord refuses the image, or "" when the failure
+    was something else. A member should never be left staring at a spinner
+    wondering whether their ticker exists."""
+    text = str(body or "")
+    if "50013" in text or "Missing Permissions" in text or "missing permissions" in text:
+        return ("⚠️ I rendered this chart but I'm not allowed to attach files in this channel, "
+                "so I can't show it. An admin can fix it by giving this app **Attach Files** here "
+                "(Server Settings → Roles, or this channel's permissions).")
+    if "40005" in text or "too large" in text.lower():
+        return "⚠️ The chart came out too large for this channel's upload limit."
+    return ""
 
 
 def followup_ephemeral(app_id: str, token: str, content: str, client=None) -> bool:
