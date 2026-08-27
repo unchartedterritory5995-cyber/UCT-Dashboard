@@ -292,6 +292,42 @@ def _in_market_window(now_et: datetime | None = None) -> bool:
     return (9 * 60 + 45) <= minutes <= (20 * 60)  # 9:45am–8pm ET incl. AH
 
 
+def _self_verify_resync(user_id: str, broker_account_id: str, conn) -> bool:
+    """One self-triggered sync, at most once per account per ET day (durable
+    memo). SELF-VERIFICATION (2026-08-27 evening, the sentinel's first live
+    day): the $315k Schwab account read structural at −$39,242 with zero
+    fills — and one fresh sync proved the BOOK was right all along:
+    SnapTrade's payload was internally inconsistent (cash already carried
+    the day's option-close proceeds while positions/total still held the
+    closed contracts), and our anchor had inherited their inconsistency.
+    That shape recurs on EVERY active Schwab trading day, so a structural
+    verdict with no window fills now earns one real sync — the same move an
+    engineer would make — and only a residual that survives a FRESH anchor
+    pages anyone."""
+    today = datetime.now(_ET).strftime("%Y-%m-%d")
+    dd_id = f"sentinel_resync:{broker_account_id}"
+    row = conn.execute(
+        "SELECT et_day FROM j2_broker_digest_dedup WHERE id = ?", (dd_id,),
+    ).fetchone()
+    if row and row["et_day"] == today:
+        return False
+    conn.execute(
+        "INSERT OR REPLACE INTO j2_broker_digest_dedup "
+        "(id, fingerprint, et_day) VALUES (?, ?, ?)",
+        (dd_id, broker_account_id, today),
+    )
+    conn.commit()
+    try:
+        import asyncio
+        from api.services.journal_two.broker.sync import sync_account
+        asyncio.run(sync_account(user_id, broker_account_id))
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("sentinel self-verify sync failed for %s",
+                       broker_account_id, exc_info=True)
+        return False
+
+
 def run_sentinel_sweep() -> dict[str, Any]:
     """Scheduler entry — check every sync-enabled broker account. Never
     raises; one bad account never blocks the rest."""
@@ -308,6 +344,14 @@ def run_sentinel_sweep() -> dict[str, Any]:
                 out = check_account(ba["userId"], ba["id"], ba["j2AccountId"], conn)
                 if out["verdict"] == "skipped":
                     continue
+                if (out["verdict"] == "structural"
+                        and (out.get("components") or {}).get("fills") == 0
+                        and _self_verify_resync(ba["userId"], ba["id"], conn)):
+                    # Fresh anchor → the verdict that counts is the re-check.
+                    out = check_account(ba["userId"], ba["id"],
+                                        ba["j2AccountId"], conn)
+                    if out["verdict"] == "skipped":
+                        continue
                 fails = _persist(conn, ba["userId"], ba["id"], out)
                 checked += 1
                 if out["verdict"] == "structural":

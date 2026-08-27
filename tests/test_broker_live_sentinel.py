@@ -387,3 +387,56 @@ def test_daily_pulse_always_posts_green_or_red(env, monkeypatch):
         conn.close()
     live_sentinel.run_daily_pulse_blocking()
     assert len(posts) == 2 and posts[1][0].startswith("🔴")
+
+
+def test_structural_with_no_fills_self_verifies_with_one_sync(env, monkeypatch):
+    """The whale-account lesson: SnapTrade's own payload can be internally
+    inconsistent, so a structural verdict with zero fills earns ONE real
+    sync before anyone gets paged — and only once per account per day."""
+    _seed_account(cash=-1000.0, mv=500.0, equity=1000.0)
+    _seed_position("AAPL", 5, 100.0)
+    _seed_position("GHOST", 100, 25.0)
+    synced = []
+
+    async def _fake_sync(user_id, ba_id, **kw):
+        synced.append(ba_id)
+        return {}
+
+    import api.services.journal_two.broker.sync as sync_mod
+    monkeypatch.setattr(sync_mod, "sync_account", _fake_sync)
+    monkeypatch.setattr(live_sentinel, "_in_market_window", lambda *a: True)
+    monkeypatch.setattr(live_sentinel, "_post_discord", lambda t, d: None)
+    from api.services.journal_two.broker import connections
+    monkeypatch.setattr(connections, "list_all_sync_enabled_accounts",
+                        lambda: [{"userId": USER, "id": BACCT,
+                                  "j2AccountId": J2, "status": "active"}])
+    live_sentinel.run_sentinel_sweep()
+    assert synced == [BACCT]            # exactly one self-verify sync
+    live_sentinel.run_sentinel_sweep()
+    assert synced == [BACCT]            # once per day — no re-sync loop
+
+
+def test_structural_with_fills_never_self_syncs(env, monkeypatch):
+    # A residual on a day WITH fills has richer classification (book_lag
+    # band) — burning the daily self-sync there wastes the one shot.
+    _seed_account(cash=-18760.66, mv=29010.55, equity=10724.0)
+    _seed_position("SNAP", 2000, 5.4241, entry=5.495)
+    activities_store.store_activities(USER, BACCT, [
+        _fill("intraday:snap", "BUY", "SNAP", 2000.0, 5.495, _after_sync(30)),
+    ])
+    synced = []
+
+    async def _fake_sync(user_id, ba_id, **kw):
+        synced.append(ba_id)
+        return {}
+
+    import api.services.journal_two.broker.sync as sync_mod
+    monkeypatch.setattr(sync_mod, "sync_account", _fake_sync)
+    monkeypatch.setattr(live_sentinel, "_in_market_window", lambda *a: True)
+    monkeypatch.setattr(live_sentinel, "_post_discord", lambda t, d: None)
+    from api.services.journal_two.broker import connections
+    monkeypatch.setattr(connections, "list_all_sync_enabled_accounts",
+                        lambda: [{"userId": USER, "id": BACCT,
+                                  "j2AccountId": J2, "status": "active"}])
+    live_sentinel.run_sentinel_sweep()
+    assert synced == []
