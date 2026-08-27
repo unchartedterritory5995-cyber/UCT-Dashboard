@@ -106,7 +106,7 @@ import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
-import PineBox from './PineBox'
+import { ImportBox } from './PineBox'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -1482,7 +1482,7 @@ export default function BuilderSheet({
               className={`${styles.modeTab} ${buildMode === 'pine' ? styles.modeTabActive : ''}`}
               aria-selected={buildMode === 'pine'}
               onClick={() => setBuildMode('pine')}
-            >Pine</button>
+            >Import</button>
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
@@ -1519,7 +1519,8 @@ export default function BuilderSheet({
           )}
 
           {buildMode === 'pine' && (
-            <PineBox
+            <ImportBox
+              dialect="auto"
               disabled={saving}
               onPick={(formula) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
