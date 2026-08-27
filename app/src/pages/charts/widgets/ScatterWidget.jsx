@@ -82,13 +82,20 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
     if (!anchorEl) return undefined
     const place = () => {
       const r = anchorEl.getBoundingClientRect()
-      const W = 230
+      const W = 230, gap = 5, pad = 8, CAP = 460
+      // Horizontal: prefer the requested edge, then clamp fully into view.
       let left = align === 'right' ? r.right - W : r.left
-      left = Math.max(8, Math.min(left, window.innerWidth - W - 8))
-      let top = r.bottom + 5
-      const H = Math.min(Math.round(window.innerHeight * 0.62), 460)
-      if (top + H > window.innerHeight - 8) top = Math.max(8, r.top - 5 - H)
-      setPos({ left: Math.round(left), top: Math.round(top), width: W })
+      left = Math.max(pad, Math.min(left, window.innerWidth - W - pad))
+      // Vertical: open on whichever side has more room, and cap the height to
+      // exactly that room so the menu never runs off-screen (it scrolls inside).
+      const belowRoom = window.innerHeight - pad - (r.bottom + gap)
+      const aboveRoom = (r.top - gap) - pad
+      let top, maxH
+      if (belowRoom >= aboveRoom) { top = r.bottom + gap; maxH = Math.min(CAP, belowRoom) }
+      else { maxH = Math.min(CAP, aboveRoom); top = r.top - gap - maxH }
+      maxH = Math.max(140, Math.round(maxH))
+      top = Math.max(pad, Math.min(Math.round(top), window.innerHeight - pad - maxH))
+      setPos({ left: Math.round(left), top, width: W, maxHeight: maxH })
     }
     place()
     window.addEventListener('resize', place)
@@ -106,7 +113,7 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
   }, [onClose, anchorEl])
   return createPortal((
     <div ref={ref} className={styles.menu}
-      style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, width: pos.width } : { visibility: 'hidden' }) }}>
+      style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, width: pos.width, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}>
       {groups.map((g, gi) => (
         <div key={gi} className={styles.menuGroup}>
           {g.label && <div className={styles.menuGroupLabel}>{g.label}</div>}
