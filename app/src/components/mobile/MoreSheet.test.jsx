@@ -29,7 +29,10 @@ beforeEach(() => { mockPlan = 'pro'; mockRole = null })
 test('renders the full directory for a paid user', () => {
   renderSheet()
   ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'Calendar',
-    'Screener', 'Patterns', 'Options Flow', 'Model Book',
+    // ⚰️ 'Patterns' REMOVED — the page was retired (15.7% precision) and
+    // `MoreSheet.jsx` stopped listing it; this expectation was left behind, so
+    // the directory test failed on a row the product deliberately dropped.
+    'Screener', 'Options Flow', 'Model Book',
     'Journal', 'Settings', 'Website'].forEach((label) =>
     expect(screen.getByText(label)).toBeInTheDocument(),
   )
