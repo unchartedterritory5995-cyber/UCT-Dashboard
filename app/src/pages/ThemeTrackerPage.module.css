@@ -76,6 +76,9 @@
   background: var(--tt-accent-bg, rgba(220, 187, 94, 0.12));
   border-color: var(--accent);
 }
+/* Keep the active tab GOLD on hover — the generic .periodTab:hover would otherwise
+   override it to the neutral text color (out-specifies .periodTabActive). */
+.periodTabActive:hover { color: var(--tt-accent, var(--ut-gold)); }
 
 /* ⚙ Theme Tracker settings gear (right end of the search row — riding the period
    bar it wrapped onto its own row in narrow widgets and wasted a full strip). */
@@ -275,6 +278,8 @@
 .groupRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));
 }
+/* Theme name neutral/white by default; gold reserved for the accent on hover. */
+.groupRow:hover .groupName { color: var(--tt-accent, var(--ut-gold)); }
 
 /* Inline flow (not flex) so the count chip follows the last word of the title
    and wraps WITH it — a two-line name like "DIGITAL HEALTH & AESTHETICS" keeps
@@ -285,9 +290,10 @@
   font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--tt-accent, var(--ut-gold));
+  color: var(--tt-sym, var(--text-bright, #e4e6ea));   /* neutral/white; gold on hover (accent) */
   text-transform: uppercase;
   line-height: 1.4;
+  transition: color 0.1s;
 }
 
 .groupCaret {
