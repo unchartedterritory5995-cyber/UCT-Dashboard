@@ -410,13 +410,36 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # class          how the SERVED APP reports it            who the gate admits
     ("session",    lambda n, o: get_current_user in o,     frozenset({"free", "paid", "admin"})),
     ("flow_user",  lambda n, o: "require_flow_user" in n,  frozenset({"free", "paid", "admin"})),
-    # ⭐ TWO SPELLINGS OF ONE DOOR, AND THEY WERE COMPARED RATHER THAN ASSUMED
+    # ⭐ TWO SPELLINGS, ONE RUNG — AND THEY WERE COMPARED RATHER THAN ASSUMED
     # ALIKE. `require_paid` is a per-router FUNCTION; a `require_plan(list(
-    # PAID_PLANS))` product is the same check reached through a FACTORY, with no
-    # name at the call site (see `_plan_gate_allows` above). Both admit exactly a
-    # paid member and an admin — measured, both families, by
-    # `test_the_gate_ladder_MEASURES_who_each_gate_admits`, which is what makes
-    # this ONE rung a finding instead of a resemblance.
+    # PAID_PLANS))` product is the same door reached through a FACTORY, with no
+    # name at the call site (see `_plan_gate_allows` above). Over the THREE CALLERS
+    # THIS FILE DECLARES — free, paid, admin — both families admit exactly
+    # {paid, admin}, measured by `test_the_gate_ladder_MEASURES_who_each_gate_
+    # admits`, which now calls BOTH. That is what makes this ONE rung a finding
+    # rather than a resemblance, and it is the whole basis of the ranking.
+    #
+    # ⛔⛔ BUT THEY ARE NOT THE SAME CHECK, AND THE RUNG MUST NOT BE READ AS SAYING
+    # SO. MEASURED 2026-08-26, directly, on the objects the app serves:
+    #
+    #     plan == "comped"  →  `require_plan` ADMITS  (both products; the factory
+    #                          in `auth_middleware.py` tests `plan == "comped"`
+    #                          explicitly, beside the allowed-plans membership)
+    #                       →  `require_paid`  REFUSES 402  (all 38 copies)
+    #
+    # A comped account therefore reaches every brokerage- and note-connector route
+    # and is turned away from all 187 other paid surfaces. `comped` is a REAL plan
+    # value in this product, not a test fixture — so this is a live disagreement
+    # about a member's access, and which family is right is a PRODUCT DECISION that
+    # has been escalated. ⛔ IT IS DELIBERATELY NOT RECONCILED HERE: quietly making
+    # one family match the other would decide that question in a test file.
+    #
+    # ⚠️ The rung's admit-set stays honest because `comped` is not one of this
+    # file's three declared callers — the ladder ranks what it measures. What was
+    # dishonest was the sentence above claiming the two were the same check. It is
+    # pinned by `test_the_two_paid_gate_families_DISAGREE_about_comped`, so if the
+    # disagreement is ever resolved — in either direction — that test goes red and
+    # this paragraph has to be rewritten instead of quietly becoming false.
     ("paid",       lambda n, o: "require_paid" in n or _is_paid_plan_gated(o),
                                                            frozenset({"paid", "admin"})),
     ("flow_admin", lambda n, o: "require_flow_admin" in n, frozenset({"admin"})),
@@ -456,13 +479,20 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # those routes' behaviour and is an owner decision, not a test edit.
     #
     # 🔴 NOR IS PUSH_SECRET THE ONLY FAMILY MISSING FROM THIS LADDER. A sweep
-    # prompted by this rung found four more gate functions absent from it,
-    # covering ~129 routes — `requires_voice_access` (54), `require_community`
-    # (37), `require_chat` (21), `require_plan(...)` (12), all of which raise
-    # 402/403 on a real plan check yet report only `session`, so a `session`
-    # claim satisfies them and a downgrade is invisible — plus
-    # `require_article_reader` (5), which reports NOTHING AT ALL, exactly the
-    # shape this rung was added to fix. That is queued as owner ruling O11.
+    # prompted by this rung found four more gate functions absent from it —
+    # `requires_voice_access`, `require_community`, `require_chat` and
+    # `require_plan(...)`, all of which raise 402/403 on a real plan check yet
+    # report only `session`, so a `session` claim satisfies them and a downgrade
+    # is invisible — plus `require_article_reader`, which reports NOTHING AT ALL,
+    # exactly the shape this rung was added to fix. That is owner ruling O11.
+    #
+    # ⚠️ THIS PARAGRAPH USED TO CARRY A TOTAL OF "~129 ROUTES" AND IT WAS WRONG,
+    # by the most ordinary arithmetic there is: THE FAMILIES OVERLAP. Every one of
+    # `require_chat`'s routes nests `require_community`, so adding those two counts
+    # billed 21 routes twice — and the same total still included the 12
+    # `require_plan` routes this rung has since CLOSED. Both errors point the same
+    # way: a per-family count is a SET, and only a union may be summed. The
+    # corrected figure, and how it was derived, is one paragraph down.
     #
     # ✅ ONE OF THE FIVE IS NOW CLOSED (W9d.1, 2026-08-26): `require_plan(...)`
     # — the 12 broker/note-sync routes — reports `paid` through the `paid` rung
@@ -471,11 +501,29 @@ _GATE_LADDER: tuple[tuple[str, object, frozenset], ...] = (
     # keeping: the other four are FUNCTIONS with names a table can hold, and this
     # one had no name at the call site at all.
     #
-    # ⛔ THE OTHER FOUR ARE STILL BLIND, AND THE COUNTS BELOW ARE STILL LIVE.
-    # RE-MEASURED 2026-08-26 off `api.main:app`, unchanged: `requires_voice_access`
-    # 54 · `require_community` 37 · `require_chat` 21 · `require_article_reader` 5.
-    # — 117 routes whose real entitlement check this ladder still cannot report,
-    # so a `session` claim would satisfy any of them. Closing each one is the same
+    # ⛔ THE OTHER FOUR ARE STILL BLIND: 96 ROUTES, AND THE 96 IS A UNION.
+    # MEASURED 2026-08-26 off `api.main:app` by walking each route's FULL dependant
+    # tree, collecting a `(method, path)` SET per family, and unioning them — never
+    # by adding the four numbers up:
+    #
+    #     requires_voice_access   54    disjoint from all three others
+    #     require_community       37    CONTAINS every `require_chat` route
+    #       …of which require_chat 21   `chat - community` is EMPTY, measured
+    #     require_article_reader   5    disjoint from all three others
+    #     ---------------------------------------------------------------------
+    #     union                   96    = 54 + 37 + 5; chat contributes 0 NEW
+    #
+    # (`api/routers/community.py` declares 48 routes: 16 community-only, 21 chat,
+    # 10 `require_admin`, 1 `get_current_user` — which is where the nesting is
+    # visible inside a single file.)
+    #
+    # ⚠️ 117 WAS WRITTEN HERE FIRST, AND IT WAS 54+37+21+5 — the same double-count
+    # the paragraph above made, one family shorter. THREE separate readings of this
+    # file produced a wrong total before anybody unioned the sets. Do not re-derive
+    # this by adding; re-derive it by walking the routers, or leave it alone.
+    #
+    # 96 routes whose real entitlement check this ladder still cannot report, so a
+    # `session` claim would satisfy any of them. Closing each one is the same
     # two-line move made here (a rung predicate + an admit-set measured in
     # `test_the_gate_ladder_MEASURES_who_each_gate_admits`) and it is owner ruling
     # O11, not a test edit to make quietly: it changes what claims those routes
@@ -854,18 +902,21 @@ def test_DELETING_require_paid_FROM_A_HANDLER_reds_the_row_that_claims_paid(app)
 #: This is a RATCHET, not a fact about the table — see the test below for the
 #: only two correct responses to it going red.
 #:
-#: ⭐ RAISED 174 → 186 (W9d.1, 2026-08-26) — AND THAT IS THE POINT OF THE FIX,
+#: ⭐ RAISED 174 → 187 (W9d.1, 2026-08-26) — AND THAT IS THE POINT OF THE FIX,
 #: not a side effect of it. The `paid` rung can now see the 12 routes gated by
 #: `require_plan(list(PAID_PLANS))`, so deleting `_paid` from `broker_sync.py`
 #: or `note_sync.py` drops this count by 6 and reds this ratchet. Before today
 #: that deletion moved NO number in this file at all.
 #:
-#: ⚠️ 186 IS 174 + 12, DELIBERATELY, AND NOT THE 187 MEASURED TODAY. The extra
-#: route is another lane's in-flight paid surface on this branch; pinning it
-#: would make this ratchet go red on that lane's revert, for a reason that has
-#: nothing to do with a lost gate. A ratchet that cries wolf gets lowered, and a
-#: floor that has been lowered once to clear a red is not a floor any more.
-PAID_SURFACE_FLOOR = 186
+#: ⛔ 187 IS THE MEASURED COUNT, WITH NO SLACK, AND THE SLACK WAS THE WHOLE
+#: QUESTION. This was briefly set to 186 (the old 174 plus the 12 newly-visible
+#: routes) to avoid pinning a route another lane had landed the same night. That
+#: is ONE route of slack — and one route of slack is exactly the amount that
+#: stops a SINGLE-ROUTE DELETION from reding this ratchet, which is the most
+#: likely regression there is. A ratchet with room in it is not a ratchet.
+#: Re-measured 2026-08-26: 175 `require_paid` + 12 `require_plan(PAID_PLANS)`,
+#: overlap 0, union 187.
+PAID_SURFACE_FLOOR = 187
 
 
 def test_the_PAID_SURFACE_of_the_served_app_has_not_SHRUNK(app):
@@ -880,11 +931,20 @@ def test_the_PAID_SURFACE_of_the_served_app_has_not_SHRUNK(app):
     sweep here selects rows BY CLASS and the row is no longer `paid`.
 
     ⭐ SO THIS ONE NEVER READS THE TABLE. It counts the routes the SERVED APP
-    gates with `require_paid` and refuses to let that number fall. No claim can
-    satisfy it because no claim is consulted: only a real gate on a real route
-    counts, and removing one is arithmetic. It therefore covers all 174 paid
-    routes, not just the 43 this file governs — the 131 that were never in the
-    table get the same ratchet for free.
+    reports as `paid` — EITHER SPELLING: `require_paid`, or a
+    `require_plan(list(PAID_PLANS))` product — and refuses to let that number
+    fall. No claim can satisfy it because no claim is consulted: only a real gate
+    on a real route counts, and removing one is arithmetic. It therefore covers
+    all 187 paid routes, not just the 43 this file governs — the 144 that were
+    never in the table get the same ratchet for free.
+
+    ⚠️ IT READS `_klass_of`, SO IT INHERITS THE RUNG, AND THE PROSE HERE HAS TO
+    KEEP UP WITH IT. This docstring and the failure message below both said
+    "`require_paid`" for one commit after the rung stopped meaning that — a number
+    in prose that the code no longer means, which is how the wrong total in the
+    ladder comment above got written and re-inherited. If a future gate family
+    joins the rung, raise this floor in the same commit: the number moving up is
+    the receipt that the new family is really being counted.
 
     ⚠️ IT IS A RATCHET AND THE NUMBER IS THE WHOLE MECHANISM. Adding paid
     routes raises the count and passes. There are exactly two correct responses
@@ -913,8 +973,9 @@ def test_the_PAID_SURFACE_of_the_served_app_has_not_SHRUNK(app):
                   if getattr(r, "dependant", None) is not None
                   and "paid" in _klass_of(r))
     assert len(paid) >= PAID_SURFACE_FLOOR, (
-        f"the served app gates {len(paid)} routes with `require_paid`; the floor "
-        f"is {PAID_SURFACE_FLOOR}. {PAID_SURFACE_FLOOR - len(paid)} paid "
+        f"the served app reports {len(paid)} routes as `paid` (either spelling: "
+        f"`require_paid`, or a `require_plan(list(PAID_PLANS))` product); the "
+        f"floor is {PAID_SURFACE_FLOOR}. {PAID_SURFACE_FLOOR - len(paid)} paid "
         "route(s) stopped being paid. Restore the gate — or, if one was retired "
         "on purpose, lower this floor in the same commit and NAME the route. Do "
         "not lower it to clear the red: that is the two-step edit finishing.")
@@ -1005,6 +1066,14 @@ def test_the_gate_ladder_MEASURES_who_each_gate_admits(app, monkeypatch):
         "factory half of the `paid` rung is ranked on nothing, and section 9 "
         "would be driving an empty route set while reading as a clean sweep")
 
+    # ⚠️ AND THIS AGREEMENT IS OVER THIS FILE'S THREE DECLARED CALLERS ONLY. The
+    # two families genuinely DISAGREE about a fourth, real plan value: `comped` is
+    # admitted by `require_plan` and refused 402 by `require_paid`. That is not
+    # measured here because `comped` is not one of the callers this ladder ranks —
+    # it is measured and pinned by
+    # `test_the_two_paid_gate_families_DISAGREE_about_comped`, and named in the
+    # `paid` rung's own comment. A pass here is NOT evidence the two gates behave
+    # alike; it is evidence they behave alike for free, paid and admin.
     seen = {frozenset(_admits(lambda u, g=g: g(dict(u))))
             for g in paid_gates | factory_gates}
     assert len(seen) == 1, (
@@ -1561,6 +1630,7 @@ def test_DELETING_the_FACTORY_gate_reds_the_paid_class_it_reports(app):
         if idx is None:
             continue
         original = list(route.dependant.dependencies)
+        before = _klass_of(route)
         try:
             route.dependant.dependencies = [d for j, d in enumerate(original)
                                             if j != idx]
@@ -1573,9 +1643,21 @@ def test_DELETING_the_FACTORY_gate_reds_the_paid_class_it_reports(app):
                 "before this section existed.")
         finally:
             route.dependant.dependencies = original
-        assert _claim_is_satisfied("paid", _klass_of(route)), (
-            f"{key[0]} {key[1]} did not come back after the mutation — every "
-            "assertion after this one is running against a damaged app")
+        # ⛔ THE RESTORE CHECK COMPARES TO WHAT THIS ROUTE REPORTED BEFORE THE CUT,
+        # NOT TO A `paid` CLAIM. It used to assert that `paid` came back, which is
+        # a DIFFERENT QUESTION, and it misdiagnosed: with a gate widened to admit
+        # free members the route never reported `paid` in the first place, so this
+        # line fired "did not come back after the mutation" about an app that had
+        # been restored perfectly — sending the reader hunting a corruption that
+        # never happened, while the real defect was already named BY PATH two tests
+        # up. A rail that lies about a SUCCESSFUL restore costs more than one that
+        # says nothing, because it discredits every restore assertion beside it.
+        after = _klass_of(route)
+        assert after == before, (
+            f"{key[0]} {key[1]} reported {sorted(before)} before the cut and "
+            f"{sorted(after)} after the restore — the dependency list did not come "
+            "back, and every assertion after this one is running against a damaged "
+            "app")
         cut.append(key)
 
     assert len(cut) >= PLAN_GATED_FLOOR, (
@@ -1799,3 +1881,95 @@ def test_every_require_plan_gate_in_the_served_app_is_a_REAL_paid_check(app):
             "contract — re-measure the refusal before changing either")
         assert gate(dict(PAID_USER)) is not None
         assert gate(dict(ADMIN_USER)) is not None
+
+
+#: ⛔ A FOURTH CALLER, DELIBERATELY NOT ADDED TO THE LADDER'S THREE. `comped` is a
+#: real plan value (an account comped to paid), and the two paid-gate families
+#: disagree about it — see the `paid` rung's comment. It lives here rather than
+#: beside FREE/PAID/ADMIN because adding it to `callers` would make
+#: `test_the_gate_ladder_MEASURES_who_each_gate_admits` demand ONE answer from two
+#: gates that give different ones, and the ladder would then have to pick a winner
+#: — which is exactly the product decision this file must not make.
+COMPED_USER = {"id": "comp-1", "email": "comp@example.test",
+               "role": "member", "plan": "comped"}
+
+
+def test_the_two_paid_gate_families_DISAGREE_about_comped(app):
+    """⛔⛔ THE `paid` RUNG IS ONE CLASS, NOT ONE CHECK — AND THIS IS THE CASE.
+
+    The rung reports `paid` for two different gate families, and
+    `test_the_gate_ladder_MEASURES_who_each_gate_admits` proves they admit the
+    same set of this file's three declared callers. It is easy to read that as
+    "the two gates are the same check". They are not:
+
+        plan == "comped"  →  `require_plan(...)` ADMITS
+                          →  `require_paid`      REFUSES 402
+
+    `require_plan`'s checker tests `plan == "comped"` explicitly, beside the
+    allowed-plans membership; the per-router `require_paid` copies consult
+    `is_paid_user` and do not. So a comped account opens every brokerage and
+    note-connector route and is turned away from every other paid surface in the
+    product. That is a live disagreement about a real member's access.
+
+    ⭐ THIS TEST DOES NOT FIX IT — IT PINS IT. Which family is right is a product
+    decision and it has been escalated; reconciling the two here would decide it
+    in a test file. What this refuses is the third outcome: the disagreement
+    resolving QUIETLY, in either direction, leaving the `paid` rung's comment
+    describing a world that no longer exists.
+
+    ⛔ SO IF THIS GOES RED, THE ANSWER IS NEVER TO DELETE IT. Either the ruling
+    landed — update the rung's disclosure in the SAME commit and say which way it
+    went — or one family drifted by accident, which is the regression.
+
+    ⚠️ BOTH DIRECTIONS ARE ASSERTED, AND SO ARE THE POPULATION SIZES. "Every gate
+    admitted comped" is also what an empty gate set reports, and a walk that
+    stopped reaching the routers would satisfy either half of this vacuously.
+    """
+    from fastapi import HTTPException
+
+    def _admits_comped(gate) -> bool:
+        try:
+            return gate(dict(COMPED_USER)) is not None
+        except HTTPException:
+            return False
+
+    routed = [r for r in _table(app).values()
+              if getattr(r, "dependant", None) is not None]
+
+    factory_gates = {d for r in routed for d in _plan_gates(_dep_objects(r))}
+    paid_gates = {d for r in routed for d in _dep_objects(r)
+                  if getattr(d, "__name__", "") == "require_paid"}
+
+    assert len(factory_gates) >= 2, (
+        f"only {len(factory_gates)} `require_plan` products reachable — "
+        "`broker_sync.py` and `note_sync.py` each build one, so the walk is not "
+        "reaching both routers and either half below would pass vacuously")
+    assert len(paid_gates) >= 30, (
+        f"only {len(paid_gates)} `require_paid` copies reachable (measured 38 on "
+        "2026-08-26) — the walk is not reaching the paid surface")
+
+    # HALF ONE: the factory family lets a comped account in.
+    not_admitting = [g for g in factory_gates if not _admits_comped(g)]
+    assert not not_admitting, (
+        f"{len(not_admitting)} of {len(factory_gates)} `require_plan` gates now "
+        "REFUSE a comped account. The two paid-gate families no longer disagree, "
+        "so the `paid` rung's comment above — which says they do, and names this "
+        "as an escalated product decision — is now false. Update it in this "
+        "commit and say which way the ruling went. Do not delete this test.")
+
+    # HALF TWO: the function family turns the same account away, with a 402.
+    admitting = []
+    for gate in paid_gates:
+        try:
+            gate(dict(COMPED_USER))
+            admitting.append(getattr(gate, "__module__", gate))
+        except HTTPException as exc:
+            # ⛔ 402 EXACTLY. "It refused" is also what a 401 or a 500-shaped
+            # refusal looks like, and either would let this test keep reporting a
+            # disagreement that had actually become a broken gate.
+            assert exc.status_code == 402, (gate, exc.status_code)
+    assert not admitting, (
+        f"{len(admitting)} `require_paid` copies now ADMIT a comped account "
+        f"({sorted(set(map(str, admitting)))[:5]}). Same as the half above: the "
+        "families have been reconciled and the rung's disclosure must be "
+        "rewritten in this commit rather than left describing the old world.")
