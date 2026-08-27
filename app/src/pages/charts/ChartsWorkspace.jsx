@@ -1393,12 +1393,15 @@ export default function ChartsWorkspace() {
       if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
-      // Theme a new widget: an explicit "All widgets/All charts" theme wins. Non-
-      // chart widgets otherwise follow the app theme via token inheritance (no bake).
-      // The CHART is the exception — it ignores the app theme and paints from its own
-      // settings — so seed it with the chart theme that MATCHES the current app theme.
+      // Theme a new widget: an explicit "All widgets/All charts" theme wins. Otherwise
+      // seed EVERY widget from the chart theme that MATCHES the current app theme, so a
+      // new widget adopts the app theme's look by default (the chart because it paints
+      // from its own settings not tokens; per-widget types so their whole palette —
+      // canvas/text/up-down — matches rather than only the parts that chain to tokens).
+      // themeNewWidgetOpts routes each type correctly; global-pref widgets pass through
+      // unchanged and keep following the app theme via token inheritance.
       let storedTheme = newWidgetThemeRef.current
-      if (!storedTheme && type === 'chart') {
+      if (!storedTheme) {
         const cid = appThemeToChartTheme(themeRef.current)
         if (cid) storedTheme = { id: cid, scope: 'widgets' }
       }
