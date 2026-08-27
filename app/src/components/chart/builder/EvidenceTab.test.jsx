@@ -179,6 +179,46 @@ describe('EvidenceTab — the retro study', () => {
     expect(screen.queryByTestId('evidence-horizons')).toBeNull()
   })
 
+  // ⛔⛔ A CROSS-LAYER PROMISE. `backtest.refuse` takes `results=` so that
+  // "RULE 5's n IS ALWAYS REPORTED survives a refusal", and the `too_few_signals`
+  // detail says verbatim "the per-horizon counts are in `horizons`". If the tab
+  // renders that sentence and draws no table, the member is told where to look
+  // and there is nothing there.
+  it('⛔ a too-few-signals refusal still draws the horizons its own sentence points at', async () => {
+    const r = ready()
+    H.poll = [{ job: 'j1', status: 'ready', def_hash: DEF_HASH, backtestable: false,
+      refused: 'too_few_signals',
+      detail: 'this window has too few signals to report a win rate — no horizon reached the floor of 30 signal(s); the per-horizon counts are in `horizons`.',
+      universe: r.universe, method: r.method, coverage: coverage(), window: r.window,
+      horizons: [1, 5, 10, 20].map((h) => horizon(h, { below_floor: true,
+        strategy: { n: 12 }, baseline: { n: 400 },
+        same_day: { n_matched: 0, n_unmatched: 12, excess_pct_winsorised: null } })) }]
+    mount()
+    await screen.findByTestId('evidence-refused')
+    // the table the sentence promised
+    expect(screen.getByTestId('evidence-horizons')).toBeTruthy()
+    expect(screen.getByTestId('evidence-horizon-5-withheld').textContent).toMatch(/12 \/ 400/)
+    // ...and the counts that came with it
+    expect(screen.getByTestId('coverage-line').textContent).toMatch(/3,742 evaluated/)
+    expect(screen.getByTestId('evidence-bars-coverage').textContent).toMatch(/1,000 bars in window/)
+  })
+
+  it('CONTROL: a refusal that fired before any bar was read shows NO counts and no alarm', async () => {
+    // `backtest.refuse` passes `coverage or {}` -- absent, not broken. Rendering
+    // `{}` through CoverageLine would trip its closure alarm and tell the member
+    // this study's counts do not add up when the truth is there are none.
+    H.poll = [{ job: 'j1', status: 'ready', def_hash: DEF_HASH, backtestable: false,
+      refused: 'scalar_no_history', names: ['rs_rank'], detail: 'it reads `rs_rank`.',
+      universe: ready().universe, method: ready().method, coverage: {}, window: null }]
+    mount()
+    await screen.findByTestId('evidence-refused')
+    expect(screen.queryByTestId('coverage-line')).toBeNull()
+    expect(screen.queryByTestId('coverage-broken')).toBeNull()
+    expect(screen.queryByTestId('evidence-bars-coverage')).toBeNull()
+    expect(screen.queryByTestId('evidence-bars-broken')).toBeNull()
+    expect(screen.queryByTestId('evidence-horizons')).toBeNull()
+  })
+
   it('a receipt for a DIFFERENT hash is refused, not rendered', async () => {
     H.poll = [ready({ def_hash: `sha256:${'b'.repeat(64)}` })]
     mount()
@@ -186,12 +226,32 @@ describe('EvidenceTab — the retro study', () => {
     expect(screen.queryByTestId('evidence-horizons')).toBeNull()
   })
 
-  it('a POST the server does not accept is reported with its status — never as "no evidence"', async () => {
-    H.postResponse = { ok: false, status: 405, body: {} }
+  // ⛔⛔ THE STATE 100% OF MEMBERS ARE IN RIGHT NOW. `SCREEN_BACKTEST_ENABLED`
+  // is unset, `api/main.py:6140` therefore never mounts the router, and the SPA
+  // catch-all is declared GET-only — so the POST answers 405
+  // `{"detail": "Method Not Allowed"}`. "The feature is not switched on" and
+  // "the job failed" are DIFFERENT FACTS and must read differently; this is the
+  // single most-read string in the component.
+  it('⛔ the flag being off is its OWN sentence, not an HTTP status', async () => {
+    H.postResponse = { ok: false, status: 405, body: { detail: 'Method Not Allowed' } }
+    mount()
+    const r = await screen.findByTestId('evidence-not-enabled')
+    expect(r.textContent).toMatch(/not switched on/i)
+    expect(r.textContent).toMatch(/nothing about this definition failed/i)
+    // the plumbing does NOT reach the member
+    expect(r.textContent).not.toMatch(/405/)
+    expect(r.textContent).not.toMatch(/Method Not Allowed/i)
+    expect(screen.queryByTestId('evidence-request-refused')).toBeNull()
+    expect(screen.queryByTestId('evidence-running')).toBeNull()
+  })
+
+  it('CONTROL: any OTHER status is a real answer from a mounted route and keeps its number', async () => {
+    H.postResponse = { ok: false, status: 402, body: { detail: 'A screen backtest requires a paid plan' } }
     mount()
     const r = await screen.findByTestId('evidence-request-refused')
-    expect(r.textContent).toMatch(/405/)
-    expect(screen.queryByTestId('evidence-running')).toBeNull()
+    expect(r.textContent).toMatch(/402/)
+    expect(r.textContent).toMatch(/requires a paid plan/)
+    expect(screen.queryByTestId('evidence-not-enabled')).toBeNull()
   })
 
   it('a job the server no longer knows, and a job that broke, each get their own sentence', async () => {
@@ -204,12 +264,14 @@ describe('EvidenceTab — the retro study', () => {
     expect((await screen.findByTestId('evidence-job-error')).textContent).toMatch(/the sweep fell over/)
   })
 
-  it('a receipt the server will not hand over is reported by status, not as an empty study', async () => {
+  it('a receipt the server will not hand over is reported by status AND by the server sentence', async () => {
     H.pollResponse = { ok: false, status: 503 }
+    H.poll = [{ detail: 'the receipt store is unavailable' }]
     mount()
     const r = await screen.findByTestId('evidence-poll-refused')
     expect(r.textContent).toMatch(/503/)
     expect(r.textContent).toMatch(/could not be read/i)
+    expect(r.textContent).toMatch(/the receipt store is unavailable/)
     expect(screen.queryByTestId('evidence-horizons')).toBeNull()
   })
 
@@ -321,9 +383,37 @@ describe('EvidenceTab — the forward record', () => {
     expect((await screen.findByTestId('evidence-record')).textContent).toMatch(/2 proven of 2/)
   })
 
-  it('a record that cannot be read is reported, never rendered as empty', async () => {
-    H.record = { ok: false, status: 402, body: {} }
+  it('a record that cannot be read is reported with the ROUTE own paywall sentence, not a bare 402', async () => {
+    // `definition_record.require_paid` raises 402 with a sentence written for a
+    // person. A bare "402" tells a member nothing about what to do next.
+    H.record = { ok: false, status: 402,
+      body: { detail: "A definition's forward record requires a paid plan" } }
     mount()
-    expect((await screen.findByTestId('evidence-record-error')).textContent).toMatch(/402/)
+    const r = await screen.findByTestId('evidence-record-error')
+    expect(r.textContent).toMatch(/402/)
+    expect(r.textContent).toMatch(/requires a paid plan/)
+  })
+
+  it('CONTROL: a failure with no sentence still reports its status', async () => {
+    H.record = { ok: false, status: 500, body: {} }
+    mount()
+    expect((await screen.findByTestId('evidence-record-error')).textContent).toMatch(/500/)
+  })
+
+  // ⛔ `evaluated` IS A COVERAGE FACT AND SURVIVES A REFUSAL -- `claim_for`'s own
+  // docstring. A `partial` claim showing only its refusal hides the one number
+  // that says how far the record HAS got.
+  it('a partial claim keeps `evaluated` beside its refusal', async () => {
+    H.record = { ok: true, status: 200, body: recordBody({ coverage: 'partial',
+      refusal: 'some symbols have no recorded evaluation covering this window',
+      symbols: { requested: 3, proven: 2, unproven: ['AMD'] },
+      evaluated: 88, hits: null, hit_rate: null }) }
+    mount()
+    expect((await screen.findByTestId('evidence-record-refusal')).textContent)
+      .toMatch(/no recorded evaluation/)
+    expect(screen.getByTestId('evidence-record-evaluated').textContent).toBe('88')
+    // and the withheld performance numbers are still withheld
+    expect(screen.queryByTestId('evidence-record-claim')).toBeNull()
+    expect(screen.queryByTestId('evidence-record-hit-rate-means')).toBeNull()
   })
 })

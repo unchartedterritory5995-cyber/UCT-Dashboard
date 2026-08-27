@@ -62,13 +62,28 @@ import styles from './EvidenceTab.module.css'
 
 export const BACKTEST_ENDPOINT = '/api/screener/backtest'
 export const RECORD_ENDPOINT = '/api/scans/definition-record'
-/** The horizons the study is asked for (spec A8: 1/5/10/20). The RECEIPT's
- *  `method.horizons` is what gets rendered; this is only the request. */
+/** The horizons the study is asked for (spec A8: 1/5/10/20). This is only the
+ *  REQUEST: what gets rendered is `data.horizons`, the per-horizon RESULTS the
+ *  engine computed. (`method.horizons` is echoed on the receipt too and this
+ *  file never reads it — an earlier comment here said it was the thing being
+ *  rendered, which was a claim about a mechanism nobody ran.) */
 export const EVIDENCE_HORIZONS = [1, 5, 10, 20]
 export const EVIDENCE_POLL_MS = 2000
 
+/** ⛔ THE SERVER'S OWN SENTENCE SURVIVES THE THROW. A bare status is plumbing:
+ *  `402` tells a member nothing, while `definition_record.require_paid`'s
+ *  "A definition's forward record requires a paid plan" tells them what to do.
+ *  Both travel — the status because it is what actually happened, the detail
+ *  because it is the only part written for a person. */
 async function okJson(r) {
-  if (!r.ok) { const e = new Error(String(r.status)); e.status = r.status; throw e }
+  if (!r.ok) {
+    let detail = ''
+    try { detail = (await r.json())?.detail || '' } catch { /* HTML from the SPA catch-all */ }
+    const e = new Error(detail ? `${r.status}: ${detail}` : String(r.status))
+    e.status = r.status
+    e.detail = detail
+    throw e
+  }
   return r.json()
 }
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then(okJson)
@@ -83,7 +98,11 @@ const rate = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
  *  `tested + missing + no_window + no_answer == requested` is the engine's own
  *  (`_assert_closes("universe")`), so the line's closure check holds. */
 export function symbolCoverage(c) {
-  if (!c) return null
+  // ⛔ ABSENT IS NOT BROKEN. A refusal that fires before a single bar is read
+  // carries `coverage: {}` (`backtest.refuse`'s `coverage or {}`), and handing
+  // that to `CoverageLine` would trip its closure alarm and tell the member this
+  // study's counts do not add up — when the truth is there are none.
+  if (!c || !Number.isFinite(Number(c.symbols_requested))) return null
   return {
     evaluated: c.symbols_requested,
     answered: c.symbols_tested,
@@ -191,6 +210,30 @@ function RetroStudy({ defHash, job, requestError, data, error }) {
       </p>
     )
   }
+  // ⛔⛔ "NOT SWITCHED ON" AND "IT FAILED" ARE DIFFERENT FACTS, AND THIS IS THE
+  // STATE EVERY MEMBER IS IN. `api/main.py:6140` mounts
+  // `/api/screener/backtest*` only when `SCREEN_BACKTEST_ENABLED == "1"`, and it
+  // is unset. With the router absent nothing serves POST on that path, so the
+  // request falls to the SPA catch-all — declared `@app.get(...)`, GET ONLY —
+  // and FastAPI answers 405 `{"detail": "Method Not Allowed"}`.
+  //
+  // A 405 on THIS path therefore means exactly one thing: the study service is
+  // not running here. Rendering it as "Evidence could not be requested (405):
+  // Method Not Allowed" hands a member an HTTP status where a sentence belongs,
+  // in the single most-read string this component has. Every OTHER status is a
+  // real answer from a mounted route and keeps the generic refusal below.
+  if (requestError && requestError.status === 405) {
+    return (
+      <p className={styles.note} role="status" data-testid="evidence-not-enabled">
+        <UIcon name="clock" size={14} />
+        <span>
+          Backtested evidence is not switched on for this site yet, so no study could be run.
+          Nothing about this definition failed and nothing was measured — the service that
+          replays a screen over past sessions is simply not available here.
+        </span>
+      </p>
+    )
+  }
   if (requestError) {
     return (
       <p className={styles.refusal} role="alert" data-testid="evidence-request-refused">
@@ -210,7 +253,10 @@ function RetroStudy({ defHash, job, requestError, data, error }) {
     return (
       <p className={styles.refusal} role="alert" data-testid="evidence-poll-refused">
         <UIcon name="warning" size={14} />
-        <span>The study&apos;s receipt could not be read ({String(error.message || error)}).</span>
+        <span>
+          The study&apos;s receipt could not be read ({error.status || String(error.message || error)}).
+          {error.detail ? ` ${error.detail}` : ''}
+        </span>
       </p>
     )
   }
@@ -286,6 +332,17 @@ function Refused({ data }) {
       {data.universe && data.universe.caveat && (
         <p className={styles.caveat} data-testid="evidence-survivorship">{data.universe.caveat}</p>
       )}
+      {/* ⛔⛔ A REFUSAL STILL CARRIES ITS COUNTS, AND THE SERVER PROMISED THEM.
+          `backtest.refuse` takes `results=` for one stated reason — "how RULE 5's
+          n IS ALWAYS REPORTED survives a refusal" — and the `too_few_signals`
+          detail says VERBATIM "the per-horizon counts are in `horizons`". A tab
+          that renders that sentence and then draws no table sends the member
+          somewhere there is nothing: a cross-layer broken promise, and worse than
+          saying less. `coverage` rides for the same reason; a refusal that fired
+          before any bar was read carries {} and both blocks render nothing. */}
+      <CoverageLine coverage={symbolCoverage(data.coverage)} />
+      <BarsCoverage c={data.coverage} />
+      {Array.isArray(data.horizons) && data.horizons.length > 0 && <Horizons data={data} />}
     </div>
   )
 }
@@ -352,6 +409,8 @@ function BarsCoverage({ c }) {
   if (!c) return null
   const parts = [c.bars_warmup, c.bars_not_computable, c.bars_answered].map(Number)
   const total = Number(c.bars_in_window)
+  // Same rule as `symbolCoverage`: no bar coverage at all is silence, not an alarm.
+  if (!Number.isFinite(total)) return null
   const closes = [total, ...parts].every(Number.isFinite) && parts.reduce((a, b) => a + b, 0) === total
   if (!closes) {
     return (
@@ -453,7 +512,10 @@ function ForwardRecord({ data, error }) {
       {error && (
         <p className={styles.refusal} role="alert" data-testid="evidence-record-error">
           <UIcon name="warning" size={14} />
-          <span>The forward record could not be read ({String(error.message || error)}).</span>
+          <span>
+            The forward record could not be read ({error.status || String(error.message || error)}).
+            {error.detail ? ` ${error.detail}` : ''}
+          </span>
         </p>
       )}
       {!error && !data && (
@@ -485,7 +547,17 @@ function RecordClaim({ data }) {
   return (
     <dl className={styles.method}>
       {c.refusal ? (
-        <><dt>refusal</dt><dd data-testid="evidence-record-refusal">{c.refusal}</dd></>
+        <>
+          <dt>refusal</dt><dd data-testid="evidence-record-refusal">{c.refusal}</dd>
+          {/* ⛔ `evaluated` SURVIVES THE REFUSAL, BY THE STORE'S OWN RULE.
+              `claim_for`'s docstring: "reports how much of the window IS proven
+              even when the claim refuses, because that is a coverage fact and not
+              a performance one — and with `hits` withheld there is no arithmetic
+              a caller can do with it". A `partial` claim that showed only its
+              refusal would hide the one number saying how far the record HAS got. */}
+          <dt>evaluated</dt>
+          <dd data-testid="evidence-record-evaluated">{n(c.evaluated)}</dd>
+        </>
       ) : (
         <>
           <dt>coverage</dt><dd data-testid="evidence-record-claim">{c.coverage}</dd>
@@ -501,7 +573,7 @@ function RecordClaim({ data }) {
               </>
             )}
             {known && !means && (
-              <span className={styles.means} data-testid="evidence-record-hit-rate-withheld">
+              <span className={styles.means} role="alert" data-testid="evidence-record-hit-rate-withheld">
                 The record sent this number without the sentence that says what it counts, so it is
                 not shown here — beside a study it would read as something it is not.
               </span>
