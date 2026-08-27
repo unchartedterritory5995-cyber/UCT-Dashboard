@@ -608,6 +608,50 @@ def test_the_evaluators_scalars_stay_NIGHTLY_while_the_members_screen_is_LIVE(se
     assert "live_row" not in nightly
 
 
+#: ⛔ THE ONLY THINGS THE NIGHTLY SWEEP MAY TAKE FROM THE LIVE TIER: pure
+#: rules, never readers. `sanity_reason` is a predicate over a quote and a
+#: SYNTHESISED anchor; `SKIP_REASONS` is a vocabulary. Neither touches
+#: `screener_live`.
+#: ⛔ Do not add a name here to make a red go away. A column resolver or an
+#: SQL helper re-opens exactly the hole the test below exists to close.
+LIVE_TIER_PURE_REUSE = frozenset({"sanity_reason", "SKIP_REASONS"})
+
+
+def _live_tier_attrs(tree):
+    """Every `live_tier.<attr>` the module reaches for, read off the AST.
+
+    ⚠ `from ... import live_tier` binds the MODULE, so the import statement
+    alone cannot say what is used -- the attribute accesses can, and they are
+    the question that matters.
+    """
+    return {n.attr for n in ast.walk(tree)
+            if isinstance(n, ast.Attribute)
+            and isinstance(n.value, ast.Name)
+            and n.value.id == "live_tier"}
+
+
+def test_the_live_tier_allow_list_BITES_IN_BOTH_DIRECTIONS():
+    """⛔ A widening that cannot fail is an exemption wearing a rail's clothes.
+
+    Proven against SYNTHETIC sources rather than by mutating a file another lane
+    owns: the pure reuse passes, and a single column-resolving attribute fails.
+    """
+    allowed = ast.parse(
+        "from api.services.screener import live_tier\n"
+        "why = live_tier.sanity_reason(anchor, quote, ymd)\n"
+        "REASONS = live_tier.SKIP_REASONS\n")
+    assert _live_tier_attrs(allowed) <= LIVE_TIER_PURE_REUSE
+
+    for forbidden in ("LIVE_COLUMNS", "col_expr", "LIVE_TABLE",
+                      "live_columns_effective", "serve_predicate_sql"):
+        src = ast.parse(
+            "from api.services.screener import live_tier\n"
+            "why = live_tier.sanity_reason(anchor, quote, ymd)\n"
+            f"x = live_tier.{forbidden}\n")
+        used = _live_tier_attrs(src)
+        assert not (used <= LIVE_TIER_PURE_REUSE), forbidden
+
+
 def test_the_evaluator_never_NAMES_the_overlay__BY_AST():
     """⛔ AN AST, NEVER A GREP (`lesson_probe_names_must_be_derived_not_typed`).
 
@@ -632,8 +676,34 @@ def test_the_evaluator_never_NAMES_the_overlay__BY_AST():
     strings = {n.value for n in ast.walk(tree)
                if isinstance(n, ast.Constant) and isinstance(n.value, str)}
 
-    assert "live_tier" not in imported
-    assert "query" not in imported
+    # ⛔⛔ THE MODULE NAME WAS A PROXY; THE TABLE NAME IS THE REQUIREMENT.
+    # This assertion used to read `"live_tier" not in imported`, and that is not
+    # what the docstring above promises. It promises the sweep never READS THE
+    # OVERLAY. Importing the tier to reuse a PURE PREDICATE reads nothing: the
+    # sweep calls `live_tier.sanity_reason(anchor, quote, ymd)` with the anchor
+    # SYNTHESISED from the bars, and reuses `live_tier.SKIP_REASONS` verbatim
+    # rather than keeping a second copy of the vocabulary.
+    #
+    # Unwinding that reuse to satisfy a module-name check would create a SECOND
+    # COPY OF THE SANITY RULES -- this repo's most repeated defect -- and a gate
+    # added to `live_tier` would then silently NOT be honoured by the sweep.
+    # That is strictly worse than the risk the name check stood in for.
+    #
+    # ⛔ SO THE WIDENING IS NARROW AND NAMED, NEVER A BLANKET EXEMPTION: the
+    # allow-list is a SYMBOL list, and every other attribute of the tier -- the
+    # column set, the SQL helpers, the table itself -- still fails here.
+    # (Controller ruling on X19, 2026-08-26.)
+    assert "query" not in imported, \
+        "the sweep imported the SQL builder -- it must not compose overlay SQL"
+    used = _live_tier_attrs(tree)
+    assert used <= LIVE_TIER_PURE_REUSE, (
+        "the sweep reached into the live tier for something other than a pure "
+        f"rule: {sorted(used - LIVE_TIER_PURE_REUSE)}. Anything that resolves a "
+        "COLUMN or composes SQL reads the overlay, which is the thing this rail "
+        "exists to forbid -- reuse the rule, never the reader.")
+    # ⭐ AND THE WIDENING ITSELF IS NOT VACUOUS: the sweep really does reach
+    # the tier, so an allow-list that admitted nothing would be caught here.
+    assert used, "no live_tier attribute used -- the allow-list proves nothing"
     assert not any(live_tier.LIVE_TABLE in s for s in strings), \
         f"scan_evaluator names {live_tier.LIVE_TABLE}"
 
