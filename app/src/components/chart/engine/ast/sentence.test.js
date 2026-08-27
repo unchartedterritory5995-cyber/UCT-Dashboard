@@ -220,14 +220,20 @@ const FORMS = [
   // ⭐ THE TC2000 REMAINDER (2026-08-27), hand-typed from the manifest's words
   // like every row here — this grammar is a DELIBERATE second authority, so
   // deriving it would make the round trip agree by construction.
+  // ⚰️ THE TWO AROON PHRASES OPENED *"of the last {0} bars"* AND THE WINDOW IS
+  // `{0} + 1`. That is not a rounding: the extra bar is the whole reason this
+  // task fixed the window there, because over `{0}` bars "days since" maxes at
+  // `{0} - 1` and the indicator could never print its published 0 — which the
+  // SECOND half of the very same sentence promises it does. A member reading
+  // only the first clause was told a shorter window than the number they got.
   { kind: 'call',
     name: 'aroonUp',
-    parts: ['the Aroon up of the last ', 0,
-            ' bars, 100 when this bar set the high and 0 when it was ', 0, ' bars ago'] },
+    parts: ['the Aroon up over this bar and the ', 0,
+            ' before it, 100 when this bar set the high and 0 when it was ', 0, ' bars ago'] },
   { kind: 'call',
     name: 'aroonDown',
-    parts: ['the Aroon down of the last ', 0,
-            ' bars, 100 when this bar set the low and 0 when it was ', 0, ' bars ago'] },
+    parts: ['the Aroon down over this bar and the ', 0,
+            ' before it, 100 when this bar set the low and 0 when it was ', 0, ' bars ago'] },
   { kind: 'call',
     name: 'bop',
     parts: ['the ', 0, '-bar average of where each bar closed within its own range'] },

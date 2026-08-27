@@ -240,7 +240,7 @@
       "reads": "bars",
       "lookback": "arg0",
       "yields": "num",
-      "sentence": "the Aroon down of the last {0} bars, 100 when this bar set the low and 0 when it was {0} bars ago"
+      "sentence": "the Aroon down over this bar and the {0} before it, 100 when this bar set the low and 0 when it was {0} bars ago"
     },
     "aroonUp": {
       "args": [
@@ -252,7 +252,7 @@
       "reads": "bars",
       "lookback": "arg0",
       "yields": "num",
-      "sentence": "the Aroon up of the last {0} bars, 100 when this bar set the high and 0 when it was {0} bars ago"
+      "sentence": "the Aroon up over this bar and the {0} before it, 100 when this bar set the high and 0 when it was {0} bars ago"
     },
     "atan": {
       "args": [
