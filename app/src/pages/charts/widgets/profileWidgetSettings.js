@@ -13,7 +13,7 @@ export const PROFILE_WIDGET_DEFAULTS = {
   textColor: '#e0dac8',                             // headings / body text color
   upColor: '#34d17c',                               // positive performance (YTD gain / range)
   downColor: '#f24b42',                             // negative performance
-  surpUpColor: '#6a7bff',                           // positive earnings surprise %
+  surpUpColor: '#34d17c',                           // positive earnings surprise % (green, matches all +/-)
   surpDownColor: '#f24b42',                         // negative earnings surprise %
   headerColor: '#e0dac8',                           // ticker + company NAME text color (default = text-bright)
   headerShow: 'both',                               // 'both' | 'ticker' | 'company'

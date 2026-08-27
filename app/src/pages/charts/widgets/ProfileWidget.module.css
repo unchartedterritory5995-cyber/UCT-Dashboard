@@ -137,11 +137,10 @@
 .up { color: var(--prof-up, var(--ut-green-bright)); }
 .down { color: var(--prof-down, var(--ut-red-bright)); }
 .neutral { color: var(--prof-text, var(--text-bright, #e0dac8)); }
-/* Earnings-surprise cells — separately configurable (default: blue up / red down,
-   matching the chart's earnings-marker popup). Scoped to `.earnTable td` so they
-   out-specify the base `.earnTable td { color }` rule (otherwise the cell color
-   never changed). */
-.earnTable td.surpUp { color: var(--prof-surp-up, #6a7bff); }
+/* Earnings-surprise cells — still separately configurable, but the DEFAULT now
+   matches the one +/- family (green up / red down) so it doesn't read as a third
+   palette. Scoped to `.earnTable td` so they out-specify the base cell color. */
+.earnTable td.surpUp { color: var(--prof-surp-up, var(--ut-green-bright)); }
 .earnTable td.surpDown { color: var(--prof-surp-down, var(--ut-red-bright)); }
 
 /* ── Company description + thematic narrative ── */
