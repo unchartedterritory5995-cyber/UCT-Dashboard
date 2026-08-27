@@ -288,6 +288,11 @@ function windowArgExtreme(series, lo, hi, better) {
  *  when more bars arrive. That is what the badge means.
  *  `ast_interpret._pivot_col` is the same two loops. */
 function pivotCol(series, left, right, beats) {
+  // ⚠️ THE `- right` IS DEFENSIVE HERE AND LOAD-BEARING IN THE PYTHON TWIN.
+  // Deleting it SURVIVES in this lane — an out-of-bounds read is `undefined`,
+  // every comparison against it is false, so the tail bars blank anyway — while
+  // Python raises IndexError and the same mutation is KILLED there. Two lines
+  // that look like twins, doing different work.
   const out = nan(series.length)
   for (let i = left; i < series.length - right; i++) {
     const v = series[i]
@@ -297,7 +302,15 @@ function pivotCol(series, left, right, beats) {
       if (j === i) continue
       const w = series[j]
       // ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN — the same rule
-      // `windowExtreme` states: NaN does not lose a comparison.
+      // `windowExtreme` states out loud.
+      //
+      // ⚠️ AND THE `Number.isNaN` HALF IS REDUNDANT BY CONSTRUCTION TODAY,
+      // MEASURED: deleting it is an EQUIVALENT MUTANT (W2a.6 sweep, 0 differing
+      // bars on every fixture including a holed one). `v` is finite by the check
+      // above and `finite > NaN` is false, so `!beats(v, w)` already blanks the
+      // bar. ⛔ KEPT to state the rule at the site, and because it stops being
+      // redundant the moment `beats` is anything but a strict comparison — not
+      // because it guards anything today (`lesson_gate_that_cannot_fail`).
       if (Number.isNaN(w) || !beats(v, w)) { ok = false; break }
     }
     if (ok) out[i] = v

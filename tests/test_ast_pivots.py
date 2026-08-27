@@ -174,6 +174,39 @@ def test_the_TAIL_is_NOT_YET_DECIDABLE_and_the_fetch_proves_which_bars_those_are
     assert len(short) == 38 and len(full) == 40
 
 
+def test_a_HOLE_anywhere_in_the_window_blanks_the_pivot():
+    """⛔ A BAR CANNOT BE THE STRICT EXTREME OF BARS NOBODY COULD READ. `sma`
+    gives the source a NaN prefix, so every window overlapping it must blank —
+    including the bar that would otherwise BE the pivot.
+
+    ⚠️ WHAT THIS CASE DOES **NOT** COVER, named so it is not read as coverage it
+    does not have. Deleting the explicit `isnan(w)` branch from either lane is an
+    **EQUIVALENT MUTANT** — measured, 0 differing bars on every fixture in this
+    file plus a purpose-built holed one — because `v` is finite and
+    `finite > NaN` is false, so the comparison already blanks the bar. **No
+    fixture can kill that mutation**, which is exactly why the branch is labelled
+    redundant at both sites rather than left looking like a live guard.
+
+    ⭐ WHAT IT DOES COVER is the observable rule: a holed source produces blank
+    pivots. That survives a future change to `beats` (a non-strict predicate
+    would make the branch load-bearing again) and it is the behaviour a member
+    sees.
+    """
+    src = CALL("sma", SER("high"), NUM(3))          # NaN at bars 0 and 1
+    col = ast_interpret.interpret(CALL("pivothigh", src, NUM(2), NUM(2)),
+                                  bars_of(HIGHS), {})
+    for i in range(4):
+        assert at(col, i) is None, (i, at(col, i))
+    # …and it still answers where the window is whole, so the fixture is not
+    # blank for a trivial reason.
+    assert len(hits(col)) >= 2, hits(col)
+    # ⛔ THE CONTROL: the same tree over a source with NO hole answers on bars the
+    # holed one cannot, so the blanks above are the hole's doing.
+    whole = ast_interpret.interpret(CALL("pivothigh", SER("high"), NUM(2), NUM(2)),
+                                    bars_of(HIGHS), {})
+    assert at(whole, 3) == 20.0 and at(col, 3) is None
+
+
 # ═══════════════════════════════════════════════════════════════════════════ #
 # 3. ⭐ THE REPAINT VERDICT — the machinery this task makes non-hypothetical
 # ═══════════════════════════════════════════════════════════════════════════ #

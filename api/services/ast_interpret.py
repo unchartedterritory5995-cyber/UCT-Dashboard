@@ -405,6 +405,12 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
     decidable*, not *decided false* -- they read the same blank, and the
     difference only shows when more bars arrive. That is what the badge means.
     """
+    # ⛔ THE `- right` IS LOAD-BEARING HERE AND MERELY DEFENSIVE IN THE JS TWIN,
+    # which is the kind of asymmetry a mirrored lane hides. Python raises
+    # IndexError past the end (the sweep KILLED this mutation); JS reads
+    # `undefined`, every comparison against it is false, and the bar blanks
+    # anyway (the same mutation SURVIVED there, equivalently). Do not "simplify"
+    # this one by analogy with the other.
     out = _nan_col(len(series))
     for i in range(left, len(series) - right):
         v = series[i]
@@ -415,10 +421,18 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
             if j == i:
                 continue
             w = series[j]
-            # ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN, the same
-            # rule `_window_extreme` states: NaN does not lose a comparison, so a
-            # bar cannot be declared the strict extreme over bars nobody could
-            # read.
+            # ⭐ A HOLE ANYWHERE IN THE WINDOW MAKES THE ANSWER UNKNOWN -- the same
+            # rule `_window_extreme` states out loud.
+            #
+            # ⚠️ AND THE `isnan` HALF IS REDUNDANT BY CONSTRUCTION TODAY, WHICH IS
+            # MEASURED RATHER THAN GUESSED: deleting it is an EQUIVALENT MUTANT in
+            # both lanes (W2a.6 sweep, 0 differing bars on every fixture including
+            # a purpose-built holed one). `v` is finite by the check above and
+            # `finite > NaN` is False, so `not beats(v, w)` already blanks the bar.
+            # ⛔ IT IS KEPT, NOT DELETED, AND NOT BECAUSE IT GUARDS ANYTHING TODAY:
+            # it states the rule at the site, and it STOPS being redundant the
+            # moment `beats` is anything but a strict comparison. Labelled so
+            # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
             if math.isnan(w) or not beats(v, w):
                 ok = False
                 break
