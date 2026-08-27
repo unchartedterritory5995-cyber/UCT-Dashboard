@@ -256,6 +256,20 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
+  // ─── DELETE (My screens), THE SAME IDIOM — X26 / W9c.1 ─────────────────────
+  // ⛔ THIS LIST USED TO DELETE ON ONE CLICK: `onClick={() => remove(s.id)}`,
+  // no confirmation, no name, no error surface. It now goes through the
+  // identical arm → confirm → store-answers three lines above, applied to the
+  // OTHER list — but with its OWN state, never the scans state above. The two
+  // lists' ids live in disjoint namespaces (a numeric saved-screen id can
+  // never equal a string def_id), but a shared variable would still be one
+  // state machine doing two jobs, and the review-round-1 cross-row disarm
+  // found in the scans lane (see confirmDelete below) is exactly the bug
+  // class a shared variable invites — keeping them apart makes that class
+  // structurally impossible for the two LISTS, not merely unlikely.
+  const [pendingDeleteScreen, setPendingDeleteScreen] = useState(null)
+  const [deletingScreen, setDeletingScreen] = useState(null)
+  const [deleteScreenError, setDeleteScreenError] = useState(null)
   // Fetched only while the sheet is open — a member reading their screens never
   // asks for a window they are not going to compute anything against.
   const { data: spyBars } = useSWR(builder ? SPY_WINDOW : null, barsFetcher,
@@ -325,6 +339,38 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
     setRun(r => (r && r.defId === defId ? null : r))
   }
 
+  const armDeleteScreen = id => { setPendingDeleteScreen(id); setDeleteScreenError(null) }
+  const keepScreen = () => { setPendingDeleteScreen(null); setDeleteScreenError(null) }
+
+  /** ⛔ THE SAME CONTRACT AS confirmDelete ABOVE, applied to My screens:
+   *  goes through `useSavedScreens`'s own `remove` (the only write door onto
+   *  a saved screen), never removes the row locally — it leaves because the
+   *  store's next read no longer carries it — and a refusal renders VERBATIM,
+   *  never paraphrased.
+   *
+   *  ⛔ DEF-SCOPED ON SUCCESS, not a bare `setPendingDeleteScreen(null)` — the
+   *  exact review-round-1 fix confirmDelete above carries, repeated here on
+   *  purpose rather than trusted to have been "already covered" by the other
+   *  list: arming a SECOND screen's confirm while a FIRST screen's delete is
+   *  still in flight, then letting the first land, must not wipe the second's
+   *  prompt. A confirm left live invites a second DELETE, and this store's own
+   *  `delete()` reports an already-gone row as 404 `not found` — so the member
+   *  would see a refusal for a delete that already worked. */
+  const confirmDeleteScreen = async id => {
+    setDeletingScreen(id)
+    setDeleteScreenError(null)
+    const res = await remove(id)
+    setDeletingScreen(null)
+    if (!res.ok) {
+      setDeleteScreenError({ id, message: res.error })
+      return
+    }
+    setPendingDeleteScreen(pid => (pid === id ? null : pid))
+    // The share panel is a claim ABOUT this screen too — close it on the same
+    // success signal the scans lane retracts its detail pane and run on.
+    setShareId(sid => (sid === id ? null : sid))
+  }
+
   const copyLink = async url => {
     try {
       await navigator.clipboard.writeText(url)
@@ -384,10 +430,38 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                     </button>
                     <button type="button" aria-label={`Rename ${s.name}`}
                       onClick={() => { setRenameId(s.id); setRenameVal(s.name) }}>✎</button>
-                    <button type="button" aria-label={`Delete ${s.name}`}
-                      onClick={() => remove(s.id)}>✕</button>
+                    {/* 🔴 IT ARMS A CONFIRM; IT DOES NOT DELETE — X26 / W9c.1,
+                        the same idiom as the My-scans row below. Swapped out
+                        once armed so one tap can never mean two things. */}
+                    {pendingDeleteScreen !== s.id && (
+                      <button type="button" aria-label={`Delete ${s.name}`}
+                        onClick={() => armDeleteScreen(s.id)}>✕</button>
+                    )}
                   </span>
                 </div>
+
+                {pendingDeleteScreen === s.id && (
+                  <div style={deleteAskStyle} data-testid={`delete-ask-screen-${s.id}`}>
+                    {/* ⛔ NAMED. A member must be able to tell WHAT they are
+                        about to lose without reading the row above it. */}
+                    <span>{deletingScreen === s.id
+                      ? `Deleting “${s.name}”…`
+                      : `Delete “${s.name}”?`}</span>
+                    <button type="button" aria-label={`Keep ${s.name}`}
+                      disabled={deletingScreen === s.id}
+                      onClick={keepScreen}>Keep</button>
+                    <button type="button" aria-label={`Confirm delete ${s.name}`}
+                      disabled={deletingScreen === s.id}
+                      onClick={() => confirmDeleteScreen(s.id)}>Confirm delete</button>
+                  </div>
+                )}
+
+                {deleteScreenError && deleteScreenError.id === s.id && (
+                  <p role="alert" data-testid="screens-manager-error--delete-screen"
+                    style={deleteErrStyle}>
+                    {deleteScreenError.message}
+                  </p>
+                )}
 
                 {shareId === s.id && (
                   <div className={styles.sharePanel} data-testid={`share-panel-${s.id}`}>

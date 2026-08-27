@@ -572,6 +572,38 @@ def test_saved_screens_roundtrip(tmp_path, monkeypatch):
     assert client.request("DELETE", f"/api/screener/saved-screens/{sid}").json()["deleted"] is True
 
 
+def test_saved_screens_delete_of_a_missing_or_foreign_screen_answers_404_not_found(tmp_path, monkeypatch):
+    """⛔ X26 (W9c.1). `screener_saved_delete` used to answer 200 with
+    `{"deleted": false}` on a screen that does not exist, or belongs to
+    someone else — a refusal with no signal a frontend fetcher checking
+    `r.ok` could ever see, so `useSavedScreens.remove` had nothing to report
+    and `ScreensManager` could not tell a member a delete had failed. Mirrors
+    the sibling PUT endpoint immediately above `screener_saved_delete` in
+    screener.py, which has always raised 404 `detail="not found"` on the
+    identical miss.
+    """
+    _seed_screener(tmp_path, monkeypatch)
+    client = TestClient(app)
+    init_db()
+    _login(client)
+    # A screen id nobody owns.
+    r = client.request("DELETE", "/api/screener/saved-screens/999999")
+    assert r.status_code == 404
+    assert r.json()["detail"] == "not found"
+
+    # …and the same answer for a screen that exists but belongs to someone else.
+    owner_client = TestClient(app)
+    _login(owner_client)
+    created = owner_client.post("/api/screener/saved-screens",
+                                json={"name": "Not Yours", "spec": {"filters": [], "view": "overview"}})
+    sid = created.json()["id"]
+    r2 = client.request("DELETE", f"/api/screener/saved-screens/{sid}")
+    assert r2.status_code == 404
+    assert r2.json()["detail"] == "not found"
+    # …and it is genuinely untouched — the OWNER still sees it afterwards.
+    assert any(s["id"] == sid for s in owner_client.get("/api/screener/saved-screens").json()["saved"])
+
+
 def test_a_second_build_is_REFUSED_not_queued_and_the_caller_is_TOLD():
     """⛔ THE GUARD THAT COST FIVE HOURS OF STALE SNAPSHOT TO LEARN.
 

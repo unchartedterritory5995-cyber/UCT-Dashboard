@@ -63,7 +63,13 @@ import ScreensManager from './ScreensManager'
 import { defaultSession } from '../../components/screener/scanSession'
 
 beforeEach(() => {
-  create.mockClear(); update.mockClear(); remove.mockClear()
+  create.mockClear(); update.mockClear()
+  // ⛔ X26 (W9c.1): `remove` is now AWAITED and its `{ok, error}` checked —
+  // the same reset+default shape `deleteDefinition` already gets, so every
+  // test starts from a clean, successful default rather than an unresolved
+  // implicit-undefined mock.
+  remove.mockReset()
+  remove.mockResolvedValue({ ok: true })
   deleteDefinition.mockReset()
   deleteDefinition.mockResolvedValue({ ok: true })
   ScanResultsSpy.mockClear()
@@ -119,7 +125,7 @@ test('unpublishing a public screen sends is_public false, and the link is shown'
   expect(update).toHaveBeenCalledWith(9, { is_public: false })
 })
 
-test('rename and delete fan out to useSavedScreens', () => {
+test('rename fans out to useSavedScreens', () => {
   render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
   open()
   fireEvent.click(screen.getByRole('button', { name: 'Rename My RSI' }))
@@ -127,9 +133,8 @@ test('rename and delete fan out to useSavedScreens', () => {
   fireEvent.change(input, { target: { value: 'Renamed' } })
   fireEvent.keyDown(screen.getByDisplayValue('Renamed'), { key: 'Enter' })
   expect(update).toHaveBeenCalledWith(9, { name: 'Renamed' })
-
-  fireEvent.click(screen.getByRole('button', { name: 'Delete My RSI' }))
-  expect(remove).toHaveBeenCalledWith(9)
+  // ⛔ Delete is covered by its OWN suite below (X26 / W9c.1) — it is no
+  // longer a one-click fan-out, so it does not belong in this test's name.
 })
 
 test('use-as-filter calls onUseScan with (hash, name)', () => {
@@ -599,4 +604,193 @@ test("⛔ a delete that SUCCEEDS does not disarm a DIFFERENT row's pending confi
   // B is still asking. Nothing was sent for it.
   expect(screen.getByTestId('delete-ask-u_other')).toBeInTheDocument()
   expect(deleteDefinition).toHaveBeenCalledTimes(1)
+})
+
+// ─── 🔴 DELETE — MY SCREENS, THE SAME IDIOM (X26 / W9c.1) ──────────────────
+//
+// This list used to delete on ONE CLICK: `onClick={() => remove(s.id)}` — no
+// confirmation, no name, no error surface (the `savedError` alert above is
+// the LIST's own read-refusal; nothing surfaced a DELETE refusal). It now
+// carries the identical three claims the My-scans suite above already
+// proves, applied to this list:
+//
+//   1. it ASKS FIRST, and the question NAMES the screen;
+//   2. a refusal is `useSavedScreens.remove`'s OWN sentence, rendered once;
+//   3. the row leaves only when the store says it is gone, and a SUCCESSFUL
+//      delete disarms ONLY the row it was for — never a different row's
+//      pending confirm, and never the OTHER list's.
+//
+// Own state (`pendingDeleteScreen` et al.), own testids
+// (`delete-ask-screen-{id}` / `screens-manager-error--delete-screen`) — so a
+// screens-lane assertion can never be satisfied by the scans lane, or vice
+// versa, the same suffixing discipline the two read-refusal tests above use.
+
+const armDeleteScreen = () => fireEvent.click(screen.getByRole('button', { name: 'Delete My RSI' }))
+const confirmDeleteScreen = () => fireEvent.click(screen.getByRole('button', { name: 'Confirm delete My RSI' }))
+const screenRowButton = () => screen.queryByRole('button', { name: 'My RSI' })
+
+test('Delete on My screens ASKS FIRST — arming sends nothing, and the question NAMES the screen', () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  expect(screen.queryByTestId('delete-ask-screen-9')).toBeNull()   // control: not armed
+  armDeleteScreen()
+  // ⛔ ASKING IS NOT DELETING.
+  expect(remove).not.toHaveBeenCalled()
+  // ⛔ AND IT IS NAMED. "Delete this item?" over a list of screens a member
+  // told apart only by name is how the wrong one gets destroyed.
+  expect(screen.getByTestId('delete-ask-screen-9')).toHaveTextContent('Delete “My RSI”?')
+  expect(screenRowButton()).toBeInTheDocument()
+})
+
+test('Keep (My screens) disarms and sends nothing', async () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  fireEvent.click(screen.getByRole('button', { name: 'Keep My RSI' }))
+  await waitFor(() => expect(screen.queryByTestId('delete-ask-screen-9')).toBeNull())
+  expect(remove).not.toHaveBeenCalled()
+  expect(screenRowButton()).toBeInTheDocument()
+})
+
+test("Confirm (My screens) sends exactly ONE delete, through useSavedScreens' own door, naming that id", async () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  confirmDeleteScreen()
+  await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+  expect(remove).toHaveBeenCalledWith(9)
+})
+
+test('⛔ the My-screens row does NOT vanish optimistically — the STORE decides what exists', async () => {
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  confirmDeleteScreen()
+  await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+  // The mocked store has not answered differently yet (it never re-seeds
+  // `savedScreensState.saved` on its own), so the row is still listed — and
+  // it MUST be. A local removal list here would hide the row on a delete that
+  // later turned out to have failed, then put it back.
+  expect(screenRowButton()).toBeInTheDocument()
+
+  // …but the prompt IS gone, and the trash is back — the same care the scans
+  // suite's R6 finding demanded: a confirm left armed over a row that IS
+  // deleted invites a second DELETE into the window before the store's own
+  // re-read lands, and `screener_saved_delete` now answers an already-gone
+  // row 404 "not found" — so a stray second tap would show the member a
+  // refusal for a delete that already worked.
+  expect(screen.queryByTestId('delete-ask-screen-9')).toBeNull()
+  expect(screen.getByRole('button', { name: 'Delete My RSI' })).toBeInTheDocument()
+})
+
+test("⭐ a REFUSED delete (My screens) says useSavedScreens' OWN WORDS — verbatim, once — and the row stays", async () => {
+  remove.mockResolvedValue({ ok: false, error: 'not found' })
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  confirmDeleteScreen()
+
+  const alerts = await screen.findAllByTestId('screens-manager-error--delete-screen')
+  // ⛔ ONE PLACE, and never the scans lane's own error testid.
+  expect(alerts).toHaveLength(1)
+  expect(alerts[0]).toHaveAttribute('role', 'alert')
+  expect(screen.queryByTestId('screens-manager-error--delete')).toBeNull()
+  // ⛔ VERBATIM. Not framed, not paraphrased — the exact string the hook
+  // handed back (which is itself the exact string the router's 404 `detail`
+  // carries — see api/routers/screener.py::screener_saved_delete).
+  expect(alerts[0].textContent.trim()).toBe('not found')
+  expect(screenRowButton()).toBeInTheDocument()
+  // ⛔ AND ARMED, NOT MERELY PRESENT — a refusal must leave the confirm live
+  // and retryable, not send the member back to a bare trash icon they have
+  // to re-tap through arming again. `confirmDeleteScreen` never touches
+  // `pendingDeleteScreen` on the failure branch, and this is what proves it.
+  expect(screen.getByTestId('delete-ask-screen-9')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Confirm delete My RSI' })).toBeEnabled()
+})
+
+test('a second attempt (My screens) replaces the previous refusal rather than stacking one under it', async () => {
+  remove.mockResolvedValue({ ok: false, error: 'not found' })
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  confirmDeleteScreen()
+  await screen.findAllByTestId('screens-manager-error--delete-screen')
+  confirmDeleteScreen()
+  await waitFor(() => expect(remove).toHaveBeenCalledTimes(2))
+  expect(screen.getAllByTestId('screens-manager-error--delete-screen')).toHaveLength(1)
+})
+
+test('while a My-screens delete is in flight the confirm cannot be fired twice', async () => {
+  let release
+  remove.mockImplementation(() => new Promise((r) => { release = () => r({ ok: true }) }))
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()
+  confirmDeleteScreen()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm delete My RSI' })).toBeDisabled())
+  // …and the ask says which state it is in, still naming the screen.
+  expect(screen.getByTestId('delete-ask-screen-9')).toHaveTextContent('Deleting “My RSI”…')
+  confirmDeleteScreen()                          // a second tap, on a disabled button
+  expect(remove).toHaveBeenCalledTimes(1)
+  await act(async () => { release() })
+})
+
+test("⛔ a My-screens delete that SUCCEEDS does not disarm a DIFFERENT screen's pending confirm", async () => {
+  // ⚰️ The exact review-round-1 shape confirmDelete's own comment warns
+  // about, reproduced here rather than assumed inherited: arming a SECOND
+  // screen's confirm while a FIRST screen's delete is still in flight, then
+  // letting the first land, must not wipe the second's prompt.
+  savedScreensState.saved = [
+    { id: 9, name: 'My RSI', spec: {}, is_public: false, share_token: null },
+    { id: 10, name: 'Second Screen', spec: {}, is_public: false, share_token: null },
+  ]
+  let release
+  remove.mockImplementation(() => new Promise((r) => { release = () => r({ ok: true }) }))
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  armDeleteScreen()                                       // #9: armed, then in flight
+  confirmDeleteScreen()
+  await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Second Screen' }))   // #10: armed
+  expect(screen.getByTestId('delete-ask-screen-10')).toBeInTheDocument()
+
+  await act(async () => { release() })                    // #9 lands
+
+  // #10 is still asking. Nothing was sent for it.
+  expect(screen.getByTestId('delete-ask-screen-10')).toBeInTheDocument()
+  expect(remove).toHaveBeenCalledTimes(1)
+})
+
+test('⛔ …and a REFUSED My-screens delete retracts NOTHING — the share panel stays open', async () => {
+  // The control for confirmDeleteScreen's success-only retraction of
+  // `shareId`: a refusal must not close a panel the member still has open.
+  remove.mockResolvedValue({ ok: false, error: 'not found' })
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  fireEvent.click(screen.getByRole('button', { name: 'Share My RSI' }))
+  expect(screen.getByTestId('share-panel-9')).toBeInTheDocument()
+
+  armDeleteScreen()
+  confirmDeleteScreen()
+  await screen.findAllByTestId('screens-manager-error--delete-screen')
+
+  expect(screen.getByTestId('share-panel-9')).toBeInTheDocument()
+})
+
+test('⛔ arming a delete on My screens leaves a pending confirm on My scans untouched, and vice versa', async () => {
+  // The two LISTS' delete state is separate by construction (own useState
+  // triple each) — this is the measured proof, not merely the design intent.
+  render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
+  open()
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Breakout base' }))   // scans: armed
+  expect(screen.getByTestId('delete-ask-u_breakout')).toBeInTheDocument()
+
+  armDeleteScreen()                    // screens: armed
+  confirmDeleteScreen()                // screens: confirmed and lands (remove resolves ok:true)
+  await waitFor(() => expect(remove).toHaveBeenCalledTimes(1))
+
+  // The scans lane's confirm is untouched — different state, different door.
+  expect(screen.getByTestId('delete-ask-u_breakout')).toBeInTheDocument()
+  expect(deleteDefinition).not.toHaveBeenCalled()
 })
