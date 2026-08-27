@@ -174,9 +174,26 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   oscillator with one published formula, and Pine's own construction
     //   `100*(highestbars(high, len+1)+len)/len` is OUR number written under
     //   Pine's negative-offset convention — the two agree by arithmetic.
+    //   ⛔⛔ `bop` HAS ONLY THE FIRST GROUND, AND THE SECOND ONE WOULD FAIL —
+    //   said here rather than left for a reader to infer from the bullet above,
+    //   which covers three names with two arguments. TradingView's BOP is the
+    //   UNSMOOTHED per-bar ratio `(close - open) / (high - low)`; ours is that
+    //   ratio's `n`-bar MEAN. They coincide at `bop(1)` and nowhere else, which
+    //   is arithmetic rather than an opinion and is measured on real bars in
+    //   `interpret.test.js` ("aroon and bop, hand-computed in the JS lane"):
+    //   `bop(1)` equals the raw ratio bar for bar, and `bop(5)` differs from it.
+    //   ⚠️ SO THIS ROW RESTS ON A SINGLE OBSERVATION — `/pine-script-reference/
+    //   v5/fun_ta.bop` 404s TODAY — AND A SINGLE MEASUREMENT IS A RUMOUR. If
+    //   `ta.bop` ever becomes a Pine name, this door opens onto a
+    //   MISTRANSLATION: a pasted `ta.bop(...)` would silently become our
+    //   smoothed mean, plausible on every bar and wrong on every bar but the
+    //   first. The move then is to REFUSE it here the way `ta.highestbars` is
+    //   refused for its sign — NOT to widen this reason.
     aroonUp: 'ta.aroonup is not a Pine builtin; and the formula would agree anyway',
     aroonDown: 'ta.aroondown is not a Pine builtin; same published formula',
-    bop: 'ta.bop is not a Pine builtin (TradingView ships BOP as an indicator, not a ta.* fn)',
+    bop: 'ta.bop is not a Pine builtin (TradingView ships BOP as an indicator, not a ta.* fn)'
+      + ' — and UNLIKE the two above, the formulas would NOT agree if it became one:'
+      + ' theirs is the unsmoothed per-bar ratio, ours is its n-bar mean (equal only at n=1)',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {
