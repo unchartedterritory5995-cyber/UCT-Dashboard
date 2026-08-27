@@ -222,7 +222,13 @@ def run_books_audit(
                 params + [sym, acq, sold],
             ).fetchone()
             stored = float(row[0])
-            if abs(stored - derived) > _LINE_TOL:
+            # GROUP tolerance, not line tolerance: a (symbol, acquired, sold)
+            # key aggregates several lots, and each lot's price×shares gain
+            # rounds independently — measured on the 2026-08-27 fleet audit,
+            # the accumulated float error reaches 2¢ on clean books (whale:
+            # 4,101/4,110 exact, worst miss $0.02; owner: 261/262, $0.01).
+            # A penny tolerance on a multi-lot sum flags correct storage.
+            if abs(stored - derived) > _SUM_TOL:
                 tax_mismatches.append({
                     "symbol": sym, "sold": sold,
                     "stored": round(stored, 2), "derived": round(derived, 2),
