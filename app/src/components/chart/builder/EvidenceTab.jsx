@@ -48,6 +48,15 @@
 // settled payload never starts. `dedupingInterval` sits UNDER the poll interval
 // or SWR dedupes the poll away.
 //
+// ⛔ AND IT IS A BARE `useSWR`, NOT `useMobileSWR`, ON PURPOSE — the reason is
+// carried on this file's row in `app/src/hooks/pollingSites.rail.test.js`'s
+// census, which is where the next reader meets the question. In short: this is
+// a JOB-STATUS poll that stops itself when the receipt lands, so the wrapper's
+// interval DOUBLING would slow a "Running…" a member is actively watching
+// rather than save anything, and its per-call-site `useMarketOpen` 60s timer
+// buys nothing for a retro study. The `revalidateOnFocus: false` below is the
+// app-global default this call site wants kept.
+//
 // ⚠️ `SCREEN_BACKTEST_ENABLED` GATES THE MOUNT of `/api/screener/backtest*`
 // (`api/main.py`: the router is included only when the flag is `"1"`, and it is
 // off on this branch). With the flag off the POST hits the SPA catch-all and
