@@ -198,12 +198,23 @@ function defineFormula(declared, vocab) {
 /** declared-name set → the one language instance for it (see the header note). */
 const FORMULA_LANGUAGES = new Map()
 
+/** The memo key for "are these two declared-input scopes the SAME as far as the
+ *  formula dialect is concerned" — sorted names, space-joined. Exported so a
+ *  caller that needs to answer the same question (`CodeEditor`'s settle, so it
+ *  can skip a reconfigure when a new `inputs` object carries the same names)
+ *  imports this instead of restating the derivation: two copies of one
+ *  derivation agree today and are a standing invitation to disagree the day
+ *  either one changes alone. A declared input name matches `parse.js`'s
+ *  `KEY_RE` (`[A-Za-z][A-Za-z0-9_]*`), so a space cannot occur inside one and
+ *  the joined key cannot collide. */
+export function languageKey(inputs) {
+  return Object.keys(inputs || {}).sort().join(' ')
+}
+
 export function formulaLanguage(inputs = undefined, vocab = FORMULA_VOCAB) {
   const declared = new Set(Object.keys(inputs || {}))
   if (vocab !== FORMULA_VOCAB) return defineFormula(declared, vocab)
-  // A declared input name matches `parse.js`'s `KEY_RE` (`[A-Za-z][A-Za-z0-9_]*`),
-  // so a space cannot occur inside one and the joined key cannot collide.
-  const key = [...declared].sort().join(' ')
+  const key = languageKey(inputs)
   let lang = FORMULA_LANGUAGES.get(key)
   if (!lang) {
     lang = defineFormula(declared, vocab)

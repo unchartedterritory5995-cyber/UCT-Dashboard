@@ -58,6 +58,16 @@ describe('the doc and the value', () => {
     expect(content.getAttribute('role')).toBe('textbox')
   })
 
+  it('long formulas WRAP — no `EditorView.lineWrapping` means a horizontal scroll instead', () => {
+    // `EditorView.lineWrapping` is `contentAttributes.of({class:'cm-lineWrapping'})`
+    // (`@codemirror/view`), so its presence is a plain DOM class — provable in
+    // jsdom without measuring any actual layout. CM's `.cm-scroller` defaults to
+    // `overflow-x: auto` (a side-scroll) without it — a real downgrade from the
+    // `<textarea>` this box replaces, which soft-wraps.
+    mount()
+    expect(host().querySelector('.cm-content').classList.contains('cm-lineWrapping')).toBe(true)
+  })
+
   it('the lint gutter is there for the refusal marker to land in', () => {
     // The stylesheet has a `.cm-gutters` rule; without `lintGutter()` that rule
     // styles an element that never renders, and the only standing sign of a
@@ -91,6 +101,20 @@ describe('the doc and the value', () => {
     set({ value: 'close > open' })
     expect(view().state.doc.toString()).toBe('close > open')
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('an external whole-doc replace puts the caret at the END of the new text, not the front', () => {
+    // Measured without this: caret at 4 in `sma(close, 20)`, an external
+    // replace to `ema(close, 50)` (14 chars) left the caret at 0 — every
+    // planned external-write path (Concierge, Starter Library, loading a
+    // saved definition) put the member's cursor at the front of a formula
+    // they did not just type.
+    const { view, set } = mount()
+    act(() => { view().dispatch({ selection: { anchor: 4 } }) })
+    expect(view().state.selection.main.head).toBe(4)
+    set({ value: 'ema(close, 50)' })
+    expect(view().state.doc.toString()).toBe('ema(close, 50)')
+    expect(view().state.selection.main.head).toBe('ema(close, 50)'.length)
   })
 
   it('typing (a doc change from the view) calls onChange synchronously with the whole text', () => {
@@ -206,6 +230,30 @@ describe('the tokenizer reaches the DOM', () => {
     )
     expect(noLight).toEqual([])
   })
+
+  it('⛔⛔ THE HOST DOES NOT CLIP — jsdom has no layout, so this is read off the stylesheet, not rendered', () => {
+    // Finding 3: `.editor { overflow: hidden }` used to round the box's own
+    // corners and, as a side effect, clip the completion popup with it — the
+    // popup's container is `view.dom` (`.cm-editor`), a DOM child of `.editor`,
+    // positioned `absolute` on iOS always and on every platform once CM's
+    // transformed-ancestor kludge fires (permanently, per view). An
+    // `overflow: hidden` ancestor clips an absolutely-positioned descendant
+    // regardless of what its own containing block resolves to — jsdom cannot
+    // render that, so a green jsdom assertion here would prove nothing; this
+    // reads the actual rule text off disk instead, the way the token-class
+    // rail above does.
+    const css = readFileSync(join(import.meta.dirname, 'CodeEditor.module.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const editorRule = /^\.editor\s*\{([^}]*)\}/m.exec(css)
+    expect(editorRule).toBeTruthy()
+    expect(editorRule[1]).not.toMatch(/overflow\s*:/)
+    // The corner clip moved to `.cm-scroller` — a SIBLING of the tooltip
+    // container inside `.cm-editor`, never an ancestor of it — so rounding the
+    // scrolling text no longer touches the popup.
+    const scrollerRule = /\.editor\s*:global\(\.cm-scroller\)\s*\{([^}]*)\}/.exec(css)
+    expect(scrollerRule).toBeTruthy()
+    expect(scrollerRule[1]).toMatch(/overflow\s*:\s*hidden/)
+  })
 })
 
 describe('a refusal is shown ONLY against the text it was measured on', () => {
@@ -288,10 +336,36 @@ describe('a refusal is shown ONLY against the text it was measured on', () => {
     expect(marks()).toHaveLength(0)
   })
 
-  it('a ready Diagnostic[] is applied as handed in — those ranges are the caller’s', () => {
+  it('⛔⛔ THE DELETED ARRAY DOOR: a bare Diagnostic[] has no `source` to check and marks nothing', () => {
+    // A `Diagnostic[]` branch used to stand here and apply an array exactly as
+    // handed in, bypassing the `=== source` gate entirely. Measured mis-mark on
+    // this branch: mounted with `diagnostics=[{from:9,to:12}]` against
+    // `'close > foo(1)'`, the mark landed on `"oo("`; after `value` changed to
+    // a DIFFERENT formula (`'close > sma(close, 20)'`) the SAME array was still
+    // applied and now marked `"ma("` — a token in text the diagnostic was never
+    // measured on. CONTROLLER RULING: deleted, not stamped (no caller in the
+    // app passes an array today). This is the replacement rail: an array has
+    // no `.source`, so `diagnostics.source === doc` is false and the gate
+    // refuses it exactly like any other unstamped refusal — there is no
+    // second, weaker door.
     mount({ value: 'close > open', diagnostics: [{ from: 0, to: 5, severity: 'error', message: 'mine' }] })
+    expect(marks()).toHaveLength(0)
+  })
+
+  it('⛔⛔ AND THE FRESHNESS GUARD DOES NOT DEPEND ON THE CALLER ROUND-TRIPPING ANYTHING', () => {
+    // Finding 2: `onChange` defaults to `null` and there is no `readOnly` prop,
+    // so an un-wired mount is a configuration the props declare legal. Without
+    // a clear keyed to the DOC ITSELF, a mount nobody wires back would leave a
+    // mark standing over text that has already moved on — the freshness
+    // invariant held only as long as the caller chose to feed a new `value`
+    // back. Measured here with NO `set({value})` call at all, and no
+    // `onChange` handler: a bare keystroke clears the mark by itself.
+    const src = 'close > foo(close, 3)'
+    const refusal = evaluateFormula(src, BUILDER_INPUT_SCOPE)
+    const { view } = mount({ value: src, diagnostics: refusal, onChange: undefined })
     expect(marks()).toHaveLength(1)
-    expect(marks()[0].textContent).toBe('close')
+    act(() => { view().dispatch({ changes: { from: view().state.doc.length, insert: ' + 1' } }) })
+    expect(marks()).toHaveLength(0)
   })
 })
 

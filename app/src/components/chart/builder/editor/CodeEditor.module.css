@@ -13,11 +13,18 @@
  * `--tap-min` · `--loss` · `--gain` · `--info` · `--menu-*` · `--focus-ring`.
  *
  * ⭐ THE BOX IS SIZED FROM THE ONE IT ENHANCES. Every value in `.editor` is the
- * value `BuilderSheet.module.css` `.field` already uses for the textarea, so
- * mounting the editor over it does not reflow the sheet — including the
- * `var(--font-mono, …)` declaration, which in this repo resolves to Instrument
- * Sans (see the tokens.css header). Picking a "real" monospace here would make
- * the editor the only box on the sheet with a different face.
+ * value `BuilderSheet.module.css` `.field` already uses for the textarea —
+ * including the `var(--font-mono, …)` declaration, which in this repo resolves
+ * to Instrument Sans (see the tokens.css header) — so picking a "real"
+ * monospace here would make the editor the only box on the sheet with a
+ * different face.
+ * ⚠️ THAT IS NOT THE SAME AS "DOES NOT REFLOW THE SHEET" — measured false.
+ * `.field` is a `rows={2}` textarea (~64px at these metrics: 2×21px line-height
+ * + 20px padding + 2px border); `.editor` has no `rows` concept, rests at ONE
+ * line, bound only by `min-height: var(--tap-min)` (44px), and declares no
+ * `max-height` — it grows with the formula instead of scrolling internally the
+ * way the textarea did. The shared declarations are real; the height is not
+ * one of them. Pixels are W1a.6/W1a.8's to confirm on a screen.
  */
 
 .editor {
@@ -31,7 +38,6 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 /* The `.field` padding lives on `.cm-content`, not here: CodeMirror measures the
@@ -40,7 +46,20 @@
 .editor :global(.cm-editor) { background: transparent; }
 .editor :global(.cm-editor.cm-focused) { outline: none; }
 .editor:focus-within { border-color: var(--border-accent); box-shadow: var(--focus-ring); }
-.editor :global(.cm-scroller) { font-family: inherit; line-height: inherit; }
+/* ⛔⛔ THE CORNER CLIP LIVES HERE, NOT ON `.editor`. `.editor { overflow: hidden }`
+   used to round the box's own corners — and, as a side effect, clipped the
+   completion popup with it: the popup's container is `view.dom` (`.cm-editor`),
+   a DOM child of `.editor`, and CodeMirror positions it `absolute` on iOS
+   always and on every platform once its transformed-ancestor kludge fires
+   (permanently, for that view — `madeAbsolute` is never reset). An
+   `overflow: hidden` ancestor clips an absolutely-positioned descendant
+   regardless of what element its OWN containing block resolves to; this is
+   why UI libraries "portal" popups out of a clipping box rather than styling
+   around it. `.cm-editor` itself is `position: relative` (CM's own baseTheme)
+   but declares no overflow, so scoping the clip to `.cm-scroller` — a SIBLING
+   of the tooltip container, not an ancestor of it — rounds the scrolling text
+   to match the host's corners without ever touching the popup. */
+.editor :global(.cm-scroller) { font-family: inherit; line-height: inherit; overflow: hidden; border-radius: var(--radius-md); }
 .editor :global(.cm-content) { padding: 10px 12px; caret-color: var(--accent); }
 /* The caret is the browser's own (no `drawSelection()` — see CodeEditor.jsx),
    so `caret-color` above is the whole of it. */
@@ -77,26 +96,6 @@
   background: var(--menu-bg);
   border: 1px solid var(--menu-border);
   color: var(--menu-text);
-}
-
-/* ── the value carrier ──────────────────────────────────────────────────────
- * The textarea does NOT go away when the editor mounts: it stays the value
- * carrier and the accessible control nine sheet test files drive by label, and
- * `BuilderSheet`'s focus trap builds its ring from real focusables and calls
- * `.focus()` on a middle one. So it is taken out of SIGHT and out of the tab
- * order and NEVER out of the tree — ⛔ never `display:none`, never
- * `visibility:hidden`, never a forwarded focus. */
-.model {
-  position: absolute !important;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
 }
 
 /* ── token classes ─────────────────────────────────────────────────────────

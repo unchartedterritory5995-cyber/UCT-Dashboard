@@ -42,7 +42,7 @@ import {
   completionStatus, closeCompletion,
 } from '@codemirror/autocomplete'
 import { lintGutter, setDiagnostics } from '@codemirror/lint'
-import { languageFor, highlightStyle } from './languages'
+import { languageFor, highlightStyle, languageKey } from './languages'
 import { formulaCompletionSource } from './completions'
 import { toDiagnostics } from './diagnostics'
 import styles from './CodeEditor.module.css'
@@ -66,11 +66,11 @@ import styles from './CodeEditor.module.css'
 const INPUT_SETTLE_MS = 250
 
 /** What this component actually does with `inputs`: `formulaLanguage` keys its
- *  memo on `Object.keys(inputs)`, and `completions.js` reads the same keys for
- *  its options and for the `let` shadow gate. So the sorted names ARE the whole
- *  of it — two objects with the same names are the same input to every door
+ *  memo on `languageKey(inputs)` (imported above, not restated — see its own
+ *  comment in `languages.js`), and `completions.js` reads the same keys for its
+ *  options and for the `let` shadow gate. So the sorted names ARE the whole of
+ *  it — two objects with the same names are the same input to every door
  *  below, and re-minting on a fresh identity would be work for no answer. */
-const namesOf = (inputs) => Object.keys(inputs || {}).sort().join(' ')
 
 const CodeEditor = forwardRef(function CodeEditor({
   value = '',
@@ -96,8 +96,8 @@ const CodeEditor = forwardRef(function CodeEditor({
   const completionComp = useRef(new Compartment()).current
   // What the view is CURRENTLY configured for, so a rerender that changes
   // neither dispatches nothing at all.
-  const installedRef = useRef({ dialect, names: namesOf(inputs) })
-  const names = useMemo(() => namesOf(inputs), [inputs])
+  const installedRef = useRef({ dialect, names: languageKey(inputs) })
+  const names = useMemo(() => languageKey(inputs), [inputs])
 
   useImperativeHandle(ref, () => ({
     focus: () => viewRef.current?.focus(),
@@ -124,6 +124,11 @@ const CodeEditor = forwardRef(function CodeEditor({
           bracketMatching(),
           closeBrackets(),
           lintGutter(),
+          // Long formulas WRAP rather than scroll horizontally. The `<textarea>`
+          // this box replaces soft-wraps by default, and CM's own scroller
+          // defaults to `overflow-x: auto` (a side-scroll) — a real downgrade on
+          // the mobile bottom sheet this editor is meant to sit in.
+          EditorView.lineWrapping,
           keymap.of([
             // ⛔ ALWAYS CONSUMED, AND THIS BINDING MUST STAY AHEAD OF
             // `defaultKeymap`. `@codemirror/commands` binds Mod-Enter to
@@ -138,7 +143,26 @@ const CodeEditor = forwardRef(function CodeEditor({
             ...closeBracketsKeymap, ...completionKeymap, ...historyKeymap, ...defaultKeymap,
           ]),
           EditorView.updateListener.of((update) => {
-            if (update.docChanged && !applyingRef.current) onChangeRef.current?.(update.state.doc.toString())
+            if (!update.docChanged) return
+            if (!applyingRef.current) onChangeRef.current?.(update.state.doc.toString())
+            // ⛔ FRESHNESS COMES FROM THE DOC, NOT FROM WHETHER THE CALLER
+            // ROUND-TRIPS `value`/`diagnostics` BACK. `onChange` defaults to
+            // `null` and there is no `readOnly` prop, so an un-wired mount is a
+            // configuration these props declare legal — and without this, a
+            // keystroke the caller never feeds back as a new `value` (or simply
+            // hasn't re-rendered yet) leaves a stale mark standing over text
+            // that has already moved on, because the diagnostics effect below
+            // only re-runs when `diagnostics`/`value` actually change. Every
+            // edit clears first, here; the diagnostics effect re-applies only
+            // if the CURRENT `diagnostics` prop still names the doc that now
+            // exists. (Safe to dispatch from inside this listener — CM resets
+            // `updateState` to Idle in a `finally` BEFORE invoking update
+            // listeners, measured at `@codemirror/view`'s `update()`/`measure()`
+            // listener-firing sites.)
+            if (markedRef.current) {
+              markedRef.current = false
+              view.dispatch(setDiagnostics(view.state, []))
+            }
           }),
           EditorView.contentAttributes.of({ 'aria-label': ariaLabel, tabindex: '0' }),
         ],
@@ -147,9 +171,13 @@ const CodeEditor = forwardRef(function CodeEditor({
     })
     viewRef.current = view
     return () => { view.destroy(); viewRef.current = null }
-    // Mount once; every later prop reaches the view through the effects below.
-    // (`value`, `dialect`, `inputs` and `ariaLabel` are the mount's seed only —
-    // listing them here would tear the whole editor down on a keystroke.)
+    // Mount once; `value`, `dialect` and `inputs` reach the view again through
+    // the effects below on every later change — `ariaLabel` does not: it is
+    // baked into this same mount-time `contentAttributes` extension and stays
+    // whatever it was when the editor first mounted, for the life of this DOM
+    // node. (Listing any of the four as a dependency here would tear the whole
+    // editor down on a keystroke — that is why this effect stays `[]`, not why
+    // `ariaLabel` in particular is frozen.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -163,7 +191,18 @@ const CodeEditor = forwardRef(function CodeEditor({
     if (current === value) return
     applyingRef.current = true
     try {
-      view.dispatch({ changes: { from: 0, to: current.length, insert: value } })
+      // The caret goes to the END of the new text, not the front. Measured
+      // without this: caret at 4 in `sma(close, 20)`, an external replace to
+      // `ema(close, 50)` left it at 0 — every planned external-write path
+      // (Concierge, Starter Library, loading a saved definition) put the
+      // member's cursor at the front of a formula they did not just type. The
+      // old head cannot be mapped meaningfully across two different strings, so
+      // this is a `selection`, not a re-map — CM applies it against the doc
+      // that results from `changes`, not the one before it.
+      view.dispatch({
+        changes: { from: 0, to: current.length, insert: value },
+        selection: { anchor: value.length },
+      })
     } finally {
       applyingRef.current = false
     }
@@ -202,11 +241,19 @@ const CodeEditor = forwardRef(function CodeEditor({
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
+    // ⛔⛔ ONE DOOR, NOT TWO. A `Diagnostic[]` array branch used to stand here
+    // and bypass the `=== source` gate entirely — measured mis-mark: an array
+    // `[{from:9,to:12}]` marked `"oo("`, and after `value` changed to a
+    // DIFFERENT formula the SAME array kept marking, now over `"ma("`, a token
+    // in text it was never measured on. CONTROLLER RULING: deleted, not
+    // stamped — nothing in this app passes an array today (`CodeEditor` has one
+    // caller, its own test file), so stamping it would have imposed a new
+    // obligation on callers that do not exist. A caller with pre-resolved
+    // ranges stamps `source` on its object instead — the same shape
+    // `evaluateFormula` already returns — and comes through the one gate below
+    // like everything else. The stamp IS the contract.
     let diags = []
-    if (Array.isArray(diagnostics)) {
-      // Ranges the caller already resolved. They are the caller's, not ours.
-      diags = diagnostics
-    } else if (diagnostics && diagnostics.source === view.state.doc.toString()) {
+    if (diagnostics && diagnostics.source === view.state.doc.toString()) {
       // ⛔ `=== source` AND NOTHING LOOSER. A refusal that names no text cannot
       // be told apart from a stale one, and a wrong mark — the right token
       // underlined under the wrong sentence — is worse than no mark. The fix for
