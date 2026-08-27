@@ -327,18 +327,30 @@ def _apply_orders(user_id: str, ba: dict, orders: list[dict]) -> dict[str, Any]:
         balances.apply_intraday_fifo_to_open_positions(
             user_id, ba, recon.get("openPositions") or [],
             fifo_errors=recon.get("fifoErrors") or [])
-        # Growth counterpart: THIS poll's equity buys materialize as served
-        # (provisional) rows in minutes — the 2026-08-26 gap where the
-        # ledger + cash knew about a $10,990 fill all day while the book
-        # couldn't show it. Scoped strictly to the symbols just filled.
-        traded: dict[str, str] = {}
-        for act in provisional:
-            if act.get("option_symbol"):
-                continue
-            sym = (act.get("symbol") or {}).get("symbol")
-            ts = str(act.get("trade_date") or "")
-            if sym and ts and (sym not in traded or ts < traded[sym]):
-                traded[sym] = ts
+        # Growth counterpart: post-balance-sync equity fills materialize as
+        # served (provisional) rows in minutes — the 2026-08-26 gap where
+        # the ledger + cash knew about a $10,990 fill all day while the
+        # book couldn't show it. The work list is the LEDGER WINDOW since
+        # the balance write (live_cash.window_fill_starts), not just this
+        # poll's fills — a fill that landed while this pass was down (or
+        # before it deployed) still materializes on the next poll. The
+        # growth gates (FIFO origin at the fill, ledger-complete rows only)
+        # bound what may appear.
+        try:
+            from api.services.journal_two.broker import live_cash as _live_cash
+            acct_row = accounts_service.get_account(user_id, ba["j2AccountId"])
+            traded = _live_cash.window_fill_starts(
+                user_id, ba["id"],
+                (acct_row or {}).get("brokerBalanceSyncedAt"))
+        except Exception:  # noqa: BLE001 — fall back to this poll's fills
+            traded = {}
+            for act in provisional:
+                if act.get("option_symbol"):
+                    continue
+                sym = (act.get("symbol") or {}).get("symbol")
+                ts = str(act.get("trade_date") or "")
+                if sym and ts and (sym not in traded or ts < traded[sym]):
+                    traded[sym] = ts
         if traded:
             balances.apply_intraday_growth(
                 user_id, ba, recon.get("openPositions") or [],

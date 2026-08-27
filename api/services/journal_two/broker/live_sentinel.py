@@ -172,16 +172,34 @@ def check_account(user_id: str, broker_account_id: str, j2_account_id: str,
     # Fully-reflected expectation: each fill moved cash AND the book
     # (buy: −cost/+cost; sell: +proceeds/−basis) → composed ≈ anchor.
     residual = composed - anchor
-    # Book-lag expectation: fills moved cash only (no served row yet) →
-    # composed ≈ anchor + adjustment.
+    # Legacy diagnostic (kept in the payload): none-reflected expectation.
     residual_lag = composed - (anchor + lc["adjustment"])
 
-    if abs(residual) <= tol:
-        verdict = "ok"
-    elif abs(residual_lag) <= tol and abs(lc["adjustment"]) > tol:
-        verdict = "book_lag"
+    # CLASSIFIER v2 (first live morning, 2026-08-27): a real trading day is
+    # a MIX — a sell's row already gone (shrink rail), a buy's row not yet
+    # served, and every sell executing off its sync mark (selling 750 NEXA
+    # at 13.89 against a 15.58 mark is a real $1,266 equity change, not
+    # drift). All-or-none expectations mis-filed that as structural. The
+    # honest acceptance band on a day with fills:
+    #   floor = −(un-servable buy cost) − allowance   (buys still lagging)
+    #   ceil  = +allowance                            (sells above marks)
+    # where allowance scales with the filled notional (fill-vs-mark price
+    # moves are proportional to what traded), floored at the quiet-day
+    # tolerance. The incident/drill class (phantom ≈ 100% of notional, or
+    # no fills at all) still lands far outside the band.
+    _FILL_MOVE_PCT = 0.25
+    notional = (lc["buyCost"] or 0.0) + (lc["sellProceeds"] or 0.0)
+    if lc["fills"] == 0:
+        verdict = "ok" if abs(residual) <= tol else "structural"
     else:
-        verdict = "structural"
+        allowance = max(tol, _FILL_MOVE_PCT * notional)
+        floor = -(lc["buyCost"] or 0.0) - allowance
+        if abs(residual) <= tol:
+            verdict = "ok"
+        elif floor <= residual <= allowance:
+            verdict = "book_lag"
+        else:
+            verdict = "structural"
 
     return {
         "verdict": verdict,
