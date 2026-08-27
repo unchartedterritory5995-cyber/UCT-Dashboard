@@ -1692,6 +1692,30 @@ def _named_shape_phrases() -> List[Tuple[str, str]]:
     the WHOLE of both libraries rather than over a handful of names somebody
     picked.
 
+    ⛔⛔ AND HERE IS WHAT THAT COSTS, STATED, BECAUSE IT WAS NOT (X83). A member
+    who types the bare word — ``harami``, ``star``, ``engulfing``, ``inside bar``
+    — reaches **SILENT**. Not a match, and not an ``EXCLUDED_ENTRY`` either:
+    nothing at all. Only the multi-word forms are declared (``bullish harami``,
+    ``bearish harami``, ``harami cross``; ``morning star``, ``evening star``,
+    ``shooting star``, ``tri star``), so there is no phrase for the bare word to
+    hit.
+
+    ⭐ THE RULING, SO NOBODY HAS TO GUESS WHETHER IT IS AN OVERSIGHT: bare shape
+    words STAY SILENT, deliberately. ``harami`` names a FAMILY of three different
+    shapes, and answering it with one of them would be a guess between a bullish
+    reversal, a bearish reversal and a cross — the silent-mistranslation failure
+    this whole door exists against, one level up. Widening ``_matches`` to spend
+    the word on a shape is precisely the over-capture the longest-first pass
+    prevents, and the rail above would go red for the right reason.
+
+    ⚠️ IF THAT IS EVER REVISITED, the shape of the answer is an
+    ``EXCLUDED_ENTRY``-style *"you named a family; here are its declared
+    members"* — NEVER a match. That keeps the member informed without this door
+    picking one of three shapes on their behalf.
+    ``test_a_BARE_SHAPE_WORD_stays_SILENT_and_the_multi_word_form_does_not``
+    pins the consequence, in both directions, so a change here is a decision
+    rather than a drift.
+
     ⭐ THE LEGACY SPELLINGS RIDE ALONG. The catalog carries a compatibility
     map for a stored value that changed spelling, and that old token is still
     written into the column, so it is still a word a member may say. It resolves

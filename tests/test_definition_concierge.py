@@ -3819,6 +3819,55 @@ def test_the_SHAPE_VOCABULARY_GROWS_AND_SHRINKS_WITH_THE_REGISTRY(concierge,
         "declaring it")
 
 
+def test_a_BARE_SHAPE_WORD_stays_SILENT_and_the_multi_word_form_does_not(
+        concierge):
+    """⛔ X83 — THE CONSEQUENCE OF THE OVER-CAPTURE GUARD, PINNED.
+
+    The test below measures that a shape name never HIJACKS a phrase that meant
+    something else. This measures what that costs: the bare word reaches SILENT.
+    The mechanism was documented and railed; the consequence was neither, and an
+    unstated consequence is how the next reader concludes it was an oversight and
+    "fixes" it into the over-capture the other test exists to prevent.
+
+    ⭐ BOTH DIRECTIONS, AND THE SECOND IS WHAT MAKES THE FIRST MEAN ANYTHING. A
+    door that answered NOTHING would satisfy "bare `harami` is silent" perfectly
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), so every bare word
+    is paired with a declared multi-word form that must NOT be silent.
+
+    The ruling this pins is stated in `_named_shape_phrases`: bare shape words
+    stay silent deliberately, because `harami` names a FAMILY of three shapes and
+    answering with one would be a guess.
+    """
+    PAIRS = [
+        ("harami", "bullish harami"),
+        ("star", "morning star"),
+        ("engulfing", "bullish engulfing"),
+        ("inside bar", "inside bar close"),
+    ]
+    declared = {phrase.lower() for _, phrase in concierge._named_shape_phrases()}
+
+    checked = 0
+    for bare, multi in PAIRS:
+        # The premise, measured rather than assumed: the bare word really is
+        # undeclared and the multi-word form really is declared. If the catalog
+        # ever declares the bare word, this test must be re-decided, not patched.
+        if bare in declared or multi.lower() not in declared:
+            continue
+        checked += 1
+        assert _outcome(concierge.plan(bare, "scan")) == "SILENT", (
+            f"bare {bare!r} now reaches an outcome. That is a DECISION \u2014 see the "
+            "ruling in `_named_shape_phrases`: it names a family of shapes, and "
+            "answering with one of them is a guess this door does not make.")
+        assert _outcome(concierge.plan(multi, "scan")) != "SILENT", (
+            f"{multi!r} is a declared shape phrase and went SILENT \u2014 the door is "
+            "not answering shapes at all, which would make the assertion above "
+            "pass for the wrong reason")
+
+    assert checked >= 3, (
+        f"only {checked} bare/declared pairs were measurable \u2014 this rail is "
+        "not measuring what it claims")
+
+
 def test_a_SHAPE_NAME_does_not_HIJACK_a_phrasing_that_meant_something_else(
         concierge):
     """⚠️ THE OVER-CAPTURE MEASUREMENT, OVER THE WHOLE CORPUS.
