@@ -173,6 +173,42 @@ const RAW_WRITE_EXCEPTIONS = [
     'It is a default, not a control: no user action reaches it'],
 ]
 
+// ─── THE WHOLE-BLOB SITES (door SEVEN's own census) ──────────────────────────
+//
+// A module that hands a WHOLE settings object to a merge/persistence path —
+// a preset's `settings`, or `CHART_DEFAULTS` itself, by spread or by clone —
+// is invisible to `enumerationSites.test.js`'s discovery scan, because neither
+// names an indicator. This is the only place they are found, by the same
+// `PRESETS[…]` / `CHART_DEFAULTS))` regex used below.
+//
+// ⛔ NOT EVERY MATCH IS A WRITE. `ChartRender.jsx` matches and is listed with
+// its own reason — read an entry before assuming a new match is door seven's
+// hazard (`engineEnabled` / `indicatorInstances` stamped over a real member's
+// PERSISTED settings). A site that only READS a preset into an ephemeral,
+// unpersisted render is a different thing wearing the same regex match.
+const BULK_BLOB_SITES = [
+  ['app/src/components/chart/ChartSettingsModal.jsx',
+    'the workspace\'s centred settings modal — its Reset button clones the LIVE default ' +
+    '(`JSON.parse(JSON.stringify(CHART_DEFAULTS))`, asserted below), not a frozen literal'],
+  ['app/src/components/chart/ChartToolbar.jsx',
+    'applyPreset — the toolbar\'s theme buttons spread a preset\'s whole settings object onto ' +
+    'the persisted chart_settings'],
+  ['app/src/pages/Settings.jsx',
+    'applyPreset (again) + resetToDefaults — the Settings page\'s own preset / reset controls, ' +
+    'the same two surfaces engineEnabledMigration.test.js already names'],
+  ['app/src/pages/ChartRender.jsx',
+    '⭐ NOT A WRITE, AND NOT DOOR SEVEN\'S HAZARD. This is the headless, logged-OUT chart-export ' +
+    'route (Substack / Sunday Scans / Discord `/chart` — no AuthGuard, no session, public + ' +
+    'token-gated). `?preset=` reads `PRESETS[presetParam]` ONCE to compute an in-memory DELTA ' +
+    'against `CHART_DEFAULTS`, passed to StockChart as `settingsOverride` for a SINGLE ' +
+    'ephemeral render — the same per-cell-override shape the Multi-Chart grid already uses ' +
+    'safely. It calls no `usePreferences` / `POST /api/auth/preferences` / any other ' +
+    'persistence path (there is no session here to persist TO), so it can never stamp ' +
+    '`engineEnabled` or `indicatorInstances` over a real member\'s stored settings. The regex ' +
+    'is right that it reads a whole PRESETS entry; it is simply reading, once, into memory, ' +
+    'for itself.'],
+]
+
 describe('the control-door census — how many doors, and whether an eighth exists', () => {
   it('every setIndicatorEnabled / setIndicatorInput call site is a KNOWN door', () => {
     const callers = filesMatching(/\bsetIndicator(?:Enabled|Input)\s*\(/)
@@ -287,8 +323,8 @@ describe('the control-door census — how many doors, and whether an eighth exis
   })
 
   // 🔴 A CENSUS FINDING, AND THE REASON A CENSUS IS WORTH RUNNING: **DOOR SEVEN
-  // HAS THREE SITES, NOT TWO.** `engineEnabledMigration.test.js` recorded it as
-  // *"`applyPreset` (ChartToolbar.jsx, and again in Settings.jsx) and
+  // HAS THREE WRITE SITES, NOT TWO.** `engineEnabledMigration.test.js` recorded
+  // it as *"`applyPreset` (ChartToolbar.jsx, and again in Settings.jsx) and
   // `resetToDefaults` (Settings.jsx)"* — and this scan, run for the first time,
   // named a THIRD: `ChartSettingsModal.jsx`'s own reset button
   // (`onChange?.(JSON.parse(JSON.stringify(CHART_DEFAULTS)))`), the workspace's
@@ -304,23 +340,44 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // so the `toBe` above would fail on it if it were in the list — which is
   // exactly why that assertion is scoped to the PAYLOADS (the presets and
   // `CHART_DEFAULTS` itself) and this one to the SITES.
-  it('⛔ and B4 added no EIGHTH bulk writer — the whole-blob sites are the measured three', () => {
-    // A bulk writer is a module that hands a WHOLE settings object to the
-    // persistence path: a preset's `settings`, or `CHART_DEFAULTS` itself, by
-    // spread or by clone. Neither names an indicator, so `enumerationSites`'
-    // discovery scan cannot see either — this is the only place they are counted.
+  //
+  // ⛔⛔ X7 — THIS TEST USED TO BE NAMED "…no EIGHTH bulk writer…", A DIFFERENT
+  // CLAIM FROM THE ONE IT CHECKS. "Eighth" borrowed door EIGHT's number (the
+  // per-instance door, tested far below and unrelated to whole-blob sites) to
+  // describe what was really a FOURTH whole-blob SITE — two different countings
+  // of two different things, collapsed into one word. The assertion has always
+  // been a list equality against the sites the regex finds; the name never said
+  // so. That mismatch is why a real, harmless match (`ChartRender.jsx`, a READ
+  // with no persistence path at all — see BULK_BLOB_SITES above) sat here RED
+  // and was waved through by every lane that hit it: nobody triages a red they
+  // believe they already understand.
+  it('every whole-blob site the regex finds is in BULK_BLOB_SITES, named and reasoned', () => {
     const bulk = filesMatching(/PRESETS\s*\[|CHART_DEFAULTS\s*\)\s*\)?/)
-    expect(bulk,
-      'a module writes a whole chart_settings blob and is not one of the three known preset / ' +
-      'reset surfaces. A bulk write stamps `engineEnabled` and `indicatorInstances` over ' +
-      'whatever the user had; it is door SEVEN, and no ledger walk or discovery scan can see ' +
-      'it — the third site below was found by this scan and by nothing else.',
-    ).toEqual([
-      'app/src/components/chart/ChartSettingsModal.jsx',
-      'app/src/components/chart/ChartToolbar.jsx',
-      'app/src/pages/Settings.jsx',
-    ])
-    // …and the third one really is a reset of the live default, not a frozen
+    const known = new Set(BULK_BLOB_SITES.map(([f]) => f))
+    const unlisted = bulk.filter((f) => !known.has(f))
+    expect(unlisted,
+      'a module hands a WHOLE chart_settings blob to a merge/persistence path and is not in ' +
+      'BULK_BLOB_SITES: ' + (unlisted.join(', ') || '(see above)') + '. A bulk WRITE stamps ' +
+      '`engineEnabled` and `indicatorInstances` over whatever the user had (door SEVEN), and no ' +
+      'ledger walk or discovery scan can see it. Add the file to BULK_BLOB_SITES WITH ITS ' +
+      'REASON — a write needs fixing, a read (like ChartRender.jsx) needs only the explanation ' +
+      'of why it is safe. Never add a reasonless entry; that is just the next stale artifact.',
+    ).toEqual([])
+
+    // ⛔ THE TRACKED LIST MUST NOT ROT EITHER — the same shape
+    // RAW_WRITE_EXCEPTIONS above is held to. An entry that stops matching (the
+    // code moved, or was deleted) is a claim nobody is re-checking.
+    const stale = BULK_BLOB_SITES.filter(([f]) => !bulk.includes(f)).map(([f]) => f)
+    expect(stale,
+      'a BULK_BLOB_SITES entry no longer matches the regex — drop it, an exemption for a site ' +
+      'that no longer exists excuses the next one.',
+    ).toEqual([])
+
+    // ⛔ NON-VACUITY: a scan that matches nothing proves nothing about door
+    // seven being closed — it proves the regex broke.
+    expect(bulk.length, 'the regex found no whole-blob site at all').toBeGreaterThan(0)
+
+    // …and the modal's reset really is of the LIVE default, not a frozen
     // literal — the property that makes it harmless is asserted, not assumed.
     const modal = SHIPPED.find(s => s.file === 'app/src/components/chart/ChartSettingsModal.jsx')
     expect(modal.src,
