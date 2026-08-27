@@ -116,7 +116,8 @@
   font-weight: 800;
   letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
+  /* Muted grey (family standard) — gold stays for the active/hover column state below. */
+  color: var(--cal-chrome, var(--text-muted));
   background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
 }

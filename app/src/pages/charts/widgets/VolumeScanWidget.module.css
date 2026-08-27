@@ -19,7 +19,8 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--ut-gold);
+  /* Column headers = muted grey (family standard), not gold. */
+  color: var(--nh-text, var(--wl-text, var(--text-muted)));
   white-space: nowrap;
 }
 .headSurge { text-align: right; }
