@@ -164,10 +164,33 @@ SCALARS = sorted(ast_table.scalar_names(TABLE))
 CLOCK = sorted(ast_table.clock_names(TABLE))
 
 FIRST_SERIES = SERIES[0]
+#: ⛔ THE ROLES THE MANIFEST MAKES REQUIREMENTS, off its own declaration. An
+#: argument in one of these must be a tree of the named kind, and `interpret`
+#: refuses a call whose argument is not (`resolve:condition`). Read here so the
+#: shape-picked helpers below cannot accidentally pick an entry whose slot is
+#: not free.
+ENFORCED_ARG_ROLES = frozenset(
+    r for r in (TABLE.get("_functions_arg_role_kinds") or {}) if not r.startswith("_"))
+
+
+def _slots_are_free(fn: str) -> bool:
+    """Does this entry take its `series` slots FREELY — no declared role kind?"""
+    roles = tuple(TABLE[ast_table.FUNCTIONS_SECTION][fn].get("argRoles") or ())
+    return not (ENFORCED_ARG_ROLES & set(roles))
+
+
 #: A function of (series, int) — used for the "ordinary answer" cases. Chosen by
 #: shape from the manifest, not by name.
+#:
+#: ⛔ AND ITS SERIES SLOT MUST BE FREE. `windowed()` fills that slot with a BAR
+#: FIELD, so an entry declaring a `condition` there (`barssince`, 2026-08-26) is
+#: refused by `resolve:condition` before it can reach the door these cases are
+#: actually about — `barssince(close, 100)` stopped being a formula that computes
+#: NOTHING and became a formula that is REFUSED, two gates earlier. Derived, so a
+#: second such entry drops out of this pick the day it lands.
 WINDOWED = next(f for f in FUNCTIONS
-                if list(TABLE[ast_table.FUNCTIONS_SECTION][f]["args"]) == ["series", "int"])
+                if list(TABLE[ast_table.FUNCTIONS_SECTION][f]["args"]) == ["series", "int"]
+                and _slots_are_free(f))
 #: ⚠️ BY SHAPE, NOT BY INDEX. `OPERATORS[0]` sorts to `!`, which is UNARY — the
 #: first draft of this file built two-argument trees out of it and the read-back
 #: refused them by arity. Picking by declared arity is the same discipline the

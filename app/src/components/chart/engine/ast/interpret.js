@@ -60,6 +60,15 @@ import {
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
 
+// ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
+// THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
+// `_functions_arg_role_kinds` declaration, and this directory has already paid
+// for a second reader of that question: `pine.js::treeYieldsBool` used to walk
+// the table itself, agreed with `yieldsOf` on the day it was written, and said
+// `false` for every `clock` entry the moment tableVersion 2 declared five of
+// them `bool`. `sentence.js` imports only `parse.js`, so this adds no cycle.
+import { yieldsOf, SENTENCE_RULES } from './sentence.js'
+
 // ⭐⭐ THE INDICATORS ARE NOT WRITTEN HERE. `indicators.js` is the maths the
 // CHART draws, and `api/services/indicator_compute.py` is the same maths on the
 // server; `tests/fixtures/indicators/` already pins those two against each other
@@ -108,6 +117,7 @@ export const REFUSALS = Object.freeze({
   'resolve:function': 'unknown function',
   'resolve:arity': 'wrong number of arguments',
   'resolve:window': 'a window must be a whole-number literal',
+  'resolve:condition': 'a condition argument must be a 0/1 column, and this one is a number',
   'interpret:node': 'not a canonical node',
   'interpret:operator': 'unknown operator',
   'interpret:offset': 'an offset node carries a whole-number count of bars',
@@ -1224,6 +1234,48 @@ function assertArity(node, spec) {
   }
 }
 
+/** role name → the `yields` kind an argument in that role must settle to.
+ *
+ *  ⭐ READ OFF THE MANIFEST, NEVER TYPED. `_functions_arg_role_kinds` is the
+ *  declaration and `_`-prefixed keys inside it are its own notes — the same
+ *  split `_functions_excluded` carries. A second role declared there is enforced
+ *  the day it lands, without a line of this file moving. */
+const ARG_ROLE_KINDS = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE._functions_arg_role_kinds || {})
+    .filter(([role, kind]) => !role.startsWith('_') && typeof kind === 'string')))
+
+/** ⭐⭐ THE ROLE THAT IS A REQUIREMENT, ENFORCED — because `argRoles` on its own
+ *  is DOCUMENTATION, and two entries landed depending on it as though it were
+ *  not.
+ *
+ *  `barssince(cond, n)` and `valuewhen(cond, src, n)` each declare `args[0]` as
+ *  a plain `series` and `argRoles[0]` as `condition`. Nothing read the second
+ *  half, so `barssince(close, 100)` resolved and answered **0.0 on every bar**
+ *  (`close` is never zero, so "bars since it was last true" is zero forever) and
+ *  `valuewhen(close, high, 5)` answered `high` on every bar. Plausible on every
+ *  bar and wrong on every bar — saveable, scannable and alertable in that state.
+ *
+ *  ⛔ THE KIND IS ASKED OF `sentence.js::yieldsOf`, WHICH IS THIS LANE'S ONE
+ *  RESOLVER of the manifest's `yields`. A `node.type === 'op' && COMPARISONS
+ *  .has(node.name)` test here would be the same hand-list the manifest's
+ *  `_yields` note exists to retire, and it would be the SECOND one in this lane.
+ *
+ *  ⛔ AND IT REFUSES RATHER THAN COERCING. `!= 0` on a price column would make
+ *  every non-zero bar "true", which is the confident-wrong-number shape rather
+ *  than a cure for it. */
+function assertArgRoles(node, spec) {
+  const roles = Array.isArray(spec.argRoles) ? spec.argRoles : null
+  if (!roles) return
+  for (let i = 0; i < roles.length; i++) {
+    const want = ARG_ROLE_KINDS[roles[i]]
+    if (!want) continue
+    if (yieldsOf(node.args[i], SENTENCE_RULES) === want) continue
+    refuse('resolve:condition',
+      `— ${node.name} argument ${i} is its ${roles[i]}: compare it to something, `
+      + 'or use a name this table declares as yielding 0/1')
+  }
+}
+
 /** An `int` argument's value, which MUST be a `num` literal.
  *
  *  ⭐ NOT A CONVENIENCE — IT IS WHAT MAKES `maxLookback` A TREE SUM. The manifest
@@ -1713,6 +1765,11 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
       case 'call': {
         const spec = fnSpec(n.name)
         assertArity(n, spec)
+        // ⛔ AFTER THE ARITY AND BEFORE THE RECURRENCE ARM. The role check
+        // indexes `n.args`, so it needs the arity settled first; and it sits
+        // above the early return so a recurrence entry that ever declares a
+        // `condition` role is covered without this line moving.
+        assertArgRoles(n, spec)
         // ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and the
         // manifest says so rather than this line asserting it: an entry that
         // declares a `recurrence` carries a per-bar BODY, not a column. See

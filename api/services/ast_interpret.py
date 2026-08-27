@@ -141,6 +141,8 @@ REFUSALS: Mapping[str, str] = {
     "resolve:function": "unknown function",
     "resolve:arity": "wrong number of arguments",
     "resolve:window": "a window must be a whole-number literal",
+    "resolve:condition": (
+        "a condition argument must be a 0/1 column, and this one is a number"),
     "interpret:node": "not a canonical node",
     "interpret:operator": "unknown operator",
     "interpret:offset": "an offset node carries a whole-number count of bars",
@@ -1580,6 +1582,29 @@ def _assert_arity(node: dict, spec: Mapping[str, Any]) -> None:
                 f"got {len(node['args'])}")
 
 
+def _assert_arg_roles(node: dict, spec: Mapping[str, Any]) -> None:
+    """Refuse an argument whose declared ROLE demands a kind it does not yield.
+
+    ⭐ THE ANSWER IS ``scan_definition.arg_role_violation``, WHICH ASKS THIS
+    LANE'S ONE ``yields`` RESOLVER (``is_boolean_tree``). The rule lives beside
+    that resolver; the GUARD lives here, because the refusal vocabulary belongs
+    to the walker that owns ``REFUSALS``.
+
+    ⚠️ IMPORTED INSIDE THE CALL, AND THAT IS NOT STYLE. ``scan_definition``
+    imports THIS module at its top, so a module-level import here is a cycle --
+    the same arrangement ``definition_concierge._cadence_ceiling`` uses. After
+    the first call it is a ``sys.modules`` lookup.
+    """
+    from api.services import scan_definition
+    bad = scan_definition.arg_role_violation(node, spec)
+    if bad is None:
+        return
+    _refuse("resolve:condition",
+            f"— {node.get('name')} argument {bad['index']} is its "
+            f"{bad['role']}: compare it to something, or use a name this "
+            f"table declares as yielding 0/1")
+
+
 def _window_literal(node: dict, index: int) -> int:
     """An ``int`` argument's value, which MUST be a ``num`` literal.
 
@@ -2263,6 +2288,11 @@ def interpret(ast: Any, bars: List[dict],
         if kind == "call":
             spec = _fn_spec(n.get("name"))
             _assert_arity(n, spec)
+            # ⛔ AFTER THE ARITY AND BEFORE THE RECURRENCE ARM. The role check
+            # indexes ``n["args"]``, so it needs the arity settled first; and it
+            # sits above the early return so a recurrence entry that ever
+            # declares a condition role is covered without this line moving.
+            _assert_arg_roles(n, spec)
             # ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and
             # the MANIFEST says so rather than this line asserting it: an entry
             # declaring a ``recurrence`` carries a per-bar BODY, not a column.

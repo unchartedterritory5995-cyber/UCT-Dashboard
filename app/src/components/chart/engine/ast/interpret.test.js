@@ -675,6 +675,25 @@ describe('maxLookback and nodeCount — measurements, not guards', () => {
 // REFUSAL HYGIENE
 // ═════════════════════════════════════════════════════════════════════════════
 
+/** A call putting a PRICE where the manifest declares a condition role.
+ *
+ *  ⛔ EVERY PART READ OFF THE MANIFEST. Typing `barssince(close, 10)` here would
+ *  be a rail that stops covering the day the role moves to a different entry —
+ *  and the defect this guard exists for is precisely a declaration nobody read. */
+function miscastConditionCall() {
+  const kinds = Object.entries(TABLE._functions_arg_role_kinds || {})
+    .filter(([role]) => !role.startsWith('_'))
+  const role = kinds[0][0]
+  const [name, spec] = Object.entries(TABLE.functions).sort(([a], [b]) => (a < b ? -1 : 1))
+    .find(([, s]) => Array.isArray(s.argRoles) && s.argRoles.includes(role))
+  const price = Object.keys(TABLE.series).sort()[0]
+  const args = spec.args.map((kind) => (kind === 'int'
+    ? { type: 'num', value: 5 }
+    : { type: 'series', name: price }))
+  args[spec.argRoles.indexOf(role)] = { type: 'series', name: price }
+  return { type: 'call', name, args }
+}
+
 describe('the refusals', () => {
   it('every guard this module declares is REACHABLE, and the trigger set is total', () => {
     // ⛔ A GUARD NOBODY CAN TRIGGER IS A COMMENT. Both directions: a declared
@@ -685,6 +704,13 @@ describe('the refusals', () => {
       'resolve:function': () => interpret(ast('rugpull(close, 3)'), BARS, {}),
       'resolve:arity': () => interpret(ast('sma(close)'), BARS, {}),
       'resolve:window': () => interpret(ast('sma(close, close)'), BARS, {}),
+      // ⭐ DERIVED, NOT TYPED. The ROLE comes from the manifest's own
+      // `_functions_arg_role_kinds` declaration and the FUNCTION from the first
+      // entry that declares it, so a renamed role, a second such role, or a
+      // third such function is covered the day it lands. The offending argument
+      // is a BAR FIELD — a price, which declares no `yields` and is therefore a
+      // number, which is exactly the tree that shipped.
+      'resolve:condition': () => interpret(miscastConditionCall(), BARS, {}),
       'interpret:node': () => interpret({ type: 'member', name: 'x', args: [] }, BARS, {}),
       'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
       // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative
@@ -996,7 +1022,8 @@ describe('the interpreter is PURE', () => {
     // simply being admitted — the claim is about the closure of the import graph,
     // not about one file. `budget.js` imports only this module back (the declared
     // cycle), so scanning the two closes it.
-    expect(got.imports.sort()).toEqual(['../../indicators.js', './budget.js', './parse.js'])
+    expect(got.imports.sort())
+      .toEqual(['../../indicators.js', './budget.js', './parse.js', './sentence.js'])
     const budgetSrc = fs.readFileSync(path.join(path.dirname(SELF), 'budget.js'), 'utf8')
     expect(budgetSrc.length).toBeGreaterThan(2000)
     const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))
@@ -1041,6 +1068,25 @@ describe('the interpreter is PURE', () => {
     // the file does not even use, which is a licence nobody measured).
     expect(scan(indicatorsTree).findings)
       .toEqual(WIDENED_BY.map((n) => `free identifier: ${n}`).sort())
+
+    // ─── AND THE FOURTH EDGE — `sentence.js`, ADDED BY THE `condition` ROLE ──
+    //
+    // ⭐ `assertArgRoles` ASKS THIS LANE'S ONE `yields` RESOLVER (`yieldsOf`)
+    // RATHER THAN WALKING THE TABLE ITSELF, so the closure this case is about
+    // now includes that module. ⛔ ADMITTING THE EDGE WITHOUT SCANNING IT WOULD
+    // BE THE HOLLOW WIDENING THE NOTE ABOVE WARNS AGAINST — the interpreter's
+    // purity is worth nothing if it imports an impure module — so it is scanned
+    // exactly like `budget.js` and `indicators.js`.
+    const SENTENCE = path.join(path.dirname(SELF), 'sentence.js')
+    const sentenceSrc = fs.readFileSync(SENTENCE, 'utf8')
+    expect(sentenceSrc.length).toBeGreaterThan(2000)
+    const sentenceScan = scan(acorn.parse(sentenceSrc, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(sentenceScan.findings,
+      'sentence.js reached something outside pure arithmetic').toEqual([])
+    // ⛔ AND IT CLOSES. Its only edge is `./parse.js` — already inside the
+    // scanned set, so admitting it widens nothing. A new edge here would be
+    // inside this closure and UNSCANNED, and this case would keep passing.
+    expect(sentenceScan.imports.sort()).toEqual(['./parse.js'])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

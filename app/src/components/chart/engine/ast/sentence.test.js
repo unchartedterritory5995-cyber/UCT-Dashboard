@@ -2384,10 +2384,15 @@ describe('the refusals', () => {
     // interpreter gained `interpret:offset` for a STORED tree that never met
     // the parse door. The floor is a count on purpose — a door that stopped
     // contributing messages is named rather than silently shrinking the set.
+    // ⚠️ 9 -> 10 on the interpreter with `resolve:condition`: `argRoles` became
+    // ENFORCEABLE (`closedTable.json::_functions_arg_role_kinds`), so an
+    // argument in a role the table gives a KIND is refused rather than computed.
+    // Both lanes carry the same sentence — `test_ast_interpret.py` compares the
+    // two tables byte for byte — so this count moves in lockstep with Python's.
     expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(9)
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(10)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(31)
+    expect(all.length).toBe(32)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

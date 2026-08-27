@@ -596,6 +596,27 @@ def test_the_six_refusal_sentences_are_PAIRWISE_DISJOINT():
                 assert a not in b, f"{a!r} is a substring of {b!r}"
 
 
+def _a_miscast_condition_call():
+    """A call putting a PRICE where the manifest declares a condition role.
+
+    ⛔ EVERY PART READ OFF THE MANIFEST. Typing `barssince(close, 10)` here would
+    be a rail that stops covering the day the role moves to a different entry —
+    and the defect this guard exists for is precisely a declaration nobody read.
+    """
+    from api.services import scan_definition
+    role = next(iter(scan_definition.arg_role_kinds()))
+    functions = ast_table.TABLE[ast_table.FUNCTIONS_SECTION]
+    name, spec = next((n, s) for n, s in sorted(functions.items())
+                      if role in tuple(s.get("argRoles") or ()))
+    slot = tuple(spec["argRoles"]).index(role)
+    # A bar field in the condition slot; a whole number in every `int` slot.
+    price = sorted(ast_table.TABLE[ast_table.SERIES_SECTION])[0]
+    args = [NUM(5) if kind == "int" else SER(price)
+            for kind in tuple(spec["args"])]
+    args[slot] = SER(price)
+    return CALL(name, *args)
+
+
 def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED():
     """⛔ BOTH DIRECTIONS. A guard nobody can fire is a comment; a guard that
     fires without a declared sentence is a refusal with no read-back."""
@@ -604,6 +625,13 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         "resolve:function": lambda: run(CALL("rugpull", SER("close"))),
         "resolve:arity": lambda: run(CALL("sma", SER("close"))),
         "resolve:window": lambda: run(CALL("sma", SER("close"), SER("close"))),
+        # ⭐ DERIVED, NOT TYPED. The ROLE comes from the manifest's own
+        # `_functions_arg_role_kinds` declaration and the FUNCTION from the first
+        # entry that declares it, so a renamed role, a second such role, or a
+        # third such function is covered here the day it lands. The offending
+        # argument is a BAR FIELD — a price, which declares no `yields` and is
+        # therefore a number, which is exactly the tree that shipped.
+        "resolve:condition": lambda: run(_a_miscast_condition_call()),
         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
         # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is
