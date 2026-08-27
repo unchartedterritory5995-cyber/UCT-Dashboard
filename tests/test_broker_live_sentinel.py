@@ -206,3 +206,15 @@ def test_ok_resets_the_consecutive_counter(env):
 def test_kill_switch(env, monkeypatch):
     monkeypatch.setenv("BROKER_LIVE_SENTINEL_ENABLED", "0")
     assert live_sentinel.run_sentinel_sweep() == {"skipped": True}
+
+
+def test_a_members_manual_row_in_a_broker_account_never_reads_as_drift(env):
+    """Mirror purity: the composition (both lanes) excludes non-broker rows
+    from a broker account's book, so a member hand-tracking something in
+    their broker account cannot page the owner as structural drift."""
+    _seed_account(cash=-1000.0, mv=500.0, equity=1000.0)
+    _seed_position("AAPL", 5, 100.0)                       # broker row = book_s
+    _seed_position("GME", 1000, 25.0, source=None)         # manual row
+    out = _check()
+    assert out["verdict"] == "ok"
+    assert abs(out["residual"]) <= out["tolerance"]

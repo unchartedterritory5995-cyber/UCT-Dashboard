@@ -115,37 +115,49 @@ def check_account(user_id: str, broker_account_id: str, j2_account_id: str,
     if datetime.now(timezone.utc) - synced > timedelta(hours=_MAX_ANCHOR_AGE_HOURS):
         return {"verdict": "skipped", "reason": "anchor stale"}
 
-    # The served book, valued at SYNC marks (see module doc).
+    # The served book, valued at SYNC marks, composed by the ONE authority
+    # (composition.py — the same rules the frontend hero mirrors, parity-
+    # railed via parity-fixtures.json). Manual rows in a broker account are
+    # excluded by those rules in BOTH lanes, so a member's manual entry can
+    # never read as structural drift here.
+    from api.services.journal_two.broker import composition
     positions = conn.execute(
         "SELECT symbol, side, shares, broker_price, entry_price, source "
         "FROM j2_positions WHERE user_id = ? AND account_id = ? "
         "AND closed_at IS NULL",
         (user_id, j2_account_id),
     ).fetchall()
-    book_now = 0.0
-    pos_snapshot = []
-    for p in positions:
-        shares = _f(p["shares"]) or 0.0
-        mark = _f(p["broker_price"])
-        if mark is None:
-            mark = _f(p["entry_price"]) or 0.0
-        signed = -shares if p["side"] == "Short" else shares
-        book_now += signed * mark
-        pos_snapshot.append({"sym": p["symbol"], "sh": signed, "mark": mark,
-                             "src": p["source"]})
     strategies = conn.execute(
-        "SELECT underlying, net_entry, broker_current_value, source, external_id "
+        "SELECT id, underlying, net_entry, broker_current_value, source, "
+        "       external_id "
         "FROM j2_option_strategies WHERE user_id = ? AND account_id = ? "
         "AND status = 'open' AND closed_at IS NULL",
         (user_id, j2_account_id),
     ).fetchall()
-    for s in strategies:
-        val = _f(s["broker_current_value"])
-        if val is None:
-            val = _f(s["net_entry"]) or 0.0
-        book_now += val
-        pos_snapshot.append({"opt": s["underlying"], "val": val,
-                             "src": s["source"], "ext": s["external_id"]})
+    comp_positions = [
+        {"symbol": p["symbol"], "side": p["side"], "shares": p["shares"],
+         "brokerPrice": (p["broker_price"] if p["broker_price"] is not None
+                         else p["entry_price"]),
+         "source": p["source"]}
+        for p in positions
+    ]
+    comp_strategies = [
+        {"id": s["id"], "brokerCurrentValue": s["broker_current_value"],
+         "netEntry": s["net_entry"], "source": s["source"]}
+        for s in strategies
+    ]
+    book_now = composition.compose_net_liq(
+        {"balanceSource": "broker", "brokerCash": 0.0},
+        comp_positions, comp_strategies,
+    )["marketValue"]
+    pos_snapshot = (
+        [{"sym": p["symbol"],
+          "sh": (-_f(p["shares"]) if p["side"] == "Short" else _f(p["shares"])),
+          "mark": _f(p["broker_price"]), "src": p["source"]} for p in positions]
+        + [{"opt": s["underlying"], "val": _f(s["broker_current_value"]),
+            "ne": _f(s["net_entry"]), "src": s["source"],
+            "ext": s["external_id"]} for s in strategies]
+    )
 
     lc = live_cash.effective_cash(
         user_id, broker_account_id, cash_s,

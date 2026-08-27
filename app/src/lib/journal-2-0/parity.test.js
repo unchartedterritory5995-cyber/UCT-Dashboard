@@ -55,3 +55,28 @@ describe('JS↔Python options parity', () => {
     })
   })
 })
+
+// ── JS↔Python NET-LIQ COMPOSITION parity ────────────────────────────────────
+// The number the Open Positions hero shows. Python authority:
+// api/services/journal_two/broker/composition.py (the live sentinel composes
+// with it); the JS mirror is brokerLiveSummary. On 2026-08-26 the display
+// showed a figure the server could not reproduce — this block is the rail
+// that keeps the two lanes one. Case 0 is that incident's book, pinned.
+import { brokerLiveSummary } from './calculations'
+
+describe('JS↔Python net-liq composition parity', () => {
+  fixtures.composition.forEach((f, i) => {
+    it(`composition case ${i}`, () => {
+      const r = brokerLiveSummary(
+        f.inputs.account, f.inputs.positions, f.inputs.strategies,
+        f.inputs.prices, '2026-01-01', f.inputs.optionMarks,
+      )
+      // The Python authority rounds to cents; JS composes unrounded floats —
+      // parity holds at money precision (2 dp), the unit members see.
+      if (f.expected.marketValue === null) expect(r.marketValue).toBeNull()
+      else expect(r.marketValue).toBeCloseTo(f.expected.marketValue, 2)
+      if (f.expected.netLiq === null) expect(r.netLiq).toBeNull()
+      else expect(r.netLiq).toBeCloseTo(f.expected.netLiq, 2)
+    })
+  })
+})

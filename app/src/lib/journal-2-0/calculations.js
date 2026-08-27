@@ -351,7 +351,15 @@ export const effectiveBrokerCash = (account) => {
 export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks) => {
   let marketValue = 0
   let today = 0
+  // MIRROR PURITY: a broker-linked account's hero mirrors THE BROKER — only
+  // broker-sourced rows participate. A manual row added into a broker account
+  // must not move a number labeled as the broker's (its cash knows nothing of
+  // it — the exact vintage-mix class of 2026-08-26). The Python authority for
+  // this composition is api/services/journal_two/broker/composition.py;
+  // parity-fixtures.json holds the two lanes together.
+  const brokerOnly = account?.balanceSource === 'broker'
   for (const p of positions || []) {
+    if (brokerOnly && p?.source !== 'broker') continue
     if (!Number.isFinite(p?.shares)) continue
     const live = prices?.[p.symbol]?.price
     const px = Number.isFinite(live) ? live : p?.brokerPrice
@@ -376,12 +384,17 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     }
   }
   for (const s of optionStrategies || []) {
+    if (brokerOnly && s?.source !== 'broker') continue
     // Live mark (Massive option aggs, useJ2OptionMarks) preferred; the
-    // sync-time brokerCurrentValue is the fallback. Values are SIGNED totals.
+    // sync-time brokerCurrentValue is the fallback; a BROKER strategy with
+    // neither (just filled — no mark stamped yet) values at its netEntry
+    // (cost): its cash already left, so vanishing from net-liq would
+    // understate the account by the whole premium. Values are SIGNED totals.
     const live = optionMarks?.[s?.id]
     const liveCur = live?.currentValue
     const bcv = s?.brokerCurrentValue
-    const cur = Number.isFinite(liveCur) ? liveCur : bcv
+    let cur = Number.isFinite(liveCur) ? liveCur : bcv
+    if (!Number.isFinite(cur) && s?.source === 'broker') cur = s?.netEntry
     if (Number.isFinite(cur)) marketValue += cur
     if (Number.isFinite(liveCur) && Number.isFinite(live?.prevCloseValue)) {
       // Today for options mirrors the equity rule: measured from the prior
