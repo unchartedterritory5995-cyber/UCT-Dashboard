@@ -744,6 +744,15 @@ describe('the refusals', () => {
       'interpret:timeframe': () => interpret(
         { type: 'tf', value: 'fortnightly', args: [{ type: 'series', name: 'close' }] },
         BARS, {}),
+      // ⭐ A `sym` UNDER A `tf`. Fires from the TREE ALONE — no supplied series
+      // and no `opts` needed — because the placement rule is a property of the
+      // SHAPE, checked once per tree at both entry points. That ordering would
+      // otherwise produce a confident, partially-correct column rather than a
+      // NaN, so it must be refused before a single bar is read.
+      'interpret:symbol': () => interpret(
+        { type: 'tf', value: 'W',
+          args: [{ type: 'sym', value: 'SPY', args: [{ type: 'series', name: 'close' }] }] },
+        BARS, {}),
     'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
       // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative
       // offset is refused at the parse door, so the only way this guard is ever

@@ -88,8 +88,6 @@ def test_tf_is_a_DECLARED_node_type_in_this_lane():
 # ⛔ STILL PINNED — `sym` is Task 4 and is not built. `strict=True` so the day it
 # lands this XPASSes, pytest reports that as a FAILURE, and the mark cannot
 # outlive the gap it documents.
-@pytest.mark.xfail(strict=True,
-                   reason="W2b Task 4: the `sym` node is not implemented yet")
 def test_sym_is_a_DECLARED_node_type_in_this_lane():
     assert "sym" in ast_interpret.NODE_TYPES
 
@@ -292,4 +290,137 @@ def test_a_timeframe_the_engine_cannot_resample_is_NOT_stamped_scannable():
     assert bad is not None, (
         "tf(close, '60') was stamped scannable, but interpret refuses every row of it")
     assert "60" in bad, "the refusal must name the timeframe the member typed; got %r" % (bad,)
+
+
+# ─── `sym` — reading ANOTHER instrument ──────────────────────────────────────
+
+def _sym(ticker, child):
+    return {"type": "sym", "value": ticker, "args": [child]}
+
+
+def _bench_bars(offset=1000.0, skip=()):
+    """A benchmark series over the SAME sessions, at a plainly different level.
+
+    ⭐ THE LEVEL IS THE CONTROL. `sym('SPY', close)` returning the BASE symbol's
+    close would satisfy "a number came back" and every downstream test of it; the
+    two series are ~1000 apart so a wrong instrument is visible by value, not by
+    inference.
+
+    `skip` drops sessions, which is how a halt is spelled.
+    """
+    out = []
+    for i, d in enumerate(_DAYS):
+        if i in skip:
+            continue
+        out.append({"t": int(d.strftime("%Y%m%d")), "o": offset + i, "h": offset + i,
+                    "l": offset + i, "c": offset + i, "v": 1_000})
+    return out
+
+
+def test_sym_reads_the_OTHER_instrument_not_the_one_being_scanned():
+    col = ast_interpret.interpret(_sym("SPY", CLOSE), _bars(),
+                                  opts={"tf": "D", "symbols": {"SPY": _bench_bars()}})
+    base = _bars()
+    assert col[7] == pytest.approx(1000.0 + 7), "sym did not read SPY's series"
+    assert col[7] != pytest.approx(base[7]["c"]), (
+        "sym answered the BASE symbol's close — the series was never swapped")
+
+
+def test_sym_evaluates_its_WHOLE_subtree_against_the_other_symbol():
+    """⛔ THE SUBTREE, NOT JUST A PRICE. `sym('SPY', sma(close, 3))` is SPY's own
+    3-bar average — reading the base symbol's average and merely labelling it SPY
+    is the silent mistranslation this node exists against."""
+    tree = _sym("SPY", {"type": "call", "name": "sma",
+                        "args": [CLOSE, {"type": "num", "value": 3}]})
+    col = ast_interpret.interpret(tree, _bars(),
+                                  opts={"tf": "D", "symbols": {"SPY": _bench_bars()}})
+    # SPY closes are 1000+i, so the 3-bar average at i is 1000 + (i-1).
+    assert col[7] == pytest.approx(1000.0 + 6)
+
+
+def test_a_symbol_that_was_NOT_supplied_is_not_computable_never_the_base_bars():
+    """⛔⛔ THE FAIL-CLOSED RULE. The interpreter does not fetch — the caller
+    supplies. An unsupplied series must yield NaN so the sweep counts it
+    `not_computable`; falling back to the bars in hand would answer CONFIDENTLY
+    about the wrong instrument."""
+    col = ast_interpret.interpret(_sym("SPY", CLOSE), _bars(), opts={"tf": "D"})
+    assert all(v is None for v in col), (
+        "an unsupplied benchmark produced values — from which instrument?")
+
+
+def test_a_HALTED_session_is_NaN_on_that_bar_and_is_never_carried_forward():
+    """⛔⛔ NO FORWARD FILL. A benchmark with no bar for a session yields NaN
+    there. Carrying yesterday's value forward would present a stale price as
+    today's — and a halt is exactly the session where that lie matters."""
+    col = ast_interpret.interpret(
+        _sym("SPY", CLOSE), _bars(),
+        opts={"tf": "D", "symbols": {"SPY": _bench_bars(skip=(7,))}})
+    assert col[7] is None, "the halted session was filled in from a neighbour"
+    assert col[6] == pytest.approx(1000.0 + 6), "the CONTROL failed: neighbours must still answer"
+    assert col[8] == pytest.approx(1000.0 + 8)
+
+
+def test_sym_max_lookback_is_the_childs_own_UNMULTIPLIED():
+    """One benchmark bar per base bar — same timeframe, so no span factor.
+    (Contrast `tf`, which is `(child + 1) * span`.)"""
+    tree = _sym("SPY", {"type": "call", "name": "sma",
+                        "args": [CLOSE, {"type": "num", "value": 20}]})
+    assert ast_interpret.max_lookback(tree) == ast_interpret.max_lookback(
+        {"type": "call", "name": "sma", "args": [CLOSE, {"type": "num", "value": 20}]})
+
+
+def test_sym_OUTSIDE_tf_reads_the_benchmarks_OWN_weekly_bar():
+    """⭐ THE ORDERING THAT WORKS, and the remedy the refusal below points at:
+    `sym` swaps the series, then `tf` resamples THAT series."""
+    tree = _sym("SPY", _tf("W", CLOSE))
+    col = ast_interpret.interpret(tree, _bars(),
+                                  opts={"tf": "D", "symbols": {"SPY": _bench_bars()}})
+    finite = [v for v in col if v is not None]
+    assert finite, "sym('SPY', tf(close,'W')) produced nothing"
+    assert max(finite) > 1000.0, "it read the base symbol, not SPY"
+
+
+def test_tf_OUTSIDE_sym_is_REFUSED_and_the_remedy_is_the_other_ordering():
+    """⛔⛔ THE DANGEROUS ORDERING, refused BY NAME.
+
+    `tf(sym('SPY', close), 'W')` hands `sym` WEEKLY base bars while the supplied
+    SPY series is daily. A weekly bar keyed at its Friday close genuinely MATCHES
+    a real SPY Friday bar — so the naive answer is not NaN, it is a confident,
+    partially-correct column: one day's close standing in for a week's. It would
+    draw and it would backtest.
+
+    ⭐ AND THE REFUSAL CARRIES A FOLLOWABLE REMEDY (X90's rule): the other
+    ordering computes the thing the member meant, so the refusal costs them
+    nothing.
+    """
+    tree = _tf("W", _sym("SPY", CLOSE))
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        ast_interpret.interpret(tree, _bars(),
+                                opts={"tf": "D", "symbols": {"SPY": _bench_bars()}})
+    msg = str(exc.value)
+    assert "sym" in msg and "tf" in msg, f"the refusal must name both nodes; got {msg!r}"
+    assert "sym('SPY'" in msg or "sym(" in msg, (
+        f"the refusal must SHOW the working ordering, not just forbid one; got {msg!r}")
+
+
+def test_the_nesting_refusal_is_UP_FRONT_not_once_per_symbol():
+    """⛔ `max_lookback` must refuse it too, so `assert_scannable` rejects the
+    definition ONCE instead of the sweep failing every symbol in the universe —
+    the same split fixed in 06333cb48 for timeframes."""
+    with pytest.raises(ast_interpret.TableRefusal):
+        ast_interpret.max_lookback(_tf("W", _sym("SPY", CLOSE)))
+
+
+def test_the_nesting_guard_does_NOT_refuse_the_shapes_that_are_fine():
+    """⭐ THE CONTROL. A guard that refused every tree containing both nodes —
+    or every `sym` — would pass the test above and be useless."""
+    good = [
+        _sym("SPY", CLOSE),
+        _sym("SPY", _tf("W", CLOSE)),
+        _tf("W", CLOSE),
+        {"type": "op", "name": ">", "args": [CLOSE, _sym("SPY", CLOSE)]},
+        {"type": "op", "name": ">", "args": [_tf("W", CLOSE), _sym("SPY", CLOSE)]},
+    ]
+    for tree in good:
+        ast_interpret.max_lookback(tree)      # must not raise
 

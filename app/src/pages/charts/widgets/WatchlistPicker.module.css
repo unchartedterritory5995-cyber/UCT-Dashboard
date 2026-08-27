@@ -161,6 +161,9 @@
   background: var(--wl-row-hover, var(--bg-hover, #1f2937));
   border-left-color: var(--wl-accent, var(--ut-gold, #dcbb5e));
 }
+/* Name is neutral/white by default; gold is reserved for the accent (hover/selected)
+   so it stays meaningful instead of a wall of gold. */
+.row:hover .rowName { color: var(--wl-accent, var(--ut-gold, #dcbb5e)); }
 .rowIcon {
   display: inline-flex;
   align-items: center;
@@ -174,10 +177,11 @@
   min-width: 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--wl-accent, var(--ut-gold, #dcbb5e));   /* watchlist names in Theme-Tracker gold */
+  color: var(--wl-sym, var(--text-bright, #e4e6ea));   /* neutral/white; gold on hover (accent) */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.1s;
 }
 .rowMeta {
   font-size: 10px;
@@ -198,22 +202,30 @@
 /* Prebuilt section (category) header — "UCT ETF Lists" etc. Strong near-black text on the
    light theme (theme-adaptive via --wl-text-strong so it stays legible on a dark canvas),
    a gold glyph, a right-aligned list count, and a hairline divider under it. */
-.catGroup + .catGroup { margin-top: 6px; }
+/* Each category is its own CARD — an outlined, rounded block with a header band —
+   so the sections read as distinct groups instead of one wall of hairline rows. */
+.catGroup {
+  margin: 0 10px 12px;
+  border: 1px solid var(--wl-divider, var(--border, #1f2937));
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--wl-bg, transparent);
+}
+.catGroup:first-child { margin-top: 8px; }
 .catHeader {
   display: flex;
   align-items: center;
   gap: 6px;
   font-family: var(--font-sans);
-  font-size: 11px;
-  /* 700 (bold), NOT 800 — at extra-black Instrument Sans thickens enough to read as a
-     different typeface next to the 600 tabs. One weight scale = one cohesive font. */
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--wl-text-strong, #0b0f14);
-  padding: 8px 6px 6px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
+  color: var(--wl-text-strong, var(--text-bright, #e4e6ea));
+  padding: 8px 12px;
+  /* Subtle band so the header sits ABOVE its cells, not blended into them. */
+  background: var(--wl-row-hover, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
 }
 .catCount {
   margin-left: auto;
@@ -222,12 +234,11 @@
   letter-spacing: 0.3px;
   text-transform: none;
   color: var(--wl-text, var(--text-muted, #8c8674));
-  opacity: 0.85;
+  opacity: 0.8;
 }
-.catGroup:first-child .catHeader { padding-top: 2px; }
 
-/* Compact two-column prebuilt grid — hairline cells, gold name + plain count, hover band.
-   Collapses to one column when the picker is narrow (container query on .body). */
+/* Two-column cell grid INSIDE a card. Row dividers between cells; the last row drops
+   its bottom border so it meets the card edge cleanly (no doubled hairline). */
 .pGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -237,7 +248,7 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 8px 8px;
+  padding: 9px 12px;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
@@ -247,16 +258,20 @@
   transition: background 0.12s;
 }
 .pCell:nth-child(odd) { border-right: 1px solid var(--wl-divider, var(--border, #1f2937)); }
+.pGrid .pCell:last-child,
+.pGrid .pCell:nth-last-child(2):nth-child(2n+1) { border-bottom: none; }
 .pCell:hover { background: var(--wl-row-hover, rgba(220, 187, 94, 0.09)); }
+.pCell:hover .pCellName { color: var(--wl-accent, var(--ut-gold, #dcbb5e)); }
 .pCellName {
   flex: 1;
   min-width: 0;
   font-size: 12px;
   font-weight: 700;
-  color: var(--wl-accent, var(--ut-gold, #dcbb5e));
+  color: var(--wl-sym, var(--text-bright, #e4e6ea));   /* neutral/white; gold on hover (accent) */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.1s;
 }
 .pCellCount {
   flex-shrink: 0;
@@ -275,6 +290,7 @@
   grid-template-columns: 1fr;
 }
 .pList .pCell:nth-child(odd) { border-right: none; }
+.pList .pCell:last-child { border-bottom: none; }
 .pList .pCellName {
   white-space: normal;
   overflow-wrap: anywhere;
@@ -283,6 +299,10 @@
 @container (max-width: 300px) {
   .pGrid { grid-template-columns: 1fr; }
   .pCell:nth-child(odd) { border-right: none; }
+  /* Single column now: the two-column last-row rule would misfire (it keys off odd
+     DOM position), so only the true last cell drops its bottom border. */
+  .pGrid .pCell:nth-last-child(2):nth-child(2n+1) { border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937)); }
+  .pGrid .pCell:last-child { border-bottom: none; }
 }
 
 /* My-Lists row wrapper: pick button + hover-reveal delete */

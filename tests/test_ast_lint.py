@@ -766,6 +766,28 @@ def test_the_node_vocabulary_here_IS_the_interpreter_s():
     assert "offset" in ast_interpret.NODE_TYPES
 
 
+def test_the_timeframe_SPANS_here_ARE_the_interpreter_s():
+    """⭐⭐ THE SECOND BINDING, AND IT PAYS FOR A SECOND FORCED COPY.
+
+    `ast_reach`'s `tf` arm converts a higher-timeframe window into base bars by
+    multiplying by the span, so `_TF_BASE_BARS` is arithmetic the badge depends on
+    — not a vocabulary. The same purity rail that forces `_CANONICAL_TYPES` to be a
+    hand copy forces this one, so the same test binds it.
+
+    ⛔ A STALE COPY FAILS QUIETLY AND IN THE DANGEROUS DIRECTION. If the
+    interpreter's monthly span grew and this one did not, every `tf(…, 'M')`
+    formula would report a window SHORTER than it reads — and a lookback that is
+    too small is the one that answers off a warmup it never had, confidently.
+    Nothing goes red; the number is simply wrong.
+    """
+    from api.services import ast_interpret
+    assert al._TF_BASE_BARS == dict(ast_interpret.TF_BASE_BARS)
+    # ⚠️ AND THE KEYS ARE THE RESAMPLABLE SET, not merely equal to each other:
+    # two copies can agree perfectly and both be missing a timeframe the engine
+    # now serves (`lesson_an_identity_join_is_not_a_correctness_check`).
+    assert sorted(al._TF_BASE_BARS) == sorted(ast_interpret.TF_RESAMPLABLE)
+
+
 def test_an_offset_grows_BACK_and_leaves_FORWARD_at_zero():
     """🔴 THE PROPERTY `closedTable.json::_no_offset` EXISTED TO PROTECT.
 

@@ -241,6 +241,21 @@ const TYPES_NOT_PICKABLE = Object.freeze({
       + 'formula, that is a stale walker and this entry does NOT excuse it, '
       + 'because the tooth measures OPENING and this map records the missing ROW.',
   },
+  sym: {
+    guard: 'picker:no-row',
+    why: '🔴 THE SAME LIVE GAP, ONE AXIS OVER, AND ON THE RECORD FOR THE SAME '
+      + 'REASON. `sym("SPY", close)` parses, canonicalises, evaluates in both lanes '
+      + 'and round-trips through the sentence grammar — a member CAN write it on '
+      + 'the Formula tab. What it has no row for is the CONDITIONS picker: '
+      + '"compared against another instrument" is a modifier on a row rather than a '
+      + 'row of its own, exactly as "on a higher timeframe" is, so giving it one is '
+      + 'the same picker DESIGN task (W4c) and not a walker somebody forgot. '
+      + '⛔ The exemption is about the PICKER only — if `fromSource` ever stops '
+      + 'opening a `sym` formula, that is a stale walker and this entry does not '
+      + 'excuse it. ⚠️ AND IT IS TWO ENTRIES RATHER THAN ONE SHARED "modifier" '
+      + 'exemption on purpose: a single entry covering both would keep excusing '
+      + 'the second after the first got its row.',
+  },
 })
 
 /** The types the picker is on record as having no row for — subtracted wherever

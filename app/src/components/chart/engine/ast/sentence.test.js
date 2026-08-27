@@ -490,6 +490,24 @@ function readTfSentence(s) {
   return { via: 'tf', ast: { type: 'tf', value: TF_CODE_OF[m[2]], args: [readOperand(m[1])] } }
 }
 
+/** ⭐ THE SYMBOL READ, and it is a PREFIX where the timeframe is a suffix.
+ *  `SPY’s (close > open)` — a curly apostrophe, deliberately: it is the one the
+ *  renderer emits, and a straight `'` here would read a sentence the renderer
+ *  never writes.
+ *
+ *  ⚠️ HAND-TYPED, LIKE EVERY OTHER FORM IN THIS FILE, and that is the whole
+ *  method: this reader is INDEPENDENT of `sentence.js`, so a re-phrasing over
+ *  there lands here as `0 parses` rather than as a reader that silently moved
+ *  with it. The greedy `(.+)` is safe for the same reason the offset's is — the
+ *  unambiguity is ASSERTED by `the grammar is UNAMBIGUOUS`, not assumed. */
+const SYM_PREFIX = /^([A-Z][A-Z0-9.\-]{0,9})’s (.+)$/
+
+function readSymSentence(s) {
+  const m = SYM_PREFIX.exec(s)
+  if (!m) return null
+  return { via: 'sym', ast: { type: 'sym', value: m[1], args: [readOperand(m[2])] } }
+}
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -504,6 +522,10 @@ function readSentenceCandidates(s) {
   try {
     const htf = readTfSentence(s)
     if (htf) found.push(htf)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
+    const other = readSymSentence(s)
+    if (other) found.push(other)
   } catch { /* the chrome matched but the child did not read */ }
   for (const form of FORMS) {
     const slots = matchForm(form.parts, s)
@@ -632,6 +654,15 @@ function predictTrace(node, at = '$') {
     // use. Read from the manifest, never typed.
     if (own(TABLE.clock || {}, node.name)) return [{ path: at, rule: 'series:clock' }]
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
+  }
+  if (node.type === 'sym') {
+    // ⭐ ONE `sym` FRAME, THEN THE CHILD'S WALK — and ⚠️ NO branch on the TICKER,
+    // for the same reason the `tf` arm below has none on the code: every symbol
+    // is the same rule producing a different word, and predicting a per-ticker
+    // rule would make this walk agree with the renderer only because both were
+    // hand-typed twice.
+    return [{ path: at, rule: 'sym' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'tf') {
     // ⭐ THE HIGHER-TIMEFRAME READ, predicted the same way the offset is: one
@@ -2184,6 +2215,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'tf_high_monthly',
       'tf_weekly_compared_to_close',
       'tf_of_the_weekly_range',
+      'sym_close_of_another_instrument',
+      'sym_subtree_is_evaluated_on_the_other_instrument',
+      'sym_a_gap_in_the_benchmark_is_not_carried_forward',
+      'sym_an_unsupplied_benchmark_is_not_computable',
     ])
   })
 
@@ -2293,7 +2328,7 @@ describe('attribution — WHICH branch produced the sentence, not only what it s
     }
   })
 
-  it('a node type outside the four is REFUSED BY NAME, never rendered by a catch-all', () => {
+  it('a node type outside the declared set is REFUSED BY NAME, never rendered by a catch-all', () => {
     // ⛔ THE MANDATORY MUTATION'S TARGET. A `default:` arm that returned a
     // plausible phrase would produce English for a node nobody wrote a rule for.
     const alien = { type: 'lambda', name: 'x', args: [] }
@@ -2441,12 +2476,18 @@ describe('the refusals', () => {
     // call whose second argument is a QUOTED TIMEFRAME rather than an
     // expression, so a malformed one is refused at the parse door by its own
     // name instead of reading as an ordinary call to a function nobody declared.
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(13)
+    // ⚠️ 13 -> 14 with `canonicalise:symbol` (W2b Task 4): `sym('SPY', expr)`
+    // is the second call whose parameter is a QUOTED LITERAL rather than an
+    // expression, and it refuses at the parse door for the same reason `tf` does.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(14)
     // ⚠️ 11 -> 12 with `interpret:timeframe` (W2b): a higher-timeframe read can
     // name a code the ladder does not declare, or one at or BELOW the bars it
     // was handed — neither is answerable from those bars, and inventing an
     // answer is the silent mistranslation this engine exists against.
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(12)
+    // ⚠️ 12 -> 13 with `interpret:symbol` (W2b Task 4): a `sym` read nested
+    // inside a `tf` would align unresampled bars onto resampled ones — an
+    // almost-right column rather than a NaN, which is why it is a refusal.
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(13)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
     // ⚠️ 33 -> 35 with W2b's two timeframe guards — one per door:
     // `canonicalise:timeframe` (the SHAPE of `tf(expr, 'W')`) and
@@ -2454,7 +2495,12 @@ describe('the refusals', () => {
     // floor; the assertion that matters is the loop below, which proves no
     // message CONTAINS another — so a member reading one refusal can never be
     // reading a prefix of a different door's.
-    expect(all.length).toBe(35)
+    // ⚠️ 35 -> 37 with W2b Task 4's two symbol guards, one per door — the same
+    // shape as the two timeframe guards above. ⭐ `sentence:unsayable-name` is
+    // REUSED rather than joined by a third: an unsayable ticker is exactly what
+    // that guard already publishes, and a new near-duplicate sentence would be
+    // the thing the loop below exists to forbid.
+    expect(all.length).toBe(37)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

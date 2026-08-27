@@ -392,7 +392,13 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
 #: and sell that proof, so the copy stays and
 #: ``test_the_node_vocabulary_here_IS_the_interpreter_s`` is what binds the two.
 #: ⭐ THE BINDING LIVES IN THE TEST, WHERE BOTH MODULES MAY BE IMPORTED AT ONCE.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset")
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
+
+#: ⛔ THE SPANS, DUPLICATED FOR THE SAME FORCED REASON AS THE VOCABULARY ABOVE,
+#: and bound to ``ast_interpret.TF_BASE_BARS`` by a test rather than by an import.
+#: ⚠️ ROUNDING UP IS THE SAFE DIRECTION HERE TOO: a window that is too SMALL
+#: lets a formula claim it reads less history than it does.
+_TF_BASE_BARS = {"W": 5, "M": 21}
 
 
 def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -522,6 +528,42 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             else:
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
                 reach_of[id(node)] = (_add_reach(int(n), cb), cf)
+        elif kind == "tf":
+            # ⭐⭐ THE WINDOW GROWS BY A WHOLE PERIOD, AND `forward` STAYS PUT.
+            # `tf(expr, 'W')` reads the LAST CLOSED weekly bar, so at bar `i` it
+            # reaches back `(child_back + 1)` weekly bars — converted to base bars
+            # by the span, exactly the arithmetic `max_lookback` uses.
+            #
+            # ⛔⛔ AND `forward` IS 0 WHEN THE CHILD'S IS, WHICH IS THIS ARM'S WHOLE
+            # CONTRIBUTION TO THE REPAINT BADGE. Our `tf` is `lookahead_off` + one
+            # step back: it can never read a bar the base bar is inside. Reporting
+            # any forward reach here would brand every multi-timeframe formula
+            # `repaints`; reporting UNKNOWN would make the badge undecidable. A
+            # child that DOES read forward still converts, rounded UP, because an
+            # understated forward window is the direction that lies.
+            code = str(node.get("value"))
+            span = _TF_BASE_BARS.get(code)
+            if len(args) != 1 or span is None:
+                reach_of[id(node)] = unknown(
+                    "a higher-timeframe node carries one child and a timeframe this "
+                    "engine resamples (%s), got %r over %d"
+                    % (", ".join(sorted(_TF_BASE_BARS)), node.get("value"), len(args)))
+            else:
+                cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+                back = cb if cb in (UNKNOWN, UNBOUNDED) else (int(cb) + 1) * span
+                forward = cf if cf in (UNKNOWN, UNBOUNDED) or cf == 0 else int(cf) * span
+                reach_of[id(node)] = (back, forward)
+        elif kind == "sym":
+            # ⭐ A SYMBOL CHANGES *WHICH INSTRUMENT*, NEVER *WHEN*. One benchmark
+            # bar per base bar, so the window passes straight through — no span, no
+            # +1, and in particular no forward reach invented for a node that adds
+            # none. (Contrast the `tf` arm above, whose whole arithmetic exists
+            # because its child is counted in higher-timeframe bars.)
+            if len(args) != 1:
+                reach_of[id(node)] = unknown(
+                    "a symbol node carries exactly one child, got %d" % len(args))
+            else:
+                reach_of[id(node)] = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
         elif kind == "op":
             spec = operators.get(node.get("name"))
             if not spec or spec.get("arity") != len(args):

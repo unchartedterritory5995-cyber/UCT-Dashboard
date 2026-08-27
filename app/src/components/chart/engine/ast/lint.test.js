@@ -1125,3 +1125,24 @@ describe('a declared window that names a SESSION, and one that reaches FORWARD',
     expect(bare.reasons.length).toBeGreaterThan(0)
   })
 })
+
+describe('the copies this module is FORCED to keep are bound to their originals', () => {
+  it("⭐⭐ the timeframe SPANS here ARE the interpreter's", async () => {
+    // `no evaluator is reachable from the linter` asserts this module's import
+    // graph is one module wide, so `TF_BASE_BARS` cannot be imported from
+    // `interpret.js` — the copy is FORCED. This is where the two may be held
+    // together, because a TEST may import both at once.
+    //
+    // ⛔ A STALE COPY FAILS QUIETLY AND IN THE DANGEROUS DIRECTION: if the
+    // interpreter's monthly span grew and this one did not, every `tf(…, 'M')`
+    // formula would report a window SHORTER than it reads, and a lookback that is
+    // too small answers off a warmup it never had. Nothing goes red.
+    const interp = await import('./interpret.js')
+    expect({ ...lint.TF_BASE_BARS }).toEqual({ ...interp.TF_BASE_BARS })
+    // ⚠️ AND THE KEYS ARE THE RESAMPLABLE SET — not merely equal to each other.
+    // Two copies can agree perfectly and both be missing a timeframe the engine
+    // now serves (`lesson_an_identity_join_is_not_a_correctness_check`).
+    expect(Object.keys(lint.TF_BASE_BARS).sort())
+      .toEqual([...interp.TF_RESAMPLABLE].sort())
+  })
+})

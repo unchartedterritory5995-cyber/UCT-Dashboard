@@ -276,6 +276,13 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # cannot hold one, so a timeframe can never be computed at runtime and
     # `max_lookback` stays a tree sum.
     "tf": ("type", "value", "args"),
+    # ⭐ THE READ OF ANOTHER INSTRUMENT — `sym("SPY", expr)`. ⚠️ NO `name`, and
+    # the TICKER is a FIELD for the same reason `tf` keeps its timeframe on the
+    # node: a shape with no slot for an expression cannot hold one, so a symbol
+    # can never be computed at runtime, `max_lookback` stays a tree sum, and the
+    # scan lane stays total. ⛔ Without this row the STORE refuses the feature
+    # after everything else accepts it — the trap `offset` documents two rows up.
+    "sym": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 

@@ -108,7 +108,7 @@ INF = float("inf")
 #: expression, and that is the whole design: a shape with no slot for an
 #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
 #: FORWARD reference stays inexpressible in both lanes at once.
-NODE_TYPES = ("num", "series", "op", "call", "offset", "tf")
+NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
 
 
 # --------------------------------------------------------------------------- #
@@ -162,6 +162,56 @@ TF_RESAMPLABLE = ("W", "M")
 TF_BASE_BARS = {"W": 5, "M": 21}
 
 
+def _assert_sym_placement(root: Any) -> None:
+    """Refuse a `sym` that sits UNDER a `tf` — THE ONE PLACE THAT DECIDES.
+
+    ⛔⛔ THE DANGEROUS ORDERING IS THE ONE THAT ALMOST WORKS. `tf` hands its child
+    RESAMPLED bars; the series a caller supplies for `sym` is not resampled. So
+    ``tf(sym('SPY', close), 'W')`` asks `sym` to align DAILY SPY bars onto WEEKLY
+    base dates — and a weekly bar keyed at its Friday close genuinely matches a
+    real SPY Friday bar. The answer is therefore NOT NaN. It is a confident,
+    partially-correct column: one day's close standing in for a week's. It draws,
+    it backtests, and it is wrong — exactly the silent mistranslation this engine
+    refuses everywhere else.
+
+    ⭐ THE REFUSAL CARRIES THE WORKING ORDERING, so it costs the member nothing:
+    ``sym('SPY', tf(close, 'W'))`` swaps the series FIRST and then resamples
+    SPY's own bars, which is what they meant. A refusal that only forbids is half
+    an artifact (`lesson_rail_the_sentence_not_just_the_guard`).
+
+    ⚠️ STATIC, AND CALLED FROM BOTH ENTRY POINTS. The rule is a property of the
+    TREE, so it is checked once per tree rather than once per bar — and
+    `max_lookback` calls it too, so `assert_scannable` refuses the definition ONCE
+    instead of letting the sweep fail every symbol in the universe. That split is
+    the defect fixed in 06333cb48 for timeframes; this is the same shape, declined
+    in advance (`lesson_a_second_authority_over_one_value`).
+
+    ⛔ IT IS NOT "a tree containing both nodes". `close > sym('SPY', close)`
+    beside a `tf` is fine, and so is `sym` OUTSIDE `tf`. Only the ancestry is
+    refused — the control in `test_the_nesting_guard_does_NOT_refuse_the_shapes_
+    that_are_fine` is what keeps this from quietly becoming "no `sym` at all".
+    """
+    stack = [(root, False)]
+    while stack:
+        node, under_tf = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        if kind == "sym" and under_tf:
+            ticker = str(node.get("value"))
+            _refuse("interpret:symbol",
+                    "a `sym` read cannot sit inside a `tf` read — `tf` resamples "
+                    "the bars it was handed and the %s series is not resampled "
+                    "with them, so the column would silently mix one session's "
+                    "value into a whole period. Write it the other way round, "
+                    "which reads %s's own higher-timeframe bar: "
+                    "sym('%s', tf(…))." % (ticker, ticker, ticker))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, under_tf or kind == "tf"))
+
+
 def _assert_resamplable(code):
     """Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
 
@@ -192,10 +242,16 @@ def _assert_resamplable(code):
 
 def _tf_rank(code: Any) -> Optional[int]:
     """Position on the ladder, or ``None`` for a code it does not declare."""
-    try:
-        return TF_LADDER.index(str(code))
-    except ValueError:
-        return None
+    # ⛔ A MEMBERSHIP TEST, NOT A `try`. `test_neither_the_budget_nor_the_
+    # interpreter_contains_a_single_try` forbids try/except anywhere in this file,
+    # and it is not a style rule: a caught exception here is one line from
+    # swallowing the `RecursionError` an 8,001-node tree raises and re-reporting it
+    # as a refusal — the wrong-door defect this whole phase is about. This shipped
+    # as `try: TF_LADDER.index(...)` in de1e77019 and sat RED on master, unseen,
+    # because the backend gate never once ran to completion
+    # (`lesson_a_task_status_reports_the_wrappers_exit_not_the_suites`).
+    spelled = str(code)
+    return TF_LADDER.index(spelled) if spelled in TF_LADDER else None
 
 
 def _iso_day(t: Any) -> Optional[str]:
@@ -262,6 +318,9 @@ REFUSALS: Mapping[str, str] = {
     "interpret:timeframe": (
         "a higher-timeframe read names a timeframe this engine cannot serve "
         "from the bars it was given"),
+    "interpret:symbol": (
+        "a read of another instrument sits where this engine cannot align it "
+        "to the bars in hand"),
     "interpret:steps": (
         "warming this running value up over these bars would take more steps than "
         "the engine will spend"),
@@ -1638,7 +1697,7 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call", "offset", "tf"):
+        if node["type"] in ("op", "call", "offset", "tf", "sym"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -1899,6 +1958,11 @@ def max_lookback(ast: Any) -> int:
     ⚠️ THIS IS A MEASUREMENT, NOT A GUARD. Refusing a tree that asks for too much
     needs a DECLARED budget, and ``compute.budget`` is not declared yet.
     """
+    # ⛔ THE SAME TREE-SHAPE RULE `interpret` ASKS, from the gate that runs
+    # FIRST. `assert_scannable` calls this and never calls `interpret`, so without
+    # it a `tf(sym(…))` definition would be accepted up front and then refused
+    # once per symbol across the whole universe — the split fixed in 06333cb48.
+    _assert_sym_placement(ast)
     order = _flatten(ast)
     seen: Dict[int, int] = {}
     for node in order:
@@ -1929,6 +1993,18 @@ def max_lookback(ast: Any) -> int:
             _assert_resamplable(code)
             span = TF_BASE_BARS[code]
             seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
+            continue
+        if kind == "sym":
+            # ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar —
+            # same timeframe, so there is no span factor and no +1: `sym` changes
+            # WHICH INSTRUMENT, not which period. (Contrast the `tf` arm directly
+            # above, whose whole arithmetic exists because its child is counted in
+            # higher-timeframe bars.)
+            # ⚠️ THE WARMUP IS THE BENCHMARK'S, and the caller is what must honour
+            # it: a supplier that hands over fewer bars than this asks for gets a
+            # NaN prefix from the child, which is `not_computable` and correct —
+            # never a confident answer off a warmup it never had.
+            seen[id(node)] = seen[id(node["args"][0])]
             continue
         if kind == "offset":
             # ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM, and byte-for-byte
@@ -2334,6 +2410,10 @@ def interpret(ast: Any, bars: List[dict],
     # must reach the caller AS a ``RecursionError``; relabelling it as a budget
     # refusal is the same wrong-door defect this whole phase is about.
     check_budget(ast, budget)
+    # ⛔ THE TREE-SHAPE RULE FOR `sym`, asked once per tree rather than per bar.
+    # Same helper `max_lookback` calls, so the gate that runs before the sweep and
+    # the gate that answers inside it cannot disagree.
+    _assert_sym_placement(ast)
     length = len(bars)
 
     # ⛔ A PLAIN DICT, AND EVERY LOOKUP IS `name in scope`. Python has no prototype
@@ -2474,7 +2554,7 @@ def interpret(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -2572,6 +2652,62 @@ def interpret(ast: Any, bars: List[dict],
                 b = at[k]
                 if b > 0:
                     out[i] = child[b - 1]
+            return out
+        if kind == "sym":
+            ticker = str(n.get("value")).strip().upper()
+            supplied = (opts or {}).get("symbols") or {}
+            series = supplied.get(ticker)
+
+            # ⛔⛔ THE INTERPRETER DOES NOT FETCH — THE CALLER SUPPLIES. Giving this
+            # function IO would put a network call inside the evaluator, on the
+            # request path, once per symbol: precisely the class the 2026-07-01
+            # launch-hardening pass spent a day removing. It would also make the
+            # JS mirror impossible, because a browser has no `bars_fetch`.
+            #
+            # ⛔ SO AN UNSUPPLIED SERIES IS NOT COMPUTABLE, AND NOTHING ELSE. Falling
+            # back to `bars` — the instrument being scanned — would answer
+            # CONFIDENTLY ABOUT THE WRONG COMPANY, which is worse than answering
+            # nothing. The sweep already has a `not_computable` bucket and
+            # `CoverageLine` already reports it as its own count.
+            if not series:
+                return _nan_col(length)
+
+            child = _to_column(
+                interpret(n["args"][0], series, inputs=inputs, budget=budget,
+                          scalars=scalars, opts=dict(opts or {})),
+                len(series))
+
+            # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
+            #
+            # ⚠️ THE KEY IS `t` AND NOT THE ISO DAY, and the first draft had it
+            # wrong. `sym` reads the SAME timeframe as the bars in hand, so two
+            # bars correspond exactly when they ARE the same bar time — whereas an
+            # ISO-day key silently maps EVERY five-minute bar of a session onto the
+            # benchmark’s FIRST bar of that day. The conformance corpus runs on
+            # 579 intraday 5-minute bars, which is what surfaced it.
+            #
+            # ⛔ AND NO FORWARD FILL. A benchmark with no bar at that time (a halt,
+            # a one-sided holiday, a feed gap) is NaN there. Carrying the previous
+            # value forward would present a STALE PRICE AS THIS BAR’S — and a halt
+            # is exactly the bar where that lie would matter most.
+            #
+            # ⚠️ MISMATCHED UNITS FAIL CLOSED BY CONSTRUCTION: daily `t` is
+            # `YYYYMMDD` and intraday `t` is unix seconds, so a daily benchmark
+            # handed to an intraday chart matches NOTHING and yields
+            # not-computable, rather than inventing a rule nobody has stated.
+            at = {}
+            for j, b in enumerate(series):
+                key = b.get("t") if isinstance(b, dict) else None
+                if key is not None and not isinstance(key, bool) and key not in at:
+                    at[key] = j
+            out = _nan_col(length)
+            for i, b in enumerate(bars):
+                key = b.get("t") if isinstance(b, dict) else None
+                if key is None or isinstance(key, bool):
+                    continue
+                j = at.get(key)
+                if j is not None:
+                    out[i] = child[j]
             return out
         if kind == "op":
             return apply_op(n, [eval_node(a) for a in n["args"]])
