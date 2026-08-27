@@ -30,7 +30,10 @@ from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
-HISTORY_FILE = "/data/contract_history.json"
+# `CONTRACT_HISTORY_FILE` is the override; its DEFAULT is the literal that
+# has always been here, so production with nothing set is unchanged.
+HISTORY_FILE = os.environ.get(
+    "CONTRACT_HISTORY_FILE", "/data/contract_history.json")
 ET = ZoneInfo("America/New_York")
 
 # ─── In-memory state ──────────────────────────────────────────────────────────

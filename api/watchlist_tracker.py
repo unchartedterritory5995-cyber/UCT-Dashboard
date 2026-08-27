@@ -19,7 +19,11 @@ from datetime import date, timedelta
 
 logger = logging.getLogger(__name__)
 
-WATCHLIST_FILE = "/data/watchlists.json"
+# `WATCHLISTS_FILE` is the override; its DEFAULT is the literal that has
+# always been here, so production with nothing set is unchanged. This module
+# is the SINGLE authority for the path: `api/routers/auth.py` reads the same
+# file and imports this constant rather than restating the literal.
+WATCHLIST_FILE = os.environ.get("WATCHLISTS_FILE", "/data/watchlists.json")
 MAX_DAYS = 7
 
 _data: dict = {}

@@ -297,10 +297,23 @@ def shared_data_root_census():
 #: the pairing, and a rail (below) that FAILS if a declaration stops being true.
 #: Shrink this map; never grow it to silence a red.
 EXPLICIT_ENV_PINS = {
-    # api/services/single_stock_etfs.py:86 reads the var; :90 returns the
-    # literal. Two statements, and "SSETF" shares no word with
-    # "single_stock_etfs" — invisible to both derivations, real to a reader.
-    "SSETF_DB_PATH": "/data/single_stock_etfs.db",
+    # ⭐ EMPTY, AND THAT IS THE GOAL STATE — not a gap.
+    #
+    # Its one entry was `SSETF_DB_PATH` -> `/data/single_stock_etfs.db`
+    # (X18): `api/services/single_stock_etfs.py` read the var in one
+    # statement and returned the literal in the next, and "SSETF" shares no
+    # word with "single_stock_etfs", so neither derivation could see it.
+    #
+    # W9j.1 reshaped `_resolve_db_path` so that literal is the env read's
+    # DEFAULT. Derivation (A) pairs that shape with no shared word needed,
+    # so the census now owns the pairing and the declaration became
+    # redundant. ⛔ A redundant declaration is not free: it is a SECOND
+    # AUTHORITY over one pairing, and the prose beside it had already
+    # stopped being true. Deleted rather than kept.
+    #
+    # The rails still run against an empty map: they prove
+    # `_explicit_pin_is_still_real` can answer YES and NO, so the mechanism
+    # is ready the day a pairing genuinely outruns both derivations again.
 }
 
 

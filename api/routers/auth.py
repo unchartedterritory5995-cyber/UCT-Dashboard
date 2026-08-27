@@ -332,11 +332,18 @@ def export_user_data(user: dict = Depends(get_current_user)):
     watchlists = []
     try:
         import pathlib
-        trades_file = pathlib.Path("/data/trades.json")
+        # `TRADES_FILE` is the override; its DEFAULT is the literal that has
+        # always been here, so production with nothing set is unchanged.
+        trades_file = pathlib.Path(
+            os.environ.get("TRADES_FILE", "/data/trades.json"))
         if trades_file.exists():
             all_trades = _json.loads(trades_file.read_text())
             trades = [t for t in all_trades if t.get("user_id") == user["id"]]
-        wl_file = pathlib.Path("/data/watchlists.json")
+        # ⛔ DERIVED, NEVER RESTATED. `api/watchlist_tracker.py` OWNS this
+        # path and its `WATCHLISTS_FILE` override; a second literal here
+        # would be a second authority over one file.
+        from api import watchlist_tracker as _wl_tracker
+        wl_file = pathlib.Path(_wl_tracker.WATCHLIST_FILE)
         if wl_file.exists():
             all_wl = _json.loads(wl_file.read_text())
             watchlists = [w for w in all_wl if w.get("user_id") == user["id"]]

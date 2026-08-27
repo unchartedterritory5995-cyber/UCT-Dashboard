@@ -16,8 +16,11 @@ most watch the guard actually FIRE — on a throwaway probe directory, never on
 `C:\\data`. A guard nobody has seen fire is not a guard.
 """
 import ast
+import json
 import os
 import sqlite3
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -149,29 +152,46 @@ def test_the_screener_default_would_still_name_the_live_database(monkeypatch):
 
 
 def test_the_literals_no_env_var_can_move_are_named_not_forgotten():
-    """The tripwire is the ONLY cover for these — so they are printed by name.
+    """⭐ THERE ARE NONE LEFT, AND ZERO IS NOW THE FLOOR.
 
-    A pin needs an env var and some literals have none. Growing that set
-    silently is how the next `C:\\data` write gets in, so this rail fails when
-    it grows and names the newcomer.
+    A pin needs an env var and some literals had none; the tripwire was their
+    only cover, and a tripwire fires on a DAEMON THREAD as an invisible raise
+    while the spawning test passes green. So the set was printed by name and
+    ratcheted: 8, then 7 when `SSETF_DB_PATH` was declared in
+    `EXPLICIT_ENV_PINS` (X18), and 0 after W9j.1 gave the last eight paths an
+    env override whose DEFAULT is the literal that was already there.
 
-    ⛔ THE CEILING RATCHETS DOWN, NEVER UP. It was 8; `SSETF_DB_PATH` was
-    declared in `EXPLICIT_ENV_PINS` (X18) and it is 7. If you close another,
-    lower this number in the same commit — a ceiling left slack is a ceiling
-    that stops meaning anything, and this repo has already paid for a hand-typed
-    width that drifted four times.
+    ⛔ THE RATCHET IS FINISHED, SO THIS IS NO LONGER A CEILING. A number with
+    slack under it has stopped measuring: `<= 7` sitting over a real 0 would
+    have let seven regressions in silently. Any literal that reappears here is
+    a regression, and this fails BY NAME.
 
     ⚠️ The literal totals that used to be written into this docstring are gone
     on purpose: the invariant is `unpinnable == literals - pinned`, asserted
     below, and it does not drift. A count beside it is one more number to go
     stale every time a path is added.
     """
+    literals = set(rootconf.SHARED_DATA_LITERALS)
     unpinnable = set(rootconf.UNPINNABLE_SHARED_LITERALS)
     pinned = set(rootconf.SHARED_DATA_ENV_PINS.values())
-    assert unpinnable == set(rootconf.SHARED_DATA_LITERALS) - pinned
-    assert len(unpinnable) <= 7, (
-        "more product paths are now unreachable by any env override:\n  "
-        + "\n  ".join(sorted(unpinnable)))
+    assert unpinnable == literals - pinned
+
+    # ⭐ THE CONTROL COMES FIRST. "Zero unpinnable" is also exactly what a
+    # census that had gone blind would report, so prove the subtraction can
+    # still expose something: drop one real pin and the literal it covered has
+    # to come back by name, on its own.
+    victim = "SCREENER_DB_PATH"
+    covered = rootconf.SHARED_DATA_ENV_PINS[victim]
+    assert covered in literals, f"{victim} pins {covered}, which no file names"
+    assert literals - (pinned - {covered}) == {covered}, (
+        "the unpinnable derivation stopped discriminating — dropping "
+        f"{victim} did not leave {covered} exposed on its own")
+
+    assert not unpinnable, (
+        "🔴 ZERO IS THE FLOOR AND IT REGRESSED. These product paths are "
+        "again unreachable by any env override, so the tripwire — which fires "
+        "invisibly on a daemon thread — is all that stands between a test and "
+        "the owner's live files:\n  " + "\n  ".join(sorted(unpinnable)))
 
 
 def test_every_hand_declared_env_pin_is_STILL_REAL():
@@ -180,16 +200,24 @@ def test_every_hand_declared_env_pin_is_STILL_REAL():
 
     `EXPLICIT_ENV_PINS` exists for pairings the census is *correct* to miss —
     derivation (B) demands the env var and the literal share a word, because a
-    looser version once pinned a DIRECTORY var to a FILE. `SSETF_DB_PATH` <->
-    `/data/single_stock_etfs.db` is an abbreviation: no shared word, and the
-    read and the literal live in two separate statements, so neither derivation
-    can see it. A human can.
+    looser version once pinned a DIRECTORY var to a FILE. Its one entry was
+    `SSETF_DB_PATH` <-> `/data/single_stock_etfs.db` (X18): an abbreviation,
+    with the read and the literal in two separate statements, invisible to
+    both derivations and plain to a reader.
 
-    ⭐ The rule that shape teaches: **when a heuristic is right to be
-    conservative, do not loosen it — declare the exceptions it cannot see, and
-    rail the declarations.**
+    ⭐ THE MAP IS EMPTY NOW, AND THAT IS THE GOAL STATE. W9j.1 reshaped
+    `_resolve_db_path` so the literal is that env read's DEFAULT — the one
+    shape derivation (A) pairs with no shared word needed — so the census
+    owns the pairing and the hand declaration became a SECOND AUTHORITY over
+    it. The rule the shape taught still stands: when a heuristic is right to
+    be conservative, do not loosen it; declare what it cannot see, rail the
+    declarations, and delete a declaration the moment it stops being needed.
+
+    🔴 An empty map makes a per-entry loop VACUOUSLY GREEN, so the mechanism
+    is proven directly below instead: `_explicit_pin_is_still_real` must be
+    able to answer YES and NO. A checker stuck on one answer would read as a
+    clean bill of health the day someone needs it again.
     """
-    assert rootconf.EXPLICIT_ENV_PINS, "nothing declared — this rail proves nothing"
     for var, literal in rootconf.EXPLICIT_ENV_PINS.items():
         assert rootconf._explicit_pin_is_still_real(var, literal), (
             f"{var} -> {literal} is declared in EXPLICIT_ENV_PINS but no file "
@@ -198,30 +226,373 @@ def test_every_hand_declared_env_pin_is_STILL_REAL():
         assert rootconf.SHARED_DATA_ENV_PINS.get(var) == literal, (
             f"{var} is declared but did not reach SHARED_DATA_ENV_PINS")
 
-    # ⭐ CONTROL — the check can say NO. Without this, a function that returned
-    # True unconditionally would read as a clean bill of health.
+    # ⭐ BOTH CONTROLS, because the loop above is empty and proves nothing.
+    # YES: a var that really is read beside its literal. Derived from the
+    # census, never typed — a hand-typed literal here could agree with a copy
+    # of itself while the product moved.
+    assert rootconf._explicit_pin_is_still_real(
+        "SSETF_DB_PATH", rootconf.SHARED_DATA_ENV_PINS["SSETF_DB_PATH"]), (
+        "the checker can no longer see a pairing that is plainly in the tree "
+        "— api/services/single_stock_etfs.py reads SSETF_DB_PATH and names "
+        "its literal in the same file")
+    # NO: a var nothing reads. Without this, a function that returned True
+    # unconditionally would read as a clean bill of health.
     assert not rootconf._explicit_pin_is_still_real(
         "A_VAR_THAT_IS_NOT_READ_ANYWHERE", "/data/no_such_file.db")
 
 
-def test_the_declared_pin_actually_MOVED_the_path_off_the_shared_root():
+def test_the_pin_behind_a_MEASURED_write_still_moves_off_the_shared_root():
     """🔴 A pin that is recorded but not APPLIED protects nothing.
 
-    This is the half that matters at runtime: `SSETF_DB_PATH` must now resolve
+    This is the half that matters at runtime: `SSETF_DB_PATH` must resolve
     inside the sandbox, not `C:\\data`. Before X18 it was unset, so
     `single_stock_etfs._resolve_db_path()` fell through to
     `os.path.isdir("/data")` — which is TRUE on this box — and a screener-warm
     DAEMON THREAD wrote to the real file while the spawning test passed green.
+
+    ⭐ It used to reach that var by iterating `EXPLICIT_ENV_PINS`. That map is
+    empty now (the census derives the pairing), and iterating an empty map is
+    how a rail with a real incident behind it goes vacuously green — so it
+    names the var, and asserts the var is still a pin the census knows.
     """
     import os
 
-    for var in rootconf.EXPLICIT_ENV_PINS:
-        value = os.environ.get(var)
-        assert value, f"{var} declared but not set in the environment"
-        norm = rootconf._norm(value)
-        for root in rootconf.SHARED_DATA_ROOTS:
-            assert not (norm == root or norm.startswith(root + os.sep)), (
-                f"{var} still points inside the shared root: {value}")
+    var = "SSETF_DB_PATH"
+    assert var in rootconf.SHARED_DATA_ENV_PINS, \
+        f"{var} dropped out of the derived pin map"
+    value = os.environ.get(var)
+    assert value, f"{var} is a pin but is not set in the environment"
+    norm = rootconf._norm(value)
+    for root in rootconf.SHARED_DATA_ROOTS:
+        assert not (norm == root or norm.startswith(root + os.sep)), (
+            f"{var} still points inside the shared root: {value}")
+
+# ─── W9j.1: the eight paths that had no env override at all ─────────────────
+
+#: ⭐ A DECLARED ROSTER WITH A REASON PER ENTRY — never a count. A count froze a
+#: population at ONE on this branch and three false premises grew out of the
+#: scarcity everyone then read back as a fact.
+#:
+#: `env var -> (module, the expression the module ACTUALLY USES, why that is the
+#: value that matters)`. `module is None` means the read is call-time inside a
+#: function and there is no module constant to look at.
+#:
+#: ⛔ THE LITERAL IS NEVER TYPED HERE. Every expected default is read from
+#: `rootconf.SHARED_DATA_ENV_PINS[var]`, so this roster cannot drift from the
+#: census and cannot pass by agreeing with a copy of itself.
+NEWLY_PINNED_PATHS = {
+    "AVATARS_DIR": (
+        "api.routers.avatar", "AVATAR_DIR",
+        "module-level Path; every upload/serve/delete handler joins onto it"),
+    "CONTRACT_HISTORY_FILE": (
+        "api.daily_tracker", "HISTORY_FILE",
+        "module-level; `_save()` rewrites it on the 4:30pm ET snapshot job"),
+    "SSETF_DB_PATH": (
+        "api.services.single_stock_etfs", "_resolve_db_path()",
+        "resolved PER CALL — the X18 daemon thread went through this function, "
+        "so reading a module constant would grade the wrong thing"),
+    "SUPPORT_ATTACHMENTS_DIR": (
+        "api.services.support_attachments", "ATTACH_DIR",
+        "module-level Path; `_dir()` mkdirs it and touches a `.writable` marker "
+        "on first use, so merely serving a ticket page writes"),
+    "THEME_PERFORMANCE_FILE": (
+        "api.services.theme_performance", "_PERSIST_FILE",
+        "module-level; the background compute writes it and that compute starts "
+        "ON BOOT — this is the one that made merely STARTING a local backend "
+        "unsafe against the owner's live files"),
+    "TOP_FLOW_PICKS_FILE": (
+        "api.top_flow_tracker", "PICKS_FILE",
+        "module-level; `_save()` rewrites it whenever new Top Flow CSV lands"),
+    "WATCHLISTS_FILE": (
+        "api.watchlist_tracker", "WATCHLIST_FILE",
+        "module-level, and the WRITER owns the path: `api/routers/auth.py` reads "
+        "the same file and now imports THIS constant instead of restating the "
+        "literal, so one file has exactly one authority"),
+    "TRADES_FILE": (
+        None, "api/routers/auth.py::export_user_data::trades_file",
+        "no module constant — the read is call-time inside the endpoint, so the "
+        "child executes that function's OWN assignment statement, lifted out by "
+        "AST rather than retyped"),
+}
+
+#: The child program. It runs in a FRESH interpreter because seven of the eight
+#: resolutions happen at IMPORT, and a value captured at import is exactly the
+#: shape of an inert knob — `monkeypatch.setenv` in this process would move the
+#: variable and not the value.
+#:
+#: ⛔ It imports `conftest` FIRST, so the redirect and the tripwire are armed
+#: before any product module loads. That is what makes the UNSET direction safe
+#: to run at all: the modules resolve `/data/…` as a STRING, and if any of them
+#: went on to touch it the tripwire records a violation, which the parent
+#: asserts is zero.
+_RESOLVE_PROBE = r'''
+import ast
+import importlib
+import json
+import os
+import pathlib
+import sys
+
+sys.path.insert(0, os.getcwd())
+import conftest as rootconf          # arms the redirect AND the tripwire first
+
+spec = json.loads(sys.argv[1])
+for name, value in spec["env"].items():
+    if value is None:
+        os.environ.pop(name, None)
+    else:
+        os.environ[name] = value
+
+values = {}
+for var, (module, expr) in spec["targets"].items():
+    try:
+        if module is None:
+            rel, func, name = expr.split("::")
+            source = open(os.path.join(os.getcwd(), rel), encoding="utf-8").read()
+            stmt = None
+            for fn in ast.walk(ast.parse(source, rel)):
+                if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if fn.name != func:
+                    continue
+                for node in ast.walk(fn):
+                    if isinstance(node, ast.Assign) and any(
+                            isinstance(t, ast.Name) and t.id == name
+                            for t in node.targets):
+                        if stmt is not None:
+                            raise LookupError(
+                                "two assignments to %s in %s" % (name, func))
+                        stmt = node
+            if stmt is None:
+                raise LookupError("no assignment to %s in %s" % (name, func))
+            ns = {"os": os, "pathlib": pathlib}
+            exec(compile(ast.Module(body=[stmt], type_ignores=[]), rel, "exec"), ns)
+            values[var] = str(ns[name])
+        else:
+            mod = importlib.import_module(module)
+            values[var] = str(getattr(mod, expr[:-2])() if expr.endswith("()")
+                              else getattr(mod, expr))
+    except Exception as exc:
+        values[var] = "ERROR %s: %s" % (type(exc).__name__, exc)
+
+print("RESULT " + json.dumps(
+    {"values": values, "violations": len(rootconf.SHARED_ROOT_VIOLATIONS)}))
+'''
+
+
+def _resolve_in_child(tmp_path, env):
+    """`{var: what the module resolves to}`, in a fresh interpreter under `env`.
+
+    `env` maps a variable to a value, or to None meaning "unset it".
+    """
+    script = tmp_path / "w9j_resolve_probe.py"
+    script.write_text(_RESOLVE_PROBE, encoding="utf-8")
+    spec = {"env": env,
+            "targets": {v: (mod, expr)
+                        for v, (mod, expr, _why) in NEWLY_PINNED_PATHS.items()}}
+    proc = subprocess.run(
+        [sys.executable, str(script), json.dumps(spec)],
+        cwd=_REPO, capture_output=True, text=True,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    assert proc.returncode == 0, (
+        f"probe exited {proc.returncode}\nSTDOUT:\n{proc.stdout}\n"
+        f"STDERR:\n{proc.stderr}")
+    marked = [ln for ln in proc.stdout.splitlines() if ln.startswith("RESULT ")]
+    assert marked, (f"the probe printed no RESULT line\nSTDOUT:\n{proc.stdout}\n"
+                    f"STDERR:\n{proc.stderr}")
+    payload = json.loads(marked[-1][len("RESULT "):])
+    assert payload["violations"] == 0, (
+        "the probe itself touched the shared root — "
+        f"{payload['violations']} violation(s) recorded")
+    broken = {v: r for v, r in payload["values"].items()
+              if str(r).startswith("ERROR ")}
+    assert not broken, "the probe could not resolve:\n  " + "\n  ".join(
+        f"{v}: {r}" for v, r in sorted(broken.items()))
+    return payload["values"]
+
+
+#: ⛔ THE ONE THING THE CENSUS CANNOT TELL YOU: whether a default CHANGED.
+#:
+#: Everything else in this section derives its expected value from
+#: `rootconf.SHARED_DATA_ENV_PINS`, which derives from the tree as it stands.
+#: That is right for "does the module use the pinned path" and useless for "is
+#: the pinned path still the one production has always written", because both
+#: sides move together. MEASURED, not assumed: mutating
+#: `os.environ.get("AVATARS_DIR", "/data/avatars")` to `"/data/avatars_moved"`
+#: left all twenty rails in this file GREEN.
+#:
+#: So these eight strings are declared BY HAND, on purpose — a second
+#: derivation of one fact, the same shape `_independent_literal_scan` uses
+#: above. They are the literals the product shipped with before W9j.1 gave each
+#: one an env override, and W9j.1 changed the SHAPE of those reads and nothing
+#: about their destinations. A red here is not a nit: it means a Railway volume
+#: path moved, which is a migration, not an edit.
+FROZEN_SHARED_DEFAULTS = {
+    "AVATARS_DIR": "/data/avatars",
+    "CONTRACT_HISTORY_FILE": "/data/contract_history.json",
+    "SSETF_DB_PATH": "/data/single_stock_etfs.db",
+    "SUPPORT_ATTACHMENTS_DIR": "/data/support_attachments",
+    "THEME_PERFORMANCE_FILE": "/data/theme_performance.json",
+    "TOP_FLOW_PICKS_FILE": "/data/top_flow_picks.json",
+    "TRADES_FILE": "/data/trades.json",
+    "WATCHLISTS_FILE": "/data/watchlists.json",
+}
+
+
+def test_the_eight_defaults_are_the_SAME_STRINGS_the_product_shipped_with():
+    """⭐ The only rail here that can see a default DRIFT rather than an inert one.
+
+    Two independent statements of one fact must agree: the hand declaration
+    above, and what `conftest`'s AST census finds sitting in each env read's
+    default slot. Neither is computed from the other.
+
+    ⚠️ The roster and the frozen map are asserted to cover the same eight vars,
+    because a var quietly dropped from one side would take its own check with
+    it — a hole that is invisible from the green.
+    """
+    assert set(FROZEN_SHARED_DEFAULTS) == set(NEWLY_PINNED_PATHS), (
+        "the two declarations disagree about WHICH vars W9j.1 added:\n  "
+        f"only frozen : {sorted(set(FROZEN_SHARED_DEFAULTS) - set(NEWLY_PINNED_PATHS))}\n  "
+        f"only roster : {sorted(set(NEWLY_PINNED_PATHS) - set(FROZEN_SHARED_DEFAULTS))}")
+
+    drifted = []
+    for var, frozen in sorted(FROZEN_SHARED_DEFAULTS.items()):
+        derived = rootconf.SHARED_DATA_ENV_PINS.get(var)
+        if derived != frozen:
+            drifted.append(f"{var}: shipped {frozen!r}, the tree now says {derived!r}")
+    assert not drifted, (
+        "🔴 A PRODUCTION DEFAULT MOVED. With nothing set, these vars no longer "
+        "resolve where the product has always written:\n  " + "\n  ".join(drifted))
+
+
+def test_every_newly_pinned_path_is_paired_by_DERIVATION_not_by_hand():
+    """⭐ The pairing has to be one `conftest` finds ON ITS OWN.
+
+    A well-chosen name plus the literal sitting in the env read's DEFAULT slot
+    is derivation (A), and (A) needs no shared word. Anything else would have
+    to be declared in `EXPLICIT_ENV_PINS` — a hand-written second authority
+    over a pairing, which is what W9j.1 emptied that map to remove.
+
+    So: for each of the eight, some file under `api/` must literally contain
+    `os.environ.get(VAR, <the census's literal for VAR>)`. Asserted from the AST
+    of the shipped tree, not from the name.
+    """
+    wanted = {var: rootconf.SHARED_DATA_ENV_PINS.get(var)
+              for var in NEWLY_PINNED_PATHS}
+    missing_pin = [v for v, lit in wanted.items() if lit is None]
+    assert not missing_pin, (
+        "not a derived pin at all: " + ", ".join(sorted(missing_pin)))
+
+    seen = set()
+    for path in rootconf._api_source_files():
+        try:
+            source = open(path, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        if "/data" not in source:
+            continue
+        try:
+            tree = ast.parse(source, path)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            var = rootconf._env_read_name(node)
+            if var not in wanted:
+                continue
+            if rootconf._env_read_default(node) == wanted[var]:
+                seen.add(var)
+
+    unseen = sorted(set(wanted) - seen)
+    assert not unseen, (
+        "these vars are pins, but NOT because the literal is their env read's "
+        "default — so the census is pairing them some looser way, or a hand "
+        "declaration is doing it:\n  "
+        + "\n  ".join(f"{v} -> {wanted[v]}" for v in unseen))
+
+    # ⭐ AND THE ROSTER POINTS AT THE RIGHT MODULE. Without this the roster
+    # could name any module that happens to resolve the same string, and the
+    # two resolution rails below would grade the wrong file while staying green.
+    misplaced = []
+    for var, (module, expr, _why) in sorted(NEWLY_PINNED_PATHS.items()):
+        owner = (module.replace(".", "/") + ".py") if module \
+            else expr.split("::")[0]
+        sites = rootconf.SHARED_DATA_LITERALS[wanted[var]]
+        if not any(s.rsplit(":", 1)[0] == owner for s in sites):
+            misplaced.append(f"{var}: roster says {owner}, census says {sites}")
+    assert not misplaced, (
+        "the roster names a module that does not spell that literal:\n  "
+        + "\n  ".join(misplaced))
+
+
+def test_each_newly_pinned_path_still_resolves_to_ITS_OLD_LITERAL_when_unset(tmp_path):
+    """⭐ THE NO-OP HALF: production, with nothing set, must not move an inch.
+
+    Every expected value is `rootconf.SHARED_DATA_ENV_PINS[var]` — the census's
+    own record of the literal sitting in that env read's default slot — so
+    nothing here is hand-typed.
+
+    ⚠️ `normpath` on both sides because two of the eight wrap the literal in
+    `pathlib.Path`, and `Path("/data/avatars")` prints `\\data\\avatars` on
+    Windows. That is a property those modules already had; this change did not
+    introduce it, and comparing raw strings would grade `pathlib`, not the
+    default.
+
+    ⛔ Nothing here points at a live path: the child arms the tripwire before it
+    imports anything, resolution is a string, and `_resolve_in_child` asserts
+    the recorded violation count is zero.
+    """
+    values = _resolve_in_child(tmp_path, {v: None for v in NEWLY_PINNED_PATHS})
+
+    wrong, not_load_bearing = [], []
+    for var, (_mod, _expr, _why) in sorted(NEWLY_PINNED_PATHS.items()):
+        literal = rootconf.SHARED_DATA_ENV_PINS[var]
+        got = values[var]
+        if os.path.normpath(got) != os.path.normpath(literal):
+            wrong.append(f"{var}: unset resolves {got!r}, literal was {literal!r}")
+        # ⭐ CONTROL — the pin has to be LOAD-BEARING. "Resolves to the literal"
+        # would also be true of a path that never named the shared root, and
+        # then the override would be protecting nothing.
+        if rootconf._shared_root_hit(got) is None:
+            not_load_bearing.append(f"{var}: {got!r}")
+
+    assert not wrong, (
+        "an override CHANGED THE PRODUCTION DEFAULT — with nothing set the "
+        "product must resolve exactly what the bare literal did:\n  "
+        + "\n  ".join(wrong))
+    assert not not_load_bearing, (
+        "unset, these do not even name the shared root, so their pin guards "
+        "nothing:\n  " + "\n  ".join(not_load_bearing))
+
+
+def test_each_newly_pinned_path_MOVES_when_its_env_var_is_set(tmp_path):
+    """🔴 THE HALF THAT MATTERS: a knob read once and then ignored is INERT.
+
+    This repo has shipped one (`max_stop_pct`, whose consumer skipped the stage
+    that read it), so "the variable exists" is not the claim. The claim is that
+    the value the module USES moves.
+
+    Each var gets a DISTINCT destination, and the destinations are asserted
+    distinct on the way out: with one shared temp path, a module that read its
+    neighbour's variable — or a roster entry that pointed at the wrong module —
+    would pass.
+    """
+    dest = {var: str(tmp_path / f"moved_{i}_{var.lower()}")
+            for i, var in enumerate(sorted(NEWLY_PINNED_PATHS))}
+    values = _resolve_in_child(tmp_path, dest)
+
+    wrong = []
+    for var in sorted(NEWLY_PINNED_PATHS):
+        got, want = values[var], dest[var]
+        if os.path.normpath(got) != os.path.normpath(want):
+            wrong.append(f"{var}: set to {want!r} but the module uses {got!r}")
+    assert not wrong, (
+        "INERT KNOB — the variable moved and the value did not:\n  "
+        + "\n  ".join(wrong))
+
+    resolved = [os.path.normpath(values[v]) for v in sorted(NEWLY_PINNED_PATHS)]
+    assert len(set(resolved)) == len(resolved), (
+        "two of the eight resolved to the SAME path, so at least one is not "
+        f"reading its own variable: {resolved}")
 
 
 # ─── the tripwire: watched firing, on a probe directory ─────────────────────
@@ -240,25 +611,35 @@ def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
     A pin moves an env READ; neither had one; both wrote to `C:\\data\\flow.db`.
     Both are fixed, and this fails BY `file:line:function` if a third appears.
 
-    ⚠️ The remaining entries are ALLOWED and enumerated, not silenced: the bare
-    `/data` probes (`os.path.isdir("/data")` inside a status handler) create
-    nothing, and `api/main.py` + `api/routers/auth.py` are owned elsewhere.
-    Growing this list is what fails.
+    ⚠️ The remaining entries are ALLOWED and enumerated, not silenced: they
+    are all bare `/data` probes (`os.path.isdir("/data")` inside a status
+    handler), which create nothing, plus `api/main.py`'s two `_flow_*`
+    helpers, which are owned elsewhere. Growing this list is what fails.
+
+    ⭐ `api/routers/auth.py` USED to be on the allowed side: `export_user_data`
+    spelled two bare literals, `/data/trades.json` and `/data/watchlists.json`.
+    W9j.1 closed both — the first through a `TRADES_FILE` read in the function
+    itself, the second by importing `watchlist_tracker.WATCHLIST_FILE` instead
+    of restating the path — so it is asserted GONE below, the same way
+    `flow_db` and `baselines` are.
     """
     sites = rootconf.UNGUARDED_SHARED_LITERAL_SITES
     named_files = {s[0] for s in sites}
     # The CONTROL, first: an "X must not appear" rail passes trivially against a
     # census that finds nothing, so prove it still finds the sites that are
-    # genuinely there before asking whether the two fixed ones are gone.
+    # genuinely there before asking whether the fixed ones are gone.
     assert len(sites) >= 8, f"the site census went blind — it found {len(sites)}"
-    assert "api/routers/auth.py" in named_files, \
-        "export_user_data still spells two bare /data literals; a census that " \
-        "misses them is not looking"
+    assert "api/main.py" in named_files, \
+        "_flow_plan/_flow_optimize still carry a bare /data/flow.db and the " \
+        "census no longer sees them; it is not looking"
+    assert "api/routers/auth.py" not in named_files, \
+        "export_user_data is spelling a bare /data literal again — the " \
+        "redirect cannot reach a literal in a function that reads no env var"
     assert "api/flow_db.py" not in named_files, \
         "FlowDB.__init__ is carrying a bare /data default again"
     assert "api/baselines.py" not in named_files, \
         "baselines is carrying a bare /data default again"
-    assert len(sites) <= 10, (
+    assert len(sites) <= 8, (
         "a new /data literal now sits in a function that reads no env var — "
         "the redirect cannot reach it:\n  "
         + "\n  ".join(f"{f}:{ln} {fn}() -> {v}" for f, ln, fn, v in sites))
