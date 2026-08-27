@@ -22,7 +22,7 @@ scans on a member's own script, and evidence.
 | A1 | Author a MACD-with-histogram from scratch in the editor: three plots, member inputs, overlay/pane choice, styles; it draws, scans (on `hist > 0`), alerts — one `def_hash` at every surface | `tests/test_endzone_acceptance.py` + a `BuilderSheet.endzone.test.jsx` walking the four surfaces on one hash |
 | A2 | Paste any of the 21-script Pine corpus: **17/21** translate (the 4 by-design refusals name their reason) | `pine.corpus.test.js` snapshot: `saveable == 17` |
 | A3 | Paste the 30-script Pine **community** corpus: ≥ 80 % translate, every refusal at its token | `pine.community.test.js` snapshot, pinned both directions |
-| A4 | Paste the 24-script **thinkScript** corpus: **15/24 (62.5 %) in Wave 1**, rising to **19/24 (79 %) once W2b lands `tf`/`sym`**; chrome calls listed as ignored lines, never dropped | `thinkscript.corpus.test.js` snapshot, pinned both directions |
+| A4 | Paste the 24-script **thinkScript** corpus: **8/24 in Wave 1 — the MEASURED ceiling, and the corpus is already at it** (12/24 only if four vendor pages publish; **15 is unreachable by construction**). Chrome calls listed as ignored lines, never dropped. See the 2026-08-27 amendment below for the partition and its derivation. | `thinkscript.corpus.test.js` snapshot, pinned both directions, partition asserted TOTAL and DISJOINT |
 | A5 | TC2000: **66/71** Worden spellings read; MS/TSV/non-Wilder RSI refuse by name with the reason | `pcf.vocabulary.test.js` EXPECTED table |
 | A6 | A scan runs on the full universe nightly **and** every 5 min through the session with a per-cycle coverage receipt; a member sees live vs nightly per hit | `test_scan_live_sweep.py` + the receipt fields on the surface |
 | A7 | A weekly condition inside a daily scan (`tf(close > sma(close,10), 'W')`) and an RS-vs-SPY condition (`sym('SPY', close)`) both sweep and both draw | conformance fixtures for `tf`/`sym` in both lanes at 1e-9 |
@@ -173,3 +173,50 @@ Parallel wave 1 = W0 · W1a · W1b · W2a · W3 (post-corpus) · W4a · W4b · W
 ## 10. Open owner items (non-blocking, surfaced at the wave that touches them)
 
 E-7 toolkit numbers (§8.4) · §12 sharing amendment wording · "everything is paid" vs the 16 natives' `tier: 'free'` badge · the compact-legend trade (settings door) · `ichimoku.chikou`'s badge · intraday universe coverage target once the prewarm number is measured.
+
+### A4 amended 2026-08-27 — the ceiling is 8, and 15 was unreachable by construction
+
+⛔ **The corpus is already AT its ceiling.** Regenerating moved nothing: 8 of 24
+translate today (`02 03 04 11 12 13 14 20`), and every one carries
+`perOutputRefusals === {}` — **no refused column anywhere** — now a permanent rail,
+because a script that translates its chrome and refuses its subject would otherwise
+count as a gain.
+
+**The 24 are partitioned TOTAL and DISJOINT, and asserted, so a script leaving one
+class and joining none goes red:**
+
+| class | n | meaning |
+|---|---|---|
+| translating | **8** | every column computes |
+| DOCS | **9** | blocked on vendor documentation that does not exist |
+| DESIGN | **4** | deferred by design (`tf`/`sym`, `:account`, session boundaries) |
+| RULED | **3** | refusals this door is **right** to make, permanently |
+
+⭐ **"Reachable without new vendor documentation" is ZERO — computed by subtraction,
+not claimed:** `FILES.filter(f => !translating && !DESIGN && !DOCS && !RULED)` → `[]`.
+**Nothing is waiting on ordinary work.**
+
+⛔ **The RULED class is not a gap and must never be counted as one.** `01`
+(SuperTrend) and `10` (Laguerre) are **seedless self-recursions**; `17` is a **2-bar
+self-lag**. Translating them would mean inventing a seed the engine cannot prove —
+the silent-mistranslation failure this whole lane exists to prevent. Their refusals
+already name the fix.
+
+**Arithmetic, both forms pinned in the rail so the gap between the wish and the
+measurement lives in assertions:** `24 − 9 = 15` and `12 + 3 = 15`. Reaching 15 needs
+either a DESIGN-deferred script to move **or one of three correct refusals reversed**.
+
+⚠️ **Four scripts are blocked by documentation ALONE** — `05` (BollingerBands + RSI),
+`07` (TTM_Squeeze), `16` (RSI), `19` (MovAvgExponential). Each is asserted to actually
+*call* its blocker, and each blocker to be a registered `TS_DOC_BLOCKED` entry, so the
+set cannot drift into "things we did not get to."
+
+⭐ **`BarNumber` is the highest-leverage single unblock** — it touches `17`, `23` and
+`24`, and **one published example showing the number on a known bar** would clear it;
+`barindex` is already declared and ready. ⚠️ **`TTM_Squeeze` is proprietary and may
+never unblock.**
+
+⛔ **A7's "19/24 after `tf`/`sym`" inherits the same defect and has NOT been
+re-measured.** It was written from the same aspiration; treat it as unverified until
+someone derives it the way A4 now is.
+
