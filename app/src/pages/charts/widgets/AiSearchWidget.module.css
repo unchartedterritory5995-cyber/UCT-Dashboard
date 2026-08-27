@@ -6,12 +6,12 @@
   min-height: 0;
   /* A custom canvas (⚙) paints the whole widget; otherwise it matches the Watchlist
      widget's row background (--bg-surface) so it reads like the other list widgets. */
-  background: var(--basic-canvas, var(--bg-surface, #1a1c17));
+  background: var(--basic-canvas, #0e0f0d);
   color: var(--text, #e5e7eb);
   /* Match the chart's vivid green/red so ± percentages in AI answers (colored by
      HighlightThesis via --gain/--loss) read the same as the candles. */
-  --gain: #1ae51a;
-  --loss: #c41f2d;
+  --gain: var(--ut-green-bright);
+  --loss: var(--ut-red-bright);
 }
 /* `chrome={false}` (the earnings modal's Ask AI section). The canvas above is
    the widget's IDENTITY inside the /charts grid — it makes this read as a card
@@ -219,7 +219,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; font-size: 11px; padding: 2px 4px; flex-shrink: 0;
 }
-.savedDel:hover { color: var(--loss, #c41f2d); }
+.savedDel:hover { color: var(--loss, var(--ut-red-bright)); }
 /* [n] citation markers inside the answer — superscript links to the source. */
 .cite {
   font-size: 9.5px; font-weight: 700; vertical-align: super; line-height: 1;

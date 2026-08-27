@@ -476,6 +476,27 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: false,                     // a live surge leaderboard at a past instant is not replayable
     liveCapable: false,
   },
+  scatter: {
+    // "Market Map": a scatter/bubble chart of a whole universe on user-chosen
+    // X/Y (+ size) axes. Wants width AND height — it's an analysis canvas, not a
+    // rail; big default so the point cloud + labels have room.
+    labels: { header: 'Market Map', menu: 'Market Map', tab: 'Map' },
+    defaults: { w: 10, h: 12, minW: 5, minH: 6 },
+    placement: { family: 'chart', fill: 'wide' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    paramsSchema: [
+      { key: 'source', type: 'string', default: 'index' },   // universe descriptor
+      { key: 'value', type: 'string', default: 'sp500' },
+      { key: 'xKey', type: 'string', default: 'rvol' },
+      { key: 'yKey', type: 'string', default: 'chg_today' },
+      { key: 'sizeKey', type: 'string' },                    // '' = uniform dots
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: (p) => `[market map: ${p.value || p.source || 'market'} — ${p.yKey || 'y'} vs ${p.xKey || 'x'}]`,
+    reconstructable: false,                     // a live market map at a past instant is not replayable
+    liveCapable: false,
+  },
 })
 
 // Registry ids in declaration order — this order IS the menu order.
@@ -496,12 +517,45 @@ export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].th
 // exactly one, so nothing silently falls out of the menu). Category order + the id
 // order within each are the menu order.
 export const WIDGET_CATEGORIES = [
-  { key: 'charts',   label: 'Charts',                 items: ['chart'] },
-  { key: 'lists',    label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner'] },
-  { key: 'breadth',  label: 'Breadth & Momentum',     items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
-  { key: 'research', label: 'Research',                items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar'] },
-  { key: 'flow',     label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
+  { key: 'charts',    label: 'Charts',                 items: ['chart'] },
+  { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
+  // "Market Internals" is the home for the real-time, market-wide tools — the growing
+  // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
+  { key: 'internals', label: 'Market Internals',       items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
+  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar'] },
+  { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
+
+// ── Widget catalog presentation ──────────────────────────────────────────────
+// Icon (a UIcon glyph name), a one-line blurb, and `live` (a real-time feed → a
+// "LIVE" tag) for the visual Widget Catalog gallery. Kept beside WIDGET_CATEGORIES
+// as the menu-presentation table (not a field on every entry, mirroring the
+// categories); registry.test pins that every workspace-menu widget has an entry so a
+// new widget can never ship into the gallery blank. (periodsort is Tools-only → no
+// card.)
+export const WIDGET_CATALOG = {
+  chart:        { icon: 'chart',    blurb: 'Candles, drawings, indicators & timeframes.' },
+  watchlist:    { icon: 'star',     blurb: 'Your symbols with live prices & columns.' },
+  themes:       { icon: 'markets',  blurb: 'Theme & sector performance leaderboard.' },
+  scanner:      { icon: 'screener', blurb: 'Build & run scans on your own criteria.' },
+  fundamentals: { icon: 'scale',    blurb: 'Earnings, valuation & key financials.' },
+  breadth:      { icon: 'breadth',  blurb: 'Market breadth & participation monitor.', live: true },
+  aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
+  news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
+  profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
+  alerts:       { icon: 'bell',     blurb: 'Your price alerts, updating live.' },
+  calendar:     { icon: 'calendar', blurb: 'Earnings & market events calendar.' },
+  optionsflow:  { icon: 'flow',     blurb: 'Live options order-flow tape.', live: true },
+  nhnl:         { icon: 'wave',     blurb: 'New highs vs new lows, live by group.', live: true },
+  nhnlPulse:    { icon: 'bolt',     blurb: 'Real-time high/low momentum pulse.', live: true },
+  volumescan:   { icon: 'flame',    blurb: 'Live relative-volume surge leaderboard.', live: true },
+  scatter:      { icon: 'markets',  blurb: 'Plot any universe on custom X / Y / size axes.', live: true },
+}
+
+/** Catalog presentation (icon/blurb/live) for a widget id, with a safe fallback. */
+export function catalogMeta(id) {
+  return WIDGET_CATALOG[id] || { icon: 'sparkle', blurb: '' }
+}
 
 const _MENU_TYPE_SETS = {
   workspace: WORKSPACE_MENU_TYPES,

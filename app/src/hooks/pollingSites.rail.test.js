@@ -255,7 +255,6 @@ const BARE_POLL_SITES = {
   'app/src/pages/FlowScoreboard.jsx': 1,
   'app/src/pages/ModelBook.jsx': 3,
   'app/src/pages/MorningWire.jsx': 1,
-  'app/src/pages/Patterns.jsx': 1,
   'app/src/pages/UCT20.jsx': 4,
   'app/src/pages/Watchlists.jsx': 3,
   'app/src/pages/admin/PatternAdmin.jsx': 1,

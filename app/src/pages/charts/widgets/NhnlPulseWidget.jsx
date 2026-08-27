@@ -170,6 +170,7 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
           gearEl={gearRef.current}
           hostEl={rootRef.current}
           themeVars={panelThemeVars}
+          widgetType="nhnlPulse"
         />
       )}
       <div className={chrome.toolbar}>

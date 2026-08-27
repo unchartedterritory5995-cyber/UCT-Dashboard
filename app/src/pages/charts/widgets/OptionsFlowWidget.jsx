@@ -379,6 +379,7 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
       {settingsOpen && (
         <NewsSettingsPanel
           title="Options Flow Settings"
+          widgetType="optionsflow"
           showPerf={false}
           extraSections={[
             { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [

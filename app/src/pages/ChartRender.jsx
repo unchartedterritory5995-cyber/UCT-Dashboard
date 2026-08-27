@@ -48,6 +48,24 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
+
+// Comparison-line colours, in the order of the ?compare= list.
+//
+// ⛔ DERIVED, NOT PICKED BY EYE. The first cut was #38bdf8 / #f472b6 / #a3e635,
+// and #f472b6 is BYTE-IDENTICAL to the house EMA-20 while #38bdf8 sits 25 units
+// from the SMA-50 blue — on the pod's own render (2026-08-26) the AMD/QQQ
+// comparison and the EMA-20 were the same pink line. These three were chosen by
+// scoring candidates against EVERY colour the house chart already draws
+// (chartDefaults' overlays + candles + grid/text + the pre/post chip) and
+// keeping the trio whose nearest neighbour is furthest away:
+//   #c084fc purple    nearest SMA-50  #60a5fa (91)
+//   #22d3ee cyan      nearest SMA-50  #60a5fa (43)
+//   #e8e8ea off-white nearest axis text #9aa0a6 (56)
+// compareColors.test.js re-runs that measurement against the live palette, so a
+// future house recolour that crowds one of these fails instead of shipping two
+// lines of the same colour. Comparisons draw at lineWidth 2 (MAs are 1) and
+// carry a price-scale label in their own colour, which is the second signal.
+export const COMPARE_COLORS = ['#c084fc', '#22d3ee', '#e8e8ea']
 import StockChart, { SESSION_EXT_COLOR } from '../components/StockChart'
 import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
@@ -223,6 +241,10 @@ export default function ChartRender() {
   // unless the member chose a style), and a blank volume pane (vol is 0 for a %).
   const breadthParam = sp.get('breadth') === '1'
   const breadthName = breadthParam ? (sp.get('bname') || '').slice(0, 80) : ''
+  // ?to=YYYY-MM-DD — the Discord chart's "Earlier" panning: hide every bar
+  // after that day and frame the window ending there (StockChart replayCutoff;
+  // the bars API serves a pre-cutoff window fast). Absent = live, unchanged.
+  const toParam = (() => { const v = sp.get('to') || ''; return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null })()
   const extParam = sp.get('ext')
   const forceExt = extParam === null ? null : !(extParam === '0' || extParam === 'false')
   const priceLineParam = sp.get('priceline')
@@ -362,10 +384,26 @@ export default function ChartRender() {
   // `?instances=` lands LAST and as its own merge step. `mergeSettingsOverride`
   // merges `indicatorInstances` by instanceId (never wholesale), so this adds the
   // engine's instances without disturbing anything the settings blob said.
+  // `?compare=SPY,QQQ` (Discord /chart compare:) - up to three symbols drawn the
+  // way the Charts widget draws comparisons: %-rebased lines with their own
+  // coloured labels on the right (StockChart `comparisonSymbols`, scaleMode
+  // 'new'). Replaces any saved comparison wholesale: a bot chart never inherits
+  // whatever the owner last compared on his own screen.
+  const compareParam = sp.get('compare') || ''
+  const compareSyms = useMemo(
+    () => Array.from(new Set(compareParam.split(',').map(s => s.trim().toUpperCase())
+      .filter(s => /^[A-Z0-9.^-]{1,12}$/.test(s)))).slice(0, 3),
+    [compareParam],
+  )
+  const compareOverride = useMemo(() => (compareSyms.length
+    ? { comparisonSymbols: compareSyms.map((sym, i) => ({ sym, color: COMPARE_COLORS[i % COMPARE_COLORS.length], enabled: true, scaleMode: 'new' })) }
+    : null), [compareSyms])
+
   const csOverride = useMemo(() => {
-    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta) return null
+    if (!ownerSettings && !indicatorsParam && !instancesParam && !presetDelta && !compareOverride) return null
     let out = ownerSettings
     if (presetDelta) out = mergeSettingsOverride(out || {}, presetDelta)
+    if (compareOverride) out = mergeSettingsOverride(out || {}, compareOverride)
     if (indicatorsParam) out = mergeSettingsOverride(out || {}, indicatorsParam)
     if (instancesParam) {
       // ⚠️ `engineEnabled: true` stood beside this key until B5 Task 4. It was the
@@ -376,7 +414,7 @@ export default function ChartRender() {
       })
     }
     return out
-  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam])
+  }, [ownerSettings, presetDelta, indicatorsParam, instancesParam, compareOverride])
 
   // The committed bar fixture. Dynamic import (not fetch) so it needs no static
   // route and costs the normal bundle nothing — Vite splits it into its own chunk
@@ -506,10 +544,24 @@ export default function ChartRender() {
   // the parent's, so an effect here would wipe a latch StockChart had already
   // flipped. The write is idempotent per (sym, tf) and this page is a one-shot
   // export, so the render-time side effect is the correct order, not a shortcut.
-  const barsKey = `${sym}|${tf}`
+  // With `?compare=`, the overlays are a SECOND fetch StockChart makes on its
+  // own; the first-bars latch says nothing about them. Measured 2026-08-25: a
+  // compare render captured on the base latch alone showed the % scale and no
+  // lines. So readiness = base bars AND (no comparisons OR overlays drawn).
+  const barsKey = `${sym}|${tf}|${compareSyms.join(',')}`
   const barsKeyRef = useRef(null)
-  if (barsKeyRef.current !== barsKey) { barsKeyRef.current = barsKey; window.__chartBarsReady = false }
-  const onBarsReady = () => { window.__chartBarsReady = true }
+  const readyPartsRef = useRef({ bars: false, comparisons: false })
+  if (barsKeyRef.current !== barsKey) {
+    barsKeyRef.current = barsKey
+    readyPartsRef.current = { bars: false, comparisons: false }
+    window.__chartBarsReady = false
+  }
+  const publishBarsReady = () => {
+    const r = readyPartsRef.current
+    window.__chartBarsReady = r.bars && (compareSyms.length === 0 || r.comparisons)
+  }
+  const onBarsReady = () => { readyPartsRef.current.bars = true; publishBarsReady() }
+  const onComparisonsReady = () => { readyPartsRef.current.comparisons = true; publishBarsReady() }
 
   useEffect(() => {
     window.__chartReady = false
@@ -713,6 +765,13 @@ export default function ChartRender() {
         <div style={{ height: 40, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 14, position: 'relative' }}>
           <span style={{ color: '#c9a84c', fontWeight: 700, fontSize: 18 }}>{sym}</span>
           {meta.company && <span style={{ marginLeft: 8, color: '#9aa08f', fontSize: 13 }}>({meta.company})</span>}
+          {compareSyms.length > 0 && (
+            <span data-testid="compare-tag" style={{ marginLeft: 10, fontSize: 13, color: chromeText }}>
+              vs {compareSyms.map((cs, i) => (
+                <span key={cs} style={{ color: COMPARE_COLORS[i % COMPARE_COLORS.length], fontWeight: 600 }}>{i ? ' · ' : ''}{cs}</span>
+              ))}
+            </span>
+          )}
           {/* RAW code ('D'), not 'Daily' - composeScreenshot draws opts.tf
               verbatim, and these two headers sit in the same issue. */}
           <span style={{ marginLeft: 12 }}>{tf}</span>
@@ -739,6 +798,8 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
+            onComparisonsReady={onComparisonsReady}
+            {...(toParam ? { replayCutoff: toParam } : {})}
             {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}
             forceExtendedHours={forceExt}
             settingsOverride={csOverride}

@@ -30,6 +30,7 @@ import {
   portfolioAggregates,
   positionPnlDollar,
   brokerLiveSummary,
+  effectiveBrokerCash,
   money,
   moneySigned,
   percent,
@@ -148,9 +149,14 @@ export default function JournalSnapshotTile() {
     () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }),
     [],
   )
+  // Per-account effective cash (fill-derived brokerCashLive when present) —
+  // pairing LIVE position values with sync-stale cash double-counts every
+  // intraday buy (the 2026-08-26 hero incident); the tile shares the fix.
   const brokerCashTotal = useMemo(() => {
-    const withCash = brokerAccounts.filter((a) => Number.isFinite(a.brokerCash))
-    return withCash.length ? withCash.reduce((s, a) => s + a.brokerCash, 0) : null
+    const withCash = brokerAccounts
+      .map((a) => effectiveBrokerCash(a))
+      .filter((c) => Number.isFinite(c))
+    return withCash.length ? withCash.reduce((s, c) => s + c, 0) : null
   }, [brokerAccounts])
   const brokerLive = useMemo(
     () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices, etToday, optionMarks),

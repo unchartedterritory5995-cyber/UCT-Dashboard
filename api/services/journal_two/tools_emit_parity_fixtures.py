@@ -17,6 +17,7 @@ from pathlib import Path
 
 from api.services.journal_two import calculations as calc
 from api.services.journal_two import options as opt
+from api.services.journal_two.broker import composition
 
 BE_OFF = {"enabled": False, "unit": "$", "value": 0.0}
 BE_PCT = {"enabled": True, "unit": "%", "value": 0.5}
@@ -62,6 +63,95 @@ OPTION_CASES = [
 ]
 
 
+# Net-liq COMPOSITION cases — the number the Open Positions hero shows.
+# Python authority: broker/composition.py; JS mirror: brokerLiveSummary
+# (marketValue + netLiq only — Today has its own tests). Case 0 is the
+# 2026-08-26 incident book, pinned with its real numbers.
+COMPOSITION_CASES = [
+    {   # incident book: fill-derived cash + live marks → the true ~$10.9k
+        "account": {"balanceSource": "broker", "brokerCash": -18760.66,
+                     "brokerCashLive": -29750.66},
+        "positions": [
+            {"symbol": "DELL", "side": "Long", "shares": 5.0,
+             "brokerPrice": 463.69, "source": "broker"},
+            {"symbol": "ORCL", "side": "Long", "shares": 100.0,
+             "brokerPrice": 148.87, "source": "broker"},
+            {"symbol": "NEXA", "side": "Long", "shares": 750.0,
+             "brokerPrice": 15.58, "source": "broker"},
+            {"symbol": "SPY", "side": "Long", "shares": 0.1568,
+             "brokerPrice": 765.95, "source": "broker"},
+            {"symbol": "SNAP", "side": "Long", "shares": 2000.0,
+             "brokerPrice": 5.415, "source": "broker"},
+        ],
+        "strategies": [
+            {"id": "s1", "brokerCurrentValue": 665.0, "netEntry": 610.0,
+             "source": "broker"},
+        ],
+        "prices": {"SNAP": {"price": 5.4241}},
+        "optionMarks": {},
+    },
+    {   # stale cash only (no brokerCashLive) → falls back to brokerCash
+        "account": {"balanceSource": "broker", "brokerCash": 2000.0},
+        "positions": [
+            {"symbol": "AAPL", "side": "Long", "shares": 10, "brokerPrice": 90,
+             "source": "broker"},
+            {"symbol": "TSLA", "side": "Short", "shares": 5, "brokerPrice": 200,
+             "source": "broker"},
+        ],
+        "strategies": [{"id": "s1", "brokerCurrentValue": 300.0,
+                         "netEntry": 250.0, "source": "broker"}],
+        "prices": {"AAPL": {"price": 100}, "TSLA": {"price": 210}},
+        "optionMarks": {},
+    },
+    {   # MIRROR PURITY: manual rows in a broker account are excluded
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [
+            {"symbol": "AAPL", "side": "Long", "shares": 10, "brokerPrice": 100,
+             "source": "broker"},
+            {"symbol": "GME", "side": "Long", "shares": 1000, "brokerPrice": 25,
+             "source": None},
+        ],
+        "strategies": [{"id": "m1", "brokerCurrentValue": 5000.0,
+                         "netEntry": 4000.0, "source": None}],
+        "prices": {},
+        "optionMarks": {},
+    },
+    {   # just-filled broker strategy, no mark stamped → values at netEntry
+        "account": {"balanceSource": "broker", "brokerCash": -610.0},
+        "positions": [],
+        "strategies": [{"id": "s1", "brokerCurrentValue": None,
+                         "netEntry": 610.0, "source": "broker"}],
+        "prices": {},
+        "optionMarks": {},
+    },
+    {   # live option mark beats the sync value
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [],
+        "strategies": [{"id": "s1", "brokerCurrentValue": 665.0,
+                         "netEntry": 610.0, "source": "broker"}],
+        "prices": {},
+        "optionMarks": {"s1": {"currentValue": 700.0}},
+    },
+    {   # manual (non-broker) account: no source filter, no netEntry fallback
+        "account": {"balanceSource": "manual", "brokerCash": 100.0},
+        "positions": [{"symbol": "AAPL", "side": "Long", "shares": 2,
+                        "brokerPrice": 50, "source": None}],
+        "strategies": [{"id": "m1", "brokerCurrentValue": None,
+                         "netEntry": 999.0, "source": None}],
+        "prices": {},
+        "optionMarks": {},
+    },
+    {   # unknown cash → netLiq null, marketValue still composed
+        "account": {"balanceSource": "broker"},
+        "positions": [{"symbol": "X", "side": "Long", "shares": 1,
+                        "brokerPrice": 10, "source": "broker"}],
+        "strategies": [],
+        "prices": {"X": {"price": 10}},
+        "optionMarks": {},
+    },
+]
+
+
 def _py_leg(leg: dict) -> dict:
     out = {"side": leg["side"], "qty": leg["qty"],
            "entry_price": leg["entryPrice"], "exit_price": leg["exitPrice"]}
@@ -73,7 +163,15 @@ def _py_leg(leg: dict) -> dict:
 
 
 def main() -> None:
-    fixtures = {"equity": [], "options": []}
+    fixtures = {"equity": [], "options": [], "composition": []}
+    for case in COMPOSITION_CASES:
+        fixtures["composition"].append({
+            "inputs": case,
+            "expected": composition.compose_net_liq(
+                case["account"], case["positions"], case["strategies"],
+                case["prices"], case["optionMarks"],
+            ),
+        })
     for side, e, x, sh, stop, ed, xd, be in EQUITY_CASES:
         pnl = calc.trade_pnl_dollar(side, e, x, sh)
         fixtures["equity"].append({
@@ -106,7 +204,9 @@ def main() -> None:
         })
     out = Path(__file__).resolve().parents[3] / "app" / "src" / "lib" / "journal-2-0" / "parity-fixtures.json"
     out.write_text(json.dumps(fixtures, indent=2))
-    print(f"wrote {out} ({len(fixtures['equity'])} equity, {len(fixtures['options'])} option cases)")
+    print(f"wrote {out} ({len(fixtures['equity'])} equity, "
+          f"{len(fixtures['options'])} option, "
+          f"{len(fixtures['composition'])} composition cases)")
 
 
 if __name__ == "__main__":

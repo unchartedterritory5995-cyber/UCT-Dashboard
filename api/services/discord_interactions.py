@@ -6,6 +6,8 @@ verifies + parses with these and schedules `run_chart_job`; the local tool
 """
 from __future__ import annotations
 
+import contextlib
+import dataclasses
 import json
 import logging
 import os
@@ -13,9 +15,11 @@ import re
 import threading
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
+from api.services import discord_chart_hotset as hotset
 from api.services import discord_chart_prefs as prefs_mod
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
@@ -43,12 +47,53 @@ def render_slot_count(default: int = 4) -> int:
 # told to retry rather than queue behind a cold Massive fetch.
 RENDER_SLOTS = threading.BoundedSemaphore(render_slot_count())
 BARS_RETRY_DELAY_S = 1.5
+
+# ── the bars-warm gate ──────────────────────────────────────────────────────
+# Every chart pulls its symbol's bars before rendering, and that WRITES to the
+# bars store. The web pod runs a 2 s SQLite busy_timeout BY DESIGN (CLAUDE.md:
+# a longer one compounds with the retry loop and saturates the anyio pool), so
+# simultaneous cold fetches lose the race: `sqlite3.OperationalError: database
+# is locked`. The loser reports "no bars" for a perfectly good ticker, and -
+# worse - the PAGE's own /api/bars call inside the renderer can lose it too,
+# which paints a blank chart (measured 2026-08-26: AKAM twice, ANET, HPE).
+#
+# This gate costs the common case NOTHING: a symbol already in the store
+# returns in ~0 ms, so it holds the slot for ~0 ms. Only genuinely cold fetches
+# queue - which is exactly when serialising them is what keeps both of them
+# alive. A member never blocks forever: the acquire has a timeout and proceeds
+# regardless, because a contended fetch still beats no chart at all.
+BARS_WARM_TIMEOUT_S = 30.0
+
+
+def warm_slot_count(default: int = 1) -> int:
+    raw = os.environ.get("DISCORD_CHART_WARM_CONCURRENCY", "")
+    try:
+        n = int(raw)
+        return n if 1 <= n <= 8 else default
+    except (TypeError, ValueError):
+        return default
+
+
+BARS_WARM_SLOTS = threading.BoundedSemaphore(warm_slot_count())
+
+
+@contextlib.contextmanager
+def bars_warm_gate(timeout: float = BARS_WARM_TIMEOUT_S):
+    """Hold a bars-fetch slot, or give up waiting and fetch anyway."""
+    got = BARS_WARM_SLOTS.acquire(timeout=timeout)
+    if not got:
+        log.warning("[discord-chart] bars warm gate timed out after %.0fs; fetching anyway", timeout)
+    try:
+        yield got
+    finally:
+        if got:
+            BARS_WARM_SLOTS.release()
 # What the /r/chart page's StockChart asks /api/bars for, on every timeframe.
 # The job warms that exact request in-process before the house render so the
 # page's own fetch hits the web pod's memory cache (0.2-0.35 s) instead of the
 # cold path (7-20 s on 5-minute bars, measured 2026-08-25) - which was long
 # enough to time out the renderer's first attempt and cost a 45 s retry.
-PAGE_BARS = 5000
+PAGE_BARS = 5000                 # legacy default; the real number comes from discord_chart_house.page_fetch_bars
 
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
 # slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
@@ -114,12 +159,18 @@ class ChartRequest:
     daily_only: bool = False     # breadth pseudo-tickers: the series is daily-basis, no intraday
     display: str | None = None   # what the reply calls it (breadth: "UCTA5 · % of Stocks Above 5-Day MA")
     breadth_name: str | None = None  # set for a breadth metric: the page paints it the way the app does
+    zoom: str | None = None      # per-call visible window (prefs key)
+    indicators: str | None = None  # per-call lower-pane indicators (prefs key)
+    to: str | None = None        # "Earlier" panning: end the window on this YYYY-MM-DD (None = live)
+    compare: tuple | None = None  # overlay symbols drawn as %-rebased lines (per call, never saved)
+    expanded: bool = False       # controls opened out? (the gear; a display state, not a chart one)
 
     def overrides(self) -> dict:
         """The prefs this one call overrides (member request: "/chart APP
         without MAs or volume" without touching saved settings)."""
         return {k: v for k, v in (("mas", self.mas), ("volume", self.volume),
-                                  ("style", self.style), ("theme", self.theme)) if v is not None}
+                                  ("style", self.style), ("theme", self.theme),
+                                  ("zoom", self.zoom), ("indicators", self.indicators)) if v is not None}
 
 
 def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, body: bytes) -> bool:
@@ -131,6 +182,94 @@ def verify_signature(public_key_hex: str, signature_hex: str, timestamp: str, bo
         return True
     except Exception:
         return False
+
+
+COMPARE_MAX = 3
+# Discord refuses a custom_id over 100 characters, and it validates the WHOLE
+# components tree as a unit: ONE over-long id = the entire edit rejected = the
+# member sits on "thinking..." forever (the same silent failure as
+# COMPONENT_CUSTOM_ID_DUPLICATED, 8/25). Every other field of the state is
+# bounded by a choice table; the compare list is the only one a member can
+# stretch, so it gets whatever the rest leave over - DERIVED from the real
+# tables (see compare_budget), never a typed number, so adding a longer theme
+# name shrinks the budget instead of silently overflowing the id.
+CUSTOM_ID_MAX = 100
+
+
+def parse_compare(raw, base: str) -> tuple | None:
+    """`compare:` option text -> up to COMPARE_MAX upper-case symbols. Accepts
+    spaces, commas, plus signs and a leading $; drops the base symbol and
+    duplicates; a token that is not a ticker, too many symbols, or a list that
+    would not fit a control's custom_id is a CommandError."""
+    if raw is None:
+        return None
+    syms: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(raw).strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"compare: '{tok}' is not a ticker (letters/digits, e.g. SPY QQQ).")
+        if tok == base or tok in syms:
+            continue
+        syms.append(tok)
+    if len(syms) > COMPARE_MAX:
+        raise CommandError(f"compare: up to {COMPARE_MAX} symbols.")
+    budget = compare_budget(base)
+    if len("+".join(syms)) > budget:
+        raise CommandError(f"compare: those symbols are too long together for {base}'s chart controls "
+                           f"({budget} characters of tickers). Try two.")
+    return tuple(syms) or None
+
+
+def parse_chart_requests(interaction: dict, default_tf: str = "D") -> list:
+    """`/chart NVDA` -> one chart; `/chart NVDA AMD AVGO` -> the set.
+
+    One door instead of two. `/charts` existed only because the ticker field
+    took a single name, which also put a second "chart"-prefixed row in
+    Discord's picker (and the picker ranked `/chartsettings reset` above it).
+    Typing several names is how a member discovers the multi-chart reply."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    tickers: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(opts.get("ticker") or "").strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"'{tok}' is not a ticker (letters/digits, e.g. NVDA, BRK.B).")
+        if tok not in tickers:
+            tickers.append(tok)
+    if not tickers:
+        raise CommandError("Give me a ticker, e.g. /chart NVDA - or several: /chart NVDA AMD AVGO.")
+    if len(tickers) > MULTI_MAX:
+        raise CommandError(f"Up to {MULTI_MAX} tickers at once.")
+    tf = str(opts.get("tf") or default_tf or "D")
+    if tf not in WINDOW:
+        raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
+    compare = parse_compare(opts.get("compare"), tickers[0])
+    if compare and len(tickers) > 1:
+        raise CommandError("compare: works with one ticker at a time - /chart NVDA compare:SPY QQQ.")
+    # The per-call look overrides are no longer advertised (they live on the
+    # dropdowns under every chart and in /chartsettings), but a client holding
+    # the older command definition may still send them, so they still parse.
+    mas = opts.get("mas")
+    if mas is not None and str(mas) not in prefs_mod.MA_CHOICES:
+        raise CommandError("mas must be one of: " + ", ".join(prefs_mod.MA_CHOICES) + ".")
+    volume = opts.get("volume")
+    if volume is not None and not isinstance(volume, bool):
+        raise CommandError("volume must be true or false.")
+    style = opts.get("style")
+    if style is not None and str(style) not in prefs_mod.STYLE_CHOICES:
+        raise CommandError("style must be one of: " + ", ".join(prefs_mod.STYLE_CHOICES) + ".")
+    theme = opts.get("theme")
+    if theme is not None and str(theme) not in prefs_mod.THEME_CHOICES:
+        raise CommandError("theme must be one of: " + ", ".join(prefs_mod.THEME_CHOICES) + ".")
+    return [ChartRequest(ticker=t, tf=tf, mas=None if mas is None else str(mas), volume=volume,
+                         style=None if style is None else str(style),
+                         theme=None if theme is None else str(theme),
+                         compare=compare if len(tickers) == 1 else None)
+            for t in tickers]
 
 
 def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartRequest:
@@ -157,11 +296,38 @@ def parse_chart_command(interaction: dict, default_tf: str = "D") -> ChartReques
     if theme is not None and str(theme) not in prefs_mod.THEME_CHOICES:
         raise CommandError("theme must be one of: " + ", ".join(prefs_mod.THEME_CHOICES) + ".")
     return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=volume,
-                        style=None if style is None else str(style), theme=None if theme is None else str(theme))
+                        style=None if style is None else str(style), theme=None if theme is None else str(theme),
+                        compare=parse_compare(opts.get("compare"), ticker))
 
 
 CHART_COMMAND_NAMES = ("chart", "c")
 SETTINGS_COMMAND = "chartsettings"
+MULTI_COMMAND = "charts"
+MULTI_MAX = 4
+
+
+def parse_charts_command(interaction: dict, default_tf: str = "D") -> list:
+    """/charts NVDA AMD AVGO -> one ChartRequest per symbol, in the order given
+    (spaces, commas, a leading $ all fine; duplicates dropped; 1..MULTI_MAX)."""
+    data = interaction.get("data") or {}
+    opts = {o.get("name"): o.get("value") for o in (data.get("options") or []) if isinstance(o, dict)}
+    tickers: list[str] = []
+    for tok in re.split(r"[\s,+]+", str(opts.get("tickers") or "").strip().upper()):
+        tok = tok.lstrip("$")
+        if not tok:
+            continue
+        if not _TICKER_RE.match(tok):
+            raise CommandError(f"'{tok}' is not a ticker (letters/digits, e.g. NVDA AMD AVGO).")
+        if tok not in tickers:
+            tickers.append(tok)
+    if not tickers:
+        raise CommandError("Give me 1-4 tickers, e.g. /charts NVDA AMD AVGO.")
+    if len(tickers) > MULTI_MAX:
+        raise CommandError(f"Up to {MULTI_MAX} tickers per /charts.")
+    tf = str(opts.get("tf") or default_tf or "D")
+    if tf not in WINDOW:
+        raise CommandError("Timeframe must be one of: " + ", ".join(TF_LABEL.values()) + ".")
+    return [ChartRequest(ticker=t, tf=tf) for t in tickers]
 
 # ── Buttons under every chart ────────────────────────────────────────────────
 # Members asked "how do I change the timeframe?" in chat on launch night. The
@@ -190,53 +356,363 @@ def public_site_url() -> str:
     return (os.environ.get("CHART_RENDER_BASE_URL") or "https://uctintelligence.com").rstrip("/")
 
 
-def component_id(ticker: str, tf: str, mas: str, volume: bool) -> str:
-    return f"{COMPONENT_PREFIX}|{ticker}|{tf}|{mas}|{1 if volume else 0}"
+STATE_PREFIX = "c2"              # button/select state: c2|SYM|tf|mas|vol|zoom|ind|style|theme|to
+SAVE_VALUE = "save"              # the Look dropdown's "save these as my defaults" pick
+HELP_VALUE = "help"              # …and its "how do these work?" pick
+SELECT_ZOOM, SELECT_IND, SELECT_LOOK = "zoom", "ind", "look"   # retired; older messages still parse
+SELECT_OPTS = "opt"              # the one dropdown that replaced those three
+# The timeframes that keep a button when the controls are closed. One slot goes
+# to the gear, so this is four of the five; expanding shows them all.
+COLLAPSED_TFS = ("D", "W", "60", "5")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Calendar days one "Earlier"/"Later" step moves the window, per zoom.
+_PAN_DAYS_D = {"auto": 95, "1m": 31, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
+_PAN_DAYS_W = {"auto": 366, "1m": 35, "3m": 95, "6m": 185, "1y": 366, "2y": 731}
+_MA_CYCLE = ("house", "10-20-50", "off")
+
+
+def _state_of(req: ChartRequest, prefs: dict | None = None) -> dict:
+    """What THIS image shows: the request's explicit choices over the member's prefs."""
+    p = {**prefs_mod.DEFAULTS, **(prefs or {})}
+    return {
+        "ticker": req.ticker, "tf": req.tf,
+        "mas": req.mas if req.mas is not None else p["mas"],
+        "vol": req.volume if req.volume is not None else bool(p["volume"]),
+        "zoom": req.zoom if req.zoom is not None else p["zoom"],
+        "ind": req.indicators if req.indicators is not None else p["indicators"],
+        "style": req.style if req.style is not None else p["style"],
+        "theme": req.theme if req.theme is not None else p["theme"],
+        "to": req.to or "",
+        "cmp": "+".join(req.compare) if req.compare else "",
+        "exp": "1" if req.expanded else "0",
+    }
+
+
+def _encode(st: dict, tag: str = "") -> str:
+    # The trailing tag names the CONTROL (tf button, earlier, later, mas, vol) and
+    # is ignored by the parser: Discord requires every custom_id in a message to
+    # be unique, and two controls can legitimately point at the same state (the
+    # active timeframe button and a disabled "Later" both mean "this chart").
+    # cmp = the compare overlay ("SPY+QQQ"), an 11th field since 8/25; ids
+    # minted before it (one field shorter) still parse - see parse_component.
+    flags = (1 if st["vol"] else 0) | (2 if str(st.get("exp", "0")) == "1" else 0)
+    return "|".join([STATE_PREFIX, st["ticker"], st["tf"], st["mas"], str(flags),
+                     st["zoom"], st["ind"], st["style"], st["theme"], st["to"] or "", st.get("cmp", ""), tag])
+
+
+def compare_budget(ticker: str) -> int:
+    """Characters of compare list (`SPY+QQQ`) that still fit a control's
+    custom_id for `ticker`, WORST CASE: the longest value of every other field,
+    a `to` date present even when the chart is live (so panning can never push
+    an id over afterwards), and the longest select prefix. Derived from the
+    choice tables themselves - a longer theme name shrinks this automatically."""
+    longest = lambda xs: max((str(x) for x in xs), key=len, default="")   # noqa: E731
+    st = {"ticker": (ticker or "")[:12] or "X", "tf": longest(WINDOW), "mas": longest(prefs_mod.MA_CHOICES),
+          "vol": True, "zoom": longest(prefs_mod.ZOOM_CHOICES), "ind": longest(prefs_mod.INDICATOR_CHOICES),
+          "style": longest(prefs_mod.STYLE_CHOICES), "theme": longest(prefs_mod.THEME_CHOICES),
+          "to": "2026-12-31", "cmp": ""}
+    fixed = len(longest((SELECT_ZOOM, SELECT_IND, SELECT_LOOK)) + "|") + len(_encode(st, "x"))
+    return max(0, CUSTOM_ID_MAX - fixed)
+
+
+def component_id(ticker: str, tf: str, mas: str, volume: bool, **rest) -> str:
+    st = {"ticker": ticker, "tf": tf, "mas": mas, "vol": bool(volume),
+          "zoom": rest.get("zoom", "auto"), "ind": rest.get("ind", "none"),
+          "style": rest.get("style", "candles"), "theme": rest.get("theme", "house"), "to": rest.get("to", ""),
+          "cmp": rest.get("cmp", ""), "exp": rest.get("exp", "0")}
+    return _encode(st)
+
+
+def _request_from_state(parts: list) -> ChartRequest:
+    """10 fields (ids minted before the compare overlay) or 11 (with it). The
+    fifth field is a FLAGS digit - bit 0 volume, bit 1 controls-open - so "0"
+    and "1" from an older id still mean what they meant, with the gear closed."""
+    parts = list(parts)
+    if len(parts) == 10:
+        parts = parts + [""]
+    _, ticker, tf, mas, vol, zoom, ind, style, theme, to, cmp = parts[:11]
+    ticker = ticker.strip().upper()
+    ok = (_TICKER_RE.match(ticker) and tf in WINDOW and mas in prefs_mod.MA_CHOICES and vol in ("0", "1", "2", "3")
+          and zoom in prefs_mod.ZOOM_CHOICES and ind in prefs_mod.INDICATOR_CHOICES
+          and style in prefs_mod.STYLE_CHOICES and theme in prefs_mod.THEME_CHOICES
+          and (to == "" or _DATE_RE.match(to)))
+    if not ok:
+        raise CommandError("Unknown button.")
+    try:
+        compare = parse_compare(cmp, ticker) if cmp else None
+    except CommandError:
+        raise CommandError("Unknown button.")
+    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=bool(int(vol) & 1), zoom=zoom, indicators=ind,
+                        style=style, theme=theme, to=to or None, compare=compare,
+                        expanded=bool(int(vol) & 2))
 
 
 def component_kind(interaction: dict) -> str:
     """'chart' (re-render in place) or 'activity' (launch the Activity)."""
     cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
     head = cid.split("|", 1)[0]
-    if head in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
-        return head
+    if head == ACTIVITY_PREFIX:
+        return "activity"
+    if head == MULTI_PREFIX:
+        return "charts"
+    if head in (COMPONENT_PREFIX, STATE_PREFIX, SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS):
+        return "chart"
     raise CommandError("Unknown button.")
 
 
 def parse_component(interaction: dict) -> ChartRequest:
-    """A button click -> the chart it asks for. Only our own custom_ids parse;
-    anything else is a CommandError (an unknown button is not a chart)."""
-    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    """A button click or a dropdown pick -> the chart it asks for. Only our own
+    custom_ids parse; anything else is a CommandError (an unknown control is
+    not a chart). Legacy 5-part `chart|…` ids (messages sent before the
+    dropdowns) still parse."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
     parts = cid.split("|")
-    if len(parts) != 5 or parts[0] not in (COMPONENT_PREFIX, ACTIVITY_PREFIX):
-        raise CommandError("Unknown button.")
-    _, ticker, tf, mas, vol = parts
-    ticker = ticker.strip().upper()
-    if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
-        raise CommandError("Unknown button.")
-    return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
+    head = parts[0]
+    if head in (COMPONENT_PREFIX, ACTIVITY_PREFIX) and len(parts) == 5:
+        _, ticker, tf, mas, vol = parts
+        ticker = ticker.strip().upper()
+        if not _TICKER_RE.match(ticker) or tf not in WINDOW or mas not in prefs_mod.MA_CHOICES or vol not in ("0", "1"):
+            raise CommandError("Unknown button.")
+        return ChartRequest(ticker=ticker, tf=tf, mas=mas, volume=(vol == "1"))
+    if head == STATE_PREFIX and len(parts) in (11, 12):
+        return _request_from_state(parts[:-1])          # the last part = the control tag
+    if head in (SELECT_ZOOM, SELECT_IND, SELECT_LOOK, SELECT_OPTS) and len(parts) in (12, 13):
+        req = _request_from_state(parts[1:-1])
+        values = data.get("values") or []
+        value = str(values[0]) if values else ""
+        if head == SELECT_ZOOM:                       # retired select, older messages
+            if value not in prefs_mod.ZOOM_CHOICES:
+                raise CommandError("Unknown zoom.")
+            return dataclasses.replace(req, zoom=value, to=None)     # a new window starts from live
+        if head == SELECT_IND:                        # retired select, older messages
+            if value not in prefs_mod.INDICATOR_CHOICES:
+                raise CommandError("Unknown indicator set.")
+            return dataclasses.replace(req, indicators=value)
+        if head == SELECT_OPTS:
+            kind, _, choice = value.partition(":")
+            if kind == "zoom" and choice in prefs_mod.ZOOM_CHOICES:
+                return dataclasses.replace(req, zoom=choice, to=None)
+            if kind == "ind" and choice in prefs_mod.INDICATOR_CHOICES:
+                return dataclasses.replace(req, indicators=choice)
+        if value in (SAVE_VALUE, HELP_VALUE):
+            return req                          # the router saves this state, or explains it
+        kind, _, choice = value.partition(":")
+        if kind == "style" and choice in prefs_mod.STYLE_CHOICES:
+            return dataclasses.replace(req, style=choice)
+        if kind == "theme" and choice in prefs_mod.THEME_CHOICES:
+            return dataclasses.replace(req, theme=choice)
+        raise CommandError("Unknown look.")
+    raise CommandError("Unknown button.")
+
+
+def chart_help_text() -> str:
+    """The cheatsheet behind the Look dropdown's "?" - everything the command
+    can do that a member would otherwise have to be told about."""
+    return "\n".join([
+        "**The chart you're looking at**",
+        "\u2022 \u2699\ufe0f opens the rest of the controls; \u25b2 closes them again.",
+        "\u2022 The buttons switch timeframe. **\u25c0 Earlier / Later \u25b6** walk the window back and forward.",
+        "\u2022 **Zoom** sets how much history is in frame. **Indicators** adds RSI or MACD underneath.",
+        "\u2022 **Look** changes the candle style or the theme - and saves the whole lot as your defaults.",
+        "",
+        "**Typing it**",
+        "\u2022 `/chart NVDA` - one chart. `/c NVDA` is the short form.",
+        "\u2022 `/chart NVDA AMD AVGO` - up to four at once, in one message.",
+        "\u2022 `/chart NVDA compare:SPY QQQ` - overlays them as % lines against NVDA.",
+        "\u2022 `/chart NVDA tf:5` - five-minute chart (also 15m, 60m, W).",
+        "\u2022 Breadth reads as a chart too: `/chart UCTA5`, `/chart UCTA50`.",
+        "",
+        "**Your defaults**",
+        "\u2022 `/chartsettings` on its own shows them; add any option to change one; `reset:True` puts them back.",
+        "",
+        "The full interactive chart lives on the site: <" + public_site_url() + "/research/NVDA>",
+    ])
+
+
+def is_help_pick(interaction: dict) -> bool:
+    """True when a Look dropdown pick is "how do these work?"."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
+    values = data.get("values") or []
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == HELP_VALUE
+
+
+def is_save_pick(interaction: dict) -> bool:
+    """True when a Look dropdown pick is "save these as my defaults"."""
+    data = interaction.get("data") or {}
+    cid = str(data.get("custom_id") or "")
+    values = data.get("values") or []
+    return (cid.startswith(SELECT_LOOK + "|") or cid.startswith(SELECT_OPTS + "|")) \
+        and bool(values) and str(values[0]) == SAVE_VALUE
+
+
+def prefs_from_request(req: ChartRequest) -> dict:
+    """The member-settable prefs a chart's state carries (what "save" writes)."""
+    out = {"tf": req.tf}
+    for key in ("mas", "volume", "zoom", "indicators", "style", "theme"):
+        v = getattr(req, key)
+        if v is not None:
+            out[key] = v
+    return out
+
+
+def pan_to(current_to: str | None, tf: str, zoom: str, direction: int, today: str | None = None) -> str | None:
+    """The end date one step earlier (-1) or later (+1); None = back to live."""
+    import datetime as _dt
+    days = (_PAN_DAYS_W if tf == "W" else _PAN_DAYS_D).get(zoom, 95)
+    today_d = _dt.date.fromisoformat(today) if today else _dt.date.today()
+    base = _dt.date.fromisoformat(current_to) if current_to else today_d
+    nxt = base + _dt.timedelta(days=days * direction)
+    if nxt >= today_d:
+        return None
+    return nxt.isoformat()
 
 
 def chart_components(req: ChartRequest, prefs: dict | None = None, guild_id: str | None = None) -> list:
-    """The two action rows under a chart, reflecting what THIS image shows."""
-    p = {**prefs_mod.DEFAULTS, **(prefs or {})}
-    mas = req.mas if req.mas is not None else p["mas"]
-    vol = req.volume if req.volume is not None else bool(p["volume"])
+    """The rows under a chart, reflecting what THIS image shows. Five rows is
+    Discord's ceiling: timeframes · Zoom · Indicators · Look · pan/MAs/volume."""
+    st = _state_of(req, prefs)
+    sid = lambda tag="", **changes: _encode({**st, **changes}, tag)  # noqa: E731
+    # ⭐ CLOSED BY DEFAULT — ONE ROW. Owner, 2026-08-26, after the five-row stack
+    # was cut to three: "I like option 3 the best" - the most compact of the
+    # three shapes offered. A chart in a busy channel is now the image plus a
+    # single row; the gear opens the full surface for the member who wants it,
+    # and the open/closed state rides in the ids so it survives every click.
+    #
+    # Six buttons do not fit a row of five, so ONE timeframe gives up its slot
+    # when closed: 15m, because 5m and 60m carry the intraday work. It is one
+    # entry in COLLAPSED_TFS to change, and expanding shows every timeframe.
     tf_choices = [(tf, label) for tf, label in BUTTON_TFS if not req.daily_only or tf in ("D", "W")]
-    tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == req.tf else _STYLE_SECONDARY, "label": label,
-            "custom_id": component_id(req.ticker, tf, mas, vol)} for tf, label in tf_choices]
-    toggles = [
-        {"type": 2, "style": _STYLE_SECONDARY, "label": "MAs off" if mas != "off" else "MAs on",
-         "custom_id": component_id(req.ticker, req.tf, "off" if mas != "off" else "house", vol)},
-        {"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if vol else "Volume on",
-         "custom_id": component_id(req.ticker, req.tf, mas, not vol)},
-        {"type": 2, "style": _STYLE_LINK, "label": "Open interactive \u2197",
-         "url": f"{public_site_url()}/research/{req.ticker}"},
-    ]
+    if not st["exp"] == "1":
+        closed = [(tf, label) for tf, label in tf_choices if tf in COLLAPSED_TFS]
+        row = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
+                "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+               for tf, label in closed]
+        # …and if the chart is ON the timeframe that lost its slot, it keeps one
+        # so the member can still see which timeframe they are looking at.
+        if st["tf"] not in COLLAPSED_TFS:
+            row = row[:len(row) - 1] + [{"type": 2, "style": _STYLE_PRIMARY,
+                                         "label": dict(BUTTON_TFS).get(st["tf"], st["tf"]),
+                                         "custom_id": sid("t", tf=st["tf"])}]
+        row.append({"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u2699\ufe0f"},
+                    "custom_id": sid("g", exp="1")})
+        return [{"type": 1, "components": row}]
+    tfs = [{"type": 2, "style": _STYLE_PRIMARY if tf == st["tf"] else _STYLE_SECONDARY, "label": label,
+            "custom_id": sid("t", tf=tf, to="", zoom=st["zoom"] if st["zoom"] in prefs_mod.zoom_choices(tf) else "auto")}
+           for tf, label in tf_choices]
+    # ── ONE dropdown, not three ────────────────────────────────────────────
+    # Owner, 2026-08-26, looking at a chart in the member server: "this looks
+    # mega clunky and really clogs up a decent portion of channels… it really
+    # takes up a lot of space". Three full-width selects stacked under the image
+    # cost as much vertical space as the chart itself. Zoom, Indicators and Look
+    # were 6 + 4 + 13 = 23 options - inside Discord's 25 - so they are one
+    # select now, and the CURRENT state moves into the placeholder where it is
+    # still readable at a glance. Five action rows become three.
+    zooms = prefs_mod.zoom_choices(st["tf"])
+    zoom_now = st["zoom"] if st["zoom"] in zooms else "auto"
+    opts = ([{"label": f"Zoom: {label}", "value": f"zoom:{v}"} for v, label in zooms.items()] +
+            [{"label": f"Indicators: {label}", "value": f"ind:{v}"} for v, label in prefs_mod.INDICATOR_CHOICES.items()] +
+            [{"label": f"Style: {label}", "value": f"style:{v}"} for v, label in prefs_mod.STYLE_CHOICES.items()] +
+            [{"label": f"Theme: {label}", "value": f"theme:{v}"} for v, label in prefs_mod.THEME_CHOICES.items()] +
+            [{"label": "\U0001f4be Save this chart's settings as my defaults", "value": SAVE_VALUE,
+              "description": "Timeframe, zoom, indicators, MAs, volume, style, theme"},
+             {"label": "\u2753 How these controls work", "value": HELP_VALUE,
+              "description": "Compare, panning, several charts at once, breadth, saved defaults"}])
+    # ⛔ No option carries `default`: the state is in the placeholder instead, so
+    # the TOO_MANY_DEFAULT_VALUES class of rejection cannot come back, and a pick
+    # never leaves its own label standing where the chart's setting should be.
+    state_line = " \u00b7 ".join([
+        f"Zoom {zooms.get(zoom_now, zoom_now)}",
+        prefs_mod.INDICATOR_CHOICES.get(st["ind"], st["ind"]),
+        prefs_mod.STYLE_CHOICES.get(st["style"], st["style"]),
+    ])
+    opts_sel = {"type": 3, "custom_id": f"{SELECT_OPTS}|{sid()}",
+                "placeholder": f"\u2699\ufe0f {state_line}"[:150], "options": opts[:25]}
+    ma_next = _MA_CYCLE[(_MA_CYCLE.index(st["mas"]) + 1) % len(_MA_CYCLE)] if st["mas"] in _MA_CYCLE else "house"
+    ma_label = {"house": "MAs: House", "10-20-50": "MAs: 10/20/50", "off": "MAs: off"}.get(st["mas"], "MAs")
+    can_pan = st["tf"] in ("D", "W")
+    earlier = pan_to(st["to"] or None, st["tf"], zoom_now, -1)
+    later = pan_to(st["to"] or None, st["tf"], zoom_now, +1) if st["to"] else None
+    row5 = []
+    if can_pan:
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "\u25c0 Earlier", "custom_id": sid("e", to=earlier or "")})
+        row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Later \u25b6", "custom_id": sid("l", to=later or ""),
+                     "disabled": not st["to"]})
+    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": ma_label, "custom_id": sid("m", mas=ma_next)})
+    row5.append({"type": 2, "style": _STYLE_SECONDARY, "label": "Volume off" if st["vol"] else "Volume on",
+                 "custom_id": sid("v", vol=not st["vol"])})
     if guild_id and str(guild_id) in activity_guilds():
-        toggles.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
-                        "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{mas}|{1 if vol else 0}"})
-    return [{"type": 1, "components": tfs}, {"type": 1, "components": toggles}]
+        # The (parked) Activity: in an activity guild the last slot launches it instead.
+        row5.append({"type": 2, "style": _STYLE_PRIMARY, "label": "Open in Discord",
+                     "custom_id": f"{ACTIVITY_PREFIX}|{req.ticker}|{req.tf}|{st['mas']}|{1 if st['vol'] else 0}"})
+    # ⛔ The "Open interactive" LINK button is gone. With five buttons in this row
+    # Discord wrapped it onto a line of its own in a normal-width channel, so a
+    # link to the site cost a whole row of the member's screen. The help pick
+    # names the site instead.
+    # open: the gear closes it again, in the slot the link button used to hold.
+    # \u26d4 It gets a row of its OWN rather than being truncated away when the
+    # toggle row is already full (an activity guild spends the fifth slot on
+    # "Open in Discord") - dropping it silently would strand the member in the
+    # expanded view with no way back to the one-row chart.
+    collapse = {"type": 2, "style": _STYLE_SECONDARY, "emoji": {"name": "\u25b2"},
+                "custom_id": sid("g", exp="0")}
+    rows = [{"type": 1, "components": tfs}]
+    if len(row5) < 5:
+        row5.append(collapse)
+        rows.append({"type": 1, "components": row5})
+    else:
+        rows.append({"type": 1, "components": row5[:5]})
+        rows.append({"type": 1, "components": [collapse]})
+    rows.append({"type": 1, "components": [opts_sel]})
+    return rows
+
+
+MULTI_PREFIX = "m2"              # /charts timeframe row: m2|SYM+SYM+SYM|tf
+
+
+def multi_components(items: list, guild_id: str | None = None) -> list:
+    """ONE row under a /charts reply: the timeframes, applied to the whole set.
+    Four charts' individual state does not fit a control, but the set's shared
+    timeframe does.
+
+    The id carries only the symbols and the timeframe, so the WORST case a real
+    request can reach is MULTI_MAX 12-character tickers = 56 characters, well
+    inside Discord's 100 (`test_the_charts_row_fits_the_id_limit_by_construction`
+    derives that rather than trusting this sentence). The length check below is
+    therefore a BACKSTOP, not a live gate - it earns its line the day MULTI_MAX
+    or the ticker length grows, and it is exercised directly by that same test
+    so it is not an untested branch."""
+    reqs = [it[0] if isinstance(it, tuple) else it for it in items]
+    if not reqs:
+        return []
+    syms = "+".join(r.ticker for r in reqs)
+    tf_now = reqs[0].tf
+    daily_only = any(r.daily_only for r in reqs)
+    choices = [(tf, label) for tf, label in BUTTON_TFS if not daily_only or tf in ("D", "W")]
+    row = []
+    for tf, label in choices:
+        cid = f"{MULTI_PREFIX}|{syms}|{tf}"
+        if len(cid) > CUSTOM_ID_MAX:
+            return []
+        row.append({"type": 2, "style": _STYLE_PRIMARY if tf == tf_now else _STYLE_SECONDARY,
+                    "label": label, "custom_id": cid})
+    return [{"type": 1, "components": row}] if row else []
+
+
+def parse_multi_component(interaction: dict) -> list:
+    """A /charts timeframe button -> the same symbols at the new timeframe."""
+    cid = str(((interaction.get("data") or {}).get("custom_id")) or "")
+    parts = cid.split("|")
+    if len(parts) != 3 or parts[0] != MULTI_PREFIX:
+        raise CommandError("Unknown button.")
+    tickers = [t for t in parts[1].split("+") if t]
+    if not tickers or len(tickers) > MULTI_MAX or parts[2] not in WINDOW:
+        raise CommandError("Unknown button.")
+    if any(not _TICKER_RE.match(t) for t in tickers):
+        raise CommandError("Unknown button.")
+    return [ChartRequest(ticker=t, tf=parts[2]) for t in tickers]
 
 
 def parse_autocomplete(interaction: dict) -> str:
@@ -256,20 +732,23 @@ def interaction_user_id(interaction: dict) -> str:
 
 
 def parse_settings_command(interaction: dict) -> tuple:
+    """(action, changes) from either shape: the flat command, or the retired
+    `show|set|reset` subcommands a stale client may still send."""
     """/chartsettings show|set|reset -> ("show"|"set"|"reset", {changes})."""
     data = interaction.get("data") or {}
-    subs = [o for o in (data.get("options") or []) if isinstance(o, dict) and o.get("type") == 1]
-    if not subs:
-        raise CommandError("Use /chartsettings show, set or reset.")
-    sub = str(subs[0].get("name") or "")
-    if sub in ("show", "reset"):
-        return sub, {}
-    if sub != "set":
-        raise CommandError("Use /chartsettings show, set or reset.")
-    changes = {o.get("name"): o.get("value") for o in (subs[0].get("options") or []) if isinstance(o, dict)}
-    changes = {k: v for k, v in changes.items() if k in prefs_mod.DEFAULTS and v is not None}
+    opts = data.get("options") or []
+    subs = [o for o in opts if isinstance(o, dict) and o.get("type") == 1]
+    if subs:                                   # the retired show|set|reset shape
+        sub = str(subs[0].get("name") or "")
+        if sub in ("show", "reset"):
+            return sub, {}
+        opts = subs[0].get("options") or []
+    given = {o.get("name"): o.get("value") for o in opts if isinstance(o, dict)}
+    if given.pop("reset", None) is True:
+        return "reset", {}
+    changes = {k: v for k, v in given.items() if k in prefs_mod.DEFAULTS and v is not None}
     if not changes:
-        raise CommandError("Nothing to set. Pick at least one option (" + ", ".join(prefs_mod.DEFAULTS) + ").")
+        return "show", {}                      # bare /chartsettings = show me what I have
     return "set", changes
 
 
@@ -280,19 +759,27 @@ def build_chart_command() -> dict:
         "type": 1,  # CHAT_INPUT
         "description": "House chart image: candles, volume, EMA 9/20 + SMA 50/200. Defaults: /chartsettings",
         "options": [
-            {"name": "ticker", "description": "Ticker symbol, e.g. NVDA", "type": 3, "required": True,
+            {"name": "ticker", "description": "Ticker - or several for a set: NVDA AMD AVGO", "type": 3, "required": True,
              "autocomplete": True},
             {"name": "tf", "description": "Timeframe (default: your /chartsettings, else Daily)", "type": 3,
              "required": False,
              "choices": [{"name": label, "value": value} for value, label in TF_LABEL.items()]},
-            {"name": "mas", "description": "Moving averages for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.MA_CHOICES.items()]},
-            {"name": "volume", "description": "Volume pane for THIS chart only (True/False)", "type": 5,
+            {"name": "compare", "description": "Overlay up to 3 symbols as % lines, e.g. SPY QQQ", "type": 3,
              "required": False},
-            {"name": "style", "description": "Chart style for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.STYLE_CHOICES.items()]},
-            {"name": "theme", "description": "Theme for THIS chart only", "type": 3, "required": False,
-             "choices": [{"name": label, "value": value} for value, label in prefs_mod.THEME_CHOICES.items()]},
+        ],
+    }
+
+
+def build_charts_command() -> dict:
+    """/charts NVDA AMD AVGO - several charts in one message (no controls)."""
+    tf_opt = next(o for o in build_chart_command()["options"] if o["name"] == "tf")
+    return {
+        "name": MULTI_COMMAND,
+        "description": f"Several charts in one message: /charts NVDA AMD AVGO (up to {MULTI_MAX})",
+        "type": 1,
+        "options": [
+            {"name": "tickers", "description": f"Up to {MULTI_MAX} tickers, space or comma separated", "type": 3, "required": True},
+            tf_opt,
         ],
     }
 
@@ -304,28 +791,30 @@ def build_alias_command() -> dict:
 
 
 def build_settings_command() -> dict:
-    """`/chartsettings show|set|reset` - per-user defaults for /chart."""
+    """`/chartsettings` - per-user defaults for /chart.
+
+    FLAT, not `show|set|reset`: three subcommands meant three rows in Discord's
+    picker for one idea, and they ranked above `/chart` itself. Nothing given
+    shows your settings, an option sets it, `reset` puts it back."""
     ch = lambda d: [{"name": label, "value": value} for value, label in d.items()]  # noqa: E731
     return {
         "name": SETTINGS_COMMAND, "type": 1,
-        "description": "Your personal /chart defaults: timeframe, MAs, theme, style, scale, indicators, volume, grid…",
-        "options": [
-            {"name": "show", "type": 1, "description": "Show your current /chart settings"},
-            {"name": "set", "type": 1, "description": "Change one or more settings", "options": [
+        "description": "Your /chart defaults - run it bare to see them, or set any of: timeframe, theme, style, zoom…",
+        "options": ([
                 {"name": "tf", "type": 3, "required": False, "description": "Default timeframe", "choices": ch(TF_LABEL)},
                 {"name": "mas", "type": 3, "required": False, "description": "Moving averages", "choices": ch(prefs_mod.MA_CHOICES)},
                 {"name": "theme", "type": 3, "required": False, "description": "Theme preset", "choices": ch(prefs_mod.THEME_CHOICES)},
                 {"name": "style", "type": 3, "required": False, "description": "Chart style", "choices": ch(prefs_mod.STYLE_CHOICES)},
                 {"name": "scale", "type": 3, "required": False, "description": "Price scale", "choices": ch(prefs_mod.SCALE_CHOICES)},
                 {"name": "indicators", "type": 3, "required": False, "description": "Lower-pane indicators", "choices": ch(prefs_mod.INDICATOR_CHOICES)},
+                {"name": "zoom", "type": 3, "required": False, "description": "Visible window (months/years on D/W, days intraday)", "choices": ch(prefs_mod.ZOOM_CHOICES)},
                 {"name": "volume", "type": 5, "required": False, "description": "Show the volume pane"},
                 {"name": "grid", "type": 5, "required": False, "description": "Show the grid"},
                 {"name": "watermark", "type": 5, "required": False, "description": "Show the ticker/company watermark"},
                 {"name": "ext", "type": 5, "required": False, "description": "Extended-hours candles on intraday charts (the Pre/Post price chip always shows)"},
                 {"name": "stats", "type": 5, "required": False, "description": "Show the stats strip (OHLC, gap, 52w, RVOL, ADR)"},
-            ]},
-            {"name": "reset", "type": 1, "description": "Back to the defaults"},
-        ],
+                {"name": "reset", "type": 5, "required": False, "description": "Put every setting back to the house defaults"},
+        ]),
     }
 
 
@@ -388,6 +877,9 @@ def build_commands(activity: bool = False) -> list:
     """Every application command this bot registers (one authority).
     `activity=True` adds the Entry Point command (only valid once Activities
     are enabled on the app)."""
+    # `/charts` is retired: `/chart NVDA AMD AVGO` is the same thing through one
+    # door. Its handler stays for a deploy cycle so a client holding the older
+    # command set does not get an error.
     cmds = [build_chart_command(), build_alias_command(), build_settings_command()]
     if activity:
         cmds.append(build_launch_command())
@@ -402,39 +894,583 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
 
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
-                  filename: str | None = None, components: list | None = None, client=None) -> bool:
+                  filename: str | None = None, components: list | None = None, client=None,
+                  pngs: list | None = None, keep_attachments: list | None = None):
     """PATCH the deferred reply (or, for a button click, the message the button
     is on). With `png`, multipart (payload_json + files[0]); without, JSON.
-    `components` = the button rows to show under it; None leaves the message's
-    existing rows alone. Returns True on 2xx. Never raises."""
+    `pngs` = several images at once ([(bytes, filename), ...] - /charts):
+    files[i] + attachments ids 0..n. `components` = the button rows to show
+    under it; None leaves the message's existing rows alone. `keep_attachments`
+    = ids of files the message already has, re-declared so a text-only edit
+    cannot drop the chart ("the message's files are exactly these").
+
+    Returns the edited MESSAGE (dict, truthy) on 2xx - the caller needs its
+    attachment ids for the follow-up edit - or False. Never raises."""
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
+    images = list(pngs) if pngs else ([(png, filename)] if png is not None else [])
+    try:
+        import httpx
+        own = client is None
+        c = client or httpx.Client(timeout=15.0)
+        try:
+            def _send(comps):
+                payload: dict = {"content": content}
+                if comps is not None:
+                    payload["components"] = comps
+                if images:
+                    payload["attachments"] = [{"id": i, "filename": fn} for i, (_, fn) in enumerate(images)]
+                    return c.patch(url, data={"payload_json": json.dumps(payload)},
+                                   files={f"files[{i}]": (fn, data, "image/png") for i, (data, fn) in enumerate(images)})
+                if keep_attachments is not None:
+                    payload["attachments"] = [{"id": i} for i in keep_attachments]
+                return c.patch(url, json=payload)
+            r = _send(components)
+            if not r.is_success and images and 400 <= r.status_code < 500:
+                # ⛔ THE CHART WAS REFUSED, NOT THE RENDER. Discord rejects the
+                # upload when the app lacks Attach Files in that channel - which
+                # is exactly the state Uncharted Territory was in on 2026-08-26:
+                # 0 of 71 channels could post one, and because a failed edit is
+                # SILENT the member sat on "thinking…" forever and concluded the
+                # bot did not know their ticker. Say what happened instead.
+                note = attachment_refused_note(r.text)
+                if note:
+                    alt = c.patch(url, json={"content": (content + chr(10) + note)[:1900]})
+                    if alt.is_success:
+                        log.warning("[discord-chart] attachment refused (%s); replied in text instead",
+                                    r.status_code)
+                        return alt.json() if alt.text else True
+            if not r.is_success and components is not None and 400 <= r.status_code < 500:
+                # Discord validates the whole control tree and refuses the edit as a
+                # unit; the member would sit on "thinking..." forever. The chart is
+                # the product - post it without the rows and say so.
+                log.warning("[discord-chart] edit_original HTTP %s with components: %s - retrying without them",
+                            r.status_code, r.text[:300])
+                r = _send([])
+                if r.is_success:
+                    c.post(url.rsplit("/messages/", 1)[0],
+                           json={"content": "Chart controls are unavailable on this one - re-run /chart to get them back.",
+                                 "flags": EPHEMERAL})
+        finally:
+            if own:
+                c.close()
+        if not r.is_success:
+            log.warning("[discord-chart] edit_original HTTP %s: %s", r.status_code, r.text[:200])
+            return False
+        try:
+            return r.json() or True
+        except Exception:  # noqa: BLE001 — a 2xx with an unreadable body is still a success
+            return True
+    except Exception as e:  # noqa: BLE001 — a background job must never raise
+        log.warning("[discord-chart] edit_original failed: %s", e)
+        return False
+
+
+def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
+                  bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0) -> tuple:
+    """ONE chart: (outcome, png, filename). outcome = ok | fallback | busy |
+    no_bars | render_failed. Takes a render slot for the duration; never raises.
+
+    `fallback` is a delivered chart drawn by the mplfinance stand-in AFTER the
+    house renderer was asked and came back with nothing. It is a real reply -
+    every caller treats it as delivered - but it is not the product, so it is
+    cached for a minute rather than a session (see FALLBACK_TTL_S).
+
+    `slot_wait` seconds to WAIT for a slot instead of answering "busy". A
+    single /chart answers immediately (0.0): the member is watching one reply
+    and a fast "try again" beats a spinner. The charts of ONE /charts request
+    compete with each other for the same slots, so they wait - otherwise asking
+    for four charts would report three of them busy.
+    Daily bars first (stats + "does this symbol exist") → the house render →
+    only if that yields nothing, the timeframe's bars → the mplfinance fallback."""
+    def _fetch(tf, n):
+        # One retry after a short pause: a cold intraday pull can miss once
+        # (provider timeout, a fetch-on-miss still landing) and answer fine
+        # a second later - two members hit "No bars" on a symbol the feed
+        # served seconds after.
+        for attempt in (0, 1):
+            try:
+                with bars_warm_gate():          # one cold fetch at a time (see the gate)
+                    bars = bars_fn(req.ticker, tf, n) or None
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
+                bars = None
+            if bars or attempt:
+                return bars
+            time.sleep(BARS_RETRY_DELAY_S)
+        return None
+
+    got = RENDER_SLOTS.acquire(timeout=slot_wait) if slot_wait > 0 else RENDER_SLOTS.acquire(blocking=False)
+    if not got:
+        return ("busy", None, None)
+    try:
+        if req.tf == "D":
+            bars = daily = _fetch("D", bars_to_request("D"))
+            if not bars:
+                return ("no_bars", None, None)
+        else:
+            bars = None
+            daily = _fetch("D", STATS_DAILY_BARS)
+        png = None
+        warm = None
+        house_missed = False
+        if house_fn is not None and daily:
+            # Pre-warm the page's OWN fetch, on every timeframe and at the size
+            # the page will actually ask for: a shallow first-paint window
+            # normally, the full depth when a comparison or a `?to=` cutoff
+            # pins it. Getting this wrong is what turned four simultaneous
+            # daily charts into three blank ones on 2026-08-26 - the page was
+            # left pulling history inside the renderer's deadline.
+            # ⛔ NEVER BELOW PAGE_BARS. Right-sizing this to the page's shallow
+            # first-paint window (600) was MEASURED WORSE on 2026-08-26: blanks
+            # came straight back (ANET D, AKAM 5m) and a four-symbol set went
+            # 43s -> 79s. A deep pull puts real history in the bars store, which
+            # is what actually keeps the page's own fetch off the provider and
+            # inside the renderer's deadline; the page's request size is not the
+            # thing that matters. The deep case (compare / ?to=) asks for MORE
+            # than PAGE_BARS, so it still reads the page's own number.
+            from api.services import discord_chart_house as _house
+            deep = bool(compare or req.to)
+            warm = _fetch(req.tf, max(_house.page_fetch_bars(req.tf, deep), PAGE_BARS))
+            for other in compare:
+                # the page fetches each comparison symbol too; warm those as well
+                try:
+                    with bars_warm_gate():
+                        bars_fn(other, req.tf, _house.COMPARE_FETCH_BARS)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] compare warm failed %s: %s", other, e)
+            house_opts = dict(options)
+            if req.breadth_name:
+                house_opts["breadth"] = req.breadth_name
+            if compare:
+                house_opts["compare"] = list(compare)   # %-rebased overlay lines on the page
+            if quote_fn is not None:
+                # The live pre/post-market print -> the orange Pre/Post chip on the
+                # right axis (never a candle). Best-effort: no quote, no chip.
+                try:
+                    house_opts["exttag"] = quote_fn(req.ticker) or None
+                except Exception as e:  # noqa: BLE001
+                    log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
+            try:
+                png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
+                png = None
+            if png:
+                return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
+            # The house renderer was configured, was asked, and produced nothing.
+            # Whatever comes back below is a stand-in, and the caller has to know
+            # that - otherwise it gets cached as though it were the real chart.
+            house_missed = True
+        if bars is None:
+            bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
+            if not bars:
+                return ("no_bars", None, None)
+        kw = {"daily_bars": daily if options["stats"] else None}
+        if prefs.get("mas") == "off":
+            kw["show_mas"] = False
+        if prefs.get("volume") is False:
+            kw["show_volume"] = False
+        try:
+            png = render_fn(req.ticker, req.tf, bars, **kw)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
+            return ("render_failed", None, None)
+        return ("fallback" if house_missed else "ok", png,
+                attachment_name(req.ticker, req.tf, bars[-1]["t"]))
+    finally:
+        RENDER_SLOTS.release()
+
+
+# ⛔ A STAND-IN MUST NOT HOLD THE CACHE SLOT FOR A SESSION. 2026-08-27, 07:59
+# CT: a web deploy began at 07:58:49 and a member ran `/chart SPCX` eleven
+# seconds into the swap. The page the renderer screenshots was mid-restart, so
+# both house attempts came back "selector not found: #chart-export", the reply
+# fell back to mplfinance - and that stand-in was then cached under the SAME key
+# as a real chart, for the quiet-hours TTL of 900 s. One unlucky second would
+# have served the plain chart to every member asking for SPCX for fifteen
+# minutes, which reads as "the charts are broken now" rather than "a deploy was
+# in flight". Warm, the same two symbols render in 4.1 s.
+#
+# So a stand-in is cached, but only for a minute: long enough that a renderer
+# outage cannot turn every request into a fresh 40 s of failing attempts, short
+# enough that a deploy blip clears itself before anyone notices.
+FALLBACK_TTL_S = 60
+# Both outcomes put a chart in front of the member. Only "ok" is the product.
+DELIVERED = ("ok", "fallback")
+
+
+def cache_ttl_for(tf: str):
+    """Seconds to keep what `produce_chart` made: a session for the house
+    chart, FALLBACK_TTL_S for a stand-in. Returned as a callable because the
+    answer depends on the result, which does not exist yet at the call site."""
+    full = png_cache.ttl_for(tf)
+    return lambda r: FALLBACK_TTL_S if (r and r[0] == "fallback") else full
+
+
+MULTI_SLOT_WAIT_S = 25.0         # how long one chart of a /charts set waits for a render slot
+
+
+def run_multi_chart_job(app_id: str, token: str, items: list, *, bars_fn, render_fn, edit_fn,
+                        house_fn=None, quote_fn=None, components_fn=None) -> str:
+    """/charts A B C: one message, one attachment per symbol, in the order
+    asked. `items` = [(ChartRequest, prefs), ...] (prefs per chart: a breadth
+    symbol has its own). A symbol that fails is named, never silently dropped.
+    `components_fn(items) -> rows` adds the timeframe row. Returns
+    ok | no_bars | error.
+
+    The charts are produced CONCURRENTLY (bounded by the same RENDER_SLOTS the
+    single command uses, waited for rather than skipped) - four charts should
+    cost about one chart's wall clock, not four."""
+    def _one(item):
+        req, prefs = item
+        prefs = {**prefs_mod.DEFAULTS, **(prefs or {})}
+        options = prefs_mod.render_options(prefs, req.tf)
+        key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+        hit = png_cache.get(key)
+        if hit:
+            return (req, "ok", hit[0], hit[1])
+        r = png_cache.single_flight(
+            key, lambda: produce_chart(req, options, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                       house_fn=house_fn, quote_fn=quote_fn, slot_wait=MULTI_SLOT_WAIT_S),
+            ttl_s=cache_ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
+        return (req, r[0] if r else "render_failed", r[1] if r else None, r[2] if r else None)
+
+    def _warm_bars(item) -> None:
+        """Pull this chart's bars BEFORE anything renders."""
+        req, prefs = item
+        from api.services import discord_chart_house as _house
+        deep = max(_house.page_fetch_bars(req.tf, bool(req.to)), PAGE_BARS)
+        wants = [("D", STATS_DAILY_BARS)] if req.tf != "D" else []
+        wants.append((req.tf, deep))
+        for tf, n in wants:
+            try:
+                with bars_warm_gate():
+                    bars_fn(req.ticker, tf, n)
+            except Exception as e:  # noqa: BLE001 — produce_chart retries and judges
+                log.warning("[discord-chart] multi warm %s %s: %s", req.ticker, tf, e)
+
+    try:
+        if len(items) < 2:
+            results = [_one(it) for it in items]
+        else:
+            # ⛔ SEQUENTIALLY, and before any render. Four cold symbols fetching
+            # at once collide on the bars store's write lock — web runs a 2 s
+            # busy_timeout BY DESIGN (CLAUDE.md: a longer one compounds with the
+            # retry loop and saturates the anyio pool), so the loser raises
+            # "database is locked", its chart reports "no bars", and the ones
+            # that do land arrive too late for the renderer's deadline and come
+            # back BLANK. Measured 2026-08-26: four cold symbols in parallel =
+            # 43 s with a blank and a lock error; fetched first, the renders
+            # themselves are ~3 s for the set.
+            for it in items:
+                _warm_bars(it)
+            # ex.map keeps the order asked, which the reply and the attachment
+            # list both depend on.
+            with ThreadPoolExecutor(max_workers=min(len(items), MULTI_MAX)) as ex:
+                results = list(ex.map(_one, items))
+        label = TF_LABEL[items[0][0].tf]
+        oks = [(png, fn) for _, o, png, fn in results if o in DELIVERED]
+        why = {"busy": "busy, try again", "no_bars": "no bars", "render_failed": "failed"}
+        skipped = [f"{req.ticker} ({why.get(o, o)})" for req, o, _, _ in results if o not in DELIVERED]
+        if not oks:
+            edit_fn(app_id, token, content="No charts: " + ", ".join(skipped) + ". Unknown tickers, or the feed is still catching up.")
+            return "no_bars"
+        content = " · ".join((req.display or req.ticker) for req, o, _, _ in results if o in DELIVERED) + f" · {label}"
+        if skipped:
+            content += "\nSkipped: " + ", ".join(skipped)
+        extra = {"components": components_fn(items)} if components_fn is not None else {}
+        edit_fn(app_id, token, content=content, pngs=oks, **extra)
+        return "ok"
+    except Exception:  # noqa: BLE001
+        log.exception("[discord-chart] multi job failed")
+        try:
+            edit_fn(app_id, token, content="Charts failed, try again.")
+        except Exception:  # noqa: BLE001
+            pass
+        return "error"
+
+
+def attachment_refused_note(body: str) -> str:
+    """The line to send when Discord refuses the image, or "" when the failure
+    was something else. A member should never be left staring at a spinner
+    wondering whether their ticker exists."""
+    text = str(body or "")
+    if "50013" in text or "Missing Permissions" in text or "missing permissions" in text:
+        return ("⚠️ I rendered this chart but I'm not allowed to attach files in this channel, "
+                "so I can't show it. An admin can fix it by giving this app **Attach Files** here "
+                "(Server Settings → Roles, or this channel's permissions).")
+    if "40005" in text or "too large" in text.lower():
+        return "⚠️ The chart came out too large for this channel's upload limit."
+    return ""
+
+
+def fetch_original(app_id: str, token: str, client=None) -> dict | None:
+    """The deferred reply AS IT STANDS NOW, or None if it cannot be read.
+
+    A background heal is about to overwrite a message it posted a minute or two
+    ago, and in between the member may have pressed a timeframe or opened the
+    controls. None means "could not confirm" - callers must treat that as a
+    refusal to overwrite, never as permission. Never raises."""
     url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
     try:
         import httpx
         own = client is None
         c = client or httpx.Client(timeout=15.0)
         try:
-            payload: dict = {"content": content}
-            if components is not None:
-                payload["components"] = components
-            if png is not None:
-                payload["attachments"] = [{"id": 0, "filename": filename}]
-                r = c.patch(url, data={"payload_json": json.dumps(payload)},
-                            files={"files[0]": (filename, png, "image/png")})
-            else:
-                r = c.patch(url, json=payload)
+            r = c.get(url)
+            if not r.is_success:
+                log.warning("[discord-chart] read-back HTTP %s: %s", r.status_code, r.text[:160])
+                return None
+            body = r.json()
+            return body if isinstance(body, dict) else None
+        finally:
+            if own:
+                c.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] read-back failed: %s", e)
+        return None
+
+
+def followup_ephemeral(app_id: str, token: str, content: str, client=None) -> bool:
+    """POST a private follow-up to an interaction the app has already answered.
+    Used after an UPDATE_MESSAGE (type 7) response, which carries no room for a
+    confirmation of its own. Never raises."""
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}"
+    try:
+        import httpx
+        own = client is None
+        c = client or httpx.Client(timeout=15.0)
+        try:
+            r = c.post(url, json={"content": content, "flags": EPHEMERAL})
         finally:
             if own:
                 c.close()
         if not r.is_success:
-            log.warning("[discord-chart] edit_original HTTP %s: %s", r.status_code, r.text[:200])
+            log.warning("[discord-chart] followup HTTP %s: %s", r.status_code, r.text[:200])
         return bool(r.is_success)
-    except Exception as e:  # noqa: BLE001 — a background job must never raise
-        log.warning("[discord-chart] edit_original failed: %s", e)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] followup failed: %s", e)
+        return False
+
+
+def message_attachment_ids(interaction: dict) -> list:
+    """The ids of the files the component's message already holds, straight off
+    the interaction payload (a MESSAGE_COMPONENT interaction carries the whole
+    message). Re-declaring them on an UPDATE_MESSAGE means "the message's files
+    are exactly these" - the same reason edit_original's follow-up pins them
+    rather than trusting omission."""
+    msg = interaction.get("message") or {}
+    return [a["id"] for a in (msg.get("attachments") or []) if isinstance(a, dict) and a.get("id")]
+
+
+ROSTER_MAX = int(os.environ.get("DISCORD_CHART_ROSTER_MAX", "10"))
+# Overnight and at weekends a chart holds for 15 minutes instead of 2, so
+# keeping a big set warm costs almost nothing (~6% of the renderer against ~44%
+# in live hours). That is when to be greedy: the names members pile onto at the
+# open are then already rendered before anyone is awake.
+ROSTER_MAX_QUIET = int(os.environ.get("DISCORD_CHART_ROSTER_MAX_QUIET", "24"))
+
+
+def roster_budget() -> tuple:
+    """(roster size, renders per cycle) for right now."""
+    if png_cache.market_quiet():
+        return ROSTER_MAX_QUIET, 8
+    return ROSTER_MAX, 6
+
+
+def seed_roster(symbols, tf: str = "D", limit: int | None = None) -> int:
+    """Put the day's names in the hot set before anyone asks for them, so the
+    FIRST member to type NVDA gets a cache hit like everyone after them.
+
+    Seeded with zero hits: a chart a member actually asked for always outranks
+    the roster for the warm cycle's limited slots, and the roster is what gets
+    evicted when the set fills up. Bounded by ROSTER_MAX."""
+    n = 0
+    prefs = dict(prefs_mod.DEFAULTS)
+    for sym in list(symbols)[: (limit if limit is not None else ROSTER_MAX)]:
+        sym = str(sym or "").upper().strip()
+        if not _TICKER_RE.match(sym):
+            continue
+        req = ChartRequest(ticker=sym, tf=tf)
+        key = f"{sym}:{tf}:{prefs_mod.style_signature(prefs)}"
+        if hotset.seed(key, req, prefs, png_cache.ttl_for(tf)):
+            n += 1
+    return n
+
+
+def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6) -> list:
+    """Re-render the charts members keep asking for, just before their cache
+    entry goes stale, so the next member gets a hit instead of a 2.4 s render.
+
+    Runs on a scheduler, off every request path. Never raises: a warm that fails
+    just means the next asker pays what they pay today. Returns the keys warmed
+    (for the log and the tests)."""
+    warmed = []
+    for key, req, prefs in hotset.due(png_cache.age_of, limit=limit):
+        try:
+            options = prefs_mod.render_options(prefs, req.tf)
+            if req.to:
+                options["to"] = req.to
+            compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
+            if req.breadth_name:
+                options["breadth"] = req.breadth_name
+            result = png_cache.single_flight(
+                key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn,
+                                           render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
+                                           slot_wait=MULTI_SLOT_WAIT_S),
+                ttl_s=cache_ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
+            if result and result[0] == "ok":
+                warmed.append(key)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] hot warm failed %s: %s", key, e)
+    if warmed:
+        log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
+    return warmed
+
+
+# A stand-in went out because the house renderer had nothing to give. The
+# usual reason is a deploy swap: measured 2026-08-27, a pod 22 s old fails every
+# attempt and the same symbols render in 4.1 s once it is serving. So look again
+# twice - once inside a typical swap, once well past it - and quietly upgrade the
+# member's message when the real chart is available. Both windows only ever run
+# after a member has ALREADY been given a chart, so nobody is waiting on them.
+SELF_HEAL_DELAYS_S = (45.0, 120.0)
+# Heals are bounded: during a deploy every request in the window wants one, and
+# they all compete for the same two render slots as live members. Two at a time
+# is enough - single_flight collapses same-key work anyway, and the 60 s
+# fallback TTL already means the NEXT member gets a real chart regardless.
+_HEAL_SLOTS = threading.BoundedSemaphore(2)
+
+
+def self_heal_enabled() -> bool:
+    """Whether a delivered stand-in is quietly replaced by the house chart when
+    the renderer comes back. Off = the member keeps the stand-in (the behaviour
+    before 2026-08-27); the 60 s fallback TTL is unaffected either way."""
+    return os.environ.get("DISCORD_CHART_SELF_HEAL", "1").strip().lower() not in ("0", "false", "off", "")
+
+
+def heal_stand_in(app_id: str, token: str, req: ChartRequest, headline: str, *, produce,
+                  edit_fn, fetch_fn=None, delays=None, sleep_fn=None) -> str:
+    """Look again for the house chart and, if the member's message is still the
+    one we posted, swap the stand-in for it. Returns what happened:
+    healed | moved | unverified | edit_failed | gave_up.
+
+    ⛔ IT MUST NEVER CLOBBER A MESSAGE THE MEMBER HAS MOVED ON FROM. A minute is
+    long enough to press W or open the controls, and re-writing the daily chart
+    over that would look like the bot fighting them. So the reply is read back
+    first: anything that is not still our headline is left exactly as it is, and
+    a read-back that FAILS counts as "cannot confirm" - the stand-in stays.
+    ⛔ It also sends NO components: the rows on the message are whatever the
+    member is looking at now (they may have opened the controls), and
+    `edit_original` leaves rows alone only when it is not given any."""
+    sleep = sleep_fn or time.sleep
+    fetch = fetch_fn if fetch_fn is not None else fetch_original
+    # read the module value at CALL time, not def time: a default argument bound
+    # at import freezes the tunable, and the first thing anyone wants to change
+    # about a retry schedule is the schedule
+    for delay in (SELF_HEAL_DELAYS_S if delays is None else delays):
+        sleep(delay)
+        try:
+            result = produce()
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] heal render failed %s %s: %s", req.ticker, req.tf, e)
+            continue
+        if not result or result[0] != "ok":
+            continue                      # still degraded - the next window may catch it
+        msg = fetch(app_id, token)
+        if not isinstance(msg, dict):
+            return "unverified"
+        content = str(msg.get("content") or "")
+        if not content.startswith(headline):
+            return "moved"                # the member changed the chart; it is theirs now
+        try:
+            edit_fn(app_id, token, content=content, png=result[1], filename=result[2])
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] heal edit failed %s: %s", req.ticker, e)
+            return "edit_failed"
+        return "healed"
+    return "gave_up"
+
+
+def schedule_stand_in_heal(app_id: str, token: str, req: ChartRequest, headline: str, *,
+                           produce, edit_fn, spawn=None) -> bool:
+    """Run `heal_stand_in` on a daemon thread. False when it was not started -
+    switched off, or both heal slots busy - which is not a failure: the member
+    already has a chart and the next request gets a real one."""
+    if not self_heal_enabled():
+        return False
+    if not _HEAL_SLOTS.acquire(blocking=False):
+        log.info("[discord-chart] %s %s: heal slots busy, leaving the stand-in", req.ticker, req.tf)
+        return False
+
+    def _run():
+        try:
+            out = heal_stand_in(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
+            log.info("[discord-chart] %s %s: stand-in heal %s", req.ticker, req.tf, out)
+        except Exception:  # noqa: BLE001
+            log.exception("[discord-chart] heal crashed %s %s", req.ticker, req.tf)
+        finally:
+            _HEAL_SLOTS.release()
+
+    (spawn or (lambda fn: threading.Thread(target=fn, name="chart-heal", daemon=True).start()))(_run)
+    return True
+
+
+def fast_first_enabled() -> bool:
+    """Whether the plain mplfinance chart may stand in for the house image.
+
+    ⭐ It is a FALLBACK, not a preview. Posting it on every cache miss was
+    measured against the house chart and the two do not merely look different -
+    they SAY different things: SMA 10/20/50 against the house EMA 9/20 + SMA
+    50/200, no extended-hours price chip, no earnings markers, a six-month
+    window against three. In a trading room a member who acts on the stand-in,
+    or screenshots it into a discussion, has used a chart that is not the house
+    standard. So it now appears only when the house image would otherwise be a
+    WAIT or an ERROR: slower than FAST_AFTER_S, busy, or failed."""
+    return os.environ.get("DISCORD_CHART_FAST_FIRST", "1").strip().lower() not in ("0", "false", "off", "")
+
+
+def fast_after_s(default: float = 3.0) -> float:
+    """How long the house render gets before the plain chart stands in."""
+    try:
+        v = float(os.environ.get("DISCORD_CHART_FAST_AFTER_S", ""))
+        return v if 0 < v <= 30 else default
+    except (TypeError, ValueError):
+        return default
+
+
+def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *,
+                      bars_fn, render_fn, edit_fn, content: str, extra: dict) -> bool:
+    """The ~0.3 s chart, posted while the house render runs. Never raises: a
+    preview that fails costs nothing but the wait it was meant to remove."""
+    try:
+        with bars_warm_gate():
+            bars = bars_fn(req.ticker, req.tf, bars_to_request(req.tf)) or None
+        if not bars:
+            return False          # no bars is the job's own reply to make, not a blank preview
+        daily = bars
+        if req.tf != "D":
+            with bars_warm_gate():
+                daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
+        kw = {"daily_bars": daily}
+        if prefs.get("mas") == "off":
+            kw["show_mas"] = False
+        if prefs.get("volume") is False:
+            kw["show_volume"] = False
+        png = render_fn(req.ticker, req.tf, bars, **kw)
+        if not png:
+            return False
+        return bool(edit_fn(app_id, token, content=content, png=png,
+                            filename=attachment_name(req.ticker, req.tf, bars[-1]["t"]), **extra))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] fast preview failed %s: %s", req.ticker, e)
         return False
 
 
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
-                  house_fn=None, prefs=None, quote_fn=None, components_fn=None) -> str:
+                  house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
     tag for logs/tests: ok | busy | no_bars | render_failed | error. Never raises.
 
@@ -447,91 +1483,112 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
          `render_fn`. An unknown symbol therefore never pays for a render."""
     label = TF_LABEL[req.tf]
     prefs = prefs or {}
-    options = prefs_mod.render_options(prefs)
-    key = f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}"
+    options = prefs_mod.render_options(prefs, req.tf)
+    if req.to:
+        options["to"] = req.to
+    compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
+    key = (f"{req.ticker}:{req.tf}:{prefs_mod.style_signature(prefs)}" + (f":{req.to}" if req.to else "")
+           + (":vs:" + "+".join(compare) if compare else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
+    hotset.record(key, req, prefs, png_cache.ttl_for(req.tf))
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
+    headline = (req.display or req.ticker) + (f" vs {'/'.join(compare)}" if compare else "") + f" · {label}"
+
+    def _context_follow_up(sent):
+        # The context line (next earnings, implied move, today's catalyst) is
+        # edited in AFTER the image is up: a member never waits on a lookup for
+        # the chart, and a failed lookup costs nothing but the line.
+        #
+        # ⛔ This second edit RE-DECLARES what the message already holds - the
+        # attachment ids off the first edit's response, and the same control
+        # rows - instead of relying on "Discord keeps what the payload omits".
+        # `desk_session_announce._edit` is this repo's measured precedent for
+        # the other reading: a PATCH that did not list the file DROPPED it. The
+        # chart IS the product; it is not worth the wager. `sent` is the first
+        # edit's return (the message dict from edit_original; a test double or
+        # an older edit_fn may return a bare bool - then there is nothing to
+        # re-declare and the edit stays content-only). Breadth has no earnings.
+        if context_fn is None or req.breadth_name:
+            return
+        try:
+            line = context_fn(req.ticker)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] context line failed %s: %s", req.ticker, e)
+            return
+        if not line:
+            return
+        kw = dict(extra)
+        if isinstance(sent, dict):
+            keep = [a.get("id") for a in (sent.get("attachments") or []) if a.get("id") is not None]
+            if keep:
+                kw["keep_attachments"] = keep
+        try:
+            edit_fn(app_id, token, content=headline + "\n" + line, **kw)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] context edit failed %s: %s", req.ticker, e)
+
     try:
         hit = png_cache.get(key)
         if hit:
             png, filename = hit
-            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=png, filename=filename, **extra)
+            sent = edit_fn(app_id, token, content=headline, png=png, filename=filename, **extra)
+            _context_follow_up(sent)
             return "ok"
 
-        def _fetch(tf, n):
-            # One retry after a short pause: a cold intraday pull can miss once
-            # (provider timeout, a fetch-on-miss still landing) and answer fine
-            # a second later - two members hit "No bars" on a symbol the feed
-            # served seconds after.
-            for attempt in (0, 1):
-                try:
-                    bars = bars_fn(req.ticker, tf, n) or None
-                except Exception as e:  # noqa: BLE001
-                    log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
-                    bars = None
-                if bars or attempt:
-                    return bars
-                time.sleep(BARS_RETRY_DELAY_S)
-            return None
+        produce = lambda: png_cache.single_flight(  # noqa: E731
+            key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
+                                       house_fn=house_fn, quote_fn=quote_fn),
+            ttl_s=cache_ttl_for(req.tf),
+            cache_value=lambda r: (r[1], r[2]) if r and r[0] in DELIVERED else None)
 
-        def produce():
-            if not RENDER_SLOTS.acquire(blocking=False):
-                return ("busy", None, None)
-            try:
-                if req.tf == "D":
-                    bars = daily = _fetch("D", bars_to_request("D"))
-                    if not bars:
-                        return ("no_bars", None, None)
-                else:
-                    bars = None
-                    daily = _fetch("D", STATS_DAILY_BARS)
-                png = None
-                warm = None
-                if house_fn is not None and daily:
-                    if req.tf != "D":
-                        warm = _fetch(req.tf, PAGE_BARS)   # pre-warm the page's fetch (see PAGE_BARS)
-                    house_opts = dict(options)
-                    if req.breadth_name:
-                        house_opts["breadth"] = req.breadth_name
-                    if quote_fn is not None:
-                        # The live pre/post-market print -> the orange Pre/Post chip on the
-                        # right axis (never a candle). Best-effort: no quote, no chip.
-                        try:
-                            house_opts["exttag"] = quote_fn(req.ticker) or None
-                        except Exception as e:  # noqa: BLE001
-                            log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
-                    try:
-                        png = house_fn(req.ticker, req.tf, compute_stats(daily), house_opts)
-                    except Exception as e:  # noqa: BLE001
-                        log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
-                        png = None
-                    if png:
-                        return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
-                if bars is None:
-                    bars = warm[-bars_to_request(req.tf):] if warm else _fetch(req.tf, bars_to_request(req.tf))
-                    if not bars:
-                        return ("no_bars", None, None)
-                kw = {"daily_bars": daily if options["stats"] else None}
-                if prefs.get("mas") == "off":
-                    kw["show_mas"] = False
-                if prefs.get("volume") is False:
-                    kw["show_volume"] = False
-                try:
-                    png = render_fn(req.ticker, req.tf, bars, **kw)
-                except Exception as e:  # noqa: BLE001
-                    log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
-                    return ("render_failed", None, None)
-                return ("ok", png, attachment_name(req.ticker, req.tf, bars[-1]["t"]))
-            finally:
-                RENDER_SLOTS.release()
-
-        result = png_cache.single_flight(
-            key, produce, ttl_s=png_cache.ttl_for(req.tf),
-            cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+        # The house image is the product, so it gets first refusal. Only when it
+        # is taking longer than a member should stare at nothing does the plain
+        # chart stand in - and then the house image still replaces it. The
+        # common case therefore shows ONE chart, the right one.
+        previewed = False
+        can_stand_in = house_fn is not None and fast_first_enabled()
+        if not can_stand_in:
+            result = produce()
+        else:
+            box: dict = {}
+            worker = threading.Thread(target=lambda: box.__setitem__("r", produce()),
+                                      name="discord-chart-produce", daemon=True)
+            worker.start()
+            worker.join(timeout=fast_after_s())
+            if worker.is_alive():
+                previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                              edit_fn=edit_fn, content=headline, extra=extra)
+                worker.join()
+            result = box.get("r")
         outcome = result[0] if result else "render_failed"
-        if outcome == "ok":
-            edit_fn(app_id, token, content=(req.display or req.ticker) + f" · {label}", png=result[1], filename=result[2], **extra)
+        if outcome in ("busy", "render_failed") and can_stand_in and not previewed:
+            # …and rather than hand a member an apology, stand in now.
+            previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                          edit_fn=edit_fn, content=headline, extra=extra)
+        if outcome in DELIVERED:
+            sent = edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
+            _context_follow_up(sent)
+            if outcome == "fallback":
+                # A chart, drawn by the stand-in because the house renderer had
+                # nothing. The member is served, so the JOB succeeded - the
+                # distinction exists for the cache, which keeps this one for a
+                # minute instead of a session - but it is worth a line in the
+                # log, because a run of these means the renderer needs looking at.
+                log.info("[discord-chart] %s %s: stand-in delivered, house render empty",
+                         req.ticker, req.tf)
+                # …and look again shortly: the usual cause is a deploy swap that
+                # is over within a couple of minutes, and the member should end
+                # up with the house chart without having to ask twice.
+                schedule_stand_in_heal(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
+            return "ok"
+        elif previewed and outcome in ("busy", "render_failed"):
+            # The member already HAS a chart. Replacing it with an apology would
+            # be a downgrade, so the preview is the answer.
+            log.info("[discord-chart] %s %s: house render %s, keeping the fast chart",
+                     req.ticker, req.tf, outcome)
+            _context_follow_up(None)
+            return "ok"
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":

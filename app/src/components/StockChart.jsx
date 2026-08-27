@@ -1493,6 +1493,7 @@ export default function StockChart({
   backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
   deepWarm = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
+  onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
   hotkeysActive = true,     // boolean | () => boolean — gates this instance's document-level keydown shortcuts at dispatch time (read via latest-ref: neither form re-subscribes, the callback form never re-renders). Multi-chart surfaces pass a callback reading the container's active-cell ref so one keypress doesn't retime every mounted chart. Absent/true = today's always-active behavior.
   onOpenSettings = null,    // optional () => void — when set, the "Chart settings" context-menu item opens THIS instead of the old toolbar panel (charts workspace uses the new centered modal)
@@ -4733,6 +4734,8 @@ export default function StockChart({
   // Latest-callback ref per the codebase's stale-closure convention.
   const onBarsReadyRef = useRef(onBarsReady)
   onBarsReadyRef.current = onBarsReady
+  const onComparisonsReadyRef = useRef(onComparisonsReady)
+  onComparisonsReadyRef.current = onComparisonsReady
   const barsReadyFiredRef = useRef(false)
   useEffect(() => {
     if (!loading && !barsReadyFiredRef.current) {
@@ -10580,6 +10583,13 @@ export default function StockChart({
       requestAnimationFrame(() => {
         try { chart.timeScale().setVisibleLogicalRange(savedLogical) } catch { /* disposed */ }
       })
+    }
+    // Renderer readiness: the overlays for the CURRENT set are drawn.
+    // `comparisonsData` is keyed to that set (SWR yields undefined for a new
+    // key until its fetch settles), so this fires only after the bars landed;
+    // a symbol with no bars is reported as done, never waited on.
+    if (comparisonsData && comparisonSeries.length) {
+      try { onComparisonsReadyRef.current?.(comparisonSeries.filter(c => c.points.length).map(c => c.sym)) } catch {}
     }
   }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase, compareForcesPct])
 

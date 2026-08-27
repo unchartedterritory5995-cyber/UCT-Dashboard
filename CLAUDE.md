@@ -39,8 +39,11 @@ Dashboard · Morning Wire · UCT 20 · Breadth · **Charts** · Calendar · Scre
 Model Book · **The Desk** · Journal · **Community** · Support
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
-Overview · Monitor · Views · COT Data · Data Charts, **+ Analogues appended for
-admins only** (`BreadthTabs({isAdmin})`).
+Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
+admins only** (`BreadthTabs({isAdmin})`). Monitor leads (owner decision
+2026-08-26); phones still land on the Daily tab (key `overview` — it replaced
+the old duplicated-MarketBreadth Overview with `breadth/DailyOverview.jsx`,
+whose finished-session hero reads `GET /api/breadth-monitor/session-path/{date}`).
 
 ⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
 `/theme-tracker` is a `LegacyRedirect` (see below). **Traders is still not a nav

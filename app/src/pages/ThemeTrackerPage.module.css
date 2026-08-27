@@ -46,7 +46,7 @@
   padding: 0 12px;
   min-height: 34px;   /* shared first-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--tt-elev, var(--bg-elevated));
+  background: var(--tt-elev, #14151a);
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
@@ -113,7 +113,7 @@
   padding: 0 10px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
-  background: var(--tt-elev, var(--bg-elevated));
+  background: var(--tt-elev, #14151a);
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
@@ -179,7 +179,7 @@
   /* Match the Watchlist widget's row background (its .leftPanel uses --bg-surface),
      so the area behind the theme tickers reads the same across both widgets.
      --tt-bg = the user's Theme Tracker Settings canvas (solid or gradient). */
-  background: var(--tt-bg, var(--bg-surface));
+  background: var(--tt-bg, #0e0f0d);
 }
 
 /* Sticky column header */
@@ -187,7 +187,7 @@
   display: grid;
   grid-template-columns: 1fr 80px;
   padding: 8px 12px;
-  background: var(--tt-elev, var(--bg-elevated));
+  background: var(--tt-elev, #14151a);
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
 }
@@ -265,7 +265,7 @@
   /* Same height as the stock rows within a theme (.stockRow = 5px 12px), so a theme header
      doesn't tower over its holdings. */
   padding: 5px 12px;
-  background: var(--tt-elev, var(--bg-elevated));
+  background: var(--tt-elev, #14151a);
   border-bottom: 1px solid var(--tt-divider, var(--border));
   cursor: pointer;
   user-select: none;
@@ -452,11 +452,11 @@
 }
 
 /* Green matches the candle up-color (MB_UP). Red is BRIGHTENED vs the candle
-   down-color (#c41f2d) because that deep red reads fine as a big filled candle
+   down-color (var(--ut-red-bright)) because that deep red reads fine as a big filled candle
    but too dark as thin small text — this keeps it legible + as punchy as the
    green. */
-.retPos   { color: var(--tt-up, #1ae51a); }
-.retNeg   { color: var(--tt-down, #ff3b47); }
+.retPos   { color: var(--tt-up, var(--ut-green-bright)); }
+.retNeg   { color: var(--tt-down, var(--ut-red-bright)); }
 /* Sunrise (charts workspace): match the dark candle green/red. --tt-up/--tt-down
    are only set when the user deviates from the default in Theme Tracker Settings,
    so a deliberate user color wins over the workspace theme; otherwise these hold. */
@@ -694,7 +694,7 @@
   font-size: calc(10px * var(--tt-font-scale, 1));
   color: var(--tt-text, var(--text-muted));
   border-top: 1px solid var(--widget-divider-strong, var(--tt-divider-strong, rgba(255, 255, 255, 0.11)));
-  background: var(--tt-bg, var(--bg));
+  background: var(--tt-bg, #0e0f0d);
   white-space: nowrap;
   overflow: hidden;
 }

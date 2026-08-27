@@ -129,11 +129,6 @@ from api.services.pattern_engine.detectors.candlestick import three_black_crows 
 from api.services.pattern_engine.detectors.candlestick import marubozu as _marubozu  # noqa: F401
 from api.services.pattern_engine.detectors.classical import nr7 as _nr7  # noqa: F401
 from api.services.pattern_engine import memory
-from api.services.pattern_engine.detectors.registry import list_pattern_ids
-from api.services.pattern_engine.pattern_db import get_connection
-from api.services.cache import cache
-import json
-import time
 
 
 router = APIRouter(prefix="/api/patterns", tags=["patterns"])
@@ -669,202 +664,16 @@ _PATTERN_METADATA = {
 }
 
 
-@router.get("/types")
-def list_types(_user: dict = Depends(require_paid)):
-    """Return all registered pattern types with metadata."""
-    ids = list_pattern_ids()
-    out = []
-    for pid in ids:
-        meta = _PATTERN_METADATA.get(pid, {})
-        out.append({
-            "id": pid,
-            "name": meta.get("name", pid.replace("_", " ").title()),
-            "category": meta.get("category", "uncategorized"),
-            "direction": meta.get("direction", "neutral"),
-            "description": meta.get("description", ""),
-        })
-    return {"patterns": out}
-
-
-_SCAN_TTL = 300  # 5 minutes
-_RECENT_WINDOW_SECS = 7 * 24 * 60 * 60  # 7 days
-
-
-def _slim_detection(row) -> dict:
-    """Return a slim detection payload for scanner results.
-
-    Includes only the fields the scanner UI needs — full levels (trimmed),
-    narrative headline (no body), CAN SLIM grade, and core identifiers.
-    """
-    try:
-        levels = json.loads(row["levels_json"] or "{}")
-    except Exception:
-        levels = {}
-    try:
-        narrative = json.loads(row["narrative_json"] or "{}")
-    except Exception:
-        narrative = {}
-    try:
-        context = json.loads(row["context_json"] or "{}")
-    except Exception:
-        context = {}
-    try:
-        geometry = json.loads(row["geometry_json"] or "{}")
-    except Exception:
-        geometry = {}
-
-    pattern_id = row["pattern_id"]
-    meta = _PATTERN_METADATA.get(pattern_id, {})
-    pattern_name = meta.get("name", pattern_id.replace("_", " ").title())
-
-    extras = geometry.get("extras") if isinstance(geometry, dict) else None
-    from_leader_universe = bool((extras or {}).get("from_leader_universe", False))
-
-    return {
-        "id": row["id"],
-        "sym": row["sym"],
-        "tf": row["tf"],
-        "pattern_id": pattern_id,
-        "pattern_name": pattern_name,
-        "category": row["category"],
-        "direction": row["direction"],
-        "confidence": row["confidence"],
-        "status": row["status"],
-        "levels": {
-            "entry": levels.get("entry"),
-            "stop": levels.get("stop"),
-            "target": levels.get("target_primary"),
-            "target_primary": levels.get("target_primary"),
-            "risk_reward": levels.get("risk_reward"),
-        },
-        "narrative": {"headline": narrative.get("headline", "")},
-        "can_slim_grade": context.get("can_slim_grade"),
-        "can_slim_score": context.get("can_slim_score"),
-        "from_leader_universe": from_leader_universe,
-        "detected_at": row["detected_at"],
-        "last_seen_at": row["last_seen_at"],
-    }
-
-
-def _load_leader_tickers() -> set[str]:
-    """Load the curated leader-universe tickers (best-effort)."""
-    import os as _os
-    leader_path = _os.path.join(
-        _os.path.dirname(__file__), "..", "data", "leader_universe.json"
-    )
-    leader_path = _os.path.abspath(leader_path)
-    if not _os.path.exists(leader_path):
-        return set()
-    try:
-        with open(leader_path) as f:
-            data = json.load(f)
-        tickers = data.get("tickers", []) if isinstance(data, dict) else []
-        return {t.upper() for t in tickers if isinstance(t, str)}
-    except Exception:
-        return set()
-
-
-@router.get("/scan")
-def scan_universe(
-    types: Optional[str] = Query(default=None, description="comma-separated pattern_ids"),
-    _user: dict = Depends(require_paid),
-    tf: str = Query(default="D"),
-    min_conf: float = Query(default=70.0, ge=50.0, le=100.0),
-    category: Optional[str] = Query(default=None, description="filter to classical/candlestick/uct/structure"),
-    leaders_only: bool = Query(default=False, description="restrict results to curated leader-universe tickers"),
-    limit: int = Query(default=100, le=500),
-):
-    """Universe scan for active detections matching filters.
-
-    Returns detections from ``pattern_detections`` where:
-      - status in ("forming", "ready", "triggered")
-      - confidence >= min_conf
-      - tf matches
-      - pattern_id in types (if specified)
-      - category matches (if specified)
-      - sym in leader_universe.tickers (if leaders_only)
-      - detected_at >= now - 7 days (recent only)
-    Ordered by detected_at DESC, confidence DESC. Capped at limit.
-    """
-    cache_key = (
-        f"pattern_scan:{tf}:{types or 'all'}:{min_conf}:"
-        f"{category or 'all'}:{int(bool(leaders_only))}:{limit}"
-    )
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
-
-    pattern_ids = [t.strip() for t in types.split(",") if t.strip()] if types else None
-    recent_cutoff = int(time.time()) - _RECENT_WINDOW_SECS
-
-    leader_set: set[str] = set()
-    if leaders_only:
-        leader_set = _load_leader_tickers()
-
-    # If leaders_only requested but no leaders configured → empty result rather than scanning all.
-    if leaders_only and not leader_set:
-        payload = {
-            "detections": [],
-            "count": 0,
-            "filters": {
-                "tf": tf,
-                "types": pattern_ids,
-                "min_conf": min_conf,
-                "category": category,
-                "leaders_only": True,
-                "limit": limit,
-            },
-            "leader_universe_size": 0,
-            "cached_at": int(time.time()),
-        }
-        cache.set(cache_key, payload, _SCAN_TTL)
-        return payload
-
-    conn = get_connection()
-    try:
-        sql = """
-            SELECT * FROM pattern_detections
-            WHERE tf = ?
-              AND status IN ('forming', 'ready', 'triggered')
-              AND confidence >= ?
-              AND detected_at >= ?
-        """
-        params: list = [tf, min_conf, recent_cutoff]
-        if pattern_ids:
-            placeholders = ",".join(["?"] * len(pattern_ids))
-            sql += f" AND pattern_id IN ({placeholders})"
-            params.extend(pattern_ids)
-        if category:
-            sql += " AND category = ?"
-            params.append(category)
-        if leaders_only and leader_set:
-            placeholders = ",".join(["?"] * len(leader_set))
-            sql += f" AND sym IN ({placeholders})"
-            params.extend(sorted(leader_set))
-        sql += " ORDER BY detected_at DESC, confidence DESC LIMIT ?"
-        params.append(int(limit))
-
-        rows = conn.execute(sql, params).fetchall()
-        detections = [_slim_detection(r) for r in rows]
-    finally:
-        conn.close()
-
-    payload = {
-        "detections": detections,
-        "count": len(detections),
-        "filters": {
-            "tf": tf,
-            "types": pattern_ids,
-            "min_conf": min_conf,
-            "category": category,
-            "leaders_only": bool(leaders_only),
-            "limit": limit,
-        },
-        "leader_universe_size": len(leader_set) if leaders_only else None,
-        "cached_at": int(time.time()),
-    }
-    cache.set(cache_key, payload, _SCAN_TTL)
-    return payload
+# -- /scan and /types: REMOVED 2026-08-26 with the Patterns page ------------
+#
+# The universe-scan endpoint served the RAW rule-engine firehose to the page;
+# the Opus-vision judge (built after the owner's June ruling that the raw
+# output was untrustworthy) confirmed only ~16% of those candidates, and the
+# page never switched to confirmed verdicts. The page is gone; universe-wide
+# reads live in the screener's pattern_join and the voice tools, both of which
+# query the store directly. /types' only consumers were the page's filters.
+# The engine itself (detectors, per-symbol reads below, chart overlay,
+# admin/Gate-5, feedback) is unchanged.
 
 
 @router.get("/{sym}")

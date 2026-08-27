@@ -35,7 +35,6 @@ const NAV_SECTIONS = [
       { to: '/charts', label: 'Charts', icon: 'chart' },
       { to: '/ai-search', label: 'AI Search', icon: 'search' },
       { to: '/screener', label: 'Screener', icon: 'screener' },
-      { to: '/patterns', label: 'Patterns', icon: 'patterns' },
       { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },

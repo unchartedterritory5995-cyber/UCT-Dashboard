@@ -112,3 +112,9 @@ anything that needs the member's dashboard account.
   `App.jsx` serves `DiscordActivity` at `/` (intro film skipped); `/r/activity`
   stays for plain-tab testing. Second click during that state showed "This
   interaction failed" — re-test after the fix.
+- **PARKED 2026-08-25 ~21:58 CT (owner: "takes people away from discord").**
+  Activities disabled in the portal, the `launch` Entry Point removed from the
+  command set, `DISCORD_ACTIVITY_GUILDS=off`. The code (`/r/activity`, the
+  handoff store, the `activity|` button) stays dark; the root URL mapping
+  stays and is inert while Activities are off. The in-chat control surface
+  (spec v11 in the chart-command design doc) is the direction instead.

@@ -523,11 +523,14 @@ def trust_summary(user_id: str) -> dict[str, Any]:
     'ok'/'broken' are reachable today; SnapTrade doesn't expose the
     authorization disabled flag on the current plan)."""
     from api.services.journal_two.broker import mirror_check as _mirror
+    from api.services.journal_two.broker import live_sentinel as _live
+    from api.services.journal_two.broker.live_cash import coverage as _live_cash_coverage
 
     conn = get_connection()
     try:
         accounts = connections.list_broker_accounts(user_id, conn=conn)
         verdicts = _mirror.latest_verdicts(user_id, conn=conn)
+        live_verdicts = _live.latest_verdicts(user_id, conn=conn)
         out: list[dict[str, Any]] = []
         for ba in accounts:
             broker_account_id = ba["id"]
@@ -568,6 +571,17 @@ def trust_summary(user_id: str) -> dict[str, Any]:
                 # {ok, checkedAt, driftDollar, driftPct, consecutiveDrifts}
                 # or null before the first post-deploy sync.
                 "mirror": verdicts.get(broker_account_id),
+                # Live-composition sentinel verdict (broker/live_sentinel.py):
+                # the between-sync conservation check over the number members
+                # actually see. {verdict, residualDollar, checkedAt, fills}
+                # or null before the first market-hours check.
+                "live": live_verdicts.get(broker_account_id),
+                # Whether this broker's activity timestamps let the live-cash
+                # derivation cover intraday fills ('full') or the broker
+                # stamps activities at midnight ('date_only' — the rail
+                # degrades to sync-fresh cash, never worse than pre-rail).
+                "liveCashCoverage": _live_cash_coverage(
+                    user_id, broker_account_id, conn),
             })
         return {"anyBroker": len(out) > 0, "accounts": out}
     finally:

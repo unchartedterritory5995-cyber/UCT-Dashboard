@@ -47,6 +47,9 @@ _SCHEMA = """
     CREATE INDEX IF NOT EXISTS idx_pd_sym_tf   ON pattern_detections(sym, tf);
     CREATE INDEX IF NOT EXISTS idx_pd_pattern  ON pattern_detections(pattern_id);
     CREATE INDEX IF NOT EXISTS idx_pd_status   ON pattern_detections(status);
+    -- Every active-window reader and the prune filter on detected_at; without
+    -- this the 7-day reads full-scanned the table (13.6 GB in prod by 2026-08-26).
+    CREATE INDEX IF NOT EXISTS idx_pd_detected ON pattern_detections(detected_at);
 
     CREATE TABLE IF NOT EXISTS pattern_outcomes (
       detection_id  TEXT PRIMARY KEY REFERENCES pattern_detections(id),

@@ -163,7 +163,6 @@ export const STILL_UNCHECKED = [
   'pages/MorningWire.jsx',
   'pages/OptionsFlow.jsx',
   'pages/OptionsFlow_admin.jsx',
-  'pages/Patterns.jsx',
   'pages/PostMarket.jsx',
   'pages/Screener.jsx',
   'pages/SetupLibrary.jsx',
@@ -177,7 +176,6 @@ export const STILL_UNCHECKED = [
   'pages/modelbook/SetupsView.jsx',
   'pages/modelbook/builder/BuilderView.jsx',
   'pages/modelbook/builder/UpbEntryPage.jsx',
-  'pages/patterns/PatternFilter.jsx',
   'pages/screener/hooks/useScreenerMeta.js',
   'utils/prefetchBars.js',
 ]

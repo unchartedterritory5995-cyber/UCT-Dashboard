@@ -17,6 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse
 
 from api.services import discord_activity_handoff as handoff
+from api.services import discord_chart_context as chart_context
 from api.services import discord_chart_house as house
 from api.services import discord_chart_prefs as prefs_mod
 from api.services import discord_interactions as di
@@ -80,12 +81,40 @@ def fetch_ticker_choices(q: str, limit: int = 10) -> list[dict]:
         from api.routers import ticker_search as ts
         rows = (ts.ticker_search(q=q, limit=limit) or {}).get("results") or []
         out = []
+        # Breadth reads as a chart (`/chart UCTA5`) and nothing ever told anyone
+        # so — the autocomplete is where a member would find out.
+        try:
+            from api.services import breadth_symbols as bs
+            needle = (q or "").strip().upper()
+            for symbol, meta in (bs.SYMBOLS or {}).items():
+                nm = str((meta or {}).get("name") or "")
+                if needle and (symbol.startswith(needle) or needle in nm.upper() or needle in ("BREADTH", "UCT")):
+                    out.append({"name": f"{symbol} - {nm}"[:100] if nm else symbol, "value": symbol})
+                if len(out) >= 5:
+                    break
+        except Exception as e:  # noqa: BLE001 — breadth is a bonus, never the reason autocomplete fails
+            log.debug("[discord-chart] breadth autocomplete skipped: %s", e)
         for row in rows:
             t = str(row.get("ticker") or "")
             if not t:
                 continue
             name = row.get("name")
             out.append({"name": (f"{t} - {name}" if name else t)[:100], "value": t})
+        # ⭐ THE UNIVERSE IS A SUGGESTION LIST, NOT A GATE. `cap_universe.json`
+        # holds the ~3,685 names over $300M, and the chart path never consults
+        # it - measured 2026-08-26, AEHL, TCEHY, FNMA, BTC-USD, ^IXIC and BRK.B
+        # all render perfectly and NONE of them are in it. But the autocomplete
+        # answered "no options match", which reads to a member as "this bot does
+        # not know that ticker", so they never press Enter on a chart that would
+        # have worked. Offer what they typed back to them; the dashboard's own
+        # SymbolSearch has carried the same "Go to {TICKER}" fallback for months.
+        #
+        # ⛔ ONLY when nothing matched. A member typing "NV" on their way to NVDA
+        # must not be offered "NV - chart it" as though it were a ticker; the
+        # complaint being fixed is the EMPTY list, not a short one.
+        typed = (q or "").strip().upper().lstrip("$")
+        if not out and typed and di._TICKER_RE.match(typed):
+            out.append({"name": f"{typed} - chart it"[:100], "value": typed})
         return out[:25]
     except Exception as e:  # noqa: BLE001
         log.warning("[discord-chart] ticker autocomplete failed %r: %s", q, e)
@@ -164,18 +193,115 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
         # The Entry Point command (App Launcher). The Activity page reads the
         # channel's newest handoff itself; nothing to record here.
         return {"type": 12}
-    if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
+    if itype == 2 and name == di.MULTI_COMMAND:
         uid = di.interaction_user_id(interaction)
         prefs = _prefs_for(uid)
         try:
+            reqs = di.parse_charts_command(interaction, default_tf=prefs.get("tf", "D"))
+        except di.CommandError as e:
+            return _ephemeral(str(e))
+        for _ in reqs:                                   # each chart counts against the member's rate
+            wait = di.user_rate_check(uid)
+            if wait:
+                return _ephemeral(di.throttle_message(wait))
+        items = [breadth_adjust(req, dict(prefs)) for req in reqs]
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        if not app_id or not token:
+            return _ephemeral("Discord did not supply a reply token.")
+        background.add_task(di.run_multi_chart_job, app_id, token, items,
+                            bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                            house_fn=house.render_house_chart if house.house_enabled() else None,
+                            quote_fn=fetch_ext_quote, components_fn=di.multi_components)
+        return {"type": 5}
+    if (itype == 2 and name in di.CHART_COMMAND_NAMES) or itype == 3:
+        uid = di.interaction_user_id(interaction)
+        prefs = _prefs_for(uid)
+        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
+        token = str(interaction.get("token") or "")
+        try:
             if itype == 3:
                 kind = di.component_kind(interaction)
+                if kind == "charts":                            # a /charts timeframe button
+                    reqs = di.parse_multi_component(interaction)
+                    for _ in reqs:
+                        wait = di.user_rate_check(uid)
+                        if wait:
+                            return _ephemeral(di.throttle_message(wait))
+                    if not app_id or not token:
+                        return _ephemeral("Discord did not supply a reply token.")
+                    background.add_task(di.run_multi_chart_job, app_id, token,
+                                        [breadth_adjust(q, dict(prefs)) for q in reqs],
+                                        bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                                        house_fn=house.render_house_chart if house.house_enabled() else None,
+                                        quote_fn=fetch_ext_quote, components_fn=di.multi_components)
+                    return {"type": 6}
                 req = di.parse_component(interaction)          # a button under a chart
             else:
                 kind = "chart"
-                req = di.parse_chart_command(interaction, default_tf=prefs.get("tf", "D"))
+                reqs = di.parse_chart_requests(interaction, default_tf=prefs.get("tf", "D"))
+                if len(reqs) > 1:               # /chart NVDA AMD AVGO — one door, one message
+                    for _ in reqs:
+                        wait = di.user_rate_check(uid)
+                        if wait:
+                            return _ephemeral(di.throttle_message(wait))
+                    if not app_id or not token:
+                        return _ephemeral("Discord did not supply a reply token.")
+                    background.add_task(di.run_multi_chart_job, app_id, token,
+                                        [breadth_adjust(q, dict(prefs)) for q in reqs],
+                                        bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
+                                        house_fn=house.render_house_chart if house.house_enabled() else None,
+                                        quote_fn=fetch_ext_quote, components_fn=di.multi_components)
+                    return {"type": 5}
+                req = reqs[0]
         except di.CommandError as e:
             return _ephemeral(str(e))
+        if kind == "chart" and itype == 3 and di.is_help_pick(interaction):
+            # "How these controls work" — answer privately and put the dropdown
+            # back where it was (a select keeps showing whatever was picked).
+            data: dict = {"components": di.chart_components(req, prefs, guild_id=str(interaction.get("guild_id") or "")),
+                          "content": str((interaction.get("message") or {}).get("content") or "")}
+            att = di.message_attachment_ids(interaction)
+            if att:
+                data["attachments"] = [{"id": i} for i in att]
+            if app_id and token:
+                background.add_task(di.followup_ephemeral, app_id, token, di.chart_help_text())
+            return {"type": 7, "data": data}
+        if kind == "chart" and itype == 3 and di.is_save_pick(interaction):
+            # "Save this chart's settings as my defaults" - writes the member's
+            # /chartsettings from the message's state; no re-render.
+            if not uid:
+                return _ephemeral("Could not tell who you are; try again from a server channel.")
+            try:
+                saved = prefs_mod.set_prefs(uid, **di.prefs_from_request(req))
+            except ValueError as e:
+                return _ephemeral(f"Not saved: {e}")
+            except Exception as e:  # noqa: BLE001
+                log.warning("[discord-chart] save-defaults failed for %s: %s", uid, e)
+                return _ephemeral("Settings are unavailable right now, try again in a minute.")
+            # Answer with UPDATE_MESSAGE rather than a bare ephemeral: a select
+            # keeps showing whatever was last PICKED, so a plain ephemeral left
+            # "\U0001f4be Save this chart's settings…" standing where the chart's
+            # style should be, until the member happened to click something else.
+            # Re-sending the same rows resets it.
+            #
+            # ⛔ The message's FILES ARE RE-DECLARED from the interaction payload
+            # (`message_attachment_ids`), never omitted - an UPDATE_MESSAGE that
+            # does not list them is the same wager `edit_original`'s follow-up
+            # refuses, and losing it would delete the chart from the message.
+            # Content is restated for the same reason (it carries the context line).
+            data: dict = {"components": di.chart_components(req, saved, guild_id=str(interaction.get("guild_id") or "")),
+                          "content": str((interaction.get("message") or {}).get("content") or "")}
+            att = di.message_attachment_ids(interaction)
+            if att:
+                data["attachments"] = [{"id": i} for i in att]
+            if app_id and token:
+                # The confirmation cannot ride an UPDATE_MESSAGE; it follows as a
+                # private message. Best-effort: a lost follow-up costs the receipt,
+                # never the save (already written) or the reset rows.
+                background.add_task(di.followup_ephemeral, app_id, token,
+                                    "Saved as your defaults: " + prefs_mod.describe(saved))
+            return {"type": 7, "data": data}
         if kind == "activity":
             # "Open in Discord": remember what this channel is looking at, then let
             # Discord open the Activity (LAUNCH_ACTIVITY carries no parameters).
@@ -187,14 +313,13 @@ async def discord_interactions(request: Request, background: BackgroundTasks):
             return _ephemeral(di.throttle_message(wait))
         prefs = {**prefs, **req.overrides()}   # this call only; saved settings untouched
         req, prefs = breadth_adjust(req, prefs)
-        app_id = str(interaction.get("application_id") or os.environ.get("DISCORD_CHART_APP_ID") or "")
-        token = str(interaction.get("token") or "")
         if not app_id or not token:
             return _ephemeral("Discord did not supply a reply token.")
         background.add_task(di.run_chart_job, app_id, token, req,
                             bars_fn=fetch_bars, render_fn=render_chart_png, edit_fn=di.edit_original,
                             house_fn=house.render_house_chart if house.house_enabled() else None,
                             prefs=prefs, quote_fn=fetch_ext_quote,
+                            context_fn=chart_context.context_line if chart_context.enabled() else None,
                             components_fn=functools.partial(di.chart_components, guild_id=str(interaction.get("guild_id") or "")))
         # A button click updates the message it sits on (no loading state, no new
         # message); a slash command gets the deferred "thinking..." reply.

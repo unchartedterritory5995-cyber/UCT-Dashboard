@@ -228,6 +228,17 @@ def test_series_reports_alerts_per_second(monkeypatch):
     assert nhnl_live.get_series()["series"][-1]["hi"] == 0.2
 
 
+def test_the_poll_feeds_the_whole_universe_pulse_rate():
+    # The Pulse must reflect the WHOLE universe (Trade Ideas' high/low count is
+    # universe-wide), not only the bounded print-exact hot-set — so every tradable
+    # new high/low the poll sees increments the rate counters.
+    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed both
+    assert nhnl_live._rt_hi == 0 and nhnl_live._rt_lo == 0
+    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(50.0, 47.0, 47.0)), minute=1)  # AAA↑ hi, BBB↓ lo
+    assert nhnl_live._rt_hi == 1
+    assert nhnl_live._rt_lo == 1
+
+
 # ── Persistence across deploys ──────────────────────────────────────────────────
 
 def test_persist_restores_counts_for_the_same_session(monkeypatch, tmp_path):

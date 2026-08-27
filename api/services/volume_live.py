@@ -33,6 +33,7 @@ snapshot pull with `nhnl_live` via `massive.get_full_market_snapshot_hl_cached`
 per-second `A.*` push feed can drive `min.av`/price in ~1s instead of the ~2.5s poll.
 """
 import logging
+import math
 import os
 import threading
 import time as _time
@@ -55,23 +56,141 @@ _log = logging.getLogger(__name__)
 _DEFAULT_TICK_SECONDS = 2.5
 _PRICE_SECS = 120.0       # price-move window (the move the volume is driving)
 _NOW_DOLLAR_SECS = 60.0   # window for "meaningful $ traded lately" (the noise gate)
-_HIST_SECS = 180.0        # keep ~3 min of (t, cum_vol, price) history per name
+_HIST_SECS = 720.0        # keep ~12 min of (t, cum_vol, price) history per name (covers
+                          # the sustained-volume window below)
 _MIN_SAMPLE_GAP = 3.0     # downsample history writes (bounds memory vs the tick rate)
 _RVOL_CAP = 100.0         # clamp RVOL so an early-session near-zero expected can't blow up
 _MIN_EXPECTED_FRAC = 0.002  # floor on cumulative_fraction so expected() is never ~0
 
 # Serve-side qualification defaults (all overridable per request).
 _DEFAULT_MIN_PRICE = 1.0
-_DEFAULT_MAX_PRICE = 250.0
+# High ceiling, NOT a tight band: this scanner exists to catch big fast movers, and the
+# most newsworthy names are high-priced megacaps (META ~$590, NFLX, AVGO, BKNG…). A
+# $250 cap silently hid EVERY one of them — META could gap on breaking news and never
+# appear. The move / RVOL / burst / $-volume gates are all price-agnostic, so the only
+# thing worth excluding up here is a non-trading outlier (BRK.A).
+_DEFAULT_MAX_PRICE = 20000.0
 _DEFAULT_MIN_LIQ = 100_000     # prev-day volume (shares) — the "avg vol > 100k" floor
 _DEFAULT_MIN_RVOL = 2.0
-_DEFAULT_MIN_MOVE = 0.25       # % over the price window — the dark-pool / drift gate
+_DEFAULT_MIN_MOVE = 0.25       # % over the ~2-min price window — the dark-pool / drift gate
+_DEFAULT_MIN_DAY_MOVE = 1.0    # a clear |% vs prev close| ALSO clears the move gate — a name
+                               # up big on the day WITH real volume is a move even if the
+                               # 2-min window is momentarily flat (the pre-market news shape)
 # The "50× of nothing" guard: session-aware $-volume traded in the last ~minute.
 _DEFAULT_MIN_DOLLAR_RTH = 50_000
 _DEFAULT_MIN_DOLLAR_EXT = 15_000
 
+# Burst RVOL — the recent-window volume RATE vs the rate a name TYPICALLY trades at
+# this time of day (prev_vol × the cumulative curve's slope). Cumulative RVOL dilutes
+# a fresh spike into the whole day and lags worst late in the session; burst reads the
+# ignition directly. Burst DRIVES a discovery path for `lit` (surface a fast mover
+# before its cumulative RVOL catches up) + the "igniting" pulse cue — but NOT the
+# colour tier. The tier tracks cumulative RVOL, so a burst on a quiet name lights and
+# pulses yet stays calm/dim; the loud colours are reserved for genuinely heavy volume.
+_BURST_CAP = 50.0            # clamp a fresh spike measured against a near-zero expected
+_DEFAULT_MIN_BURST = 3.0     # burst-path lit gate (recent 60-sec rate ≥ 3× typical-for-now)
+# "Igniting now" pulse (the gold ring) — keyed off SUSTAINED volume, NOT the 60-sec burst:
+# a 60-sec blip on a quiet name reads as a huge burst (tiny expected) and would ring a
+# nothing-name (AEM at 0.12×) while a real sustained mover (META) that isn't spiking in
+# THIS 60 sec would not. Ring only genuinely-heavy sustained names that are moving fast.
+_IGNITE_RVOL = 6.0           # SUSTAINED RVOL genuinely high (≥ Very High tier, t4+)…
+_IGNITE_MOVE = 0.75          # …AND a real, fast price move
+# Instant surge — the OTHER way to light: catch a genuine explosion the SECOND it happens,
+# without waiting for the sustained window to fill. Deliberately HIGH bars (a big burst AND
+# a real fast move together) so modest blips on quiet names don't flicker in.
+# Keyed off burst_intraday = recent-minute pace vs the stock's OWN day pace, so a real
+# explosion (quiet → a huge minute, like CRCL) fires but a name merely elevated-vs-a-normal-
+# day (META) does not. The 60-sec window inherently smooths single-second blips → no flashes.
+_INSTANT_SURGE = 5.0         # recent-minute pace ≥ 5× the stock's own day pace…
+_SURGE_MOVE = 1.0            # …AND a real fast move (≥ 1% over the ~2-min window)
+# White FLASH — the loudest alert, reserved for a genuinely SHARP move on big volume: a
+# SUDDEN range expansion (sharpness) vs the stock's own recent 1-min candles, NOT a smooth
+# 45° grind at elevated volume. A heavy-volume name still SHADES a colour, but only a big +
+# SHARP move flashes white.
+_SHARP_MIN = 2.5            # recent move ≥ 2.5× the stock's own recent 1-min moves…
+_FLASH_MOVE = 1.0           # …AND a real move (≥ 1%)
+# A SHARP range-expansion candle (a sudden vertical move on a volume burst — the INTC /
+# CRCL shape) is the catch even when the raw % move is small: a low-ADR megacap making a
+# genuine sharp push moves less in % terms than a small-cap, so the 1% instant floor would
+# miss it. When sharpness ≥ _SHARP_MIN AND the burst is big, only this smaller move is
+# required — the expansion IS the signal.
+_SHARP_SURGE_MOVE = 0.4
+# Intraday-surge gate — a name below the "extreme level" bar must be ACCELERATING vs its
+# OWN day pace to light (not merely elevated-and-flat). `surge_intraday` = recent pace ÷
+# day pace; an earnings name coasting on yesterday's volume (SMTC/SCHW) reads ~1 and is
+# excluded, while a genuine fresh surge reads well above 1.
+_SUSTAINED_HIGH_RVOL = 6.0   # at/above this vs a normal day, show it even if plateaued (if moving)
+_MIN_INTRADAY_SURGE = 1.5    # below the high bar, require recent pace ≥ 1.5× the day pace
+# MEGACAP surge lift. RVOL is measured vs a NORMAL day, so a megacap (INTC trades ~40M/day)
+# making a genuine sustained surge still reads only ~2-3× and gets buried under small-caps at
+# 10×. When a name is accelerating HARD vs its OWN day pace (surge_intraday, recent rate ÷
+# day-average rate) — well beyond the routine into-the-close pickup — its effective surge
+# strength is lifted toward that acceleration, so a real megacap push (INTC) tiers bold and
+# ranks to the top and STAYS there while the volume is sustained. Gated high enough (2.5×)
+# that the normal late-day volume ramp doesn't lift the whole board.
+_SURGE_BOOST_MIN = 2.5        # recent pace ≥ 2.5× the stock's OWN day pace (a real acceleration)…
+_SURGE_BOOST_MIN_RVOL = 2.0  # …AND recent rate ≥ 2× a NORMAL day (genuinely elevated, not just a dead morning)
+# COASTING cap — the other side of the boost. A name elevated-but-FLAT (an earnings name
+# trading heavy ALL day, surge_intraday ~1) has a high RVOL-vs-a-normal-day but is doing
+# nothing UNUSUAL right now. Its effective tier is capped so it doesn't scream "Very High"
+# for hours on stale earnings volume. The tier now weights the INTRADAY acceleration, not
+# just volume-vs-a-normal-day — so the bold tiers require the volume to be EXPANDING now.
+_COAST_SURGE = 1.5           # at/below this the name is coasting (elevated, not accelerating)…
+_COAST_TIER_CAP = 3.5        # …so its effective surge caps at ~T2 (Elevated), below the
+                             # extreme-bypass level — it shows its elevated volume but stays calm
+# RANGE-EXPANSION BREAKOUT — a name TRENDING/BREAKING right now: a fresh range-expansion candle
+# (sharpness) on a genuinely big volume candle (ABSOLUTE burst, not the ÷own-day-pace ratio,
+# which dilutes for a name active all day) WITH a real move. This catches a strong mover
+# grinding to new intraday extremes on its highest-volume candle (NET/NTNX) — which the
+# coasting gate would otherwise suppress — while the sharpness gate keeps a smooth elevated
+# grind (ANF) out. It also drives the tier so the breakout reads bold, not a faint T1.
+_SPIKE_MULT = 3.0            # recent volume ≥3× the stock's OWN trailing rate (a spike vs its own
+                             # norm — how a trader eyeballs it), OR…
+_EXPANSION_BURST = 3.0       # …the fresh candle is ≥3× the normal-for-now rate (absolute burst)…
+_EXPANSION_MOVE = 0.6        # …AND a real FAST move (last ~2 min ≥0.6%) — the "size + price move
+                             # together" signal. Uses the fast move, NOT the day move, so a name
+                             # gapped-and-flat (earnings, high pct all day) isn't re-admitted. A
+                             # smaller move still counts if the candle is a genuinely sharp expansion.
+# TIER-HOLD / decay. Once a name is FLAGGED (a genuine volume+move signal), it LATCHES on and its
+# shown strength eases DOWN through the tiers (T4→T3→T2→T1) as its volume normalizes — instead of
+# blinking out in a second (you might miss the ticker). Peak-hold with exponential decay: the
+# shown strength tracks the live reading UP, then decays from the peak when it falls.
+_EFF_DECAY_TAU = 75.0        # decay time constant (s): a T4 (~8) eases to T1 (~2) in ~1.7 min
+_HOLD_SECS = 120.0           # max time a flagged name lingers after its LAST genuine signal
+_HOLD_LIT_FLOOR = 2.0        # …while its decayed strength is still ≥ this (≈ still in T1); then it drops
+
+# ── THE SIGNAL — what this scanner actually ranks on ──────────────────────────
+# The ONLY thing that matters: an ABNORMAL VOLUME SPIKE + an ABNORMAL MOVE, right NOW, vs the
+# stock's OWN recent intraday activity. NOT "most RVOL vs previous days" — an earnings name heavy
+# ALL day, or a name below its own recent volume, is NOT a signal no matter how high its RVOL vs a
+# normal day is. The tier is the SPIKE MAGNITUDE (vspike = recent volume ÷ its own trailing rate),
+# gated by a real move; _rvol_tier maps it (≥3→T2, ≥4→T3, ≥6→T4, ≥10→T5).
+_SPIKE_FLOOR = 2.0           # recent volume ≥2× the stock's OWN recent norm to count as a spike (→T1)…
+_LIVE_MIN_MOVE = 0.6         # …AND a real fast move (last ~2 min ≥0.6%); a smaller move counts only
+                             # if it's a genuinely SHARP sudden expansion (a vertical candle — INTC)
+_MIN_SPIKE_DOLLAR = 50_000   # ≥ $50k traded in the recent window — drops illiquid "50× of nothing" spikes
+
+# T5 is a MAJOR fast move ON a big volume spike, happening at the SAME instant — not a
+# thin pre-market volume ratio on a name that's barely ticking, and not a name that
+# already ran and is now consolidating (its move has faded). The shown tier is the MIN
+# of the volume-spike tier and this MOVE tier, so BOTH must be high at once. The move is
+# the ~2-min % change (_PRICE_SECS): these are the |move|% floors for T5/T4/T3/T2 (else
+# T1). Tune here after watching it live.
+_MOVE_TIER_PCT = (2.5, 1.5, 0.8, 0.4)
+
+# Sustained relative volume — the PRIMARY signal (recent ~10-min rate vs typical-for-now).
+# Cumulative RVOL dilutes a fresh surge with the quiet early session (META reads ~3×
+# cumulative while its last 10 min is ~12×); this tracks the sustained intensity, so a real
+# news move lights BOLD and stays lit + ranked until the volume actually dies back down.
+# Drives the colour tier, the ranking, and the displayed RVOL; cumulative is kept as
+# `rvol_day` for context.
+_SUSTAIN_SECS = 600.0        # ~10-min sustained window
+_SUSTAIN_MIN_WIN = 120.0     # need ≥2 min of history before it's trusted (else cumulative)
+
 _DEFAULT_UNIVERSE_TOP = 300    # scan only the N most liquid names (by $ volume)
-_TOP_TTL = 3600.0             # rebuild the top-liquid set hourly
+_TOP_TTL = 120.0              # rebuild the top-liquid set every ~2 min — cheap (a scan of the
+                             # cap universe) and responsive, so a name surging TODAY is promoted
+                             # into the tracked set within minutes, not up to an hour later
 
 _HIST_MAX = int(_HIST_SECS / _MIN_SAMPLE_GAP) + 5
 
@@ -111,6 +230,22 @@ def _cumfrac(now: datetime) -> float:
     return _CUM_CURVE[-1][1]
 
 
+def _cumrate(now: datetime) -> float:
+    """Expected fraction of a normal day's volume traded PER SECOND at `now` (ET) —
+    the slope of the cumulative curve. This is the baseline rate a burst is measured
+    against (burst = actual recent rate / this). Flat (0.0) outside 4:00 AM–8:00 PM,
+    where the curve's endpoints hold and a "rate" has no meaning."""
+    m = now.hour * 60 + now.minute + now.second / 60.0
+    if m <= _CUM_CURVE[0][0] or m >= _CUM_CURVE[-1][0]:
+        return 0.0
+    for i in range(1, len(_CUM_CURVE)):
+        m1, f1 = _CUM_CURVE[i]
+        if m <= m1:
+            m0, f0 = _CUM_CURVE[i - 1]
+            return (f1 - f0) / (m1 - m0) / 60.0   # fraction-per-minute → per-second
+    return 0.0
+
+
 # ── Session state (guarded by _lock) ──────────────────────────────────────────
 _lock = threading.Lock()
 _state = {
@@ -132,6 +267,35 @@ _thread = None
 _top_set: set | None = None
 _top_built = 0.0
 
+# Provider symbols currently subscribed to bar_stream (owner="volume") for the A.* push.
+_subscribed_provs: set = set()
+
+# Custom scan lists — app-symbols a user's OWN list asks the scanner to actively track, on
+# top of the top-N liquid universe. Registered (app-sym -> expiry epoch) on each live request
+# carrying `syms`, with a TTL so a name stops being tracked shortly after the user switches
+# away. Bounded so it can never grow without limit.
+_custom_registry: dict = {}
+_CUSTOM_TTL = 300.0        # seconds a requested symbol stays tracked after its last request
+_CUSTOM_MAX = 3000         # hard cap on the total custom universe (across all users)
+
+
+def register_custom_syms(app_syms) -> None:
+    """Keep the given app-symbols tracked (refresh their TTL). Called from get_live when a
+    request carries a user's custom list, so those names build metrics + get the A.* push."""
+    now = _time.time()
+    exp = now + _CUSTOM_TTL
+    reg = _custom_registry
+    for k in [k for k, e in reg.items() if e <= now]:   # prune expired first
+        reg.pop(k, None)
+    for s in app_syms:
+        if s in reg or len(reg) < _CUSTOM_MAX:
+            reg[s] = exp
+
+
+def _custom_active() -> set:
+    now = _time.time()
+    return {k for k, e in _custom_registry.items() if e > now}
+
 
 def _now_et() -> datetime:
     return datetime.now(_ET) if _ET else datetime.utcnow()
@@ -143,6 +307,13 @@ def enabled() -> bool:
 
 def _demo() -> bool:
     return os.environ.get("VOLUME_DEMO", "0") == "1"
+
+
+def _push_enabled() -> bool:
+    """Instant push: drive min.av/price from the Massive A.* per-second aggregate feed
+    (via bar_stream's shared on_bar) so metrics refresh in ~1s instead of the ~2.5s REST
+    poll. Dark by default; the REST poll stays the authority for tracking + baselines."""
+    return os.environ.get("VOLUME_PUSH_ENABLED", "0") == "1"
 
 
 def _tick_seconds() -> float:
@@ -160,8 +331,12 @@ def _top_n() -> int:
 
 
 def _rebuild_top_set(snapshot: dict, prov_map: dict, etf: set, n: int) -> set:
-    """The N most-liquid app-syms by yesterday's dollar volume (prev_close ×
-    prev_vol) from the current snapshot. ETFs excluded (this is a stocks scanner)."""
+    """The N most-liquid app-syms by dollar volume — the MAX of YESTERDAY's ($ = prev_close ×
+    prev_vol) and TODAY's-so-far ($ = min_av × price). Ranking by today's activity too means a
+    name trading HEAVY today — one whose quiet prior day would rank it below the cutoff — is
+    promoted into the tracked set and can light the SECOND it surges, instead of being invisible
+    to the scanner until tomorrow (NTNX-shape). Cumulative day $-vol only grows, so a promoted
+    name stays in. ETFs excluded (this is a stocks scanner)."""
     scored = []
     for prov, app in prov_map.items():
         if app in etf:
@@ -169,7 +344,10 @@ def _rebuild_top_set(snapshot: dict, prov_map: dict, etf: set, n: int) -> set:
         row = snapshot.get(prov)
         if not row:
             continue
-        dvol = (row.get("prev_close") or 0) * (row.get("prev_vol") or 0)
+        prev_dv = (row.get("prev_close") or 0) * (row.get("prev_vol") or 0)
+        px = row.get("last_price") or row.get("prev_close") or 0
+        today_dv = (row.get("min_av") or row.get("today_vol") or 0) * px
+        dvol = max(prev_dv, today_dv)
         if dvol > 0:
             scored.append((dvol, app))
     scored.sort(reverse=True)
@@ -185,9 +363,62 @@ def _at_or_after(hist, target_t):
     return None
 
 
-def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
+def _intraday_vol_burst(hist, t_now):
+    """The recent ~1½-min volume rate ÷ the stock's OWN trailing ~10-min average rate — a sudden
+    spike vs its OWN recent baseline (6-8K/min → 30K/min ≈ 4×), the way a trader eyeballs it.
+    Independent of the normal-day rate, so a MEGACAP whose spike reads only ~2-3× vs a normal day
+    (ARM) still shows the real spike, and an elevated-but-flat name (recent ≈ trailing) reads ~1.
+    None until there's enough history."""
+    if len(hist) < 6:
+        return None
+    cv_now = hist[-1][1]
+    a = _at_or_after(hist, t_now - 90.0)          # ~1½ min ago (edge of the recent window)
+    b = _at_or_after(hist, t_now - 690.0)         # ~11½ min ago (edge of the trailing window)
+    if a is None or b is None or a[0] <= b[0]:
+        return None
+    recent = cv_now - a[1]
+    trail = a[1] - b[1]
+    if trail <= 0:
+        return None
+    recent_rate = recent / max(0.25, (t_now - a[0]) / 60.0)
+    trail_rate = trail / max(1.0, (a[0] - b[0]) / 60.0)
+    if trail_rate <= 0:
+        return None
+    return round(recent_rate / trail_rate, 2)
+
+
+def _price_sharpness(hist, t_now):
+    """How SUDDEN the recent move is vs the stock's OWN recent ~1-min moves — an ATR-style
+    range-expansion read off the close series. ~1 = a steady trend (every minute moves about
+    the same, e.g. a smooth 45° grind); high = a sharp expansion (a minute that blows out vs
+    the recent norm, e.g. a fast breakout/flush). None until there's enough history. This is
+    what tells a genuine SHARP move apart from a smooth one at the same volume."""
+    if len(hist) < 6:
+        return None
+    step = 55.0
+    pts = []                       # prices ~55s apart, newest first, back ~10 min
+    nxt = t_now
+    for s in reversed(hist):
+        if s[0] <= nxt and isinstance(s[2], (int, float)) and s[2] > 0:
+            pts.append(s[2])
+            nxt = s[0] - step
+            if len(pts) >= 11:
+                break
+    if len(pts) < 3:
+        return None
+    moves = [abs(pts[i] - pts[i + 1]) / pts[i + 1] * 100.0
+             for i in range(len(pts) - 1) if pts[i + 1] > 0]
+    if len(moves) < 2:
+        return None
+    recent = moves[0]
+    typ = sum(moves[1:]) / len(moves[1:])
+    return round(recent / max(typ, 0.04), 2)
+
+
+def _compute_metrics(hist, prev_close, prev_vol, cumfrac, cum_rate):
     """Turn one symbol's rolling (t, cum_vol, px) history + the day's expected-so-far
-    fraction into the served metrics, or None when it can't be rated. Pure."""
+    fraction (and its per-second slope `cum_rate`) into the served metrics, or None
+    when it can't be rated. Pure."""
     if not hist:
         return None
     t_now, cv_now, px_now = hist[-1]
@@ -196,9 +427,10 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
     if not isinstance(prev_vol, (int, float)) or prev_vol <= 0:
         return None   # no historical volume baseline → can't compute RVOL
 
-    # RVOL = today's cumulative volume / typical cumulative-by-now.
+    # Cumulative RVOL = today's cumulative volume / typical cumulative-by-now (context only;
+    # the PRIMARY `rvol` below is the sustained recent rate).
     expected = prev_vol * max(cumfrac, _MIN_EXPECTED_FRAC)
-    rvol = min(_RVOL_CAP, cv_now / expected) if expected > 0 else 0.0
+    rvol_day = min(_RVOL_CAP, cv_now / expected) if expected > 0 else 0.0
 
     # Price move over the ~2-min window (the move the volume is driving).
     move = 0.0
@@ -208,7 +440,47 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
 
     # $ actually traded in the last ~minute (the illiquid-noise gate).
     a = _at_or_after(hist, t_now - _NOW_DOLLAR_SECS)
-    now_dollar = max(0.0, cv_now - a[1]) * px_now if a is not None else 0.0
+    recent_vol = max(0.0, cv_now - a[1]) if a is not None else 0.0
+    now_dollar = recent_vol * px_now if a is not None else 0.0
+
+    # Burst RVOL — the recent-window volume rate vs the rate this name TYPICALLY
+    # trades at this time of day (prev_vol × cum_rate). Reuses the now-window sample
+    # `a`, so it shares the "last minute" span; expected scales with the real elapsed
+    # window. Cumulative RVOL lags a fresh ignition — this reads it directly.
+    burst = 0.0
+    if a is not None and cum_rate > 0:
+        win = max(1.0, t_now - a[0])
+        expected_recent = prev_vol * cum_rate * win
+        if expected_recent > 0:
+            burst = min(_BURST_CAP, recent_vol / expected_recent)
+
+    # Sustained relative volume (the PRIMARY signal) — the recent ~10-min volume rate vs
+    # the rate typically traded now. RISES while volume stays heavy and DECAYS when it
+    # dies, so a real news move reads high and STAYS high until the volume fades — unlike
+    # cumulative RVOL, which the quiet early session dilutes. Falls back to cumulative
+    # until a name has enough history to measure the sustained window.
+    svol = None
+    ss = _at_or_after(hist, t_now - _SUSTAIN_SECS)
+    if ss is not None and cum_rate > 0:
+        swin = t_now - ss[0]
+        if swin >= _SUSTAIN_MIN_WIN:
+            exp_sustain = prev_vol * cum_rate * swin
+            svol = min(_RVOL_CAP, max(0.0, cv_now - ss[1]) / exp_sustain) if exp_sustain > 0 else 0.0
+    rvol = svol if svol is not None else rvol_day
+
+    # Intraday surge = recent pace vs the stock's OWN day-so-far pace (svol ÷ cumulative).
+    # >1 = accelerating (a fresh pickup); ~1 = coasting at its day pace; <1 = decelerating.
+    # This separates a genuine surge from a name that's merely ELEVATED-and-flat — an
+    # earnings name coasting on yesterday's heavy volume reads ~3× vs a normal day but ~1×
+    # vs its own pace, so it should NOT light. None until the sustained window is built
+    # (a freshly-tracked mover isn't held back — the gate is skipped while unknown).
+    surge_intraday = round(svol / rvol_day, 2) if (svol is not None and rvol_day > 0) else None
+    # Instant version (60-sec window) — recent-minute pace vs the stock's OWN day pace. A
+    # CRCL-style explosion (quiet all morning, then a 700K-share minute) reads very high
+    # here; a name merely elevated-vs-a-normal-day (META) reads low. Fires the instant catch.
+    burst_intraday = round(burst / rvol_day, 2) if rvol_day > 0 else 0.0
+    sharpness = _price_sharpness(hist, t_now)   # sudden range expansion vs recent 1-min moves
+    vspike = _intraday_vol_burst(hist, t_now)   # recent volume rate vs the stock's OWN trailing rate
 
     pct = None
     if isinstance(prev_close, (int, float)) and prev_close > 0:
@@ -216,7 +488,13 @@ def _compute_metrics(hist, prev_close, prev_vol, cumfrac):
     return {
         "price": round(float(px_now), 4),
         "pct": round(pct, 2) if pct is not None else None,
-        "rvol": round(rvol, 2),
+        "rvol": round(rvol, 2),          # PRIMARY: sustained recent rate (cumulative fallback)
+        "rvol_day": round(rvol_day, 2),  # cumulative-on-the-day (context)
+        "surge_intraday": surge_intraday,  # recent pace ÷ own day pace (>1 accelerating, <1 fading)
+        "burst_intraday": burst_intraday,  # recent-MINUTE pace ÷ own day pace (the instant-catch signal)
+        "sharpness": sharpness,            # recent move ÷ own recent 1-min moves (range expansion)
+        "vspike": vspike,                  # recent volume rate ÷ own trailing rate (spike vs its own norm)
+        "burst": round(burst, 2),
         "move": round(move, 2),
         "dvol": round(now_dollar),
     }
@@ -260,6 +538,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
     etf = _etf_set()
     is_rth = window == "rth"
     cumfrac = _cumfrac(now)
+    cum_rate = _cumrate(now)
     # Scan only the N most-liquid names (rebuilt hourly from the snapshot).
     global _top_set, _top_built
     if _top_set is None or (sample_t - _top_built) >= _TOP_TTL:
@@ -268,15 +547,38 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
             _top_set = rebuilt
             _top_built = sample_t
     top = _top_set
+    custom = _custom_active()
+    # Custom-list names that aren't in the standard breadth universe map (ETFs, leveraged/
+    # inverse funds like USO/SOXL/UVXY, any liquid ticker the user adds) must still be
+    # visited — the loop otherwise only iterates the top-N stock universe, so those names
+    # would never get a reading. Map each such name to its provider symbol (== the app sym
+    # for anything without a class dot).
+    iter_map = prov_map
+    if custom:
+        tracked_apps = set(prov_map.values())
+        extra = {}
+        for app in custom:
+            if app in tracked_apps:
+                continue
+            prov = app
+            try:
+                from api.services import massive
+                prov = massive.to_polygon_symbol(app)
+            except Exception:
+                prov = app
+            extra[prov] = app
+        if extra:
+            iter_map = {**prov_map, **extra}
     with _lock:
         if _state["session_key"] != session_key:
             _reset(session_key, window, today)
         syms = _state["syms"]
 
-        for prov, app in prov_map.items():
-            if app in etf:                      # stocks only (news reacts on stocks)
+        for prov, app in iter_map.items():
+            in_custom = app in custom
+            if app in etf and not in_custom:    # stocks only, UNLESS the user put it on a list
                 continue
-            if top and app not in top:          # outside the top-N liquid universe
+            if not in_custom and top and app not in top:   # outside the top-N and not on a list
                 continue
             row = snapshot.get(prov)
             if not row:
@@ -305,7 +607,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
                 hist.append((sample_t, int(cv), float(price)))
                 st["last_add"] = sample_t
 
-            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac)
+            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
+            _apply_hold(st, st["m"], sample_t)   # latch + decay so a flagged name lingers
 
         _state["asof"] = now_iso
         _state["ticks"] += 1
@@ -313,7 +616,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime, sample_t:
 
 def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
              min_rvol: float = None, min_move: float = None, min_liq: float = None,
-             min_dollar: float = None, show_all: bool = False) -> dict:
+             min_dollar: float = None, min_burst: float = None,
+             syms: list = None, show_all: bool = False) -> dict:
     """Relative-volume leaderboard for the endpoint.
 
     Two modes:
@@ -340,18 +644,40 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         mnd = min_dollar
     else:
         mnd = _DEFAULT_MIN_DOLLAR_RTH if window == "rth" else _DEFAULT_MIN_DOLLAR_EXT
+    mnb = _DEFAULT_MIN_BURST if min_burst is None else min_burst
+    # Custom list: scan ONLY the user's names. Register them (keeps them tracked + pushed)
+    # and filter the leaderboard to that set. Their own picks bypass the liquidity floor.
+    wanted = None
+    if syms:
+        wanted = {str(s).strip().upper() for s in syms if s and str(s).strip()}
+        if wanted:
+            register_custom_syms(wanted)
+        else:
+            wanted = None
     try:
         limit = max(1, min(int(limit), 300))
     except (TypeError, ValueError):
         limit = 100
 
     def _is_lit(m):
-        return (m["rvol"] >= mnr and abs(m["move"]) >= mnm and m.get("dvol", 0) >= mnd)
+        # LIT = an abnormal volume SPIKE + move happening now (a live signal), OR still lingering
+        # from one in the last ~1-2 min (the hold, so a 1-second pop stays visible). Both are
+        # captured by the `held` flag set in _apply_hold — which is purely the intraday spike (vs
+        # the stock's OWN recent volume) + a real move, NEVER RVOL-vs-previous-days. So an earnings
+        # name heavy-but-flat all day, or a name below its own recent volume, is NOT lit.
+        return bool(m.get("held"))
+
+    def _igniting(m):
+        # The gold ring = a GENUINE live spike right now (abnormal volume + move + real $). It
+        # FADES once the live surge stops, while the row lingers (held) and eases down the tiers.
+        return _signal(m)
 
     def _score(m):
+        # Rank by the (held) EFFECTIVE surge strength, weighted by the move — so a flagged name
+        # holds its place near the top, then drifts DOWN the list as its held strength decays.
         mw = abs(m["move"]) / 0.5
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
-        return m["rvol"] * mw
+        return _eff(m) * mw
 
     with _lock:
         asof = _state["asof"]
@@ -359,10 +685,13 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         ticks = _state["ticks"]
         rows = []   # (sym, m, lit)
         for sym, st in _state["syms"].items():
+            if wanted is not None and sym not in wanted:
+                continue
             m = st.get("m")
             if not m:
                 continue
-            if not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
+            # A user's own list is shown as-is; the top-N default keeps the tradable floor.
+            if wanted is None and not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
                 continue
             lit = _is_lit(m)
             if not show_all and not lit:
@@ -370,24 +699,46 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
             rows.append((sym, m, lit))
 
     if show_all:
-        # Lit (criteria-meeting) names first — each group by RVOL — so coloured
-        # signals lead and greyed illiquid spikes sink to the bottom.
-        rows.sort(key=lambda r: (r[2], r[1]["rvol"]), reverse=True)
+        # Genuine surges LEAD: igniting names (a big instant surge OR sustained-heavy +
+        # move) sit at the very top so a fresh explosion surfaces the second it happens;
+        # then by sustained RVOL so heavy names stay near the top until they die down.
+        rows.sort(key=lambda r: (r[2], _igniting(r[1]), _eff(r[1]), r[1].get("burst", 0.0)),
+                  reverse=True)
     else:
         rows.sort(key=lambda r: _score(r[1]), reverse=True)
     lit_total = sum(1 for _s, _m, lit in rows if lit)
     out = []
     for sym, m, lit in rows[:limit]:
+        burst = m.get("burst", 0.0)
+        tier = _tier(m)
+        sharp = m.get("sharpness")
+        # WHITE FLASH — big volume AND a genuinely SHARP move (sudden range expansion),
+        # NOT a smooth grind at elevated volume. Big-volume names still shade a colour
+        # (the tier), but only a sharp move flashes.
+        big_vol = tier >= 4 or m.get("burst_intraday", 0.0) >= _INSTANT_SURGE
+        # Sharpness is the true discriminator: a sudden range expansion flashes even at a
+        # smaller % move (INTC-shape), while a smooth grind (ANF, sharpness ~1) never does.
+        flash = bool(lit and big_vol and abs(m["move"]) >= _SHARP_SURGE_MOVE
+                     and sharp is not None and sharp >= _SHARP_MIN)
         out.append({
             "sym": sym,
             "price": round(m["price"], 2),
             "pct": m["pct"],
             "rvol": m["rvol"],
+            "rvol_day": m.get("rvol_day"),
+            "surge_intraday": m.get("surge_intraday"),
+            "burst_intraday": m.get("burst_intraday"),
+            "vspike": m.get("vspike"),
+            "sharpness": sharp,
+            "burst": burst,
             "move": m["move"],
             "dir": "up" if m["move"] >= 0 else "down",
             "dvol": m.get("dvol", 0),
-            "tier": _tier(m["rvol"]),
+            "tier": tier,
             "lit": lit,
+            "flash": flash,
+            # "Igniting now" — a strong burst AND a real move: the look-up-now cue.
+            "igniting": bool(_igniting(m)),
         })
     return {
         "window": window,             # rth | pre | post | closed
@@ -399,14 +750,68 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         "shown": len(out),
         "universe_top": _top_n(),
         "filters": {"min_price": mnp, "max_price": mxp, "min_liq": mnl,
-                    "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd},
+                    "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd,
+                    "min_burst": mnb},
         "rows": out,
     }
 
 
-def _tier(rvol: float) -> int:
-    """Colour tier by relative volume: 5 = hottest (Extreme) … 1 = Notable.
-    (TC2000-style filled blocks: blue → teal → green → amber → hot-orange.)"""
+def _live_strength(m: dict) -> float:
+    """The ONE thing this scanner ranks + tiers on: how ABNORMAL is the stock's activity RIGHT NOW.
+
+    A volume SPIKE vs its OWN recent intraday baseline (vspike = recent volume ÷ its own trailing
+    ~10-min rate) — how a trader eyeballs it — GATED by a real move. This scanner is for immediate
+    breaking-news moves, NOT "most RVOL vs previous days": an earnings name heavy-but-flat all day,
+    or a name trading BELOW its own recent volume, reads 0 no matter how high its RVOL vs a normal
+    day is. Returns the spike magnitude (→ the tier via _rvol_tier: ≥3 T2, ≥4 T3, ≥6 T4, ≥10 T5) or
+    0 (unremarkable → unlit). Falls back to the normal-for-now burst only until vspike has history."""
+    vspike = m.get("vspike")
+    spike = vspike if vspike is not None else (m.get("burst") or 0.0)
+    if spike < _SPIKE_FLOOR:
+        return 0.0
+    move = abs(m.get("move") or 0.0)
+    sharp = m.get("sharpness")
+    moving = move >= _LIVE_MIN_MOVE or (sharp is not None and sharp >= _SHARP_MIN and move >= _SHARP_SURGE_MOVE)
+    return float(spike) if moving else 0.0
+
+
+def _eff(m: dict) -> float:
+    """The effective strength used for the tier / rank / lit — the DECAYED HELD value once the tick
+    has applied the hold (so a flagged name eases down through the tiers as its volume normalizes),
+    else the live strength."""
+    held = m.get("eff")
+    return held if held is not None else _live_strength(m)
+
+
+def _signal(m: dict) -> bool:
+    """A genuine LIVE signal right now — an abnormal volume spike + move with real $ traded (the
+    illiquid-'50× of nothing' filter). Latches the hold and drives the igniting ring."""
+    return _live_strength(m) >= _SPIKE_FLOOR and (m.get("dvol") or 0) >= _MIN_SPIKE_DOLLAR
+
+
+def _apply_hold(st: dict, m: dict, t: float) -> None:
+    """Latch + decay the effective surge so a FLAGGED name lingers and eases down through the
+    tiers (T4→T1) as its volume normalizes, instead of blinking out. Peak-hold with exponential
+    decay: the shown strength tracks the live reading UP, then decays from the peak when the live
+    reading falls. A name stays lit for up to _HOLD_SECS after its LAST genuine signal while the
+    decayed strength is still above the T1 floor. Mutates m in place (sets `eff` + `held`)."""
+    if not m:
+        return
+    raw = _live_strength(m)
+    prev = st.get("eff_hold", 0.0)
+    prev_t = st.get("eff_hold_t", t)
+    dt = t - prev_t if t > prev_t else 0.0
+    decayed = prev * math.exp(-dt / _EFF_DECAY_TAU) if prev > 0 else 0.0
+    held = raw if raw >= decayed else decayed
+    st["eff_hold"] = held
+    st["eff_hold_t"] = t
+    m["eff"] = round(held, 2)
+    if _signal(m):
+        st["signal_t"] = t
+    m["held"] = (t - st.get("signal_t", -1e18)) < _HOLD_SECS and held >= _HOLD_LIT_FLOOR
+
+
+def _rvol_tier(rvol: float) -> int:
     if rvol >= 10:
         return 5   # Extreme
     if rvol >= 6:
@@ -415,7 +820,37 @@ def _tier(rvol: float) -> int:
         return 3   # High
     if rvol >= 3:
         return 2   # Elevated
-    return 1       # Notable (the lit floor, rvol >= min_rvol)
+    return 1       # Notable (2–3×, or burst-lit)
+
+
+def _move_tier(move_abs: float) -> int:
+    """The tier the CURRENT price move alone would justify — the ~2-min |move|%. A big
+    volume spike with only a tiny move (thin pre-market noise, or a name that already ran
+    and is now flat) must not read Extreme, so this caps the shown tier."""
+    t5, t4, t3, t2 = _MOVE_TIER_PCT
+    if move_abs >= t5:
+        return 5
+    if move_abs >= t4:
+        return 4
+    if move_abs >= t3:
+        return 3
+    if move_abs >= t2:
+        return 2
+    return 1
+
+
+def _tier(m: dict) -> int:
+    """Colour tier by the CURRENT abnormality: the MIN of the intraday volume-SPIKE tier
+    (the DECAYED HELD strength — so a flagged name eases down T4→T3→T2→T1 as its volume
+    normalizes) and the MOVE tier (the ~2-min % move happening NOW). BOTH must be high at
+    once: T5 = a MAJOR fast move on a big volume spike this second, never a thin pre-market
+    volume ratio on a name barely ticking, nor one that already ran and is now consolidating
+    (its move has faded → the tier eases down even while the held spike lingers).
+    5 = Extreme … 1 = Notable. UCT-palette ramp: faint green → gold → hot red."""
+    spike_tier = _rvol_tier(_eff(m))
+    if spike_tier <= 1:
+        return spike_tier
+    return min(spike_tier, _move_tier(abs(m.get("move") or 0.0)))
 
 
 def status() -> dict:
@@ -432,7 +867,87 @@ def status() -> dict:
             "asof": _state["asof"],
             "last_error": _state["last_error"],
             "tick_seconds": _tick_seconds(),
+            "push_enabled": _push_enabled(),
+            "push_subscribed": len(_subscribed_provs),
         }
+
+
+def on_aggregate(sym: str, payload: dict, kind: str) -> None:
+    """Instant push from the Massive A.* (per-second aggregate) feed, via bar_stream's
+    shared on_bar. Refreshes ONE tracked symbol's accumulated volume + price and
+    recomputes its metric in ~1s — instead of waiting for the ~2.5s REST poll. Runs on
+    the WS thread, so it must be quick and NEVER raise (a shared callback). The REST poll
+    stays the authority for tracking, prev-day baselines, and the top-N universe; this
+    only refreshes symbols the poll already tracks."""
+    if not _push_enabled() or kind not in ("A", "AM"):
+        return
+    try:
+        if not isinstance(payload, dict):
+            return
+        av = payload.get("av")            # today's ACCUMULATED volume (authoritative)
+        price = payload.get("c")          # aggregate close = latest traded price
+        if (not isinstance(av, (int, float)) or av <= 0
+                or not isinstance(price, (int, float)) or price <= 0):
+            return
+        app = _universe_map().get(sym)
+        if app is None:
+            return
+        now = _now_et()
+        if _active_window(now) == "closed":
+            return
+        cumfrac = _cumfrac(now)
+        cum_rate = _cumrate(now)
+        t = _time.time()
+        with _lock:
+            st = _state["syms"].get(app)
+            if st is None or st.get("prev_vol") is None:
+                return   # only the poll creates + baselines a symbol
+            hist = st["hist"]
+            if hist and av < hist[-1][1]:            # counter dropped (day/provider roll) → reset
+                hist.clear()
+            if not hist or (t - st["last_add"]) >= _MIN_SAMPLE_GAP:
+                hist.append((t, int(av), float(price)))
+                st["last_add"] = t
+            else:
+                hist[-1] = (t, int(av), float(price))   # refresh the developing point in place
+            st["m"] = _compute_metrics(hist, st["prev"], st["prev_vol"], cumfrac, cum_rate)
+            _apply_hold(st, st["m"], t)   # latch + decay so a flagged name lingers
+    except Exception:
+        pass   # a shared callback — never break the bars feed
+
+
+def _sync_push_subscriptions() -> None:
+    """Keep bar_stream subscribed to the scanner's tracked universe (owner="volume") so
+    the A.* per-second aggregates flow for it. No-op unless the push is enabled; when it
+    is turned OFF, drops any subscriptions we hold (clean rollback)."""
+    global _subscribed_provs
+    try:
+        from api.services import bar_stream
+    except Exception:
+        return
+    if not _push_enabled():
+        if _subscribed_provs:
+            try:
+                bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+            except Exception:
+                pass
+            _subscribed_provs = set()
+        return
+    universe = set(_top_set or ()) | _custom_active()   # top-N + every active custom-list name
+    if not universe:
+        return
+    app_to_prov = {app: prov for prov, app in _universe_map().items()}
+    want = {app_to_prov[a] for a in universe if a in app_to_prov}
+    new = want - _subscribed_provs
+    gone = _subscribed_provs - want
+    try:
+        if new:
+            bar_stream.subscribe_symbols(sorted(new), owner="volume")
+        if gone:
+            bar_stream.unsubscribe_symbols(sorted(gone), owner="volume")
+    except Exception:
+        return
+    _subscribed_provs = want
 
 
 def _tick() -> None:
@@ -452,6 +967,7 @@ def _tick() -> None:
             _tick_once(snap, window, today, now, sample_t)
             with _lock:
                 _state["last_error"] = None
+    _sync_push_subscriptions()
 
 
 def _run_forever() -> None:
@@ -479,5 +995,12 @@ def start() -> None:
 
 
 def stop() -> None:
-    global _running
+    global _running, _subscribed_provs
     _running = False
+    if _subscribed_provs:
+        try:
+            from api.services import bar_stream
+            bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+        except Exception:
+            pass
+        _subscribed_provs = set()

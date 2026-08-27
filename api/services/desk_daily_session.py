@@ -136,6 +136,72 @@ def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> dateti
     return dt.astimezone(_ET)
 
 
+# Evergreen YouTube description footer. STATIC on purpose — never a claim
+# about what was actually discussed. The transcript doesn't exist yet at
+# upload time (Zoom's async pass lands 2min-3h later) and the `youtube.upload`
+# token can't patch a description in after the fact, so anything content-
+# specific here would repeat the exact hallucination shape that got
+# DESK_CREATIVE_TITLES turned off for good (a title naming a ticker nobody
+# said). Links/copy: owner-supplied 2026-08-26.
+_LINKS_FOOTER = (
+    "\n\n"
+    "🔗 Join Uncharted Territory: https://whop.com/uncharted/uncharted\n"
+    "🌐 Website: https://uctintelligence.com\n\n"
+    "For educational and informational purposes only — not investment advice or a "
+    "recommendation to buy or sell any security. Trading involves substantial risk of loss."
+)
+
+
+def _compose_description(title_prefix: str) -> str:
+    """The YouTube description for a session upload. `title_prefix` is the same
+    per-show name _route already resolved (e.g. "Sunday Scans", "Workshop with
+    Zen") — derived, never a second hardcoded name."""
+    return f"{title_prefix} — full session replay.{_LINKS_FOOTER}"
+
+
+def chapters_description_enabled() -> bool:
+    return os.environ.get("DESK_SESSION_DESCRIPTION_CHAPTERS", "").strip().lower() in ("1", "true", "yes")
+
+
+def _format_chapter_timestamp(seconds) -> str:
+    h, rem = divmod(max(0, int(seconds)), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _chapters_block(chapters: list[dict] | None) -> str:
+    """A YouTube-native chapter list built from REAL transcript timestamps
+    (desk_session_insights — never invented, see _compose_description for
+    why nothing content-specific ships at upload time). YouTube requires the
+    first entry at 0:00 (prepended here if the real data doesn't start
+    there) and consecutive entries >=10s apart, or it silently refuses to
+    render any of them as clickable chapters."""
+    entries = sorted(
+        ({"t": int(c.get("t") or 0), "title": str(c.get("title") or "").strip()}
+         for c in (chapters or []) if str(c.get("title") or "").strip()),
+        key=lambda c: c["t"])
+    if not entries:
+        return ""
+    kept = [] if entries[0]["t"] == 0 else [{"t": 0, "title": "Start of Session"}]
+    for e in entries:
+        if kept and e["t"] - kept[-1]["t"] < 10:
+            continue
+        kept.append(e)
+    return "\n".join(f"{_format_chapter_timestamp(c['t'])} {c['title']}" for c in kept)
+
+
+def compose_description_with_chapters(title_prefix: str, chapters: list[dict] | None) -> str:
+    """Same shape as _compose_description, plus a real per-session chapter
+    list once the transcript-derived chapters exist (see
+    desk_session_insights.refresh_description) — never composed at upload
+    time, when nothing about the session is known yet."""
+    header = f"{title_prefix} — full session replay."
+    chap_block = _chapters_block(chapters)
+    if chap_block:
+        header += f"\n\n⏱️ Chapters:\n{chap_block}"
+    return header + _LINKS_FOOTER
+
+
 def _session_date_text(started_at_iso: str | None, *, now: datetime | None = None) -> str:
     """ET date as 'June 24, 2026' — shared by the title and the thumbnail."""
     dt = _to_et(started_at_iso, now=now)
@@ -350,7 +416,8 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
                             date_text=date_text, record=False, facts=facts)
                     except Exception as ce:
                         print(f"[desk-sessions] creative title failed (non-fatal): {ce}")
-                vid = youtube.upload(tmp, title, privacy=privacy_for_section(section))
+                vid = youtube.upload(tmp, title, description=_compose_description(title_prefix),
+                                     privacy=privacy_for_section(section))
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
                 if desk_creative.titles_enabled() and " | " in title:
                     desk_creative.record_shipped_title(title, show=title_prefix)

@@ -54,6 +54,12 @@ export function useLiveBreadth({ enabled = true } = {}) {
       return {
         row: null, asOf: null, clock: null, degraded: !!data?.degraded,
         path: {}, openValues: {},
+        // The frozen ratio-bar internals + whether the regular session is open
+        // survive even when the live ROW is withheld — they are what the
+        // Ratio-Bars view holds between the close and the next open.
+        marketOpen: !!data?.market_open,
+        frozen: data?.internals_frozen ?? null,
+        frozenDate: data?.internals_frozen_date ?? null,
         meta: data ?? null, error,
       }
     }
@@ -62,6 +68,8 @@ export function useLiveBreadth({ enabled = true } = {}) {
       asOf: data.as_of,
       clock: formatLiveClock(data.as_of),
       measured: data.measured ?? null,
+      frozen: data.internals_frozen ?? null,
+      frozenDate: data.internals_frozen_date ?? null,
       // `{metric: [[epochSeconds, value], ...]}` for today, oldest first —
       // the session's shape, which the daily row can never carry.
       path: data.path ?? {},

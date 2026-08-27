@@ -9,6 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
 import UIcon from '../../../components/ui/UIcon'
+import WidgetThemeSection from './WidgetThemeSection'
 import styles from './FundamentalsSettingsPanel.module.css'
 
 const PANEL_W = 268
@@ -30,7 +31,7 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function FundamentalsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
+export default function FundamentalsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, widgetType = 'fundamentals' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)               // settings-menu position (beside the widget)
   const [activeTarget, setActiveTarget] = useState(null)  // { target, label } — which color is being edited
@@ -132,6 +133,10 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
         </div>
 
         <div className={styles.body}>
+          <div className={styles.sectionLabel}>Theme</div>
+          <Row label="UCT theme" hint="whole-widget look">
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+          </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

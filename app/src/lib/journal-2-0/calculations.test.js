@@ -32,6 +32,7 @@ import {
   brokerLiveEquity,
   currentPriceFor,
   brokerLiveSummary,
+  effectiveBrokerCash,
   isBrokerPlaceholderStop,
   openedTodayFill,
 } from './calculations.js'
@@ -942,6 +943,36 @@ describe('brokerLiveSummary', () => {
     const r = brokerLiveSummary({ brokerCash: null }, [{ symbol: 'X', side: 'Long', shares: 1, brokerPrice: 10 }], [], { X: { price: 10 } }, '2026-07-01')
     expect(r.netLiq).toBeNull()
     expect(r.marketValue).toBe(10)
+  })
+
+  it('prefers the fill-derived brokerCashLive over the sync-stale brokerCash', () => {
+    // The 2026-08-26 incident shape: cash last synced pre-market (−18,760.66),
+    // then a 2000 × $5.495 SNAP buy intraday. The live book carries the shares;
+    // pairing them with the STALE cash inflates net-liq by the whole purchase.
+    const acct = { brokerCash: -18760.66, brokerCashLive: -29750.66 }
+    const positions = [
+      { symbol: 'SNAP', side: 'Long', shares: 2000, brokerPrice: 5.495, entryPrice: 5.495, entryDate: '2026-08-26' },
+    ]
+    const prices = { SNAP: { price: 5.4241, prev_close: 5.36 } }
+    const r = brokerLiveSummary(acct, positions, [], prices, '2026-08-26')
+    // netLiq = −29,750.66 + 2000×5.4241 = −18,902.46 — NOT −18,760.66 + 10,848.20
+    expect(r.netLiq).toBeCloseTo(-29750.66 + 10848.2, 2)
+  })
+
+  it('falls back to brokerCash when the live derivation is absent', () => {
+    const r = brokerLiveSummary({ brokerCash: 2000 }, [], [], {}, '2026-07-01')
+    expect(r.netLiq).toBe(2000)
+  })
+})
+
+describe('effectiveBrokerCash', () => {
+  it('prefers brokerCashLive, falls back to brokerCash, tolerates junk', () => {
+    expect(effectiveBrokerCash({ brokerCash: -18760.66, brokerCashLive: -29750.66 }))
+      .toBe(-29750.66)
+    expect(effectiveBrokerCash({ brokerCash: -18760.66 })).toBe(-18760.66)
+    expect(effectiveBrokerCash({ brokerCash: -18760.66, brokerCashLive: 'x' }))
+      .toBe(-18760.66)
+    expect(effectiveBrokerCash(null)).toBeUndefined()
   })
 })
 

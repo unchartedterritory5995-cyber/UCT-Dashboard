@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useWorkspace } from '../WorkspaceContext'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -26,6 +27,7 @@ import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
+import { ScopeControl, AddTickerBar, makeListHelpers } from './VolumeScanLists'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
 
@@ -33,6 +35,11 @@ const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
 
 const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
+
+// The signal column shows the surge TIER (not a raw RVOL multiple) — this is a
+// composite-signal scanner, not a plain relative-volume list. Rows still RANK by the
+// underlying sustained RVOL; the tier is what's shown. T1 Notable → T5 Extreme.
+const TIER_NAME = { 1: 'Notable', 2: 'Elevated', 3: 'High', 4: 'Very High', 5: 'Extreme' }
 
 function fmtTime(iso) {
   if (!iso) return ''
@@ -52,30 +59,32 @@ const fmtDollar = (d) => {
   return `$${Math.round(d)}`
 }
 
-// Live-tick flash: re-mounts a brief tinted overlay whenever a row's price changes,
-// so every price tick pulses the row (green up / red down) — the "it's live" cue.
-// Keyed by the price value so it only fires on a real change, never on first mount.
-function TickFlash({ price, dir }) {
-  const prev = useRef(price)
-  const [k, setK] = useState(0)
-  useEffect(() => {
-    if (prev.current != null && price != null && price !== prev.current) setK((x) => x + 1)
-    prev.current = price
-  }, [price])
-  if (k === 0) return null
-  return <span key={k} className={`${styles.tick} ${dir === 'up' ? styles.tickUp : styles.tickDown}`} aria-hidden="true" />
+// Rank so the strongest tier is ALWAYS on top: lit rows first, then tier DESC (a
+// T5 print outranks a T2 no matter its sustained RVOL), then the underlying signal
+// strength (eff / RVOL) as the tiebreak. Pending placeholders are kept out of this
+// (appended last by the caller).
+const byTierDesc = (a, b) => {
+  const la = a.lit ? 1 : 0, lb = b.lit ? 1 : 0
+  if (la !== lb) return lb - la
+  const ta = a.tier || 0, tb = b.tier || 0
+  if (ta !== tb) return tb - ta
+  const ea = a.eff ?? a.rvol ?? 0, eb = b.eff ?? b.rvol ?? 0
+  return eb - ea
 }
 
-// New-surge alert: a stronger triple-pulse flash the moment a row CROSSES into a
-// surge (unlit → lit) — the "something just ignited, look up" cue. Only fires on the
-// transition (a name already lit when it first renders never flashes).
-function SurgeFlash({ lit }) {
-  const prev = useRef(lit)
+// Extreme-surge alert: a white triple-pulse the moment the server flags a row as a
+// genuinely SHARP move on big volume (`flash` = big volume AND a sudden range expansion
+// vs the stock's own recent 1–5-min candles — NOT a smooth 45° grind at elevated volume).
+// A heavy-volume name shades its tier colour; ONLY a big + SHARP move flashes white.
+// Fires only on the transition INTO flash; a row already flashing on first render never
+// re-fires.
+function SurgeFlash({ flash }) {
+  const wasFlash = useRef(!!flash)
   const [k, setK] = useState(0)
   useEffect(() => {
-    if (lit && !prev.current) setK((x) => x + 1)
-    prev.current = lit
-  }, [lit])
+    if (flash && !wasFlash.current) setK((x) => x + 1)
+    wasFlash.current = !!flash
+  }, [flash])
   if (k === 0) return null
   return <span key={k} className={styles.surgeFlash} aria-hidden="true" />
 }
@@ -84,69 +93,49 @@ function SurgeFlash({ lit }) {
 // ranked by RVOL (lit first); a name that MEETS the criteria lights the WHOLE row
 // in its tier colour (TC2000-style filled block, dark ink), the rest stay dark. On
 // each price tick the row flashes. Clicking charts the ticker.
-function Row({ e, onPick, logos }) {
-  const cls = e.lit ? `${styles.lit} ${styles['t' + (e.tier || 1)]}` : styles.unlit
+function Row({ e, onPick, logos, onContext }) {
+  // `pending` = a name just added to a custom list, shown INSTANTLY before its first
+  // server reading lands (placeholder row so the add feels immediate).
+  const cls = e.pending
+    ? styles.unlit
+    : e.lit
+      ? `${styles.lit} ${styles['t' + (e.tier || 1)]}`
+      : styles.unlit
+  // Description used as an aria-label (NOT title) — a `title` shows a native hover
+  // tooltip that obscures the chart; aria-label keeps it accessible with no popup.
+  const desc = e.pending
+    ? `${e.sym} — added to your list (waiting for the first reading)`
+    : `${e.sym} — ${e.rvol}× relative volume (last ~10m)${e.rvol_day != null ? `, ${e.rvol_day}× on the day` : ''}${e.burst ? `, ${e.burst}× burst` : ''}, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`
   return (
     <button
       type="button"
       role="listitem"
       className={`${styles.row} ${cls}`}
       onClick={() => onPick(e.sym)}
-      title={`${e.sym} — ${e.rvol}× relative volume, ${fmtPct(e.move)} in the last few min (${fmtPct(e.pct)} on day) at $${fmtPrice(e.price)}${e.dvol ? ` · ${fmtDollar(e.dvol)} traded in the last min` : ''}${e.lit ? '' : ' — below criteria'}`}
+      onContextMenu={onContext ? (ev) => onContext(ev, e.sym) : undefined}
+      aria-label={desc}
     >
-      <TickFlash price={e.price} dir={e.dir} />
-      <SurgeFlash lit={e.lit} />
+      {!e.pending && <SurgeFlash flash={e.flash} />}
       <span className={styles.symCell}>
         {logos && <CompanyLogo sym={e.sym} size={15} round />}
         <span className={styles.sym}>{e.sym}</span>
       </span>
-      <span className={styles.surge}>{e.rvol}×</span>
+      <span className={styles.surge}>
+        {e.pending ? '…' : (
+          <>
+            <span className={styles.tierCode}>T{e.tier || 1}</span>
+            <span className={styles.tierName}>{TIER_NAME[e.tier || 1] || ''}</span>
+          </>
+        )}
+      </span>
     </button>
-  )
-}
-
-// Debounced numeric filter box (types instantly to local state, commits after a
-// pause / on blur / Enter — keeps the fetch key off the keystroke path).
-function FilterBox({ label, ariaLabel, value, placeholder, min, step, onCommit }) {
-  const [text, setText] = useState(value == null ? '' : String(value))
-  const timer = useRef(null)
-  const inputRef = useRef(null)
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) setText(value == null ? '' : String(value))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
-  const commit = (raw) => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null }
-    const n = raw === '' ? min : Number(raw)
-    onCommit(Number.isFinite(n) ? Math.max(min, n) : min)
-  }
-  const schedule = (raw) => {
-    setText(raw)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => commit(raw), 350)
-  }
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
-  return (
-    <label className={chrome.filter}>
-      <span className={chrome.filterLbl}>{label}</span>
-      <input
-        ref={inputRef}
-        type="number" min={min} step={step || 1} inputMode="decimal"
-        className={chrome.filterInput}
-        value={text}
-        placeholder={placeholder}
-        onChange={(e) => schedule(e.target.value)}
-        onBlur={() => commit(text)}
-        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-        aria-label={ariaLabel}
-      />
-    </label>
   )
 }
 
 export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
   const minRvol = Number(opts?.minRvol) || 2
+  const minBurst = opts?.minBurst == null ? 3 : Number(opts.minBurst)
   const minMove = opts?.minMove == null ? 0.25 : Number(opts.minMove)
   // Min $-volume traded in the last minute, in $thousands. Undefined = let the
   // server pick a session-aware default (thinner for pre/post).
@@ -157,9 +146,6 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   const onPick = useCallback((sym) => {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
-  const commitRvol = useCallback((v) => onOptsChange?.({ ...opts, minRvol: v }), [opts, onOptsChange])
-  const commitMove = useCallback((v) => onOptsChange?.({ ...opts, minMove: v }), [opts, onOptsChange])
-  const commitDollar = useCallback((v) => onOptsChange?.({ ...opts, minDollarK: v }), [opts, onOptsChange])
   const toggleLogos = useCallback((v) => onOptsChange?.({ ...opts, showLogos: v }), [opts, onOptsChange])
 
   // Appearance settings — same per-widget model + ⚙ panel as the NH/NL scanner.
@@ -179,10 +165,64 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
+  // ── Custom scan lists — scan ONLY the user's names, else the top-1,000 liquid
+  // universe. The LIST DEFINITIONS live on the user's ACCOUNT (preference
+  // `volume_scan_lists`), so they persist across every layout + widget instance until
+  // deleted — NOT in per-widget opts (which vanish when a widget is closed). Only the
+  // per-widget ACTIVE selection stays in opts, so two widgets can watch different lists.
+  const { prefs, setPref } = usePreferences()
+  const lists = useMemo(() => {
+    const arr = parsePref(prefs?.volume_scan_lists, [])
+    return Array.isArray(arr) ? arr : []
+  }, [prefs?.volume_scan_lists])
+  const activeListId = opts?.volActive || null
+  const activeList = useMemo(() => lists.find(l => l.id === activeListId) || null, [lists, activeListId])
+  const commitLists = useCallback(
+    (nextLists, nextActiveId) => {
+      setPref('volume_scan_lists', nextLists)                       // account-wide, durable
+      onOptsChange?.({ ...opts, volActive: nextActiveId ?? null })  // per-widget selection
+    },
+    [setPref, opts, onOptsChange])
+  const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
+  // One-time migration: lists used to live per-widget in opts.volLists — move any still
+  // there up to the account so a pre-existing list isn't lost on the next widget close.
+  const migratedRef = useRef(false)
+  useEffect(() => {
+    if (migratedRef.current) return
+    const legacy = Array.isArray(opts?.volLists) ? opts.volLists : []
+    const acct = parsePref(prefs?.volume_scan_lists, null)
+    if (legacy.length && !Array.isArray(acct)) {
+      migratedRef.current = true
+      setPref('volume_scan_lists', legacy)
+      onOptsChange?.({ ...opts, volLists: undefined })   // drop the stale per-widget copy
+    }
+  }, [opts, prefs?.volume_scan_lists, setPref, onOptsChange])
+  const customEmpty = !!(activeList && activeList.syms.length === 0)
+  const [ctxMenu, setCtxMenu] = useState(null)   // {sym,x,y} right-click "remove from list" menu
+  const ctxRef = useRef(null)
+  const onRowContext = useCallback((ev, sym) => {
+    ev.preventDefault()
+    setCtxMenu({ sym, x: ev.clientX, y: ev.clientY })
+  }, [])
+  useEffect(() => {
+    if (!ctxMenu) return
+    // Ignore mousedowns INSIDE the menu — otherwise this capture-phase close fires
+    // before the menu button's own handler, so "Remove" would never run (the bug).
+    const onDown = (ev) => { if (ctxRef.current && ctxRef.current.contains(ev.target)) return; setCtxMenu(null) }
+    const onWheel = () => setCtxMenu(null)
+    document.addEventListener('mousedown', onDown, true)
+    document.addEventListener('wheel', onWheel, true)
+    return () => { document.removeEventListener('mousedown', onDown, true); document.removeEventListener('wheel', onWheel, true) }
+  }, [ctxMenu])
+
   const dollarQ = (minDollarK !== '' && Number.isFinite(minDollarK) && minDollarK > 0)
     ? `&min_dollar=${Math.round(minDollarK * 1000)}` : ''
-  // Show the whole top-N universe (ranked by RVOL); the criteria only decide colour.
-  const url = `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_move=${minMove}${dollarQ}`
+  const symsQ = (activeList && activeList.syms.length)
+    ? `&syms=${encodeURIComponent(activeList.syms.join(','))}` : ''
+  // Show every name in scope (ranked by surge); the criteria only decide colour. An empty
+  // custom list fetches nothing (null URL) — the empty-state + add-bar show instead.
+  const url = customEmpty ? null
+    : `/api/volume-scan/live?show_all=1&limit=300&min_rvol=${minRvol}&min_burst=${minBurst}&min_move=${minMove}${dollarQ}${symsQ}`
   const { data } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2.5s
     dedupingInterval: 1200,
@@ -191,7 +231,19 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
   })
 
   const rows = data?.rows || []
-  const total = data?.total ?? rows.length
+  // For a custom list, drive the visible rows off the LIST itself so add/remove is
+  // instant: keep the server-ranked rows that are still on the list, then append any
+  // just-added names as pending placeholders (filled in on the next ~2s poll).
+  const displayRows = useMemo(() => {
+    // Highest tier always on top (see byTierDesc), whatever order the server ranked in.
+    if (!activeList) return [...rows].sort(byTierDesc)
+    const want = activeList.syms
+    const wantSet = new Set(want)
+    const present = rows.filter(r => wantSet.has(r.sym)).sort(byTierDesc)
+    const presentSet = new Set(present.map(r => r.sym))
+    const pending = want.filter(s => !presentSet.has(s)).map(s => ({ sym: s, rvol: null, lit: false, pending: true }))
+    return [...present, ...pending]
+  }, [rows, activeList])
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   const stamp = WINDOW_LABEL[window] || ''
@@ -210,20 +262,20 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           title="Volume Surge Settings"
           showLogos={showLogos}
           onToggleLogos={toggleLogos}
+          widgetType="volumescan"
         />
       )}
+      {/* Toolbar: LIVE + time on the left, gear on the right, the scope pill CENTERED
+          between two flex spacers — so it sits mid-toolbar when wide and packs back
+          toward LIVE as the widget narrows. */}
       <div className={chrome.toolbar}>
         <span className={`${chrome.live} ${isActive ? chrome.liveOn : ''}`}>
           <span className={chrome.dot} aria-hidden="true" />{stamp}
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtTime(data.asof)} ET</span>}
         <span className={chrome.spacer} />
-        <FilterBox label="RVOL≥" ariaLabel="Minimum relative volume" value={opts?.minRvol}
-          placeholder="2" min={1} step={0.5} onCommit={commitRvol} />
-        <FilterBox label="Δ%≥" ariaLabel="Minimum move percent" value={opts?.minMove}
-          placeholder="0.25" min={0} step={0.25} onCommit={commitMove} />
-        <FilterBox label="$K≥" ariaLabel="Minimum dollar volume per minute (thousands)"
-          value={opts?.minDollarK} placeholder="auto" min={0} step={10} onCommit={commitDollar} />
+        <ScopeControl lists={lists} activeId={activeListId} helpers={listHelpers} themeVars={panelThemeVars} />
+        <span className={chrome.spacer} />
         <button
           ref={gearRef}
           type="button"
@@ -244,18 +296,36 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           </div>
         </div>
       ) : (
-        <div className={chrome.rows} role="list">
-          <div className={`${chrome.sideHead} ${styles.head}`}>
-            <span className={styles.headSym}>SYMBOL</span>
-            <span className={styles.headSurge}>
-              RVOL{total > 0 ? <span className={styles.headCount}> · {total}</span> : ''}
-            </span>
+        <>
+          <div className={chrome.rows} role="list">
+            <div className={`${chrome.sideHead} ${styles.head}`}>
+              <span className={styles.headSym}>SYMBOL</span>
+              <span className={styles.headSurge}>SIGNAL</span>
+            </div>
+            {customEmpty ? (
+              <div className={styles.none}>This list is empty — add tickers below to start scanning it.</div>
+            ) : displayRows.length === 0 ? (
+              <div className={styles.none}>
+                {activeList ? 'Warming up your list…' : 'Warming up… (baselines build over the first minute)'}
+              </div>
+            ) : (
+              displayRows.map((e) => (
+                <Row key={e.sym} e={e} onPick={onPick} logos={showLogos}
+                  onContext={activeList ? onRowContext : undefined} />
+              ))
+            )}
           </div>
-          {rows.length === 0 ? (
-            <div className={styles.none}>Warming up… (baselines build over the first minute)</div>
-          ) : (
-            rows.map((e) => <Row key={e.sym} e={e} onPick={onPick} logos={showLogos} />)
-          )}
+          {activeList && <AddTickerBar list={activeList} helpers={listHelpers} />}
+        </>
+      )}
+
+      {ctxMenu && activeList && (
+        <div ref={ctxRef} className={styles.rowMenu} style={{ top: ctxMenu.y, left: ctxMenu.x }} role="menu">
+          <button type="button" className={styles.rowMenuItem}
+            onMouseDown={(ev) => { ev.preventDefault(); listHelpers.removeSym(activeListId, ctxMenu.sym); setCtxMenu(null) }}>
+            <UIcon name="trash" size={12} gold={false} />
+            <span>Remove from {activeList.name}</span>
+          </button>
         </div>
       )}
     </div>

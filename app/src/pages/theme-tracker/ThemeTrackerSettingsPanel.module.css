@@ -189,4 +189,4 @@
   background: var(--menu-text, var(--text-bright, #e0dac8));
   transition: transform 0.15s ease;
 }
-.toggleOn .knob { transform: translateX(16px); background: #1ae51a; }
+.toggleOn .knob { transform: translateX(16px); background: var(--ut-green-bright); }

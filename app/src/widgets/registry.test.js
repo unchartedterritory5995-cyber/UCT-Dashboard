@@ -20,6 +20,8 @@ import {
   JOURNAL_MENU_TYPES,
   THEME_FOLLOW_TYPES,
   WIDGET_CATEGORIES,
+  WIDGET_CATALOG,
+  catalogMeta,
   menuGroups,
   labelMap,
   normalizeParams,
@@ -32,11 +34,11 @@ import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
   'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow',
-  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan',
+  'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
 ]
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 16 workspace widget types, in menu order', () => {
+  it('registers exactly the 17 workspace widget types, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -47,7 +49,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge',
+      volumescan: 'Volume Surge', scatter: 'Market Map',
     })
   })
 
@@ -58,7 +60,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News & Catalysts', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume Surge',
+      volumescan: 'Volume Surge', scatter: 'Market Map',
     })
   })
 
@@ -69,7 +71,7 @@ describe('widget registry — metadata pins', () => {
       aisearch: 'AI Search', news: 'News', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
-      volumescan: 'Volume',
+      volumescan: 'Volume', scatter: 'Map',
     })
   })
 
@@ -92,6 +94,7 @@ describe('widget registry — metadata pins', () => {
       nhnl:         { w: 8,  h: 12, minW: 3, minH: 5 },
       nhnlPulse:    { w: 6,  h: 8,  minW: 3, minH: 4 },
       volumescan:   { w: 6,  h: 12, minW: 2, minH: 5 },
+      scatter:      { w: 10, h: 12, minW: 5, minH: 6 },
     })
   })
 
@@ -110,7 +113,7 @@ describe('widget registry — metadata pins', () => {
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
-      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan',
+      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
     ])
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
@@ -125,6 +128,22 @@ describe('widget registry — metadata pins', () => {
 
   it('every type except chart follows the app theme when uncustomized', () => {
     expect([...THEME_FOLLOW_TYPES].sort()).toEqual(IDS.filter(id => id !== 'chart').sort())
+  })
+
+  it('every workspace-menu widget has a catalog card (icon + blurb) so the gallery is never blank', () => {
+    for (const id of WORKSPACE_MENU_TYPES) {
+      const c = WIDGET_CATALOG[id]
+      expect(c, `${id} is missing a WIDGET_CATALOG entry`).toBeTruthy()
+      expect(typeof c.icon === 'string' && c.icon.length > 0, `${id}.icon`).toBe(true)
+      expect(typeof c.blurb === 'string' && c.blurb.length > 0, `${id}.blurb`).toBe(true)
+      if (c.live !== undefined) expect(typeof c.live, `${id}.live`).toBe('boolean')
+    }
+    // No catalog cards for ids that aren't in the workspace add-menu (e.g. periodsort).
+    for (const id of Object.keys(WIDGET_CATALOG)) {
+      expect(WORKSPACE_MENU_TYPES, `catalog has a card for non-menu id '${id}'`).toContain(id)
+    }
+    // catalogMeta never returns undefined (safe fallback for unknown ids).
+    expect(catalogMeta('nope')).toEqual({ icon: 'sparkle', blurb: '' })
   })
 
   it('every add-menu widget lands in exactly one category (no strays, no dupes)', () => {

@@ -459,6 +459,41 @@ def reconcile_positions(
             if row["external_id"] not in seen_ext:
                 conn.execute("DELETE FROM j2_positions WHERE id = ?", (row["id"],))
                 closed += 1
+
+        # Provisional intraday rows (apply_intraday_growth, 'bkprov:'):
+        # holdings-as-truth supersedes them the moment the broker confirms
+        # the position (a real bkpos row for the same symbol/side was just
+        # upserted above). When the payload DOESN'T carry the symbol yet —
+        # SnapTrade's holdings cache can lag a fill by hours — a FRESH
+        # provisional row survives (deleting it would make a real position
+        # vanish again); one the broker never confirms expires after 2 days.
+        prov_prefix = f"bkprov:{broker_account_id}:"
+        prov_rows = conn.execute(
+            "SELECT id, external_id, updated_at FROM j2_positions "
+            "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
+            "AND closed_at IS NULL AND external_id LIKE 'bkprov:%'",
+            (user_id, j2_account_id),
+        ).fetchall()
+        for row in prov_rows:
+            ext = row["external_id"] or ""
+            if not ext.startswith(prov_prefix):
+                continue
+            superseded = (
+                f"bkpos:{broker_account_id}:{ext[len(prov_prefix):]}" in seen_ext
+            )
+            expired = False
+            if not superseded:
+                try:
+                    updated = datetime.fromisoformat(
+                        str(row["updated_at"]).replace("Z", "+00:00"))
+                    if updated.tzinfo is None:
+                        updated = updated.replace(tzinfo=timezone.utc)
+                    expired = (datetime.now(timezone.utc) - updated).days >= 2
+                except (TypeError, ValueError):
+                    expired = True
+            if superseded or expired:
+                conn.execute("DELETE FROM j2_positions WHERE id = ?", (row["id"],))
+                closed += 1
         conn.commit()
     except Exception:
         conn.rollback()
@@ -467,6 +502,148 @@ def reconcile_positions(
         if owned:
             conn.close()
     return {"upserted": upserted, "closed": closed, "discrepancies": discrepancies}
+
+
+def apply_intraday_growth(
+    user_id: str,
+    broker_account: dict,
+    fifo_open_positions: list[dict],
+    *,
+    traded_symbols: dict[str, str],
+    fifo_errors: list[dict] | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, int]:
+    """Materialize THIS POLL's equity fills into the served book, minutes
+    after execution — the growth counterpart to the shrink/close fast path.
+
+    The 2026-08-26 gap: the rail captured a 2000-share SNAP buy into the
+    ledger at 14:54Z, live_cash debited it, but no writer could CREATE the
+    position row until the overnight sync — the book lagged the cash all
+    day. This pass closes it, under the same safety doctrine as the shrink
+    path (only ledger-complete state, only where FIFO is trustworthy):
+
+      • Scope is `traded_symbols` — the symbols whose provisional fills THIS
+        poll stored (`{SYM: earliest fill iso}`), never the whole FIFO (the
+        ledger legitimately carries dust/phantom lots for symbols whose
+        opening history predates our window — those belong to holdings-as-
+        truth, not to us).
+      • A NEW position is created only when its FIFO lot chain ORIGINATES at
+        this poll's fill (entryDate >= the fill timestamp, small slack) —
+        i.e. the position exists BECAUSE of today's trade, with no carried
+        history involved. It gets external_id `bkprov:{account}:{sym}:{side}`
+        so reconcile_positions can supersede it with the real holdings row
+        (or expire it after 2 days if the broker never confirms).
+      • An EXISTING row grows only when its basis is real and ledger-complete
+        (`entry_estimated = 0` — the same gate the shrink path trusts), and
+        the FIFO count exceeds the row's. Entry refreshes to FIFO's weighted
+        average; a placeholder stop follows it in lockstep, a real stop is
+        never touched.
+      • FIFO-error symbols are skipped wholesale (untrustworthy count).
+
+    Cash derives forward over the same fills (live_cash), so book and cash
+    move from the same ledger rows in the same minute — the conservation
+    sentinel's happy path. Returns {created, grown}."""
+    j2_account_id = broker_account["j2AccountId"]
+    broker_account_id = broker_account["id"]
+    traded = {normalize_symbol(s): ts for s, ts in (traded_symbols or {}).items()
+              if s}
+    traded.pop(None, None)
+    error_syms = {
+        normalize_symbol(e["symbol"])
+        for e in (fifo_errors or [])
+        if isinstance(e, dict) and e.get("symbol")
+    }
+    error_syms.discard(None)
+
+    def _dt(v):
+        from datetime import datetime as _dtc
+        try:
+            d = _dtc.fromisoformat(str(v).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+        return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+    owned = conn is None
+    conn = conn or get_connection()
+    created = grown = 0
+    try:
+        conn.execute("BEGIN")
+        now = _now_iso()
+        for p in fifo_open_positions or []:
+            sym = normalize_symbol(p.get("symbol"))
+            side = p.get("side")
+            if not sym or sym not in traded or sym in error_syms:
+                continue
+            if side not in ("Long", "Short"):
+                continue
+            shares = _num(p.get("shares"))
+            entry = _num(p.get("entryPrice"))
+            if not shares or shares <= 0 or not entry or entry <= 0:
+                continue
+            shares = round(abs(shares) * 10000) / 10000
+            existing = conn.execute(
+                "SELECT id, shares, entry_price, stop_price, entry_estimated "
+                "FROM j2_positions WHERE user_id = ? AND account_id = ? "
+                "AND symbol = ? AND side = ? AND closed_at IS NULL "
+                "AND source = 'broker' "
+                "AND (external_id LIKE 'bkpos:%' OR external_id LIKE 'bkprov:%')",
+                (user_id, j2_account_id, sym, side),
+            ).fetchone()
+            if existing is None:
+                fill_ts = _dt(traded.get(sym))
+                origin = _dt(p.get("entryDate"))
+                if fill_ts is None or origin is None:
+                    continue
+                from datetime import timedelta as _td
+                if origin < fill_ts - _td(minutes=1):
+                    continue  # carried history involved — the sync owns it
+                conn.execute(
+                    """
+                    INSERT INTO j2_positions (
+                        id, user_id, symbol, side, entry_date, shares,
+                        original_shares, entry_price, stop_price, breakeven_stop,
+                        raise_to_breakeven, setup, notes, context_at_entry,
+                        created_at, updated_at, closed_at, account_id,
+                        source, external_id, entry_estimated, broker_price
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL,
+                              '{}', ?, ?, NULL, ?, 'broker', ?, 0, ?)
+                    """,
+                    (str(uuid.uuid4()), user_id, sym, side,
+                     str(p.get("entryDate")), shares, shares, entry, entry,
+                     now, now, j2_account_id,
+                     f"bkprov:{broker_account_id}:{sym}:{side}", entry),
+                )
+                created += 1
+                continue
+            if existing["entry_estimated"] == 1:
+                continue
+            prior = existing["shares"] if existing["shares"] is not None else 0.0
+            if shares <= prior + 1e-6:
+                continue  # not an add (shrinks belong to the shrink path)
+            prior_entry = existing["entry_price"]
+            prior_stop = existing["stop_price"]
+            stop_is_placeholder = (
+                prior_entry is not None and prior_stop is not None
+                and abs(float(prior_stop) - float(prior_entry))
+                <= max(0.001, abs(float(prior_entry)) * 1e-5)
+            )
+            conn.execute(
+                "UPDATE j2_positions SET shares = ?, original_shares = ?, "
+                "entry_price = ?, updated_at = ?, "
+                "stop_price = CASE WHEN ? THEN ? ELSE stop_price END "
+                "WHERE id = ?",
+                (shares, shares, entry, now,
+                 1 if stop_is_placeholder else 0, entry, existing["id"]),
+            )
+            grown += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+    return {"created": created, "grown": grown}
 
 
 def apply_intraday_fifo_to_open_positions(
@@ -521,7 +698,10 @@ def apply_intraday_fifo_to_open_positions(
         for p in fifo_open_positions
         if p.get("symbol") and p.get("side")
     }
-    prefix = f"bkpos:{broker_account_id}:"
+    # Both broker-row families: holdings-attested (bkpos) and this-session
+    # provisional (bkprov, created by apply_intraday_growth) — a sell must
+    # shrink/close a provisional position exactly like a synced one.
+    prefixes = (f"bkpos:{broker_account_id}:", f"bkprov:{broker_account_id}:")
     # Symbols whose FIFO reconstruction DROPPED a lot this rebuild (e.g. a
     # transient transfer-basis miss on a price-less ACATS/JRNLSEC transfer-in)
     # have an untrustworthy share count — the broker may still hold the shares.
@@ -545,16 +725,17 @@ def apply_intraday_fifo_to_open_positions(
             "SELECT id, external_id, shares FROM j2_positions "
             "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
             "AND closed_at IS NULL AND entry_estimated = 0 "
-            "AND external_id LIKE 'bkpos:%'",
+            "AND (external_id LIKE 'bkpos:%' OR external_id LIKE 'bkprov:%')",
             (user_id, j2_account_id),
         ).fetchall()
         now = _now_iso()
         for row in rows:
             ext = row["external_id"] or ""
-            if not ext.startswith(prefix):
+            prefix = next((p for p in prefixes if ext.startswith(p)), None)
+            if prefix is None:
                 continue  # a different broker account's row — never touch it
-            # external_id == bkpos:{broker_account_id}:{symbol}:{side}; the
-            # symbol never contains ':' (equity ticker, class shares → hyphen).
+            # external_id == bk(pos|prov):{broker_account_id}:{symbol}:{side};
+            # the symbol never contains ':' (equity ticker, class → hyphen).
             symbol, _, side = ext[len(prefix):].rpartition(":")
             if not symbol or side not in ("Long", "Short"):
                 continue

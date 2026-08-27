@@ -11,6 +11,7 @@ import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watc
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
+import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
 import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
@@ -36,7 +37,7 @@ import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
-import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups } from '../../widgets/registry'
+import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -143,6 +144,31 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
   if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
   return opts
+}
+
+// App themes and chart themes are separate registries but share most ids; a few
+// differ. This maps the current APP theme → the chart theme that matches it, so a
+// NEW widget (crucially the chart, which otherwise ignores the app theme) adopts
+// the app theme's look by default. Returns a valid chart-theme id or null.
+const _APP_TO_CHART_THEME = {
+  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
+}
+function appThemeToChartTheme(appTheme) {
+  if (!appTheme) return null
+  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
+  if (appTheme === 'oled') return 'obsidian'
+  if (appTheme === 'light') return 'light'
+  const raw = String(appTheme).replace(/^uct:/, '')
+  const id = _APP_TO_CHART_THEME[raw] || raw
+  return CHART_THEME_BY_ID[id] ? id : null
+}
+
+// A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only
+// seeds a NEW widget when it actually covers that widget's type: scope 'widgets' covers
+// everything; scope 'charts' covers only chart widgets. Returns the theme or null so the
+// caller can fall through to the app-theme match.
+function pickSeedTheme(lt, type) {
+  return (lt && lt.id && (lt.scope === 'widgets' || type === 'chart')) ? lt : null
 }
 
 // ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
@@ -588,9 +614,10 @@ export default function ChartsWorkspace() {
   // placement color across reloads; only NEW widgets pick up the current theme).
   const themeRef = useRef(prefs?.theme)
   themeRef.current = prefs?.theme
-  // Last UCT chart theme applied at all-charts / all-widgets scope ({ id, scope }) —
-  // new widgets inherit it. Kept in a ref so the add path reads the latest value
-  // synchronously (a fresh pref round-trip lags a click); seeded from the pref.
+  // LEGACY global "all widgets/charts" theme ({ id, scope }). Per-layout themes
+  // (layout.layoutTheme) superseded this — new applies write the layout, not this pref —
+  // but it's still honored as a fallback so a global theme set before the per-layout
+  // change keeps seeding new widgets on layouts that have no layoutTheme of their own.
   const newWidgetThemeRef = useRef(parsePref(prefs?.charts_widget_theme, null))
   useEffect(() => { newWidgetThemeRef.current = parsePref(prefs?.charts_widget_theme, null) }, [prefs?.charts_widget_theme])
 
@@ -795,6 +822,8 @@ export default function ChartsWorkspace() {
     const fundamentals = fw.bgMode === 'gradient' ? (fw.bgGradient?.top || fw.bg) : fw.bg
     const bw = mergeBreadthWidgetSettings(parsePref(prefs.breadth_widget_settings, null) ?? breadthDefaultsForTheme(prefs.theme))
     const breadth = bw.bgMode === 'gradient' ? (bw.bgGradient?.top || bw.bg) : bw.bg
+    const ais = mergeBasicWidgetSettings(parsePref(prefs.aisearch_settings, null) ?? basicDefaultsForTheme(prefs.theme))
+    const aisearch = ais.bgMode === 'gradient' ? (ais.bgGradient?.top || ais.bg) : ais.bg
     // News / Profile / WATCHLIST are NOT here: their appearance is fully per-widget
     // (opts.settings, resolved via widgetCanvasById); an uncustomized one has no
     // type-level canvas so it falls through to the app-theme --bg (OLED-black /
@@ -803,6 +832,7 @@ export default function ChartsWorkspace() {
     const ttCustom = tt.bgMode === 'gradient' || String(tt.bg).toLowerCase() !== THEME_TRACKER_DEFAULTS.bg
     const fwCustom = fw.bgMode === 'gradient' || String(fw.bg).toLowerCase() !== FUNDAMENTALS_DEFAULTS.bg
     const bwCustom = bw.bgMode === 'gradient' || String(bw.bg).toLowerCase() !== BREADTH_WIDGET_DEFAULTS.bg
+    const aisCustom = ais.bgMode === 'gradient' || String(ais.bg).toLowerCase() !== BASIC_WIDGET_DEFAULTS.bg
     const entry = (canvas) => ({
       canvas, divider: dividerFor(canvas), dividerStrong: dividerFor(canvas, { strong: true }),
       chrome: chromeFor(canvas), panel: panelFor(canvas), rowHover: toolbarFor(canvas)?.bg,
@@ -812,9 +842,10 @@ export default function ChartsWorkspace() {
       ...(ttCustom ? { themes: entry(themes) } : {}),
       ...(fwCustom ? { fundamentals: entry(fundamentals) } : {}),
       ...(bwCustom ? { breadth: entry(breadth) } : {}),
+      ...(aisCustom ? { aisearch: entry(aisearch) } : {}),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings])
+  }, [chartsTheme, prefs.theme, prefs.chart_settings, prefs.watchlist_settings, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.aisearch_settings])
 
   // Per-WIDGET chrome canvas (keyed by widget id). Every chart/watchlist widget
   // now owns its settings, so its border/header/dividers must follow ITS canvas,
@@ -1190,25 +1221,22 @@ export default function ChartsWorkspace() {
     if (!theme) return
     const seed = mergeChartSettings(prefs.chart_settings)
     setLayout(prev => {
-      let changed = false
       const widgets = prev.widgets.map(w => {
         let nw = w
-        if (w.type === 'chart') { nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }; changed = true }
+        if (w.type === 'chart') nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }
         if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
           nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: patchOptsWithTheme(t.opts, theme, seed) } : t)) }
-          changed = true
         }
         return nw
       })
-      if (!changed) return prev
-      const next = { ...prev, widgets }
+      // Remember this as the default look for NEW chart widgets — stored ON THE LAYOUT
+      // (not a global pref) so a theme picked here never leaks to another board. Set
+      // even when no chart changed, so an empty layout remembers the pick for its first.
+      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'charts' } }
       scheduleSave(next)
       return next
     })
-    // Remember this as the default look for NEW chart widgets (persists across reloads).
-    newWidgetThemeRef.current = { id: theme.id, scope: 'charts' }
-    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
-  }, [scheduleSave, prefs.chart_settings, setPref])
+  }, [scheduleSave, prefs.chart_settings])
   applyThemeAllRef.current = applyThemeToAllCharts
 
   // "All widgets": every widget in the layout — chart or not — adopts the theme.
@@ -1227,7 +1255,9 @@ export default function ChartsWorkspace() {
         }
         return nw
       })
-      const next = { ...prev, widgets }
+      // Remember this as the layout's default look for EVERY new widget — stored ON THE
+      // LAYOUT so it stays scoped to this board and never leaks to another.
+      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'widgets' } }
       scheduleSave(next)
       return next
     })
@@ -1248,9 +1278,6 @@ export default function ChartsWorkspace() {
       const base = parsePref(prefs?.[key], null) || {}
       setPref(key, JSON.stringify(mapThemeToWidgetSettings(base, theme, type)))
     }
-    // Remember this as the default look for EVERY new widget (persists across reloads).
-    newWidgetThemeRef.current = { id: theme.id, scope: 'widgets' }
-    setPref('charts_widget_theme', JSON.stringify(newWidgetThemeRef.current))
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
 
@@ -1376,11 +1403,22 @@ export default function ChartsWorkspace() {
       if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
+      // Theme a new widget. Precedence: (1) THIS LAYOUT's own theme (from "Apply to All
+      // widgets/charts" on this board) — scoped to the layout so it never leaks to
+      // another; (2) the legacy global default (honored on layouts that predate per-
+      // layout themes); (3) the chart theme that MATCHES the current app theme, so every
+      // new widget adopts the app theme's look by default. themeNewWidgetOpts routes each
+      // type (chart -> full skin; per-widget -> themed settings; global-pref -> tokens).
+      let storedTheme = pickSeedTheme(prev.layoutTheme, type) || pickSeedTheme(newWidgetThemeRef.current, type)
+      if (!storedTheme) {
+        const cid = appThemeToChartTheme(themeRef.current)
+        if (cid) storedTheme = { id: cid, scope: 'widgets' }
+      }
       const newWidget = {
         id: newId,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: themeNewWidgetOpts(type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
+        opts: themeNewWidgetOpts(type, newOpts, storedTheme, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
@@ -1419,11 +1457,17 @@ export default function ChartsWorkspace() {
       if (cur.type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
+      // Same precedence as handleAddWidget: layout theme -> legacy global -> app-theme match.
+      let storedTheme = pickSeedTheme(prev.layoutTheme, cur.type) || pickSeedTheme(newWidgetThemeRef.current, cur.type)
+      if (!storedTheme) {
+        const cid = appThemeToChartTheme(themeRef.current)
+        if (cid) storedTheme = { id: cid, scope: 'widgets' }
+      }
       const newWidget = {
         id: cur.newId,
         type: cur.type, color,
         x: cur.place.x, y: cur.place.y, w: cur.place.w, h: cur.place.h,
-        opts: themeNewWidgetOpts(cur.type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
+        opts: themeNewWidgetOpts(cur.type, newOpts, storedTheme, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
@@ -2075,37 +2119,41 @@ export default function ChartsWorkspace() {
               onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
             >Widgets ▾</button>
             {widgetsMenuOpen && (
-              <div className={styles.addMenu} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
-                {widgetsSub === 'add' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub(null)}>‹ Back</button>
-                  <div className={styles.menuDivider} />
-                  <div className={styles.addMenuScroll}>
-                    {WIDGET_MENU_GROUPS.map(group => (
-                      <div key={group.key} className={styles.addMenuGroup}>
-                        <div className={styles.addMenuGroupLabel}>{group.label}</div>
-                        {group.items.map(t => (
+              <div className={`${styles.addMenu} ${styles.wAddMenu}`} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+                {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
+                    click to drop a widget onto the board via smart placement. */}
+                {WIDGET_MENU_GROUPS.map(group => (
+                  <div key={group.key} className={styles.wAddGroup}>
+                    <div className={styles.addMenuGroupLabel}>{group.label}</div>
+                    <div className={styles.wAddGrid}>
+                      {group.items.map(t => {
+                        const meta = catalogMeta(t)
+                        return (
                           <button
                             key={t}
                             type="button"
-                            className={styles.addMenuItem}
-                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
-                          >{WIDGET_LABELS[t]}</button>
-                        ))}
-                      </div>
-                    ))}
+                            className={styles.wAddChip}
+                            title={meta.blurb || WIDGET_LABELS[t]}
+                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
+                          >
+                            <UIcon name={meta.icon} size={14} />
+                            <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                </>) : (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub('add')}>＋ Add Widget ▸</button>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-                    onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
-                    title={merged
-                      ? 'Unlock the board and restore widget borders'
-                      : 'Lock the board in place, remove all borders, and blend every widget together'}
-                  >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
-                </>)}
+                ))}
+                <div className={styles.menuDivider} />
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
+                  title={merged
+                    ? 'Unlock the board and restore widget borders'
+                    : 'Lock the board in place, remove all borders, and blend every widget together'}
+                >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
               </div>
             )}
           </div>

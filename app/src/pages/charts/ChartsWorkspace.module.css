@@ -1170,6 +1170,29 @@
   letter-spacing: 1px; font-weight: 600; color: var(--text-muted, #6b7280);
 }
 
+/* Compact iconified quick-add — a grouped 2-col chip grid anchored under WIDGETS (no modal,
+   no blur; the app's own toolbar-menu palette). One click drops a widget via smart placement. */
+.wAddMenu {
+  min-width: 316px; max-height: min(72vh, 560px); overflow-y: auto;
+  padding-bottom: 2px; scrollbar-width: thin;
+}
+.wAddGroup { display: flex; flex-direction: column; }
+.wAddGroup + .wAddGroup { border-top: 1px solid var(--border, #1f2937); margin-top: 2px; }
+.wAddGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 1px 6px 6px; }
+.wAddChip {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--text-bright, #e5e7eb);
+  font-family: inherit; font-size: 11.5px; text-align: left; cursor: pointer;
+  min-width: 0; transition: background 120ms, border-color 120ms, color 120ms;
+}
+.wAddChip:hover {
+  background: var(--bg-hover, #1f2937);
+  border-color: var(--accent, #dcbb5e);
+  color: var(--accent, #dcbb5e);
+}
+.wAddChipLbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── Open/Save layout menus ── */
 .menuSection {
   padding: 6px 14px 2px; font-size: 9px; text-transform: uppercase;

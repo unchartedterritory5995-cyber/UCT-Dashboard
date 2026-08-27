@@ -398,6 +398,32 @@ describe('the control-door census — how many doors, and whether an eighth exis
     ).toEqual([])
   })
 
+  // ⛔ MASTER'S ASSERTIONS, PROMOTED TO THEIR OWN TEST (2026-08-27 merge).
+  // They arrived on master as an unnamed tail inside the census test above —
+  // the exact shape this file's refactor split apart, one entry over. The
+  // property is master's and is kept verbatim; only its home moved, so the
+  // test's NAME describes what is asserted beneath it.
+  //
+  // ⭐ IT PROVES WHAT THE BULK_BLOB_SITES ENTRY CLAIMS. That entry says
+  // ChartRender is not door seven's hazard because its preset reaches the chart
+  // as a `settingsOverride` PROP and never the persistence path. A reason in a
+  // table is a claim; this is the measurement.
+  it('ChartRender stays an OVERRIDE page and never reaches the persistence path', () => {
+    const render = SHIPPED.find(s => s.file === 'app/src/pages/ChartRender.jsx')
+    for (const [what, re] of [
+      ['usePreferences', /usePreferences\s*\(/],
+      ['a preferences POST', /api\/auth\/preferences/],
+      ['the workspace save path', /scheduleSave|savePreferences|setChartSettings\s*\(/],
+    ]) {
+      expect(re.test(render.src),
+        `ChartRender now reaches the persistence path via ${what}. It is an EXPORT page: the ` +
+        'preset it reads must stay a settingsOverride prop, or a screenshot URL becomes a ' +
+        'writer that stamps a whole blob over whatever the member saved.').toBe(false)
+    }
+    expect(render.src, 'the preset must still reach the chart as an override prop')
+      .toMatch(/settingsOverride=\{csOverride\}/)
+  })
+
   // ⛔⛔ X7 FIX ROUND 1 (F5) — SPLIT OUT OF THE TEST ABOVE. It used to sit as a
   // fourth, unrelated assertion at the end of 'every whole-blob site the
   // regex finds is in BULK_BLOB_SITES…' — a name that describes the THREE

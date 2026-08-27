@@ -1,4 +1,6 @@
-"""Tests for the intraday pattern scan pass inside _run_patterns_universe_scan.
+"""Tests for the intraday pattern scan pass inside _run_patterns_leaders_scan
+(the hourly leaders job; the pass lived in _run_patterns_universe_scan until
+2026-08-26, when the universe scan went daily and leaders kept the hourly slot).
 
 Coverage:
   Test 1 — RTH gate: RTH=False → 0 intraday store_detection calls; RTH=True → path executes.
@@ -170,13 +172,11 @@ class TestRthGate(unittest.TestCase):
         # Patch out cap_universe loading and leader_universe loading so function
         # runs to the intraday block without reading disk.
         import json
-        cap_json = json.dumps(["MSFT"])
         leader_json = json.dumps({"tickers": leader_tickers})
 
         with patch(f"{MAIN_MOD}._is_rth_now", return_value=rth), \
              patch(f"{MAIN_MOD}.open", side_effect=[
                  unittest.mock.mock_open(read_data=leader_json)(),
-                 unittest.mock.mock_open(read_data=cap_json)(),
              ], create=True), \
              patch("os.path.exists", return_value=True), \
              patch(f"api.services.bars_sqlite.get_bars", mock_bs.get_bars), \
@@ -187,8 +187,8 @@ class TestRthGate(unittest.TestCase):
                  "api.services.pattern_engine.primitives.context.build_context",
                  mock_build_context,
              ):
-            from api.main import _run_patterns_universe_scan
-            _run_patterns_universe_scan()
+            from api.main import _run_patterns_leaders_scan
+            _run_patterns_leaders_scan()
 
         return store_calls, mock_detect_all
 
@@ -341,13 +341,11 @@ class TestDailyContextHonored(unittest.TestCase):
                 captured_ctx_calls.append((list(pattern_ids), ctx))
             return []
 
-        cap_json = json.dumps(["MSFT"])
         leader_json = json.dumps({"tickers": ["AAPL"]})
 
         with patch(f"{MAIN_MOD}._is_rth_now", return_value=True), \
              patch(f"{MAIN_MOD}.open", side_effect=[
                  unittest.mock.mock_open(read_data=leader_json)(),
-                 unittest.mock.mock_open(read_data=cap_json)(),
              ], create=True), \
              patch("os.path.exists", return_value=True), \
              patch("api.services.bars_sqlite.get_bars", mock_bs.get_bars), \
@@ -357,8 +355,8 @@ class TestDailyContextHonored(unittest.TestCase):
                  "api.services.pattern_engine.primitives.context.build_context",
                  mock_build_ctx,
              ):
-            from api.main import _run_patterns_universe_scan
-            _run_patterns_universe_scan()
+            from api.main import _run_patterns_leaders_scan
+            _run_patterns_leaders_scan()
 
         # Filter to intraday calls only
         intraday_calls = [

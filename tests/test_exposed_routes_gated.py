@@ -157,8 +157,6 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/j2/compass-health"): "admin",
     ("GET", "/api/delisted/list"): "paid",
     ("GET", "/api/delisted/{sym}"): "paid",
-    ("GET", "/api/patterns/scan"): "paid",
-    ("GET", "/api/patterns/types"): "paid",
     ("GET", "/api/patterns/{sym}"): "paid",
     ("GET", "/api/breadth"): "paid",
     ("GET", "/api/themes"): "paid",
@@ -1356,8 +1354,16 @@ def test_a_FREE_member_is_refused_on_the_PAID_routes(app, monkeypatch, clean_ove
     # it. It is also the table-side half of the two-step detector: downgrading a
     # row's claim out of `paid` drops this count, and a floor that means anything
     # is what makes that drop say so.
-    assert checked >= 43, (
-        f"only {checked} paid rows were driven with a free member (floor 43) — "
+    # ⚖️ 43 → 42 ON THE 2026-08-27 MASTER MERGE, AND THE FLOOR IS RE-MEASURED
+    # RATHER THAN RELAXED. The rail fired exactly as written — "either a paid
+    # route was retired, or a row's claim was moved out of `paid`" — and the
+    # first of those is what happened: master retired the Patterns page and with
+    # it TWO paid rows, `GET /api/patterns/scan` and `GET /api/patterns/types`
+    # (40 paid at the merge base → 38 on master; this branch adds 4 → 42).
+    # ⛔ NAMED, because a floor lowered without saying what moved is how coverage
+    # erodes one route at a time with the rail still green.
+    assert checked >= 42, (
+        f"only {checked} paid rows were driven with a free member (floor 42) — "
         "either a paid route was retired, or a row's claim was moved out of "
         "'paid' and this sweep silently stopped covering it")
 

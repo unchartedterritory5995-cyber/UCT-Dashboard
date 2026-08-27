@@ -23,7 +23,7 @@
   padding: 0 8px 0 10px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border))));
-  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated))));
+  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, #14151a)));
   flex: 0 0 auto;
 }
 .spacer { flex: 1 1 auto; }
@@ -35,14 +35,14 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: var(--ut-gold);   /* UCT gold, like the watchlist's list title */
+  color: var(--nh-text, var(--wl-text, var(--text-bright)));   /* neutral, theme-adaptive (was UCT gold) */
   white-space: nowrap;
 }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--wl-text, var(--text-muted)); flex-shrink: 0; }
-.liveOn { color: var(--ut-gold); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--nh-text, var(--wl-text, var(--text-muted))); flex-shrink: 0; }
+.liveOn { color: var(--nh-text, var(--wl-text, var(--text-bright))); }
 .liveOn .dot {
-  background: var(--ut-gold);
-  box-shadow: 0 0 6px var(--ut-gold-glow, rgba(220, 187, 94, 0.4));
+  background: var(--nh-text, var(--wl-text, var(--text-bright)));
+  box-shadow: 0 0 6px color-mix(in srgb, currentColor 40%, transparent);
   animation: nhnlPulse 2s ease-in-out infinite;
 }
 @keyframes nhnlPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -134,7 +134,10 @@
   min-height: 32px;
   padding: 0 8px;
   box-sizing: border-box;
-  background: var(--nh-elev, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated))));
+  /* OPAQUE canvas (NOT --nh-elev, which the per-widget theme sets to `transparent` for a
+     seamless gradient) — otherwise scrolling rows bleed through this sticky header. Using
+     --nh-bg keeps it matching the canvas/gradient, so it still reads seamless. */
+  background: var(--nh-bg, var(--widget-canvas, var(--wl-bg-solid, var(--bg-elevated, #101216))));
   border-bottom: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border))));
 }
 .sideTitle {
@@ -292,7 +295,8 @@
 @container (max-width: 380px) { .filter { display: none; } }
 @container (max-width: 300px) {
   .toolbar { gap: 5px; padding: 0 6px; }
-  .live { font-size: 0; gap: 0; }     /* keep only the pulse dot */
+  /* Keep the LIVE label visible even when thin (the filters already dropped out above,
+     so there's room) — it's the "is this feed live" cue. */
   .scopeSelect { max-width: 74px; }
   .scopeValue { max-width: 96px; }
 }

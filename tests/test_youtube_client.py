@@ -151,3 +151,76 @@ def test_set_thumbnail_raises_on_error(monkeypatch):
     monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
     with pytest.raises(yc.YouTubeApiError):
         c.set_thumbnail("VID9", b"x")
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-26 — get_video_snippet / update_description (Phase 2: real per-
+# session chapters). Requires a scope beyond youtube.upload — see
+# desk_session_insights.refresh_description for the caller.
+# ---------------------------------------------------------------------------
+
+def test_get_video_snippet_returns_the_snippet(monkeypatch):
+    seen = {}
+    def fake_get(url, params=None, headers=None, timeout=None):
+        seen.update(url=url, params=params, auth=headers.get("Authorization"))
+        return _Resp(200, {"items": [{"id": "VID9", "snippet": {
+            "title": "T", "description": "old", "categoryId": "22"}}]})
+    monkeypatch.setattr(yc.httpx, "get", fake_get)
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    snippet = c.get_video_snippet("VID9")
+    assert snippet == {"title": "T", "description": "old", "categoryId": "22"}
+    assert "videos" in seen["url"]
+    assert seen["params"] == {"part": "snippet", "id": "VID9"}
+    assert seen["auth"] == "Bearer AT"
+
+
+def test_get_video_snippet_raises_on_http_error(monkeypatch):
+    monkeypatch.setattr(yc.httpx, "get", lambda *a, **k: _Resp(403, text="scope insufficient"))
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    with pytest.raises(yc.YouTubeApiError):
+        c.get_video_snippet("VID9")
+
+
+def test_get_video_snippet_raises_when_video_not_found(monkeypatch):
+    monkeypatch.setattr(yc.httpx, "get", lambda *a, **k: _Resp(200, {"items": []}))
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    with pytest.raises(yc.YouTubeApiError):
+        c.get_video_snippet("MISSING")
+
+
+def test_update_description_preserves_every_other_snippet_field(monkeypatch):
+    def fake_get(url, params=None, headers=None, timeout=None):
+        return _Resp(200, {"items": [{"id": "VID9", "snippet": {
+            "title": "Live Trading Session — June 24, 2026",
+            "description": "old", "categoryId": "22", "tags": ["trading"]}}]})
+    put_seen = {}
+    def fake_put(url, params=None, headers=None, json=None, timeout=None):
+        put_seen.update(url=url, params=params, body=json, ct=headers.get("Content-Type"))
+        return _Resp(200, {})
+    monkeypatch.setattr(yc.httpx, "get", fake_get)
+    monkeypatch.setattr(yc.httpx, "put", fake_put)
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    c.update_description("VID9", "new description with links")
+    assert "videos" in put_seen["url"]
+    assert put_seen["params"] == {"part": "snippet"}
+    assert put_seen["body"]["id"] == "VID9"
+    snippet = put_seen["body"]["snippet"]
+    assert snippet["description"] == "new description with links"
+    # Title is FINAL at insert — never touched by a description patch.
+    assert snippet["title"] == "Live Trading Session — June 24, 2026"
+    assert snippet["categoryId"] == "22"
+    assert snippet["tags"] == ["trading"]
+
+
+def test_update_description_raises_on_put_failure(monkeypatch):
+    monkeypatch.setattr(yc.httpx, "get", lambda *a, **k: _Resp(200, {"items": [
+        {"id": "VID9", "snippet": {"title": "T", "description": "old"}}]}))
+    monkeypatch.setattr(yc.httpx, "put", lambda *a, **k: _Resp(500, text="server error"))
+    c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
+    monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
+    with pytest.raises(yc.YouTubeApiError):
+        c.update_description("VID9", "new")

@@ -158,8 +158,19 @@ def get_option_marks(user_id: str, account_id: str | None = None,
             conn.close()
 
     today_et = datetime.now(_ET).date()
+    # Broker-imported strategies are single-leg by construction
+    # (option_reconstruct's v1 non-goal). If a multi-leg row ever reaches
+    # this query, the per-leg loop below would let the LAST leg silently
+    # overwrite the whole strategy's value (a debit spread priced as its
+    # long leg with no short offset). Skip such strategies wholesale — the
+    # frontend falls back to the correctly-netted brokerCurrentValue.
+    leg_counts: dict[str, int] = {}
+    for r in rows:
+        leg_counts[r["id"]] = leg_counts.get(r["id"], 0) + 1
     out: dict[str, Any] = {}
     for r in rows:
+        if leg_counts.get(r["id"], 0) > 1:
+            continue
         try:
             occ = occ_symbol(r["underlying"], r["expiration"],
                              r["contract_type"], r["strike"])

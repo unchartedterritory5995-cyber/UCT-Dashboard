@@ -422,13 +422,50 @@ def get_breadth_live(force: bool = False,
         # 4pm that no path was ever written. Publishing its health costs nothing
         # and makes that visible from the same payload the surfaces already read.
         payload["store"] = breadth_intraday.health()
+
+        # Ratio-Bars FREEZE: the live-only internals (adv/dec, from-open, on-
+        # volume) exist only in this read, so once the market is not in the
+        # regular session the widget holds the last regular-session (<=16:00 ET)
+        # sample of the most recent session with data — the day's close, kept on
+        # screen until the next 9:30 open.
+        fdate = breadth_intraday.latest_session()
+        payload["internals_frozen"] = (
+            breadth_intraday.session_last(fdate, keys=live.RATIO_INTERNAL_KEYS,
+                                          before_et_minute=16 * 60)
+            if fdate else {}
+        )
+        payload["internals_frozen_date"] = fdate
     except Exception as e:
         # A store that cannot write must still let the live read through.
         print(f"[breadth_monitor] intraday store unavailable: {e}")
         payload["path"], payload["open"] = {}, {}
         payload["store"] = {"ok": False, "last_error": f"{type(e).__name__}: {e}"}
+        payload["internals_frozen"], payload["internals_frozen_date"] = {}, None
 
     return payload
+
+
+@router.get("/api/breadth-monitor/session-path/{session_date}")
+def get_breadth_session_path(session_date: str,
+                             _user: dict = Depends(require_paid)):
+    """A finished session's intraday shape, straight from the store.
+
+    `/live` withholds everything once the collector writes the day — right for
+    the provisional row, but the session's PATH is history, not an estimate,
+    and the Daily Overview hero still wants it after the close. Retention is
+    `breadth_intraday.RETENTION_DAYS`; an unrecorded day is `ok: False`, not an
+    error, so the surface can fall back without treating it as an outage.
+    """
+    import re
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", session_date):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    from api.services import breadth_intraday
+    try:
+        path = breadth_intraday.session_path(session_date)
+        opens = breadth_intraday.session_open(session_date)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return {"ok": bool(path), "date": session_date, "path": path, "open": opens}
 
 
 @router.get("/api/breadth-monitor/live/reconcile")

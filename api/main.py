@@ -285,7 +285,7 @@ def _run_patterns_recompute_stats():
 
 
 # ---------------------------------------------------------------------------
-# RTH gate — used by the intraday pass inside _run_patterns_universe_scan
+# RTH gate — used by the intraday pass inside _run_patterns_leaders_scan
 #
 # RESTORED 2026-07-23. Shipped in 208d6297, then removed wholesale on 2026-05-21
 # by 7b787e46 ("Update main.py") — a 186-line deletion carrying the GitHub-web-UI
@@ -311,42 +311,90 @@ def _is_rth_now() -> bool:
         return False
 
 
+def _load_patterns_leader_universe(_plog) -> list[str]:
+    """Load the curated leader-universe tickers (best-effort, [] on any failure)."""
+    leader_path = os.path.join(
+        os.path.dirname(__file__), "data", "leader_universe.json"
+    )
+    if not os.path.exists(leader_path):
+        leader_path = os.path.join("api", "data", "leader_universe.json")
+    if not os.path.exists(leader_path):
+        return []
+    try:
+        with open(leader_path) as f:
+            leader_data = json.load(f)
+        return leader_data.get("tickers", []) if isinstance(leader_data, dict) else []
+    except Exception as le:
+        _plog.warning("[patterns] failed to load leader_universe: %s", le)
+        return []
+
+
+def _scan_patterns_daily(symbols, leader_set, _plog) -> tuple[int, int]:
+    """Daily-TF detector pass over `symbols`, storing detections.
+
+    ONE implementation shared by the hourly leaders job and the daily universe
+    job — a second copy of this loop would be a second authority over what a
+    stored detection is. Returns (scanned, stored).
+    """
+    from api.services import bars_sqlite
+    from api.services.pattern_engine import detect_all
+    from api.services.pattern_engine import memory
+    from api.services.pattern_engine.primitives.context import build_context
+    # Importing patterns router triggers detector registration:
+    from api.routers import patterns as _patterns  # noqa: F401
+
+    scanned = 0
+    stored = 0
+    for sym in symbols:
+        try:
+            bars = bars_sqlite.get_bars(sym, "D", 200)
+        except Exception as bars_err:
+            _plog.debug("[patterns] get_bars failed for %s D: %s", sym, bars_err)
+            continue
+        if not bars or len(bars) < 30:
+            continue
+        bars_list = [
+            {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+            for r in bars
+        ]
+        try:
+            ctx = build_context(bars_list, sym=sym)
+            detections = detect_all(bars_list, ctx)
+            for d in detections:
+                d["sym"] = sym
+                d["tf"] = "D"
+                # Tag detection origin (leader vs cap universe)
+                try:
+                    geom = d.setdefault("geometry", {})
+                    extras = geom.setdefault("extras", {})
+                    extras["from_leader_universe"] = sym in leader_set
+                except Exception:
+                    pass
+                try:
+                    memory.store_detection(d)
+                    stored += 1
+                except Exception as store_err:
+                    _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
+            scanned += 1
+        except Exception as scan_err:
+            _plog.debug("[patterns] scan failed for %s D: %s", sym, scan_err)
+    return scanned, stored
+
+
 def _run_patterns_universe_scan():
-    """APScheduler job: scan leaders + a rotating chunk of cap_universe, store detections.
+    """APScheduler job (daily, 1:00 AM ET): full cap_universe daily-TF scan.
 
-    Strategy:
-      - Leader universe (curated ~80-200 liquid thematic stocks) scanned EVERY run.
-      - Cap universe rotates through 4 chunks; one chunk per hourly run.
-      - Each detection tagged with `from_leader_universe` flag for downstream filtering.
-
-    Populates pattern_detections so the admin dashboard /admin/patterns has data
-    for Gate 5 operator review and the /patterns scanner page can filter to leaders.
+    Was HOURLY with a rotating 1/4 chunk until 2026-08-26. Daily-TF detections
+    only change when a new daily bar lands, so intra-day re-scans were pure
+    dedup-upserts burning CPU in the pod that serves members. One full pass
+    before the 3:00 AM screener build (pattern_join — the only universe-wide
+    reader) covers every consumer; leaders keep an hourly pass in
+    _run_patterns_leaders_scan for intraday freshness.
     """
     _plog = logging.getLogger(__name__)
     try:
-        import time as _time
-        from api.services import bars_sqlite
-        from api.services.pattern_engine import detect_all
-        from api.services.pattern_engine import memory
-        from api.services.pattern_engine.primitives.context import build_context
-        # Importing patterns router triggers detector registration:
-        from api.routers import patterns as _patterns  # noqa: F401
-
-        # Resolve leader_universe path
-        leader_path = os.path.join(
-            os.path.dirname(__file__), "data", "leader_universe.json"
-        )
-        if not os.path.exists(leader_path):
-            leader_path = os.path.join("api", "data", "leader_universe.json")
-
-        leader_tickers: list[str] = []
-        if os.path.exists(leader_path):
-            try:
-                with open(leader_path) as f:
-                    leader_data = json.load(f)
-                leader_tickers = leader_data.get("tickers", []) if isinstance(leader_data, dict) else []
-            except Exception as le:
-                _plog.warning("[patterns] universe_scan: failed to load leader_universe: %s", le)
+        leader_tickers = _load_patterns_leader_universe(_plog)
+        leader_set = {t for t in leader_tickers if isinstance(t, str)}
 
         # Resolve the cap_universe path
         universe_path = os.path.join(
@@ -369,83 +417,62 @@ def _run_patterns_universe_scan():
         else:
             cap_tickers = data.get("tickers", []) if isinstance(data, dict) else []
 
-        # Rotate through cap_universe in 4 chunks: one chunk per hourly run.
-        hour_index = (int(_time.time()) // 3600) % 4
-        cap_chunk_size = max(1, len(cap_tickers) // 4)
-        cap_start = hour_index * cap_chunk_size
-        cap_end = cap_start + cap_chunk_size
-        cap_to_scan = cap_tickers[cap_start:cap_end]
-
-        leader_set = {t for t in leader_tickers if isinstance(t, str)}
-
-        timeframes = ["D"]
-        scanned = 0
-        stored = 0
-        leader_stored = 0
-
-        def _scan_one(sym: str, from_leader: bool) -> tuple[int, int]:
-            """Scan a single sym; return (scanned, stored)."""
-            s_scanned = 0
-            s_stored = 0
-            for tf in timeframes:
-                try:
-                    bars = bars_sqlite.get_bars(sym, tf, 200)
-                except Exception as bars_err:
-                    _plog.debug("[patterns] get_bars failed for %s %s: %s", sym, tf, bars_err)
-                    continue
-                if not bars or len(bars) < 30:
-                    continue
-                bars_list = [
-                    {"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
-                    for r in bars
-                ]
-                try:
-                    ctx = build_context(bars_list, sym=sym)
-                    detections = detect_all(bars_list, ctx)
-                    for d in detections:
-                        d["sym"] = sym
-                        d["tf"] = tf
-                        # Tag detection origin (leader vs cap rotation)
-                        try:
-                            geom = d.setdefault("geometry", {})
-                            extras = geom.setdefault("extras", {})
-                            extras["from_leader_universe"] = bool(from_leader)
-                        except Exception:
-                            pass
-                        try:
-                            memory.store_detection(d)
-                            s_stored += 1
-                        except Exception as store_err:
-                            _plog.debug("[patterns] store failed for %s: %s", sym, store_err)
-                    s_scanned += 1
-                except Exception as scan_err:
-                    _plog.debug("[patterns] scan failed for %s %s: %s", sym, tf, scan_err)
-            return s_scanned, s_stored
-
-        # Scan leaders FIRST (every run)
-        for sym in leader_tickers:
-            sc, st = _scan_one(sym, from_leader=True)
-            scanned += sc
-            stored += st
-            leader_stored += st
-
-        # Scan rotating cap_universe chunk (skipping symbols already scanned as leaders)
-        for sym in cap_to_scan:
-            if sym in leader_set:
-                continue
-            sc, st = _scan_one(sym, from_leader=False)
-            scanned += sc
-            stored += st
+        # Leaders first (tagged), then the rest of the universe.
+        ordered = list(leader_tickers) + [s for s in cap_tickers if s not in leader_set]
+        scanned, stored = _scan_patterns_daily(ordered, leader_set, _plog)
 
         _plog.info(
-            "[patterns] universe_scan: scanned %d symbol-TFs (leaders=%d, cap chunk %d/4), stored %d (leader %d)",
-            scanned, len(leader_tickers), hour_index + 1, stored, leader_stored,
+            "[patterns] universe_scan: scanned %d symbols (full universe, leaders=%d), stored %d",
+            scanned, len(leader_tickers), stored,
         )
         print(
-            f"[patterns] universe_scan: scanned {scanned} symbol-TFs "
-            f"(leaders={len(leader_tickers)}, cap chunk {hour_index + 1}/4), "
-            f"stored {stored} detections ({leader_stored} from leader universe)"
+            f"[patterns] universe_scan: scanned {scanned} symbols "
+            f"(full universe, leaders={len(leader_tickers)}), stored {stored} detections"
         )
+    except Exception as e:
+        _plog.exception("[patterns] universe_scan failed: %s", e)
+        print(f"[patterns] universe_scan failed: {e}")
+
+
+def _run_patterns_prune():
+    """APScheduler job (daily, 0:40 AM ET): retention sweep on pattern_detections.
+
+    See memory.PRUNE_RETENTION_DAYS for the window and why — nothing reads
+    older rows, and without a prune the table reached 13.57 GB / 1.54M rows in
+    six weeks (measured in prod, 2026-08-26).
+    """
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services.pattern_engine.memory import prune_old
+        r = prune_old()
+        _plog.info("[patterns] prune: deleted %d detections, %d orphan outcomes",
+                   r["deleted"], r["orphan_outcomes"])
+        print(f"[patterns] prune: deleted {r['deleted']} detections, "
+              f"{r['orphan_outcomes']} orphan outcomes")
+    except Exception as e:
+        _plog.exception("[patterns] prune failed: %s", e)
+        print(f"[patterns] prune failed: {e}")
+
+
+def _run_patterns_leaders_scan():
+    """APScheduler job (hourly): leader-universe daily-TF scan + the RTH-gated
+    intraday pass. The full universe runs daily in _run_patterns_universe_scan.
+    """
+    _plog = logging.getLogger(__name__)
+    try:
+        from api.services import bars_sqlite
+        from api.services.pattern_engine import detect_all
+        from api.services.pattern_engine import memory
+        from api.services.pattern_engine.primitives.context import build_context
+        # Importing patterns router triggers detector registration:
+        from api.routers import patterns as _patterns  # noqa: F401
+
+        leader_tickers = _load_patterns_leader_universe(_plog)
+        leader_set = {t for t in leader_tickers if isinstance(t, str)}
+
+        scanned, stored = _scan_patterns_daily(leader_tickers, leader_set, _plog)
+        _plog.info("[patterns] leaders_scan: scanned %d leaders, stored %d", scanned, stored)
+        print(f"[patterns] leaders_scan: scanned {scanned} leaders, stored {stored} detections")
 
         # -----------------------------------------------------------------------
         # Intraday pass — leader-only, RTH-gated
@@ -542,8 +569,8 @@ def _run_patterns_universe_scan():
             _plog.info("[patterns] intraday pass: scanned=%d stored=%d", intra_scanned, intra_stored)
             print(f"[patterns] intraday pass: scanned={intra_scanned} stored={intra_stored}")
     except Exception as e:
-        _plog.exception("[patterns] universe_scan failed: %s", e)
-        print(f"[patterns] universe_scan failed: {e}")
+        _plog.exception("[patterns] leaders_scan failed: %s", e)
+        print(f"[patterns] leaders_scan failed: {e}")
 
 
 def _seed_cache_from_volume():
@@ -691,6 +718,75 @@ def _warm_hot_tier_now() -> None:
         logging.getLogger(__name__).info("[startup] hot tier warmed: %d entries", size)
     except Exception:
         pass
+
+
+def _discord_chart_hot_warm() -> None:
+    """Re-render the charts members keep asking for, just before their cache
+    entry expires. A chart costs ~2.4 s of a shared Chromium and the same
+    handful of names get asked over and over in a 750-member server, so this is
+    what turns the common case into a cache hit. Bounded by the hot set itself
+    (a key nobody asked for recently stops being warmed) and by `limit`."""
+    log = logging.getLogger(__name__)
+    if os.environ.get("DISCORD_CHART_HOTWARM_ENABLED", "1").strip().lower() in ("0", "false", "off", ""):
+        return
+    try:
+        from api.services import discord_chart_house as house, discord_interactions as di
+        from api.routers import discord_interactions as rt
+        if not house.house_enabled():
+            return
+        # The day's names, so the FIRST member to ask gets a hit too. Seeded with
+        # zero hits, so anything a member actually asked for outranks them.
+        # ⛔ The two sources are read SEPARATELY on purpose. They were one try
+        # block, and `engine.get_movers` does not exist (movers live in
+        # api.services.massive) - so the AttributeError killed the leaders too
+        # and the seed was a silent no-op from the day it shipped. One bad
+        # source must never take the other down with it.
+        size, _ = di.roster_budget()
+        roster: list = []
+        try:
+            from api.services import engine
+            roster += [r.get("sym") or r.get("ticker") for r in (engine.get_leadership() or [])[: size // 2]]
+        except Exception as e:  # noqa: BLE001
+            log.debug("[discord-chart] roster: no leadership (%s)", e)
+        try:
+            from api.services import massive
+            movers = massive.get_movers() or {}
+            roster += [x.get("sym") for x in (movers.get("ripping") or [])[: size // 4]]
+            roster += [x.get("sym") for x in (movers.get("drilling") or [])[: size // 4]]
+        except Exception as e:  # noqa: BLE001
+            log.debug("[discord-chart] roster: no movers (%s)", e)
+        seeded = di.seed_roster([s for s in roster if s], limit=size)
+        if seeded:
+            log.info("[discord-chart] roster seeded %d chart(s) from %d name(s)", seeded, len(roster))
+        _, limit = di.roster_budget()
+        di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
+                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit)
+    except Exception:
+        log.exception("[discord-chart] hot warm cycle failed")
+
+
+def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
+    """Render one house chart shortly after boot so the FIRST Discord /chart
+    after a deploy is not the cold one. Measured 2026-08-25: the first render
+    after every deploy took 20-40 s (Chromium launch + a cold bars pull) and
+    twice came back blank on attempt 1; every later render 2-3 s. Best-effort,
+    off the request path, inert without CHART_RENDERER_URL."""
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        log = logging.getLogger(__name__)
+        try:
+            from api.services import discord_chart_house as house
+            if not house.house_enabled():
+                return
+            png = house.render_house_chart("SPY", "D", None)
+            log.info("[chart-renderer-warm] SPY D %s", f"{len(png)} bytes" if png else "no image")
+        except Exception:
+            log.exception("[chart-renderer-warm] failed")
+
+    threading.Thread(target=_delayed, daemon=True, name="chart-renderer-warmer").start()
 
 
 def _start_hot_tier_warm_background(delay_seconds: int = 45) -> None:
@@ -2509,6 +2605,16 @@ async def lifespan(app: FastAPI):
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
+        _start_chart_renderer_warm_background()
+        # Keep the charts members actually ask for rendered ahead of demand.
+        # Every minute, not every two: a live-hours chart holds for 120 s, so a
+        # two-minute cycle let warmed entries expire between passes and warmed
+        # nothing that lasted. `due()` keeps the cost down - it only returns
+        # entries past 70% of their TTL, so a quiet-hours cycle usually renders
+        # nothing at all.
+        _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
+                           id="discord_chart_hot_warm", max_instances=1,
+                           coalesce=True, misfire_grace_time=60)
         _start_calendar_enrichment_warm_background()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
@@ -3472,13 +3578,24 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
     if os.environ.get("STREAM_BARS_ENABLED") == "1":
-        from api.services import bar_stream, bar_broadcaster
+        from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
             on_last_unsubscribe=bar_stream.unsubscribe_symbols_one,
         )
-        bar_stream.start_stream(on_bar=bb.push_aggregate)
-        print("[startup] Bar stream thread started (Massive WS -> BarBroadcaster, AM+A channels)")
+
+        def _on_bar(sym, payload, kind):
+            # BarBroadcaster (charts) ALWAYS runs first + unguarded, exactly as before.
+            bb.push_aggregate(sym, payload, kind)
+            # Volume Surge instant push is a defensive add-on gated by VOLUME_PUSH_ENABLED
+            # — it can never break the bars feed (no-op unless the flag is on).
+            try:
+                volume_live.on_aggregate(sym, payload, kind)
+            except Exception:
+                pass
+
+        bar_stream.start_stream(on_bar=_on_bar)
+        print("[startup] Bar stream thread started (Massive WS -> BarBroadcaster + volume push, AM+A channels)")
 
     def _build_deep_cache():
         if os.environ.get("DEEP_CACHE_ENABLED", "0") != "1":
@@ -4563,6 +4680,42 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(hour=3, minute=40, timezone=_ET),
                 id="broker_fidelity_audit", max_instances=1, replace_existing=True,
             )
+            # Live-composition sentinel — the between-sync conservation law
+            # (trades cannot create equity) over every account's COMPOSED
+            # net-liq: mirror_check/fidelity_audit grade the synced state,
+            # this grades the number members actually see between syncs (the
+            # 2026-08-26 stale-cash hero lived exactly there). Persists a
+            # component snapshot per check (flight recorder) + pages the
+            # owner on 2 consecutive structural misses. Self-gates on market
+            # window + BROKER_LIVE_SENTINEL_ENABLED (default ON). Cron
+            # :11/:41 keeps it off the other broker jobs' minutes.
+            from api.services.journal_two.broker import live_sentinel as _broker_live_sentinel
+            _scheduler.add_job(
+                _broker_live_sentinel.run_sentinel_blocking,
+                trigger=CronTrigger(minute="11,41", timezone=_ET),
+                id="broker_live_sentinel", max_instances=1, replace_existing=True,
+            )
+            # Weekly fleet digest of the live checks — Sunday 09:45 ET (near
+            # the books-audit Sunday cadence). ALWAYS posts green-or-red: a
+            # silent-green digest is indistinguishable from a dead one.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_weekly_summary_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=45,
+                                    timezone=_ET),
+                id="broker_live_sentinel_weekly", max_instances=1,
+                replace_existing=True,
+            )
+            # Weekly DRILL — Sunday 09:40 ET, before the digest: injects the
+            # incident shape into a robot account and proves the sentinel
+            # actually detects it (a guard nobody has seen fire is not a
+            # guard). Posts pass/fail either way; robot rows never persist.
+            _scheduler.add_job(
+                _broker_live_sentinel.run_drill_blocking,
+                trigger=CronTrigger(day_of_week="sun", hour=9, minute=40,
+                                    timezone=_ET),
+                id="broker_live_sentinel_drill", max_instances=1,
+                replace_existing=True,
+            )
             print(f"[startup] Broker sync scheduler ON (tick {_bs_tick}m, per-account cadence "
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
@@ -5492,9 +5645,27 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
         _scheduler.add_job(
-            _run_patterns_universe_scan,
+            _run_patterns_leaders_scan,
             trigger=IntervalTrigger(hours=1),
+            id="patterns_leaders_scan",
+            max_instances=1,
+            replace_existing=True,
+        )
+        # Full-universe pass ONCE daily at 1:00 AM ET — after the 0:40 prune,
+        # before the 3:00 AM screener build (pattern_join, the only
+        # universe-wide reader). Hourly full-universe re-scans were retired
+        # 2026-08-26: daily-TF rows only change with a new daily bar.
+        _scheduler.add_job(
+            _run_patterns_universe_scan,
+            trigger=CronTrigger(hour=1, minute=0, timezone=_ET),
             id="patterns_universe_scan",
+            max_instances=1,
+            replace_existing=True,
+        )
+        _scheduler.add_job(
+            _run_patterns_prune,
+            trigger=CronTrigger(hour=0, minute=40, timezone=_ET),
+            id="patterns_prune",
             max_instances=1,
             replace_existing=True,
         )
@@ -6092,6 +6263,8 @@ from api.routers import nhnl as nhnl_router
 app.include_router(nhnl_router.router)
 from api.routers import volume_scan as volume_scan_router
 app.include_router(volume_scan_router.router)
+from api.routers import scatter as scatter_router
+app.include_router(scatter_router.router)
 # ── THE DEFINITION-DETAIL SURFACE for `join_clause` (Phase E; E4-A5 was
 # SUPERSEDED by Wave 4) — `query.run_scan` now ALSO carries a `{key:"scan"}`
 # filter branch; the freshness objection is answered by disclosure (each joined

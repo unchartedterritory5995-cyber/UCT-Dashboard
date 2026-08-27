@@ -122,6 +122,18 @@ describe('BrokerAccountHero', () => {
     expect(screen.getByText('$12,053.04')).toBeInTheDocument()      // = -brokerCash
   })
 
+  it('Cash + Margin Used prefer the fill-derived brokerCashLive over the sync-stale cash', () => {
+    // 2026-08-26 incident: cash synced pre-market, then an intraday buy — the
+    // backend derives the true current cash; every cash consumer must use it.
+    const acct = { ...brokerAccount, brokerCashLive: -22047.04, brokerCashLiveFills: 1 }
+    render(<BrokerAccountHero account={acct} aggregates={aggregates} />)
+    selectDailyRange()
+    expect(screen.getByText('-$22,047.04')).toBeInTheDocument()  // Cash stat
+    expect(screen.getByText('$22,047.04')).toBeInTheDocument()   // Margin Used
+    expect(screen.queryByText('$12,053.04')).not.toBeInTheDocument()
+    expect(screen.queryByText('-$12,053.04')).not.toBeInTheDocument()
+  })
+
   it('draws the curve from estimated history even with no real snapshots yet', () => {
     // Freshly connected: only estimated points (from trade history), 0 real
     // snapshots. The curve must STILL render (the bug we are fixing).

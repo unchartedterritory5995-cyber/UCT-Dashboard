@@ -62,3 +62,29 @@ def test_options_fixture_matches_python(case):
         assert max_risk == pytest.approx(exp["maxRisk"], abs=1e-9)
     dte = opt.compute_days_to_expiration(legs, as_of=Date.fromisoformat(i["asOf"]))
     assert dte == exp["dte"]
+
+
+@pytest.mark.parametrize("case", FIXTURES["composition"])
+def test_composition_fixture_matches_python(case):
+    """Net-liq composition regen guard — the authority is
+    broker/composition.py (the live sentinel composes with it; the JS mirror
+    is brokerLiveSummary, held by parity.test.js). Case 0 is the 2026-08-26
+    incident book: the composed truth is $10,773.09, not the $21,763.06 a
+    stale cash produced."""
+    from api.services.journal_two.broker import composition
+    i, exp = case["inputs"], case["expected"]
+    out = composition.compose_net_liq(
+        i["account"], i["positions"], i["strategies"],
+        i["prices"], i["optionMarks"],
+    )
+    assert out == exp
+
+
+def test_incident_case_is_pinned_to_the_real_numbers():
+    """The first composition fixture must remain the 8/26 incident book —
+    a regen that drops or renumbers it loses the regression."""
+    exp = FIXTURES["composition"][0]["expected"]
+    assert exp["netLiq"] == pytest.approx(10773.09, abs=0.02)
+    acct = FIXTURES["composition"][0]["inputs"]["account"]
+    assert acct["brokerCash"] == -18760.66
+    assert acct["brokerCashLive"] == -29750.66

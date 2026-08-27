@@ -22,7 +22,6 @@ const ROUTE_TITLES = {
   '/charts': 'Charts',
   '/calendar': 'Calendar',
   '/screener': 'Screener',
-  '/patterns': 'Patterns',
   '/options-flow': 'Options Flow',
   '/dark-pool': 'Dark Pool',
   '/post-market': 'Post Market',

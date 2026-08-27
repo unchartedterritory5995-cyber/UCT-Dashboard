@@ -269,5 +269,262 @@
         "dte": -12
       }
     }
+  ],
+  "composition": [
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": -18760.66,
+          "brokerCashLive": -29750.66
+        },
+        "positions": [
+          {
+            "symbol": "DELL",
+            "side": "Long",
+            "shares": 5.0,
+            "brokerPrice": 463.69,
+            "source": "broker"
+          },
+          {
+            "symbol": "ORCL",
+            "side": "Long",
+            "shares": 100.0,
+            "brokerPrice": 148.87,
+            "source": "broker"
+          },
+          {
+            "symbol": "NEXA",
+            "side": "Long",
+            "shares": 750.0,
+            "brokerPrice": 15.58,
+            "source": "broker"
+          },
+          {
+            "symbol": "SPY",
+            "side": "Long",
+            "shares": 0.1568,
+            "brokerPrice": 765.95,
+            "source": "broker"
+          },
+          {
+            "symbol": "SNAP",
+            "side": "Long",
+            "shares": 2000.0,
+            "brokerPrice": 5.415,
+            "source": "broker"
+          }
+        ],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": 665.0,
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {
+          "SNAP": {
+            "price": 5.4241
+          }
+        },
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 40523.75,
+        "netLiq": 10773.09
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 2000.0
+        },
+        "positions": [
+          {
+            "symbol": "AAPL",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 90,
+            "source": "broker"
+          },
+          {
+            "symbol": "TSLA",
+            "side": "Short",
+            "shares": 5,
+            "brokerPrice": 200,
+            "source": "broker"
+          }
+        ],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": 300.0,
+            "netEntry": 250.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {
+          "AAPL": {
+            "price": 100
+          },
+          "TSLA": {
+            "price": 210
+          }
+        },
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 250.0,
+        "netLiq": 2250.0
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [
+          {
+            "symbol": "AAPL",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 100,
+            "source": "broker"
+          },
+          {
+            "symbol": "GME",
+            "side": "Long",
+            "shares": 1000,
+            "brokerPrice": 25,
+            "source": null
+          }
+        ],
+        "strategies": [
+          {
+            "id": "m1",
+            "brokerCurrentValue": 5000.0,
+            "netEntry": 4000.0,
+            "source": null
+          }
+        ],
+        "prices": {},
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 1000.0,
+        "netLiq": 1000.0
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": -610.0
+        },
+        "positions": [],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": null,
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {},
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 610.0,
+        "netLiq": 0.0
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": 665.0,
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {},
+        "optionMarks": {
+          "s1": {
+            "currentValue": 700.0
+          }
+        }
+      },
+      "expected": {
+        "marketValue": 700.0,
+        "netLiq": 700.0
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "manual",
+          "brokerCash": 100.0
+        },
+        "positions": [
+          {
+            "symbol": "AAPL",
+            "side": "Long",
+            "shares": 2,
+            "brokerPrice": 50,
+            "source": null
+          }
+        ],
+        "strategies": [
+          {
+            "id": "m1",
+            "brokerCurrentValue": null,
+            "netEntry": 999.0,
+            "source": null
+          }
+        ],
+        "prices": {},
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 100.0,
+        "netLiq": 200.0
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker"
+        },
+        "positions": [
+          {
+            "symbol": "X",
+            "side": "Long",
+            "shares": 1,
+            "brokerPrice": 10,
+            "source": "broker"
+          }
+        ],
+        "strategies": [],
+        "prices": {
+          "X": {
+            "price": 10
+          }
+        },
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 10.0,
+        "netLiq": null
+      }
+    }
   ]
 }

@@ -738,6 +738,22 @@ CREATE TABLE IF NOT EXISTS j2_broker_mirror_checks (
     detail_json        TEXT,
     PRIMARY KEY (user_id, broker_account_id)
 );
+
+-- Live-composition sentinel (between-sync conservation law): one row per
+-- broker account, latest verdict + the component snapshot that produced it
+-- (the flight recorder — the 2026-08-26 display could not be reconstructed
+-- after the fact because nothing recorded what the composed number was made
+-- of).
+CREATE TABLE IF NOT EXISTS j2_broker_live_checks (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    checked_at         TEXT NOT NULL,
+    verdict            TEXT NOT NULL,   -- ok | book_lag | structural | skipped
+    residual_dollar    REAL,
+    consecutive_fails  INTEGER NOT NULL DEFAULT 0,
+    components_json    TEXT,
+    PRIMARY KEY (user_id, broker_account_id)
+);
 """
 
 

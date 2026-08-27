@@ -21,8 +21,10 @@ router = APIRouter()
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     if not is_paid_user(user):
-        raise HTTPException(status_code=402,
-                            detail="The New-High / New-Low scanner requires a paid plan")
+        # "NH-NL", not the bare "scanner" volume_scan.py uses — every router's
+        # 402 sentence is unique so "which surface locked me out" is answerable
+        # from the message alone (test_user_definitions_auth pins the set).
+        raise HTTPException(status_code=402, detail="The NH-NL scanner requires a paid plan")
     return user
 
 

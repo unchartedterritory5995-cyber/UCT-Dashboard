@@ -60,6 +60,12 @@ def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
             if "broker_price" in keys and row["broker_price"] is not None
             else None
         ),
+        # Intraday fill materialized by the rail (apply_intraday_growth),
+        # awaiting the broker's holdings confirmation at the next sync.
+        "provisional": (
+            str(row["external_id"] or "").startswith("bkprov:")
+            if "external_id" in keys else False
+        ),
     }
 
 
@@ -80,7 +86,7 @@ def list_open_positions(
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
                        created_at, updated_at, closed_at, broker_price,
-                       entry_estimated, source
+                       entry_estimated, source, external_id
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
                  ORDER BY symbol ASC, entry_date DESC
@@ -94,7 +100,7 @@ def list_open_positions(
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
                        created_at, updated_at, closed_at, broker_price,
-                       entry_estimated, source
+                       entry_estimated, source, external_id
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL
                  ORDER BY symbol ASC, entry_date DESC

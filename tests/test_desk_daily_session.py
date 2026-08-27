@@ -182,13 +182,13 @@ def jobs_db(monkeypatch):
 
 
 class _RecordingYT(_FakeYT):
-    """Records the privacy each upload was asked for."""
+    """Records the title/description/privacy each upload was asked for."""
     def __init__(self):
         super().__init__()
         self.uploads = []
 
     def upload(self, path, title, description="", privacy="unlisted"):
-        self.uploads.append({"title": title, "privacy": privacy})
+        self.uploads.append({"title": title, "description": description, "privacy": privacy})
         return "VIDX"
 
 
@@ -870,3 +870,101 @@ def test_retry_queue_failure_never_breaks_a_publish(edu_db, jobs_db, monkeypatch
     yt = _ByteThumbYT()
     out = _publish_one(jobs_db, yt)
     assert len(out) == 1 and yt.thumb_bytes
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-26 — YouTube description (links + disclaimer). Every upload used to
+# ship `description=""`. Static only — NEVER a claim about what was discussed
+# (that's the same hallucination shape that got DESK_CREATIVE_TITLES turned
+# off permanently: the transcript doesn't exist yet at upload time and the
+# `youtube.upload` token can't patch it in later).
+# ---------------------------------------------------------------------------
+
+def test_compose_description_names_the_show():
+    assert dds._compose_description("Live Trading Session").startswith(
+        "Live Trading Session — full session replay.")
+
+
+def test_compose_description_includes_product_links():
+    desc = dds._compose_description("Sunday Scans")
+    assert "https://whop.com/uncharted/uncharted" in desc
+    assert "https://uctintelligence.com" in desc
+
+
+def test_compose_description_includes_disclaimer():
+    desc = dds._compose_description("Live Trading Session").lower()
+    assert "not investment advice" in desc
+
+
+def test_upload_receives_the_composed_description(edu_db, jobs_db):
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt, topic="Live Trading Session")
+    desc = yt.uploads[0]["description"]
+    assert desc.startswith("Live Trading Session — full session replay.")
+    assert "https://whop.com/uncharted/uncharted" in desc
+
+
+def test_upload_description_names_the_actual_routed_show(edu_db, jobs_db):
+    # A different show gets its own name in the description, not a hardcoded
+    # "Live Trading Session" — same derive-don't-restate pattern as the title.
+    yt = _RecordingYT()
+    _publish_one(jobs_db, yt, topic="Sunday Scans")
+    assert yt.uploads[0]["description"].startswith("Sunday Scans — full session replay.")
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-26 — real per-session chapters (Phase 2). Chapters only ever come
+# from desk_session_insights' real transcript-derived data (see
+# desk_session_insights.refresh_description) — never composed at upload time.
+# ---------------------------------------------------------------------------
+
+def test_chapters_block_prepends_start_of_session_when_first_chapter_not_zero():
+    block = dds._chapters_block([{"t": 300, "title": "MU entry at the 21"}])
+    assert block == "0:00 Start of Session\n5:00 MU entry at the 21"
+
+
+def test_chapters_block_does_not_duplicate_a_real_zero_chapter():
+    block = dds._chapters_block([{"t": 0, "title": "Kickoff"}, {"t": 120, "title": "Setup review"}])
+    assert block == "0:00 Kickoff\n2:00 Setup review"
+
+
+def test_chapters_block_formats_hours_past_sixty_minutes():
+    block = dds._chapters_block([{"t": 0, "title": "Start"}, {"t": 3725, "title": "Late chop"}])
+    assert block == "0:00 Start\n1:02:05 Late chop"
+
+
+def test_chapters_block_drops_entries_closer_than_ten_seconds():
+    block = dds._chapters_block([
+        {"t": 0, "title": "Start"}, {"t": 5, "title": "Too close"}, {"t": 60, "title": "Kept"}])
+    assert block == "0:00 Start\n1:00 Kept"
+
+
+def test_chapters_block_sorts_out_of_order_input():
+    block = dds._chapters_block([{"t": 90, "title": "Second"}, {"t": 0, "title": "First"}])
+    assert block == "0:00 First\n1:30 Second"
+
+
+def test_chapters_block_drops_blank_titles():
+    block = dds._chapters_block([{"t": 0, "title": "  "}, {"t": 60, "title": "Real one"}])
+    assert block == "0:00 Start of Session\n1:00 Real one"
+
+
+def test_chapters_block_empty_when_no_chapters():
+    assert dds._chapters_block([]) == ""
+    assert dds._chapters_block(None) == ""
+
+
+def test_compose_description_with_chapters_includes_chapter_list_and_links():
+    desc = dds.compose_description_with_chapters(
+        "Live Trading Session", [{"t": 300, "title": "MU entry at the 21"}])
+    assert desc.startswith("Live Trading Session — full session replay.")
+    assert "⏱️ Chapters:" in desc
+    assert "0:00 Start of Session" in desc
+    assert "5:00 MU entry at the 21" in desc
+    assert "https://whop.com/uncharted/uncharted" in desc
+
+
+def test_compose_description_with_chapters_falls_back_when_none_given():
+    # No real chapters yet -> identical to the upload-time static description.
+    assert (dds.compose_description_with_chapters("Live Trading Session", [])
+            == dds._compose_description("Live Trading Session"))

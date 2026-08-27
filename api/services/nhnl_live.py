@@ -79,25 +79,30 @@ _last_persist = 0.0       # epoch of the last state snapshot write
 _PERSIST_SECS = 30.0      # snapshot cadence (best-effort; off the request path)
 
 # ── Intraday time series (the "H/L Pulse" chart) ──────────────────────────────
-# We plot a RATE — new-high / new-low ALERTS PER SECOND — exactly like Trade Ideas,
-# NOT a count of how many names are currently at a high. Every ~5s we compute the
-# rate as (Σnh now − Σnh ~window-seconds ago) / dt from a small rolling buffer of the
-# cumulative event totals (`_cum_buf`). The trailing window smooths the snapshot's
-# per-minute batching, and a rate (a delta) is small (single digits/sec) and never
-# spikes on restart the way a cumulative total would. Bump _SERIES_METRIC to drop
-# old-shaped stored series.
+# We plot a RATE — new-high / new-low ALERTS PER SECOND — like Trade Ideas, NOT a count
+# of how many names are currently at a high. Each sample the rate is
+# (cum events now − cum events ~window ago) / dt off a rolling buffer of the WHOLE-universe
+# cumulative totals (`_cum_buf`), then EMA-smoothed. To read like Trade Ideas' high/low
+# line — a smooth curve that glides and holds a non-zero floor — the window is a ~1.5-min
+# moving average and the EMA is heavy: a short window makes a jagged per-second signal that
+# drops to 0 in every lull, which is the same units but the wrong LOOK. Bump _SERIES_METRIC
+# to drop old-shaped stored series.
 _SAMPLE_SECS = 2.0                   # sample every accumulator tick (~3s)
-_DEFAULT_SERIES_WINDOW_SECS = 30.0   # rate averaged over this trailing window — short is
-                                     # fine because it rides the REAL-TIME trade tape
-                                     # (continuous), not the snapshot's minute batches
-_RATE_EMA_ALPHA = 0.35               # light smoothing on the emitted rate
-_SERIES_METRIC = "rt_v4"
+_DEFAULT_SERIES_WINDOW_SECS = 90.0   # rate averaged over this trailing window. LONGER than
+                                     # a raw tape read on purpose: Trade Ideas' alerts/sec
+                                     # line is a smooth ~1-2 min moving average that glides
+                                     # and holds a non-zero floor, not a jagged per-second
+                                     # signal that collapses to 0 in every lull.
+_RATE_EMA_ALPHA = 0.20               # heavier smoothing on the emitted rate (TI glide)
+_SERIES_METRIC = "rt_v5"             # bumped: window/smoothing reshape → drop old series
 _last_sample = 0.0
-_cum_buf = deque(maxlen=40)          # (t_epoch, cum_hi, cum_lo) — spans > the rate window
+_cum_buf = deque(maxlen=80)          # (t_epoch, cum_hi, cum_lo) — must span > the rate window
 _rate_ema = {"hi": None, "lo": None}
-# Cumulative REAL-TIME new-high / new-low events (the print-exact trade tape). Unlike
-# Σnh over the snapshot, these grow continuously — no once-a-minute batch impulse — so
-# the Pulse rate off them is smooth + real-time, the way Trade Ideas reads the tape.
+# Cumulative REAL-TIME new-high / new-low events feeding the Pulse rate. Fed by BOTH the
+# whole-universe poll (`_tick_once`, per new-HOD interval) AND — for its bounded hot-set —
+# the print-exact trade tape (`NHNL_PRINT_EXACT`, every qualifying print). The two sets are
+# DISJOINT (the poll skips names print-exact owns), so no event is counted twice, and the
+# rate reflects the WHOLE universe the way Trade Ideas' high/low count does.
 _rt_hi = 0
 _rt_lo = 0
 
@@ -369,7 +374,7 @@ def _theme_holdings() -> dict:
     except Exception:
         _log.exception("[nhnl] theme holdings build failed")
     c["map"] = m
-    c["built_at"] = now
+    c["built_at"] = now if m else 0.0   # don't let an empty (not-ready) build stick for the TTL
     return m
 
 
@@ -451,7 +456,9 @@ def _build_group_map(now: float) -> dict:
     except Exception:
         _log.exception("[nhnl] theme map build failed")
     c["map"] = m
-    c["built_at"] = now
+    # A failed/empty build (e.g. industry_map not seeded yet at boot) must NOT stick for the
+    # full TTL — retry on the next call so the background warm fills in as soon as it's ready.
+    c["built_at"] = now if m else 0.0
     return m
 
 
@@ -484,6 +491,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
       - closed → just stamp asof; nothing accumulates.
     Counters reset whenever the (date, window) session rolls over.
     """
+    global _rt_hi, _rt_lo
     now_iso = now.isoformat()
     if window == "closed":
         with _lock:
@@ -543,6 +551,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             if ref_hi > st["hod"] * (1 + _EPS):
                 if _is_tradable(app, row):
                     st["nh"] += 1
+                    _rt_hi += 1        # feed the whole-universe H/L Pulse rate
                     st["hi_ts"] = now_iso
                     events.append({"sym": app, "price": round(float(price or ref_hi), 2),
                                    "count": st["nh"], "ts": now_iso, "dir": "high"})
@@ -551,6 +560,7 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
             if isinstance(ref_lo, (int, float)) and ref_lo > 0 and ref_lo < st["lod"] * (1 - _EPS):
                 if _is_tradable(app, row):
                     st["nl"] += 1
+                    _rt_lo += 1        # feed the whole-universe H/L Pulse rate
                     st["lo_ts"] = now_iso
                     events.append({"sym": app, "price": round(float(price or ref_lo), 2),
                                    "count": st["nl"], "ts": now_iso, "dir": "low"})
@@ -1019,6 +1029,15 @@ def _tick() -> None:
             _tick_once(snap, window, today, now)
             with _lock:
                 _state["last_error"] = None
+    # Keep the scope groupings WARM so Sector / Industry / Theme are instant the first time
+    # a user selects them — built here on the accumulator thread, never lazily on the request
+    # path. Both are ~1h TTL-cached (cheap after the first build); the hourly rebuild also
+    # lands here, off the request path.
+    try:
+        _group_map()
+        _theme_holdings()
+    except Exception:
+        _log.debug("[nhnl] scope warm failed", exc_info=True)
     try:
         _manage_print_set()
     except Exception:

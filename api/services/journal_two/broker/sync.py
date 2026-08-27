@@ -551,6 +551,7 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
         # sync (the trade import above already succeeded).
         pos_res: dict[str, Any] = {"upserted": 0}
         balances_error: str | None = None
+        mirror_result: dict[str, Any] | None = None
         try:
             raw_positions = await snap.get_positions(
                 bu["snaptradeUserId"], bu["userSecret"], ba["snaptradeAccountId"]
@@ -632,9 +633,14 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             # verdict persists for the Sync Trust panel and pages the owner on
             # a structural miss or persistent drift — the automated stand-in
             # for "the owner eyeballs every member's numbers". Never raises.
+            # NB: `summary` does not exist yet at this point — the verdict is
+            # stashed and attached when the summary dict is built below. (The
+            # prior `summary["mirror"] = …` raised UnboundLocalError into the
+            # except-pass on EVERY sync: the check ran + persisted + paged,
+            # but no sync result or audit row ever carried the verdict.)
             try:
                 from api.services.journal_two.broker import mirror_check as _mirror
-                summary["mirror"] = _mirror.run_mirror_check(
+                mirror_result = _mirror.run_mirror_check(
                     user_id, ba, raw_positions, raw_option_holdings, broker_total,
                 )
             except Exception:
@@ -696,6 +702,7 @@ async def _do_sync(user_id: str, broker_account_id: str, *, full: bool) -> dict[
             "optionEvents": recon["optionEvents"],
             "fifoErrors": recon["fifoErrors"],
             "balancesError": balances_error,
+            "mirror": mirror_result,
         }
         # The audit-log row must agree with the account chip: a stale-holdings
         # sync is an 'error' row carrying the reason, not a green 'ok'.

@@ -136,6 +136,7 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
       {settingsOpen && (
         <NewsSettingsPanel
           title="Stock Profile Settings"
+          widgetType="profile"
           perfLabel="Performance"
           extraSections={[{
             label: 'Header',

@@ -9,7 +9,7 @@
   padding: 5px 8px 6px;
   font-family: var(--font-sans);
   font-size: var(--text-base, 12px);
-  background: var(--fw-bg, none);
+  background: var(--fw-bg, #0e0f0d);
   color: var(--fw-text, var(--text));
 }
 .hint {
@@ -72,7 +72,7 @@
   gap: 2px;
   padding: 2px;
   margin: 0;
-  background: var(--fw-elev, var(--bg-elevated));
+  background: var(--fw-elev, #14151a);
   border: 1px solid var(--fw-divider, var(--border));
   border-radius: var(--radius-md);
 }
@@ -156,8 +156,8 @@
 /* Match the chart's candle colors (MB_UP / MB_DOWN) exactly. --fw-up/--fw-down
    are only set when the user deviates from the default in Fundamentals Settings,
    so a deliberate user color wins over the workspace theme; otherwise these hold. */
-.pos { color: var(--fw-up, #1ae51a); }
-.neg { color: var(--fw-down, #c41f2d); }
+.pos { color: var(--fw-up, var(--ut-green-bright)); }
+.neg { color: var(--fw-down, var(--ut-red-bright)); }
 /* Sunrise: match the dark candle green/red. */
 :global([data-charts-theme='sunrise']) .pos,
 :global([data-charts-theme='sunrise']) .revUp { color: var(--fw-up, #0a5c22); }
@@ -166,8 +166,8 @@
 /* Quarter date reads dark on the bright card. */
 :global([data-charts-theme='sunrise']) .qDate { color: #55606e; }
 .rev { font-size: 0.73em; margin-left: 3px; vertical-align: middle; }
-.revUp { color: var(--fw-up, #1ae51a); }
-.revDown { color: var(--fw-down, #c41f2d); }
+.revUp { color: var(--fw-up, var(--ut-green-bright)); }
+.revDown { color: var(--fw-down, var(--ut-red-bright)); }
 
 /* ── Quarterly strip — compact 3-line cards, single wide row ────
    The card's text sizes are authored in em off the BLOCK font-size (11px) so the
@@ -177,7 +177,7 @@
 .qBlock {
   flex: 1 1 116px; min-width: 104px;
   font-size: 11px;
-  background: var(--fw-elev, var(--bg-elevated));
+  background: var(--fw-elev, #14151a);
   border: 1px solid var(--fw-divider, var(--border));
   border-radius: 5px;
   padding: 4px 7px;
@@ -190,7 +190,7 @@
   border-color: var(--fw-divider, #43483d);
   background:
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0, rgba(255, 255, 255, 0.022) 1px, transparent 1px, transparent 7px),
-    var(--fw-elev, var(--bg-elevated));
+    var(--fw-elev, #14151a);
 }
 .qHead {
   display: flex; align-items: baseline; justify-content: space-between; gap: 6px;

@@ -39,8 +39,8 @@
 .count {
   font-size: calc(10px * var(--wl-font-scale, 1));
   font-weight: 700;
-  color: var(--wl-accent, var(--ut-gold));
-  background: var(--wl-accent-bg, rgba(220, 187, 94, 0.14));
+  color: var(--wl-accent, var(--accent, var(--ut-gold)));
+  background: color-mix(in srgb, var(--wl-accent, var(--accent, var(--ut-gold))) 14%, transparent);
   border-radius: 10px;
   padding: 1px 7px;
   min-width: 16px;
@@ -96,8 +96,8 @@
   color: var(--wl-price, var(--text-bright));
   padding-left: 6px;
 }
-.up { color: var(--wl-up, #1ae51a); }
-.down { color: var(--wl-down, #ff3b47); }
+.up { color: var(--wl-up, var(--ut-green-bright)); }
+.down { color: var(--wl-down, var(--ut-red-bright)); }
 .ratio { color: var(--wl-accent, var(--ut-gold)); }
 .msg {
   padding: 26px 14px;

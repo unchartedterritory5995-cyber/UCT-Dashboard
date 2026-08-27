@@ -654,3 +654,699 @@ failure path, so gating the capture on it would have been a race or a hang.
 
 Primary server: **Uncharted Territory** (members + owners); the UCT
 Intelligence server is the test bench only.
+
+
+## v11 — The chart message as the control surface (2026-08-25, ~21:20 CT)
+
+Owner, after seeing the Activity: it "takes people AWAY from discord"; what he
+wants is the Notebook's inline interactive chart, in the chat. Discord cannot
+host a live canvas in a message and the Activity is a panel over the channel,
+so the Activity is **parked** (`DISCORD_ACTIVITY_GUILDS=off`; the admin-only
+`launch` Entry Point must stay registered while Activities are enabled on the
+app — Discord 400s a bulk PUT without it) and the chart message itself became
+the control surface. Five rows, Discord's ceiling, each re-rendering the same
+message in place:
+
+1. `D W 60m 15m 5m`
+2. **Zoom** dropdown — Auto / 1M / 3M / 6M / 1Y / 2Y on D/W; Auto / 1D / 2D /
+   5D / 10D intraday → the page's `?bars=` per timeframe (`zoom_bars`).
+3. **Indicators** dropdown — None / RSI / MACD / RSI+MACD (engine instances).
+4. **Look** dropdown — Candles / Hollow / OHLC / Line / Area / Heikin-Ashi and
+   the theme presets.
+5. **◀ Earlier / Later ▶** (D/W) · `MAs: House → 10/20/50 → off` · Volume ·
+   Open interactive. Earlier/Later → `?to=YYYY-MM-DD` → StockChart
+   `replayCutoff` (the bars API serves a pre-cutoff window fast from SQLite);
+   one step = the window's calendar span (`_PAN_DAYS_*`); Later is disabled
+   while live and a step that would pass today returns to live.
+
+State rides in `custom_id` (`c2|SYM|tf|mas|vol|zoom|ind|style|theme|to`, ≤100
+chars); a dropdown pick applies ONE field over the state it carried (Discord
+sends `data.values`); legacy `chart|…` ids from earlier messages still parse.
+`zoom` is also a `/chartsettings` preference. Cache key gains `:to` only when
+panned.
+
+
+### v11 build log — two Discord rules the first deploy tripped
+Both surfaced only as a 400 on the PATCH (the member sees "thinking…" forever;
+the body names the exact component index — `railway logs -s web | grep
+"edit_original HTTP"` is the diagnostic):
+- `COMPONENT_TOO_MANY_DEFAULT_VALUES` — a single-select may mark ONE option
+  default; the Look select had marked the style *and* the theme. The style
+  carries it now. Rail: `test_every_dropdown_obeys_discords_select_rules`.
+- `COMPONENT_CUSTOM_ID_DUPLICATED` — every `custom_id` in a message must be
+  unique; a live chart's disabled "Later" carried the same state as the active
+  timeframe button. Every control now ends its id with a tag (`t/e/l/m/v`) the
+  parser ignores. Rail: `test_every_custom_id_in_a_message_is_unique`.
+
+
+## v12 — "Ultimate" wave: context line · `compare:` · `/charts` (2026-08-26, ~02:00–04:00 CT)
+
+Owner: "Keep going with what we can do and build to get this to be ultimate."
+Four ships, each verified on the pod (the owner's Discord web session had
+expired, so the in-chat check is his; every server-side fact below was
+measured with `railway ssh -s web … /opt/venv/bin/python`).
+
+**Context line under every chart** (`a5ad0fcda` + `529956f9a`,
+`api/services/discord_chart_context.py`). A second content line, edited in
+AFTER the image (content-only PATCH keeps the attachment and the controls),
+so a lookup never delays a chart and a failed lookup loses only its part:
+`Earnings tomorrow · Catalyst #1 (Catalyst): NVDA is gapping +2.51% …`.
+Cached per ticker for 30 min; capped at 180 chars; breadth symbols skip it;
+`DISCORD_CHART_CONTEXT=0` turns it off. Sources, all read-only and already
+cached upstream: `earnings_table._next_report_date` (the fundamentals card's
+own lookup, 0.03 s on the pod) · `earnings_enrichment.get_implied_move`
+(only inside 14 days of the report) · `catalyst.store.get_ticker_for_date`.
+- ⛔ The earnings table's FORWARD ROWS are not the date source: on the pod they
+  carried `report_date=None` for NVDA two days before its report (the nearest
+  forward quarter fails `_stamp_next_report_date`'s period-end sanity gate),
+  while `_next_report_date` answered `2026-08-26`. First cut used the rows and
+  printed no date for NVDA/CRWD/ORCL; the second uses the card's lookup.
+- ⚠️ `get_implied_move` returns `None` in 0.0 s on the pod (the known
+  provider gap — `project_expected_move_blank_in_prod`), so the `±x% implied`
+  part is dormant in prod; it lights up the day the chain is reachable.
+- Live probe after the fix: NVDA `Earnings tomorrow · Catalyst #1 …` · CRWD
+  `Earnings tomorrow` · ORCL `Earnings Tue Sep 8 (in 14d)` · AAPL `Earnings
+  Thu Oct 29 (in 65d)` · SPY (nothing to say) → empty, no second edit.
+
+**`compare:` option** (`01bc808cf`): `/chart NVDA compare:SPY QQQ` (up to 3;
+spaces/commas/`$` accepted; the base symbol and duplicates dropped) draws the
+comparisons the way the Charts widget does — `?compare=` on `/r/chart` →
+StockChart `comparisonSymbols` (`scaleMode: 'new'`, own colours
+`#38bdf8 / #f472b6 / #a3e635`, header tag `vs SPY · QQQ`). The comparison
+rides every control's state as an **11th field** (`c2|…|to|SPY+QQQ|tag`);
+ids minted before it (one part shorter) still parse. Cache key gains
+`:vs:SPY+QQQ`; headline `NVDA vs SPY/QQQ · Daily`. Breadth symbols never
+carry one. Rails: `test_compare_option_parses_validates_and_rides_every_control`,
+`test_compare_reaches_the_house_render_the_cache_key_and_the_headline`,
+`ChartRender.compare.test.jsx`.
+
+**The compare render captured NO lines at first** (`eedbcc346` fixed it).
+Pixel probe on the pod (count the palette colours in the PNG, header row
+excluded): the first compare render had the % scale switched on and **zero**
+overlay-colour pixels below the header — the two smooth lines in it were
+NVDA's own 50/200 SMAs rebased to %. Cause: `__chartBarsReady` came from
+StockChart's first-bars latch, which knows nothing about the comparison
+fetch (a second SWR request). Fix: StockChart fires a new
+`onComparisonsReady(syms)` when the current set is drawn (a symbol with no
+bars counts as done, so an unknown compare symbol never starves the
+renderer); the page's readiness = base bars AND (no comparisons OR overlays
+drawn). After the fix: SPY line 2,167–2,241 sampled pixels spanning x 0→2538,
+QQQ 3,086 when asked, 3 when not. Rail: `ChartRender.compareready.test.jsx`.
+⭐ **A readiness gate covers the fetch it was written for; every later fetch
+the page grows escapes it.** Verify a render by counting the pixels of the
+thing you added, not by "the page said ready".
+
+**`/charts NVDA AMD AVGO`** (`9d1ee198c`): up to 4 charts in ONE message,
+one attachment per symbol in the order asked (`files[0..n]` +
+`attachments` ids); a symbol that fails is named (`Skipped: ZZZZ (no bars)`),
+never dropped; each chart counts against the member's rate; no controls (four
+charts' state does not fit a button). `produce_chart()` is now the one
+producer `/chart` and `/charts` share. Commands re-registered globally:
+`chart · c · charts · chartsettings` (the bot token lives in
+`uct_intelligence/.env` as `DISCORD_BOT_TOKEN`, not on Railway).
+
+**Also this wave:** the save-as-defaults pick now sits LAST in the Look
+dropdown (`d0203f726` — the first option stays the chart's own style; a push
+had gone out with that test red because a `pytest | tail` pipeline hid the
+exit code; every chain since gates on `$?`).
+
+## v13 — the verification pass (2026-08-26, ~06:00–08:30 CT)
+
+Owner: "you can do all of this perfectly and deliberately." No new features:
+this pass went looking for what v12 had shipped wrong. It found four real
+defects, three of them invisible to a green suite. Every finding below was
+measured on the live pod, not reasoned about.
+
+### 1. `compare:` had pushed the worst-case `custom_id` past Discord's limit
+
+A control's id carries the whole chart state, and `compare:` added an 11th
+field. Derived from the real choice tables, the worst case was **115
+characters for a button and 120 for a select against a hard limit of 100** —
+a 12-character ticker with three long compare symbols. Discord validates the
+whole components tree as a unit, so ONE over-long id rejects the entire edit
+and the member sits on "thinking…" forever: the same silent failure as the
+`COMPONENT_CUSTOM_ID_DUPLICATED` and `TOO_MANY_DEFAULT_VALUES` bugs of 8/25,
+found this time before a member met it.
+
+`compare_budget(ticker)` now derives what the compare list may spend from the
+longest value of every other field, **plus a `to` date it assumes is always
+present** — so panning ("Earlier") can never overflow an id that was legal
+when the chart was posted. An over-long list is refused at the command with
+the number in the message. Everyday sets are untouched: `SPY+QQQ+IWM` fits
+every ticker (budget 26 for `NVDA`, 18 for a 12-character ticker).
+
+⭐ The budget is derived, so a longer theme or indicator name added later
+shrinks it automatically instead of silently overflowing; the rail computes
+the worst case the same way and fails if the fixed fields ever fill the id.
+
+⚠️ Both new rails passed VACUOUSLY at first: they fed three IDENTICAL symbols,
+which `parse_compare` deduplicates to one, so nothing overflowed. The dedupe
+was correct and the tests were meaningless. Distinct symbols now.
+
+### 2. The context line's edit no longer bets the chart on omission semantics
+
+The v12 follow-up edit sent content only, relying on "Discord keeps what the
+payload omits" for both the image and the controls. **This repo has a measured
+counter-example**: `desk_session_announce._edit` says, verified against the
+live API, that a PATCH which does not list the message's file DROPS it. That
+case is narrower (an embed consuming the file via `attachment://`) and a plain
+attachment is probably safe — but "probably" is not a wager worth taking with
+the product's only artifact.
+
+`edit_original` now returns the edited MESSAGE instead of `True`, so the
+caller can read its attachment ids, and the follow-up re-declares both the
+attachment (`keep_attachments`) and the same control rows. An `edit_fn` that
+returns a bare bool (older callers, test doubles) still works — it just stays
+content-only. Verified in-pod: the second edit carries
+`keep_attachments=['111222333']` and the full 5-row tree.
+
+### 3. Every comparison colour collided with a line the house chart draws
+
+The v12 palette was picked by eye: `#38bdf8 / #f472b6 / #a3e635`. Read against
+the real palette, **`#f472b6` is byte-identical to the house EMA-20**, `#38bdf8`
+sits 25 units from the SMA-50 blue and `#a3e635` next to the EMA-9 green — the
+pod's own render showed the QQQ comparison and the EMA-20 as the same pink
+line. Candidates were then scored against EVERY colour the chart already draws
+(overlays, candles, grid/text, the pre/post chip) and the trio whose nearest
+neighbour is furthest won: **`#c084fc` purple (91) · `#22d3ee` cyan (43) ·
+`#e8e8ea` off-white (56)**. Re-rendered on the pod: purple 1,951 px, cyan
+2,380 px, **old pink 0 px**. `compareColors.test.js` re-measures against the
+live palette and carries a control proving it can fail (the old palette does).
+
+⭐ The same lesson as the readiness gate, one layer over: a value picked by
+eye against a palette you did not read is a guess. Read the palette.
+
+### 4. A census had been RED on master since the day before
+
+`controlDoorCensus.test.js` scans for modules that hand a WHOLE settings blob
+to the persistence path. `/r/chart`'s `?preset=` support (v8, yesterday)
+reads `PRESETS[...]`, so the scan matched it and the census went red **the
+moment that page landed** — and stayed red, because the only tests anybody ran
+for that work were the page's own. ChartRender is an export page: the preset
+becomes a `settingsOverride` PROP and never reaches persistence, which is the
+property door seven is actually held to. The site is now NAMED in the census
+and that property is ASSERTED (no `usePreferences`, no preferences POST, no
+workspace save path), not assumed.
+
+⭐ A regex-based census will keep meeting honest matches. Name them and pin
+why they are safe; never loosen the regex until it stops seeing them.
+
+### What was measured and deliberately left alone
+
+- **MAs rebase to their own first value in % mode**, so on a short window a
+  slow MA can leave the frame. Turning MAs off for a compared chart looked
+  tempting — until the controlled pair (same forced `bars=65`, MAs on vs off)
+  showed MA visibility also **changes the framing** (3 months vs 9). That
+  coupling lives inside StockChart, so MA visibility is not a safe lever for
+  the bot; the rebasing is the app's own behaviour and a compared chart keeps
+  the member's MA setting untouched.
+- `get_implied_move` returns `None` in 0.0 s on the pod (the known provider
+  gap), so the `±x% implied` half of the context line stays dormant in prod.
+
+### The in-pod E2E (what "verified" means here)
+
+`run_chart_job` / `run_multi_chart_job` were run INSIDE the pod with a
+capturing `edit_fn` — real bars, the real chart-renderer, the real context
+line, the real component tree — and every tree was checked against Discord's
+documented rules (≤5 rows, a select alone in its row, ≤5 buttons, ≤25 options,
+≤1 default, ids unique and ≤100). All five paths PASS: plain · compare ·
+compare+panned+RSI/MACD+tradingview (longest id 70) · breadth (one edit, no
+comparison, no context line) · `/charts AMD ZZZZQ AVGO` (two attachments in
+order, `Skipped: ZZZZQ (no bars)`).
+
+🔧 `railway ssh` runs OUTSIDE the app's environment: numpy fails with
+`libstdc++.so.6: cannot open shared object file` until `LD_LIBRARY_PATH` is
+taken from `/proc/1/environ` (the gcc-lib + zlib nix store paths). That is why
+earlier probes that only touched PIL worked and anything importing matplotlib
+did not.
+
+### v13b — the save pick resets its own dropdown (2026-08-26, ~09:30 CT)
+
+A select keeps showing whatever was last PICKED, so answering the save with a
+bare ephemeral left the Look dropdown reading "💾 Save this chart's settings…"
+where the chart's style belongs, until the member happened to click something
+else. It now answers **UPDATE_MESSAGE (type 7)** with the same rows — re-sending
+them resets the select — and the receipt follows as a private follow-up
+(`followup_ephemeral`, POST to the webhook root with flag 64).
+
+This was declined an hour earlier because an UPDATE_MESSAGE that does not list
+the message's files is the same wager `edit_original`'s follow-up refuses, and
+losing it would delete the chart from the message. **It does not have to be a
+wager**: a MESSAGE_COMPONENT interaction carries the whole message, so the file
+ids come straight off the payload (`message_attachment_ids`) and are re-declared,
+as is the content (it carries the context line). A message with no attachment
+declares none — an empty list would mean "remove every file".
+
+Verified live in #dev-chat, old and new side by side in the same channel: the
+9:11 message (saved under this code) reads **"Style: Candles"** again with its
+image intact and a fresh receipt; the 9:12 message (saved an hour earlier) still
+shows the stale "💾 Save…" label.
+
+### v14 — /charts gets controls, renders concurrently, and stops blanking (2026-08-26, ~10:00 CT)
+
+**A timeframe row.** Four charts' individual state does not fit a control, but
+the set's SHARED timeframe does: one row (`m2|SYM+SYM+SYM|tf`, D/W/60m/15m/5m,
+breadth sets get D/W) re-runs the whole set in place. The id carries only
+symbols and a timeframe, so the worst a real request reaches is 56 characters —
+derived in a rail, not asserted in a comment. The length backstop in
+`multi_components` cannot fire on real input and says so; the rail exercises
+that branch directly rather than leaving it untested.
+
+**Concurrent production.** The set's charts rendered one after another, so four
+charts cost four charts' wall clock. They now render together, bounded by the
+same `RENDER_SLOTS` the single command uses — but WAITING for a slot
+(`produce_chart(slot_wait=…)`) instead of grabbing it non-blocking, or three
+charts of one request would report themselves "busy" to each other. A single
+`/chart` still answers instantly, which is right when a member watches one reply.
+
+**And that immediately produced blank charts — the interesting part.** The first
+live `/charts` of four cold symbols logged `house render body BLANK for AVGO D
+(attempt 1)` three times over, retries included. The obvious reading was "the
+renderer cannot do four at once", and the obvious fix was to turn concurrency
+down. Both were wrong: measured on the pod with the bars already warm, the
+renderer does **4/4 concurrent renders in 2.8 s**. The real cause was one line —
+the page's own fetch was pre-warmed on every timeframe EXCEPT `D`:
+
+    we pre-fetch   260 bars (stats)      the PAGE asks /api/bars for 5000
+
+so a daily chart left the page to pull 5,000 bars itself, inside the renderer's
+deadline. One at a time that only costs seconds. Four at once race it and the
+renderer hands back an empty body. The fetch now happens on OUR side of the
+deadline for every timeframe. ⭐ **A resource that fails under concurrency is
+not necessarily short of capacity — find out what the concurrent work is
+actually waiting on before you throttle it.**
+
+Verified live with four COLD symbols (`/charts CRWD PANW ZS DDOG`): all four
+rendered, no blanks, no skips; the 5m and W buttons each re-rendered the whole
+set in place. Cost: a cold four-symbol set takes ~40 s, because we now absorb
+four 5,000-bar fetches that the page used to race for. A warm set is seconds.
+🔧 The `find` browser tool named a button "W" that was the 5m button — button
+refs must come from `read_page`'s DOM ORDER, never from the finder's prose.
+
+### v15 — the performance pass (2026-08-26, ~10:30–12:00 CT)
+
+Owner: "make it all much faster and more efficient and more scalable." Measured
+in the pod BEFORE touching anything, which redirected almost every instinct.
+
+**What the measurements said**
+
+| stage | cost |
+|---|---|
+| bars fetch, 600 / 5,000 / 12,500 daily | 0.0–0.6 s — the store already has them |
+| page load (SPA) inside the renderer | 0.32–0.71 s |
+| load → `__chartBarsReady` | 1.0–1.4 s |
+| → full house readiness + settle | 1.9–2.7 s |
+
+So the render is the cost, not the data; and of the render, the page load is
+small. Three instincts died here:
+
+- *"Reuse warm browser pages"* — worth only ~0.4 s. Not built.
+- *"The readiness stability wait is padding"* — **it is not.** At
+  `__chartBarsReady` the ASML compare chart is missing **13,635 pixels** (its
+  overlay lines) and weekly/intraday headers are still settling. Trimming it
+  would have re-shipped the blank-overlay bug fixed that morning.
+- *"Right-size the pre-warm to the page's shallow window (600 bars)"* — shipped,
+  measured, and **reverted**: blanks came straight back (ANET D, AKAM 5m) and a
+  four-symbol cold set went 43 s → 79 s. What keeps a render healthy is real
+  history in the bars STORE, not matching the page's request size. The warm
+  never drops below `PAGE_BARS` again; the deep case (compare / `?to=`) still
+  reads the page's own number because it wants more.
+
+**What actually shipped**
+
+1. **Session-aware cache TTL.** It was a flat 45 s (20 s intraday) — shorter
+   than the work it was meant to save, so an immediate repeat of a slow set
+   re-rendered everything. Live hours are now 120 s (60 s intraday); QUIET hours
+   (weekends, and outside 04:00–20:00 ET, when nothing on the image can change)
+   are 15 minutes. The image carries its own "as of" stamp, which is what makes
+   serving a cached one honest — and why quiet is 15 minutes, not an hour.
+2. **A byte budget (96 MB, LRU, a hit counts as a use)** — a longer TTL without
+   one trades latency for an OOM at ~300 KB a chart.
+3. **A `/charts` set fetches all its bars first, serially, then renders
+   concurrently.** Four cold symbols fetching in parallel collide on the bars
+   store's write lock (web's 2 s `busy_timeout` is deliberate) —
+   `sqlite3.OperationalError: database is locked`, one chart reporting "no bars"
+   for a good ticker, and the rest arriving too late for the renderer.
+4. **The first render attempt is judged at 15 s instead of 30 s** — full
+   readiness measures 1.9–2.7 s, so 30 s only ever bought waiting on a chart
+   that was never going to settle, ahead of a 45 s retry.
+
+**Measured after**
+
+| | before | after |
+|---|---|---|
+| `/charts` × 4 cold | 43 s | **18.6 s** |
+| `/charts` × 4 repeat | full re-render | **0.03 s** |
+| single chart repeat | re-render after 45 s | **0.0 s** |
+| cache footprint | unbounded | 1.1 MB in use, 96 MB ceiling |
+
+**Known and not fixed:** a genuinely cold symbol under heavy concurrent load can
+still blank on the house path and fall back to mplfinance (the member gets a
+chart, not the house one). The mechanism is the same write lock: the PAGE's own
+`/api/bars` call fails, and a failed fetch paints a blank. Serializing every
+warm process-wide would fix it and would also serialize unrelated members'
+requests, so it is not being added on the strength of a synthetic hammer —
+if it shows up in production, that is the lever.
+
+### v15b — the warm gate, and three wrong diagnoses (2026-08-26, ~12:00–13:00 CT)
+
+The owner asked for the serialisation lever v15 had declined. **The objection
+was wrong, and measuring showed why**: a symbol already in the bars store
+fetches in ~0 ms, so a gate holds its slot for ~0 ms. Only genuinely cold
+fetches ever queue — which is precisely when serialising them is what keeps
+both alive. `bars_warm_gate()` (one slot, `DISCORD_CHART_WARM_CONCURRENCY`, a
+30 s timeout that then proceeds anyway rather than stranding a member) wraps
+every bars fetch in the chart path; the renders they feed stay concurrent.
+
+Six simultaneous COLD charts were then still slow (38–62 s, two shed as "busy",
+some blank). Three hypotheses, all wrong, each killed by a measurement:
+
+1. **"The renderer can't take the concurrency."** No — with bars warm it does
+   2 → 2.3 s, 3 → 6.8 s, 4 → 7.3 s, **6 → 4.8 s, 6/6 good**.
+2. **"Bars coverage collapsed — the worker sleeps when idle."** No — the store
+   holds **4,040 daily and 3,720 five-minute tickers**, and every symbol in the
+   storm had 7–10k daily rows. ⚠️ This one nearly stuck: daily `ts` is stored as
+   **YYYYMMDD, not a unix timestamp**, so a unix-cutoff freshness query reports
+   every daily bar as 1970 — a wrong query briefly "confirming" a wrong theory.
+3. **"The page's request size"** — already killed in v15.
+
+The real cost was **first-touch freshness plus blank retries**: a symbol whose
+daily bar needs freshening pays a provider delta, six of those serialise behind
+the gate, and any blank then cost 15 s + **45 s** before the member saw
+anything. So attempt 2's ceiling drops to **25 s** — still >3× the slowest
+healthy render measured under load — and the rail derives both ceilings from
+that 7.3 s rather than pinning round numbers.
+
+**The remaining ceiling is shared infrastructure, not chart code**: the first
+touch of a stale symbol is a provider delta. The dashboard already owns
+prewarming; a second prewarmer in the chart path would be a second authority
+over "keep bars fresh".
+
+### v16 — instant, by rendering before anyone asks (2026-08-26, ~13:30 CT)
+
+Owner: *"we already have everything in the app, why can't we make it instant
+like the charts on the app?"*
+
+**Because the app never renders on demand.** Its chart is instant for three
+reasons that none of this pipeline can borrow: the SPA is already loaded in the
+member's browser, the bars are already in IndexedDB, and the chart draws
+progressively in front of them. Discord accepts only a finished image, so
+something must load a page, fetch, draw, wait for it to settle and screenshot —
+measured at ~2.4 s, of which the page load is only 0.4 s. There is no tuning
+that removes it.
+
+So the only route to instant is for the render to have already happened.
+
+**The hot set** (`discord_chart_hotset.py`): every chart request records its
+`(request, prefs)` under the same key the PNG cache uses, and a scheduler job
+every 2 minutes re-renders the ones that are both RECENT and past 70 % of their
+TTL. The popular names — the handful a 750-member server actually talks about —
+are then a cache hit rather than a render. Verified on the pod: an entry forced
+stale, the warm cycle re-rendered it in 3.7 s of its own time, and the next
+member's request returned in **0.0 s**.
+
+Bounded by construction: 24 keys, `limit=6` renders per cycle (~12 % of the
+renderer's duty), and a chart nobody has asked for in an hour stops being
+warmed. Hottest first, so real demand always outranks a stale entry. Kill
+switch `DISCORD_CHART_HOTWARM_ENABLED=0`; silent when the house renderer is
+unconfigured. The wiring is pinned by an AST rail over `main.py` — a warmer
+nobody runs is not a warmer.
+
+⛔ Deliberately NOT a second bars prewarmer. The dashboard owns keeping the bars
+store fresh universe-wide; this re-runs only charts members actually asked for.
+
+**Where it now stands**
+
+| | |
+|---|---|
+| a chart anyone asked for recently | **0.0 s** |
+| single chart, cold, bars warm | ~2.4 s |
+| 6 concurrent renders, bars warm | 4.8 s |
+| `/charts` × 4 cold | 18.6 s · repeat 0.03 s |
+
+**Still not instant:** the very first ask of a symbol nobody has requested in
+the last hour. Seeding the hot set with the day's roster (UCT20 + movers) would
+cover that, and the per-cycle limit already caps what it could cost — but it is
+a real trade (roster warms competing with live demand at peak) and belongs to
+the owner, not to a quiet default.
+
+### v17 — nobody waits (2026-08-26, ~14:30 CT)
+
+Two changes, both aimed at the one case v16 left slow: the first ask of a
+symbol nobody has requested recently.
+
+**The roster is seeded.** Each warm cycle puts the day's names (UCT20 leaders +
+top movers, read from the engine's own caches) into the hot set, so the first
+member to type NVDA gets a hit like everyone after them. Seeded with ZERO hits,
+which is the whole trick: a chart a member actually asked for always outranks
+the roster for the cycle's six slots, and the roster is what gets evicted when
+the set fills. Re-seeding never inflates a real chart's count. Bounded by
+`DISCORD_CHART_ROSTER_MAX` (10); a roster we cannot read is not a reason to
+skip the warm.
+
+**The fast chart comes first.** The house render is ~2.2 s of a shared Chromium
+and no tuning removes it. The mplfinance renderer draws the same bars in
+**0.18–0.5 s with no browser at all** — the renderer that was replaced for
+looking wrong is still there, and it is 12× faster. So on a cache miss the
+member gets that immediately and the house image edits over it when it lands.
+
+The fast chart is also a **floor**: if the house render comes back busy or
+fails, the member keeps the chart they already have instead of being handed an
+apology. Only the house image is cached, so the next member never sees the fast
+look. `DISCORD_CHART_FAST_FIRST=0` restores the old single-edit behaviour
+exactly.
+
+**Measured on the pod, live**
+
+| | |
+|---|---|
+| member SEES a chart | **0.22–1.0 s** (was 2.2–2.5 s) |
+| house image replaces it | 2.3–3.2 s |
+| anything asked for recently | **0.0 s** |
+| `/charts` × 4 repeat | 0.03 s |
+
+The tension worth naming: for ~2 s a member is looking at a chart that does not
+have the house styling. That is the trade the owner took knowingly — nobody
+waiting beats everybody waiting for the right-looking picture.
+
+### v18 — the stand-in earns its place, and the roster finally seeds (2026-08-26, ~15:30 CT)
+
+Owner asked whether the speed was worth the risk. Comparing the two images the
+member actually receives settled it: they do not merely look different, they
+**say different things** — SMA 10/20/50 against the house EMA 9/20 + SMA 50/200,
+no extended-hours price chip, no earnings markers, a six-month window against
+three. In a trading room, a member who acts on the stand-in or screenshots it
+into a discussion has used a chart that is not the house standard — and with the
+warmer in place that risk lands precisely on the cold, unfamiliar tickers where
+it matters most.
+
+**So the house image gets first refusal.** The stand-in appears only when the
+house render would otherwise be a WAIT (> `DISCORD_CHART_FAST_AFTER_S`, 3 s) or
+an ERROR (busy, failed). Verified live: ROKU 2.7 s and PINS 2.54 s each showed
+ONE chart, the right one; SNAP took longer and got the stand-in at 3.59 s with
+the house image replacing it at 4.57 s. Nobody is handed an apology, and the
+common case never shows two charts.
+
+**And warm hard when it is cheap.** Keeping 24 charts warm costs ~6 % of the
+renderer overnight (15-minute TTL) versus ~44 % in live hours (2-minute TTL), so
+the roster is 24 when quiet and 10 when live. The cycle also runs every minute
+rather than every two: with a 120 s live TTL a two-minute cycle let warmed
+entries expire between passes, warming nothing that lasted.
+
+**⛔ The roster seed had been a silent no-op since the hour it shipped.** The
+warm cycle's hot set only ever held charts someone had just asked for. Cause:
+it called `engine.get_movers()`, which does not exist — movers live in
+`api.services.massive` — and because both sources sat in ONE try block, the
+AttributeError killed the leadership read too, before `seed_roster` was ever
+reached. Flag on, job scheduled, job running, nothing seeded: the exact failure
+shape this repo keeps rediscovering, caught only by looking at what the hot set
+actually contained. The sources are read independently now, from the modules
+that own them, and a successful seed logs its count so "seeded nothing" can
+never again look like "seeded quietly". Verified: 24 names seeded, 8 warmed per
+cycle, 16 cached after two.
+
+### v19 — one door for charts, one for settings (2026-08-26, ~16:30 CT)
+
+Owner: *"any way we can simplify the commands to make it easier to navigate and
+the additional features easier to find?"* Typing `/chart` offered SIX rows —
+`chart`, `c`, `charts`, `chartsettings show|set|reset` — and Discord ranked
+`/chartsettings reset` above `/charts`. Worse, one setting lived in three
+places: a slash option, a dropdown under the chart, and a saved default.
+
+**Three rows now: `/chart` · `/c` · `/chartsettings`.**
+
+- **`/chart` takes one ticker OR several.** `/chart NVDA AMD AVGO` is what
+  `/charts` was, so the multi-chart reply is found by typing rather than by
+  being told about it. `/charts` is retired as a command; its handler stays one
+  deploy cycle for clients holding the older set.
+- **`/chart` drops to three options** — ticker, tf, compare. `mas`, `volume`,
+  `style` and `theme` live on the Look dropdown under every chart and in
+  `/chartsettings`; they still PARSE if a stale client sends them.
+- **`/chartsettings` loses `show|set|reset`.** Bare = show, any option = set,
+  `reset:True` = reset. Three picker rows collapse to one, and the retired
+  shape still parses.
+- **"❔ How these controls work"** sits at the foot of the Look dropdown and
+  answers privately: compare, panning, several charts at once, breadth
+  symbols, saved defaults. No new button, no new command — and it puts the
+  dropdown back where it was rather than leaving "❔" standing where the style
+  belongs.
+- **Breadth symbols surface in the ticker autocomplete** (`UCTA` → UCTA5,
+  UCTA10, UCTA20, UCTA40, UCTA50). That is the only place a member would ever
+  discover `/chart UCTA5` works.
+
+Verified on the pod after deploy: three commands, `/chart` carrying exactly
+ticker/tf/compare, `parse_chart_requests("nvda amd avgo")` → three charts, bare
+`/chartsettings` → show, the Look dropdown ending `save, help`, and the breadth
+autocomplete answering. Commands re-registered globally (instant, no deploy).
+
+### v22 — the controls stop clogging the channel (2026-08-26, ~23:30 CT)
+
+Owner, looking at a real chart in the member server: *"this looks mega clunky
+and really clogs up a decent portion of channels when people use it… it really
+takes up a lot of space."* He was right — three full-width dropdowns stacked
+under the image cost as much vertical space as the chart itself, and the fifth
+button in the bottom row wrapped onto a line of its own at normal channel width.
+
+**Five action rows → three.**
+
+- **Zoom + Indicators + Look are ONE dropdown.** They were 6 + 4 + 13 = 23
+  options, inside Discord's 25, so they merge — and the current state moves into
+  the placeholder where it still reads at a glance: `⚙️ Zoom 3 months · RSI +
+  MACD · Line`.
+- **No option carries `default` any more.** The state lives in the placeholder
+  instead, which makes `COMPONENT_TOO_MANY_DEFAULT_VALUES` structurally
+  unreachable AND stops a pick leaving its own label standing where the chart's
+  setting belongs — the wart v13b had to answer with an UPDATE_MESSAGE.
+- **The `Open interactive ↗` link button is retired.** With five buttons in that
+  row Discord wrapped it, so a link to the site cost a whole row of every
+  member's screen. The help pick names the site instead.
+
+The three retired select prefixes (`zoom|`, `ind|`, `look|`) still parse, so
+charts already posted in the channel keep working. Verified on the pod after
+deploy: 3 rows, 23 options, no link buttons, state in the placeholder.
+
+⭐ The general lesson: a control surface is charged to the reader's screen every
+time anyone uses it. Five rows was five rows for every member scrolling past.
+
+### v23 — one row, and a gear for the rest (2026-08-27, ~00:30 CT)
+
+Three rows was better and still not compact. Asked whether the parts could be
+"more compact or even more asthetic", the owner picked the most aggressive of
+the three shapes offered: **"I like options 3 the best."**
+
+**A posted chart is now the image plus ONE row.**
+
+```
+[ D ][ W ][ 60m ][ 5m ][ ⚙️ ]            ← what a channel sees
+```
+
+Press the gear and the full surface unfolds; press ▲ and it folds away again:
+
+```
+[ D ][ W ][ 60m ][ 15m ][ 5m ]
+[ ◀ Earlier ][ Later ▶ ][ MAs: House ][ Volume off ][ ▲ ]
+[ ⚙️ Zoom Auto · None · Candles                        ▾ ]
+```
+
+- **The open/closed state rides in the control ids**, so it survives every
+  click with no server-side session and no message bookkeeping. A chart the
+  member opened stays open as they change timeframe; one they never touched
+  stays a single row forever.
+- **One timeframe gives up its slot when closed** — six buttons do not fit a
+  row of five. `COLLAPSED_TFS = ("D", "W", "60", "5")`: 15m yields, because 5m
+  and 60m carry the intraday work. One tuple entry to change.
+- **…unless the chart IS on the timeframe that yielded**, in which case it
+  keeps a slot. Otherwise a member on 15m sees four buttons, none of them lit,
+  and no way to tell what they are looking at.
+- **A timeframe pressed while closed stays closed.** Opening the controls is a
+  deliberate act, not something a member falls into.
+
+**The flag is a spare BIT, not a field — and the id-length rail is what said
+so.** Appending a 12th pipe-separated field cost 2 characters of every
+`custom_id`. The compare list is budgeted from whatever the fixed fields leave
+over, so the gear quietly ate a compare symbol: the worst-case budget fell
+18 → 16 and `test_no_control_id_can_exceed_discords_100_char_limit…` went red
+on the third symbol. The volume field was already a one-character `"0"`/`"1"`,
+so it is a **flags digit** now — bit 0 volume, bit 1 controls-open. Zero extra
+characters, budget back at 18, and an id minted before this deploy still reads
+as closed. ⭐ *A derived budget is how a two-character change announces itself;
+a typed number would have shipped the regression silently.*
+
+**The collapse control can never be truncated away.** In an activity guild the
+toggle row already spends its fifth slot on "Open in Discord", so ▲ takes a row
+of its own there rather than being cut by a `[:5]`. Dropping it would strand
+the member in the expanded view with no way back — a control that vanishes
+exactly when the row is full is the worst possible time for it to vanish.
+
+Four new tests: the one-row shape and its round trip, the timeframe-in-play
+rail, the full-toggle-row case, and the whole range of the flags digit
+(including `"4"`, `"x"` and `""` refusing) alongside ids minted before the gear
+existed. 171 green.
+
+⭐ The general lesson, sharpened from v22: **the default shape is the one that
+gets charged to every reader.** Everything a member might want is still one
+press away — it just no longer bills the whole channel for the possibility.
+
+### v24 — the deploy window, and the stand-in that heals itself (2026-08-27, ~08:00-09:00 CT)
+
+Owner, posting a member-server chart drawn by the plain renderer: *"wtf why
+does it look like this, the shitty chart version?!"*
+
+**It was a deploy swap, and the timestamps say so.** The web deployment was
+created at **07:58:49 CT**; the member ran `/chart SPCX` at **07:59:00** —
+eleven seconds in. The `/r/chart` page the renderer screenshots was mid-restart,
+so both house attempts returned `422 selector not found: #chart-export` and the
+reply fell back to mplfinance. Reproduced exactly on a pod 22 seconds old, where
+**NVDA fails identically**; warm, both symbols render in 4.1 s.
+
+Three theories were checked and killed before the timestamps were believed, and
+the order is worth keeping:
+
+1. *Is it even the stand-in?* — yes. `discord_chart_render.py` owns the
+   `SMA10 … Avg Vol(50)` header and the `as of … · uctintelligence.com` footer.
+2. *Is it SPCX?* — no. NVDA fails the same way in the same window.
+3. *Is the service asleep?* — no. `sleepApplication=False` on all four services
+   (`railway status --json`). `railway ssh` **suggests** sleeping when it cannot
+   connect, which is a plausible and wrong answer; the refusal was the swap.
+
+**The defect was the CACHE, not the fallback.** The stand-in is working as
+designed — a chart beats an apology. What was wrong is that it was cached under
+the SAME key as a real chart, for the quiet-hours TTL of 900 s. One unlucky
+second would have served the plain chart to every member asking for SPCX for
+fifteen minutes, and re-running the command would have *confirmed* the wrong
+diagnosis. `produce_chart` now returns a distinct **`fallback`** outcome —
+delivered (`DELIVERED = ("ok", "fallback")`, the job still reports `ok`) but
+cached for **`FALLBACK_TTL_S = 60`**. `single_flight`'s `ttl_s` takes a callable,
+because only the producer knows which of the two it just made.
+
+⭐ **A degraded artifact cached beside the real one turns a one-second blip into
+a fifteen-minute outage.** Any fallback sharing a cache key with the thing it
+stands in for needs its own, much shorter TTL.
+
+**Then the member's own message heals.** 60 s fixes the spread but not the chart
+already sitting in the channel, so a delivered stand-in now schedules one look at
+45 s and another at 120 s and swaps the image in. Two guards, because a
+background edit a minute later is not obviously safe:
+
+- **It never clobbers a chart the member moved on from.** A minute is long enough
+  to press W. The reply is read back first (`fetch_original`); anything that is
+  not still our headline is left alone, and a read-back that FAILS counts as
+  *cannot confirm* — the cost of skipping is a stand-in, the cost of guessing
+  wrong is undoing someone's click.
+- **It sends no components.** The rows are whatever the member is looking at now
+  (they may have opened the controls), and `edit_original` leaves rows alone only
+  when it is given none. It writes the message's OWN content back, so the context
+  line the first edit added survives.
+
+Bounded and off the reply path: two heals at a time, a daemon thread, and
+`DISCORD_CHART_SELF_HEAL=0` restores the previous behaviour.
+`SELF_HEAL_DELAYS_S` is read at call time rather than frozen as a default
+argument — the first thing anyone wants to change about a retry schedule is the
+schedule.
+
+Seven rails; each of the five guards mutation-checked (drop the read-back · treat
+an unreadable message as permission · send components · remove the slot cap ·
+stop scheduling on a fallback) turns exactly one red. Plus an autouse fixture
+stopping every OTHER test from spawning a real heal thread that would make live
+Discord calls after the test finished. 182 green.
+
