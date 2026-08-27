@@ -144,6 +144,31 @@ export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
  *  would let a tree claim it needs fewer bars than it reads. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
 
+/** Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
+ *
+ *  ⛔⛔ THIS EXISTS BECAUSE THE ANSWER WAS GIVEN TWICE AND THE COPIES DISAGREED.
+ *  `interpret` refused anything outside `TF_RESAMPLABLE`; the `maxLookback` arm
+ *  beside it read `TF_BASE_BARS[code] || 1` and let an unknown code fall through
+ *  as span 1. In the Python mirror that same split made `assert_scannable` —
+ *  which runs `max_lookback` and never `interpret` — stamp `tf(close, '60')` as
+ *  **scannable: true** on a member's saved-scan list while every row of the sweep
+ *  refused. The member is told the scan will run; it then answers nothing, for
+ *  every symbol, and the coverage receipt blames the universe.
+ *
+ *  ⭐ THE KNOWING SIDE STAMPS ITS ANSWER (`lesson_a_second_authority_over_one_value`).
+ *  `TF_RESAMPLABLE` is the authority and this is its only reader.
+ *  ⚠️ A span table with a `|| 1` DEFAULT is a second opinion wearing a fallback's
+ *  clothes — which is why `TF_BASE_BARS` is now read only AFTER this has run. */
+function assertResamplable(code, refuse) {
+  if (!TF_RESAMPLABLE.includes(code)) {
+    refuse('interpret:timeframe',
+      `'${code}' — this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
+      + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
+      + 'outside it is not a timeframe this table knows.')
+  }
+}
+
+
 const tfRank = (code) => TF_LADDER.indexOf(String(code))
 
 /** One bar's `t` as `YYYY-MM-DD`, whichever way it was stored.
@@ -1630,7 +1655,12 @@ export function maxLookback(ast) {
       // constant rather than a measurement: a lookback that is too SMALL lets a
       // tree claim it needs fewer bars than it reads and answer off a warmup it
       // never had. Mirrors `ast_interpret.max_lookback`'s `tf` arm.
-      const span = TF_BASE_BARS[String(node.value)] || 1
+      // ⛔ ASK FIRST, by the SAME authority the evaluator uses, so a code this
+      // engine cannot resample is refused here rather than defaulting to span 1
+      // and letting an up-front gate accept a tree every row will refuse.
+      const code = String(node.value)
+      assertResamplable(code, refuse)
+      const span = TF_BASE_BARS[code]
       seen.set(node, (seen.get(node.args[0]) + 1) * span)
       continue
     }
@@ -1997,12 +2027,7 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
       }
       case 'tf': {
         const code = String(n.value)
-        if (!TF_RESAMPLABLE.includes(code)) {
-          refuse('interpret:timeframe',
-            `'${code}' \u2014 this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
-            + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
-            + 'outside it is not a timeframe this table knows.')
-        }
+        assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
         // is. `opts.tf` is what the caller knows and the bars do not; absent, this
         // check cannot run and does not pretend to \u2014 the same fail-closed-but-say-so

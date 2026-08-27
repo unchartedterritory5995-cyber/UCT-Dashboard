@@ -162,6 +162,34 @@ TF_RESAMPLABLE = ("W", "M")
 TF_BASE_BARS = {"W": 5, "M": 21}
 
 
+def _assert_resamplable(code):
+    """Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
+
+    ⛔⛔ THIS EXISTS BECAUSE THE ANSWER WAS GIVEN TWICE AND THE COPIES DISAGREED.
+    `interpret` refused anything outside ``TF_RESAMPLABLE``. The ``max_lookback``
+    arm beside it read ``TF_BASE_BARS.get(code, 1)`` and let an unknown code fall
+    through as span 1. ``assert_scannable`` runs ``max_lookback`` and never
+    ``interpret`` — so ``tf(close, '60')`` was stamped **scannable: true** on the
+    member's saved-scan list while every row of the sweep refused at
+    ``interpret:timeframe``. The member is told the scan will run; it then answers
+    nothing, for every symbol, forever, and the receipt blames the universe.
+
+    ⭐ THE KNOWING SIDE STAMPS ITS ANSWER (`lesson_a_second_authority_over_one_value`).
+    ``TF_RESAMPLABLE`` is the authority and this is its only reader; the lookback
+    arm no longer holds an opinion about which timeframes exist. ⚠️ A span table
+    with a DEFAULT is a second opinion wearing a fallback's clothes — which is why
+    ``TF_BASE_BARS`` is now subscripted, never ``.get``-with-a-default, and only
+    after this has run.
+    """
+    if code not in TF_RESAMPLABLE:
+        _refuse("interpret:timeframe",
+                "%r — this engine resamples %s from the bars it is given. "
+                "The declared ladder is %s; a code outside it is not a "
+                "timeframe this table knows."
+                % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
+
+
+
 def _tf_rank(code: Any) -> Optional[int]:
     """Position on the ladder, or ``None`` for a code it does not declare."""
     try:
@@ -1892,7 +1920,14 @@ def max_lookback(ast: Any) -> int:
             # constant rather than a measurement: a lookback that is too SMALL lets
             # a tree claim it needs fewer bars than it reads and answer off a warmup
             # it never had.
-            span = TF_BASE_BARS.get(str(node.get("value")), 1)
+            # ⛔ ASK FIRST, and by the SAME authority `interpret` uses. A code
+            # this engine cannot resample is refused HERE, so every up-front gate
+            # that runs `max_lookback` — `assert_scannable`, and the sweep's own
+            # pre-flight — refuses the definition ONCE, by name, instead of
+            # accepting it and then failing every symbol in the universe.
+            code = str(node.get("value"))
+            _assert_resamplable(code)
+            span = TF_BASE_BARS[code]
             seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
             continue
         if kind == "offset":
@@ -2469,12 +2504,7 @@ def interpret(ast: Any, bars: List[dict],
             return out
         if kind == "tf":
             code = str(n.get("value"))
-            if code not in TF_RESAMPLABLE:
-                _refuse("interpret:timeframe",
-                        "%r \u2014 this engine resamples %s from the bars it is given. "
-                        "The declared ladder is %s; a code outside it is not a "
-                        "timeframe this table knows."
-                        % (code, ", ".join(TF_RESAMPLABLE), ", ".join(TF_LADDER)))
+            _assert_resamplable(code)
             # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
             # base is. `opts["tf"]` is what the caller knows and the bars do not;
             # absent, this check cannot run and does not pretend to \u2014 the same

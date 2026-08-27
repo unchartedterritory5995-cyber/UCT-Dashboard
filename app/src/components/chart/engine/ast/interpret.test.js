@@ -7,7 +7,7 @@ import {
   SESSION_MAX_BARS, ARG_DOMAINS, LOOKBACK_RE,
 } from './parse.js'
 import {
-  interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS,
+  interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS, TF_RESAMPLABLE,
   MAX_RECURRENCE_STEPS,
 } from './interpret.js'
 import { computeVWAP, computeAVWAP } from '../../indicators.js'
@@ -1582,5 +1582,55 @@ describe("`avwap`'s window is ENFORCED, not merely declared", () => {
       else expect(got[i], String(i)).toBeCloseTo(w, 9)
     }
     expect(finite(got).length).toBeGreaterThan(0)
+  })
+})
+
+/** ⛔⛔ THE MIRROR OF `tests/test_ast_tf_sym.py`'s cross-gate rail.
+ *
+ *  The Python lane shipped `max_lookback` defaulting an unknown `tf` code to
+ *  span 1 while `interpret` refused it — and because `assert_scannable` runs
+ *  `max_lookback` and never `interpret`, `tf(close, '60')` was stamped
+ *  **scannable: true** on a member's saved-scan list and then answered nothing
+ *  for every symbol. This lane had the SAME split (`TF_BASE_BARS[code] || 1`).
+ *
+ *  ⭐ A MIRRORED DEFECT NEEDS THE RAIL IN EACH LANE
+ *  (`lesson_rail_the_mirror_not_just_the_lane`). Fixing only the lane whose
+ *  symptom was observed leaves the other free to drift back, and this is the
+ *  lane the CHART draws from — the one a member watches. */
+describe('maxLookback and interpret agree about which timeframes exist', () => {
+  const CLOSE = { type: 'series', name: 'close' }
+  const CODES = ['W', 'M', 'D', '60', '30', '15', '5', '1', '3M', 'w', '', 'Q', 'fortnightly']
+  const bars = Array.from({ length: 40 }, (_, i) => ({
+    t: 20260601 + i, o: 100 + i, h: 101 + i, l: 99 + i, c: 100 + i, v: 1e6,
+  }))
+  const refuses = (fn) => {
+    try { fn(); return false } catch (e) { return e instanceof TableRefusal }
+  }
+  const verdicts = CODES.map((code) => {
+    const tree = { type: 'tf', value: code, args: [CLOSE] }
+    return {
+      code,
+      lookback: refuses(() => maxLookback(tree)),
+      evaluate: refuses(() => interpret(tree, bars, undefined, undefined, undefined, { tf: 'D' })),
+    }
+  })
+
+  for (const v of verdicts) {
+    it(`${JSON.stringify(v.code)} — both gates give the same answer`, () => {
+      // ⭐ AGREEMENT, NOT A RETYPED LIST. A rail that spelled the legal set out
+      // again would be the third authority over the value whose second copy is
+      // the bug being railed.
+      expect(v.lookback, `maxLookback ${v.lookback ? 'refused' : 'ACCEPTED'} but `
+        + `interpret ${v.evaluate ? 'refused' : 'ACCEPTED'} ${JSON.stringify(v.code)}`)
+        .toBe(v.evaluate)
+    })
+  }
+
+  it('⭐ and the agreement DISCRIMINATES — it is not two gates refusing everything', () => {
+    const through = verdicts.filter((v) => !v.lookback).map((v) => v.code)
+    expect(through.length, 'both gates refuse every timeframe — vacuous').toBeGreaterThan(0)
+    expect(through.length, 'both gates accept every timeframe — the guard is gone')
+      .toBeLessThan(CODES.length)
+    expect(through.slice().sort()).toEqual(TF_RESAMPLABLE.slice().sort())
   })
 })
