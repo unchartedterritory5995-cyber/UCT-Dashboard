@@ -124,16 +124,59 @@ export const COLUMN_DEFS = {
   dist_52w_high_pct: { label: '52WH', fmt: pct },
   candle_type: { label: 'Candle', fmt: (v, row) => row?.candle_label || (v && v !== 'none' ? v : '—'),
     desc: 'What the most recent daily bar actually is — 62 named structures, from Bullish Engulfing and Morning Star down to the plain Long White or Short Black that most sessions print. When a bar satisfies more than one, the strongest reading leads and the next is shown in parentheses with a +N for any beyond that; the FILTER searches every match, not just the one displayed, so screening for Hammer still finds a hammer that was also an engulfing. ⚠️ Hammer and Hanging Man are the same geometry — only the trend before them tells the two apart, so when there is no clear prior trend the column prints the neutral shape (Umbrella) rather than guess a direction. ⚠️ Blank means the bar had NO range to have a shape: body and wicks are zero over a range of zero, which is undefined rather than small. Roughly 80 names a night, most of them because they did not trade.' },
+  // ── X5 (W9c.1): seven columns shipped filterable+viewed with no display def
+  // — a member could add the column and the grid fell back to `v ?? '—'`,
+  // which for `candle_matches` means the raw delimiter-wrapped key list.
+  // `candle_label` is the SAME underlying fact as Candle above, already fully
+  // rendered server-side (`candles.py::single_candle` composes both from one
+  // `matched` list) — so this is the identical `row?.candle_label` idiom
+  // Candle itself uses, just addressable as its own column.
+  candle_label: { label: 'Candle Label', fmt: v => v || '—',
+    desc: 'The full text behind the Candle column: the strongest pattern match, a second in parentheses, and a +N for any beyond that. Same string — select this one directly to keep it where Candle itself is not also in the view. Blank on the same bars Candle is blank on: no range to have a shape.' },
+  // ⛔ NEVER THE RAW WRAPPED STRING (",hammer,bullish-engulfing,") — that is an
+  // internal encoding for exact-token filtering, not a value to show a member.
+  // Prefers the row's OWN `candle_label` (the same complete match set, already
+  // rendered) and falls back to an honest count — never a hand-typed 62-key
+  // label lookup, which would be exactly the stale-catalog-copy this repo's
+  // candle work keeps finding (`candle_catalog.py` is the ONE place a pattern
+  // key owns a label; nothing here restates it).
+  candle_matches: { label: 'Matched Patterns',
+    fmt: (v, row) => {
+      if (!v) return '—'
+      if (row?.candle_label) return row.candle_label
+      const n = v.split(',').filter(Boolean).length
+      return n ? `${n} pattern${n === 1 ? '' : 's'} matched` : '—'
+    },
+    desc: 'Every pattern this bar satisfies, not only the one rendered in the Candle column — a bar routinely matches more than one (a hammer that is also an engulfing), and the Candle Type filter searches this whole set. ⚠️ Stored internally as a delimiter-wrapped key list built for exact-token filtering, never shown as that raw string here: this renders the same text as Candle Label where that is loaded alongside it, or a plain match count otherwise.' },
   candle_weekly: { label: 'Weekly', fmt: (v, row) => row?.candle_weekly_label || (v || '—'),
     desc: 'The same 66-structure vocabulary applied to the WEEKLY bar — a weekly hammer or engulfing is a far larger statement than a daily one, because it took five sessions to make rather than one. ⭐ Derived by resampling the daily bars this row already loads, so it covers 99.5% of the universe: two thirds of these names have no weekly bars stored at all, but every one of them has years of daily history. ⚠️ “(forming)” means the week is still in progress — a weekly hammer three days old is not a weekly hammer yet. A week counts as complete only when its last session is a Friday, so a holiday-shortened week reads as still forming rather than the other way round.' },
+  candle_weekly_label: { label: 'Weekly Label', fmt: v => v || '—',
+    desc: 'The full text behind the Weekly column, including the "(forming)" suffix on a week still in progress. Select this one directly to keep it where Weekly itself is not also in the view.' },
   candle_monthly: { label: 'Monthly', fmt: (v, row) => row?.candle_monthly_label || (v || '—'),
     desc: 'The same 66-structure vocabulary on the MONTHLY bar — the largest statement in the set, since it took a full month of trading to print. Derived from the same daily history as the weekly column, so it costs no extra data. ⚠️ “(forming)” means the month is still running; a month counts as closed only when its last session is the calendar month-end, so a month ending on a weekend reads as still forming rather than the other way round.' },
+  candle_monthly_label: { label: 'Monthly Label', fmt: v => v || '—',
+    desc: 'The full text behind the Monthly column, including the "(forming)" suffix on a month still in progress. Select this one directly to keep it where Monthly itself is not also in the view.' },
   candle_recent_bars_ago: { label: 'Age', fmt: v => v === null || v === undefined ? '—' : (v === 0 ? 'today' : `${v}d`),
     desc: 'How many sessions ago the Recent Pattern completed — “today” means it is printing on the newest bar and has no follow-through to judge yet. Blank when no multi-bar pattern fired inside the five-session window.' },
+  // Transcribed from filters.py's own `candle_recent_status` presets
+  // (`_enum("candle_recent_status", "Next Open After Pattern", …)`) — worded
+  // there, not reworded here, so the filter dropdown and this column can never
+  // disagree about what one value means.
+  candle_recent_status: { label: 'Next Open After Pattern',
+    fmt: v => v === 'opened-with' ? 'Went with the pattern'
+      : v === 'opened-against' ? 'Went against it'
+      : v === 'opened-flat' ? 'Opened flat'
+      : v === 'provisional' ? 'Too soon to say'
+      : '—',
+    desc: 'What the session right after the Recent Pattern did: opened in the direction the pattern implies, against it, dead flat, or too recent to have a next open yet. ⚠️ Named for what happened, not for a verdict — measured against the market’s own opening-gap base rate, an open that "went with" the pattern tracks close to what chance alone predicts, so this is a fact about the next session, not evidence the pattern worked.' },
   candle_recent: { label: 'Recent Pattern', fmt: (v, row) => row?.candle_recent_label || (v || '—'),
     desc: 'The most recent MULTI-BAR pattern this stock printed within the last five sessions, with its age — “Morning Star (2d ago)”. ⭐ The Candle column only ever describes TODAY, and on most days most stocks print no multi-bar structure at all: measured across 3,705 names, 796 had one today and a further 1,425 had one in the previous four sessions that nothing on the screen could see. A pattern that completed yesterday is often the MORE useful one, because it has had a session of follow-through you can actually check. Single-bar shapes are deliberately excluded — every bar has one, so dating them would return “Black Candle, 1 day ago” for the whole market and mean nothing.' },
+  candle_recent_label: { label: 'Recent Pattern Label', fmt: v => v || '—',
+    desc: 'The full text behind the Recent Pattern column: the pattern name, its age in parentheses, and — once the next session has opened — whether that open went with or against it. Select this one directly to keep it where Recent Pattern itself is not also in the view.' },
   bar_character: { label: 'Character', fmt: (v, row) => row?.bar_character_label || (v || '—'),
     desc: 'What the bar DID, as opposed to what shape it is — 53 named behaviours across gaps, structural failures at levels the market watches, named reversal bars, and volume anomalies. Reads as a headline plus where it closed and how heavy the volume was: “Gap Up & Go, closed on the high, on Heavy Volume”, “Failed Breakout, closed weak”, “Churn (Effort, No Result)”. ⭐ This is a different question from Candle — that one asks what SHAPE the bar is, in the Japanese vocabulary, which has no word at all for a gap that never filled, a poke above the 20-day high that closed back under it, or a session that traded a huge range on no volume. Every bar gets one: the list is evaluated in strict priority order and the last entry always matches, so the only blanks are bars with no data at all.' },
+  bar_character_label: { label: 'Character Label', fmt: v => v || '—',
+    desc: 'The full text behind the Character column — the headline behaviour plus where it closed, how heavy the volume was, and any active streak, comma-joined. Select this one directly to keep it where Character itself is not also in the view.' },
   candle_trend: { label: 'Prior Trend', fmt: v => v && v !== 'unknown' ? v : '—',
     desc: 'The trend the candle printed INTO, read from a 10-day EMA at the bar before the pattern begins — so a violent bar can never manufacture the trend that names it. This is what separates a Hammer from a Hanging Man and a Bullish Engulfing from a Last Engulfing Top. Blank when there is under 40 bars of history to read.' },
   avg_body: { label: 'Avg Body', fmt: usd,
