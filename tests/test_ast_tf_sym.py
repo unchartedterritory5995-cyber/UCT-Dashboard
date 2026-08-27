@@ -27,6 +27,36 @@ import pytest
 from api.services import ast_interpret
 
 
+# ⛔⛔ XFAIL UNTIL W2b LANDS BOTH LANES — AND THIS MARK IS A CORRECTION.
+#
+# These nine were written TDD-first and committed RED on purpose, which is right
+# on a feature branch and WRONG on master — and they reached master anyway in the
+# 2026-08-27 Wave-1 push, because the pre-push gate ran a TARGETED backend subset
+# and this file was created after the last full run. A red master is how the next
+# person learns to ignore a red.
+#
+# ⭐ `strict=True` IS THE POINT. The moment `tf` lands in both lanes these XPASS,
+# which pytest reports as a FAILURE — so the mark cannot outlive the gap it
+# documents. Remove each mark in the same commit as the capability it pins.
+#
+# STATE 2026-08-27: the Python lane is written and passes 8 of 9 (the patch is
+# real, not a sketch); it is held back because declaring `tf` in `NODE_TYPES`
+# without the JS twin turns three MIRROR rails red —
+# `test_the_node_types_are_DERIVED_from_the_committed_corpus`,
+# `..._guard_is_REACHABLE...` and `test_the_two_lanes_refuse_with_THE_SAME_SIX_SENTENCES`.
+# Those rails are correct: this engine does not accept a node type that exists in
+# one lane. See the plan's ruling (one node type per task, BOTH lanes, with its
+# conformance-corpus cases) and the open design question it surfaced: the JS lane
+# has no `_resample_weekly_iso`, so the weekly bucketing must be mirrored there
+# and held equal by the corpus, exactly as every other pair in this engine is.
+pytestmark = pytest.mark.xfail(
+    strict=True,
+    reason="W2b in progress: `tf`/`sym` are pinned here ahead of the "
+           "implementation. The Python lane is written; it lands with the JS "
+           "twin and the corpus cases, per the plan's one-node-type-per-task "
+           "ruling. Each mark is removed by the commit that makes it pass.")
+
+
 # ─── fixtures: three real weeks of daily bars, in both `t` spellings ─────────
 
 def _weekdays(start: datetime.date, n: int):
@@ -122,10 +152,18 @@ def test_the_FIRST_week_is_NOT_COMPUTABLE_because_no_week_has_closed_yet():
     """⛔ NaN, never 0.0 and never the first bar's own close. The same left-edge
     rule `offset` states: a bar with nothing to read is not computable, and a
     clamped value makes a confident answer out of missing history."""
-    import math
+    # ⚠️ `None`, NOT float NaN, and that is the ENGINE'S convention rather than a
+    # concession: `interpret` hands the wire `None` for a not-computable bar, and
+    # `offset`'s own left edge does the same (measured: `[None, None, 11.0, ...]`).
+    # This test first asserted NaN — the column was already correct and the TEST
+    # was wrong about the house rule.
     col = ast_interpret.interpret(_tf("W", CLOSE), _bars())
-    assert all(isinstance(v, float) and math.isnan(v) for v in col[0:5]), (
-        f"week 1 must be NaN — no week has closed before it; got {col[0:5]}")
+    assert all(v is None for v in col[0:5]), (
+        f"week 1 must be not-computable — no week has closed before it; got {col[0:5]}")
+    # …and the control: the REST of the column is not None, or "all None" would
+    # satisfy this trivially.
+    assert all(v is not None for v in col[5:]), (
+        f"only week 1 may be not-computable; got {col[5:]}")
 
 
 def test_the_grouping_is_the_SAME_whichever_t_unit_the_bars_carry():
