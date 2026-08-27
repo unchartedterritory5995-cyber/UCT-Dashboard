@@ -135,6 +135,18 @@ _INDEX_MA = (10, 20, 50, 200)
 # print until the close.
 PARTIAL_SESSION = ("hvc_52w", "up_vol_ratio")
 
+# The five bull/bear pairs the Breadth widget's Ratio-Bars view renders. Several
+# (adv/dec counts, from-open, on-volume) are LIVE-ONLY — computed each read but
+# never written to the daily row — so the view freezes them to the last regular-
+# session sample (via breadth_intraday) once the market is not in session.
+RATIO_INTERNAL_KEYS = (
+    "new_52w_highs", "new_52w_lows",
+    "advancing", "declining",
+    "up_from_open", "down_from_open",
+    "up_on_volume", "down_on_volume",
+    "up_4pct_today", "down_4pct_today",
+)
+
 # Fields that are exact live readings, so anchoring them would add error rather
 # than remove it: SPY/QQQ's own price and MA flags, and the count of names that
 # printed — a fact about coverage, and the diagnostic that explains a large

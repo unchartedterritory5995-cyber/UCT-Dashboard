@@ -75,10 +75,20 @@ test('the Ratio Bars pill switches to split gauges (persisted via opts.view)', (
   render(<Wrap onOpts={onOpts} />)
   fireEvent.click(screen.getByRole('button', { name: /^ratio bars$/i }))
   expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'ratio' }))
-  // The gauge for Advance / Decline renders with its raw counts.
+  // The gauge for Advance / Decline renders with its raw counts (localized) in the footer.
   expect(screen.getByText('Advance / Decline')).toBeInTheDocument()
-  expect(screen.getByText('3200')).toBeInTheDocument()
-  expect(screen.getByText('1400')).toBeInTheDocument()
+  expect(screen.getByText(/3,200 Advancing/)).toBeInTheDocument()
+  expect(screen.getByText(/1,400 Declining/)).toBeInTheDocument()
+})
+
+test('Ratio Bars shows ALL five pairs, including the live-only internals', () => {
+  mockData.mockReturnValue(ROWS)
+  render(<Wrap initialOpts={{ view: 'ratio' }} />)
+  expect(screen.getByText('New Highs / New Lows')).toBeInTheDocument()
+  expect(screen.getByText('Advance / Decline')).toBeInTheDocument()
+  expect(screen.getByText('Up / Down from Open')).toBeInTheDocument()
+  expect(screen.getByText('Up / Down on Volume')).toBeInTheDocument()
+  expect(screen.getByText('Up 4% / Down 4%')).toBeInTheDocument()
 })
 
 test('opts.view=ratio renders Ratio Bars on mount', () => {

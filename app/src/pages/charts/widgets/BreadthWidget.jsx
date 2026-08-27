@@ -181,18 +181,22 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
   )
 }
 
-// ── Ratio Bars: one split gauge per pair, up-color vs down-color ──
-function RatioBarsView({ currentRow, upColor, dnColor, trackColor, textColor }) {
+// ── Ratio Bars: one split gauge per pair. The down side IS the track (a single
+// absolutely-positioned up-fill sits over it), so both halves are always the
+// exact same height — no taller-red artifact. Title is centered above; the
+// winning % sits top-right; raw counts + labels sit below, left/right. ──
+function RatioBarsView({ ratioRow, upColor, dnColor, textColor }) {
   const bars = RATIO_PAIRS.map(p => {
-    const u = currentRow?.[p.up]
-    const d = currentRow?.[p.dn]
+    const u = ratioRow?.[p.up]
+    const d = ratioRow?.[p.dn]
     if (u == null && d == null) return null
     const uu = Math.max(0, Number(u) || 0)
     const dd = Math.max(0, Number(d) || 0)
     const tot = uu + dd
     const upPct = tot > 0 ? (uu / tot) * 100 : 50
     const bullWins = uu >= dd
-    return { ...p, uu, dd, tot, upPct, bullWins }
+    const pct = tot > 0 ? Math.round(bullWins ? upPct : 100 - upPct) : null
+    return { ...p, uu, dd, upPct, bullWins, pct }
   }).filter(Boolean)
 
   if (!bars.length) {
@@ -204,19 +208,16 @@ function RatioBarsView({ currentRow, upColor, dnColor, trackColor, textColor }) 
         <div key={b.key} className={styles.ratioRow}>
           <div className={styles.ratioHead}>
             <span className={styles.ratioLabel} style={textColor ? { color: textColor } : undefined}>{b.label}</span>
-            <span className={styles.ratioPct} style={{ color: b.bullWins ? upColor : dnColor }}>
-              {b.tot > 0 ? `${Math.round(b.bullWins ? b.upPct : 100 - b.upPct)}%` : '—'}
-            </span>
+            {b.pct != null && (
+              <span className={styles.ratioPct} style={{ color: b.bullWins ? upColor : dnColor }}>{b.pct}%</span>
+            )}
           </div>
-          <div className={styles.ratioBar} style={{ background: trackColor }}>
+          <div className={styles.ratioBar} style={{ background: dnColor }}>
             <div className={styles.ratioFillUp} style={{ width: `${b.upPct}%`, background: upColor }} />
-            <div className={styles.ratioFillDn} style={{ width: `${100 - b.upPct}%`, background: dnColor }} />
-            {b.uu > 0 && <span className={styles.ratioCountUp}>{b.uu}</span>}
-            {b.dd > 0 && <span className={styles.ratioCountDn}>{b.dd}</span>}
           </div>
           <div className={styles.ratioFoot}>
-            <span style={{ color: upColor }}>{b.upLabel}</span>
-            <span style={{ color: dnColor }}>{b.dnLabel}</span>
+            <span className={styles.ratioFootUp} style={{ color: upColor }}>{b.uu.toLocaleString()} {b.upLabel}</span>
+            <span className={styles.ratioFootDn} style={{ color: dnColor }}>{b.dd.toLocaleString()} {b.dnLabel}</span>
           </div>
         </div>
       ))}
@@ -431,11 +432,20 @@ export default function BreadthWidget({
     onOptsChange?.({ ...(opts || {}), view: v })
   }, [opts, onOptsChange])
 
-  // Ratio-bar hues: the custom up/down override wins (pure hue), else the UCT
-  // palette green/red — light-canvas variants stay legible on a white surface.
-  const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#16a34a' : '#22c55e')
-  const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#dc2626' : '#ef4444')
-  const ratioTrack = cellColors[''] || (lightCanvas ? '#ececec' : '#181818')
+  // Ratio-bar hues: the custom up/down override wins (pure hue), else a MUTED
+  // UCT green/red (deliberately desaturated — the bright default read garish).
+  const ratioUp = custom ? custom.viewPalette.tier.g3 : (lightCanvas ? '#1f8a52' : '#2f8f5e')
+  const ratioDn = custom ? custom.viewPalette.tier.r3 : (lightCanvas ? '#c0392f' : '#b8453f')
+
+  // The row the Ratio-Bars view reads: REAL-TIME only during the regular session;
+  // otherwise the frozen last-close internals (held until the next 9:30 open).
+  // NH/NL + Up/Down-4% live in the daily row too, so they fall back to currentRow
+  // when no intraday freeze exists yet.
+  const ratioRow = useMemo(() => {
+    if (liveBreadth.marketOpen && liveBreadth.row) return liveBreadth.row
+    const frozen = liveBreadth.frozen
+    return (frozen && Object.keys(frozen).length) ? { ...currentRow, ...frozen } : currentRow
+  }, [liveBreadth.marketOpen, liveBreadth.row, liveBreadth.frozen, currentRow])
 
   return (
     <div ref={rootRef} className={styles.root} style={bwStyle}>
@@ -517,8 +527,8 @@ export default function BreadthWidget({
         <div className={styles.viewArea}>
           {view === 'ratio'
             ? <RatioBarsView
-                currentRow={currentRow} upColor={ratioUp} dnColor={ratioDn}
-                trackColor={ratioTrack} textColor={bwSettings.valueColor || null}
+                ratioRow={ratioRow} upColor={ratioUp} dnColor={ratioDn}
+                textColor={bwSettings.valueColor || null}
               />
             : visibleKeys.length === 0
               ? <div className={styles.hint}>All readings hidden — add some with ＋.</div>

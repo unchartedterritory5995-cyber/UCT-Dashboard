@@ -191,54 +191,53 @@
   .hmTileVal { font-size: 13px; }
 }
 
-/* ── Ratio Bars view — split bull/bear gauges ── */
-.ratioWrap { display: flex; flex-direction: column; gap: 14px; }
-.ratioRow { display: flex; flex-direction: column; gap: 4px; }
-.ratioHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+/* ── Ratio Bars view — split bull/bear gauges (title centered above) ── */
+.ratioWrap { display: flex; flex-direction: column; gap: 18px; padding: 6px 4px 4px; }
+.ratioRow { display: flex; flex-direction: column; gap: 6px; }
+/* Header: title centered across the full width; winning % pinned top-right. */
+.ratioHead { position: relative; display: flex; align-items: baseline; justify-content: center; min-height: 15px; }
 .ratioLabel {
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  text-align: center;
   color: var(--bw-header, var(--bw-text-strong, var(--text)));
 }
 .ratioPct {
-  font-size: 13px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.ratioBar {
-  position: relative;
-  display: flex;
-  height: 22px;
-  border-radius: 4px;
-  overflow: hidden;
-  border: 1px solid var(--bw-tile-border, rgba(255, 255, 255, 0.08));
-}
-.ratioFillUp, .ratioFillDn { height: 100%; transition: width 0.35s cubic-bezier(0.22, 0.61, 0.36, 1); }
-.ratioCountUp, .ratioCountDn {
   position: absolute;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 10.5px;
+  font-size: 12.5px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
-  pointer-events: none;
 }
-.ratioCountUp { left: 7px; }
-.ratioCountDn { right: 7px; }
+/* The bar's own background IS the down side; a single up-fill overlays it, so
+   the two halves are guaranteed identical height. */
+.ratioBar {
+  position: relative;
+  height: 18px;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.ratioFillUp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  transition: width 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
 .ratioFoot {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  opacity: 0.9;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
 }
+.ratioFootDn { text-align: right; }
 
 /* ── Header row ("Breadth Monitor" · ＋ · ⚙) — same 34px rhythm as .bar so the
    bottom divider still lands on the chart widget's gridline beside it. ── */
