@@ -705,7 +705,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
 
-        {/* Period tabs */}
+        {/* Period tabs + the Journal / ⚙ cluster on the right (same layout as the
+            Watchlist / Scanner pickers — buttons ride the tab row, not the search). */}
         <div className={styles.periodBar}>
           {RANK_TABS.map(tab => (
             <button
@@ -716,6 +717,23 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
+          <span className={styles.periodBarSpacer} />
+          {/* → Journal: freeze the visible ranking into a note (payload capture). */}
+          {filteredThemes.length > 0 && (
+            <button
+              className={styles.settingsBtn}
+              onClick={sendThemesToJournal}
+              title="Send this ranking to Journal (frozen list)"
+              aria-label="Send this ranking to Journal"
+            ><UIcon name="journal" size={14} /></button>
+          )}
+          <button
+            ref={settingsBtnRef}
+            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+            onClick={() => setSettingsOpen(o => !o)}
+            title="Theme Tracker settings"
+            aria-label="Theme Tracker settings"
+          ><UIcon name="gear" size={14} /></button>
         </div>
 
         {/* Search */}
@@ -729,25 +747,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
           )}
-          {/* → Journal: freeze the visible ranking into a note (payload
-              capture — owner decision). Door-left-of-gear, the house cluster. */}
-          {filteredThemes.length > 0 && (
-            <button
-              className={styles.settingsBtn}
-              onClick={sendThemesToJournal}
-              title="Send this ranking to Journal (frozen list)"
-              aria-label="Send this ranking to Journal"
-            ><UIcon name="journal" size={14} /></button>
-          )}
-          {/* ⚙ Theme Tracker settings — rides the search row (a gear on its own
-              wrapped period-bar row wasted a full strip of vertical space). */}
-          <button
-            ref={settingsBtnRef}
-            className={`${styles.settingsBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
-            onClick={() => setSettingsOpen(o => !o)}
-            title="Theme Tracker settings"
-            aria-label="Theme Tracker settings"
-          ><UIcon name="gear" size={14} /></button>
         </div>
 
         <div className={styles.tableHeader}>

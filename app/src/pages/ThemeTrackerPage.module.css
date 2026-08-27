@@ -61,7 +61,7 @@
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--tt-text, var(--text-muted));
+  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright, like the picker tabs */
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
@@ -110,7 +110,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 10px;
+  padding: 6px 10px;   /* match the Watchlist/Scanner picker search row height */
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
   box-sizing: border-box;
   background: var(--tt-elev, var(--bg-elevated));
@@ -124,7 +124,7 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 3px;
-  padding: 4px 28px 4px 8px;
+  padding: 5px 26px 5px 10px;
   font-family: var(--font-sans);
   font-size: calc(11px * var(--tt-font-scale, 1));
   color: var(--tt-text-strong, var(--text));
@@ -140,11 +140,12 @@
   border-color: var(--accent);
 }
 
+.periodBarSpacer { flex: 1 1 auto; }
 .searchClear {
   position: absolute;
   /* Sits just inside the input's right edge — the ⚙ gear now occupies the far
      right of this row (≈28px + the bar's 10px padding). */
-  right: 44px;
+  right: 18px;
   background: none;
   border: none;
   color: var(--tt-text, var(--text-muted));
@@ -160,7 +161,7 @@
 
 /* ── Active column highlight ────────────────────────────────────────────── */
 .colLabelActive {
-  color: var(--tt-accent, var(--ut-gold));
+  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright white "1D" (was gold) */
 }
 
 .retActive {
@@ -197,7 +198,7 @@
   font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.8px;
-  color: var(--tt-text, var(--text-muted));
+  color: var(--tt-text-strong, var(--text, #b0b2b8));   /* bright "THEME" header */
   text-transform: uppercase;
   text-align: right;
 }
