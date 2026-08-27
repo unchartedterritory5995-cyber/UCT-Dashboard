@@ -317,14 +317,24 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
-  'app/src/components/chart/engine/ast/thinkscript.js':
-    'W3\'s thinkScript reader: `def x = Average(close, 50); plot scan = close > x;` reaching '
-    + 'the SAME canonical tree parse.js produces, so the chart, the scan and the alert all get '
-    + 'the object they already share. Its own header records why it imports no printer YET — '
-    + 'that task shipped the refusal vocabulary and nothing that emits a tree, and importing '
-    + 'pine.js\'s printer it never calls would be four symbols of decoration in a file a later '
-    + 'engineer audits against. MOUNTS AT W3.7 beside dialect.js, through ImportBox\'s '
-    + 'translateThinkScript.',
+  // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
+  // AND ITS ENTRY SAID "MOUNTS AT W3.7 … through ImportBox's translateThinkScript".
+  // W3.7 mounted it and the entry became FALSE, which is what this rail caught —
+  // an allow-list entry is a CLAIM THAT A MODULE IS NOT YET WIRED, and a claim
+  // that has come true is not a claim any more.
+  //
+  // ⭐ NOTE THE DIRECTION, because it is the reassuring one: the module became
+  // REACHABLE while its excuse stayed, and the rail went red immediately. The
+  // dangerous direction is the opposite — a module that goes UNREACHABLE while
+  // its entry sits here, where the entry silences the very rail that would have
+  // said so. That is why an entry is deleted the moment the wire lands rather
+  // than left as harmless history: the day this wire is CUT, this rail has to be
+  // the thing that notices.
+  //
+  // ⛔ Its neighbours are deliberately ABSENT rather than listed: `dialect.js`,
+  // `PineBox.jsx`/`ImportBox` and `pine.js` are all reachable through the real
+  // import graph (`BuilderSheet.jsx` imports `ImportBox`, which imports
+  // `dialect`), so listing any of them would be the same false claim.
   }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
