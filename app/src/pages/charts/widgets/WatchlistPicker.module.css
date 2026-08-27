@@ -26,7 +26,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--wl-accent, var(--ut-gold, #dcbb5e));   /* match the gold used in Theme Tracker */
+  color: var(--wl-text, var(--text-bright, #e0dac8));   /* neutral, theme-adaptive — reads on light + dark (was UCT gold) */
 }
 .gearBtn {
   display: inline-flex;
