@@ -195,6 +195,17 @@ export const REFUSALS = Object.freeze({
  *  point of the translator. */
 const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
 
+/** The spellings that mean “THIS chart's symbol”, across Pine versions.
+ *
+ *  ⚠️ `tickerid` AND `ticker` ARE THE v2/v3 NAMES for what v5 spells
+ *  `syminfo.tickerid` / `syminfo.ticker`, and the community corpus is full of v3
+ *  scripts that still use them (19-cm-macd-ult-mtf, 20-cm-ultimate-ma-mtf).
+ *  Knowing only the v5 spelling would refuse the same script purely for having
+ *  been written in 2015. */
+const OWN_SYMBOL_NAMES = new Set([
+  'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
+])
+
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
   strategy: 'pine:strategy-call',
@@ -2237,6 +2248,82 @@ class Resolver {
    *  and that is `sym`, which is not built yet \u2014 so it stays refused rather than
    *  quietly reading the wrong instrument.
    */
+  /** A node that names a TIMEFRAME → the string it stands for, or null.
+   *
+   *  ⭐ FOLDING `input.timeframe` TO ITS DEFAULT IS WHAT TRADINGVIEW ITSELF DOES.
+   *  This file's own header records it: their Pine Screener "supports most
+   *  `input.*`, falling back to defaults for `input.timeframe`/`input.symbol`/
+   *  `input.time`." So `res = input.timeframe(defval='W')` really does mean `'W'`
+   *  on the surface these scripts were written for — reading it that way is
+   *  fidelity, not a shortcut.
+   *
+   *  ⚠️ AND THE FOLD IS RECORDED, NOT SILENT. Every fold lands in `usedInputs`,
+   *  the same place `resolveInput` puts a folded number, so the read-back can
+   *  tell the member WHICH input was frozen and at what. A frozen input nobody is
+   *  told about is a script that quietly stopped being the one they pasted.
+   *
+   *  ⛔ BOUNDED, because a binding can name another binding: `a = b`, `b = 'W'`.
+   *  Four hops is well past anything real and makes a cycle impossible.
+   */
+  timeframeLiteralOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'string') return node.value
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
+      return null
+    }
+    if (node.type === 'call' && (node.name === 'input.timeframe' || node.name === 'input.string')) {
+      const args = node.args || []
+      for (let i = 0; i < args.length; i += 1) {
+        const a = args[i]
+        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+          const folded = this.timeframeLiteralOf(a.value, depth + 1)
+          if (folded !== null && node.tok) {
+            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+              call: node.name,
+              title: null,
+              folded: `'${folded}'`,
+              line: node.tok.line,
+              column: node.tok.column,
+            })
+          }
+          return folded
+        }
+      }
+    }
+    return null
+  }
+
+  /** A node that names THIS CHART'S SYMBOL → its spelling, or null.
+   *
+   *  ⭐ `tickerid = syminfo.tickerid` IS THE COMMON IDIOM and three community
+   *  scripts use it. Refusing an alias while accepting the bare name would be
+   *  refusing the same script written the way people actually write it.
+   *  ⛔ A STRING literal is deliberately NOT followed: that is another SYMBOL,
+   *  which is `sym`, and `sym` is not built. */
+  ownSymbolNameOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'name') {
+      // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
+      // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
+      // spellings are bare identifiers that a script may reassign — and
+      // `tickerid = 'SPY'` means SPY, not this chart. Checking the built-in list
+      // first read that script as “this symbol” and translated it: a silent
+      // mistranslation of exactly the kind this door exists to refuse. It was
+      // caught by the shadowing CONTROL in `pine.security.test.js`, not by
+      // review — and the comment that used to sit here asserted this very
+      // ordering while the code did the opposite
+      // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.ownSymbolNameOf(bound.node, depth + 1) : null
+      }
+      if (OWN_SYMBOL_NAMES.has(node.name)) return node.name
+    }
+    return null
+  }
+
   securityAsTf(node) {
     const args = node.args || []
 
@@ -2252,15 +2339,13 @@ class Resolver {
     // 1. the symbol: this chart's own, or nothing. A string literal is ANOTHER
     //    symbol — that is `sym`, which is not built — and a variable alias is a
     //    binding this method deliberately does not chase.
-    const sym = positional[0]
-    const symName = sym && sym.type === 'name' ? sym.name : null
-    if (symName !== 'syminfo.tickerid' && symName !== 'syminfo.ticker') return null
+    const symName = this.ownSymbolNameOf(positional[0])
+    if (symName === null) return null
 
     // 2. the timeframe: a STRING LITERAL this engine can resample. A computed
     //    timeframe is exactly what the node shape forbids — the code rides ON the
     //    node so `max_lookback` stays a tree sum — so it falls through.
-    const tfNode = positional[1]
-    const raw = tfNode && tfNode.type === 'string' ? tfNode.value : null
+    const raw = this.timeframeLiteralOf(positional[1])
     const code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
     if (!code) return null
 

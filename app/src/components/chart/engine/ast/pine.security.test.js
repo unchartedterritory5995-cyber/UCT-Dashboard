@@ -4,16 +4,39 @@ import { translatePine } from './pine.js'
 /**
  * `request.security(syminfo.tickerid, '<TF>', expr)` → the `tf` node.
  *
- * ⛔⛔ WHY THIS FILE EXISTS SEPARATELY FROM THE CORPORA. Wiring the carve-out
- * moved NEITHER corpus number, and that is a real measurement rather than a
- * disappointment: of the 13 community scripts that call `security`, **4 pass
- * `lookahead_on`** (11, 14, 22, 30), the rest use a VARIABLE timeframe, another
- * SYMBOL, or `barstate.*`. Not one of them is the plain shape this translates.
+ * ⛔⛔ WHY THIS FILE EXISTS SEPARATELY FROM THE CORPORA. Neither the carve-out
+ * nor the timeframe FOLD moved either corpus number — both stayed 12/21 owner
+ * and 10/30 community, measured before and after. Without this file the whole
+ * path would be code with no exercise anywhere, and the day it broke both
+ * corpora would stay green. That is `lesson_built_tested_green_and_unreachable`,
+ * and a translator path measured by no corpus is exactly its shape.
  *
- * So without this file the carve-out would be code with no exercise anywhere —
- * "built, green and connected to nothing", measured by no corpus — and the day
- * it broke, both corpora would stay green. That is the defect this repo hunts,
- * and a translator path with no test is exactly its shape.
+ * ⭐ AND THE SECOND MEASUREMENT RETIRED A FALSE PREMISE. The plan predicted the
+ * fold would free “the ~6 variable-timeframe scripts — the largest single group”.
+ * It freed none, because a variable timeframe was never the BINDING constraint on
+ * any of them. Read at the refusing line, the six `pine:request` scripts are:
+ *
+ *   05-mtf-structure-bias        `tf2 = input.timeframe("60")`  → FOLDS, to a
+ *                                 timeframe we cannot resample from daily bars.
+ *                                 The fold worked; the answer is still no.
+ *   19-cm-macd-ult-mtf           `res = useCurrentRes ? period : resCustom`
+ *   20-cm-ultimate-ma-mtf         — a TERNARY. No literal exists to fold to.
+ *   23-higher-timeframe-ema      `ema[barstate.isrealtime ? 1 : 0]` — the CHILD
+ *                                 is the blocker, not the timeframe.
+ *   04-superguppy                `s01 = input('BINANCE:BTCEUR', type=input.symbol)`
+ *   13-relative-strength-vs-spy  `benchmark = input.symbol("SPY")`, read at
+ *                                 `timeframe.period` — no resample at all.
+ *
+ * ⛔ SO THE BINDING CONSTRAINT IS `sym`, NOT `tf`, AND IT IS TWO SCRIPTS, NOT SIX.
+ * 13 is precisely the benchmark-whitelist case already decided; 04 asks for a
+ * crypto pair on another exchange. “Variable timeframe” was a property these
+ * scripts SHARED, never the reason they refused — the same shape as
+ * `lesson_a_premise_that_says_nothing_to_find_retires_the_search`, caught only by
+ * doing the work and re-measuring instead of trusting the row.
+ *
+ * ⭐ THE FOLD IS STILL CORRECT AND STILL KEPT: it is what TradingView's own Pine
+ * Screener does, and it is what a MEMBER's pasted `input.timeframe("W")` needs.
+ * The corpora simply do not contain that shape. Its exercise is here.
  */
 describe('request.security → tf', () => {
   const src = (body) => `//@version=5\nindicator("t")\n${body}\n`
@@ -90,12 +113,67 @@ describe('request.security → tf', () => {
     }
   })
 
-  it('⛔ a COMPUTED timeframe refuses — the node has no slot for one', () => {
-    // `res` is a variable; the `tf` node carries its code as a FIELD precisely so
-    // a timeframe can never be computed at runtime. This is that shape rule
-    // reaching the translator.
+  it('⭐ an `input.timeframe` VARIABLE folds to its default — TradingView does the same', () => {
+    // ⭐ THIS IS FIDELITY, NOT A SHORTCUT. This file's own header records that
+    // their Pine Screener "supports most `input.*`, falling back to defaults for
+    // `input.timeframe`/`input.symbol`/`input.time`" — so on the surface these
+    // scripts were written for, `res = input.timeframe(defval='W')` really does
+    // mean 'W'. Six community scripts name their timeframe through a variable;
+    // refusing them refuses the IDIOM, not the maths.
+    const ast = treeOf(translatePine(src(
+      "res = input.timeframe(defval='W')\nplot(request.security(syminfo.tickerid, res, close))")))
+    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+  })
+
+  it('⭐ and a `tickerid = syminfo.tickerid` ALIAS is still this chart\'s own symbol', () => {
+    // Three community scripts write it this way. Accepting the bare name while
+    // refusing its alias would accept the same script only when spelled the less
+    // common way.
+    const ast = treeOf(translatePine(src(
+      "tickerid = syminfo.tickerid\nplot(request.security(tickerid, 'W', close))")))
+    expect(ast.type).toBe('tf')
+    expect(ast.value).toBe('W')
+  })
+
+  it('⛔ FOLDING IS NOT PERMISSION — a folded timeframe we cannot resample still refuses', () => {
+    // The control that stops the fold becoming a yes-machine: `'60'` resolves to
+    // a real string and is STILL not something `tf` can produce from daily bars.
     const out = translatePine(src(
-      "res = input.timeframe(defval='W')\nplot(request.security(syminfo.tickerid, res, close))"))
+      "res = input.timeframe(defval='60')\nplot(request.security(syminfo.tickerid, res, close))"))
     expect(out.refusal).toBeTruthy()
+    expect(out.refusal.guard).toBe('pine:request')
+  })
+
+  it('⛔ and a genuinely COMPUTED timeframe refuses — there is no literal to fold to', () => {
+    // The node carries its code as a FIELD precisely so a timeframe can never be
+    // computed at runtime. Here that rule is enforced by there being nothing to
+    // read: a user function has no default to fall back to.
+    const out = translatePine(src(
+      "tfOf(x) => x > 1 ? 'W' : 'M'\nplot(request.security(syminfo.tickerid, tfOf(close), close))"))
+    expect(out.refusal).toBeTruthy()
+  })
+  it('⭐ the v2/v3 spelling `tickerid` is the SAME “this chart” — age is not a refusal', () => {
+    // 19-cm-macd-ult-mtf and 20-cm-ultimate-ma-mtf are v3 scripts that write
+    // `security(tickerid, res, x)`. Knowing only v5's `syminfo.tickerid` would
+    // refuse them for the year they were written in. (Both still refuse today —
+    // their `res` is a ternary — which is why this is pinned HERE and not by a
+    // corpus number that cannot move.)
+    for (const spelled of ['tickerid', 'ticker', 'syminfo.ticker']) {
+      const ast = treeOf(translatePine(src(
+        `plot(security(${spelled}, 'W', close))`)))
+      expect(ast.type, spelled).toBe('tf')
+      expect(ast.value, spelled).toBe('W')
+    }
+  })
+
+  it('⛔ but a LOCAL binding that shadows `tickerid` is another symbol, and refuses', () => {
+    // The control on the spellings above: recognising the built-in must not
+    // become “any variable called tickerid is this chart”. Here it is bound to a
+    // literal, which is a DIFFERENT instrument — `sym`'s job, and `sym` is not built.
+    const out = translatePine(src(
+      `tickerid = 'SPY'
+plot(security(tickerid, 'W', close))`))
+    expect(out.refusal).toBeTruthy()
+    expect(out.refusal.guard).toBe('pine:request')
   })
 })
