@@ -608,7 +608,17 @@ def _universe_for(spec: Any, user_id: Any) -> tuple[list[str], dict]:
     # rarely fires.
     screen_spec = dict(screen.get("spec") or {})
     screen_spec.update({"page": 1, "page_size": MAX_SYMBOLS})
-    result = scr_query.run_scan(screen_spec) or {}
+    # ⛔ FIX ROUND 1 MINOR (reviewed 2026-08-26) — `run_scan` can REFUSE a
+    # screen's own stored spec (an unknown sort key, or — since X27's fix
+    # round 1 — a filter/rank/sort/columns naming a column declared but not
+    # yet live on this pod) with a `ValueError`, exactly like the live
+    # `POST /api/scan` endpoint does. Every OTHER validation failure in this
+    # function is a deliberate `HTTPException(400, ...)`; this was the one
+    # call left to fall through as an unhandled 500.
+    try:
+        result = scr_query.run_scan(screen_spec) or {}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     rows = result.get("rows") or []
     syms = sorted({str(r.get("ticker")).strip().upper() for r in rows
                    if isinstance(r, dict) and r.get("ticker")})

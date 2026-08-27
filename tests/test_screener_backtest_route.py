@@ -28,7 +28,7 @@ import threading
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
@@ -599,3 +599,43 @@ def test_a_tree_the_TABLE_refuses_is_refused_at_the_door_not_per_symbol(monkeypa
     bogus = OP(">", CALL("no_such_function", SER("close"), NUM(3)), NUM(0))
     r = client.post("/api/screener/backtest", json={"ast": bogus, **WINDOW})
     assert r.status_code == 400, r.text[:300]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FIX ROUND 1 MINOR (query.py reviewed 2026-08-26) — `_universe_for`'s
+# saved-screen branch calls `scr_query.run_scan(screen_spec)` with NO
+# `except ValueError`, unlike every OTHER validation failure in this same
+# function (a bad `universe` value, an unknown saved-screen id, an empty
+# universe), all of which are deliberate `HTTPException(400, ...)`.
+# `run_scan` raises `ValueError` for a filter/sort/rank/columns request that
+# names an unknown or not-yet-live column (`unknown sort key: ...` predates
+# this fix entirely; X27's `_readiness_refusal` widened WHEN it fires, not
+# WHETHER `run_scan` can raise) — so a saved screen carrying one 500s here
+# where `POST /api/scan` gives the member a 400 naming the problem.
+# ═══════════════════════════════════════════════════════════════════════════
+def test_a_saved_screen_that_run_scan_refuses_gives_400_not_an_unhandled_500(monkeypatch):
+    """`run_scan` raising ValueError is not X27-specific — `unknown sort key`
+    is a pre-existing refusal reachable through a saved screen's own stored
+    spec, which a member does not directly control (it was saved before, or
+    is a screen shared with them). Uses a throwaway on-disk screener.db (never
+    ``C:\\data``) so `run_scan` reaches the real sort-key check rather than
+    failing to even open a connection."""
+    monkeypatch.setenv("SCREENER_DB_PATH", str(_tmp_screener_db(monkeypatch)))
+    from api.routers import screener_backtest as bt
+    from api.services.screener import saved_screens as scr_saved
+
+    monkeypatch.setattr(scr_saved, "get", lambda sid, uid: {
+        "id": sid, "name": "poisoned",
+        "spec": {"sort": {"key": "__no_such_column_at_all__"}},
+    })
+    with pytest.raises(HTTPException) as exc:
+        bt._universe_for("42", "user1")
+    assert exc.value.status_code == 400, (exc.value.status_code, exc.value.detail)
+    assert "__no_such_column_at_all__" in exc.value.detail
+
+
+def _tmp_screener_db(monkeypatch):
+    import tempfile
+    import pathlib
+    d = pathlib.Path(tempfile.mkdtemp(prefix="uct_screener_backtest_route_"))
+    return d / "screener.db"
