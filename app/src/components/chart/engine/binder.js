@@ -552,6 +552,10 @@ export function createBinder({ chart, LWC }) {
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
     for (const b of bind) {
+      // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
+      // the scan and the alert seam through `computeFor`; the chart gets no
+      // series. A series this binding was carrying goes back to the renderer.
+      if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale } = placement.value
