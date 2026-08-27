@@ -520,6 +520,35 @@ export class BuilderBoundary extends Component {
 // effect — landed after paint: a member opening their own work was shown the
 // firm's starter gallery first. The New-scan door had exactly this defect and
 // exactly this fix; the edit door simply was not asked the same question.
+/** The data plots of a stored document, in document order.
+ *
+ *  ⛔ GUIDES ARE NOT ROWS. An `hlines` plot carries levels, not editable text,
+ *  so it has no box and no source. Lifted out of `openForEdit` rather than
+ *  copied beside it: two filters that agree today are the second-authority
+ *  defect this repo keeps paying for. */
+export function dataPlotDefs(def) {
+  const plots = Array.isArray(def && def.plots) ? def.plots : []
+  return plots.filter((p) => p && typeof p.key === 'string' && p.style !== 'hlines')
+}
+
+/** The STORED text for one data plot, or `null` when the document has none.
+ *
+ *  ⛔⛔ `compute.source` IS THE SCAN TREE'S TEXT, NOT PLOT 1'S. The document's
+ *  own construction site says it in as many words — *"an ALIAS, not the first
+ *  plot's source"* — so on a multi-plot document whose scan is not plot 1,
+ *  `compute.source` and the plot-1 box are TWO DIFFERENT PLOTS. Anything asking
+ *  "has this box changed?" must ask per plot, keyed, and only fall back to the
+ *  alias for a single-tree document that carries no `sources` map.
+ *
+ *  ⭐ AND THIS IS THE FUNCTION THE RESTORE FILLS THE BOXES WITH, so "the box has
+ *  moved on" is answered by the same authority that decided what was in it. */
+export function storedSourceFor(compute, key, i) {
+  const c = compute || {}
+  const stored = c.sources && c.sources[key]
+  if (typeof stored === 'string' && stored.trim() !== '') return stored
+  return (i === 0 && !c.sources && typeof c.source === 'string') ? c.source : null
+}
+
 const DEFAULT_MODE = 'library'
 /** ⛔ AN EDIT OPENS ON THE FORMULA. A member editing their OWN definition has no
  *  use for a gallery of starters above it, and leaving one there invites a click
@@ -544,11 +573,31 @@ const openingMode = (editRow, initialMode) => (
  * same defect as a spinner saying "Replaying…" when nothing was requested, and
  * it is the one this lane keeps finding: a correct value under a false sentence.
  */
-function EvidenceBody({ editing, rows, source }) {
+function EvidenceBody({ editing, rows, source, plotRows }) {
   const row = (Array.isArray(rows) ? rows : []).find((r) => r.def_id === editing.defId)
-  const compute = (row && row.definition && row.definition.compute) || {}
-  const stored = typeof compute.source === 'string' ? compute.source : null
-  const drifted = stored !== null && stored !== source
+  const def = (row && row.definition) || {}
+  const compute = def.compute || {}
+  // ⛔⛔ PER PLOT, KEYED — AND FIX ROUND 1 IS WHY. The first version of this
+  // compared `compute.source` against the plot-1 box. On a multi-plot document
+  // whose scan is not plot 1 those are TWO DIFFERENT PLOTS, so the note fired on
+  // a document nobody had touched — telling the member "which you have changed
+  // since" about an untouched formula — while an edit to plot 2 produced no note
+  // at all. A guard against a misleading surface that was itself misleading, in
+  // both directions.
+  //
+  // ⛔ THE COMPARISON IS AGAINST WHAT THE RESTORE PUT IN EACH BOX, via the same
+  // `storedSourceFor` it fills them with. Plot 1's live text is the `source`
+  // state (the box); every later row carries its own.
+  const keys = dataPlotDefs(def).map((p) => p.key)
+  const live = [source, ...(Array.isArray(plotRows) ? plotRows : []).map((r) => r.source)]
+  const drifted = keys.length > 0 && (
+    // a row added or removed is a changed document too
+    keys.length !== live.length
+    || keys.some((key, i) => {
+      const was = storedSourceFor(compute, key, i)
+      return typeof was === 'string' && was !== live[i]
+    })
+  )
   return (
     <>
       {drifted && (
@@ -920,22 +969,22 @@ export default function BuilderSheet({
     // was in the box a moment ago — and it is why a saved formula naming
     // `period` used to reopen with `period` undeclared and refused on sight.
     const scope = declaredInputs(def)
+    // ⚠️ `defPlots` STAYS — the guide row below is its second consumer, and
+    // fix round 1 deleted this line without enumerating them. Only the DATA
+    // filter moved out, because that is the half `EvidenceBody` also needs.
     const defPlots = Array.isArray(def?.plots) ? def.plots : []
-    const dataDefs = defPlots.filter((p) => p && typeof p.key === 'string' && p.style !== 'hlines')
+    const dataDefs = dataPlotDefs(def)
     const guide = defPlots.find((p) => p && p.style === 'hlines' && Array.isArray(p.levels))
     const inputsByKey = new Map(
       (Array.isArray(def?.inputs) ? def.inputs : []).map((spec) => [spec?.key, spec]),
     )
     const metaShort = chipName(String(def?.meta?.name || ''))
-    const sourceFor = (key, i) => {
-      const stored = compute.sources && compute.sources[key]
-      if (typeof stored === 'string' && stored.trim() !== '') return stored
-      // A single-tree document carries no `sources` map, and `compute.source` IS
-      // its one plot's text. Anything else has a row with nothing to edit.
-      return (i === 0 && !compute.sources) ? src : null
-    }
+    // A single-tree document carries no `sources` map and `compute.source` IS its
+    // one plot's text; anything else has a row with nothing to edit. That rule
+    // now lives in `storedSourceFor` so the Evidence panel can ask the same
+    // question this restore answers.
     const restored = dataDefs.map((p, i) => {
-      const rowSrc = sourceFor(p.key, i)
+      const rowSrc = storedSourceFor(compute, p.key, i)
       if (rowSrc === null) return null
       const keys = chromeInputKeys(p, i)
       const colorSpec = inputsByKey.get(keys.color)
@@ -1606,7 +1655,7 @@ export default function BuilderSheet({
           )}
 
           {buildMode === 'evidence' && editing && (
-            <EvidenceBody editing={editing} rows={rows} source={source} />
+            <EvidenceBody editing={editing} rows={rows} source={source} plotRows={plotRows} />
           )}
 
           <FormulaField

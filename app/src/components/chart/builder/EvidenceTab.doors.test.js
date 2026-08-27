@@ -39,7 +39,12 @@ export function importsOf(file) {
   ;(function walk(node) {
     if (!node || typeof node.type !== 'string') return
     if (node.type === 'ImportDeclaration') out.push(node.source.value)
-    // a door may arrive lazily; a dynamic import is still an edge
+    // A door may arrive lazily, so a dynamic `import()` counts — but ONLY when its
+    // specifier is a `Literal`. ⚠️ A template-literal or computed specifier is
+    // INVISIBLE to this walk, by construction and on purpose: resolving one needs
+    // evaluation, and a rail that guessed would be worse than one with a stated
+    // blind spot. The same blindness is X10's trap one lane over, so it is named
+    // here rather than implied by the code.
     if (node.type === 'ImportExpression' && node.source && node.source.type === 'Literal') out.push(node.source.value)
     for (const k of Object.keys(node)) {
       const v = node[k]

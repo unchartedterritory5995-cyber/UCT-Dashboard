@@ -45,6 +45,34 @@ const HIT_RATE_MEANS = (
   + 'screen fired, never what happened next, so there is no return here and no '
   + 'baseline to put beside it')
 
+/** ⛔⛔ A TWO-PLOT DOCUMENT WHOSE SCAN IS NOT PLOT 1 — the shape fix round 1
+ *  exists for. `compute.source` is the SCAN tree's text (the document's own
+ *  construction site calls it "an ALIAS, not the first plot's source") while the
+ *  sheet's box holds PLOT 1's, so comparing those two compares different plots
+ *  and reports drift on a document nobody has touched.
+ *
+ *  ⭐ The single-plot fixture below could never have caught it: there the alias
+ *  and plot 1 are the same string by construction. */
+function storedTwoPlotRow({ p1 = 'sma(close, 20)', p2 = 'close > sma(close, 50)',
+  name = 'Two plots', version = 1, rev = 1 } = {}) {
+  const mk = (key, src) => {
+    const parsed = parseFormula(src)
+    if (!parsed.ok) throw new Error(`fixture formula does not parse: ${parsed.error}`)
+    const ev = evaluateFormula(src, BUILDER_INPUT_SCOPE)
+    return { key, label: '', source: src, ast: parsed.ast, mode: ev.verdict.mode,
+      readback: ev.readback, style: 'line', hidden: false }
+  }
+  const plots = [mk('value', p1), mk('p2', p2)]
+  const definition = buildDefinition({
+    defId: DEF_ID, name, version, rev,
+    source: p1, ast: plots[0].ast, mode: plots[0].mode, readback: plots[0].readback,
+    // the scan is PLOT 2 — which is what makes `compute.source` != the plot-1 box
+    plots, scanPlot: 'p2',
+  })
+  return { def_id: DEF_ID, version, rev, ast_hash: definition.compute.fn, definition,
+    repaint: definition.meta.repaint, created_at: 0 }
+}
+
 const H = vi.hoisted(() => ({ requests: [], rows: [] }))
 function stubFetch() {
   H.requests = []; H.rows = []
@@ -185,5 +213,55 @@ describe('BuilderSheet — Evidence for a definition whose box has moved on', ()
     await flush()
     expect(screen.queryByTestId('evidence-draft-differs')).toBeNull()
     expect(screen.getByTestId('evidence-tab')).toBeTruthy()
+  })
+
+  // ⛔⛔ FIX ROUND 1 — THE GUARD ITSELF SHIPPED A FALSE SENTENCE. On a two-plot
+  // document whose scan is plot 2, `compute.source` is plot 2's text and the box
+  // holds plot 1's, so the first version of this note fired with NOTHING edited
+  // and told the member "which you have changed since" about their own untouched
+  // formula. The mirror half was live too: editing plot 2 produced no note.
+  // Railed in BOTH directions, because a note that never fires and a note that
+  // always fires are the same defect wearing opposite signs.
+  it('⛔ an UNTOUCHED two-plot document (scan on plot 2) says nothing', async () => {
+    H.rows = [storedTwoPlotRow()]
+    mount(); await flush()
+    await clickEdit('Two plots')
+    // the fixture really is the trap: the alias and the plot-1 box disagree
+    expect(H.rows[0].definition.compute.source).toBe('close > sma(close, 50)')
+    expect(H.rows[0].definition.compute.sources.value).toBe('sma(close, 20)')
+    await act(async () => { fireEvent.click(tab(/evidence/i)) })
+    await flush()
+    expect(screen.queryByTestId('evidence-draft-differs')).toBeNull()
+  })
+
+  it('⛔ …and the same document DOES speak once plot 1 is edited', async () => {
+    H.rows = [storedTwoPlotRow()]
+    mount(); await flush()
+    await clickEdit('Two plots')
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'sma(close, 99)' } })
+    })
+    await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
+    await flush()
+    await act(async () => { fireEvent.click(tab(/evidence/i)) })
+    await flush()
+    expect(screen.getByTestId('evidence-draft-differs').textContent).toMatch(/saved version/i)
+  })
+
+  it('⛔ THE MIRROR HALF: editing plot 2 speaks too — it is not a plot-1-only note', async () => {
+    H.rows = [storedTwoPlotRow()]
+    mount(); await flush()
+    await clickEdit('Two plots')
+    // plot 2's box is the second Formula-shaped control on the sheet
+    const boxes = screen.getAllByLabelText(/^Formula/)
+    expect(boxes.length).toBeGreaterThanOrEqual(2)
+    await act(async () => {
+      fireEvent.change(boxes[1], { target: { value: 'close > sma(close, 111)' } })
+    })
+    await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
+    await flush()
+    await act(async () => { fireEvent.click(tab(/evidence/i)) })
+    await flush()
+    expect(screen.getByTestId('evidence-draft-differs').textContent).toMatch(/saved version/i)
   })
 })

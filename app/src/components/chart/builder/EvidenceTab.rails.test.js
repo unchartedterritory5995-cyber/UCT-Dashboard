@@ -281,6 +281,47 @@ describe('every state that exists to SAY something actually says it', () => {
   })
 })
 
+// ─── AND THE SENTENCES THE DOORS ADD ARE RAILED TOO ──────────────────
+//
+// ⚠️ THE DERIVATION ABOVE IS SCOPED TO ONE FILE, which W5a.7 fix round 1 found
+// the edge of: `evidence-draft-differs` is a `role="status"` evidence sentence
+// that lives in `BuilderSheet.jsx`, so nothing structural covered it — its words
+// were railed behaviourally and a SECOND sentence added beside it would have been
+// unguarded. The same walk is pointed at the door instead of widening the first
+// block, because the doors are named and finite (`EvidenceTab.doors.test.js`
+// derives and pins that) while `app/src` is not.
+const DOOR_FILES = [
+  path.join(import.meta.dirname, 'BuilderSheet.jsx'),
+  path.join(import.meta.dirname, '..', '..', 'screener', 'ScanResults.jsx'),
+]
+
+describe('every evidence sentence a DOOR adds also says something', () => {
+  const found = []
+  for (const file of DOOR_FILES) {
+    const src = fs.readFileSync(file, 'utf8')
+    const { literal, attrOf } = testidElements(src)
+    for (const [id, nodes] of literal.entries()) {
+      if (!id.startsWith('evidence-') && !id.startsWith('scan-evidence-')) continue
+      if (!nodes.some((node) => speaksAloud(node, attrOf))) continue
+      found.push([path.basename(file), id, nodes])
+    }
+  }
+
+  it('CONTROL: the doors really do add evidence sentences of their own', () => {
+    const ids = found.map(([, id]) => id).sort()
+    expect(ids, 'no door-owned evidence sentence found — this rail would pass on '
+      + 'anything, which is exactly how the first version missed one')
+      .toEqual(['evidence-draft-differs', 'scan-evidence-no-hash', 'scan-evidence-unsaved'])
+  })
+
+  it.each(found.map(([f, id]) => [`${f} :: ${id}`]))('%s renders prose', (label) => {
+    const hit = found.find(([f, id]) => `${f} :: ${id}` === label)
+    for (const node of hit[2]) {
+      expect(proseWithin(node), `${label} renders no prose`).toBeTruthy()
+    }
+  })
+})
+
 // A last guard on the file's own identity: the module lives where both doors
 // (W5a.6/W5a.7) will import it from.
 describe('EvidenceTab lives where its two doors will look for it', () => {

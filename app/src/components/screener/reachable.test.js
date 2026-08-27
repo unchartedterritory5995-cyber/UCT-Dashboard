@@ -423,8 +423,12 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   // `ImportExpression` disabled. As the repo grew that crossed vitest's 5s
   // default: both went red under full-suite load, then red in isolation. ⛔ A
   // rail that ALWAYS fails is as useless as one that CANNOT fail — nobody reads
-  // either, and this one is the standing guard on reachability. The assertions
-  // are untouched; only the budget is stated out loud.
+  // either, and this one is the standing guard on reachability. Only the budget
+  // is stated out loud.
+  // ⚠️ W5a.7 CORRECTION: "the assertions are untouched" stopped being true when
+  // the CoverageLine arm below was rewritten (see its own note). A sentence that
+  // says nothing moved, beside something that moved, is the defect this wave has
+  // found most often — so it is corrected here rather than left to age.
   // ⚠️ 60s, not 30: measured at 30.6s for the file under a full parallel suite
   // run on this box. The budget exists to absorb machine load, and the failure
   // this rail is FOR is a severed import edge, which takes microseconds.
@@ -432,9 +436,16 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // Wave 4 Task 7 re-points this anchor: the My-scans definition detail
     // (`SavedScreensPanel.jsx`, deleted this task) moved into
     // `pages/screener/ScreensManager.jsx`, which is the sole remaining
-    // importer of `ScanResults` — and, by Task 6's constraint, never imports
-    // `CoverageLine` directly, so the (b) assertion below still holds: cutting
-    // this one line orphans BOTH.
+    // importer of `ScanResults`.
+    //
+    // ⛔ W5a.7 CORRECTION — "cutting this one line orphans BOTH" IS NO LONGER
+    // TRUE, and the `toBe(true)` fifteen lines down now says so directly. That
+    // premise rested on ScreensManager never importing `CoverageLine` itself,
+    // which is still the case — but `CoverageLine` gained a SECOND door from a
+    // different subtree entirely (`BuilderSheet → EvidenceTab → CoverageLine`),
+    // which no constraint on ScreensManager could ever have prevented. Cutting
+    // this line orphans `ScanResults`; it takes `CoverageLine` with it only when
+    // the OTHER door is cut too, which is what the double cut below does.
     const manager = path.join(SRC, 'pages', 'screener', 'ScreensManager.jsx')
     const src = read(manager)
     const IMPORT = "import ScanResults from '../../components/screener/ScanResults'\n"
@@ -479,6 +490,12 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     const bothCut = reachableFrom(ROOTS, new Map([
       [manager, cut], [builder, bsrc.replace(EV_IMPORT, '')],
     ]))
+    // ⛔ NON-VACUITY FOR THIS ARM, on the same argument the single cut makes one
+    // line above its own assertions. Measured: `reachableFrom([])` returns a set
+    // of size 0, which satisfies BOTH `toBe(false)` checks below — so a walk that
+    // collapsed for any reason would read as a perfect result.
+    expect(bothCut.has(builder), 'the builder itself must stay reachable — otherwise '
+      + 'this double cut proves nothing about the two edges it cut').toBe(true)
     expect(bothCut.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
       'with BOTH doors cut CoverageLine must fall out — otherwise this walk is not '
       + 'propagating unreachability downstream at all and every assertion above is '
