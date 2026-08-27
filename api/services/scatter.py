@@ -140,10 +140,15 @@ def _cumfrac_now() -> float:
 
 def _fetch_regular_snapshot() -> dict:
     """The whole market as REGULAR-SESSION values (day.c price, day.v volume) — the
-    ext-hours last trade is deliberately ignored. Keyed by PROVIDER ticker."""
+    ext-hours last trade is deliberately ignored. Keyed by PROVIDER ticker.
+
+    Rides the SHARED hl-snapshot cache (`get_full_market_snapshot_hl_cached`) that the
+    Volume / NH-NL scanners already keep warm — so this never makes its own blocking
+    whole-market provider call on the request path (single-flight + last-good on error).
+    """
     try:
-        from api.services.massive import _get_client
-        raw = _get_client().get_full_market_snapshot_hl() or {}
+        from api.services.massive import get_full_market_snapshot_hl_cached
+        raw = get_full_market_snapshot_hl_cached(ttl=2.0) or {}
     except Exception:
         return {}
     out = {}
