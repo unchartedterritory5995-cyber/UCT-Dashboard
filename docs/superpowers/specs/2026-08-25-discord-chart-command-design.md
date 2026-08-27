@@ -1041,3 +1041,51 @@ that 7.3 s rather than pinning round numbers.
 touch of a stale symbol is a provider delta. The dashboard already owns
 prewarming; a second prewarmer in the chart path would be a second authority
 over "keep bars fresh".
+
+### v16 — instant, by rendering before anyone asks (2026-08-26, ~13:30 CT)
+
+Owner: *"we already have everything in the app, why can't we make it instant
+like the charts on the app?"*
+
+**Because the app never renders on demand.** Its chart is instant for three
+reasons that none of this pipeline can borrow: the SPA is already loaded in the
+member's browser, the bars are already in IndexedDB, and the chart draws
+progressively in front of them. Discord accepts only a finished image, so
+something must load a page, fetch, draw, wait for it to settle and screenshot —
+measured at ~2.4 s, of which the page load is only 0.4 s. There is no tuning
+that removes it.
+
+So the only route to instant is for the render to have already happened.
+
+**The hot set** (`discord_chart_hotset.py`): every chart request records its
+`(request, prefs)` under the same key the PNG cache uses, and a scheduler job
+every 2 minutes re-renders the ones that are both RECENT and past 70 % of their
+TTL. The popular names — the handful a 750-member server actually talks about —
+are then a cache hit rather than a render. Verified on the pod: an entry forced
+stale, the warm cycle re-rendered it in 3.7 s of its own time, and the next
+member's request returned in **0.0 s**.
+
+Bounded by construction: 24 keys, `limit=6` renders per cycle (~12 % of the
+renderer's duty), and a chart nobody has asked for in an hour stops being
+warmed. Hottest first, so real demand always outranks a stale entry. Kill
+switch `DISCORD_CHART_HOTWARM_ENABLED=0`; silent when the house renderer is
+unconfigured. The wiring is pinned by an AST rail over `main.py` — a warmer
+nobody runs is not a warmer.
+
+⛔ Deliberately NOT a second bars prewarmer. The dashboard owns keeping the bars
+store fresh universe-wide; this re-runs only charts members actually asked for.
+
+**Where it now stands**
+
+| | |
+|---|---|
+| a chart anyone asked for recently | **0.0 s** |
+| single chart, cold, bars warm | ~2.4 s |
+| 6 concurrent renders, bars warm | 4.8 s |
+| `/charts` × 4 cold | 18.6 s · repeat 0.03 s |
+
+**Still not instant:** the very first ask of a symbol nobody has requested in
+the last hour. Seeding the hot set with the day's roster (UCT20 + movers) would
+cover that, and the per-cycle limit already caps what it could cost — but it is
+a real trade (roster warms competing with live demand at peak) and belongs to
+the owner, not to a quiet default.

@@ -54,6 +54,7 @@ _MAX_BYTES = int(os.environ.get("DISCORD_CHART_CACHE_BYTES", str(96 * 1024 * 102
 _lock = threading.Lock()
 _entries: dict[str, tuple[float, bytes, str]] = {}      # key → (expires_at, png, filename)
 _used: dict[str, float] = {}                            # key → last touch (LRU order)
+_ttl_of: dict[str, int] = {}                            # key → the ttl it was stored with
 _inflight: dict[str, "threading.Event"] = {}
 _results: dict[str, object] = {}
 
@@ -78,6 +79,7 @@ def ttl_for(tf: str, now_et: _dt.datetime | None = None) -> int:
 def clear() -> None:
     with _lock:
         _used.clear()
+        _ttl_of.clear()
         _entries.clear()
         _inflight.clear()
         _results.clear()
@@ -89,16 +91,32 @@ def _evict_locked(now_v: float) -> None:
     for k in [k for k, (exp, _, _) in _entries.items() if exp <= now_v]:
         _entries.pop(k, None)
         _used.pop(k, None)
+        _ttl_of.pop(k, None)
     total = sum(len(png) for _, png, _ in _entries.values())
     if total <= _MAX_BYTES:
         return
     for k in sorted(_used, key=_used.get):                # oldest touch first
         entry = _entries.pop(k, None)
         _used.pop(k, None)
+        _ttl_of.pop(k, None)
         if entry:
             total -= len(entry[1])
         if total <= _MAX_BYTES:
             return
+
+
+def age_of(key: str, *, now: Callable[[], float] = time.monotonic) -> float | None:
+    """Seconds since this entry was stored, or None if it is not cached. Lets a
+    warmer decide what is going stale without knowing how the cache stores it."""
+    with _lock:
+        hit = _entries.get(key)
+        if not hit:
+            return None
+        expires, png, _ = hit
+        ttl = _ttl_of.get(key)
+        if ttl is None:
+            return 0.0
+        return max(0.0, ttl - (expires - now()))
 
 
 def cache_bytes() -> int:
@@ -125,6 +143,7 @@ def put(key: str, png: bytes, filename: str, *, ttl_s: int, now: Callable[[], fl
     with _lock:
         _entries[key] = (now() + ttl_s, png, filename)
         _used[key] = now()
+        _ttl_of[key] = int(ttl_s)
         _evict_locked(now())
 
 

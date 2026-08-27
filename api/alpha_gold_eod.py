@@ -58,6 +58,23 @@ _CHIP_E_FG = (240, 137, 125)
 _INDEX_HEDGE_TICKERS = {"SPY", "SPX", "SPXW", "QQQ", "QQQW", "IWM",
                         "NDX", "NDXP", "RUT", "RUTW", "DIA", "VIX", "VIXW"}
 
+# The Top Flow card is a directional-conviction board — a TWO-SIDED or
+# PRESUMPTION-SIDED accumulation must not headline it as a clean BULL/BEAR. A
+# by-contract accumulation is kept only if BOTH hold (else it's dropped, not
+# force-typed by option kind via _dir()'s CP fallback):
+#   • at least _MIN_CLEAN_SIDE_FRAC of its prints had a CLEAN NBBO side — below
+#     that, the direction is mostly the blank-sweep→ask presumption (the SMR $11P
+#     10/16/26 false-bear on 2026-08-25: 5 clean sides of ×12 prints = 42%), and
+#   • the winning side holds at least _MIXED_CONSISTENCY_MIN of the SIDED premium
+#     (a ~50/50 fight is not a directional signal).
+# The dominant side by sided premium then labels the row.
+_MIN_CLEAN_SIDE_FRAC = float(os.getenv("ALPHA_GOLD_EOD_MIN_CLEAN_SIDE_FRAC", "0.5"))
+_MIXED_CONSISTENCY_MIN = float(os.getenv("ALPHA_GOLD_EOD_MIXED_CONSISTENCY_MIN", "0.67"))
+# A Neutral (two-sided / presumption-driven) accumulation is OFF the card by default —
+# it is not a directional signal (SMR $11P 10/16/26, 2026-08-25). Set to "1" to keep it
+# on as a dim "◆ 2-SIDED" row instead (still excluded from the net bull/bear bar).
+_SHOW_NEUTRAL = os.getenv("ALPHA_GOLD_EOD_SHOW_NEUTRAL", "0") == "1"
+
 
 def _webhook() -> str:
     return (os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
@@ -96,6 +113,10 @@ def _get_bcontract_accumulations(day: str, min_score: float = 4.5) -> list[dict]
     for c in (res or {}).get("contracts") or []:
         if (c.get("accumulation_score") or 0) < min_score:
             continue
+        direction = _card_direction(c)
+        if direction == "Neutral" and not _SHOW_NEUTRAL:
+            continue          # off the card by default (SMR $11P); SHOW_NEUTRAL keeps
+                              # it as a dim "◆ 2-SIDED" row, still out of the net bar
         vol = c.get("total_volume") or 0
         prem = c.get("total_premium") or 0
         avg = (prem / (vol * 100.0)) if vol > 0 else None
@@ -104,11 +125,47 @@ def _get_bcontract_accumulations(day: str, min_score: float = 4.5) -> list[dict]
             "exp": c.get("exp"), "dte": c.get("dte"), "spot": c.get("spot"),
             "source": c.get("source"),
             "alertPremium": prem, "averageFillPrice": avg,
-            "_direction": c.get("direction"),
+            "_direction": direction,
             "moneynessLabel": c.get("moneynessLabel"), "moneynessPct": c.get("moneynessPct"),
             "_accum": True, "_accScore": c.get("accumulation_score"),
         })
     return out
+
+
+def _card_direction(c: dict) -> str:
+    """Resolve a by-contract accumulation to how the Top Flow card should label it:
+    "Bull" | "Bear" | "Neutral".
+
+    The card is a directional-conviction board, so a name whose direction we can't
+    honestly read must NOT be shown as a clean BULL/BEAR — it is tagged "Neutral"
+    (rendered "◆ 2-SIDED", excluded from the net bar, and off the card entirely unless
+    ALPHA_GOLD_EOD_SHOW_NEUTRAL=1). A contract is Neutral two ways, both on SMR $11P
+    10/16/26 (2026-08-25): (1) most prints had NO clean NBBO side, so the aggregate
+    direction is really the blank-sweep→ask PRESUMPTION — which reads a put bearish even
+    when the tape was bid-side put SELLING (bullish); or (2) its sided premium is split
+    near 50/50. Otherwise return the DOMINANT side by sided premium — never _dir()'s CP
+    fallback, which force-types a mixed put to bear / a mixed call to bull.
+
+    We deliberately do NOT flip SMR to "Bull": our own feed can't confirm the bid-side
+    selling (its big prints blanked → presumed ask → $0.73M "bear" vs $0.01M bull), so
+    asserting bullish would overreach the data. Neutral is the honest floor; a real
+    bullish read needs the open/close + true-NBBO side work on the roadmap."""
+    sides = c.get("sides") or {}
+    clean = (sides.get("A", 0) + sides.get("AA", 0)
+             + sides.get("B", 0) + sides.get("BB", 0))
+    n = clean + sides.get("none", 0)
+    # (1) clean-side coverage — direction must be a READ, not a presumption.
+    if n > 0 and (clean / n) < _MIN_CLEAN_SIDE_FRAC:
+        return "Neutral"
+    bull_p = c.get("bull_premium") or 0
+    bear_p = c.get("bear_premium") or 0
+    sided = bull_p + bear_p
+    if sided <= 0 or bull_p == bear_p:
+        return "Neutral"                      # nothing cleanly sided / dead heat
+    # (2) two-sidedness — the winning side must clear the consistency bar.
+    if max(bull_p, bear_p) / sided < _MIXED_CONSISTENCY_MIN:
+        return "Neutral"
+    return "Bull" if bull_p > bear_p else "Bear"
 
 
 def _merge_accum(alerts: list[dict], accum: list[dict]) -> list[dict]:
@@ -280,6 +337,8 @@ def _dir(a: dict) -> str:
         return "bull"
     if d.startswith("bear"):
         return "bear"
+    if d.startswith(("neutral", "mixed", "unclear")):
+        return "neutral"                      # explicit non-directional — no CP fallback
     cp = (a.get("cp") or "").upper()
     return "bull" if cp == "C" else "bear" if cp == "P" else ""
 
@@ -295,9 +354,10 @@ def _date_text(day_mdyyyy: str) -> str:
 def _counts(alerts: list[dict]) -> dict:
     bull = [a for a in alerts if _dir(a) == "bull"]
     bear = [a for a in alerts if _dir(a) == "bear"]
+    neut = [a for a in alerts if _dir(a) == "neutral"]
     bp = sum((a.get("alertPremium") or 0) for a in bull) / 1e6
     rp = sum((a.get("alertPremium") or 0) for a in bear) / 1e6
-    return {"n": len(alerts), "nb": len(bull), "nr": len(bear),
+    return {"n": len(alerts), "nb": len(bull), "nr": len(bear), "nn": len(neut),
             "total": bp + rp, "net": bp - rp, "bull_prem": bp, "bear_prem": rp}
 
 
@@ -458,8 +518,10 @@ def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = Non
         for i, a in enumerate(rows):
             if i % 2 == 1:
                 d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
-            is_bull = _dir(a) == "bull"
-            dcol = _BULL if is_bull else _BEAR
+            _dr = _dir(a)
+            is_bull = _dr == "bull"
+            is_neutral = _dr == "neutral"
+            dcol = _DIM if is_neutral else (_BULL if is_bull else _BEAR)
             cp = (a.get("cp") or "").upper()
             strike = a.get("strike")
             for key, hdr, x, al in _COLS:
@@ -479,8 +541,11 @@ def render_card(alerts: list[dict], date_text: str, net_stats: dict | None = Non
                 elif key == "prem":
                     txt(x, y, _fmt_prem(a.get("alertPremium")), f_rowb, _GOLD, "r")
                 elif key == "dir":
-                    txt(x, y, f"{'▲' if is_bull else '▼'} {'BULL' if is_bull else 'BEAR'}",
-                        f_rowb, dcol)
+                    if is_neutral:
+                        txt(x, y, "◆ 2-SIDED", f_rowb, dcol)
+                    else:
+                        txt(x, y, f"{'▲' if is_bull else '▼'} {'BULL' if is_bull else 'BEAR'}",
+                            f_rowb, dcol)
             y += _ROWH
         y += 6
 
@@ -500,8 +565,9 @@ def _summary_line(alerts: list[dict], date_text: str) -> str:
     c = _counts(alerts)
     ns = sum(1 for a in alerts if not _is_etf(a))
     ne = c["n"] - ns
+    neut = f" / {c['nn']}◆" if c.get("nn") else ""
     return (f"🎯 **UCT Intelligence · Top Flow — {date_text}**  ·  {c['n']} prints  ·  "
-            f"${c['total']:.1f}M  ·  {c['nb']}▲ / {c['nr']}▼  ·  {ns} stocks / {ne} ETFs")
+            f"${c['total']:.1f}M  ·  {c['nb']}▲ / {c['nr']}▼{neut}  ·  {ns} stocks / {ne} ETFs")
 
 
 def _post_discord_image(webhook: str, png: bytes, content: str,

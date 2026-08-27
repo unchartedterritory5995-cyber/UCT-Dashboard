@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from api.services import discord_chart_cache as png_cache
+from api.services import discord_chart_hotset as hotset
 from api.services import discord_chart_prefs as prefs_mod
 from api.services.discord_chart_render import (STATS_DAILY_BARS, TF_LABEL, WINDOW,
                                                bars_to_request, compute_stats, to_datetime)
@@ -1022,6 +1023,101 @@ def message_attachment_ids(interaction: dict) -> list:
     return [a["id"] for a in (msg.get("attachments") or []) if isinstance(a, dict) and a.get("id")]
 
 
+ROSTER_MAX = int(os.environ.get("DISCORD_CHART_ROSTER_MAX", "10"))
+
+
+def seed_roster(symbols, tf: str = "D") -> int:
+    """Put the day's names in the hot set before anyone asks for them, so the
+    FIRST member to type NVDA gets a cache hit like everyone after them.
+
+    Seeded with zero hits: a chart a member actually asked for always outranks
+    the roster for the warm cycle's limited slots, and the roster is what gets
+    evicted when the set fills up. Bounded by ROSTER_MAX."""
+    n = 0
+    prefs = dict(prefs_mod.DEFAULTS)
+    for sym in list(symbols)[:ROSTER_MAX]:
+        sym = str(sym or "").upper().strip()
+        if not _TICKER_RE.match(sym):
+            continue
+        req = ChartRequest(ticker=sym, tf=tf)
+        key = f"{sym}:{tf}:{prefs_mod.style_signature(prefs)}"
+        if hotset.seed(key, req, prefs, png_cache.ttl_for(tf)):
+            n += 1
+    return n
+
+
+def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6) -> list:
+    """Re-render the charts members keep asking for, just before their cache
+    entry goes stale, so the next member gets a hit instead of a 2.4 s render.
+
+    Runs on a scheduler, off every request path. Never raises: a warm that fails
+    just means the next asker pays what they pay today. Returns the keys warmed
+    (for the log and the tests)."""
+    warmed = []
+    for key, req, prefs in hotset.due(png_cache.age_of, limit=limit):
+        try:
+            options = prefs_mod.render_options(prefs, req.tf)
+            if req.to:
+                options["to"] = req.to
+            compare = tuple(req.compare) if (req.compare and not req.breadth_name) else ()
+            if req.breadth_name:
+                options["breadth"] = req.breadth_name
+            result = png_cache.single_flight(
+                key, lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn,
+                                           render_fn=render_fn, house_fn=house_fn, quote_fn=quote_fn,
+                                           slot_wait=MULTI_SLOT_WAIT_S),
+                ttl_s=png_cache.ttl_for(req.tf),
+                cache_value=lambda r: (r[1], r[2]) if r and r[0] == "ok" else None)
+            if result and result[0] == "ok":
+                warmed.append(key)
+        except Exception as e:  # noqa: BLE001
+            log.warning("[discord-chart] hot warm failed %s: %s", key, e)
+    if warmed:
+        log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
+    return warmed
+
+
+def fast_first_enabled() -> bool:
+    """Post a plain chart in ~0.3 s, then upgrade it to the house image.
+
+    The house render is ~2.2 s of a shared Chromium and no tuning removes it
+    (measured: 0.4 s page load, 0.5 s draw, 0.8 s stability, 0.3 s settle). The
+    mplfinance renderer draws the same bars in 0.18-0.5 s with no browser at
+    all. So on a cache MISS the member gets that immediately and the house image
+    edits over it when it is ready - nobody waits, and the fast chart becomes a
+    FLOOR: if the house render is busy or fails, the member still has a chart
+    rather than an apology."""
+    return os.environ.get("DISCORD_CHART_FAST_FIRST", "1").strip().lower() not in ("0", "false", "off", "")
+
+
+def send_fast_preview(app_id: str, token: str, req: ChartRequest, prefs: dict, *,
+                      bars_fn, render_fn, edit_fn, content: str, extra: dict) -> bool:
+    """The ~0.3 s chart, posted while the house render runs. Never raises: a
+    preview that fails costs nothing but the wait it was meant to remove."""
+    try:
+        with bars_warm_gate():
+            bars = bars_fn(req.ticker, req.tf, bars_to_request(req.tf)) or None
+        if not bars:
+            return False          # no bars is the job's own reply to make, not a blank preview
+        daily = bars
+        if req.tf != "D":
+            with bars_warm_gate():
+                daily = bars_fn(req.ticker, "D", STATS_DAILY_BARS) or None
+        kw = {"daily_bars": daily}
+        if prefs.get("mas") == "off":
+            kw["show_mas"] = False
+        if prefs.get("volume") is False:
+            kw["show_volume"] = False
+        png = render_fn(req.ticker, req.tf, bars, **kw)
+        if not png:
+            return False
+        return bool(edit_fn(app_id, token, content=content, png=png,
+                            filename=attachment_name(req.ticker, req.tf, bars[-1]["t"]), **extra))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[discord-chart] fast preview failed %s: %s", req.ticker, e)
+        return False
+
+
 def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render_fn, edit_fn,
                   house_fn=None, prefs=None, quote_fn=None, components_fn=None, context_fn=None) -> str:
     """Background job: cache → bars → PNG → edit the reply. Returns an outcome
@@ -1044,6 +1140,7 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
            + (":vs:" + "+".join(compare) if compare else ""))
     # Buttons only when the caller wants them (the slash command and button
     # clicks do; older callers and tests keep the plain edit).
+    hotset.record(key, req, prefs, png_cache.ttl_for(req.tf))
     extra = {"components": components_fn(req, prefs)} if components_fn is not None else {}
     headline = (req.display or req.ticker) + (f" vs {'/'.join(compare)}" if compare else "") + f" · {label}"
 
@@ -1088,6 +1185,13 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
             _context_follow_up(sent)
             return "ok"
 
+        # Nothing cached, so the member is about to wait ~2.2 s for the house
+        # render. Give them the fast chart now; the house image edits over it.
+        previewed = False
+        if house_fn is not None and fast_first_enabled():
+            previewed = send_fast_preview(app_id, token, req, prefs, bars_fn=bars_fn, render_fn=render_fn,
+                                          edit_fn=edit_fn, content=headline, extra=extra)
+
         produce = lambda: produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,  # noqa: E731
                                         house_fn=house_fn, quote_fn=quote_fn)
         result = png_cache.single_flight(
@@ -1097,6 +1201,13 @@ def run_chart_job(app_id: str, token: str, req: ChartRequest, *, bars_fn, render
         if outcome == "ok":
             sent = edit_fn(app_id, token, content=headline, png=result[1], filename=result[2], **extra)
             _context_follow_up(sent)
+        elif previewed and outcome in ("busy", "render_failed"):
+            # The member already HAS a chart. Replacing it with an apology would
+            # be a downgrade, so the preview is the answer.
+            log.info("[discord-chart] %s %s: house render %s, keeping the fast chart",
+                     req.ticker, req.tf, outcome)
+            _context_follow_up(None)
+            return "ok"
         elif outcome == "busy":
             edit_fn(app_id, token, content="Busy, try again in a few seconds.")
         elif outcome == "no_bars":
