@@ -145,6 +145,23 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   return opts
 }
 
+// App themes and chart themes are separate registries but share most ids; a few
+// differ. This maps the current APP theme → the chart theme that matches it, so a
+// NEW widget (crucially the chart, which otherwise ignores the app theme) adopts
+// the app theme's look by default. Returns a valid chart-theme id or null.
+const _APP_TO_CHART_THEME = {
+  forest: 'deep-forest', navy: 'midnight-navy', softblue: 'soft-blue', coolgray: 'cool-gray',
+}
+function appThemeToChartTheme(appTheme) {
+  if (!appTheme) return null
+  if (appTheme === 'dark' || appTheme === 'default') return 'graphite'   // Basics default
+  if (appTheme === 'oled') return 'obsidian'
+  if (appTheme === 'light') return 'light'
+  const raw = String(appTheme).replace(/^uct:/, '')
+  const id = _APP_TO_CHART_THEME[raw] || raw
+  return CHART_THEME_BY_ID[id] ? id : null
+}
+
 // ── THE FROZEN CAPTURE MUST NOT FREEZE AN ENGINE KEY ────────────────────────
 //
 // `UCT_DEFAULT_CHART_SETTINGS_JSON` was captured from the owner's live workspace
@@ -1376,11 +1393,20 @@ export default function ChartsWorkspace() {
       if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
         newOpts.settings = chartDefaultsForTheme('light')
       }
+      // Theme a new widget: an explicit "All widgets/All charts" theme wins. Non-
+      // chart widgets otherwise follow the app theme via token inheritance (no bake).
+      // The CHART is the exception — it ignores the app theme and paints from its own
+      // settings — so seed it with the chart theme that MATCHES the current app theme.
+      let storedTheme = newWidgetThemeRef.current
+      if (!storedTheme && type === 'chart') {
+        const cid = appThemeToChartTheme(themeRef.current)
+        if (cid) storedTheme = { id: cid, scope: 'widgets' }
+      }
       const newWidget = {
         id: newId,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: themeNewWidgetOpts(type, newOpts, newWidgetThemeRef.current, mergeChartSettings(prefs.chart_settings)),
+        opts: themeNewWidgetOpts(type, newOpts, storedTheme, mergeChartSettings(prefs.chart_settings)),
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
