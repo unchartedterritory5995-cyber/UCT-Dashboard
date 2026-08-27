@@ -1505,6 +1505,12 @@ class Resolver {
    *  member would see. */
   resolveBinding(bound, tok, name) {
     if (!bound) {
+      // ⭐ Same question as the other refusal site: a name the closed table holds
+      // is not a name the member failed to define.
+      const clockKey = engineClockKeyFor(name)
+      if (clockKey) {
+        throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(tok))
+      }
       throw new PineRefusal('pine:undefined',
         `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
     }
@@ -2089,6 +2095,14 @@ class Resolver {
     // gets THEIR `tr`, not ours. Shadowing a built-in is legal Pine and the
     // script is the authority on its own names.
     if (own(BUILTIN_SERIES_TREE, name)) return BUILTIN_SERIES_TREE[name]()
+    // ⭐ ASK THE MANIFEST BEFORE EITHER HAND-TYPED ANSWER. A name the closed
+    // table holds must not be told "the engine grammar does not hold" (false),
+    // and must never be told "your script never defined this" (blames the member
+    // for a column we compute).
+    const clockKey = engineClockKeyFor(name)
+    if (clockKey) {
+      throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(node.tok))
+    }
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -2454,6 +2468,45 @@ function signatureOf(key, spec) {
 /** Pine built-in VARIABLES that name something with no column here. Used only to
  *  tell "a Pine name we know and cannot hold" apart from "a name your script
  *  never defined" — two different sentences for two different mistakes. */
+/** The closed table's `clock` key for a Pine name, or `null`.
+ *
+ *  ⭐⭐ DERIVED FROM `TABLE.clock`, NEVER TYPED. This exists because the set
+ *  below is hand-typed and the manifest moved under it: `tableVersion` 2 added a
+ *  `clock` section, and this door kept answering as though those columns did not
+ *  exist. Measured 2026-08-27, before this helper:
+ *
+ *    plot(time)                      -> pine:builtin   "the engine grammar does not hold"
+ *    plot(year) / plot(hour)         -> pine:builtin   (same)
+ *    plot(bar_index)                 -> pine:builtin   (same)
+ *    plot(timeframe.isintraday ...)  -> pine:builtin   (same)
+ *    plot(dayofweek)                 -> pine:undefined "your script never defined this"
+ *    plot(ta.ema(close, 20))         -> OK             (control: the door works)
+ *
+ *  ⛔ The engine HOLDS every one of those columns. The first five said we cannot;
+ *  `dayofweek` said the MEMBER made a mistake. This module's own comment says the
+ *  set exists "to tell 'a Pine name we know and cannot hold' apart from 'a name
+ *  your script never defined' -- two different sentences for two different
+ *  mistakes" -- and it was giving the wrong one of its own two sentences.
+ *
+ *  ⚠️ THIS DOES NOT TRANSLATE ANYTHING. Binding a Pine clock name to the closed
+ *  table's clock leaf is W3b's, deliberately. What changes here is only WHICH
+ *  SENTENCE a member reads, and whether it names what would unblock it.
+ */
+const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
+
+function engineClockKeyFor(name) {
+  const clock = (TABLE && TABLE.clock) || {}
+  const key = own(PINE_TO_CLOCK_SPELLING, name) ? PINE_TO_CLOCK_SPELLING[name] : name
+  return typeof key === 'string' && !key.startsWith('_') && own(clock, key) ? key : null
+}
+
+const clockNotWired = (name, key) =>
+  `\`${name}\`: this engine HOLDS that column -- the closed table declares ` +
+  `\`${key}\` in its clock section -- but this Pine door has not learned the ` +
+  `clock leaf, so it cannot bind the name to it. TO UNBLOCK: teach this door to ` +
+  `resolve a clock name the way it already resolves a series name; nothing new ` +
+  `has to be measured or documented first.`
+
 const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
   'bar_index', 'time', 'time_close', 'time_tradingday', 'timenow',
   'year', 'month', 'weekofyear', 'dayofmonth', 'hour', 'minute', 'second',

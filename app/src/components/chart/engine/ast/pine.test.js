@@ -576,9 +576,14 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a colour value',
       '//@version=5\nindicator("t")\nplot(#FF0000)\n',
       'pine:colour-value', 3, 6, '#FF0000'],
-    ['a bar-index built-in',
-      '//@version=5\nindicator("t")\nplot(bar_index)\n',
-      'pine:builtin', 3, 6, 'bar_index'],
+    // ⚰️ WAS `bar_index` UNTIL 2026-08-27, and the swap is the point. `bar_index`
+    // maps onto the closed table's `barindex`, so it now refuses with a sentence
+    // saying the engine HOLDS that column — the generic reason no longer applies
+    // to it. `timenow` is a built-in this engine genuinely does NOT hold, so the
+    // generic sentence keeps a case that exercises it.
+    ['a built-in this engine genuinely does not hold',
+      '//@version=5\nindicator("t")\nplot(timenow)\n',
+      'pine:builtin', 3, 6, 'timenow'],
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],
@@ -614,6 +619,50 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
       '   \n',
       'pine:empty', null, null, null],
   ]
+
+  // ── the clock sentence: a name this engine HOLDS ───────────────────────────
+  //
+  // ⛔ THIS CANNOT LIVE IN THE TABLE ABOVE, because that loop asserts the message
+  // carries `REFUSALS[guard]` -- the GENERIC sentence -- and the whole point here
+  // is that a clock name gets a DIFFERENT one. Same guard, different sentence.
+  //
+  // ⭐ The three properties that matter, and each is asserted separately:
+  //   1. it is NOT `pine:undefined` -- the member did not make a mistake;
+  //   2. it says the engine HOLDS the column, and names the manifest key;
+  //   3. it names what would unblock it, so the refusal is countable.
+  // Derived from `TABLE.clock`, so a clock entry added tomorrow is covered the
+  // day it lands and a clock entry removed makes this fail rather than rot.
+  describe('a clock name refuses BY NAME and does not blame the member', () => {
+    const CLOCK = Object.keys(TABLE.clock || {}).filter((k) => !k.startsWith('_'))
+
+    it('the manifest actually declares a clock section — else this proves nothing', () => {
+      expect(CLOCK.length).toBeGreaterThan(5)
+      expect(CLOCK).toContain('dayofweek')
+    })
+
+    for (const spelling of ['dayofweek', 'time', 'year', 'bar_index']) {
+      it(`\`${spelling}\` → pine:builtin, naming the column this engine holds`, () => {
+        const r = refusalOf(`//@version=5\nindicator("t")\nplot(${spelling})\n`)
+        expect(r.guard, 'a column this engine holds is not an undefined name').toBe('pine:builtin')
+        expect(r.token).toBe(spelling)
+        expect(r.message).toContain('HOLDS that column')
+        expect(r.message).toContain('clock section')
+        expect(r.message, 'a refusal blocked on work must name what would unblock it')
+          .toContain('TO UNBLOCK')
+      })
+    }
+
+    it('a name the engine does NOT hold still gets the generic sentence', () => {
+      const r = refusalOf('//@version=5\nindicator("t")\nplot(timenow)\n')
+      expect(r.guard).toBe('pine:builtin')
+      expect(r.message).not.toContain('HOLDS that column')
+    })
+
+    it('a name nobody declares anywhere still blames nobody but the script', () => {
+      const r = refusalOf('//@version=5\nindicator("t")\nplot(zzNotARealName)\n')
+      expect(r.guard).toBe('pine:undefined')
+    })
+  })
 
   for (const [label, script, guard, line, column, token] of CASES) {
     it(`${label} → ${guard}`, () => {
