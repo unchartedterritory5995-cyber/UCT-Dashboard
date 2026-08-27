@@ -260,7 +260,7 @@ _INDEX_LABEL = {k: lbl for k, lbl, _c in _INDEX_SETS}
 
 _SCANNERS = [
     ("volume", "Volume Surge"), ("nhnl", "New Highs / Lows"),
-    ("movers", "Movers"), ("candidates", "Scanner Candidates"),
+    ("movers", "Movers"), ("catalysts", "Catalysts"), ("candidates", "Scanner Candidates"),
 ]
 _SCANNER_LABEL = dict(_SCANNERS)
 
@@ -373,6 +373,15 @@ def _scanner_syms(which: str) -> list:
         from api.services import massive
         mv = massive.get_movers() or {}
         return _syms_from(mv.get("ripping"), "sym") + _syms_from(mv.get("drilling"), "sym")
+    if which == "catalysts":
+        from api.services.catalyst import store as cat_store
+        from datetime import datetime
+        try:
+            from zoneinfo import ZoneInfo
+            md = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        except Exception:
+            md = datetime.utcnow().date().isoformat()
+        return _syms_from(cat_store.get_for_date(md, ranked_only=True), "ticker", "sym")
     if which == "candidates":
         from api.services import engine
         cand = engine.get_candidates() or {}

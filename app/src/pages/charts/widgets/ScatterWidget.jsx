@@ -58,6 +58,12 @@ function fmtVal(v, unit) {
     default: return String(v)
   }
 }
+function faint(hex, a) {
+  const m = /^#([0-9a-f]{6})/i.exec(hex || '')
+  if (!m) return `rgba(52,209,124,${a})`
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+}
 function fmtAxis(v, unit) {
   switch (unit) {
     case 'usd_big': case 'big': return abbrev(v)
@@ -118,7 +124,11 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
   ), document.body)
 }
 
-function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax }) {
+// Grid margins — the plot rect's insets. containLabel:false so WE own the left
+// gutter (the rotated Y-title lives there); the axis numbers render inside it.
+const GRID_M = { left: 54, right: 16, top: 14, bottom: 38 }
+
+function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode, upFaint, dnFaint }) {
   const data = plot.map(p => ({
     name: p.sym,
     value: [p.x, p.y, p.size == null ? 1 : p.size, p.sym],
@@ -130,15 +140,25 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax }) {
     ? (val) => { const t = (val[2] - sizeMin) / (sizeMax - sizeMin); return 7 + Math.sqrt(Math.max(0, t)) * 24 }
     : () => 7
   const axisText = { color: '#a9a9b2', fontSize: 10, fontFamily: CHART_FONT_FAMILY }
+  const signedX = xMeta.unit === 'pct', signedY = yMeta.unit === 'pct'
   const markData = []
-  if (xMeta.unit === 'pct') markData.push({ xAxis: 0 })
-  if (yMeta.unit === 'pct') markData.push({ yAxis: 0 })
+  if (signedX) markData.push({ xAxis: 0 })
+  if (signedY) markData.push({ yAxis: 0 })
+  // Quadrant tint: only when BOTH axes are signed around 0 — the "strong / weak"
+  // read. TR (both up) faint green, BL (both down) faint red, off-diagonals bare.
+  const quad = (signedX && signedY) ? {
+    silent: true, animation: false,
+    data: [
+      [{ coord: [0, 0], itemStyle: { color: upFaint } }, { coord: ['max', 'max'] }],
+      [{ coord: [0, 0], itemStyle: { color: dnFaint } }, { coord: ['min', 'min'] }],
+    ],
+  } : undefined
   return {
     animation: true,
     animationDuration: 400,
     animationDurationUpdate: 650,
     animationEasingUpdate: 'cubicOut',
-    grid: { left: 46, right: 16, top: 14, bottom: 34, containLabel: true },
+    grid: { ...GRID_M, containLabel: false },
     tooltip: {
       trigger: 'item',
       backgroundColor: 'rgba(18,18,22,0.96)',
@@ -157,7 +177,7 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax }) {
       type: 'value', scale: true,
       axisLine: { lineStyle: { color: 'rgba(255,255,255,0.18)' } },
       axisTick: { show: false },
-      axisLabel: { ...axisText, formatter: (v) => fmtAxis(v, yMeta.unit) },
+      axisLabel: { ...axisText, formatter: (v) => fmtAxis(v, yMeta.unit), margin: 6 },
       splitLine: { lineStyle: { color: GRID } },
     },
     dataZoom: [
@@ -166,26 +186,52 @@ function makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax }) {
     ],
     series: [{
       type: 'scatter', data, symbolSize: sizeFn, z: 2,
-      label: { show: true, position: 'right', distance: 3, formatter: (p) => p.value[3], fontSize: 10, fontFamily: CHART_FONT_FAMILY, fontWeight: 600 },
-      labelLayout: { hideOverlap: true },
+      label: { show: labelMode !== 'off', position: 'right', distance: 3, formatter: (p) => p.value[3], fontSize: 10, fontFamily: CHART_FONT_FAMILY, fontWeight: 600 },
+      labelLayout: { hideOverlap: labelMode !== 'all' },
       emphasis: { focus: 'self', scale: 1.35, label: { show: true, fontWeight: 700 } },
       markLine: markData.length ? {
         silent: true, symbol: 'none', animation: false,
         lineStyle: { color: 'rgba(255,255,255,0.16)', type: 'dashed', width: 1 },
         label: { show: false }, data: markData,
       } : undefined,
+      markArea: quad,
     }],
   }
 }
 
 export default function ScatterWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
-  const source = opts?.source || DEFAULTS.source
-  const value = opts?.value ?? DEFAULTS.value
+  const patch = useCallback((p) => onOptsChange?.({ ...(opts || {}), ...p }), [opts, onOptsChange])
+
+  // ── Saved universes (tabs). Migrate a Phase-2 single source/value into the
+  // one-entry list so old widgets keep their view. ──
+  const universes = useMemo(() => {
+    if (Array.isArray(opts?.universes) && opts.universes.length) return opts.universes
+    return [{ source: opts?.source || DEFAULTS.source, value: opts?.value ?? DEFAULTS.value,
+              label: (opts?.value ?? DEFAULTS.value) === 'sp500' ? 'S&P 500' : (opts?.value || 'S&P 500') }]
+  }, [opts?.universes, opts?.source, opts?.value])
+  const active = Math.min(Math.max(0, opts?.activeUniverse ?? 0), universes.length - 1)
+  const cur = universes[active] || universes[0]
+  const source = cur.source, value = cur.value
+  const addUniverse = useCallback((it) => {
+    const exists = universes.findIndex(u => u.source === it.source && (u.value ?? '') === (it.value ?? ''))
+    if (exists >= 0) { patch({ activeUniverse: exists }); return }
+    patch({ universes: [...universes, { source: it.source, value: it.value, label: it.label }], activeUniverse: universes.length })
+  }, [universes, patch])
+  const removeUniverse = useCallback((i) => {
+    if (universes.length <= 1) return
+    const next = universes.filter((_, j) => j !== i)
+    patch({ universes: next, activeUniverse: Math.min(active, next.length - 1) })
+  }, [universes, active, patch])
+
   const xKey = opts?.xKey || DEFAULTS.xKey
   const yKey = opts?.yKey || DEFAULTS.yKey
   const sizeKey = opts?.sizeKey || DEFAULTS.sizeKey
-  const patch = useCallback((p) => onOptsChange?.({ ...(opts || {}), ...p }), [opts, onOptsChange])
+  const labelMode = opts?.labelMode || 'spotlight'   // 'spotlight' | 'all' | 'off'
+  const cycleLabelMode = useCallback(() => {
+    const order = ['spotlight', 'all', 'off']
+    patch({ labelMode: order[(order.indexOf(labelMode) + 1) % 3] })
+  }, [labelMode, patch])
 
   // ── Appearance (⚙) — same per-widget model + panel as the scanner widgets ──
   const placedTheme = usePlacedTheme(opts?.placedTheme)
@@ -275,8 +321,11 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
 
   const xMeta = metricByKey[xKey] || { label: xKey, unit: 'num' }
   const yMeta = metricByKey[yKey] || { label: yKey, unit: 'num' }
-  const option = useMemo(() => makeOption({ plot, xMeta, yMeta, up, dn, sizeMin, sizeMax }),
-    [plot, xMeta, yMeta, up, dn, sizeMin, sizeMax])
+  const quadrant = xMeta.unit === 'pct' && yMeta.unit === 'pct'
+  const option = useMemo(() => makeOption({
+    plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode,
+    upFaint: faint(up, 0.07), dnFaint: faint(dn, 0.07),
+  }), [plot, xMeta, yMeta, up, dn, sizeMin, sizeMax, labelMode])
 
   // ── ECharts instance: resize with the cell, click a point → color group ──
   const chartRef = useRef(null)
@@ -315,7 +364,6 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
     setMenu(m => (m?.type === type ? null : { type, anchor: el }))
   }, [])
   const closeMenu = useCallback(() => setMenu(null), [])
-  const label = data?.label || 'Universe'
 
   return (
     <div ref={rootRef} className={chrome.wrap} style={styleVars}>
@@ -325,14 +373,29 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
           themeVars={panelThemeVars} title="Market Map Settings" />
       )}
 
-      {/* Toolbar: the universe pill (left) + gear (right). The X/Y axes are chosen
-          by clicking the axis titles on the chart itself. */}
+      {/* Toolbar: a row of saved-universe TABS (switch / delete) + a ＋ to add one;
+          gear on the right. The X/Y axes are chosen by clicking the axis titles. */}
       <div className={chrome.toolbar}>
-        <button type="button" className={styles.uniBtn} onClick={(e) => toggleMenu('uni', e)}>
-          <UIcon name="markets" size={13} gold={false} />
-          <span className={styles.uniLabel}>{label}</span>
-          {!!plot.length && <span className={styles.uniCount}>{plot.length}</span>}
-        </button>
+        <div className={styles.uniTabs}>
+          {universes.map((u, i) => (
+            <span key={`${u.source}:${u.value ?? ''}:${i}`}
+              className={`${styles.uniTab}${i === active ? ' ' + styles.uniTabActive : ''}`}
+              role="button" tabIndex={0} onClick={() => patch({ activeUniverse: i })}>
+              <span className={styles.uniTabLabel}>{u.label || u.value || 'Universe'}</span>
+              {i === active && !!plot.length && <span className={styles.uniTabCount}>{plot.length}</span>}
+              {universes.length > 1 && (
+                <span className={styles.uniTabX} role="button" tabIndex={-1} aria-label="Remove universe"
+                  title="Remove" onClick={(e) => { e.stopPropagation(); removeUniverse(i) }}>
+                  <UIcon name="x" size={8} gold={false} />
+                </span>
+              )}
+            </span>
+          ))}
+          <button type="button" className={styles.uniAdd} onClick={(e) => toggleMenu('uni', e)}
+            title="Add a universe" aria-label="Add a universe">
+            <UIcon name="plus" size={13} gold={false} />
+          </button>
+        </div>
         <span className={chrome.spacer} />
         <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
           onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">
@@ -351,16 +414,32 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
                 onEvents={{ click: onPoint }} />
             </div>
 
-            {/* Axis-title dropdowns — the signature layout */}
-            <button type="button" className={`${styles.axisSel} ${styles.axisY}`} onClick={(e) => toggleMenu('y', e)}>
-              {yMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
-            </button>
+            {/* Quadrant reads — only when both axes are signed around zero */}
+            {quadrant && (
+              <>
+                <span className={`${styles.quad} ${styles.quadTR}`} style={{ color: up }}>Strong</span>
+                <span className={`${styles.quad} ${styles.quadBL}`} style={{ color: dn }}>Weak</span>
+              </>
+            )}
+
+            {/* Axis-title dropdowns — the signature layout. Y lives in a full-height
+                left column so the rotated label is always centered + never clipped. */}
+            <div className={styles.axisYCol}>
+              <button type="button" className={`${styles.axisSel} ${styles.axisYBtn}`} onClick={(e) => toggleMenu('y', e)}>
+                {yMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
+              </button>
+            </div>
             <button type="button" className={`${styles.axisSel} ${styles.axisX}`} onClick={(e) => toggleMenu('x', e)}>
               {xMeta.label}<UIcon name="chevronDown" size={9} gold={false} />
             </button>
             <button type="button" className={styles.axisSize} onClick={(e) => toggleMenu('size', e)}>
               <UIcon name="scale" size={11} gold={false} />
               Size: {sizeKey ? (metricByKey[sizeKey]?.label || sizeKey) : 'Uniform'}
+            </button>
+            <button type="button" className={styles.labelBtn} onClick={cycleLabelMode}
+              title="Cycle ticker labels (spotlight / all / off)">
+              <UIcon name="markets" size={10} gold={false} />
+              Labels: {labelMode === 'spotlight' ? 'Spotlight' : labelMode === 'all' ? 'All' : 'Off'}
             </button>
 
             <div className={styles.zoom}>
@@ -376,7 +455,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
 
       {menu?.type === 'uni' && (
         <DropMenu groups={uniGroups} selectedKey={`${source}:${value ?? ''}`} anchorEl={menu.anchor} themeVars={panelThemeVars}
-          onPick={(it) => patch({ source: it.source, value: it.value })} onClose={closeMenu} />
+          onPick={addUniverse} onClose={closeMenu} />
       )}
       {menu?.type === 'x' && (
         <DropMenu groups={metricGroups} selectedKey={xKey} anchorEl={menu.anchor} themeVars={panelThemeVars}

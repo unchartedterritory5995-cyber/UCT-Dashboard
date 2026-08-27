@@ -75,10 +75,42 @@ describe('ScatterWidget', () => {
     expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ yKey: 'rs_rank' }))
   })
 
-  it('opening the universe menu lists the grouped sources', () => {
-    render(<ScatterWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    fireEvent.click(screen.getByText('S&P 500'))            // the pill toggles the menu
+  it('the ＋ button opens the universe picker; picking one ADDS a tab', () => {
+    const onOpts = vi.fn()
+    render(<ScatterWidget color="A" opts={{}} onOptsChange={onOpts} />)
+    fireEvent.click(screen.getByLabelText('Add a universe'))
     expect(screen.getByText('Indices')).toBeInTheDocument()
+    // The default tab is already S&P 500; the menu item is the second "S&P 500".
+    const items = screen.getAllByText('S&P 500')
+    fireEvent.click(items[items.length - 1])
+    // Same universe already present → switches to it rather than duplicating.
+    expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ activeUniverse: 0 }))
+  })
+
+  it('renders one tab per saved universe and switches on click', () => {
+    const onOpts = vi.fn()
+    render(<ScatterWidget color="A" onOptsChange={onOpts}
+      opts={{ universes: [
+        { source: 'index', value: 'sp500', label: 'S&P 500' },
+        { source: 'index', value: 'ndx', label: 'Nasdaq 100' },
+      ], activeUniverse: 0 }} />)
+    expect(screen.getByText('S&P 500')).toBeInTheDocument()
+    expect(screen.getByText('Nasdaq 100')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Nasdaq 100'))
+    expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ activeUniverse: 1 }))
+  })
+
+  it('a tab can be removed (but never the last one)', () => {
+    const onOpts = vi.fn()
+    render(<ScatterWidget color="A" onOptsChange={onOpts}
+      opts={{ universes: [
+        { source: 'index', value: 'sp500', label: 'S&P 500' },
+        { source: 'index', value: 'ndx', label: 'Nasdaq 100' },
+      ], activeUniverse: 1 }} />)
+    fireEvent.click(screen.getAllByLabelText('Remove universe')[1])   // remove Nasdaq
+    expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({
+      universes: [{ source: 'index', value: 'sp500', label: 'S&P 500' }],
+    }))
   })
 
   it('a point with a missing axis value is dropped from the plot', () => {
