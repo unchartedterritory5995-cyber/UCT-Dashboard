@@ -45,6 +45,60 @@ const noop = () => {}
 /** No streaming, no background warm: the member's real chart already does both for this symbol. */
 const PREVIEW_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: false })
 
+// ─── THE HONEST CEILING — WHAT THIS FILE'S TESTS CANNOT SEE ─────────────
+//
+// ⚠️ BOTH TEST FILES MOCK `ChartPane`, so every case is about WHAT the pane is
+// HANDED, never about pixels. Two facts are therefore UNASSERTED — nothing
+// asserts them, and a mutation to either leaves every case in both files green:
+//
+//   1. `stockChartProps={PREVIEW_CHART_PROPS}` — `liveUpdates:false` /
+//      `backgroundWarm:false` are real `StockChart` props, and `ChartPane`
+//      spreads `stockChartProps` AFTER its own, so they win. Delete the whole
+//      line and nothing reddens. WHAT WOULD VERIFY IT: a case that renders the
+//      REAL `ChartPane` with a stubbed `StockChart` spy and asserts the two
+//      props arrive false — i.e. move the mock boundary down one level.
+//   2. `CodeEditor.module.css`'s `.preview` rule — `styles.preview` resolving to
+//      `undefined` renders an unstyled zero-height div and nothing reddens. Its
+//      collapse reasoning (`height: auto` inside a flex column) is PLAUSIBLE AND
+//      UNVERIFIED. WHAT WOULD VERIFY IT: a human, or a Playwright pass, opening
+//      the sheet and confirming the frame has non-zero height with candles in
+//      it — the standing 🖼️ OPEN THE ARTIFACT obligation. No human has
+//      seen this preview render.
+//
+// `density="mini"` / `showTfBar={false}` ARE asserted, but by exactly one case
+// ('given an evaluating draft it mounts ONE ChartPane…'). That is enough for a
+// prop with one producer and no branch: a mutation to either reddens that case
+// by name, with the expected and actual values printed. It is NOT evidence the
+// mini chrome LOOKS right — that is pixels, and pixels are above this ceiling.
+//
+// ⛔ An unstated ceiling reads as coverage. It is stated here, where the next
+// engineer is standing, not only in a report nobody opens on the way to editing.
+
+// ─── WHICH TOOLBARS CAN PREVIEW AT ALL, AND WHY THAT IS THE RIGHT ANSWER ────
+//
+// `sym`/`tf` reach this pane from `ChartToolbar`'s `<BuilderSheet>` (the W1a
+// hand-back), and `StockChart.jsx` mounts `ChartToolbar` at three sites.
+// Measured 2026-08-27 — W0's file, read and never edited:
+//
+//   · the primary toolbar — passes `currentSym` + `tf` → THE PREVIEW DRAWS.
+//   · the Model Book annotations toolbar (`annotationsEditable`) — passes
+//     NEITHER → inert. **A GAP.** It draws on the SAME chart, the same `bars`,
+//     the same symbol as the primary one, so the two props it lacks are
+//     literally the two the primary site already passes. Closing it is W0's
+//     one-line change; nothing on this side can.
+//   · the index-pane measure bar (`indexAnnotationsEditable`) — passes NEITHER
+//     → inert, and CORRECT BY DESIGN. Its chart is `indexPaneSymbol` (^IXIC),
+//     not `currentSym`; passing `currentSym` there would preview the member's
+//     draft on a series they are not looking at, which is worse than drawing
+//     nothing. Closing it means W0 passing THAT pane's own symbol — never the
+//     main chart's.
+//
+// Neither secondary toolbar hides the Indicators button (`canManageIndicators`
+// is `chartSettings && onUpdateSettings`, and both pass both), so a member CAN
+// open the builder from either and get a blank preview with no reason given.
+// Recorded here so the next engineer wondering "why is my preview blank on the
+// Model Book toolbar" has a thread to pull.
+
 export default function PreviewPane({ sym = null, tf = null, settings = null, definition = null }) {
   const live = !!(sym && tf && definition)
   const [installed, setInstalled] = useState(null)

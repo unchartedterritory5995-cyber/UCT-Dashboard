@@ -175,7 +175,16 @@
  * in. The height is on the WRAPPER rather than on the pane: the pane sizes to
  * its container, and a chart handed `height: auto` inside a flex column
  * collapses to zero and renders a blank box that reads exactly like the pane
- * refusing to mount. `overflow: hidden` keeps the canvas inside the radius. */
+ * refusing to mount. `overflow: hidden` keeps the canvas inside the radius.
+ *
+ * ⚠️ THE CEILING ON THIS RULE: NOTHING ASSERTS IT. `PreviewPane.test.jsx` and
+ * `PreviewPane.sheet.test.jsx` both mock `ChartPane`, so `styles.preview`
+ * resolving to `undefined` renders an unstyled zero-height div and all 18 cases
+ * stay green — delete this whole rule and no test moves. The collapse reasoning
+ * above is PLAUSIBLE AND UNVERIFIED: no human has opened the sheet and seen this
+ * preview render. WHAT WOULD VERIFY IT: opening the builder on a real chart (or
+ * a Playwright pass) and confirming the frame has non-zero height with candles
+ * inside it. Until then this is an unrailed claim, not covered behaviour. */
 .preview {
   height: 220px;
   margin-top: 10px;
