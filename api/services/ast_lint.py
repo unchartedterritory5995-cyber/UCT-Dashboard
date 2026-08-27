@@ -54,8 +54,35 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 # the vocabulary
 # --------------------------------------------------------------------------- #
 
+# ⭐⭐ IF YOU CHANGE WHAT THIS MODULE RETURNS, THERE IS A STORE THAT ALREADY
+# WROTE THE OLD ANSWER DOWN. `user_definitions.save()` PERSISTS this linter's
+# verdict per plot and `alert_user_series._gate_repaint` admits or refuses an
+# alert from the STORED copy -- deliberately, so a linter improvement cannot
+# silently re-badge a definition somebody already armed. Nothing recomputes.
+#
+# So a grammar fix here does NOT reach the definitions already in the store, and
+# the direction that bites is invisible: a formula this linter now agrees is
+# sound stays PERMANENTLY UN-ARMABLE for its owner, with nothing to tell them
+# why. That is not hypothetical -- it is what a retired ``^arg(N)$`` lookback
+# grammar did to every stored definition using a compound window.
+#
+# ⛔ AFTER ANY CHANGE TO THIS MODULE OR TO ``closedTable.json``, RUN:
+#
+#     python -m api.services.user_definition_relint [--dry-run]
+#
+# It re-lints every live definition, heals only the safe direction, and reports
+# the dangerous one (a stored badge LOOSER than this linter now measures -- an
+# alert may be armed under a claim that is no longer true) with the affected
+# alert ids, for a human decision. It is a command, never a hook: this module
+# imports nothing and must keep importing nothing.
+
 #: Spec section 3's three badge values. ONE declaration per lane, and the two
 #: lanes are asserted equal by ``tests/test_ast_lint.py``.
+#:
+#: ⚠️ ADDING A FOURTH VALUE IS NOT A LOCAL CHANGE. Both severity scales derive
+#: from this tuple's members -- ``user_definition_relint.ranks()`` (Python) and
+#: ``repaintVerdict.severityScale()`` (JS) -- and each has a rail that FAILS
+#: until somebody decides which direction the new mode is. That is deliberate.
 REPAINT_MODES: Tuple[str, ...] = ("non-repainting", "preview-repaints", "repaints")
 
 #: The two answers to *"could the linter decide this at all?"* -- record

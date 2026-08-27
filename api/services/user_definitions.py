@@ -96,6 +96,22 @@ becomes a moving target. A linter change therefore requires an explicit re-lint
 pass with its own notification — a Phase-E problem, named here so it is not
 discovered there.
 
+⭐ THAT PASS EXISTS NOW, AND IT IS `api/services/user_definition_relint.py`.
+Run it after ANY change to `ast_lint` or to `closedTable.json`:
+
+    python -m api.services.user_definition_relint [--dry-run]
+
+It heals only the direction that is safe (a stored badge STRICTER than the
+linter now is — nothing was ever admitted under a looser claim), reports the
+dangerous direction with the armed alert ids rather than flipping it, and
+touches only the newest live row. ⛔ It is a COMMAND, never a hook: nothing in
+this module imports it, and nothing may. The paragraph above is the reason.
+
+⚠️ AND THE ONE ESCAPE A MEMBER MIGHT TRY DOES NOT WORK — a byte-identical
+re-save returns before the append carrying the PREVIOUS row's `repaint`, so a
+user cannot re-save their way out of a stale badge. That is correct for growth
+and it is why the pass has to exist.
+
 ────────────────────────────────────────────────────────────────────────────────
 WHAT BOUNDS THIS STORE'S GROWTH — AND WHAT DOES NOT
 ────────────────────────────────────────────────────────────────────────────────

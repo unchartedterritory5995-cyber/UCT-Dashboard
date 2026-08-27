@@ -66,15 +66,63 @@
 //   * so an absent notice is never evidence of anything. The evidence is the
 //     record's measurement block.
 
-import { lintDefinition } from './ast/lint'
+import { lintDefinition, modeFromReach, REPAINT_MODES, UNKNOWN } from './ast/lint'
 
 /** The clean verdict — the one value that produces no notice. */
 export const CLEAN = 'non-repainting'
 
-/** Increasing order of "how little we can promise". Used to roll a definition's
- *  plots up to one answer; NOT a vocabulary (that is `lint.REPAINT_MODES`, and
- *  this reads through it rather than beside it). */
-const SEVERITY = Object.freeze({ 'non-repainting': 0, 'preview-repaints': 1, repaints: 2 })
+// ─── the severity scale, DERIVED BY DRIVING THE LINTER ───────────────────────
+//
+// ⛔ THIS WAS A HAND-TYPED `{ 'non-repainting': 0, 'preview-repaints': 1,
+// repaints: 2 }` AND THE COMMENT ABOVE IT CLAIMED IT READ THROUGH
+// `REPAINT_MODES` "rather than beside it". It did not: it re-spelled all three
+// names. That is the second-authority defect on the one ordering a member-facing
+// badge rests on, and it survived because the PYTHON twin was the side anybody
+// audited — [[lesson_rail_the_mirror_not_just_the_lane]] is exactly this shape.
+//
+// ⭐ SEVERITY IS A FUNCTION OF FORWARD REACH, AND `modeFromReach` IS THE SHIPPED
+// FUNCTION THAT KNOWS IT. Zero forward bars promises everything; a finite k
+// promises settlement at k; an unknown reach promises nothing. So the scale is
+// read off the linter by asking it what it calls each of the three reach
+// classes its own contract names — never by typing the answers beside it.
+//
+// This is the JS half of a mirrored derivation. The Python lane
+// (`api/services/user_definition_relint.admission_rank`) drives
+// `alert_user_series._gate_repaint`, the real admission door; there is no such
+// door in the browser, so this lane drives the authority it does have. Rename a
+// mode or reclassify a reach in `lint.js` and BOTH scales follow, because
+// neither one holds a copy.
+const SEVERITY = Object.freeze(
+  [0, 1, UNKNOWN].reduce((scale, reach, rank) => (
+    { ...scale, [modeFromReach(reach)]: rank }
+  ), {}),
+)
+
+/** ⛔ A MODE THIS SCALE CANNOT PLACE RANKS **WORST**, NOT BEST.
+ *
+ *  The `?? 0` that stood here ranked an unrecognised verdict as CLEANEST — a
+ *  member-facing badge failing OPEN, on the one question where an unknown answer
+ *  should be the most alarming thing on the chart and not the least. A fourth
+ *  badge value would have rolled a definition up to "clean" and rendered nothing.
+ *
+ *  Strictly above every rank the scale holds, derived from its size so it cannot
+ *  drift when the vocabulary grows. `severityScale` is exported for the rail:
+ *  a scale nobody can read back is a scale nobody can assert on. */
+const UNPLACEABLE = Object.keys(SEVERITY).length
+
+export function severityOf(mode) {
+  const rank = SEVERITY[mode]
+  return typeof rank === 'number' ? rank : UNPLACEABLE
+}
+
+/** The scale itself, for the rails — including the vocabulary it must cover.
+ *  ⛔ THE ANTI-ROT HANDLE. `repaintSeverityScale.test.js` asserts these keys are
+ *  EXACTLY `REPAINT_MODES`, so a fourth mode entering the vocabulary reddens
+ *  rather than being silently sorted — the same claim the Python twin's
+ *  `ranks()` carries, so the two rot together instead of one rotting alone. */
+export function severityScale() {
+  return { scale: { ...SEVERITY }, unplaceable: UNPLACEABLE, vocabulary: [...REPAINT_MODES] }
+}
 
 /** The plain sentence a member reads. Two shapes, because the vocabulary draws
  *  exactly one distinction and it is this one: `preview-repaints` can NAME the
@@ -181,7 +229,7 @@ function build(def) {
     }))
 
   const rollUp = decided.length
-    ? decided.map((r) => r.mode).reduce((a, b) => ((SEVERITY[b] ?? 0) > (SEVERITY[a] ?? 0) ? b : a))
+    ? decided.map((r) => r.mode).reduce((a, b) => (severityOf(b) > severityOf(a) ? b : a))
     : null
 
   return Object.freeze({

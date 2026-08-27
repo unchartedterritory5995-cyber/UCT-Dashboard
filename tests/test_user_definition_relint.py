@@ -479,7 +479,13 @@ def test_a_badge_outside_the_vocabulary_is_REPORTED_and_NEVER_healed(store):
     assert report["uncomparable"][0]["verdict"] == rl.UNCOMPARABLE
     assert "outside the linter's vocabulary" in report["uncomparable"][0]["note"]
     assert _repaint_column(def_id, 1) == before
-    assert "UNCOMPARABLE" in rl.format_report(report)
+    # ⛔ AND IT IS REPORTED AS SOMETHING NEEDING A DECISION, NOT AS BOOKKEEPING.
+    # This block used to sit at the bottom under an "UNCOMPARABLE" heading while
+    # the report OPENED with "NEEDS A DECISION — none".
+    text = rl.format_report(report)
+    assert text.startswith("NEEDS A DECISION")
+    assert "could NOT be compared at all" in text
+    assert "NEEDS A DECISION — none" not in text
 
 
 def test_a_plot_key_that_MOVED_is_uncomparable_rather_than_healed(store):
@@ -723,3 +729,189 @@ def test_the_heal_SKIPS_a_definition_TOMBSTONED_under_the_decision(store):
                 "current": "non-repainting"}
     assert rl._heal(decision, 111) is False
     assert rl.heal_log() == []
+
+
+# ═══ F3 — AN UNPLACEABLE BADGE IS NOT AN ALL-CLEAR ═══════════════════════════
+
+def test_an_ARMED_alert_on_an_UNCOMPARABLE_badge_is_NOT_reported_as_all_clear(store):
+    """🔴 THE FALSE ALL-CLEAR, IN ITS MOST DANGEROUS FORM.
+
+    A stored badge this pass cannot place, with an alert armed on it right now,
+    used to be: absent from `armed_alerts_affected`, printed at the BOTTOM under
+    a bookkeeping heading, and reported by a run whose FIRST LINE read
+    "NEEDS A DECISION — none" and whose exit code was 0.
+
+    ⭐ "None" meaning "I could not tell" is the empty-authority defect — and an
+    alert standing on an unplaceable badge is exactly what this pass exists to
+    surface. Three surfaces are asserted here because a reader may check any one
+    of them: the structured field, the prose, and the exit code.
+    """
+    def_id = "u_00000000fa01"
+    svc.save(USER, def_id, defn(def_id, SMA))
+    _force_stored(def_id, {"value": "a-verdict-no-linter-emits"})
+    alert_id = _arm_a_past_alert(USER, f"{def_id}.value")
+
+    report = rl.relint()
+
+    # 1. THE STRUCTURED FIELD names the armed alert.
+    assert len(report["uncomparable"]) == 1
+    assert report["uncomparable"][0]["armed_alert_ids"] == [alert_id]
+    assert report["armed_alerts_affected"] == [alert_id]
+
+    # 2. THE PROSE leads with it and never says "none".
+    text = rl.format_report(report)
+    assert "NEEDS A DECISION — none" not in text
+    assert text.startswith("NEEDS A DECISION")
+    assert f"active alert ids [{alert_id}]" in text
+
+    # 3. THE EXIT CODE is non-zero, so a caller gating on this command is not
+    #    told the store is clean.
+    assert rl._main([]) == 1
+
+
+def test_the_ALL_CLEAR_sentence_is_only_said_when_BOTH_halves_are_clear(store):
+    """The control for the test above: a genuinely clean store DOES say "none".
+
+    Without this, "the report never says none" is satisfied by a report that can
+    never say it — which would make the assertion above meaningless.
+    """
+    def_id = "u_00000000fa02"
+    svc.save(USER, def_id, defn(def_id, SMA))          # stored == current
+
+    report = rl.relint()
+    assert report["uncomparable"] == [] and report["needs_decision"] == []
+    assert report["armed_alerts_affected"] == []
+    assert "NEEDS A DECISION — none" in rl.format_report(report)
+    assert rl._main([]) == 0
+
+
+# ═══ F2 — A HEAL MUST NOT NAME AN ACTION NO SURFACE OFFERS ═══════════════════
+
+def test_a_heal_that_still_needs_an_ACK_says_the_ACK_CANNOT_BE_RECORDED(store):
+    """⛔ AN INSTRUCTION A MEMBER CANNOT ACT ON IS THE SAME DEFECT AS A REFUSAL A
+    MEMBER CANNOT READ.
+
+    Healing `repaints` -> `preview-repaints` is correct and safe, and the gate
+    still refuses the plot without an author acknowledgement. But NOTHING in
+    `app/src` writes `meta.repaintAck` (asserted structurally below), so the
+    member moves from "refused outright" to "refused pending something no screen
+    can record". The report must say that rather than read as "fixed".
+    """
+    def_id = "u_00000000fa03"
+    svc.save(USER, def_id, defn(def_id, CHIKOU))
+    assert svc.lint_verdict(defn(def_id, CHIKOU)) == {"value": "preview-repaints"}
+    _force_stored(def_id, {"value": "repaints"})
+
+    report = rl.relint()
+    assert report["healed_count"] == 1
+    assert report["healed"][0]["ack_required"] is True
+
+    text = rl.format_report(report)
+    assert "NO SHIPPED SURFACE CAN RECORD ONE" in text
+    assert "Do not tell these members to acknowledge it" in text
+    assert "STILL NOT ARMABLE" in text
+
+    # And the gate really does still refuse it — the warning is about a live
+    # refusal, not a hypothetical one.
+    with pytest.raises(aus.AdmissionRefused) as exc:
+        aus.user_value_function(USER, f"{def_id}.value")
+    assert exc.value.gate == "repaint"
+
+
+def test_a_heal_that_reaches_CLEAN_carries_NO_ack_warning(store):
+    """The control: the warning must not print on every heal.
+
+    Without this, "the report warns about the acknowledgement" is satisfied by a
+    report that always warns — which would train a reader to ignore it
+    (`lesson_a_gate_list_drifts_like_any_other_artifact`).
+    """
+    def_id = "u_00000000fa04"
+    svc.save(USER, def_id, defn(def_id, SMA))
+    _force_stored(def_id, {"value": "repaints"})
+
+    report = rl.relint()
+    assert report["healed_count"] == 1
+    assert report["healed"][0]["ack_required"] is False
+
+    text = rl.format_report(report)
+    assert "NO SHIPPED SURFACE CAN RECORD ONE" not in text
+    assert "STILL NOT ARMABLE" not in text
+    # And this one really IS armable now.
+    aus.forget()
+    assert aus.user_value_function(USER, f"{def_id}.value") is not None
+
+
+def test_NOTHING_IN_THE_APP_WRITES_repaintAck_and_this_rail_ROTS_WHEN_ONE_DOES():
+    """⛔ ANTI-ROT ON THE CLAIM THE WARNING ABOVE RESTS ON.
+
+    The warning tells an operator that acknowledgement is unavailable. The day
+    somebody ships an editor control that writes `meta.repaintAck`, that warning
+    becomes FALSE and must be deleted — so this rail fails THEN, rather than
+    leaving a stale instruction standing.
+
+    Measured by reading the shipped frontend source, with a control proving the
+    scan can see the token when it is present.
+    """
+    key = aus.REPAINT_ACK_KEY
+    assert key == "repaintAck"
+
+    src_root = ROOT / "app" / "src"
+    writers = []
+    for path in src_root.rglob("*.js*"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if key in text:
+            writers.append(path.relative_to(ROOT).as_posix())
+
+    assert writers == [], (
+        f"{key} now appears in the frontend ({writers}) — if a surface can record "
+        "an acknowledgement, delete the 'NO SHIPPED SURFACE CAN RECORD ONE' "
+        "warning in user_definition_relint.format_report rather than leaving a "
+        "false instruction standing")
+
+    # THE CONTROL: the sweep really did read the frontend, and really would see
+    # the token. A scan over an empty tree proves nothing.
+    seen = sum(1 for _ in src_root.rglob("*.js*"))
+    assert seen >= 200, seen
+    assert key in f"const x = '{key}'"
+
+
+# ═══ F4 — A PASS NOBODY CAN FIND IS A PASS THAT WILL NOT RUN ═════════════════
+
+def test_the_OBLIGATION_and_the_LINTER_both_NAME_the_pass_that_discharges_it():
+    """⛔ THE WHOLE REASON X16 EXISTED WAS AN OBLIGATION WRITTEN DOWN AND THEN
+    NOT DISCOVERED.
+
+    `user_definitions.py` said *"a linter change requires an explicit re-lint
+    pass"* for months without naming one, and `ast_lint.py` — the module whose
+    change creates the obligation — said nothing at all. Building the pass and
+    leaving both silent would reproduce the exact defect: the next grammar fix
+    ships, the stale badges stay, and a member's formula is un-armable forever.
+
+    ⭐ NAMING IS NOT WIRING. `test_the_pass_is_NOT_wired_into_save_or_into_the_
+    admission_path` asserts neither module IMPORTS this one — a hook is what the
+    design forbids. A pointer in prose is discoverability, which is the opposite
+    problem and the one that actually bit.
+
+    The module name is DERIVED from the module object, never typed, so a rename
+    reddens here instead of leaving two dangling references.
+    """
+    name = rl.__name__.rsplit(".", 1)[-1]
+    assert name == "user_definition_relint"
+
+    for module in (svc, ast_lint):
+        source = pathlib.Path(module.__file__).read_text(encoding="utf-8")
+        assert name in source, (
+            f"{module.__name__} no longer names the re-lint pass. The obligation "
+            "it states is discharged by a module nobody reading it can find — "
+            "which is the defect X16 was.")
+        # It must name the RUNNABLE door, not merely mention the module.
+        assert "python -m api.services.user_definition_relint" in source, module.__name__
+
+    # THE CONTROL: the same read over a module that legitimately does NOT name
+    # the pass must come back negative, or "the name is present" is satisfied by
+    # a scan that finds anything.
+    unrelated = pathlib.Path(ias.__file__).read_text(encoding="utf-8")
+    assert name not in unrelated

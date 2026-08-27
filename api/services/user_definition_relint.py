@@ -248,6 +248,25 @@ def ranks() -> Dict[str, int]:
     return dict(_RANKS or {})
 
 
+#: The rank `_rank_one` returns for a mode the gate refuses BARE and admits WITH
+#: an acknowledgement. Named rather than written as a `1` at the call site: the
+#: number is an artefact of how the probe is ordered, and what a caller wants is
+#: the MEANING.
+RANK_NEEDS_ACK = 1
+
+
+def needs_acknowledgement(mode: Any) -> bool:
+    """Does arming this badge require a recorded author acknowledgement?
+
+    ⚠️ THE ANSWER IS THE REASON A HEAL CAN STILL LEAVE A MEMBER STUCK. Healing a
+    plot from `repaints` to `preview-repaints` is a real improvement and is safe
+    — but it does not make the plot armable, and no shipped surface can record
+    the acknowledgement that would. `format_report` says so out loud rather than
+    letting the heal read as "fixed".
+    """
+    return admission_rank(mode) == RANK_NEEDS_ACK
+
+
 # ─── the comparison, PER PLOT ────────────────────────────────────────────────
 
 def compare_row(row: Mapping[str, Any]) -> List[dict]:
@@ -514,7 +533,12 @@ def relint(*, heal: bool = True, now: Optional[int] = None) -> dict:
             found = dict(found, armed_alert_ids=_armed_for(armed, found))
             if verdict == STORED_STRICTER:
                 if heal and _heal(found, now):
-                    healed.append(dict(found, healed_at=now))
+                    healed.append(dict(
+                        found, healed_at=now,
+                        # ⛔ A HEAL IS NOT ALWAYS AN UNBLOCK. See
+                        # `needs_acknowledgement`: this flag is what stops the
+                        # report telling a member to do something no screen offers.
+                        ack_required=needs_acknowledgement(found["current"])))
                 else:
                     needs_decision.append(dict(found, healed_at=None))
             elif verdict == STORED_LOOSER:
@@ -522,7 +546,14 @@ def relint(*, heal: bool = True, now: Optional[int] = None) -> dict:
             else:
                 uncomparable.append(found)
 
-    affected = sorted({a for f in needs_decision for a in f.get("armed_alert_ids") or []})
+    # ⛔ UNCOMPARABLE COUNTS AS AFFECTED, AND OMITTING IT WAS A FALSE ALL-CLEAR.
+    # An alert armed on a badge this pass cannot place is EXACTLY the case the pass
+    # exists to surface — "I could not tell" is not "nothing is wrong", and a
+    # reader who only checks `armed_alerts_affected` was told the second when the
+    # truth was the first. An empty authority is not one
+    # (`lesson_a_second_authority_over_one_value`).
+    affected = sorted({a for f in needs_decision + uncomparable
+                       for a in f.get("armed_alert_ids") or []})
     return {
         "definitions_read": definitions_read,
         "plots_read": plots_read,
@@ -548,21 +579,44 @@ def format_report(report: Mapping[str, Any]) -> str:
     lines: List[str] = []
     dangerous = [f for f in report.get("needs_decision") or []
                  if f.get("verdict") == STORED_LOOSER]
+    unplaceable = report.get("uncomparable") or []
+
+    def armed_clause(f: Mapping[str, Any]) -> str:
+        ids = f.get("armed_alert_ids") or []
+        return (f"ARMED: active alert ids {ids}" if ids
+                else "no ACTIVE alert on this plot (a footnote, not a notification)")
+
     if dangerous:
         lines.append(
             f"NEEDS A DECISION — {len(dangerous)} stored badge(s) are now LOOSER "
             "than the engine measures. These are NOT flipped automatically:")
         for f in dangerous:
-            ids = f.get("armed_alert_ids") or []
             lines.append(
                 f"  {f['def_id']}.{f['plot_key']} v{f['version']} "
                 f"(user {f['user_id']}): stored {f['stored']!r}, linter now "
-                f"{f['current']!r} — "
-                + (f"ARMED: active alert ids {ids}" if ids
-                   else "no ACTIVE alert on this plot (a footnote, not a notification)"))
-    else:
+                f"{f['current']!r} — " + armed_clause(f))
+    elif not unplaceable:
         lines.append("NEEDS A DECISION — none. No stored badge is looser than "
-                     "the engine now measures.")
+                     "the engine now measures, and every stored badge could be "
+                     "placed on the gate's scale.")
+
+    # ⛔ PROMOTED, AND IT LEADS WHEN IT IS THE ONLY OUTSTANDING THING.
+    #
+    # This block used to sit at the BOTTOM, under a heading that read like
+    # bookkeeping, while the report OPENED with "NEEDS A DECISION — none". So a
+    # definition whose badge this pass could not place — with an alert armed on
+    # it — was reported as an all-clear. ⭐ "None" meaning "I could not tell" is
+    # the empty-authority defect in its most dangerous form, and it is worse than
+    # the drift it was hiding: a human reads the first line and stops.
+    if unplaceable:
+        lines.append(
+            f"NEEDS A DECISION — {len(unplaceable)} stored badge(s) could NOT be "
+            "compared at all. This pass has NO opinion on them, which is not the "
+            "same as a clean one:")
+        for f in unplaceable:
+            lines.append(
+                f"  {f['def_id']}.{f.get('plot_key')} v{f['version']} "
+                f"(user {f['user_id']}): {f['note']} — " + armed_clause(f))
 
     unhealed = [f for f in report.get("needs_decision") or []
                 if f.get("verdict") == STORED_STRICTER]
@@ -579,18 +633,39 @@ def format_report(report: Mapping[str, Any]) -> str:
     lines.append("")
     lines.append(f"HEALED (safe direction) — {len(healed)}:")
     for f in healed:
-        lines.append(f"  {f['def_id']}.{f['plot_key']} v{f['version']} "
-                     f"(user {f['user_id']}): {f['stored']!r} -> {f['current']!r}")
+        lines.append(
+            f"  {f['def_id']}.{f['plot_key']} v{f['version']} "
+            f"(user {f['user_id']}): {f['stored']!r} -> {f['current']!r}"
+            + ("  [STILL NOT ARMABLE — see below]" if f.get("ack_required") else ""))
     if not healed:
         lines.append("  none")
 
-    unc = report.get("uncomparable") or []
-    if unc:
+    # ⛔ AN INSTRUCTION A MEMBER CANNOT ACT ON IS THE SAME DEFECT AS A REFUSAL A
+    # MEMBER CANNOT READ. The gate's own refusal says *"record one in
+    # meta.repaintAck for this version to arm it anyway"* — and NOTHING in
+    # `app/src` writes that field. Measured 2026-08-26: `repaintAck` appears in
+    # the whole repo exactly once outside this pass, as
+    # `alert_user_series.REPAINT_ACK_KEY`. So a heal that lands on
+    # `preview-repaints` moves a member from "refused outright" to "refused
+    # pending an acknowledgement no screen can record", and telling them to go
+    # record one would be sending them somewhere that does not exist.
+    #
+    # `defSchema` treats `meta.*` as ignore-and-preserve and the store keeps
+    # unknown meta keys, so the FIELD works — what is missing is a surface. That
+    # distinction is the actionable half, so it is what gets printed.
+    ack_blocked = [f for f in healed if f.get("ack_required")]
+    if ack_blocked:
         lines.append("")
-        lines.append(f"UNCOMPARABLE — {len(unc)} (reported, never healed):")
-        for f in unc:
-            lines.append(f"  {f['def_id']}.{f.get('plot_key')} v{f['version']}: "
-                         f"{f['note']}")
+        lines.append(
+            f"  ⚠️ {len(ack_blocked)} of the heals above land on a badge that still "
+            "needs an author acknowledgement, and NO SHIPPED SURFACE CAN RECORD ONE. "
+            "Do not tell these members to acknowledge it — they cannot. Until an "
+            "editor writes `meta.repaintAck`, the honest sentence is that the "
+            "engine now rates the plot as settling after a known number of bars, "
+            "and arming it is not yet available:")
+        for f in ack_blocked:
+            lines.append(f"    {f['def_id']}.{f['plot_key']} (user {f['user_id']}) "
+                         f"is now {f['current']!r}")
 
     lines.append("")
     tail = (f"READ {report.get('definitions_read')} live definition(s), "
@@ -628,8 +703,11 @@ def _main(argv: Optional[List[str]] = None) -> int:                # pragma: no 
     args = parser.parse_args(argv)
     report = relint(heal=not args.dry_run)
     print(format_report(report))
-    # Exit 1 while a human decision is outstanding, so a caller can gate on it.
-    return 1 if report["needs_decision"] else 0
+    # ⛔ EXIT 1 WHILE ANYTHING IS OUTSTANDING — INCLUDING WHAT THIS PASS COULD NOT
+    # PLACE. Exiting 0 on an uncomparable finding tells every caller that gates on
+    # this command that the store is clean, when the true answer is "I could not
+    # tell" — and an alert may be armed on the badge in question.
+    return 1 if (report["needs_decision"] or report["uncomparable"]) else 0
 
 
 if __name__ == "__main__":                                         # pragma: no cover
