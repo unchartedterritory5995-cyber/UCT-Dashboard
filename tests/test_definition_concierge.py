@@ -3532,3 +3532,289 @@ def test_no_SCALAR_name_and_no_VOCABULARY_word_is_a_string_constant_in_this_modu
     found = {node.value for node in pyast.walk(hand)
              if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
     assert found & forbidden == set(sample)
+# ═══ 10f. the NAMED BAR SHAPES — the library this door was blind to ═══
+#
+# 🔴 THE MEASUREMENT THIS SECTION EXISTS FOR. On 2026-08-27 the screener
+# shipped filters over two libraries of named bar shapes and NO AI door in the
+# product could anchor one of their names: 62 of the candle library's own labels
+# came back from `plan` with `concepts`, `terms`, `not_understood` AND
+# `unavailable` all empty. ⛔ A silent non-understanding is worse than an
+# over-refusal, not milder: an over-refusal is at least visible to whoever reads
+# it, while a phrasing nothing anchors reaches the model as bare English wearing
+# the appearance of a normal request.
+#
+# ⛔ AND THE RAILS BELOW DRIVE THE WHOLE OF BOTH LIBRARIES, NEVER A SAMPLE.
+# A test over five hand-picked words would have been green while sixty names
+# stayed blind, which is exactly the fixture-that-cannot-distinguish this branch
+# has now shipped three times.
+
+
+def _shape_registries():
+    """The registries that OWN a bar's names — read, never re-typed.
+
+    ⚠️ `bar_character` is here for the reason its own header gives: it is the
+    SECOND half of one question about one bar (what it DID, beside what it IS),
+    it sits in the same filter category, and a member has no idea which library
+    a word came out of. A rail over only one of them would measure half a door.
+    """
+    from api.services.screener import bar_character
+    from api.services.screener import candle_catalog
+    return {"candle_catalog": list(candle_catalog.ALL_PATTERNS),
+            "bar_character": list(bar_character.CASCADE)}
+
+
+def _shape_phrasings():
+    """Every way a member could write a shape's name, off the registries.
+
+    Returns ``[(library, key, phrase)]`` — the display label, the machine key
+    opened out, and the label without a parenthesised direction qualifier. ⛔
+    This is derived here INDEPENDENTLY of `definition_concierge`'s own
+    derivation: a rail that imported the module's list would agree with it by
+    construction and could never report a name the module had dropped.
+    """
+    import re as _re
+    from api.services.screener import candle_catalog
+    qualifier = _re.compile(r"\([^)]*\)")
+    rows = []
+    for library, shapes in _shape_registries().items():
+        for shape in shapes:
+            forms = {shape.label, shape.key.replace("-", " "),
+                     qualifier.sub(" ", shape.label).strip()}
+            for form in sorted(f for f in forms if f.strip()):
+                rows.append((library, shape.key, form))
+    for key, legacy in candle_catalog.LEGACY_ALIASES.items():
+        rows.append(("legacy_alias", key, legacy.replace("-", " ")))
+        rows.append(("legacy_alias", key, key.replace("-", " ")))
+    return rows
+
+
+def _outcome(got: dict) -> str:
+    """Which of the four named outcomes `plan` reached, or the fifth: silence."""
+    if got["concepts"] or got["terms"]:
+        return "anchored"
+    if got["unavailable"]:
+        return "unavailable"
+    if got["not_understood"]:
+        return "not_understood"
+    return "SILENT"
+
+
+def test_EVERY_NAMED_SHAPE_the_screener_ships_gets_a_NAMED_OUTCOME(concierge):
+    """🔴 THE GATE FOR THIS TASK. Every shape in BOTH registries, in every
+    form a member could write it, reaches one of the four named outcomes.
+
+    ⛔ THE POPULATION IS ASSERTED AGAINST THE REGISTRIES' OWN LENGTHS FIRST,
+    so this cannot pass by measuring a library that shrank to nothing — the
+    scarcity-that-reads-as-a-fact defect. And the failure message NAMES the
+    blind phrasings rather than counting them.
+    """
+    registries = _shape_registries()
+    assert len(registries["candle_catalog"]) >= 60, (
+        f"the candle library reports {len(registries['candle_catalog'])} shapes; "
+        "it shrank and this rail would be measuring almost nothing")
+    assert len(registries["bar_character"]) >= 50, (
+        f"the bar-character library reports {len(registries['bar_character'])} "
+        "shapes; it shrank and this rail would be measuring almost nothing")
+
+    rows = _shape_phrasings()
+    assert len(rows) >= 2 * sum(len(v) for v in registries.values()), (
+        f"{len(rows)} phrasings for "
+        f"{sum(len(v) for v in registries.values())} shapes — the form "
+        "derivation collapsed and most names are no longer being driven")
+
+    counts: Dict[str, int] = {}
+    silent = []
+    for library, key, phrase in rows:
+        got = concierge.plan(phrase, "scan")
+        outcome = _outcome(got)
+        counts[outcome] = counts.get(outcome, 0) + 1
+        if outcome == "SILENT":
+            silent.append((library, key, phrase))
+
+    assert not silent, (
+        f"{len(silent)} of {len(rows)} phrasings of the firm's OWN named bar "
+        "shapes anchored NOTHING — they reach the model as bare English with "
+        "nothing marked:\n"
+        + "\n".join(f"  [{lib}] {key}: {phrase}" for lib, key, phrase in silent[:25]))
+
+    # …and every one of them names the column the screener stores it in, plus
+    # that column's own declared reason — a refusal that says what would
+    # unblock it, never a bare "no".
+    reasons = concierge._excluded(ast_table.TABLE)
+    for library, key, phrase in rows:
+        for item in concierge.plan(phrase, "scan")["unavailable"]:
+            assert item["name"] in reasons, (library, key, phrase, item)
+            assert item["reason"].strip(), (
+                f"{phrase!r} is refused as {item['name']} with an EMPTY reason; a "
+                "doc-blocked refusal that names no unblocker is invisible")
+
+    # ⛔ THE CONTROL, so the silence above is a measurement of the door rather
+    # than of this check: prose that names no shape IS silent.
+    assert _outcome(concierge.plan("please make me some money", "scan")) == "SILENT"
+
+
+def test_the_SHAPE_VOCABULARY_GROWS_AND_SHRINKS_WITH_THE_REGISTRY(concierge,
+                                                                  monkeypatch):
+    """⛔ THE BOTH-DIRECTIONS PROOF THAT THE NAMES ARE DERIVED, NOT COPIED.
+
+    A consumer that read the registry cannot fail this; one that hand-typed the
+    names passes the gate above and fails here, because a hand-list agrees with
+    today's registry exactly and with tomorrow's not at all. Measured twice on
+    this branch: a hand-list left 825 of 826 and 908 of 909 cases green.
+
+    ⭐ THE GROWTH IS ASSERTED TO BE *EXACTLY* THE ONE ENTRY. A module that
+    reacted to the perturbation by widening in some other way — or by
+    rebuilding a stale copy — would move a different number of stems.
+    """
+    from api.services.screener import candle_catalog
+
+    before = concierge.build_lexicon()["index"]
+
+    invented = candle_catalog.Pattern(
+        key="zzz-probe-shape", label="Zzz Probe Shape", axis="shape", bars=1,
+        bias="neutral", kind="plain", rank=9999,
+        desc="a shape that exists only inside this test")
+    monkeypatch.setattr(candle_catalog, "ALL_PATTERNS",
+                        list(candle_catalog.ALL_PATTERNS) + [invented])
+    monkeypatch.setattr(candle_catalog, "BY_KEY",
+                        {**candle_catalog.BY_KEY, invented.key: invented})
+
+    grown_lexicon = concierge.build_lexicon()
+    grown = grown_lexicon["index"]
+    added = set(grown) - set(before)
+    expected = {concierge._stem_key(concierge._form_tokens(form))[0]
+                for form in (invented.label, invented.key.replace("-", " "))}
+    assert added == expected, (
+        f"adding ONE shape to the registry moved {sorted(added)} in the door's "
+        f"vocabulary; a derived consumer moves exactly {sorted(expected)}")
+    assert not (set(before) - set(grown)), "adding a shape removed vocabulary"
+
+    # …and the door can now SAY it, through the real entry point. ⚠️ The
+    # freshly built lexicon is handed in on purpose: `plan`'s default is the one
+    # built at import, and a rail that read that would be measuring the shipped
+    # vocabulary while claiming to measure the perturbed one.
+    assert _outcome(concierge.plan(invented.label, "scan",
+                                   lexicon=grown_lexicon)) != "SILENT"
+
+    # …and the other direction: a shape the registry stops declaring stops
+    # being sayable. ⚠️ A rail that only tested growth would pass a module
+    # that appended a derived list to a hand-typed one.
+    dropped = candle_catalog.ALL_PATTERNS[0]
+    monkeypatch.setattr(candle_catalog, "ALL_PATTERNS",
+                        [p for p in candle_catalog.ALL_PATTERNS
+                         if p.key != dropped.key])
+    monkeypatch.setattr(candle_catalog, "BY_KEY",
+                        {k: v for k, v in candle_catalog.BY_KEY.items()
+                         if k != dropped.key})
+    shrunk = concierge.build_lexicon()
+    gone = concierge._stem_key(concierge._form_tokens(dropped.label))[0]
+    columns = _shape_columns(concierge)
+    assert columns, "the module's derivation reached no column at all"
+    assert not any(row["key"] in columns for row in shrunk["index"].get(gone, [])), (
+        f"{dropped.label!r} is still in the door's vocabulary after the registry "
+        "stopped declaring it — the names are a copy, not a reading")
+    assert _outcome(concierge.plan(dropped.label, "scan",
+                                   lexicon=shrunk)) == "SILENT", (
+        f"{dropped.label!r} still reaches an outcome after the registry stopped "
+        "declaring it")
+
+
+def test_a_SHAPE_NAME_does_not_HIJACK_a_phrasing_that_meant_something_else(
+        concierge):
+    """⚠️ THE OVER-CAPTURE MEASUREMENT, OVER THE WHOLE CORPUS.
+
+    `inside`, `star`, `harami`, `engulfing` and `bar` are ordinary English inside
+    longer phrases, and a door that anchored candles by swallowing everything
+    else would be worse than the gap it closed. So every one of the firm's own
+    1,200+ phrasings is planned twice — with the shape libraries and without
+    — and the ONLY rows allowed to move are the ones whose text IS a shape's
+    own name.
+
+    ⭐ A MOVE THERE IS THE FIX, NOT A REGRESSION: before this landed, "Upside
+    Tasuki Gap" anchored to the bar field `gap_pct`, "Matching Low" to `low` and
+    "Stopping Volume" to `volume` — the shape's name read as three unrelated
+    columns.
+    """
+    without = dict(concierge.build_lexicon())
+    stripped = {stems: [row for row in rows
+                        if not (row["kind"] == concierge.EXCLUDED_ENTRY
+                                and row["key"] in _shape_columns(concierge))]
+                for stems, rows in without["index"].items()}
+    without = {"index": {k: v for k, v in stripped.items() if v},
+               "max_words": without["max_words"], "collisions": {}}
+
+    shape_stems = {concierge._stem_key(concierge._form_tokens(phrase))[0]
+                   for _, _, phrase in _shape_phrasings()}
+
+    rows = _corpus()
+    assert len(rows) >= 200, f"{len(rows)} rows is not a corpus"
+
+    hijacked = []
+    moved = 0
+    for row in rows:
+        before = concierge.plan(row["text"], "scan", lexicon=without)
+        after = concierge.plan(row["text"], "scan")
+        same = ([t["name"] for t in before["terms"]]
+                == [t["name"] for t in after["terms"]]
+                and [c["word"] for c in before["concepts"]]
+                == [c["word"] for c in after["concepts"]])
+        if same:
+            continue
+        moved += 1
+        words = concierge._form_tokens(row["text"])
+        names_a_shape = any(
+            concierge._stem_key(words[i:i + width])[0] in shape_stems
+            for width in range(1, len(words) + 1)
+            for i in range(0, len(words) - width + 1))
+        if not names_a_shape:
+            hijacked.append((row["source"], row["text"],
+                             [t["name"] for t in before["terms"]],
+                             [t["name"] for t in after["terms"]]))
+
+    assert not hijacked, (
+        f"{len(hijacked)} phrasings that name NO bar shape changed what they "
+        "anchor once the shape libraries were added — a candle word hijacked "
+        "a sentence that meant something else:\n"
+        + "\n".join(f"  [{s}] {t}: {a} -> {b}" for s, t, a, b in hijacked[:25]))
+
+    # ⛔ THE CONTROL: the check CAN see a move, so "nothing was hijacked" is a
+    # measurement and not a vacuous pass.
+    assert moved, ("no corpus row moved at all; the without-shapes lexicon is not "
+                   "actually different and this rail proves nothing")
+
+    # …and the brief's own control phrasing is untouched.
+    got = concierge.plan("close above the 50 day moving average", "scan")
+    assert got["path"] == "composition" and [t["name"] for t in got["terms"]] == ["close"]
+
+
+def _shape_columns(concierge) -> set:
+    """The columns the shape libraries reach — asked of the module's derivation."""
+    return {column for column, _ in concierge._named_shape_phrases()}
+
+
+def test_NO_SHAPE_NAME_IS_A_STRING_CONSTANT_IN_THE_CONCIERGE(concierge):
+    """⛔ THE ANTI-COPY SCAN, EXTENDED TO THE SHAPE LIBRARIES.
+
+    The sibling rail forbids scalar names and vocabulary words as string
+    constants. This task made the module read two more registries, so a hand-list
+    of either is now the cheapest way to fake a fluent door — and it would be
+    green everywhere except here.
+    """
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    constants = {node.value for node in pyast.walk(pyast.parse(src))
+                 if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    forbidden = {shape.key for shapes in _shape_registries().values()
+                 for shape in shapes}
+    forbidden |= {shape.label for shapes in _shape_registries().values()
+                  for shape in shapes}
+    assert len(forbidden) >= 200, "the forbidden set shrank; this rail measures less"
+    assert not (constants & forbidden), (
+        f"{sorted(constants & forbidden)} appear as string constants — the "
+        "door must READ the shape registries, not copy them")
+
+    # The positive control, in the same walk: a synthetic hand-copy IS reported.
+    sample = sorted(forbidden)[:3]
+    hand = pyast.parse(f"NAMES = [{', '.join(repr(w) for w in sample)}]")
+    found = {node.value for node in pyast.walk(hand)
+             if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    assert found & forbidden == set(sample)

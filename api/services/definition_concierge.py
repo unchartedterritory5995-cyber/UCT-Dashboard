@@ -1554,6 +1554,19 @@ CONCEPT_ENTRY, REFUSED_ENTRY, TABLE_ENTRY, EXCLUDED_ENTRY = (
 #: declared bar field and the anti-copy rail would report it, correctly.
 PLAN_PATHS: Tuple[str, ...] = ("concept", "composition", "mixed", "unanchored")
 
+#: ⚠️ STRUCTURE, NOT VOCABULARY. ``_surface_forms`` opens a declared name's
+#: underscores into spaces because a member writes the words, not the joiner; the
+#: shape registries join their machine keys with a hyphen instead, and this is
+#: that same one character. It is the separator, never a name.
+_KEY_SEP = "-"
+
+#: ⚠️ STRUCTURE AGAIN, NOT VOCABULARY. A shape registry writes a
+#: direction variant by parenthesising the direction — the name is outside
+#: the brackets and the qualifier is inside. Stripping the bracketed part is
+#: the same move as opening a camel hump: it recovers the words a member
+#: actually writes.
+_QUALIFIER = re.compile(r"\([^)]*\)")
+
 
 def _surface_forms(name: str, spec: Mapping[str, Any]) -> List[str]:
     """Every way a member might write ONE declared entry, off its declaration.
@@ -1605,6 +1618,140 @@ def _filter_labels() -> List[Tuple[str, str, str]]:
             "the screener's filter registry yielded no labelled columns; its "
             "shape changed and the firm's own wording for every column would "
             "silently stop reaching the plain-language door")
+    return out
+
+
+def _named_shape_phrases() -> List[Tuple[str, str]]:
+    """``(column, phrase)`` for every named bar shape the screener filters on.
+
+    ⭐ WHY THIS EXISTS AT ALL. The screener ships filters over two whole
+    libraries of named bar shapes, and until this landed NO AI door in the product
+    could anchor one of their names. Measured 2026-08-27: of the candle library's
+    own labels, 62 came back with ``concepts``, ``terms``, ``not_understood`` and
+    ``unavailable`` ALL empty. ⛔ AND THAT IS THE WORST OF THE FOUR OUTCOMES,
+    NOT THE MILDEST — the phrasing reached the model as bare English wearing
+    the appearance of a normal request, so nothing marked the miss. An
+    over-refusal is at least visible to whoever reads the refusal; a silent
+    non-understanding is visible to nobody.
+
+    ⭐⭐ TWO REGISTRIES, BECAUSE THE FIRM WROTE TWO. ``candle_catalog``
+    names what the bar IS in the Japanese vocabulary; ``bar_character`` names what
+    the bar DID, and its own header opens by explaining why that had to be a
+    second registry rather than more candle labels. They are the same question
+    about the same bar, they sit in the same filter category, and a member has no
+    idea which library a word came out of. Reading one and not the other would
+    leave this door fluent in half a vocabulary — measured: three of the
+    firm's own starter screens are worded entirely out of the second one.
+
+    ⛔ NOTHING HERE IS TYPED, IN EITHER HALF. The NAMES come from the
+    registries that own them — each one's own header calls itself the single
+    place its names live — and the COLUMN each name is stored in is ASKED OF
+    THE SCREENER'S FILTER REGISTRY rather than asserted: a preset's stored value
+    is decoded through the catalog's own ``decode_matches`` and kept only when it
+    names a shape a registry declares. So a shape registered tomorrow is sayable
+    with no edit here, and a library the screener stops filtering on stops being
+    promised. A hand-typed copy of these names would be this repo's most repeated
+    defect — a second authority over one value — at library scale.
+
+    ⚠️ FIRST DECLARATION WINS, AND IT IS LOAD-BEARING RATHER THAN TIDY.
+    Four separate filters ship the candle library (today, the recent five
+    sessions, the weekly bar, the monthly bar). Indexing a name under each of
+    their columns would put FOUR identities at one distance under one phrase, and
+    ``_resolve_run`` answers a tie with silence — every candle name would have
+    gone straight back to being invisible, which is the defect this function
+    exists to remove. So the registry's own declaration order decides, and the
+    answer is the screener's rather than one made here.
+
+    ⚠️ THE SURFACE FORMS, AND THE ONE THAT IS DELIBERATELY MISSING. The
+    display label; the machine key with its hyphens opened out, exactly as
+    ``_surface_forms`` opens a declared name's underscores; and the label with a
+    parenthesised direction qualifier removed, because a library that writes
+    ``Hikkake Confirmed (Bull)`` is spelling the direction, not the name, and a
+    member says the name. The ``desc`` is NOT indexed: it is a paragraph of
+    ordinary English, and indexing prose would let a fragment of somebody's
+    description match a whole request.
+
+    ⭐ AND THE CLASSIFICATION WORDS THE CATALOG DECLARES ON EVERY PATTERN
+    — the ``kind`` field, which is how the library itself says reversal /
+    continuation / indecision / plain. The screener ships no filter on it, so a
+    member who asks for "a reversal candle" has named something the registry
+    really does declare and no column stores; that is precisely the
+    ``EXCLUDED_ENTRY`` contract, and saying so is better than silence.
+    ⚠️ These are the widest words this function adds and the likeliest to
+    be said by accident. They are here because they are DECLARED, not because two
+    starter screens happen to need them, and an exact spelling is required before
+    any of them is surfaced.
+
+    ⚠️ THE OVER-CAPTURE QUESTION IS ANSWERED BY THE DERIVATION, NOT BY
+    THIS PARAGRAPH. Every library name built out of an ordinary English word
+    — star, harami, inside, engulfing, bar — exists only inside a
+    multi-word form, so ``_matches``'s longest-first, non-overlapping pass can
+    never spend one of those words on a shape when the member meant the ordinary
+    word; and an ``EXCLUDED_ENTRY`` is surfaced only on an EXACT spelling, so no
+    amount of stemming widens any of them. The rail measures both properties over
+    the WHOLE of both libraries rather than over a handful of names somebody
+    picked.
+
+    ⭐ THE LEGACY SPELLINGS RIDE ALONG. The catalog carries a compatibility
+    map for a stored value that changed spelling, and that old token is still
+    written into the column, so it is still a word a member may say. It resolves
+    to the same column as the shape it aliases.
+
+    It RAISES rather than returning nothing, the ``_filter_labels`` idiom: a
+    registry whose shape had moved would otherwise make this door quietly narrower
+    with every rail still green.
+    """
+    from api.services.screener import bar_character  # noqa: PLC0415
+    from api.services.screener import candle_catalog as catalog  # noqa: PLC0415
+    from api.services.screener import filters as screener_filters  # noqa: PLC0415
+
+    registries = (catalog.ALL_PATTERNS, bar_character.CASCADE)
+    declared = {shape.key for registry in registries for shape in registry}
+
+    column_of: Dict[str, str] = {}
+    for entry in screener_filters.FILTERS.values():
+        column = entry.get("column")
+        if not isinstance(column, str) or not column:
+            continue
+        for preset in entry.get("presets") or ():
+            stored = preset.get("value") if isinstance(preset, Mapping) else None
+            if not isinstance(stored, str):
+                continue
+            for key in catalog.decode_matches(stored):
+                if key in declared:
+                    column_of.setdefault(key, column)
+
+    out: List[Tuple[str, str]] = []
+    kinds: Dict[str, str] = {}
+    for registry in registries:
+        #: ⭐ THE COLUMN IS A FACT ABOUT THE LIBRARY, NOT ABOUT ONE SHAPE, and
+        #: asking it per-shape was WRONG in a way only the both-directions rail
+        #: could see: a shape registered but not yet given a filter preset got no
+        #: column, so it was silently dropped — the newest name in the library
+        #: would be the one name this door could not say.
+        column = next((column_of[shape.key] for shape in registry
+                       if shape.key in column_of), None)
+        if not column:
+            continue
+        for shape in registry:
+            out.append((column, shape.label))
+            out.append((column, shape.key.replace(_KEY_SEP, " ")))
+            undirected = _QUALIFIER.sub(" ", shape.label)
+            if _form_tokens(undirected) != _form_tokens(shape.label):
+                out.append((column, undirected))
+            classification = getattr(shape, "kind", None)
+            if isinstance(classification, str) and classification:
+                kinds.setdefault(classification, column)
+    for key, legacy in catalog.LEGACY_ALIASES.items():
+        column = column_of.get(key)
+        if column:
+            out.append((column, legacy.replace(_KEY_SEP, " ")))
+    out.extend((column, classification) for classification, column in kinds.items())
+    if not out:
+        raise ValueError(
+            "the screener's named bar-shape libraries reached no filter column; a "
+            "registry or the filter registry moved, and every one of the firm's "
+            "own shape names would silently stop reaching the plain-language door")
     return out
 
 
@@ -1675,6 +1822,25 @@ def build_lexicon(table: Optional[Mapping[str, Any]] = None,
             add(EXCLUDED_ENTRY, column, None, label)
         elif column in ast_table.declared_names(t):
             add(TABLE_ENTRY, column, ast_table.SCALARS_SECTION, label)
+
+    #: ⭐ AND EVERY NAMED BAR SHAPE THE SCREENER FILTERS ON. See
+    #: `_named_shape_phrases` for why: without this the door was silently blind
+    #: to the firm's own candle and bar-character libraries — not refusing
+    #: them, not naming them, just handing the words to the model as if they had
+    #: been understood.
+    #:
+    #: ⛔ THE SAME TWO-WAY SPLIT AS THE FILTER LABELS ABOVE, AND FOR THE SAME
+    #: REASON. Today the manifest declares these columns EXCLUDED and says why in
+    #: its own words, so a candle name lands in `unavailable` carrying that
+    #: sentence — which itself names the screener filter that does ship the
+    #: pattern and the scalars a member CAN write instead. That is a refusal that
+    #: names what would unblock it. If the table ever declares the column, the
+    #: identical line grounds the same names as terms with no edit here.
+    for column, phrase in _named_shape_phrases():
+        if column in _excluded(t):
+            add(EXCLUDED_ENTRY, column, None, phrase)
+        elif column in ast_table.declared_names(t):
+            add(TABLE_ENTRY, column, ast_table.SCALARS_SECTION, phrase)
 
     for word in concept_vocabulary.concepts(v):
         add(CONCEPT_ENTRY, word, None, word)
@@ -1902,6 +2068,8 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          "terms":       [{name, section, matched_as}] -- the manifest's own entries
          "numbers":     [{wrote, value}]         -- the member's thresholds
          "not_understood": [{phrase, clause, gate, reason}]
+         "unavailable": [{phrase, name, reason}] -- a column this grammar
+                        cannot express, NAMED rather than excised (see below)
          "path":        one of PLAN_PATHS,
          "briefing":    the text appended to the system prompt}
 
