@@ -14,6 +14,7 @@ _TOKEN_URL = "https://oauth2.googleapis.com/token"
 _BROADCASTS_URL = "https://www.googleapis.com/youtube/v3/liveBroadcasts"
 _THUMBNAIL_URL = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set"
 _UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
+_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 # The privacyStatus values the Data API accepts. Used to reject a typo at the
 # call site instead of letting YouTube silently apply its own default.
@@ -126,6 +127,35 @@ class YouTubeClient:
             content=image_bytes, timeout=30)
         if resp.status_code not in (200, 201):
             raise YouTubeApiError(f"thumbnail set {resp.status_code}: {resp.text[:200]}")
+
+    def get_video_snippet(self, video_id: str) -> dict:
+        """Fetch the current `snippet` (title, description, categoryId, tags,
+        ...) for an existing video. Requires a scope beyond youtube.upload —
+        that token 403s here with ACCESS_TOKEN_SCOPE_INSUFFICIENT."""
+        token = self._ensure_token()
+        resp = httpx.get(_VIDEOS_URL, params={"part": "snippet", "id": video_id},
+            headers={"Authorization": f"Bearer {token}"}, timeout=20)
+        if resp.status_code != 200:
+            raise YouTubeApiError(f"videos.list {resp.status_code}: {resp.text[:200]}")
+        items = (resp.json() or {}).get("items") or []
+        if not items:
+            raise YouTubeApiError(f"videos.list: no video found for id {video_id!r}")
+        return items[0]["snippet"]
+
+    def update_description(self, video_id: str, description: str) -> None:
+        """Patch ONLY the description on an existing video. `videos.update`
+        requires the FULL snippet body for `part=snippet` (no partial PATCH),
+        so this reads the current snippet first and changes just one field —
+        the title (final at insert by design) and everything else survive
+        untouched."""
+        snippet = self.get_video_snippet(video_id)
+        snippet["description"] = description
+        token = self._ensure_token()
+        resp = httpx.put(_VIDEOS_URL, params={"part": "snippet"},
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"id": video_id, "snippet": snippet}, timeout=20)
+        if resp.status_code not in (200, 201):
+            raise YouTubeApiError(f"videos.update {resp.status_code}: {resp.text[:200]}")
 
     def list_completed_broadcasts(self, max_results: int = 10) -> list[dict]:
         token = self._ensure_token()

@@ -481,6 +481,77 @@ def test_refresh_is_wired_into_the_generated_path():
              for c in ast.walk(fn) if isinstance(c, ast.Call)}
     assert "maybe_post_recap" in calls          # control: the probe can see siblings
     assert "refresh_creative_cover" in calls
+    assert "refresh_description" in calls
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-26 — refresh_description (Phase 2: real per-session YouTube
+# chapters, patched in once the transcript-derived chapters land). Mirrors
+# refresh_creative_cover's shape/tests exactly. Only under
+# DESK_SESSION_DESCRIPTION_CHAPTERS (needs YT_OAUTH_REFRESH_TOKEN rescoped to
+# youtube.force-ssl — the upload-only scope 403s on videos.update).
+# ---------------------------------------------------------------------------
+
+class _RefreshDescYT:
+    def __init__(self):
+        self.calls = []
+    def update_description(self, video_id, description):
+        self.calls.append((video_id, description))
+
+
+_INS_WITH_CHAPTERS = {"headline": "MU breakout dissected live",
+                      "chapters": [{"t": 300, "title": "MU entry at the 21"}]}
+
+
+def test_description_refresh_patches_real_chapters(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    from api.services import desk_daily_session as dds
+    monkeypatch.setenv("DESK_SESSION_DESCRIPTION_CHAPTERS", "1")
+    yt = _RefreshDescYT()
+    assert dsi.refresh_description(_V, _INS_WITH_CHAPTERS, youtube=yt) is True
+    assert len(yt.calls) == 1
+    video_id, description = yt.calls[0]
+    assert video_id == "YT307"
+    assert description == dds.compose_description_with_chapters(
+        "Evening Update", _INS_WITH_CHAPTERS["chapters"])
+    assert "MU entry at the 21" in description
+
+
+def test_description_refresh_noop_when_flag_off(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    monkeypatch.delenv("DESK_SESSION_DESCRIPTION_CHAPTERS", raising=False)
+    yt = _RefreshDescYT()
+    assert dsi.refresh_description(_V, _INS_WITH_CHAPTERS, youtube=yt) is False
+    assert yt.calls == []
+
+
+def test_description_refresh_skips_when_no_chapters(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    monkeypatch.setenv("DESK_SESSION_DESCRIPTION_CHAPTERS", "1")
+    yt = _RefreshDescYT()
+    no_chapters = {"headline": "x", "chapters": []}
+    assert dsi.refresh_description(_V, no_chapters, youtube=yt) is False
+    assert yt.calls == []
+
+
+def test_description_refresh_skips_unparseable_title_and_blank_video_id(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    monkeypatch.setenv("DESK_SESSION_DESCRIPTION_CHAPTERS", "1")
+    yt = _RefreshDescYT()
+    assert dsi.refresh_description({"youtube_id": "YT1", "title": "garbage"},
+                                   _INS_WITH_CHAPTERS, youtube=yt) is False
+    assert dsi.refresh_description({"youtube_id": "", "title": _V["title"]},
+                                   _INS_WITH_CHAPTERS, youtube=yt) is False
+    assert yt.calls == []
+
+
+def test_description_refresh_never_raises(monkeypatch):
+    from api.services import desk_session_insights as dsi
+    monkeypatch.setenv("DESK_SESSION_DESCRIPTION_CHAPTERS", "1")
+    class _BoomYT:
+        def update_description(self, *a, **k):
+            raise RuntimeError("scope insufficient")
+    assert dsi.refresh_description(_V, _INS_WITH_CHAPTERS, youtube=_BoomYT()) is False
 
 
 # ---------------------------------------------------------------------------
