@@ -10,24 +10,8 @@
   font-family: var(--font-sans);
 }
 
-.header {
-  flex-shrink: 0;
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid var(--wl-divider, rgba(255, 255, 255, 0.05));
-}
-.titleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  color: var(--wl-text, var(--text-bright, #e0dac8));   /* neutral, theme-adaptive — reads on light + dark (was UCT gold) */
-}
+/* ── Shared PickerHeader (Watchlist + Scanner) — Theme-Tracker aesthetic ───────── */
+.header { flex-shrink: 0; }
 .gearBtn {
   display: inline-flex;
   align-items: center;
@@ -45,74 +29,91 @@
   background: var(--wl-row-hover, rgba(255, 255, 255, 0.06));
 }
 
-/* Segmented tab control — Prebuilt · Community · My Lists */
-.tabs {
+/* Tab strip — flat tabs + New/⚙ on the right (mirrors ThemeTrackerPage .periodBar).
+   Transparent so it sits flush on the picker canvas; a hairline divides it from search. */
+.tabBar {
   display: flex;
-  gap: 3px;
-  padding: 3px;
-  margin-bottom: 8px;
-  /* Theme-adaptive (like .searchWrap): a faint inset off the picker canvas via the --wl-*
-     vars, so it reads light-on-light / dark-on-OLED instead of the fixed dark --bg that
-     stayed black on a white surface. */
-  background: var(--wl-row-hover, var(--bg, #060809));
-  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
-  border-radius: var(--radius-lg);
-}
-.tab {
-  flex: 1;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 6px 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  color: var(--wl-text, var(--text-muted, #706b5e));
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  gap: 4px;
+  padding: 0 10px;
+  min-height: 34px;   /* shared first-header-row height across widgets */
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
 }
-.tab:hover { color: var(--wl-text-strong, var(--text-bright, #e0dac8)); }
-.tab svg { opacity: 0.85; }
-/* Active tab = the family standard: flat accent-tint fill + a thin accent border.
-   Follows the app theme's accent (gold on gold themes, the theme's accent otherwise)
-   rather than always gold, so it reads on every theme. */
-.tabActive {
-  background: color-mix(in srgb, var(--accent, var(--ut-gold)) 12%, transparent);
-  color: var(--accent, var(--ut-gold, #dcbb5e));
+.tabFlat {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  /* Brighter than the old muted grey — the "pop" the owner asked for. */
+  color: var(--wl-text-strong, var(--text, #b0b2b8));
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+}
+.tabFlat:hover { color: var(--wl-sym, var(--text-bright, #e0dac8)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
+.tabFlatActive {
+  color: var(--wl-accent, var(--accent, var(--ut-gold, #dcbb5e)));
+  background: color-mix(in srgb, var(--wl-accent, var(--accent, var(--ut-gold))) 12%, transparent);
   border-color: var(--accent, var(--ut-gold));
 }
-.tabActive:hover { color: var(--accent, var(--ut-gold, #dcbb5e)); }
+.tabFlatActive:hover { color: var(--wl-accent, var(--accent, var(--ut-gold, #dcbb5e))); }
+.tabSpacer { flex: 1 1 auto; }
 
-.searchWrap {
+/* "＋ New" action — small, squared, matches the tab strip (not the old gold dashed box). */
+.newAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
+  background: transparent;
+  color: var(--wl-text-strong, var(--text, #b0b2b8));
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+}
+.newAction:hover:not(:disabled) {
+  color: var(--wl-accent, var(--ut-gold, #dcbb5e));
+  border-color: var(--accent, var(--ut-gold));
+  background: var(--wl-row-hover, rgba(255, 255, 255, 0.06));
+}
+.newAction:disabled { opacity: 0.5; cursor: default; }
+.newHint { font-size: 8px; text-transform: uppercase; letter-spacing: 0.6px; opacity: 0.6; }
+
+/* Search row + box — the exact Theme-Tracker treatment (squared, faint inset, thin border). */
+.searchRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  /* Match the widget's own canvas (theme-adaptive): a faint inset off the canvas
-     via --wl-row-hover, so it reads white-on-light / dark-on-OLED instead of the
-     fixed dark --bg (which stayed black on a white surface). */
-  background: var(--wl-row-hover, var(--bg, #0b0f14));
-  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
-  border-radius: var(--radius-md);
-  color: var(--wl-text, var(--text-muted, #8c8674));
+  padding: 6px 10px;
+  min-height: 32px;   /* shared second-header-row height */
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
 }
-.searchWrap:focus-within { border-color: var(--wl-accent, var(--ut-gold, #dcbb5e)); }
-.search {
+.searchBox {
   flex: 1;
   min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
+  background: var(--wl-row-hover, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--wl-divider, var(--border, #1f2937));
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
   color: var(--wl-sym, var(--text-bright, #e0dac8));
-  font-family: inherit;
-  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
 }
-.search::placeholder { color: var(--wl-text, var(--text-muted, #706b5e)); }
+.searchBox:focus { border-color: var(--wl-accent, var(--accent, var(--ut-gold, #dcbb5e))); }
+.searchBox::placeholder { color: var(--wl-text, var(--text-muted, #8c8674)); }
 
 .body {
   flex: 1;
@@ -131,7 +132,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.2px;
-  color: var(--text-muted, #706b5e);
+  color: var(--wl-text-strong, var(--text, #b0b2b8));
 }
 
 .comingSoon,
@@ -202,9 +203,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+  /* 700 (bold), NOT 800 — at extra-black Instrument Sans thickens enough to read as a
+     different typeface next to the 600 tabs. One weight scale = one cohesive font. */
+  font-weight: 700;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--wl-text-strong, #0b0f14);
   padding: 8px 6px 6px;

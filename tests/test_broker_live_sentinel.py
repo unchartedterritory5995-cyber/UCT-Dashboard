@@ -24,7 +24,18 @@ from api.services.journal_two.broker import activities_store, live_sentinel
 USER = "u1"
 BACCT = "ba1"
 J2 = "j2a"
-SYNCED = "2026-08-26T07:40:17.855136+00:00"
+# Anchor + fill stamps are CLOCK-RELATIVE: the sentinel skips anchors older
+# than 36h, so a wall-clock-pinned fixture rots into "skipped" as real time
+# passes (it did, the same day it was written). The incident's QUANTITIES and
+# PRICES are the regression; its absolute dates never were.
+from datetime import datetime, timedelta, timezone
+
+_NOW = datetime.now(timezone.utc)
+SYNCED = (_NOW - timedelta(hours=4)).isoformat()
+
+
+def _after_sync(minutes):
+    return (_NOW - timedelta(hours=4) + timedelta(minutes=minutes)).isoformat()
 
 
 @pytest.fixture
@@ -123,7 +134,7 @@ def test_served_fill_with_derived_cash_is_ok(env):
     _seed_position("SNAP", 2000, 5.4241, entry=5.495)
     activities_store.store_activities(USER, BACCT, [
         _fill("intraday:snap", "BUY", "SNAP", 2000.0, 5.495,
-              "2026-08-26T14:54:24.358000Z"),
+              _after_sync(30)),
     ])
     out = _check()
     assert out["verdict"] == "ok"
@@ -140,7 +151,7 @@ def test_fill_in_cash_but_not_in_book_is_book_lag_not_a_page(env):
     _seed_position("SPY", 0.1568, 765.95)
     activities_store.store_activities(USER, BACCT, [
         _fill("intraday:snap", "BUY", "SNAP", 2000.0, 5.495,
-              "2026-08-26T14:54:24.358000Z"),
+              _after_sync(30)),
     ])
     out = _check()
     assert out["verdict"] == "book_lag"
@@ -273,7 +284,7 @@ def test_first_live_morning_regression_mixed_day_is_book_lag_not_structural(env)
     served). Residual −4,139.70. The v1 all-or-none classifier called that
     structural; the honest verdict is book_lag."""
     _seed_account(cash=-29750.66, mv=40505.53, equity=10754.87,
-                  synced_at="2026-08-27T07:40:21.377392+00:00")
+                  synced_at=SYNCED)
     _seed_position("DELL", 5, 463.69)
     _seed_position("ORCL", 100, 148.87)
     _seed_position("SPY", 0.1568, 765.95)
@@ -291,13 +302,13 @@ def test_first_live_morning_regression_mixed_day_is_book_lag_not_structural(env)
     conn.close()
     activities_store.store_activities(USER, BACCT, [
         _fill("intraday:nexa", "SELL", "NEXA", 750.0, 13.8917,
-              "2026-08-27T14:50:00.178000Z"),
+              _after_sync(50)),
         _fill("intraday:th", "BUY", "TH", 150.0, 18.89,
-              "2026-08-27T14:52:59.859000Z"),
+              _after_sync(52)),
         _fill("intraday:spy1", "BUY", "SPY", 0.025912, 771.8399,
-              "2026-08-27T17:43:14Z"),
+              _after_sync(60)),
         _fill("intraday:spy2", "BUY", "SPY", 0.025912, 771.8399,
-              "2026-08-27T17:43:15Z"),
+              _after_sync(61)),
     ])
     out = _check()
     assert out["residual"] == pytest.approx(-4139.7, abs=1.0)
@@ -312,7 +323,34 @@ def test_a_sell_far_above_its_mark_with_a_phantom_still_reads_structural(env):
     _seed_position("GHOST", 100, 110.0)          # phantom, no ledger fill
     activities_store.store_activities(USER, BACCT, [
         _fill("intraday:small", "BUY", "AAPL", 1.0, 100.0,
-              "2026-08-26T15:00:00Z"),
+              _after_sync(35)),
     ])
     out = _check()
     assert out["verdict"] == "structural"
+
+
+def test_the_page_dedup_survives_a_redeploy(env, monkeypatch):
+    """2026-08-27: four same-day deploys each wiped the in-process dedup dict
+    and the SAME false alarm paged twice. The dedup is durable now
+    (j2_broker_digest_dedup) — a fresh process must not re-page."""
+    _seed_account(cash=-18760.66, mv=29010.55, equity=10724.0)
+    _seed_position("SNAP", 2000, 5.4241, entry=5.495)
+    _seed_position("ORCL", 100, 148.87)
+    pages = []
+    monkeypatch.setattr(live_sentinel, "_post_discord",
+                        lambda t, d: pages.append(t))
+    conn = auth_db.get_connection()
+    try:
+        for _ in range(2):
+            out = live_sentinel.check_account(USER, BACCT, J2, conn)
+            fails = live_sentinel._persist(conn, USER, BACCT, out)
+            live_sentinel._maybe_page(USER, BACCT, out, fails, conn=conn)
+        assert len(pages) == 1
+        # "Redeploy": in-process state resets — the durable row must hold.
+        live_sentinel._reset_for_tests()
+        out = live_sentinel.check_account(USER, BACCT, J2, conn)
+        fails = live_sentinel._persist(conn, USER, BACCT, out)
+        live_sentinel._maybe_page(USER, BACCT, out, fails, conn=conn)
+        assert len(pages) == 1          # still one — no repeat page same day
+    finally:
+        conn.close()

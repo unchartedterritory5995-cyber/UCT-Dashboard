@@ -78,7 +78,7 @@ export const APP_THEMES = [
   dark('slate', 'Slate', {
     bg: '#0f1216', surface: '#161a20', elevated: '#1c222a', hover: '#232a34',
     border: '#262d38', borderAccent: '#333d4a',
-    text: '#aab3c0', muted: '#7c8698', bright: '#dfe6ef', heading: '#f0f4f9', accent: '#6ea8fe' }),
+    text: '#b0b3b9', muted: '#7c8698', bright: '#dfe6ef', heading: '#f0f4f9', accent: '#6ea8fe' }),
   dark('graphite', 'Graphite', {
     bg: '#101012', surface: '#17181b', elevated: '#1d1f23', hover: '#24262b',
     border: '#2a2c31', borderAccent: '#383b41',
@@ -86,43 +86,43 @@ export const APP_THEMES = [
   dark('carbon', 'Carbon', {
     bg: '#0a0b0c', surface: '#121315', elevated: '#191a1d', hover: '#202225',
     border: '#26282c', borderAccent: '#34373c',
-    text: '#adb0b5', muted: '#7c7f85', bright: '#e2e4e8', heading: '#f0f1f3', accent: '#4fd1c5' }),
+    text: '#b0b2b7', muted: '#7c7f85', bright: '#e2e4e8', heading: '#f0f1f3', accent: '#4fd1c5' }),
   dark('navy', 'Midnight Navy', {
     bg: '#0b1020', surface: '#121a2e', elevated: '#182238', hover: '#1f2b44',
     border: '#26324c', borderAccent: '#33415f',
-    text: '#a6b0c4', muted: '#74809a', bright: '#dbe3f2', heading: '#eef2fb', accent: '#5b9bff' }),
+    text: '#b0b3ba', muted: '#74809a', bright: '#dbe3f2', heading: '#eef2fb', accent: '#5b9bff' }),
   dark('forest', 'Deep Forest', {
     bg: '#0a0f0c', surface: '#111813', elevated: '#16201a', hover: '#1d2921',
     border: '#24322a', borderAccent: '#324237',
-    text: '#a7b4ac', muted: '#75847b', bright: '#dde8e1', heading: '#eef4f0', accent: '#46c37d' }),
+    text: '#b0b4b0', muted: '#75847b', bright: '#dde8e1', heading: '#eef4f0', accent: '#46c37d' }),
   dark('espresso', 'Espresso', {
     bg: '#0f0b08', surface: '#17120d', elevated: '#1e1811', hover: '#262016',
     border: '#2e2519', borderAccent: '#3d3220',
-    text: '#b8ac9a', muted: '#897e6c', bright: '#ece2d2', heading: '#f5ecdc', accent: '#e0a35e' }),
+    text: '#b8b2a6', muted: '#897e6c', bright: '#ece2d2', heading: '#f5ecdc', accent: '#e0a35e' }),
   dark('plum', 'Plum', {
     bg: '#0f0a12', surface: '#17111c', elevated: '#1e1724', hover: '#261e2e',
     border: '#2e2438', borderAccent: '#3d3149',
-    text: '#b3a9bd', muted: '#837a8f', bright: '#e5dded', heading: '#f1ebf6', accent: '#b48bf0' }),
+    text: '#b3afba', muted: '#837a8f', bright: '#e5dded', heading: '#f1ebf6', accent: '#b48bf0' }),
   dark('nord', 'Nord', {
     bg: '#12161c', surface: '#1a1f27', elevated: '#212731', hover: '#2a313c',
     border: '#313947', borderAccent: '#3f4a5b',
-    text: '#aeb6c2', muted: '#7e8797', bright: '#e0e6ee', heading: '#eff3f8', accent: '#88c0d0' }),
+    text: '#b1b5bc', muted: '#7e8797', bright: '#e0e6ee', heading: '#eff3f8', accent: '#88c0d0' }),
   dark('gunmetal', 'Gunmetal', {
     bg: '#0d1013', surface: '#14181c', elevated: '#1a1f24', hover: '#21272d',
     border: '#282f36', borderAccent: '#363f48',
-    text: '#a9b1ba', muted: '#78818b', bright: '#dfe5ea', heading: '#eef2f5', accent: '#5ec8c2' }),
+    text: '#b0b3b8', muted: '#78818b', bright: '#dfe5ea', heading: '#eef2f5', accent: '#5ec8c2' }),
   dark('bordeaux', 'Bordeaux', {
     bg: '#120a0c', surface: '#1a1013', elevated: '#221518', hover: '#2b1c20',
     border: '#342227', borderAccent: '#452e34',
-    text: '#bda9ae', muted: '#8c777c', bright: '#eddde1', heading: '#f6ebee', accent: '#e07a90' }),
+    text: '#b9b2b4', muted: '#8c777c', bright: '#eddde1', heading: '#f6ebee', accent: '#e07a90' }),
   dark('storm', 'Storm', {
     bg: '#0e1013', surface: '#15181d', elevated: '#1b1f26', hover: '#22272f',
     border: '#2a303a', borderAccent: '#38404d',
-    text: '#a9b0bc', muted: '#78808e', bright: '#dfe4ec', heading: '#eef1f7', accent: '#7c8cf8' }),
+    text: '#b0b3ba', muted: '#78808e', bright: '#dfe4ec', heading: '#eef1f7', accent: '#7c8cf8' }),
   dark('umber', 'Umber', {
     bg: '#0f0d0b', surface: '#17140f', elevated: '#1e1a14', hover: '#26211a',
     border: '#2e2820', borderAccent: '#3d352a',
-    text: '#b6ab9c', muted: '#877d6f', bright: '#e9e0d3', heading: '#f3ebdf', accent: '#d98c5f' }),
+    text: '#b6b1a6', muted: '#877d6f', bright: '#e9e0d3', heading: '#f3ebdf', accent: '#d98c5f' }),
 
   // ── Light (6) — soft, clean, darkened accent legible on white ──
   light('paper', 'Paper', {

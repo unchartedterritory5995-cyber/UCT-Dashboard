@@ -54,29 +54,43 @@ def _option(act_id, typ, under, units, price, trade_date, *, mini=False, fee=0):
             "trade_date": trade_date, "currency": "USD"}
 
 
-SYNCED = "2026-08-26T07:40:17.855136+00:00"
+# CLOCK-RELATIVE anchor: effective_cash disables itself when the balance
+# write is older than 7 days, so a wall-clock-pinned SYNCED rots the whole
+# suite into passthroughs within a week of being written.
+from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+_NOW = _dt.now(_tz.utc)
+SYNCED = (_NOW - _td(hours=4)).isoformat()
+
+
+def _after_sync(minutes):
+    return (_NOW - _td(hours=4) + _td(minutes=minutes)).isoformat()
+
+
+def _before_sync(minutes):
+    return (_NOW - _td(hours=4) - _td(minutes=minutes)).isoformat()
 
 
 # ── fill_cash_effect ─────────────────────────────────────────────────────────
 
 def test_equity_buy_is_negative_cost_plus_fee():
-    act = _equity("a1", "BUY", "SNAP", 2000, 5.495, "2026-08-26T14:54:24Z", fee=1.0)
+    act = _equity("a1", "BUY", "SNAP", 2000, 5.495, _after_sync(30), fee=1.0)
     assert live_cash.fill_cash_effect(act) == pytest.approx(-10991.0)
 
 
 def test_equity_sell_is_positive_proceeds_minus_fee():
-    act = _equity("a2", "SELL", "NEXA", 750, 15.58, "2026-08-26T15:00:00Z", fee=0.5)
+    act = _equity("a2", "SELL", "NEXA", 750, 15.58, _after_sync(35), fee=0.5)
     assert live_cash.fill_cash_effect(act) == pytest.approx(11684.5)
 
 
 def test_option_buy_applies_the_contract_multiplier():
     # Ledger convention: option activity price is PER-SHARE premium.
-    act = _option("a3", "BUY", "SNAP", 5, 1.22, "2026-08-17T18:31:50Z")
+    act = _option("a3", "BUY", "SNAP", 5, 1.22, _after_sync(20))
     assert live_cash.fill_cash_effect(act) == pytest.approx(-610.0)
 
 
 def test_mini_option_uses_ten():
-    act = _option("a4", "SELL", "XSP", 2, 1.50, "2026-08-26T15:00:00Z", mini=True)
+    act = _option("a4", "SELL", "XSP", 2, 1.50, _after_sync(35), mini=True)
     assert live_cash.fill_cash_effect(act) == pytest.approx(30.0)
 
 
@@ -84,7 +98,7 @@ def test_sell_with_negative_units_still_credits_proceeds():
     # Unit sign is untrusted — every adapter lane abs()'s units and takes
     # direction from the type. A broker reporting a sell as units=-750 must
     # credit, not vanish.
-    act = _equity("a-neg", "SELL", "NEXA", -750, 15.58, "2026-08-26T15:00:00Z")
+    act = _equity("a-neg", "SELL", "NEXA", -750, 15.58, _after_sync(35))
     assert live_cash.fill_cash_effect(act) == pytest.approx(11685.0)
 
 
@@ -92,7 +106,7 @@ def test_option_shaped_row_without_option_symbol_is_excluded():
     # adapter.classify treats type BUY + option_type as an option trade even
     # without option_symbol — and the reconstruction lane SKIPS those rows
     # (no contract to build). Cash must only move where the book moved.
-    act = _equity("a-opt", "BUY", "SNAP", 5, 1.22, "2026-08-26T15:00:00Z")
+    act = _equity("a-opt", "BUY", "SNAP", 5, 1.22, _after_sync(35))
     act["option_type"] = "BUY_TO_OPEN"
     assert live_cash.fill_cash_effect(act) is None
 
@@ -101,7 +115,7 @@ def test_lowercase_activity_type_rows_are_still_counted(env):
     # activity_type is stored VERBATIM from the broker payload; the SQL
     # prefilter must normalize case the way every adapter read does.
     _store([_equity("intraday:lc", "buy", "SNAP", 100.0, 5.0,
-                    "2026-08-26T15:00:00Z")])
+                    _after_sync(35))])
     out = live_cash.effective_cash(USER, BACCT, 0.0, SYNCED)
     assert out["fills"] == 1
     assert out["cash"] == pytest.approx(-500.0)
@@ -110,11 +124,11 @@ def test_lowercase_activity_type_rows_are_still_counted(env):
 def test_non_trade_and_malformed_rows_are_none():
     assert live_cash.fill_cash_effect({"type": "CONTRIBUTION", "amount": 40.0}) is None
     assert live_cash.fill_cash_effect(
-        _equity("a5", "BUY", "SNAP", 0, 5.495, "2026-08-26T14:54:24Z")) is None
+        _equity("a5", "BUY", "SNAP", 0, 5.495, _after_sync(30))) is None
     assert live_cash.fill_cash_effect(
-        _equity("a6", "BUY", "SNAP", 100, 0, "2026-08-26T14:54:24Z")) is None
+        _equity("a6", "BUY", "SNAP", 100, 0, _after_sync(30))) is None
     assert live_cash.fill_cash_effect(
-        _equity("a7", "BUY", "SNAP", "x", 5.0, "2026-08-26T14:54:24Z")) is None
+        _equity("a7", "BUY", "SNAP", "x", 5.0, _after_sync(30))) is None
 
 
 # ── effective_cash ───────────────────────────────────────────────────────────
@@ -124,7 +138,7 @@ def test_incident_regression_snap_buy_moves_cash_to_broker_truth(env):
     after the balance sync ⇒ effective cash −29,750.66 (what the overnight
     sync later confirmed to the penny)."""
     _store([_equity("intraday:snap", "BUY", "SNAP", 2000.0, 5.495,
-                    "2026-08-26T14:54:24.358000Z")])
+                    _after_sync(30))])
     out = live_cash.effective_cash(USER, BACCT, -18760.66, SYNCED)
     assert out["cash"] == pytest.approx(-29750.66)
     assert out["adjustment"] == pytest.approx(-10990.0)
@@ -136,9 +150,9 @@ def test_fills_before_the_balance_sync_are_already_in_cash(env):
     # fill that OCCURRED before the sync, even ones whose ledger row was
     # T+1-delivered later. Only post-sync fills adjust.
     _store([
-        _equity("old-sell", "SELL", "BABA", 1, 515.0, "2026-08-25T17:36:02Z"),
+        _equity("old-sell", "SELL", "BABA", 1, 515.0, _before_sync(60)),
         _equity("intraday:new", "BUY", "SNAP", 2000.0, 5.495,
-                "2026-08-26T14:54:24.358000Z"),
+                _after_sync(30)),
     ])
     out = live_cash.effective_cash(USER, BACCT, -18760.66, SYNCED)
     assert out["fills"] == 1
@@ -147,14 +161,14 @@ def test_fills_before_the_balance_sync_are_already_in_cash(env):
 
 def test_sell_credits_proceeds(env):
     _store([_equity("intraday:s", "SELL", "ORCL", 100.0, 148.87,
-                    "2026-08-26T15:10:00Z")])
+                    _after_sync(40))])
     out = live_cash.effective_cash(USER, BACCT, -18760.66, SYNCED)
     assert out["cash"] == pytest.approx(-18760.66 + 14887.0)
 
 
 def test_option_fill_adjusts_with_multiplier(env):
     _store([_option("intraday:o", "BUY", "SNAP", 5, 1.22,
-                    "2026-08-26T15:20:00Z")])
+                    _after_sync(45))])
     out = live_cash.effective_cash(USER, BACCT, -1000.0, SYNCED)
     assert out["cash"] == pytest.approx(-1610.0)
 
@@ -180,7 +194,7 @@ def test_stale_balance_sync_disables_the_derivation(env):
     # now also carries dividends/deposits we deliberately don't model — the
     # honest answer is the stored cash, unadjusted.
     _store([_equity("intraday:x", "BUY", "SNAP", 100.0, 5.0,
-                    "2026-08-26T14:54:24Z")])
+                    _after_sync(30))])
     out = live_cash.effective_cash(USER, BACCT, -100.0, "2026-08-10T07:40:00+00:00",
                                    now_iso="2026-08-26T22:00:00+00:00")
     assert out["cash"] == pytest.approx(-100.0)
@@ -192,7 +206,7 @@ def test_z_suffix_and_offset_timestamps_compare_correctly(env):
     # a naive string compare would misorder same-second edges; the derivation
     # must parse both.
     _store([_equity("intraday:edge", "BUY", "AAA", 10.0, 1.0,
-                    "2026-08-26T07:40:17.900000Z")])  # 45ms AFTER the sync
+                    (_NOW - _td(hours=4) + _td(milliseconds=45)).isoformat())])  # 45ms AFTER the sync
     out = live_cash.effective_cash(USER, BACCT, 0.0, SYNCED)
     assert out["fills"] == 1
     assert out["cash"] == pytest.approx(-10.0)
@@ -217,7 +231,7 @@ def _seed_broker_account(j2_account_id):
 def test_annotate_accounts_stamps_live_cash_on_broker_accounts(env):
     _seed_broker_account("j2a")
     _store([_equity("intraday:snap", "BUY", "SNAP", 2000.0, 5.495,
-                    "2026-08-26T14:54:24.358000Z")])
+                    _after_sync(30))])
     accounts = [
         {"id": "j2a", "balanceSource": "broker", "brokerCash": -18760.66,
          "brokerBalanceSyncedAt": SYNCED},

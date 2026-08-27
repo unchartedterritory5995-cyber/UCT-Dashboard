@@ -61,12 +61,8 @@ _TOL_PCT = 0.015
 _PAGE_AFTER_CONSECUTIVE = 2
 _MAX_ANCHOR_AGE_HOURS = 36
 
-# One page per account per ET day (in-process; a redeploy risks one repeat).
-_paged: dict[str, str] = {}
-
-
 def _reset_for_tests() -> None:
-    _paged.clear()
+    pass  # dedup is durable (j2_broker_digest_dedup); tests use fresh DBs
 
 
 def _enabled() -> bool:
@@ -237,13 +233,34 @@ def _persist(conn, user_id: str, broker_account_id: str, out: dict[str, Any]) ->
 
 
 def _maybe_page(user_id: str, broker_account_id: str, out: dict[str, Any],
-                fails: int) -> None:
+                fails: int, conn=None) -> None:
     if fails < _PAGE_AFTER_CONSECUTIVE:
         return
+    # DURABLE once-per-account-per-ET-day dedup (j2_broker_digest_dedup, the
+    # repo's standing pattern). The first version used an in-process dict —
+    # and on 2026-08-27, four same-day deploys each wiped it while the v1
+    # classifier still misread the owner's trading morning as structural, so
+    # ONE false alarm paged twice. An in-process dedup on a pod that
+    # redeploys several times a day is not a dedup.
     today = datetime.now(_ET).strftime("%Y-%m-%d")
-    if _paged.get(broker_account_id) == today:
-        return
-    _paged[broker_account_id] = today
+    dd_id = f"live_sentinel:{broker_account_id}"
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT et_day FROM j2_broker_digest_dedup WHERE id = ?", (dd_id,),
+        ).fetchone()
+        if row and row["et_day"] == today:
+            return
+        conn.execute(
+            "INSERT OR REPLACE INTO j2_broker_digest_dedup "
+            "(id, fingerprint, et_day) VALUES (?, ?, ?)",
+            (dd_id, broker_account_id, today),
+        )
+        conn.commit()
+    finally:
+        if owned:
+            conn.close()
     c = out.get("components") or {}
     _post_discord(
         "🔴 Broker live-composition drift (structural)",
@@ -253,7 +270,10 @@ def _maybe_page(user_id: str, broker_account_id: str, out: dict[str, Any],
         f"cash {c.get('cashSynced')}→{c.get('cashLive')} · book "
         f"{c.get('bookSynced')}→{c.get('bookNow')} · fills {c.get('fills')} "
         f"(buys ${c.get('buyCost')}, sells ${c.get('sellProceeds')}).\n"
-        "Component snapshot persisted in j2_broker_live_checks (flight recorder).",
+        "This is the between-sync LIVE composition check — synced data is "
+        "graded separately by the mirror check, and a full sync re-anchors "
+        "this one. Component snapshot persisted in j2_broker_live_checks "
+        "(flight recorder). One page per account per day.",
     )
 
 
@@ -285,7 +305,7 @@ def run_sentinel_sweep() -> dict[str, Any]:
                 checked += 1
                 if out["verdict"] == "structural":
                     structural += 1
-                    _maybe_page(ba["userId"], ba["id"], out, fails)
+                    _maybe_page(ba["userId"], ba["id"], out, fails, conn=conn)
             except Exception:  # noqa: BLE001
                 logger.warning("live sentinel failed for %s", ba.get("id"),
                                exc_info=True)
