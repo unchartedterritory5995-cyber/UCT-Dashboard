@@ -171,6 +171,21 @@ def definition_results(
     # symbol the nightly build dropped out of `screener_rows` is one a member
     # cannot act on, and a live hit is no exception — `_hit_tickers` refuses
     # exactly this for the nightly half.
+    #
+    # ⭐ AND IT IS RENDERED (X43, W9l.1). These rows reach the browser under
+    # `hits` with `in_nightly: false`, and
+    # `app/src/components/screener/ScanResults.jsx` draws them as their OWN block
+    # under a line that says they were found by the live sweep and not by the
+    # nightly scan — the "live vs nightly per hit" half of A6.
+    #
+    # ⛔ THAT SENTENCE USED TO BE FALSE. The surface iterated `tickers`, which is
+    # the NIGHTLY half (see `kept` below), so this tail was built, capped and
+    # discarded on every request. It is invisible today only because
+    # `SCAN_LIVE_SWEEP_ENABLED` is unset and `scan_hits_live` is therefore empty:
+    # the env flip would have filled the tail and changed NOTHING a member could
+    # see. `tests/test_scan_results_route.py` now plants a live row and asserts
+    # the tail arrives, so a future edit that drops it fails here rather than
+    # on the day someone sets the variable.
     live_only = [r for r in overlay["rows"] if not r["in_nightly"]]
     present = snapshot_db.symbols_in_snapshot([r["symbol"] for r in live_only])
     extra = [r for r in live_only if r["symbol"] in present]
@@ -221,7 +236,10 @@ def definition_results(
         # the sweep reported is rewritten.
         "coverage": coverage,
         "tickers": kept,
-        # ⛔ ADDED BESIDE `tickers`, NEVER FOLDED INTO IT. `hits` is that same
+        # ⛔ ADDED BESIDE `tickers`, NEVER FOLDED INTO IT — AND READ. W9l.1 wired
+        # `ScanResults.jsx` to this key for the live-only half; a consumer census
+        # that finds no reader for it again is a defect, not a spare field.
+        # `hits` is that same
         # page carrying WHERE EACH ROW CAME FROM — `tier: nightly|live`,
         # `in_nightly`, `live_as_of` (the TICK), plus the forming-bar `value`,
         # `src_price` and how many live columns answered. A live-only hit is

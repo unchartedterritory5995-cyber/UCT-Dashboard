@@ -113,9 +113,23 @@ export function parseSymbols(text) {
 /** The finished job in the shape `ScanResults` renders — `tickers` DERIVED from
  *  `hits`, the receipt forwarded WHOLE, the tier carried.
  *
- *  ⛔ `truncated` IS READ OFF THE RECEIPT, never typed. It is one of
- *  `scan_run._COVERAGE_KEYS`, so the server always answers it; spelling `false`
- *  here would be a second authority over a fact the run already reported. */
+ *  🔴 `truncated` IS THE PAGE'S WORD HERE, AND AN ON-DEMAND RUN HAS NO PAGE CUT.
+ *  This read `Boolean(coverage.truncated)`, and the two are DIFFERENT FACTS
+ *  wearing one name:
+ *
+ *    * `scan_evaluator.evaluate_one` sets ITS `truncated` when the
+ *      `dropped_symbols` ENUMERATION was capped below `dropped +
+ *      not_computable` — a fact about a symbol LIST, and it stays on `coverage`,
+ *      whole, where `CoverageLine` reads it.
+ *    * `api/routers/scan_results.py` sets the top-level key when the HIT PAGE is
+ *      short of the hits — a fact about the rows on screen.
+ *
+ *  ⛔ THE COLLISION SURVIVED BECAUSE NOTHING RENDERED EITHER ONE. `ScanResults`
+ *  now says this key out loud ("this page is short of the hits this screen
+ *  found"), so forwarding the receipt's meaning under the page's name would tell
+ *  a member their hit list was cut because a symbol list was. The run returns
+ *  every hit it found: this page is WHOLE, and saying so is a measurement of
+ *  this door, not a second authority over the receipt's. */
 export function toScanResultsPayload(run) {
   const coverage = run && run.coverage ? run.coverage : null
   return {
@@ -125,7 +139,7 @@ export function toScanResultsPayload(run) {
     status: 'evaluated',
     coverage,
     tickers: (Array.isArray(run.hits) ? run.hits : []).map((h) => h.symbol),
-    truncated: Boolean(coverage && coverage.truncated),
+    truncated: false,
     tier: run.tier,
   }
 }

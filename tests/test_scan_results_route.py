@@ -27,9 +27,11 @@ from __future__ import annotations
 
 import ast as pyast
 import contextlib
+import datetime
 import json
 import sqlite3
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
@@ -100,6 +102,46 @@ def _record():
         dropped_symbols=dropped_symbols,
         freshness=FRESHNESS,
     )
+
+
+#: ⭐ THE LIVE HALF. `SCAN_LIVE_SWEEP_ENABLED` is unset in production, so
+#: `scan_hits_live` is empty and the overlay's tail is empty with it — which is
+#: exactly why the surface reading it was never checked. These rows are what the
+#: day that variable is set looks like.
+#:
+#: ⛔ THE TICK IS ET-ANCHORED AND THE READ CLOCK IS FROZEN TO IT. `hits_for` gates
+#: a live row on `live_session_ymd(row) == live_session_ymd(now)` AND on
+#: `now - row <= live_max_age_s()`; a fixture that let either float would pass at
+#: 10:42 and fail at midnight.
+_ET = ZoneInfo("America/New_York")
+LIVE_TICK = int(datetime.datetime(2026, 8, 26, 10, 42, tzinfo=_ET).timestamp())
+
+#: Live-only names that ARE in `screener_rows` (so the join keeps them), plus one
+#: that is NOT (so the join can be seen to bite on this half too).
+LIVE_ONLY = ["LVA", "LVB", "LVC", "LVD"]
+LIVE_ONLY_GONE = "LVGONE"
+
+
+@pytest.fixture
+def live_clock(monkeypatch):
+    """`_now_for_reads` — the read path's ONE seam — pinned to the fixture tick."""
+    monkeypatch.setattr(scan_store, "_now_for_reads", lambda: float(LIVE_TICK))
+    return LIVE_TICK
+
+
+def _add_snapshot_rows(tickers):
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        for t in tickers:
+            conn.execute("INSERT INTO screener_rows (ticker) VALUES (?)", (t,))
+        conn.commit()
+
+
+def _record_live(symbols):
+    """One live cycle's worth of rows for this definition, at ``LIVE_TICK``."""
+    scan_store.upsert_live_hits(
+        DEF_HASH, TF,
+        [{"symbol": s, "value": 1, "live_cols": 4, "src_price": 10.5} for s in symbols],
+        LIVE_TICK)
 
 
 def _client(user):
@@ -260,6 +302,99 @@ def test_the_row_cap_bounds_the_PAGE_and_never_the_COUNTS(store):
     assert body["truncated"] is True
     # The receipt is the authority on how many there were, and it is untouched.
     assert body["coverage"]["evaluated"] == len(IN_SNAPSHOT)
+
+
+# ─── ⭐ THE LIVE-ONLY TAIL (X43 · A6) ─────────────────────────────────────────
+#
+# The route appends every FRESH live row this definition hit that the nightly
+# scan did not return, marks it `in_nightly: False`, bounds it by the same page
+# limit and reports the cut under `truncated`. Until W9l.1 nothing rendered any
+# of it — the rows were built, capped and discarded on every request — and the
+# defect was invisible because `SCAN_LIVE_SWEEP_ENABLED` is unset, so the tail is
+# empty and the response is byte-identical either way.
+#
+# ⛔ THAT IS THE POINT OF THESE CASES: they plant the live rows the env flip would
+# create, so the contract `app/src/components/screener/ScanResults.jsx` now reads
+# fails HERE rather than on the day someone sets the variable.
+
+
+def _hits_by_symbol(body):
+    return {r["symbol"]: r for r in body["hits"]}
+
+
+def test_a_LIVE_ONLY_hit_reaches_the_browser_under_hits_and_stays_OUT_of_tickers(store, live_clock):
+    _record()
+    _add_snapshot_rows(LIVE_ONLY[:1])
+    # One symbol that is ALSO a nightly hit (so `in_nightly` really discriminates)
+    # and one that is not.
+    _record_live([HITS[0], LIVE_ONLY[0]])
+    body = _get(PAID_USER).json()
+
+    # ⛔ `tickers` DID NOT MOVE. It is the nightly half, and W5a's reader depends
+    # on that; a live-only symbol promoted into it would claim the nightly scan
+    # returned a name it never saw.
+    assert body["tickers"] == sorted(HITS)
+    rows = _hits_by_symbol(body)
+    assert rows[LIVE_ONLY[0]]["in_nightly"] is False
+    assert rows[LIVE_ONLY[0]]["tier"] == "live"
+    assert rows[LIVE_ONLY[0]]["live_as_of"] == LIVE_TICK
+    # ⛔ AND THE FIXTURE CAN TELL THE TWO APART. A nightly hit with a live row is
+    # `tier: live` AND `in_nightly: True` — without this, "the tail arrived" is
+    # satisfied by a response that marked every live row live-only.
+    assert rows[HITS[0]]["tier"] == "live" and rows[HITS[0]]["in_nightly"] is True
+    assert {r["in_nightly"] for r in body["hits"]} == {True, False}
+
+
+def test_CONTROL_with_no_live_rows_NOTHING_is_live_only(store, live_clock):
+    # The state production is in right now. If this ever grows an `in_nightly:
+    # False` row, the surface would caption an ordinary nightly screen with a
+    # live sweep that never ran.
+    _record()
+    body = _get(PAID_USER).json()
+    assert body["hits"], "no rows at all — the assertion below would pass vacuously"
+    assert all(r["in_nightly"] is True for r in body["hits"])
+    assert all(r["tier"] == "nightly" for r in body["hits"])
+
+
+def test_a_live_only_symbol_the_SNAPSHOT_no_longer_carries_is_not_reported(store, live_clock):
+    # The route's own ⛔: the tail passes the SAME join the nightly page passes.
+    # A symbol the nightly build dropped out of `screener_rows` is one a member
+    # cannot act on, and a live hit is no exception.
+    _record()
+    _add_snapshot_rows(LIVE_ONLY[:1])
+    _record_live([LIVE_ONLY[0], LIVE_ONLY_GONE])
+    body = _get(PAID_USER).json()
+    rows = _hits_by_symbol(body)
+    assert LIVE_ONLY_GONE not in rows
+    # …and the control: the symbol that IS in the snapshot came through, so the
+    # absence above is the join and not an empty tail.
+    assert rows[LIVE_ONLY[0]]["in_nightly"] is False
+
+
+def test_the_live_only_tail_is_BOUNDED_by_the_page_limit_and_a_CUT_TAIL_says_truncated(store, live_clock):
+    # ⛔ A CUT TAIL MUST SET `truncated`. A page that silently loses symbols
+    # returns fewer hits and reads as a quiet market — the exact lie
+    # `CoverageLine` exists to refuse, one list further down.
+    _record()
+    _add_snapshot_rows(LIVE_ONLY)
+    _record_live(LIVE_ONLY)
+    # `limit == len(HITS)` so the NIGHTLY half is whole and the only thing this
+    # case can be measuring is the tail.
+    body = _get(PAID_USER, limit=len(HITS)).json()
+    assert body["tickers"] == sorted(HITS)
+    live_only = [r["symbol"] for r in body["hits"] if not r["in_nightly"]]
+    assert len(live_only) == len(HITS) < len(LIVE_ONLY)
+    assert body["truncated"] is True
+
+
+def test_CONTROL_a_tail_that_FITS_is_whole_and_says_nothing_about_a_cut(store, live_clock):
+    _record()
+    _add_snapshot_rows(LIVE_ONLY)
+    _record_live(LIVE_ONLY)
+    body = _get(PAID_USER, limit=len(LIVE_ONLY)).json()
+    live_only = [r["symbol"] for r in body["hits"] if not r["in_nightly"]]
+    assert sorted(live_only) == sorted(LIVE_ONLY)
+    assert body["truncated"] is False
 
 
 def test_a_PRODUCT_LABEL_timeframe_is_refused_and_TOLD_the_code(store):

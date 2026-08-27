@@ -137,12 +137,31 @@ describe('toScanResultsPayload', () => {
     })
   })
 
-  it('⛔ `truncated` is DERIVED from the receipt, never a typed false', () => {
-    // The brief spelled `truncated: false` as a literal. The run's own receipt
-    // carries the fact (`_COVERAGE_KEYS`), and a surface that hard-codes it is a
-    // second authority over a value the server already answered.
+  it('🔴 the RECEIPT\'s `truncated` stays on the receipt — it is not the PAGE\'s cut', () => {
+    // ⚰️ THIS ASSERTED THE OPPOSITE, and its reasoning ("the run's own receipt
+    // carries the fact") was true of a DIFFERENT fact. Two of them wear one word:
+    //
+    //   * `scan_evaluator.evaluate_one` sets ITS `truncated` when the
+    //     `dropped_symbols` ENUMERATION was capped below `dropped +
+    //     not_computable` — a fact about a symbol LIST.
+    //   * `api/routers/scan_results.py` sets the TOP-LEVEL key when the HIT PAGE
+    //     is short of the hits — a fact about the rows on screen.
+    //
+    // The collision was invisible while nothing rendered either one. W9l.1 wired
+    // `ScanResults` to say the second out loud ("this page is short of the hits
+    // this screen found — a row cap cut it"), so forwarding the first under its
+    // name would tell a member their HIT LIST was cut because a SYMBOL LIST was.
     const cut = { ...DONE, coverage: { ...DONE.coverage, truncated: true } }
-    expect(toScanResultsPayload(cut).truncated).toBe(true)
+    const out = toScanResultsPayload(cut)
+    // The on-demand run returns every hit it found: this page is WHOLE, and
+    // saying so is a measurement of THIS door, not a second authority over the
+    // receipt's.
+    expect(out.truncated).toBe(false)
+    // ⛔ AND THE RECEIPT IS STILL FORWARDED WHOLE — the fact is not lost, it is
+    // left where `CoverageLine` reads it. Without this control the assertion
+    // above is satisfied by a payload that dropped the receipt on the floor.
+    expect(out.coverage.truncated).toBe(true)
+    expect(out.coverage).toBe(cut.coverage)
   })
 
   it('a run with no hits is an EMPTY list, never undefined', () => {

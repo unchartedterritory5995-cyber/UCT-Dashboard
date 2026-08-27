@@ -69,6 +69,28 @@
 // nightly receipt and the on-demand one render through the same code path, so
 // `CoverageLine` keeps exactly one door into the app (the planted-cut control in
 // `reachable.test.js`) and the two surfaces cannot drift apart.
+//
+// ⭐ AND THE LIVE-ONLY TAIL IS RENDERED, NOT DISCARDED (X43).
+// `api/routers/scan_results.py` builds `hits` as the nightly page PLUS every
+// fresh live row the nightly scan did NOT return (`in_nightly: false`), bounds
+// it by the same page limit and reports the cut under `truncated`. Until now
+// this surface iterated `tickers` — which that route derives from the nightly
+// half alone — so the tail was assembled, capped and thrown away on every
+// single request, for an audience of nobody.
+//
+// ⛔ WHICH IS WHY ARMING THE LIVE SWEEP WOULD HAVE LOOKED LIKE A NO-OP. A6 says
+// a scan runs the full universe nightly AND every five minutes in session, and
+// that "a member sees live vs nightly per hit". `SCAN_LIVE_SWEEP_ENABLED` is
+// unset today, so `scan_hits_live` is empty, so the tail is empty — the surface
+// is byte-identical either way. The day that variable is set the tail fills up
+// and, before this, still rendered nothing: the "built, flagged, scheduled and
+// writes nothing" failure this program has already hit twice. That is the whole
+// reason the option taken here is RENDER rather than STOP ASSEMBLING.
+//
+// ⛔ AND A LIVE-ONLY HIT IS NOT MIXED INTO THE NIGHTLY LIST. The two sets answer
+// DIFFERENT questions — this tick's forming bar vs. that session's closed bar —
+// so they are two blocks under a line that says which is which, and each row's
+// own chip says it a second time for a reader who meets one row out of context.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../ui/UIcon'
@@ -130,8 +152,17 @@ function liveStamp(tick) {
 export function tierLabel(row) {
   if (!row || typeof row !== 'object') return null
   if (row.tier === 'live') {
+    // ⭐ "ONLY" IS THE ROW'S SECOND FACT, and it is the one a member acts on
+    // differently: `in_nightly: false` means the nightly scan did not return
+    // this symbol at all, so the hit rests entirely on this tick's forming bar.
+    // A live row that IS in the nightly set says plain "live".
+    // ⛔ `=== false`, NEVER FALSY. A row the route sent no `in_nightly` for has
+    // said nothing, and manufacturing "only" out of a missing key is exactly the
+    // fabrication `hits_for` refuses one layer up.
+    const only = row.in_nightly === false
     const at = liveStamp(row.live_as_of)
-    return at ? `live ${at} ET` : 'live'
+    if (at) return only ? `live only ${at} ET` : `live ${at} ET`
+    return only ? 'live only' : 'live'
   }
   if (row.tier === 'nightly') return 'nightly'
   return null
@@ -312,6 +343,16 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
   // Keyed ONCE per answer set, not per row: N rows x a linear scan of N hits is
   // the same N+1 shape `hits_for`'s own docstring warns about, one layer up.
   const provenance = useMemo(() => hitsBySymbol(payload), [payload])
+  // ⭐ THE LIVE-ONLY TAIL, READ OFF THE ROUTE'S OWN ROWS. `tickers` is the
+  // nightly half by construction, so these rows are exactly the hits the list
+  // above can never show.
+  // ⛔ `=== false`: the W4a on-demand payload carries `hits` rows with no
+  // `in_nightly` key at all, and reading those as live-only would invent a
+  // second block for an answer set that has no live half.
+  const liveOnly = useMemo(() => {
+    const rows = payload && Array.isArray(payload.hits) ? payload.hits : []
+    return rows.filter((r) => r && typeof r.symbol === 'string' && r.in_nightly === false)
+  }, [payload])
   const screenName = (definition && definition.meta && definition.meta.name)
     || (definition && definition.id) || ''
 
@@ -409,15 +450,66 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
         </ul>
       )}
 
-      {status === 'evaluated' && tickers.length === 0 && (
+      {status === 'evaluated' && liveOnly.length > 0 && (
+        // ⭐ THE BLOCK SAYS WHERE IT CAME FROM BEFORE THE FIRST ROW DOES. A
+        // member scanning two lists must be able to tell them apart without
+        // reading a badge on every line — and a live-only hit is a DIFFERENT
+        // claim from a nightly one, not a stronger version of it.
+        <p className={styles.liveOnly} role="status" data-testid="scan-live-only-note">
+          <UIcon name="clock" size={14} />
+          Found by the live sweep only — these matched on this session&rsquo;s forming bar and
+          {' '}were not hits in the nightly scan.
+        </p>
+      )}
+
+      {status === 'evaluated' && liveOnly.length > 0 && (
+        <ul className={styles.hits} data-testid="scan-live-only-hits">
+          {liveOnly.map((row) => (
+            <ScanResultRow
+              key={row.symbol}
+              ticker={row.symbol}
+              definition={definition}
+              onChart={chartHit}
+              // The row IS its own provenance here — it came off `hits`, not out
+              // of a lookup keyed by a ticker this list does not carry.
+              tier={row}
+            />
+          ))}
+        </ul>
+      )}
+
+      {status === 'evaluated' && tickers.length === 0 && liveOnly.length === 0 && (
         // ⛔ "NO MATCHES" IS SAID IN WORDS, and it is the OTHER half of
         // `CoverageLine`'s pair. That component deliberately refuses to brand an
         // empty screen at full coverage a data outage — which presumes something
         // else says "nothing matched". Without this line a member sees counts and
         // an empty space, and an empty space reads as "still loading".
+        //
+        // ⛔ AND A LIVE-ONLY HIT IS A MATCH. Printing "no symbol matched" above a
+        // block of live-only rows would be false on the face of one screen, so
+        // the sentence waits for BOTH lists to be empty.
         <p className={styles.notRun} role="status" data-testid="scan-results-empty">
           <UIcon name="check" size={14} />
           This screen ran and no symbol matched.
+        </p>
+      )}
+
+      {status === 'evaluated' && payload.truncated === true && (
+        // ⛔ A CUT PAGE MUST SAY SO. The route sets this when the nightly page OR
+        // the live-only tail was cut by the row cap; a short list that does not
+        // admit it is the "looks like a quiet market" lie `CoverageLine` exists
+        // to refuse, one list further down.
+        //
+        // ⚠️ AND IT IS THE PAGE'S WORD, NOT THE RECEIPT'S. `truncated` HERE means
+        // "this page is short of the hits". `coverage.truncated` — a different
+        // key, on a different object — means the DROPPED ENUMERATION was capped.
+        // `RunNowButton.toScanResultsPayload` forwarded the second under the
+        // first, and nothing rendered either, which is how the collision
+        // survived; it is fixed there rather than papered over here.
+        <p className={styles.notRun} role="status" data-testid="scan-results-truncated">
+          <UIcon name="warning" size={14} />
+          This page is short of the hits this screen found — a row cap cut it. The counts above
+          {' '}are the authority on how many there were.
         </p>
       )}
 

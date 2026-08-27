@@ -70,6 +70,23 @@
 .error { border: 1px solid var(--color-danger); }
 .notRun { border: 1px solid var(--border-accent); }
 
+/* The live-only block's caption. It is a statement ABOUT the list beneath it,
+   not a warning about the screen, so it carries `.notRun`'s weight and no
+   danger colour. */
+.liveOnly {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+}
+
 .pane {
   display: flex;
   flex-direction: column;
