@@ -183,6 +183,9 @@ _METRIC_LOOKBACK = {
     "stage2_count": 200, "stage4_count": 200,
     "hvc_52w": 0,            # a VOLUME extreme; volume carries no dividend adj.
     "adv_decline": 1, "up_vol_ratio": 1, "mcclellan_osc": 1,
+    "advancing": 1, "declining": 1,        # vs prev close
+    "up_from_open": 0, "down_from_open": 0, # vs today's open — no history
+    "up_on_volume": 20, "down_on_volume": 20,   # advancer/decliner vs its 20-day avg volume
 }
 
 
@@ -324,6 +327,12 @@ _ACCURACY: dict[str, str] = {
     "new_52w_lows": "approximate", "hvc_52w": "approximate",
     # ratios with their own natural scale
     "up_vol_ratio": "close", "mcclellan_osc": "approximate",
+    # New intraday internals (live-only; no stored daily row to reconcile against, so
+    # graded conservatively). Advance/decline + from-open are simple price counts;
+    # on-volume compares today's PARTIAL volume to a full-day average, so it's the loosest.
+    "advancing": "tight", "declining": "tight",
+    "up_from_open": "tight", "down_from_open": "tight",
+    "up_on_volume": "approximate", "down_on_volume": "approximate",
 }
 
 
@@ -657,12 +666,16 @@ DRILLABLE = frozenset({
     "new_52w_highs", "new_52w_lows",
     "new_20d_highs", "new_20d_lows",
     "new_ath", "hvc_52w",
+    "advancing", "declining",
+    "up_from_open", "down_from_open",
+    "up_on_volume", "down_on_volume",
 })
 
 
 def compute_metrics(levels: dict, prices: dict[str, float],
                     volumes: Optional[dict[str, float]] = None,
-                    members: Optional[dict] = None) -> dict:
+                    members: Optional[dict] = None,
+                    opens: Optional[dict[str, float]] = None) -> dict:
     """Breadth for one instant: `prices` is today's price per ticker.
 
     Every definition mirrors `breadth_collector`. Where the collector's rolling
@@ -845,6 +858,52 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         m["up_vol_ratio"] = round(up_vol / dn_vol, 2) if dn_vol else None
     else:
         m["up_vol_ratio"] = None
+
+    # ── advance / decline (counts) — the classic breadth internal, as a pair ──────
+    adv_mask = chg_valid & (chg > 0)
+    dec_mask = chg_valid & (chg < 0)
+    m["advancing"] = adv
+    m["declining"] = dec
+    _keep("advancing", adv_mask)
+    _keep("declining", dec_mask)
+
+    # ── up / down from today's OPEN — count trading above/below the session open ──
+    # `day_open` is 0/absent before the open, so guard op>0 and publish None until a
+    # real open exists (pre-market the read is meaningless).
+    op = np.full(n, np.nan)
+    if opens:
+        for i, t in enumerate(tickers):
+            v = opens.get(t)
+            if v is not None and v > 0:
+                op[i] = v
+    open_valid = have & ~np.isnan(op)
+    if bool(open_valid.any()):
+        with np.errstate(invalid="ignore"):
+            up_open_mask = open_valid & (px > op)
+            dn_open_mask = open_valid & (px < op)
+        m["up_from_open"] = int(up_open_mask.sum())
+        m["down_from_open"] = int(dn_open_mask.sum())
+        _keep("up_from_open", up_open_mask)
+        _keep("down_from_open", dn_open_mask)
+    else:
+        m["up_from_open"] = m["down_from_open"] = None
+
+    # ── up / down ON (elevated) VOLUME — advancers/decliners already trading ABOVE
+    # their 20-day average full-day volume (unusually ACTIVE names): a quality-of-move
+    # read, distinct from the summed up_vol_ratio. Naturally small mid-session (few names
+    # have out-traded a full day yet), which is the point.
+    vavg = levels.get("vol_avg20") if volumes else None
+    if vavg is not None:
+        with np.errstate(invalid="ignore"):
+            elev = chg_valid & ~np.isnan(vol) & ~np.isnan(vavg) & (vavg > 0) & (vol >= vavg)
+            uv_mask = elev & (chg > 0)
+            dv_mask = elev & (chg < 0)
+        m["up_on_volume"] = int(uv_mask.sum())
+        m["down_on_volume"] = int(dv_mask.sum())
+        _keep("up_on_volume", uv_mask)
+        _keep("down_on_volume", dv_mask)
+    else:
+        m["up_on_volume"] = m["down_on_volume"] = None
 
     e19, e39 = levels.get("mcc_ema19"), levels.get("mcc_ema39")
     if e19 is None or e39 is None:
@@ -1191,6 +1250,7 @@ def compute_live(force: bool = False) -> dict:
 
     prices = {t: d["last_price"] for t, d in snap.items() if d.get("last_price")}
     vols = {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")}
+    opens = {t: d["day_open"] for t, d in snap.items() if d.get("day_open")}
 
     # Share of the BREADTH universe that has actually traded today — the
     # holiday tell, and a cheap read on how far into the session we are.
@@ -1200,7 +1260,7 @@ def compute_live(force: bool = False) -> dict:
     session_live = _session_started() and traded_share >= MIN_TRADED_SHARE
 
     members: dict = {}
-    metrics = compute_metrics(levels, prices, vols, members=members)
+    metrics = compute_metrics(levels, prices, vols, members=members, opens=opens)
     metrics.update(compute_index_metrics(levels.get("index") or {}, prices))
 
     basis = None
