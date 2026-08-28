@@ -64,13 +64,14 @@ import math
 import os
 import re
 from datetime import datetime
+from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from api.services import (ast_freshness, ast_lint, ast_table, concept_vocabulary,
                           scan_definition, user_definitions)
 from api.services.ast_budget import BudgetExceeded, check_budget
-from api.services.ast_interpret import TableRefusal, interpret
+from api.services.ast_interpret import TF_RESAMPLABLE, TableRefusal, interpret
 from api.services.catalyst import cost_guard
 
 logger = logging.getLogger(__name__)
@@ -257,6 +258,29 @@ TOOL_NAME = "emit_formula"
 #: owns it, and the very module that kept refusing the fifth type it declared.
 NODE_TYPES: Tuple[str, ...] = tuple(user_definitions.NODE_TYPES)
 
+#: Node types this tool schema deliberately does NOT offer, each with the reason.
+#:
+#: ⚰️⚰️ THIS EXISTS BECAUSE THE SCHEMA SHIPPED WITH THREE DANGLING ``$ref``s.
+#: The ``oneOf`` was derived from ``NODE_TYPES`` — correctly, that is the one
+#: authority — while the ``$defs`` beside it were HAND-WRITTEN and stopped at five.
+#: So ``#/$defs/tf``, ``#/$defs/sym`` and ``#/$defs/tf_live`` pointed at nothing:
+#: an invalid JSON Schema, handed to a model, promising three node types it never
+#: described. Deriving one half of a pair and typing the other is the same defect
+#: as any other second authority; here it produced a schema that cannot validate.
+#:
+#: ⛔ AN OMISSION MUST BE DECLARED, NEVER DANGLING. A name in here is absent from
+#: the ``oneOf`` as well, so the schema stays valid, and the rail in
+#: ``tests/test_definition_concierge.py`` fails on any node type that is neither
+#: described below nor named here — which makes the ninth node type a DECISION
+#: rather than another silent dangling reference.
+CONCIERGE_OMITS: Mapping[str, str] = MappingProxyType({
+    "tf_live": (
+        "the look-ahead timeframe read. It exists to translate Pine's "
+        "`lookahead_on` honestly and carries a repainting badge for it; nothing "
+        "a member ASKS for in English should author one, so it is translated-only."
+    ),
+})
+
 
 #: ⭐ WHICH NODE TYPE A SECTION'S NAMES RIDE -- the ONLY thing this module has to
 #: know about a section, and the only reason two of them are named at all.
@@ -380,7 +404,10 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
         "required": ["ast"],
         "properties": {"ast": node},
         "$defs": {
-            "node": {"oneOf": [{"$ref": f"#/$defs/{k}"} for k in NODE_TYPES]},
+            # ⭐ DERIVED FROM `NODE_TYPES` MINUS THE DECLARED OMISSIONS, so a
+            # `$ref` here can only name something `$defs` below actually defines.
+            "node": {"oneOf": [{"$ref": f"#/$defs/{k}"} for k in NODE_TYPES
+                               if k not in CONCIERGE_OMITS]},
             "num": {
                 "type": "object", "additionalProperties": False,
                 "required": ["type", "value"],
@@ -441,6 +468,41 @@ def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
                 "properties": {
                     "type": {"const": "offset"},
                     "value": {"type": "integer", "minimum": 1},
+                    "args": {"type": "array", "items": node,
+                             "minItems": 1, "maxItems": 1},
+                },
+            },
+            # ⭐ THE TWO THAT USED TO DANGLE. Both wrap ONE subtree, the same shape
+            # `offset` above already has, and both take their value domain from the
+            # engine's own authority rather than a list typed here — which is the
+            # whole reason the dangling version was a defect worth fixing properly.
+            #
+            # ⛔ `TF_RESAMPLABLE`, NOT `TF_LADDER`. The ladder names every code the
+            # BARS STORE holds; `TF_RESAMPLABLE` names the ones this engine can
+            # actually serve from the bars an evaluation is given, and it is the
+            # single authority `_assert_resamplable` reads. Offering a code the
+            # interpreter then refuses is exactly the "told it would run, answers
+            # nothing" shape this file's neighbours have paid for twice.
+            "tf": {
+                "type": "object", "additionalProperties": False,
+                "required": ["type", "value", "args"],
+                "properties": {
+                    "type": {"const": "tf"},
+                    "value": {"enum": list(TF_RESAMPLABLE)},
+                    "args": {"type": "array", "items": node,
+                             "minItems": 1, "maxItems": 1},
+                },
+            },
+            # ⚠️ The symbol domain is the BENCHMARK WHITELIST and nothing wider. A
+            # scan may read another symbol only from that roster — the owner's
+            # standing decision — so a schema offering the whole universe would be
+            # writing cheques `assert_scannable` refuses.
+            "sym": {
+                "type": "object", "additionalProperties": False,
+                "required": ["type", "value", "args"],
+                "properties": {
+                    "type": {"const": "sym"},
+                    "value": {"enum": sorted(ast_table.benchmarks())},
                     "args": {"type": "array", "items": node,
                              "minItems": 1, "maxItems": 1},
                 },

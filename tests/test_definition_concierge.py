@@ -3971,3 +3971,90 @@ def test_NO_SHAPE_NAME_IS_A_STRING_CONSTANT_IN_THE_CONCIERGE(concierge):
     found = {node.value for node in pyast.walk(hand)
              if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
     assert found & forbidden == set(sample)
+
+
+# --------------------------------------------------------------------------- #
+# the tool schema must describe every node type it offers
+# --------------------------------------------------------------------------- #
+
+def _schema_defs() -> dict:
+    """The `$defs` block of the tool schema, wherever the tool wrapper puts it."""
+    def find(obj):
+        if isinstance(obj, dict):
+            if "$defs" in obj:
+                return obj["$defs"]
+            for value in obj.values():
+                found = find(value)
+                if found is not None:
+                    return found
+        return None
+    from api.services import definition_concierge as mod
+    defs = find(mod.tool_schema())
+    assert defs is not None, "the tool schema has no $defs block at all"
+    return defs
+
+
+def test_the_tool_schema_has_no_dangling_node_reference():
+    """⚰️⚰️ IT SHIPPED WITH THREE. `#/$defs/tf`, `#/$defs/sym` and
+    `#/$defs/tf_live` pointed at nothing.
+
+    The `oneOf` was DERIVED from `NODE_TYPES` — correctly, that is the one
+    authority — while the `$defs` beside it were HAND-WRITTEN and stopped at
+    five. Deriving one half of a pair and typing the other produced an invalid
+    JSON Schema, handed to a model, promising three node types it never
+    described.
+    """
+    defs = _schema_defs()
+    refs = [entry["$ref"].split("/")[-1] for entry in defs["node"]["oneOf"]]
+    dangling = [r for r in refs if r not in defs]
+    assert dangling == [], (
+        "the tool schema offers node types it does not define: "
+        f"{dangling}. Either describe them in `$defs`, or name them in "
+        "`CONCIERGE_OMITS` with the reason they are translated-only."
+    )
+
+
+def test_every_node_type_is_either_described_or_declared_omitted():
+    """⭐ THE RAIL THAT MAKES THE NINTH NODE TYPE A DECISION.
+
+    A new node type lands in `NODE_TYPES` and this fails until somebody either
+    writes its schema or states why the concierge must not author one. Without
+    it the next addition dangles exactly as the last three did.
+    """
+    defs = _schema_defs()
+    from api.services import definition_concierge as mod
+    omitted = set(mod.CONCIERGE_OMITS)
+    undecided = [n for n in mod.NODE_TYPES
+                 if n not in defs and n not in omitted]
+    assert undecided == [], (
+        f"node types neither described nor declared omitted: {undecided}"
+    )
+    # ⛔ AND AN OMISSION IS NOT OFFERED. A name may not sit in both places, or
+    # the schema is back to promising something it does not describe.
+    refs = {entry["$ref"].split("/")[-1] for entry in defs["node"]["oneOf"]}
+    assert refs & omitted == set(), "a declared omission is still in the oneOf"
+
+
+def test_the_offered_timeframes_are_the_ones_the_engine_can_serve():
+    """⛔ NOT THE BARS LADDER — THE SERVABLE SET.
+
+    `TF_LADDER` names every code the bars store holds; `TF_RESAMPLABLE` names
+    what an evaluation can serve from the bars it is given, and it is the single
+    authority `_assert_resamplable` reads. Offering a code the interpreter then
+    refuses is the "told it would run, answers nothing" shape this codebase has
+    already paid for twice.
+    """
+    from api.services import ast_interpret as ai
+    offered = _schema_defs()["tf"]["properties"]["value"]["enum"]
+    assert sorted(offered) == sorted(ai.TF_RESAMPLABLE)
+    # Non-vacuity: the two sets are genuinely different, so this is a real choice.
+    assert set(ai.TF_LADDER) - set(ai.TF_RESAMPLABLE)
+
+
+def test_the_offered_symbols_are_the_benchmark_whitelist():
+    """⚠️ A scan may read another symbol only from the owner's benchmark roster,
+    so a schema offering the whole universe would write cheques the scan gate
+    refuses."""
+    offered = _schema_defs()["sym"]["properties"]["value"]["enum"]
+    assert sorted(offered) == sorted(ast_table.benchmarks())
+    assert offered, "the benchmark roster is empty — this assertion proves nothing"
