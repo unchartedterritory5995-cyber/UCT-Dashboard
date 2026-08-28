@@ -137,8 +137,12 @@ def test_hunt_records_web_search_fees(monkeypatch):
     recorded = {}
     from api.services.catalyst import cost_guard
 
-    def fake_record(md, ticker, model, itok, otok, was_cached=False, search_requests=0):
-        recorded.update(ticker=ticker, search_requests=search_requests)
+    def fake_record(md, ticker, model, itok, otok, was_cached=False,
+                    search_requests=0, **kw):
+        # **kw so a new cost field (e.g. the 2026-08-28 cache tokens) doesn't
+        # make the real call raise into hunter's swallowing try/except and
+        # leave this assertion reading an EMPTY dict instead of failing loudly
+        recorded.update(ticker=ticker, search_requests=search_requests, **kw)
         return 0.0
 
     monkeypatch.setattr(cost_guard, "record", fake_record)

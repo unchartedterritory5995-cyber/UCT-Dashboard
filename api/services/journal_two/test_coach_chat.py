@@ -32,7 +32,9 @@ class FakeChatClient:
         self.captured_system_prompts = []
 
     def start_stream(self, *, system_prompt: str, messages: list, tools: list, **_kw):
-        self.calls.append({"system_prompt": system_prompt, "messages": messages, "tools": tools})
+        self.calls.append({"system_prompt": system_prompt, "messages": messages,
+                           "tools": tools,
+                           "system_suffix": _kw.get("system_suffix") or ""})
         self.captured_system_prompts.append(system_prompt)
         if not self.stream_scripts:
             raise RuntimeError("FakeChatClient out of stream scripts")
@@ -665,9 +667,16 @@ def test_handle_user_turn_appends_regime_context_when_available(db_conn, monkeyp
         user_id="u_chat", account_id=acc["id"],
         user_message="hello", client=client, conn=db_conn,
     ))
-    sp = client.calls[-1]["system_prompt"]
-    assert "AMBER" in sp
-    assert "Live market context" in sp
+    # 2026-08-28 caching: the regime line rides system_suffix (an UNCACHED
+    # block after the breakpoint) so an intraday flip can't invalidate the
+    # cached tools+system prefix — the model still receives it either way.
+    call = client.calls[-1]
+    suffix = call.get("system_suffix") or ""
+    assert "AMBER" in suffix
+    assert "Live market context" in suffix
+    # the LIVE line stays OUT of the cached block ("AMBER" alone also appears
+    # in the static regime taxonomy, so key on the live-context marker)
+    assert "Live market context" not in call["system_prompt"]
 
 
 def test_handle_user_turn_skips_regime_context_when_unavailable(db_conn, monkeypatch):

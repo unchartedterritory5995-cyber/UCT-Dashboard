@@ -48,11 +48,18 @@ def over_budget() -> bool:
     return _state["usd"] >= cap
 
 
-def record(input_tokens: int = 0, output_tokens: int = 0) -> None:
-    """Accrue one LLM call's cost into today's total. Best-effort; never raises."""
+def record(input_tokens: int = 0, output_tokens: int = 0,
+           cache_read_tokens: int = 0, cache_creation_tokens: int = 0) -> None:
+    """Accrue one LLM call's cost into today's total. Best-effort; never raises.
+
+    Cache-aware (2026-08-28): with prompt caching on, the prefix reports under
+    cache_read_input_tokens (0.1x input rate) / cache_creation_input_tokens
+    (1.25x) INSTEAD of input_tokens — ignoring them silently loosens the cap."""
     try:
         _roll()
         _state["usd"] += (float(input_tokens or 0) / 1e6) * _IN_PER_MTOK
+        _state["usd"] += (float(cache_read_tokens or 0) / 1e6) * _IN_PER_MTOK * 0.1
+        _state["usd"] += (float(cache_creation_tokens or 0) / 1e6) * _IN_PER_MTOK * 1.25
         _state["usd"] += (float(output_tokens or 0) / 1e6) * _OUT_PER_MTOK
     except Exception:  # noqa: BLE001
         pass
@@ -62,7 +69,10 @@ def record_from_usage(usage) -> None:
     """Accrue from an Anthropic message `usage` object (has input_tokens/output_tokens)."""
     if usage is None:
         return
-    record(getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
+    record(getattr(usage, "input_tokens", 0) or 0,
+           getattr(usage, "output_tokens", 0) or 0,
+           cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+           cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0)
 
 
 def snapshot() -> dict:

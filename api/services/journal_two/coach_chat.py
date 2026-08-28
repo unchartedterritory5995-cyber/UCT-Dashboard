@@ -449,20 +449,44 @@ class AnthropicChatClient:
         self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)
 
     def start_stream(self, *, system_prompt: str, messages: list, tools: list,
-                     user_id: str = "unknown", timeout: float | None = None):
+                     user_id: str = "unknown", timeout: float | None = None,
+                     system_suffix: str = ""):
         # `with_options` narrows an ALREADY-bounded client for this one call —
         # the idiom llm_timeouts prescribes, and the one the caller uses to hand
         # each step whatever is left of the turn budget.
         client = self._client
         if timeout is not None:
             client = client.with_options(timeout=float(timeout))
+        # Prompt caching (2026-08-28 cost census). Two breakpoints:
+        # 1) the STABLE system block (tools ride in the same prefix) — volatile
+        #    text (the live regime line) arrives via `system_suffix`, a second
+        #    UNCACHED block AFTER the breakpoint, so an intraday exposure-score
+        #    change no longer invalidates the whole tools+system prefix;
+        # 2) the last content block of the final message — the reconstructed
+        #    history (up to ~80k tok) was re-billed at 1x on every one of up to
+        #    MAX_LOOPS calls per turn; loops 2..N are guaranteed 5-min hits.
+        # compass_cost_guard.record_from_usage prices the cache token fields.
+        system_blocks: list[dict] = [{"type": "text", "text": system_prompt,
+                                      "cache_control": {"type": "ephemeral"}}]
+        if system_suffix:
+            system_blocks.append({"type": "text", "text": system_suffix})
+        if messages and isinstance(messages[-1], dict):
+            last = messages[-1]
+            c = last.get("content")
+            if isinstance(c, str) and c:
+                last = {**last, "content": [{"type": "text", "text": c,
+                                             "cache_control": {"type": "ephemeral"}}]}
+                messages = messages[:-1] + [last]
+            elif isinstance(c, list) and c and isinstance(c[-1], dict):
+                cc = {**c[-1], "cache_control": {"type": "ephemeral"}}
+                last = {**last, "content": c[:-1] + [cc]}
+                messages = messages[:-1] + [last]
         return client.messages.stream(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
             temperature=0.4,
             metadata={"user_id": f"compass_chat:{user_id}"},
-            system=[{"type": "text", "text": system_prompt,
-                     "cache_control": {"type": "ephemeral"}}],
+            system=system_blocks,
             messages=messages,
             tools=tools,
         )
@@ -630,16 +654,19 @@ def handle_user_turn(
             system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
             if onboarding:
                 system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
-            system_prompt += _current_regime_context()
             if _mentor_mode_active(user_id, _conn):
                 system_prompt += coach_prompts.MENTOR_TWO_LANE
+            # the live regime line rides as an UNCACHED suffix block — inlining
+            # it invalidated the whole cached tools+system prefix on every
+            # intraday exposure-score change (2026-08-28 cost census)
+            regime_suffix = _current_regime_context()
 
             assistant_text = ""
             tool_uses: list[dict] = []
             out_of_time = False
             with active_client.start_stream(
                 system_prompt=system_prompt, messages=messages, tools=tools_param,
-                user_id=user_id,
+                user_id=user_id, system_suffix=regime_suffix,
                 timeout=deadline.call_timeout(chat_call_timeout_secs()),
             ) as stream:
                 for ev in stream:
@@ -862,7 +889,7 @@ def confirm_pending_action(
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
-        system_prompt += _current_regime_context()
+        regime_suffix = _current_regime_context()   # uncached suffix block
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
@@ -870,7 +897,7 @@ def confirm_pending_action(
         # The confirmed tool already ran on this budget; the acknowledgement
         # gets whatever is left of it.
         with active_client.start_stream(
-            system_prompt=system_prompt,
+            system_prompt=system_prompt, system_suffix=regime_suffix,
             messages=messages, tools=tools_param,
             user_id=user_id,
             timeout=deadline.call_timeout(chat_call_timeout_secs()),
@@ -1123,13 +1150,13 @@ def cancel_pending_action(
         system_prompt = coach_prompts.COMPASS_SYSTEM_PROMPT
         if onboarding:
             system_prompt += "\n\n" + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
-        system_prompt += _current_regime_context()
+        regime_suffix = _current_regime_context()   # uncached suffix block
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
         with active_client.start_stream(
-            system_prompt=system_prompt,
+            system_prompt=system_prompt, system_suffix=regime_suffix,
             messages=messages, tools=tools_param,
             user_id=user_id,
             timeout=deadline.call_timeout(chat_call_timeout_secs()),
@@ -1208,7 +1235,7 @@ def start_onboarding(
             coach_prompts.COMPASS_SYSTEM_PROMPT + "\n\n"
             + coach_prompts.COMPASS_ONBOARDING_DIRECTIVE
         )
-        system_prompt += _current_regime_context()
+        regime_suffix = _current_regime_context()   # uncached suffix block
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
@@ -1216,7 +1243,7 @@ def start_onboarding(
         tool_uses: list[dict] = []
         with active_client.start_stream(
             system_prompt=system_prompt, messages=messages, tools=tools_param,
-            user_id=user_id,
+            user_id=user_id, system_suffix=regime_suffix,
             timeout=deadline.call_timeout(chat_call_timeout_secs()),
         ) as stream:
             for ev in stream:
