@@ -74,11 +74,17 @@ describe('another symbol inside one column', () => {
     expect(out.refusal).toBeTruthy()
   })
 
-  it('⛔ an AGGREGATION argument is a different question and still refuses', () => {
-    // ⛔ SCOPE. This change is about `symbol` only. `period` asks for another
-    // TIMEFRAME, which is `tf`, and folding an `AggregationPeriod` enum onto the
-    // servable ladder is its own piece of work with its own evidence.
-    const out = translateThinkScript('plot x = close(period = AggregationPeriod.WEEK);\n')
+  it('⛔ an AGGREGATION period this engine cannot serve still refuses', () => {
+    // ⚰️ THIS CASE USED `AggregationPeriod.WEEK` AND ASSERTED IT REFUSED — true
+    // when the symbol fold shipped, false one commit later when the period fold
+    // landed. The SCOPE statement is what mattered, so it now names something
+    // genuinely still out: `DAY`.
+    // ⛔ `DAY` IS ABSOLUTE, NOT "this chart". On a daily screen it is the
+    // identity; on an intraday chart it is a higher-timeframe read this engine
+    // cannot serve, since it resamples only UPWARD from the bars it is handed.
+    // Right in one lane and silently wrong in the other, so it refuses in both.
+    // `thinkscript.aggregation.test.js` owns that distinction in full.
+    const out = translateThinkScript('plot x = close(period = AggregationPeriod.DAY);\n')
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('thinkscript:aggregation')
   })

@@ -1383,6 +1383,22 @@ const TS_DEFERRED_CALLS = Object.freeze({
  *  ANOTHER series — `close(symbol = "SPY")`, `high(period = AggregationPeriod.DAY)`.
  *  ⭐ The field set is READ FROM THE MANIFEST, never typed here, so a manifest
  *  that gains a bar field gets the same treatment with no edit. */
+/** thinkorswim `AggregationPeriod` values this engine can actually serve.
+ *
+ *  ⛔⛔ `DAY` IS DELIBERATELY ABSENT, AND IT IS THE CARE THIS TABLE EXISTS FOR.
+ *  Pine's `timeframe.period` means "whatever this chart is", so reading it as a
+ *  no-op is exact. thinkorswim's values are ABSOLUTE — `DAY` means daily bars,
+ *  full stop. On a daily screen that IS the identity; on an INTRADAY chart it is
+ *  a higher-timeframe read this engine cannot serve, because it resamples only
+ *  UPWARD from the bars it is handed. A no-op would be right in one lane and
+ *  silently wrong in the other, so it refuses in both.
+ *
+ *  ⭐ WEEK AND MONTH ARE NOT A SHORTLIST SOMEBODY TYPED — they are what
+ *  `TF_RESAMPLABLE` declares the engine can serve from daily bars. Offering a code
+ *  the interpreter then refuses is the "told it would run, answers nothing" shape
+ *  this codebase has already paid for twice. */
+const TS_AGGREGATION_TF = Object.freeze({ week: 'W', month: 'M' })
+
 const TS_SERIES_ARG_GUARDS = Object.freeze({
   // ⚰⚰ EVERY `why` HERE ASSERTED SOMETHING FALSE ABOUT THE ENGINE. The symbol
   // one said "a comparison against a benchmark needs a second column, not a
@@ -2846,8 +2862,53 @@ class Resolver {
         const ticker = this.foreignSymbolOf(a.value)
         if (ticker) return { sym: ticker, field }
       }
+      // ⭐ THE SAME SHAPE ONE ARGUMENT OVER: a period that folds to a servable
+      // code becomes the engine's higher-timeframe read. One that does not —
+      // `DAY`, an intraday value, anything computed — falls through to the
+      // refusal, which now names what is missing rather than denying `tf` exists.
+      if (rule.guard === 'thinkscript:aggregation') {
+        const code = this.foreignPeriodOf(a.value)
+        if (code) return { tf: code, field }
+      }
       return new ThinkScriptRefusal(rule.guard,
         `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+    }
+    return null
+  }
+
+  /** A node that names an `AggregationPeriod` this engine can serve → its tf
+   *  code, or null.
+   *
+   *  ⚠️ THE CONSTANT'S NAMESPACE IS CHECKED, not just its member. `WEEK` on its
+   *  own is not an aggregation period, and a member could bind that name to
+   *  anything; only `AggregationPeriod.WEEK` — or a name bound to it — counts.
+   *
+   *  ⛔ BOUNDED, and a binding is followed only to an INPUT'S DEFAULT. A period
+   *  chosen per bar reaches no constant and returns null, which keeps
+   *  `close(period = if … then WEEK else MONTH)` refused: there is no single
+   *  timeframe that column reads. */
+  foreignPeriodOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.e === 'member' && node.base && node.base.e === 'name'
+        && key(node.base.name) === 'aggregationperiod') {
+      return TS_AGGREGATION_TF[key(node.name)] || null
+    }
+    if (node.e === 'name') {
+      // ⚠️ A DOTTED CONSTANT IS ONE TOKEN HERE, not a member expression — the
+      // lexer keeps `AggregationPeriod.WEEK` whole, the same way Pine's door
+      // keeps `display.none` whole. Reading only the `member` shape above matched
+      // nothing at all, and the tests said so before anything shipped.
+      const dot = String(node.name).indexOf('.')
+      if (dot > 0) {
+        const ns = key(node.name.slice(0, dot))
+        return ns === 'aggregationperiod'
+          ? (TS_AGGREGATION_TF[key(node.name.slice(dot + 1))] || null) : null
+      }
+      const bound = this.env.get(key(node.name))
+      if (!bound) return null
+      if (bound.kind === 'input') return this.foreignPeriodOf(bound.expr, depth + 1)
+      if (bound.expr) return this.foreignPeriodOf(bound.expr, depth + 1)
+      return null
     }
     return null
   }
@@ -2901,6 +2962,9 @@ class Resolver {
     // always was, thrown unchanged.
     if (foreign && foreign.sym) {
       return { type: 'sym', value: foreign.sym, args: [cSeries(foreign.field)] }
+    }
+    if (foreign && foreign.tf) {
+      return { type: 'tf', value: foreign.tf, args: [cSeries(foreign.field)] }
     }
     if (foreign) throw foreign
     const deferredCall = TS_DEFERRED_CALLS[key(n.name)]
