@@ -183,6 +183,20 @@ def _hms_to_secs(ts) -> "int | None":
     return h * 3600 + mnt * 60 + s
 
 
+def _clean_chapter_title(raw, max_len: int = 60) -> str:
+    """Trim a chapter title to max_len WITHOUT cutting mid-word — a hard
+    character slice mid-word ("...cascade and softwar") reads as broken in a
+    YouTube chapter list. Single owner for BOTH chapter sources (Zoom's free
+    native summary via parse_zoom_summary, and the LLM fallback via
+    _clean_chapters) so a fix lands in one place, not two independent [:N]
+    slices — see lesson_a_second_authority_over_one_value."""
+    t = (raw or "").strip()
+    if len(t) <= max_len:
+        return t
+    cut = t[:max_len].rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return (cut + "…") if cut else (t[:max_len] + "…")
+
+
 def parse_zoom_summary(raw: str) -> dict:
     """Parse Zoom AI Companion's SUMMARY file JSON into
     {headline, summary, chapters} — chapters straight from `items[]`, free
@@ -204,7 +218,7 @@ def parse_zoom_summary(raw: str) -> dict:
     for it in items:
         if not isinstance(it, dict):
             continue
-        title = str(it.get("label") or "").strip()[:80]
+        title = _clean_chapter_title(str(it.get("label") or ""))
         t = _hms_to_secs(it.get("start_time"))
         if not title or t is None:
             continue
@@ -262,8 +276,8 @@ _SYS = (
     "timestamped transcript of a live trading session / educational webinar. "
     "Produce navigation aids + a recap as STRICT JSON only (no prose, no code fences):\n"
     '{ "headline": "<=90 chars", "summary": ["<=140 chars", ...], '
-    '"chapters": [ {"t": <int seconds>, "title": "<=60 chars} ], '
-    '"tickers": [ {"ticker": "AAPL", "t": <int seconds>, "note": "<=80 chars} ] }\n'
+    '"chapters": [ {"t": <int seconds>, "title": "<=60 chars"} ], '
+    '"tickers": [ {"ticker": "AAPL", "t": <int seconds>, "note": "<=80 chars"} ] }\n'
     "Rules:\n"
     "- headline: one punchy sentence capturing the session's main thrust (the day's "
     "thesis / what mattered). No date, no 'In this session'.\n"
@@ -271,7 +285,10 @@ _SYS = (
     "ideas, levels, lessons) — concise, specific, no fluff.\n"
     "- chapters: 6-15 segments spanning the whole session in time order; t is the "
     "START second of each segment (the first should be 0 or near it). Titles are "
-    "specific (\"SPY game plan & key levels\", not \"Intro\").\n"
+    "terse and punchy — a YouTube chapter marker, not a sentence: 3-7 words, lead "
+    "with the ticker/topic, no filler, never string multiple ideas together with "
+    "'and'/';' (\"MU breaks the 21 EMA\", not \"MU, NVDA, and AMD intraday decision "
+    "points and follow-through\").\n"
     "- tickers: every stock/ETF actually discussed, at the second its discussion "
     "STARTS; map spoken company names to the correct US ticker (Nvidia->NVDA). "
     "note = a few words on what was said. Skip vague index talk. De-dup obvious "
@@ -310,7 +327,7 @@ def _clean_chapters(items):
     for it in items or []:
         try:
             t = int(it["t"])
-            ttl = str(it.get("title") or "").strip()[:80]
+            ttl = _clean_chapter_title(str(it.get("title") or ""))
         except (KeyError, TypeError, ValueError):
             continue
         if ttl and t >= 0:
@@ -456,7 +473,9 @@ _RECAP_SYS = (
     "plus chapter titles and a sampled transcript excerpt for grounding. Rewrite "
     "them into a session recap traders actually want to read. Return STRICT JSON "
     "only (no prose, no code fences):\n"
-    '{ "headline": "<=110 chars", "summary": ["<=170 chars", ...] }\n'
+    '{ "headline": "<=110 chars", "summary": ["<=170 chars", ...], '
+    '"chapters": [ {"t": <int seconds, copied EXACTLY from a given chapter>, '
+    '"title": "<=55 chars"} ] }\n'
     "Rules:\n"
     "- headline: ONE complete punchy sentence — the day's thesis / what mattered "
     "most. No date, no 'In this session', no 'The group discussed'.\n"
@@ -465,12 +484,56 @@ _RECAP_SYS = (
     "and ARMS held as focus longs around key support' beats 'they discussed "
     "specific stocks'). Pull specifics from the transcript excerpt when the "
     "notes are vague.\n"
+    "- chapters: rewrite EVERY given chapter's title to be terse and punchy — "
+    "a YouTube chapter marker, not a sentence: 3-7 words, lead with the ticker "
+    "or topic, no filler, never string multiple ideas together with 'and'/';'. "
+    "The `t` for each MUST be copied EXACTLY from the chapter you were given — "
+    "never invent, merge, drop, reorder, or add a chapter.\n"
     "- NEVER write meta-narration: no 'Patrick and X discussed', 'The "
     "conversation covered', 'They analyzed'. State the market content itself.\n"
     "- Only include facts supported by the notes/excerpt — do not invent "
     "prices, levels, or outcomes.\n"
     "- Output ONLY the JSON object."
 )
+
+
+def _merge_chapter_titles(original: list[dict], overrides) -> list[dict]:
+    """Apply polish-pass title rewrites onto the original chapter list. ORDER
+    and TIMESTAMPS always come from `original` — an override only ever
+    replaces a `title`, it can never add, drop, reorder, or retime a chapter.
+    `overrides` may be None/empty (an older polish response with no
+    'chapters' key, or a test mock) — that's a no-op, not an error."""
+    by_t = {}
+    for o in overrides or []:
+        try:
+            t = int(o.get("t"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        title = str(o.get("title") or "").strip()
+        if title and t not in by_t:
+            by_t[t] = title
+    return [{"t": c["t"], "title": by_t.get(c["t"], c["title"])} for c in (original or [])]
+
+
+def _clean_polished_chapters(items, allowed_ts: set) -> list[dict]:
+    """Validate the polish pass's rewritten chapter titles: only accept an
+    entry whose `t` exactly matches one of the ORIGINAL chapter timestamps —
+    an invented/shifted `t` is dropped rather than trusted, the same
+    discipline as the ticker-moments timestamp rule."""
+    out, seen = [], set()
+    for it in items or []:
+        try:
+            t = int(it.get("t"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if t not in allowed_ts or t in seen:
+            continue
+        title = _clean_chapter_title(str(it.get("title") or ""))
+        if not title:
+            continue
+        seen.add(t)
+        out.append({"t": t, "title": title})
+    return out
 
 
 def _sampled_excerpt(cues: list[dict], max_chars: int = 12_000) -> str:
@@ -522,9 +585,11 @@ def polish_recap(title: str, headline: str, summary: list[str],
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content)
     data = _loads_json(raw)
+    allowed_ts = {int(c["t"]) for c in (chapters or []) if "t" in c}
     out = {
         "headline": _sentence_trim(str(data.get("headline") or ""), 160),
         "summary": _clean_summary(data.get("summary"), max_len=240),
+        "chapters": _clean_polished_chapters(data.get("chapters"), allowed_ts),
     }
     if not out["headline"] or len(out["summary"]) < 3:
         raise ValueError(f"polish returned thin recap "
@@ -533,8 +598,9 @@ def polish_recap(title: str, headline: str, summary: list[str],
 
 
 def _apply_recap_polish(ins: dict, title: str, cues: list[dict]) -> bool:
-    """Best-effort in-place polish of ins[headline/summary]; True on success.
-    A polish failure must NEVER block storing/publishing the free Zoom recap."""
+    """Best-effort in-place polish of ins[headline/summary/chapters]; True on
+    success. A polish failure must NEVER block storing/publishing the free
+    Zoom recap."""
     if not _recap_polish_enabled():
         return False
     try:
@@ -544,6 +610,7 @@ def _apply_recap_polish(ins: dict, title: str, cues: list[dict]) -> bool:
         print(f"[session-insights] recap polish failed (non-fatal): {pe}")
         return False
     ins["headline"], ins["summary"] = polished["headline"], polished["summary"]
+    ins["chapters"] = _merge_chapter_titles(ins.get("chapters") or [], polished.get("chapters"))
     return True
 
 
@@ -1064,11 +1131,13 @@ def repolish_video(video_id: int) -> dict:
     polished = polish_recap(v.get("title") or "", ins["headline"], ins["summary"],
                             ins["chapters"], cues)
     ins["headline"], ins["summary"] = polished["headline"], polished["summary"]
+    ins["chapters"] = _merge_chapter_titles(ins["chapters"], polished.get("chapters"))
     poster_ok = _generate_poster(int(video_id), v, ins)
     education_service.set_video_insights(
         int(video_id),
         headline=ins["headline"],
         summary=ins["summary"],
+        chapters=ins["chapters"],
         poster=poster_ok or None,  # never clear an existing poster flag on a render hiccup
     )
     try:  # refresh the community thread body with the polished recap (non-fatal)
