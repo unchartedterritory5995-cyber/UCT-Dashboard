@@ -15,6 +15,8 @@
 // ChartSettingsModal's header. "Apply to all charts" rides the same helper via
 // the workspace (patchOptsWithTheme + ChartsWorkspace.applyThemeToAllCharts).
 
+import { APP_THEME_BY_ID } from '../../styles/appThemes'
+
 // The families, in gallery order. Each theme carries a `family` key matching one
 // of these ids; the modal renders one filter pill per family (+ "All").
 export const THEME_FAMILIES = [
@@ -475,14 +477,40 @@ export function appThemeToChartTheme(appTheme) {
   return CHART_THEME_BY_ID[id] ? id : null
 }
 
+// The app theme's SURFACE color — the tone of the left sidebar + the top header
+// bar (--bg-surface), which is LIGHTER than the page canvas (--bg). Widgets adopt
+// this as their canvas so they read as a card lifted off the background instead of
+// blending into it (owner request 2026-08-27). Covers every app theme: the catalog
+// (APP_THEME_BY_ID), the two base themes (oled/light), and 'default'/'dark' →
+// graphite. `family` picks the fallback chart theme for the ink/up-down mapping.
+export function appThemeSurface(appTheme) {
+  if (!appTheme) return null
+  let raw = String(appTheme).replace(/^uct:/, '')
+  if (raw === 'default' || raw === 'dark') raw = 'graphite'
+  const t = APP_THEME_BY_ID[raw]
+  if (t) return { bg: t.tokens['--bg-surface'], elevated: t.tokens['--bg-elevated'], family: t.family }
+  if (raw === 'oled') return { bg: '#0a0a0a', elevated: '#111111', family: 'dark' }
+  if (raw === 'light') return { bg: '#f4f5f6', elevated: '#ffffff', family: 'light' }
+  return null
+}
+
 // The DEFAULT appearance a widget should show when uncustomized, matched to the app
-// theme — i.e. the same look "Apply <matching chart theme> to all widgets" produces,
-// so an untouched widget already matches the app theme (graphite → graphite) instead
-// of a fixed near-black. Returns `base` unchanged when there's no matching theme.
+// theme. Two things happen here:
+//   1. The widget CANVAS uses the app theme's SURFACE (sidebar/header) color, not
+//      the darker page background — so the widget stands off the canvas cleanly.
+//   2. EVERY app theme themes its widgets: a theme with a matching chart theme uses
+//      it for the ink/up-down/tint mapping; one without (e.g. Carbon) falls back to
+//      a family default (graphite / light) so its widgets still match instead of
+//      showing a fixed near-black. Returns `base` unchanged only if nothing resolves.
 export function widgetDefaultsForAppTheme(type, appTheme, base) {
-  const id = appThemeToChartTheme(appTheme)
-  const theme = id ? CHART_THEME_BY_ID[id] : null
-  return theme ? mapThemeToWidgetSettings(base, theme, type) : base
+  const surf = appThemeSurface(appTheme)
+  let id = appThemeToChartTheme(appTheme)
+  if (!id) id = surf?.family === 'light' ? 'light' : 'graphite'
+  const theme = CHART_THEME_BY_ID[id]
+  if (!theme) return base
+  // Swap the canvas to the app theme's surface (solid — a lifted card, no gradient).
+  const themed = surf ? { ...theme, bg: surf.bg, bgGradient: null } : theme
+  return mapThemeToWidgetSettings(base, themed, type)
 }
 
 // GLOBAL-PREF widgets (theme tracker / breadth / fundamentals / AI search) store
