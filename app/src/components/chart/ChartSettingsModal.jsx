@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
 import ChartThemesModal from './ChartThemesModal'
-import { applyThemeToSettings } from './chartThemes'
+import { applyThemeToSettings, themeWithAppSurface } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 import {
@@ -188,7 +188,8 @@ export default function ChartSettingsModal({
   const applyTheme = (theme, scope) => {
     if (scope === 'allwidgets' && onApplyThemeAllWidgets) onApplyThemeAllWidgets(theme)
     else if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
-    else onChange?.(applyThemeToSettings(settings, theme))
+    // 'one' = this chart only. An app-mirrored theme uses the app surface as canvas.
+    else onChange?.(applyThemeToSettings(settings, themeWithAppSurface(theme)))
   }
 
   // ── Settings templates (save the whole look, reuse on any tab) ──────────────

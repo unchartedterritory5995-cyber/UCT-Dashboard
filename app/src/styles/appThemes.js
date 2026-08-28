@@ -174,3 +174,25 @@ export function applyAppTheme(el, theme) {
   el.dataset.theme = theme.family === 'light' ? 'light' : 'oled'
   for (const [k, v] of Object.entries(theme.tokens)) el.style.setProperty(k, v)
 }
+
+// ── First-paint theme (no-flash) ────────────────────────────────────────────
+// The saved theme lives server-side and only reaches React after prefs load, so
+// the FIRST paint would show the index.html default (OLED black) until Layout's
+// effect swaps it — a visible flash for e.g. a Graphite user. We cache the RESOLVED
+// theme (data-theme base + the exact inline token bag) in localStorage each time it
+// is applied, and an inline <head> script (index.html) replays it before React
+// mounts. The script is a dumb applier; all the theme logic stays here.
+export const THEME_CACHE_KEY = 'uct.appTheme.v1'
+export function writeThemeCache(themeValue) {
+  try {
+    let dataTheme = 'dark', vars = null
+    if (isUctTheme(themeValue)) {
+      const th = APP_THEME_BY_ID[uctThemeId(themeValue)]
+      if (th) { dataTheme = th.family === 'light' ? 'light' : 'oled'; vars = th.tokens }
+      else dataTheme = 'oled'   // retired uct id → OLED, matching Layout's fallback
+    } else {
+      dataTheme = themeValue === 'light' ? 'light' : themeValue === 'oled' ? 'oled' : 'dark'
+    }
+    localStorage.setItem(THEME_CACHE_KEY, JSON.stringify({ dataTheme, vars }))
+  } catch { /* private mode / quota — first paint just falls back to the html default */ }
+}
