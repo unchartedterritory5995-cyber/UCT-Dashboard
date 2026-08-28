@@ -904,6 +904,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // snapshot via a batch endpoint, fetched only when such rows are on screen.
   const hasIdxRows = useMemo(() => allTickers.some(s => typeof s === 'string' && s.startsWith('$IDX:')), [allTickers])
   const { quotes: idxQuotes } = useThemeIndexQuotes(hasIdxRows)
+  // An all-thematic-index list (the "UCT Thematic Indexes" prebuilt) has no price /
+  // volume — just Symbol + % Change. Drives the default column view below.
+  const isAllIdxList = useMemo(
+    () => allTickers.length > 0 && allTickers.every(s => typeof s === 'string' && s.startsWith('$IDX:')),
+    [allTickers],
+  )
   // Mirror the chart: when a StockChart of the same ticker is open, its published
   // readout (the EXACT price/volume/%chg its legend + "Pre" tag + volume pane
   // show) overrides the watchlist's own polling feed, so the two never disagree.
@@ -920,20 +926,31 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }), [])
   const prices = useMemo(() => {
     void readoutTick   // recompute when a fresh readout arrives
-    if (!hasFreshReadouts()) return feedPrices
+    const idxKeys = idxQuotes ? Object.keys(idxQuotes) : []
+    if (!hasFreshReadouts() && idxKeys.length === 0) return feedPrices
     const merged = { ...feedPrices }
-    for (const sym of Object.keys(merged)) {
-      const r = getChartReadout(sym)
-      if (!r) continue
-      merged[sym] = {
-        ...merged[sym],
-        ...(r.price != null ? { price: r.price } : {}),
-        ...(r.volume != null ? { volume: r.volume } : {}),
-        ...(r.changePct != null ? { change_pct: r.changePct } : {}),
+    if (hasFreshReadouts()) {
+      for (const sym of Object.keys(merged)) {
+        const r = getChartReadout(sym)
+        if (!r) continue
+        merged[sym] = {
+          ...merged[sym],
+          ...(r.price != null ? { price: r.price } : {}),
+          ...(r.volume != null ? { volume: r.volume } : {}),
+          ...(r.changePct != null ? { change_pct: r.changePct } : {}),
+        }
       }
     }
+    // Thematic-index rows ("$IDX:") have no market feed — their live daily % comes
+    // from the batch quotes. Put it in `prices` so SORTING (by % Chg) + columns see
+    // it, not just the row renderer. Quotes are keyed by lowercase slug; the stored
+    // row syms are UPPERCASE (bulk_add_items), so map the key.
+    for (const k of idxKeys) {
+      const v = idxQuotes[k]
+      merged[k.toUpperCase()] = { price: v?.price ?? null, change_pct: v?.change_pct ?? null, volume: null }
+    }
     return merged
-  }, [feedPrices, readoutTick])
+  }, [feedPrices, readoutTick, idxQuotes])
   // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
   // The widget has no chrome of its own (it IS this page), so the door lives
   // on each accordion header. Payload freeze (owner-approved): {sym, note,
@@ -1432,12 +1449,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Memoized so its reference is stable across selection-change re-renders (WatchRow is
   // React.memo — a new array here would break row memoization on every keypress).
   const orderedKeys = useMemo(() => {
+    // Thematic-index list → Symbol + % Change only (price/volume are always "—").
+    if (isAllIdxList) return ['flag', 'sym', 'chg']
     const hidden = colCfg.hidden || {}
     const order = (Array.isArray(colCfg.order) && colCfg.order.length ? colCfg.order : DEFAULT_COL_ORDER).filter(k => COL_META[k])
     const ks = order.filter(k => (k === 'flag' || k === 'sym') || !hidden[k])
     DEFAULT_COL_ORDER.forEach(k => { if ((k === 'flag' || k === 'sym') && !ks.includes(k)) ks.unshift(k) })  // never lose flag/sym
     return ks
-  }, [colCfg])
+  }, [colCfg, isAllIdxList])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
@@ -1465,8 +1484,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     [orderedKeys, colCfg, liveResize],
   )
   const gridTemplate = useMemo(
-    () => [...renderedColWidths.map(w => `${w}px`), 'minmax(0, 1fr)'].join(' '),
-    [renderedColWidths],
+    () => (
+      // Thematic-index list (flag · sym · chg): let the SYMBOL column fill so the
+      // name reads full-width and % Change sits at the right edge (no trailing filler).
+      isAllIdxList && renderedColWidths.length === 3
+        ? `${renderedColWidths[0]}px minmax(0, 1fr) ${renderedColWidths[2]}px`
+        : [...renderedColWidths.map(w => `${w}px`), 'minmax(0, 1fr)'].join(' ')
+    ),
+    [renderedColWidths, isAllIdxList],
   )
 
   // Optional Market Cap / Next Earnings / UCT Rating columns — fetched only when at
