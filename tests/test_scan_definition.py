@@ -442,7 +442,11 @@ def test_the_gates_are_a_CLOSED_set_and_an_unknown_one_cannot_be_raised():
     """A caller catching `ScanRefused` branches on `.gate`; an open-ended reason
     string would be prose a surface has to pattern-match, which is how a refusal
     becomes a 500."""
-    assert scan_definition.GATES == ("kind", "tree", "hash", "yields")
+    # ⚠️ `symbol` JOINED IN W2b TASK 4 — the first gate that refuses something
+    # `interpret` accepts (a scan reads only DECLARED benchmarks, while the
+    # chart lane serves any symbol). Spelled out rather than counted, because
+    # a caller branches on this tuple.
+    assert scan_definition.GATES == ("kind", "tree", "hash", "yields", "symbol")
     for gate in scan_definition.GATES:
         assert scan_definition.ScanRefused(gate, "x").gate == gate
     with pytest.raises(ValueError, match="not one of this module's gates"):
@@ -580,4 +584,104 @@ def test_the_weekly_passthrough_matches_the_offset_passthrough_it_was_modelled_o
             {"type": "tf", "value": "W", "args": [child]}, None)
         assert offset_kind == tf_kind, (
             "offset and tf disagree about %s: offset=%s tf=%s" % (label, offset_kind, tf_kind))
+
+
+# ─── a scan may only read a DECLARED benchmark ───────────────────────────────
+
+def _sym_definition(ticker):
+    """`close > sym('<ticker>', close)` with a HONEST hash, built the way the
+    store builds one — never a literal, so this cannot drift."""
+    from api.services import user_definitions
+    inner = {"type": "sym", "value": ticker, "args": [_CLOSE]}
+    tree = {"type": "op", "name": ">", "args": [_CLOSE, inner]}
+    definition = {"compute": {"kind": "ast", "ast": tree, "fn": None,
+                              "trees": {"p": tree}, "scanPlot": "p"}}
+    definition["compute"]["fn"] = scan_definition.def_hash(definition)
+    return definition
+
+
+def test_a_scan_may_read_a_DECLARED_benchmark():
+    """⭐ THE CONTROL, AND IT IS FIRST ON PURPOSE. Everything below asserts a
+    refusal, and a gate that refused every `sym` would satisfy all of it."""
+    from api.services import ast_table
+    declared = sorted(ast_table.benchmarks())
+    assert declared, "the manifest declares no benchmarks — the rails below are vacuous"
+    for ticker in (declared[0], declared[-1]):
+        out = scan_definition.assert_scannable(_sym_definition(ticker))
+        assert out["yields"] == "bool", ticker
+
+
+def test_a_scan_may_NOT_read_an_arbitrary_instrument_and_the_refusal_NAMES_the_set():
+    """⛔ A SAVED SCAN RUNS AGAINST THE WHOLE UNIVERSE, so the instruments it
+    compares against are a bounded set the sweep loads once. An arbitrary ticker
+    would be a whole extra history held for every one of thousands of rows.
+
+    ⭐ AND THE REFUSAL MUST CARRY ITS UNBLOCKER (X90's rule). "No" is half an
+    artifact; a member needs to know WHICH instruments do work, and that charting
+    against any symbol still does.
+    """
+    from api.services import ast_table
+    for ticker in ("AAPL", "BINANCE:BTCEUR", "NOSUCH"):
+        with pytest.raises(scan_definition.ScanRefused) as exc:
+            scan_definition.assert_scannable(_sym_definition(ticker))
+        assert exc.value.gate == "symbol", ticker
+        message = str(exc.value)
+        assert ticker in message, f"the refusal must name what the member typed: {message!r}"
+        for declared in sorted(ast_table.benchmarks()):
+            assert declared in message, (
+                f"the refusal must name {declared} as an alternative; got {message!r}")
+
+
+def test_the_benchmark_roster_is_READ_from_the_manifest_not_typed_here():
+    """⛔ ONE ROSTER. A second list in `api/` would be the copy that goes stale —
+    and the stale copy is always the one a refusal quotes to a member, telling
+    them to use a benchmark that no longer works.
+
+    ⭐ ASSERTED BY MOVING IT: the gate's answer must follow the manifest, so a
+    ticker temporarily added there becomes scannable with no code change.
+    """
+    from api.services import ast_table
+    real = ast_table.benchmarks()
+    assert "AAPL" not in real
+    with pytest.raises(scan_definition.ScanRefused):
+        scan_definition.assert_scannable(_sym_definition("AAPL"))
+
+    patched = dict(real, AAPL={"name": "Apple"})
+    original = ast_table.benchmarks
+    try:
+        ast_table.benchmarks = lambda *a, **k: patched
+        out = scan_definition.assert_scannable(_sym_definition("AAPL"))
+        assert out["yields"] == "bool", (
+            "the gate did not follow the manifest — it is reading a roster of its own")
+    finally:
+        ast_table.benchmarks = original
+
+    # …and the restore really restored, so this test cannot leak into its neighbours.
+    with pytest.raises(scan_definition.ScanRefused):
+        scan_definition.assert_scannable(_sym_definition("AAPL"))
+
+
+def test_the_gate_and_the_sweeps_LOADER_read_the_SAME_walker():
+    """⛔⛔ THE PAIRING THAT MATTERS. `assert_scannable` decides WHETHER a scan may
+    run; `scan_evaluator` decides WHICH series to load. Both ask
+    `ast_interpret.symbols_named`. Two walkers would be two answers to *"which
+    instruments does this formula read?"*, and they could disagree in the quietest
+    possible way — a gate admitting a ticker the loader never fetched would return
+    `not_computable` on every row of a scan it had just promised was runnable
+    (`lesson_a_second_authority_over_one_value`).
+
+    ⭐ ASSERTED BY AST over the evaluator's source, not by grep: `grep` for a name
+    finds one call site, asking the MODULE finds them all
+    (`lesson_grep_for_a_name_finds_one_ast_the_module_finds_ten`).
+    """
+    import ast as pyast
+    import pathlib
+    src = pathlib.Path("api/services/screener/scan_evaluator.py").read_text(encoding="utf-8")
+    calls = [n for n in pyast.walk(pyast.parse(src))
+             if isinstance(n, pyast.Call)
+             and isinstance(n.func, pyast.Attribute)
+             and n.func.attr == "symbols_named"]
+    assert calls, (
+        "the sweep does not call `symbols_named` — it is deciding which benchmark "
+        "series to load some other way, and the gate above no longer binds it")
 

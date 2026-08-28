@@ -1408,6 +1408,31 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     if history_withheld:
         kept, withheld, withheld_reason = [], len(universe), HISTORY_WITHHELD
 
+    # ⭐⭐ THE BENCHMARK SERIES, LOADED ONCE FOR THE WHOLE SWEEP.
+    #
+    # A `sym('SPY', …)` node reads another instrument, and `ast_interpret` does not
+    # fetch — the caller supplies. Loading here rather than inside the per-symbol
+    # loop is the whole affordability argument: a universe sweep touches thousands
+    # of symbols, and re-reading SPY for each of them would multiply the benchmark
+    # read by the universe size for an answer that is identical every time.
+    #
+    # ⛔ AND THE TICKERS ARE THE ONES THE TREE NAMES, not the whole declared list.
+    # A definition that names no benchmark loads none, so this costs a scan that
+    # does not use `sym` exactly nothing.
+    symbol_series = {}
+    short_benchmarks = []
+    for ticker in sorted(ast_interpret.symbols_named(tree)):
+        series = _read_bars(ticker, tf_code, want)
+        symbol_series[ticker] = series
+        # ⚠️ A BENCHMARK WITH TOO LITTLE HISTORY IS NAMED, NOT SILENTLY EMPTY.
+        # Measured 2026-08-27, the local store held SPY/QQQ/IWM/DIA three sessions
+        # staler than the sector SPDRs beside them, so this is not hypothetical:
+        # without this, every row of such a scan would come back `not_computable`
+        # with no cause, and the receipt would read as a quiet market rather than
+        # as a benchmark we could not serve.
+        if len(series) < want:
+            short_benchmarks.append("%s (%d of %d bars)" % (ticker, len(series), want))
+
     rows_by_ticker = snapshot_db.get_rows(kept) if scalar_columns else {}
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
@@ -1575,7 +1600,8 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
             # caller's spelling: `scan_store._TF_CODES` and
             # `indicator_compute.CLOCK_TIMEFRAMES` are the same set of words.
             column = ast_interpret.interpret(tree, bars, scalars=scalars,
-                                             opts={"tf": tf_code})
+                                             opts={"tf": tf_code,
+                                                   "symbols": symbol_series})
             value = column[index]
             if (value is None or isinstance(value, bool)
                     or not isinstance(value, (int, float))
@@ -1583,7 +1609,14 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                 # ⛔ ITS OWN BUCKET. "We could not compute it" is not "something
                 # broke", and a member reading one number for both cannot tell a
                 # short-history universe from a failing one.
-                _unanswered(sym, NOT_COMPUTABLE_REASON)
+                # ⭐ AND WHEN A NAMED BENCHMARK IS SHORT, SAY SO. Otherwise every
+                # row of a `sym` scan lands here with no cause at all and the
+                # receipt reads as a quiet market
+                # (`lesson_a_rail_can_pin_the_scarcity_that_creates_false_claims`).
+                _unanswered(sym, NOT_COMPUTABLE_REASON,
+                            detail=("benchmark history is short: "
+                                    + ", ".join(short_benchmarks)
+                                    if short_benchmarks else None))
                 not_computable += 1
                 continue
 

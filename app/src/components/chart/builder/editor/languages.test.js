@@ -97,6 +97,32 @@ describe('the formula dialect', () => {
       .toEqual([...new Set([...FORMULA_VOCAB.series, ...FORMULA_VOCAB.clock])].sort())
   })
 
+  it('⛔ the scannable BENCHMARKS are not editor vocabulary — a ticker is a string, not a name', () => {
+    // ⛔⛔ THE AMENDMENT THIS RAIL EXISTS FOR. W2b Task 4 landed the fifteen
+    // scannable benchmarks as a bare `benchmarks` section, and the census above
+    // went red on the first run: every non-underscore section of the manifest is
+    // VOCABULARY, so `SPY` became a typeable identifier — offered in the
+    // completion popup and coloured as a series. A benchmark is a STRING inside
+    // `sym('SPY', …)`; there is no bare `SPY` in this language.
+    //
+    // ⭐ THE FIX WAS THE KEY, NOT A SPECIAL CASE: `_benchmarks_scannable` is
+    // skipped by `vocabularyOf` and `completions.js` alike, under the underscore
+    // rule both already had. This pins that it stays that way — the roster is
+    // real data a member's scan depends on, so the temptation to promote it to a
+    // proper section is real too.
+    const roster = Object.keys(TABLE._benchmarks_scannable || {})
+    expect(roster.length, 'the manifest declares no scannable benchmarks').toBeGreaterThan(0)
+    for (const ticker of roster) {
+      expect(FORMULA_VOCAB.columns.has(ticker), `${ticker} is offered as a column`).toBe(false)
+      expect(FORMULA_VOCAB.series.has(ticker), `${ticker} is offered as a series`).toBe(false)
+      expect(FORMULA_VOCAB.scalars.has(ticker), `${ticker} is offered as a scalar`).toBe(false)
+      expect(FORMULA_VOCAB.functions.has(ticker), `${ticker} is offered as a function`).toBe(false)
+    }
+    // ⭐ AND THE CONTROL: a name that IS vocabulary must be found by the very
+    // same lookups, or the four assertions above would pass on a broken reader.
+    expect(FORMULA_VOCAB.series.has('close')).toBe(true)
+  })
+
   it('⭐ a name-bearing section the manifest gains is COLOURED by shape — not by a list of section names', () => {
     // ⛔ THE DEFECT THIS CLOSES: `vocabularyOf` read five section names as literals
     // while `completions.js` walked every section, so a sixth would have been
