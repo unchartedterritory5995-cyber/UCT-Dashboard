@@ -899,10 +899,26 @@ const POINTWISE = Object.freeze({
   // ⛔ MOD FOLLOWS THE SIGN OF THE LEFT OPERAND (C truncation), NOT PYTHON'S
   // FLOORED `%`. `-7 % 2` is `1` in Python and `-1` in JS; TC2000 truncates, so
   // the Python lane spells it out rather than using its own operator.
-  mod: (x, y) => (Number.isNaN(x) || Number.isNaN(y) || y === 0
-    ? NaN : x - y * Math.trunc(x / y)),
-  idiv: (x, y) => (Number.isNaN(x) || Number.isNaN(y) || y === 0
-    ? NaN : Math.trunc(x / y)),
+  // ⚰️⚰️ AND THE QUOTIENT IS CHECKED FOR FINITENESS, which it was not.
+  // `x / y` overflows to Infinity for a large numerator over a denormal divisor,
+  // and `Math.trunc(Infinity)` is Infinity — so `1e308 idiv 1e-308 > 0` answered
+  // a confident TRUE on EVERY BAR of EVERY SYMBOL. A screen built on it matches
+  // the entire universe and looks like a working screen.
+  // ⛔ THE PYTHON LANE FAILED THE OTHER WAY on the same inputs: `int(inf)` raises
+  // `OverflowError`, which is not a `TableRefusal` — a crash, not a refusal.
+  // Neither lane said "I do not know", and NaN is precisely this engine's word
+  // for that. The idiom is already four lines up, on `pow`, whose comment says
+  // "so does an overflow"; these two simply never used it.
+  mod: (x, y) => {
+    if (Number.isNaN(x) || Number.isNaN(y) || y === 0) return NaN
+    const q = x / y
+    return Number.isFinite(q) ? x - y * Math.trunc(q) : NaN
+  },
+  idiv: (x, y) => {
+    if (Number.isNaN(x) || Number.isNaN(y) || y === 0) return NaN
+    const q = x / y
+    return Number.isFinite(q) ? Math.trunc(q) : NaN
+  },
 
   sin: (x) => (Number.isNaN(x) ? NaN : Math.sin(x)),
   cos: (x) => (Number.isNaN(x) ? NaN : Math.cos(x)),
