@@ -182,6 +182,13 @@ function BriefingsRail() {
     } catch { /* noop */ }
   }, [])
   useEffect(() => { refresh() }, [refresh])
+  // The proposal chip (inside the widget) creates briefings — it announces via
+  // a window event so this rail appears/refreshes without a page reload.
+  useEffect(() => {
+    const onChanged = () => refresh()
+    window.addEventListener('ais:briefings-changed', onChanged)
+    return () => window.removeEventListener('ais:briefings-changed', onChanged)
+  }, [refresh])
   const toggle = (b) => {
     try {
       Promise.resolve(fetch(

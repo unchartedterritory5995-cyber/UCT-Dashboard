@@ -119,16 +119,26 @@ def list_briefings(user_id) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def set_enabled(user_id, briefing_id: str, enabled: bool) -> bool:
+def set_enabled(user_id, briefing_id: str, enabled: bool) -> dict:
     if not user_id or not briefing_id:
-        return False
+        return {"ok": False}
     _ensure_init()
-    with contextlib.closing(_connect()) as conn:
+    with _LOCK, contextlib.closing(_connect()) as conn:
+        if enabled:
+            # Resume re-checks the cap create() enforces — pause→create→resume
+            # was a free bypass to unlimited enabled briefings (2026-08-28).
+            n = conn.execute(
+                "SELECT COUNT(*) FROM ais_briefings WHERE user_id=? AND enabled=1 "
+                "AND briefing_id != ?",
+                (str(user_id), str(briefing_id)[:64])).fetchone()[0]
+            if int(n or 0) >= _peruser_cap():
+                return {"ok": False,
+                        "reason": f"Briefings are capped at {_peruser_cap()} — pause one first."}
         cur = conn.execute(
             "UPDATE ais_briefings SET enabled=? WHERE briefing_id=? AND user_id=?",
             (1 if enabled else 0, str(briefing_id)[:64], str(user_id)))
         conn.commit()
-        return bool(cur.rowcount)
+        return {"ok": bool(cur.rowcount)}
 
 
 def delete(user_id, briefing_id: str) -> bool:
@@ -144,6 +154,21 @@ def delete(user_id, briefing_id: str) -> bool:
 
 
 # ── the scheduled pass ───────────────────────────────────────────────────────
+
+class _Skip(Exception):
+    """Control-flow sentinel: skip this briefing, stamp its status honestly."""
+
+
+def _member_is_paid(uid: str) -> bool:
+    """Server-resolved plan for the runner's lapse gate — module-level so
+    tests can patch it (mirrors the router's _is_paid_server)."""
+    try:
+        from api.middleware.auth_middleware import is_paid_user
+        from api.services.auth_service import get_user_plan
+        return bool(is_paid_user({"user_id": uid, "id": uid, "plan": get_user_plan(uid)}))
+    except Exception:
+        return False
+
 
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(\$[A-Za-z][A-Za-z.\-]{0,6}\)")
 
@@ -173,16 +198,44 @@ def run_due(cadence: str) -> dict:
     if cadence not in _CADENCES:
         return {"ok": False, "reason": "bad cadence"}
     _ensure_init()
+    # Dollar rail: the pass burns real Perplexity money — over the daily cap it
+    # stops delivering rather than silently spending (2026-08-28 review).
+    def _over_budget() -> bool:
+        try:
+            from api.services import narrative_cost_guard as guard
+            cap = float(os.environ.get("AI_SEARCH_BRIEF_COST_CAP_DAILY", "5.0"))
+            return guard.spend_today_usd("pplx:ai_search_brief") >= cap
+        except Exception:
+            return False
+    if _over_budget():
+        log.warning("briefings %s: over the daily dollar cap — pass skipped", cadence)
+        return {"ok": False, "reason": "over budget"}
     with contextlib.closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
+        # least-recently-run first (NULLs = never-run lead) so a full pass cap
+        # ROTATES instead of permanently starving the newest members' briefings
         rows = conn.execute(
             "SELECT * FROM ais_briefings WHERE cadence=? AND enabled=1 "
-            "ORDER BY created_at LIMIT ?", (cadence, _RUN_CAP)).fetchall()
+            "ORDER BY last_run_at IS NOT NULL, last_run_at ASC LIMIT ?",
+            (cadence, _RUN_CAP)).fetchall()
     ran = delivered = 0
+    paid_memo: dict[str, bool] = {}
     for r in rows:
         ran += 1
         status = "error"
         try:
+            # A lapsed member's standing briefing must not keep billing the
+            # firm's key forever — the endpoints are paid-gated, so this is
+            # the only place that can notice the lapse.
+            uid = r["user_id"]
+            if uid not in paid_memo:
+                paid_memo[uid] = _member_is_paid(uid)
+            if not paid_memo[uid]:
+                status = "skipped: unpaid"
+                raise _Skip()
+            if ran % 25 == 0 and _over_budget():
+                status = "skipped: over budget"
+                raise _Skip()
             res = _answer_briefing(r["query"])
             answer = (res.get("answer") or "").strip()
             if answer and not res.get("error"):
@@ -193,7 +246,8 @@ def run_due(cadence: str) -> dict:
                 deliver_alert_payload(
                     r["user_id"], (r["sym"] or "AI"), f"{title}: {label}", body,
                     source="ai_briefing",
-                    extra_data={"briefing_id": r["briefing_id"], "query": r["query"]})
+                    extra_data={"briefing_id": r["briefing_id"], "query": r["query"]},
+                    severity="info")   # info = bell+email only, never the admin Discord
                 delivered += 1
                 status = "delivered"
                 try:
@@ -209,6 +263,8 @@ def run_due(cadence: str) -> dict:
                 status = f"error: {str(res.get('error'))[:60]}"
             else:
                 status = "empty"
+        except _Skip:
+            pass
         except Exception as e:
             log.warning("briefing %s failed: %s", r["briefing_id"], e)
             status = "error"

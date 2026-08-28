@@ -118,10 +118,12 @@ def _shrink(obj) -> str:
 
 
 def run_agent(query: str, system: str, history: list | None, user: dict | None,
-              emit=None) -> dict:
+              emit=None, cancel=None) -> dict:
     """Blocking tool loop. Returns {answer, citations, tools_used, error?}.
     `emit(text)` (optional, thread-safe on the caller's side) surfaces live
-    activity to the member."""
+    activity to the member; `cancel` (threading.Event) stops the loop early
+    when the client disconnected — a dead stream must not keep burning the
+    agent dollar cap."""
     from api.services import voice_tools
     from api.services import narrative_cost_guard as guard
     from api.services.engine import _get_anthropic_client
@@ -145,6 +147,9 @@ def run_agent(query: str, system: str, history: list | None, user: dict | None,
     sys_prompt = system + _AGENT_SYSTEM_TAIL
 
     for _step in range(_MAX_STEPS):
+        if cancel is not None and cancel.is_set():
+            return {"answer": "", "error": "cancelled",
+                    "citations": citations, "tools_used": tools_used}
         try:
             resp = client.with_options(timeout=50).messages.create(
                 model=model, max_tokens=_MAX_TOKENS, system=sys_prompt,

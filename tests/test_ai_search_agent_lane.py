@@ -192,7 +192,7 @@ def test_stream_agent_mode_emits_activity_then_final(monkeypatch):
     import api.services.ai_search_agent as ag
     monkeypatch.setattr(ag, "available", lambda: True)
 
-    def fake_run(query, system, history, user, emit=None):
+    def fake_run(query, system, history, user, emit=None, cancel=None):
         if emit:
             emit("checking the live quote — CRM…")
         return {"answer": "CRM is strong.", "citations": ["https://x.com/1"],

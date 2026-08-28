@@ -308,6 +308,7 @@ export function AnswerBody({ text, onTicker, cites }) {
 // — this button is the member's consent, posting to the existing alerts API.
 function ProposalChip({ proposal }) {
   const [state, setState] = useState('idle')   // idle | busy | done | error
+  const [detail, setDetail] = useState(null)   // server's actionable refusal reason
   if (!proposal) return null
   const isBriefing = proposal.kind === 'briefing'
   if (!isBriefing && proposal.kind !== 'price_alert') return null
@@ -331,7 +332,21 @@ function ProposalChip({ proposal }) {
         })
     try {
       Promise.resolve(req)
-        .then((r) => setState(r?.ok ? 'done' : 'error'))
+        .then(async (r) => {
+          if (r?.ok) {
+            setState('done')
+            if (isBriefing) {
+              // the My-briefings rail lives on /ai-search — tell it to refresh
+              try { window.dispatchEvent(new Event('ais:briefings-changed')) } catch { /* noop */ }
+            }
+            return
+          }
+          // the server's 422 reason is actionable ("capped at 3 — pause one
+          // first") — a bare Retry that can never succeed is a dead end
+          const d = await r?.json?.().catch(() => null)
+          setDetail(d?.detail || null)
+          setState('error')
+        })
         .catch(() => setState('error'))
     } catch { setState('error') }
   }
@@ -350,7 +365,7 @@ function ProposalChip({ proposal }) {
       title={isBriefing
         ? 'Schedule this as a standing brief (delivered via bell, email and Discord)'
         : 'Create this price alert (delivered via bell, email and Discord per your settings)'}>
-      <UIcon name={isBriefing ? 'clock' : 'bell'} size={11} /> {state === 'error' ? `Retry — ${label}` : label}
+      <UIcon name={isBriefing ? 'clock' : 'bell'} size={11} /> {state === 'error' ? (detail || `Retry — ${label}`) : label}
     </button>
   )
 }
@@ -561,8 +576,14 @@ export default function AiSearchWidget({
   const [askMode, setAskMode] = useState(() => {
     try {
       const m = localStorage.getItem('uct.aisearch.mode')
-      if (m === 'reasoning' || m === 'agent') return m
-      return localStorage.getItem('uct.aisearch.deep') === '1' ? 'reasoning' : 'auto'
+      // a stored value — 'auto' included — is authoritative; the legacy deep
+      // key only fills in when the new key has never been written
+      if (m === 'auto' || m === 'reasoning' || m === 'agent') return m
+      const legacy = localStorage.getItem('uct.aisearch.deep') === '1'
+      try { localStorage.removeItem('uct.aisearch.deep') } catch { /* noop */ }
+      const migrated = legacy ? 'reasoning' : 'auto'
+      try { localStorage.setItem('uct.aisearch.mode', migrated) } catch { /* noop */ }
+      return migrated
     } catch { return 'auto' }
   })
   const cycleAskMode = useCallback(() => {
@@ -764,6 +785,10 @@ export default function AiSearchWidget({
       if (outcome === 'limit') { setQuery(question); return }
       if (outcome === 'done') return
       if (stoppedRef.current) { setQuery(question); return }
+      // stream died mid-run — clear its transient status flags so the
+      // single-shot fallback shows the rotating phrases, not a stale
+      // "running the desk verdict…" line for 30 seconds
+      setAgentActivity(null); setDeep(false); setPersonalPending(false)
 
       const singleShot = () => fetch('/api/ai-search', {
         method: 'POST',
