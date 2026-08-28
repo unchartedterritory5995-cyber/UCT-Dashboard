@@ -54,7 +54,7 @@ Run at `92623df71`. Re-run before starting; do not trust these numbers if the he
 | mutable state (`var`, ToS state) | 5 | D |
 | cross-symbol / timeframe shapes | 5 | — mostly correct refusals |
 | no plottable output | 3 | B |
-| displaced plot (`offset=-n`) | 4 | — correct: negative offset is look-ahead |
+| ~~displaced plot~~ | ~~4~~ → **0** | ✅ **SOLVED 27 Aug** — see the amendment in Segment E |
 | arrays / `fold` | 2 | C |
 | strategy declarations | 2 | A |
 | module `import`, named-arg, statement, undefined | 4 | E |
@@ -579,11 +579,90 @@ Blocks `26-spy-to-es-qqq-to-nq.pine`. Read Pine's own parameter name for the cal
 
 Six scripts. `fold` is Segment C's shape in another language and should reuse it. `GetQuantity`/account reads have no meaning without a broker context and should refuse by name, permanently.
 
+### ✅ AMENDMENT, 27 Aug 2026 — two "stays refused" rulings were wrong
+
+⛔⛔ **THIS PLAN SHIPPED WITH TWO ROADBLOCKS THAT WERE NOT ROADBLOCKS**, and both
+were refusals whose own text named the unblocker.
+
+- **`ta.highestbars` / `ta.lowestbars`.** The plan repeated "a negation is not a
+  shift, and there is no node for it". `u-` is one of the fifteen operators the
+  manifest declares, so `ta.highestbars(src, n)` is `-highestbars(src, n)`, exactly.
+- **Displaced plots (4 scripts).** The plan said a negative offset is look-ahead
+  and stays refused. That sentence is true about the DRAWING and false about the
+  COLUMN: a scan reads the tree at the last confirmed bar, and where the author
+  painted that number changes nothing about what it is. A POSITIVE offset turned
+  out to be an exact identity (`x[N]`); a NEGATIVE one leaves the tree alone and
+  records `displace`.
+
+Measured after: community 13/30 → **16/30**, owner columns 51 → **59**, and
+`pine:plot-offset` fires nowhere in either corpus.
+
+⭐ **THE LESSON FOR THE REST OF THIS PLAN:** a refusal that names its own unblocker
+is a TODO, not a wall — this codebase writes them that way on purpose. Before
+accepting any "stays refused" row, re-read the refusal's own last sentence. Two of
+the three in the original "what this says no to" section did not survive that
+reading.
+
+---
+
 ### Task E5: the vendor-blocked five — an OWNER DECISION, not a task
 
 `RSI`, `BollingerBands`, `TTM_Squeeze`, `MovAvgExponential`, `SimpleMovingAvg` are blocked because thinkorswim publishes no default values (and for TTM_Squeeze, no formula at all). **No engineering closes these.** The only paths are (a) the vendor publishes more, or (b) the owner rules that we ship a *stated* approximation, which contradicts Global Constraint 3.
 
 ⛔ **Do not implement (b) without a written ruling.** A guessed default produces silently wrong trading signals under a name a member trusts.
+
+⭐ **BUT THERE IS A THIRD PATH THE PLAN ORIGINALLY MISSED — Task E6.**
+
+### Task E6: pending inputs — ask the one person who can see the answer
+
+⭐⭐ **THE BLOCKER IS AN UNKNOWN DEFAULT, NOT UNKNOWN MATHS** (except `TTM_Squeeze`,
+whose formula is genuinely unpublished). thinkorswim does not print `RSI`'s default
+length on its Studies-Library page — but the member has thinkorswim open, and the
+number is on their screen.
+
+So the third path is neither guessing nor refusing: **translate with a DECLARED
+HOLE.** A call whose defaults we cannot know produces a definition carrying a
+`pendingInputs[]` entry — the parameter, the call it belongs to, and the
+conventional value pre-filled but explicitly marked unverified. The member confirms
+it once and the definition completes.
+
+⛔ THIS IS NOT A STATED APPROXIMATION AND DOES NOT NEED THE E5 RULING. Nothing is
+guessed and nothing computes until the member supplies the value; the engine never
+asserts a number it was not given. What changes is that an unanswerable question
+becomes a question for somebody who CAN answer it.
+
+**Files:** `app/src/components/chart/engine/ast/thinkscript.js`, `defSchema.js`
+(`pendingInputs[]`), and a panel in the import flow.
+
+- [ ] **Step 1: Write the failing test**
+
+```javascript
+it('⭐⭐ a study whose DEFAULTS the vendor never published translates with a hole', () => {
+  const out = translateThinkScript('plot x = RSI() > 70;')
+  expect(out.refusal).toBe(null)
+  expect(out.pendingInputs).toEqual([
+    { call: 'RSI', param: 'length', suggested: 14, verified: false,
+      why: 'thinkorswim publishes no default for this parameter' },
+  ])
+})
+
+it('⛔ and it CANNOT be saved or scanned until the hole is filled', () => {
+  // Well-formed and incomplete are different things. A pending input that saved
+  // would be a guessed default wearing a checkbox.
+  expect(canSaveFormula(translateThinkScript('plot x = RSI() > 70;'), false)).toBe(false)
+})
+
+it('⛔ TTM_Squeeze still refuses — its FORMULA is unpublished, not its defaults', () => {
+  // A hole in a parameter is answerable by the member. A hole where the maths
+  // should be is not, and an input box for it would imply we knew the rest.
+  expect(translateThinkScript('plot x = TTM_Squeeze().Histogram;').refusal).toBeTruthy()
+})
+```
+
+- [ ] **Step 2: Run it, confirm it fails.**
+- [ ] **Step 3: Implement** `pendingInputs[]` on the translation result, and the save gate that blocks on it.
+- [ ] **Step 4: Re-measure the thinkScript corpus** — four of the five study-ref scripts should reach "pending" rather than "refused". ⚠️ They do NOT count as translating until filled; report both numbers.
+- [ ] **Step 5: Commit** — `feat(thinkscript): pending inputs, for defaults only the member can see`
 
 ---
 
