@@ -31,7 +31,9 @@ const INDEX_ETFS = [
 ]
 const SECTOR_ETFS = ['XLV', 'XLE', 'XLF', 'XLK', 'XLI', 'XLU', 'XLB', 'XLY', 'XLP', 'XLC', 'XLRE']
   .map(t => ({ etf: t, label: t }))
-const ETF_ITEMS = [...INDEX_ETFS, ...SECTOR_ETFS].map(e => ({ key: `etf:${e.etf}`, label: e.label, etf: e.etf }))
+const toItem = (e) => ({ key: `etf:${e.etf}`, label: e.label, etf: e.etf })
+const INDEX_ITEMS = INDEX_ETFS.map(toItem)   // S&P 500 / Nasdaq 100 / S&P 100 / Russell 2000 / Dow 30
+const ETF_ITEMS = SECTOR_ETFS.map(toItem)    // the 11 sector SPDRs
 
 // The stable key for the currently-selected universe (matches the item keys below).
 function selKey(sel) {
@@ -75,6 +77,9 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
 
     const groupBy = GROUP_BY.filter(i => match(i.label)).map(i => ({ key: i.key, label: i.label }))
     if (groupBy.length) out.push({ label: 'Group by', items: groupBy })
+
+    const idx = INDEX_ITEMS.filter(i => match(i.label))
+    if (idx.length) out.push({ label: 'Indices', items: idx })
 
     const etfs = ETF_ITEMS.filter(i => match(i.label))
     if (etfs.length) out.push({ label: 'ETFs', items: etfs })
