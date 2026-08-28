@@ -385,8 +385,17 @@ describe('metric readout', () => {
     clickPreset('New Highs vs Lows')
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
 
-    expect(screen.getByRole('button', { name: /52W Lows/ }))
-      .toHaveAttribute('aria-pressed', 'true')
+    // ⚰️ WAIT ON THE ASSERTION, NOT ON A PROXY FOR IT — this was a flake.
+    // `realSeries(captured)` reaching 2 means the CHART re-rendered; the button's
+    // `aria-pressed` is written by a different update, and React 19 flushes
+    // passive effects in a separate Scheduler task while RTL's `waitFor` drains
+    // with a single `setTimeout(…, 0)`. So a synchronous read here could land
+    // before the toggle caught up, on roughly one full-suite run in three.
+    // ⛔ SAME SHAPE AS THE `AiSearchWidget` FLAKE fixed alongside it, and it is
+    // not a weaker assertion: it still demands `aria-pressed` be "true", it just
+    // stops reading before the update that writes it has run.
+    await waitFor(() => expect(screen.getByRole('button', { name: /52W Lows/ }))
+      .toHaveAttribute('aria-pressed', 'true'))
   })
 
   it('clears a dimmed row when a metric is ticked by hand', async () => {

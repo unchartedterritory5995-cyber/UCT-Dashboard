@@ -2729,7 +2729,19 @@ describe('⛔⛔ the constructs that are OUTSIDE A SCREEN`S WORLD block the whol
   it('close(symbol = …) → :symbol, and it names what to do instead', () => {
     const x = r('def b = close(symbol = "SPY");\nplot s = close / b;\n')
     expect(x.guard).toBe('thinkscript:symbol')
-    expect(x.message).toMatch(/needs a second column, not a second symbol/)
+    // ⚰️⚰️ THIS ASSERTION PINNED A FALSE SENTENCE. It demanded the message read
+    // "needs a second column, not a second symbol inside this one" — and the engine
+    // has since shipped `sym`, which is precisely a second symbol inside one column.
+    // The Pine door translates this exact shape, and
+    // `08-relative-strength-zscore-vs-spy` asks for SPY, already on the benchmark
+    // roster.
+    // ⛔ RAILING A SENTENCE MAKES IT HARDER TO FIX — that is the point AND the
+    // hazard. Nobody could correct the claim without also correcting the rail, and
+    // the rail's existence made the claim look considered. This now asserts the
+    // PROPERTY the refusal must have — that it names what would unblock it — rather
+    // than one wording of a claim that turned out to be wrong.
+    expect(x.message).toMatch(/what is missing is/)
+    expect(x.message).toMatch(/`sym`/)
   })
 
   it('addOrder → :strategy, blocking the script even though the plots translate', () => {
