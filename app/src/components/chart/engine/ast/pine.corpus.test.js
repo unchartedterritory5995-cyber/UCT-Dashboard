@@ -439,8 +439,21 @@ describe('the whole corpus, in one number', () => {
     // the bare call is `preview-repaints` — which is precisely WHY Pine publishes
     // at the confirmation bar. The badge is computed by the reach walk, not
     // awarded. The whole script comes out saveable and non-repainting.
+    // ⭐⭐ 12/51 → 12/59, AND THE EIGHT NEW COLUMNS CAME FROM A REFUSAL THAT WAS
+    // ANSWERING THE WRONG QUESTION. `plot(…, offset = n)` refused every displaced
+    // plot on the grounds that "a displaced plot writes its value at a different
+    // bar from the one that produced it" — true about the DRAWING, false about the
+    // COLUMN. A scan reads the TREE at the last confirmed bar; where the author
+    // painted that number changes nothing about what it is.
+    //
+    // ⭐ A POSITIVE offset is now an exact identity this table already held —
+    // `plot(x, offset=N)` draws bar i at bar i+N, so what stands at bar j is
+    // `x[N]`. A NEGATIVE one leaves the tree alone and records `displace`, because
+    // the value ON DISPLAY there would be a future bar's while the author's
+    // COMPUTED value is untouched. Eight columns inside scripts that already
+    // translated — the script count could never have shown it.
     expect(translating).toBe(12)
-    expect(columns).toBe(51)
+    expect(columns).toBe(59)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {

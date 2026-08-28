@@ -593,8 +593,12 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a JavaScript negation, which is not Pine at all',
       '//@version=5\nindicator("t")\nplot(!(close > open) ? 1 : 0)\n',
       'pine:operator', 3, 6, '!'],
-    ['a displaced plot',
-      '//@version=5\nindicator("t")\nplot(ta.sma(close, 5), offset = -3)\n',
+    // ⚰️ THIS WAS `plot(…, offset = -3)`, AND A CONSTANT DISPLACEMENT NO LONGER
+    // REFUSES — it is presentation, not calculation, and `pine.displace.test.js`
+    // owns that ruling. What still refuses is a displacement that depends on a
+    // COLUMN: a per-bar shift is neither a node nor a presentation constant.
+    ['a plot displaced by a computed amount',
+      '//@version=5\nindicator("t")\nplot(ta.sma(close, 5), offset = close > open ? 1 : 2)\n',
       'pine:plot-offset', 3, 24, 'offset'],
     ['a length that is not a literal',
       '//@version=5\nindicator("t")\nplot(ta.sma(close, 10 + 4))\n',

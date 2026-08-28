@@ -503,7 +503,35 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
 const PINE_NAMESPACED_TREE = Object.freeze({
   'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
   'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
+  // ⭐⭐ THE SIGN FLIP, AND IT IS A NODE THIS TABLE HAS HAD ALL ALONG. Pine's
+  // `ta.highestbars` returns the offset as a NON-POSITIVE number (0 on this bar,
+  // −1 one bar back); ours returns the POSITIVE distance. The two are negations
+  // of each other, and `u-` is a declared operator — so:
+  //
+  //     ta.highestbars(src, n)   ≡   -highestbars(src, n)
+  //
+  // ⚰️ THE ENTRY THAT USED TO SIT IN `PINE_INEXPRESSIBLE` SAID, IN WRITING: "TO
+  // UNBLOCK: cite the Pine reference page that pins the sign, then apply `-` at
+  // this door." It was read for weeks — including once in this session — as
+  // "a negation is not a shift and there is no node for it", which is simply
+  // false: `u-` is one of the fifteen operators the manifest declares. An
+  // actionable refusal is only worth what it costs to RE-READ it.
+  'ta.highestbars': (a) => negatedBars('highestbars', a),
+  'ta.lowestbars': (a) => negatedBars('lowestbars', a),
 })
+
+/** `-<bars-fn>(src, n)` — Pine's non-positive offset from our positive distance.
+ *
+ *  ⚠️ THE ONE-ARGUMENT FORM DEFAULTS TO THE FUNCTION'S OWN EXTREME, never to
+ *  `close`: `ta.lowestbars(5)` measures to the LOW, and reading it off closes
+ *  would answer a different question with the same shape. */
+function negatedBars(name, args) {
+  const two = args.length >= 2
+  const src = two ? args[0] : { type: 'series', name: name === 'highestbars' ? 'high' : 'low' }
+  const len = two ? args[1] : args[0]
+  if (!len) return null
+  return cOp('u-', [cCall(name, [src, len])])
+}
 
 /** `<pivot>(src, L, R)` shifted to its confirmation bar, or null if `R` is not a
  *  literal (the offset's bar count is a FIELD, so it must be known here). */
@@ -637,49 +665,19 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⭐ THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, because *"unmappable"* is what let
   // a false refusal hide for a whole task elsewhere in this wave. Two countable
   // things, not a judgement call.
-  highestbars: 'the number of bars back to the highest value — and Pine returns '
-    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
-    + 'while this table\'s `highestbars(source, n)` returns the POSITIVE '
-    + 'distance. The two are negations of each other, so translating the name '
-    + 'straight across produces a sign-flipped column that is plausible on every '
-    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
-    + 'pins the sign, then apply `-` at this door. Meanwhile write '
-    + '`highestbars(source, n)` yourself, which is the positive distance.',
-  lowestbars: 'the number of bars back to the lowest value — and Pine returns '
-    + 'that offset as a NON-POSITIVE number (0 on this bar, -1 one bar back) '
-    + 'while this table\'s `lowestbars(source, n)` returns the POSITIVE '
-    + 'distance. The two are negations of each other, so translating the name '
-    + 'straight across produces a sign-flipped column that is plausible on every '
-    + 'bar and wrong on every bar. TO UNBLOCK: cite the Pine reference page that '
-    + 'pins the sign, then apply `-` at this door. Meanwhile write '
-    + '`lowestbars(source, n)` yourself, which is the positive distance.',
-  // ⛔⛔ THE BAR. This table's `pivothigh(source, left, right)` emits ON THE
-  // PIVOT BAR; Pine's `ta.pivothigh` returns the price at the CONFIRMATION bar,
-  // `rightbars` later — which is why published Pine pairs it with
-  // `offset=-rightbars` to draw it back where the pivot actually is. Same
-  // values, different index. Translating the name straight across shifts the
-  // whole column by `rightbars`, and a shifted pivot column is plausible on
-  // every bar and wrong on every bar.
+  // ⚰️ `highestbars` AND `lowestbars` LIVED HERE UNTIL 2026-08-27. Their entry
+  // said: "TO UNBLOCK: cite the Pine reference page that pins the sign, then
+  // apply `-` at this door." Pine returns the offset as a NON-POSITIVE number
+  // (0 on this bar, −1 one bar back) where this table returns the POSITIVE
+  // distance, so `ta.highestbars(src, n)` is `-highestbars(src, n)` — and `u-`
+  // is one of the fifteen operators the manifest declares. The expansion lives
+  // in `PINE_NAMESPACED_TREE`.
   //
-  // 🔴 THE SAME CLASS AS `ta.highestbars`, ONE AXIS OVER — that one differed by
-  // a SIGN and shipped green; this one differs by an OFFSET. Both are "the same
-  // number, indexed differently", which is the shape a member cannot see.
-  //
-  // ⭐ AND THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, in countable terms.
-  // ⚰️ `pivothigh` AND `pivotlow` LIVED HERE UNTIL 2026-08-27, and their entry
-  // said: "TO UNBLOCK: cite the Pine reference page that pins WHICH bar the
-  // return value lands on, then apply that shift at this door." That is exactly
-  // what was done — Pine returns a pivot at its CONFIRMATION bar, `rightbars`
-  // after the pivot, so `ta.pivothigh(src, L, R)` now expands to
-  // `pivothigh(src, L, R)[R]` in `PINE_NAMESPACED_TREE`, where the full
-  // reasoning now lives.
-  //
-  // ⛔ THEY ARE DELETED RATHER THAN LEFT AS A RECORD, because an entry in THIS
-  // map is not documentation — it is a live refusal, and a name that is now
-  // expressible reading as inexpressible would be a false claim in the one place
-  // a member is told what this engine cannot do. `highestbars`/`lowestbars` stay,
-  // and they are the contrast worth keeping: a SIGN flip is not a shift, and no
-  // offset node can express a negation.
+  // ⛔⛔ THE ENTRY WAS READ FOR WEEKS AS "a negation is not a shift and there is
+  // no node for it" — including once, out loud, in the session that then fixed
+  // it. The text never said that; it named the unblocker in its last sentence.
+  // An actionable refusal is only worth what it costs to RE-READ, and the cost
+  // of not re-reading one is that it looks like a wall.
   barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
     + 'This table declares `barssince(condition, n)`, and it is NOT the same '
     + 'function: ours saturates at a declared window and answers `n` for "not '
@@ -4020,7 +4018,17 @@ export function translatePine(source, opts = {}) {
       const rest = cur.peek()
       if (rest) throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(rest))
       const seriesArg = pickOutputArgument(args, out.kind, out.tok)
-      const ast = resolver.resolve(seriesArg.value)
+      // ⭐⭐ A POSITIVE PINE OFFSET IS A BAR OFFSET IN THE TREE. `plot(x, offset=N)`
+      // draws bar i's value at bar i+N, so what stands at bar j is bar j-N's —
+      // `x[N]`. Putting it in the TREE makes the chart and the scan agree by
+      // construction rather than by somebody remembering to shift one of them.
+      // ⚠️ A NEGATIVE ONE STAYS OUT OF THE TREE and is recorded as presentation:
+      // the value on display there would be a FUTURE bar's, which has no node,
+      // while the author's computed value at each bar is exactly what the
+      // undisplaced tree says.
+      const shift = foldDisplacement(resolver, seriesArg)
+      const base = resolver.resolve(seriesArg.value)
+      const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
       row = {
@@ -4045,6 +4053,10 @@ export function translatePine(source, opts = {}) {
         // number for every symbol, so it is not a screen at all. It rides the
         // `hidden` channel because `display.none` is the author's own statement of
         // the same thing, and one flag means one definition of "usable column".
+        // ⚠️ NEGATIVE ONLY — a positive displacement is IN the tree above, so
+        // recording it here too would be the same fact in two places and a
+        // renderer would shift a column that has already been shifted.
+        displace: shift < 0 ? shift : 0,
         hidden: outputHidden(args) || !readsBars(ast),
         refusal: null,
       }
@@ -4189,22 +4201,70 @@ export function treeYieldsBool(node, table = TABLE) {
   return yieldsOf(node, rulesFor(table)) === 'bool'
 }
 
+/** A plot's `offset`, folded through the resolver to a whole number.
+ *
+ *  ⭐ THROUGH THE RESOLVER, so `offset = -prd` with `prd = input.int(10)` folds to
+ *  −10 exactly as `close[n]` with `n = input.int(10)` already does one arm over.
+ *  Reading only a written literal would have refused the commonest spelling of
+ *  this in the wild — both remaining corpus scripts write it that way.
+ *
+ *  ⚠️ AND THE RESOLVER RETURNS `u-` OVER A NUMBER, NOT A NEGATIVE NUMBER. That
+ *  is this engine's own canonical shape (`cNum` refuses to mint a negative
+ *  literal), so it is unwrapped here rather than assumed away.
+ *
+ *  ⛔ A DISPLACEMENT THAT DOES NOT REDUCE TO A CONSTANT REFUSES. One that depends
+ *  on a COLUMN is a per-bar shift — neither a node nor a presentation constant —
+ *  and there is nothing honest to do with it. */
+function foldDisplacement(resolver, seriesArg) {
+  const node = seriesArg.offsetNode
+  if (!node) return 0
+  let folded
+  try {
+    folded = resolver.resolve(node)
+  } catch {
+    throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
+      locate(seriesArg.offsetTok))
+  }
+  let value = NaN
+  if (folded && folded.type === 'num') value = Number(folded.value)
+  else if (folded && folded.type === 'op' && folded.name === 'u-'
+           && (folded.args || []).length === 1 && folded.args[0].type === 'num') {
+    value = -Number(folded.args[0].value)
+  }
+  if (!Number.isInteger(value)) {
+    throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
+      locate(seriesArg.offsetTok))
+  }
+  return value
+}
+
 /** The argument a screener reads. `plot(series, title, …)` and
  *  `alertcondition(condition, title, message)` — the first positional, or the
  *  named one Pine's own signature calls it. */
 function pickOutputArgument(args, kind, tok) {
-  // ⛔⛔ `plot(…, offset = n)` MOVES THE WHOLE COLUMN, AND IGNORING IT WOULD BE
-  // THE SILENT MISREAD. A negative offset writes bar i's value at bar i-n and a
-  // POSITIVE one writes it into the future — which is the forward reference the
-  // repaint linter exists to decide, arriving through a parameter rather than
-  // through the tree. This engine has no displacement, so a displaced plot
-  // refuses rather than translating into an undisplaced one that means something
-  // else. (`03-rsi-directional-momentum-scanner.pine` plots eight of these.)
+  // ⚰️ THIS REFUSED EVERY DISPLACED PLOT, AND IT WAS CONFLATING TWO CLAIMS.
+  // Its sentence — "a displaced plot writes its value at a different bar from the
+  // one that produced it" — is true about the DRAWING and false about the COLUMN.
+  // A scan reads the TREE at the last confirmed bar; where the author chose to
+  // paint that number changes nothing about what the number is.
+  //
+  // ⭐⭐ AND THE POSITIVE CASE IS AN EXACT IDENTITY THIS TABLE ALREADY HOLDS.
+  // `plot(x, offset = N)` shifts the plot RIGHT: bar i's value is drawn at bar
+  // i + N, so the value ON DISPLAY at bar j is bar j-N's — which is `x[N]`, our
+  // `offset` node. Chart and scan then agree by construction.
+  //
+  // ⚠️ THE NEGATIVE CASE IS THE ONE THAT NEEDS A RULING, AND HERE IT IS. Shifting
+  // LEFT draws bar i's value at bar i-N, so the value on display at bar j is bar
+  // j+N's — a FUTURE bar, and there is deliberately no node for that. But the
+  // author's COMPUTED value at each bar is untouched, so the honest translation is
+  // the undisplaced tree, carrying `displace` so the surface can say where the
+  // author drew it. Both community scripts that do this use it as a DISPLAY trick,
+  // not as a calculation: `11-52-week-high-low` pairs `offset=-9999` with
+  // `trackprice=true` to hide the plot's own line and leave only the horizontal
+  // track, and `27-support-resistance-channels` uses `offset=-prd` to place a
+  // pivot label back on the pivot bar. Refusing a 52-week-high SCREEN over a
+  // line-hiding trick is the whole cost of the old reading.
   const offset = args.find((a) => a.name === 'offset')
-  if (offset && !(offset.value.type === 'number' && offset.value.value === 0)) {
-    throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
-      locate(offset.tok || tok))
-  }
   // ⭐ PINE'S OWN PARAMETER NAME, per call. `alertcondition` takes `condition`;
   // `plot`, `plotshape` and `plotchar` all take `series`. Reading the wrong one
   // sends a named-argument script down the positional path and picks up whatever
@@ -4212,12 +4272,16 @@ function pickOutputArgument(args, kind, tok) {
   // — and by luck is not a translation.
   const named = OUTPUT_CALLS[kind]
   const byName = args.find((a) => a.name === named)
-  if (byName) return byName
   const positional = args.find((a) => !a.name)
-  if (!positional) {
+  const picked = byName || positional
+  if (!picked) {
     throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
   }
-  return positional
+  // ⭐ THE RAW OFFSET NODE RIDES OUT WITH THE ARGUMENT. It is not folded here:
+  // `offset = -prd` where `prd = input.int(10)` is a CONSTANT displacement, and
+  // only the resolver can fold an input to its default. The caller has one.
+  return { ...picked, offsetNode: offset ? offset.value : null,
+           offsetTok: offset ? (offset.tok || tok) : tok }
 }
 
 /** Did the SCRIPT'S AUTHOR mark this output as not-for-display?

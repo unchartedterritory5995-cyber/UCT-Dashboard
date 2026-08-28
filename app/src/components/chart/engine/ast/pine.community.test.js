@@ -41,13 +41,16 @@ describe('the community corpus, by name', () => {
     '04-ut-bot-alerts.pine',
     '05-chandelier-exit.pine',
     '06-qqe-mod.pine',
+    '11-52-week-high-low.pine',
     '12-vcp-tightness-score.pine',
     '13-relative-strength-vs-benchmark-spy.pine',
     '15-inside-bar.pine',
     '16-nr4-nr7.pine',
     '17-pocket-pivot-breakout.pine',
+    '18-minervini-trend-template.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
+    '28-support-resistance-dynamic-v2.pine',
   ]
 
   const outcome = (f) => {

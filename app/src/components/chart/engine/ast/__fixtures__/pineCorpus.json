@@ -35,7 +35,7 @@
   "version": 6,
   "translates": true,
   "outputs": 20,
-  "usable": 4,
+  "usable": 12,
   "selectedFormula": "crossUnder(rsi(close, 14), 40) && rsi(close, 14) < sma(rsi(close, 14), 14) && (accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) == 0 || accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) >= 4 && accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) <= 5)",
   "downstream": {
    "ok": true,
@@ -43,7 +43,6 @@
    "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:plot-offset": 8,
    "pine:function": 2
   },
   "hiddenScaffolding": 6

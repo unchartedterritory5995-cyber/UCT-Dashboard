@@ -159,6 +159,13 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   `preview-repaints`, because in our box the bare name means our function.
     pivothigh: 'ta.pivothigh — shifted to the CONFIRMATION bar, [rightbars]',
     pivotlow: 'ta.pivotlow — shifted to the CONFIRMATION bar, [rightbars]',
+    //   And the SIGN pair, settled the same way: Pine returns the offset as a
+    //   NON-POSITIVE number where this table returns the POSITIVE distance, so
+    //   `PINE_NAMESPACED_TREE` expands `ta.highestbars(src, n)` to
+    //   `-highestbars(src, n)`. `u-` is a declared operator; the refusal that
+    //   used to sit here asked for exactly this and it was finally read.
+    highestbars: 'ta.highestbars — NEGATED, Pine returns a non-positive offset',
+    lowestbars: 'ta.lowestbars — NEGATED, Pine returns a non-positive offset',
     // — NOT `ta.` NAMES IN PINE AT ALL (they live in `math.*`), so `ta.x` is a
     //   spelling no real script contains. Resolving is harmless; refusing them
     //   would be inventing a rule about a name Pine does not have.
@@ -252,30 +259,41 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     }
   })
 
-  it('⛔ a SIGN-mismatch door is REFUSED, with an ACTIONABLE reason', () => {
-    // ⭐ THE REFUSAL MUST NAME WHAT WOULD UNBLOCK IT. "Unmappable" is what let a
-    // false refusal hide for a whole task elsewhere in this wave — an unactionable
-    // refusal is never revisited because nobody knows what would change it.
+  it('⭐⭐ a SIGN-mismatch door now OPENS too, because the negation was applied', () => {
+    // ⚰️⚰️ THIS CASE ASSERTED A REFUSAL FOR MONTHS, AND THE REFUSAL IT ASSERTED
+    // CARRIED ITS OWN UNBLOCKER: "cite the Pine reference page that pins the sign,
+    // then apply `-` at this door." Pine returns the offset as a NON-POSITIVE
+    // number — 0 on this bar, −1 one bar back — where this table returns the
+    // POSITIVE distance. So:
     //
-    // ⚰️ THIS CASE USED TO COVER FOUR NAMES, AND THE OTHER TWO HAVE SINCE BEEN
-    // SETTLED — see the case below. `highestbars`/`lowestbars` differ from Pine by
-    // a SIGN, which no offset can express: a negation is not a shift, and there is
-    // no node for it. They stay refused, and the ruling stands.
-    for (const [expr, ours] of [['ta.highestbars(high, 5)', 'highestbars'],
-                                ['ta.lowestbars(low, 5)', 'lowestbars']]) {
-      const r = refusalOf(expr)
-      expect(r, `${expr} still translates — that is a sign-flipped column`).toBeTruthy()
-      expect(r.guard).toBe('pine:function')
-      expect(r.message).toMatch(/non-positive/i)
-      expect(r.message).toMatch(/sign-flipped|negation/i)
-      expect(r.message).toMatch(/cite the Pine reference/i)
-      expect(r.message).toMatch(/apply `-`/i)
-      const sig = `${ours}(source, n)`
-      expect(r.message).toContain(sig)
-      expect(treeOfOrNull(`${ours}(high, 5)`),
-        `the refusal recommends \`${sig}\` and the same door rejects it`)
-        .toBeTruthy()
+    //     ta.highestbars(src, n)  ≡  -highestbars(src, n)
+    //
+    // ⛔ AND THE THING THAT KEPT IT SHUT WAS A MISREADING, NOT A MISSING NODE.
+    // The entry was summarised for weeks as "a negation is not a shift and there
+    // is no node for it" — while `u-` sat in the fifteen operators the manifest
+    // declares. An actionable refusal is only worth what it costs to RE-READ it.
+    for (const [expr, ours, src] of [['ta.highestbars(high, 5)', 'highestbars', 'high'],
+                                     ['ta.lowestbars(low, 5)', 'lowestbars', 'low']]) {
+      const tree = treeOfOrNull(expr)
+      expect(tree, `${expr} should translate now that the negation is applied`).toBeTruthy()
+      expect(tree.type, `${expr} must be NEGATED, not the bare call`).toBe('op')
+      expect(tree.name).toBe('u-')
+      expect(tree.args[0].name).toBe(ours)
+      expect(tree.args[0].args[0]).toEqual({ type: 'series', name: src })
     }
+
+    // ⛔ AND THE SIGN IS ASSERTED AS A VALUE, not merely as a `u-` node. A
+    // negation applied twice, or applied to the wrong operand, still produces a
+    // tree of exactly this shape — only the numbers tell those apart.
+    const H = [10, 11, 15, 12, 11, 9, 14, 10]
+    const bars = H.map((h, i) => ({ t: 20260801 + i, o: h, h, l: h, c: h, v: 1 }))
+    const col = Array.from(interpret(treeOfOrNull('ta.highestbars(high, 3)'), bars))
+    expect(col.slice(2)).toEqual([-0, -1, -2, -2, -0, -1])
+
+    // ⭐ THE BARE SPELLING IS UNTOUCHED — in our box it means OUR function, and
+    // ours is the positive distance.
+    const bare = Array.from(interpret(treeOfOrNull('highestbars(high, 3)'), bars))
+    expect(bare.slice(2)).toEqual([0, 1, 2, 2, 0, 1])
   })
 
   it('⭐⭐ an OFFSET-mismatch door now OPENS, because the shift was applied', () => {
