@@ -591,7 +591,7 @@ def _auto_mode(query: str, client_mode: str) -> str:
 
 
 def _billing_units(mode: str) -> int:
-    return 2 if mode == "reasoning" else 1
+    return 2 if mode in ("reasoning", "agent") else 1
 
 
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
@@ -1726,6 +1726,31 @@ _ALERT_NOT_A_PRICE_TAIL = re.compile(
     r"^\s*(?:%|percent\b|trillion\b|billion\b|million\b|levels?\b|users?\b"
     r"|shares?\b|contracts?\b|handles?\b|points?\b|pts?\b)", re.I)
 
+# "Brief me on CRM every morning" → a standing-briefing proposal (same consent
+# model as alerts: the server proposes, the member's tap creates it).
+_BRIEF_WORD_RE = re.compile(r"\bbrief(?:ing)?s?\b", re.I)
+_BRIEF_CADENCE_RE = re.compile(
+    r"\b(?:every|each)\s+(morning|day|evening|night|close|open)\b"
+    r"|\b(daily)\b|\bevery\s+(premarket|pre-market)\b", re.I)
+
+
+def _briefing_proposal(query: str, syms: list[str]) -> dict | None:
+    q = query or ""
+    if not _BRIEF_WORD_RE.search(q):
+        return None
+    m = _BRIEF_CADENCE_RE.search(q)
+    if not m:
+        return None
+    word = (m.group(1) or m.group(2) or m.group(3) or "").lower()
+    cadence = "postmarket" if word in ("evening", "night", "close") else "premarket"
+    return {"kind": "briefing", "query": q[:500],
+            "sym": (syms[0] if syms else None), "cadence": cadence}
+
+
+def _ask_proposal(query: str, syms: list[str]) -> dict | None:
+    """One proposal per ask — a standing briefing outranks a one-shot alert."""
+    return _briefing_proposal(query, syms) or _alert_proposal(query, syms)
+
 
 def _alert_num(m, q: str) -> float | None:
     price = float(m.group(1))
@@ -1980,7 +2005,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     result["grounding"] = {"sources": meta.get("grounding_sources") or [],
                            "intents": meta.get("grounding_intents") or []}
     result["quota"] = _quota_snapshot(user_id)
-    proposal = _alert_proposal(body.query, meta.get("query_tickers") or [])
+    proposal = _ask_proposal(body.query, meta.get("query_tickers") or [])
     if proposal:
         result["proposal"] = proposal
     # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
@@ -1988,6 +2013,110 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
                 mode=effective_mode, result=result, meta=meta, history=history,
                 fallback_used=fallback_used)
     return result
+
+
+async def _agent_gen(body, user_id, system, meta, history, proposal, answer_id):
+    """SSE generator for the agent lane: meta → activity* → final. The blocking
+    tool loop runs in an executor; `emit` callbacks bridge onto the loop via a
+    queue so the member watches the agent work. On failure the ask falls back
+    to the fast web path (in an executor), then desk-only, then honest error —
+    the same ladder every other failure walks."""
+    grounding = {"sources": (meta.get("grounding_sources") or []) + ["agent"],
+                 "intents": list(meta.get("grounding_intents") or [])}
+    yield f"data: {json.dumps({'type': 'meta', 'mode': 'agent', 'answer_id': answer_id, 'grounding': grounding})}\n\n"
+    units = _billing_units("agent")
+    _loop = asyncio.get_running_loop()
+    q: asyncio.Queue = asyncio.Queue()
+
+    def _emit(text: str) -> None:
+        try:
+            _loop.call_soon_threadsafe(q.put_nowait, text)
+        except Exception:
+            pass
+
+    from api.services import ai_search_agent
+    fut = _loop.run_in_executor(
+        None, lambda: ai_search_agent.run_agent(
+            body.query, system, history, None, emit=_emit))
+    captured = {"result": None, "mode": "agent", "fallback_used": False}
+    try:
+        while True:
+            getter = asyncio.ensure_future(q.get())
+            done, _pending = await asyncio.wait(
+                {getter, fut}, return_when=asyncio.FIRST_COMPLETED)
+            if getter in done:
+                yield f"data: {json.dumps({'type': 'activity', 'text': getter.result()})}\n\n"
+                continue
+            getter.cancel()
+            break
+        res = fut.result() or {}
+        # drain any activity that raced the finish
+        while not q.empty():
+            try:
+                yield f"data: {json.dumps({'type': 'activity', 'text': q.get_nowait()})}\n\n"
+            except Exception:
+                break
+        if res.get("answer"):
+            grounding["intents"] = res.get("tools_used") or []
+            result = {"answer": res["answer"], "citations": res.get("citations") or [],
+                      "related_questions": [], "model": ai_search_agent._model(),
+                      "mode": "agent", "cached": False}
+            captured["result"] = dict(result)
+            final = {"type": "final", "answer_id": answer_id, "grounding": grounding,
+                     "quota": _quota_snapshot(user_id), **result}
+            if proposal:
+                final["proposal"] = proposal
+            yield f"data: {json.dumps(final)}\n\n"
+            return
+        # Agent came up empty → refund the agent units and walk the ladder.
+        _refund(user_id, units)
+        fb = await _loop.run_in_executor(
+            None,
+            lambda: perplexity_search.web_search(
+                body.query, max_tokens=700, system=system, mode="fast",
+                domain_pack="finance", recency=_auto_recency(body.query),
+                related=True, cache_salt=_fresh_salt(body.query, ""),
+                history=history, cost_surface="ai_search", allow_stale=True))
+        if fb.get("answer"):
+            if not fb.get("cached"):
+                _reserve(user_id, 1)
+            captured["result"] = dict(fb)
+            captured["mode"] = "fast"
+            captured["fallback_used"] = True
+            final = {"type": "final", "answer_id": answer_id, "grounding": grounding,
+                     "quota": _quota_snapshot(user_id), **fb}
+            if proposal:
+                final["proposal"] = proposal
+            yield f"data: {json.dumps(final)}\n\n"
+            return
+        dg = await _loop.run_in_executor(
+            None, lambda: _desk_only_answer(body.query, system, meta, history))
+        if dg is not None:
+            try:
+                _reserve(user_id, 1)
+            except HTTPException:
+                pass
+            captured["result"] = dict(dg)
+            captured["mode"] = "degraded"
+            captured["fallback_used"] = True
+            final = {"type": "final", "answer_id": answer_id, "grounding": grounding,
+                     "quota": _quota_snapshot(user_id), **dg}
+            yield f"data: {json.dumps(final)}\n\n"
+            return
+        captured["result"] = {"answer": "", "error": res.get("error") or "agent error"}
+        yield f"data: {json.dumps({'type': 'error', 'error': 'agent error'})}\n\n"
+    finally:
+        if captured["result"] is None:   # cancelled mid-run (client disconnect)
+            captured["result"] = {"answer": "", "error": "incomplete"}
+        try:
+            _loop.run_in_executor(
+                None,
+                lambda: _log_answer(
+                    body=body, user_id=user_id, answer_id=answer_id, endpoint="stream",
+                    mode=captured["mode"], result=captured["result"], meta=meta,
+                    history=history, fallback_used=captured["fallback_used"]))
+        except Exception:
+            pass
 
 
 @router.post("/stream")
@@ -2017,7 +2146,17 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         # zero accounts → decline, fall through to the normal public stream.
-    mode = _auto_mode(body.query, body.mode)
+    # ── Agent lane (client-pinned only, never auto-routed): the one-brain tool
+    # loop. Falls back to auto routing when the lane is over its dollar cap or
+    # the synthesis client is down — the ask always answers.
+    agent_mode = False
+    if (body.mode or "").strip().lower() == "agent":
+        try:
+            from api.services import ai_search_agent
+            agent_mode = ai_search_agent.available()
+        except Exception:
+            agent_mode = False
+    mode = "agent" if agent_mode else _auto_mode(body.query, body.mode)
     units = _billing_units(mode)
     _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
     _record_request(mode, stream=True)
@@ -2031,8 +2170,15 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
     # Proposal parse can hit the live quote (ambiguous verbs) — a blocking
     # Massive read that must never ride the shared event loop inside gen().
     proposal = await loop.run_in_executor(
-        None, lambda: _alert_proposal(body.query, meta.get("query_tickers") or []))
+        None, lambda: _ask_proposal(body.query, meta.get("query_tickers") or []))
     answer_id = ai_search_log_new_id()
+
+    if mode == "agent":
+        return StreamingResponse(
+            _agent_gen(body, user_id, system, meta, history, proposal, answer_id),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
 
     async def gen():
         settled = False
@@ -2346,6 +2492,43 @@ def ai_search_deep_detail(job_id: str, user: dict = Depends(require_paid)):
 def ai_search_deep_delete(job_id: str, user: dict = Depends(require_paid)):
     from api.services import ai_search_deep
     return {"ok": ai_search_deep.delete_job(_member_uid(user), job_id)}
+
+
+# ── Scheduled briefings (2026-08-28): standing questions delivered premarket /
+# post-close through the existing multi-channel alert door.
+
+class AiBriefingIn(BaseModel):
+    query: str
+    sym: str | None = None
+    cadence: str = "premarket"   # premarket | postmarket
+
+
+@router.get("/briefings")
+def ai_search_briefings_list(user: dict = Depends(require_paid)):
+    from api.services import ai_search_briefings
+    return {"briefings": ai_search_briefings.list_briefings(_member_uid(user))}
+
+
+@router.post("/briefings")
+def ai_search_briefings_create(body: AiBriefingIn, user: dict = Depends(require_paid)):
+    from api.services import ai_search_briefings
+    out = ai_search_briefings.create(_member_uid(user), body.query, body.sym, body.cadence)
+    if not out.get("ok"):
+        raise HTTPException(status_code=422, detail=out.get("reason") or "could not create")
+    return out
+
+
+@router.post("/briefings/{briefing_id}/toggle")
+def ai_search_briefings_toggle(briefing_id: str, enabled: bool = True,
+                               user: dict = Depends(require_paid)):
+    from api.services import ai_search_briefings
+    return {"ok": ai_search_briefings.set_enabled(_member_uid(user), briefing_id, enabled)}
+
+
+@router.delete("/briefings/{briefing_id}")
+def ai_search_briefings_delete(briefing_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_briefings
+    return {"ok": ai_search_briefings.delete(_member_uid(user), briefing_id)}
 
 
 class AiSignalIn(BaseModel):

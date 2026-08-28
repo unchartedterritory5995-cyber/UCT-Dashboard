@@ -87,6 +87,16 @@ const GROUNDING_LABELS = {
   movers: 'Movers', breadth: 'Breadth', earnings: 'Earnings today',
   uct20: 'UCT20', candidates: 'Scanner', news: 'Headlines',
   wire: 'Exposure dial', sector: 'Sectors', cot: 'COT',
+  // agent-lane tool names (the intents list carries what the agent called)
+  agent: 'Desk agent', web_search: 'Web',
+  get_quote: 'Live quote', get_regime: 'Regime', get_breadth: 'Breadth',
+  get_movers: 'Movers', find_patterns_on_ticker: 'Patterns',
+  grade_ticker: 'Desk verdict', ask_the_brain: 'UCT playbook',
+  get_earnings_intel: 'Earnings intel', get_options_flow: 'Options flow',
+  get_short_interest: 'Short interest', get_sector_strength: 'Sectors',
+  get_bar_summary: 'Chart read', get_polygon_news: 'News',
+  get_scanner_candidates: 'Scanner', get_fundamentals: 'Fundamentals',
+  get_insider_activity: 'Insider',
 }
 const groundingChips = (g) => {
   if (!g) return []
@@ -298,29 +308,49 @@ export function AnswerBody({ text, onTicker, cites }) {
 // — this button is the member's consent, posting to the existing alerts API.
 function ProposalChip({ proposal }) {
   const [state, setState] = useState('idle')   // idle | busy | done | error
-  if (!proposal || proposal.kind !== 'price_alert') return null
-  const label = `Set alert: ${proposal.sym} ${proposal.direction} $${proposal.price}`
+  if (!proposal) return null
+  const isBriefing = proposal.kind === 'briefing'
+  if (!isBriefing && proposal.kind !== 'price_alert') return null
+  const label = isBriefing
+    ? `Schedule ${proposal.cadence === 'postmarket' ? 'closing' : 'morning'} brief${proposal.sym ? `: ${proposal.sym}` : ''}`
+    : `Set alert: ${proposal.sym} ${proposal.direction} $${proposal.price}`
   const confirm = () => {
     setState('busy')
+    const req = isBriefing
+      ? fetch('/api/ai-search/briefings', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: proposal.query, sym: proposal.sym,
+                                 cadence: proposal.cadence }),
+        })
+      : fetch('/api/watchlist-alerts', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sym: proposal.sym, target_price: proposal.price,
+                                 direction: proposal.direction }),
+        })
     try {
-      Promise.resolve(fetch('/api/watchlist-alerts', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sym: proposal.sym, target_price: proposal.price,
-                               direction: proposal.direction }),
-      }))
+      Promise.resolve(req)
         .then((r) => setState(r?.ok ? 'done' : 'error'))
         .catch(() => setState('error'))
     } catch { setState('error') }
   }
   if (state === 'done') {
-    return <span className={styles.proposalDone}><UIcon name="check" size={11} /> Alert set — {proposal.sym} {proposal.direction} ${proposal.price}</span>
+    return (
+      <span className={styles.proposalDone}>
+        <UIcon name="check" size={11} /> {isBriefing
+          ? `Briefing scheduled — every ${proposal.cadence === 'postmarket' ? 'close' : 'morning'}`
+          : `Alert set — ${proposal.sym} ${proposal.direction} $${proposal.price}`}
+      </span>
+    )
   }
   return (
     <button type="button" className={styles.proposalBtn} onClick={confirm}
       disabled={state === 'busy'}
-      title="Create this price alert (delivered via bell, email and Discord per your settings)">
-      <UIcon name="bell" size={11} /> {state === 'error' ? `Retry — ${label}` : label}
+      title={isBriefing
+        ? 'Schedule this as a standing brief (delivered via bell, email and Discord)'
+        : 'Create this price alert (delivered via bell, email and Discord per your settings)'}>
+      <UIcon name={isBriefing ? 'clock' : 'bell'} size={11} /> {state === 'error' ? `Retry — ${label}` : label}
     </button>
   )
 }
@@ -524,18 +554,26 @@ export default function AiSearchWidget({
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
   const [quota, setQuota] = useState(null)   // {used, limit} — today's research budget
-  // Depth toggle: force the reasoning tier on the next asks. Persisted per-browser.
-  const [deepMode, setDeepMode] = useState(() => {
-    try { return localStorage.getItem('uct.aisearch.deep') === '1' } catch { return false }
+  const [agentActivity, setAgentActivity] = useState(null)   // "checking grade_ticker — NVDA…"
+  // Mode picker: Auto (routed by phrasing) → Deep (sonar reasoning tier) →
+  // Agent (the desk's tool-calling brain). Cycles on tap; persisted per-browser
+  // (migrates the old boolean deep toggle).
+  const [askMode, setAskMode] = useState(() => {
+    try {
+      const m = localStorage.getItem('uct.aisearch.mode')
+      if (m === 'reasoning' || m === 'agent') return m
+      return localStorage.getItem('uct.aisearch.deep') === '1' ? 'reasoning' : 'auto'
+    } catch { return 'auto' }
   })
-  const toggleDeepMode = useCallback(() => {
-    setDeepMode((d) => {
-      try { localStorage.setItem('uct.aisearch.deep', d ? '0' : '1') } catch { /* noop */ }
-      return !d
+  const cycleAskMode = useCallback(() => {
+    setAskMode((cur) => {
+      const next = cur === 'auto' ? 'reasoning' : (cur === 'reasoning' ? 'agent' : 'auto')
+      try { localStorage.setItem('uct.aisearch.mode', next) } catch { /* noop */ }
+      return next
     })
   }, [])
-  const deepModeRef = useRef(deepMode)
-  deepModeRef.current = deepMode
+  const askModeRef = useRef(askMode)
+  askModeRef.current = askMode
   const [personalPending, setPersonalPending] = useState(false)   // branch entered a personal (position-aware) answer — shown before the final payload confirms it
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
@@ -631,7 +669,7 @@ export default function AiSearchWidget({
     const payload = JSON.stringify({
       query: question, history: historyRef.current,
       conversation_id: conversationIdRef.current, turn_index: turnRef.current,
-      ...(deepModeRef.current ? { mode: 'reasoning' } : {}),   // depth toggle
+      ...(askModeRef.current !== 'auto' ? { mode: askModeRef.current } : {}),   // Deep / Agent
     })
     let r = await fetch('/api/ai-search/stream', {
       method: 'POST',
@@ -672,10 +710,13 @@ export default function AiSearchWidget({
         if (!line) continue
         let ev
         try { ev = JSON.parse(line.slice(5)) } catch { continue }
-        if (ev.type === 'meta') {
+        if (ev.type === 'activity' && ev.text) {
+          setAgentActivity(ev.text)
+        } else if (ev.type === 'meta') {
           // reasoning tier goes silent through its (stripped) think phase —
           // tell the member it's a deeper pass so the wait doesn't read as hung.
           if (ev.mode === 'reasoning') setDeep(true)
+          if (ev.mode === 'agent') setAgentActivity('the desk agent is picking its tools…')
           // backend entered the personal (position-aware) branch — swap the
           // waiting line before the final payload confirms it.
           if (ev.personal) setPersonalPending(true)
@@ -709,7 +750,7 @@ export default function AiSearchWidget({
     stoppedRef.current = false
     const ctrl = new AbortController()
     abortRef.current = ctrl
-    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false); setPersonalPending(false)
+    setLoading(true); setError(null); setLimitMsg(null); setPending(question); setQuery(''); setStreamText(''); setDeep(false); setPersonalPending(false); setAgentActivity(null)
     try {
       let outcome = null
       try {
@@ -731,7 +772,7 @@ export default function AiSearchWidget({
         body: JSON.stringify({
           query: question, history: historyRef.current,
           conversation_id: conversationIdRef.current, turn_index: turnRef.current,
-          ...(deepModeRef.current ? { mode: 'reasoning' } : {}),
+          ...(askModeRef.current !== 'auto' ? { mode: askModeRef.current } : {}),
         }),
         signal: ctrl.signal,
       })
@@ -758,6 +799,7 @@ export default function AiSearchWidget({
       setLoading(false)
       setPending(null)
       setStreamText('')
+      setAgentActivity(null)
       abortRef.current = null
     }
   }, [query, loading, tryStream, applyFinal])
@@ -1074,7 +1116,7 @@ export default function AiSearchWidget({
               <div className={styles.status}>
                 <span className={styles.spinner} /> {personalPending
                   ? 'Checking your positions and the desk read…'
-                  : (deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase])}
+                  : (agentActivity || (deep ? 'Reasoning through this — a deeper pass, ~20-30s…' : SEARCH_PHASES[phase]))}
               </div>
             )}
           </div>
@@ -1134,13 +1176,15 @@ export default function AiSearchWidget({
         />
         <button
           type="button"
-          className={`${styles.deepToggle}${deepMode ? ` ${styles.deepToggleOn}` : ''}`}
-          onClick={toggleDeepMode}
-          title={deepMode
-            ? 'Deep reasoning ON — slower, more thorough (2 research units per ask)'
-            : 'Deep reasoning OFF — tap for a slower, more thorough pass'}
-          aria-pressed={deepMode}
-        >Deep</button>
+          className={`${styles.deepToggle}${askMode !== 'auto' ? ` ${styles.deepToggleOn}` : ''}`}
+          onClick={cycleAskMode}
+          title={askMode === 'agent'
+            ? 'Agent mode — the desk brain picks its own tools (live data + web, 2 units). Tap to cycle.'
+            : askMode === 'reasoning'
+              ? 'Deep mode — slower reasoning pass (2 units). Tap to cycle.'
+              : 'Auto mode — routed by phrasing. Tap for Deep, then Agent.'}
+          aria-label="Ask mode"
+        >{askMode === 'agent' ? 'Agent' : askMode === 'reasoning' ? 'Deep' : 'Auto'}</button>
         {loading ? (
           <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
             <span className={styles.stopSquare} aria-hidden="true" />Stop
