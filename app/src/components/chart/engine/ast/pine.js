@@ -2711,6 +2711,29 @@ class Resolver {
       `${REFUSALS['pine:undefined']} — \`${name}\``, locate(node.tok))
   }
 
+  /** Did the pasted script DEFINE this name as a function of its own?
+   *
+   *  ⛔⛔ THE ONE PLACE THAT DECIDES, because asking it in two places is how this
+   *  defect reached FIVE instances. A door-local carve-out that runs before the
+   *  general user-function check has to ask this itself, and each one that forgot
+   *  produced the same failure: the member's function reached for one call shape
+   *  and the engine's for another, in the same script.
+   *
+   *  ⚠️ BOTH DEFINITION SHAPES COUNT. `kind === 'fn'` is a definition this door
+   *  can inline; `opaque` + `isFunction` is one it cannot and will refuse BY NAME.
+   *  Either way the member defined the name, so either way a built-in must stand
+   *  aside. Checking only the second let a WORKING `security(a, b, c) => …` keep
+   *  losing to its carve-out, and the test stayed red until both were covered.
+   *
+   *  ⭐ A VALUE BINDING IS DELIBERATELY NOT A SHADOW: `rsi = rsi(src, length)` is
+   *  ordinary Pine, and treating that as a definition once made `07-rsi.pine`
+   *  refuse its own plot with the wrong guard entirely. */
+  shadowedByDefinition(name) {
+    const defined = this.env && this.env.get(name)
+    return !!defined && (defined.kind === 'fn'
+      || (defined.kind === 'opaque' && defined.isFunction))
+  }
+
   resolveCall(node) {
     const name = node.name
     const dot = name.indexOf('.')
@@ -2728,7 +2751,11 @@ class Resolver {
     // makes `nz(market_cap, 0) > 1e9` a confident False on a broken symbol. The
     // literal goes into the TREE, so the read-back says it and the member sees
     // what their script asked for.
-    if (name === 'na' || name === 'nz') {
+    // ⚰️⚰️ AND THIS CARVE-OUT YIELDS TO A USER DEFINITION TOO — found by the
+    // derived rail in `pine.bindingOrder.test.js` on its FIRST RUN, as the FIFTH
+    // instance of this defect. A member writing `nz(a, b) => a + b` got the
+    // ENGINE'S `nz` for every call; their own function was never reached.
+    if ((name === 'na' || name === 'nz') && !this.shadowedByDefinition(name)) {
       const arity = node.args.length
       if (node.args.some((a) => a.name)) {
         throw new PineRefusal('pine:named-argument',
@@ -2787,15 +2814,7 @@ class Resolver {
     // `ownSymbolNameOf`, `ownTimeframeOf` and `resolveName`: consult what the
     // script SAID before what the table knows.
     if (name === 'request.security' || name === 'security') {
-      // ⚠️ BOTH DEFINITION SHAPES COUNT. `kind === 'fn'` is a definition this door
-      // can inline; `opaque` + `isFunction` is one it cannot and will refuse by
-      // name. Either way the member DEFINED the name, so either way the built-in
-      // must stand aside — checking only the second let a working
-      // `security(a, b, c) => …` keep losing to the carve-out.
-      const defined = this.env.get(name)
-      const shadowed = !!defined && (defined.kind === 'fn'
-        || (defined.kind === 'opaque' && defined.isFunction))
-      if (!shadowed) {
+      if (!this.shadowedByDefinition(name)) {
         const asTf = this.securityAsNode(node)
         if (asTf) return asTf
       }
