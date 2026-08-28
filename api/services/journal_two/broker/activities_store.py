@@ -275,6 +275,7 @@ def prune_provisional(
             return 0
         cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age_days)).isoformat()
         to_delete = []
+        memo_rows: list[tuple[str, str, str, str]] = []
         for r in rows:
             try:
                 act = json.loads(r["raw_json"])
@@ -290,17 +291,39 @@ def prune_provisional(
             u = round(units, 4)
             day = _day(r["occurred_at"])
             ckey = _contract_key(act)
-            matched = any(
-                c_sym == sym and c_typ == typ and c_units == u
-                and _day_close(c_day, day) and c_key == ckey
-                for c_sym, c_typ, c_units, c_day, c_key in covered
+            match = next(
+                (c for c in covered
+                 if c[0] == sym and c[1] == typ and c[2] == u
+                 and _day_close(c[3], day) and c[4] == ckey),
+                None,
             )
+            # PRECISE-TIME MEMO: the provisional carries the true execution
+            # time (the orders endpoint has a clock even when the broker's
+            # transaction feed stamps midnight — the whole Schwab family).
+            # Keep it keyed by the REAL side's match key so reconstruction
+            # can re-apply it after this provisional row is deleted.
+            # (Collected here, written inside the delete transaction below —
+            # a mid-loop INSERT would open an implicit transaction and the
+            # explicit BEGIN would then throw.)
+            if match is not None and r["occurred_at"] \
+                    and "T00:00:00" not in str(r["occurred_at"]):
+                memo_rows.append((
+                    user_id, broker_account_id,
+                    "|".join(str(x) for x in match), str(r["occurred_at"]),
+                ))
             aged_out = (r["occurred_at"] or r["created_at"] or "") < cutoff
-            if matched or aged_out:
+            if match is not None or aged_out:
                 to_delete.append(r["id"])
         if to_delete:
             conn.execute("BEGIN")
             try:
+                if memo_rows:
+                    conn.executemany(
+                        "INSERT OR IGNORE INTO j2_broker_precise_times "
+                        "(user_id, broker_account_id, match_key, precise_ts) "
+                        "VALUES (?, ?, ?, ?)",
+                        memo_rows,
+                    )
                 conn.executemany(
                     "DELETE FROM j2_broker_activities WHERE id = ?",
                     [(i,) for i in to_delete],

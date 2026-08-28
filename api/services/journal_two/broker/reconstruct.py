@@ -106,6 +106,75 @@ def _history_truncated(
     return str(ftd)[:10] < earliest
 
 
+def _enrich_precise_times(
+    user_id: str,
+    broker_account_id: str,
+    activities: list[dict],
+    conn: sqlite3.Connection | None,
+) -> list[dict]:
+    """Re-apply real execution times to date-only activity stamps.
+
+    Date-only brokers (the Schwab family) stamp every transaction at
+    midnight UTC — but the Recent Orders rail SAW the true execution time in
+    its provisional row, and prune_provisional preserved it in
+    j2_broker_precise_times keyed by the real activity's match key. This
+    swaps the timestamp back in (a COPY — the raw ledger is never mutated),
+    so trades reconstruct with real entry/exit times, hour-of-day analytics
+    stop being silently empty for these members, and the trading-day spine
+    gets a real clock instead of a fallback. No memo → unchanged."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT match_key, precise_ts FROM j2_broker_precise_times "
+            "WHERE user_id = ? AND broker_account_id = ?",
+            (user_id, broker_account_id),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    if not rows:
+        return activities
+    memo = {r["match_key"]: r["precise_ts"] for r in rows}
+
+    def _contract_key(act: dict) -> str:
+        osym = act.get("option_symbol")
+        if not isinstance(osym, dict):
+            return ""
+        return "|".join([
+            str(osym.get("strike_price") or osym.get("strike") or ""),
+            str(osym.get("expiration_date") or osym.get("expiration") or "")[:10],
+            str(osym.get("option_type") or osym.get("type") or "")[:1].upper(),
+        ])
+
+    out = []
+    for act in activities:
+        if not isinstance(act, dict):
+            out.append(act)
+            continue
+        stamped = str(adapter.normalize_date(act) or "")
+        if "T00:00:00" not in stamped:
+            out.append(act)          # already has a real clock
+            continue
+        try:
+            units = round(abs(float(act.get("units") or 0)), 4)
+        except (TypeError, ValueError):
+            units = 0.0
+        key = "|".join([
+            (adapter.extract_symbol(act) or "").upper(),
+            str(act.get("type") or "").upper(),
+            str(units),
+            stamped[:10],
+            _contract_key(act),
+        ])
+        precise = memo.get(key)
+        if precise:
+            out.append({**act, "trade_date": precise})
+        else:
+            out.append(act)
+    return out
+
+
 def reconstruct_account(
     user_id: str,
     broker_account_id: str,
@@ -118,6 +187,7 @@ def reconstruct_account(
     """Reconstruct + persist equity/short round-trip trades from this
     account's activities. Returns a summary including the leftover open
     positions and the option events (for later phases)."""
+    activities = _enrich_precise_times(user_id, broker_account_id, activities, conn)
     part = adapter.partition(activities)
     adjustments = part["share_adjustments"]
     if adjustments:
