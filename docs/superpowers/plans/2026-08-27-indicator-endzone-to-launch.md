@@ -736,7 +736,164 @@ Re-run all of these before declaring the plan done. Each is a command, not a jud
 | Backend gate | 1,169 AST+scan | green, full suite in chunks | `pytest tests -q` |
 | Mobile | unaudited | 0 horizontal overflows, 0 sub-44px targets | `tools/mobile_audit.py`, screenshots opened |
 
-⛔ **The ceiling is real and should be stated when reporting against this plan.** With every segment above delivered, the measured score reaches roughly the low 70s. The remaining distance to 100 is not backlog — it is that this product IMPORTS four languages rather than owning one. Closing it means a native scripting language of our own, which is a different product decision and belongs in its own spec, not in this plan.
+⭐⭐ **THE CEILING PARAGRAPH THAT STOOD HERE WAS MEASURING THE WRONG THING**, and it
+is struck for the same reason the two rulings in Segment E were. It said the score
+tops out in "roughly the low 70s" because we IMPORT four languages rather than owning
+one. But that number scores us on *how completely we can absorb four foreign dialects*
+— which is not what a member is buying, and not what any of the five rivals is
+measured on either.
+
+**The honest statement of the ceiling is a ROSTER, not a percentage.** Every dimension
+except import fidelity can reach 100, because each is a thing we own outright:
+authoring, scanning, charting, strategies, sharing, verifiability. Import fidelity
+cannot, because a small number of scripts are genuinely unrepresentable — and the
+right way to report that is to NAME them, with a reason each, so the list can be argued
+with and shrunk. A percentage cannot be argued with; it just sits there sounding like
+physics.
+
+⛔ **So the reporting rule for this plan: state the residual as a named list with
+reasons, never as a gap to 100.** A refusal roster shrinks every time somebody reads one
+of its lines. A ceiling number is the sentence that stops anybody from reading them —
+which is exactly how `ta.highestbars` survived as a wall for weeks.
+
+---
+
+## ✅ Points of contention — SETTLED, 27 Aug 2026
+
+Seven things this plan (or I, out loud) called impossible or deferred. Each was
+re-opened under the standing directive that a roadblock is a problem to solve.
+**Six had answers. One did not, and its entry says why in terms somebody can check.**
+
+### 1. Account reads (`GetQuantity`, `GetAveragePrice`) — SOLVED, as a *declared personal column*
+
+⛔⛔ **I dismissed this as meaningless on the grounds that we have no broker context.
+That was false when I said it.** SnapTrade sync has been live since June; `j2_positions`
+holds `(user_id, symbol, shares, entry_price, stop_price)`. `GetQuantity()` is one lookup.
+
+⭐ **But answering it truthfully creates a genuinely new problem, and THAT is the
+interesting half.** A tree that reads the account no longer computes one number — it
+computes a different number per member. `astHash` identifies a formula, the forward
+record is keyed by that hash, and sharing hands the hash to somebody else. Answer it
+naively and two members' rows collide in one store under one identity.
+
+**The ruling is a third state, not a yes or a no:**
+- `personal` is **DERIVED** by a walker over the tree (the shape `symbols_named` already
+  uses), never asserted by the author — same rule as the repaint badge.
+- A personal definition is **excluded from the shared forward record.** Its answers are
+  computed per-viewer and stored per-viewer, or not stored at all.
+- It **stays shareable**, and this is the part worth getting right: "stocks I hold that
+  closed below their 50-day" shared to somebody else SHOULD mean *their* positions. That
+  is a template, and it is the correct reading, not a compromise. The hash means *"the
+  same question"* — it never meant *"the same answer"*.
+- The badge says so at the door, because a column whose value depends on who is looking
+  is exactly the kind of thing a member must not discover later.
+
+### 2. Higher timeframes beyond weekly and monthly — SOLVED, by supplying bars
+
+`TF_RESAMPLABLE = ("W", "M")`, and the refusal says honestly why: *"this engine resamples
+W and M from the bars it is given."* Every reading of that treated it as a statement
+about what timeframes EXIST. It is a statement about **where the bars come from.**
+
+⭐ **`sym` already solved this exact problem three weeks ago.** A cross-symbol node does
+not resample anything — the caller SUPPLIES the other symbol's series and the node aligns
+on the bar's own `t`. Apply the identical shape to `tf` and the ladder opens: verified
+this session, `bars_sqlite` serves all eight codes (1/5/15/30/60/D/W/M) per symbol, so
+`tf(close, '60')` is a load-and-align, not a resample.
+
+- **Chart lane: immediate.** One symbol, eight timeframes, already in the store.
+- **Scan lane: a COST decision, and it takes the answer the owner already gave once.** A
+  sweep over 3,742 symbols pulling intraday bars is a different order of expense from
+  reading a daily row, so the scan ladder is DECLARED — exactly as multi-symbol scans are
+  limited to the benchmark whitelist. Same question, same shape of answer.
+- ⛔ `_assert_resamplable` becomes `_assert_servable(code, supplied)` and stays **ONE
+  authority with two readers**. The bug it was written to kill — `max_lookback` holding a
+  second opinion — is one careless edit away the whole time.
+
+### 3. Exchange-prefixed symbols (`BINANCE:BTCEUR`) — SOLVED, by refusing on DATA instead of SPELLING
+
+Today the prefix falls through on its shape. But **the grammar is ours and the data is
+not**, so the sentence is the wrong thing to refuse. Parse the prefix, resolve the
+symbol, and ask the only question that matters: *do we hold bars for it?*
+
+`NASDAQ:AAPL` is AAPL and should simply work. `BINANCE:BTCEUR` gets **"we hold no bars for
+the BINANCE venue"** — true, checkable, specific about which half is missing, and it
+**stops being true the day we add the venue** without anybody editing a guard. A refusal
+keyed on spelling would still be refusing that script long after the data arrived.
+
+### 4. `import lib/1 as l` — SOLVED, by accepting the library beside the script
+
+Terminal only if we insist the import resolve ITSELF. It does not have to: a member
+pasting a script that imports a library can paste the library too. That turns an
+unresolvable reference into an ordinary translation of a longer source — something this
+engine already does. The refusal names the missing library and offers the second box.
+
+### 5. `plotcandle`, `plotbar`, `plotarrow` — SOLVED, and the answer was already in the file
+
+The refusal reads: *"Each needs more than one column to mean anything (`plotcandle` takes
+four), so reading one as a single series would offer a member a quarter of a candle under
+the script's title."* **Every clause of that is true, and the conclusion still does not
+follow** — because nobody proposed reading ONE. A definition holds `plots[]`, an ARRAY,
+and has since the beginning. Four columns land in four plots.
+
+⭐⭐ **AND THE PRINCIPLE THAT SETTLES IT IS FOUR LINES ABOVE THE REFUSAL, IN THE SAME
+COMMENT.** `plotshape` translates, and the file explains why in a sentence that decides
+this case too: *"That is a difference in appearance, not in arithmetic, which is why it
+translates rather than refusing."* A candle glyph versus four named lines is exactly a
+difference in appearance. The arithmetic is untouched — `o`, `h`, `l`, `c` are four
+ordinary series, individually scannable, individually correct.
+
+**The ruling:** `plotcandle(o, h, l, c)` translates to four named columns and the CANDLE
+GLYPH waits for W6's series primitives. ⛔ The one thing that must not happen is emitting
+a subset — the refusal is right that a lone `h` under the script's title is worse than
+nothing. All four or none.
+
+⭐ This is the displaced plot again, exactly: **a claim about the DRAWING was doing duty
+as a claim about the COLUMNS.** Twice in one file, in comments written months apart, by
+somebody who knew the distinction well enough to write it down four lines earlier.
+
+### 6. Unpublished vendor DEFAULTS — SOLVED by Task E6 (above): ask the member
+
+The parameter is on their screen in thinkorswim. See E6.
+
+### 7. `TTM_Squeeze` — ⛔ NOT SOLVED, and here is the shape of the wall
+
+The formula is proprietary and unpublished. **We hold every ingredient** — Bollinger
+Bands, Keltner Channels, momentum — and the *concept* is publicly documented (bands inside
+channels). What we do not hold is the vendor's exact parameterisation, and no member can
+read it off their screen either, because thinkorswim does not print it.
+
+**The one honest option, which is an OWNER DECISION and not a task:** ship a
+differently-named, publicly-cited reconstruction — `squeeze_bb_kc`, documented as OUR
+formula with its sources — that a member opts into. That is legally clean and genuinely
+useful.
+
+⛔ **What is NOT on the table is emitting it under the vendor's name.** A member who types
+`TTM_Squeeze` is asking for John Carter's indicator; handing them ours wearing his label is
+the silent mistranslation this entire engine is built to refuse, and it would be the single
+worst thing in the codebase precisely BECAUSE it would look right. If the owner declines
+the reconstruction, the refusal stands and names the reason.
+
+---
+
+### What the six solved rulings have in common
+
+Every one of them was a refusal that had **quietly widened from its own true sentence to a
+bigger claim nobody re-read**:
+
+| The true sentence | What it had become |
+|---|---|
+| "we resample W and M from the bars we are given" | "higher timeframes are impossible" |
+| "a displaced plot draws at a different bar" | "displaced plots cannot be scanned" |
+| "we have no broker context here" | "account reads are meaningless" |
+| "this symbol has an exchange prefix" | "prefixed symbols are unsupported" |
+| "we cannot resolve this import" | "library imports are out of scope" |
+| "thinkorswim does not publish this default" | "this study cannot be translated" |
+
+⭐ **The narrow sentence was accurate in every single case.** The wall was the
+generalisation — and the generalisation is never written down, which is why it is never
+reviewed. That is the failure mode this plan should be read against.
+
+---
 
 ---
 
