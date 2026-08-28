@@ -159,11 +159,36 @@ export const REFUSALS = Object.freeze({
   // SECONDS — the single entry in Pine's own clock-mismatch table. A translation
   // that lines those up wrongly is off by a factor of a thousand and looks
   // plausible, so the mapping has to be written per function, not assumed.
+  // ✅ INVESTIGATED IN FULL, AND THE ANSWER IS THAT THIS STAYS REFUSED — recorded
+  // here so nobody re-opens it without the three findings that closed it.
+  //
+  // The engine is NOT short of clock fields: the manifest declares thirteen, and
+  // `hour`/`minute` are documented as NEW YORK TIME, which is the same clock
+  // thinkorswim's regular session is defined in. So `getTime() <
+  // RegularTradingStart(getYYYYMMDD())` LOOKS like `hour < 9 || (hour == 9 &&
+  // minute < 30)`. Three separate things make that wrong:
+  //
+  // ⛔ 1. UNITS. `GetTime()` is MILLISECONDS; this engine's `time` is SECONDS.
+  //    A factor of a thousand is invisible in the output — every comparison still
+  //    returns a clean 0 or 1, just always the same one.
+  // ⛔ 2. EARLY CLOSES. `RegularTradingEnd` is 13:00 ET on roughly nine days a
+  //    year, not 16:00. A hardcoded 16:00 is right ~96% of the time, which is the
+  //    worst possible failure shape: it reads as working.
+  // ⛔ 3. THE SCREEN IS DAILY. Both corpus scripts that reach this guard are
+  //    INTRADAY session logic — `15-scan-premarket-gap-up` says so in its own
+  //    header ("Run Scan at premarket on one minute aggregation") — and a
+  //    session-relative test has no meaning on a daily bar. Translating it would
+  //    hand a member a column that computes, and answers about nothing.
+  //
+  // ⭐ SO THIS IS A CORRECT REFUSAL, NOT A MISSING TRANSLATION, and that is a
+  // different sentence from the one this guard used to carry ("a session clock
+  // reading is outside the bar fields this engine keeps"), which was false.
   'thinkscript:time':
-    'this door does not yet map thinkorswim\'s session-clock functions onto the '
-    + 'clock fields this engine declares. \u26a0\ufe0f `GetTime()` is in milliseconds '
-    + 'and this engine\'s `time` is in seconds, so each function needs its own '
-    + 'stated mapping rather than a shared assumption',
+    'this reads the session clock, which only means something on intraday bars — '
+    + 'a daily screen has no session to be inside. \u26a0\ufe0f Two further walls sit '
+    + 'behind that one: `GetTime()` is in milliseconds while this engine\'s '
+    + '`time` is in seconds, and `RegularTradingEnd` is 13:00 on an early-close '
+    + 'day rather than 16:00, so neither can be assumed',
   // ⚰️⚰️ THE STEM SAID "whose FORMULA thinkorswim does not publish", AND THAT IS
   // TRUE OF EXACTLY ONE OF THE FIVE STUDIES IT IS PRINTED WITH. Measured: RSI,
   // BollingerBands, MovAvgExponential and SimpleMovingAvg all say "publishes no
