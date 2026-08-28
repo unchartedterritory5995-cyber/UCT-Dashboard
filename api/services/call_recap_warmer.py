@@ -213,6 +213,35 @@ def build_queue(reporters: list[str],
     return tier1 + tier2 + tier3
 
 
+def _finish_recap(sym: str, quarter: str, recap: dict, store, *,
+                  cost_multiplier: float = 1.0) -> None:
+    """The shared tail of both lanes: complete the payload, STORE, then bill.
+
+    Measured over HTTP: a warmed recap still took 4.55s because the endpoint
+    also calls get_webcast_url (a Perplexity round-trip) and get_rating_changes
+    (a provider call) in the same handler. Warming them here makes the served
+    payload complete — otherwise the store read is instant and the response is
+    not.
+    """
+    for key, fn in (("webcast_url", "get_webcast_url"),
+                    ("rating_changes", "get_rating_changes")):
+        try:
+            from api.services import call_recap as _cr
+            recap[key] = getattr(_cr, fn)(sym)
+        except Exception as exc:
+            _log.debug("[recap_warm] %s failed for %s: %s", key, sym, exc)
+            recap.setdefault(key, None)
+
+    # STORE FIRST, bill second. A restart landing between these two calls used
+    # to bill for a recap that was never written — 12 generated against 8
+    # stored across one afternoon's deploys, four calls paid for and lost. The
+    # reverse failure (stored but not billed) merely under-counts the day's
+    # spend by one, which the cap absorbs; paying for nothing does not.
+    store.put(sym, quarter, recap)
+    store.record_spend(sym, recap.get("_usage") or {},
+                       cost_multiplier=cost_multiplier)
+
+
 def warm_symbol(symbol: str, *, fetch_transcript: Callable = None,
                 synthesize: Callable = None, store=None) -> str:
     """Generate and store one recap. Returns an outcome word for the summary."""
@@ -252,28 +281,122 @@ def warm_symbol(symbol: str, *, fetch_transcript: Callable = None,
     if not recap:
         return "failed"
 
-    # Measured over HTTP: a warmed recap still took 4.55s because the endpoint
-    # also calls get_webcast_url (a Perplexity round-trip) and
-    # get_rating_changes (a provider call) in the same handler. Warming them
-    # here makes the served payload complete — otherwise the store read is
-    # instant and the response is not.
-    for key, fn in (("webcast_url", "get_webcast_url"),
-                    ("rating_changes", "get_rating_changes")):
-        try:
-            from api.services import call_recap as _cr
-            recap[key] = getattr(_cr, fn)(sym)
-        except Exception as exc:
-            _log.debug("[recap_warm] %s failed for %s: %s", key, sym, exc)
-            recap.setdefault(key, None)
-
-    # STORE FIRST, bill second. A restart landing between these two calls used
-    # to bill for a recap that was never written — 12 generated against 8
-    # stored across one afternoon's deploys, four calls paid for and lost. The
-    # reverse failure (stored but not billed) merely under-counts the day's
-    # spend by one, which the cap absorbs; paying for nothing does not.
-    store.put(sym, quarter, recap)
-    store.record_spend(sym, recap.get("_usage") or {})
+    _finish_recap(sym, quarter, recap, store)
     return "warmed"
+
+
+# ── the Batch lane (2026-08-28 cost census) ──────────────────────────────────
+# A recap is ~17.5k input tokens and nobody is waiting for it: the reader gets
+# whatever is in the store and a cold name generates on click. That makes this
+# the pipeline's best Batch candidate — same prompt, same grounding gate, half
+# the price. The sweep submits; the NEXT sweep (or the reaper job) collects.
+_BATCH_SURFACE = "call_recap"
+
+
+def batch_enabled() -> bool:
+    """Both switches must be on. `CALL_RECAP_WARM_BATCH=0` is the one-env
+    rollback to the synchronous lane with no code change."""
+    from api.services import llm_batch
+    return (llm_batch.enabled()
+            and os.environ.get("CALL_RECAP_WARM_BATCH", "1").strip() not in ("0", "false", "no"))
+
+
+def reap_batches(store=None) -> dict[str, Any]:
+    """Collect finished recap batches: ground each result through the SAME
+    finisher the live lane uses, store it, then bill it at the batch rate."""
+    if store is None:
+        from api.services import call_recap_store as store
+    from api.services import llm_batch
+    from api.services.call_recap_grounded import finish_from_message
+    store.init_db()
+
+    def handle(custom_id: str, message, meta: dict) -> None:
+        if message is None:
+            return                      # errored/expired → the name stays cold
+        sym = (meta.get("symbol") or custom_id.split("|", 1)[0]).upper()
+        quarter = meta.get("quarter") or ""
+        transcript = meta.get("transcript") or {}
+        recap = finish_from_message(sym, transcript, message)
+        if not recap:
+            return
+        _finish_recap(sym, quarter, recap, store,
+                      cost_multiplier=llm_batch.BATCH_DISCOUNT)
+
+    out = llm_batch.reap(_BATCH_SURFACE, handle)
+    if out.get("batches"):
+        _log.info("[recap_warm] reaped %s", out)
+    return out
+
+
+def submit_batch(queue: list[str], *, fetch_transcript: Callable = None,
+                 store=None, max_items: int = 60) -> dict[str, Any]:
+    """Queue the un-stored names in `queue` as ONE batch. Returns a summary.
+
+    The per-call `may_spend()` gate becomes a submit-time budget: a batch is
+    committed all at once, so the size is capped by what the remaining daily
+    budget can pay for at the batch rate. Overshooting the cap by a whole
+    batch is the failure this bound exists to prevent.
+    """
+    if store is None:
+        from api.services import call_recap_store as store
+    if fetch_transcript is None:
+        from api.services.fmp_transcripts import get_transcript as fetch_transcript
+    from api.services import llm_batch
+    from api.services.call_recap_grounded import build_params
+
+    store.init_db()
+    counts: dict[str, int] = {}
+
+    def bump(k):
+        counts[k] = counts.get(k, 0) + 1
+
+    if not store.may_spend():
+        return {"skipped": "capped"}
+
+    # what one recap costs at the batch rate, from the store's own prices
+    est = max(0.01, (17_500 * store.PRICE_IN + 1_500 * store.PRICE_OUT)
+              * llm_batch.BATCH_DISCOUNT)
+    affordable = int(max(0.0, store.DAILY_CAP_USD - store.spend_today()) / est)
+    room = max(0, min(max_items, affordable))
+    if room == 0:
+        return {"skipped": "capped"}
+
+    requests: list[dict] = []
+    meta: dict[str, dict] = {}
+    for sym in queue:
+        if len(requests) >= room:
+            bump("deferred")
+            continue
+        try:
+            transcript = fetch_transcript(sym)
+        except Exception as exc:
+            _log.warning("[recap_warm] transcript failed for %s: %s", sym, exc)
+            bump("no_transcript")
+            continue
+        if not transcript or not transcript.get("segments"):
+            bump("no_transcript")
+            continue
+        quarter = transcript.get("quarter") or ""
+        if store.has(sym, quarter):
+            bump("already")
+            continue
+        params = build_params(sym, transcript)
+        if params is None:
+            bump("no_transcript")
+            continue
+        cid = f"{sym}|{quarter}"[:64]
+        requests.append({"custom_id": cid, "params": params})
+        # the transcript rides the ledger: grounding at reap time MUST use the
+        # text the model was actually given, not a re-fetch that may have moved
+        meta[cid] = {"symbol": sym, "quarter": quarter, "transcript": transcript}
+        bump("queued")
+
+    if not requests:
+        return counts
+    batch_id = llm_batch.submit(_BATCH_SURFACE, requests, meta)
+    if not batch_id:
+        return {**counts, "submit_failed": len(requests)}
+    return {**counts, "batch_id": batch_id}
 
 
 def run_sweep(reporters: list[str], *, now=time.monotonic, sleep=time.sleep,
@@ -304,6 +427,24 @@ def _run_sweep_locked(reporters: list[str], *, now, sleep, warm, store):
     store.init_db()
 
     queue = build_queue(reporters)
+
+    # The Batch lane: reap what the LAST sweep submitted, then submit this
+    # sweep's un-stored names. Reaping first means an already-collected recap
+    # is skipped by store.has() below instead of being paid for twice.
+    if batch_enabled():
+        try:
+            reaped = reap_batches(store=store)
+        except Exception as exc:            # a bad reap never stops warming
+            _log.warning("[recap_warm] reap failed: %s", exc)
+            reaped = {"error": str(exc)[:80]}
+        try:
+            submitted = submit_batch(queue, store=store)
+        except Exception as exc:
+            _log.warning("[recap_warm] batch submit failed: %s", exc)
+            submitted = {"error": str(exc)[:80]}
+        return {"queued": len(queue), "mode": "batch",
+                "reaped": reaped, "submitted": submitted,
+                "spend_today_usd": round(store.spend_today(), 4)}
     counts: dict[str, int] = {}
     started = now()
     last: Optional[str] = None

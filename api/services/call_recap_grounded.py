@@ -293,26 +293,38 @@ def _client():
     return anthropic.Anthropic()
 
 
-def synthesize(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
-    """Recap grounded in `transcript`, or None. Never raises."""
+def build_params(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
+    """The messages.create kwargs for one recap, or None if the transcript is
+    too thin. ONE grammar for both lanes: the live path passes this straight to
+    messages.create, the Batch path wraps it as a request's `params` — so a
+    prompt or schema change can never apply to only one of them."""
     segments = (transcript or {}).get("segments") or []
     if len(segments) < 2:
+        return None
+    return {
+        "model": _MODEL,
+        "max_tokens": _MAX_TOKENS,
+        # Structured outputs: the schema is enforced, so there is no fenced
+        # JSON to strip and no parse failure to cache as "no recap".
+        "output_config": {
+            "format": {"type": "json_schema", "schema": RECAP_SCHEMA},
+            "effort": _EFFORT,
+        },
+        "messages": [{"role": "user", "content": _PROMPT.format(
+            sym=sym, transcript=render_transcript(segments))}],
+    }
+
+
+def finish_from_message(sym: str, transcript: dict, resp) -> Optional[dict[str, Any]]:
+    """Everything after the model call: parse, GROUND every quoted item against
+    the transcript, clamp the sentiment block, stamp usage. Shared by the live
+    and Batch lanes (a batch result carries the same Message shape)."""
+    segments = (transcript or {}).get("segments") or []
+    if len(segments) < 2 or resp is None:
         return None
 
     import json
     try:
-        resp = _client().messages.create(
-            model=_MODEL,
-            max_tokens=_MAX_TOKENS,
-            # Structured outputs: the schema is enforced, so there is no fenced
-            # JSON to strip and no parse failure to cache as "no recap".
-            output_config={
-                "format": {"type": "json_schema", "schema": RECAP_SCHEMA},
-                "effort": _EFFORT,
-            },
-            messages=[{"role": "user", "content": _PROMPT.format(
-                sym=sym, transcript=render_transcript(segments))}],
-        )
         if getattr(resp, "stop_reason", None) == "refusal":
             _log.warning("[call_recap] %s refused for %s", _MODEL, sym)
             return None
@@ -368,3 +380,16 @@ def synthesize(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
         "model": _MODEL,
     }
     return data
+
+
+def synthesize(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
+    """Recap grounded in `transcript`, or None. Never raises."""
+    params = build_params(sym, transcript)
+    if params is None:
+        return None
+    try:
+        resp = _client().messages.create(**params)
+    except Exception as exc:
+        _log.warning("[call_recap] grounded synthesis failed for %s: %s", sym, exc)
+        return None
+    return finish_from_message(sym, transcript, resp)

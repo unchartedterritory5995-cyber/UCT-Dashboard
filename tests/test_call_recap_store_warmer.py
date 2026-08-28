@@ -22,7 +22,26 @@ def store(tmp_path, monkeypatch):
 @pytest.fixture
 def warmer(monkeypatch):
     monkeypatch.setenv("CALL_RECAP_WARM_ENABLED", "1")
+    # SERIAL lane by default in these tests. run_sweep has had a second mode
+    # since 2026-08-28 (Batch API, half price, results collected on the NEXT
+    # sweep); its own rails are in TestBatchLane below. Pinning the mode here
+    # keeps every ordering/cap/clock assertion about the lane it was written
+    # for instead of silently grading whichever one the env happens to select.
+    monkeypatch.setenv("CALL_RECAP_WARM_BATCH", "0")
     import api.services.call_recap_warmer as w
+    importlib.reload(w)
+    return w
+
+
+@pytest.fixture
+def batch_warmer(monkeypatch, tmp_path):
+    monkeypatch.setenv("CALL_RECAP_WARM_ENABLED", "1")
+    monkeypatch.setenv("CALL_RECAP_WARM_BATCH", "1")
+    monkeypatch.setenv("LLM_BATCH_ENABLED", "1")
+    monkeypatch.setenv("LLM_BATCH_LEDGER_PATH", str(tmp_path / "batches.json"))
+    import api.services.llm_batch as lb
+    import api.services.call_recap_warmer as w
+    importlib.reload(lb)
     importlib.reload(w)
     return w
 
@@ -542,3 +561,127 @@ def test_the_recap_is_STORED_before_it_is_BILLED(store, warmer, monkeypatch):
                        synthesize=lambda s, t: RECAP, store=store)
 
     assert order == ["put", "record_spend"]
+
+
+class TestBatchLane:
+    """The 50%-off lane (2026-08-28 cost census). Its invariants differ from
+    the serial lane's: results come back UNORDERED and MUCH later, so identity
+    must ride the custom_id, the transcript must ride the ledger, and the
+    daily cap must be pre-paid at SUBMIT time."""
+
+    def _transcript(self, sym):
+        return {"quarter": "Q3 2026",
+                "segments": [{"speaker": "CEO", "text": f"{sym} had a record quarter."},
+                             {"speaker": "CFO", "text": "Margins expanded."}]}
+
+    def test_submit_ledgers_the_transcript_and_keys_by_custom_id(
+            self, store, batch_warmer, monkeypatch):
+        import api.services.llm_batch as lb
+        sent = {}
+
+        def fake_submit(surface, requests, meta):
+            sent["surface"], sent["requests"], sent["meta"] = surface, requests, meta
+            return "batch_abc"
+
+        monkeypatch.setattr(lb, "submit", fake_submit)
+        out = batch_warmer.submit_batch(
+            ["DIS", "AAPL"], fetch_transcript=self._transcript, store=store)
+        assert out["batch_id"] == "batch_abc" and out["queued"] == 2
+        assert [r["custom_id"] for r in sent["requests"]] == ["DIS|Q3 2026", "AAPL|Q3 2026"]
+        # the transcript the model was GIVEN rides the ledger — grounding at
+        # reap time against a re-fetch could drop quotes that were really said
+        assert sent["meta"]["DIS|Q3 2026"]["transcript"]["segments"]
+        assert sent["meta"]["DIS|Q3 2026"]["quarter"] == "Q3 2026"
+        # and the params are the SAME grammar the live lane sends
+        from api.services.call_recap_grounded import build_params
+        assert sent["requests"][0]["params"] == build_params("DIS", self._transcript("DIS"))
+
+    def test_submit_never_queues_more_than_the_remaining_budget(
+            self, store, batch_warmer, monkeypatch):
+        """A batch is committed all at once: without a submit-time bound it can
+        overshoot the daily cap by a whole batch."""
+        import api.services.llm_batch as lb
+        monkeypatch.setattr(store, "DAILY_CAP_USD", 0.10)   # ~1 recap at batch rate
+        captured = {}
+        monkeypatch.setattr(lb, "submit",
+                            lambda s, r, m: captured.setdefault("n", len(r)) and "b1" or "b1")
+        out = batch_warmer.submit_batch(
+            ["DIS", "AAPL", "MSFT", "NVDA"], fetch_transcript=self._transcript, store=store)
+        assert captured["n"] < 4 and out.get("deferred", 0) >= 1
+
+    def test_reap_grounds_stores_and_bills_at_the_BATCH_rate(
+            self, store, batch_warmer, monkeypatch):
+        import api.services.llm_batch as lb
+        transcript = self._transcript("DIS")
+
+        class _Msg:
+            stop_reason = "end_turn"
+            content = [type("B", (), {"type": "text", "text": json.dumps({
+                "headline": "Record quarter", "quotes": [], "forward_looking": [],
+                "qa_highlights": [], "speakers": []})})()]
+            usage = type("U", (), {"input_tokens": 18000, "output_tokens": 3500})()
+
+        def fake_reap(surface, handle):
+            handle("DIS|Q3 2026", _Msg(),
+                   {"symbol": "DIS", "quarter": "Q3 2026", "transcript": transcript})
+            return {"batches": 1, "succeeded": 1, "errored": 0,
+                    "pending": 0, "abandoned": 0}
+
+        monkeypatch.setattr(lb, "reap", fake_reap)
+        monkeypatch.setattr("api.services.call_recap.get_webcast_url", lambda s: None)
+        monkeypatch.setattr("api.services.call_recap.get_rating_changes", lambda s: None)
+        batch_warmer.reap_batches(store=store)
+        assert store.has("DIS", "Q3 2026")
+        # billed at HALF list price — a cap that measures list-price tokens
+        # spends half the discount on an artificially early cap trip
+        listed = 18000 * store.PRICE_IN + 3500 * store.PRICE_OUT
+        assert abs(store.spend_today() - listed * 0.5) < 1e-9
+
+    def test_an_errored_result_writes_nothing(self, store, batch_warmer, monkeypatch):
+        """The failure shape is a COLD name (the click path covers it), never a
+        wrong or half-written one."""
+        import api.services.llm_batch as lb
+        monkeypatch.setattr(lb, "reap", lambda surface, handle: (
+            handle("DIS|Q3 2026", None, {"symbol": "DIS", "quarter": "Q3 2026",
+                                         "transcript": self._transcript("DIS")}),
+            {"batches": 1, "succeeded": 0, "errored": 1})[1])
+        batch_warmer.reap_batches(store=store)
+        assert not store.has("DIS", "Q3 2026")
+        assert store.spend_today() == 0.0
+
+    def test_sweep_reaps_BEFORE_it_submits(self, store, batch_warmer, monkeypatch):
+        """Reaping first lets store.has() skip a name this batch already
+        delivered — submitting first pays for the same recap twice."""
+        order = []
+        monkeypatch.setattr(batch_warmer, "reap_batches",
+                            lambda store=None: order.append("reap") or {})
+        monkeypatch.setattr(batch_warmer, "submit_batch",
+                            lambda q, store=None: order.append("submit") or {})
+        out = batch_warmer.run_sweep(["DIS"], store=store)
+        assert order == ["reap", "submit"] and out["mode"] == "batch"
+
+    def test_the_kill_switch_returns_the_serial_lane(self, store, batch_warmer, monkeypatch):
+        monkeypatch.setenv("CALL_RECAP_WARM_BATCH", "0")
+        seen = []
+        out = batch_warmer.run_sweep(["DIS"], warm=lambda s: seen.append(s) or "warmed",
+                                     sleep=lambda _: None, store=store)
+        assert seen == ["DIS"] and out.get("mode") != "batch"
+
+
+def test_batch_reaper_is_wired_into_the_scheduler():
+    """A submitted batch with no collector is money paid for nothing. Pin the
+    job id (AST over main.py, not a grep of prose) + a non-vacuity control."""
+    import ast
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    ids = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "add_job"):
+            for kw in node.keywords:
+                if kw.arg == "id" and isinstance(kw.value, ast.Constant):
+                    ids.add(kw.value.value)
+    assert "call_recap_batch_reap" in ids
+    assert "call_recap_warm_boot" in ids        # control: the probe can see siblings

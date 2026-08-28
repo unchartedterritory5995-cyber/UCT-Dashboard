@@ -149,11 +149,15 @@ def put(symbol: str, quarter: str, payload: dict) -> None:
         _log.warning("[recap_store] write failed for %s: %s", sym, exc)
 
 
-def record_spend(symbol: str, usage: dict) -> float:
-    """Log one generation's cost and return it. Called on every LLM call."""
+def record_spend(symbol: str, usage: dict, cost_multiplier: float = 1.0) -> float:
+    """Log one generation's cost and return it. Called on every LLM call.
+
+    `cost_multiplier` prices a lane that does not pay list rate — the Batch
+    API's 0.5. The cap must measure DOLLARS, not list-price tokens, or half
+    the batch discount is spent on an artificially early cap trip."""
     inp = int((usage or {}).get("input_tokens") or 0)
     out = int((usage or {}).get("output_tokens") or 0)
-    cost = inp * PRICE_IN + out * PRICE_OUT
+    cost = (inp * PRICE_IN + out * PRICE_OUT) * float(cost_multiplier or 1.0)
     try:
         with _WRITE_LOCK, contextlib.closing(_connect()) as c:
             c.execute(
