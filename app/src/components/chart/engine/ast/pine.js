@@ -230,6 +230,19 @@ const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
  *  scripts that still use them (19-cm-macd-ult-mtf, 20-cm-ultimate-ma-mtf).
  *  Knowing only the v5 spelling would refuse the same script purely for having
  *  been written in 2015. */
+/** Pine names for THIS CHART'S OWN timeframe, across versions.
+ *
+ *  ⛔⛔ A SET, NOT AN INLINE `||` PAIR, AND THE READER FOLLOWS BINDINGS FIRST.
+ *  The comparison this replaces was written inline in `securityAsNode` as
+ *  `tfNode.name === 'timeframe.period' || tfNode.name === 'period'`, which asks
+ *  only what a node is CALLED — so `period = "60"` immediately above the call
+ *  read as the chart's own timeframe and the script answered off daily bars while
+ *  asking for hourly ones. That is the identical defect `ownSymbolNameOf` was
+ *  fixed for three lines away, left standing on the timeframe side; the symbol
+ *  fix even documents the ordering rule that this line then ignored. Caught by a
+ *  shadowing CONTROL, not by review — for the second time. */
+const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
+
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
 ])
@@ -2391,15 +2404,80 @@ class Resolver {
    *  ⛔ BOUNDED, because a binding can name another binding: `a = b`, `b = 'W'`.
    *  Four hops is well past anything real and makes a cycle impossible.
    */
+  /** A ternary whose CONDITION is a constant → the branch that actually runs,
+   *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
+   *
+   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
+   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
+   *  to." True — and beside the point, because nobody has to fold the ternary
+   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  is reachable and the other is dead code in the script as shipped.
+   *
+   *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
+   *  the common case and mistranslates the flipped one — reading a script that
+   *  asks for 60-minute bars as the chart's own. A branch we cannot resolve
+   *  returns null and the caller refuses, because there is no single timeframe to
+   *  name and inventing one is the whole failure this node guards against.
+   *
+   *  ⚠️ `resolve` can refuse (an input kind we do not hold); that is a
+   *  non-answer here, not an error to propagate — the caller's `null` path
+   *  already says "no literal", by name, at the member's own line. */
+  constantBranchOf(node) {
+    if (!node || node.type !== 'ternary') return null
+    let test = null
+    try {
+      test = this.resolve(node.test)
+    } catch (err) {
+      return null
+    }
+    // A folded constant is a `num`; anything per-bar resolves to `series`/`op`
+    // and is correctly not a branch anybody can name.
+    if (!test || test.type !== 'num') return null
+    return test.value ? node.yes : node.no
+  }
+
+  /** Does this node name THIS CHART'S OWN timeframe? → the spelling, or null.
+   *
+   *  ⛔⛔ THE BINDING IS CONSULTED FIRST AND THE ORDER IS THE WHOLE GUARD — the
+   *  same rule, for the same reason, as `ownSymbolNameOf`. `period` is a bare
+   *  identifier in v2/v3 Pine and a script may reassign it; `period = "60"` means
+   *  hourly, and reading it as the chart's own timeframe answers off whatever
+   *  bars happen to be loaded. */
+  ownTimeframeOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.ownTimeframeOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
+      }
+      if (OWN_TF_NAMES.has(node.name)) return node.name
+    }
+    return null
+  }
+
   timeframeLiteralOf(node, depth = 0) {
     if (!node || depth > 4) return null
     if (node.type === 'string') return node.value
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.timeframeLiteralOf(taken, depth + 1) : null
+    }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
       return null
     }
-    if (node.type === 'call' && (node.name === 'input.timeframe' || node.name === 'input.string')) {
+    // ⭐ PLAIN `input` IS THE v3/v4 SPELLING and it is what the MTF scripts use:
+    // `input(title=…, type=resolution, defval='D')`. Only a `defval` that is
+    // itself a timeframe STRING survives the recursion, so widening the call
+    // names here cannot turn `input(10)` into a timeframe.
+    if (node.type === 'call' && (node.name === 'input.timeframe'
+        || node.name === 'input.string' || node.name === 'input')) {
       const args = node.args || []
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
@@ -2544,8 +2622,7 @@ class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
-    const sameTimeframe = tfNode && tfNode.type === 'name'
-      && (tfNode.name === 'timeframe.period' || tfNode.name === 'period')
+    const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
