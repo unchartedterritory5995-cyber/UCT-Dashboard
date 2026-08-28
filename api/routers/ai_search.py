@@ -1699,6 +1699,47 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     return system, salt, meta
 
 
+# ── Do-things-from-the-ask-box (2026-08-28): "alert me when NVDA breaks 190"
+# yields a PROPOSAL the widget renders as a one-tap confirm chip. The server
+# never auto-creates the alert — an LLM surface must not mutate member state
+# off a regex; the member's tap posts to the existing /api/watchlist-alerts.
+_ALERT_ASK_RE = re.compile(
+    r"\b(alert me|let me know (?:if|when)|notify me|ping me|set (?:an?|a price) alert"
+    r"|watch (?:for|it) (?:and )?(?:tell|ping|alert) me)\b", re.I)
+_ALERT_ABOVE_RE = re.compile(
+    r"\b(?:above|over|breaks?(?:\s+(?:above|over|out\s+over))?|crosses?(?:\s+(?:above|over))?"
+    r"|clears?|reclaims?|hits?|reaches?|gets?\s+to|takes?\s+out)\s+\$?(\d+(?:\.\d+)?)\b", re.I)
+_ALERT_BELOW_RE = re.compile(
+    r"\b(?:below|under|drops?(?:\s+(?:below|under|to))?|falls?(?:\s+(?:below|under|to))?"
+    r"|loses|breaks?\s+down(?:\s+(?:through|below))?|undercuts?)\s+\$?(\d+(?:\.\d+)?)\b", re.I)
+
+
+def _alert_proposal(query: str, syms: list[str]) -> dict | None:
+    """{kind, sym, direction, price} when the ask reads as a price-alert
+    request for a named ticker, else None. Ambiguous verbs ("hits 190") pick
+    the direction from the live quote when one is cached; default above."""
+    q = query or ""
+    if not syms or not _ALERT_ASK_RE.search(q):
+        return None
+    m_below = _ALERT_BELOW_RE.search(q)
+    m_above = _ALERT_ABOVE_RE.search(q)
+    if m_below and not m_above:
+        direction, price = "below", float(m_below.group(1))
+    elif m_above:
+        direction, price = "above", float(m_above.group(1))
+        try:
+            last = float((_quote_provider(syms[0]) or {}).get("last") or 0)
+            if last and price < last:
+                direction = "below"
+        except Exception:
+            pass
+    else:
+        return None
+    if not (0 < price < 1_000_000):
+        return None
+    return {"kind": "price_alert", "sym": syms[0], "direction": direction, "price": price}
+
+
 _DEGRADED_NOTE = (
     "\n\nWEB SEARCH IS TEMPORARILY UNAVAILABLE. Answer ONLY from the UCT DESK "
     "CONTEXT above plus general market knowledge. Open with one brief phrase "
@@ -1907,6 +1948,9 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     result["grounding"] = {"sources": meta.get("grounding_sources") or [],
                            "intents": meta.get("grounding_intents") or []}
     result["quota"] = _quota_snapshot(user_id)
+    proposal = _alert_proposal(body.query, meta.get("query_tickers") or [])
+    if proposal:
+        result["proposal"] = proposal
     # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
     _log_answer(body=body, user_id=user_id, answer_id=answer_id, endpoint="single",
                 mode=effective_mode, result=result, meta=meta, history=history,
@@ -1966,6 +2010,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
         # desk feeds grounded the answer (the widget's "grounded on" chips).
         grounding = {"sources": meta.get("grounding_sources") or [],
                      "intents": meta.get("grounding_intents") or []}
+        proposal = _alert_proposal(body.query, meta.get("query_tickers") or [])
         yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id, 'grounding': grounding})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
@@ -2036,6 +2081,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 if t == "final":
                     ev = {**ev, "answer_id": answer_id, "grounding": grounding,
                           "quota": _quota_snapshot(user_id)}
+                    if proposal:
+                        ev["proposal"] = proposal
                 yield f"data: {json.dumps(ev)}\n\n"
         finally:
             if not settled:
@@ -2085,7 +2132,23 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
             "single_shot_requests": _stats["single"],
             "note": ("billed units re-seed from the durable ledger after a redeploy; "
                      "request/cache-hit stats are in-memory since last deploy"),
+            # Dollar telemetry off the shared ledger (Perplexity had NONE until
+            # 2026-08-28 — every completion now records under pplx:* surfaces).
+            "spend_today_usd": _spend_block(),
         }
+
+
+def _spend_block() -> dict:
+    try:
+        from api.services import narrative_cost_guard as guard
+        return {
+            "perplexity_ai_search": round(guard.spend_today_usd("pplx:ai_search"), 4),
+            "perplexity_deep": round(guard.spend_today_usd("pplx:ai_search_deep"), 4),
+            "perplexity_other": round(guard.spend_today_usd("pplx:perplexity"), 4),
+            "deep_research_anthropic": round(guard.spend_today_usd("ai_search_deep"), 4),
+        }
+    except Exception:
+        return {}
 
 
 @router.get("/admin/log")
@@ -2197,6 +2260,50 @@ def ai_search_saved_put(body: AiSavedIn, user: dict = Depends(require_paid)):
 def ai_search_saved_delete(answer_id: str, user: dict = Depends(require_paid)):
     from api.services import ai_search_member
     return {"ok": ai_search_member.delete_saved(_member_uid(user), answer_id)}
+
+
+# ── Deep Research (2026-08-28): async multi-step reports. Submission bills 5
+# quota units (a report is ~5 asks of spend, refunded by the service on error);
+# per-user/day + global-dollar caps live in ai_search_deep.
+
+class AiDeepIn(BaseModel):
+    query: str
+
+
+@router.post("/deep")
+def ai_search_deep_submit(body: AiDeepIn, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    uid = _member_uid(user)
+    if not (body.query or "").strip():
+        raise HTTPException(status_code=422, detail="Empty question.")
+    _reserve(user.get("id"), ai_search_deep._QUOTA_UNITS)
+    out = ai_search_deep.submit(uid, body.query)
+    if not out.get("ok"):
+        _refund(user.get("id"), ai_search_deep._QUOTA_UNITS)
+        raise HTTPException(status_code=429, detail=out.get("reason") or "unavailable")
+    _record_request("deep", stream=False)
+    return {**out, "quota": _quota_snapshot(user.get("id"))}
+
+
+@router.get("/deep")
+def ai_search_deep_list(limit: int = 20, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    return {"jobs": ai_search_deep.list_jobs(_member_uid(user), limit=limit)}
+
+
+@router.get("/deep/{job_id}")
+def ai_search_deep_detail(job_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    out = ai_search_deep.get_job(_member_uid(user), job_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="report not found")
+    return out
+
+
+@router.delete("/deep/{job_id}")
+def ai_search_deep_delete(job_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    return {"ok": ai_search_deep.delete_job(_member_uid(user), job_id)}
 
 
 class AiSignalIn(BaseModel):
