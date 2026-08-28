@@ -846,14 +846,14 @@ def _resample_weekly(daily_bars: list[dict]) -> list[dict]:
             friday = datetime.fromisocalendar(key[0], key[1], 5)
             weeks[key] = {
                 "dt": friday, "o": bar["o"], "h": bar["h"],
-                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+                "l": bar["l"], "c": bar["c"], "v": _bar_volume(bar),
             }
         else:
             w = weeks[key]
             w["h"] = max(w["h"], bar["h"])
             w["l"] = min(w["l"], bar["l"])
             w["c"] = bar["c"]
-            w["v"] = w["v"] + bar.get("v", 0)
+            w["v"] = w["v"] + _bar_volume(bar)
     result = []
     for w in sorted(weeks.values(), key=lambda x: x["dt"]):
         result.append({
@@ -919,7 +919,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 "h": _px(bar["h"]),
                 "l": _px(bar["l"]),
                 "c": _px(bar["c"]),
-                "v": int(bar.get("v", 0)),
+                "v": int(_bar_volume(bar)),
             })
         # Return ALL paginated bars (the entire lookback window), not just
         # max_bars. The caller stores them in SQLite — limiting here means a
@@ -972,7 +972,7 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> l
             return []
         return [
             {"t": int(bar["t"] / 1000), "o": _px(bar["o"]), "h": _px(bar["h"]),
-             "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(bar.get("v", 0))}
+             "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(_bar_volume(bar))}
             for bar in all_results
         ]
     except Exception as _e:
@@ -1233,7 +1233,7 @@ def _massive_raw_to_iso(raw) -> list[dict]:
             "t": dt.strftime("%Y-%m-%d"),
             "o": _px(bar["o"]), "h": _px(bar["h"]),
             "l": _px(bar["l"]), "c": _px(bar["c"]),
-            "v": int(bar.get("v", 0)),
+            "v": int(_bar_volume(bar)),
         })
     return out
 
@@ -1541,7 +1541,7 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                     "t": ts,
                     "o": _px(bar["o"]), "h": _px(bar["h"]),
                     "l": _px(bar["l"]), "c": _px(bar["c"]),
-                    "v": int(bar.get("v", 0)),
+                    "v": int(_bar_volume(bar)),
                 })
         return new
     except Exception as _e:
@@ -1749,14 +1749,14 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
         if key not in months:
             months[key] = {
                 "dt": dt.replace(day=1), "o": bar["o"], "h": bar["h"],
-                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+                "l": bar["l"], "c": bar["c"], "v": _bar_volume(bar),
             }
         else:
             m = months[key]
             m["h"] = max(m["h"], bar["h"])
             m["l"] = min(m["l"], bar["l"])
             m["c"] = bar["c"]
-            m["v"] = m["v"] + bar.get("v", 0)
+            m["v"] = m["v"] + _bar_volume(bar)
     result = []
     for m in sorted(months.values(), key=lambda x: x["dt"]):
         result.append({
@@ -1781,6 +1781,26 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
     return _resample_monthly_iso(daily)[-max_bars:]
 
 
+def _bar_volume(bar: dict) -> float:
+    """A bar's volume as a number, treating a MISSING or NULL volume as zero.
+
+    ⚰⚰ `bar.get("v", 0)` LOOKED LIKE THIS AND WAS NOT. A default fires only when
+    the KEY IS ABSENT; the bars store legally holds rows whose `v` is present and
+    `None`, and those returned `None` straight into `w["v"] += …`. The result was
+    a bare `TypeError` — not a `TableRefusal`, so a `tf(close, 'W')` scan over any
+    symbol with one null-volume day crashed the sweep row instead of refusing it,
+    intermittently and only on real data.
+
+    ⚠️ ZERO, NOT NaN, AND THE CHOICE IS NARROW. This resampler feeds the CHART
+    pipeline as well as the engine, and a NaN volume would blank a whole weekly
+    candle over one missing day. A null volume means "no volume recorded for this
+    session", which sums as nothing; the PRICE fields are untouched, so a week
+    whose prices are known still answers about its prices.
+    """
+    v = bar.get("v")
+    return 0 if v is None else v
+
+
 def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to weekly."""
     if not daily_bars:
@@ -1802,14 +1822,14 @@ def _resample_weekly_iso(daily_bars: list[dict]) -> list[dict]:
             friday = datetime.fromisocalendar(key[0], key[1], 5)
             weeks[key] = {
                 "dt": friday, "o": bar["o"], "h": bar["h"],
-                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+                "l": bar["l"], "c": bar["c"], "v": _bar_volume(bar),
             }
         else:
             w = weeks[key]
             w["h"] = max(w["h"], bar["h"])
             w["l"] = min(w["l"], bar["l"])
             w["c"] = bar["c"]
-            w["v"] += bar.get("v", 0)
+            w["v"] += _bar_volume(bar)
     return [
         {
             "t": w["dt"].strftime("%Y-%m-%d"),
@@ -1833,14 +1853,14 @@ def _resample_monthly_iso(daily_bars: list[dict]) -> list[dict]:
         if key not in months:
             months[key] = {
                 "dt": dt.replace(day=1), "o": bar["o"], "h": bar["h"],
-                "l": bar["l"], "c": bar["c"], "v": bar.get("v", 0),
+                "l": bar["l"], "c": bar["c"], "v": _bar_volume(bar),
             }
         else:
             m = months[key]
             m["h"] = max(m["h"], bar["h"])
             m["l"] = min(m["l"], bar["l"])
             m["c"] = bar["c"]
-            m["v"] += bar.get("v", 0)
+            m["v"] += _bar_volume(bar)
     return [
         {
             "t": m["dt"].strftime("%Y-%m-%d"),

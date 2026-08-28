@@ -2279,6 +2279,13 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'nan_through_ternary',
       'nan_through_min',
       'nan_through_max',
+      // ⭐ VOLUME THROUGH `tf`, WHICH THE CORPUS ALSO DROVE ZERO TIMES — every other
+      // `tf` case reads a PRICE, and volume is the one field a resampler SUMS
+      // rather than taking first/last/max/min. So it is the single arm where the
+      // lanes could aggregate differently while every price case stayed green.
+      // Added while fixing a `TypeError` crash in the Python resampler; recording
+      // it proved the two lanes already agree over the real bars.
+      'tf_weekly_volume_is_summed',
     ])
   })
 
