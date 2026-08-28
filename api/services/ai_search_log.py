@@ -135,10 +135,53 @@ def _ensure_init() -> None:
                 # per-day invocation + degraded tally — no query/answer columns.
                 "CREATE TABLE IF NOT EXISTS ai_search_personal_counter ("
                 "day TEXT PRIMARY KEY, invocations INTEGER DEFAULT 0, degraded INTEGER DEFAULT 0)",
+                # Joins the stream-error row to its single-shot fallback twin
+                # (same widget ask → same conversation_id + turn_index).
+                "CREATE INDEX IF NOT EXISTS idx_ais_conv ON ai_search_log(conversation_id, turn_index)",
+                # Durable daily-usage ledger so the router's caps survive a
+                # redeploy (several ship per day — in-memory-only counters were
+                # multiplying the daily budgets). Keyed by the same day-rotating
+                # HMAC bucket as the log rows: cap enforcement needs same-day
+                # identity only, and raw user ids never land in this DB.
+                "CREATE TABLE IF NOT EXISTS ai_search_usage ("
+                "day_et TEXT NOT NULL, bucket TEXT NOT NULL, units INTEGER DEFAULT 0, "
+                "PRIMARY KEY (day_et, bucket))",
             ):
                 conn.execute(stmt)
             conn.commit()
         _INIT_DONE = True
+
+
+def bump_usage(day_et: str, bucket: str, delta: int) -> None:
+    """Write-through for the router's daily caps. Best-effort — the in-memory
+    counters stay authoritative for the life of the process; this ledger is
+    what re-seeds them after a redeploy. Negative deltas floor at zero."""
+    if not day_et or not bucket:
+        return
+    try:
+        _ensure_init()
+        with contextlib.closing(_connect()) as conn:
+            conn.execute(
+                "INSERT INTO ai_search_usage (day_et, bucket, units) VALUES (?,?,?) "
+                "ON CONFLICT(day_et, bucket) DO UPDATE SET "
+                "units = MAX(0, units + ?)",
+                (day_et, bucket, max(0, int(delta)), int(delta)))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def load_usage(day_et: str) -> dict[str, int]:
+    """Today's persisted usage: {bucket: units}. Empty dict on any failure."""
+    try:
+        _ensure_init()
+        with contextlib.closing(_connect()) as conn:
+            rows = conn.execute(
+                "SELECT bucket, units FROM ai_search_usage WHERE day_et = ?",
+                (day_et,)).fetchall()
+        return {r[0]: int(r[1] or 0) for r in rows}
+    except Exception:
+        return {}
 
 
 def _reset_for_tests() -> None:
@@ -354,7 +397,7 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
             "grounding_intents": json.dumps([str(i) for i in (grounding_intents or [])]),
             "regime_label": regime_label,
             "had_live_price": 1 if had_live_price else 0,
-            "grounding_context": (grounding_context or "")[:2600] or None,
+            "grounding_context": (grounding_context or "")[:3600] or None,
             "query_tickers": json.dumps(qtk),
             "answer_tickers": json.dumps(atk),
             "primary_ticker": primary,
@@ -379,6 +422,18 @@ def log(*, user_id=None, answer_id=None, endpoint="single", query="", answer="",
         cols = list(row.keys())
         placeholders = ",".join("?" for _ in cols)
         with contextlib.closing(_connect()) as conn:
+            # One member-perceived ask can produce TWO rows during a provider
+            # incident: the stream logs an error row, the widget falls back to
+            # single-shot (same conversation_id + turn_index) and that logs a
+            # second. Superseding the failed twin keeps admin error rates and
+            # question counts honest exactly when the owner reads them.
+            if (row["answer_kind"] == "ok" and conversation_id
+                    and row["turn_index"] is not None):
+                conn.execute(
+                    "DELETE FROM ai_search_log WHERE conversation_id = ? "
+                    "AND turn_index = ? AND day_et = ? "
+                    "AND answer_kind IN ('error','incomplete','empty')",
+                    (conversation_id, row["turn_index"], day))
             conn.execute(
                 f"INSERT INTO ai_search_log ({','.join(cols)}) VALUES ({placeholders})",
                 [row[c] for c in cols])

@@ -140,6 +140,12 @@ describe('AiSearchWidget', () => {
     await waitFor(() => expect(screen.getAllByText(/The move is real/).length).toBeGreaterThanOrEqual(2))
   })
 
+  // Ambient syncs (saved-answers hydration, thread persistence, sparkline
+  // bars) also use fetch since 2026-08-28 — ask assertions filter to the two
+  // ask endpoints so they pin the ASK path, not the ambience.
+  const askCalls = () => global.fetch.mock.calls.filter(
+    (c) => c[0] === '/api/ai-search' || c[0] === '/api/ai-search/stream')
+
   it('streams: deltas render progressively, final applies citations', async () => {
     mockStreamFetch([
       { type: 'delta', text: 'SMCI is ' },
@@ -154,26 +160,27 @@ describe('AiSearchWidget', () => {
     // final state: [1] became a source link, only the stream endpoint was hit
     const cite = screen.getByRole('link', { name: '1' })
     expect(cite.getAttribute('href')).toBe('https://reuters.com/x')
-    expect(global.fetch).toHaveBeenCalledTimes(1)
-    expect(global.fetch.mock.calls[0][0]).toBe('/api/ai-search/stream')
+    expect(askCalls()).toHaveLength(1)
+    expect(askCalls()[0][0]).toBe('/api/ai-search/stream')
   })
 
   it('falls back to the single-shot endpoint when the stream errors', async () => {
-    let call = 0
-    global.fetch = vi.fn().mockImplementation(() => {
-      call += 1
-      if (call === 1) {
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (url === '/api/ai-search/stream') {
         return Promise.resolve({ ok: true, status: 200, body: sseBody([{ type: 'error', error: 'stream failed' }]) })
       }
-      return Promise.resolve({ ok: true, status: 200, json: async () => GOOD })
+      if (url === '/api/ai-search') {
+        return Promise.resolve({ ok: true, status: 200, json: async () => GOOD })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
     })
     render(<AiSearchWidget />)
     const box = screen.getByLabelText('Ask anything about the markets')
     fireEvent.change(box, { target: { value: 'q' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
-    expect(global.fetch.mock.calls[0][0]).toBe('/api/ai-search/stream')
-    expect(global.fetch.mock.calls[1][0]).toBe('/api/ai-search')
+    expect(askCalls()[0][0]).toBe('/api/ai-search/stream')
+    expect(askCalls()[1][0]).toBe('/api/ai-search')
   })
 
   it('sends conversation history on the next ask so follow-ups resolve references', async () => {
@@ -184,13 +191,13 @@ describe('AiSearchWidget', () => {
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => expect(screen.getByText(/The move is real/)).toBeTruthy())
     // first ask carried empty history
-    const firstBody = JSON.parse(global.fetch.mock.calls[0][1].body)
+    const firstBody = JSON.parse(askCalls()[0][1].body)
     expect(firstBody.history).toEqual([])
 
     fireEvent.change(box, { target: { value: 'how did it react?' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await waitFor(() => {
-      const calls = global.fetch.mock.calls
+      const calls = askCalls()
       const lastBody = JSON.parse(calls[calls.length - 1][1].body)
       expect(lastBody.history).toEqual([{ q: 'first question', a: GOOD.answer }])
     })

@@ -7,7 +7,10 @@ Backed by Perplexity (web-search-grounded), so answers use current data + source
 Usage guard: every non-cached query bills Perplexity, and /charts is a FREE-tier
 page — so the endpoint enforces a per-user daily cap plus a global daily budget
 (both env-tunable). Cached answers are free and never count against either.
-Counters are in-memory (reset on redeploy — lenient by design, never user-hostile).
+Counters are in-memory for the hot path, write-through to a durable ledger
+(ai_search_log.bump_usage) keyed by the day-rotating HMAC bucket, and re-seeded
+once per process/day — several deploys ship per day, and in-memory-only counters
+were silently multiplying the daily budgets on each one.
 """
 from __future__ import annotations
 
@@ -18,6 +21,7 @@ import os
 import re
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,7 +47,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     the account, which the brief names as paid at minimum regardless of what the
     answer is worth.
 
-    ⛔ The per-user daily cap (`_check_limits` / `_reserve`) is NOT this gate.
+    ⛔ The per-user daily cap (`_reserve`) is NOT this gate.
     It bounds one account's spend; it never asked whether the account had paid
     for any. A cap on free usage is a budget for giving the product away.
 
@@ -84,7 +88,9 @@ _PERSONAL_INTENT_RE = re.compile(
     r"\b(am i (over ?exposed|too (concentrated|heavy)|too much in)"
     r"|should i (add|trim|hold|sell|buy)\b"
     r"|room to add|how('?s| is| am i) my|how am i doing"
-    r"|my (position|positions|book|portfolio|stop|risk|heat|shares)"
+    r"|my (position|positions|book|portfolio|stop|risk|heat|shares"
+    r"|watch ?list|names|list)"          # widened 2026-08-28: "anything on my watchlist"
+    r"|on my (watch ?list|list|radar)"
     r"|(closest|near(est)?) (to )?(its )?stop"
     r"|how('?s| is) my (day|week|book))\b", re.I)
 
@@ -121,14 +127,11 @@ def _personal_enabled() -> bool:
 
 
 # ── needs-web heuristic: does the personal query have a research/news/ticker-
-# outlook component (→ fetch a fresh PUBLIC draft to fold in), or is it PURE
-# self-state (→ skip Perplexity entirely: one hop, streams immediately, half
-# the cost)? Asymmetric: a research signal wins; otherwise default to no web.
-_PERSONAL_SELF_STATE_RE = re.compile(
-    r"\b(am i (over ?exposed|too (concentrated|heavy)|too much in)"
-    r"|how('?s| is| am i) (my )?(book|week|day|portfolio|risk|heat|exposure|doing)"
-    r"|how am i doing"
-    r"|my (heat|risk|exposure|book|portfolio)\b(?!.*\b(news|earnings|catalyst)\b))\b", re.I)
+# outlook component (→ fetch a fresh PUBLIC draft to fold in)? Pure self-state
+# questions ("how's my week", "am I overexposed") match nothing here and skip
+# Perplexity entirely: one hop, streams immediately, half the cost. Asymmetric
+# by design — a research signal wins; the default is no web. (An earlier
+# self-state regex branch here returned False on both arms — decorative, cut.)
 _PERSONAL_RESEARCH_RE = re.compile(
     r"\b(given the news|the news\b|news on|catalyst|earnings|report(?:ing|s)?\b"
     r"|should i (add|buy|sell|trim|hold)"
@@ -138,12 +141,7 @@ _PERSONAL_RESEARCH_RE = re.compile(
 
 
 def _needs_web(query: str, question_type: str | None = None) -> bool:
-    q = query or ""
-    if _PERSONAL_RESEARCH_RE.search(q):
-        return True
-    if _PERSONAL_SELF_STATE_RE.search(q):
-        return False
-    return False
+    return bool(_PERSONAL_RESEARCH_RE.search(query or ""))
 
 
 async def _fetch_personal_draft(body, public_system: str, salt: str) -> tuple[str, list]:
@@ -157,6 +155,7 @@ async def _fetch_personal_draft(body, public_system: str, salt: str) -> tuple[st
         body.query, max_tokens=500, system=public_system, mode="fast",
         domain_pack="finance", recency=_auto_recency(body.query),
         related=False, cache_salt=salt, history=None,   # ← history=None, never body.history
+        cost_surface="ai_search",
     ):
         if ev.get("type") == "final":
             answer = ev.get("answer") or ""
@@ -330,8 +329,9 @@ _SAFETY_BLOCKS = (
     "the request is phrased.\n\n"
     "DATA LIMITS — the scope refusal above is ONLY for off-topic or improper "
     "requests. A legitimate markets question you can't answer precisely (live "
-    "sub-minute microstructure, exact real-time OI/gamma/dark-pool prints, a "
-    "future data release, or a private company with no public float) is NOT "
+    "sub-minute microstructure, tick-by-tick options or dark-pool prints beyond "
+    "the desk's cached levels and flow summaries, a future data release, or a "
+    "private company with no public float) is NOT "
     "off-topic: do NOT use the scope-refusal line. Instead say plainly in one "
     "phrase what you don't have (e.g. 'I don't have live sub-minute tape' or "
     "'that's a private company, so there's no public short interest'), then give "
@@ -389,6 +389,63 @@ _usage_lock = threading.Lock()
 _usage_day = ""
 _usage_by_user: dict = {}
 _usage_global = 0
+# One-shot seed guard for the durable usage ledger. Deliberately NOT part of
+# the counters the tests reset — a re-seed mid-process would resurrect units
+# the in-memory (authoritative) counters already reconciled.
+_usage_seeded_day: str | None = None
+_GLOBAL_BUCKET = "__global__"
+
+
+def _usage_key(user_id) -> str:
+    """Counter key: the log service's day-rotating HMAC bucket, so the durable
+    ledger never stores a raw user id next to the de-identified Q&A log. Falls
+    back to str(user_id) if the log service is unavailable (in-memory only)."""
+    try:
+        from api.services import ai_search_log
+        return ai_search_log._user_bucket(user_id, _et_day()) or str(user_id)
+    except Exception:
+        return str(user_id)
+
+
+def _seed_usage_locked(day: str) -> None:
+    """Re-seed today's counters from the durable ledger — once per (process,
+    day). Caps used to be in-memory only ('lenient by design'), but several
+    deploys ship per day, so each redeploy silently multiplied the budgets."""
+    global _usage_seeded_day, _usage_by_user, _usage_global
+    if _usage_seeded_day == day:
+        return
+    _usage_seeded_day = day
+    try:
+        from api.services import ai_search_log
+        loaded = ai_search_log.load_usage(day)
+    except Exception:
+        loaded = {}
+    if loaded:
+        _usage_global = int(loaded.pop(_GLOBAL_BUCKET, 0))
+        _usage_by_user = {k: int(v) for k, v in loaded.items()}
+
+
+# One background writer for the usage ledger: _reserve/_refund are called from
+# the async stream path too, and a contended SQLite commit must never ride the
+# shared event loop (the 524-outage surface).
+_USAGE_IO = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ais-usage")
+
+
+def _persist_usage(key: str, delta: int) -> None:
+    """Write-through (async, best-effort). Memory stays the in-process
+    authority; the ledger only re-seeds after a redeploy."""
+    def _job():
+        try:
+            from api.services import ai_search_log
+            day = _usage_day or _et_day()
+            ai_search_log.bump_usage(day, key, delta)
+            ai_search_log.bump_usage(day, _GLOBAL_BUCKET, delta)
+        except Exception:
+            pass
+    try:
+        _USAGE_IO.submit(_job)
+    except Exception:
+        pass
 
 
 def _fresh_stats() -> dict:
@@ -411,28 +468,14 @@ def _record_cache_hit() -> None:
 
 
 def _roll_day_locked() -> None:
-    """Reset counters at the ET day boundary. Caller must hold _usage_lock."""
+    """Reset counters at the ET day boundary + re-seed from the durable ledger
+    (once per process/day). Caller must hold _usage_lock."""
     global _usage_day, _usage_by_user, _usage_global, _stats
     day = _et_day()
     if day != _usage_day:
         _usage_day, _usage_by_user, _usage_global = day, {}, 0
         _stats = _fresh_stats()
-
-
-def _check_limits(user_id) -> None:
-    """Raise 429 if the user or the whole app is already over budget."""
-    with _usage_lock:
-        _roll_day_locked()
-        if _usage_global >= _global_daily_limit():
-            raise HTTPException(
-                status_code=429,
-                detail="AI research is cooling down for the day — try again tomorrow.",
-            )
-        if _usage_by_user.get(user_id, 0) >= _user_daily_limit():
-            raise HTTPException(
-                status_code=429,
-                detail="You've hit today's research limit — it resets at midnight ET.",
-            )
+        _seed_usage_locked(day)
 
 
 def _reserve(user_id, units: int) -> None:
@@ -442,6 +485,7 @@ def _reserve(user_id, units: int) -> None:
     client that disconnects mid-stream is still billed for the Perplexity spend.
     Raise 429 if the reservation would exceed either limit."""
     global _usage_global
+    key = _usage_key(user_id)
     with _usage_lock:
         _roll_day_locked()
         if _usage_global + units > _global_daily_limit():
@@ -449,27 +493,34 @@ def _reserve(user_id, units: int) -> None:
                 status_code=429,
                 detail="AI research is cooling down for the day — try again tomorrow.",
             )
-        if _usage_by_user.get(user_id, 0) + units > _user_daily_limit():
+        if _usage_by_user.get(key, 0) + units > _user_daily_limit():
             raise HTTPException(
                 status_code=429,
                 detail="You've hit today's research limit — it resets at midnight ET.",
             )
-        _usage_by_user[user_id] = _usage_by_user.get(user_id, 0) + units
+        _usage_by_user[key] = _usage_by_user.get(key, 0) + units
         _usage_global += units
+    _persist_usage(key, units)
 
 
 def _refund(user_id, units: int) -> None:
     """Give back a reservation when the search turned out free (cache hit) or
     failed (error/empty) — never bill for a non-answer."""
     global _usage_global
+    key = _usage_key(user_id)
     with _usage_lock:
-        _usage_by_user[user_id] = max(0, _usage_by_user.get(user_id, 0) - units)
+        _usage_by_user[key] = max(0, _usage_by_user.get(key, 0) - units)
         _usage_global = max(0, _usage_global - units)
+    _persist_usage(key, -units)
 
 
-def _record_billed(user_id, units: int = 1) -> None:
-    # Retained for back-compat; new paths use _reserve/_refund.
-    _reserve(user_id, units)
+def _quota_snapshot(user_id) -> dict:
+    """Member-visible daily budget: used / limit, so the widget can show a
+    quiet meter instead of a surprise 429 at the end of the day."""
+    key = _usage_key(user_id)
+    with _usage_lock:
+        _roll_day_locked()
+        return {"used": _usage_by_user.get(key, 0), "limit": _user_daily_limit()}
 
 
 # ── Auto-recency: "what's moving TODAY" questions should search today's web,
@@ -492,14 +543,20 @@ _RECENCY_WEEK_RE = re.compile(
     # up/downgrades only in a ticker/analyst context, not general education
     r"|(?:up|down)grades?\b[^?.!]{0,30}?\b(?:on|for|to)\b|analyst|price target"
     r"|news on)\b", re.I)
+# Forward-looking phrasing WIDENS a day-recency hit to week. "CRM's reaction
+# today — find a setup for the coming weeks" is half about today and half about
+# what comes next; a day filter starves the web leg of the multi-week context
+# the second half needs (the desk's own packs carry the intraday half anyway).
+_RECENCY_FUTURE_RE = re.compile(
+    r"\b(?:coming|next|upcoming|following)\s+(?:few\s+|couple\s+(?:of\s+)?)?"
+    r"(?:days?|weeks?|sessions?|months?)\b"
+    r"|\b(?:days?|weeks?)\s+ahead\b|\bgoing forward\b|\bswing (?:trade|setup|idea)\b", re.I)
 
 
 def _auto_recency(q: str) -> str | None:
     q = q or ""
-    if _RECENCY_DAY_EXPLICIT.search(q):
-        return "day"
-    if _WHY_MOVE_RE.search(q) and _extract_tickers(q):
-        return "day"
+    if _RECENCY_DAY_EXPLICIT.search(q) or (_WHY_MOVE_RE.search(q) and _extract_tickers(q)):
+        return "week" if _RECENCY_FUTURE_RE.search(q) else "day"
     if _RECENCY_WEEK_RE.search(q):
         return "week"
     return None
@@ -563,6 +620,32 @@ _STRONG_TICKER_CUE = re.compile(
     r"(?:\b(?:is|why is|why did|about|on|buy|sell|short|long|thoughts on|hold|own"
     r"|trading|chart|setup on|flow on|price of)\s+)([A-Z]{1,5})\b"
     r"|\b([A-Z]{1,5})\s+(?:stock|shares|calls?|puts?|earnings|chart)\b")
+# Case-INSENSITIVE cue for lowercase/mixed-case bare tickers. Bare lowercase
+# used to be dropped entirely ("thoughts on nvda" got ZERO desk grounding — a
+# realistic phone typing pattern, since /ai-search is the mobile home). The
+# collision risk that justified dropping it ("now", "open", "run" are all real
+# tickers) is bounded three ways: a lowercase word must sit in a strong ticker
+# POSITION, be in cap_universe, and NOT be stop-listed (stop-listed names like
+# NOW/LOW/ALL stay uppercase-or-cashtag only — "buy now" is English).
+# ⛔ Deliberately NARROWER than the uppercase cue: bare "on"/"is"/"hold"/
+# "trading" made ordinary idioms extract — "what's on deck" → DECK, "hold cash"
+# → CASH, "trading well" → WELL (2026-08-28 review). Only cues that read as an
+# explicit ticker reference survive on this path.
+_LOWER_TICKER_CUE = re.compile(
+    r"(?:\b(?:thoughts on|setup on|flow on|about|price of|chart"
+    r"|buy|sell|short)\s+)([A-Za-z]{2,5})\b"
+    r"|\b([A-Za-z]{2,5})\s+(?:stock|shares|calls?|puts?|earnings|chart)\b", re.I)
+# English words that ARE real tickers and still land in the narrowed cue
+# positions ("buy tech", "buy gold", "sell bill"). Blocked on the LOWERCASE
+# path only — uppercase/cashtag still reaches every one of them. Extended
+# 2026-08-28 with the review's verified cap_universe collisions.
+_LOWER_ONLY_STOP = {
+    "TECH", "LIFE", "PLAY", "REAL", "OPEN", "RUN", "GAP", "EDGE", "CORE",
+    "HOPE", "MIND", "CAMP", "RIDE", "WING", "CAKE", "NICE", "COOL", "FAST",
+    "SAFE", "PATH", "LOVE", "GOLD", "BABY", "GAME", "FUND", "BOOT", "TREE",
+    "CASH", "DECK", "WELL", "NET", "TWO", "BILL", "SPOT", "GAIN", "TEN",
+    "BIT", "LOT", "TAP", "MAIN", "HERE", "SOME", "MORE", "IT", "SO",
+}
 
 
 def _universe() -> set:
@@ -584,13 +667,17 @@ def _extract_tickers(query: str) -> list[str]:
       trailing (?![A-Za-z]) makes $NVIDIA match nothing rather than a fragment.
     - bare UPPERCASE must be in cap_universe and not a stopword; a stop-listed
       symbol that IS a real ticker (NOW/LOW/HAS…) needs a strong position cue.
+    - bare lowercase/mixed-case must be in cap_universe, NOT stop-listed, AND
+      sit in a strong ticker position (_LOWER_TICKER_CUE) — "thoughts on nvda"
+      grounds; "the gap up" and "buy now" stay English.
     """
     q = query or ""
     strong = {(a or b).upper() for a, b in _STRONG_TICKER_CUE.findall(q)}
+    lower_cued = {(a or b).upper() for a, b in _LOWER_TICKER_CUE.findall(q)}
     uni = _universe()
     out: list[str] = []
-    # One left-to-right pass over BOTH forms so order = mention order.
-    for m in re.finditer(r"\$([A-Za-z]{1,5}(?:[.\-][A-Za-z])?)(?![A-Za-z])|\b([A-Z]{2,5})\b", q):
+    # One left-to-right pass over ALL forms so order = mention order.
+    for m in re.finditer(r"\$([A-Za-z]{1,5}(?:[.\-][A-Za-z])?)(?![A-Za-z])|\b([A-Za-z]{2,5})\b", q):
         cash, bare = m.group(1), m.group(2)
         if cash:
             sym = cash.upper().replace("-", ".")
@@ -599,6 +686,12 @@ def _extract_tickers(query: str) -> list[str]:
             continue
         sym = bare.upper()
         if sym in out:
+            continue
+        if bare != sym:
+            # lowercase/mixed-case path: cue + universe + never a stop-listed word
+            if (sym in lower_cued and sym in uni
+                    and sym not in _TICKER_STOP and sym not in _LOWER_ONLY_STOP):
+                out.append(sym)
             continue
         if sym in _TICKER_STOP:
             if sym in strong and sym in uni:
@@ -913,6 +1006,320 @@ _INSIDER_RE = re.compile(
     r".{0,30}?\b(?:buy|buying|bought|sell|selling|sold|purchase)|cluster buy)\b", re.I)
 
 
+# ── Wave-2 packs (2026-08-27): the CRM-class fix. "Talk about CRM's earnings
+# and price reaction, find a setup" used to fire ZERO gated packs while the desk
+# held the answer — quarters vs estimates, the post-report move, the implied-move
+# history only we capture, transcript-grounded call recaps, a 200-column
+# technical snapshot, and a deterministic verdict engine. Every provider below
+# is a warm/cached local read (the one FMP-backed read is warm-only + background
+# warm), best-effort, and renders absence honestly instead of as a quiet market.
+
+_EARN_WARM_MEMO: dict = {}
+
+
+def _warm_year_earnings_bg(sym: str) -> None:
+    """Cold quarters cache → warm it OFF the request path (FMP can take ~10s).
+    Per-symbol 10-min memo so a hot name doesn't spawn a thread per ask."""
+    import time as _time
+    now = _time.time()
+    if now - _EARN_WARM_MEMO.get(sym, 0) < 600:
+        return
+    _EARN_WARM_MEMO[sym] = now
+
+    def _job():
+        try:
+            from api.services.earnings_estimates import get_year_earnings
+            get_year_earnings(sym, datetime.now(timezone.utc).year)
+        except Exception:
+            pass
+
+    threading.Thread(target=_job, daemon=True, name=f"ais-earnwarm-{sym}").start()
+
+
+def _ctx_earnings_deep(sym: str) -> str:
+    """Earnings history vs estimates + reaction + the implied-move series only
+    the desk holds. Screener row + implied_store are ~1ms local reads; the
+    quarters table is read WARM-ONLY (cache) with a background warm on miss."""
+    bits: list[str] = []
+    try:
+        from api.services.screener import snapshot_db
+        row = snapshot_db.get_row(sym) or {}
+    except Exception:
+        row = {}
+    if row.get("last_report_move_pct") is not None:
+        bits.append(f"last report moved {row['last_report_move_pct']:+.1f}%")
+    if row.get("earnings_setup_grade"):
+        bits.append(f"earnings setup grade {row['earnings_setup_grade']}")
+    if row.get("days_to_earnings") is not None:
+        bits.append(f"{row['days_to_earnings']}d to next report"
+                    + (f" ({row['next_earnings_date']})" if row.get("next_earnings_date") else ""))
+    if row.get("implied_move_pct") is not None:
+        bits.append(f"options imply ±{row['implied_move_pct']:.1f}%")
+    try:
+        from api.services import implied_store
+        hist = implied_store.get_implied_history(sym, limit=3) or []
+        if hist:
+            seq = ", ".join(f"±{h['pct']:.1f}% ({h['report_date']})"
+                            for h in hist if h.get("pct") is not None)
+            if seq:
+                bits.append(f"prior pre-report implied moves: {seq}")
+    except Exception:
+        pass
+    try:
+        from api.services.cache import cache as _shared
+        year = datetime.now(timezone.utc).year
+        rows = _shared.get(f"mb_year_earnings_{sym}_{year}")
+        if rows is None:
+            _warm_year_earnings_bg(sym)
+        else:
+            reported = [r for r in rows if isinstance(r, dict) and r.get("eps_actual") is not None]
+            qs = []
+            for r in reported[-2:]:
+                seg = f"Q{r.get('quarter')} EPS {r['eps_actual']}"
+                if r.get("eps_estimate") is not None:
+                    seg += f" vs {r['eps_estimate']}e"
+                if r.get("eps_surprise_pct") is not None:
+                    seg += f" ({r['eps_surprise_pct']:+.0f}%)"
+                qs.append(seg)
+            if qs:
+                bits.append("recent quarters: " + "; ".join(qs))
+    except Exception:
+        pass
+    return f"{sym} earnings intel (UCT data): " + "; ".join(bits) if bits else ""
+
+
+def _ctx_call_recap(sym: str) -> str:
+    """Transcript-grounded call recap — pure store read, never generates
+    (call_recap_store.get is the read path by design)."""
+    from api.services import call_recap_store
+    r = call_recap_store.get(sym) or {}
+    head = (r.get("headline") or "").strip()
+    if not head:
+        return ""
+    bits = [head[:160]]
+    if r.get("guidance") and r["guidance"] != "none":
+        gd = (r.get("guidance_detail") or "").strip()
+        bits.append(f"guidance {r['guidance']}" + (f" — {gd[:100]}" if gd else ""))
+    for b in (r.get("bullets") or [])[:2]:
+        bits.append(str(b)[:110])
+    q = f" ({r['quarter']})" if r.get("quarter") else ""
+    return f"{sym} earnings call{q} (UCT transcript-grounded recap): " + " | ".join(bits)
+
+
+def _ctx_posture(sym: str) -> str:
+    """Technical posture off the nightly screener snapshot — one SQLite row.
+    NULLs render as absent (rs_rank in particular is routinely NULL)."""
+    from api.services.screener import snapshot_db
+    row = snapshot_db.get_row(sym) or {}
+    if not row:
+        return ""
+    bits: list[str] = []
+    for col, label in (("pct_vs_sma20", "20sma"), ("pct_vs_sma50", "50sma"),
+                       ("pct_vs_sma200", "200sma")):
+        if row.get(col) is not None:
+            bits.append(f"{row[col]:+.1f}% vs {label}")
+    if row.get("dist_52w_high_pct") is not None:
+        bits.append(f"{row['dist_52w_high_pct']:+.1f}% vs 52w high")
+    if row.get("rsi14") is not None:
+        bits.append(f"RSI {row['rsi14']:.0f}")
+    if row.get("adr_pct") is not None:
+        bits.append(f"ADR {row['adr_pct']:.1f}%")
+    if row.get("rs_rank") is not None:
+        bits.append(f"RS rank {row['rs_rank']}")
+    if row.get("uct_composite") is not None:
+        bits.append(f"UCT composite {row['uct_composite']}")
+    if row.get("stage2"):
+        bits.append("Stage 2 uptrend")
+    elif row.get("stage4"):
+        bits.append("Stage 4 downtrend")
+    if row.get("candle_recent_label") or row.get("candle_recent"):
+        bits.append(f"recent candle: {row.get('candle_recent_label') or row.get('candle_recent')}")
+    if row.get("bar_character_label") or row.get("bar_character"):
+        bits.append(f"bar character: {row.get('bar_character_label') or row.get('bar_character')}")
+    if row.get("short_float_pct") is not None:
+        bits.append(f"short float {row['short_float_pct']:.1f}%")
+    if row.get("theme"):
+        bits.append(f"theme: {row['theme']}")
+    return f"{sym} technical posture (UCT nightly snapshot): " + ", ".join(bits) if bits else ""
+
+
+def _ctx_verdict(sym: str) -> str:
+    """The deterministic GO/HOLD/SKIP verdict (grade_ticker) — the model
+    narrates a computed answer instead of hedging. Every number is tool-sourced;
+    hard flags are surfaced so a SKIP-for-missing-data reads as exactly that."""
+    from api.services.grade_ticker import grade_ticker
+    v = grade_ticker(sym) or {}
+    if not v.get("ok"):
+        return ""
+    bits = [f"verdict {v.get('verdict')}", f"regime {v.get('regime')}"]
+    if v.get("setup"):
+        bits.append(f"setup {v['setup']}" + (f" grade {v['grade']}" if v.get("grade") else ""))
+    if v.get("entry") is not None and v.get("stop") is not None:
+        seg = f"entry {v['entry']} / stop {v['stop']}"
+        if v.get("first_target") is not None:
+            seg += f" / target {v['first_target']}"
+        bits.append(seg)
+    if v.get("size_pct") is not None:
+        bits.append(f"size {v['size_pct']}% ({v.get('account_risk_pct')}% acct risk)")
+    if v.get("hard_flags"):
+        bits.append("flags: " + ",".join(str(f) for f in v["hard_flags"]))
+    basis = (v.get("basis") or "").strip()
+    if basis:
+        bits.append(basis[:160])
+    return (f"{sym} desk verdict (UCT grade_ticker — deterministic, cite as the "
+            f"firm's computed read): " + "; ".join(bits))
+
+
+def _ctx_levels(sym: str) -> str:
+    """Dark-pool levels (SQLite-backed, safe to build) + gamma walls read
+    CACHE-ONLY — the GXW cold build is a live ~20s Schwab chain call and must
+    never run inside an answer."""
+    bits: list[str] = []
+    try:
+        from api.routers import signature
+        dpl = signature._serve_dpl(sym) or {}
+        levels = dpl.get("levels")
+        if levels:   # None = build failed (not "no levels") — render nothing
+            seg = ", ".join(
+                f"${lv['price']:g} (${(lv.get('notional') or 0) / 1e6:.0f}M, "
+                f"{lv.get('printCount', '?')} prints)"
+                for lv in levels[:3] if isinstance(lv, dict) and lv.get("price"))
+            if seg:
+                bits.append(f"dark-pool levels: {seg}")
+        gxw = None
+        try:
+            from api.services.cache import cache as _shared
+            gxw = _shared.get(signature._ck("gxw", sym))
+            if not gxw:
+                peek = signature._GXW_STALE.peek(sym)
+                if peek:
+                    gxw = peek[0]
+        except Exception:
+            gxw = None
+        if gxw and gxw.get("levels"):
+            segs = []
+            for lv in gxw["levels"]:
+                if isinstance(lv, dict) and lv.get("price"):
+                    kind = {"callWall": "call wall", "putWall": "put wall",
+                            "zeroGamma": "zero-gamma"}.get(lv.get("kind"), lv.get("kind"))
+                    segs.append(f"{kind} ${lv['price']:g}")
+            if segs:
+                spot = f" (spot ${gxw['spot']:g})" if gxw.get("spot") else ""
+                bits.append("gamma: " + ", ".join(segs) + spot)
+    except Exception:
+        pass
+    return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
+
+
+def _ctx_ticker_news(sym: str) -> str:
+    """Per-ticker headlines w/ sentiment (Massive/Polygon, 5-min module cache)
+    — the why-is-it-moving fallback when the curated tape has nothing."""
+    from api.services import polygon_news
+    res = polygon_news.get_news(sym, limit=3) or {}
+    items = res.get("items") or []
+    if not items:
+        return ""
+    segs = []
+    for it in items[:3]:
+        t = (it.get("title") or "").strip()[:90]
+        if not t:
+            continue
+        s = it.get("ticker_sentiment")
+        segs.append(f"{t}" + (f" [{s}]" if s else ""))
+    return f"{sym} news (UCT feed): " + " | ".join(segs) if segs else ""
+
+
+# Wave-2 intent gates — same discipline as the four above: anchored so a plain
+# price/flow question doesn't pay for packs it didn't ask for.
+_EARNINGS_DEEP_RE = re.compile(
+    r"\b(vs\.?,? estimates?|compared? (?:to|with|against) (?:the )?estimates?"
+    r"|beat|miss(?:ed|es)?\b|last (?:quarter|earnings|report|print)"
+    r"|past earnings|earnings (?:history|track record|reaction)"
+    r"|(?:implied|expected) move|post[- ]earnings|after (?:past )?earnings"
+    r"|how did .{0,24}?\b(?:print|report|quarter|numbers?)\b"
+    r"|(?:print|report|quarter|numbers?) (?:compare|go|look)"
+    r"|reported? (?:eps|revenue|earnings))\b", re.I)
+_CALL_RECAP_RE = re.compile(
+    r"\b((?:earnings|conference) call|on the (?:earnings )?call|the call itself"
+    r"|management (?:said|guided?|tone|sound)|guidance|guided? to|guide to"
+    r"|transcript|prepared remarks|q&a|(?:ceo|cfo) said)\b", re.I)
+_POSTURE_RE = re.compile(
+    r"\b(extended|overbought|oversold|technicals?|technical (?:posture|picture|read)"
+    r"|trend\b|moving averages?|\d{1,3}[- ]day(?: (?:ma|sma|ema|line|average))?"
+    r"|rs rank|relative strength|stage [24]|setting up|tight(?:ening)? (?:range|action)"
+    r"|consolidat|basing|uct (?:rating|composite)|short (?:interest|float)|squeeze)\b", re.I)
+_VERDICT_RE = re.compile(
+    r"\b(trade (?:setup|opportunit(?:y|ies)|idea)|find (?:me )?a (?:good )?(?:trade|setup|entry)"
+    r"|should i (?:buy|enter|take|get in)|worth (?:a )?(?:trade|buy(?:ing)?|swing|entry)"
+    r"|how would you trade|entry and stop|is (?:it|this) a buy"
+    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade))\b", re.I)
+_LEVELS_RE = re.compile(
+    r"\b(support|resistance|key levels?|price levels?|levels? to watch|dark ?pool"
+    r"|gamma\b|gex\b|call wall|put wall|zero[- ]gamma|max pain)\b", re.I)
+
+# COT / futures positioning — a market-level ask resolved from the query's own
+# words (futures markets aren't in cap_universe, and 'COT' is stop-listed).
+_COT_RE = re.compile(
+    r"\b(cot\b|commitment of traders|positioning|commercials|large specs?"
+    r"|net (?:long|short) positioning|spec(?:ulator)?s? (?:net|positioning))\b", re.I)
+_COT_ALIASES = {
+    "gold": "GC", "silver": "SI", "copper": "HG", "platinum": "PL", "palladium": "PA",
+    "crude": "CL", "crude oil": "CL", "oil": "CL", "wti": "CL", "brent": "BZ",
+    "nat gas": "NG", "natural gas": "NG", "gasoline": "RB", "heating oil": "HO",
+    "dollar": "DX", "dxy": "DX", "euro": "E6", "yen": "J6", "pound": "B6",
+    "bitcoin": "BTC", "btc": "BTC", "ethereum": "ETH", "eth": "ETH",
+    "s&p": "ES", "spx": "ES", "nasdaq": "NQ", "dow": "YM", "russell": "QR",
+    "vix": "VI", "10-year": "ZN", "10 year": "ZN", "ten-year": "ZN",
+    "bonds": "ZB", "treasuries": "ZB", "2-year": "ZT", "5-year": "ZF",
+    "corn": "ZC", "wheat": "ZW", "soybeans": "ZS", "beans": "ZS",
+    "coffee": "KC", "sugar": "SB", "cocoa": "CC", "cotton": "CT",
+    "cattle": "LE", "hogs": "HE", "lumber": "LB",
+}
+
+
+def _cot_word_hit(name: str, q: str) -> bool:
+    """Boundary-guarded alias match. Lookarounds instead of \\b because aliases
+    like 's&p' and '10-year' contain non-word chars — a bare substring test made
+    'gold' match inside \"Goldman's positioning\" and 'oil' inside 'turmoil',
+    injecting the wrong futures market as desk context."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])", q) is not None
+
+
+def _cot_symbol_for(query: str) -> str | None:
+    """Resolve which futures market a COT question is about — alias table first
+    (multi-word aliases before single words), then the display-name map."""
+    q = (query or "").lower()
+    for name in sorted(_COT_ALIASES, key=len, reverse=True):
+        if _cot_word_hit(name, q):
+            return _COT_ALIASES[name]
+    try:
+        from api.services.cot_service import SYMBOL_NAMES
+        for sym_code, disp in SYMBOL_NAMES.items():
+            if disp and _cot_word_hit(disp.lower(), q):
+                return sym_code
+    except Exception:
+        pass
+    return None
+
+
+def _ctx_cot(query: str) -> str:
+    """The already-paid weekly COT narrative for the market the question names
+    — a pure cot.db read (get_for/list_for_symbol never generate)."""
+    sym = _cot_symbol_for(query)
+    if not sym:
+        return ""
+    from api.services import cot_narrative
+    rows = cot_narrative.list_for_symbol(sym, limit=1) or []
+    if not rows:
+        return ""
+    r = rows[0]
+    text = (r.get("text") or "").strip()
+    if not text:
+        return ""
+    return (f"COT positioning — {sym}, report week {r.get('report_date')} "
+            f"(UCT weekly read): {text[:380]}")
+
+
 def _ctx_movers() -> str:
     from api.services.massive import get_movers
     m = get_movers() or {}
@@ -949,7 +1356,22 @@ def _ctx_uct20() -> str:
     from api.services.engine import get_leadership
     rows = get_leadership() or []
     syms = ", ".join((r.get("ticker") or r.get("sym") or "") for r in rows[:20] if isinstance(r, dict))
-    return f"UCT20 leadership list (the firm's ranked top 20): {syms}" if syms.strip(", ") else ""
+    if not syms.strip(", "):
+        return ""
+    out = f"UCT20 leadership list (the firm's ranked top 20): {syms}"
+    # get_leadership rows carry rank + thesis — stripping them to bare symbols
+    # threw away the reason each name is on the list. Top 3 theses ride along.
+    theses = []
+    for i, r in enumerate(rows[:3]):
+        if not isinstance(r, dict):
+            continue
+        th = str(r.get("thesis") or "").strip()
+        tk = r.get("ticker") or r.get("sym") or ""
+        if th and tk:
+            theses.append(f"#{r.get('rank', i + 1)} {tk}: {th[:90]}")
+    if theses:
+        out += ". Top theses — " + "; ".join(theses)
+    return out
 
 
 def _ctx_candidates() -> str:
@@ -969,6 +1391,47 @@ def _ctx_news() -> str:
     return f"Latest headlines (UCT feed): {heads}" if heads else ""
 
 
+def _ctx_wire() -> str:
+    """The firm's own exposure dial (0-150 score + the daily note) — pushed by
+    the morning wire, cached 1h, no network on the warm path."""
+    from api.services.engine import get_breadth
+    exp = (get_breadth() or {}).get("exposure") or {}
+    score = exp.get("score")
+    if score is None:
+        return ""
+    bits = [f"UCT exposure rating (the firm's own dial): {score}/150"]
+    note = (exp.get("note") or "").strip()
+    if note:
+        bits.append(note[:160])
+    if exp.get("gate_active") and exp.get("gate_reason"):
+        bits.append(f"GATED: {str(exp['gate_reason'])[:120]}")
+    return " — ".join(bits)
+
+
+def _ctx_sector() -> str:
+    """Sector strength (11 SPDRs, 15-min cache, single-flighted) + 1W theme
+    leaders off the wire push. Best-effort both halves."""
+    bits: list[str] = []
+    try:
+        from api.services.sector_strength import get_sector_strength
+        rows = get_sector_strength("1W") or []
+        if rows:
+            top = ", ".join(f"{r['sector']} {r['change_pct']:+.1f}%" for r in rows[:3])
+            low = ", ".join(f"{r['sector']} {r['change_pct']:+.1f}%" for r in rows[-2:])
+            bits.append(f"1W sector strength (UCT): leaders — {top}; laggards — {low}")
+    except Exception:
+        pass
+    try:
+        from api.services.engine import get_themes
+        th = get_themes("1W") or {}
+        leaders = [x.get("name") for x in (th.get("leaders") or [])[:3] if isinstance(x, dict)]
+        if leaders:
+            bits.append("leading themes (1W): " + ", ".join(str(x) for x in leaders if x))
+    except Exception:
+        pass
+    return "; ".join(bits)
+
+
 # (regex, provider name) — resolved via getattr at call time so tests can patch.
 # Each anchored to market-LEVEL phrasing so single-stock questions naming a
 # collision ticker (AMC, BMO, NOW…) don't pull an unrelated market feed.
@@ -979,9 +1442,14 @@ _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\b(uct ?20|leadership (list|names|20)|(?:your|firm'?s|the firm'?s|uct) top (stocks|names|picks|ideas|20))\b", re.I), "_ctx_uct20"),
     (re.compile(r"\b(scanner|(?:trade|long|buy|swing) candidates?|setups? (?:today|on watch|on the scan)|pullbacks?|remounts?|watch ?list ideas|on the scan)\b", re.I), "_ctx_candidates"),
     (re.compile(r"\b(headlines?|the tape|top stories|market news|news (?:today|this morning|before the open))\b", re.I), "_ctx_news"),
+    (re.compile(r"\b(uct exposure|exposure (?:rating|score)|game ?plan|top (?:5|five) picks?"
+                r"|today'?s picks?|morning wire|how much (?:should i be |are we )?invested)\b", re.I), "_ctx_wire"),
+    (re.compile(r"\b(sector rotation|(?:strongest|weakest|leading|lagging|hottest) (?:sectors?|groups?|themes?)"
+                r"|sector strength|which sectors?|rotation (?:into|out of))\b", re.I), "_ctx_sector"),
 ]
 
-_CTX_BUDGET = 2600   # chars — keep grounding a supplement, not a payload
+_CTX_BUDGET = 3600   # chars — keep grounding a supplement, not a payload
+                     # (2600 → 3600 with the Wave-2 packs, 2026-08-27)
 
 
 def _time_bucket() -> str:
@@ -1087,6 +1555,16 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         _perticker.append(("analyst", "_ctx_analyst"))
     if _INSIDER_RE.search(q):
         _perticker.append(("insider", "_ctx_insider"))
+    if _EARNINGS_DEEP_RE.search(q):
+        _perticker.append(("earnings_deep", "_ctx_earnings_deep"))
+    if _CALL_RECAP_RE.search(q):
+        _perticker.append(("call_recap", "_ctx_call_recap"))
+    if _POSTURE_RE.search(q):
+        _perticker.append(("posture", "_ctx_posture"))
+    if _VERDICT_RE.search(q):
+        _perticker.append(("verdict", "_ctx_verdict"))
+    if _LEVELS_RE.search(q):
+        _perticker.append(("levels", "_ctx_levels"))
     for source, fn_name in _perticker:
         fn = getattr(_this, fn_name)
         for s in syms[:2]:
@@ -1094,6 +1572,13 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
                 _add(source, fn(s))
             except Exception:
                 pass
+    # Why-is-it-moving asks with a silent tape: per-ticker news fallback so the
+    # model isn't left guessing from the web alone (first symbol only).
+    if meta["recency"] == "day" and syms and "tape" not in meta["grounding_sources"]:
+        try:
+            _add("news_ticker", _ctx_ticker_news(syms[0]))
+        except Exception:
+            pass
     salt_bits.extend(syms)
     this_mod = sys.modules[__name__]
     for rx, fn_name in _INTENT_SPECS:
@@ -1104,6 +1589,16 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             if line:
                 _add(fn_name.replace("_ctx_", ""), line)
                 meta["grounding_intents"].append(fn_name.replace("_ctx_", ""))
+        except Exception:
+            pass
+    # COT / futures positioning — resolved from the query's own words (futures
+    # roots aren't in cap_universe, so the per-ticker machinery can't carry it).
+    if _COT_RE.search(query or ""):
+        try:
+            line = _ctx_cot(query or "")
+            if line:
+                _add("cot", line)
+                meta["grounding_intents"].append("cot")
         except Exception:
             pass
     if not parts:
@@ -1117,6 +1612,43 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
     # query, which is already part of the cache key.
     salt_bits.append(_et_day())
     return ctx, "|".join(salt_bits), meta
+
+
+# ── House-KB grounding (2026-08-28): the owner's 8,978-entry trading knowledge
+# base has been one warm index away this whole time — brain_index.db lives on
+# the same pod, reindexed on every nightly Brain Pack install, and AI Search
+# never touched it (only Compass voice tools and community /ask did). Craft and
+# setup questions now pull the firm's own methodology passages.
+_BRAIN_ELIGIBLE = {"concept-education", "valuation", "compare", "setup-technical"}
+_BRAIN_MIN_SCORE = 0.34   # same floor the Phase-2 memory blend uses
+
+
+def _brain_enabled() -> bool:
+    return os.environ.get("AI_SEARCH_BRAIN_ENABLED", "1").strip().lower() not in ("0", "false", "no")
+
+
+def _brain_context(query: str, question_type: str | None, verdict_ask: bool) -> str:
+    """Top methodology passages from the installed Brain Pack, or "". Only for
+    question shapes where craft beats news (plus any explicit setup/trade ask).
+    Makes one embedding call — callers already run _grounded_system off the
+    event loop for exactly this class of blocking work."""
+    if not _brain_enabled():
+        return ""
+    if question_type not in _BRAIN_ELIGIBLE and not verdict_ask:
+        return ""
+    from api.services import brain_kb_service
+    hits = [h for h in (brain_kb_service.search(query, k=3) or [])
+            if (h.get("score") or 0) >= _BRAIN_MIN_SCORE][:2]
+    if not hits:
+        return ""
+    segs = []
+    for h in hits:
+        who = h.get("trader") or "firm KB"
+        segs.append(f"[{who} — {h.get('title')}] {(h.get('text') or '').strip()[:350]}")
+    return (
+        "\n\nUCT PLAYBOOK (the firm's own trading methodology — timeless craft, "
+        "not today's data; cite as 'the UCT playbook'): " + " | ".join(segs)
+    )
 
 
 def _grounded_system(query: str) -> tuple[str, str, dict]:
@@ -1134,6 +1666,16 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
             "percent move, and market regime; prefer these figures over web "
             "sources and attribute them to 'UCT desk data'): " + ctx
         )
+    # House KB — methodology passages for craft/setup questions (best-effort).
+    try:
+        bctx = _brain_context(query, meta.get("question_type"),
+                              bool(_VERDICT_RE.search(query or "")))
+        if bctx:
+            system += bctx
+            if "playbook" not in meta["grounding_sources"]:
+                meta["grounding_sources"].append("playbook")
+    except Exception:
+        pass
     # Phase 2 — blend in the desk's OWN prior evergreen research (best-effort,
     # flag + question-type gated, labeled 'may be dated' so live data stays primary).
     # NOTE: this can make a blocking embedding call, so the streaming endpoint runs
@@ -1157,13 +1699,57 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     return system, salt, meta
 
 
+_DEGRADED_NOTE = (
+    "\n\nWEB SEARCH IS TEMPORARILY UNAVAILABLE. Answer ONLY from the UCT DESK "
+    "CONTEXT above plus general market knowledge. Open with one brief phrase "
+    "noting live web sources are temporarily down (e.g. 'Working from desk "
+    "data only right now —'). Never fabricate a current headline, price move "
+    "you weren't given, or anything that would require today's web."
+)
+
+
+def _desk_only_answer(query: str, system: str, meta: dict, history: list) -> dict | None:
+    """Perplexity is down and no stale answer exists → synthesize from the
+    already-assembled desk grounding via the shared Anthropic client, flagged
+    `degraded` so the widget can label it. Returns None when there is no desk
+    context to stand on (a web-only question deserves an honest error) or the
+    synthesis fails. Blocking — stream callers run it in an executor."""
+    ctx = (meta or {}).get("ctx_block") or ""
+    if not ctx.strip():
+        return None
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        model = os.environ.get("AI_SEARCH_DEGRADED_MODEL", "claude-sonnet-5").strip()
+        msgs: list[dict] = []
+        for h in (history or []):
+            q, a = (h.get("q") or "").strip(), (h.get("a") or "").strip()
+            if q and a:
+                msgs.append({"role": "user", "content": q})
+                msgs.append({"role": "assistant", "content": a})
+        msgs.append({"role": "user", "content": query})
+        resp = client.with_options(timeout=25).messages.create(
+            model=model, max_tokens=600, system=system + _DEGRADED_NOTE, messages=msgs)
+        text = "".join(
+            b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
+        ).strip()
+        if not text:
+            return None
+        return {"answer": text, "citations": [], "related_questions": [],
+                "model": model, "mode": "degraded", "degraded": True, "cached": False}
+    except Exception:
+        return None
+
+
 class AiSearchIn(BaseModel):
     query: str
     # The widget sends no mode, so this default flows through _auto_mode, which
     # routes by phrasing: most asks -> sonar-pro ("fast"), deep-analysis phrasing
-    # -> sonar-reasoning-pro. A client may pin "fast"/"reasoning" to force a tier.
-    # (Base sonar "lite" is only reached if _auto_mode is bypassed.)
-    mode: str = "lite"
+    # -> sonar-reasoning-pro. A client may pin "fast"/"reasoning" to force a tier;
+    # any other value (this "auto" default included) flows through _auto_mode.
+    mode: str = "auto"
     # Conversation memory: prior {q, a} exchanges from THIS widget session so
     # follow-ups can resolve references. Sanitized server-side; never persisted.
     history: list | None = None
@@ -1281,6 +1867,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
         return perplexity_search.web_search(
             body.query, max_tokens=700, system=system, mode=m, domain_pack="finance",
             recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
+            cost_surface="ai_search", allow_stale=True,   # UI labels stale answers
         )
 
     result = _search(mode)
@@ -1299,11 +1886,27 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
         _refund(user_id, units); _record_cache_hit()
     elif not result.get("answer") or result.get("error"):
         _refund(user_id, units)   # never bill a failed/empty search
+        # Provider down + nothing stale to serve → desk-data-only synthesis so a
+        # paid ask gets a grounded answer instead of an error box.
+        degraded = _desk_only_answer(body.query, system, meta, history)
+        if degraded is not None:
+            try:
+                _reserve(user_id, 1)   # a real (Anthropic) spend — bill one unit
+            except HTTPException:
+                pass                   # was within cap at request start; serve anyway
+            result = degraded
+            effective_mode = "degraded"
+            fallback_used = True
     elif effective_units != units:
         _refund(user_id, units - effective_units)   # keep only the fast unit
     # Stable id so a later save/share/pin can join back to this de-identified row.
     answer_id = ai_search_log_new_id()
     result["answer_id"] = answer_id
+    # Member-visible transparency: which desk feeds grounded this answer, and
+    # where the daily budget stands after this ask.
+    result["grounding"] = {"sources": meta.get("grounding_sources") or [],
+                           "intents": meta.get("grounding_intents") or []}
+    result["quota"] = _quota_snapshot(user_id)
     # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
     _log_answer(body=body, user_id=user_id, answer_id=answer_id, endpoint="single",
                 mode=effective_mode, result=result, meta=meta, history=history,
@@ -1359,12 +1962,16 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
         # the answer the member actually saw (never the failed empty reasoning try).
         captured = {"result": None, "mode": mode, "fallback_used": False}
         # Tell the client the tier + the stable answer_id up front (the id lets a
-        # later save/share/pin join back to this de-identified row).
-        yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id})}\n\n"
+        # later save/share/pin join back to this de-identified row), plus which
+        # desk feeds grounded the answer (the widget's "grounded on" chips).
+        grounding = {"sources": meta.get("grounding_sources") or [],
+                     "intents": meta.get("grounding_intents") or []}
+        yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id, 'grounding': grounding})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
                 body.query, max_tokens=700, system=system, mode=mode, domain_pack="finance",
                 recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
+                cost_surface="ai_search",
             ):
                 t = ev.get("type")
                 if t == "delta" and ev.get("text"):
@@ -1377,24 +1984,58 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 elif t == "error" and not settled:
                     settled = True
                     _refund(user_id, units)   # upstream failed — give the reservation back
-                    # Reasoning tier failed/empty → one-shot fall back to sonar-pro so the
-                    # member gets a real answer instead of an error.
-                    if mode == "reasoning" and not got_answer:
-                        fb = perplexity_search.web_search(
-                            body.query, max_tokens=700, system=system, mode="fast",
-                            domain_pack="finance", recency=_auto_recency(body.query),
-                            related=True, cache_salt=salt, history=history)
+                    # Recovery ladder for a stream that died before ANY token
+                    # reached the member (a partial answer already on screen falls
+                    # through to the error event → widget's single-shot fallback,
+                    # which walks the same ladder server-side):
+                    #   1. blocking web_search on sonar-pro — carries the bounded
+                    #      transient retry AND the stale-shadow serve
+                    #   2. desk-data-only Anthropic synthesis
+                    #   3. honest error
+                    # BOTH run in an executor: web_search can sleep+retry (~37s
+                    # worst case) and the synthesis is a blocking Anthropic call —
+                    # the shared loop is the 524-outage surface.
+                    # NB: gen()'s finally block rebinds `loop`, making it local to
+                    # gen — fetch the running loop under a distinct name.
+                    if not got_answer:
+                        _fb_loop = asyncio.get_running_loop()
+                        fb = await _fb_loop.run_in_executor(
+                            None,
+                            lambda: perplexity_search.web_search(
+                                body.query, max_tokens=700, system=system, mode="fast",
+                                domain_pack="finance", recency=_auto_recency(body.query),
+                                related=True, cache_salt=salt, history=history,
+                                cost_surface="ai_search", allow_stale=True))
                         if fb.get("answer"):
                             if not fb.get("cached"):
                                 _reserve(user_id, 1)
                             captured["result"] = dict(fb)
                             captured["mode"] = "fast"
                             captured["fallback_used"] = True
-                            yield f"data: {json.dumps({'type':'final', 'answer_id': answer_id, **fb})}\n\n"
+                            settled_fb = {'type': 'final', 'answer_id': answer_id,
+                                          'grounding': grounding,
+                                          'quota': _quota_snapshot(user_id), **fb}
+                            yield f"data: {json.dumps(settled_fb)}\n\n"
+                            continue
+                        dg = await _fb_loop.run_in_executor(
+                            None, lambda: _desk_only_answer(body.query, system, meta, history))
+                        if dg is not None:
+                            try:
+                                _reserve(user_id, 1)
+                            except HTTPException:
+                                pass
+                            captured["result"] = dict(dg)
+                            captured["mode"] = "degraded"
+                            captured["fallback_used"] = True
+                            dg_final = {'type': 'final', 'answer_id': answer_id,
+                                        'grounding': grounding,
+                                        'quota': _quota_snapshot(user_id), **dg}
+                            yield f"data: {json.dumps(dg_final)}\n\n"
                             continue
                     captured["result"] = {"answer": "", "error": ev.get("error") or "stream error"}
                 if t == "final":
-                    ev = {**ev, "answer_id": answer_id}
+                    ev = {**ev, "answer_id": answer_id, "grounding": grounding,
+                          "quota": _quota_snapshot(user_id)}
                 yield f"data: {json.dumps(ev)}\n\n"
         finally:
             if not settled:
@@ -1442,7 +2083,8 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
             "by_mode": dict(_stats["by_mode"]),
             "stream_requests": _stats["stream"],
             "single_shot_requests": _stats["single"],
-            "note": "in-memory since last deploy; resets daily (ET) and on redeploy",
+            "note": ("billed units re-seed from the durable ledger after a redeploy; "
+                     "request/cache-hit stats are in-memory since last deploy"),
         }
 
 
@@ -1477,6 +2119,84 @@ def ai_search_admin_synthesize(user: dict = Depends(require_admin)):
     No-op unless AI_SEARCH_DOSSIER_ENABLED=1. Runs inline (admin path)."""
     from api.services import ai_search_dossier
     return ai_search_dossier.run_batch()
+
+
+# ── Per-member recollection (2026-08-28): server-side threads + saved answers.
+# Backed by ai_search_member — a member-keyed CONSENTED store, deliberately
+# separate from the de-identified capture log (see that module's docstring).
+# Every read/write is scoped to the session's own user id; there is no admin
+# surface over this data.
+
+class AiThreadIn(BaseModel):
+    thread_id: str
+    surface: str | None = None
+    turns: list  # [{q, a, citations?, answer_id?, personal?}]
+
+
+class AiSavedIn(BaseModel):
+    answer_id: str
+    q: str | None = None
+    answer: str
+    citations: list | None = None
+    personal: bool = False
+
+
+def _member_uid(user) -> str | None:
+    u = user or {}
+    uid = u.get("user_id") or u.get("id")
+    return str(uid) if uid is not None else None
+
+
+@router.get("/threads")
+def ai_search_threads(limit: int = 30, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    return {"threads": ai_search_member.list_threads(_member_uid(user), limit=limit)}
+
+
+@router.get("/threads/{thread_id}")
+def ai_search_thread_detail(thread_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    out = ai_search_member.get_thread(_member_uid(user), thread_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="thread not found")
+    return out
+
+
+@router.post("/threads")
+def ai_search_thread_save(body: AiThreadIn, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    out = ai_search_member.save_thread(
+        _member_uid(user), body.thread_id, body.turns, surface=body.surface or "")
+    if not out.get("ok"):
+        raise HTTPException(status_code=422, detail="nothing to save")
+    return out
+
+
+@router.delete("/threads/{thread_id}")
+def ai_search_thread_delete(thread_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    return {"ok": ai_search_member.delete_thread(_member_uid(user), thread_id)}
+
+
+@router.get("/saved")
+def ai_search_saved_list(limit: int = 100, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    return {"saved": ai_search_member.list_saved(_member_uid(user), limit=limit)}
+
+
+@router.post("/saved")
+def ai_search_saved_put(body: AiSavedIn, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    ok = ai_search_member.save_answer(_member_uid(user), body.model_dump())
+    if not ok:
+        raise HTTPException(status_code=422, detail="nothing to save")
+    return {"ok": True}
+
+
+@router.delete("/saved/{answer_id}")
+def ai_search_saved_delete(answer_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_member
+    return {"ok": ai_search_member.delete_saved(_member_uid(user), answer_id)}
 
 
 class AiSignalIn(BaseModel):

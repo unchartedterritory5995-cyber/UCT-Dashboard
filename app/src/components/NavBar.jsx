@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },

@@ -62,6 +62,17 @@ def client(monkeypatch):
     monkeypatch.setattr(ai, "_ctx_uct20", lambda: "[UCT20]")
     monkeypatch.setattr(ai, "_ctx_candidates", lambda: "[CANDIDATES]")
     monkeypatch.setattr(ai, "_ctx_news", lambda: "[NEWS]")
+    # Wave-2 packs (2026-08-27) — patched so matrix runs stay hermetic (the real
+    # providers read screener/recap/cot SQLite stores and grade_ticker).
+    monkeypatch.setattr(ai, "_ctx_earnings_deep", lambda s: f"[EARNDEEP:{s}]")
+    monkeypatch.setattr(ai, "_ctx_call_recap", lambda s: f"[CALLRECAP:{s}]")
+    monkeypatch.setattr(ai, "_ctx_posture", lambda s: f"[POSTURE:{s}]")
+    monkeypatch.setattr(ai, "_ctx_verdict", lambda s: f"[VERDICT:{s}]")
+    monkeypatch.setattr(ai, "_ctx_levels", lambda s: f"[LEVELS:{s}]")
+    monkeypatch.setattr(ai, "_ctx_ticker_news", lambda s: f"[TICKNEWS:{s}]")
+    monkeypatch.setattr(ai, "_ctx_wire", lambda: "[WIRE]")
+    monkeypatch.setattr(ai, "_ctx_sector", lambda: "[SECTOR]")
+    monkeypatch.setattr(ai, "_ctx_cot", lambda q: "[COT]")
     ai._usage_day = ""
     ai._usage_by_user = {}
     ai._usage_global = 0
@@ -271,13 +282,50 @@ def test_flow_shorthand_still_grounds(client):
     assert "[FLOW:SMCI]" in c["system"]
 
 
-def test_lowercase_bare_ticker_not_extracted_documented(client):
-    # DOCUMENTED TRADEOFF (diagnostic finding F-1): bare lowercase tickers are
-    # NOT extracted — too collision-prone with English words (now→NOW,
-    # open→OPEN, path→PATH). Members get grounding via UPPERCASE or $cashtag;
-    # the widget's examples model that. Revisit with a curated-safe list.
+def test_lowercase_ticker_with_cue_now_grounds(client):
+    # REVISITED 2026-08-27 (was a documented tradeoff): bare lowercase tickers
+    # ARE extracted when they sit in a strong ticker position AND are in the
+    # universe AND are not stop-listed. "thoughts on nvda" is the mobile-typing
+    # reality — it used to get ZERO desk grounding.
     c = ask(client, "thoughts on nvda here?")
-    assert "NVDA: last $" not in c["system"]
+    assert "NVDA: last $" in c["system"]
+
+
+@pytest.mark.parametrize("q", [
+    "the gap up this morning was big",       # 'gap' bare, no cue — English
+    "is now a good time to buy tech?",       # 'now' stop-listed — never lowercase
+    "i want to buy low and sell high",       # 'low'/'high' stop-listed
+    "let's open a position tomorrow",        # 'open' bare, no cue position
+])
+def test_lowercase_english_words_still_not_tickers(client, q):
+    c = ask(client, q)
+    assert ": last $" not in c["system"], q
+
+
+def test_lowercase_idiom_collisions_not_extracted(monkeypatch):
+    # 2026-08-28 review: DECK/TAP/MAIN/CASH/WELL are real cap_universe tickers
+    # that the broad cues ("on X", "hold X", "trading X") wrongly extracted from
+    # ordinary trading idioms — injecting the wrong company as authoritative
+    # desk data. Universe patched to CONTAIN them so this test discriminates.
+    monkeypatch.setattr(ai, "_UNI", {"DECK", "TAP", "MAIN", "CASH", "WELL", "NVDA"})
+    assert ai._extract_tickers("what's on deck for tomorrow?") == []
+    assert ai._extract_tickers("what's on tap this week?") == []
+    assert ai._extract_tickers("main street vs wall street sentiment?") == []
+    assert ai._extract_tickers("should i trim and hold cash here?") == []
+    assert ai._extract_tickers("is NVDA trading well above its 50-day?") == ["NVDA"]
+    # …while genuine lowercase mentions in explicit ticker positions still land
+    assert ai._extract_tickers("thoughts on nvda here?") == ["NVDA"]
+
+
+def test_cot_aliases_respect_word_boundaries(monkeypatch):
+    # 'gold' inside "Goldman", 'oil' inside "turmoil", 'corn' inside
+    # "cornerstone" must not resolve a futures market (2026-08-28 review).
+    assert ai._cot_symbol_for("what's Goldman's positioning on rates?") is None
+    assert ai._cot_symbol_for("commercials amid the turmoil") is None
+    assert ai._cot_symbol_for("is this a cornerstone week?") is None
+    assert ai._cot_symbol_for("what's the COT positioning in gold?") == "GC"
+    assert ai._cot_symbol_for("commercials in crude oil") == "CL"
+    assert ai._cot_symbol_for("corn positioning") == "ZC"
 
 
 # ── Category: guardrails present on every request ───────────────────────────
@@ -381,3 +429,67 @@ def test_client_mode_override(client, mode):
     r = client.post("/api/ai-search", json={"query": "quick check on breadth", "mode": mode})
     assert r.status_code == 200
     assert _captured["mode"] == mode
+
+
+# ── Category: Wave-2 pack routing (2026-08-27) ──────────────────────────────
+@pytest.mark.parametrize("q,marker", [
+    ("Did NVDA beat estimates last quarter?", "[EARNDEEP:NVDA]"),
+    ("How has NVDA reacted to past earnings?", "[EARNDEEP:NVDA]"),
+    ("What's the expected move on NVDA into the print?", "[EARNDEEP:NVDA]"),
+    ("What did management guide to on the NVDA call?", "[CALLRECAP:NVDA]"),
+    ("Anything notable from the NVDA earnings call transcript?", "[CALLRECAP:NVDA]"),
+    ("Is NVDA extended here?", "[POSTURE:NVDA]"),
+    ("What's NVDA's short interest, squeeze potential?", "[POSTURE:NVDA]"),
+    ("Is there a trade setup on NVDA for the coming days?", "[VERDICT:NVDA]"),
+    ("Should I buy NVDA here?", "[VERDICT:NVDA]"),
+    ("Key levels to watch on NVDA?", "[LEVELS:NVDA]"),
+    ("Where are the dark pool levels and gamma walls on NVDA?", "[LEVELS:NVDA]"),
+])
+def test_wave2_perticker_packs_route(client, q, marker):
+    c = ask(client, q)
+    assert marker in c["system"], q
+
+
+@pytest.mark.parametrize("q,marker", [
+    ("What's the UCT exposure rating right now?", "[WIRE]"),
+    ("What's the game plan today?", "[WIRE]"),
+    ("Which sectors are strongest this week?", "[SECTOR]"),
+    ("Any sector rotation going on?", "[SECTOR]"),
+    ("What's the COT positioning in gold?", "[COT]"),
+    ("What are commercials doing in crude?", "[COT]"),
+])
+def test_wave2_market_packs_route(client, q, marker):
+    c = ask(client, q)
+    assert marker in c["system"], q
+
+
+@pytest.mark.parametrize("q", [
+    "What is the current price of NVDA?",
+    "Why is NVDA moving today?",
+    "Compare NVDA versus AMD for a swing trade",
+])
+def test_wave2_packs_do_not_fire_unasked(client, q):
+    c = ask(client, q)
+    for marker in ("[EARNDEEP", "[CALLRECAP", "[VERDICT", "[LEVELS", "[WIRE]", "[SECTOR]", "[COT]"):
+        assert marker not in c["system"], f"{marker} fired on: {q}"
+
+
+# ── Category: future-looking phrasing widens day recency to week ────────────
+@pytest.mark.parametrize("q,expected", [
+    ("Why is CRM moving today, and is there a setup for the coming weeks?", "week"),
+    ("NVDA gapped this morning — how does it look going forward?", "week"),
+    ("Why is SMCI moving today?", "day"),          # no future clause → day stays
+    ("Biggest premarket movers?", "day"),
+])
+def test_future_phrasing_widens_recency(client, q, expected):
+    c = ask(client, q)
+    assert c["recency"] == expected, q
+
+
+# ── Category: grounding transparency + quota ride the response ──────────────
+def test_response_carries_grounding_and_quota(client):
+    r = client.post("/api/ai-search", json={"query": "Why is NVDA moving today?"})
+    assert r.status_code == 200
+    d = r.json()
+    assert "quote" in d["grounding"]["sources"]
+    assert d["quota"]["limit"] > 0 and "used" in d["quota"]

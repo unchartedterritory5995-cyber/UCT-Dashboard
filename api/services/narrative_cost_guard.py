@@ -92,7 +92,16 @@ def _et_midnight_utc_text() -> str:
     return et_midnight.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
+_INIT_DONE = False
+
+
 def _init() -> None:
+    # Memoized (2026-08-28): record() runs on hot member paths now (every
+    # Perplexity completion ledgers here) — the executescript+commit only needs
+    # to run once per process, not per call.
+    global _INIT_DONE
+    if _INIT_DONE:
+        return
     with _conn() as c:
         c.executescript(
             """
@@ -110,6 +119,7 @@ def _init() -> None:
             """
         )
         c.commit()
+    _INIT_DONE = True
 
 
 def cap_usd(env_name: str = _ENV_CAP, default: float = DEFAULT_CAP_USD) -> float:
@@ -183,9 +193,15 @@ def over_budget(surface: str, env_name: str = _ENV_CAP,
 
 
 def record(surface: str, model: str, input_tokens: int = 0,
-           output_tokens: int = 0, web_searches: int = 0) -> float:
-    """Accrue one call. Never raises; always accrues in-process."""
-    cost = estimate_cost(model, input_tokens, output_tokens, web_searches)
+           output_tokens: int = 0, web_searches: int = 0,
+           cost_usd: float | None = None) -> float:
+    """Accrue one call. Never raises; always accrues in-process.
+
+    `cost_usd` overrides the Anthropic-priced estimate — for non-Anthropic
+    providers (e.g. Perplexity sonar) whose models `estimate_cost` would price
+    at the priciest known Anthropic rate and wildly over-report."""
+    cost = cost_usd if cost_usd is not None else estimate_cost(
+        model, input_tokens, output_tokens, web_searches)
     _accrue_memory(surface, cost)
     try:
         _init()
@@ -237,6 +253,8 @@ def _reset_for_test(surface: str | None = None, durable: bool = True) -> None:
     """Test hook. `durable=False` forgets only this process's accumulator, which
     is how a rail simulates a redeploy without erasing the ledger the redeploy
     is supposed to survive."""
+    global _INIT_DONE
+    _INIT_DONE = False   # tests repoint the DB path — the memo must not pin the old one
     if surface is None:
         _memory.clear()
     else:

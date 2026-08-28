@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging, os, threading, time
 _log = logging.getLogger(__name__)
 
-_BLOCK_CAP = 2600            # mirror the router's _CTX_BUDGET
+_BLOCK_CAP = 3600            # mirror the router's _CTX_BUDGET (2600→3600, 2026-08-28)
 _WATCH_CAP = 40             # symbol count
 _HAS_DATA_TTL = 120.0
 _has_data_cache: dict = {}   # user_id -> (bool, expires_at)

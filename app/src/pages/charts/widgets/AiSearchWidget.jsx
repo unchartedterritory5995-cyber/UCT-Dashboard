@@ -51,6 +51,119 @@ const emitSignal = (answerId, kind) => {
   } catch { /* noop */ }
 }
 
+// Server-side saved answers (cross-device; the localStorage list stays as the
+// offline cache). Fire-and-forget both ways — saving must never block reading.
+const serverSaveAnswer = (item) => {
+  if (!item?.answerId) return
+  try {
+    fetch('/api/ai-search/saved', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_id: item.answerId, q: item.q, answer: item.answer,
+                             citations: item.citations || [], personal: !!item.personal }),
+    }).catch(() => {})
+  } catch { /* noop */ }
+}
+const serverUnsaveAnswer = (answerId) => {
+  if (!answerId) return
+  try {
+    fetch(`/api/ai-search/saved/${encodeURIComponent(answerId)}`, {
+      method: 'DELETE', credentials: 'include',
+    }).catch(() => {})
+  } catch { /* noop */ }
+}
+
+// Handoff seam: a frozen journal embed (or any other surface) can drop a thread
+// here and navigate to /ai-search, which picks it up as the live conversation.
+export const AIS_HANDOFF_KEY = 'uct.aisearch.handoff'
+
+// Human labels for the backend's grounding source keys (the "grounded on" chips).
+const GROUNDING_LABELS = {
+  quote: 'Live quote', regime: 'Regime', catalyst: 'Catalyst', tape: 'Tape',
+  patterns: 'Patterns', flow: 'Options flow', fundamentals: 'Fundamentals',
+  analyst: 'Analyst', insider: 'Insider', earnings_deep: 'Earnings intel',
+  call_recap: 'Call recap', posture: 'Technicals', verdict: 'Desk verdict',
+  levels: 'Levels', playbook: 'UCT playbook', news_ticker: 'News',
+  movers: 'Movers', breadth: 'Breadth', earnings: 'Earnings today',
+  uct20: 'UCT20', candidates: 'Scanner', news: 'Headlines',
+  wire: 'Exposure dial', sector: 'Sectors', cot: 'COT',
+}
+const groundingChips = (g) => {
+  if (!g) return []
+  const keys = [...(g.sources || []), ...(g.intents || [])]
+  const out = []
+  for (const k of keys) {
+    const label = GROUNDING_LABELS[k] || null
+    if (label && !out.includes(label)) out.push(label)
+  }
+  return out
+}
+
+// ── Inline sparklines under the newest answer: 30 daily closes per mentioned
+// ticker (max 3), tiny SVG, colored by the 30-day change. Session-cached so a
+// re-render or thread restore never refetches. Silent on any failure.
+const _sparkCache = new Map()
+async function fetchSparkCloses(sym) {
+  if (_sparkCache.has(sym)) return _sparkCache.get(sym)
+  const p = fetch(`/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30`, { credentials: 'include' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      const bars = Array.isArray(d?.bars) ? d.bars : (Array.isArray(d) ? d : [])
+      const closes = bars.map((b) => Number(b?.c ?? b?.close)).filter(Number.isFinite)
+      return closes.length >= 2 ? closes : null
+    })
+    .catch(() => null)
+  _sparkCache.set(sym, p)
+  // Cache successes only: a transient failure (deploy-swap 502, network blip)
+  // must not suppress this ticker's sparkline for the whole browser session.
+  p.then((res) => { if (res == null) _sparkCache.delete(sym) })
+  return p
+}
+
+function Sparkline({ closes }) {
+  const w = 64, h = 20
+  const min = Math.min(...closes), max = Math.max(...closes)
+  const span = max - min || 1
+  const pts = closes.map((c, i) => `${(i / (closes.length - 1)) * w},${h - 2 - ((c - min) / span) * (h - 4)}`).join(' ')
+  const up = closes[closes.length - 1] >= closes[0]
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <polyline points={pts} fill="none" strokeWidth="1.4"
+        stroke={up ? 'var(--gain, #4ade80)' : 'var(--loss, #f87171)'} strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function AnswerSparklines({ tickers, onTicker }) {
+  const [rows, setRows] = useState([])
+  useEffect(() => {
+    let live = true
+    Promise.all(tickers.slice(0, 3).map(async (t) => {
+      const closes = await fetchSparkCloses(t)
+      if (!closes) return null
+      const pct = ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100
+      return { sym: t, closes, pct }
+    })).then((r) => { if (live) setRows(r.filter(Boolean)) })
+    return () => { live = false }
+  }, [tickers.join(',')])   // eslint-disable-line react-hooks/exhaustive-deps
+  if (!rows.length) return null
+  return (
+    <div className={styles.sparkRow}>
+      {rows.map((r) => (
+        <button key={r.sym} type="button" className={styles.sparkItem}
+          onClick={() => onTicker(r.sym)} title={`Open ${r.sym} on the chart`}>
+          <span className={styles.sparkSym}>{r.sym}</span>
+          <Sparkline closes={r.closes} />
+          <span style={{ color: r.pct < 0 ? 'var(--loss)' : 'var(--gain)', fontWeight: 600 }}>
+            {r.pct >= 0 ? '+' : ''}{r.pct.toFixed(1)}%
+          </span>
+        </button>
+      ))}
+      <span className={styles.sparkNote}>30d</span>
+    </div>
+  )
+}
+
 // Tickers mentioned in an answer (link form + bare cashtag), first few, deduped.
 const extractTickers = (text) => {
   const out = []
@@ -181,14 +294,40 @@ function AnswerBody({ text, onTicker, cites }) {
 // One completed Q/A turn in the conversation thread. Follow-ups + the compliance
 // line render only on the latest turn (isLast) so a long thread stays clean.
 function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow, readOnly = false }) {
+  const chips = groundingChips(entry.grounding)
   return (
     <div className={styles.exchange}>
       <div className={styles.qLabel}>
         <span className={styles.askedText}>{entry.q}</span>
       </div>
+      {entry.stale && (
+        <div className={styles.outageNote}>
+          Live web search is down — this is the most recent saved answer to this question.
+        </div>
+      )}
+      {entry.degraded && (
+        <div className={styles.outageNote}>
+          Live web search is down — answered from UCT desk data only.
+        </div>
+      )}
       <div className={styles.answerText}>
         <AnswerBody text={entry.answer} onTicker={onTicker} cites={entry.citations} />
       </div>
+
+      {/* Sparklines are the "click a bar to open the chart" affordance — skip
+          them on a restored answer (no live turn happened this session) so
+          reopening a saved answer or a journal handoff doesn't fetch 30-day
+          bars for every ticker in old prose. */}
+      {isLast && !readOnly && entry.answerId && (
+        <AnswerSparklines tickers={extractTickers(entry.answer)} onTicker={onTicker} />
+      )}
+
+      {chips.length > 0 && (
+        <div className={styles.chipsRow}>
+          <span className={styles.chipsLabel}>Grounded on</span>
+          {chips.map((c) => <span key={c} className={styles.chip}>{c}</span>)}
+        </div>
+      )}
 
       <div className={styles.answerActions}>
         <button className={styles.actionBtn} onClick={() => onCopy(entry)} title="Copy answer text">
@@ -266,6 +405,10 @@ export default function AiSearchWidget({
   // Frozen-embed mode (journal host): the restored conversation is EVIDENCE —
   // no ask bar, no new paid queries from inside a note.
   readOnly = false,
+  // Continue an existing SERVER thread (the /ai-search history page restoring a
+  // past conversation) — new turns persist under the same thread id instead of
+  // forking a duplicate. Null = mint a fresh anonymous id (default behavior).
+  threadId = null,
 }) {
   const { aiSearchBus, setGroupSym } = useWorkspace()
   const scopeSym = scope?.sym ? String(scope.sym).toUpperCase() : null
@@ -326,10 +469,24 @@ export default function AiSearchWidget({
   const [limitMsg, setLimitMsg] = useState(null)
   const [phase, setPhase] = useState(0)
   const [copiedId, setCopiedId] = useState(null)
-  const [saved, setSaved] = useState(loadSaved)   // answers pinned to localStorage
+  const [saved, setSaved] = useState(loadSaved)   // answers pinned to localStorage (+ server sync)
+  const [savedOpen, setSavedOpen] = useState(false)   // saved list visible mid-thread
   const [pending, setPending] = useState(null)   // question in flight (shown at the tail)
   const [streamText, setStreamText] = useState('')   // partial answer while streaming
   const [deep, setDeep] = useState(false)   // reasoning tier — longer silent think phase
+  const [quota, setQuota] = useState(null)   // {used, limit} — today's research budget
+  // Depth toggle: force the reasoning tier on the next asks. Persisted per-browser.
+  const [deepMode, setDeepMode] = useState(() => {
+    try { return localStorage.getItem('uct.aisearch.deep') === '1' } catch { return false }
+  })
+  const toggleDeepMode = useCallback(() => {
+    setDeepMode((d) => {
+      try { localStorage.setItem('uct.aisearch.deep', d ? '0' : '1') } catch { /* noop */ }
+      return !d
+    })
+  }, [])
+  const deepModeRef = useRef(deepMode)
+  deepModeRef.current = deepMode
   const [personalPending, setPersonalPending] = useState(false)   // branch entered a personal (position-aware) answer — shown before the final payload confirms it
   const inputRef = useRef(null)
   const bodyRef = useRef(null)
@@ -349,8 +506,18 @@ export default function AiSearchWidget({
   const stoppedRef = useRef(false)
   // Anonymous conversation threading for the capture log (not identity): a random
   // per-session id + a turn counter, sent with each ask. Never rendered.
+  // ⛔ TWO ids, TWO lanes, NEVER shared (2026-08-28 review): conversationIdRef
+  // goes to the DE-IDENTIFIED capture log with every ask and must stay random —
+  // seeding it from a member-keyed thread id (or reusing it as one) would make
+  // ai_search_log JOIN-able back to a user, defeating the HMAC bucket design.
+  // persistIdRef keys the member-consented thread store and MAY be seeded from
+  // a restored thread so continuing doesn't fork a duplicate conversation.
   const conversationIdRef = useRef(newConversationId())
+  const persistIdRef = useRef(threadId || newConversationId())
   const turnRef = useRef(0)
+  // Persist only conversations the member actually ASKED in this session — a
+  // restored saved answer or a journal handoff must not mint junk thread rows.
+  const askedRef = useRef(false)
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
   useEffect(() => {
@@ -393,7 +560,12 @@ export default function AiSearchWidget({
       citations: Array.isArray(d.citations) ? d.citations : [],
       related: Array.isArray(d.related_questions) ? d.related_questions.slice(0, 3) : [],
       personal: !!d.personal,   // position-aware answer — gates ShareToFloor + the retention disclaimer
+      grounding: d.grounding || null,   // which desk feeds grounded this answer (chips)
+      stale: !!d.stale,         // outage: last-known-good served, clearly labeled
+      degraded: !!d.degraded,   // outage: desk-data-only synthesis, clearly labeled
     }
+    if (d.quota && Number.isFinite(d.quota.used)) setQuota(d.quota)
+    askedRef.current = true   // a LIVE turn — this conversation may persist now
     threadRef.current = [...threadRef.current, entry]
     setThread(threadRef.current)
     setCopiedId(null)
@@ -406,11 +578,16 @@ export default function AiSearchWidget({
     // One retry on a transient 5xx (Railway/Cloudflare blip) before falling
     // back to the single-shot endpoint — the audit saw ~4% transient 502s
     // under load that succeeded immediately on retry.
+    const payload = JSON.stringify({
+      query: question, history: historyRef.current,
+      conversation_id: conversationIdRef.current, turn_index: turnRef.current,
+      ...(deepModeRef.current ? { mode: 'reasoning' } : {}),   // depth toggle
+    })
     let r = await fetch('/api/ai-search/stream', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
+      body: payload,
       signal,
     })
     if (r.status >= 502 && r.status <= 504) {
@@ -419,7 +596,7 @@ export default function AiSearchWidget({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
+        body: payload,
         signal,
       })
     }
@@ -501,7 +678,11 @@ export default function AiSearchWidget({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: question, history: historyRef.current, conversation_id: conversationIdRef.current, turn_index: turnRef.current }),
+        body: JSON.stringify({
+          query: question, history: historyRef.current,
+          conversation_id: conversationIdRef.current, turn_index: turnRef.current,
+          ...(deepModeRef.current ? { mode: 'reasoning' } : {}),
+        }),
         signal: ctrl.signal,
       })
       let r = await singleShot()
@@ -558,21 +739,103 @@ export default function AiSearchWidget({
     setSaved((prev) => {
       const exists = prev.some((s) => s.q === entry.q)
       if (!exists) emitSignal(entry.answerId, 'save')
+      // answerId rides along (was dropped before 2026-08-28) so a restored turn
+      // keeps its signal join AND the save syncs server-side for cross-device.
+      const item = { q: entry.q, answer: entry.answer, citations: entry.citations || [],
+                     related: entry.related || [], personal: !!entry.personal,
+                     answerId: entry.answerId || null }
       const next = exists
         ? prev.filter((s) => s.q !== entry.q)
-        : [{ q: entry.q, answer: entry.answer, citations: entry.citations || [], related: entry.related || [], personal: !!entry.personal }, ...prev].slice(0, 30)
+        : [item, ...prev].slice(0, 30)
+      if (exists) {
+        const gone = prev.find((s) => s.q === entry.q)
+        serverUnsaveAnswer(gone?.answerId || entry.answerId)
+      } else {
+        serverSaveAnswer(item)
+      }
       persistSaved(next)
       return next
     })
   }, [])
   const restoreSaved = useCallback((item) => {
-    const entry = { id: ++idRef.current, q: item.q, answer: item.answer || '', citations: item.citations || [], related: item.related || [], personal: !!item.personal }
+    const entry = { id: ++idRef.current, q: item.q, answer: item.answer || '',
+                    citations: item.citations || [], related: item.related || [],
+                    personal: !!item.personal, answerId: item.answerId || null }
     threadRef.current = [...threadRef.current, entry]
     setThread(threadRef.current)
+    setSavedOpen(false)
   }, [])
   const removeSaved = useCallback((item) => {
-    setSaved((prev) => { const next = prev.filter((s) => s.q !== item.q); persistSaved(next); return next })
+    setSaved((prev) => {
+      // Delete EVERY server row for this question (stale duplicates included)
+      // so the delete sticks across devices instead of resurrecting on reload.
+      prev.filter((s) => s.q === item.q && s.answerId).forEach((s) => serverUnsaveAnswer(s.answerId))
+      if (item.answerId && !prev.some((s) => s.answerId === item.answerId)) serverUnsaveAnswer(item.answerId)
+      const next = prev.filter((s) => s.q !== item.q)
+      persistSaved(next)
+      return next
+    })
   }, [])
+
+  // Cross-device saved answers: hydrate from the server once per mount and merge
+  // over the localStorage cache (server wins on the same question). Best-effort.
+  useEffect(() => {
+    if (!chrome || readOnly) return
+    let live = true
+    try {
+      Promise.resolve(fetch('/api/ai-search/saved', { credentials: 'include' }))
+        .then((r) => (r?.ok ? r.json() : null))
+        .then((d) => {
+          if (!live || !Array.isArray(d?.saved)) return
+          const server = d.saved.map((s) => ({
+            q: s.q || '', answer: s.answer || '', citations: s.citations || [],
+            related: [], personal: !!s.personal, answerId: s.answer_id || null,
+          })).filter((s) => s.answer)
+          setSaved((prev) => {
+            // Dedupe server rows by question (list is newest-first; keep the
+            // first) — duplicate q's under different answer_ids rendered twin
+            // rows with duplicate React keys that resurrected after delete.
+            const seen = new Set()
+            const uniq = server.filter((s) => (seen.has(s.q) ? false : (seen.add(s.q), true)))
+            const next = [...uniq, ...prev.filter((p) => !seen.has(p.q))].slice(0, 30)
+            persistSaved(next)
+            return next
+          })
+        })
+        .catch(() => {})
+    } catch { /* fetch stubbed out (tests) — localStorage cache stands alone */ }
+    return () => { live = false }
+  }, [chrome, readOnly])
+
+  // Conversations survive a refresh: after each finished turn, persist the whole
+  // thread server-side (debounced; replace semantics — idempotent). The thread id
+  // is the same per-mount conversation id the capture log threads on.
+  const persistTimerRef = useRef(null)
+  useEffect(() => {
+    // Gates: never in readOnly; never for a thread with no LIVE ask this
+    // session (askedRef — restored/handoff content must not mint junk rows);
+    // chrome=false persists ONLY for the scoped earnings modal (its surface
+    // tag exists so those conversations survive a refresh too).
+    if ((!chrome && !scopeSym) || readOnly || thread.length === 0 || !askedRef.current) return undefined
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      try {
+        fetch('/api/ai-search/threads', {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            thread_id: persistIdRef.current,   // member lane — NEVER the capture-log id
+            surface: scopeSym ? `modal:${scopeSym}` : 'widget',
+            turns: thread.slice(-10).map((e) => ({
+              q: e.q, a: e.answer, citations: e.citations || [],
+              personal: !!e.personal,
+            })),
+          }),
+        }).catch(() => {})
+      } catch { /* noop */ }
+    }, 800)
+    return () => { if (persistTimerRef.current) clearTimeout(persistTimerRef.current) }
+  }, [thread, chrome, readOnly, scopeSym])
 
   // Register with the workspace AI bus so a chart's "AI search" action runs here,
   // and auto-run an initialQuery (used by the temp popup + /ai-search?q= deep-link).
@@ -643,7 +906,32 @@ export default function AiSearchWidget({
           aria-label="AI Search settings"
         ><UIcon name="gear" size={13} /></button>
       )}
+      {/* Saved answers used to vanish the moment a thread existed (empty-state
+          only) — exactly when a member wants to pull one up for comparison. */}
+      {chrome && !readOnly && saved.length > 0 && thread.length > 0 && (
+        <button
+          type="button"
+          className={styles.gearBtn}
+          style={{ right: 54 }}
+          onClick={() => setSavedOpen((o) => !o)}
+          title="Saved answers"
+          aria-label="Saved answers"
+        ><UIcon name="pin" size={13} /></button>
+      )}
       <div className={styles.body} ref={bodyRef}>
+        {chrome && savedOpen && !empty && saved.length > 0 && (
+          <div className={styles.savedWrap}>
+            <span className={styles.savedLabel}>Saved answers</span>
+            <div className={styles.savedList}>
+              {saved.map((s) => (
+                <div key={s.answerId || s.q} className={styles.savedRow}>
+                  <button className={styles.savedItem} onClick={() => restoreSaved(s)} title="Reopen this answer">{s.q}</button>
+                  <button className={styles.savedDel} onClick={() => removeSaved(s)} title="Remove from saved">✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {empty && (
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
@@ -665,7 +953,7 @@ export default function AiSearchWidget({
                 <span className={styles.savedLabel}>Saved answers</span>
                 <div className={styles.savedList}>
                   {saved.map((s) => (
-                    <div key={s.q} className={styles.savedRow}>
+                    <div key={s.answerId || s.q} className={styles.savedRow}>
                       <button className={styles.savedItem} onClick={() => restoreSaved(s)} title="Reopen this answer">{s.q}</button>
                       <button className={styles.savedDel} onClick={() => removeSaved(s)} title="Remove from saved">✕</button>
                     </div>
@@ -710,7 +998,15 @@ export default function AiSearchWidget({
           </div>
         )}
 
-        {!loading && error && <div className={styles.error}>{error}</div>}
+        {!loading && error && (
+          <div className={styles.error}>
+            {error}
+            <button type="button" className={styles.retryBtn} onClick={() => run()}
+              disabled={!query.trim()} title="Ask the restored question again">
+              Retry
+            </button>
+          </div>
+        )}
         {!loading && limitMsg && <div className={styles.limit}>{limitMsg}</div>}
 
         {/* Retention disclaimer is FALSE for a personal (position-aware) turn —
@@ -754,6 +1050,15 @@ export default function AiSearchWidget({
             inputRef.current?.focus()
           }}
         />
+        <button
+          type="button"
+          className={`${styles.deepToggle}${deepMode ? ` ${styles.deepToggleOn}` : ''}`}
+          onClick={toggleDeepMode}
+          title={deepMode
+            ? 'Deep reasoning ON — slower, more thorough (2 research units per ask)'
+            : 'Deep reasoning OFF — tap for a slower, more thorough pass'}
+          aria-pressed={deepMode}
+        >Deep</button>
         {loading ? (
           <button className={styles.stopBtn} onClick={stop} title="Stop this search" aria-label="Stop search">
             <span className={styles.stopSquare} aria-hidden="true" />Stop
@@ -761,7 +1066,25 @@ export default function AiSearchWidget({
         ) : (
           <button className={styles.askBtn} onClick={() => run()} disabled={!query.trim()}>Ask</button>
         )}
+        {quota && quota.limit > 0 && (
+          <span className={styles.quotaNote} title="Today's research budget (resets midnight ET)">
+            {quota.used}/{quota.limit}
+          </span>
+        )}
       </div>
+      )}
+      {readOnly && thread.length > 0 && (
+        <div className={styles.continueRow}>
+          <button
+            type="button"
+            className={styles.continueBtn}
+            onClick={() => {
+              try { localStorage.setItem(AIS_HANDOFF_KEY, JSON.stringify(thread.slice(-10))) } catch { /* noop */ }
+              window.location.href = '/ai-search'
+            }}
+            title="Reopen this conversation live in AI Search"
+          >Continue in AI Search →</button>
+        </div>
       )}
     </div>
   )

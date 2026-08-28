@@ -25,9 +25,14 @@ import pytest
 
 from api.routers.ai_search import (
     _ANALYST_RE,
+    _CALL_RECAP_RE,
+    _EARNINGS_DEEP_RE,
     _FLOW_RE,
     _FUNDAMENTALS_RE,
     _INSIDER_RE,
+    _LEVELS_RE,
+    _POSTURE_RE,
+    _VERDICT_RE,
     _extract_tickers,
 )
 
@@ -82,9 +87,16 @@ def test_every_starter_names_the_symbol(block):
         ("PRE_TEMPLATES", "analyst", _ANALYST_RE),
         ("PRE_TEMPLATES", "insider", _INSIDER_RE),
         ("PRE_TEMPLATES", "fundamentals", _FUNDAMENTALS_RE),
+        ("PRE_TEMPLATES", "earnings history", _EARNINGS_DEEP_RE),
+        ("PRE_TEMPLATES", "posture", _POSTURE_RE),
+        ("PRE_TEMPLATES", "levels", _LEVELS_RE),
         ("POST_TEMPLATES", "options flow", _FLOW_RE),
         ("POST_TEMPLATES", "analyst", _ANALYST_RE),
         ("POST_TEMPLATES", "fundamentals", _FUNDAMENTALS_RE),
+        ("POST_TEMPLATES", "earnings history", _EARNINGS_DEEP_RE),
+        ("POST_TEMPLATES", "call recap", _CALL_RECAP_RE),
+        ("POST_TEMPLATES", "verdict", _VERDICT_RE),
+        ("POST_TEMPLATES", "insider", _INSIDER_RE),
     ],
 )
 def test_each_lane_is_opened_by_at_least_one_starter(block, gate, rx):
@@ -102,6 +114,11 @@ _GATES = {
     "analyst": _ANALYST_RE,
     "insider": _INSIDER_RE,
     "fundamentals": _FUNDAMENTALS_RE,
+    "earnings_deep": _EARNINGS_DEEP_RE,
+    "call_recap": _CALL_RECAP_RE,
+    "posture": _POSTURE_RE,
+    "verdict": _VERDICT_RE,
+    "levels": _LEVELS_RE,
 }
 
 
@@ -153,10 +170,12 @@ def test_no_gated_pack_is_left_cold():
 
 def test_the_gates_are_discriminating_not_always_on():
     """Control for the test above. If these regexes matched anything, the lane
-    assertions would pass against any wording at all and prove nothing."""
-    bland = "How has NVDA traded after past earnings?"
-    for gate, rx in [("flow", _FLOW_RE), ("analyst", _ANALYST_RE),
-                     ("insider", _INSIDER_RE), ("fundamentals", _FUNDAMENTALS_RE)]:
+    assertions would pass against any wording at all and prove nothing.
+    (The old bland sentence — 'traded after past earnings' — became a REAL
+    earnings_deep trigger when the desk gained the earnings-history pack, so
+    the control moved to wording no gate should ever own.)"""
+    bland = "What does NVDA actually sell, and who are its customers?"
+    for gate, rx in _GATES.items():
         assert not rx.search(bland), (
             f"the {gate} gate matches a starter with none of its vocabulary — "
             "the lane assertions above are vacuous"

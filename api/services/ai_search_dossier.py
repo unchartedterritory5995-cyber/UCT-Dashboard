@@ -112,10 +112,18 @@ def select_entities() -> list[tuple[str, str]]:
         import sqlite3
         from api.services import ai_search_log
         with sqlite3.connect(ai_search_log._db_path(), timeout=5) as c:
+            # Demand is demand: time_sensitive asks count too (2026-08-28).
+            # The old evergreen-only filter meant the most-asked class — an
+            # earnings-reaction storm on one name — could never earn that name
+            # a dossier, so the house brain structurally couldn't learn from
+            # exactly the questions members ask most. The freshness firewall
+            # stays where it belongs: in the SOURCES (evergreen Q&A + labeled
+            # distillation) and the prompt (no prices/dated figures) — not in
+            # the decision of which names deserve a house view.
             for sym, n in c.execute(
                 "SELECT primary_ticker, COUNT(*) FROM ai_search_log "
                 "WHERE primary_ticker IS NOT NULL AND primary_ticker <> '' "
-                "AND freshness='evergreen' GROUP BY primary_ticker"):
+                "AND answer_kind='ok' AND excluded=0 GROUP BY primary_ticker"):
                 counts[sym] = n
     except Exception:
         pass
@@ -161,6 +169,31 @@ def _evergreen_qa(entity_ticker: str, limit: int = 8) -> list[str]:
         return []
 
 
+def _recent_ts_qa(entity_ticker: str, limit: int = 4) -> list[str]:
+    """Distillation lane (2026-08-28): recent TIME-SENSITIVE answers, fed to
+    synthesis under an explicit durability firewall label. An earnings-reaction
+    answer knows 'Agentforce is inflecting' — a durable business fact wrapped
+    in that day's prices. The prompt already forbids prices/levels/dated
+    figures, and the label re-states it at the source, so the dossier can learn
+    the durable half without the dated half. These rows are pruned at ~60d by
+    retention, which is exactly why distilling them matters."""
+    try:
+        import sqlite3
+        from api.services import ai_search_log
+        with sqlite3.connect(ai_search_log._db_path(), timeout=5) as c:
+            rows = c.execute(
+                "SELECT query, answer FROM ai_search_log WHERE freshness='time_sensitive' "
+                "AND answer_kind='ok' AND first_person=0 AND excluded=0 "
+                "AND primary_ticker=? ORDER BY id DESC LIMIT ?", (entity_ticker, limit)).fetchall()
+        return [
+            f"[RECENT EVENT CONTEXT — extract only durable business facts; never "
+            f"prices, moves, or dates]\nQ: {q}\nA: {(a or '')[:600]}"
+            for q, a in rows if a
+        ]
+    except Exception:
+        return []
+
+
 def _gather_sources(entity_key: str, entity_type: str) -> tuple[str, str]:
     """Assemble the source bundle + its content hash. Ticker: desk data
     (fundamentals/analyst/insider) + KB + accumulated Q&A. Theme: KB + Q&A."""
@@ -179,6 +212,7 @@ def _gather_sources(entity_key: str, entity_type: str) -> tuple[str, str]:
             except Exception:
                 pass
         parts += _evergreen_qa(sym)
+        parts += _recent_ts_qa(sym)
         kb_q = f"{sym} business moat competitive advantage"
     else:
         name = entity_key.split(":", 1)[-1]
