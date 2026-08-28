@@ -959,7 +959,17 @@ def _guarded_pow(x: float, y: float) -> float:
         return NAN
     # Overflow, decided BEFORE computing: |x|**y overflows when y*ln|x| passes the
     # largest representable exponent.
-    if x != 0 and y * math.log(abs(x)) > _LOG_MAX:
+    # ⚰️ `>=`, NOT `>` — THE BOUNDARY WAS THE ONE CASE IT MISSED. `2.0 ** 1024.0`
+    # is the largest power of two that does NOT fit, and `1024 * log(2)` evaluates
+    # BIT-FOR-BIT EQUAL to `_LOG_MAX` in float. So `>` was false, the guard passed,
+    # and Python raised `OverflowError` — not a ``TableRefusal``, so it reached the
+    # sweep as a crash. The JS lane computes and then applies `Number.isFinite(v) ?
+    # v : NaN`, so it already answered NaN; this aligns Python TO it.
+    # ⚠️ THE COST IS ONE VALUE: an exponent landing exactly on the bound now
+    # returns NaN instead of `float_info.max`. Float rounding makes that boundary
+    # unreliable in either direction, and NaN is this engine's word for "not
+    # computable" — which is the honest answer for a number at the edge of the type.
+    if x != 0 and y * math.log(abs(x)) >= _LOG_MAX:
         return NAN
     return _finite_or_nan(float(x) ** float(y))
 
@@ -1007,9 +1017,19 @@ def _guarded_atan(x: float) -> float:
     return NAN if _isnan(x) else math.atan(x)
 
 
+#: Where ``sinh`` overflows: ``sinh(x) ≈ exp(x)/2``, so it passes the largest
+#: double at ``log(2 * max)`` — DERIVED, not rounded.
+#:
+#: ⚰️ THE BOUND WAS `_LOG_MAX + 1.0`, WHICH IS 0.307 TOO WIDE (`1 - log 2`), and
+#: every argument in that gap sailed through the guard and raised `OverflowError`
+#: out of `math.sinh` — a crash rather than a refusal. Measured: 710.47 answers,
+#: 710.48 overflows, and this constant is 710.4758600739439.
+_LOG_SINH_MAX = _LOG_MAX + math.log(2.0)
+
+
 def _guarded_sinh(x: float) -> float:
     # sinh overflows just past where exp does, symmetrically about zero.
-    if _isnan(x) or abs(x) > _LOG_MAX + 1.0:
+    if _isnan(x) or abs(x) > _LOG_SINH_MAX:
         return NAN
     return _finite_or_nan(math.sinh(x))
 
