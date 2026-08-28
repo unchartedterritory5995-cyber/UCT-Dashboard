@@ -407,6 +407,91 @@ def test_zoom_summary_path_stores_chapters_without_touching_llm_client(edu_db, c
     assert zoom.deleted == ["UUID1"]  # trashed once chapters landed
 
 
+# ---------------------------------------------------------------------------
+# 2026-08-28 — DESK_TICKER_MOMENTS_ENABLED: lets the main Zoom-path ticker call
+# be turned off (e.g. once a local subscription-backed script takes over
+# ticker-moments + polish, to stop the Railway pod's own Anthropic spend).
+# Default ON — existing behavior unchanged until an operator opts out.
+# ---------------------------------------------------------------------------
+
+def test_ticker_moments_enabled_default_on(monkeypatch):
+    monkeypatch.delenv("DESK_TICKER_MOMENTS_ENABLED", raising=False)
+    assert si._ticker_moments_enabled()
+    monkeypatch.setenv("DESK_TICKER_MOMENTS_ENABLED", "0")
+    assert not si._ticker_moments_enabled()
+
+
+def test_ticker_moments_disabled_flag_skips_the_call(edu_db, chapters_enabled, monkeypatch):
+    # generate_ticker_moments's call site already swallows ANY exception
+    # (best-effort ticker moments), so a raiser would pass whether or not the
+    # flag actually gated the call -- must use a call-counting spy instead to
+    # prove the function was never invoked (lesson_mutation_harness_needs_a_control).
+    #
+    # Also must disable the ticker-BACKFILL stage (DESK_CHAPTERS_TICKER_BACKFILL)
+    # in the same pass -- it runs after the main path in the same
+    # process_pending_session_insights() call and treats "chapters exist but
+    # ticker_moments is empty" (exactly what this flag now produces) as its
+    # own work to do, immediately re-calling generate_ticker_moments via the
+    # SAME Anthropic path this flag exists to turn off. A real deployment
+    # MUST flip both flags together or the backfill silently undoes this one.
+    monkeypatch.setenv("DESK_TICKER_MOMENTS_ENABLED", "0")
+    monkeypatch.setenv("DESK_CHAPTERS_TICKER_BACKFILL", "0")
+
+    calls = []
+    def spy(title, cues):
+        calls.append(1)
+        return [{"ticker": "NVDA", "t": 1, "note": ""}]
+    monkeypatch.setattr(si, "generate_ticker_moments", spy)
+
+    v = _seed_session_video()
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    out = si.process_pending_session_insights(zoom=zoom)
+
+    assert calls == []   # the actual proof: never invoked
+    # Chapters/headline still land free from Zoom -- only the ticker call is skipped.
+    assert any(r.get("action") == "generated" and r.get("source") == "zoom" for r in out)
+    row = edu.get_video(v["id"])
+    assert json.loads(row["ticker_moments"] or "[]") == []
+    assert json.loads(row["chapters"]) == [
+        {"t": 0, "title": "Open & Game Plan"},
+        {"t": 300, "title": "NVDA Setup"},
+    ]
+
+
+def test_ticker_moments_off_without_backfill_off_still_calls_the_api(
+        edu_db, chapters_enabled, monkeypatch):
+    """The trap itself, pinned as a regression guard: DESK_TICKER_MOMENTS_ENABLED=0
+    ALONE does not stop Anthropic spend -- the ticker-backfill stage (default
+    ON) picks up the now-empty ticker_moments in the SAME pass and calls
+    generate_ticker_moments anyway. Both flags must be set together."""
+    monkeypatch.setenv("DESK_TICKER_MOMENTS_ENABLED", "0")
+    monkeypatch.delenv("DESK_CHAPTERS_TICKER_BACKFILL", raising=False)  # stays default ON
+
+    calls = []
+    def spy(title, cues):
+        calls.append(1)
+        return [{"ticker": "NVDA", "t": 1, "note": ""}]
+    monkeypatch.setattr(si, "generate_ticker_moments", spy)
+
+    v = _seed_session_video()
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    si.process_pending_session_insights(zoom=zoom)
+
+    assert calls == [1]   # the backfill stage called it anyway -- the trap
+
+
 def test_no_summary_file_falls_back_to_generate_insights(edu_db, chapters_enabled, monkeypatch):
     calls = []
 

@@ -60,6 +60,16 @@ def is_enabled() -> bool:
     return os.environ.get("DESK_SESSION_CHAPTERS_ENABLED", "") == "1"
 
 
+def _ticker_moments_enabled() -> bool:
+    """Gate on the main Zoom-path ticker-moments call (a separate Anthropic
+    call from the free Zoom chapters). Default ON — existing behavior
+    unchanged. An operator can turn this off (alongside DESK_RECAP_POLISH=0
+    and DESK_CHAPTERS_TICKER_BACKFILL=0) once a local subscription-backed
+    script has taken over ticker-moments + polish, to stop this pod's own
+    Anthropic spend on the daily pipeline."""
+    return os.environ.get("DESK_TICKER_MOMENTS_ENABLED", "1") != "0"
+
+
 def _max_wait_secs() -> int:
     try:
         hrs = float(os.environ.get("DESK_SESSION_TRANSCRIPT_MAX_WAIT_HRS", "24"))
@@ -958,7 +968,7 @@ def _run_one_pending(v: dict, zoom, max_wait: int, now: int, results: list[dict]
         if zoom_ins:
             # 3) Ticker moments = LLM-only, best-effort, never blocking.
             ticker_moments: list[dict] = []
-            if cues:
+            if cues and _ticker_moments_enabled():
                 try:
                     ticker_moments = generate_ticker_moments(v.get("title") or "", cues)
                 except Exception as tke:
