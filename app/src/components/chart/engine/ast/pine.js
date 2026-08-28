@@ -71,12 +71,26 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
 // imports this file, so the graph stays a tree.
 import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
+// ⭐⭐ THE INTERPRETER'S OWN ARITHMETIC, BORROWED RATHER THAN COPIED — see
+// `constantValueOf`. `FN` is the shipped implementation of every table function,
+// and for a POINTWISE entry each one is documented in place as "the pointwise
+// scalar applied per bar and nothing else". Calling it on one-bar columns is
+// therefore the same number the chart draws, by construction.
+// ⚠️ NOT A CYCLE, AND CHECKED: `interpret.js` imports `parse.js`, `budget.js`,
+// `sentence.js` and `../../indicators.js`, none of which import this file; the
+// only module that imports `pine.js` is `thinkscript.js`.
+// ⛔ NOT `POINTWISE_FOR_PARITY`, whose own comment says it is exported "for the
+// cross-lane parity run, and for nothing else … nothing in the app imports it".
+// Importing it here would falsify a comment that is a claim about a run
+// (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`), and `FN` is
+// defined in terms of it anyway, so there is still exactly one authority.
+import { FN } from './interpret.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -368,6 +382,101 @@ export const PINE_CALL_SHAPES = Object.freeze({
   'dmiminusleg': { table: 'minusDI', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   'dmiadxleg': { table: 'adx', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
 })
+
+/**
+ * ⭐⭐ PINE'S OWN PARAMETER NAMES, PER FUNCTION, EACH CARRYING ITS EVIDENCE —
+ * so this table cannot grow by convention.
+ *
+ * ⛔⛔ A ROLE ORDER AND A SET OF PARAMETER NAMES ARE DIFFERENT FACTS, AND THIS
+ * FILE NEEDS BOTH BEFORE IT WILL MATCH A NAMED ARGUMENT. `PINE_CALL_SHAPES`
+ * above holds a MEASURED permutation for `ta.stoch`; nothing in it says what Pine
+ * CALLS those four parameters, and no TradingView-hosted page states them (only
+ * third-party sites do). `ta.stoch` therefore has an entry there and none here,
+ * and a named `ta.stoch(source = …)` still refuses. That asymmetry is the whole
+ * design: `ta.stoch` mapped by convention was WRONG BY 126 POINTS of a 0-100
+ * oscillator, and "source is usually first" is a convention.
+ *
+ * ⭐ THE KEY SPACE IS `PINE_CALL_SHAPES`'s — `normaliseName(base)` — so an entry
+ * that has both is looked up the same way in both, and the census in
+ * `pine.namedargs.test.js` can join them without a second normalisation.
+ *
+ * ⭐ THE STRUCTURAL SAFETY PROPERTY, ASSERTED BY THAT CENSUS: an entry here for a
+ * table function with more than one `series` slot must ALSO have a shape.
+ * Otherwise naming the arguments would be the only way to reach a role order
+ * nobody measured — the door a positional call is refused at.
+ *
+ * ⚠️ VERSION TRAPS, KNOWN AND SURVIVED RATHER THAN IGNORED. Pine v4 spells RSI's
+ * parameters `rsi(x, y)`, not `(source, length)`. `x`/`y` are absent here, so a
+ * v4 script that names them refuses BY NAME rather than being matched by
+ * position — the safe direction. And every name that IS here occupies the SAME
+ * position in v4 and v5, so one version-independent table is honest today. A
+ * version-aware table becomes necessary the day a name MOVES between versions,
+ * not merely gets renamed.
+ */
+export const PINE_ARG_NAMES = Object.freeze({
+  sma: {
+    names: ['source', 'length'],
+    evidence: 'tests/fixtures/pine_community/26-spy-to-es-qqq-to-nq.pine:47 '
+      + '+ pine-script-reference/v5/#fun_ta.sma + migration-guides/to-pine-version-5',
+  },
+  ema: {
+    names: ['source', 'length'],
+    evidence: 'pine-script-reference/v5/#fun_ta.ema + migration-guides/to-pine-version-5',
+  },
+  wma: {
+    names: ['source', 'length'],
+    evidence: 'pine-script-reference/v5/#fun_ta.wma',
+  },
+  rsi: {
+    names: ['source', 'length'],
+    evidence: 'pine-script-reference/v5/#fun_ta.rsi + migration-guides/to-pine-version-5 '
+      + '(⚠️ v4 spells these `x`, `y` — deliberately absent)',
+  },
+  crossover: {
+    names: ['source1', 'source2'],
+    evidence: 'migration-guides/to-pine-version-5 rename table: "crossover(x, y)" '
+      + '→ "ta.crossover(source1, source2)"',
+  },
+})
+
+/** ⛔⛔ NAMES THAT WERE DELIBERATELY NOT ADDED, AND WHY — because an absence is
+ *  invisible and reads as an oversight to the next reader.
+ *
+ *  `stoch` — measured role order, NO evidenced names anywhere. The one call this
+ *    change must not start accepting.
+ *  `atr`, `wpr`, `highest`, `lowest`, `max`, `min` — the v5 migration guide lists
+ *    these with EMPTY parentheses ("ta.atr()", "math.max()"), which evidences the
+ *    namespace move and nothing about parameters. No corpus call site either.
+ *  `crossunder` — its twin `ta.crossover(source1, source2)` is doc-evidenced;
+ *    assuming the pair mirrors is a guess, and it is a guess about an
+ *    ORDER-SENSITIVE function, which is the most expensive kind.
+ *  `stdev`, `change`, `nz`, and the three synthetic `dmi*` legs — no corpus named
+ *    call site and no readable TradingView signature. */
+
+/** `request.security`'s parameters, IN PINE'S ORDER.
+ *
+ *  ⭐ ONE ORDERED LIST SERVES v4 AND v5, and that is a measurement rather than an
+ *  assumption: v4's `security(symbol, resolution, expression, gaps, lookahead,
+ *  ignore_invalid_symbol)` is v5's list with the second parameter RENAMED and the
+ *  last two not yet added. A rename shares a slot; only a REORDER would force a
+ *  version-aware table, and neither version reorders.
+ *
+ *  ⛔ WHY THIS DOOR NEEDED IT AT ALL: `securityAsNode` used to read
+ *  `args.filter((a) => !a.name)` and drop every named argument on the floor, so a
+ *  fully-named request fell through to `pine:request` — "another symbol or another
+ *  timeframe is outside what one screened column reads" — a sentence that is FALSE
+ *  about a call this door provably takes when the same arguments are written in
+ *  order. A false refusal sends a member looking for a limit that does not exist.
+ *
+ *  ↳ v5: https://www.tradingview.com/pine-script-reference/v5/#fun_request.security
+ *  ↳ v4: https://www.tradingview.com/pine-script-reference/v4/#fun_security */
+const REQUEST_SECURITY_ARGS = Object.freeze([
+  'symbol', 'timeframe', 'expression', 'gaps', 'lookahead',
+  'ignore_invalid_symbol', 'currency', 'calc_bars_count',
+])
+
+/** v4's spelling for slot 1. A rename, not a reorder — see above. */
+const REQUEST_SECURITY_ALIASES = Object.freeze({ resolution: 'timeframe' })
 
 /** Pine v1–v4 spelled several of these WITHOUT a namespace; v5 moved them into
  *  one. `security(…)` in a v3 script is `request.security(…)`, and calling it
@@ -1467,6 +1576,167 @@ const cSeries = (name) => ({ type: 'series', name })
 const cOp = (name, args) => ({ type: 'op', name, args })
 const cCall = (name, args) => ({ type: 'call', name, args })
 
+/** ⭐⭐ A TRANSLATE-TIME FOLD IS A COMPUTE BUDGET, NOT JUST A DEPTH LIMIT.
+ *  A member can paste `1 + 1 + … ` ten thousand times and every term of it IS a
+ *  constant, so a fold with no ceiling would happily walk the whole thing on the
+ *  request path. Counting NODES bounds breadth and depth with one number. */
+export const MAX_FOLD_NODES = 256
+
+/** The four operators this fold applies, and NOTHING ELSE.
+ *
+ *  ⛔ DELIBERATELY NOT THE COMPARISONS OR THE LOGICALS. `interpret.js` wraps
+ *  those in `cmp` and `logical`, which encode two rulings this file must not
+ *  restate — a comparison against NaN is 0, and a logical over NaN is NaN. Plain
+ *  `+ - * /` on two finite numbers has no such ruling to get wrong, and `R1` in
+ *  `pine.window.test.js` asserts every one of these against the interpreter
+ *  evaluating the same tree, so even this much cannot drift unnoticed.
+ *
+ *  ⚠️ A WINDOW SLOT IS THE ONLY CALLER, and a window is a number of bars — a
+ *  folded `close > open` would be a 0/1 that is not a length. Widening this set
+ *  is a decision about what a fold MEANS, not a completeness exercise. */
+const FOLD_BINARY = Object.freeze({
+  '+': (a, b) => a + b,
+  '-': (a, b) => a - b,
+  '*': (a, b) => a * b,
+  '/': (a, b) => a / b,
+})
+
+/** A canonical tree that names NO bar → its scalar value; `null` when it does
+ *  not reduce to one.
+ *
+ *  ⭐⭐ THE ARITHMETIC IS THE INTERPRETER'S OWN. A call is evaluated by handing
+ *  `FN[name]` one-bar columns, so `round` here is the engine's `round` — half
+ *  AWAY FROM ZERO, the way Pine rounds and the way BOTH lanes already round —
+ *  and not `Math.round`, which rounds a half toward +∞. A translator that spelled
+ *  its own rounding would disagree with the chart on every `.5`, and the
+ *  disagreement would be invisible: the formula reads perfectly either way.
+ *
+ *  ⭐ THE FOLDABLE CALL SET IS `isPointwise`'s, DERIVED FROM THE MANIFEST. It is
+ *  exactly the set a recurrence body may call one bar at a time — `lookback: 0`,
+ *  no `forward`, every argument a `series` — which is the same question this asks:
+ *  can this call be evaluated without reading any other bar? The day the manifest
+ *  declares `floor`, this folds it with no edit here; the day a name leaves,
+ *  `R2` goes red rather than leaving the fold holding a name the engine dropped.
+ *
+ *  ⛔ EVERY NON-FINITE INTERMEDIATE FAILS CLOSED. `len / 0` is Infinity and
+ *  `sqrt(0 - len)` is NaN; both are numbers JavaScript is happy to carry and
+ *  neither is a count of bars. Declining at the node where it appears also stops
+ *  a later `nz` laundering it back into something that looks like a length.
+ *
+ *  ⛔ AN `offset` IS NULL EVEN OVER A CONSTANT CHILD. `close[1]` has a constant
+ *  index and reads a bar; the index is not the value.
+ *
+ *  ⚠️ EXPORTED FOR `pine.window.test.js`'s derivation rails (R1/R2), which drive
+ *  it directly against `interpret` on the same trees. Nothing else imports it. */
+export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
+  if (!node || typeof node !== 'object') return null
+  if (budget.left <= 0) return null
+  budget.left -= 1
+
+  if (node.type === 'num') {
+    return typeof node.value === 'number' && Number.isFinite(node.value) ? node.value : null
+  }
+
+  if (node.type === 'op') {
+    const args = node.args || []
+    if (node.name === 'u-') {
+      if (args.length !== 1) return null
+      const v = constantValueOf(args[0], budget)
+      if (v === null) return null
+      return Number.isFinite(-v) ? -v : null
+    }
+    const fn = own(FOLD_BINARY, node.name) ? FOLD_BINARY[node.name] : null
+    if (!fn || args.length !== 2) return null
+    const a = constantValueOf(args[0], budget)
+    if (a === null) return null
+    const b = constantValueOf(args[1], budget)
+    if (b === null) return null
+    const out = fn(a, b)
+    return Number.isFinite(out) ? out : null
+  }
+
+  if (node.type === 'call') {
+    const spec = own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    // ⛔ ALL THREE CONDITIONS, NOT TWO. `isPointwise` answers the manifest's
+    // question; `FN[name]` is the implementation actually shipped; the arity check
+    // stops a malformed tree reaching an implementation that would read
+    // `undefined` and answer NaN rather than refusing.
+    if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    const args = node.args || []
+    if (args.length !== spec.args.length) return null
+    const cols = []
+    for (const a of args) {
+      const v = constantValueOf(a, budget)
+      if (v === null) return null
+      cols.push([v])
+    }
+    // ⚠️ `Array.isArray` IS THE WRONG TEST HERE AND WAS THE FIRST BUG. The engine's
+    // columns are `Float64Array`s (`interpret.js::nan`), for which `Array.isArray`
+    // is FALSE — so a length check on the returned column is what actually asks
+    // "did this compute a bar?". Written out because the wrong version failed
+    // CLOSED: every call silently declined to fold and the fold looked like it
+    // simply did not support calls.
+    const out = FN[node.name](...cols)
+    const v = (out && typeof out.length === 'number' && out.length > 0) ? out[0] : NaN
+    return Number.isFinite(v) ? v : null
+  }
+
+  // `series`, `offset`, `tf`, `tf_live`, `sym`, and anything this file has never
+  // heard of. Fail closed rather than guess.
+  return null
+}
+
+/** ⭐⭐ IT CAN ONLY EVER HAND BACK AN EXACT WHOLE NUMBER. Anything else — a
+ *  fraction, a NaN, an Infinity, a negative, a bar read — returns the ORIGINAL
+ *  node, and the guard downstream refuses it with the sentence and the token it
+ *  always used. So this fold can widen what is accepted and can NEVER round a
+ *  length.
+ *
+ *  ⭐ WHY `>= 0` AND NOT `>= 1`: `interpret.js::windowLiteral` owns the "at least
+ *  1" bound and NAMES it in its own refusal. Restating it here is
+ *  `lesson_a_second_authority_over_one_value`. With `>= 0`, a folded zero reaches
+ *  the engine and is refused there — byte-identical to a WRITTEN `sma(close, 0)`,
+ *  which is measured to do exactly that today. A negative folds through `cNum` to
+ *  `u-(num n)`, which is not a `num`, so it refuses at THIS door — again
+ *  byte-identical to a written `-4`. */
+function foldWindow(node) {
+  const v = constantValueOf(node)
+  return (v !== null && Number.isInteger(v) && v >= 0) ? cNum(v) : node
+}
+
+/** The extra half of a `pine:window` sentence, for the one case where the length
+ *  DID reduce to a constant and that constant is not a whole number of bars.
+ *  Empty string for every other decline, so those keep the sentence they had.
+ *
+ *  ⭐⭐ A REFUSAL MUST NAME WHAT WOULD UNBLOCK IT, AND THIS ONE CAN NAME IT
+ *  EXACTLY. `len / 2` with `len = input(21)` is 10.5, and the member cannot see
+ *  that from their own source because `len` is an input — so the sentence prints
+ *  both the reduced expression and its value, and hands back the literal text
+ *  that works. `pine.window.test.js::U1` asserts the advice actually translates;
+ *  advice nobody can act on is worse than none.
+ *
+ *  ⛔ AND IT SAYS WHY, WITH TRADINGVIEW'S OWN RULE, because "10.5 is not a whole
+ *  number" reads like an arithmetic error to someone who believes Pine truncates
+ *  int division. It does not: their operators page states verbatim that "when
+ *  using the division operator with \"int\" operands, if the two \"int\" values
+ *  are not evenly divisible, the result of the division is always a number with a
+ *  fractional value, e.g., 5/2 = 2.5".
+ *
+ *  ⚠️ WHAT THIS SENTENCE DELIBERATELY DOES NOT DO IS PICK A ROUNDING. No
+ *  TradingView-hosted page states what `ta.sma`/`ta.wma` do with a fractional
+ *  length; rounding it here would compute a different indicator under the
+ *  member's own title, and no chart announces the substitution. */
+function fractionalWindowAdvice(node) {
+  const v = constantValueOf(node)
+  if (v === null || Number.isInteger(v)) return ''
+  let text = null
+  try { text = printFormula(node) } catch { text = null }
+  const named = text ? `\`${text}\`` : 'that length'
+  return ` — ${named} reduces to ${v}, and Pine's \`/\` on two whole numbers keeps `
+    + 'the fraction (their own docs: `5 / 2 = 2.5`), so this is not a whole number '
+    + `of bars. Write \`round(${text || '…'})\` if that is the length you mean`
+}
+
 /** Is this tree the literal `na` this translator emits — `0 / 0`?
  *
  *  ⛔ A LITERAL SHAPE ONLY, never "might be NaN at runtime". Deciding that in
@@ -2250,6 +2520,32 @@ class Resolver {
       return cOp('/', [cNum(0), cNum(0)])
     }
 
+    // ⛔⛔ THE PASTED SCRIPT'S OWN BINDING COMES FIRST, AND THE ORDER IS THE
+    // WHOLE GUARD. This lookup used to sit SEVENTEEN LINES LOWER, under the table
+    // reads below, and the cost was a silent mistranslation on the GREEN roster.
+    //
+    // The manifest's 111 scalars are SCREENER COLUMNS — our vocabulary, injected
+    // into the namespace as a convenience. They are not Pine built-ins, and a
+    // member writing Pine has no idea `nr7` or `price` means anything to us. So
+    // `nr7 = <a seven-bar narrow-range test>` followed by `plot(nr7)` resolved to
+    // the literal column `nr7`: the author's arithmetic DISCARDED and replaced
+    // with our screener's answer to a similar-sounding question, with no refusal,
+    // under their own script title, saved and scanned that way. `16-nr4-nr7`
+    // emitted a correct NR4 column beside a fabricated NR7 one in the same script.
+    //
+    // ⛔ THIS IS THE THIRD INSTANCE OF ONE DEFECT CLASS IN THIS FILE, and the
+    // first two were fixed in CALLERS rather than here, at the resolver they are
+    // special cases of: `ownSymbolNameOf` (a script binding `tickerid = 'SPY'`
+    // meant SPY) and `ownTimeframeOf` (`period = "60"` meant hourly, and was
+    // answered off daily bars). Each fix carried a comment stating this exact
+    // rule. Fixing the general case is what stops a fourth.
+    //
+    // ⭐ IT IS A REORDER, NOT A DELETION: an UNBOUND scalar still resolves to our
+    // column two lines down, because reading `plot(nr7)` as the screener's flag is
+    // a deliberate feature. Only a name the member BOUND may take it from them.
+    const bound = this.env.get(name)
+    if (bound) return this.resolveBinding(bound, node.tok, name)
+
     // A bar field the manifest declares. ⭐ READ OFF THE TABLE, not a list here.
     if (own(this.table.series, name)) return cSeries(name)
     if (own(this.table.scalars || {}, name)) return cSeries(name)
@@ -2266,10 +2562,6 @@ class Resolver {
       const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
       return cOp('/', [sum, cNum(parts.length)])
     }
-
-    // A binding from the pasted script.
-    const bound = this.env.get(name)
-    if (bound) return this.resolveBinding(bound, node.tok, name)
 
     // A dotted or namespaced built-in.
     const dot = name.indexOf('.')
@@ -2672,8 +2964,19 @@ class Resolver {
     // one, and `value` is the parsed node. Reading the wrapper as if it WERE the
     // node is how the first draft returned null for every shape, including the
     // ones it exists to take.
-    const positional = args.filter((a) => a && !a.name).map((a) => a.value)
-    if (positional.length < 3) return null
+    // ⛔⛔ THIS USED TO BE `args.filter((a) => a && !a.name)`, WHICH DROPPED EVERY
+    // NAMED ARGUMENT ON THE FLOOR. A fully-named request therefore had fewer than
+    // three arguments left, returned null, and landed on `pine:request` — "another
+    // symbol or another timeframe is outside what one screened column reads" —
+    // which is FALSE about a call this door takes happily when the identical
+    // arguments are written in order. Measured: `request.security(syminfo.ticker,
+    // timeframe.period, close)` folds to "close"; the same call fully named was
+    // refused. A member reading that sentence goes looking for a limit that does
+    // not exist. See `REQUEST_SECURITY_ARGS` for the parameter order and its source.
+    const placed = positionaliseSecurityArgs(args)
+    if (!placed) return null
+    const positional = placed.slice(0, 3)
+    if (positional.some((p) => p === undefined)) return null
 
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
@@ -2805,6 +3108,10 @@ class Resolver {
     // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
     // table itself has no such name — so a future `roc` in `closedTable` wins.
     if (!key && own(BUILTIN_CALL_TREE, bare)) {
+      // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
+      // `iff(then = close, condition = close > open, otherwise = open)` translated
+      // to `close ? close > open : open` before this line existed.
+      refuseUnmeasuredNamedArgs(pineName, args, tok, null)
       // ⛔ `.value` IS THE ARGUMENT NODE. An arg arrives as a wrapper (`{name,
       // value}`) so a named argument can be refused by name; handing the wrapper
       // to `resolve` throws, and the throw surfaces as a STATEMENT-level
@@ -2898,6 +3205,10 @@ class Resolver {
     // ⭐ AN EXACT IDENTITY BEATS A REFUSAL, and this one is keyed on the SPELLING
     // the member wrote rather than on the table's name — see `PINE_NAMESPACED_TREE`.
     if (own(PINE_NAMESPACED_TREE, pineName)) {
+      // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
+      // `ta.pivothigh(source = high, rightbars = 3, leftbars = 7)` translated to
+      // `pivothigh(high, 3, 7)[7]` before this line existed.
+      refuseUnmeasuredNamedArgs(pineName, args, tok, null)
       // ⚠️ RESOLVED HERE, because `built` above lives inside the expansion branch
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
@@ -2922,13 +3233,14 @@ class Resolver {
     const declaredArgs = Array.isArray(spec.args) ? spec.args : []
     const seriesSlots = declaredArgs.filter((a) => a === 'series').length
 
-    for (const arg of args) {
-      if (arg.name) {
-        throw new PineRefusal('pine:named-argument',
-          `${REFUSALS['pine:named-argument']} — \`${arg.name}\` on \`${pineName}\`. `
-          + `\`${key}\` takes ${signatureOf(key, spec)}`, locate(arg.tok || tok))
-      }
-    }
+    // ⭐⭐ NAMED ARGUMENTS BECOME POSITIONS HERE, AND NOWHERE ELSE. This replaced
+    // a blanket loop that refused every named argument before a single one had
+    // been looked at — safe, and too wide: it also refused the one mapping the
+    // corpus and TradingView's docs both spell out. Everything below this line is
+    // unchanged and cannot tell the result from a hand-written positional call,
+    // which is what makes "a named argument can never reach a mapping a
+    // positional call could not" a structural property rather than a promise.
+    args = positionaliseNamed(pineName, bare, key, spec, declaredArgs, shape, args, tok)
 
     // ── the fill plan ──────────────────────────────────────────────────────
     let plan
@@ -2986,6 +3298,14 @@ class Resolver {
         resolved = this.resolve(args[slot.pine].value)
       }
       if (declaredArgs[i] === 'int') {
+        // ⭐ FOLDED FIRST, THEN CHECKED BY THE RULE THAT WAS ALWAYS HERE. `len / 2`
+        // with `len = input(20)` arrives as an expression rather than a number;
+        // reducing it means the guard below — and the canonical node at the end —
+        // sees the same plain integer a written literal would have given them.
+        // `foldWindow` can only substitute an exact non-negative whole number, so
+        // everything this line does NOT accept meets the identical check, with the
+        // identical sentence and token, that it met before the fold existed.
+        resolved = foldWindow(resolved)
         // ⛔ A WINDOW MUST BE A LITERAL, AND THAT IS THE REPAINT LINTER'S RULE
         // RATHER THAN THIS MODULE'S TASTE. `lint.js::resolveDeclaration` returns
         // UNKNOWN for an `argK` that is not a `num` node, so a computed length
@@ -2994,7 +3314,8 @@ class Resolver {
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
           throw new PineRefusal('pine:window',
-            `${REFUSALS['pine:window']} — argument ${i + 1} of \`${pineName}\``,
+            `${REFUSALS['pine:window']} — argument ${i + 1} of \`${pineName}\``
+            + fractionalWindowAdvice(resolved),
             locate(src))
         }
       }
@@ -3046,6 +3367,191 @@ class Resolver {
 function signatureOf(key, spec) {
   const args = Array.isArray(spec.args) ? spec.args : []
   return `${key}(${args.join(', ')})`
+}
+
+/** The text a member wrote for one argument, for a sentence that quotes it. */
+const argText = (a) => (a && a.tok && a.tok.value !== undefined ? String(a.tok.value) : '…')
+
+/** A Pine argument list containing named arguments → the POSITIONAL list it
+ *  means. Returns `args` untouched when nothing is named.
+ *
+ *  ⭐⭐ THE POINT IS THAT IT RETURNS POSITIONS, NOT A MAPPING. Everything
+ *  downstream in `resolveTableCall` — the stale-shape check, both arity checks,
+ *  `plan = shape.build`, the `int` window rule — then runs UNCHANGED on a call it
+ *  cannot tell from one a member typed in order. So a named argument can never
+ *  reach a mapping a positional call could not reach, and if a shape is ever
+ *  removed the named form refuses at `pine:role-order` exactly like the positional
+ *  one. That is a structural guarantee rather than a rule anybody has to remember.
+ *
+ *  ⛔ IT FAILS CLOSED, AND THAT PROPERTY IS THE WHOLE FEATURE. Without a
+ *  `PINE_ARG_NAMES` entry there is no mapping, so there is a refusal — never a
+ *  match by convention. `ta.stoch` lands here.
+ *
+ *  ⚠️ ARITY IS DELIBERATELY NOT ANSWERED HERE. A hole ("`ta.sma(length = 20)`")
+ *  or a surplus falls through to the EXISTING arity check, so "how many arguments
+ *  does this take" keeps ONE authority. That is safe by construction: every
+ *  argument lands in at most one slot (a repeat is refused as a duplicate, an
+ *  unknown name is refused outright), so an incomplete fill implies
+ *  `args.length < arity` and a surplus implies `args.length > arity` — either way
+ *  the arity check fires before anything dereferences a wrapper. */
+function positionaliseNamed(pineName, bare, key, spec, declaredArgs, shape, args, tok) {
+  // (a) THE ZERO-CHANGE CONTROL PATH. A call with no named argument is handed
+  //     back byte-identical, so the overwhelming majority of scripts route
+  //     through this function and are not touched by it.
+  if (!args.some((a) => a && a.name)) return args
+
+  const firstNamed = args.find((a) => a && a.name)
+
+  // (b) NO MEASURED NAMES → REFUSE, NAMING THE UNBLOCKER.
+  const entry = own(PINE_ARG_NAMES, bare) ? PINE_ARG_NAMES[bare] : null
+  if (!entry) {
+    throw new PineRefusal('pine:named-argument',
+      `${REFUSALS['pine:named-argument']} — \`${pineName}\` has no measured parameter `
+      + `names at this door, so \`${firstNamed.name} =\` cannot be matched onto a `
+      + `position. Write its arguments in order — \`${signatureOf(key, spec)}\``,
+      locate(firstNamed.tok || tok))
+  }
+  const names = entry.names
+
+  // (c) ARITY AGREEMENT IS CHECKED, NOT TRUSTED — the same reasoning the
+  //     stale-shape check carries. A names list that no longer matches the number
+  //     of positions this door maps onto would fill the first N and drop the
+  //     rest, which is a mistranslation wearing a declaration.
+  const arity = shape ? shape.pineArity : declaredArgs.length
+  if (names.length !== arity) {
+    throw new PineRefusal('pine:role-order',
+      `${REFUSALS['pine:role-order']} — \`${pineName}\` has ${names.length} declared `
+      + `parameter name${names.length === 1 ? '' : 's'} and this door maps it onto `
+      + `${arity} position${arity === 1 ? '' : 's'} — ${signatureOf(key, spec)}`,
+      locate(tok))
+  }
+
+  const slots = new Array(names.length).fill(null)
+  let positionals = 0
+  let seenNamed = false
+  for (const a of args) {
+    if (!a) continue
+    if (!a.name) {
+      // (d) A POSITIONAL PREFIX IS FINE; A POSITIONAL AFTER A NAME IS NOT, and
+      //     that is Pine's own rule rather than this door's taste.
+      if (seenNamed) {
+        throw new PineRefusal('pine:named-argument',
+          `${REFUSALS['pine:named-argument']} — \`${argText(a)}\` is a positional `
+          + `argument after a named one on \`${pineName}\`. Pine allows dropping the `
+          + 'names off the FIRST arguments "as long as you don\'t skip any", so once '
+          + 'a name is used every later argument needs one too',
+          locate(a.tok || tok))
+      }
+      if (positionals < slots.length) slots[positionals] = a
+      positionals += 1
+      continue
+    }
+    seenNamed = true
+    // (e) A NAME THIS FUNCTION DOES NOT HAVE, and a name given twice.
+    const at = names.indexOf(a.name)
+    if (at < 0) {
+      throw new PineRefusal('pine:named-argument',
+        `${REFUSALS['pine:named-argument']} — \`${pineName}\` takes `
+        + `${names.map((n) => `\`${n}\``).join(', ')}; it has no \`${a.name}\``,
+        locate(a.tok || tok))
+    }
+    if (slots[at]) {
+      throw new PineRefusal('pine:named-argument',
+        `${REFUSALS['pine:named-argument']} — \`${a.name}\` is given twice on `
+        + `\`${pineName}\`, and a Pine call cannot include duplicate parameters`,
+        locate(a.tok || tok))
+    }
+    slots[at] = a
+  }
+
+  // (f) A HOLE OR A SURPLUS IS ARITY'S BUSINESS — see the header. Handing back
+  //     the original list means the existing check reports the count the member
+  //     actually wrote rather than a count this function invented.
+  if (positionals > slots.length) return args
+  const filled = slots.filter((s) => s !== null)
+  if (filled.length !== slots.length) return args
+  return filled
+}
+
+/** 🔴 THE EXPANSION BRANCHES MATCH NOTHING BY NAME, SO THEY REFUSE NAMES.
+ *
+ * ⛔⛔ FOUND BY A CONTROL, AND IT WAS A LIVE SILENT MISTRANSLATION. Both
+ * expansion branches read their arguments as `a.value !== undefined ? a.value : a`
+ * — which takes the VALUE off a named wrapper and then uses its WRITTEN POSITION.
+ * Measured on the build before this guard:
+ *
+ *   ta.pivothigh(source = high, rightbars = 3, leftbars = 7)
+ *       →  pivothigh(high, 3, 7)[7]      ← left and right SWAPPED, confirmed 7
+ *                                          bars late instead of 3
+ *   iff(then = close, condition = close > open, otherwise = open)
+ *       →  close ? close > open : open   ← the CONDITION and the THEN-arm
+ *                                          swapped; the test is a price, so it is
+ *                                          always true and the column answers 0/1
+ *   ta.highestbars(length = 5, source = close)
+ *       →  -highestbars(5, close)        ← a series in the int slot, because this
+ *                                          branch never reaches the window guard
+ *
+ * Each one translated, printed a plausible read-back, passed the round-trip and
+ * would have scanned. That is the `ta.stoch` failure again — a mapping by
+ * convention — reached through a different door.
+ *
+ * ⭐ THE FIX IS A REFUSAL, NOT A TABLE, because there is nothing to put in a
+ * table: no TradingView-hosted signature and no corpus call site evidences the
+ * parameter names of `roc`, `avg`, `iff`, `cross`, `linreg`, `pivothigh`,
+ * `pivotlow`, `highestbars` or `lowestbars`. When one of them IS evidenced it
+ * belongs in `PINE_ARG_NAMES` with its citation, and this guard stops applying to
+ * it — the same two-facts rule the table door uses.
+ *
+ * ⚠️ IT COSTS A CALL THAT USED TO WORK: `roc(source = close, length = 5)` in
+ * Pine's own order translated correctly, by luck rather than by measurement. A
+ * refusal that names the fix ("write its arguments in order") is the price of not
+ * relying on that luck — and the same script one argument out of order is what
+ * this is protecting. */
+function refuseUnmeasuredNamedArgs(pineName, args, tok, signature) {
+  const named = args.find((a) => a && a.name)
+  if (!named) return
+  throw new PineRefusal('pine:named-argument',
+    `${REFUSALS['pine:named-argument']} — \`${pineName}\` is rewritten into this `
+    + `engine's own vocabulary here, and nothing measures what Pine calls its `
+    + `parameters, so \`${named.name} =\` cannot be matched onto a position. Write `
+    + `its arguments in order${signature ? ` — \`${signature}\`` : ''}`,
+    locate(named.tok || tok))
+}
+
+/** `request.security(symbol = …, timeframe = …)` → the same arguments in Pine's
+ *  declared order, or `null` when this door cannot place one of them.
+ *
+ *  ⭐ NULL, NEVER A REFUSAL OF ITS OWN — `securityAsNode`'s existing contract, so
+ *  every shape it cannot take keeps the ONE sentence the `request` namespace
+ *  publishes rather than growing a second one to maintain.
+ *
+ *  ⛔ AN UNKNOWN NAME DECLINES THE WHOLE CALL, and that is a deliberate
+ *  TIGHTENING. Before this existed an unrecognised named argument was silently
+ *  DISCARDED as long as three positional ones were present — reading a request
+ *  while ignoring a parameter we cannot name is precisely the silent
+ *  mistranslation this door exists against. */
+function positionaliseSecurityArgs(args) {
+  const slots = new Array(REQUEST_SECURITY_ARGS.length).fill(undefined)
+  let positionals = 0
+  let seenNamed = false
+  for (const a of args) {
+    if (!a) continue
+    if (!a.name) {
+      if (seenNamed) return null
+      if (positionals >= slots.length) return null
+      slots[positionals] = a.value
+      positionals += 1
+      continue
+    }
+    seenNamed = true
+    const canonical = own(REQUEST_SECURITY_ALIASES, a.name)
+      ? REQUEST_SECURITY_ALIASES[a.name] : a.name
+    const at = REQUEST_SECURITY_ARGS.indexOf(canonical)
+    if (at < 0) return null
+    if (slots[at] !== undefined) return null
+    slots[at] = a.value
+  }
+  return slots
 }
 
 /** Pine built-in VARIABLES that name something with no column here. Used only to

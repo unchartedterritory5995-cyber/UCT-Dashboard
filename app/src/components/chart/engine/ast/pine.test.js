@@ -600,12 +600,29 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a plot displaced by a computed amount',
       '//@version=5\nindicator("t")\nplot(ta.sma(close, 5), offset = close > open ? 1 : 2)\n',
       'pine:plot-offset', 3, 24, 'offset'],
-    ['a length that is not a literal',
-      '//@version=5\nindicator("t")\nplot(ta.sma(close, 10 + 4))\n',
-      'pine:window', 3, 20, '10'],
-    ['a named argument onto a table position',
-      '//@version=5\nindicator("t")\nplot(ta.sma(source = close, length = 20))\n',
-      'pine:named-argument', 3, 13, 'source'],
+    // ⚰️ THIS WAS `plot(ta.sma(close, 10 + 4))` UNTIL THE WINDOW FOLD LANDED, and
+    // the swap is the point rather than a weakening. `10 + 4` IS fourteen bars —
+    // exactly what Pine computes — so refusing it was refusing arithmetic this
+    // door can do honestly. What is still refused is a length that reduces to
+    // something that is NOT a whole number of bars: Pine's `/` on two whole
+    // numbers keeps the fraction (their own docs: `5 / 2 = 2.5`), so `21 / 2` is
+    // 10.5, and no TradingView-hosted page states which whole number `ta.sma`
+    // would then use. `pine.window.test.js` owns that ruling and its ten controls;
+    // this case keeps ONE example of the guard alive in the by-token table.
+    ['a length that does not reduce to a whole number of bars',
+      '//@version=5\nindicator("t")\nplot(ta.sma(close, 21 / 2))\n',
+      'pine:window', 3, 20, '21'],
+    // ⚰️ THIS WAS `ta.sma(source = close, length = 20)` UNTIL `PINE_ARG_NAMES`
+    // landed. `ta.sma(source, length)` is now a MEASURED mapping — the corpus
+    // writes it and TradingView's reference states it — so that call translates,
+    // and the case moved to the function this change must NOT start accepting.
+    // `ta.stoch` has a measured ROLE ORDER and no evidenced parameter NAMES, and
+    // those are different facts: matching `source =` onto a position on the
+    // strength of the order is the convention that was wrong by 126 points.
+    // `pine.namedargs.test.js` carries the full control set.
+    ['a named argument onto a table position with no measured names',
+      '//@version=5\nindicator("t")\nplot(ta.stoch(source = close, high = high, low = low, length = 14))\n',
+      'pine:named-argument', 3, 15, 'source'],
     // ⚠️ THIS EXPECTED `pine:cycle` AND IT IS NOW `pine:undefined`, BECAUSE THE
     // MEANING OF THE SCRIPT CHANGED UNDER IT — not because a guard was weakened.
     // Once a binding carries the environment it was written in, `x = x + 1` reads
