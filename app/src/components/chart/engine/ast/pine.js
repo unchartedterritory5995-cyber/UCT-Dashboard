@@ -586,6 +586,27 @@ const DERIVED_SERIES = Object.freeze({
   hlcc4: ['high', 'low', 'close', 'close'],
 })
 
+/** The mean of those fields as a canonical tree, or null when the table is
+ *  missing one of them.
+ *
+ *  ⭐⭐ EXPORTED, BECAUSE THINKORSWIM SPELLS THREE OF THESE THE SAME WAY AND MEANS
+ *  THE SAME ARITHMETIC. `HL2` sat in `thinkscript.js`'s "price series this engine
+ *  keeps no field for" list and refused, while this door expanded the identical
+ *  name — two answers to one question, which is this repo's most repeated defect
+ *  arriving between two lanes rather than inside one. thinkorswim's Constants
+ *  page defines `HL2` as `(high + low) / 2` exactly as Pine's reference does, so
+ *  the expansion is the same identity read from two manuals.
+ *  ⚠️ `hlcc4` IS PINE-ONLY and stays declared here regardless: this map is what
+ *  each dialect may ASK FOR, not what both happen to share. thinkScript asks for
+ *  the three it publishes. */
+export function derivedSeriesTree(name, table) {
+  if (!own(DERIVED_SERIES, name)) return null
+  const parts = DERIVED_SERIES[name]
+  if (parts.some((p) => !own((table && table.series) || {}, p))) return null
+  const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
+  return cOp('/', [sum, cNum(parts.length)])
+}
+
 /** Pine built-ins that are not a MEAN of price series but are still an exact
  *  expansion in this table's own vocabulary.
  *
@@ -1377,6 +1398,14 @@ function readsOwnPrevious(node, name) {
 
 /** A resolved `na(self) ? SEED : UPDATE` → `{seed, update}`, or null.
  *
+ *  ⭐⭐ EXPORTED FOR `thinkscript.js`, and it is language-neutral BY CONSTRUCTION:
+ *  it reads canonical nodes and `table.functions.accum.recurrence.binds`, and
+ *  nothing Pine-shaped. Both dialects spell the seeded self-reference the same
+ *  way once translated — Pine's `na(x[1]) ? … : …` and thinkScript's
+ *  `if IsNaN(x[1]) then … else …` are the same tree — so asking it twice from two
+ *  copies is how two translators come to disagree about one engine function. It
+ *  lives here only because Pine needed it first, exactly as `forgetsItsSeed` does.
+ *
  *  ⛔ THE SEED MUST NOT ITSELF READ `self`. A first-bar value defined in terms of
  *  the value it is seeding is not a seed, and the accumulator would carry that
  *  hole forward on every re-seed — so that shape falls through to the refusal
@@ -1384,16 +1413,49 @@ function readsOwnPrevious(node, name) {
  *  ⛔ AND THE UPDATE ARM MUST READ `self`. `na(x[1]) ? a : b` with a self-free
  *  `b` is a first-bar test, not a recurrence; folding it into an accumulator
  *  would answer with `b` forever and quietly lose the first bar. */
-function seedAndUpdateOf(body, table) {
+export { containsFreeSelfSeries }
+
+export function seedAndUpdateOf(body, table) {
   if (!body || body.type !== 'op' || body.name !== '?:') return null
   const args = body.args || []
   if (args.length !== 3) return null
   const [test, seed, update] = args
   if (!test || test.type !== 'call' || test.name !== 'na') return null
-  if (!containsSelfSeries(test, table)) return null
-  if (containsSelfSeries(seed, table)) return null
-  if (!containsSelfSeries(update, table)) return null
+  if (!containsFreeSelfSeries(test, table)) return null
+  if (containsFreeSelfSeries(seed, table)) return null
+  if (!containsFreeSelfSeries(update, table)) return null
   return { seed, update }
+}
+
+/** Does this tree read a `self` that NOTHING HAS BOUND?
+ *
+ *  ⛔⛔ `containsSelfSeries` CANNOT ANSWER THIS AND THE DIFFERENCE IS A WRONG
+ *  COLUMN, not a refusal. An accumulator's body slot BINDS `self`, so a tree that
+ *  merely mentions another recurrence — `x = na(x[1]) ? 0 : someOtherAccumulator`
+ *  — reads no `self` of its own. Asking the undistinguishing question there
+ *  builds `accum(0, accum(…), 250)` whose outer body never mentions its own
+ *  state: a running value that does not run, drawn without complaint.
+ *  ⭐ THE BOUND SLOT IS READ OFF THE MANIFEST'S OWN `recurrence`, per call, so a
+ *  second recurrence function added to the table is handled the day it lands and
+ *  this file never types `accum`.
+ *  ⚠️ `forgetsItsSeed` DELIBERATELY STILL ASKS THE OTHER ONE. A nested
+ *  accumulator inside an update makes it answer NO, which over-refuses rather
+ *  than over-accepts — and its whole contract is that an unrecognised shape
+ *  answers NO. Changing it there is a separate decision with its own measurement. */
+function containsFreeSelfSeries(node, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return false
+  const bind = spec.recurrence.binds
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'series' && n.name === bind) return true
+    const args = n.args || []
+    const inner = n.type === 'call' && table.functions[n.name]
+      && table.functions[n.name].recurrence
+    if (inner) return args.some((a, i) => i !== inner.body && walk(a))
+    return args.some(walk)
+  }
+  return walk(node)
 }
 
 function containsSelfSeries(node, table) {
@@ -2482,7 +2544,7 @@ class Resolver {
         this.recurrenceColumns.set(name, built)
         return built
       }
-      if (isSelfRef && containsSelfSeries(body, this.table)) {
+      if (isSelfRef && containsFreeSelfSeries(body, this.table)) {
         const parts = seedAndUpdateOf(body, this.table)
         if (!parts) {
           // ⛔ ONE SHAPE ONLY, AND SAYING SO IS THE POINT. `na(x[1]) ? SEED :
@@ -2878,15 +2940,12 @@ class Resolver {
 
     // Pine's own derived price series, expanded to their reference definitions.
     if (own(DERIVED_SERIES, name)) {
-      const parts = DERIVED_SERIES[name]
-      for (const p of parts) {
-        if (!own(this.table.series, p)) {
-          throw new PineRefusal('pine:builtin',
-            `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
-        }
+      const tree = derivedSeriesTree(name, this.table)
+      if (!tree) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
       }
-      const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
-      return cOp('/', [sum, cNum(parts.length)])
+      return tree
     }
 
     // A dotted or namespaced built-in.

@@ -71,7 +71,10 @@
 //   * Tutorials — /center/reference/thinkScript/tutorials/{Basic,Advanced}/…
 
 import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
-import { printFormula, treeYieldsBool, forgetsItsSeed } from './pine.js'
+import {
+  printFormula, treeYieldsBool, forgetsItsSeed, seedAndUpdateOf, containsFreeSelfSeries,
+  derivedSeriesTree,
+} from './pine.js'
 
 /** guard → the sentence it always refuses with. CLOSED, and closed in two places
  *  that fail differently: `thinkscript.test.js` derives the guard strings from
@@ -310,6 +313,29 @@ export class ThinkScriptRefusal extends Error {
  *  rather than imported, because that constant is not exported and `pine.js` is
  *  another lane's file. Two translators may legitimately differ here; if they
  *  ever must not, exporting it from `pine.js` is a one-line W3b hand-back. */
+/** Does this UNRESOLVED thinkScript expression read `name`'s own previous bar?
+ *
+ *  ⚠️ THE PARSED TREE, NOT THE CANONICAL ONE — this has to be decided BEFORE
+ *  resolution, because resolution is what turns `name[1]` into `self` and it
+ *  needs to know it is inside a recurrence first. */
+function readsOwnPreviousBar(node, name) {
+  let found = false
+  const walk = (n) => {
+    if (found || !n || typeof n !== 'object') return
+    if (n.e === 'offset' && n.base && n.base.e === 'name' && key(n.base.name) === name) {
+      found = true
+      return
+    }
+    for (const k of Object.keys(n)) {
+      const v = n[k]
+      if (Array.isArray(v)) v.forEach(walk)
+      else if (v && typeof v === 'object') walk(v)
+    }
+  }
+  walk(node)
+  return found
+}
+
 export const TS_STATE_WARMUP = 250
 
 // --------------------------------------------------------------------------- //
@@ -2697,13 +2723,27 @@ class Resolver {
     this.inputs = mine
     this.lagged = false
     this.stack.push(k)
+    // ⭐⭐ THE PLAIN SELF-REFERENCE — `def x = if IsNaN(x[1]) then seed else f(x[1])`
+    // — IS `CompoundValue` WEARING THE OTHER SPELLING, and this door could not
+    // reach it: only `CompoundValue` ever set `buildingRecurrence`, so the plain
+    // form walked back into the binding being resolved and refused as a seedless
+    // recursion. It is the commonest stateful shape thinkorswim members write.
+    // ⚠️ ONE RULE, BOTH LANES: `seedAndUpdateOf` is imported from `pine.js`, which
+    // needed it first. Pine's `na(x[1]) ? … : …` and this `if IsNaN(x[1]) then …`
+    // are the SAME canonical tree, so a second copy here is how two translators
+    // come to disagree about one engine function.
+    const outerBuilding = this.buildingRecurrence
+    const selfRef = b.kind !== 'enum' && !!b.expr && readsOwnPreviousBar(b.expr, k)
+    if (selfRef) this.buildingRecurrence = k
     let value = null
     let err = null
     try {
       value = b.kind === 'enum'
         ? { ts: 'enum', family: b.family, arm: key(b.arm), arms: b.arms, tok: b.tok }
         : this.resolve(b.expr)
+      if (selfRef) value = this.foldSelfReference(value, k, b.tok || tok)
     } catch (e) { err = e }
+    this.buildingRecurrence = outerBuilding
     this.stack.pop()
     this.inputs = outerInputs
     this.lagged = outerLag
@@ -2776,6 +2816,17 @@ class Resolver {
     // binding is the one they meant.
     const engine = normaliseName(k)
     if (has(this.table.series, engine)) return cSeries(engine)
+    // ⭐⭐ THREE OF THESE ARE AN IDENTITY, NOT A MISSING FIELD. thinkorswim's own
+    // Constants page defines `HL2` as `(high + low) / 2`, `HLC3` and `OHLC4`
+    // likewise — the same definitions Pine publishes, and the sibling door has
+    // expanded them all along. Refusing them here was one question with two
+    // answers across two lanes. `derivedSeriesTree` is imported rather than
+    // copied so the arithmetic has one owner.
+    // ⚠️ THE REST OF THE SET STILL REFUSES and that is the honest half: `vwap`,
+    // `open_interest`, `imp_volatility`, `tick`, `bid` and `ask` are not derivable
+    // from a bar's five fields at all, so they keep saying so by name.
+    const derived = derivedSeriesTree(normaliseName(k), this.table)
+    if (derived) return derived
     if (TS_BUILTIN_PRICES.has(k)) throw refuse('thinkscript:builtin', tok)
     throw refuse('thinkscript:undefined', tok)
   }
@@ -3308,6 +3359,55 @@ class Resolver {
    *  the W3.5 review ruling; what would bring it back is a relaxation of
    *  `pine.js::forgetsItsSeed` — where BOTH translators read it — and that
    *  relaxation is where the mapping belongs, with its own numeric argument. */
+  /** A resolved plain self-reference → the accumulator, or a refusal that names
+   *  what would make it one.
+   *
+   *  ⛔⛔ A SEEDLESS ONE STAYS REFUSED, AND THAT IS MEASURED RATHER THAN CAUTIOUS.
+   *  It is tempting to argue that when `self` appears only in a ternary's
+   *  CONDITION the produced value never carries the seed, so any seed would do —
+   *  the note on the seedless refusal even records a measurement that looks like
+   *  it says so (`accum(0/0, close < self ? high : low, 250)` matching the
+   *  zero-seeded form on all 579 bars).
+   *  🔴 CONSTRUCTED ADVERSARIAL INPUTS BREAK IT. `close < self ? 0 : 1000000` is
+   *  the same shape and differs on 350 of 350 computable bars between a `0/0`
+   *  seed and a `1000000` one; a latch — `self > 0.5 ? 1 : (close > open ? 1 : 0)`
+   *  — does the same. The branch chains only coalesce when the arms sit near each
+   *  other, which is a property of that FORMULA and not of the shape. So the
+   *  measurement generalises to the instance it was taken on, and the refusal is
+   *  correct. Recorded here so the next reader does not re-derive the widening
+   *  from the same sentence. Rail: `thinkscript.selfref.test.js`. */
+  foldSelfReference(value, name, tok) {
+    const node = this.asNode(value, tok)
+    // ⛔ FREE, NOT MERELY PRESENT. `def x = if IsNaN(x[1]) then 0 else c` where
+    // `c` is a CompoundValue resolves to a tree that MENTIONS `self` — bound by
+    // that inner accumulator, not by this binding. This is imported from
+    // `pine.js` rather than copied so both lanes ask one question.
+    if (!containsFreeSelfSeries(node, this.table)) return value
+    const parts = seedAndUpdateOf(node, this.table)
+    if (!parts) {
+      throw new ThinkScriptRefusal('thinkscript:state',
+        `${REFUSALS['thinkscript:state']} — \`${name}\` reads its own previous bar and this `
+        + 'engine can hold that only when the script states a first-bar value; write '
+        + `if IsNaN(${name}[1]) then <firstValue> else <thisExpression>, or wrap it in `
+        + 'CompoundValue(length, thisExpression, startingValue)',
+        locate(tok))
+    }
+    if (!forgetsItsSeed(parts.update, this.table, TS_STATE_WARMUP)) {
+      throw new ThinkScriptRefusal('thinkscript:state',
+        `${REFUSALS['thinkscript:state']} — this engine's accumulator re-seeds a fixed `
+        + `number of bars back rather than running from the first bar ever drawn, and `
+        + `it cannot tell that \`${name}\` ever forgets where it started, so folding it `
+        + `would draw a rolling window over the last ${TS_STATE_WARMUP} bars`,
+        locate(tok))
+    }
+    const spec = this.table.functions.accum
+    const args = []
+    args[spec.recurrence.seed] = parts.seed
+    args[spec.recurrence.body] = parts.update
+    args[spec.recurrence.warmup] = { type: 'num', value: TS_STATE_WARMUP }
+    return { type: 'call', name: 'accum', args }
+  }
+
   selfLagOf(n, k) {
     if (!(k >= 1) || this.buildingRecurrence === null) return null
     if (!n.base || n.base.e !== 'name') return null

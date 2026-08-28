@@ -236,6 +236,13 @@ describe('the refusal vocabulary', () => {
       // wrong instrument is worse than refusing. A COMPUTED symbol reaches it.
       'def s = if close > open then "SPY" else "QQQ";\nplot p = close(symbol = s);',
       'plot p = high(period = AggregationPeriod.DAY);',
+      // ⚰️ THIS PROBE WAS `HL2` AND IT STOPPED MEASURING ANYTHING when that
+      // learned to expand: thinkorswim's Constants page defines it as
+      // `(high + low) / 2`, which is an identity, and the Pine door had expanded
+      // the same name all along. `VWAP` is a real built-in that genuinely has no
+      // field here — it cannot be derived from a bar's five — so the guard stays
+      // measured rather than dropping off the reachable list.
+      'plot p = VWAP > close;',
       'plot p = GetQuantity();',
       'plot p = GetTime() > 0;',
       'plot f = Average(close, 9);\naddOrder(OrderType.BUY_TO_OPEN, close > f);',
@@ -824,12 +831,17 @@ describe('declare, input, def and plot', () => {
   })
 
   it('⛔ a thinkorswim built-in this engine has no field for refuses as a BUILT-IN, not as a typo', () => {
-    // ⛔ `HL2` IS REAL thinkScript (`01-supertrend-mobius` uses it). Reporting
-    // "this name is used before anything gives it a value" would send a member
-    // hunting for a `def` they never omitted.
-    const r = translateThinkScript('plot p = HL2 > close;\n').refusal
+    // ⛔ `VWAP` IS REAL thinkScript. Reporting "this name is used before anything
+    // gives it a value" would send a member hunting for a `def` they never
+    // omitted; it is a built-in this engine keeps no field for, and it says so.
+    // ⚰️ THIS TEST NAMED `HL2`, WHICH NOW EXPANDS. thinkorswim publishes it as
+    // `(high + low) / 2` — an identity, and one the Pine door had been expanding
+    // all along, so refusing it here was one question with two answers across two
+    // lanes. `thinkscript.selfref.test.js` owns that half; this one keeps the
+    // guard honest with a name that really has no field.
+    const r = translateThinkScript('plot p = VWAP > close;\n').refusal
     expect(r.guard).toBe('thinkscript:builtin')
-    expect(r.token).toBe('HL2')
+    expect(r.token).toBe('VWAP')
   })
 
   it('⛔ two names defined through each other refuse as a cycle', () => {

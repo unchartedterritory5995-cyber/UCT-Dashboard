@@ -17,13 +17,13 @@
       "PaintBars=yes"
     ],
     "perOutputRefusals": {
-      "thinkscript:state": 1
+      "thinkscript:function": 1
     },
     "refusal": {
-      "guard": "thinkscript:state",
-      "line": 11,
-      "column": 21,
-      "token": "ST"
+      "guard": "thinkscript:function",
+      "line": 6,
+      "column": 17,
+      "token": "AverageType.HULL"
     },
     "downstream": null
   },
@@ -317,7 +317,7 @@
     "refusal": {
       "guard": "thinkscript:state",
       "line": 19,
-      "column": 32,
+      "column": 68,
       "token": "Go"
     },
     "downstream": null
@@ -661,8 +661,7 @@
     ],
     "perOutputRefusals": {
       "thinkscript:time": 1,
-      "thinkscript:account": 1,
-      "thinkscript:state": 1
+      "thinkscript:account": 2
     },
     "refusal": {
       "guard": "thinkscript:account",
@@ -684,6 +683,7 @@
     "thinkscript:aggregation",
     "thinkscript:block",
     "thinkscript:fold",
+    "thinkscript:function",
     "thinkscript:state",
     "thinkscript:strategy",
     "thinkscript:study-ref",
