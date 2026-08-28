@@ -1,5 +1,5 @@
 // app/src/pages/ThemeTrackerPage.jsx
-import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, memo } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
@@ -161,6 +161,31 @@ function ReturnCell({ value, baseClass, flashEnabled = true }) {
     </span>
   )
 }
+
+// Isolated search box: the instant typed value lives HERE, so pressing a key
+// re-renders only this ~1-node input — never the 112-group theme list below it.
+// The parent hears only the DEBOUNCED value (which is what the expensive filter
+// keys off), so typing stays instant no matter how large the list is.
+const ThemeSearchBox = memo(function ThemeSearchBox({ onDebounced }) {
+  const [val, setVal] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => onDebounced(val.trim()), 140)
+    return () => clearTimeout(t)
+  }, [val, onDebounced])
+  return (
+    <div className={styles.searchBar}>
+      <input
+        className={styles.searchInput}
+        placeholder="Search themes or tickers…"
+        value={val}
+        onChange={e => setVal(e.target.value)}
+      />
+      {val && (
+        <button className={styles.searchClear} onClick={() => setVal('')}>×</button>
+      )}
+    </div>
+  )
+})
 
 function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices, tintEnabled = true, showLogos = true, logoSize = 16 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
@@ -375,7 +400,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // first theme; opening another closes the previous; arrow-nav into a new
   // theme closes the old one.
   const [openTheme, setOpenTheme] = useState(null)
-  const [search, setSearch] = useState('')
   // chartPeriod is declared up here (not later in the file) because
   // toggleTheme + handleHoverSym below close over it; a `const` declared
   // *after* those would be in the temporal dead zone at render time.
@@ -468,13 +492,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     })
   }, [data, activeKey, sortDir])
 
-  // Debounce the query (mega-review: at 111 themes / ~2,050 holdings, filtering
-  // + auto-open on every keystroke made the accordion jumpy). 180ms settle.
+  // The debounced query drives the expensive filter. The instant typed value
+  // lives inside <ThemeSearchBox> (memoized) so a keystroke never re-renders
+  // this whole page — setDebouncedSearch is a stable useState setter, so the
+  // search box never re-renders because of the parent either.
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 180)
-    return () => clearTimeout(t)
-  }, [search])
 
   // Shared matcher: name/ticker/sector match on any length; the expensive
   // per-holding substring scan is gated to queries ≥ 2 chars so a single char
@@ -736,18 +758,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           ><UIcon name="gear" size={14} /></button>
         </div>
 
-        {/* Search */}
-        <div className={styles.searchBar}>
-          <input
-            className={styles.searchInput}
-            placeholder="Search themes or tickers…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
-          )}
-        </div>
+        {/* Search — isolated component; typing here doesn't re-render the list. */}
+        <ThemeSearchBox onDebounced={setDebouncedSearch} />
 
         <div className={styles.tableHeader}>
           <span className={styles.themeCol}>
