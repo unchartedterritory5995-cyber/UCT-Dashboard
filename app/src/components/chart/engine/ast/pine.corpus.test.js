@@ -332,7 +332,19 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
 describe('the whole corpus, in one number', () => {
   it('reports what fraction of real scripts this engine can run', () => {
     const translating = FILES.filter((f) => SNAPSHOT[f].translates).length
-    const columns = FILES.reduce((n, f) => n + SNAPSHOT[f].usable, 0)
+    // ⚰️ SUMMED OVER THE SCRIPTS THAT TRANSLATE, NOT OVER ALL OF THEM — THIS
+    // LINE USED TO SAY 59. A script the door refuses WHOLE still records how many
+    // columns its individual outputs produced, and this reduce counted them, so
+    // the headline "columns a member can use" included one from
+    // `19-strategy-supertrend-atr.pine`, which refuses at
+    // `pine:declaration-strategy` and reaches no member at all.
+    // ⛔ THAT IS THE EXACT INFLATION THE REST OF THIS FILE ARGUES AGAINST — the
+    // Butterworth case two blocks down ("four refusals, one hidden `hlc3`,
+    // verdict translates:true") is the same mistake one level lower. A number
+    // that answers "how much can a member DO" must be summed over the scripts a
+    // member can actually run.
+    const columns = FILES.filter((f) => SNAPSHOT[f].translates)
+      .reduce((n, f) => n + SNAPSHOT[f].usable, 0)
     // ⛔ NOT A THRESHOLD THAT ONLY GOES UP. It is pinned in BOTH directions, so a
     // change that quietly narrows coverage is as red as one that breaks a script.
     //
@@ -453,7 +465,20 @@ describe('the whole corpus, in one number', () => {
     // COMPUTED value is untouched. Eight columns inside scripts that already
     // translated — the script count could never have shown it.
     expect(translating).toBe(12)
-    expect(columns).toBe(59)
+    expect(columns).toBe(58)
+
+    // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
+    // green again the moment somebody restored the all-files reduce and the corpus
+    // happened to shift by one. This names the DIFFERENCE and its owner, so the
+    // distinction is pinned rather than the number.
+    const orphanColumns = FILES.filter((f) => !SNAPSHOT[f].translates)
+      .filter((f) => SNAPSHOT[f].usable > 0)
+      .map((f) => [f, SNAPSHOT[f].usable, SNAPSHOT[f].refusal.guard])
+    expect(orphanColumns,
+      'a REFUSED script records usable columns. They are real — its outputs did '
+      + 'translate — but no member reaches them, so they must never reach the '
+      + 'coverage number above.',
+    ).toEqual([['19-strategy-supertrend-atr.pine', 1, 'pine:declaration-strategy']])
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {

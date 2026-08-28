@@ -233,6 +233,17 @@ const OUTPUT_CALLS = Object.freeze({
   alertcondition: 'condition',
   plotshape: 'series',
   plotchar: 'series',
+  // ⭐ ONE SERIES, NOT FOUR — which is why it belongs here and `plotcandle` does
+  // not. `plotarrow(series, …)` takes a single "series int/float" and draws an up
+  // arrow where it is positive, a down arrow where it is negative, and nothing at
+  // zero or `na`. It sat in `CHART_ONLY_CALLS` beside `plotcandle` and `plotbar`
+  // under a comment reading "each needs more than one column to mean anything",
+  // which is true of those two and was never true of this one.
+  // ⚠️ THE VALUE IS THE ARROW'S OWN SERIES, and its SIGN is the whole meaning.
+  // Nothing here reads it as a direction, so a member screening on it filters the
+  // number the author computed — which is what the plot draws from and what
+  // TradingView's own screener offers for it.
+  plotarrow: 'series',
 })
 
 const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
@@ -824,18 +835,36 @@ const TYPE_WORDS = Object.freeze(new Set([
 
 /** Calls whose whole job is to paint the chart.
  *
- *  ⚠️ NOTED AS IGNORED, NOT REFUSED, AND THE REASON IS TRADINGVIEW'S OWN RULE:
- *  its help centre says the screener's filter columns come from `plot()` and
- *  `alertcondition()`, and `visuals/overview` says drawings "do not have external
- *  uses like creating alerts or exporting data". So a `bgcolor()` line changes
- *  nothing a screen could read THERE either, and refusing a script over one would
- *  refuse most published indicators.
- *  ⛔ WHETHER `plotshape`/`hline`/`fill` YIELD A COLUMN ON TRADINGVIEW IS
- *  UNDOCUMENTED — its docs group them under "plots" but the screener article names
- *  only the two. Ignoring them is the conservative reading and it is stated in the
- *  notes a member sees, rather than assumed silently in either direction. */
+ *  ⚠️ NOTED AS IGNORED, NOT REFUSED. `visuals/overview` says drawings "do not
+ *  have external uses like creating alerts or exporting data", so a `bgcolor()`
+ *  line changes nothing a screen could read on TradingView either, and refusing a
+ *  script over one would refuse most published indicators.
+ *
+ *  ⚰️⚰️ THE SENTENCE THAT USED TO SIT HERE WAS FALSE, AND IT WAS LOAD-BEARING.
+ *  It read: "WHETHER `plotshape`/`hline`/`fill` YIELD A COLUMN ON TRADINGVIEW IS
+ *  UNDOCUMENTED — its docs group them under 'plots' but the screener article names
+ *  only the two." It is documented, and the article names SEVEN. TradingView's
+ *  "Pine Screener: key features and requirements" states that to be used as a
+ *  screening filter an indicator must output at least one of `plot()`,
+ *  `plotbar()`, `plotcandle()`, `plotchar()`, `plotshape()`, `plotarrow()` or
+ *  `hline()` — or an `alertcondition()`.
+ *
+ *  ⛔ A CLAIM THAT A THING IS UNDOCUMENTED IS STILL A CLAIM, and this one was
+ *  doing real work: it is the entire justification for treating a whole family of
+ *  calls as paint. `plotshape` and `plotchar` were already read as outputs, so the
+ *  comment did not even describe the code beside it — and being written as an
+ *  admission of ignorance is exactly what stopped anyone re-checking it
+ *  (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+ *
+ *  ⭐ WHAT REMAINS IN THIS SET IS NOW A MEASURED RESIDUE, not a default:
+ *  `bgcolor`, `barcolor`, `fill` and `alert` are absent from TradingView's list
+ *  and stay paint. `hline` is on the list but draws a CONSTANT, so it would arrive
+ *  as a column that is the same number on every bar and every symbol — already
+ *  `hidden` by `readsBars`, and worth nothing to a screen. `plotcandle`/`plotbar`
+ *  are on the list and take FOUR series each; they wait for the multi-column
+ *  output shape, and refuse honestly meanwhile. */
 const CHART_ONLY_CALLS = Object.freeze(new Set([
-  'plotshape', 'plotchar', 'plotarrow', 'plotcandle', 'plotbar',
+  'plotshape', 'plotchar', 'plotcandle', 'plotbar',
   'bgcolor', 'barcolor', 'fill', 'hline', 'alert',
 ]))
 
