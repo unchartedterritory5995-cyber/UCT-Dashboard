@@ -39,3 +39,35 @@ def test_quotes_route_declared_before_slug_capture():
 def test_view_holdings_route_present():
     paths = [r.path for r in ti_router.router.routes]
     assert "/api/theme-index/{slug}/holdings" in paths
+
+
+def test_ymd_to_ms_lands_on_the_right_utc_day():
+    from datetime import datetime, timezone
+    from api.services import theme_index as ti
+    ms = ti._ymd_to_ms(20260827)
+    assert datetime.fromtimestamp(ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d") == "2026-08-27"
+
+
+def test_holding_daily_bars_reads_warm_cache_and_skips_massive(monkeypatch):
+    import datetime as _dt
+    from api.services import theme_index as ti
+    from api.services import bars_sqlite
+    today = _dt.date.today()
+    ymd = today.year * 10000 + today.month * 100 + today.day
+    monkeypatch.setattr(bars_sqlite, "get_bars",
+                        lambda s, tf, n: [(ymd, 10.0, 11.0, 9.0, 10.5, 1000)])
+    hit = {"massive": False}
+    monkeypatch.setattr(ti, "get_agg_bars",
+                        lambda *a, **k: hit.update(massive=True) or [])
+    bars = ti._holding_daily_bars("AAPL", "2020-01-01", today.isoformat())
+    assert bars and bars[0]["c"] == 10.5
+    assert hit["massive"] is False   # warm cache used → NO Massive fan-out (the speed fix)
+
+
+def test_holding_daily_bars_falls_back_to_massive_when_cold(monkeypatch):
+    from api.services import theme_index as ti
+    from api.services import bars_sqlite
+    monkeypatch.setattr(bars_sqlite, "get_bars", lambda s, tf, n: [])
+    sentinel = [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]
+    monkeypatch.setattr(ti, "get_agg_bars", lambda s, f, t: sentinel)
+    assert ti._holding_daily_bars("XYZ", "2020-01-01", "2026-01-01") == sentinel

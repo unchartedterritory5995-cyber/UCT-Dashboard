@@ -41,6 +41,38 @@ _MAX_WORKERS = 6
 _MAX_HOLDINGS = 60         # safety cap on constituents fetched per index
 _BASE = 100.0
 _CACHE_TTL = 1800          # 30 min — daily bars, cheap to re-derive
+_WARM_BARS = 620           # daily rows to pull from the shared cache (~2.4y)
+_WARM_STALE_DAYS = 5       # a cached series older than this → refetch from Massive
+
+
+def _ymd_to_ms(ymd: int) -> int:
+    """A YYYYMMDD int (how bars_sqlite stores a daily bar's ts) → unix ms at UTC
+    noon, so `_et_date_str` buckets it on the right calendar day regardless of TZ."""
+    y, m, d = ymd // 10000, (ymd // 100) % 100, ymd % 100
+    return int(datetime(y, m, d, 12, tzinfo=timezone.utc).timestamp() * 1000)
+
+
+def _holding_daily_bars(sym: str, from_date: str, to_date: str) -> list[dict]:
+    """Daily bars for ONE holding — read from the WARM shared bars cache (the same
+    SQLite the /api/bars path serves, kept fresh by the bars prewarmer + R2 bridge),
+    NOT a fresh Massive REST call. That direct-fetch fan-out (up to 60 per index) was
+    the whole reason a thematic index was slow to load. Falls back to Massive only
+    when the cache is empty or stale for this name (a thin/new ticker)."""
+    try:
+        from api.services import bars_sqlite as _sqlite
+        rows = _sqlite.get_bars(sym, "D", _WARM_BARS)   # (ts=YYYYMMDD, o,h,l,c,v)
+    except Exception:
+        rows = []
+    if rows:
+        latest = int(rows[-1][0])
+        # Fresh enough? (last daily bar within a few days — covers weekends/holidays.)
+        try:
+            stale = (date.today() - date(latest // 10000, (latest // 100) % 100, latest % 100)).days > _WARM_STALE_DAYS
+        except Exception:
+            stale = True
+        if not stale:
+            return [{"t": _ymd_to_ms(int(r[0])), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows]
+    return get_agg_bars(sym, from_date, to_date)
 
 
 def _slugify(name: str) -> str:
@@ -238,7 +270,7 @@ def get_theme_index(slug: str, tf: str = "D") -> dict:
 
     holdings_bars: dict[str, list[dict]] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=_MAX_WORKERS) as ex:
-        futs = {ex.submit(get_agg_bars, s, from_date, to_date): s for s in holdings}
+        futs = {ex.submit(_holding_daily_bars, s, from_date, to_date): s for s in holdings}
         for fut in concurrent.futures.as_completed(futs):
             s = futs[fut]
             try:
@@ -314,3 +346,44 @@ def get_index_holdings(slug: str) -> dict:
         "holdings": [{"sym": s, "weight": w} for s in holdings],
         "count": n,
     }
+
+
+# ── Prewarm (web-side) ───────────────────────────────────────────────────────
+# The theme_index cache is web-local + in-memory, so a user request that misses
+# pays the full recompute. Warming every theme on a schedule (and on boot) keeps
+# the serve path a ~1ms cache hit — instant. Cheap now that _holding_daily_bars
+# reads the warm shared bars cache instead of fanning out to Massive.
+import logging as _logging
+_log = _logging.getLogger("theme_index")
+
+
+def all_theme_slugs() -> list[str]:
+    """Every resolvable theme slug (from the pushed wire taxonomy) — the set
+    resolve_theme can actually build, so prewarming them never wastes a call."""
+    wire = _load_wire_data() or {}
+    raw = wire.get("themes", {}) or {}
+    out, seen = [], set()
+    if isinstance(raw, dict):
+        for etf_key, td in raw.items():
+            if not isinstance(td, dict):
+                continue
+            slug = _slugify(td.get("name") or etf_key)
+            if slug and slug not in seen:
+                seen.add(slug)
+                out.append(slug)
+    return out
+
+
+def prewarm_all(tf: str = "D") -> int:
+    """Compute + cache every theme's index for `tf`. Returns how many warmed.
+    Sequential (each call already uses its own bounded worker pool); exception per
+    theme is swallowed so one bad basket never aborts the sweep."""
+    n = 0
+    for slug in all_theme_slugs():
+        try:
+            r = get_theme_index(slug, tf)
+            if r and r.get("bars"):
+                n += 1
+        except Exception:
+            pass
+    return n

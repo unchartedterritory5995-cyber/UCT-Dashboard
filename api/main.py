@@ -2647,6 +2647,29 @@ async def lifespan(app: FastAPI):
         readiness.mark_done("dashboard")
         logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
 
+    # ── Thematic-index ($IDX:) prewarm — WEB-side ────────────────────────────
+    # Compute every UCT theme's equal-weight index into the (web-local, in-memory)
+    # cache so a user request is a ~1ms hit instead of a cold 60-holding recompute.
+    # Cheap now that theme_index reads the warm shared bars cache. Boot warm (~35s,
+    # after wire_data seeds) + a 15-min refresh (under the 30-min cache TTL).
+    if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
+        def _theme_index_prewarm():
+            try:
+                from api.services import theme_index as _ti
+                n = _ti.prewarm_all("D")
+                logging.getLogger(__name__).info("[startup] theme_index prewarm: %d themes warmed", n)
+            except Exception:
+                logging.getLogger(__name__).exception("[startup] theme_index prewarm failed")
+        try:
+            _t = threading.Timer(35, _theme_index_prewarm)
+            _t.daemon = True
+            _t.start()
+            _scheduler.add_job(_theme_index_prewarm, "interval", minutes=15,
+                               id="theme_index_prewarm", max_instances=1,
+                               coalesce=True, misfire_grace_time=120)
+        except Exception:
+            logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
+
     try:
         readiness.register("rs_rankings")
         _start_rs_rankings_warm_background()
