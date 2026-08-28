@@ -247,3 +247,20 @@ def test_insights_status_happy_shape_with_stubbed_service(client, monkeypatch):
     v4 = next(v for v in videos if v["id"] == 4)
     assert v4["chapters"] == 0  # malformed JSON parsed defensively -> 0, no crash
     assert v4["tickers"] == 0
+
+
+def test_insights_status_limit_query_param_overrides_the_default_8(client, monkeypatch):
+    from api.services import desk_session_insights, education_service
+    monkeypatch.setenv("PUSH_SECRET", "ppp")
+    monkeypatch.setattr(desk_session_insights, "get_insights_status", lambda: {
+        "pending": [], "recent_passes": [], "fail_streaks": {}})
+    monkeypatch.setattr(education_service, "list_videos", lambda: [
+        {"id": i, "title": f"V{i}", "meeting_uuid": f"U{i}", "insights_at": None,
+         "zoom_cleaned": 0, "chapters": None, "ticker_moments": None}
+        for i in range(1, 21)])
+
+    default = client.get("/api/desk/insights-status", headers={"Authorization": "Bearer ppp"})
+    assert len(default.json()["recent_videos"]) == 8
+
+    r = client.get("/api/desk/insights-status?limit=20", headers={"Authorization": "Bearer ppp"})
+    assert len(r.json()["recent_videos"]) == 20

@@ -418,17 +418,17 @@ def recap_source(video_id: int, request: Request):
 
 
 @router.get("/insights-status")
-async def insights_status(request: Request):
+async def insights_status(request: Request, limit: int = 8):
     """Diagnostics for the session-insights backfill pass: pending queue +
     recent pass results/errors + per-video fail streaks (all from
-    `desk_session_insights.get_insights_status()`) plus the last 8 session
-    videos' insight state. Gated by the PUSH_SECRET bearer, mirroring
-    /sessions-status exactly."""
+    `desk_session_insights.get_insights_status()`) plus the last `limit`
+    (default 8) session videos' insight state. Gated by the PUSH_SECRET
+    bearer, mirroring /sessions-status exactly."""
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
     if not expected or auth != f"Bearer {expected}":
         return Response(status_code=401)
     from api.services import desk_session_insights
     data = desk_session_insights.get_insights_status()
-    data["recent_videos"] = _recent_session_video_summaries()
+    data["recent_videos"] = _recent_session_video_summaries(limit=limit)
     return data
