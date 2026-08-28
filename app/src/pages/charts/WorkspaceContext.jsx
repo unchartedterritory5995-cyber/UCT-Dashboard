@@ -46,3 +46,9 @@ const FALLBACK = {
 export function useWorkspace() {
   return useContext(WorkspaceContext) || FALLBACK
 }
+
+// For hosts OUTSIDE the charts workspace that need to provide one real member
+// (e.g. /ai-search provides a live aiSearchBus so a new deep-link appends a
+// turn instead of remounting the widget). Spread this, override the member —
+// never hand-copy the shape (second-authority defect).
+export const WORKSPACE_FALLBACK = FALLBACK

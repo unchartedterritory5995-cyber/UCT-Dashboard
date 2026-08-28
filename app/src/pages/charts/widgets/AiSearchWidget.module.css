@@ -317,3 +317,66 @@
 :global([data-charts-theme='sunrise']) .askBtn:hover:not(:disabled) { color: #5c460f; }
 :global([data-charts-theme='sunrise']) .ticker:hover { color: #5c460f; }
 
+
+/* ── Wave-4 additions (2026-08-28) ── */
+/* Outage labels: stale last-known-good / desk-only degraded — informational gold. */
+.outageNote {
+  color: #dcbb5e; font-size: 11.5px;
+  background: rgba(220, 187, 94, 0.08); border: 1px solid rgba(220, 187, 94, 0.25);
+  border-radius: var(--radius-md); padding: 6px 9px; margin-bottom: 6px;
+}
+
+/* "Grounded on" chips — which desk feeds carried this answer. */
+.chipsRow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 7px; }
+.chipsLabel { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted, #7c8493); }
+.chip {
+  font-size: 10.5px; color: #cbb46a; background: rgba(220, 187, 94, 0.10);
+  border: 1px solid rgba(220, 187, 94, 0.22); border-radius: 999px; padding: 1px 8px;
+}
+
+/* Retry affordance inside the error banner. */
+.retryBtn {
+  margin-left: 10px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  color: var(--danger, #f87171); background: transparent;
+  border: 1px solid rgba(248, 113, 113, 0.45); border-radius: var(--radius-md);
+  padding: 2px 10px;
+}
+.retryBtn:hover:not(:disabled) { background: rgba(248, 113, 113, 0.12); }
+.retryBtn:disabled { opacity: 0.5; cursor: default; }
+
+/* Depth toggle beside Ask — reasoning tier on demand. */
+.deepToggle {
+  font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0;
+  color: var(--text-muted, #7c8493); background: transparent;
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.25));
+  border-radius: 999px; padding: 3px 10px;
+}
+.deepToggle:hover { color: #cbb46a; border-color: rgba(220, 187, 94, 0.4); }
+.deepToggleOn {
+  color: #e3c877; background: rgba(220, 187, 94, 0.14);
+  border-color: rgba(220, 187, 94, 0.5);
+}
+
+/* Quota meter — quiet counter so the daily cap is never a surprise 429. */
+.quotaNote { font-size: 10.5px; color: var(--text-muted, #7c8493); flex-shrink: 0; }
+
+/* Inline 30d sparklines under the newest answer. */
+.sparkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.sparkItem {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 11px; color: var(--text, #e5e7eb); background: rgba(148, 163, 184, 0.06);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
+  border-radius: var(--radius-md); padding: 3px 8px;
+}
+.sparkItem:hover { border-color: rgba(220, 187, 94, 0.45); }
+.sparkSym { font-weight: 700; color: #cbb46a; }
+.sparkNote { font-size: 9.5px; color: var(--text-muted, #7c8493); }
+
+/* Frozen-embed door back to a live conversation. */
+.continueRow { padding: 6px 12px 10px; }
+.continueBtn {
+  font-size: 11.5px; font-weight: 600; cursor: pointer; color: #cbb46a;
+  background: transparent; border: 1px solid rgba(220, 187, 94, 0.35);
+  border-radius: var(--radius-md); padding: 4px 10px;
+}
+.continueBtn:hover { background: rgba(220, 187, 94, 0.12); }
