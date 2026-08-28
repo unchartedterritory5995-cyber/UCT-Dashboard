@@ -34,3 +34,8 @@ def test_quotes_route_declared_before_slug_capture():
     assert "/api/theme-index/quotes" in paths
     assert "/api/theme-index/{slug}" in paths
     assert paths.index("/api/theme-index/quotes") < paths.index("/api/theme-index/{slug}")
+
+
+def test_view_holdings_route_present():
+    paths = [r.path for r in ti_router.router.routes]
+    assert "/api/theme-index/{slug}/holdings" in paths

@@ -18,9 +18,11 @@ import styles from './ScannerResults.module.css'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
-// Flag · Symbol · % Change (live) · Weight % · Industry. Sorted by weight desc so the
-// fund's biggest positions lead. Wide industry so long labels don't clip.
+// ETF: Flag · Symbol · % Change (live) · Weight % · Industry, sorted by weight desc
+// so the fund's biggest positions lead. A THEMATIC INDEX ($IDX:) is equal-weight, so
+// the weight column is uninformative — drop it and sort by the live daily move.
 const DEFAULT_COLS = { order: ['flag', 'sym', 'chg', 'weight', 'industry'], sort: { key: 'weight', dir: 'desc' }, widths: { flag: 18, industry: 200 } }
+const DEFAULT_COLS_IDX = { order: ['flag', 'sym', 'chg', 'industry'], sort: { key: 'chg', dir: 'desc' }, widths: { flag: 18, industry: 200 } }
 
 export default function EtfHoldingsResults({ sym, color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym } = useWorkspace() || {}
@@ -28,22 +30,33 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
   const scopedSymContext = useMemo(() => ({ sym: color ? groupSyms?.[color] : null, setSym }), [groupSyms, color, setSym])
 
+  // A thematic-index pseudo-ticker ("$IDX:<slug>") lists the THEME's holdings (its
+  // merged owner+engine basket) from the theme-index endpoint; a normal symbol is an
+  // ETF and lists fund holdings. Both render through the same table.
+  const isIdx = typeof sym === 'string' && sym.startsWith('$IDX:')
   const etf = (sym || '').toUpperCase()
+  const idxSlug = isIdx ? sym.slice(5).toLowerCase() : null
+  const url = isIdx
+    ? `/api/theme-index/${encodeURIComponent(idxSlug)}/holdings`
+    : (etf ? `/api/etf/holdings/${encodeURIComponent(etf)}` : null)
   const { data, mutate, isValidating } = useMobileSWR(
-    etf ? `/api/etf/holdings/${encodeURIComponent(etf)}` : null, fetcher,
+    url, fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60_000 },
   )
   const holdings = data?.holdings || null
 
   const symbols = useMemo(() => (holdings || []).map((h) => h.sym), [holdings])
   const metaOverride = useMemo(() => {
-    if (!holdings) return null
+    // Theme baskets are <= 60 symbols (under the meta-batch cap), so let the
+    // watchlist's own meta layer resolve name/sector/industry — the endpoint only
+    // carries the equal weight, which we don't display for an index.
+    if (!holdings || isIdx) return null
     const out = {}
     for (const h of holdings) {
       out[h.sym] = { weight: h.weight, name: h.name || null, sector: h.sector || null, industry: h.industry || null }
     }
     return out
-  }, [holdings])
+  }, [holdings, isIdx])
 
   // Warm the deep (zoomed-out) history for the holdings so opening one is instant.
   const _warmedRef = useRef(null)
@@ -53,9 +66,13 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
     prefetchListDeep(symbols)
   }, [symbols, etf])
 
-  const title = `${etf} Holdings`
-  const scanCriteria = useMemo(() => [`Holdings of ${etf}`, 'Live prices · weight in fund'], [etf])
-  const scanEmptyText = !data ? 'Loading…' : 'No holdings found for this ETF.'
+  const title = isIdx ? `${data?.name || 'Theme'} Index Holdings` : `${etf} Holdings`
+  const scanCriteria = useMemo(() => (
+    isIdx
+      ? [`Stocks in the ${data?.name || 'theme'} equal-weight index`, 'Live prices · updates with the Theme Tracker']
+      : [`Holdings of ${etf}`, 'Live prices · weight in fund']
+  ), [isIdx, data?.name, etf])
+  const scanEmptyText = !data ? 'Loading…' : (isIdx ? 'No holdings found for this index.' : 'No holdings found for this ETF.')
   const scanFooter = (
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? 'holding' : 'holdings'}</span>
@@ -77,7 +94,7 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
         widgetKey={widgetId}
         ephemeralCols
         scanEmptyText={scanEmptyText}
-        defaultColCfg={DEFAULT_COLS}
+        defaultColCfg={isIdx ? DEFAULT_COLS_IDX : DEFAULT_COLS}
         metaOverride={metaOverride}
         scanFooter={scanFooter}
         scanCriteria={scanCriteria}

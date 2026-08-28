@@ -45,6 +45,14 @@ def theme_index_quotes(user: dict = Depends(require_paid)):
     return svc.get_index_quotes()
 
 
+# "View Holdings" for a thematic index → the stocks in its equal-weight basket
+# (merged owner + engine membership, same as the chart). Two-segment path, so it
+# never collides with /{slug}.
+@router.get("/{slug}/holdings")
+def theme_index_holdings(slug: str, user: dict = Depends(require_paid)):
+    return svc.get_index_holdings(slug)
+
+
 @router.get("/{slug}")
 def theme_index(slug: str, tf: str = Query("D"), user: dict = Depends(require_paid)):
     return svc.get_theme_index(slug, tf=tf)

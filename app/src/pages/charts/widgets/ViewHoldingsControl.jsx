@@ -49,13 +49,15 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
   const [wlOverride, setWlOverride] = useState(null)
   const [heldEtf, setHeldEtf] = useState(null)
   const btnRef = useRef(null)
-  const symIsEtf = isEtf(sym)
-  // The panel shows the holdings of the ETF it was opened for. Follow chart changes
-  // while they stay on an ETF, but FREEZE on a non-ETF: clicking a holding navigates
-  // the chart to that stock, and the list must STAY on screen (only the × closes it).
+  // "Holdable" = an ETF OR a UCT thematic index ($IDX:<slug>); both list constituents.
+  const symIsEtf = isEtf(sym) || (typeof sym === 'string' && sym.startsWith('$IDX:'))
+  // The panel shows the holdings of the fund/index it was opened for. Follow chart
+  // changes while they stay holdable, but FREEZE on a plain stock: clicking a holding
+  // navigates the chart to that stock, and the list must STAY on screen (only ×
+  // closes it).
   useEffect(() => { if (symIsEtf) setHeldEtf(sym) }, [sym, symIsEtf])
 
-  // Hide the button on a non-ETF chart, but keep an already-OPEN panel alive so
+  // Hide the button on a plain-stock chart, but keep an already-OPEN panel alive so
   // clicking a holding (→ a stock) doesn't dismiss the list.
   if (!symIsEtf && !open) return null
 
@@ -106,7 +108,7 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
           type="button"
           className={styles.viewHoldingsBtn}
           onClick={toggle}
-          title={`View ${String(sym).toUpperCase()} holdings`}
+          title={String(sym).startsWith('$IDX:') ? 'View the stocks in this index' : `View ${String(sym).toUpperCase()} holdings`}
           aria-pressed={open}
         >
           <UIcon name="library" size={12} gold={false} />

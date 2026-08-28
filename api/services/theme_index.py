@@ -292,3 +292,25 @@ def get_index_quotes() -> dict:
             "price": None,
         }
     return {"quotes": out, "as_of": perf.get("live_as_of")}
+
+
+# ── "View Holdings" for a thematic index ─────────────────────────────────────
+# The stocks that make up the equal-weight index — the SAME merged (owner +
+# engine-overlay) basket resolve_theme feeds the chart, so it tracks whatever the
+# Theme Tracker currently holds for the theme. Equal-weight, so each carries
+# 100/N%. Names/sector/industry are left to the watchlist's own meta layer (the
+# basket is <= _MAX_HOLDINGS, under its 100-symbol cap).
+def get_index_holdings(slug: str) -> dict:
+    r = resolve_theme(slug)
+    if not r:
+        return {"slug": slug, "name": None, "holdings": [], "count": 0}
+    etf_key, td, holdings = r
+    n = len(holdings)
+    w = round(100.0 / n, 2) if n else None
+    return {
+        "slug": slug,
+        "name": td.get("name") or etf_key,
+        "sector": td.get("sector"),
+        "holdings": [{"sym": s, "weight": w} for s in holdings],
+        "count": n,
+    }
