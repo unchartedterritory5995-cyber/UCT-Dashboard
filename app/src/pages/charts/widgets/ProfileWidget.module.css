@@ -12,11 +12,17 @@
 
 
 /* Header bar: symbol + gear */
+/* Ticker/company header row — locked to the shared 34px first-header-row height so its
+   bottom lines up with the tab/search divider on Watchlist / Theme Tracker. */
 .bar {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;   /* ticker + company centered in the row (gear floats right) */
   gap: 8px;
-  padding: 6px 8px;
+  height: 34px;
+  padding: 0 28px;           /* symmetric inset so the centered block clears the gear */
+  box-sizing: border-box;
   background: transparent;
   border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
@@ -45,7 +51,10 @@
   min-width: 0;
 }
 .gearBtn {
-  margin-left: auto;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -79,7 +88,9 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  /* Brighter (strong chrome) — the muted chrome dims to a hard-to-read grey on a
+     custom navy/surface canvas. */
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -103,7 +114,7 @@
   font-weight: 700;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   margin-bottom: 7px;
 }
 .earnTable {
@@ -117,7 +128,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   padding: 0 0 6px;
 }
 .earnTable td {
@@ -127,7 +138,7 @@
 }
 .thLeft, .tdLeft { text-align: left; }
 .thNum, .tdNum { text-align: right; padding-left: 8px; }
-.tdLeft { color: var(--prof-chrome, var(--text-muted, #9b9482)); }
+.tdLeft { color: var(--prof-chrome-strong, var(--text-muted, #cfcac0)); }
 
 /* Up / down / neutral coloring for the performance stat values.
    Fallback is the canonical token var(--ut-green-bright) (dark #34d17c), and
@@ -184,7 +195,7 @@
 }
 .keyLabel {
   font-size: 10.5px;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   white-space: nowrap;
 }
 .keyVal {

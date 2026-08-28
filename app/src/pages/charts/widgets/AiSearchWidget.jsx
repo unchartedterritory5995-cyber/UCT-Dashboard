@@ -263,7 +263,10 @@ function renderRich(text, onTicker, cites) {
   })
 }
 
-function AnswerBody({ text, onTicker, cites }) {
+// Exported: the Deep Research panel renders finished reports with the same
+// subset renderer (headers/bullets/bold/tickers/[n] cites) so the two surfaces
+// can never drift on what answer markdown means.
+export function AnswerBody({ text, onTicker, cites }) {
   const lines = String(text || '').split('\n')
   return (
     <>
@@ -291,9 +294,46 @@ function AnswerBody({ text, onTicker, cites }) {
   )
 }
 
+// One-tap confirm for a server-proposed action. The server NEVER auto-creates
+// — this button is the member's consent, posting to the existing alerts API.
+function ProposalChip({ proposal }) {
+  const [state, setState] = useState('idle')   // idle | busy | done | error
+  if (!proposal || proposal.kind !== 'price_alert') return null
+  const label = `Set alert: ${proposal.sym} ${proposal.direction} $${proposal.price}`
+  const confirm = () => {
+    setState('busy')
+    try {
+      Promise.resolve(fetch('/api/watchlist-alerts', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sym: proposal.sym, target_price: proposal.price,
+                               direction: proposal.direction }),
+      }))
+        .then((r) => setState(r?.ok ? 'done' : 'error'))
+        .catch(() => setState('error'))
+    } catch { setState('error') }
+  }
+  if (state === 'done') {
+    return <span className={styles.proposalDone}><UIcon name="check" size={11} /> Alert set — {proposal.sym} {proposal.direction} ${proposal.price}</span>
+  }
+  return (
+    <button type="button" className={styles.proposalBtn} onClick={confirm}
+      disabled={state === 'busy'}
+      title="Create this price alert (delivered via bell, email and Discord per your settings)">
+      <UIcon name="bell" size={11} /> {state === 'error' ? `Retry — ${label}` : label}
+    </button>
+  )
+}
+
+// Read an answer aloud with the browser's own voice — zero backend, and the
+// same accessibility door the transcript player already opens elsewhere.
+const ttsAvailable = () => {
+  try { return typeof window !== 'undefined' && !!window.speechSynthesis } catch { return false }
+}
+
 // One completed Q/A turn in the conversation thread. Follow-ups + the compliance
 // line render only on the latest turn (isLast) so a long thread stays clean.
-function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow, readOnly = false }) {
+function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, onFollow, readOnly = false, speakingId = null, onSpeak = null }) {
   const chips = groundingChips(entry.grounding)
   return (
     <div className={styles.exchange}>
@@ -329,10 +369,18 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
         </div>
       )}
 
+      {isLast && !readOnly && <ProposalChip proposal={entry.proposal} />}
+
       <div className={styles.answerActions}>
         <button className={styles.actionBtn} onClick={() => onCopy(entry)} title="Copy answer text">
           {copied ? 'Copied ✓' : 'Copy'}
         </button>
+        {onSpeak && ttsAvailable() && (
+          <button className={styles.actionBtn} onClick={() => onSpeak(entry)}
+            title={speakingId === entry.id ? 'Stop reading' : 'Read this answer aloud'}>
+            {speakingId === entry.id ? 'Stop' : 'Listen'}
+          </button>
+        )}
         {!readOnly && (
           <button className={styles.actionBtn} onClick={() => onSave(entry)} title="Save this answer (reopen it later)">
             {isSaved ? 'Saved ✓' : 'Save'}
@@ -469,6 +517,7 @@ export default function AiSearchWidget({
   const [limitMsg, setLimitMsg] = useState(null)
   const [phase, setPhase] = useState(0)
   const [copiedId, setCopiedId] = useState(null)
+  const [speakingId, setSpeakingId] = useState(null)   // answer being read aloud
   const [saved, setSaved] = useState(loadSaved)   // answers pinned to localStorage (+ server sync)
   const [savedOpen, setSavedOpen] = useState(false)   // saved list visible mid-thread
   const [pending, setPending] = useState(null)   // question in flight (shown at the tail)
@@ -563,6 +612,7 @@ export default function AiSearchWidget({
       grounding: d.grounding || null,   // which desk feeds grounded this answer (chips)
       stale: !!d.stale,         // outage: last-known-good served, clearly labeled
       degraded: !!d.degraded,   // outage: desk-data-only synthesis, clearly labeled
+      proposal: d.proposal || null,   // one-tap action ("set alert NVDA above 190")
     }
     if (d.quota && Number.isFinite(d.quota.used)) setQuota(d.quota)
     askedRef.current = true   // a LIVE turn — this conversation may persist now
@@ -721,6 +771,36 @@ export default function AiSearchWidget({
 
   // Follow-ups run directly; keep focus in the (bottom) ask box for the next one.
   const askFollowUp = (q) => { run(q); inputRef.current?.focus() }
+
+  // Read-aloud: browser speechSynthesis, one answer at a time, toggles off on
+  // a second tap. speechSynthesis is a BROWSER-GLOBAL queue — the unmount
+  // cleanup cancels only when THIS widget owns the active utterance (a ref,
+  // because the []-dep cleanup closure would only ever see the initial state),
+  // so closing widget B never cuts widget A (or Compass) off mid-sentence.
+  const speakingIdRef = useRef(null)
+  const speakExchange = useCallback((entry) => {
+    try {
+      const synth = window.speechSynthesis
+      if (!synth) return
+      if (speakingId === entry.id) {
+        synth.cancel(); setSpeakingId(null); speakingIdRef.current = null; return
+      }
+      synth.cancel()
+      const u = new SpeechSynthesisUtterance(plainAnswer(entry.answer))
+      const clear = () => {
+        setSpeakingId((cur) => (cur === entry.id ? null : cur))
+        if (speakingIdRef.current === entry.id) speakingIdRef.current = null
+      }
+      u.onend = clear
+      u.onerror = clear
+      setSpeakingId(entry.id)
+      speakingIdRef.current = entry.id
+      synth.speak(u)
+    } catch { /* noop */ }
+  }, [speakingId])
+  useEffect(() => () => {
+    try { if (speakingIdRef.current != null) window.speechSynthesis?.cancel() } catch { /* noop */ }
+  }, [])
 
   const copyExchange = useCallback((entry) => {
     // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
@@ -976,6 +1056,8 @@ export default function AiSearchWidget({
             isSaved={saved.some((s) => s.q === entry.q)}
             onFollow={askFollowUp}
             readOnly={readOnly}
+            speakingId={speakingId}
+            onSpeak={speakExchange}
           />
         ))}
 
