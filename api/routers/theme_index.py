@@ -37,6 +37,22 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+# Declared BEFORE /{slug} so "quotes" isn't captured as a theme slug. Paid — same
+# taxonomy-derived data as the chart. Feeds the "UCT Thematic Indexes" watchlist
+# (name + live daily %). Free users fall back to a slug-derived name, no %.
+@router.get("/quotes")
+def theme_index_quotes(user: dict = Depends(require_paid)):
+    return svc.get_index_quotes()
+
+
+# "View Holdings" for a thematic index → the stocks in its equal-weight basket
+# (merged owner + engine membership, same as the chart). Two-segment path, so it
+# never collides with /{slug}.
+@router.get("/{slug}/holdings")
+def theme_index_holdings(slug: str, user: dict = Depends(require_paid)):
+    return svc.get_index_holdings(slug)
+
+
 @router.get("/{slug}")
 def theme_index(slug: str, tf: str = Query("D"), user: dict = Depends(require_paid)):
     return svc.get_theme_index(slug, tf=tf)

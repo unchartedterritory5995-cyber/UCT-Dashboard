@@ -83,6 +83,9 @@ def _load_committed():
                         })
         except Exception:
             continue
+    # After the file's index-component lists so it renders inside that section
+    # (picker groups by category, first-seen order).
+    out.extend(_theme_index_lists())
     out.extend(_breadth_lists())
     out.extend(sunday_scans_specs())
     return out
@@ -285,6 +288,48 @@ def _breadth_lists():
                 "tickers": [s.upper() for s in syms],
             })
         return out
+    except Exception:
+        return []
+
+
+_THEME_INDEX_CATEGORY = "UCT Index Components"
+_THEME_INDEX_LIST_NAME = "UCT Thematic Indexes"
+_THEME_INDEX_LIST_DESC = ("Every UCT thematic index as an equal-weight index — click "
+                          "any to open its chart. Live daily % for paid members.")
+
+
+def _theme_index_lists():
+    """One list of every UCT thematic index ($IDX:<slug>), grouped under UCT Index
+    Components. Built from the STABLE owner taxonomy (themes_taxonomy.json) — NOT
+    theme_db (which folds in the drifting engine overlay), so the membership doesn't
+    change between boots and trigger a self-heal rebuild every time. Tickers are
+    uppercased to match how watchlist_service.bulk_add_items stores them (so the
+    seed's drift check sees no change)."""
+    try:
+        import json as _json
+        import re as _re
+        from api.services.theme_db import _find_taxonomy_file
+        path = _find_taxonomy_file()
+        if not path:
+            return []
+        with open(path, encoding="utf-8") as fh:
+            tax = _json.load(fh)
+        seen, tickers = set(), []
+        for t in tax.get("themes", []) or []:
+            name = str(t.get("name") or "").strip()
+            slug = _re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+            if not slug or slug in seen:
+                continue
+            seen.add(slug)
+            tickers.append(("$IDX:" + slug).upper())
+        if not tickers:
+            return []
+        return [{
+            "name": _THEME_INDEX_LIST_NAME,
+            "desc": _THEME_INDEX_LIST_DESC,
+            "category": _THEME_INDEX_CATEGORY,
+            "tickers": tickers,
+        }]
     except Exception:
         return []
 

@@ -260,3 +260,57 @@ def get_theme_index(slug: str, tf: str = "D") -> dict:
     }
     cache.set(cache_key, result, ttl=_CACHE_TTL)
     return result
+
+
+# ── Batch quotes for the "UCT Thematic Indexes" watchlist ────────────────────
+# Every theme → {name, change_pct (live 1d), price} keyed by the $IDX:<slug>
+# pseudo-ticker the watchlist rows and chart use. Reads the already-cached,
+# live-overlaid theme-performance snapshot so it costs no fetch. `price` is None:
+# a synthetic index has no traded level — the daily % IS the performance we show
+# (same figure the Theme Tracker displays).
+def _theme_1d_return(t: dict):
+    gr = t.get("group_return")
+    if isinstance(gr, dict) and isinstance(gr.get("1d"), (int, float)):
+        return gr["1d"]
+    vals = [h.get("returns", {}).get("1d") for h in (t.get("holdings") or [])]
+    vals = [v for v in vals if isinstance(v, (int, float))]
+    return round(sum(vals) / len(vals), 2) if vals else None
+
+
+def get_index_quotes() -> dict:
+    from api.services import theme_performance
+    perf = theme_performance.get_theme_performance()
+    out: dict[str, dict] = {}
+    for t in perf.get("themes", []):
+        name = str(t.get("name") or "").strip()
+        slug = _slugify(name)
+        if not slug or ("$IDX:" + slug) in out:
+            continue
+        out["$IDX:" + slug] = {
+            "name": f"{name} Index",
+            "change_pct": _theme_1d_return(t),
+            "price": None,
+        }
+    return {"quotes": out, "as_of": perf.get("live_as_of")}
+
+
+# ── "View Holdings" for a thematic index ─────────────────────────────────────
+# The stocks that make up the equal-weight index — the SAME merged (owner +
+# engine-overlay) basket resolve_theme feeds the chart, so it tracks whatever the
+# Theme Tracker currently holds for the theme. Equal-weight, so each carries
+# 100/N%. Names/sector/industry are left to the watchlist's own meta layer (the
+# basket is <= _MAX_HOLDINGS, under its 100-symbol cap).
+def get_index_holdings(slug: str) -> dict:
+    r = resolve_theme(slug)
+    if not r:
+        return {"slug": slug, "name": None, "holdings": [], "count": 0}
+    etf_key, td, holdings = r
+    n = len(holdings)
+    w = round(100.0 / n, 2) if n else None
+    return {
+        "slug": slug,
+        "name": td.get("name") or etf_key,
+        "sector": td.get("sector"),
+        "holdings": [{"sym": s, "weight": w} for s in holdings],
+        "count": n,
+    }

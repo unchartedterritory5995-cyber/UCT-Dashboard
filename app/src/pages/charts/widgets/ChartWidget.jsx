@@ -18,7 +18,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
-import { WORKSPACE_MENU_TYPES, labelMap } from '../../../widgets/registry'
+import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
@@ -471,10 +471,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
                 />
               )}
-              {/* ETF-only: takes the (absent) leverage pill's seat and opens a floating
-                  live watchlist of the fund's holdings. Mutually exclusive with the
-                  leverage pill — a symbol is a stock-with-family OR an ETF, never both. */}
-              {!isThemeIndex && <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />}
+              {/* ETF or UCT thematic index ($IDX:): opens a floating live watchlist of
+                  the fund/index constituents (a thematic index lists the theme's merged
+                  basket, which tracks the Theme Tracker). ViewHoldingsControl decides
+                  whether to render based on the symbol. */}
+              <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (
@@ -519,7 +520,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                       className={styles.chartCtxItem}
                       onClick={() => { floatNewWidget?.(t, { x: ctxMenu.rawX, y: ctxMenu.rawY }); closeCtx() }}
                     >
-                      <UIcon name="plus" size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
+                      <UIcon name={catalogMeta(t).icon} size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
                     </button>
                   ))}
                 </div>

@@ -42,11 +42,15 @@ function dark(id, name, p) {
     tokens: {
       '--bg': p.bg, '--bg-surface': p.surface, '--bg-elevated': p.elevated,
       '--bg-hover': p.hover, '--border': p.border, '--border-accent': p.borderAccent,
-      '--text': p.text, '--text-muted': p.muted, '--text-bright': p.bright,
-      '--text-heading': p.heading,
+      // OWNER DECISION (2026-08-27): dark themes INHERIT the base bright text tokens
+      // (tokens.css :root — --text #f0efea / --text-bright #f8f7f3 / --text-heading
+      // #fff / --text-muted #cfcac0) instead of each setting its own muted grey, so
+      // body/nav text stands out just as bright as on Graphite/OLED across EVERY
+      // theme. Themes now vary bg/surface/border/accent only. Restore per-theme text
+      // by re-adding '--text': p.text etc. here (p.text/muted/bright/heading are still
+      // supplied in each theme's palette).
       // OWNER DECISION (2026-08-24): the app accent is PINNED to the warm brand
-      // gold on every theme (themes vary bg/text tones only). Was p.accent — the
-      // per-theme accent. Restore per-theme accents by swapping '#dcbb5e' → p.accent.
+      // gold on every theme. Restore per-theme accents by swapping '#dcbb5e' → p.accent.
       ...accentVars('#dcbb5e', 0.12, 0.30),
     },
   }
