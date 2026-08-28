@@ -168,6 +168,74 @@ function DeepResearchPanel({ onTicker }) {
  * Ticker clicks in answers load the symbol on the mobile chart: the charts
  * phone fallback reads localStorage['charts_mobile_sym'] on mount.
  */
+/** Standing briefings — list / pause / delete. Creation happens through the
+ * ask box's proposal chip ("brief me on CRM every morning"). */
+function BriefingsRail() {
+  const [open, setOpen] = useState(false)
+  const [rows, setRows] = useState([])
+  const refresh = useCallback(() => {
+    try {
+      Promise.resolve(fetch('/api/ai-search/briefings', { credentials: 'include' }))
+        .then((r) => (r?.ok ? r.json() : null))
+        .then((d) => { if (Array.isArray(d?.briefings)) setRows(d.briefings) })
+        .catch(() => {})
+    } catch { /* noop */ }
+  }, [])
+  useEffect(() => { refresh() }, [refresh])
+  // The proposal chip (inside the widget) creates briefings — it announces via
+  // a window event so this rail appears/refreshes without a page reload.
+  useEffect(() => {
+    const onChanged = () => refresh()
+    window.addEventListener('ais:briefings-changed', onChanged)
+    return () => window.removeEventListener('ais:briefings-changed', onChanged)
+  }, [refresh])
+  const toggle = (b) => {
+    try {
+      Promise.resolve(fetch(
+        `/api/ai-search/briefings/${encodeURIComponent(b.briefing_id)}/toggle?enabled=${b.enabled ? 'false' : 'true'}`,
+        { method: 'POST', credentials: 'include' },
+      )).then(() => refresh()).catch(() => {})
+    } catch { /* noop */ }
+  }
+  const remove = (b) => {
+    try {
+      Promise.resolve(fetch(`/api/ai-search/briefings/${encodeURIComponent(b.briefing_id)}`, {
+        method: 'DELETE', credentials: 'include',
+      })).then(() => refresh()).catch(() => {})
+    } catch { /* noop */ }
+  }
+  if (!rows.length) return null
+  return (
+    <div className={styles.deepBar}>
+      <button type="button" className={styles.historyToggle} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        My briefings ({rows.filter((b) => b.enabled).length}) {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div className={styles.deepPanel}>
+          {rows.map((b) => (
+            <div key={b.briefing_id} className={styles.historyRow} style={{ cursor: 'default' }}>
+              <span className={styles.historyTitle}>
+                {b.sym ? `${b.sym} · ` : ''}{b.query}
+              </span>
+              <span className={styles.historyMeta}>
+                {b.cadence === 'postmarket' ? 'each close' : 'each morning'}
+                {b.last_status ? ` · ${b.last_status}` : ''}
+              </span>
+              <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+                <button type="button" className={styles.deepDelete} onClick={() => toggle(b)}>
+                  {b.enabled ? 'Pause' : 'Resume'}
+                </button>
+                <button type="button" className={styles.deepDelete} onClick={() => remove(b)}>Delete</button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 export default function AiSearchPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -256,6 +324,7 @@ export default function AiSearchPage() {
   return (
     <div className={styles.page}>
       <DeepResearchPanel onTicker={onTicker} />
+      <BriefingsRail />
       {threads.length > 0 && (
         <div className={styles.historyBar}>
           <button

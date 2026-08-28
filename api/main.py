@@ -5124,6 +5124,21 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="8,9,11,16,17,20", minute=35, timezone=_ET),
                 id="earnings_analysis_warm", max_instances=1, replace_existing=True)
 
+        # -- AI Search member briefings (2026-08-28) ------------------------
+        # Standing questions ("brief me on CRM every morning") answered through
+        # the ask box's grounded fast path and delivered via the alert channels.
+        # Inert until a member creates one; each pass is bounded (200) and
+        # per-briefing isolated. Premarket lands AFTER the 7:35 wire push so
+        # briefs ride fresh desk data; postmarket after the close prints.
+        if os.environ.get("AI_SEARCH_BRIEFINGS_ENABLED", "1").lower() in ("1", "true", "yes"):
+            from api.services.ai_search_briefings import run_due as _ais_brief_run
+            _scheduler.add_job(lambda: _ais_brief_run("premarket"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour=8, minute=20, timezone=_ET),
+                id="ai_search_briefings_premarket", max_instances=1, replace_existing=True)
+            _scheduler.add_job(lambda: _ais_brief_run("postmarket"),
+                trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=45, timezone=_ET),
+                id="ai_search_briefings_postmarket", max_instances=1, replace_existing=True)
+
         # -- Earnings wire detector (Phase 1) -------------------------------
         # Ships DARK. Polls one full-market snapshot per tick inside the print
         # windows and upserts detected prints; GET /api/calendar/wire only reads

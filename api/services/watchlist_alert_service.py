@@ -318,6 +318,7 @@ def deliver_alert_payload(
     message: str,
     source: str = "indicator_alert",
     extra_data: dict | None = None,
+    severity: str = "warning",
 ) -> dict:
     """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
 
@@ -400,7 +401,11 @@ def deliver_alert_payload(
             source,
             title,
             message,
-            severity="warning",
+            # severity is the Discord gate (add_alert fires the global admin
+            # webhook on warning/critical only) — bulk member content like the
+            # AI briefings passes "info" so 200 personalized briefs never flood
+            # the admin channel (2026-08-28 review).
+            severity=severity,
             data=data,
             user_id=user_id,
             channels=channels,
@@ -433,9 +438,13 @@ def deliver_alert_payload(
             # No address on file. Nothing was attempted and nothing failed.
             channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
         else:
+            # LLM/web-derived text now flows through here (AI briefings) —
+            # escape before interpolating into markup ('P/E <20' used to
+            # swallow the rest of the email as a bogus tag).
+            import html as _html
             html = _wrap_html(f"""
-                <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{title}</h2>
-                <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{message}</p>
+                <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{_html.escape(title)}</h2>
+                <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{_html.escape(message)}</p>
                 <p style="color:#6b6a60;font-size:12px;margin:0;">
                     Manage your alerts from the chart toolbar.
                 </p>
