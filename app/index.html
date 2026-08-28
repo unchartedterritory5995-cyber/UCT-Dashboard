@@ -6,6 +6,23 @@
 <html lang="en" data-theme="oled">
   <head>
     <meta charset="UTF-8" />
+    <!-- No-flash theme: replay the last resolved app theme (data-theme base +
+         inline token bag, cached by components/Layout.jsx via writeThemeCache)
+         BEFORE first paint, so a Graphite/uct: user never sees the OLED default
+         flash while prefs load from the server. Dumb applier — theme logic lives
+         in styles/appThemes.js. Falls back to the html data-theme when uncached. -->
+    <script>
+      (function () {
+        try {
+          var c = JSON.parse(localStorage.getItem('uct.appTheme.v1') || 'null');
+          if (c && c.dataTheme) {
+            var el = document.documentElement;
+            el.setAttribute('data-theme', c.dataTheme);
+            if (c.vars) for (var k in c.vars) el.style.setProperty(k, c.vars[k]);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <!-- interactive-widget=resizes-content: when the soft keyboard opens it shrinks
          the layout viewport (and 100dvh) instead of overlaying content, so sticky
          footers / submit buttons in forms stay above the keyboard on mobile. -->

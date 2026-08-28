@@ -13,7 +13,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -142,14 +142,16 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
   if (!stored || !stored.id) return opts
   let theme = CHART_THEME_BY_ID[stored.id]
   if (!theme) return opts
-  // When the seed is DERIVED from the current app theme (not an explicit "apply
-  // this chart theme to all widgets"), non-chart widgets adopt the app theme's
-  // SURFACE color (sidebar/header tone) as their canvas so they stand off the page
-  // background instead of blending in. Charts keep their own chart-canvas; an
-  // explicit gallery pick (no `appSurface`) keeps the chart theme's exact bg.
-  if (stored.appSurface && type !== 'chart') {
+  // Canvas = the app theme's SURFACE tone (sidebar/header color) so EVERY widget —
+  // charts included — stands off the page background instead of blending in.
+  if (stored.appSurface) {
+    // Seed derived from the CURRENT app theme → use that app theme's surface.
     const surf = appThemeSurface(stored.appSurface)
     if (surf) theme = { ...theme, bg: surf.bg, bgGradient: null }
+  } else {
+    // Seed from a layout theme set via the gallery → if it mirrors an app theme
+    // (Graphite/Slate/Carbon/Navy…), still use the app surface as the canvas.
+    theme = themeWithAppSurface(theme)
   }
   if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
   if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
@@ -1208,8 +1210,11 @@ export default function ChartsWorkspace() {
   // chart_settings blob is the SEED an un-customized surface inherits, so an
   // unedited widget keeps the user's indicators/timeframes/layout — only its look
   // changes. Same one-writer discipline as applyTfToCharts (goes through layout).
-  const applyThemeToAllCharts = useCallback((theme) => {
-    if (!theme) return
+  const applyThemeToAllCharts = useCallback((rawTheme) => {
+    if (!rawTheme) return
+    // An app-mirrored chart theme (Graphite/Slate/Carbon/Navy…) uses the app SURFACE
+    // as the chart canvas; other chart themes keep their own designed background.
+    const theme = themeWithAppSurface(rawTheme)
     const seed = mergeChartSettings(prefs.chart_settings)
     setLayout(prev => {
       const widgets = prev.widgets.map(w => {
@@ -1223,7 +1228,7 @@ export default function ChartsWorkspace() {
       // Remember this as the default look for NEW chart widgets — stored ON THE LAYOUT
       // (not a global pref) so a theme picked here never leaks to another board. Set
       // even when no chart changed, so an empty layout remembers the pick for its first.
-      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'charts' } }
+      const next = { ...prev, widgets, layoutTheme: { id: rawTheme.id, scope: 'charts' } }
       scheduleSave(next)
       return next
     })
@@ -1235,8 +1240,11 @@ export default function ChartsWorkspace() {
   // breadth get their canvas + text + up/down + grid/tint; news/profile/alerts/
   // calendar/optionsflow/aisearch get canvas + text. Walks base widgets, their
   // chart tabs (inside patchWidgetOptsWithTheme), and widget-tabs (wtabs).
-  const applyThemeToAllWidgets = useCallback((theme) => {
-    if (!theme) return
+  const applyThemeToAllWidgets = useCallback((rawTheme) => {
+    if (!rawTheme) return
+    // An app-mirrored chart theme (Graphite/Slate/Carbon/Navy…) uses the app SURFACE
+    // as each widget's canvas; other chart themes keep their own designed background.
+    const theme = themeWithAppSurface(rawTheme)
     const seed = mergeChartSettings(prefs.chart_settings)
     setLayout(prev => {
       const widgets = prev.widgets.map(w => {
@@ -1248,7 +1256,7 @@ export default function ChartsWorkspace() {
       })
       // Remember this as the layout's default look for EVERY new widget — stored ON THE
       // LAYOUT so it stays scoped to this board and never leaks to another.
-      const next = { ...prev, widgets, layoutTheme: { id: theme.id, scope: 'widgets' } }
+      const next = { ...prev, widgets, layoutTheme: { id: rawTheme.id, scope: 'widgets' } }
       scheduleSave(next)
       return next
     })
@@ -1406,12 +1414,12 @@ export default function ChartsWorkspace() {
       if (!storedTheme) {
         let cid = appThemeToChartTheme(themeRef.current)
         const surf = appThemeSurface(themeRef.current)
-        // Non-chart widgets still theme under an app theme with NO matching chart
-        // theme (e.g. Carbon): a family default drives the ink/up-down mapping; the
-        // canvas is overridden to the app surface below. Charts keep prior behavior.
-        if (!cid && surf && type !== 'chart') cid = surf.family === 'light' ? 'light' : 'graphite'
+        // Every widget themes under any app theme, incl. one with NO matching chart
+        // theme (e.g. Carbon) or the default (null): a family default drives the
+        // ink/up-down mapping; the canvas is overridden to the app surface below.
+        if (!cid && surf) cid = surf.family === 'light' ? 'light' : 'graphite'
         // `appSurface` tells themeNewWidgetOpts this seed came from the app theme
-        // (not an explicit gallery apply), so non-chart widgets use the surface tone.
+        // (not an explicit gallery apply), so the widget uses the surface tone.
         if (cid) storedTheme = { id: cid, scope: 'widgets', appSurface: themeRef.current }
       }
       const newWidget = {
@@ -1462,12 +1470,12 @@ export default function ChartsWorkspace() {
       if (!storedTheme) {
         let cid = appThemeToChartTheme(themeRef.current)
         const surf = appThemeSurface(themeRef.current)
-        // Non-chart widgets still theme under an app theme with NO matching chart
-        // theme (e.g. Carbon): a family default drives the ink/up-down mapping; the
-        // canvas is overridden to the app surface below. Charts keep prior behavior.
-        if (!cid && surf && cur.type !== 'chart') cid = surf.family === 'light' ? 'light' : 'graphite'
+        // Every widget themes under any app theme, incl. one with NO matching chart
+        // theme (e.g. Carbon) or the default (null): a family default drives the
+        // ink/up-down mapping; the canvas is overridden to the app surface below.
+        if (!cid && surf) cid = surf.family === 'light' ? 'light' : 'graphite'
         // `appSurface` tells themeNewWidgetOpts this seed came from the app theme
-        // (not an explicit gallery apply), so non-chart widgets use the surface tone.
+        // (not an explicit gallery apply), so the widget uses the surface tone.
         if (cid) storedTheme = { id: cid, scope: 'widgets', appSurface: themeRef.current }
       }
       const newWidget = {

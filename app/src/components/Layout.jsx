@@ -9,7 +9,7 @@ import { TickerHubProvider } from './mobile/TickerHubContext'
 import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
 import { initBarsPack } from '../lib/barsPackClient'
-import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars } from '../styles/appThemes'
+import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars, writeThemeCache } from '../styles/appThemes'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -56,6 +56,9 @@ export default function Layout({ children }) {
   useEffect(() => {
     const el = document.documentElement
     const t = prefs.theme
+    // Cache the resolved theme so the next load paints it BEFORE React mounts (the
+    // inline script in index.html) — no OLED-black flash for a Graphite/uct: user.
+    writeThemeCache(t)
     if (isUctTheme(t)) {
       const theme = APP_THEME_BY_ID[uctThemeId(t)]
       if (theme) { applyAppTheme(el, theme); return }

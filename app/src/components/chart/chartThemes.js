@@ -484,14 +484,45 @@ export function appThemeToChartTheme(appTheme) {
 // (APP_THEME_BY_ID), the two base themes (oled/light), and 'default'/'dark' →
 // graphite. `family` picks the fallback chart theme for the ink/up-down mapping.
 export function appThemeSurface(appTheme) {
-  if (!appTheme) return null
-  let raw = String(appTheme).replace(/^uct:/, '')
-  if (raw === 'default' || raw === 'dark') raw = 'graphite'
-  const t = APP_THEME_BY_ID[raw]
-  if (t) return { bg: t.tokens['--bg-surface'], elevated: t.tokens['--bg-elevated'], family: t.family }
-  if (raw === 'oled') return { bg: '#0a0a0a', elevated: '#111111', family: 'dark' }
-  if (raw === 'light') return { bg: '#f4f5f6', elevated: '#ffffff', family: 'light' }
-  return null
+  const t = appTheme ? String(appTheme) : ''
+  // A `uct:<id>` value applies that catalog theme's own inline tokens (Layout.jsx).
+  if (t.startsWith('uct:')) {
+    const th = APP_THEME_BY_ID[t.slice(4)]
+    if (th) return { bg: th.tokens['--bg-surface'], elevated: th.tokens['--bg-elevated'], family: th.family }
+  }
+  if (t === 'oled') return { bg: '#0a0a0a', elevated: '#111111', family: 'dark' }
+  if (t === 'light') return { bg: '#f4f5f6', elevated: '#ffffff', family: 'light' }
+  // Everything else — 'graphite'/'dark'/'default'/null/unknown — is NOT a uct: theme,
+  // so Layout applies data-theme="dark" and the tokens.css :root base shows through:
+  // surface #1e2023 (the sidebar/header tone), NOT graphite's catalog #17181b (which
+  // ≈ the canvas, giving no contrast). This is the Graphite/default case.
+  return { bg: '#1e2023', elevated: '#26282c', family: 'dark' }
+}
+
+// A CHART theme id → the APP theme it corresponds to (the inverse of the app→chart
+// map), or null for a chart theme with no app-theme twin (Warm Charcoal, Midnight,
+// gradients, vibrant…). Used so that APPLYING an app-mirrored chart theme (Graphite,
+// Slate, Carbon, Navy…) to a widget/chart uses that app theme's SURFACE as the canvas,
+// same as picking the app theme itself.
+const _CHART_TO_APP_THEME = { 'deep-forest': 'forest', 'midnight-navy': 'navy', 'soft-blue': 'softblue', 'cool-gray': 'coolgray' }
+export function chartThemeToAppTheme(chartId) {
+  if (!chartId) return null
+  if (chartId === 'graphite') return 'graphite'   // Basics default → :root base surface
+  if (chartId === 'obsidian') return 'oled'
+  if (chartId === 'light') return 'light'
+  const appId = _CHART_TO_APP_THEME[chartId] || chartId
+  return APP_THEME_BY_ID[appId] ? 'uct:' + appId : null
+}
+
+// Given a CHART theme object, if its id mirrors an app theme, return a clone whose
+// canvas (`bg`) is that app theme's SURFACE tone (solid — a lifted card). Chart themes
+// with no app twin pass through unchanged (they keep their own designed background).
+export function themeWithAppSurface(theme) {
+  if (!theme || !theme.id) return theme
+  const app = chartThemeToAppTheme(theme.id)
+  if (!app) return theme
+  const surf = appThemeSurface(app)
+  return surf ? { ...theme, bg: surf.bg, bgGradient: null } : theme
 }
 
 // The DEFAULT appearance a widget should show when uncustomized, matched to the app

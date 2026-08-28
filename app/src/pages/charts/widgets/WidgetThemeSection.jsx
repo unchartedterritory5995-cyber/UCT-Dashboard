@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import ChartThemesModal from '../../../components/chart/ChartThemesModal'
-import { mapThemeToWidgetSettings } from '../../../components/chart/chartThemes'
+import { mapThemeToWidgetSettings, themeWithAppSurface } from '../../../components/chart/chartThemes'
 import { useWorkspace } from '../WorkspaceContext'
 
 // Shared "🎨 UCT Themes" entry for a NON-chart widget's ⚙ settings panel — the same
@@ -30,8 +30,8 @@ export default function WidgetThemeSection({
 
   const handleApply = (theme, scope) => {
     if (scope === 'allwidgets' && applyAll) { applyAll(theme); return }
-    // 'one' = this widget only.
-    onSettings?.(mapThemeToWidgetSettings(currentSettings || {}, theme, widgetType))
+    // 'one' = this widget only. An app-mirrored theme uses the app surface as canvas.
+    onSettings?.(mapThemeToWidgetSettings(currentSettings || {}, themeWithAppSurface(theme), widgetType))
   }
 
   return (
