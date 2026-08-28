@@ -28,16 +28,16 @@
      the .widget scope re-asserts the dark --ut-gold. */
   --accent: var(--ut-gold);
   --ut-cream: #d4c9a8;
-  /* Default dark = NEUTRAL GRAPHITE (owner pick 2026-08-24, replacing the old
-     near-black olive). A lifted graphite ramp so cards/headers read as layered
-     surfaces, not a flat void. OLED pure-black is still available as an explicit
-     theme ([data-theme="oled"]). */
-  --bg: #17181a;
-  --bg-surface: #1e2023;
-  --bg-elevated: #26282c;
-  --bg-hover: #2c2f34;
-  --border: #33363b;
-  --border-accent: #40444a;
+  /* Default dark = the UCT App-Theme GRAPHITE ramp (owner pick 2026-08-27 — the
+     catalog Graphite reads better than the old lifted-graphite default, so the
+     Basics "Graphite" now IS that palette: darker canvas, tighter surface/border
+     ramp). OLED pure-black stays an explicit theme ([data-theme="oled"]). */
+  --bg: #101012;
+  --bg-surface: #17181b;
+  --bg-elevated: #1d1f23;
+  --bg-hover: #24262b;
+  --border: #2a2c31;
+  --border-accent: #383b41;
   /* Section-header divider — deliberately a translucent white line so it stays
      clearly visible on EVERY dark theme (incl. OLED, where --border #1e1e1e
      nearly vanishes on #000). Light theme overrides it to a dark line below. */

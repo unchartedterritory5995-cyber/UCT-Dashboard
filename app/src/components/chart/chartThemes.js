@@ -493,10 +493,10 @@ export function appThemeSurface(appTheme) {
   if (t === 'oled') return { bg: '#0a0a0a', elevated: '#111111', family: 'dark' }
   if (t === 'light') return { bg: '#f4f5f6', elevated: '#ffffff', family: 'light' }
   // Everything else — 'graphite'/'dark'/'default'/null/unknown — is NOT a uct: theme,
-  // so Layout applies data-theme="dark" and the tokens.css :root base shows through:
-  // surface #1e2023 (the sidebar/header tone), NOT graphite's catalog #17181b (which
-  // ≈ the canvas, giving no contrast). This is the Graphite/default case.
-  return { bg: '#1e2023', elevated: '#26282c', family: 'dark' }
+  // so Layout applies data-theme="dark" and the tokens.css :root base shows through.
+  // :root is now the catalog Graphite ramp (2026-08-27): surface #17181b lifts off
+  // the #101012 canvas — the sidebar/header tone widgets adopt to stand out.
+  return { bg: '#17181b', elevated: '#1d1f23', family: 'dark' }
 }
 
 // A CHART theme id → the APP theme it corresponds to (the inverse of the app→chart

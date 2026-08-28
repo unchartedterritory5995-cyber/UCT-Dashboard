@@ -172,8 +172,8 @@ function parseRgba(value) {
 }
 
 describe('tokens.css — glass-surface contrast floor (§3.2, computed)', () => {
-  it('--bg is the expected dark canvas (#17181a) — sanity check on the fixture', () => {
-    expect(decl(ROOT, '--bg')).toBe('#17181a')
+  it('--bg is the expected dark canvas (#101012, the catalog Graphite ramp) — sanity check on the fixture', () => {
+    expect(decl(ROOT, '--bg')).toBe('#101012')
   })
 
   // C1: the floor covers every glass surface (--glass-surface/-elevated/-chrome)
