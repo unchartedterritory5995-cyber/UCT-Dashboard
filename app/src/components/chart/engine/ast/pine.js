@@ -1918,10 +1918,20 @@ export function printFormula(node, parentBp = 0) {
  * Pine's history-referencing operator is read in full by `parsePostfix` above,
  * with the engine's own constraints applied AT PARSE — a whole-number literal,
  * never negative, one application per value. Everything about `[n]` on the Pine
- * side is therefore finished. What is not finished is the node it becomes: the
- * manifest's `_no_offset` says there is none yet, and `_no_offset_reopened_by`
- * says re-opening it belongs to the owner of the repaint claim together with the
- * owner of the manifest — so this module may not invent one.
+ * side is therefore finished, and so is the node it becomes.
+ *
+ * ⚰️ THIS PARAGRAPH SAID THE OPPOSITE: that the node "is not finished" because
+ * the manifest's `_no_offset` "says there is none yet". Read that entry today and
+ * it opens "⭐ THERE IS A BOUNDED BACKWARD OFFSET" — `expr[n]` canonicalises to
+ * `{type: 'offset', value: n, …}`, and `offset` is one of the eight declared node
+ * types. The manifest was re-opened exactly as its own `_no_offset_reopened_by`
+ * required; this comment was not moved with it, and went on describing a shut door
+ * to everyone who read the parser before the manifest.
+ *
+ * ⛔ THE CONSTRAINT IT CARRIED IS STILL LIVE AND IS WHY THIS NOTE STAYS: a FORWARD
+ * offset remains unsayable by construction, and re-opening that is a SPEC decision
+ * belonging to the owner of the repaint claim together with the owner of the
+ * manifest — so this module may not invent one.
  *
  * ⛔ AND IT MUST NOT INVENT ONE EVEN TEMPORARILY. A second offset representation
  * would be a second grammar with a second Python walker and a second thing
@@ -2807,8 +2817,13 @@ class Resolver {
    *
    *  \u26a0\ufe0f THE SYMBOL MUST BE THE CHART\u2019S OWN. `syminfo.tickerid` (or
    *  `syminfo.ticker`) means "this symbol"; a string literal means ANOTHER symbol
-   *  and that is `sym`, which is not built yet \u2014 so it stays refused rather than
-   *  quietly reading the wrong instrument.
+   *  and that is `sym` — which IS built, and which this door emits: the string
+   *  becomes a `sym` node and the SCAN GATE decides whether that ticker is on the
+   *  benchmark roster.
+   *  ⚰️ THIS LINE SAID "`sym`, which is not built yet" and outlived the run it
+   *  described. A comment naming a mechanism is a claim about a run, and a stale
+   *  one is how a shipped capability stays believed-impossible: this door went on
+   *  refusing what it had already learned to translate.
    */
   /** A node that names a TIMEFRAME → the string it stands for, or null.
    *
@@ -2928,7 +2943,11 @@ class Resolver {
    *  scripts use it. Refusing an alias while accepting the bare name would be
    *  refusing the same script written the way people actually write it.
    *  ⛔ A STRING literal is deliberately NOT followed: that is another SYMBOL,
-   *  which is `sym`, and `sym` is not built. */
+   *  and this function answers only "is it the chart's OWN?";
+   *  `otherSymbolNameOf` picks it up and it becomes a `sym` node.
+   *  ⚰️ THIS SAID "and `sym` is not built". It is — and the shadowing case in
+   *  `pine.security.test.js` asserts `tickerid = 'SPY'` translates AS SPY, so the
+   *  comment contradicted the rail sitting directly beneath it. */
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     if (node.type === 'name') {
