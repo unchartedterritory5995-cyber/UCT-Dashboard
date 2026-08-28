@@ -13,14 +13,17 @@
   font-size: var(--cal-fs, 13.5px);
 }
 
-/* Header: ◀ date ▶ + gear */
+/* Header: ◀ date ▶ + gear. Locked to the shared 34px first-header-row height so its
+   bottom lines up with the tab/search divider on Watchlist / Theme Tracker. */
 .bar {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 8px;
+  height: 34px;
+  padding: 0 8px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
 }

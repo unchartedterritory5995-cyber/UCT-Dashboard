@@ -12,11 +12,15 @@
 
 
 /* Header bar: symbol + gear */
+/* Ticker/company header row — locked to the shared 34px first-header-row height so its
+   bottom lines up with the tab/search divider on Watchlist / Theme Tracker. */
 .bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  height: 34px;
+  padding: 0 8px;
+  box-sizing: border-box;
   background: transparent;
   border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
