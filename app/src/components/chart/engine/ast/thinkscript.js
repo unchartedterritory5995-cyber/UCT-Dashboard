@@ -3257,7 +3257,7 @@ class Resolver {
     let body
     try { body = port.node(bodyPlan.from) } finally { this.buildingRecurrence = outer }
 
-    if (!forgetsItsSeed(body.node, this.table)) {
+    if (!forgetsItsSeed(body.node, this.table, TS_STATE_WARMUP)) {
       // 🔴🔴 THE SENTENCE IS ABOUT THIS ENGINE'S LIMIT, NOT ABOUT THE MEMBER'S
       // FORMULA — AND THAT IS A CORRECTION. It used to read "this update keeps
       // building on its own previous bar without ever forgetting where it

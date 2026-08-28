@@ -286,6 +286,31 @@ const OUTPUT_CALLS = Object.freeze({
   plotarrow: 'series',
 })
 
+/** ⭐⭐ THE CALLS THAT DRAW A WHOLE CANDLE — FOUR COLUMNS, NOT ONE.
+ *
+ *  ⚰️ `plotcandle` AND `plotbar` WERE FILED AS PAINT, and the reason given was
+ *  right about the problem and wrong about the answer: "offering one of them
+ *  under the script's title is a quarter of a candle". So offer FOUR, each under
+ *  its own role. TradingView's own screener requirements list `plotbar()` and
+ *  `plotcandle()` beside `plot()` as outputs a screening filter may come from —
+ *  the same sentence that got `plotarrow` released from this set.
+ *
+ *  ⭐ AND THE FOUR ARE ONLY USEFUL TOGETHER, which is the argument FOR emitting
+ *  them all rather than against emitting any. The screen a member actually wants
+ *  off `08-smoothed-heiken-ashi-candles` is "the smoothed Heikin-Ashi candle
+ *  turned green" — `close > open` — and that needs BOTH columns to exist. One
+ *  column would have been a quarter of a candle; four are a candle.
+ *
+ *  ⚠️ THE ROLE NAMES ARE PINE'S OWN PARAMETER NAMES, so a fully-named call
+ *  (`plotcandle(close = c, open = o, …)`) picks the right series by name and a
+ *  positional one picks by position. Reading position only would translate a
+ *  reordered named call into a candle with its high and low swapped, which draws
+ *  perfectly and screens backwards. */
+const MULTI_OUTPUT_CALLS = Object.freeze({
+  plotcandle: Object.freeze(['open', 'high', 'low', 'close']),
+  plotbar: Object.freeze(['open', 'high', 'low', 'close']),
+})
+
 const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
@@ -924,8 +949,11 @@ const TYPE_WORDS = Object.freeze(new Set([
  *  `hidden` by `readsBars`, and worth nothing to a screen. `plotcandle`/`plotbar`
  *  are on the list and take FOUR series each; they wait for the multi-column
  *  output shape, and refuse honestly meanwhile. */
+// ⚰️ `plotcandle` AND `plotbar` LEFT THIS SET — see `MULTI_OUTPUT_CALLS`. What
+// kept them here was that each yields four columns and the output loop built one
+// row per statement; the loop now takes a ROLE, so the statement expands.
 const CHART_ONLY_CALLS = Object.freeze(new Set([
-  'plotshape', 'plotchar', 'plotcandle', 'plotbar',
+  'plotshape', 'plotchar',
   'bgcolor', 'barcolor', 'fill', 'hline', 'alert',
 ]))
 
@@ -1320,6 +1348,54 @@ function dmiParts(toks, close, names, env, first) {
   return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
 }
 
+/** Does this UNRESOLVED right-hand side read `name`'s own previous bar?
+ *
+ *  ⚠️ THE PARSED TREE, NOT THE CANONICAL ONE — this runs before resolution, which
+ *  is the only moment the decision can be made: resolution is what turns
+ *  `name[1]` into `self`, and it has to know it is inside a recurrence first.
+ *  ⛔ An offset node is identified STRUCTURALLY (it owns an `n` and an `arg`)
+ *  rather than by a type string, so a unary `-name` — which also carries `arg` —
+ *  cannot be mistaken for a bar read. */
+function readsOwnPrevious(node, name) {
+  let found = false
+  const walk = (n) => {
+    if (found || !n || typeof n !== 'object') return
+    if (Object.prototype.hasOwnProperty.call(n, 'n')
+        && n.arg && n.arg.type === 'name' && n.arg.name === name) {
+      found = true
+      return
+    }
+    for (const key of Object.keys(n)) {
+      const v = n[key]
+      if (Array.isArray(v)) v.forEach(walk)
+      else if (v && typeof v === 'object') walk(v)
+    }
+  }
+  walk(node)
+  return found
+}
+
+/** A resolved `na(self) ? SEED : UPDATE` → `{seed, update}`, or null.
+ *
+ *  ⛔ THE SEED MUST NOT ITSELF READ `self`. A first-bar value defined in terms of
+ *  the value it is seeding is not a seed, and the accumulator would carry that
+ *  hole forward on every re-seed — so that shape falls through to the refusal
+ *  rather than building something that computes and means nothing.
+ *  ⛔ AND THE UPDATE ARM MUST READ `self`. `na(x[1]) ? a : b` with a self-free
+ *  `b` is a first-bar test, not a recurrence; folding it into an accumulator
+ *  would answer with `b` forever and quietly lose the first bar. */
+function seedAndUpdateOf(body, table) {
+  if (!body || body.type !== 'op' || body.name !== '?:') return null
+  const args = body.args || []
+  if (args.length !== 3) return null
+  const [test, seed, update] = args
+  if (!test || test.type !== 'call' || test.name !== 'na') return null
+  if (!containsSelfSeries(test, table)) return null
+  if (containsSelfSeries(seed, table)) return null
+  if (!containsSelfSeries(update, table)) return null
+  return { seed, update }
+}
+
 function containsSelfSeries(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -1353,16 +1429,82 @@ function containsSelfSeries(node, table) {
  *  anybody wrote. That is the same fact `cum` refuses for, reached from the other
  *  side, so the two rules finally agree.
  *
+ *  ⭐⭐ A LINEAR CONTRACTION FORGETS TOO, AND IT IS THE COMMONEST SMOOTHER THERE
+ *  IS. `(self + close) / 2`, `(self * 13 + close) / 14` (Wilder), `self * 0.9 +
+ *  close * 0.1` (an EMA by hand) and the classic Heikin-Ashi open are all
+ *  `a * self + <self-free>` with `|a| < 1`, so the seed's influence decays
+ *  GEOMETRICALLY. Every one of them answered NO before, which meant this engine
+ *  refused the single most common stateful shape published in Pine while holding
+ *  the node that computes it.
+ *
+ *  ⛔ `|a| < 1` IS NOT THE TEST, AND SAYING WHY IS THE POINT. `accum` re-seeds a
+ *  FIXED number of bars back, so "forgets eventually" is not the question —
+ *  "forgets within `warmup` bars" is. At `a = 0.999` the seed still carries 78%
+ *  of its weight after 250 bars, which is a rolling window wearing a smoother's
+ *  clothes. So the test is the RESIDUAL ITSELF: `|a| ** warmup` must sit at or
+ *  under one part in a million, three orders of magnitude below a penny on a
+ *  hundred-dollar stock. That is why `warmup` is a REQUIRED argument — the number
+ *  belongs to the caller's accumulator, and defaulting it here would put a second
+ *  authority on the one constant this answer depends on.
+ *
  *  ⚠️ A TERNARY'S CONDITION MAY TEST `self` FREELY — it picks a branch without
  *  carrying the value forward. Only the ARMS must forget.
  *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
-export function forgetsItsSeed(node, table) {
+export const SEED_RESIDUAL_TOLERANCE = 1e-6
+
+export function forgetsItsSeed(node, table, warmup) {
   const spec = table.functions.accum
   if (!spec) return false
+  if (!Number.isFinite(warmup) || warmup < 1) return false
   const bind = spec.recurrence.binds
   const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
   const carries = (n) => containsSelfSeries(n, table)
+
+  /** The coefficient `a` in `a * self + <self-free>`, or null when this shape is
+   *  not linear in `self` — which includes `self * self`, `self[1]` (an offset is
+   *  a SECOND state variable, not a multiple of this one) and anything divided by
+   *  a term that carries `self`. Null means "unknown", and unknown answers NO. */
+  const coefficient = (n) => {
+    if (!n || typeof n !== 'object') return null
+    if (isSelf(n)) return 1
+    if (!carries(n)) return 0
+    const args = n.args || []
+    if (n.type === 'op' && n.name === 'u-' && args.length === 1) {
+      const a = coefficient(args[0])
+      return a === null ? null : -a
+    }
+    if (n.type === 'op' && (n.name === '+' || n.name === '-') && args.length === 2) {
+      const a = coefficient(args[0])
+      const b = coefficient(args[1])
+      if (a === null || b === null) return null
+      return n.name === '+' ? a + b : a - b
+    }
+    if (n.type === 'op' && n.name === '*' && args.length === 2) {
+      if (carries(args[0]) && carries(args[1])) return null
+      const carrier = carries(args[0]) ? args[0] : args[1]
+      const scale = carries(args[0]) ? args[1] : args[0]
+      const k = constantValueOf(scale)
+      const a = coefficient(carrier)
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k)) return null
+      return a * k
+    }
+    if (n.type === 'op' && n.name === '/' && args.length === 2) {
+      if (carries(args[1])) return null
+      const k = constantValueOf(args[1])
+      const a = coefficient(args[0])
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k) || k === 0) return null
+      return a / k
+    }
+    return null
+  }
+
+  const contracts = (n) => {
+    const a = coefficient(n)
+    if (a === null || !Number.isFinite(a)) return false
+    return Math.abs(a) ** warmup <= SEED_RESIDUAL_TOLERANCE
+  }
+
   const ok = (n) => {
     if (!n || typeof n !== 'object') return true
     if (isSelf(n)) return true
@@ -1374,7 +1516,7 @@ export function forgetsItsSeed(node, table) {
     }
     if (n.type === 'call' && n.name === 'nz') return args.every(ok)
     if (n.type === 'op' && n.name === '?:') return ok(args[1]) && ok(args[2])
-    return false
+    return contracts(n)
   }
   return ok(node)
 }
@@ -2156,6 +2298,26 @@ class Resolver {
         }
         this.env = bound.updateEnv || prevEnv
         const update = this.resolve(bound.update)
+        // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
+        // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
+        // the SAME reassignment folded straight to `accum(0, self + volume, 250)`
+        // — a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line
+        // nobody would question. Two spellings of one construct reached two
+        // different answers because only one of them was railed.
+        // ⚠️ Found by a test written for a different feature, which is the honest
+        // account: the guard reads correct beside the path it is on, and nothing
+        // pointed at the sibling path four hundred lines away.
+        // ⛔ `var k = 5` and any other un-reassigned `var` are unaffected — their
+        // update IS bare `self`, which forgets by definition.
+        if (containsSelfSeries(update, this.table)
+            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)) {
+          throw new PineRefusal('pine:state',
+            REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
+            + 'bar and this engine cannot tell that it ever forgets where it '
+            + 'started, so folding it would draw a rolling window over the last '
+            + PINE_STATE_WARMUP + ' bars rather than a running total',
+            bound.at || locate(tok))
+        }
         const args = []
         args[spec.recurrence.seed] = seed
         args[spec.recurrence.body] = update
@@ -2262,13 +2424,30 @@ class Resolver {
     const wasBuilding = this.buildingRecurrence
     const isFinalOfMutable = !!name && this.mutated.has(name)
       && this.finalBindings.get(name) === bound
+    // ⭐⭐ PINE'S PLAIN SELF-REFERENCE — `x = na(x[1]) ? seed : f(x[1])` — IS THE
+    // SAME RECURRENCE WEARING THE OTHER SPELLING, and this door could not reach
+    // it. Only `var x` + `x := …` entered `mutated`, so the commonest stateful
+    // idiom in published Pine refused at `pine:undefined`, NAMING THE VARIABLE
+    // BEING DEFINED — a refusal that reads like the member forgot to declare
+    // something. Every hand-rolled smoother, trailing stop and hold-last-value
+    // line is written this way, including the classic Heikin-Ashi open.
+    // ⚠️ IT REUSES THE MUTABLE PATH'S MACHINERY RATHER THAN A SECOND COPY — the
+    // fresh cycle stack, `buildingRecurrence`, `plainRecurrence`'s self-emission
+    // and the convergence gate all apply unchanged. What differs is only WHERE
+    // THE SEED COMES FROM: the mutable form has a prior `var` binding to point
+    // at, this form states its seed in the `na` arm.
+    const isSelfRef = !isFinalOfMutable && !!name && !this.mutated.has(name)
+      && bound.kind === 'expr' && readsOwnPrevious(bound.node, name)
     // ⭐⭐ A FRESH CYCLE STACK INSIDE A RECURRENCE BUILD. The same binding legally
     // resolves TWICE here — `shortStopPrev` once outside the recurrence and once
     // within its update — yielding a DIFFERENT tree each time, because
     // `shortStop[1]` is the accumulator outside and `self` inside. The shared
     // stack read that as a cycle. Scoping it keeps genuine self-cycles caught.
     const prevStack = this.stack
-    if (isFinalOfMutable) { this.buildingRecurrence = name; this.stack = new Set() }
+    if (isFinalOfMutable || isSelfRef) {
+      this.buildingRecurrence = name
+      this.stack = new Set()
+    }
     this.stack.add(bound)
     const prevEnv = this.env
     if (bound.env) this.env = bound.env
@@ -2277,7 +2456,7 @@ class Resolver {
       if (isFinalOfMutable && this.recurrenceSeeds.has(name)
           && containsSelfSeries(body, this.table)) {
         // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`.
-        if (!forgetsItsSeed(body, this.table)) {
+        if (!forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)) {
           // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
           // this — the refusal corpus and "refuses for a DECLARED reason" — and
           // both exist because a hand-written message drifts from the guard it
@@ -2298,6 +2477,44 @@ class Resolver {
         const args = []
         args[spec.recurrence.seed] = seed
         args[spec.recurrence.body] = body
+        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+        const built = cCall('accum', args)
+        this.recurrenceColumns.set(name, built)
+        return built
+      }
+      if (isSelfRef && containsSelfSeries(body, this.table)) {
+        const parts = seedAndUpdateOf(body, this.table)
+        if (!parts) {
+          // ⛔ ONE SHAPE ONLY, AND SAYING SO IS THE POINT. `na(x[1]) ? SEED :
+          // UPDATE` is the documented idiom and it STATES ITS OWN SEED, which is
+          // exactly what the accumulator needs. A bare `x = x[1] + 1` has none —
+          // Pine starts it at `na` and it stays `na` on every bar — so there is
+          // nothing honest to build, and inventing a 0 would answer a question
+          // nobody asked with a column that looks like a counter.
+          throw new PineRefusal('pine:state',
+            REFUSALS['pine:state'] + ' — `' + name + '` reads its own previous bar, '
+            + 'and this engine can hold that only when the script states a '
+            + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
+            bound.at || locate(tok))
+        }
+        // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
+        // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
+        // asking it to forget itself is asking the wrong question. Routing around
+        // the gate is the one thing this change must not do: `accum` re-seeds a
+        // fixed number of bars back, so an update that does not forget where it
+        // started becomes a ROLLING WINDOW rather than a running total.
+        if (!forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)) {
+          throw new PineRefusal('pine:state',
+            REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
+            + 'bar and this engine cannot tell that it ever forgets where it '
+            + 'started, so folding it would draw a rolling window over the last '
+            + PINE_STATE_WARMUP + ' bars rather than a running total',
+            bound.at || locate(tok))
+        }
+        const spec = this.table.functions.accum
+        const args = []
+        args[spec.recurrence.seed] = parts.seed
+        args[spec.recurrence.body] = parts.update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
         this.recurrenceColumns.set(name, built)
@@ -2547,11 +2764,20 @@ class Resolver {
   plainRecurrence(node, tok) {
     if (!(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
     const name = node.arg.name
-    if (!this.mutated.has(name)) return null
+    // ⭐ A PLAIN SELF-REFERENCE REACHES HERE TOO. `buildingRecurrence` is set for
+    // both spellings, so `x[1]` inside the update emits `self` through this one
+    // rule rather than a second copy of it. The `mutated` half stays because
+    // OUTSIDE its own update a reassigned name still means the whole accumulator
+    // offset k bars — that is the distinction four earlier attempts collapsed.
+    if (!this.mutated.has(name) && this.buildingRecurrence !== name) return null
     const spec = this.table.functions.accum
     if (!spec) return null
     if (this.buildingRecurrence === name) {
-      const bound = this.env.get(name)
+      // ⛔ SEED-BY-PRIOR-BINDING IS THE MUTABLE FORM'S ANSWER ONLY. A plain
+      // self-reference states its seed in the `na` arm, and a same-named outer
+      // binding is a DIFFERENT variable it happens to shadow — banking that as
+      // the seed would silently feed one column's first bar into another's.
+      const bound = this.mutated.has(name) ? this.env.get(name) : null
       if (bound && !this.recurrenceSeeds.has(name)) {
         this.recurrenceSeeds.set(name, bound)
         this.recurrenceSeedAt.set(name, locate(tok))
@@ -4587,6 +4813,18 @@ export function translatePine(source, opts = {}) {
       continue
     }
 
+    // ⭐ ONE STATEMENT, FOUR COLUMNS. The expansion happens HERE rather than in
+    // the resolve loop so that each role gets its own `Resolver` — one arm
+    // refusing (`plotcandle(o, h, l, someArray.get(0))`) must cost that column
+    // and not the other three, which is exactly how a multi-`plot` script already
+    // behaves.
+    if (own(MULTI_OUTPUT_CALLS, word) && isPunct(toks[1], '(')) {
+      MULTI_OUTPUT_CALLS[word].forEach((role, roleIndex) => {
+        outputs.push({ kind: word, role, roleIndex, toks, tok: first })
+      })
+      continue
+    }
+
     // ── a binding, a function definition, or a paint call ─────────────────
     const arrow = findTop(toks, (t) => isPunct(t, '=>'))
     const eq = findTop(toks, (t) => isPunct(t, '='))
@@ -4827,7 +5065,7 @@ export function translatePine(source, opts = {}) {
       const args = parseArguments(cur)
       const rest = cur.peek()
       if (rest) throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(rest))
-      const seriesArg = pickOutputArgument(args, out.kind, out.tok)
+      const seriesArg = pickOutputArgument(args, out.kind, out.tok, out.role, out.roleIndex)
       // ⭐⭐ A POSITIVE PINE OFFSET IS A BAR OFFSET IN THE TREE. `plot(x, offset=N)`
       // draws bar i's value at bar i+N, so what stands at bar j is bar j-N's —
       // `x[N]`. Putting it in the TREE makes the chart and the scan agree by
@@ -4843,7 +5081,7 @@ export function translatePine(source, opts = {}) {
       verifyRoundTrip(formula, ast)
       row = {
         kind: out.kind,
-        title: outputTitle(args, out.kind) || null,
+        title: outputTitle(args, out.kind, out.role) || null,
         line: out.tok.line,
         column: out.tok.column,
         formula,
@@ -4873,7 +5111,12 @@ export function translatePine(source, opts = {}) {
     } catch (err) {
       row = {
         kind: out.kind,
-        title: null,
+        // ⭐ A REFUSED ROW STILL SAYS WHICH ROLE IT WAS. Four candle columns from
+        // one statement all carry the same line and token, so a nameless refusal
+        // among them tells a member their candle failed without saying WHICH
+        // series to look at — and the other three sit there translated, which
+        // makes the silence read like a whole-script problem.
+        title: out.role || null,
         line: out.tok.line,
         column: out.tok.column,
         formula: null,
@@ -5051,7 +5294,7 @@ function foldDisplacement(resolver, seriesArg) {
 /** The argument a screener reads. `plot(series, title, …)` and
  *  `alertcondition(condition, title, message)` — the first positional, or the
  *  named one Pine's own signature calls it. */
-function pickOutputArgument(args, kind, tok) {
+function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
   // ⚰️ THIS REFUSED EVERY DISPLACED PLOT, AND IT WAS CONFLATING TWO CLAIMS.
   // Its sentence — "a displaced plot writes its value at a different bar from the
   // one that produced it" — is true about the DRAWING and false about the COLUMN.
@@ -5080,9 +5323,13 @@ function pickOutputArgument(args, kind, tok) {
   // sends a named-argument script down the positional path and picks up whatever
   // came first, which for `plotshape(cond, title = "x")` is still right by luck
   // — and by luck is not a translation.
-  const named = OUTPUT_CALLS[kind]
+  // ⭐ A ROLE PICKS ITS OWN SERIES — BY PINE'S PARAMETER NAME FIRST, then by
+  // position. A candle call has four of them, so "the first positional" is the
+  // right answer for exactly one of the four and wrong for the rest.
+  const named = role || OUTPUT_CALLS[kind]
   const byName = args.find((a) => a.name === named)
-  const positional = args.find((a) => !a.name)
+  const positionals = args.filter((a) => !a.name)
+  const positional = role ? positionals[roleIndex] : positionals[0]
   const picked = byName || positional
   if (!picked) {
     throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
@@ -5116,13 +5363,21 @@ function outputHidden(args) {
   return !!(d && d.value && d.value.type === 'name' && d.value.name === 'display.none')
 }
 
-function outputTitle(args, kind) {
+function outputTitle(args, kind, role = null) {
   const byName = args.find((a) => a.name === 'title')
-  if (byName && byName.value.type === 'string') return byName.value.value
   const positional = args.filter((a) => !a.name)
   const second = positional[1]
-  if (second && second.value.type === 'string') return second.value.value
-  return null
+  let base = null
+  if (byName && byName.value.type === 'string') base = byName.value.value
+  // ⛔ THE SECOND POSITIONAL IS THE TITLE FOR `plot(series, "t")` AND IS THE HIGH
+  // FOR `plotcandle(o, h, l, c)`. Reading it for a candle would title every
+  // column after a price series.
+  else if (!role && second && second.value.type === 'string') base = second.value.value
+  if (!role) return base
+  // ⭐ THE ROLE IS PART OF THE NAME, ALWAYS. Four columns from one statement are
+  // otherwise four identical offers, and a member picking "Smoothed Ha Candles"
+  // from a list of four would be choosing at random.
+  return base ? `${base} ${role}` : role
 }
 
 /** ⭐⭐ THE PROOF THAT NOTHING HALF-TRANSLATED. The printed text is read back by

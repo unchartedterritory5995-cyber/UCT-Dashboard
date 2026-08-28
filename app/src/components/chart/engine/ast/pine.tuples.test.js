@@ -126,8 +126,21 @@ describe('a `var` may read its own previous bar inside its own update', () => {
     expect(indexed.formula).toContain(': self,')
   })
 
-  it('`s[2]` is `self[1]` — one further back, not two', () => {
-    expect(state('close > open ? 1 : s[2]').formula).toContain(': self[1],')
+  it('⛔ `s[2]` REFUSES today — `self[1]` is written and the gate cannot reach it', () => {
+    // ⚰️ THIS ASSERTED `: self[1],`. The mapping in the comment above is right and
+    // the arm that writes it is real — but `forgetsItsSeed` answers NO for any
+    // body where `self` sits under an OFFSET, because a two-bar chain can leave
+    // the seed untouched forever. So the shape refuses before the arithmetic runs.
+    // ⭐⭐ THIS IS THE ANSWER THINKSCRIPT ALREADY GAVE, off the same imported rule:
+    // `CompoundValue(2, … y[2] …)` refuses, and its test says in so many words
+    // that relaxing it "belongs in `forgetsItsSeed` where both translators read
+    // it". Pine's `var` door reached the arm only because that door had NO
+    // convergence gate at all. Two lanes, one rule, one answer.
+    // ⚠️ So the `k - 1` arm above is UNREACHABLE TODAY and is kept deliberately:
+    // it is what an unbounded accumulator would turn on. Recorded, not implied.
+    const r = state('close > open ? 1 : s[2]')
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:state')
   })
 
   it("⭐ the corpus's `exrem` shape translates, both halves of it", () => {
