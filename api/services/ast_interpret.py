@@ -1708,6 +1708,28 @@ def _flatten(root: Any) -> List[dict]:
     return order
 
 
+def symbols_named(ast: Any) -> tuple:
+    """Every OTHER instrument a tree reads, sorted — the `sym` tickers in it.
+
+    ⭐⭐ ONE WALKER, TWO CONSUMERS, AND THAT IS THE POINT. The scan GATE asks it to
+    decide whether every named symbol is a declared benchmark; the SWEEP asks it
+    to decide which series to load. Two walkers would be two answers to *"which
+    instruments does this formula read?"* — and the pair could disagree in the
+    quietest possible way: a gate that admitted a ticker the loader never fetched
+    would return `not_computable` on every row of a scan it had just promised was
+    runnable (`lesson_a_second_authority_over_one_value`).
+
+    ⚠️ UPPERCASED AND DEDUPED, because `sym('spy', …)` and `sym('SPY', …)` name one
+    instrument and must load one series — the evaluator upper-cases before it
+    looks the series up, so anything else here would miss.
+    """
+    found = set()
+    for node in _flatten(ast):
+        if node["type"] == "sym":
+            found.add(str(node.get("value")).strip().upper())
+    return tuple(sorted(found))
+
+
 def session_anchored_in(ast: Any) -> tuple:
     """Every call in a tree whose entry declares ``lookback: "session"``, sorted.
 

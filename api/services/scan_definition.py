@@ -78,7 +78,14 @@ AST_KIND = "ast"
 #: A caller catching ``ScanRefused`` can branch on ``.gate`` and know the branch
 #: list is finite; an open-ended reason string would be prose a surface has to
 #: pattern-match, which is how a refusal becomes a 500.
-GATES = ("kind", "tree", "hash", "yields")
+#: ⚠️ `symbol` JOINED THEM IN W2b TASK 4, and it is the first gate that refuses
+#: something `interpret` ACCEPTS: a scan may only read a DECLARED benchmark,
+#: while the chart lane serves any symbol it can fetch. It is its own gate
+#: rather than folded into `tree` precisely because a caller branches on this
+#: — "your formula is malformed" and "that instrument is fine to chart but not
+#: to sweep" are different things to tell a member, and only one of them has a
+#: list of alternatives to offer.
+GATES = ("kind", "tree", "hash", "yields", "symbol")
 
 
 class ScanRefused(Exception):
@@ -406,8 +413,37 @@ def assert_scannable(definition: Any) -> dict:
         # the door instead of watching a job come back empty.
         ast_interpret.max_lookback(tree)
         boolean = is_boolean_tree(tree)
+        named = ast_interpret.symbols_named(tree)
     except ast_interpret.TableRefusal as exc:
         raise ScanRefused("tree", str(exc)) from exc
+
+    # ⭐⭐ A SWEEP MAY ONLY READ A DECLARED BENCHMARK, AND THE REFUSAL SAYS WHICH.
+    #
+    # ⛔ THIS GATE DELIBERATELY REFUSES SOMETHING `interpret` ACCEPTS, AND THAT IS
+    # NOT THE TWO-AUTHORITIES DEFECT. The two answer different questions: `interpret`
+    # asks *can this be evaluated?* and the chart lane rightly serves any symbol it
+    # can fetch; this asks *can this be SWEPT over the whole universe?*, where an
+    # arbitrary ticker means a whole extra history held for every one of thousands
+    # of rows. `closedTable.json::_benchmarks` records the distinction so nobody
+    # later "fixes" the two into agreement — which would either cripple the chart
+    # lane or let any instrument into the nightly sweep.
+    #
+    # ⭐ THE LIST IS READ, NOT TYPED, and it is the SAME list the sweep loads
+    # (`ast_table.benchmarks` → the manifest section). A second roster here would
+    # be the copy that goes stale, and a refusal quoting a stale roster tells a
+    # member to use a benchmark that no longer works.
+    if named:
+        allowed = ast_table.benchmarks()
+        unknown = [t for t in named if t not in allowed]
+        if unknown:
+            raise ScanRefused(
+                "symbol",
+                "a scan can read %s, and not %s. A saved scan is run against the "
+                "whole universe, so the instruments it compares against are a "
+                "declared set the sweep loads once — charting against any symbol "
+                "still works on the Formula tab."
+                % (", ".join(sorted(allowed)), ", ".join(sorted(unknown))),
+            )
     if not boolean:
         raise ScanRefused(
             "yields",

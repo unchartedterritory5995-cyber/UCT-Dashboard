@@ -238,6 +238,23 @@
   opacity: 0.9;
   transform: translateY(-0.5px);
 }
+
+/* Scanner section cards: a per-category gold icon in the header (the scanner
+   analog of the watchlist's uniform ◆) + rows divided by hairlines inside the
+   card, so a growing prebuilt-scan library stays scannable by category. */
+.catIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -1px 1px -1px -1px;   /* optically center the glyph against the text baseline */
+}
+.scanList {
+  display: flex;
+  flex-direction: column;
+}
+.scanList .row + .row {
+  border-top: 1px solid var(--wl-divider, var(--border, #1f2937));
+}
 .catCount {
   margin-left: auto;
   font-size: 9.5px;

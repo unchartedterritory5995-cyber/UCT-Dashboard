@@ -1218,9 +1218,19 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     assert len(calls) == 1, f"{len(calls)} interpret calls in evaluate_one"
     opts = {k.arg: k.value for k in calls[0].keywords}.get("opts")
     assert isinstance(opts, pyast.Dict), "the interpret call passes no `opts` — the clock is dark"
-    assert [k.value for k in opts.keys] == ["tf"]
-    assert isinstance(opts.values[0], pyast.Name) and opts.values[0].id == "tf_code", (
+    # ⚠️ THE KEYS ARE PINNED, AND `symbols` JOINED `tf` IN W2b TASK 4 — the
+    # benchmark series a `sym` read needs, loaded once for the whole sweep. The
+    # assertion stays an EXACT set rather than becoming a containment check: this
+    # dict is everything the caller knows that the tree does not, so a key added
+    # silently is a channel nobody reviewed.
+    keys = {k.value for k in opts.keys}
+    assert keys == {"tf", "symbols"}, keys
+    handed = dict(zip([k.value for k in opts.keys], opts.values))
+    assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
+    assert isinstance(handed["symbols"], pyast.Name) and handed["symbols"].id == "symbol_series", (
+        "the benchmark series handed to `sym` is not the one loaded before the "
+        "loop — a per-symbol load would re-read every benchmark once per row")
 
 # ═══ 11. the live cycle's rails: the window, the budget, the flag ════════════
 #

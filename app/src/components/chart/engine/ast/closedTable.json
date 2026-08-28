@@ -2611,5 +2611,53 @@
     "candle_monthly_label": "TEXT -- the wording the Monthly column displays, including the (forming) flag while the month is still open. Prose, not a magnitude, and it has no numeric part: nothing about the monthly bar is stored as a number."
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
-  "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent."
+  "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent.",
+  "_benchmarks": "⛔⛔ THIS SECTION IS SCAN POLICY, NOT GRAMMAR, AND THE DISTINCTION IS LOAD-BEARING. Everything else in this table describes what the LANGUAGE may say; this describes which of those sentences the NIGHTLY SWEEP may run. The chart lane serves `sym('<any ticker>', ...)` for whatever bars it can fetch -- a member charting one symbol against another is a single extra series. A universe sweep is not: it evaluates one tree against thousands of symbols, and an unrestricted `sym` would let one saved scan name an arbitrary instrument that the sweep must then hold in memory for every row. The declared set is loaded ONCE per sweep from the local bars store, so it costs a bounded, cacheable amount no matter how large the universe is.\n\n⭐ SO `assert_scannable` REFUSES AN UNDECLARED TICKER WHILE `interpret` ACCEPTS IT, AND THAT IS NOT THE TWO-AUTHORITIES DEFECT. The two gates answer different questions -- *can this be evaluated?* and *can this be SWEPT over the whole universe?* -- so they are allowed to differ, and the refusal NAMES this list as what would unblock it. Do not 'fix' them into agreement: doing so either cripples the chart lane or lets an arbitrary ticker into the nightly sweep.\n\n⚠️ WHY THESE FIFTEEN. The four index proxies a member actually measures relative strength against, plus the eleven sector SPDRs -- the same spine the rest of this product already tracks, so the sweep's benchmark reads hit bars the store is already keeping warm rather than a cold tail. Measured 2026-08-27: all fifteen carry 400 daily bars locally. ⚠️ Freshness is NOT uniform (the four index proxies sat three sessions staler than the sector SPDRs that day), which is why the sweep names a short benchmark in its receipt instead of returning a bare not-computable that reads as a quiet market.\n\n⛔ ADDING A ROW IS A REAL DECISION, not a convenience: every sweep that names it loads its whole history, and a benchmark whose bars go stale makes every scan built on it not-computable. `symbols_named` is the ONE walker both the gate and the loader read, so a ticker admitted here is a ticker that will actually be fetched.\n\n⚠️ AND THE KEY IS UNDERSCORE-PREFIXED, WHICH IS LOAD-BEARING RATHER THAN COSMETIC. Every NON-underscore section of this file is language VOCABULARY: `languages.js::vocabularyOf` colours each name-bearing section by SHAPE and `completions.js` offers every one of them, both deliberately walking sections rather than naming five. Declared as a bare `benchmarks` section, the fifteen tickers became typeable identifiers in the formula editor -- `SPY` offered in the completion popup and coloured as a series -- which is wrong: a benchmark is a STRING inside `sym('SPY', ...)`, never a name a member types bare. The underscore is the file's existing signal for *manifest data that is not vocabulary*, so both walkers skip it by a rule that already existed, and the prose tests skip it too (they filter `_` keys to strings). ⭐ THE PLAN SPECIFIED A BARE `benchmarks` SECTION; `languages.test.js` -- *'the vocabulary sizes ARE the table sizes, both directions'* -- is what proved otherwise, on the first run after it landed. The roster is unchanged; only its key moved.",
+  "_benchmarks_scannable": {
+    "DIA": {
+      "name": "Dow 30"
+    },
+    "IWM": {
+      "name": "Russell 2000"
+    },
+    "QQQ": {
+      "name": "Nasdaq 100"
+    },
+    "SPY": {
+      "name": "S&P 500"
+    },
+    "XLB": {
+      "name": "Materials"
+    },
+    "XLC": {
+      "name": "Communication Services"
+    },
+    "XLE": {
+      "name": "Energy"
+    },
+    "XLF": {
+      "name": "Financials"
+    },
+    "XLI": {
+      "name": "Industrials"
+    },
+    "XLK": {
+      "name": "Technology"
+    },
+    "XLP": {
+      "name": "Consumer Staples"
+    },
+    "XLRE": {
+      "name": "Real Estate"
+    },
+    "XLU": {
+      "name": "Utilities"
+    },
+    "XLV": {
+      "name": "Health Care"
+    },
+    "XLY": {
+      "name": "Consumer Discretionary"
+    }
+  }
 }

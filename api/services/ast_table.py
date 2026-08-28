@@ -303,6 +303,22 @@ domain_of = yields_of
 # — one manifest, two readings, no third list.
 
 
+def benchmarks(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    """The instruments a SCAN may read with `sym`, by ticker.
+
+    ⛔ SCAN POLICY, NOT GRAMMAR — see `closedTable.json::_benchmarks`. The chart
+    lane serves any symbol it can fetch; this is the bounded set a universe sweep
+    loads once and holds for every row.
+
+    ⚠️ A MAP, NEVER A LIST, and read rather than typed: a second benchmark
+    roster somewhere in `api/` would be the copy that goes stale, and the one that
+    goes stale is always the one a refusal quotes to a member.
+    """
+    m = manifest if manifest is not None else TABLE
+    section = m.get("_benchmarks_scannable")
+    return dict(section) if isinstance(section, Mapping) else {}
+
+
 def recurrences(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
     """Every function entry that declares a ``recurrence``, by name.
 

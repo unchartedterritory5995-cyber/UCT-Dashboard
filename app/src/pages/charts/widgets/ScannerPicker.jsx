@@ -42,33 +42,51 @@ export const PRESET_SCANS = [
     key: 'highest-volume-1y',
     name: 'Highest Volume In 1-Year',
     description: 'Trading their highest volume in a year',
+    category: 'volume',
   },
   {
     key: 'highest-volume-ever',
     name: 'Highest Volume Ever',
     description: 'Trading their highest volume ever',
+    category: 'volume',
   },
   {
     key: 'ipo-1y',
     name: 'IPO in Last 1-Year',
     description: 'First traded within the last year',
+    category: 'listings',
   },
   {
     key: 'top-gainers-30d',
     name: 'Top Gainers (30-Day)',
     description: 'Top 5% by 30-day gain',
+    category: 'gainers',
   },
   {
     key: 'top-gainers-60d',
     name: 'Top Gainers (60-Day)',
     description: 'Top 5% by 60-day gain',
+    category: 'gainers',
   },
   {
     key: 'top-gainers-90d',
     name: 'Top Gainers (90-Day)',
     description: 'Top 5% by 90-day gain',
+    category: 'gainers',
   },
 ]
+
+// Prebuilt scans are grouped into categories (this list will grow a lot). Order
+// here IS the display order; each carries its own gold UIcon so a category reads
+// at a glance — the scanner analog of the watchlist section cards, differentiated
+// by a per-category mark instead of one uniform diamond. A scan whose `category`
+// matches nothing here falls into "More Scans" so nothing is ever hidden.
+const SCAN_CATEGORIES = [
+  { key: 'gainers',  label: 'Top Gainers',        icon: 'rocket' },
+  { key: 'volume',   label: 'Volume & Liquidity', icon: 'volume' },
+  { key: 'listings', label: 'New Listings',       icon: 'sparkle' },
+]
+const SCAN_CATEGORY_FALLBACK = { key: '_other', label: 'More Scans', icon: 'search' }
 
 export default function ScannerPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {
   // Match the widget's own watchlist appearance (canvas / colors) + expose the
@@ -98,7 +116,26 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
   const [q, setQ] = useState('')
   const [tab, setTab] = useState('prebuilt')   // presets live under Prebuilt
   const query = q.trim().toLowerCase()
-  const presets = PRESET_SCANS.filter(s => !query || String(s.name).toLowerCase().includes(query))
+
+  // Group the (search-filtered) presets into category cards. Match on name OR
+  // description so a search like "gain" still finds the Top Gainers. Only
+  // non-empty categories render, and any uncategorized scan lands in "More Scans".
+  const presetGroups = useMemo(() => {
+    const hit = s => !query
+      || String(s.name).toLowerCase().includes(query)
+      || String(s.description || '').toLowerCase().includes(query)
+    const matched = PRESET_SCANS.filter(hit)
+    const cats = [...SCAN_CATEGORIES, SCAN_CATEGORY_FALLBACK]
+    const known = new Set(SCAN_CATEGORIES.map(c => c.key))
+    return cats
+      .map(cat => ({
+        ...cat,
+        scans: matched.filter(s =>
+          cat.key === SCAN_CATEGORY_FALLBACK.key ? !known.has(s.category) : s.category === cat.key,
+        ),
+      }))
+      .filter(g => g.scans.length > 0)
+  }, [query])
 
   return (
     <div className={styles.picker} ref={setRootEl} style={wlStyle}>
@@ -132,16 +169,27 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
       />
 
       <div className={styles.body}>
-        {/* ── Prebuilt: the curated preset scans ── */}
+        {/* ── Prebuilt: curated preset scans, grouped into category cards ── */}
         {tab === 'prebuilt' && (
-          presets.length === 0 ? (
+          presetGroups.length === 0 ? (
             <div className={styles.empty}>{query ? 'No matches.' : 'No preset scans yet.'}</div>
-          ) : presets.map(s => (
-            <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
-              <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
-              <span className={styles.rowName}>{s.name}</span>
-              {s.description && <span className={styles.rowMeta}>{s.description}</span>}
-            </button>
+          ) : presetGroups.map(g => (
+            <div key={g.key} className={styles.catGroup}>
+              <div className={styles.catHeader}>
+                <span className={styles.catIcon} aria-hidden="true"><UIcon name={g.icon} size={12} gold /></span>
+                <span>{g.label}</span>
+                <span className={styles.catCount}>{g.scans.length} {g.scans.length === 1 ? 'scan' : 'scans'}</span>
+              </div>
+              <div className={styles.scanList}>
+                {g.scans.map(s => (
+                  <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
+                    <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
+                    <span className={styles.rowName}>{s.name}</span>
+                    {s.description && <span className={styles.rowMeta}>{s.description}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))
         )}
 

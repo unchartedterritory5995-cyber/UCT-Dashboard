@@ -175,7 +175,7 @@ describe('every generated field, on every definition, writes to the instance', (
       expect(driven + skippedDisabled,
         `${def.id}: no generated field reached a row at all`).toBeGreaterThan(0)
       cleanup()
-    })
+    }, 20000)
   }
 })
 

@@ -1988,3 +1988,99 @@ def test_a_BOOL_cap_is_REFUSED_on_EVERY_axis(store, bars):
                                         universe=["A"], as_of=SESSION,
                                         limits=_Limits("t", **{field: True}))
         assert field in str(exc.value)
+
+
+# ─── `sym` reaches the sweep, or it is a feature that exists nowhere ─────────
+
+def _sym_tree(ticker="SPY"):
+    """`close > sym('<ticker>', close)` — a relative-strength screen, the shape
+    `sym` was built for."""
+    return _op(">", _series("close"),
+               {"type": "sym", "value": ticker, "args": [_series("close")]})
+
+
+def test_a_sym_scan_RUNS_IN_THE_SWEEP_and_reads_the_benchmarks_bars(store, bars):
+    """⛔⛔ THE REACHABILITY PROOF, AND IT IS THE ONE THIS REPO KEEPS NEEDING.
+
+    `sym` is correct in `ast_interpret`, agrees with the JS lane at 1e-9 over the
+    conformance corpus, renders and round-trips through the sentence grammar, and
+    passes the scan gate. NONE of that reaches a member if the SWEEP never loads
+    the benchmark series — the column would be all-NaN, every symbol would come
+    back `not_computable`, and every one of those green tests would stay green
+    (`lesson_built_tested_green_and_unreachable`).
+
+    ⭐ SO THIS ASSERTS THE ANSWER, NOT THE PLUMBING. The benchmark sits BELOW one
+    symbol and ABOVE the other, so a sweep that silently read the base symbol's
+    own bars instead — the plausible wrong wiring — would answer `hits` for both
+    and fail here.
+    """
+    bench = _daily_bars(n=60, start_close=20.0)      # benchmark closes 20..79
+    bars["SPY"] = bench
+    bars["ABOVE"] = _daily_bars(n=60, start_close=50.0)   # ends 109 > 79
+    bars["BELOW"] = _daily_bars(n=60, start_close=1.0)    # ends  60 < 79
+    _snapshot({"ABOVE": {"market_cap": 2e9}, "BELOW": {"market_cap": 2e9}})
+
+    r = scan_evaluator.evaluate_one(_definition(_sym_tree()), TF,
+                                    universe=["ABOVE", "BELOW"], as_of=SESSION)
+
+    assert r["not_computable"] == 0, (
+        "every row was not-computable — the sweep never loaded the benchmark "
+        f"series: {r.get('dropped_symbols')}")
+    assert r["answered"] == 2
+    assert r["hits"] == ["ABOVE"], (
+        "the sweep did not compare against SPY. If BOTH symbols hit, it read each "
+        f"symbol's OWN bars in place of the benchmark's. Got {r['hits']}")
+
+
+def test_the_benchmark_is_read_ONCE_for_the_whole_sweep_not_once_per_symbol():
+    """⭐ THE AFFORDABILITY ARGUMENT, ASSERTED. A universe sweep touches thousands
+    of symbols; re-reading SPY inside the loop would multiply one identical read
+    by the universe size. The count is what makes that a fact rather than a
+    comment about where the call happens to sit.
+    """
+    reads = []
+    real = scan_evaluator._read_bars
+
+    def counting(sym, tf, want):
+        reads.append(sym)
+        return real(sym, tf, want)
+
+    from api.services import bars_sqlite
+    table = {"SPY": _daily_bars(n=60, start_close=20.0)}
+    for i in range(6):
+        table[f"S{i:03d}"] = _daily_bars(n=60, start_close=50.0 + i)
+
+    original_get, original_read = bars_sqlite.get_bars, scan_evaluator._read_bars
+    try:
+        bars_sqlite.get_bars = lambda t, tf, n: list(table.get(str(t).upper()) or [])[-n:]
+        scan_evaluator._read_bars = counting
+        scan_evaluator.evaluate_one(_definition(_sym_tree()), TF,
+                                    universe=sorted(k for k in table if k != "SPY"),
+                                    as_of=SESSION)
+    finally:
+        bars_sqlite.get_bars, scan_evaluator._read_bars = original_get, original_read
+
+    assert reads.count("SPY") == 1, (
+        f"the benchmark was read {reads.count('SPY')} times for a 6-symbol "
+        "universe — the load is inside the per-symbol loop")
+    assert len(reads) > 1, "the control failed: no symbol bars were read at all"
+
+
+def test_a_scan_that_names_NO_benchmark_loads_none():
+    """⛔ AND IT COSTS NOTHING WHEN UNUSED. The tickers loaded are the ones the
+    TREE names, not the whole declared roster — otherwise every ordinary scan
+    would pay for fifteen benchmark reads it never looks at."""
+    reads = []
+    real = scan_evaluator._read_bars
+    from api.services import bars_sqlite
+    table = {"S001": _daily_bars(n=60)}
+    original_get, original_read = bars_sqlite.get_bars, scan_evaluator._read_bars
+    try:
+        bars_sqlite.get_bars = lambda t, tf, n: list(table.get(str(t).upper()) or [])[-n:]
+        scan_evaluator._read_bars = lambda s, tf, w: (reads.append(s), real(s, tf, w))[1]
+        scan_evaluator.evaluate_one(_definition(PRICE_TREE), TF,
+                                    universe=["S001"], as_of=SESSION)
+    finally:
+        bars_sqlite.get_bars, scan_evaluator._read_bars = original_get, original_read
+    assert reads == ["S001"], f"a benchmark-free scan read {reads}"
+

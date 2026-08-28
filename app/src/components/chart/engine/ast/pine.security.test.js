@@ -95,10 +95,52 @@ describe('request.security → tf', () => {
     expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
-  it('⛔ another SYMBOL still refuses — that is `sym`, and it is not built', () => {
-    const out = translatePine(src("plot(request.security('SPY', 'W', close))"))
-    expect(out.refusal).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:request')
+  it('⭐⭐ another SYMBOL is now `sym`, and it wraps the `tf` — never the other way', () => {
+    // ⛔⛔ THE NESTING IS THE POINT. `sym` must be OUTER: `tf` hands its child
+    // RESAMPLED bars while the benchmark series is not resampled, so
+    // `tf(sym(…))` would align daily SPY bars onto weekly dates — an
+    // almost-right column, not a NaN. `interpret` refuses that ordering by name,
+    // and this translator composes from two independent answers (whose bars?
+    // which period?) so it CANNOT emit it.
+    const ast = treeOf(translatePine(src("plot(request.security('SPY', 'W', close))")))
+    expect(ast).toEqual({
+      type: 'sym',
+      value: 'SPY',
+      args: [{ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }],
+    })
+  })
+
+  it("⭐ …and at the chart's OWN timeframe it is a bare `sym`, with no `tf` at all", () => {
+    // `timeframe.period` means "this chart's period", so there is nothing to
+    // resample. Script 13 of the community corpus is exactly this shape:
+    // `request.security(benchmark, timeframe.period, close)` — relative strength
+    // against SPY, the primitive this whole node exists for.
+    const ast = treeOf(translatePine(src(
+      "plot(request.security('SPY', timeframe.period, close))")))
+    expect(ast).toEqual({ type: 'sym', value: 'SPY', args: [{ type: 'series', name: 'close' }] })
+  })
+
+  it("⭐ and this chart's own symbol at its own timeframe is the IDENTITY — no node at all", () => {
+    // The fourth corner of the same composition. `request.security(syminfo.tickerid,
+    // timeframe.period, close)` asks for this symbol on this timeframe, which is
+    // just `close`. Emitting a `sym` or a `tf` here would add a node that changes
+    // nothing and costs a resample.
+    const ast = treeOf(translatePine(src(
+      "plot(request.security(syminfo.tickerid, timeframe.period, close))")))
+    expect(ast).toEqual({ type: 'series', name: 'close' })
+  })
+
+  it('⛔ a symbol on ANOTHER VENUE still refuses — this engine reads US equities', () => {
+    // Community script 04 asks for `BINANCE:BTCEUR`. ⚠️ AND THE REASON IS NOT
+    // SNOBBERY: `sentence.js::renderSym` will only SAY a plain ticker, so
+    // accepting this would build a tree whose read-back refuses — a definition a
+    // member could save and never see explained. Refusing at the door they typed
+    // at is the honest answer.
+    for (const ticker of ['BINANCE:BTCEUR', 'NASDAQ:AAPL', 'TOOLONGTICKER']) {
+      const out = translatePine(src(`plot(request.security('${ticker}', 'W', close))`))
+      expect(out.refusal, ticker).toBeTruthy()
+      expect(out.refusal.guard, ticker).toBe('pine:request')
+    }
   })
 
   it('⛔ a timeframe this engine cannot RESAMPLE refuses at the door the member typed at', () => {
@@ -166,14 +208,17 @@ describe('request.security → tf', () => {
     }
   })
 
-  it('⛔ but a LOCAL binding that shadows `tickerid` is another symbol, and refuses', () => {
-    // The control on the spellings above: recognising the built-in must not
-    // become “any variable called tickerid is this chart”. Here it is bound to a
-    // literal, which is a DIFFERENT instrument — `sym`'s job, and `sym` is not built.
-    const out = translatePine(src(
+  it('⭐ and a LOCAL binding that shadows `tickerid` reads as the instrument it NAMES', () => {
+    // The control on the spellings above: recognising the built-in must not become
+    // “any variable called tickerid is this chart”. Bound to a literal it is a
+    // DIFFERENT instrument — which is now `sym`'s job, so it translates AS SPY
+    // rather than silently as this chart. Before `sym` existed this refused; the
+    // assertion that matters is unchanged either way, which is that it is never
+    // read as the chart's own symbol.
+    const ast = treeOf(translatePine(src(
       `tickerid = 'SPY'
-plot(security(tickerid, 'W', close))`))
-    expect(out.refusal).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:request')
+plot(security(tickerid, 'W', close))`)))
+    expect(ast.type).toBe('sym')
+    expect(ast.value).toBe('SPY')
   })
 })
