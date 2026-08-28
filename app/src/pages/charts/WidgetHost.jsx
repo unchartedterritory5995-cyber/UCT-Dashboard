@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import ChartWidget from './widgets/ChartWidget'
 import WatchlistWidget from './widgets/WatchlistWidget'
 import ThemesWidget from './widgets/ThemesWidget'
@@ -6,6 +7,9 @@ import FundamentalsWidget from './widgets/FundamentalsWidget'
 import BreadthWidget from './widgets/BreadthWidget'
 import AiSearchWidget from './widgets/AiSearchWidget'
 import NewsWidget from './widgets/NewsWidget'
+// Lazy — the Notebook pulls the TipTap bundle; keep it OUT of the base charts chunk
+// so it only loads when a Notebook widget is actually mounted.
+const NotebookWidget = lazy(() => import('./widgets/NotebookWidget'))
 import ProfileWidget from './widgets/ProfileWidget'
 import AlertsWidget from './widgets/AlertsWidget'
 import CalendarWidget from './widgets/CalendarWidget'
@@ -51,6 +55,7 @@ export const WORKSPACE_WIDGETS = {
   breadth: { component: BreadthWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },
   aisearch: { component: AiSearchWidget, props: ({ colorKey }) => ({ color: colorKey }) },
   news: { component: NewsWidget, props: standardProps },
+  notebook: { component: NotebookWidget, props: standardProps },
   profile: { component: ProfileWidget, props: standardProps },
   alerts: { component: AlertsWidget, props: standardProps },
   calendar: { component: CalendarWidget, props: standardProps },
@@ -71,7 +76,13 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   const binding = WORKSPACE_WIDGETS[type]
   if (!binding) return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   const Widget = binding.component
-  return <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+  // Suspense boundary for the lazy Notebook (a no-op passthrough for the eagerly
+  // imported widgets, which never suspend).
+  return (
+    <Suspense fallback={<div style={{ padding: 14, fontSize: 12, color: 'var(--text-muted, #8b8674)' }}>Loading…</div>}>
+      <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
+    </Suspense>
+  )
 }
 
 export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false,

@@ -33,12 +33,12 @@ import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 
 const IDS = [
   'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
-  'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow',
+  'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow',
   'periodsort', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
 ]
 
 describe('widget registry — metadata pins', () => {
-  it('registers exactly the 17 workspace widget types, in menu order', () => {
+  it('registers exactly the 18 workspace widget types, in menu order', () => {
     expect(WIDGET_IDS).toEqual(IDS)
   })
 
@@ -46,7 +46,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('header')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
-      aisearch: 'AI Search', news: 'News', profile: 'Profile',
+      aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
@@ -57,7 +57,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('menu')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Theme Tracker',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
-      aisearch: 'AI Search', news: 'News & Catalysts', profile: 'Stock Profile',
+      aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map',
@@ -68,7 +68,7 @@ describe('widget registry — metadata pins', () => {
     expect(labelMap('tab')).toEqual({
       chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes',
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
-      aisearch: 'AI Search', news: 'News', profile: 'Profile',
+      aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
       alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map',
@@ -86,6 +86,7 @@ describe('widget registry — metadata pins', () => {
       breadth:      { w: 8,  h: 10, minW: 4, minH: 4 },
       aisearch:     { w: 7,  h: 10, minW: 3, minH: 3 },
       news:         { w: 6,  h: 10, minW: 2, minH: 4 },
+      notebook:     { w: 5,  h: 11, minW: 3, minH: 5 },
       profile:      { w: 6,  h: 12, minW: 3, minH: 5 },
       alerts:       { w: 6,  h: 10, minW: 2, minH: 4 },
       calendar:     { w: 6,  h: 10, minW: 2, minH: 4 },
@@ -113,7 +114,7 @@ describe('widget registry — metadata pins', () => {
   it('periodsort is registered but excluded from both add menus (Tools-only door)', () => {
     expect(WORKSPACE_MENU_TYPES).toEqual([
       'chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth',
-      'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
+      'aisearch', 'news', 'notebook', 'profile', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter',
     ])
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
@@ -212,6 +213,7 @@ const CAPTURE_FIXTURES = {
   breadth: { hiddenMetrics: ['naaim'], tileStyle: 'spark', settings: { bg: '#0f0f0f' }, row: { date: '2026-08-11', pct_above_50sma: 48.2 }, series: { pct_above_50sma: [44, 46, 48.2] }, updated: '1:26 PM ET' },
   aisearch: { thread: [{ id: 1, q: 'Why is SMCI moving today?', answer: 'Because…', citations: [] }], settings: { bg: '#101010' } },
   news: { symbol: 'NVDA', filter: 'up', company: 'NVIDIA Corp', settings: { bg: '#101010' }, events: [{ type: 'earnings', date: '2026-08-05', title: 'Q2 beat and raise', direction: 'up', move_pct: 6.1, source: 'desk' }] },
+  notebook: { folderId: 'f1', noteId: 'n1', settings: { bg: '#101010' } },
   profile: { symbol: 'NVDA', company: 'NVIDIA Corp', statYear: 2026, settings: { bg: '#101010' } },
   alerts: { alerts: [{ id: 'a1', sym: 'NVDA', direction: 'above', target_price: 190, levelAtCapture: 190, priceAtCapture: 182.4, isActive: true }], settings: { bg: '#101010' } },
   calendar: { date: '2026-08-06', econStars: 3, selectedSym: 'AMD', tbdOpen: false, sections: { bmo: { sortBy: 'mcap', sortDir: 'desc', showAll: false }, amc: { sortBy: 'im', sortDir: 'desc', showAll: true } }, settings: { bg: '#101010' } },
