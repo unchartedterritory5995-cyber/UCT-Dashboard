@@ -48,6 +48,14 @@ describe('the community corpus, by name', () => {
     '16-nr4-nr7.pine',
     '17-pocket-pivot-breakout.pine',
     '18-minervini-trend-template.pine',
+    // ⭐⭐ TWO REFUSALS DEEP, and neither was the one the blocker table named.
+    // It cleared `pine:request` when a ternary timeframe learned to fold its own
+    // condition, then stopped at `pine:statement` on
+    // `fastLength = input(12), slowLength = input(26)` — several bindings on one
+    // line, a v2/v3 idiom. The second refusal was INVISIBLE until the first
+    // cleared, which is the whole argument for reading refusals at the line
+    // rather than estimating them from what a script contains.
+    '19-cm-macd-ult-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
     '28-support-resistance-dynamic-v2.pine',

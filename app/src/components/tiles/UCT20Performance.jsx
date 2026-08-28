@@ -318,7 +318,9 @@ export default function UCT20Performance() {
       <p className={styles.simNote}>
         Simulation, not a real account — it mechanically follows the published list at
         real market prices so the record is exactly what following the list would have
-        produced. Tracking restarted Jun 22, 2026 after a data-integrity repair.
+        produced. Tracking restarted Aug 27, 2026 for a clean record alongside the
+        risk-managed Book, with the measured 4% stop ceiling and repaired price data
+        live from day one.
       </p>
 
       <BookLane />

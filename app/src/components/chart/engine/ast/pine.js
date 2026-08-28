@@ -230,6 +230,19 @@ const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
  *  scripts that still use them (19-cm-macd-ult-mtf, 20-cm-ultimate-ma-mtf).
  *  Knowing only the v5 spelling would refuse the same script purely for having
  *  been written in 2015. */
+/** Pine names for THIS CHART'S OWN timeframe, across versions.
+ *
+ *  ⛔⛔ A SET, NOT AN INLINE `||` PAIR, AND THE READER FOLLOWS BINDINGS FIRST.
+ *  The comparison this replaces was written inline in `securityAsNode` as
+ *  `tfNode.name === 'timeframe.period' || tfNode.name === 'period'`, which asks
+ *  only what a node is CALLED — so `period = "60"` immediately above the call
+ *  read as the chart's own timeframe and the script answered off daily bars while
+ *  asking for hourly ones. That is the identical defect `ownSymbolNameOf` was
+ *  fixed for three lines away, left standing on the timeframe side; the symbol
+ *  fix even documents the ordering rule that this line then ignored. Caught by a
+ *  shadowing CONTROL, not by review — for the second time. */
+const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
+
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
 ])
@@ -954,6 +967,38 @@ function blockStatements(toks, indents, indent) {
       i += 1
     }
     if (header.length === 0) break
+
+    // ⭐ `fastLength = input(12), slowLength = input(26)` — SEVERAL BINDINGS ON
+    // ONE LINE, a v2/v3 idiom, and the whole of what held `19-cm-macd-ult-mtf`
+    // once its timeframe cleared. The refusal it produced named the SECOND name
+    // on the line rather than the comma that stopped it, which is why it read as
+    // an unparseable expression rather than a missing statement shape.
+    //
+    // ⛔ NARROW ON PURPOSE, because a comma means several things in Pine and
+    // this is one of them. A line with a BLOCK beneath it never splits — the
+    // body belongs to the line as a whole and there is no honest answer to which
+    // segment owns it. And EVERY segment must carry its own top-level `=`, all or
+    // nothing: a partial split would bind one name and silently drop whatever the
+    // member wrote after the comma, which is a script that translates while
+    // missing an output it declared. A comma inside a call is at bracket depth
+    // and was never a candidate — `splitTopLevel` is the same depth rule
+    // `findTop` uses, so there is one definition of "top level" here.
+    const parts = body.length === 0 ? splitTopLevel(header, ',') : [header]
+    if (parts.length > 1 && parts.every(isBindingSegment)) {
+      for (const part of parts) out.push({ header: part, body: [], sub: [] })
+      continue
+    }
+    // ⚰️ A REFUSAL HERE FOR AN UNSPLITTABLE TOP-LEVEL COMMA WAS WRITTEN AND
+    // REMOVED THE SAME HOUR. The argument for it was real — `a = 1, plot(close)`
+    // binds the whole line, the `plot` is never collected, and the script refuses
+    // with "offers no plot" while a plot sits on the line the member is reading.
+    // ⛔ BUT THE OWNER CORPUS ANSWERED IT: `screener(tid_001), screener(tid_002),
+    // …` is a legitimate several-calls-on-one-line idiom, and refusing every
+    // comma we cannot split refuses that too. A better-worded refusal is not worth
+    // a refusal where none belongs, so a line that does not split is left EXACTLY
+    // as it was. Fixing the misleading sentence needs a reader that knows which
+    // segments are outputs — a different job from splitting bindings.
+
     out.push({
       header,
       body,
@@ -964,6 +1009,36 @@ function blockStatements(toks, indents, indent) {
 }
 
 const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
+
+/** Is this token run `… name = expression`, i.e. one binding?
+ *
+ *  ⚠️ The left side is required to be BARE NAMES so that `float a = 1` counts
+ *  and `f(x) = 1` does not. `==`, `:=` and `>=` lex as single tokens of their own,
+ *  so matching a bare `=` cannot pick up a comparison. */
+function isBindingSegment(toks) {
+  const eq = findTop(toks, (t) => isPunct(t, '='))
+  if (eq <= 0 || eq >= toks.length - 1) return false
+
+  // ⭐ A TUPLE DESTRUCTURE IS A BINDING TOO — `[tid, out] = feed(sym)`, and the
+  // owner corpus writes SEVERAL of them comma-separated on one line. Requiring
+  // bare names on the left rejected it, and the refusal that produced was worse
+  // than the one it replaced: a script that used to refuse late, having offered
+  // ten translated outputs, refused at the comma with none. Caught by the owner
+  // corpus snapshot, which pins outputs as well as guard — a gate gate on the
+  // guard alone would have called that regression green.
+  if (isPunct(toks[0], '[')) {
+    const close = toks.findIndex((t) => isPunct(t, ']'))
+    if (close < 1 || close !== eq - 1) return false
+    for (let i = 1; i < close; i += 1) {
+      const t = toks[i]
+      if (t.kind !== 'ident' && !isPunct(t, ',')) return false
+    }
+    return true
+  }
+
+  for (let i = 0; i < eq; i += 1) if (toks[i].kind !== 'ident') return false
+  return true
+}
 
 /** The index of the first token at bracket depth 0 matching `pred`, or -1. */
 /** One token run split on a top-level separator — the depth rule `findTop` uses.
@@ -2391,15 +2466,80 @@ class Resolver {
    *  ⛔ BOUNDED, because a binding can name another binding: `a = b`, `b = 'W'`.
    *  Four hops is well past anything real and makes a cycle impossible.
    */
+  /** A ternary whose CONDITION is a constant → the branch that actually runs,
+   *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
+   *
+   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
+   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
+   *  to." True — and beside the point, because nobody has to fold the ternary
+   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  is reachable and the other is dead code in the script as shipped.
+   *
+   *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
+   *  the common case and mistranslates the flipped one — reading a script that
+   *  asks for 60-minute bars as the chart's own. A branch we cannot resolve
+   *  returns null and the caller refuses, because there is no single timeframe to
+   *  name and inventing one is the whole failure this node guards against.
+   *
+   *  ⚠️ `resolve` can refuse (an input kind we do not hold); that is a
+   *  non-answer here, not an error to propagate — the caller's `null` path
+   *  already says "no literal", by name, at the member's own line. */
+  constantBranchOf(node) {
+    if (!node || node.type !== 'ternary') return null
+    let test = null
+    try {
+      test = this.resolve(node.test)
+    } catch (err) {
+      return null
+    }
+    // A folded constant is a `num`; anything per-bar resolves to `series`/`op`
+    // and is correctly not a branch anybody can name.
+    if (!test || test.type !== 'num') return null
+    return test.value ? node.yes : node.no
+  }
+
+  /** Does this node name THIS CHART'S OWN timeframe? → the spelling, or null.
+   *
+   *  ⛔⛔ THE BINDING IS CONSULTED FIRST AND THE ORDER IS THE WHOLE GUARD — the
+   *  same rule, for the same reason, as `ownSymbolNameOf`. `period` is a bare
+   *  identifier in v2/v3 Pine and a script may reassign it; `period = "60"` means
+   *  hourly, and reading it as the chart's own timeframe answers off whatever
+   *  bars happen to be loaded. */
+  ownTimeframeOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.ownTimeframeOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound) {
+        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
+      }
+      if (OWN_TF_NAMES.has(node.name)) return node.name
+    }
+    return null
+  }
+
   timeframeLiteralOf(node, depth = 0) {
     if (!node || depth > 4) return null
     if (node.type === 'string') return node.value
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.timeframeLiteralOf(taken, depth + 1) : null
+    }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
       return null
     }
-    if (node.type === 'call' && (node.name === 'input.timeframe' || node.name === 'input.string')) {
+    // ⭐ PLAIN `input` IS THE v3/v4 SPELLING and it is what the MTF scripts use:
+    // `input(title=…, type=resolution, defval='D')`. Only a `defval` that is
+    // itself a timeframe STRING survives the recursion, so widening the call
+    // names here cannot turn `input(10)` into a timeframe.
+    if (node.type === 'call' && (node.name === 'input.timeframe'
+        || node.name === 'input.string' || node.name === 'input')) {
       const args = node.args || []
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
@@ -2544,8 +2684,7 @@ class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
-    const sameTimeframe = tfNode && tfNode.type === 'name'
-      && (tfNode.name === 'timeframe.period' || tfNode.name === 'period')
+    const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
@@ -3607,7 +3746,19 @@ export function translatePine(source, opts = {}) {
     })
   }
 
-  const stmts = blockStatements(tokens, indents, 0)
+  // ⚠️ STATEMENT GROUPING CAN REFUSE, and its refusal must arrive as a
+  // refusal VALUE like every other. `blockStatements` throws on a top-level comma
+  // it cannot split, and an escaping PineRefusal would reach a member as a 500
+  // instead of a sentence — the exact shape the community corpus gate asserts
+  // against ("refuses BY A DECLARED GUARD, never by throwing"). Same handling the
+  // lexer's throw already gets, twenty lines above.
+  let stmts
+  try {
+    stmts = blockStatements(tokens, indents, 0)
+  } catch (err) {
+    const r = fromError(err)
+    return { ...blank, version, refusal: r, refusals: [r] }
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]

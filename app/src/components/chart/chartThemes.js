@@ -276,6 +276,28 @@ function _luminance(hex) {
   return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
 }
 
+// Return `color` at alpha `a` as an rgba() string. Handles #rgb / #rrggbb / #rrggbbaa
+// and rgb()/rgba() (overriding any existing alpha). Passes anything else through.
+function _rgbaAlpha(color, a) {
+  if (!color || typeof color !== 'string') return color
+  const s = color.trim()
+  if (s[0] === '#') {
+    let h = s.slice(1)
+    if (h.length === 3) h = h.split('').map(c => c + c).join('')
+    if (h.length === 6 || h.length === 8) {
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+    return color
+  }
+  const m = s.match(/rgba?\(([^)]+)\)/i)
+  if (m) {
+    const p = m[1].split(',').map(x => x.trim())
+    if (p.length >= 3) return `rgba(${p[0]}, ${p[1]}, ${p[2]}, ${a})`
+  }
+  return color
+}
+
 // High-contrast readable ink for a given canvas color — bright on a dark canvas,
 // near-black on a light one. Used for widget DATA text (symbol/price/volume/etc.),
 // which must read crisply in dense rows rather than fade like the muted chart-axis
@@ -306,9 +328,11 @@ export function applyThemeToSettings(settings, theme) {
 
   // Overlays merge POSITIONALLY (same rule mergeChartSettings uses): only recolor
   // each slot that has a themed color, keep enabled/type/period exactly as the
-  // user has them. A slot past the theme's palette keeps its current color.
+  // user has them. A slot past the theme's palette keeps its current color. The
+  // themed MA color is softened to 75% opacity (owner default) so the price action
+  // reads above the moving averages.
   const overlays = Array.isArray(s.overlays)
-    ? s.overlays.map((o, i) => (maColors[i] ? { ...o, color: maColors[i] } : { ...o }))
+    ? s.overlays.map((o, i) => (maColors[i] ? { ...o, color: _rgbaAlpha(maColors[i], 0.75) } : { ...o }))
     : s.overlays
 
   const bgGrad = theme.bgGradient
@@ -342,12 +366,13 @@ export function applyThemeToSettings(settings, theme) {
       upWick, downWick, upBorder, downBorder,
       oneColor: up,
     },
-    // Volume
+    // Volume — the MA line matches the on-chart SMA50 (overlay index 2) at the same
+    // 75% opacity, so the two read as one color per theme (owner default).
     volume: {
       ...(s.volume || {}),
       upColor: theme.volUp || up,
       downColor: theme.volDown || down,
-      ...(theme.volMa ? { maColor: theme.volMa } : {}),
+      maColor: theme.volMa || (maColors[2] ? _rgbaAlpha(maColors[2], 0.75) : (s.volume || {}).maColor),
     },
     overlays,
     watermark: { ...(s.watermark || {}), ...(wm ? { color: wm } : {}) },
@@ -418,6 +443,7 @@ const _WIDGET_THEME_MAP = {
   alerts:       { text: ['textColor'] },
   profile:      { text: ['textColor', 'headerColor'], updown: true },
   news:         { text: ['textColor', 'headerColor'], updown: true },
+  notebook:     { text: ['textColor', 'headerColor'] },
   nhnl:         { text: ['textColor'],              updown: true },
   nhnlPulse:    { text: ['textColor'],              updown: true },
   volumescan:   { text: ['textColor'],              updown: true },
@@ -433,7 +459,7 @@ export const WIDGET_GLOBAL_PREF_KEYS = {
   breadth: 'breadth_widget_settings',
   aisearch: 'aisearch_settings',
 }
-const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter'])
+const _PER_WIDGET_TYPES = new Set(['watchlist', 'scanner', 'optionsflow', 'calendar', 'alerts', 'profile', 'news', 'notebook', 'nhnl', 'nhnlPulse', 'volumescan', 'scatter'])
 const _hex6 = (c) => /^#[0-9a-f]{6}$/i.test(c || '')
 
 export function mapThemeToWidgetSettings(base, theme, type) {

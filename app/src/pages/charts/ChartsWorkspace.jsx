@@ -131,17 +131,43 @@ const UCT_DEFAULT_LAYOUT = {
 // `uctDefaultChartSettings()` below, which stamps the engine keys the capture
 // predates. See the comment there for why that is a ship-blocker and not a
 // tidy-up.
-const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#c9a84c","nextEarnings":"#6dc9c0","uctRating":"#1ae51a"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"}},"swingLabels":{"enabled":true,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
+const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upColor":"#1ae51a","downColor":"#c41f2d","upBorder":"#1ae51a","downBorder":"#c41f2d","upWick":"#1ae51a","downWick":"#c41f2d","oneColor":"#1ae51a"},"candleColorMode":"netchange","background":"#0f0f0f","bgMode":"solid","bgGradient":{"top":"#001e5a","bottom":"#ffffff"},"textColor":"#cfcfcf","textSize":11,"grid":{"color":"#ffffff08","visible":true},"crosshair":{"color":"#9a9a9a","style":1,"width":1,"magnet":false},"header":{"titleMode":"both","showChange":true,"timeframes":["5","15","30","D","W","1","M","60"],"customTimeframes":[],"showMarketCap":true,"showNextEarnings":true,"showUctRating":true,"showLegend":true,"colors":{"dayChange":"#1ae51a","legend":"#cfcfcf","dayChangeUp":"#1ae51a","dayChangeDown":"#c41f2d","marketCap":"#6ba3be","nextEarnings":"#6ba3be","uctRating":"#dcbb5e"}},"overlays":[{"enabled":true,"type":"EMA","period":9,"color":"#4ade80"},{"enabled":true,"type":"EMA","period":20,"color":"#f472b6"},{"enabled":true,"type":"SMA","period":50,"color":"#60a5fa"},{"enabled":true,"type":"SMA","period":200,"color":"#fb923c"}],"volume":{"visible":true,"upColor":"#1ae51a","downColor":"#c41f2d","hvcEnabled":true,"separatePane":false,"paneHeightPct":22},"watermark":{"visible":true,"opacity":0.5176470588235295,"color":"#ffffff","sizeScale":1.25,"lines":{"ticker":true,"company":true,"sector":true,"industry":true,"theme":true},"x":0.5,"y":0.5},"drawingDefaults":{"color":"#c9a84c","width":1},"indicators":{"volumeProfile":{"enabled":false,"bins":24,"color":"rgba(120,160,100,0.25)","pocColor":"rgba(200,160,40,0.65)"}},"swingLabels":{"enabled":false,"sensitivity":"low","color":"#000000","tintByType":true,"upColor":"#cfcfcf","downColor":"#cfcfcf","bgEnabled":false,"bg":"#ffffff"},"heikinAshi":false,"logScale":false,"percentScale":false,"comparisonSymbols":[],"markers":{"earnings":true,"splits":false,"dividends":false,"news":false,"earningsBeat":"#1ae51a","earningsMiss":"#c41f2d"},"countdown":false,"showPatterns":false,"hideDrawings":false,"extendedHoursShading":false,"volumeOverlayIndicators":[],"theme":"dark","positionCalc":{"accountSize":50000,"riskPct":1},"preset":"custom"}'
 
 // A new widget inherits the last UCT chart theme the user applied at "all charts" /
 // "all widgets" scope (persisted as { id, scope }). `charts` scope only skins new
 // CHART widgets; `widgets` scope skins every new widget. Global-pref widgets (theme
 // tracker / fundamentals / breadth / AI search) inherit via their already-themed pref,
 // so patching their opts is a no-op — that's expected.
+// FORCED new-chart defaults (owner 2026-08-27). A new chart's base is the user's
+// SAVED global chart_settings, which would otherwise carry the old look — so these
+// specific fields are stamped onto EVERY newly placed chart regardless of that base
+// (still fully editable per-chart afterwards). Color-only theme choices (MA 75%
+// opacity, volume MA = SMA50) already ride applyThemeToSettings; this handles the
+// structural/value defaults the theme layer doesn't touch.
+function forceNewChartDefaults(settings) {
+  if (!settings || typeof settings !== 'object') return settings
+  const s = { ...settings }
+  // SMA5 off the chart AND its legend (the legend derives from enabled overlays).
+  if (Array.isArray(s.overlays)) s.overlays = s.overlays.filter(o => !(o && o.type === 'SMA' && Number(o.period) === 5))
+  s.watermark = { ...(s.watermark || {}), sizeScale: 1.25, weight: 500 }   // 125% + medium
+  s.swingLabels = { ...(s.swingLabels || {}), enabled: false }             // swing prices off
+  const h = s.header || {}
+  s.header = { ...h, colors: { ...(h.colors || {}), marketCap: '#6ba3be', nextEarnings: '#6ba3be', uctRating: '#dcbb5e' } }
+  return s
+}
+function applyChartDefaultsToOpts(o) {
+  if (!o || typeof o !== 'object') return o
+  const next = { ...o }
+  if (o.settings) next.settings = forceNewChartDefaults(o.settings)
+  if (Array.isArray(o.chartTabs)) next.chartTabs = o.chartTabs.map(t => (t && t.settings ? { ...t, settings: forceNewChartDefaults(t.settings) } : t))
+  return next
+}
+
 function themeNewWidgetOpts(type, opts, stored, seed) {
-  if (!stored || !stored.id) return opts
+  const force = (o) => (type === 'chart' ? applyChartDefaultsToOpts(o) : o)
+  if (!stored || !stored.id) return force(opts)
   let theme = CHART_THEME_BY_ID[stored.id]
-  if (!theme) return opts
+  if (!theme) return force(opts)
   // Canvas = the app theme's SURFACE tone (sidebar/header color) so EVERY widget —
   // charts included — stands off the page background instead of blending in.
   if (stored.appSurface) {
@@ -153,9 +179,9 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
     // (Graphite/Slate/Carbon/Navy…), still use the app surface as the canvas.
     theme = themeWithAppSurface(theme)
   }
-  if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
-  if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
-  return opts
+  if (stored.scope === 'widgets') return force(patchWidgetOptsWithTheme(type, opts, theme, seed))
+  if (stored.scope === 'charts' && type === 'chart') return force(patchOptsWithTheme(opts, theme, seed))
+  return force(opts)
 }
 
 // A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only

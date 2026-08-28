@@ -22,9 +22,11 @@ export const HEADER_FIELDS = [
   { key: 'chg', label: '% Change', short: '%CHG', colorKey: 'chg', dflt: null, signed: true },
   { key: 'rvol', label: 'RVOL', short: 'RVOL', colorKey: 'rvol', dflt: null },
   { key: 'ipoDate', label: 'IPO Date', short: 'IPO', colorKey: 'ipoDate', dflt: null },
-  { key: 'mcap', label: 'Market Cap', short: 'MC', colorKey: 'marketCap', dflt: '#c9a84c' },
+  // Owner defaults 2026-08-27: Market Cap + Next Earnings share one value color; UCT
+  // Rating is the brand gold. (Field TITLES are muted via .chartMetaLabel CSS.)
+  { key: 'mcap', label: 'Market Cap', short: 'MC', colorKey: 'marketCap', dflt: '#6ba3be' },
   { key: 'earn', label: 'Next Earnings', short: 'NE', colorKey: 'nextEarnings', dflt: '#6ba3be' },
-  { key: 'rating', label: 'UCT Rating', short: 'UCT', colorKey: 'uctRating', dflt: '#1ae51a' },
+  { key: 'rating', label: 'UCT Rating', short: 'UCT', colorKey: 'uctRating', dflt: '#dcbb5e' },
   { key: 'dchg', label: '$ Change', short: '$CHG', colorKey: 'dchg', dflt: null, signed: true },
   { key: 'fromopen', label: '% from Open', short: '%OPEN', colorKey: 'fromopen', dflt: null, signed: true },
   { key: 'fromhigh', label: '% from High', short: '%HIGH', colorKey: 'fromhigh', dflt: null, signed: true },

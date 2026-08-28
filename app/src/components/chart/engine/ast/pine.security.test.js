@@ -20,7 +20,14 @@ import { translatePine } from './pine.js'
  *                                 timeframe we cannot resample from daily bars.
  *                                 The fold worked; the answer is still no.
  *   19-cm-macd-ult-mtf           `res = useCurrentRes ? period : resCustom`
- *   20-cm-ultimate-ma-mtf         — a TERNARY. No literal exists to fold to.
+ *   20-cm-ultimate-ma-mtf         — ✅ SOLVED 27 Aug, see `pine.tfternary.test.js`.
+ *                                 This row read "a TERNARY. No literal exists to
+ *                                 fold to", which is TRUE and was doing duty as
+ *                                 "cannot be resolved". Nobody has to fold the
+ *                                 ternary: its CONDITION is `input(true)`, so one
+ *                                 arm is dead code in the script as shipped. Both
+ *                                 now clear the timeframe and refuse further in,
+ *                                 at `pine:statement` and `pine:window`.
  *   23-higher-timeframe-ema      `ema[barstate.isrealtime ? 1 : 0]` — the CHILD
  *                                 is the blocker, not the timeframe.
  *   04-superguppy                `s01 = input('BINANCE:BTCEUR', type=input.symbol)`
@@ -41,7 +48,20 @@ import { translatePine } from './pine.js'
  * `pine:collection` (`array.get`), 14 and 30 at `pine:no-output`. `lookahead_on`
  * was a property they SHARED, never the reason they refused.
  *
- * ⭐ SO THE STANDING LESSON, NOW MEASURED THREE TIMES, IS THAT A BLOCKER TABLE
+ * ⭐ AND THE TERNARY FOLD MADE IT FOUR, IN BOTH DIRECTIONS AT ONCE. Predicted: it
+ * frees 19 and 20. Measured: the community corpus stayed at **16/30** — both
+ * scripts cleared the timeframe and stopped on the next thing. `pine:request` fell
+ * from 3 to 1, which is a real change in what this door SAYS and no change in what
+ * it TAKES, and those are different numbers that a single total would have blurred.
+ * ⛔ What the fold actually bought was a CORRECTNESS bug nobody was looking for:
+ * `period = "60"` immediately above a `security` call read as the chart's own
+ * timeframe, because the check asked what the node was CALLED and never consulted
+ * the binding — the identical defect `ownSymbolNameOf` was fixed for, three lines
+ * away, still standing on the timeframe side. A script asking for hourly bars was
+ * answered off daily ones, silently. Found by a shadowing CONTROL written for a
+ * different feature.
+ *
+ * ⭐ SO THE STANDING LESSON, NOW MEASURED FOUR TIMES, IS THAT A BLOCKER TABLE
  * BUILT BY GREPPING FOR A FEATURE COUNTS SCRIPTS THAT **CONTAIN** IT, NOT SCRIPTS
  * **BLOCKED BY** IT. Variable timeframe: predicted 6, moved 0. Another symbol:
  * predicted ~3, moved 1. `lookahead_on`: predicted 4, moved 0. The binding

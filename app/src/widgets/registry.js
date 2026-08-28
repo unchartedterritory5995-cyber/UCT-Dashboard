@@ -330,6 +330,23 @@ export const WIDGET_REGISTRY = deepFreeze({
     reconstructable: (p) => Array.isArray(p?.events) && p.events.length > 0,
     liveCapable: false,
   },
+
+  notebook: {
+    labels: { header: 'Notebook', menu: 'Notebook', tab: 'Notebook' },
+    defaults: { w: 5, h: 11, minW: 3, minH: 5 },
+    placement: { family: 'panel', fill: 'narrow' },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
+    themeFollow: true,
+    // Per-widget nav (selected folder + open note) + appearance; no symbol.
+    paramsSchema: [
+      { key: 'folderId', type: 'string' },
+      { key: 'noteId', type: 'string' },
+      { key: 'settings', type: 'json' },
+    ],
+    plainText: () => '[notebook]',
+    reconstructable: false,
+    liveCapable: false,
+  },
   profile: {
     labels: { header: 'Profile', menu: 'Stock Profile', tab: 'Profile' },
     defaults: { w: 6, h: 12, minW: 3, minH: 5 },
@@ -522,7 +539,7 @@ export const WIDGET_CATEGORIES = [
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
   { key: 'internals', label: 'Market Internals',       items: ['breadth', 'nhnl', 'nhnlPulse', 'volumescan'] },
-  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar'] },
+  { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'aisearch', 'calendar', 'notebook'] },
   { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
@@ -550,6 +567,7 @@ export const WIDGET_CATALOG = {
   nhnlPulse:    { icon: 'bolt',     blurb: 'Real-time high/low momentum pulse.', live: true },
   volumescan:   { icon: 'flame',    blurb: 'Live relative-volume surge leaderboard.', live: true },
   scatter:      { icon: 'markets',  blurb: 'Plot any universe on custom X / Y / size axes.', live: true },
+  notebook:     { icon: 'journal',  blurb: 'Read + jot Journal notes while you chart.' },
 }
 
 /** Catalog presentation (icon/blurb/live) for a widget id, with a safe fallback. */
