@@ -22,6 +22,7 @@ export default function WidgetHeader({
   onCloseTab,           // (tabId) => void
   onRenameTab,          // (tabId, name) => void — double-click a tab to rename it
   onAddTab,             // (type) => void — add a new tab of this widget type
+  addMenuTheme = null,  // --menu-* bag so the "+" add menu wears THIS widget's canvas color
   tabsOnly = false,     // merged mode: render ONLY the tab strip (no header chrome)
   // In-canvas float: pop a widget off the grid to float on top of another widget.
   onFloat,              // (grid mode) => pop this widget out to a floating panel
@@ -248,7 +249,7 @@ export default function WidgetHeader({
         <div
           data-wtab-add-menu
           className={styles.wtabAddMenu}
-          style={{ top: addPos.top, left: addPos.left }}
+          style={{ top: addPos.top, left: addPos.left, ...(addMenuTheme || {}) }}
         >
           {WIDGET_TAB_TYPES.map(t => (
             <button

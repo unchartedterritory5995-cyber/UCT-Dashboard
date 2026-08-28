@@ -28,6 +28,7 @@ import {
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
 import { labelMap, THEME_FOLLOW_TYPES } from '../../widgets/registry'
+import { menuVarsForCanvas } from '../../utils/dividerColor'
 import styles from './ChartsWorkspace.module.css'
 
 const TYPE_LABEL = labelMap('header')
@@ -187,6 +188,10 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       }
     : undefined
 
+  // The add-tab ("+") menu wears THIS widget's canvas color instead of the fixed
+  // dark menu palette (owner request) — derived from the same canvas its chrome uses.
+  const addMenuTheme = chrome?.canvas ? menuVarsForCanvas(chrome.canvas) : null
+
   const header = (
     <WidgetHeader
       label={TYPE_LABEL[active.type] || active.type}
@@ -196,6 +201,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onPopOut={onPopOut}
       atBottom={headerAtBottom}
       style={headerStyle}
+      addMenuTheme={addMenuTheme}
       tabs={tabList}
       activeIndex={active.index}
       onSelectTab={handleSelectTab}

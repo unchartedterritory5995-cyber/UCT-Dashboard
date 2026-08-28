@@ -453,13 +453,22 @@
   position: fixed;
   z-index: 6000;
   width: 156px;
-  background: var(--bg-elevated, #0f141b);
-  border: 1px solid var(--border, #1f2937);
+  /* --menu-* is set inline (per-widget canvas color) for the "+" add-tab menu so it
+     wears the widget's own color; unset (the float-into-tabs menu) → app tokens. */
+  background: var(--menu-bg, var(--bg-elevated, #0f141b));
+  border: 1px solid var(--menu-border, var(--border, #1f2937));
   border-radius: 5px;
   padding: 4px;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
+}
+/* Scoped to the add menu so the SHARED .addMenuItem (top-bar Widgets menu) is
+   untouched; falls back to the app tokens when no --menu-* bag is supplied. */
+.wtabAddMenu .addMenuItem { color: var(--menu-text, var(--text-bright, #e5e7eb)); }
+.wtabAddMenu .addMenuItem:hover {
+  background: var(--menu-hover, var(--bg-hover, #1f2937));
+  color: var(--menu-accent, var(--accent, #dcbb5e));
 }
 
 .tfBar {
