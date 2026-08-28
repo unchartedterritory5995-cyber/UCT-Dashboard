@@ -69,3 +69,30 @@
   flex-shrink: 0;
 }
 .itemOn .itemCount { color: var(--menu-accent, var(--ut-gold)); opacity: 0.8; }
+
+/* ── Grouped universe menu (INDICES/MY LISTS-style sections + search) ── */
+.groupLabel {
+  padding: 8px 9px 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--menu-text-faint, #6b6b6b);
+}
+.group + .group { margin-top: 1px; }
+.searchWrap { padding: 2px 2px 5px; position: sticky; top: 0; background: var(--menu-bg, #0e0e10); z-index: 1; }
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 5px;
+  color: var(--menu-text, #ededed);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  outline: none;
+}
+.searchInput:focus { border-color: var(--menu-accent, var(--ut-gold)); }
+.searchInput::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.menuEmpty { padding: 10px 9px; font-size: 11px; color: var(--menu-text-dim, #8a8a8f); text-align: center; }

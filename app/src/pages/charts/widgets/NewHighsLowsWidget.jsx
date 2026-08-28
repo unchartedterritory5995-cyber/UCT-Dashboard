@@ -26,31 +26,12 @@ import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
-import NhnlDropdown from './NhnlDropdown'
+import NhnlUniverseMenu from './NhnlUniverseMenu'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
 
-const SCOPE_OPTIONS = [
-  { value: 'all', label: 'UCT Universe' },
-  { value: 'sector', label: 'Sector' },
-  { value: 'industry', label: 'Industry' },
-  { value: 'theme', label: 'Theme' },
-]
-
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
-
-// Event ts (ISO, ET offset) → "1:26:04 PM" market-clock time.
-function fmtTime(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleTimeString('en-US', {
-      hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'America/New_York',
-    })
-  } catch { return '' }
-}
-
-const WINDOW_LABEL = { rth: 'LIVE', pre: 'PRE-MARKET', post: 'POST-MARKET', closed: 'CLOSED' }
 
 // The soft "hot" wash, fired ONLY when a row's count actually increases while it's
 // already on screen — never on first mount. That's what keeps a whole list (or a
@@ -210,10 +191,21 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
   const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
 
-  // Scope: view the whole universe, or group by sector / industry / theme (each group
-  // row expands in place to its member stocks — Theme-Tracker style).
+  // Universe: the whole UCT universe, a group-by dimension (sector/industry/theme,
+  // each group row expands in place — Theme-Tracker style), OR a restricted set (an
+  // ETF's holdings / one of the user's watchlists — a flat leaderboard over that set).
   const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
-  const commitScope = useCallback((v) => onOptsChange?.({ ...opts, scope: v }), [opts, onOptsChange])
+  const etfUni = opts?.etf || null                   // restrict to this ETF's holdings
+  const watchlistUni = opts?.watchlist || null       // restrict to this watchlist's syms
+  const uniLabel = opts?.uniLabel || null
+  const selection = useMemo(
+    () => ({ scope, etf: etfUni, watchlist: watchlistUni, label: uniLabel }),
+    [scope, etfUni, watchlistUni, uniLabel])
+  const onPickUniverse = useCallback((sel) => {
+    if (sel.etf) onOptsChange?.({ ...opts, etf: sel.etf, uniLabel: sel.label, watchlist: undefined, scope: 'all' })
+    else if (sel.watchlist) onOptsChange?.({ ...opts, watchlist: sel.watchlist, uniLabel: sel.label, etf: undefined, scope: 'all' })
+    else onOptsChange?.({ ...opts, scope: sel.scope || 'all', etf: undefined, watchlist: undefined, uniLabel: undefined })
+  }, [opts, onOptsChange])
 
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
@@ -235,8 +227,12 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     [styleVars, settings])
 
   const filterQS = `min_price=${minPrice}&min_count=${minCount}`
-  const scopeQ = scope !== 'all' ? `&group=${scope}` : ''
-  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}`
+  // ETF / watchlist restriction wins and is a flat view (no group); otherwise a
+  // group-by dim becomes the &group= param.
+  const restrictQ = etfUni ? `&etf=${encodeURIComponent(etfUni)}`
+    : watchlistUni ? `&watchlist=${encodeURIComponent(watchlistUni)}` : ''
+  const scopeQ = restrictQ ? '' : (scope !== 'all' ? `&group=${scope}` : '')
+  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}${restrictQ}`
   // Base for a group's inline expansion (Side appends &group=&value=&limit=10).
   const drillBase = `/api/nhnl/live?${filterQS}`
   const { data } = useMobileSWR(url, fetcher, {
@@ -252,10 +248,10 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const lowsTotal = data?.lows_total ?? lows.length
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
-  const stamp = WINDOW_LABEL[window] || ''
   // Group scope → rows are groups (sectors/industries/themes) that expand in place.
+  // (A restrict view returns group:null → flat individual rows.)
   const groupView = !!data?.group
-  const dim = scope !== 'all' ? scope : null
+  const dim = data?.group || null
 
   return (
     <div ref={rootRef} className={styles.wrap} style={styleVars}>
@@ -271,19 +267,8 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         />
       )}
       <div className={styles.toolbar}>
-        <span className={`${styles.live} ${isActive ? styles.liveOn : ''}`}>
-          <span className={styles.dot} aria-hidden="true" />{stamp}
-        </span>
-        {data?.asof && <span className={styles.asof}>{fmtTime(data.asof)} ET</span>}
+        <NhnlUniverseMenu selection={selection} onPick={onPickUniverse} />
         <span className={styles.spacer} />
-        <NhnlDropdown
-          value={scope}
-          options={SCOPE_OPTIONS}
-          onChange={commitScope}
-          title="Group by"
-          minWidth={96}
-          maxWidth={112}
-        />
         <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
           placeholder="0" min={0} onCommit={commitPrice} />
         <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}

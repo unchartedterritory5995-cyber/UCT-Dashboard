@@ -100,6 +100,27 @@ def test_ranked_by_count_descending_busiest_first():
     assert out["highs_total"] == 2       # distinct names at a new high
 
 
+def test_restrict_limits_the_leaderboard_to_a_symbol_set():
+    """An ETF-holdings / watchlist restrict set filters the flat leaderboard to just
+    those names (a member not at a new high simply doesn't appear)."""
+    _tick(_snap(AAA=(100.0, 98.0, 99.0), BBB=(50.0, 48.0, 49.0)), minute=0)   # seed
+    _tick(_snap(AAA=(101.0, 98.0, 101.0), BBB=(51.0, 48.0, 51.0)), minute=1)  # both new HODs
+    all_syms = {e["sym"] for e in nhnl_live.get_live()["highs"]}
+    assert all_syms == {"AAA", "BBB"}
+    only_aaa = nhnl_live.get_live(restrict={"AAA"})
+    assert [e["sym"] for e in only_aaa["highs"]] == ["AAA"]
+    assert only_aaa["highs_total"] == 1
+    assert only_aaa["group"] is None                     # restrict is always a flat view
+
+
+def test_restrict_overrides_a_group_dim_to_a_flat_view():
+    _tick(_snap(AAA=(100.0, 98.0, 99.0)), minute=0)
+    _tick(_snap(AAA=(101.0, 98.0, 101.0)), minute=1)
+    out = nhnl_live.get_live(group="sector", restrict={"AAA"})
+    assert out["group"] is None                          # group ignored under restrict
+    assert [e["sym"] for e in out["highs"]] == ["AAA"]
+
+
 # ── Window gating + reset ───────────────────────────────────────────────────────
 
 def test_closed_window_does_not_accumulate():
