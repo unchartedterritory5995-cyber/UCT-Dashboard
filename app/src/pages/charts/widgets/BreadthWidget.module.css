@@ -47,12 +47,12 @@
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--bw-text-dim, var(--text-muted));
+  color: var(--bw-text-strong, var(--text-bright, #e4e6ea));   /* bright, like the picker tabs */
   cursor: pointer;
   transition: color 0.1s, background 0.1s;
 }
 .pill:hover {
-  color: var(--bw-text-strong, var(--text));
+  color: var(--bw-text-strong, var(--text-bright, #e4e6ea));
   background: var(--bw-hover, rgba(255, 255, 255, 0.06));
 }
 .pillOn {
@@ -60,6 +60,22 @@
   background: var(--bw-accent-bg, rgba(220, 187, 94, 0.12));
   border-color: var(--accent);
 }
+.pillOn:hover { color: var(--bw-accent, var(--ut-gold)); }   /* active stays gold on hover */
+
+/* Single top row (merged header + view tabs) — mirrors the picker tab strip. */
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  min-height: 34px;
+  box-sizing: border-box;
+  position: relative;   /* anchors the ＋ add-menu */
+  background: var(--bw-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--bw-divider, var(--border));
+  flex-shrink: 0;
+}
+.tabSpacer { flex: 1 1 auto; }
 .asOf {
   display: inline-flex;
   align-items: center;

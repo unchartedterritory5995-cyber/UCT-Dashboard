@@ -92,8 +92,16 @@ def compute_trade_derived(
     original_stop: float,
     breakeven_range: BreakevenRange,
 ) -> dict:
-    """All derived Trade fields in one call — used at position-close time."""
-    pnl_dollar = trade_pnl_dollar(side, entry_price, exit_price, shares)
+    """All derived Trade fields in one call — used at position-close time.
+
+    pnl_dollar is rounded to CENTS here — this is the STORAGE boundary (every
+    j2_trades write flows through this dict), and money below a cent is float
+    exhaust, not information: unrounded storage put artifacts like
+    -3550.700000000006 in member rows and pushed rounding-order noise into
+    every downstream sum (2026-08-27 fleet audit). The pure calculators above
+    stay unrounded — they are the parity-railed authorities and the JS mirror
+    must match them bit-for-bit, not share a rounding mode."""
+    pnl_dollar = round(trade_pnl_dollar(side, entry_price, exit_price, shares), 2)
     pnl_percent = trade_pnl_percent(side, entry_price, exit_price) or 0.0
     r_mult = trade_r_multiple(side, entry_price, exit_price, original_stop)
     holds = hold_days(entry_date, exit_date)

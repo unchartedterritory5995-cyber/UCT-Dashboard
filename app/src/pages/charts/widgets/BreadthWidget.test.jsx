@@ -52,10 +52,11 @@ test('renders the heatmap with grouped tier tiles from the live metric defs', ()
   expect(screen.getAllByText(/61\.0%/).length).toBeGreaterThan(0) // pct_above_50sma fmt
 })
 
-test('header reads "Breadth Monitor" with Heatmap ⇄ Ratio Bars view pills', () => {
+test('top row is a flat tab strip with Heatmap ⇄ Ratio Bars view pills (no title)', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
-  expect(screen.getByText('Breadth Monitor')).toBeInTheDocument()
+  // The old "Breadth Monitor" title was removed — the top row is now the tab strip.
+  expect(screen.queryByText('Breadth Monitor')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^heatmap$/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^ratio bars$/i })).toBeInTheDocument()
 })

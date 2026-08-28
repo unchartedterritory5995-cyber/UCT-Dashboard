@@ -739,6 +739,21 @@ CREATE TABLE IF NOT EXISTS j2_broker_mirror_checks (
     PRIMARY KEY (user_id, broker_account_id)
 );
 
+-- Precise execution times for date-only brokers (Schwab stamps every
+-- activity at midnight): the Recent Orders rail SAW the true execution
+-- time in its provisional row; when the midnight-stamped real activity
+-- arrives and the provisional is pruned, the precise timestamp is kept
+-- here, keyed by the REAL side's match key, and reconstruction re-applies
+-- it — real trade times + hour-of-day analytics for members whose broker
+-- never sends a clock.
+CREATE TABLE IF NOT EXISTS j2_broker_precise_times (
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    match_key          TEXT NOT NULL,
+    precise_ts         TEXT NOT NULL,
+    PRIMARY KEY (user_id, broker_account_id, match_key)
+);
+
 -- Live-composition sentinel (between-sync conservation law): one row per
 -- broker account, latest verdict + the component snapshot that produced it
 -- (the flight recorder — the 2026-08-26 display could not be reconstructed

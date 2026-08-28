@@ -194,6 +194,22 @@
   background: var(--tt-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--tt-divider, var(--border));
   flex-shrink: 0;
+  /* A whisper of gold on the leading edge — matches the prebuilt section headers. */
+  box-shadow: inset 2px 0 0 var(--tt-accent, var(--ut-gold, #c9a84c));
+}
+
+/* Left header cell: the gold diamond mark + the "Theme" label. */
+.themeCol {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.thMark {
+  font-size: 7px;
+  line-height: 1;
+  color: var(--tt-accent, var(--ut-gold, #c9a84c));
+  opacity: 0.9;
+  transform: translateY(-0.5px);
 }
 
 .colLabel {

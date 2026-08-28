@@ -484,44 +484,58 @@ export default function BreadthWidget({
         />
       )}
 
-      {/* Header: title · ＋ add · ⚙ */}
-      <div className={styles.header}>
-        <span className={styles.title}>Breadth Monitor</span>
-        <div className={styles.headerBtns}>
-          {/* Send to Journal: freeze the shown heat-map into the note (payload
-              capture, owner decision). A mid-session capture preserves the live
-              intraday row the 4:15 collector discards. */}
-          {journalDoor && !readOnly && currentRow && (
+      {/* Single top row (no "Breadth Monitor" title): the Heatmap/Ratio Bars view
+          tabs (flat, like the Watchlist/Scanner pickers) + the journal/add/⚙ buttons
+          on the right. */}
+      <div className={styles.tabBar}>
+        {currentRow && (
+          <>
             <button
-              type="button" className={styles.iconBtn}
-              onClick={async () => {
-                setJournalMsg('sending…')
-                const series = {}
-                for (const k of visibleKeys) series[k] = seriesFor(k)
-                setJournalMsg(await sendCaptureToJournal('breadth', {
-                  hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
-                  tileStyle, settings: bwSettings, row: currentRow, series, updated,
-                }, { label: 'Breadth' }))
-              }}
-              title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
-            ><UIcon name="journal" size={13} /></button>
-          )}
-          <JournalToast msg={journalMsg} />
-          {!readOnly && (
+              type="button"
+              className={`${styles.pill}${view === 'heatmap' ? ' ' + styles.pillOn : ''}`}
+              onClick={() => setView('heatmap')} aria-pressed={view === 'heatmap'}
+            >Heatmap</button>
+            <button
+              type="button"
+              className={`${styles.pill}${view === 'ratio' ? ' ' + styles.pillOn : ''}`}
+              onClick={() => setView('ratio')} aria-pressed={view === 'ratio'}
+            >Ratio Bars</button>
+          </>
+        )}
+        <span className={styles.tabSpacer} />
+        {/* Send to Journal: freeze the shown heat-map into the note (payload capture,
+            owner decision). A mid-session capture preserves the live intraday row the
+            4:15 collector discards. */}
+        {journalDoor && !readOnly && currentRow && (
           <button
-            ref={addBtnRef} type="button"
-            className={`${styles.iconBtn}${addOpen ? ' ' + styles.iconBtnActive : ''}`}
-            onClick={() => setAddOpen(o => !o)} title="Add / remove readings" aria-label="Add or remove readings"
-          ><UIcon name="plus" size={14} /></button>
-          )}
-          {!readOnly && (
-          <button
-            ref={settingsBtnRef} type="button"
-            className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
-            onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
-          ><UIcon name="gear" size={13} /></button>
-          )}
-        </div>
+            type="button" className={styles.iconBtn}
+            onClick={async () => {
+              setJournalMsg('sending…')
+              const series = {}
+              for (const k of visibleKeys) series[k] = seriesFor(k)
+              setJournalMsg(await sendCaptureToJournal('breadth', {
+                hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
+                tileStyle, settings: bwSettings, row: currentRow, series, updated,
+              }, { label: 'Breadth' }))
+            }}
+            title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
+        <JournalToast msg={journalMsg} />
+        {!readOnly && (
+        <button
+          ref={addBtnRef} type="button"
+          className={`${styles.iconBtn}${addOpen ? ' ' + styles.iconBtnActive : ''}`}
+          onClick={() => setAddOpen(o => !o)} title="Add / remove readings" aria-label="Add or remove readings"
+        ><UIcon name="plus" size={14} /></button>
+        )}
+        {!readOnly && (
+        <button
+          ref={settingsBtnRef} type="button"
+          className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
+          onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
+        ><UIcon name="gear" size={13} /></button>
+        )}
         {addOpen && (
           <AddMenu
             hidden={hidden} onToggle={toggleMetric} onClose={() => setAddOpen(false)}
@@ -529,22 +543,6 @@ export default function BreadthWidget({
           />
         )}
       </div>
-
-      {/* View pill bar: Heatmap (default) ⇄ Ratio Bars */}
-      {currentRow && (
-        <div className={styles.bar}>
-          <button
-            type="button"
-            className={`${styles.pill}${view === 'heatmap' ? ' ' + styles.pillOn : ''}`}
-            onClick={() => setView('heatmap')} aria-pressed={view === 'heatmap'}
-          >Heatmap</button>
-          <button
-            type="button"
-            className={`${styles.pill}${view === 'ratio' ? ' ' + styles.pillOn : ''}`}
-            onClick={() => setView('ratio')} aria-pressed={view === 'ratio'}
-          >Ratio Bars</button>
-        </div>
-      )}
 
       {!currentRow && (
         <div className={styles.hint}>{data || liveBreadth.meta ? 'No breadth data yet.' : 'Loading breadth…'}</div>
