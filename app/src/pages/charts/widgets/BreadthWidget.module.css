@@ -33,23 +33,25 @@
   border-bottom: 1px solid var(--bw-divider, var(--border));
   flex-shrink: 0;
 }
+/* EXACT same tab as the Watchlist/Scanner/Theme-Tracker top-row tabs:
+   10px/600/0.8px uppercase, 3px 9px padding, 3px radius — no min-height (the
+   .tabBar row owns the height), so these read identically across all widgets. */
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;   /* row-height driver — see the .bar rhythm note */
   box-sizing: border-box;
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  padding: 0 8px;
+  padding: 3px 9px;
   border-radius: 3px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--bw-text-strong, var(--text-bright, #e4e6ea));   /* bright, like the picker tabs */
   cursor: pointer;
-  transition: color 0.1s, background 0.1s;
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
 }
 .pill:hover {
   color: var(--bw-text-strong, var(--text-bright, #e4e6ea));
