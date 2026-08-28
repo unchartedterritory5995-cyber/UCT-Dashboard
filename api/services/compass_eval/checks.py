@@ -230,7 +230,10 @@ def run_mechanical_checks(transcript: dict) -> dict:
     # fabricated_scan_rows
     tickers = {t for t in _TICKER_RE.findall(answer)} - _TICKER_STOP
     scanish = fired_names & {"scan_active_patterns", "find_patterns_on_ticker",
-                             "get_movers", "get_watchlist"}
+                             "get_movers", "get_watchlist",
+                             # inert for Compass; lets the AI-Search exam use
+                             # this check against its scanner tool (2026-08-28)
+                             "get_scanner_candidates"}
     if len(tickers) >= 3 and not scanish:
         flags.append("fabricated_scan_rows")
 

@@ -153,3 +153,105 @@ def test_scheduler_wiring_pinned_in_main():
     assert 'AI_SEARCH_BRIEFINGS_ENABLED' in src
     # control (non-vacuity): the probe can see a sibling job id it is NOT about
     assert 'id="earnings_preview_warm"' in src
+
+
+# ── weekly_deep cadence (2026-08-28) ─────────────────────────────────────────
+
+def test_weekly_deep_has_its_own_cap_and_resume_recheck(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    assert brief.create("u1", "full weekly picture on semis", "SMH", "weekly_deep")["ok"]
+    # separate cap (default 1) — daily rows don't count against it
+    r2 = brief.create("u1", "another weekly deep report", None, "weekly_deep")
+    assert not r2["ok"] and "capped" in r2["reason"]
+    # …and a weekly row doesn't consume a daily slot
+    assert brief.create("u1", "morning question one", None, "premarket")["ok"]
+    assert brief.create("u1", "morning question two", None, "premarket")["ok"]
+    assert brief.create("u1", "morning question three", None, "postmarket")["ok"]
+    # pause the weekly → create a new one → resume re-checks the weekly cap
+    bid = [b for b in brief.list_briefings("u1") if b["cadence"] == "weekly_deep"][0]["briefing_id"]
+    assert brief.set_enabled("u1", bid, False)["ok"]
+    assert brief.create("u1", "replacement weekly deep", None, "weekly_deep")["ok"]
+    r = brief.set_enabled("u1", bid, True)
+    assert not r["ok"] and "capped" in r["reason"]
+
+
+def test_run_due_rejects_weekly_deep_cadence(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    out = brief.run_due("weekly_deep")
+    assert not out["ok"] and "cadence" in out["reason"]
+
+
+def test_run_weekly_deep_submits_paces_and_skips_unpaid(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    import api.services.ai_search_deep as deep
+    deep._reset_for_tests()   # its init memo may point at a prior test's DB
+    submitted = []
+    monkeypatch.setattr(deep, "submit",
+                        lambda uid, q, source="interactive": (submitted.append((uid, q, source)),
+                                                              {"ok": True, "job_id": "j"})[1])
+    monkeypatch.setattr(brief, "_member_is_paid", lambda uid: uid != "lapsed")
+    slept = []
+    monkeypatch.setattr(brief, "_sleep", lambda s: slept.append(s))
+    brief.create("u1", "weekly semis deep report", "SMH", "weekly_deep")
+    brief.create("lapsed", "a churned member's weekly", None, "weekly_deep")
+    out = brief.run_weekly_deep()
+    assert out["ran"] == 2 and out["submitted"] == 1
+    (uid, q, source), = submitted
+    assert uid == "u1" and source == "scheduled"
+    # weekend honesty note rides every scheduled query
+    assert "markets are closed" in q and "Friday's close" in q
+    assert brief.list_briefings("u1")[0]["last_status"] == "submitted"
+    assert brief.list_briefings("lapsed")[0]["last_status"] == "skipped: unpaid"
+    assert slept == []   # nothing in flight → no pacing waits
+
+
+def test_run_weekly_deep_waits_while_two_scheduled_jobs_inflight(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    import contextlib
+    import api.services.ai_search_deep as deep
+    deep._reset_for_tests()
+    deep._ensure_init()
+    with contextlib.closing(deep._connect()) as conn:
+        for i in ("a", "b"):
+            conn.execute(
+                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, source) "
+                "VALUES (?,?,?,'running','researching','2026-08-28T00:00:00+00:00','scheduled')",
+                (f"j{i}", "ux", f"q{i}"))
+        conn.commit()
+    monkeypatch.setattr(deep, "submit",
+                        lambda uid, q, source="interactive": {"ok": True, "job_id": "j"})
+    monkeypatch.setattr(brief, "_member_is_paid", lambda uid: True)
+    slept = []
+
+    def fake_sleep(s):
+        slept.append(s)
+        if len(slept) == 3:   # third wait: one scheduled job finishes
+            with contextlib.closing(deep._connect()) as conn:
+                conn.execute("UPDATE ais_deep_jobs SET status='done' WHERE job_id='ja'")
+                conn.commit()
+
+    monkeypatch.setattr(brief, "_sleep", fake_sleep)
+    brief.create("u1", "weekly deep during a busy pass", None, "weekly_deep")
+    out = brief.run_weekly_deep()
+    assert out["submitted"] == 1
+    assert len(slept) == 3   # paced until a slot freed, then submitted
+
+
+def test_weekly_deep_scheduler_and_proposal(monkeypatch, tmp_path):
+    src = (Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    assert 'id="ai_search_weekly_deep"' in src
+    assert 'day_of_week="sun"' in src
+    # proposal: deep phrase + weekly cadence → deep_briefing
+    p = ai._ask_proposal("deep report on CRM every sunday", ["CRM"])
+    assert p == {"kind": "deep_briefing", "query": "deep report on CRM every sunday",
+                 "sym": "CRM", "cadence": "weekly_deep"}
+    assert ai._ask_proposal("give me the full picture on semis weekly", [])["kind"] == "deep_briefing"
+    # an explicit alert verb still outranks it
+    p2 = ai._ask_proposal("alert me weekly if CRM breaks above 300 with a deep report", ["CRM"])
+    assert p2["kind"] == "price_alert"
+    # weekly phrasing WITHOUT a deep phrase stays a plain briefing / nothing
+    p3 = ai._ask_proposal("brief me on CRM every morning", ["CRM"])
+    assert p3["kind"] == "briefing"
+    assert ai._deep_weekly_proposal("keep it brief every sunday", []) is None
+    # deep phrase WITHOUT a cadence is a one-shot ask — no proposal
+    assert ai._deep_weekly_proposal("deep dive on CRM please", ["CRM"]) is None

@@ -5138,6 +5138,14 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(lambda: _ais_brief_run("postmarket"),
                 trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=45, timezone=_ET),
                 id="ai_search_briefings_postmarket", max_instances=1, replace_existing=True)
+            # Sunday deep reports ("deep report on CRM every Sunday") — the
+            # runner PACES submissions (≤2 in flight) so a batch never breaches
+            # the deep pool's queued wall; delivery fires from the job runner
+            # when each report finishes.
+            from api.services.ai_search_briefings import run_weekly_deep as _ais_weekly_deep
+            _scheduler.add_job(_ais_weekly_deep,
+                trigger=CronTrigger(day_of_week="sun", hour=10, minute=0, timezone=_ET),
+                id="ai_search_weekly_deep", max_instances=1, replace_existing=True)
 
         # -- Earnings wire detector (Phase 1) -------------------------------
         # Ships DARK. Polls one full-market snapshot per tick inside the print

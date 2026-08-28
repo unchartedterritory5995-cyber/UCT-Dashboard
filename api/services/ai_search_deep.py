@@ -105,6 +105,12 @@ def _ensure_init() -> None:
             have = {r[1] for r in conn.execute("PRAGMA table_info(ais_deep_jobs)").fetchall()}
             if "started_at" not in have:
                 conn.execute("ALTER TABLE ais_deep_jobs ADD COLUMN started_at TEXT")
+            if "source" not in have:
+                # 'interactive' (member clicked Research; router billed 5 units)
+                # vs 'scheduled' (Sunday weekly-deep runner; no units reserved,
+                # so refunds must never fire for it, and it must not consume
+                # the member's interactive 3/day slots)
+                conn.execute("ALTER TABLE ais_deep_jobs ADD COLUMN source TEXT DEFAULT 'interactive'")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_aisdj_user ON ais_deep_jobs(user_id, created_at)")
             conn.commit()
@@ -126,7 +132,7 @@ def _jobs_today(conn, uid: str) -> int:
     # Anthropic outage while Perplexity still bills) loopable for free.
     row = conn.execute(
         "SELECT COUNT(*) FROM ais_deep_jobs WHERE user_id=? "
-        "AND substr(created_at,1,10)=?",
+        "AND substr(created_at,1,10)=? AND COALESCE(source,'interactive')='interactive'",
         (uid, _utc_day())).fetchone()
     return int(row[0] or 0)
 
@@ -155,8 +161,8 @@ def reclaim_stale() -> int:
         with contextlib.closing(_connect()) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT job_id, user_id, status, created_at, started_at FROM ais_deep_jobs "
-                "WHERE status IN ('queued','running')").fetchall()
+                "SELECT job_id, user_id, status, created_at, started_at, source "
+                "FROM ais_deep_jobs WHERE status IN ('queued','running')").fetchall()
             to_refund: list[str] = []
             for r in rows:
                 if r["status"] == "running":
@@ -172,7 +178,10 @@ def reclaim_stale() -> int:
                     (_now(), r["job_id"]))
                 if cur.rowcount:
                     n += 1
-                    to_refund.append(r["user_id"])
+                    # scheduled jobs never reserved router units — refunding
+                    # them would phantom-credit real same-day usage (R9)
+                    if (r["source"] or "interactive") == "interactive":
+                        to_refund.append(r["user_id"])
             conn.commit()
         for uid in to_refund:   # refund only transitions THIS call committed
             _refund_units(uid)
@@ -192,7 +201,7 @@ def _refund_units(user_id) -> None:
 _SUBMIT_LOCK = threading.Lock()
 
 
-def submit(user_id, query: str) -> dict:
+def submit(user_id, query: str, source: str = "interactive") -> dict:
     """Queue one report. Caps: per-user/day count (atomic under one lock — the
     check-then-insert raced under concurrent submits) + the global dollar guard
     summed across BOTH ledger surfaces (Anthropic synthesis AND the Perplexity
@@ -228,9 +237,10 @@ def submit(user_id, query: str) -> dict:
                         "reason": f"Deep research is capped at {_peruser_cap()} reports a day — "
                                   "it resets at midnight UTC."}
             conn.execute(
-                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
-                "VALUES (?,?,?,?,?,?)",
-                (job_id, uid, q[:2000], "queued", "queued", _now()))
+                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, source) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (job_id, uid, q[:2000], "queued", "queued", _now(),
+                 source if source in ("interactive", "scheduled") else "interactive"))
             conn.commit()
     try:
         _DEEP_POOL.submit(_run_job, job_id)
@@ -448,6 +458,7 @@ def _run_job(job_id: str) -> None:
     if not row or row["status"] not in ("queued", "running"):
         return
     query, uid = row["query"], row["user_id"]
+    job_source = (row["source"] if "source" in row.keys() else None) or "interactive"
     try:
         # Fail fast BEFORE any paid Perplexity sweep: no synthesis client means
         # this job can only end in an error after burning web spend.
@@ -482,6 +493,21 @@ def _run_job(job_id: str) -> None:
             conn.commit()
             if not cur.rowcount:
                 return
+        # Scheduled (Sunday) reports notify the member — teaser + a pointer,
+        # never the body (the bell store is in-memory/24h; the durable copy is
+        # this job row behind GET /api/ai-search/deep/{job_id}). Best-effort.
+        if job_source == "scheduled":
+            try:
+                from api.services.watchlist_alert_service import deliver_alert_payload
+                teaser = re.sub(r"[#*\[\]]", "", report.split("\n", 1)[0])[:200]
+                deliver_alert_payload(
+                    uid, "AI", "Your weekly deep report is ready",
+                    f"{teaser} — open AI Search → Deep research on "
+                    "uctintelligence.com to read the full report.",
+                    source="ai_deep_report", severity="info",
+                    extra_data={"job_id": job_id})
+            except Exception:
+                pass
         # de-identified capture (same contract as every answer) — deep reports
         # are exactly the durable, demand-signaling knowledge dossiers feed on.
         # ⛔ answer_id is FRESHLY MINTED, never the job PK: ais_deep_jobs stores
@@ -498,4 +524,5 @@ def _run_job(job_id: str) -> None:
     except Exception as e:
         log.warning("deep job %s failed: %s", job_id, e)
         if _set_error(job_id, "the researcher hit an error — resubmit"):
-            _refund_units(uid)   # refund ONLY when this call made the transition
+            if job_source == "interactive":   # scheduled jobs reserved nothing
+                _refund_units(uid)   # refund ONLY when this call made the transition

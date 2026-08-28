@@ -218,7 +218,8 @@ function BriefingsRail() {
                 {b.sym ? `${b.sym} · ` : ''}{b.query}
               </span>
               <span className={styles.historyMeta}>
-                {b.cadence === 'postmarket' ? 'each close' : 'each morning'}
+                {b.cadence === 'weekly_deep' ? 'deep report every Sunday'
+                  : b.cadence === 'postmarket' ? 'each close' : 'each morning'}
                 {b.last_status ? ` · ${b.last_status}` : ''}
               </span>
               <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>

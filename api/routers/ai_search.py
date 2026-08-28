@@ -1751,11 +1751,32 @@ def _briefing_proposal(query: str, syms: list[str]) -> dict | None:
             "sym": (syms[0] if syms else None), "cadence": cadence}
 
 
+# "Deep report on CRM every Sunday" → a weekly Deep Research proposal. Needs
+# BOTH a deep-work phrase and a weekly cadence phrase — "keep it brief every
+# sunday" and "deep dive on CRM" (one-shot) must propose nothing here.
+_DEEP_WORDS_RE = re.compile(
+    r"\b(?:deep\s+(?:report|dive|research)|full\s+(?:picture|report|breakdown)"
+    r"|research\s+report)\b", re.I)
+_WEEKLY_CADENCE_RE = re.compile(
+    r"\b(?:every|each)\s+(?:sunday|week(?:end)?)\b|\bweekly\b|\bonce\s+a\s+week\b", re.I)
+
+
+def _deep_weekly_proposal(query: str, syms: list[str]) -> dict | None:
+    q = query or ""
+    if not (_DEEP_WORDS_RE.search(q) and _WEEKLY_CADENCE_RE.search(q)):
+        return None
+    return {"kind": "deep_briefing", "query": q[:500],
+            "sym": (syms[0] if syms else None), "cadence": "weekly_deep"}
+
+
 def _ask_proposal(query: str, syms: list[str]) -> dict | None:
     """One proposal per ask. An explicit alert verb ("alert me when…") is the
     stronger intent signal — it wins over briefing phrasing (2026-08-28: the
-    briefing-first order let adjectival 'brief' eat alert asks)."""
-    return _alert_proposal(query, syms) or _briefing_proposal(query, syms)
+    briefing-first order let adjectival 'brief' eat alert asks). A weekly DEEP
+    ask outranks a plain briefing (it names the heavier product)."""
+    return (_alert_proposal(query, syms)
+            or _deep_weekly_proposal(query, syms)
+            or _briefing_proposal(query, syms))
 
 
 def _alert_num(m, q: str) -> float | None:
@@ -2540,7 +2561,7 @@ def ai_search_deep_delete(job_id: str, user: dict = Depends(require_paid)):
 class AiBriefingIn(BaseModel):
     query: str
     sym: str | None = None
-    cadence: str = "premarket"   # premarket | postmarket
+    cadence: str = "premarket"   # premarket | postmarket | weekly_deep
 
 
 @router.get("/briefings")
