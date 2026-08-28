@@ -283,6 +283,10 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // 2026-08-24: re-pinned for the per-MA `onTop` z-order setting — each of the
       // five overlays gains one additive default-off key `onTop:false` (behind the
       // candles = prior behavior); nothing else moves.
-      .toBe('a2350c9f543ccccaccb148bc61cb89c9256228aab9e7a38b36d6fceff529d716')
+      // 2026-08-27: re-pinned for the owner default-chart retune — the terminal SMA5
+      // overlay was REMOVED (default set 5→4) and the watermark went sizeScale 1.0→1.25
+      // + weight 700→500. Value/structure edits to CHART_DEFAULTS only; no
+      // per-definition door changed behaviour. INVESTIGATED, not regenerated.
+      .toBe('a737b2eb1ac8ae684fe2b6279eaafbadf60a242b6f54c86eb472524b110e6f1b')
   })
 })

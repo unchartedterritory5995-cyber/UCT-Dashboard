@@ -106,11 +106,9 @@ export const CHART_DEFAULTS = {
     { enabled: true, type: 'EMA', period: 20,  color: '#f472b6', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
     { enabled: true, type: 'SMA', period: 50,  color: '#60a5fa', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
     { enabled: true, type: 'SMA', period: 200, color: '#fb923c', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
-    // APPENDED, never inserted: mergeChartSettings merges overlays POSITIONALLY, so
-    // inserting a slot would shift every stored blob's overlays by one (a user's EMA 9
-    // would silently become an SMA 5). New slots go on the end. This is the SMA 5 that
-    // used to be the hardcoded `showSma5` prop, now a real editable overlay.
-    { enabled: true, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line', onTop: false },
+    // SMA 5 REMOVED from the default set (owner decision 2026-08-27) — off the chart
+    // AND its legend row. New slots would go on the END (mergeChartSettings merges
+    // overlays POSITIONALLY, so a non-terminal insert shifts every stored blob).
   ],
 
   volume: {
@@ -143,8 +141,8 @@ export const CHART_DEFAULTS = {
     visible: true,
     opacity: 0.07,
     color: '#a8a290',
-    sizeScale: 1.0,
-    weight: 700,   // font weight of the watermark text (100–900); lower = thinner (TC2000-style)
+    sizeScale: 1.25,   // 125% (owner default 2026-08-27)
+    weight: 500,   // font weight (100–900); medium (owner default 2026-08-27)
     lines: { ticker: true, company: true, sector: true, industry: true, theme: true },
     x: 0.5,
     y: 0.5,
@@ -400,7 +398,7 @@ export const CHART_LIGHT_DEFAULT = {
     { enabled: true,  type: 'EMA', period: 20,  color: '#d24ba8', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
     { enabled: true,  type: 'SMA', period: 50,  color: '#3f7fe0', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
     { enabled: true,  type: 'SMA', period: 200, color: '#e0862f', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
-    { enabled: false, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    // SMA 5 removed to match CHART_DEFAULTS (owner decision 2026-08-27).
   ],
   volume: { ...CHART_DEFAULTS.volume, upColor: '#17a917', downColor: '#db000b', maColor: '#000000' },
   watermark: { ...CHART_DEFAULTS.watermark, color: '#9a9a9a', opacity: 1 },

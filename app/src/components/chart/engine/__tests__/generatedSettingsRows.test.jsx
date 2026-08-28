@@ -57,9 +57,9 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
       .toEqual([...DEFS.map((d) => d.id), ...CARVED_OUT_ROWS.map((r) => r.id)])
     // The MA overlays and the volume pane are still hand-written and still first:
     // their identity is POSITIONAL and the volume pane is not an indicator.
-    // ⚠️ FIVE overlay slots, not four — the brief said four; `CHART_DEFAULTS`
-    // ships five, so the count is DERIVED from the blob rather than typed.
-    expect(base().overlays.length, 'the overlay slot count moved').toBe(5)
+    // FOUR overlay slots (EMA9/EMA20/SMA50/SMA200) — the terminal SMA5 was removed
+    // 2026-08-27. Count is DERIVED from the blob (`CHART_DEFAULTS`), not typed.
+    expect(base().overlays.length, 'the overlay slot count moved').toBe(4)
     expect(rows.filter((r) => r.path.kind !== 'indicator').map((r) => r.id))
       .toEqual([...base().overlays.map((_, i) => `overlay-${i}`), 'volume'])
     // …and the loop below is not iterating over an empty registry.
