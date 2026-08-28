@@ -356,6 +356,13 @@ _ETF_SETS = [
 ]
 _ETF_LABEL = dict(_ETF_SETS)
 
+# "Group by → Sector" plots the sector AGGREGATES: the 11 sector SPDRs as points.
+# (Industry has no aggregate ETF, and the UCT theme indexes are synthetic $IDX:
+# pseudo-tickers with no per-point scatter metrics — neither plots, so Group-by
+# offers Sector only. Per-industry / per-theme MEMBER plotting already lives in the
+# "Industries" and "Themes" groups.)
+_SECTOR_SPDRS = ["XLK", "XLF", "XLE", "XLV", "XLI", "XLU", "XLB", "XLY", "XLP", "XLC", "XLRE"]
+
 _SCANNERS = [
     ("volume", "Volume Surge"), ("nhnl", "New Highs / Lows"),
     ("movers", "Movers"), ("catalysts", "Catalysts"), ("candidates", "Scanner Candidates"),
@@ -438,6 +445,8 @@ def resolve_universe(source: str, value: Optional[str], user_id: Optional[str]) 
         elif src == "uct20":
             from api.services import engine
             tickers = _syms_from(engine.get_leadership(), "sym", "ticker", "symbol")
+        elif src == "sectors":
+            tickers = list(_SECTOR_SPDRS)                   # Group-by sector aggregates
         elif src == "etf" and value:
             from api.services import etf_holdings
             tickers = _syms_from(etf_holdings.get_holdings(value.upper()), "sym", "ticker")
@@ -505,6 +514,12 @@ def list_universes(user_id: Optional[str]) -> list:
         "group": "Universe",
         "items": [{"source": "market", "value": "", "label": "UCT Universe"}],
     }]
+    # Group by → aggregates. Only Sector has a plottable aggregate set (the 11 SPDRs);
+    # Industry/Theme aggregates aren't plottable in a per-stock scatter (see note above).
+    groups.append({
+        "group": "Group by",
+        "items": [{"source": "sectors", "value": "", "label": "Sector"}],
+    })
     groups.append({
         "group": "Indices",
         "items": [{"source": "index", "value": k, "label": lbl} for k, lbl, _c in _INDEX_SETS],
@@ -574,6 +589,8 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
         return "UCT Universe"
     if src == "index":
         return _INDEX_LABEL.get((value or "").lower(), "Index")
+    if src == "sectors":
+        return "Sector"
     if src == "etf":
         return _ETF_LABEL.get((value or "").upper(), (value or "ETF").upper())
     if src == "industry":

@@ -136,78 +136,57 @@ function Side({ title, tone, events, total, onPick, groupView, dim, drillBase })
   )
 }
 
-// Debounced filter box: types instantly into local state, commits to opts after a
-// pause (and on blur / Enter). Keeps the fetch key + layout-save off the keystroke
-// path, which is what made the old controlled-through-opts inputs feel glitchy.
-function FilterBox({ label, ariaLabel, value, placeholder, min, onCommit }) {
-  const [text, setText] = useState(value == null ? '' : String(value))
-  const timer = useRef(null)
-  const inputRef = useRef(null)
-  // Re-sync if opts change from elsewhere, but never fight the user mid-type.
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) {
-      setText(value == null ? '' : String(value))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
-  const schedule = (raw) => {
-    setText(raw)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => commit(raw), 350)
-  }
-  const commit = (raw) => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null }
-    const n = raw === '' ? min : Number(raw)
-    onCommit(Number.isFinite(n) ? Math.max(min, n) : min)
-  }
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
-  return (
-    <label className={styles.filter}>
-      <span className={styles.filterLbl}>{label}</span>
-      <input
-        ref={inputRef}
-        type="number" min={min} step="1" inputMode="decimal"
-        className={styles.filterInput}
-        value={text}
-        placeholder={placeholder}
-        onChange={(e) => schedule(e.target.value)}
-        onBlur={() => commit(text)}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur() } }}
-        aria-label={ariaLabel}
-      />
-    </label>
-  )
+// A menu pick → a universe descriptor (stored in opts.universes as a pill).
+function descFromPick(sel) {
+  if (sel.etf) return { key: `etf:${sel.etf}`, label: sel.label || sel.etf, etf: sel.etf }
+  if (sel.watchlist) return { key: `wl:${sel.watchlist}`, label: sel.label || 'Watchlist', watchlist: sel.watchlist }
+  if (sel.value) return { key: `cat:${sel.scope}:${sel.value}`, label: sel.label || sel.value, scope: sel.scope, value: sel.value }
+  const s = sel.scope || 'all'
+  return { key: s === 'all' ? 'all' : s, label: sel.label || (s === 'all' ? 'UCT Universe' : s), scope: s }
+}
+// Migrate a legacy single selection (pre-tabs opts) into a one-pill descriptor.
+function legacyDesc(opts) {
+  if (opts?.etf) return { key: `etf:${opts.etf}`, label: opts.uniLabel || opts.etf, etf: opts.etf }
+  if (opts?.watchlist) return { key: `wl:${opts.watchlist}`, label: opts.uniLabel || 'Watchlist', watchlist: opts.watchlist }
+  if (opts?.value && opts?.scope) return { key: `cat:${opts.scope}:${opts.value}`, label: opts.uniLabel || opts.value, scope: opts.scope, value: opts.value }
+  const s = opts?.scope || 'all'
+  return { key: s === 'all' ? 'all' : s, label: s === 'all' ? 'UCT Universe' : s, scope: s }
 }
 
 export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const { setGroupSym } = useWorkspace() || {}
-  const minPrice = Number(opts?.minPrice) || 0
-  const minCount = Math.max(1, Number(opts?.minCount) || 1)
 
   const onPick = useCallback((sym) => {
     if (color && sym) setGroupSym?.(color, sym)
   }, [color, setGroupSym])
 
-  const commitPrice = useCallback((v) => onOptsChange?.({ ...opts, minPrice: v }), [opts, onOptsChange])
-  const commitCount = useCallback((v) => onOptsChange?.({ ...opts, minCount: v }), [opts, onOptsChange])
+  // ── Universe TABS — the exact model the Market Map (scatter) widget uses: a list
+  // of saved universes (pills) + an active index; the ＋ opens the grouped menu. Each
+  // universe is the whole UCT universe, a group-by dim (sector/industry/theme), a
+  // category (one industry), an ETF's holdings, or a watchlist. ──
+  const universes = useMemo(() => {
+    if (Array.isArray(opts?.universes) && opts.universes.length) return opts.universes
+    return [legacyDesc(opts)]
+  }, [opts?.universes, opts?.scope, opts?.value, opts?.etf, opts?.watchlist, opts?.uniLabel])
+  const activeIdx = Math.min(Math.max(0, opts?.activeUniverse ?? 0), universes.length - 1)
+  const cur = universes[activeIdx] || universes[0]
+  const scope = cur.scope || 'all'
+  const uniValue = cur.value || null
+  const etfUni = cur.etf || null
+  const watchlistUni = cur.watchlist || null
 
-  // Universe: the whole UCT universe, a group-by dimension (sector/industry/theme,
-  // each group row expands in place — Theme-Tracker style), OR a restricted set (an
-  // ETF's holdings / one of the user's watchlists — a flat leaderboard over that set).
-  const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
-  const uniValue = opts?.value || null               // one category (e.g. an industry) → flat
-  const etfUni = opts?.etf || null                   // restrict to this ETF's holdings
-  const watchlistUni = opts?.watchlist || null       // restrict to this watchlist's syms
-  const uniLabel = opts?.uniLabel || null
-  const selection = useMemo(
-    () => ({ scope, value: uniValue, etf: etfUni, watchlist: watchlistUni, label: uniLabel }),
-    [scope, uniValue, etfUni, watchlistUni, uniLabel])
-  const onPickUniverse = useCallback((sel) => {
-    if (sel.etf) onOptsChange?.({ ...opts, etf: sel.etf, uniLabel: sel.label, watchlist: undefined, value: undefined, scope: 'all' })
-    else if (sel.watchlist) onOptsChange?.({ ...opts, watchlist: sel.watchlist, uniLabel: sel.label, etf: undefined, value: undefined, scope: 'all' })
-    else if (sel.value) onOptsChange?.({ ...opts, scope: sel.scope, value: sel.value, uniLabel: sel.label, etf: undefined, watchlist: undefined })
-    else onOptsChange?.({ ...opts, scope: sel.scope || 'all', value: undefined, etf: undefined, watchlist: undefined, uniLabel: undefined })
-  }, [opts, onOptsChange])
+  const patch = useCallback((p) => onOptsChange?.({ ...(opts || {}), ...p }), [opts, onOptsChange])
+  const addUniverse = useCallback((sel) => {
+    const d = descFromPick(sel)
+    const exists = universes.findIndex(u => u.key === d.key)
+    if (exists >= 0) { patch({ activeUniverse: exists }); return }
+    patch({ universes: [...universes, d], activeUniverse: universes.length })
+  }, [universes, patch])
+  const removeUniverse = useCallback((i) => {
+    if (universes.length <= 1) return
+    const next = universes.filter((_, j) => j !== i)
+    patch({ universes: next, activeUniverse: Math.min(activeIdx, next.length - 1) })
+  }, [universes, activeIdx, patch])
 
   // ── Appearance settings (per-widget opts.settings — same model as News /
   // Watchlist; this is also what the "Apply to: All widgets" chart-theme patches). ──
@@ -228,7 +207,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
     () => (styleVars['--nh-bg'] ? menuThemeVars(settings.bgMode === 'gradient' ? settings.bgGradient?.top : settings.bg) : null) || null,
     [styleVars, settings])
 
-  const filterQS = `min_price=${minPrice}&min_count=${minCount}`
+  const filterQS = 'min_price=0&min_count=1'
   // ETF / watchlist restriction wins and is a flat view (no group); otherwise a
   // group-by dim becomes the &group= param.
   const restrictQ = etfUni ? `&etf=${encodeURIComponent(etfUni)}`
@@ -272,12 +251,26 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         />
       )}
       <div className={styles.toolbar}>
-        <NhnlUniverseMenu selection={selection} onPick={onPickUniverse} />
+        {/* Universe TAB strip (switch / delete) + a ＋ that opens the grouped menu —
+            identical to the Market Map widget. */}
+        <div className={styles.uniTabs}>
+          {universes.map((u, i) => (
+            <span key={`${u.key}:${i}`}
+              className={`${styles.uniTab}${i === activeIdx ? ' ' + styles.uniTabActive : ''}`}
+              role="button" tabIndex={0} onClick={() => patch({ activeUniverse: i })}
+              title={u.label}>
+              <span className={styles.uniTabLabel}>{u.label}</span>
+              {universes.length > 1 && (
+                <span className={styles.uniTabX} role="button" tabIndex={-1} aria-label="Remove universe"
+                  title="Remove" onClick={(e) => { e.stopPropagation(); removeUniverse(i) }}>
+                  <UIcon name="x" size={8} gold={false} />
+                </span>
+              )}
+            </span>
+          ))}
+          <NhnlUniverseMenu activeKey={cur.key} onPick={addUniverse} addClassName={styles.uniAdd} />
+        </div>
         <span className={styles.spacer} />
-        <FilterBox label="$≥" ariaLabel="Minimum price" value={opts?.minPrice}
-          placeholder="0" min={0} onCommit={commitPrice} />
-        <FilterBox label="#≥" ariaLabel="Minimum count" value={opts?.minCount}
-          placeholder="1" min={1} onCommit={commitCount} />
         <button
           ref={gearRef}
           type="button"

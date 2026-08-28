@@ -129,20 +129,41 @@ export const REFUSALS = Object.freeze({
     'importing another script pulls in code this engine never sees',
   'pine:strategy-call':
     'an order-placing call answers with no value a screen could filter',
+  // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
+  // column reads". BOTH are inside it: this very door emits `sym` and `tf`. What
+  // it actually fires on is a request this door could not RESOLVE — a computed
+  // symbol, a timeframe outside the servable ladder, a shape the folder cannot
+  // reduce to a literal. Saying "outside what a column reads" told a member the
+  // engine lacks a feature it ships, which is how a fixable script gets abandoned.
   'pine:request':
-    'another symbol or another timeframe is outside what one screened column reads',
+    'this request could not be resolved to one symbol and one servable timeframe. '
+    + 'The engine reads another symbol as `sym` (limited to the benchmark roster) '
+    + 'and another timeframe as `tf` (weekly and monthly from daily bars); what '
+    + 'stops this one is that its arguments do not fold to those',
   'pine:drawing':
     'a drawing object paints on a chart and answers with no number',
   'pine:collection':
     'an array, a matrix or a map is outside the expression grammar this engine runs',
+  // ⚰️ IT SAID persisting state is "outside this engine grammar". It is not:
+  // `var s = 0.0` / `s := s + close` translates today to
+  // `accum(0, self + close, 250)`. What is outside the grammar is state that does
+  // not FORGET — the accumulator re-seeds a fixed number of bars back, so a value
+  // whose whole history matters cannot ride it.
   'pine:state':
-    'a value that persists from one bar to the next is outside this engine grammar',
+    'this value carries forward in a way the bounded accumulator cannot hold. '
+    + '`var` state that re-seeds does translate, as `accum`; what this one needs '
+    + 'is a running total with no window, which the grammar has no node for',
   'pine:reassign':
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
     'a Pine block spans several statements and this engine stores a single expression',
+  // ⚰️ "the four node shapes" — THERE ARE EIGHT, and the count was stale rather
+  // than wrong-in-principle: `tf`, `sym` and `tf_live` all landed after it was
+  // typed. A member reading it was told the engine is half the size it is. The
+  // count is not restated here at all now, because a number beside a list it
+  // describes is this repo's most repeated defect and `NODE_TYPES` already owns it.
   'pine:type':
-    'a user-defined type is outside the four node shapes this engine stores',
+    'a user-defined type is outside the node shapes this engine stores',
   'pine:function-def':
     'a Pine function definition introduces a name this engine has nowhere to keep',
   'pine:tuple':
@@ -153,14 +174,33 @@ export const REFUSALS = Object.freeze({
     'a bar offset has to be a plain whole number written into the script',
   'pine:offset-negative':
     'a bar offset that runs forwards would read a bar that has not happened',
+  // ⚰️ IT SAID "Pine na has no spelling in this engine grammar" — and bare `na`
+  // translates to `0 / 0`, while `na(x)` and `nz(x, y)` are both DECLARED
+  // FUNCTIONS. Measured: this guard now fires for exactly one name, `fixnan`,
+  // whose job is to carry the LAST NON-NaN VALUE FORWARD — a per-bar memory, which
+  // is a different thing from spelling not-computable.
   'pine:na':
-    'Pine na has no spelling in this engine grammar',
+    'this fills a gap by carrying an earlier bar\'s value forward, which needs a '
+    + 'per-bar memory this grammar has no node for. `na` and `nz` themselves do '
+    + 'translate',
   'pine:text-value':
     'text cannot be a value in a screened column',
   'pine:colour-value':
     'a colour cannot be a value in a screened column',
+  // ⚰️ "no counterpart in the engine grammar" IS FALSE FOR AT LEAST `%`: the
+  // table declares `mod`, whose own sentence reads "the remainder of {0} divided
+  // by {1}". The blocker is not vocabulary, it is SEMANTICS — this engine's `mod`
+  // truncates toward zero (the sign follows the LEFT operand) and no
+  // TradingView-hosted page states how Pine's `%` rounds a NEGATIVE operand.
+  // ⛔ SO IT STILL REFUSES, and that is right — but it now refuses for the reason
+  // that is actually true, and names the one fact that would unblock it. A
+  // refusal claiming a missing feature sends the reader to the manifest; this one
+  // sends them to the Pine reference, which is where the answer is.
   'pine:operator':
-    'this Pine operator has no counterpart in the engine grammar',
+    'this Pine operator has no counterpart this door is sure of. `%` maps to the '
+    + 'declared `mod`, which truncates toward zero \u2014 but Pine does not publish '
+    + 'how `%` rounds a negative operand, and guessing would answer a different '
+    + 'number for half the inputs',
   'pine:builtin':
     'this Pine built-in names something the engine grammar does not hold',
   'pine:function':
@@ -1878,10 +1918,20 @@ export function printFormula(node, parentBp = 0) {
  * Pine's history-referencing operator is read in full by `parsePostfix` above,
  * with the engine's own constraints applied AT PARSE — a whole-number literal,
  * never negative, one application per value. Everything about `[n]` on the Pine
- * side is therefore finished. What is not finished is the node it becomes: the
- * manifest's `_no_offset` says there is none yet, and `_no_offset_reopened_by`
- * says re-opening it belongs to the owner of the repaint claim together with the
- * owner of the manifest — so this module may not invent one.
+ * side is therefore finished, and so is the node it becomes.
+ *
+ * ⚰️ THIS PARAGRAPH SAID THE OPPOSITE: that the node "is not finished" because
+ * the manifest's `_no_offset` "says there is none yet". Read that entry today and
+ * it opens "⭐ THERE IS A BOUNDED BACKWARD OFFSET" — `expr[n]` canonicalises to
+ * `{type: 'offset', value: n, …}`, and `offset` is one of the eight declared node
+ * types. The manifest was re-opened exactly as its own `_no_offset_reopened_by`
+ * required; this comment was not moved with it, and went on describing a shut door
+ * to everyone who read the parser before the manifest.
+ *
+ * ⛔ THE CONSTRAINT IT CARRIED IS STILL LIVE AND IS WHY THIS NOTE STAYS: a FORWARD
+ * offset remains unsayable by construction, and re-opening that is a SPEC decision
+ * belonging to the owner of the repaint claim together with the owner of the
+ * manifest — so this module may not invent one.
  *
  * ⛔ AND IT MUST NOT INVENT ONE EVEN TEMPORARILY. A second offset representation
  * would be a second grammar with a second Python walker and a second thing
@@ -2661,6 +2711,29 @@ class Resolver {
       `${REFUSALS['pine:undefined']} — \`${name}\``, locate(node.tok))
   }
 
+  /** Did the pasted script DEFINE this name as a function of its own?
+   *
+   *  ⛔⛔ THE ONE PLACE THAT DECIDES, because asking it in two places is how this
+   *  defect reached FIVE instances. A door-local carve-out that runs before the
+   *  general user-function check has to ask this itself, and each one that forgot
+   *  produced the same failure: the member's function reached for one call shape
+   *  and the engine's for another, in the same script.
+   *
+   *  ⚠️ BOTH DEFINITION SHAPES COUNT. `kind === 'fn'` is a definition this door
+   *  can inline; `opaque` + `isFunction` is one it cannot and will refuse BY NAME.
+   *  Either way the member defined the name, so either way a built-in must stand
+   *  aside. Checking only the second let a WORKING `security(a, b, c) => …` keep
+   *  losing to its carve-out, and the test stayed red until both were covered.
+   *
+   *  ⭐ A VALUE BINDING IS DELIBERATELY NOT A SHADOW: `rsi = rsi(src, length)` is
+   *  ordinary Pine, and treating that as a definition once made `07-rsi.pine`
+   *  refuse its own plot with the wrong guard entirely. */
+  shadowedByDefinition(name) {
+    const defined = this.env && this.env.get(name)
+    return !!defined && (defined.kind === 'fn'
+      || (defined.kind === 'opaque' && defined.isFunction))
+  }
+
   resolveCall(node) {
     const name = node.name
     const dot = name.indexOf('.')
@@ -2678,7 +2751,11 @@ class Resolver {
     // makes `nz(market_cap, 0) > 1e9` a confident False on a broken symbol. The
     // literal goes into the TREE, so the read-back says it and the member sees
     // what their script asked for.
-    if (name === 'na' || name === 'nz') {
+    // ⚰️⚰️ AND THIS CARVE-OUT YIELDS TO A USER DEFINITION TOO — found by the
+    // derived rail in `pine.bindingOrder.test.js` on its FIRST RUN, as the FIFTH
+    // instance of this defect. A member writing `nz(a, b) => a + b` got the
+    // ENGINE'S `nz` for every call; their own function was never reached.
+    if ((name === 'na' || name === 'nz') && !this.shadowedByDefinition(name)) {
       const arity = node.args.length
       if (node.args.some((a) => a.name)) {
         throw new PineRefusal('pine:named-argument',
@@ -2722,9 +2799,25 @@ class Resolver {
     // ALMOST this one lands on `pine:request` with the namespace's own sentence
     // rather than on a special-case message that would have to be maintained
     // twice.
+    // ⚰️⚰️ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME. This carve-out
+    // ran SIXTEEN LINES BEFORE the user-function check below, so a member who
+    // wrote `security(a, b, c) => a + b + c` got THEIR function for
+    // `security(close, high, low)` and the BUILT-IN for
+    // `security(syminfo.tickerid, 'W', close)`: one name, two meanings in one
+    // script, decided by whether the arguments happened to match a shape they
+    // never wrote.
+    // ⛔ THE SHADOW RULE ITSELF IS UNCHANGED and is the one stated below — only a
+    // `f(x) =>` DEFINITION shadows a table name, never a value binding, because
+    // `rsi = rsi(src, length)` is ordinary Pine. This only lets that rule apply
+    // BEFORE the carve-out instead of after it.
+    // ⭐ FOURTH INSTANCE OF THE BINDING-ORDER DEFECT IN THIS FILE, after
+    // `ownSymbolNameOf`, `ownTimeframeOf` and `resolveName`: consult what the
+    // script SAID before what the table knows.
     if (name === 'request.security' || name === 'security') {
-      const asTf = this.securityAsNode(node)
-      if (asTf) return asTf
+      if (!this.shadowedByDefinition(name)) {
+        const asTf = this.securityAsNode(node)
+        if (asTf) return asTf
+      }
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
@@ -2767,8 +2860,13 @@ class Resolver {
    *
    *  \u26a0\ufe0f THE SYMBOL MUST BE THE CHART\u2019S OWN. `syminfo.tickerid` (or
    *  `syminfo.ticker`) means "this symbol"; a string literal means ANOTHER symbol
-   *  and that is `sym`, which is not built yet \u2014 so it stays refused rather than
-   *  quietly reading the wrong instrument.
+   *  and that is `sym` — which IS built, and which this door emits: the string
+   *  becomes a `sym` node and the SCAN GATE decides whether that ticker is on the
+   *  benchmark roster.
+   *  ⚰️ THIS LINE SAID "`sym`, which is not built yet" and outlived the run it
+   *  described. A comment naming a mechanism is a claim about a run, and a stale
+   *  one is how a shipped capability stays believed-impossible: this door went on
+   *  refusing what it had already learned to translate.
    */
   /** A node that names a TIMEFRAME → the string it stands for, or null.
    *
@@ -2888,7 +2986,11 @@ class Resolver {
    *  scripts use it. Refusing an alias while accepting the bare name would be
    *  refusing the same script written the way people actually write it.
    *  ⛔ A STRING literal is deliberately NOT followed: that is another SYMBOL,
-   *  which is `sym`, and `sym` is not built. */
+   *  and this function answers only "is it the chart's OWN?";
+   *  `otherSymbolNameOf` picks it up and it becomes a `sym` node.
+   *  ⚰️ THIS SAID "and `sym` is not built". It is — and the shadowing case in
+   *  `pine.security.test.js` asserts `tickerid = 'SPY'` translates AS SPY, so the
+   *  comment contradicted the rail sitting directly beneath it. */
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     if (node.type === 'name') {

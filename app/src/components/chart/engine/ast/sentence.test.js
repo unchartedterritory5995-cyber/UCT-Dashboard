@@ -2259,6 +2259,33 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'mod_overflow_to_nan',
       'idiv_truncates_toward_zero',
       'mod_sign_follows_left_operand',
+      // ⭐ TEN MORE CLOSING ARMS THE CORPUS DROVE ZERO TIMES. Two pin overflow
+      // guards that were raising `OverflowError` out of the Python lane while JS
+      // answered NaN (`pow`'s pre-check missed its own boundary bit-for-bit;
+      // `sinh`'s bound was 0.307 too wide). Two pin rounding AT AN EXACT HALF,
+      // where three conventions disagree and the negative side is what separates
+      // them. Six drive NaN through the logical arms — `&&`, `||`, `!`, `?:`,
+      // `min`, `max` — every one of which has a bare-JS or bare-Python answer
+      // that is CONFIDENT about something not known.
+      // ⛔ ALL TEN RECORDED WITH `0 MOVED`, so none of them changed an existing
+      // answer; they simply mean these arms are now watched.
+      'pow_overflow_is_not_infinite',
+      'sinh_overflow_is_not_infinite',
+      'round_half_away_from_zero_negative',
+      'round_half_away_from_zero_positive',
+      'nan_through_and',
+      'nan_through_or',
+      'nan_through_not',
+      'nan_through_ternary',
+      'nan_through_min',
+      'nan_through_max',
+      // ⭐ VOLUME THROUGH `tf`, WHICH THE CORPUS ALSO DROVE ZERO TIMES — every other
+      // `tf` case reads a PRICE, and volume is the one field a resampler SUMS
+      // rather than taking first/last/max/min. So it is the single arm where the
+      // lanes could aggregate differently while every price case stayed green.
+      // Added while fixing a `TypeError` crash in the Python resampler; recording
+      // it proved the two lanes already agree over the real bars.
+      'tf_weekly_volume_is_summed',
     ])
   })
 

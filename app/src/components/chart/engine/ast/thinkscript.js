@@ -164,8 +164,23 @@ export const REFUSALS = Object.freeze({
     + 'clock fields this engine declares. \u26a0\ufe0f `GetTime()` is in milliseconds '
     + 'and this engine\'s `time` is in seconds, so each function needs its own '
     + 'stated mapping rather than a shared assumption',
+  // ⚰️⚰️ THE STEM SAID "whose FORMULA thinkorswim does not publish", AND THAT IS
+  // TRUE OF EXACTLY ONE OF THE FIVE STUDIES IT IS PRINTED WITH. Measured: RSI,
+  // BollingerBands, MovAvgExponential and SimpleMovingAvg all say "publishes no
+  // DEFAULT …"; only TTM_Squeeze says "publishes no FORMULA … at all".
+  //
+  // ⛔ AND THE TWO ARE NOT THE SAME KIND OF WALL, WHICH IS THE WHOLE COST. An
+  // unpublished DEFAULT is a number sitting on the member's own thinkorswim
+  // screen — answerable, and each of those four tails already names the exact
+  // parameter and what to write instead. Unpublished MATHS is answerable by
+  // nobody. Collapsing them told four members their study was unreconstructable
+  // when what was missing was one value they could read off in a second.
+  //
+  // ⭐ SO THE STEM SITUATES AND THE TAIL DECIDES. The specific tails were always
+  // right; only the sentence they were printed under was wrong.
   'thinkscript:study-ref':
-    'this names another thinkorswim study whose formula thinkorswim does not publish',
+    'this names another thinkorswim study, and what thinkorswim leaves unpublished '
+    + 'about it is named below',
   'thinkscript:fold':
     'a fold loop repeats an expression, and this engine stores one expression rather than a program',
   'thinkscript:no-output':

@@ -59,24 +59,6 @@ describe('NewHighsLowsWidget', () => {
     expect(setGroupSym).toHaveBeenCalledWith('A', 'RL')
   })
 
-  it('editing a filter persists through onOptsChange (committed on blur)', () => {
-    swr.mockReturnValue({ data: LIVE })
-    const onOptsChange = vi.fn()
-    render(<NewHighsLowsWidget color="A" opts={{ minCount: 1 }} onOptsChange={onOptsChange} />)
-    const input = screen.getByLabelText('Minimum price')
-    fireEvent.change(input, { target: { value: '5' } })
-    fireEvent.blur(input)   // debounced: commits on blur (or after a pause)
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ minPrice: 5, minCount: 1 }))
-  })
-
-  it('the live poll URL carries the persisted filters', () => {
-    swr.mockReturnValue({ data: LIVE })
-    render(<NewHighsLowsWidget color="A" opts={{ minPrice: 10, minCount: 3 }} onOptsChange={() => {}} />)
-    expect(swr).toHaveBeenCalledWith(
-      expect.stringContaining('min_price=10'), expect.any(Function), expect.any(Object))
-    expect(swr.mock.calls[0][0]).toContain('min_count=3')
-  })
-
   it('shows the panels during post-market (not just RTH)', () => {
     swr.mockReturnValue({ data: { ...LIVE, window: 'post' } })
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
@@ -84,20 +66,29 @@ describe('NewHighsLowsWidget', () => {
     expect(screen.getByText('RL')).toBeInTheDocument()
   })
 
-  it('picking a Group-by dimension from the universe menu persists the scope', () => {
+  it('adds a Group-by dimension as a universe tab from the ＋ menu', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
-    fireEvent.click(screen.getByTitle(/Choose what the scanner scans/i))  // open universe menu
-    fireEvent.click(screen.getByText('Sector'))                            // pick a dimension
-    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scope: 'sector' }))
+    fireEvent.click(screen.getByTitle(/Add a universe/i))   // open the ＋ menu
+    fireEvent.click(screen.getByText('Sector'))             // pick a dimension
+    expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({
+      activeUniverse: 1,
+      universes: expect.arrayContaining([expect.objectContaining({ scope: 'sector' })]),
+    }))
   })
 
-  it('an ETF universe threads &etf= into the poll URL (and drops group)', () => {
+  it('an ETF universe tab threads &etf= into the poll URL (and drops group)', () => {
+    swr.mockReturnValue({ data: { ...LIVE, group: null } })
+    render(<NewHighsLowsWidget color="A" opts={{ universes: [{ key: 'etf:SPY', label: 'S&P 500', etf: 'SPY' }], activeUniverse: 0 }} onOptsChange={() => {}} />)
+    expect(swr.mock.calls[0][0]).toContain('etf=SPY')
+    expect(swr.mock.calls[0][0]).not.toContain('group=')
+  })
+
+  it('migrates a legacy single ETF selection into a universe tab', () => {
     swr.mockReturnValue({ data: { ...LIVE, group: null } })
     render(<NewHighsLowsWidget color="A" opts={{ etf: 'SPY', uniLabel: 'SPY' }} onOptsChange={() => {}} />)
     expect(swr.mock.calls[0][0]).toContain('etf=SPY')
-    expect(swr.mock.calls[0][0]).not.toContain('group=')
   })
 
   it('threads the group scope (no value) into the poll URL', () => {

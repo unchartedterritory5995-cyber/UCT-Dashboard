@@ -685,7 +685,13 @@ function convert(node) {
   }
 }
 
-/** jsep's tree → the persisted tree. Four node shapes, and no others.
+/** jsep's tree → the persisted tree.
+ *
+ *  ⚰️ THIS SAID "Four node shapes, and no others". There are EIGHT — `num`,
+ *  `series`, `op`, `call`, `offset`, `tf`, `sym`, `tf_live` — and `NODE_TYPES`
+ *  in this same file has owned that list the whole time. The count is not
+ *  restated here now, because a number typed beside the list it describes is
+ *  this repo's most repeated defect and it had already drifted by four.
  *
  *  ⛔ MemberExpression, ArrayExpression, Compound, ThisExpression and
  *  AssignmentExpression are REFUSED HERE BY NAME, each with its own message.

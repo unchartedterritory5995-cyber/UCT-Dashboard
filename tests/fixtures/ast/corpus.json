@@ -3506,6 +3506,321 @@
           }
         ]
       }
+    },
+    {
+      "id": "pow_overflow_is_not_infinite",
+      "source": "pow(2, 1024) > 0",
+      "why": "⚰️ `2 ** 1024` is the largest power of two that does NOT fit. Python's pre-check read `y * log|x| > _LOG_MAX`, and `1024 * log(2)` evaluates BIT-FOR-BIT EQUAL to that bound — so the guard passed and `OverflowError` escaped, which is not a TableRefusal. JS already answered NaN via `Number.isFinite(v) ? v : NaN`. ⛔ COMPARED, not bare: a NaN column is laundered on write, so only the comparison can tell an Infinity lane from a NaN one.",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "call",
+            "name": "pow",
+            "args": [
+              {
+                "type": "num",
+                "value": 2
+              },
+              {
+                "type": "num",
+                "value": 1024
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sinh_overflow_is_not_infinite",
+      "source": "sinh(711) > 0",
+      "why": "⚰️ The bound was `_LOG_MAX + 1.0`, which is 0.307 too wide (`1 - log 2`). Everything in that gap raised `OverflowError` out of `math.sinh`. The true bound is `log(2 * max)` because `sinh(x) ≈ exp(x)/2` — derived, not rounded: 710.4758600739439, and measured, 710.47 answers while 710.48 overflows.",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "call",
+            "name": "sinh",
+            "args": [
+              {
+                "type": "num",
+                "value": 711
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "round_half_away_from_zero_negative",
+      "source": "round(-1.5)",
+      "why": "⭐ AN EXACT HALF, WHICH THE CORPUS DROVE ZERO TIMES — and the NEGATIVE side is the one that separates the three conventions. Python's own `round` is banker's (-2), JS's `Math.round` is toward +inf (-1), and this engine is HALF AWAY FROM ZERO in both lanes, spelled identically as `sign(x) * floor(abs(x) + 0.5)`. ⚠️ I first read a divergence here by testing `Math.round` instead of the engine's `round`; they agree. This case exists so the agreement is measured rather than re-derived by the next person who wonders.",
+      "ast": {
+        "type": "call",
+        "name": "round",
+        "args": [
+          {
+            "type": "op",
+            "name": "u-",
+            "args": [
+              {
+                "type": "num",
+                "value": 1.5
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "round_half_away_from_zero_positive",
+      "source": "round(2.5)",
+      "why": "the other side of the same half — 3, not banker's 2.",
+      "ast": {
+        "type": "call",
+        "name": "round",
+        "args": [
+          {
+            "type": "num",
+            "value": 2.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_and",
+      "source": "na(0 / 0 && 1)",
+      "why": "⭐ NaN INTO `&&`, WHICH THE CORPUS NEVER DROVE. Wrapped in `na` because the raw result is not-computable on every bar and this harness refuses an all-NaN case — `na` turns it into a finite 0/1 that still DISCRIMINATES, since a lane that coerced NaN to false would answer 0 where one that propagates answers 1.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_or",
+      "source": "na(0 / 0 || 0)",
+      "why": "NaN into `||`. JS `NaN || 0` is 0 by truthiness; a lane that borrowed the host language's operator instead of the table's would diverge here.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "op",
+            "name": "||",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_not",
+      "source": "na(!(0 / 0))",
+      "why": "NaN into unary `!`. `!NaN` is `true` in bare JS — a confident answer about something not known.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "op",
+            "name": "!",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_ternary",
+      "source": "na(0 / 0 ? 1 : 2)",
+      "why": "NaN as a ternary TEST. Bare JS takes the false arm and answers 2, which is a definite number chosen by a condition nobody could evaluate.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_min",
+      "source": "na(min(0 / 0, 1))",
+      "why": "NaN into `min`. `Math.min(NaN, 1)` is NaN but Python's `min(nan, 1)` returns whichever came FIRST — an ordering accident, not a rule, and exactly the kind of host-language leak a two-lane engine has to pin.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "call",
+            "name": "min",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nan_through_max",
+      "source": "na(max(0 / 0, 1))",
+      "why": "NaN into `max`, for the same reason as `min` above.",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "call",
+            "name": "max",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tf_weekly_volume_is_summed",
+      "source": "tf(volume, 'W')",
+      "why": "⭐ A HIGHER-TIMEFRAME read of VOLUME, which the corpus drove zero times — every existing `tf` case reads a PRICE. Volume is the one field a resampler SUMS rather than taking first/last/max/min, so it is the one arm where the two lanes could aggregate differently and every price case would stay green. Added while fixing a crash in the Python resampler on a null volume.",
+      "ast": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
