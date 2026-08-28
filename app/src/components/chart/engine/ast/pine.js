@@ -1548,7 +1548,11 @@ class Resolver {
       // is not a name the member failed to define.
       const clockKey = engineClockKeyFor(name)
       if (clockKey) {
-        throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(tok))
+        if (own(PINE_CLOCK_MISMATCH, name)) {
+          throw new PineRefusal('pine:builtin',
+            `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(tok))
+        }
+        return clockLeaf(clockKey)
       }
       throw new PineRefusal('pine:undefined',
         `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
@@ -2140,7 +2144,11 @@ class Resolver {
     // for a column we compute).
     const clockKey = engineClockKeyFor(name)
     if (clockKey) {
-      throw new PineRefusal('pine:builtin', clockNotWired(name, clockKey), locate(node.tok))
+      if (own(PINE_CLOCK_MISMATCH, name)) {
+        throw new PineRefusal('pine:builtin',
+          `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(node.tok))
+      }
+      return clockLeaf(clockKey)
     }
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
@@ -2786,11 +2794,54 @@ function signatureOf(key, spec) {
  */
 const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
 
+/** Pine clock names whose meaning is NOT ours, and the sentence that says why.
+ *
+ *  ⛔⛔ THIS IS THE HALF THAT MAKES THE BINDING BELOW SAFE. `engineClockKeyFor`
+ *  answers "does the table hold a column with this NAME", which is a question about
+ *  spelling. Binding on that alone would have been a silent mistranslation on the
+ *  very first entry:
+ *
+ *    Pine `time`  = MILLISECONDS since 1970
+ *    our  `time`  = SECONDS      since 1970   (`closedTable.json::clock.time`)
+ *
+ *  A script comparing `time > 1600000000000` would have compared a second-count
+ *  against a millisecond literal and quietly answered `false` on every bar,
+ *  forever, under a name we had just told the member we support. A factor of a
+ *  thousand does not announce itself in a chart.
+ *
+ *  ⭐ SO A NAME IS BOUND ONLY WHERE THE MEANINGS MATCH, and where they do not the
+ *  refusal names the DIFFERENCE rather than repeating "this door has not learned
+ *  the leaf" — which was true yesterday and would be a lie today
+ *  (`lesson_rail_the_sentence_not_just_the_guard`).
+ *
+ *  ⚠️ ONE ENTRY, AND THAT IS THE WHOLE LIST ON PURPOSE. The first draft also
+ *  carried `timenow`, `time_close`, `time_tradingday` and `last_bar_time` — none
+ *  of which our clock declares, so `engineClockKeyFor` returns null for them and
+ *  this map could never be consulted. Four sentences that read as protection and
+ *  could not fire. They already get the correct generic refusal ("names something
+ *  the engine grammar does not hold"), which is true: we do not hold them at all.
+ *  `time` is the only Pine clock name we hold under the same spelling and a
+ *  different meaning, so it is the only one that needs saying. */
+const PINE_CLOCK_MISMATCH = Object.freeze({
+  time: 'in Pine a bar timestamp in MILLISECONDS since 1970, where this engine’s '
+    + '`time` is SECONDS — a thousand-fold difference that would compare true '
+    + 'against no literal a member wrote, on every bar, without ever looking wrong',
+})
+
 function engineClockKeyFor(name) {
   const clock = (TABLE && TABLE.clock) || {}
   const key = own(PINE_TO_CLOCK_SPELLING, name) ? PINE_TO_CLOCK_SPELLING[name] : name
   return typeof key === 'string' && !key.startsWith('_') && own(clock, key) ? key : null
 }
+
+/** ⭐ A CLOCK NAME IS A `series` LEAF, exactly as a bar field is —
+ *  `parseFormula('dayofweek > 3')` produces `{type:'series', name:'dayofweek'}`,
+ *  and `interpret` seeds the clock columns into the same scope as `close`. So
+ *  binding one is not a new node type or a new code path; it is the resolution
+ *  this door already performs for `close`, over a section it had not been told
+ *  to read. The refusal it replaces said so itself: "TO UNBLOCK: teach this door
+ *  to resolve a clock name the way it already resolves a series name". */
+const clockLeaf = (key) => ({ type: 'series', name: key })
 
 const clockNotWired = (name, key) =>
   `\`${name}\`: this engine HOLDS that column -- the closed table declares ` +
@@ -2804,6 +2855,16 @@ const PINE_KNOWN_BUILTINS = Object.freeze(new Set([
   'year', 'month', 'weekofyear', 'dayofmonth', 'hour', 'minute', 'second',
   'na', 'last_bar_index', 'last_bar_time', 'first_bar_index',
   'open_time', 'volume_delta',
+  // ⚠️ `interval` AND `period` ARE PINE v2/v3's NAMES FOR THE CHART RESOLUTION,
+  // and they are here for the sentence, not the capability. Both were previously
+  // MASKED: script 14 refused at `isintraday` first, so nothing downstream was
+  // ever reached. Binding the clock names surfaced them — and the door then told
+  // a member *"this Pine name was never given a value in the pasted script"*
+  // about a builtin their platform defines, which is this file's own stated
+  // defect ("two different sentences for two different mistakes") pointed the
+  // wrong way. This engine genuinely cannot hold a resolution STRING, so
+  // `pine:builtin` is the honest guard; `pine:undefined` was the wrong one.
+  'interval', 'period',
 ]))
 
 // --------------------------------------------------------------------------- //

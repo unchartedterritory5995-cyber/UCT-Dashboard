@@ -302,7 +302,17 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // module's own two sentences. The guard is still live and still railed, by
     // constructed cases (`pine.test.js`'s `mystery`, and `pine.variables.test.js`)
     // rather than by a published script.
-    expect(fired.size).toBe(9)
+    // ⚰️ 9 → 10 ON 2026-08-27, LATER THE SAME DAY, AND THIS ASSERTION NOTICED
+    // AGAIN — this time because a refusal got TRUER rather than because one went
+    // away. Teaching the Pine door to bind a clock leaf let 12-ichimoku's
+    // evaluation proceed past `isintraday` to the thing actually wrong with that
+    // output: `vwap` called with one argument where this table takes none. The
+    // arity error was there the whole time, MASKED behind a refusal that fired
+    // first. ⭐ That is worth stating plainly, because it is the general shape of
+    // this whole door: a refusal count going UP can mean the translator got more
+    // honest, not less capable, and only reading WHICH guard moved can tell the
+    // two apart.
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

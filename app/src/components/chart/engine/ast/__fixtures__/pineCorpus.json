@@ -1,338 +1,338 @@
 {
-  "01-stoch-rsi-screener.pine": {
-    "version": 5,
-    "translates": true,
-    "outputs": 2,
-    "usable": 2,
-    "selectedFormula": "sma(stoch(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14), 3)",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
+ "01-stoch-rsi-screener.pine": {
+  "version": 5,
+  "translates": true,
+  "outputs": 2,
+  "usable": 2,
+  "selectedFormula": "sma(stoch(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14), 3)",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
   },
-  "02-ict-retracement-to-order-block-screener.pine": {
-    "version": 5,
-    "translates": false,
-    "outputs": 4,
-    "usable": 0,
-    "hiddenScaffolding": 2,
-    "selectedFormula": null,
-    "refusal": {
-      "guard": "pine:state",
-      "line": 88,
-      "column": 41,
-      "token": "["
-    },
-    "perOutputRefusals": {
-      "pine:state": 2
-    },
-    "downstream": null
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "02-ict-retracement-to-order-block-screener.pine": {
+  "version": 5,
+  "translates": false,
+  "outputs": 4,
+  "usable": 0,
+  "hiddenScaffolding": 2,
+  "selectedFormula": null,
+  "refusal": {
+   "guard": "pine:state",
+   "line": 88,
+   "column": 41,
+   "token": "["
   },
-  "03-rsi-directional-momentum-scanner.pine": {
-    "version": 6,
-    "translates": true,
-    "outputs": 10,
-    "usable": 2,
-    "selectedFormula": "rsi(close, 14)",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {
-      "pine:plot-offset": 8
-    }
+  "perOutputRefusals": {
+   "pine:state": 2
   },
-  "04-superguppy-supertrend-screener.pine": {
-    "version": 4,
-    "translates": false,
-    "outputs": 2,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:request",
-      "line": 229,
-      "column": 7,
-      "token": "security"
-    },
-    "perOutputRefusals": {
-      "pine:request": 2
-    }
+  "downstream": null
+ },
+ "03-rsi-directional-momentum-scanner.pine": {
+  "version": 6,
+  "translates": true,
+  "outputs": 10,
+  "usable": 2,
+  "selectedFormula": "rsi(close, 14)",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
   },
-  "05-mtf-structure-bias.pine": {
-    "version": 6,
-    "translates": false,
-    "outputs": 3,
-    "usable": 0,
-    "hiddenScaffolding": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:request",
-      "line": 52,
-      "column": 6,
-      "token": "request.security"
-    },
-    "perOutputRefusals": {
-      "pine:request": 3
-    }
-  },
-  "06-adx-advanced.pine": {
-    "version": 6,
-    "translates": true,
-    "outputs": 12,
-    "usable": 9,
-    "hiddenScaffolding": 3,
-    "selectedFormula": "(!1 || 1) && crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "07-rsi.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 1,
-    "usable": 1,
-    "selectedFormula": "rsi(close, 14)",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "08-stochastic-v4.pine": {
-    "version": 4,
-    "translates": true,
-    "outputs": 3,
-    "usable": 3,
-    "selectedFormula": "sma(stoch(high, low, close, 14), 3)",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "09-on-balance-volume.pine": {
-    "version": 3,
-    "translates": false,
-    "outputs": 2,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:function",
-      "line": 13,
-      "column": 7,
-      "token": "cum"
-    },
-    "perOutputRefusals": {
-      "pine:function": 2
-    }
-  },
-  "10-supertrend.pine": {
-    "version": 6,
-    "translates": true,
-    "outputs": 6,
-    "usable": 5,
-    "selectedFormula": "accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250) != accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250)[1]",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {},
-    "hiddenScaffolding": 1
-  },
-  "11-donchian-channel.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 5,
-    "usable": 3,
-    "selectedFormula": "highest(high, 20)[1]",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {
-      "pine:builtin": 2
-    }
-  },
-  "12-ichimoku-clouds.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 21,
-    "usable": 15,
-    "selectedFormula": "0 / 0",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {
-      "pine:plot-offset": 3,
-      "pine:builtin": 1,
-      "pine:request": 2
-    }
-  },
-  "13-average-true-range.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 8,
-    "usable": 8,
-    "selectedFormula": "(21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0) > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] && (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[2]",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "14-bollinger-bands-fixed-timeframe.pine": {
-    "version": null,
-    "translates": false,
-    "outputs": 5,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:builtin",
-      "line": 13,
-      "column": 15,
-      "token": "isintraday"
-    },
-    "perOutputRefusals": {
-      "pine:plot-offset": 3,
-      "pine:builtin": 2
-    }
-  },
-  "15-anchored-vwap.pine": {
-    "version": 6,
-    "translates": false,
-    "outputs": 8,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:builtin",
-      "line": 92,
-      "column": 46,
-      "token": "time"
-    },
-    "perOutputRefusals": {
-      "pine:builtin": 7,
-      "pine:state": 1
-    }
-  },
-  "16-smacd.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 1,
-    "usable": 1,
-    "selectedFormula": "-(ema(open, 8) - ema(open, 13)) + (ema(open, 13) - ema(open, 21)) + (ema(open, 21) - ema(open, 55)) + (ema(open, 55) - ema(open, 89))",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "17-simple-moving-average.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 1,
-    "usable": 1,
-    "selectedFormula": "sma(close, 14)",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "18-normalized-average-true-range.pine": {
-    "version": 3,
-    "translates": true,
-    "outputs": 1,
-    "usable": 1,
-    "selectedFormula": "100 * atr(high, low, close, 14) / close",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
-    },
-    "refusal": null,
-    "perOutputRefusals": {}
-  },
-  "19-strategy-supertrend-atr.pine": {
-    "version": 3,
-    "translates": false,
-    "outputs": 3,
-    "usable": 1,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:declaration-strategy",
-      "line": 2,
-      "column": 1,
-      "token": "strategy"
-    },
-    "perOutputRefusals": {
-      "pine:tuple": 2
-    }
-  },
-  "20-smc-toolkit-udt.pine": {
-    "version": 6,
-    "translates": false,
-    "outputs": 6,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:function",
-      "line": 179,
-      "column": 12,
-      "token": "ta.pivothigh"
-    },
-    "perOutputRefusals": {
-      "pine:function": 4,
-      "pine:reassign": 2
-    }
-  },
-  "21-volume-profile-plus.pine": {
-    "version": 6,
-    "translates": false,
-    "outputs": 1,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:state",
-      "line": 90,
-      "column": 18,
-      "token": "alert_poc"
-    },
-    "perOutputRefusals": {
-      "pine:state": 1
-    }
+  "refusal": null,
+  "perOutputRefusals": {
+   "pine:plot-offset": 8
   }
+ },
+ "04-superguppy-supertrend-screener.pine": {
+  "version": 4,
+  "translates": false,
+  "outputs": 2,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:request",
+   "line": 229,
+   "column": 7,
+   "token": "security"
+  },
+  "perOutputRefusals": {
+   "pine:request": 2
+  }
+ },
+ "05-mtf-structure-bias.pine": {
+  "version": 6,
+  "translates": false,
+  "outputs": 3,
+  "usable": 0,
+  "hiddenScaffolding": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:request",
+   "line": 52,
+   "column": 6,
+   "token": "request.security"
+  },
+  "perOutputRefusals": {
+   "pine:request": 3
+  }
+ },
+ "06-adx-advanced.pine": {
+  "version": 6,
+  "translates": true,
+  "outputs": 12,
+  "usable": 9,
+  "hiddenScaffolding": 3,
+  "selectedFormula": "(!1 || 1) && crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "07-rsi.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 1,
+  "usable": 1,
+  "selectedFormula": "rsi(close, 14)",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "08-stochastic-v4.pine": {
+  "version": 4,
+  "translates": true,
+  "outputs": 3,
+  "usable": 3,
+  "selectedFormula": "sma(stoch(high, low, close, 14), 3)",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "09-on-balance-volume.pine": {
+  "version": 3,
+  "translates": false,
+  "outputs": 2,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:function",
+   "line": 13,
+   "column": 7,
+   "token": "cum"
+  },
+  "perOutputRefusals": {
+   "pine:function": 2
+  }
+ },
+ "10-supertrend.pine": {
+  "version": 6,
+  "translates": true,
+  "outputs": 6,
+  "usable": 5,
+  "selectedFormula": "accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250) != accum(1, self == -1 && high > nz(accum((high + low) / 2 + 3 * atr(high, low, close, 22), (high + low) / 2 + 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) : high[1] < nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)) ? min((high + low) / 2 + 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22))) : (high + low) / 2 + 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 + 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 + 3 * atr(high, low, close, 22)) ? 1 : self == 1 && low < nz(accum((high + low) / 2 - 3 * atr(high, low, close, 22), (high + low) / 2 - 3 * atr(high, low, close, 22) > 0 ? (open == close && open == low && open == high ? nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) : low[1] > nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)) ? max((high + low) / 2 - 3 * atr(high, low, close, 22), nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22))) : (high + low) / 2 - 3 * atr(high, low, close, 22)) : nz(self, (high + low) / 2 - 3 * atr(high, low, close, 22)), 250)[1], (high + low) / 2 - 3 * atr(high, low, close, 22)) ? -1 : self, 250)[1]",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {},
+  "hiddenScaffolding": 1
+ },
+ "11-donchian-channel.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 5,
+  "usable": 3,
+  "selectedFormula": "highest(high, 20)[1]",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {
+   "pine:builtin": 2
+  }
+ },
+ "12-ichimoku-clouds.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 21,
+  "usable": 15,
+  "selectedFormula": "0 / 0",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {
+   "pine:plot-offset": 3,
+   "pine:request": 2,
+   "pine:arity": 1
+  }
+ },
+ "13-average-true-range.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 8,
+  "usable": 8,
+  "selectedFormula": "(21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0) > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] && (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[2]",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "14-bollinger-bands-fixed-timeframe.pine": {
+  "version": null,
+  "translates": false,
+  "outputs": 5,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:builtin",
+   "line": 30,
+   "column": 30,
+   "token": "interval"
+  },
+  "perOutputRefusals": {
+   "pine:plot-offset": 3,
+   "pine:builtin": 2
+  }
+ },
+ "15-anchored-vwap.pine": {
+  "version": 6,
+  "translates": false,
+  "outputs": 8,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:builtin",
+   "line": 92,
+   "column": 46,
+   "token": "time"
+  },
+  "perOutputRefusals": {
+   "pine:builtin": 7,
+   "pine:state": 1
+  }
+ },
+ "16-smacd.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 1,
+  "usable": 1,
+  "selectedFormula": "-(ema(open, 8) - ema(open, 13)) + (ema(open, 13) - ema(open, 21)) + (ema(open, 21) - ema(open, 55)) + (ema(open, 55) - ema(open, 89))",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "17-simple-moving-average.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 1,
+  "usable": 1,
+  "selectedFormula": "sma(close, 14)",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "18-normalized-average-true-range.pine": {
+  "version": 3,
+  "translates": true,
+  "outputs": 1,
+  "usable": 1,
+  "selectedFormula": "100 * atr(high, low, close, 14) / close",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
+  },
+  "refusal": null,
+  "perOutputRefusals": {}
+ },
+ "19-strategy-supertrend-atr.pine": {
+  "version": 3,
+  "translates": false,
+  "outputs": 3,
+  "usable": 1,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:declaration-strategy",
+   "line": 2,
+   "column": 1,
+   "token": "strategy"
+  },
+  "perOutputRefusals": {
+   "pine:tuple": 2
+  }
+ },
+ "20-smc-toolkit-udt.pine": {
+  "version": 6,
+  "translates": false,
+  "outputs": 6,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:function",
+   "line": 179,
+   "column": 12,
+   "token": "ta.pivothigh"
+  },
+  "perOutputRefusals": {
+   "pine:function": 4,
+   "pine:reassign": 2
+  }
+ },
+ "21-volume-profile-plus.pine": {
+  "version": 6,
+  "translates": false,
+  "outputs": 1,
+  "usable": 0,
+  "selectedFormula": null,
+  "downstream": null,
+  "refusal": {
+   "guard": "pine:state",
+   "line": 90,
+   "column": 18,
+   "token": "alert_poc"
+  },
+  "perOutputRefusals": {
+   "pine:state": 1
+  }
+ }
 }

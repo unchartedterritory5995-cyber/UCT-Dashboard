@@ -640,20 +640,58 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
       expect(CLOCK).toContain('dayofweek')
     })
 
-    for (const spelling of ['dayofweek', 'time', 'year', 'bar_index']) {
-      it(`\`${spelling}\` → pine:builtin, naming the column this engine holds`, () => {
+    // ⭐⭐ THESE NOW RESOLVE. The refusal these cases used to assert said so
+    // itself — "TO UNBLOCK: teach this door to resolve a clock name the way it
+    // already resolves a series name; nothing new has to be measured or
+    // documented first" — and that is exactly what was done. A clock leaf IS a
+    // `series` node (`parseFormula('dayofweek > 3')` proves it), so binding one
+    // is the resolution this door already performs for `close`, over a manifest
+    // section it had simply not been told to read.
+    for (const spelling of ['dayofweek', 'year', 'bar_index', 'hour', 'month']) {
+      it(`${spelling} RESOLVES to the clock column this engine holds`, () => {
+        const out = translatePine(`//@version=5\nindicator("t")\nplot(${spelling})\n`)
+        expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+        const first = out.outputs.find((o) => o.refusal === null)
+        expect(first, 'no output translated').toBeTruthy()
+        // ⚠️ `bar_index` is PINE's spelling of our `barindex`. The tree must carry
+        // OUR key, or the engine looks up a column it does not have and the
+        // column is NaN on every bar — a translation that reads as a quiet market.
+        expect(first.ast).toEqual({
+          type: 'series',
+          name: spelling === 'bar_index' ? 'barindex' : spelling,
+        })
+      })
+    }
+
+    // ⛔⛔ AND THE NAMES WHOSE MEANING IS NOT OURS STILL REFUSE, NAMING THE
+    // DIFFERENCE. This is the half that makes the binding above safe. Pine's
+    // `time` is MILLISECONDS since 1970; ours is SECONDS. A script comparing
+    // `time > 1600000000000` would have compared a second-count against a
+    // millisecond literal and answered false on every bar, forever, under a name
+    // we had just claimed to support — and a thousand-fold error does not look
+    // wrong on a chart. Spelling alone is not agreement.
+    // ⚠️ ONE NAME, because one name is all that can reach this arm. `timenow`,
+    // `time_close` and friends are not in our clock AT ALL, so they get the
+    // generic sentence — which is true — and a case for them here would have been
+    // asserting a message the code cannot produce.
+    for (const [spelling, phrase] of [['time', 'MILLISECONDS']]) {
+      it(`${spelling} refuses, and the refusal names the DIFFERENCE`, () => {
         const r = refusalOf(`//@version=5\nindicator("t")\nplot(${spelling})\n`)
-        expect(r.guard, 'a column this engine holds is not an undefined name').toBe('pine:builtin')
+        expect(r.guard, 'a Pine name we know is not an undefined name').toBe('pine:builtin')
         expect(r.token).toBe(spelling)
-        expect(r.message).toContain('HOLDS that column')
-        expect(r.message).toContain('clock section')
-        expect(r.message, 'a refusal blocked on work must name what would unblock it')
-          .toContain('TO UNBLOCK')
+        expect(r.message, 'the refusal must say what DIFFERS, not that work is pending')
+          .toContain(phrase)
+        expect(r.message, 'the old "not wired yet" sentence is no longer true')
+          .not.toContain('TO UNBLOCK')
       })
     }
 
     it('a name the engine does NOT hold still gets the generic sentence', () => {
-      const r = refusalOf('//@version=5\nindicator("t")\nplot(timenow)\n')
+      // ⚠️ `volume_delta`, not `timenow`: the latter now carries a reason of its
+      // own (a wall-clock read is not a property of any bar). This case exists to
+      // prove the GENERIC arm still works, so it needs a name with no special
+      // sentence — otherwise it would pass for the wrong reason.
+      const r = refusalOf('//@version=5\nindicator("t")\nplot(volume_delta)\n')
       expect(r.guard).toBe('pine:builtin')
       expect(r.message).not.toContain('HOLDS that column')
     })
