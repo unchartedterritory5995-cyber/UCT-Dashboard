@@ -123,7 +123,11 @@
 .side { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .side:first-child { border-right: 1px solid var(--nh-divider, var(--widget-divider, var(--wl-divider, var(--border)))); }
 
-/* sideHead == Watchlist .gridHead: 32px sticky header so panels align row-for-row. */
+/* NEW HIGHS / NEW LOWS header. Height matches the Watchlist / Theme-Tracker SECOND
+   header row (their search-bar row) — whose search input's own padding + border make
+   the rendered row ~38px, taller than its 32px min-height. Matching 38px here lines the
+   bottom of this header up horizontally with the bottom of those widgets' search bars.
+   Both panels use it, so they still align row-for-row with each other. */
 .sideHead {
   position: sticky;
   top: 0;
@@ -131,7 +135,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 32px;
+  min-height: 38px;
   padding: 0 8px;
   box-sizing: border-box;
   /* OPAQUE canvas (NOT --nh-elev, which the per-widget theme sets to `transparent` for a
