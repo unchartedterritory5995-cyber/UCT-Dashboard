@@ -344,3 +344,46 @@ def test_reclaim_never_refunds_a_scheduled_job(monkeypatch, tmp_path):
     assert deep.reclaim_stale() == 1
     assert deep.get_job("u1", "sched1")["status"] == "error"
     assert refunded == []
+
+
+def test_scheduled_budget_fraction_reserves_interactive_headroom(monkeypatch, tmp_path):
+    """Scheduled submits stop at 60% of the daily dollar cap; interactive
+    keeps the full cap — the Sunday batch can never black out members."""
+    _fresh(monkeypatch, tmp_path)
+    import api.services.narrative_cost_guard as guard
+    monkeypatch.setattr(guard, "spend_today_usd", lambda s: 3.5)   # 7.0 total of $10
+    out = deep.submit("u1", "a scheduled weekly report", source="scheduled")
+    assert not out["ok"] and "scheduled budget" in out["reason"]
+    assert deep.submit("u1", "an interactive question")["ok"]      # reserve intact
+    # under the fraction, scheduled submits work
+    monkeypatch.setattr(guard, "spend_today_usd", lambda s: 2.0)   # 4.0 total
+    assert deep.submit("u1", "another scheduled weekly report", source="scheduled")["ok"]
+
+
+def test_interactive_cap_never_blocks_the_scheduled_weekly(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    monkeypatch.setenv("AI_SEARCH_DEEP_PERUSER_CAP", "1")
+    assert deep.submit("u1", "interactive question one")["ok"]
+    assert not deep.submit("u1", "interactive question two")["ok"]   # cap hit
+    # the Sunday report the member's briefing entitles them to still runs
+    assert deep.submit("u1", "their weekly scheduled report", source="scheduled")["ok"]
+
+
+def test_reclaimed_scheduled_job_gets_sunday_copy_not_resubmit(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    monkeypatch.setattr(deep, "_refund_units", lambda uid: None)
+    import contextlib
+    deep._ensure_init()
+    with contextlib.closing(deep._connect()) as conn:
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at, source) "
+            "VALUES ('sc1','u1','q','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00','scheduled')")
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at) "
+            "VALUES ('in1','u2','q2','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00')")
+        conn.commit()
+    deep.reclaim_stale()
+    assert "next Sunday" in deep.get_job("u1", "sc1")["error"]
+    assert "resubmit" in deep.get_job("u2", "in1")["error"]

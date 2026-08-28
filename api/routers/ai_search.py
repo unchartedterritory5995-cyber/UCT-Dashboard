@@ -1757,8 +1757,17 @@ def _briefing_proposal(query: str, syms: list[str]) -> dict | None:
 _DEEP_WORDS_RE = re.compile(
     r"\b(?:deep\s+(?:report|dive|research)|full\s+(?:picture|report|breakdown)"
     r"|research\s+report)\b", re.I)
+# "weekly" alone is usually a chart TIMEFRAME on this product ("deep dive on
+# SPY's weekly chart") — bare `weekly` only counts when it is not naming a
+# chart object, and Sunday phrasings ("on Sundays", "sunday deep dive") count
+# too (2026-08-28 review: both directions confirmed against real phrasings).
 _WEEKLY_CADENCE_RE = re.compile(
-    r"\b(?:every|each)\s+(?:sunday|week(?:end)?)\b|\bweekly\b|\bonce\s+a\s+week\b", re.I)
+    r"\b(?:every|each)\s+(?:sunday|week(?:end)?)\b"
+    r"|\bon\s+sundays?\b"
+    r"|\bsundays?\b(?=\s+(?:deep|full|research))"
+    r"|\bonce\s+a\s+week\b"
+    r"|\bweekly\b(?!\s+(?:charts?|candles?|bars?|timeframes?|closes?|opens?"
+    r"|highs?|lows?|levels?|ma\b|moving))", re.I)
 
 
 def _deep_weekly_proposal(query: str, syms: list[str]) -> dict | None:

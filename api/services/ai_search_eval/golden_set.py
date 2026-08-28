@@ -27,7 +27,13 @@ SEARCH_RUNG_BARS = {
 # these start ALL-ZERO because no honest run has been recorded yet — an
 # inherited bar would measure this lane against another product's baseline.
 # After the first real run, write its per-rung passes here, set BASELINE_LABEL,
-# and pin the total in test_search_gate.py. NEVER lower a bar to green a run.
+# and update the pin in tests/test_ai_search_report_card_gate.py — all three in
+# ONE commit. NEVER lower a bar to green a run.
+# ⛔ Do NOT arm `uncited_thesis` in this lane's golden set: the mechanical check
+# matches must_cite's two longest words LITERALLY in the answer, and this set's
+# must_cite fields are grader prose ("numbered [n] citations…") a perfect
+# answer never echoes — arming it failed good answers as safety breaks
+# (2026-08-28 review). Citation quality is the judge's grounding axis here.
 SEARCH_RUNG_PASS_BARS = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
 BASELINE_LABEL = "UNBASELINED — bars are informational until the first honest run is recorded"

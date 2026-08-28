@@ -73,3 +73,25 @@ def test_capture_param_leaves_the_member_path_unchanged():
     router_src = (_ROOT / "api" / "routers" / "ai_search.py").read_text(encoding="utf-8")
     assert "run_agent(" in router_src          # control: the call site exists
     assert "capture=" not in router_src        # …and never opts into capture
+
+
+def test_report_card_cli_fences_every_live_store():
+    """The exam banner promises a sandbox. _grounded_system can reach the
+    dossier batch (real spend), the memory index, the member store and the
+    capture log — every one must be FORCED off/redirected in the staging
+    block, before any api import (2026-08-28 review)."""
+    src = (_ROOT / "scripts" / "run_search_report_card.py").read_text(encoding="utf-8")
+    staging = src.split("from api.services")[0]    # only the pre-import block counts
+    for line in (
+        'os.environ["AI_SEARCH_DOSSIER_ENABLED"] = "0"',
+        'os.environ["AI_SEARCH_MEMORY_ENABLED"] = "0"',
+        'os.environ["AI_SEARCH_PERSONAL_ENABLED"] = "0"',
+        'os.environ["AI_SEARCH_LOG_ENABLED"] = "0"',
+        'os.environ["AI_SEARCH_MEMBER_DB_PATH"]',
+        'os.environ["AI_SEARCH_LOG_DB_PATH"]',
+        'os.environ["AI_SEARCH_MEMORY_DB"]',
+        'os.environ["COMPASS_EVAL_DB"]',           # forced, never setdefault
+        'os.environ["AUTH_DB_PATH"]',
+    ):
+        assert line in staging, f"staging block lost: {line}"
+    assert 'setdefault("COMPASS_EVAL_DB"' not in src

@@ -42,8 +42,24 @@ args = parser.parse_args()
 _sandbox = args.db or os.path.join(tempfile.gettempdir(), "ais_report_card_auth.db")
 os.environ["AUTH_DB_PATH"] = _sandbox
 os.environ.setdefault("BRAIN_TOOLS_ENABLED", "1")
-os.environ.setdefault("COMPASS_EVAL_DB", _sandbox + ".eval.db")
+# FORCED, not setdefault: a shell with COMPASS_EVAL_DB exported for Compass
+# work would silently interleave this lane's runs into Compass's trend DB —
+# the exact thing the sibling-file promise exists to prevent (2026-08-28).
+os.environ["COMPASS_EVAL_DB"] = _sandbox + ".eval.db"
 os.environ.setdefault("AI_SEARCH_AGENT_MODEL", "claude-sonnet-5")
+# Fence EVERY flag-gated live-store path _grounded_system can reach. On a box
+# where the AI-Search flags are armed (prod via railway ssh; a shell mirroring
+# prod), question 1 would otherwise kick a REAL dossier synthesis batch and a
+# memory reindex into the LIVE stores — paid spend + writes from a run whose
+# banner promises a sandbox (2026-08-28 review). All FORCED for the same
+# reason as COMPASS_EVAL_DB.
+os.environ["AI_SEARCH_DOSSIER_ENABLED"] = "0"
+os.environ["AI_SEARCH_MEMORY_ENABLED"] = "0"
+os.environ["AI_SEARCH_PERSONAL_ENABLED"] = "0"
+os.environ["AI_SEARCH_LOG_ENABLED"] = "0"          # exam answers are not member telemetry
+os.environ["AI_SEARCH_MEMBER_DB_PATH"] = _sandbox + ".member.db"   # belt + braces
+os.environ["AI_SEARCH_LOG_DB_PATH"] = _sandbox + ".log.db"
+os.environ["AI_SEARCH_MEMORY_DB"] = _sandbox + ".memory.db"
 
 if not args.offline and not os.environ.get("ANTHROPIC_API_KEY"):
     print("ANTHROPIC_API_KEY is not set — the agent lane and the judge both "

@@ -208,15 +208,19 @@ def test_run_weekly_deep_submits_paces_and_skips_unpaid(monkeypatch, tmp_path):
 def test_run_weekly_deep_waits_while_two_scheduled_jobs_inflight(monkeypatch, tmp_path):
     _fresh(monkeypatch, tmp_path)
     import contextlib
+    from datetime import datetime, timezone
     import api.services.ai_search_deep as deep
     deep._reset_for_tests()
     deep._ensure_init()
+    # FRESH timestamps — run_weekly_deep now sweeps stale corpses via
+    # reclaim_stale() before pacing, and a stale row here would vanish
+    now_iso = datetime.now(timezone.utc).isoformat()
     with contextlib.closing(deep._connect()) as conn:
         for i in ("a", "b"):
             conn.execute(
-                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, source) "
-                "VALUES (?,?,?,'running','researching','2026-08-28T00:00:00+00:00','scheduled')",
-                (f"j{i}", "ux", f"q{i}"))
+                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at, source) "
+                "VALUES (?,?,?,'running','researching',?,?,'scheduled')",
+                (f"j{i}", "ux", f"q{i}", now_iso, now_iso))
         conn.commit()
     monkeypatch.setattr(deep, "submit",
                         lambda uid, q, source="interactive": {"ok": True, "job_id": "j"})
@@ -255,3 +259,57 @@ def test_weekly_deep_scheduler_and_proposal(monkeypatch, tmp_path):
     assert ai._deep_weekly_proposal("keep it brief every sunday", []) is None
     # deep phrase WITHOUT a cadence is a one-shot ask — no proposal
     assert ai._deep_weekly_proposal("deep dive on CRM please", ["CRM"]) is None
+    # 2026-08-28 review: 'weekly' naming a chart TIMEFRAME is not a cadence…
+    assert ai._deep_weekly_proposal("give me a deep dive on SPY's weekly chart", ["SPY"]) is None
+    assert ai._deep_weekly_proposal("full breakdown of the weekly close on QQQ", ["QQQ"]) is None
+    assert ai._deep_weekly_proposal("research report from last sunday", []) is None
+    # …while real Sunday phrasings DO propose
+    assert ai._deep_weekly_proposal("send me a deep report on NVDA on Sundays", ["NVDA"]) is not None
+    assert ai._deep_weekly_proposal("deep dive on semis on sunday", []) is not None
+    assert ai._deep_weekly_proposal("sunday deep dive on the semis", []) is not None
+    assert ai._deep_weekly_proposal("once a week I want a research report on AI names", []) is not None
+
+
+# ── 2026-08-28 review fixes: rotation, budget split, deadline, copy ─────────
+
+def test_cap_skip_does_not_advance_rotation(monkeypatch, tmp_path):
+    """A resource-denial skip must keep its last_run_at so next Sunday's LRU
+    sort leads with the members skipped this week — stamping the skip replayed
+    the identical order (and the identical starved tail) forever."""
+    _fresh(monkeypatch, tmp_path)
+    import api.services.ai_search_deep as deep
+    deep._reset_for_tests()
+    calls = []
+
+    def fake_submit(uid, q, source="interactive"):
+        calls.append(uid)
+        if len(calls) == 1:
+            return {"ok": True, "job_id": "j1"}
+        return {"ok": False, "reason": "Deep research is cooling down for the day"}
+
+    monkeypatch.setattr(deep, "submit", fake_submit)
+    monkeypatch.setattr(brief, "_member_is_paid", lambda uid: True)
+    monkeypatch.setattr(brief, "_sleep", lambda s: None)
+    brief.create("u1", "first weekly deep report", None, "weekly_deep")
+    brief.create("u2", "second weekly deep report", None, "weekly_deep")
+    brief.run_weekly_deep()
+    assert brief.list_briefings("u1")[0]["last_run_at"] is not None      # submitted → stamped
+    assert brief.list_briefings("u2")[0]["last_run_at"] is None          # cap-skip → NOT stamped
+    assert "cooling down" in brief.list_briefings("u2")[0]["last_status"]
+    # next pass: the skipped member goes FIRST
+    calls.clear()
+    brief.run_weekly_deep()
+    assert calls[0] == "u2"
+
+
+def test_pass_budget_stops_the_sweep_without_stamping(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    import api.services.ai_search_deep as deep
+    deep._reset_for_tests()
+    monkeypatch.setenv("AI_SEARCH_WEEKLY_DEEP_PASS_BUDGET_SECS", "0")
+    monkeypatch.setattr(deep, "submit", lambda uid, q, source="interactive": {"ok": True, "job_id": "j"})
+    monkeypatch.setattr(brief, "_member_is_paid", lambda uid: True)
+    brief.create("u1", "a weekly report that never runs", None, "weekly_deep")
+    out = brief.run_weekly_deep()
+    assert out["ran"] == 0 and out["submitted"] == 0
+    assert brief.list_briefings("u1")[0]["last_run_at"] is None   # untouched → leads next week

@@ -318,6 +318,13 @@ _MAX_INFLIGHT_DEEP = 2
 _weekly_paid_memo: dict = {}
 
 
+def _weekly_pass_budget_secs() -> int:
+    try:
+        return int(os.environ.get("AI_SEARCH_WEEKLY_DEEP_PASS_BUDGET_SECS", "10800"))
+    except ValueError:
+        return 10800
+
+
 def run_weekly_deep() -> dict:
     """Sunday pass: submit one Deep Research job per enabled weekly_deep
     briefing (source='scheduled' — no router units, no interactive-slot
@@ -325,9 +332,16 @@ def run_weekly_deep() -> dict:
     PACED: at most _MAX_INFLIGHT_DEEP scheduled jobs queued/running at once,
     so a batch never breaches the deep pool's queued wall and reclaims its own
     tail; the deep lane's own dollar cap re-checks inside every submit()."""
+    import time as _time
     _ensure_init()
     from api.services import ai_search_deep
     ai_search_deep._ensure_init()   # pacing query reads ais_deep_jobs pre-submit
+    # sweep corpses first — a crashed pod's stuck queued/running scheduled rows
+    # would otherwise count as "in flight" and wedge the pacing loop all pass
+    try:
+        ai_search_deep.reclaim_stale()
+    except Exception:
+        pass
     with contextlib.closing(_connect()) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
@@ -335,7 +349,13 @@ def run_weekly_deep() -> dict:
             "ORDER BY last_run_at IS NOT NULL, last_run_at ASC LIMIT ?",
             (_WEEKLY_RUN_CAP,)).fetchall()
     ran = submitted = 0
+    deadline = _time.monotonic() + _weekly_pass_budget_secs()
     for r in rows:
+        if _time.monotonic() > deadline:
+            # whole-pass time budget: unprocessed rows keep their last_run_at,
+            # so next Sunday's LRU sort puts them FIRST
+            log.warning("weekly deep: pass budget spent after %d rows", ran)
+            break
         ran += 1
         status = "error"
         try:
@@ -369,11 +389,23 @@ def run_weekly_deep() -> dict:
         except Exception as e:
             log.warning("weekly deep %s failed: %s", r["briefing_id"], e)
             status = "error"
+        # A resource-denial skip (dollar cap / scheduled budget / pool wall)
+        # must NOT advance last_run_at: the LRU sort is the anti-starvation
+        # rail, and stamping a cap-skip replays the identical order — and the
+        # identical skipped tail — every Sunday (2026-08-28 review). Row-level
+        # outcomes (submitted / error / unpaid) do stamp so cheap skips don't
+        # crowd the head of the rotation.
+        advance = status in ("submitted", "error", "skipped: unpaid")
         try:
             with contextlib.closing(_connect()) as conn:
-                conn.execute(
-                    "UPDATE ais_briefings SET last_run_at=?, last_status=? WHERE briefing_id=?",
-                    (_now(), status[:80], r["briefing_id"]))
+                if advance:
+                    conn.execute(
+                        "UPDATE ais_briefings SET last_run_at=?, last_status=? WHERE briefing_id=?",
+                        (_now(), status[:80], r["briefing_id"]))
+                else:
+                    conn.execute(
+                        "UPDATE ais_briefings SET last_status=? WHERE briefing_id=?",
+                        (status[:80], r["briefing_id"]))
                 conn.commit()
         except Exception:
             pass

@@ -77,6 +77,16 @@ def _cost_cap() -> float:
         return 10.0
 
 
+def _sched_budget_frac() -> float:
+    """Fraction of the daily dollar cap the SCHEDULED lane may consume;
+    the remainder is an interactive reserve for members."""
+    try:
+        return min(1.0, max(0.0, float(
+            os.environ.get("AI_SEARCH_DEEP_SCHED_BUDGET_FRAC", "0.6"))))
+    except ValueError:
+        return 0.6
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -171,11 +181,16 @@ def reclaim_stale() -> int:
                     stale = _age_secs(r["created_at"]) > _QUEUED_WALL_SECS
                 if not stale:
                     continue
+                # a scheduled job's member never submitted anything — telling
+                # them to "resubmit" points at a button they never pressed
+                msg = ("interrupted by a deploy — it will run again next Sunday"
+                       if (r["source"] or "interactive") == "scheduled"
+                       else "interrupted by a deploy — resubmit")
                 cur = conn.execute(
                     "UPDATE ais_deep_jobs SET status='error', "
-                    "error='interrupted by a deploy — resubmit', finished_at=? "
+                    "error=?, finished_at=? "
                     "WHERE job_id=? AND status IN ('queued','running')",
-                    (_now(), r["job_id"]))
+                    (msg, _now(), r["job_id"]))
                 if cur.rowcount:
                     n += 1
                     # scheduled jobs never reserved router units — refunding
@@ -219,6 +234,14 @@ def submit(user_id, query: str, source: str = "interactive") -> dict:
         if spent >= _cost_cap():
             return {"ok": False,
                     "reason": "Deep research is cooling down for the day — try again tomorrow."}
+        # Scheduled (Sunday) submits stop at a FRACTION of the cap so the
+        # weekly batch can never drain the whole day's budget and black out
+        # interactive Research for every member (2026-08-28 review). Both
+        # lanes spend on the same surfaces, so gating scheduled on TOTAL
+        # spend at 60% guarantees the remaining 40% is member-clickable.
+        if source == "scheduled" and spent >= _cost_cap() * _sched_budget_frac():
+            return {"ok": False,
+                    "reason": "scheduled budget spent for today"}
     except Exception:
         pass
     uid = str(user_id)
@@ -232,7 +255,11 @@ def submit(user_id, query: str, source: str = "interactive") -> dict:
                 "AND status IN ('queued','running')", (uid, q[:2000])).fetchone()
             if dup:
                 return {"ok": False, "reason": "That report is already running."}
-            if _jobs_today(conn, uid) >= _peruser_cap():
+            # the per-user daily count gates INTERACTIVE slots only — a member
+            # who used their 3 clicks must still get the Sunday report their
+            # weekly_deep briefing entitles them to (its own cap is 1 enabled
+            # briefing per member; 2026-08-28 review)
+            if source == "interactive" and _jobs_today(conn, uid) >= _peruser_cap():
                 return {"ok": False,
                         "reason": f"Deep research is capped at {_peruser_cap()} reports a day — "
                                   "it resets at midnight UTC."}
