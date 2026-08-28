@@ -138,10 +138,36 @@ const UCT_DEFAULT_CHART_SETTINGS_JSON = '{"chartType":"candles","candles":{"upCo
 // CHART widgets; `widgets` scope skins every new widget. Global-pref widgets (theme
 // tracker / fundamentals / breadth / AI search) inherit via their already-themed pref,
 // so patching their opts is a no-op — that's expected.
+// FORCED new-chart defaults (owner 2026-08-27). A new chart's base is the user's
+// SAVED global chart_settings, which would otherwise carry the old look — so these
+// specific fields are stamped onto EVERY newly placed chart regardless of that base
+// (still fully editable per-chart afterwards). Color-only theme choices (MA 75%
+// opacity, volume MA = SMA50) already ride applyThemeToSettings; this handles the
+// structural/value defaults the theme layer doesn't touch.
+function forceNewChartDefaults(settings) {
+  if (!settings || typeof settings !== 'object') return settings
+  const s = { ...settings }
+  // SMA5 off the chart AND its legend (the legend derives from enabled overlays).
+  if (Array.isArray(s.overlays)) s.overlays = s.overlays.filter(o => !(o && o.type === 'SMA' && Number(o.period) === 5))
+  s.watermark = { ...(s.watermark || {}), sizeScale: 1.25, weight: 500 }   // 125% + medium
+  s.swingLabels = { ...(s.swingLabels || {}), enabled: false }             // swing prices off
+  const h = s.header || {}
+  s.header = { ...h, colors: { ...(h.colors || {}), marketCap: '#6ba3be', nextEarnings: '#6ba3be', uctRating: '#dcbb5e' } }
+  return s
+}
+function applyChartDefaultsToOpts(o) {
+  if (!o || typeof o !== 'object') return o
+  const next = { ...o }
+  if (o.settings) next.settings = forceNewChartDefaults(o.settings)
+  if (Array.isArray(o.chartTabs)) next.chartTabs = o.chartTabs.map(t => (t && t.settings ? { ...t, settings: forceNewChartDefaults(t.settings) } : t))
+  return next
+}
+
 function themeNewWidgetOpts(type, opts, stored, seed) {
-  if (!stored || !stored.id) return opts
+  const force = (o) => (type === 'chart' ? applyChartDefaultsToOpts(o) : o)
+  if (!stored || !stored.id) return force(opts)
   let theme = CHART_THEME_BY_ID[stored.id]
-  if (!theme) return opts
+  if (!theme) return force(opts)
   // Canvas = the app theme's SURFACE tone (sidebar/header color) so EVERY widget —
   // charts included — stands off the page background instead of blending in.
   if (stored.appSurface) {
@@ -153,9 +179,9 @@ function themeNewWidgetOpts(type, opts, stored, seed) {
     // (Graphite/Slate/Carbon/Navy…), still use the app surface as the canvas.
     theme = themeWithAppSurface(theme)
   }
-  if (stored.scope === 'widgets') return patchWidgetOptsWithTheme(type, opts, theme, seed)
-  if (stored.scope === 'charts' && type === 'chart') return patchOptsWithTheme(opts, theme, seed)
-  return opts
+  if (stored.scope === 'widgets') return force(patchWidgetOptsWithTheme(type, opts, theme, seed))
+  if (stored.scope === 'charts' && type === 'chart') return force(patchOptsWithTheme(opts, theme, seed))
+  return force(opts)
 }
 
 // A remembered {id, scope} theme (from a layout's "Apply to All widgets/charts") only
