@@ -1745,6 +1745,21 @@ export function maxLookback(ast) {
     // symbol. AFTER the loop above, so `resolve:window` still owns a slot that
     // is not a literal.
     assertArgDomain(node, spec)
+    // ⚰️⚰️ THE ROLE CHECK BELONGS HERE TOO, AND THE PYTHON TWIN PROVED WHY.
+    // `assertArgRoles` ran only inside `interpret`, and the SCAN GATE runs
+    // `max_lookback` and never `interpret` — so `barssince(close, 100) > 5` was
+    // stamped **scannable: true** on the member's saved-scan list while every row
+    // of the sweep refused at `resolve:condition`. Measured on the Python side and
+    // mirrored here in the same change, because a fix applied to one lane of a
+    // mirrored pair is how the pair stops being a mirror
+    // (`lesson_rail_the_mirror_not_just_the_lane`).
+    //
+    // ⛔ SAME DEFECT AS `assertResamplable` twenty lines up, which exists because
+    // `max_lookback` and `interpret` disagreed about which timeframes are servable.
+    // The pass that moved `assertArity` and `assertArgDomain` in here missed this
+    // one, so the shape survived in a second guard while the first was being
+    // written up as closed.
+    assertArgRoles(node, spec)
     seen.set(node, ownLookback(node, spec) + best)
   }
   return seen.get(ast)

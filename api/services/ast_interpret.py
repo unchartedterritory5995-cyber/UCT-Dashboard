@@ -2059,6 +2059,26 @@ def max_lookback(ast: Any) -> int:
         # than once per symbol. AFTER the loop above, so ``resolve:window`` still
         # owns a slot that is not a literal.
         _assert_arg_domain(node, spec)
+        # ⚰️⚰️ AND THE ROLE CHECK BESIDE IT, FOR THE REASON THE COMMENT ABOVE
+        # ALREADY GIVES. `_assert_arg_roles` lived ONLY in `interpret`, and
+        # `assert_scannable` runs THIS function and never that one — so
+        # `barssince(close, 100) > 5` was stamped **scannable: true** on the
+        # member's saved-scan list while every row of the sweep refused at
+        # `resolve:condition`. The member is told the scan will run; it answers
+        # nothing, for every symbol, forever, and the receipt blames the universe.
+        #
+        # ⛔ THAT IS THE IDENTICAL DEFECT `_assert_resamplable` WAS WRITTEN TO
+        # CLOSE, three arms up in this same walk, and its docstring describes this
+        # exact outcome for `tf(close, '60')`. The hardening pass that put
+        # `_assert_arity` and `_assert_arg_domain` here missed this one, so the
+        # shape survived in a second check while its first instance was being
+        # documented as fixed.
+        #
+        # ⚠️ `barssince`/`valuewhen` are why the role check exists at all: with
+        # a price where a condition belongs, `barssince` answers 0.0 on EVERY bar
+        # (a price is never zero) — plausible on every bar and wrong on every bar.
+        # Catching that in `interpret` alone still let it be SAVED and SCANNED.
+        _assert_arg_roles(node, spec)
         seen[id(node)] = _own_lookback(node, spec) + best
     return seen[id(ast)]
 
