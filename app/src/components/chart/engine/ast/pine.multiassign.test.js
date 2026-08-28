@@ -113,9 +113,35 @@ plot(sma(close, len))`)))
   it('⛔ and a line with an indented block beneath it never splits', () => {
     // The body belongs to the line as a whole, and there is no honest answer to
     // "which segment owns the block". Out of scope by construction, not by luck.
-    const out = translatePine(src(
+    //
+    // ⚰️⚰️ THIS ASSERTION USED TO PROVE NOTHING, AND IT STILL DOES NOT PROVE THE
+    // GUARD — which is worth saying out loud rather than dressing up.
+    // It originally ran `a = 1, b = 2` over a block and asserted only that
+    // SOMETHING refused, on a script with no plot in it: that refuses at
+    // `pine:no-output` whether the split happened or not. It now reads `b`, so at
+    // least it observes a real difference between the two SHAPES below.
+    //
+    // ⛔ BUT MEASURED: deleting `body.length === 0` from the split condition is an
+    // EQUIVALENT MUTANT — all eight cases here stay green with the guard removed.
+    // I could not construct a source where its presence changes an observable
+    // answer, so it is defensive rather than load-bearing today, and this file
+    // does not claim otherwise. (`pine.js` records another measured equivalent
+    // mutant the same way; a guard nobody can see fire is worth marking as such
+    // rather than leaving a green test to imply it was checked.)
+    // ⭐ WHAT THE PAIR BELOW DOES PROVE is the SPLIT itself: with a block the line
+    // does not split and `b` is unbound; without one it splits and `b` is 2.
+    const withBlock = translatePine(src(
       `a = 1, b = 2
-    c = 3`))
-    expect(out.refusal).toBeTruthy()
+    c = 3
+plot(close > b ? 1 : 0)`))
+    expect(withBlock.refusal).toBeTruthy()
+    expect(withBlock.refusal.guard).toBe('pine:statement')
+
+    const withoutBlock = translatePine(src(
+      `a = 1, b = 2
+plot(close > b ? 1 : 0)`))
+    expect(withoutBlock.refusal).toBe(null)
+    expect(withoutBlock.outputs.find((o) => o.refusal === null).formula)
+      .toBe('close > 2 ? 1 : 0')
   })
 })

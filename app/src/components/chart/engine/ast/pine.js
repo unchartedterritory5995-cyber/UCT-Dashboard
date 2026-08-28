@@ -129,20 +129,41 @@ export const REFUSALS = Object.freeze({
     'importing another script pulls in code this engine never sees',
   'pine:strategy-call':
     'an order-placing call answers with no value a screen could filter',
+  // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
+  // column reads". BOTH are inside it: this very door emits `sym` and `tf`. What
+  // it actually fires on is a request this door could not RESOLVE — a computed
+  // symbol, a timeframe outside the servable ladder, a shape the folder cannot
+  // reduce to a literal. Saying "outside what a column reads" told a member the
+  // engine lacks a feature it ships, which is how a fixable script gets abandoned.
   'pine:request':
-    'another symbol or another timeframe is outside what one screened column reads',
+    'this request could not be resolved to one symbol and one servable timeframe. '
+    + 'The engine reads another symbol as `sym` (limited to the benchmark roster) '
+    + 'and another timeframe as `tf` (weekly and monthly from daily bars); what '
+    + 'stops this one is that its arguments do not fold to those',
   'pine:drawing':
     'a drawing object paints on a chart and answers with no number',
   'pine:collection':
     'an array, a matrix or a map is outside the expression grammar this engine runs',
+  // ⚰️ IT SAID persisting state is "outside this engine grammar". It is not:
+  // `var s = 0.0` / `s := s + close` translates today to
+  // `accum(0, self + close, 250)`. What is outside the grammar is state that does
+  // not FORGET — the accumulator re-seeds a fixed number of bars back, so a value
+  // whose whole history matters cannot ride it.
   'pine:state':
-    'a value that persists from one bar to the next is outside this engine grammar',
+    'this value carries forward in a way the bounded accumulator cannot hold. '
+    + '`var` state that re-seeds does translate, as `accum`; what this one needs '
+    + 'is a running total with no window, which the grammar has no node for',
   'pine:reassign':
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
     'a Pine block spans several statements and this engine stores a single expression',
+  // ⚰️ "the four node shapes" — THERE ARE EIGHT, and the count was stale rather
+  // than wrong-in-principle: `tf`, `sym` and `tf_live` all landed after it was
+  // typed. A member reading it was told the engine is half the size it is. The
+  // count is not restated here at all now, because a number beside a list it
+  // describes is this repo's most repeated defect and `NODE_TYPES` already owns it.
   'pine:type':
-    'a user-defined type is outside the four node shapes this engine stores',
+    'a user-defined type is outside the node shapes this engine stores',
   'pine:function-def':
     'a Pine function definition introduces a name this engine has nowhere to keep',
   'pine:tuple':
@@ -153,14 +174,33 @@ export const REFUSALS = Object.freeze({
     'a bar offset has to be a plain whole number written into the script',
   'pine:offset-negative':
     'a bar offset that runs forwards would read a bar that has not happened',
+  // ⚰️ IT SAID "Pine na has no spelling in this engine grammar" — and bare `na`
+  // translates to `0 / 0`, while `na(x)` and `nz(x, y)` are both DECLARED
+  // FUNCTIONS. Measured: this guard now fires for exactly one name, `fixnan`,
+  // whose job is to carry the LAST NON-NaN VALUE FORWARD — a per-bar memory, which
+  // is a different thing from spelling not-computable.
   'pine:na':
-    'Pine na has no spelling in this engine grammar',
+    'this fills a gap by carrying an earlier bar\'s value forward, which needs a '
+    + 'per-bar memory this grammar has no node for. `na` and `nz` themselves do '
+    + 'translate',
   'pine:text-value':
     'text cannot be a value in a screened column',
   'pine:colour-value':
     'a colour cannot be a value in a screened column',
+  // ⚰️ "no counterpart in the engine grammar" IS FALSE FOR AT LEAST `%`: the
+  // table declares `mod`, whose own sentence reads "the remainder of {0} divided
+  // by {1}". The blocker is not vocabulary, it is SEMANTICS — this engine's `mod`
+  // truncates toward zero (the sign follows the LEFT operand) and no
+  // TradingView-hosted page states how Pine's `%` rounds a NEGATIVE operand.
+  // ⛔ SO IT STILL REFUSES, and that is right — but it now refuses for the reason
+  // that is actually true, and names the one fact that would unblock it. A
+  // refusal claiming a missing feature sends the reader to the manifest; this one
+  // sends them to the Pine reference, which is where the answer is.
   'pine:operator':
-    'this Pine operator has no counterpart in the engine grammar',
+    'this Pine operator has no counterpart this door is sure of. `%` maps to the '
+    + 'declared `mod`, which truncates toward zero \u2014 but Pine does not publish '
+    + 'how `%` rounds a negative operand, and guessing would answer a different '
+    + 'number for half the inputs',
   'pine:builtin':
     'this Pine built-in names something the engine grammar does not hold',
   'pine:function':
