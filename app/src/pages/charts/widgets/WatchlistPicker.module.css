@@ -226,6 +226,17 @@
   /* Subtle band so the header sits ABOVE its cells, not blended into them. */
   background: var(--wl-row-hover, rgba(255, 255, 255, 0.04));
   border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
+  /* A whisper of gold on the leading edge so the header isn't pure white/grey. */
+  box-shadow: inset 2px 0 0 var(--wl-accent, var(--ut-gold, #c9a84c));
+}
+
+/* Small gold diamond before each section title — a hint of brand, not a splash. */
+.catMark {
+  font-size: 7px;
+  line-height: 1;
+  color: var(--wl-accent, var(--ut-gold, #c9a84c));
+  opacity: 0.9;
+  transform: translateY(-0.5px);
 }
 .catCount {
   margin-left: auto;

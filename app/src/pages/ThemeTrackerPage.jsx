@@ -750,7 +750,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         </div>
 
         <div className={styles.tableHeader}>
-          <span className={styles.colLabel}>Theme</span>
+          <span className={styles.themeCol}>
+            <span className={styles.thMark} aria-hidden="true">◆</span>
+            <span className={styles.colLabel}>Theme</span>
+          </span>
           <button
             type="button"
             className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
