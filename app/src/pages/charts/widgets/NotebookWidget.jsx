@@ -1,22 +1,24 @@
 /**
  * Notebook widget — an in-charts window onto the user's Journal 2.0 Notebook, so
- * they can browse/read their notes and jot new ones (into their existing folders)
- * while other widgets are up. Reading renders the note's TipTap doc to static HTML
- * (generateHTML — no live editor mount, so it's light + safe in a widget); rich
- * editing lives in the real Notebook via a one-click "Edit in Journal" deep-link.
+ * they can read AND edit their notes (and start new ones in existing folders) while
+ * other widgets are up. Opening a note fetches the FULL note (the list endpoint
+ * returns summaries with no body) and mounts the same TipTap editor the Notebook
+ * uses, with autosave — so typing here writes straight to the real note. If the
+ * editor can't mount, it degrades to a read-only render + an "Open in Journal" link.
  *
  * Appearance (canvas + text color) is a per-widget ⚙ blob like the other widgets;
  * the selected folder + open note persist per-widget via opts, and the widget
  * follows the app theme until customized.
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
 import { generateHTML } from '@tiptap/core'
 import usePreferences from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import useJ2Notes from '../../journal-2-0/hooks/useJ2Notes'
+import useJ2Notes, { useJ2Note } from '../../journal-2-0/hooks/useJ2Notes'
 import useJ2NoteFolders from '../../journal-2-0/hooks/useJ2NoteFolders'
 import { buildExtensions } from '../../journal-2-0/lib/tiptap'
 import {
@@ -24,14 +26,7 @@ import {
 } from './notebookWidgetSettings'
 import styles from './NotebookWidget.module.css'
 
-// Build a TipTap doc from plain textarea text (each non-empty line → a paragraph).
-function textToDoc(text) {
-  const lines = String(text || '').split('\n')
-  const content = lines.map(l => (l.trim()
-    ? { type: 'paragraph', content: [{ type: 'text', text: l }] }
-    : { type: 'paragraph' }))
-  return { type: 'doc', content: content.length ? content : [{ type: 'paragraph' }] }
-}
+const AUTOSAVE_MS = 800
 
 function fmtWhen(iso) {
   if (!iso) return ''
@@ -40,21 +35,99 @@ function fmtWhen(iso) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Static, read-only render of a note's TipTap doc (no editor instance).
+// If the TipTap editor throws while mounting (missing provider, bad node), fall back
+// to a read-only render + the Journal deep-link instead of crashing the widget.
+class EditorBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false } }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? this.props.fallback : this.props.children }
+}
+
+// Static, read-only render of a note's TipTap doc (fallback path — no editor).
 function NoteHtml({ bodyJson }) {
   const html = useMemo(() => {
     try {
       const doc = bodyJson && typeof bodyJson === 'object' ? bodyJson : { type: 'doc', content: [] }
       return generateHTML(doc, buildExtensions())
-    } catch {
-      return ''
-    }
+    } catch { return '' }
   }, [bodyJson])
   if (!html) return <div className={styles.empty}>This note is empty.</div>
   return <div className={styles.prose} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-export default function NotebookWidget({ opts, onOptsChange }) {   // `color` (symbol group) unused — the notebook isn't symbol-scoped
+// Fetches the FULL note (the list gives summaries with no body), then mounts the
+// live editor once it's loaded (so the title/body init synchronously — no state-sync
+// effect). Keyed on noteId by the caller, so switching notes remounts cleanly.
+function NoteEditor({ noteId, journalUrl, onBack }) {
+  const { note, update } = useJ2Note(noteId)
+  if (!note) return <div className={styles.empty}>Loading…</div>
+  return <NoteEditorInner note={note} update={update} journalUrl={journalUrl} onBack={onBack} />
+}
+
+// The live, editable note — the Notebook's TipTap editor + autosave of title + body.
+function NoteEditorInner({ note, update, journalUrl, onBack }) {
+  const [title, setTitle] = useState(note.title || '')
+  const [status, setStatus] = useState('')   // '' | 'saving' | 'saved'
+  const titleRef = useRef(note.title || '')
+  const saveTimer = useRef(null)
+  const scheduleRef = useRef(() => {})
+  const commitRef = useRef(async () => {})
+
+  const editor = useEditor({
+    extensions: buildExtensions(),
+    content: note.bodyJson || { type: 'doc', content: [] },
+    onUpdate: () => scheduleRef.current(),
+  }, [])
+
+  // Ref-latched (updated in an effect, not during render) so the frozen onUpdate
+  // closure + the setTimeout always run against the LATEST editor/update.
+  useEffect(() => {
+    scheduleRef.current = () => {
+      setStatus('saving')
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => commitRef.current(), AUTOSAVE_MS)
+    }
+    commitRef.current = async () => {
+      if (!editor) return
+      try {
+        await update({ title: titleRef.current, bodyJson: editor.getJSON() })
+        setStatus('saved')
+      } catch { setStatus('') }
+    }
+  })
+
+  const onTitle = (v) => { setTitle(v); titleRef.current = v; scheduleRef.current() }
+
+  // Flush any pending save on unmount / note switch (this instance is per-note).
+  useEffect(() => () => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); commitRef.current() }
+  }, [])
+
+  return (
+    <div className={styles.editorPane}>
+      <input
+        className={styles.editorTitle}
+        value={title}
+        onChange={e => onTitle(e.target.value)}
+        placeholder="Untitled note"
+      />
+      <div className={styles.editorScroll} onClick={() => editor?.chain().focus().run()}>
+        {editor
+          ? <EditorContent editor={editor} className={styles.editorBody} />
+          : <div className={styles.empty}>Loading…</div>}
+      </div>
+      <div className={styles.editorFoot}>
+        <button type="button" className={styles.footBack} onClick={onBack}>‹ Notes</button>
+        <span className={styles.saveStatus}>{status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved ✓' : ''}</span>
+        <a className={styles.editLink} href={journalUrl} target="_blank" rel="noreferrer">
+          <UIcon name="link" size={12} /> Open in Journal
+        </a>
+      </div>
+    </div>
+  )
+}
+
+export default function NotebookWidget({ opts, onOptsChange }) {   // `color` unused — not symbol-scoped
   // ── Appearance settings (⚙), theme-adaptive like the other widgets ──
   const { prefs } = usePreferences()
   const placedTheme = usePlacedTheme()
@@ -93,35 +166,26 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` (s
   const { notes, refresh } = useJ2Notes({ folderId: folderId || undefined, q: q.trim() || undefined, sort: 'updated' })
   const openNoteRow = useMemo(() => notes.find(n => n.id === openNoteId) || null, [notes, openNoteId])
 
-  // ── New-note inline composer ──
-  const [composing, setComposing] = useState(false)
-  const [draftTitle, setDraftTitle] = useState('')
-  const [draftBody, setDraftBody] = useState('')
-  const [saving, setSaving] = useState(false)
-  const startCompose = () => { setDraftTitle(''); setDraftBody(''); setComposing(true) }
-  const saveNote = async () => {
-    if (saving) return
-    setSaving(true)
+  // ── New blank note → open it straight in the editor ──
+  const [creating, setCreating] = useState(false)
+  const newNote = async () => {
+    if (creating) return
+    setCreating(true)
     try {
       const res = await fetch('/api/j2/notes', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: draftTitle.trim(),
-          bodyJson: textToDoc(draftBody),
-          ...(folderId ? { folderId } : {}),
-        }),
+        body: JSON.stringify(folderId ? { folderId } : {}),
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
-      setComposing(false)
       await refresh()
-      if (body?.note?.id) openNote(body.note.id)   // land on the new note
+      if (body?.note?.id) openNote(body.note.id)
     } catch (e) {
-      alert(`Could not save note: ${e.message || e}`)
+      alert(`Could not create note: ${e.message || e}`)
     } finally {
-      setSaving(false)
+      setCreating(false)
     }
   }
 
@@ -155,12 +219,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` (s
         ) : (
           <>
             <span className={styles.brand}><UIcon name="journal" size={15} /> Notebook</span>
-            <select
-              className={styles.folderSelect}
-              value={folderId}
-              onChange={e => setFolder(e.target.value)}
-              title="Folder"
-            >
+            <select className={styles.folderSelect} value={folderId} onChange={e => setFolder(e.target.value)} title="Folder">
               <option value="">All notes</option>
               {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
@@ -181,46 +240,25 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` (s
 
       {/* ── Body ── */}
       {openNoteId ? (
-        <div className={styles.reader}>
-          <div className={styles.readerTitle}>{openNoteRow?.title || 'Untitled note'}</div>
-          {openNoteRow?.updatedAt && <div className={styles.readerMeta}>Updated {fmtWhen(openNoteRow.updatedAt)}</div>}
-          <NoteHtml bodyJson={openNoteRow?.bodyJson} />
-          <a className={styles.editLink} href={journalUrl} target="_blank" rel="noreferrer">
-            <UIcon name="link" size={12} /> Edit in Journal
-          </a>
-        </div>
-      ) : composing ? (
-        <div className={styles.composer}>
-          <input
-            className={styles.composerTitle}
-            placeholder="Note title"
-            value={draftTitle}
-            onChange={e => setDraftTitle(e.target.value)}
-            autoFocus
-          />
-          <textarea
-            className={styles.composerBody}
-            placeholder="Jot your note…"
-            value={draftBody}
-            onChange={e => setDraftBody(e.target.value)}
-          />
-          <div className={styles.composerActions}>
-            <button type="button" className={styles.ghostBtn} onClick={() => setComposing(false)} disabled={saving}>Cancel</button>
-            <button type="button" className={styles.primaryBtn} onClick={saveNote} disabled={saving || (!draftTitle.trim() && !draftBody.trim())}>
-              {saving ? 'Saving…' : 'Save note'}
-            </button>
-          </div>
-        </div>
+        <EditorBoundary
+          key={openNoteId}
+          fallback={
+            <div className={styles.reader}>
+              <div className={styles.readerTitle}>{openNoteRow?.title || 'Untitled note'}</div>
+              <div className={styles.empty}>The in-widget editor couldn’t open this note.</div>
+              <a className={styles.editLink} href={journalUrl} target="_blank" rel="noreferrer">
+                <UIcon name="link" size={12} /> Open in Journal
+              </a>
+            </div>
+          }
+        >
+          <NoteEditor noteId={openNoteId} journalUrl={journalUrl} onBack={() => openNote(null)} />
+        </EditorBoundary>
       ) : (
         <>
           <div className={styles.toolbar}>
-            <input
-              className={styles.search}
-              placeholder="Search notes…"
-              value={q}
-              onChange={e => setQ(e.target.value)}
-            />
-            <button type="button" className={styles.newBtn} onClick={startCompose} title="New note">
+            <input className={styles.search} placeholder="Search notes…" value={q} onChange={e => setQ(e.target.value)} />
+            <button type="button" className={styles.newBtn} onClick={newNote} disabled={creating} title="New note">
               <UIcon name="plus" size={13} /> New
             </button>
           </div>
