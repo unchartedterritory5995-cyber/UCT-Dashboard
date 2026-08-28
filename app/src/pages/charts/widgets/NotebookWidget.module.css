@@ -118,6 +118,80 @@
 }
 .ghostBtn:hover { background: var(--nb-row-hover, rgba(255, 255, 255, 0.06)); }
 
+/* ── Nested folder tree (mirrors the Journal notebook) ── */
+.tree { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 0 8px; }
+.treeNodeWrap { display: flex; flex-direction: column; }
+.treeFolderRow { display: flex; align-items: center; min-width: 0; }
+.treeChevBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  flex: 0 0 18px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--nb-chrome, var(--text-muted, #8b8674));
+}
+.treeChevBtn:hover { color: var(--nb-chrome-strong, var(--text-bright, #e4e6ea)); }
+.treeChevSpacer { display: inline-block; width: 18px; flex: 0 0 18px; }
+.chevron { transform: rotate(-90deg); transition: transform 0.12s ease; }
+.chevronOpen { transform: rotate(0deg); }
+.folderGlyph { flex: 0 0 auto; color: var(--nb-accent, var(--accent, #dcbb5e)); opacity: 0.85; }
+.treeFolder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px 4px 2px;
+  border-radius: 5px;
+  font-family: inherit;
+  color: var(--nb-header-text, var(--nb-text, var(--text-bright, #e4e6ea)));
+}
+.treeFolder:hover, .treeNote:hover { background: var(--nb-row-hover, rgba(255, 255, 255, 0.05)); }
+.treeRowActive { background: var(--nb-row-hover, rgba(255, 255, 255, 0.08)); }
+.treeFolderName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.treeCount { flex: 0 0 auto; font-size: 10px; color: var(--nb-chrome, var(--text-muted, #706b5e)); }
+.treeNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-family: inherit;
+  color: var(--nb-text, var(--text-bright, #e4e6ea));
+}
+.treeNoteTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.92;
+}
+
 .list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
 .noteRow {
   display: flex;
