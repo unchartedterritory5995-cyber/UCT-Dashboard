@@ -317,11 +317,35 @@ describe('a value that survives the bar is a RECURRENCE now, and it is emitted a
   // warm-up has passed, because those recurrences forget where they started. For
   // a true bar counter they never agree, and no finite number would make them.
 
-  it('var + := — the textbook accumulator', () => {
-    expect(formulaOf(`${HEAD}var count = 0
+  it('⛔⛔ var + := — the textbook accumulator REFUSES, because it is not one here', () => {
+    // ⚰️ THIS ASSERTED `accum(0, self + 1, 250)`, and that column is the CONSTANT
+    // 250 on every bar past the warm-up. `accum` re-seeds a fixed number of bars
+    // back, so a step of +1 counts the WINDOW rather than the chart; Pine's
+    // `count` here is `bar_index + 1`.
+    // ⛔⛔ THE SAME INDICATOR HAD TWO ANSWERS, DECIDED BY A KEYWORD. The plain
+    // spelling (`x = 0.0` + `x := x[1] + 1`) has refused since the convergence
+    // gate landed; the `var` spelling took the `state` arm of `resolveBinding`,
+    // which built the accumulator with no gate at all. `forgetsItsSeed`'s own
+    // docblock names `self + volume` as the thing to refuse while a test three
+    // hundred lines away asserted it as the expected output.
+    // ⭐ THE UNBLOCKER IS NAMED, not implied: a TRUE running total needs an
+    // unbounded accumulator this engine does not have yet — the same limit `cum`
+    // is refused for, reached from the other side.
+    const r = refusalOf(`${HEAD}var count = 0
 count := count + 1
 plot(count)
-`)).toBe('accum(0, self + 1, 250)')
+`)
+    expect(r.guard).toBe('pine:state')
+    expect(r.message).toMatch(/rolling window/)
+  })
+
+  it('⭐ …and a `var` that CONTRACTS still folds — the gate is not a wall', () => {
+    // THE CONTROL FOR THE ABOVE. Without it a gate that refused every `var`
+    // recurrence would look identical in this file.
+    expect(formulaOf(`${HEAD}var s = 0.0
+s := (s + close) / 2
+plot(s)
+`)).toBe('accum(0, (self + close) / 2, 250)')
   })
 
   it('⭐ an `if` that reassigns folds INSIDE the update, not around the accumulator', () => {
@@ -330,11 +354,14 @@ plot(count)
     // `close > open ? accum(0, self + 1, 250) : accum(0, self, 250)`: two
     // different accumulators selected per bar, where the up-day arm counts as if
     // EVERY bar had been an up day. It draws a line. It is not the script.
-    expect(formulaOf(`${HEAD}var c = 0
+    // ⚠️ THE UPDATE IS A HALVING RATHER THAN A `+ 1` because a step of one never
+    // forgets its seed and now refuses at the convergence gate. The shape under
+    // test is WHERE THE TERNARY SITS, and that is untouched by the change.
+    expect(formulaOf(`${HEAD}var c = 0.0
 if close > open
-    c := c + 1
+    c := (c + close) / 2
 plot(c)
-`)).toBe('accum(0, close > open ? self + 1 : self, 250)')
+`)).toBe('accum(0, close > open ? (self + close) / 2 : self, 250)')
   })
 
   it('…and an if/else that assigns constants needs no self at all', () => {
@@ -348,18 +375,31 @@ plot(d)
   })
 
   it('two reassignments COMPOSE, in the order the bar runs them', () => {
-    expect(formulaOf(`${HEAD}var x = 0
-x := x + 1
-x := x * 2
+    // ⭐ THE ORDER IS THE SUBJECT, and these two land on different columns:
+    // `(self + close) / 2` is not `self + close / 2`. Swap the lines and this
+    // goes red.
+    // ⚠️ It used to read `x := x + 1` then `x := x * 2`, which folds to
+    // `(self + 1) * 2` — a coefficient of TWO. That accumulator runs to 2^250 and
+    // flatlines at Infinity, so what this pinned was not merely ungated, it was
+    // arithmetic nothing could use.
+    expect(formulaOf(`${HEAD}var x = 0.0
+x := x + close
+x := x / 2
 plot(x)
-`)).toBe('accum(0, (self + 1) * 2, 250)')
+`)).toBe('accum(0, (self + close) / 2, 250)')
   })
 
   it('`+=` desugars through the value so far, not through the accumulator', () => {
-    expect(formulaOf(`${HEAD}var t = 0
+    // ⭐ THE SUBJECT IS WHAT `+=` ADDS TO: the value this bar has built so far
+    // (`self * 0.5`), never the accumulator wrapped around it.
+    // ⚠️ A bare `var t = 0` + `t += volume` is OBV by hand and now refuses at the
+    // convergence gate — which is what `forgetsItsSeed`'s docblock always said it
+    // was for. The desugaring under test is the same either way.
+    expect(formulaOf(`${HEAD}var t = 0.0
+t := t * 0.5
 t += volume
 plot(t)
-`)).toBe('accum(0, self + volume, 250)')
+`)).toBe('accum(0, self * 0.5 + volume, 250)')
   })
 
   it('a running maximum, which is the shape a trailing stop is built from', () => {
@@ -629,15 +669,19 @@ plot(f(ta.rsi(close, 14)))
     // halves work now and they COMPOSE — the parameter substitutes into the
     // update, so `f(close)` is a running sum OF CLOSE rather than of whatever the
     // body happened to name.
-    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0\n    s := s + x\n    s\nplot(f(close))\n`))
-      .toBe('accum(0, self + close, 250)')
+    // ⚠️ `(s + x) / 2` rather than `s + x`: a running total refuses at the
+    // convergence gate now. What is under test — state inside a user function,
+    // reached through a call, with the ARGUMENT substituted into the update — is
+    // exactly as before.
+    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0.0\n    s := (s + x) / 2\n    s\nplot(f(close))\n`))
+      .toBe('accum(0, (self + close) / 2, 250)')
   })
 
   it('...and the SAME function on a different argument accumulates THAT one', () => {
     // ⛔ THE PROOF THE PARAMETER REALLY SUBSTITUTED. Without it the case above
     // would pass for a walker that had hard-wired `close` into the body.
-    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0\n    s := s + x\n    s\nplot(f(volume))\n`))
-      .toBe('accum(0, self + volume, 250)')
+    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0.0\n    s := (s + x) / 2\n    s\nplot(f(volume))\n`))
+      .toBe('accum(0, (self + volume) / 2, 250)')
   })
 
   it('⛔ a function body with a statement this walker STILL cannot read refuses BY NAME', () => {

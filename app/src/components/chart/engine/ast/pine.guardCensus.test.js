@@ -104,6 +104,15 @@ const EXPECTED_UNEXERCISED = [
   'pine:roundtrip',
   'pine:text-value',
   'pine:type',
+  // ⭐⭐ MOVED HERE 2026-08-28, and the move IS the measurement. `pine:undefined`
+  // was reached by exactly one published script — `10-ehlers-instantaneous-trend`,
+  // whose `it = … it[1] … it[2]` is a plain self-reference — and it refused
+  // NAMING THE VARIABLE BEING DEFINED, which reads as though the member forgot a
+  // declaration they had just written. The translator now recognises that shape,
+  // so the script refuses at `pine:state` for the reason that is actually true.
+  // ⚠️ Unexercised does NOT mean dead: an undefined name is still a real refusal
+  // a member can reach by typo. It means no PUBLISHED script does.
+  'pine:undefined',
   'pine:window',
 ]
 

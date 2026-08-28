@@ -64,7 +64,11 @@ const REFUSES = Object.freeze({
   '07-hull-suite.pine': ['pine:statement', null, null],
   '08-smoothed-heiken-ashi-candles.pine': ['pine:no-output', null, null],
   '09-obv-oscillator-lazybear.pine': ['pine:function', 9, 'cum'],
-  '10-ehlers-instantaneous-trend-lazybear.pine': ['pine:undefined', 13, 'it'],
+  // ⭐ WAS `pine:undefined` — `it = … it[1] … it[2]` is a plain self-reference,
+  // which this door could not see, so it refused by NAMING THE VARIABLE BEING
+  // DEFINED. It is a SECOND-ORDER recurrence and the accumulator holds one lag,
+  // so it still refuses — now for the reason that is true, at the same token.
+  '10-ehlers-instantaneous-trend-lazybear.pine': ['pine:state', 13, 'it'],
   '14-earnings-gap-ups.pine': ['pine:no-output', null, null],
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
