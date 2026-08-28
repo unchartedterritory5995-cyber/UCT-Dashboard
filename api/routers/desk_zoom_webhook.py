@@ -296,6 +296,7 @@ def _recent_session_video_summaries(limit: int = 8) -> list[dict]:
     return [{
         "id": v.get("id"),
         "title": v.get("title"),
+        "youtube_id": v.get("youtube_id"),
         "insights_at": v.get("insights_at"),
         "zoom_cleaned": bool(v.get("zoom_cleaned")),
         "chapters": _count(v, "chapters"),
