@@ -1021,7 +1021,16 @@ def test_the_measurements_are_ITERATIVE_and_survive_a_tree_that_kills_the_walker
     deep = NUM(1)
     for _ in range(4000):
         deep = OP("+", NUM(1), deep)
-    assert ast_interpret.node_count(deep) == 8001
+    # ⚰️ 8001 → 4001 WHEN THIS LANE GAINED THE STRUCTURAL MEMO, and the number
+    # moved because its MEANING did: `node_count` answers DISTINCT subtrees now,
+    # matching the JS lane against the one declared cap they share. This tree has
+    # 8001 nodes and 4001 shapes — 4000 distinct `+` levels plus the single
+    # `NUM(1)`, which is one shape however many times it appears.
+    # ⛔ BOTH NUMBERS ARE ASSERTED so the distinction cannot blur again: the
+    # flattened total is what the walker would visit WITHOUT the memo, and the
+    # distinct count is what it visits with one.
+    assert ast_interpret.flat_node_count(deep) == 8001
+    assert ast_interpret.node_count(deep) == 4001
     assert ast_interpret.max_lookback(deep) == 0
     # …and the walker is never entered: the BUDGET refuses first, by its own name.
     with pytest.raises(ast_interpret.TableRefusal,

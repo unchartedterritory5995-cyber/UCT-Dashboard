@@ -802,8 +802,13 @@ def _rebuild_canonical(flat: list) -> Any:
     # than against itself. A decoder that dropped a subtree would hand this lane a
     # SMALLER tree -- which for the budget cases is the difference between a
     # refusal and a value, in the direction that reads as safety.
-    mod = __import__(PY_INTERPRET_MODULE, fromlist=["node_count"])
-    counted = getattr(mod, "node_count")(root)
+    # ⚠️ `flat_node_count`, NOT `node_count`. This asks whether every node
+    # SURVIVED THE CROSSING, and `len(flat)` is a total — while `node_count`
+    # answers DISTINCT subtrees, because the interpreter memoises them. Comparing
+    # a distinct count against a row count reads as a decoder that lost half the
+    # tree, which is exactly what it did the hour the memo landed.
+    mod = __import__(PY_INTERPRET_MODULE, fromlist=["flat_node_count"])
+    counted = getattr(mod, "flat_node_count")(root)
     if counted != len(flat):
         raise LaneUnavailable(
             f"the canonical tree lost nodes crossing the lane boundary: the JS "
