@@ -743,6 +743,9 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
   // — never by reading refs during render, which isn't reactive). Null until first
   // measured, so we render the bar invisibly for one frame instead of at (0,0).
   const [box, setBox] = useState(null)
+  // The bar's current fraction-of-container position — kept in a REF so the grid-drag
+  // MutationObserver can read it without re-subscribing (box in deps → infinite loop).
+  const posFracRef = useRef({ fx: 0, fy: 0 })
 
   // Measure the container + this bar, clamp the OFFSET so the whole bar stays
   // inside the chart, and store the resulting screen coords. Re-run on scroll /
@@ -770,6 +773,7 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
       else p = dflt
       const relX = Math.max(0, Math.min(maxX, p.x))
       const relY = Math.max(0, Math.min(maxY, p.y))
+      posFracRef.current = { fx: relX / (cr.width || 1), fy: relY / (cr.height || 1) }
       setBox({ left: cr.left + relX, top: cr.top + relY, relX, relY, maxX, maxY })
     }
     measure()
@@ -779,10 +783,31 @@ function FloatingFavoritesToolbar({ tools, favorites, activeTool, onSelect, pos,
     let ro = null
     const cont = boundsRef?.current
     if (cont && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(bump); ro.observe(cont) }
+    // Follow the widget while it's DRAGGED on the grid. react-grid-layout moves the
+    // item via a CSS transform, which fires NO scroll/resize/ResizeObserver event, so
+    // the fixed bar would be left behind (it "falls off" the widget). Watch the grid
+    // item's style (the transform) and reposition the bar DIRECTLY — no setState, so a
+    // fast drag can't storm re-renders. Keeps the bar's relative spot (fx/fy) locked to
+    // the widget as it moves.
+    let mo = null
+    const gridItem = cont?.closest?.('.react-grid-item')
+    if (gridItem && typeof MutationObserver !== 'undefined') {
+      mo = new MutationObserver(() => {
+        const el = elRef.current
+        const c = boundsRef?.current
+        if (!el || !c) return
+        const r = c.getBoundingClientRect()
+        const { fx, fy } = posFracRef.current
+        el.style.left = `${r.left + (fx || 0) * r.width}px`
+        el.style.top = `${r.top + (fy || 0) * r.height}px`
+      })
+      mo.observe(gridItem, { attributes: true, attributeFilter: ['style'] })
+    }
     return () => {
       window.removeEventListener('scroll', bump, true)
       window.removeEventListener('resize', bump)
       if (ro) ro.disconnect()
+      if (mo) mo.disconnect()
     }
   }, [boundsRef, pos, favTools.length])
 
