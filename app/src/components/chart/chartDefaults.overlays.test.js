@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
 
 // The overlays array merges POSITIONALLY, so slot ORDER is a compatibility contract.
-// These pin it: a pre-existing 4-slot blob must keep every one of its overlays in
-// place AND gain the appended 5th, never shift.
+// These pin it: a pre-existing 4-slot blob keeps every overlay in place, and a shorter
+// blob pads UP to the default count (now 4 — the terminal SMA5 was removed 2026-08-27).
 describe('mergeChartSettings — overlays slot stability', () => {
   const legacy = JSON.stringify({
     overlays: [
@@ -22,10 +22,15 @@ describe('mergeChartSettings — overlays slot stability', () => {
     expect(ov[3]).toMatchObject({ type: 'SMA', period: 200, color: '#444444', enabled: false })
   })
 
-  it('pads the appended slot instead of dropping it', () => {
-    const ov = mergeChartSettings(legacy).overlays
-    expect(ov).toHaveLength(CHART_DEFAULTS.overlays.length)
-    expect(ov[4]).toMatchObject({ type: 'SMA', period: 5 })
+  it('pads a short legacy blob up to the default overlay count', () => {
+    const short = JSON.stringify({ overlays: [
+      { enabled: true, type: 'EMA', period: 9,  color: '#111111' },
+      { enabled: true, type: 'EMA', period: 20, color: '#222222' },
+    ] })
+    const ov = mergeChartSettings(short).overlays
+    expect(ov).toHaveLength(CHART_DEFAULTS.overlays.length)   // 4
+    expect(ov[2]).toMatchObject({ type: 'SMA', period: 50 })   // padded from CHART_DEFAULTS
+    expect(ov[3]).toMatchObject({ type: 'SMA', period: 200 })
   })
 
   it('backfills new per-overlay fields onto legacy entries', () => {

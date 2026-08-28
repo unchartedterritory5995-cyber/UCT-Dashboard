@@ -287,8 +287,11 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // candles = the prior behavior) and nothing else moves — a default-off field no
   // renderer reads unless the user toggles it, so no pixel moves; the digest shifts
   // only by that additive field on each of the five overlays.
+  // 2026-08-27: re-pinned for the owner default-chart retune — the terminal SMA5
+  // overlay REMOVED (default set 5→4) + watermark sizeScale 1.0→1.25 / weight 700→500.
+  // CHART_DEFAULTS value/structure edits only; per-chart scope path unchanged.
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '50e2df2e40084f40c8236ea407f41611da8c37254fbe557be79d7d0141ed39b8'
+    'b5eb05e672170c4efd5831fde856518e6dae717c2379535b189ab49221fe7e3f'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
