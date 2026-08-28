@@ -1347,6 +1347,13 @@ export function printFormula(node, parentBp = 0) {
       // above does it, and what keeps `tf(a > b, 'W')` from re-parsing as
       // something else.
       return `tf(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'sym':
+      // ⭐ THE SEVENTH NODE TYPE, and the TICKER COMES FIRST — `sym('SPY', expr)`
+      // — because that is the order this engine's own parser reads, which is in
+      // turn the order every platform a member arrives from writes it
+      // (`request.security(symbol, tf, expr)`). The child prints at precedence 0
+      // for the same reason `tf` above does.
+      return `sym('${node.value}', ${printFormula(node.args[0], 0)})`
     case 'op': {
       if (node.name === 'u-' || node.name === '!') {
         const sym = node.name === 'u-' ? '-' : '!'
@@ -2195,13 +2202,13 @@ class Resolver {
     // SYMBOL, a computed timeframe, `security_lower_tf`, `lookahead_on` — still
     // refuses under the namespace guard below, by name.
     //
-    // ⛔ IT IS TRIED BEFORE THE GUARD AND FALLS THROUGH TO IT. `securityAsTf`
+    // ⛔ IT IS TRIED BEFORE THE GUARD AND FALLS THROUGH TO IT. `securityAsNode`
     // returns null for every shape it cannot honestly take, so a request that is
     // ALMOST this one lands on `pine:request` with the namespace's own sentence
     // rather than on a special-case message that would have to be maintained
     // twice.
     if (name === 'request.security' || name === 'security') {
-      const asTf = this.securityAsTf(node)
+      const asTf = this.securityAsNode(node)
       if (asTf) return asTf
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
@@ -2324,30 +2331,108 @@ class Resolver {
     return null
   }
 
-  securityAsTf(node) {
+  /** A ticker this engine can name, or null.
+   *
+   *  ⛔ THE SHAPE IS THE SENTENCE GRAMMAR'S, not a guess. `sentence.js::renderSym`
+   *  will only say a plain uppercase ticker of up to ten characters, so a symbol
+   *  this accepted but that could not be SAID would translate into a tree whose
+   *  read-back refuses — a definition a member could save and never see explained.
+   *  ⚠️ WHICH IS WHY AN EXCHANGE-PREFIXED SYMBOL FALLS THROUGH. `BINANCE:BTCEUR`
+   *  (community script 04) names an instrument on another venue; this engine reads
+   *  US equities and ETFs, so refusing at THIS door — the one the member typed at —
+   *  is the honest answer rather than emitting a node nothing can serve.
+   */
+  otherSymbolNameOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'string') {
+      const ticker = String(node.value).trim().toUpperCase()
+      return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      if (bound && bound.kind === 'expr') return this.otherSymbolNameOf(bound.node, depth + 1)
+      return null
+    }
+    // ⭐ `input.symbol('SPY')` FOLDS TO ITS DEFAULT, the same way `input.timeframe`
+    // does and for the same recorded reason: TradingView's own Pine Screener
+    // "falls back to defaults for `input.symbol`". Every fold lands in
+    // `usedInputs`, so a frozen input is never silent.
+    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
+      const args = node.args || []
+      for (let i = 0; i < args.length; i += 1) {
+        const a = args[i]
+        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+          const folded = this.otherSymbolNameOf(a.value, depth + 1)
+          if (folded !== null && node.tok) {
+            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+              call: node.name,
+              title: null,
+              folded: `'${folded}'`,
+              line: node.tok.line,
+              column: node.tok.column,
+            })
+          }
+          return folded
+        }
+      }
+    }
+    return null
+  }
+
+  /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
+   *
+   *  ⭐⭐ FOUR SHAPES, COMPOSED FROM TWO INDEPENDENT QUESTIONS — *whose bars?* and
+   *  *which period?* — rather than four hand-written cases:
+   *
+   *    own symbol  + own timeframe  →  the child itself (the call is an identity)
+   *    own symbol  + 'W' / 'M'      →  tf(child, code)
+   *    OTHER       + own timeframe  →  sym(TICKER, child)
+   *    OTHER       + 'W' / 'M'      →  sym(TICKER, tf(child, code))
+   *
+   *  ⛔⛔ AND THE LAST ROW IS WHY THIS IS COMPOSED RATHER THAN LISTED: `sym` must be
+   *  the OUTER node. `tf(sym(…))` hands `sym` resampled bars while the benchmark
+   *  series is not resampled, which `interpret` refuses by name because the answer
+   *  would be almost-right rather than absent. Building the pair from two answers
+   *  means this translator CANNOT emit the ordering the engine rejects — the shape
+   *  rule is enforced by construction here, not re-stated.
+   *
+   *  ⭐ NULL, NEVER A REFUSAL OF ITS OWN. Returning null lets the caller fall through
+   *  to `pine:request`, so every shape this cannot take keeps the ONE sentence the
+   *  namespace already publishes.
+   *
+   *  ⛔⛔ `lookahead_on` STILL FALLS THROUGH TO REFUSED. Our `tf` is `lookahead_off`
+   *  plus `[1]`; `barmerge.lookahead_on` asks for the bar the base bar is INSIDE.
+   *  Translating it as if it were `off` would silently turn a look-ahead script into
+   *  a look-behind one and backtest beautifully.
+   */
+  securityAsNode(node) {
     const args = node.args || []
 
     // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
     // arguments — `name` is the label (`lookahead=`) or null for a positional
     // one, and `value` is the parsed node. Reading the wrapper as if it WERE the
     // node is how the first draft returned null for every shape, including the
-    // ones it exists to take; the four accept-cases in `pine.security.test.js`
-    // are what caught it.
+    // ones it exists to take.
     const positional = args.filter((a) => a && !a.name).map((a) => a.value)
     if (positional.length < 3) return null
 
-    // 1. the symbol: this chart's own, or nothing. A string literal is ANOTHER
-    //    symbol — that is `sym`, which is not built — and a variable alias is a
-    //    binding this method deliberately does not chase.
-    const symName = this.ownSymbolNameOf(positional[0])
-    if (symName === null) return null
+    // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
+    //    a computed symbol, another venue — falls through.
+    const own = this.ownSymbolNameOf(positional[0])
+    const other = own === null ? this.otherSymbolNameOf(positional[0]) : null
+    if (own === null && other === null) return null
 
-    // 2. the timeframe: a STRING LITERAL this engine can resample. A computed
-    //    timeframe is exactly what the node shape forbids — the code rides ON the
-    //    node so `max_lookback` stays a tree sum — so it falls through.
-    const raw = this.timeframeLiteralOf(positional[1])
-    const code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
-    if (!code) return null
+    // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
+    //    resample. A computed timeframe is exactly what the node shape forbids.
+    const tfNode = positional[1]
+    const sameTimeframe = tfNode && tfNode.type === 'name'
+      && (tfNode.name === 'timeframe.period' || tfNode.name === 'period')
+    let code = null
+    if (!sameTimeframe) {
+      const raw = this.timeframeLiteralOf(tfNode)
+      code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
+      if (!code) return null
+    }
 
     // 3. `lookahead`, wherever it appears: only OFF may translate.
     for (const a of args) {
@@ -2359,7 +2444,11 @@ class Resolver {
       if (isLookahead && spelled !== 'barmerge.lookahead_off') return null
     }
 
-    return { type: 'tf', value: code, args: [this.resolve(positional[2])] }
+    // 4. compose, innermost first.
+    let out = this.resolve(positional[2])
+    if (code) out = { type: 'tf', value: code, args: [out] }
+    if (other) out = { type: 'sym', value: other, args: [out] }
+    return out
   }
 
   /**
