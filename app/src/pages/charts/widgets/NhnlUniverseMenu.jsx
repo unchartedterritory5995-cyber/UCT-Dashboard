@@ -11,6 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import useSWR from 'swr'
+import UIcon from '../../../components/ui/UIcon'
 import styles from './NhnlDropdown.module.css'
 
 const fetcher = (u) => fetch(u, { credentials: 'include' }).then(r => (r.ok ? r.json() : null))
@@ -35,16 +36,7 @@ const toItem = (e) => ({ key: `etf:${e.etf}`, label: e.label, etf: e.etf })
 const INDEX_ITEMS = INDEX_ETFS.map(toItem)   // S&P 500 / Nasdaq 100 / S&P 100 / Russell 2000 / Dow 30
 const ETF_ITEMS = SECTOR_ETFS.map(toItem)    // the 11 sector SPDRs
 
-// The stable key for the currently-selected universe (matches the item keys below).
-function selKey(sel) {
-  if (sel?.etf) return `etf:${sel.etf}`
-  if (sel?.watchlist) return `wl:${sel.watchlist}`
-  if (sel?.value) return `cat:${sel.scope}:${sel.value}`
-  const s = sel?.scope || 'all'
-  return s === 'all' ? 'all' : s
-}
-
-export default function NhnlUniverseMenu({ selection, onPick }) {
+export default function NhnlUniverseMenu({ activeKey, onPick, addClassName }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState(null)
   const [q, setQ] = useState('')
@@ -58,14 +50,7 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
   const watchlists = useMemo(() => (Array.isArray(wlData) ? wlData : (wlData?.watchlists || [])), [wlData])
   const industries = useMemo(() => (Array.isArray(dimData?.industries) ? dimData.industries : []), [dimData])
 
-  const key = selKey(selection)
-  const triggerLabel = selection?.etf
-    ? (selection.label || selection.etf)
-    : selection?.watchlist
-      ? (selection.label || 'Watchlist')
-      : selection?.value
-        ? (selection.label || selection.value)
-        : (GROUP_BY.find(g => g.key === selection?.scope)?.label || 'UCT Universe')
+  const key = activeKey   // highlight the item matching the active pill
 
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -138,7 +123,7 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
     if (item.etf) onPick({ etf: item.etf, label: item.label })
     else if (item.watchlist) onPick({ watchlist: item.watchlist, label: item.pickLabel })
     else if (item.value) onPick({ scope: item.scope, value: item.value, label: item.label })
-    else onPick({ scope: item.key })
+    else onPick({ scope: item.key, label: item.label })
     setOpen(false)
     setQ('')
   }
@@ -148,15 +133,14 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
       <button
         ref={btnRef}
         type="button"
-        className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
-        style={{ maxWidth: 200 }}
-        title="Choose what the scanner scans"
+        className={addClassName || styles.trigger}
+        title="Add a universe"
+        aria-label="Add a universe"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
       >
-        <span className={styles.triggerLabel}>{triggerLabel}</span>
-        <span className={styles.caret} aria-hidden="true">▾</span>
+        <UIcon name="plus" size={13} gold={false} />
       </button>
       {open && pos && createPortal(
         <div

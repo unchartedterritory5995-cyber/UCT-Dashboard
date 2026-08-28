@@ -28,6 +28,48 @@
 }
 .spacer { flex: 1 1 auto; }
 
+/* ── Universe TAB strip — IDENTICAL to the Market Map (scatter) tabs, sized to the
+   Theme Tracker period buttons: 3px-square, uppercase, transparent by default, gold
+   when active. Keep in sync with the same block in ScatterWidget.module.css. ── */
+.uniTabs {
+  display: flex; align-items: center; gap: 4px;
+  flex: 1 1 auto; min-width: 0; overflow-x: auto;
+  scrollbar-width: none;
+}
+.uniTabs::-webkit-scrollbar { display: none; }
+.uniTab {
+  position: relative; display: inline-flex; align-items: center; gap: 5px;
+  flex: 0 0 auto; padding: 3px 9px;
+  border: 1px solid transparent; border-radius: 3px; background: transparent;
+  color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap; user-select: none;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.uniTab:hover { background: var(--nh-row-hover, var(--widget-row-hover, rgba(255, 255, 255, 0.06))); }
+.uniTabActive, .uniTabActive:hover {
+  border-color: var(--ut-gold); color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
+.uniTabLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.uniTabCount { font-size: 9px; font-weight: 700; opacity: 0.72; font-variant-numeric: tabular-nums; }
+.uniTabX {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; margin-right: -3px; border-radius: 3px;
+  opacity: 0; color: var(--nh-text, var(--text-muted)); transition: opacity .1s, background .1s, color .1s;
+}
+.uniTab:hover .uniTabX { opacity: 0.7; }
+.uniTabX:hover { opacity: 1; background: rgba(242, 75, 66, 0.85); color: #fff; }
+.uniAdd {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 3px;
+  border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
+  background: transparent; color: var(--nh-sym, var(--text-bright)); cursor: pointer;
+  transition: border-color .12s, color .12s;
+}
+.uniAdd:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+
 .live {
   display: inline-flex;
   align-items: center;
