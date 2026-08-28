@@ -499,10 +499,16 @@ def _scanner_syms(which: str) -> list:
 def list_universes(user_id: Optional[str]) -> list:
     """The grouped universe menu for the picker. Dynamic groups (watchlists, tags,
     themes) are filled from the user's account; static groups are always present."""
+    # "UCT Universe" (the whole tradable market) leads the menu, mirroring the NH/NL
+    # scanner — it replaces the old "Whole Market" item that sat at the very bottom.
     groups = [{
+        "group": "Universe",
+        "items": [{"source": "market", "value": "", "label": "UCT Universe"}],
+    }]
+    groups.append({
         "group": "Indices",
         "items": [{"source": "index", "value": k, "label": lbl} for k, lbl, _c in _INDEX_SETS],
-    }]
+    })
     groups.append({
         "group": "ETFs",
         "items": [{"source": "etf", "value": t, "label": lbl} for t, lbl in _ETF_SETS],
@@ -558,8 +564,6 @@ def list_universes(user_id: Optional[str]) -> list:
     except Exception:
         pass
 
-    groups.append({"group": "Market", "items": [
-        {"source": "market", "value": "", "label": "Whole Market"}]})
     return groups
 
 
@@ -567,7 +571,7 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
     """A human label for a universe descriptor (for the picker button + header)."""
     src = (source or "market").lower()
     if src == "market":
-        return "Whole Market"
+        return "UCT Universe"
     if src == "index":
         return _INDEX_LABEL.get((value or "").lower(), "Index")
     if src == "etf":
