@@ -92,6 +92,21 @@ def nhnl_live(
         group=group, value=(value or None), restrict=restrict))
 
 
+@router.get("/api/nhnl/dims")
+def nhnl_dims(_user: dict = Depends(require_paid)):
+    """The taxonomy lists the universe picker offers as direct scopes: every Finviz
+    sector + industry (so "Industries → Banks - Regional" restricts the leaderboard to
+    that one industry). Best-effort — an unpopulated map returns empty lists."""
+    try:
+        from api.services import industry_map
+        return JSONResponse(content={
+            "sectors": industry_map.list_sectors(),
+            "industries": industry_map.list_industries(),
+        })
+    except Exception:                                       # noqa: BLE001
+        return JSONResponse(content={"sectors": [], "industries": []})
+
+
 @router.get("/api/nhnl/series")
 def nhnl_series(_user: dict = Depends(require_paid)):
     """Intraday New-High vs New-Low activity time series (the "H/L Pulse" chart):

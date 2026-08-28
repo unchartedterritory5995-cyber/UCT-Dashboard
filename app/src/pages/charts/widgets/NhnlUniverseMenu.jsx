@@ -1,11 +1,13 @@
 // The NH/NL scanner's universe picker — a grouped, searchable dropdown styled like
-// the app's other menus (INDICES/MY LISTS-style sections). Replaces the old scope
-// <select>: you pick what the leaderboard scans over —
+// the app's other menus. You pick what the leaderboard scans over:
 //   • UCT Universe (the whole tradable US-stock universe)
 //   • Group by Sector / Industry / Theme (a breadth overview that expands per group)
-//   • any ETF (its holdings) or one of your own Watchlists (a flat, restricted view)
-// Selection is a small descriptor {scope|etf|watchlist,label}; the widget turns it
-// into the right /api/nhnl/live query param.
+//   • an ETF (its holdings) — a curated set of index + sector SPDRs that actually hold
+//     stocks (no GLD/TLT-style commodity/bond funds)
+//   • one Industry directly (Banks - Regional, Biotechnology, …) → a flat leaderboard
+//     of that industry's stocks
+//   • one of your own Watchlists → a flat leaderboard of its symbols
+// Selection is a small descriptor; the widget turns it into the right /api/nhnl/live query.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import useSWR from 'swr'
@@ -18,13 +20,24 @@ const GROUP_BY = [
   { key: 'industry', label: 'Industry' },
   { key: 'theme', label: 'Theme' },
 ]
-// Shown in the ETFs group before the user types (typing searches the full ETF list).
-const POPULAR_ETFS = ['SPY', 'QQQ', 'IWM', 'DIA', 'XLK', 'SMH', 'SOXX', 'XLF', 'XLE', 'XLV', 'XLY', 'XLI', 'XLP', 'XLU', 'XLB', 'XLRE', 'XLC', 'ARKK', 'IBB', 'KRE', 'GLD', 'TLT']
+// Curated ETF universes — every one holds equities (so its NH/NL leaderboard is real).
+// Index funds carry a friendly label; sector SPDRs go by ticker.
+const INDEX_ETFS = [
+  { etf: 'SPY', label: 'S&P 500' },
+  { etf: 'QQQ', label: 'Nasdaq 100' },
+  { etf: 'OEF', label: 'S&P 100' },
+  { etf: 'IWM', label: 'Russell 2000' },
+  { etf: 'DIA', label: 'Dow 30' },
+]
+const SECTOR_ETFS = ['XLV', 'XLE', 'XLF', 'XLK', 'XLI', 'XLU', 'XLB', 'XLY', 'XLP', 'XLC', 'XLRE']
+  .map(t => ({ etf: t, label: t }))
+const ETF_ITEMS = [...INDEX_ETFS, ...SECTOR_ETFS].map(e => ({ key: `etf:${e.etf}`, label: e.label, etf: e.etf }))
 
 // The stable key for the currently-selected universe (matches the item keys below).
 function selKey(sel) {
   if (sel?.etf) return `etf:${sel.etf}`
   if (sel?.watchlist) return `wl:${sel.watchlist}`
+  if (sel?.value) return `cat:${sel.scope}:${sel.value}`
   const s = sel?.scope || 'all'
   return s === 'all' ? 'all' : s
 }
@@ -37,20 +50,21 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
   const menuRef = useRef(null)
   const searchRef = useRef(null)
 
-  // Data loads lazily — only fetch the lists once the menu is opened.
+  // Load the lists once the menu is opened.
   const { data: wlData } = useSWR(open ? '/api/watchlists' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 60000 })
-  const { data: etfData } = useSWR(open ? '/api/etf/symbols' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 600000 })
+  const { data: dimData } = useSWR(open ? '/api/nhnl/dims' : null, fetcher, { revalidateOnFocus: false, dedupingInterval: 600000 })
   const watchlists = useMemo(() => (Array.isArray(wlData) ? wlData : (wlData?.watchlists || [])), [wlData])
-  const etfSyms = useMemo(() => (Array.isArray(etfData?.symbols) ? etfData.symbols : []), [etfData])
+  const industries = useMemo(() => (Array.isArray(dimData?.industries) ? dimData.industries : []), [dimData])
 
   const key = selKey(selection)
   const triggerLabel = selection?.etf
-    ? selection.etf
+    ? (selection.label || selection.etf)
     : selection?.watchlist
       ? (selection.label || 'Watchlist')
-      : (GROUP_BY.find(g => g.key === selection?.scope)?.label || 'UCT Universe')
+      : selection?.value
+        ? (selection.label || selection.value)
+        : (GROUP_BY.find(g => g.key === selection?.scope)?.label || 'UCT Universe')
 
-  // Build the grouped, search-filtered item list.
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const match = (label) => !needle || label.toLowerCase().includes(needle)
@@ -62,20 +76,22 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
     const groupBy = GROUP_BY.filter(i => match(i.label)).map(i => ({ key: i.key, label: i.label }))
     if (groupBy.length) out.push({ label: 'Group by', items: groupBy })
 
+    const etfs = ETF_ITEMS.filter(i => match(i.label))
+    if (etfs.length) out.push({ label: 'ETFs', items: etfs })
+
+    const inds = industries
+      .filter(name => match(name))
+      .slice(0, needle ? 60 : 200)
+      .map(name => ({ key: `cat:industry:${name}`, label: name, scope: 'industry', value: name }))
+    if (inds.length) out.push({ label: 'Industries', items: inds })
+
     const wls = watchlists
       .filter(w => match(w.name || ''))
       .map(w => ({ key: `wl:${w.id}`, label: w.name || 'Untitled', watchlist: String(w.id), pickLabel: w.name || 'Untitled' }))
     if (wls.length) out.push({ label: 'My Watchlists', items: wls })
 
-    // ETFs: the popular set until you type, then the full ETF universe filtered.
-    const base = needle
-      ? etfSyms.filter(s => s.toLowerCase().includes(needle)).slice(0, 40)
-      : POPULAR_ETFS
-    const etfs = base.map(s => ({ key: `etf:${s}`, label: s, etf: s }))
-    if (etfs.length) out.push({ label: 'ETFs', items: etfs })
-
     return out
-  }, [q, watchlists, etfSyms])
+  }, [q, watchlists, industries])
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return
@@ -114,8 +130,9 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
   useEffect(() => { if (open) requestAnimationFrame(() => searchRef.current?.focus()) }, [open])
 
   const choose = (item) => {
-    if (item.etf) onPick({ etf: item.etf, label: item.etf })
+    if (item.etf) onPick({ etf: item.etf, label: item.label })
     else if (item.watchlist) onPick({ watchlist: item.watchlist, label: item.pickLabel })
+    else if (item.value) onPick({ scope: item.scope, value: item.value, label: item.label })
     else onPick({ scope: item.key })
     setOpen(false)
     setQ('')
@@ -149,7 +166,7 @@ export default function NhnlUniverseMenu({ selection, onPick }) {
               className={styles.searchInput}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search groups, ETFs, lists…"
+              placeholder="Search groups, ETFs, industries…"
             />
           </div>
           {groups.length === 0

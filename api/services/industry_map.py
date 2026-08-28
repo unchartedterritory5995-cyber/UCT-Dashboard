@@ -348,6 +348,30 @@ def tickers_in_industry(industry: str) -> list[str]:
     return [row["ticker"] for row in rows]
 
 
+def list_industries() -> list[str]:
+    """Every distinct non-blank Finviz industry in the map, sorted. Powers the NH/NL
+    scanner's "Industries" universe picker (each name → a flat leaderboard of that
+    industry's stocks). Read-only, instant (persisted map)."""
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT DISTINCT industry FROM industry_map "
+            "WHERE industry IS NOT NULL AND industry != '' ORDER BY industry"
+        ).fetchall()
+    return [row["industry"] for row in rows]
+
+
+def list_sectors() -> list[str]:
+    """Every distinct non-blank Finviz sector in the map, sorted."""
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT DISTINCT sector FROM industry_map "
+            "WHERE sector IS NOT NULL AND sector != '' ORDER BY sector"
+        ).fetchall()
+    return [row["sector"] for row in rows]
+
+
 def _cap_universe_path() -> str:
     here = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
     if os.path.exists(here):

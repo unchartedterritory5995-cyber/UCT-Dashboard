@@ -195,16 +195,18 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   // each group row expands in place — Theme-Tracker style), OR a restricted set (an
   // ETF's holdings / one of the user's watchlists — a flat leaderboard over that set).
   const scope = opts?.scope || 'all'                 // 'all' | 'sector' | 'industry' | 'theme'
+  const uniValue = opts?.value || null               // one category (e.g. an industry) → flat
   const etfUni = opts?.etf || null                   // restrict to this ETF's holdings
   const watchlistUni = opts?.watchlist || null       // restrict to this watchlist's syms
   const uniLabel = opts?.uniLabel || null
   const selection = useMemo(
-    () => ({ scope, etf: etfUni, watchlist: watchlistUni, label: uniLabel }),
-    [scope, etfUni, watchlistUni, uniLabel])
+    () => ({ scope, value: uniValue, etf: etfUni, watchlist: watchlistUni, label: uniLabel }),
+    [scope, uniValue, etfUni, watchlistUni, uniLabel])
   const onPickUniverse = useCallback((sel) => {
-    if (sel.etf) onOptsChange?.({ ...opts, etf: sel.etf, uniLabel: sel.label, watchlist: undefined, scope: 'all' })
-    else if (sel.watchlist) onOptsChange?.({ ...opts, watchlist: sel.watchlist, uniLabel: sel.label, etf: undefined, scope: 'all' })
-    else onOptsChange?.({ ...opts, scope: sel.scope || 'all', etf: undefined, watchlist: undefined, uniLabel: undefined })
+    if (sel.etf) onOptsChange?.({ ...opts, etf: sel.etf, uniLabel: sel.label, watchlist: undefined, value: undefined, scope: 'all' })
+    else if (sel.watchlist) onOptsChange?.({ ...opts, watchlist: sel.watchlist, uniLabel: sel.label, etf: undefined, value: undefined, scope: 'all' })
+    else if (sel.value) onOptsChange?.({ ...opts, scope: sel.scope, value: sel.value, uniLabel: sel.label, etf: undefined, watchlist: undefined })
+    else onOptsChange?.({ ...opts, scope: sel.scope || 'all', value: undefined, etf: undefined, watchlist: undefined, uniLabel: undefined })
   }, [opts, onOptsChange])
 
   // ── Appearance settings (per-widget opts.settings — same model as News /
@@ -232,7 +234,9 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const restrictQ = etfUni ? `&etf=${encodeURIComponent(etfUni)}`
     : watchlistUni ? `&watchlist=${encodeURIComponent(watchlistUni)}` : ''
   const scopeQ = restrictQ ? '' : (scope !== 'all' ? `&group=${scope}` : '')
-  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}${restrictQ}`
+  // A picked category (e.g. one industry) → flat leaderboard of that category's stocks.
+  const valueQ = (!restrictQ && scope !== 'all' && uniValue) ? `&value=${encodeURIComponent(uniValue)}` : ''
+  const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}${valueQ}${restrictQ}`
   // Base for a group's inline expansion (Side appends &group=&value=&limit=10).
   const drillBase = `/api/nhnl/live?${filterQS}`
   const { data } = useMobileSWR(url, fetcher, {
@@ -249,8 +253,9 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const window = data?.window || 'rth'
   const isActive = window !== 'closed'
   // Group scope → rows are groups (sectors/industries/themes) that expand in place.
-  // (A restrict view returns group:null → flat individual rows.)
-  const groupView = !!data?.group
+  // (A restrict view returns group:null, and a picked category echoes a `value` →
+  // both are FLAT individual-stock leaderboards, not the expandable overview.)
+  const groupView = !!data?.group && !data?.value
   const dim = data?.group || null
 
   return (
