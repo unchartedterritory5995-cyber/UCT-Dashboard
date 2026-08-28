@@ -20,6 +20,10 @@ router = APIRouter()
 INVALIDATE_KEYS = [
     "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M", "themes_Today",
     "leadership", "rundown", "earnings", "screener", "movers", "uct20_portfolio", "analyst_actions",
+    # uct20_portfolio's derived caches -- a push that moves the portfolio must
+    # also drop what was computed FROM it, or /api/uct20/backtest serves the
+    # old record for up to its TTL (uct20_harness_backtest's is 24h).
+    "uct20_backtest", "uct20_book", "uct20_harness_backtest",
 ]
 
 # ⚠️ THIS IS THE WRITER. `push_wire_data` `os.makedirs`es this file's directory

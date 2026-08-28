@@ -118,6 +118,80 @@
 }
 .ghostBtn:hover { background: var(--nb-row-hover, rgba(255, 255, 255, 0.06)); }
 
+/* ── Nested folder tree (mirrors the Journal notebook) ── */
+.tree { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 0 8px; }
+.treeNodeWrap { display: flex; flex-direction: column; }
+.treeFolderRow { display: flex; align-items: center; min-width: 0; }
+.treeChevBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  flex: 0 0 18px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--nb-chrome, var(--text-muted, #8b8674));
+}
+.treeChevBtn:hover { color: var(--nb-chrome-strong, var(--text-bright, #e4e6ea)); }
+.treeChevSpacer { display: inline-block; width: 18px; flex: 0 0 18px; }
+.chevron { transform: rotate(-90deg); transition: transform 0.12s ease; }
+.chevronOpen { transform: rotate(0deg); }
+.folderGlyph { flex: 0 0 auto; color: var(--nb-accent, var(--accent, #dcbb5e)); opacity: 0.85; }
+.treeFolder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px 4px 2px;
+  border-radius: 5px;
+  font-family: inherit;
+  color: var(--nb-header-text, var(--nb-text, var(--text-bright, #e4e6ea)));
+}
+.treeFolder:hover, .treeNote:hover { background: var(--nb-row-hover, rgba(255, 255, 255, 0.05)); }
+.treeRowActive { background: var(--nb-row-hover, rgba(255, 255, 255, 0.08)); }
+.treeFolderName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.treeCount { flex: 0 0 auto; font-size: 10px; color: var(--nb-chrome, var(--text-muted, #706b5e)); }
+.treeNote {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-family: inherit;
+  color: var(--nb-text, var(--text-bright, #e4e6ea));
+}
+.treeNoteTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.92;
+}
+
 .list { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
 .noteRow {
   display: flex;
@@ -235,3 +309,66 @@
   text-align: center;
   font-style: italic;
 }
+
+/* ── Inline editor ── */
+.editorPane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.editorTitle {
+  background: transparent;
+  color: var(--nb-text, var(--text-bright, #e4e6ea));
+  border: none;
+  border-bottom: 1px solid var(--nb-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.editorTitle:focus { outline: none; }
+.editorTitle::placeholder { color: var(--nb-chrome, var(--text-muted, #706b5e)); font-weight: 600; }
+.editorScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 12px; cursor: text; }
+.editorBody { outline: none; }
+.editorBody :global(.ProseMirror) {
+  outline: none;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--nb-text, var(--text, #cfcac0));
+  min-height: 80px;
+  word-break: break-word;
+}
+.editorBody :global(.ProseMirror) > * { margin: 0 0 0.6em; }
+.editorBody :global(.ProseMirror) :is(h1, h2, h3) { color: var(--nb-text, var(--text-bright, #e4e6ea)); font-weight: 700; margin: 0.7em 0 0.3em; }
+.editorBody :global(.ProseMirror) h1 { font-size: 1.35em; }
+.editorBody :global(.ProseMirror) h2 { font-size: 1.2em; }
+.editorBody :global(.ProseMirror) h3 { font-size: 1.08em; }
+.editorBody :global(.ProseMirror) ul, .editorBody :global(.ProseMirror) ol { padding-left: 1.3em; }
+.editorBody :global(.ProseMirror) a { color: var(--nb-accent, var(--accent, #6ba3be)); }
+.editorBody :global(.ProseMirror) img { max-width: 100%; border-radius: 6px; }
+.editorBody :global(.ProseMirror) blockquote { border-left: 2px solid var(--nb-divider, rgba(255,255,255,0.15)); padding-left: 0.8em; opacity: 0.9; }
+.editorBody :global(.ProseMirror) code { background: var(--nb-row-hover, rgba(255,255,255,0.06)); padding: 0 4px; border-radius: 3px; font-family: var(--font-mono, monospace); font-size: 0.9em; }
+/* TipTap Placeholder extension */
+.editorBody :global(.ProseMirror .is-editor-empty:first-child::before) {
+  content: attr(data-placeholder);
+  color: var(--nb-chrome, var(--text-muted, #706b5e));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.editorFoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--nb-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  flex: 0 0 auto;
+}
+.footBack {
+  background: transparent;
+  border: none;
+  color: var(--nb-chrome-strong, var(--text-bright, #e4e6ea));
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 2px;
+}
+.footBack:hover { color: var(--nb-accent, var(--accent, #dcbb5e)); }
+.saveStatus { flex: 1 1 auto; font-size: 10.5px; color: var(--nb-chrome, var(--text-muted, #706b5e)); }
