@@ -88,6 +88,30 @@ describe('the last fallthroughs on the canonical path', () => {
     expect(String(refusal.message)).toContain(declared[0])
   })
 
+  // ─── a concern that turned out to be unreachable, measured ──────────────
+
+  it('⚠️ the parser never emits a `num` node holding NEGATIVE ZERO', () => {
+    // ⭐ THIS PINS A NON-DEFECT, ON PURPOSE. `interpret.js`'s structural memo
+    // interns nodes by shape, and `String(-0)` is "0" — so a tree holding both
+    // `num -0` and `num 0` would give them ONE id and reuse one column for the
+    // other. That was raised as a possible cross-lane divergence.
+    //
+    // ⛔ IT CANNOT ARISE FROM THE FRONT DOOR. Every `-0` in source canonicalises
+    // to `u-(num 0)`, never to a `num` holding -0, so the two shapes are never
+    // both present as literals. Measured across both lanes as well: `1 / -0` and
+    // `1 / 0` are NaN in each, and `sign(-0)` is 0 in each.
+    //
+    // ⚠️ WHAT REMAINS TRUE is the same caveat as `sentence:operator` above — a
+    // row loaded from the STORE is not parser output, so a hand-written or
+    // foreign-produced tree could still hold one. This case exists so that if the
+    // parser ever starts emitting it, the change is visible HERE rather than as a
+    // memo collision nobody can reproduce.
+    expect(parseFormula('-0')).toEqual({ ok: true, ast: {
+      type: 'op', name: 'u-', args: [{ type: 'num', value: 0 }],
+    } })
+    expect(parseFormula('0')).toEqual({ ok: true, ast: { type: 'num', value: 0 } })
+  })
+
   it('⭐ …and a DECLARED operator still renders — not a blanket refusal', () => {
     const text = sentenceFor({ type: 'op', name: '>', args: [
       { type: 'series', name: 'close' }, { type: 'series', name: 'open' },
