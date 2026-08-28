@@ -114,6 +114,9 @@ async function fetchSparkCloses(sym) {
     })
     .catch(() => null)
   _sparkCache.set(sym, p)
+  // Cache successes only: a transient failure (deploy-swap 502, network blip)
+  // must not suppress this ticker's sparkline for the whole browser session.
+  p.then((res) => { if (res == null) _sparkCache.delete(sym) })
   return p
 }
 
@@ -311,7 +314,11 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
         <AnswerBody text={entry.answer} onTicker={onTicker} cites={entry.citations} />
       </div>
 
-      {isLast && !readOnly && (
+      {/* Sparklines are the "click a bar to open the chart" affordance — skip
+          them on a restored answer (no live turn happened this session) so
+          reopening a saved answer or a journal handoff doesn't fetch 30-day
+          bars for every ticker in old prose. */}
+      {isLast && !readOnly && entry.answerId && (
         <AnswerSparklines tickers={extractTickers(entry.answer)} onTicker={onTicker} />
       )}
 
@@ -499,8 +506,18 @@ export default function AiSearchWidget({
   const stoppedRef = useRef(false)
   // Anonymous conversation threading for the capture log (not identity): a random
   // per-session id + a turn counter, sent with each ask. Never rendered.
-  const conversationIdRef = useRef(threadId || newConversationId())
+  // ⛔ TWO ids, TWO lanes, NEVER shared (2026-08-28 review): conversationIdRef
+  // goes to the DE-IDENTIFIED capture log with every ask and must stay random —
+  // seeding it from a member-keyed thread id (or reusing it as one) would make
+  // ai_search_log JOIN-able back to a user, defeating the HMAC bucket design.
+  // persistIdRef keys the member-consented thread store and MAY be seeded from
+  // a restored thread so continuing doesn't fork a duplicate conversation.
+  const conversationIdRef = useRef(newConversationId())
+  const persistIdRef = useRef(threadId || newConversationId())
   const turnRef = useRef(0)
+  // Persist only conversations the member actually ASKED in this session — a
+  // restored saved answer or a journal handoff must not mint junk thread rows.
+  const askedRef = useRef(false)
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
   useEffect(() => {
@@ -548,6 +565,7 @@ export default function AiSearchWidget({
       degraded: !!d.degraded,   // outage: desk-data-only synthesis, clearly labeled
     }
     if (d.quota && Number.isFinite(d.quota.used)) setQuota(d.quota)
+    askedRef.current = true   // a LIVE turn — this conversation may persist now
     threadRef.current = [...threadRef.current, entry]
     setThread(threadRef.current)
     setCopiedId(null)
@@ -748,8 +766,15 @@ export default function AiSearchWidget({
     setSavedOpen(false)
   }, [])
   const removeSaved = useCallback((item) => {
-    serverUnsaveAnswer(item.answerId)
-    setSaved((prev) => { const next = prev.filter((s) => s.q !== item.q); persistSaved(next); return next })
+    setSaved((prev) => {
+      // Delete EVERY server row for this question (stale duplicates included)
+      // so the delete sticks across devices instead of resurrecting on reload.
+      prev.filter((s) => s.q === item.q && s.answerId).forEach((s) => serverUnsaveAnswer(s.answerId))
+      if (item.answerId && !prev.some((s) => s.answerId === item.answerId)) serverUnsaveAnswer(item.answerId)
+      const next = prev.filter((s) => s.q !== item.q)
+      persistSaved(next)
+      return next
+    })
   }, [])
 
   // Cross-device saved answers: hydrate from the server once per mount and merge
@@ -767,8 +792,12 @@ export default function AiSearchWidget({
             related: [], personal: !!s.personal, answerId: s.answer_id || null,
           })).filter((s) => s.answer)
           setSaved((prev) => {
-            const qs = new Set(server.map((s) => s.q))
-            const next = [...server, ...prev.filter((p) => !qs.has(p.q))].slice(0, 30)
+            // Dedupe server rows by question (list is newest-first; keep the
+            // first) — duplicate q's under different answer_ids rendered twin
+            // rows with duplicate React keys that resurrected after delete.
+            const seen = new Set()
+            const uniq = server.filter((s) => (seen.has(s.q) ? false : (seen.add(s.q), true)))
+            const next = [...uniq, ...prev.filter((p) => !seen.has(p.q))].slice(0, 30)
             persistSaved(next)
             return next
           })
@@ -783,7 +812,11 @@ export default function AiSearchWidget({
   // is the same per-mount conversation id the capture log threads on.
   const persistTimerRef = useRef(null)
   useEffect(() => {
-    if (!chrome || readOnly || thread.length === 0) return undefined
+    // Gates: never in readOnly; never for a thread with no LIVE ask this
+    // session (askedRef — restored/handoff content must not mint junk rows);
+    // chrome=false persists ONLY for the scoped earnings modal (its surface
+    // tag exists so those conversations survive a refresh too).
+    if ((!chrome && !scopeSym) || readOnly || thread.length === 0 || !askedRef.current) return undefined
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
     persistTimerRef.current = setTimeout(() => {
       try {
@@ -791,11 +824,11 @@ export default function AiSearchWidget({
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            thread_id: conversationIdRef.current,
+            thread_id: persistIdRef.current,   // member lane — NEVER the capture-log id
             surface: scopeSym ? `modal:${scopeSym}` : 'widget',
             turns: thread.slice(-10).map((e) => ({
               q: e.q, a: e.answer, citations: e.citations || [],
-              answer_id: e.answerId || null, personal: !!e.personal,
+              personal: !!e.personal,
             })),
           }),
         }).catch(() => {})
@@ -891,7 +924,7 @@ export default function AiSearchWidget({
             <span className={styles.savedLabel}>Saved answers</span>
             <div className={styles.savedList}>
               {saved.map((s) => (
-                <div key={s.q} className={styles.savedRow}>
+                <div key={s.answerId || s.q} className={styles.savedRow}>
                   <button className={styles.savedItem} onClick={() => restoreSaved(s)} title="Reopen this answer">{s.q}</button>
                   <button className={styles.savedDel} onClick={() => removeSaved(s)} title="Remove from saved">✕</button>
                 </div>
@@ -920,7 +953,7 @@ export default function AiSearchWidget({
                 <span className={styles.savedLabel}>Saved answers</span>
                 <div className={styles.savedList}>
                   {saved.map((s) => (
-                    <div key={s.q} className={styles.savedRow}>
+                    <div key={s.answerId || s.q} className={styles.savedRow}>
                       <button className={styles.savedItem} onClick={() => restoreSaved(s)} title="Reopen this answer">{s.q}</button>
                       <button className={styles.savedDel} onClick={() => removeSaved(s)} title="Remove from saved">✕</button>
                     </div>

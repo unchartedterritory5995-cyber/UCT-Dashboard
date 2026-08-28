@@ -7,6 +7,7 @@ Born from a real incident: Perplexity credits ran out and members saw
 'request failed: 401 Client Error: Unauthorized for url:
 https://api.perplexity.ai/chat/completions' verbatim in the widget.
 """
+import pytest
 import requests
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -19,6 +20,16 @@ from api.middleware.auth_middleware import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _hermetic():
+    """Every test gets a clean router + shadow cache — the shadow is now the
+    correctness surface (allow_stale / history separation), and pollution
+    between tests would go undetected until an ordered rerun."""
+    _reset()
+    yield
+    _reset()
+
+
 def _client(user_id=1, role="user", plan="pro"):
     app = FastAPI()
     app.include_router(ai.router)
@@ -29,13 +40,40 @@ def _client(user_id=1, role="user", plan="pro"):
 
 
 def _reset():
+    # Flush the async ledger writer so a pending +1 from an earlier test
+    # doesn't seed this test's counters.
+    try:
+        ai._USAGE_IO.submit(lambda: None).result(timeout=5)
+    except Exception:
+        pass
     ai._usage_day = ""
     ai._usage_by_user = {}
     ai._usage_global = 0
+    ai._usage_seeded_day = None   # let the ledger re-seed next roll
     ai._stats = ai._fresh_stats()
-    pplx._SEARCH_CACHE._data = getattr(pplx._SEARCH_CACHE, "_data", {})
+    # The durable ledger persists across tests when they share
+    # AI_SEARCH_LOG_DB_PATH — wipe today's rows so the seed doesn't inherit
+    # another test's units. Guard aggressively: some sibling suites hand this
+    # module a tmp path that no longer exists by the time our fixture fires.
+    try:
+        import contextlib, os
+        import api.services.ai_search_log as _ail
+        _ail._reset_for_tests()   # forces _ensure_init to run against the CURRENT env path
+        db = _ail._db_path()
+        d = os.path.dirname(db) or "."
+        if os.path.isdir(d):
+            _ail._ensure_init()
+            with contextlib.closing(_ail._connect()) as _c:
+                _c.execute("DELETE FROM ai_search_usage")
+                _c.commit()
+    except Exception:
+        pass
     try:
         pplx._SEARCH_CACHE._data.clear()
+    except Exception:
+        pass
+    try:
+        pplx._LAST_AUTH_ALERT = 0.0
     except Exception:
         pass
 
@@ -137,7 +175,9 @@ def test_401_pages_the_admin_channel(monkeypatch):
 # ── stale shadow ─────────────────────────────────────────────────────────────
 def test_outage_serves_last_known_good_flagged_stale(monkeypatch):
     """A finished answer must survive the salted cache's freshness buckets so
-    an outage can serve it — flagged stale, billed as a cache hit (free)."""
+    an outage can serve it — flagged stale, billed as a cache hit (free).
+    Serving is OPT-IN (allow_stale) — ai_search labels stale answers; nobody
+    else does."""
     _reset()
     monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
     q = "shadow probe question x6"
@@ -147,9 +187,50 @@ def test_outage_serves_last_known_good_flagged_stale(monkeypatch):
     assert first["answer"] and not first.get("stale")
     # provider dies; the SALT changed (new 5-min bucket) so the answer cache misses
     monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(401))
-    out = pplx.web_search(q, cache_salt="saltB-different-bucket")
+    out = pplx.web_search(q, cache_salt="saltB-different-bucket", allow_stale=True)
     assert out["answer"] == "yesterday's good answer"
     assert out["stale"] is True and out["cached"] is True
+
+
+def test_stale_serving_is_opt_in(monkeypatch):
+    """CONTRACT RAIL: every consumer outside ai_search (catalyst engine,
+    news_catalysts, morning briefings, voice) gates on error/empty and would
+    treat a silently-served day-old answer as FRESH — the default must be an
+    honest error, never the shadow."""
+    _reset()
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    q = "shadow optin probe x7"
+    ok = {"choices": [{"message": {"content": "an old answer"}}], "citations": []}
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(200, ok))
+    pplx.web_search(q)
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(401))
+    out = pplx.web_search(q, cache_salt="different")   # default: allow_stale=False
+    assert out.get("error") == "request failed (401)" and not out.get("answer")
+
+
+def test_threaded_answers_never_touch_the_shadow(monkeypatch):
+    """PRIVACY/CORRECTNESS RAIL: 'what about its earnings?' means a different
+    company in every conversation. A history-shaped answer must be neither
+    SAVED under the bare query hash (it would leak one member's thread context
+    to another member) nor SERVED to a threaded ask."""
+    _reset()
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    q = "what about its earnings? x8"
+    hist = [{"q": "tell me about NVDA", "a": "NVDA is a chipmaker."}]
+    ok = {"choices": [{"message": {"content": "NVDA earnings were strong"}}], "citations": []}
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(200, ok))
+    pplx.web_search(q, history=hist, cache_salt="threadA")   # must NOT save a shadow
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(401))
+    # history-less ask for the same text: no shadow may exist
+    out = pplx.web_search(q, cache_salt="other", allow_stale=True)
+    assert not out.get("answer"), "a history-shaped answer leaked through the shadow"
+    # and a THREADED ask never reads the shadow even when one exists
+    ok2 = {"choices": [{"message": {"content": "standalone answer"}}], "citations": []}
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(200, ok2))
+    pplx.web_search(q, cache_salt="plain")                   # saves a shadow (no history)
+    monkeypatch.setattr(pplx.requests, "post", lambda *a, **k: _FakeResp(401))
+    out2 = pplx.web_search(q, history=hist, cache_salt="threadB", allow_stale=True)
+    assert not out2.get("answer"), "a threaded ask was served another context's answer"
 
 
 # ── degraded desk-only synthesis ─────────────────────────────────────────────
@@ -213,6 +294,9 @@ def test_stream_emits_degraded_final_on_provider_error(monkeypatch):
         yield {"type": "error", "error": "request failed (401)"}
 
     monkeypatch.setattr(ai.perplexity_search, "stream_search", dead_stream)
+    # web_search fallback (step 1 of the ladder) is also down
+    monkeypatch.setattr(ai.perplexity_search, "web_search",
+                        lambda *a, **k: {"answer": "", "error": "request failed (401)"})
     monkeypatch.setattr(ai, "_desk_only_answer",
                         lambda q, s, m, h: {"answer": "desk-only stream read", "citations": [],
                                             "related_questions": [], "model": "claude-sonnet-5",
@@ -226,6 +310,31 @@ def test_stream_emits_degraded_final_on_provider_error(monkeypatch):
     assert finals and finals[-1]["answer"] == "desk-only stream read"
     assert finals[-1].get("degraded") is True
     assert not any(e.get("type") == "error" for e in events)
+
+
+def test_stream_error_prefers_web_fallback_over_degraded(monkeypatch):
+    """Ladder order: a one-off stream blip must get the REAL web answer (with
+    citations, via the retrying single-shot path) before desk-only synthesis."""
+    _reset()
+
+    async def dead_stream(query, **kw):
+        yield {"type": "error", "error": "request failed (502)"}
+
+    monkeypatch.setattr(ai.perplexity_search, "stream_search", dead_stream)
+    monkeypatch.setattr(ai.perplexity_search, "web_search",
+                        lambda *a, **k: {"answer": "fresh web answer", "citations": ["https://x"],
+                                         "related_questions": [], "cached": False})
+    monkeypatch.setattr(ai, "_desk_only_answer",
+                        lambda q, s, m, h: (_ for _ in ()).throw(AssertionError("degraded ran")))
+    r = _client().post("/api/ai-search/stream", json={"query": "why is NVDA moving today"})
+    assert r.status_code == 200
+    import json as _json
+    events = [_json.loads(b[5:]) for b in r.text.split("\n\n")
+              if b.strip().startswith("data:")]
+    finals = [e for e in events if e.get("type") == "final"]
+    assert finals and finals[-1]["answer"] == "fresh web answer"
+    assert not finals[-1].get("degraded")
+    assert ai._usage_global == 1   # billed once for the successful fallback
 
 
 # ── durable caps ─────────────────────────────────────────────────────────────
@@ -259,6 +368,7 @@ def test_caps_reseed_from_ledger_after_redeploy(monkeypatch, tmp_path):
     c = _client(user_id=42)
     assert c.post("/api/ai-search", json={"query": "a"}).status_code == 200
     assert c.post("/api/ai-search", json={"query": "b"}).status_code == 200
+    ai._USAGE_IO.submit(lambda: None).result()   # flush the async write-through
     # simulate a redeploy: wipe every in-memory counter AND the seed guard
     ai._usage_day = ""
     ai._usage_by_user = {}

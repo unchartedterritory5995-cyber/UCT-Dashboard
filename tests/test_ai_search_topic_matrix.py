@@ -302,6 +302,32 @@ def test_lowercase_english_words_still_not_tickers(client, q):
     assert ": last $" not in c["system"], q
 
 
+def test_lowercase_idiom_collisions_not_extracted(monkeypatch):
+    # 2026-08-28 review: DECK/TAP/MAIN/CASH/WELL are real cap_universe tickers
+    # that the broad cues ("on X", "hold X", "trading X") wrongly extracted from
+    # ordinary trading idioms — injecting the wrong company as authoritative
+    # desk data. Universe patched to CONTAIN them so this test discriminates.
+    monkeypatch.setattr(ai, "_UNI", {"DECK", "TAP", "MAIN", "CASH", "WELL", "NVDA"})
+    assert ai._extract_tickers("what's on deck for tomorrow?") == []
+    assert ai._extract_tickers("what's on tap this week?") == []
+    assert ai._extract_tickers("main street vs wall street sentiment?") == []
+    assert ai._extract_tickers("should i trim and hold cash here?") == []
+    assert ai._extract_tickers("is NVDA trading well above its 50-day?") == ["NVDA"]
+    # …while genuine lowercase mentions in explicit ticker positions still land
+    assert ai._extract_tickers("thoughts on nvda here?") == ["NVDA"]
+
+
+def test_cot_aliases_respect_word_boundaries(monkeypatch):
+    # 'gold' inside "Goldman", 'oil' inside "turmoil", 'corn' inside
+    # "cornerstone" must not resolve a futures market (2026-08-28 review).
+    assert ai._cot_symbol_for("what's Goldman's positioning on rates?") is None
+    assert ai._cot_symbol_for("commercials amid the turmoil") is None
+    assert ai._cot_symbol_for("is this a cornerstone week?") is None
+    assert ai._cot_symbol_for("what's the COT positioning in gold?") == "GC"
+    assert ai._cot_symbol_for("commercials in crude oil") == "CL"
+    assert ai._cot_symbol_for("corn positioning") == "ZC"
+
+
 # ── Category: guardrails present on every request ───────────────────────────
 @pytest.mark.parametrize("q", [
     "Why is NVDA up?", "What's moving?", "Compare AMD vs MU",

@@ -39,6 +39,9 @@ def test_thread_round_trip_and_replace(monkeypatch, tmp_path):
     assert got["title"] == "why is CRM up?"
     assert [t["q"] for t in got["turns"]] == ["why is CRM up?", "and the guide?"]
     assert got["turns"][0]["citations"] == ["https://x"]
+    # PRIVACY: turns must NOT carry answer_id — it is a join key into the
+    # de-identified capture log (see ai_search_member.py docstring).
+    assert all(t["answer_id"] is None for t in got["turns"])
     # replace semantics: reposting the grown thread never duplicates turns
     mem.save_thread("u1", "t1", turns + [{"q": "q3", "a": "a3"}])
     assert len(mem.get_thread("u1", "t1")["turns"]) == 3
@@ -74,12 +77,28 @@ def test_saved_round_trip_dedup_and_cap(monkeypatch, tmp_path):
     assert mem.save_answer("u1", {"answer_id": "A1", "q": "q", "answer": "ans v2"})
     saved = mem.list_saved("u1")
     assert len(saved) == 1 and saved[0]["answer"] == "ans v2"
+    # Two answer_ids for ONE q collapse to one row so the widget list can't
+    # render duplicate React keys that resurrect after delete (2026-08-28).
+    mem.save_answer("u1", {"answer_id": "A2", "q": "q", "answer": "cross-device save"})
+    assert len(mem.list_saved("u1")) == 1
     assert mem.list_saved("u2") == []          # member-scoped
-    assert mem.delete_saved("u2", "A1") is False
-    assert mem.delete_saved("u1", "A1") is True
+    assert mem.delete_saved("u2", "A2") is False
+    assert mem.delete_saved("u1", "A2") is True
     # empty payloads never save
     assert mem.save_answer("u1", {"answer_id": "", "answer": "x"}) is False
-    assert mem.save_answer("u1", {"answer_id": "A2", "answer": ""}) is False
+    assert mem.save_answer("u1", {"answer_id": "A3", "answer": ""}) is False
+
+
+def test_citation_strings_are_length_capped(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    huge = "x" * 5000
+    mem.save_thread("u1", "t1", [{"q": "q", "a": "a", "citations": [huge, "https://ok"]}])
+    got = mem.get_thread("u1", "t1")
+    cites = got["turns"][0]["citations"]
+    assert len(cites[0]) == 300 and cites[1] == "https://ok"
+    mem.save_answer("u1", {"answer_id": "A1", "q": "q", "answer": "a", "citations": [huge]})
+    saved = mem.list_saved("u1")[0]
+    assert len(saved["citations"][0]) == 300
 
 
 # ── endpoints ────────────────────────────────────────────────────────────────

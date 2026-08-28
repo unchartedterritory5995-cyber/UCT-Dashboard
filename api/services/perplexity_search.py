@@ -105,6 +105,17 @@ def _shadow_key(model: str, domain_pack: str, query: str) -> str:
     under a salt nothing will ever ask for again. The shadow keys on ONLY
     (model, domain pack, normalized query) so an outage can serve the most
     recent finished answer to the same question, clearly flagged stale.
+
+    ⛔ TWO GUARDS make that coarseness safe (2026-08-28 review findings):
+    - THREADED asks never touch the shadow. "What about its earnings?" means a
+      different company in every conversation — storing or serving it under the
+      bare query hash handed one member's NVDA follow-up to another member's
+      CRM thread. Both _save_shadow and _serve_shadow are skipped when history
+      is non-empty.
+    - Serving is OPT-IN (`allow_stale`). Every other consumer of this wrapper
+      (catalyst engine, news_catalysts, morning briefings, voice) gates on
+      `error`/empty and would treat a silently-served day-old answer as fresh;
+      only ai_search — which labels stale answers in the UI — passes True.
     """
     import hashlib
     digest = hashlib.md5(query.lower().strip().encode("utf-8", "ignore")).hexdigest()
@@ -251,6 +262,7 @@ def web_search(
     cache_salt: str = "",
     history: list | None = None,
     cost_surface: str = "perplexity",
+    allow_stale: bool = False,
 ) -> dict[str, Any]:
     """Synthesized web answer with citations.
 
@@ -326,7 +338,7 @@ def web_search(
             data = r.json()
             break
         except requests.Timeout:
-            stale = _serve_shadow(model, domain_pack, query)
+            stale = _serve_shadow(model, domain_pack, query) if (allow_stale and not history) else None
             if stale is not None:
                 return stale
             return {"answer": "", "citations": [], "error": f"timeout after {timeout}s",
@@ -339,7 +351,7 @@ def web_search(
                 time.sleep(_RETRY_PAUSE_S)
                 continue
             _notify_auth_failure(status or 0)
-            stale = _serve_shadow(model, domain_pack, query)
+            stale = _serve_shadow(model, domain_pack, query) if (allow_stale and not history) else None
             if stale is not None:
                 return stale
             return {"answer": "", "citations": [], "error": msg,
@@ -381,7 +393,8 @@ def web_search(
         "cached": False,
     }
     _SEARCH_CACHE.set(cache_key, dict(result), ttl)
-    _save_shadow(model, domain_pack, query, result)
+    if not history:   # threaded answers are context-shaped — never shadowed
+        _save_shadow(model, domain_pack, query, result)
     _record_cost(model, data.get("usage"), cost_surface)
     return result
 
@@ -575,6 +588,13 @@ async def stream_search(
         "cached": False,
     }
     _SEARCH_CACHE.set(cache_key, dict(result), ttl)
-    _save_shadow(model, domain_pack, query, result)
-    _record_cost(model, usage, cost_surface)
+    if not history:   # threaded answers are context-shaped — never shadowed
+        _save_shadow(model, domain_pack, query, result)
+    # Cost write hits auth.db — keep it OFF the shared event loop (this is an
+    # async generator; a contended commit here would stall the whole pod).
+    try:
+        import asyncio as _asyncio
+        _asyncio.get_running_loop().run_in_executor(None, _record_cost, model, usage, cost_surface)
+    except Exception:
+        _record_cost(model, usage, cost_surface)
     yield {"type": "final", **result}

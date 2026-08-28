@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -424,14 +425,25 @@ def _seed_usage_locked(day: str) -> None:
         _usage_by_user = {k: int(v) for k, v in loaded.items()}
 
 
+# One background writer for the usage ledger: _reserve/_refund are called from
+# the async stream path too, and a contended SQLite commit must never ride the
+# shared event loop (the 524-outage surface).
+_USAGE_IO = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ais-usage")
+
+
 def _persist_usage(key: str, delta: int) -> None:
-    """Write-through (outside the lock, best-effort). Memory stays the in-
-    process authority; the ledger only re-seeds after a redeploy."""
+    """Write-through (async, best-effort). Memory stays the in-process
+    authority; the ledger only re-seeds after a redeploy."""
+    def _job():
+        try:
+            from api.services import ai_search_log
+            day = _usage_day or _et_day()
+            ai_search_log.bump_usage(day, key, delta)
+            ai_search_log.bump_usage(day, _GLOBAL_BUCKET, delta)
+        except Exception:
+            pass
     try:
-        from api.services import ai_search_log
-        day = _usage_day or _et_day()
-        ai_search_log.bump_usage(day, key, delta)
-        ai_search_log.bump_usage(day, _GLOBAL_BUCKET, delta)
+        _USAGE_IO.submit(_job)
     except Exception:
         pass
 
@@ -608,24 +620,31 @@ _STRONG_TICKER_CUE = re.compile(
     r"(?:\b(?:is|why is|why did|about|on|buy|sell|short|long|thoughts on|hold|own"
     r"|trading|chart|setup on|flow on|price of)\s+)([A-Z]{1,5})\b"
     r"|\b([A-Z]{1,5})\s+(?:stock|shares|calls?|puts?|earnings|chart)\b")
-# Case-INSENSITIVE twin of the cue above, for lowercase/mixed-case bare tickers.
-# Bare lowercase used to be dropped entirely ("thoughts on nvda" got ZERO desk
-# grounding — a realistic phone typing pattern, since /ai-search is the mobile
-# home). The collision risk that justified dropping it ("now", "open", "run" are
-# all real tickers) is bounded three ways: a lowercase word must sit in a strong
-# ticker POSITION, be in cap_universe, and NOT be stop-listed at all (stop-listed
-# names like NOW/LOW/ALL stay uppercase-or-cashtag only — "buy now" is English).
+# Case-INSENSITIVE cue for lowercase/mixed-case bare tickers. Bare lowercase
+# used to be dropped entirely ("thoughts on nvda" got ZERO desk grounding — a
+# realistic phone typing pattern, since /ai-search is the mobile home). The
+# collision risk that justified dropping it ("now", "open", "run" are all real
+# tickers) is bounded three ways: a lowercase word must sit in a strong ticker
+# POSITION, be in cap_universe, and NOT be stop-listed (stop-listed names like
+# NOW/LOW/ALL stay uppercase-or-cashtag only — "buy now" is English).
+# ⛔ Deliberately NARROWER than the uppercase cue: bare "on"/"is"/"hold"/
+# "trading" made ordinary idioms extract — "what's on deck" → DECK, "hold cash"
+# → CASH, "trading well" → WELL (2026-08-28 review). Only cues that read as an
+# explicit ticker reference survive on this path.
 _LOWER_TICKER_CUE = re.compile(
-    r"(?:\b(?:is|why is|why did|about|on|buy|sell|short|long|thoughts on|hold|own"
-    r"|trading|chart|setup on|flow on|price of)\s+)([A-Za-z]{2,5})\b"
+    r"(?:\b(?:thoughts on|setup on|flow on|about|price of|chart"
+    r"|buy|sell|short)\s+)([A-Za-z]{2,5})\b"
     r"|\b([A-Za-z]{2,5})\s+(?:stock|shares|calls?|puts?|earnings|chart)\b", re.I)
-# English words that ARE real tickers and land in cue positions constantly
-# ("buy tech", "buy gold", "on life"). Blocked on the LOWERCASE path only —
-# uppercase/cashtag still reaches every one of them, so no ticker is lost.
+# English words that ARE real tickers and still land in the narrowed cue
+# positions ("buy tech", "buy gold", "sell bill"). Blocked on the LOWERCASE
+# path only — uppercase/cashtag still reaches every one of them. Extended
+# 2026-08-28 with the review's verified cap_universe collisions.
 _LOWER_ONLY_STOP = {
     "TECH", "LIFE", "PLAY", "REAL", "OPEN", "RUN", "GAP", "EDGE", "CORE",
     "HOPE", "MIND", "CAMP", "RIDE", "WING", "CAKE", "NICE", "COOL", "FAST",
     "SAFE", "PATH", "LOVE", "GOLD", "BABY", "GAME", "FUND", "BOOT", "TREE",
+    "CASH", "DECK", "WELL", "NET", "TWO", "BILL", "SPOT", "GAIN", "TEN",
+    "BIT", "LOT", "TAP", "MAIN", "HERE", "SOME", "MORE", "IT", "SO",
 }
 
 
@@ -1258,17 +1277,25 @@ _COT_ALIASES = {
 }
 
 
+def _cot_word_hit(name: str, q: str) -> bool:
+    """Boundary-guarded alias match. Lookarounds instead of \\b because aliases
+    like 's&p' and '10-year' contain non-word chars — a bare substring test made
+    'gold' match inside \"Goldman's positioning\" and 'oil' inside 'turmoil',
+    injecting the wrong futures market as desk context."""
+    return re.search(r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])", q) is not None
+
+
 def _cot_symbol_for(query: str) -> str | None:
     """Resolve which futures market a COT question is about — alias table first
     (multi-word aliases before single words), then the display-name map."""
     q = (query or "").lower()
     for name in sorted(_COT_ALIASES, key=len, reverse=True):
-        if name in q:
+        if _cot_word_hit(name, q):
             return _COT_ALIASES[name]
     try:
         from api.services.cot_service import SYMBOL_NAMES
         for sym_code, disp in SYMBOL_NAMES.items():
-            if disp and disp.lower() in q:
+            if disp and _cot_word_hit(disp.lower(), q):
                 return sym_code
     except Exception:
         pass
@@ -1840,7 +1867,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
         return perplexity_search.web_search(
             body.query, max_tokens=700, system=system, mode=m, domain_pack="finance",
             recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
-            cost_surface="ai_search",
+            cost_surface="ai_search", allow_stale=True,   # UI labels stale answers
         )
 
     result = _search(mode)
@@ -1957,14 +1984,28 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 elif t == "error" and not settled:
                     settled = True
                     _refund(user_id, units)   # upstream failed — give the reservation back
-                    # Reasoning tier failed/empty → one-shot fall back to sonar-pro so the
-                    # member gets a real answer instead of an error.
-                    if mode == "reasoning" and not got_answer:
-                        fb = perplexity_search.web_search(
-                            body.query, max_tokens=700, system=system, mode="fast",
-                            domain_pack="finance", recency=_auto_recency(body.query),
-                            related=True, cache_salt=salt, history=history,
-                            cost_surface="ai_search")
+                    # Recovery ladder for a stream that died before ANY token
+                    # reached the member (a partial answer already on screen falls
+                    # through to the error event → widget's single-shot fallback,
+                    # which walks the same ladder server-side):
+                    #   1. blocking web_search on sonar-pro — carries the bounded
+                    #      transient retry AND the stale-shadow serve
+                    #   2. desk-data-only Anthropic synthesis
+                    #   3. honest error
+                    # BOTH run in an executor: web_search can sleep+retry (~37s
+                    # worst case) and the synthesis is a blocking Anthropic call —
+                    # the shared loop is the 524-outage surface.
+                    # NB: gen()'s finally block rebinds `loop`, making it local to
+                    # gen — fetch the running loop under a distinct name.
+                    if not got_answer:
+                        _fb_loop = asyncio.get_running_loop()
+                        fb = await _fb_loop.run_in_executor(
+                            None,
+                            lambda: perplexity_search.web_search(
+                                body.query, max_tokens=700, system=system, mode="fast",
+                                domain_pack="finance", recency=_auto_recency(body.query),
+                                related=True, cache_salt=salt, history=history,
+                                cost_surface="ai_search", allow_stale=True))
                         if fb.get("answer"):
                             if not fb.get("cached"):
                                 _reserve(user_id, 1)
@@ -1976,16 +2017,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                                           'quota': _quota_snapshot(user_id), **fb}
                             yield f"data: {json.dumps(settled_fb)}\n\n"
                             continue
-                    # Provider down mid-open (no tokens shown yet) → desk-data-only
-                    # synthesis in an executor (blocking Anthropic call; the loop is
-                    # the 524-outage surface). A partial answer already on screen
-                    # falls through to the error event → widget's single-shot
-                    # fallback, which serves the same stale/degraded ladder.
-                    if not got_answer:
-                        # NB: gen()'s finally block rebinds `loop`, making it local
-                        # to gen — fetch the running loop under a distinct name.
-                        _dg_loop = asyncio.get_running_loop()
-                        dg = await _dg_loop.run_in_executor(
+                        dg = await _fb_loop.run_in_executor(
                             None, lambda: _desk_only_answer(body.query, system, meta, history))
                         if dg is not None:
                             try:

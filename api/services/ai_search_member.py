@@ -14,6 +14,14 @@ Personal-branch answers MAY land here (they are the member's own words about
 their own book, shown back only to them) — they carry personal=1 so any future
 surface can keep excluding them from anything shared.
 
+⛔ NO JOIN KEYS INTO THE CAPTURE LOG (2026-08-28 review). ais_turns stores NO
+answer_id, and thread_id comes from a widget id minted SEPARATELY from the
+conversation_id the capture log threads on — so joining this DB to
+ai_search_log cannot re-identify logged Q&A. The ONE deliberate exception:
+ais_saved keys on answer_id, because explicitly saving an answer is the
+member choosing to associate that specific answer with themselves (and the id
+is what makes cross-device unsave + the quality-signal join work).
+
 Idiom mirrors ai_search_log: own SQLite at /data/ai_search_member.db (env
 AI_SEARCH_MEMBER_DB_PATH), WAL, idempotent _ensure_init, best-effort writes.
 """
@@ -110,8 +118,12 @@ def _clean_turns(turns) -> list[dict]:
         out.append({
             "turn_index": len(out),
             "q": q, "a": a,
-            "citations": json.dumps([str(c) for c in cites][:10]) if isinstance(cites, list) else "[]",
-            "answer_id": (str(t.get("answer_id"))[:64] if t.get("answer_id") else None),
+            # per-item length cap: uncapped citation strings let one member fill
+            # the shared /data volume through this store
+            "citations": json.dumps([str(c)[:300] for c in cites][:10]) if isinstance(cites, list) else "[]",
+            # answer_id deliberately NOT stored on turns — it is a join key into
+            # the de-identified capture log (see module docstring)
+            "answer_id": None,
             "personal": 1 if t.get("personal") else 0,
         })
     return out
@@ -218,13 +230,18 @@ def save_answer(user_id, item: dict) -> bool:
     _ensure_init()
     uid = str(user_id)
     with contextlib.closing(_connect()) as conn:
+        # Same-question rows collapse: the widget's saved list is keyed by the
+        # question, so two answer_ids for one q would render duplicates that
+        # resurrect after a single delete (2026-08-28 review).
+        conn.execute("DELETE FROM ais_saved WHERE user_id=? AND q=? AND answer_id<>?",
+                     (uid, q, aid))
         conn.execute(
             "INSERT INTO ais_saved (user_id, answer_id, q, answer, citations, personal, created_at) "
             "VALUES (?,?,?,?,?,?,?) "
             "ON CONFLICT(user_id, answer_id) DO UPDATE SET q=excluded.q, "
             "answer=excluded.answer, citations=excluded.citations",
             (uid, aid, q, a,
-             json.dumps([str(c) for c in cites][:10]) if isinstance(cites, list) else "[]",
+             json.dumps([str(c)[:300] for c in cites][:10]) if isinstance(cites, list) else "[]",
              1 if item.get("personal") else 0, _now()))
         stale = conn.execute(
             "SELECT answer_id FROM ais_saved WHERE user_id=? "
