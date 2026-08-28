@@ -28,19 +28,24 @@ describe('the community corpus, by name', () => {
   const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
 
   /** Every script this translator takes today. ⭐ `13-relative-strength-vs-benchmark-spy`
-   *  is the one `sym` bought: `request.security(benchmark, timeframe.period, close)`
+   *  ⭐ `04-ut-bot-alerts` and `21-ma-cross-alert-mtf-chartart` are what `iff`
+   *  and `linreg` bought — both written in vocabulary this table already held,
+   *  so neither cost the grammar a new name.
+   *  `13-relative-strength-vs-benchmark-spy` is the one `sym` bought: `request.security(benchmark, timeframe.period, close)`
    *  where `benchmark = input.symbol("SPY")` — relative strength against SPY, which
    *  is the primitive the node was built for. */
   const TRANSLATES = [
     '01-squeeze-momentum-lazybear.pine',
     '02-wavetrend-oscillator-lazybear.pine',
     '03-cm-williams-vix-fix.pine',
+    '04-ut-bot-alerts.pine',
     '05-chandelier-exit.pine',
     '06-qqe-mod.pine',
     '12-vcp-tightness-score.pine',
     '13-relative-strength-vs-benchmark-spy.pine',
     '15-inside-bar.pine',
     '17-pocket-pivot-breakout.pine',
+    '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
     '27-support-resistance-channels.pine',
   ]
