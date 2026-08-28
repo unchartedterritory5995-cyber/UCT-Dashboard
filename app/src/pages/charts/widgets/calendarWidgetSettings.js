@@ -14,7 +14,7 @@ export const CALENDAR_WIDGET_DEFAULTS = {
   bg: '#0e0f0d',
   bgGradient: { top: '#16233b', bottom: '#0e0f0d' },
   textColor: '#e0dac8',                             // primary text (event names + company names + est/EPS labels)
-  symbolColor: '#c9a84c',                           // earnings tickers
+  symbolColor: '#f8f7f3',                           // earnings tickers — bright white (matches watchlist/scanner)
   posColor: '#34d17c',                              // upside surprise (EPS% / Rev% beat)
   negColor: '#f24b42',                              // downside surprise (EPS% / Rev% miss)
   highBoxColor: '#ce000a',                          // high-impact (3★) econ time box (red default)
@@ -27,7 +27,7 @@ export const CALENDAR_WIDGET_DEFAULTS = {
 export const CALENDAR_WIDGET_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
-  symbolColor: '#7a5c16',
+  symbolColor: '#1f2328',
   posColor: '#17a917',
   negColor: '#db000b',
 }
