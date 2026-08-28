@@ -131,6 +131,51 @@ def test_hms_to_secs():
     assert si._hms_to_secs(None) is None
 
 
+# ── _clean_chapter_title (2026-08-27: never cut a chapter title mid-word) ────────
+
+def test_clean_chapter_title_short_text_unchanged():
+    assert si._clean_chapter_title("MU holds the 21 EMA") == "MU holds the 21 EMA"
+
+
+def test_clean_chapter_title_truncates_at_word_boundary_with_ellipsis():
+    title = si._clean_chapter_title(
+        "Marvell earnings tonight concern; worst-case semi gap-down cascade and software")
+    assert title.endswith("…")
+    assert " " not in title[-2:-1]        # the char before the ellipsis isn't a stray space
+    long = "Marvell earnings tonight concern; worst-case semi gap-down cascade and software"
+    assert long.startswith(title[:-1])
+    assert long[len(title) - 1:len(title)] in (" ", "")
+
+
+def test_clean_chapter_title_respects_custom_max_len():
+    assert len(si._clean_chapter_title("a " * 40, max_len=20)) <= 21
+
+
+def test_clean_chapter_title_hard_cuts_a_single_long_word():
+    word = "x" * 100
+    out = si._clean_chapter_title(word, max_len=60)
+    assert out == "x" * 60 + "…"
+
+
+def test_clean_chapter_title_empty_input():
+    assert si._clean_chapter_title("") == ""
+    assert si._clean_chapter_title(None) == ""
+
+
+# ── _clean_chapters (LLM fallback path reuses the same word-safe cleaner) ────────
+
+def test_clean_chapters_truncates_long_titles_at_word_boundary():
+    long_title = "Position management, progressive exposure debate, account risk per trade discipline"
+    out = si._clean_chapters([{"t": 0, "title": long_title}])
+    assert out[0]["title"].endswith("…")
+    assert long_title.startswith(out[0]["title"][:-1])
+
+
+def test_clean_chapters_short_titles_pass_through_unchanged():
+    out = si._clean_chapters([{"t": 5, "title": "Open"}])
+    assert out == [{"t": 5, "title": "Open"}]
+
+
 # ── parse_zoom_summary ───────────────────────────────────────────────────────────
 
 def test_parse_zoom_summary_happy():
@@ -203,7 +248,25 @@ def test_parse_zoom_summary_trims_headline_summary_and_chapter_title():
     # Sentence-safe bounds: never a mid-sentence hard slice.
     assert len(out["headline"]) <= 400 and out["headline"].endswith(".")
     assert len(out["summary"][0]) <= 600 and out["summary"][0].endswith(".")
-    assert len(out["chapters"][0]["title"]) == 80
+    # Word-safe chapter title bound (single 100-char run of "z" has no space,
+    # so the hard-cut-with-ellipsis fallback applies).
+    assert len(out["chapters"][0]["title"]) <= 61  # 60 + the ellipsis mark
+    assert out["chapters"][0]["title"] == "z" * 60 + "…"
+
+
+def test_parse_zoom_summary_truncates_a_long_label_at_a_word_boundary():
+    label = "Semiconductor watch-list review and intraday decision points across the desk"
+    raw = json.dumps({"overall_summary": "o",
+                      "items": [{"label": label, "start_time": "00:00:00.000", "summary": ""}]})
+    out = si.parse_zoom_summary(raw)
+    title = out["chapters"][0]["title"]
+    assert title.endswith("…")
+    stripped = title[:-1]                 # drop the ellipsis mark
+    assert label.startswith(stripped)     # kept text is an exact prefix of the real label
+    # The character right after the kept prefix is a space (or the prefix IS
+    # the whole label) — i.e. the cut landed exactly at a word boundary, never
+    # mid-word.
+    assert label[len(stripped):len(stripped) + 1] in (" ", "")
 
 
 # ── _sentence_trim ───────────────────────────────────────────────────────────────
@@ -586,6 +649,116 @@ def test_recap_model_defaults_to_opus():
     assert "opus" in si._RECAP_MODEL
 
 
+# ── _merge_chapter_titles (2026-08-27: polish-pass chapter-title rewrites) ───────
+#
+# Zoom's own AI Companion writes the raw chapter titles on the common (free)
+# path, and they're often generic/verbose — the polish pass can punch them up,
+# but ORDER and TIMESTAMPS must always come from the ORIGINAL chapters. An
+# override only ever replaces a title; it can never add, drop, reorder, or
+# retime a chapter.
+
+def test_merge_chapter_titles_applies_a_valid_override():
+    original = [{"t": 0, "title": "Open & Game Plan"}]
+    merged = si._merge_chapter_titles(original, [{"t": 0, "title": "MU: game plan"}])
+    assert merged == [{"t": 0, "title": "MU: game plan"}]
+
+
+def test_merge_chapter_titles_ignores_an_override_with_no_matching_original_timestamp():
+    original = [{"t": 0, "title": "Open & Game Plan"}]
+    # t=999 was never in the original chapters — an invented/shifted timestamp.
+    merged = si._merge_chapter_titles(original, [{"t": 999, "title": "Invented"}])
+    assert merged == original
+
+
+def test_merge_chapter_titles_keeps_original_when_overrides_is_none_or_empty():
+    original = [{"t": 0, "title": "Open"}, {"t": 60, "title": "NVDA Setup"}]
+    assert si._merge_chapter_titles(original, None) == original
+    assert si._merge_chapter_titles(original, []) == original
+
+
+def test_merge_chapter_titles_never_reorders_or_drops_originals():
+    original = [{"t": 0, "title": "A"}, {"t": 60, "title": "B"}, {"t": 120, "title": "C"}]
+    # Only override the middle one; A and C must survive untouched, in order.
+    merged = si._merge_chapter_titles(original, [{"t": 60, "title": "B2"}])
+    assert [c["t"] for c in merged] == [0, 60, 120]
+    assert merged[0]["title"] == "A"
+    assert merged[1]["title"] == "B2"
+    assert merged[2]["title"] == "C"
+
+
+def test_merge_chapter_titles_dedupes_multiple_overrides_for_the_same_timestamp():
+    original = [{"t": 0, "title": "Open"}]
+    merged = si._merge_chapter_titles(
+        original, [{"t": 0, "title": "First"}, {"t": 0, "title": "Second"}])
+    assert merged == [{"t": 0, "title": "First"}]
+
+
+def test_merge_chapter_titles_ignores_a_blank_override_title():
+    original = [{"t": 0, "title": "Open"}]
+    merged = si._merge_chapter_titles(original, [{"t": 0, "title": "   "}])
+    assert merged == original
+
+
+# ── polish_recap chapter-title rewrites ───────────────────────────────────────────
+
+def _polish_client(monkeypatch, response_json):
+    from api.services import engine
+
+    class _Block:
+        text = response_json
+
+    class _Msg:
+        content = [_Block()]
+
+    class _Messages:
+        @staticmethod
+        def create(**kw):
+            return _Msg()
+
+    class _Client:
+        messages = _Messages()
+
+        def with_options(self, **kw):
+            return self
+
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+
+
+def test_polish_recap_includes_validated_chapter_overrides(monkeypatch):
+    _polish_client(monkeypatch, json.dumps({
+        "headline": "h", "summary": ["s1.", "s2.", "s3."],
+        "chapters": [{"t": 0, "title": "MU: game plan"}],
+    }))
+    out = si.polish_recap("T", "old headline", ["old"], [{"t": 0, "title": "Open"}], [])
+    assert out["chapters"] == [{"t": 0, "title": "MU: game plan"}]
+
+
+def test_polish_recap_drops_a_chapter_override_with_an_invented_timestamp(monkeypatch):
+    _polish_client(monkeypatch, json.dumps({
+        "headline": "h", "summary": ["s1.", "s2.", "s3."],
+        "chapters": [{"t": 999, "title": "Invented"}],
+    }))
+    out = si.polish_recap("T", "old headline", ["old"], [{"t": 0, "title": "Open"}], [])
+    assert out["chapters"] == []
+
+
+def test_polish_recap_chapters_defaults_to_empty_list_when_model_omits_it(monkeypatch):
+    _polish_client(monkeypatch, json.dumps({"headline": "h", "summary": ["s1.", "s2.", "s3."]}))
+    out = si.polish_recap("T", "old headline", ["old"], [{"t": 0, "title": "Open"}], [])
+    assert out["chapters"] == []
+
+
+def test_polish_recap_chapter_overrides_are_length_cleaned(monkeypatch):
+    long_title = "Marvell earnings tonight concern worst-case semi gap-down cascade and software risk"
+    _polish_client(monkeypatch, json.dumps({
+        "headline": "h", "summary": ["s1.", "s2.", "s3."],
+        "chapters": [{"t": 0, "title": long_title}],
+    }))
+    out = si.polish_recap("T", "old headline", ["old"], [{"t": 0, "title": "Open"}], [])
+    assert out["chapters"][0]["title"].endswith("…")
+    assert long_title.startswith(out["chapters"][0]["title"][:-1])
+
+
 def test_sampled_excerpt_bounded_and_spans_session():
     cues = [{"t": i * 30, "text": f"minute {i} " + "talk " * 20} for i in range(500)]
     out = si._sampled_excerpt(cues, max_chars=5_000)
@@ -621,9 +794,41 @@ def test_zoom_path_applies_polish_when_enabled(edu_db, chapters_enabled, monkeyp
     row = edu.get_video(v["id"])
     assert row["headline"] == "NVDA led a broad-tape reversal."
     assert json.loads(row["summary"]) == ["b1.", "b2.", "b3."]
-    # Chapters still come from Zoom untouched.
+    # This mock's polish_recap doesn't return a "chapters" key at all — same
+    # shape as an older polish response — so Zoom's chapters pass through
+    # completely untouched (regression guard: omitting the key must never
+    # KeyError, and must never accidentally drop/reorder chapters).
     assert len(json.loads(row["chapters"])) == 2
     assert zoom.deleted == ["UUIDP1"]
+
+
+def test_zoom_path_polish_rewrites_chapter_titles_when_provided(edu_db, chapters_enabled, monkeypatch):
+    monkeypatch.setenv("DESK_RECAP_POLISH", "1")
+    monkeypatch.setattr(si, "generate_ticker_moments", lambda title, cues: [])
+    monkeypatch.setattr(si, "polish_recap",
+                        lambda title, headline, summary, chapters, cues: {
+                            "headline": "NVDA led a broad-tape reversal.",
+                            "summary": ["b1.", "b2.", "b3."],
+                            # Only the FIRST of Zoom's 2 real chapters gets an
+                            # override — the second must survive untouched.
+                            "chapters": [{"t": 0, "title": "Open: game plan"}]})
+
+    v = _seed_session_video(title="Live Trading Session — July 9, 2026", meeting_uuid="UUIDP3")
+    rec = {"recording_files": [
+        {"file_type": "SUMMARY", "recording_type": "summary", "download_url": "http://x/summary"},
+        {"file_type": "TRANSCRIPT", "recording_type": "audio_transcript", "status": "completed",
+         "download_url": "http://x/vtt"},
+    ]}
+    zoom = _FakeZoom(rec, {"http://x/summary": _SUMMARY_JSON, "http://x/vtt": _VTT})
+
+    si.process_pending_session_insights(zoom=zoom)
+
+    row = edu.get_video(v["id"])
+    chapters = json.loads(row["chapters"])
+    assert chapters == [
+        {"t": 0, "title": "Open: game plan"},   # polished
+        {"t": 300, "title": "NVDA Setup"},      # Zoom's original, untouched
+    ]
 
 
 def test_zoom_path_polish_failure_keeps_zoom_text(edu_db, chapters_enabled, monkeypatch):
@@ -670,6 +875,31 @@ def test_repolish_video_updates_recap_and_poster(edu_db, monkeypatch):
     from api.services import desk_recap_poster
     assert os.path.exists(desk_recap_poster.poster_path(v["id"]))
     assert row["poster"] == 1
+
+
+def test_repolish_video_also_updates_chapter_titles_when_provided(edu_db, monkeypatch):
+    # repolish_video is the admin re-run tool for ALREADY-PUBLISHED videos
+    # (the Zoom recording is long gone) — it must be able to fix a past
+    # session's generic Zoom chapter titles too, not just headline/summary.
+    monkeypatch.setattr(si, "polish_recap",
+                        lambda title, headline, summary, chapters, cues: {
+                            "headline": "Polished headline.",
+                            "summary": ["p1.", "p2.", "p3.", "p4."],
+                            "chapters": [{"t": 0, "title": "MU: game plan"}]})
+    v = _seed_session_video(title="Live Trading Session — July 7, 2026", meeting_uuid="UUIDR3")
+    edu.set_video_insights(
+        v["id"], transcript="[0:05] MBIS holding support here.",
+        chapters=[{"t": 0, "title": "Open & Game Plan Discussion Segment"},
+                  {"t": 60, "title": "Q&A"}],
+        ticker_moments=[{"ticker": "MBIS", "t": 5, "note": ""}],
+        headline="Patrick and Uncharted discussed stock market performa",
+        summary=["Truncated old bullet abou"])
+
+    si.repolish_video(v["id"])
+
+    row = edu.get_video(v["id"])
+    chapters = json.loads(row["chapters"])
+    assert chapters == [{"t": 0, "title": "MU: game plan"}, {"t": 60, "title": "Q&A"}]
 
 
 def test_repolish_video_unknown_or_empty_raises(edu_db, monkeypatch):
