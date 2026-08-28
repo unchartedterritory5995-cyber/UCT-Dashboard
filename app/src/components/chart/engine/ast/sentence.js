@@ -94,7 +94,7 @@
 // this file has, it is the only one, and `sentence.test.js` measures it by
 // rendering through a manifest whose keys were rebuilt in reverse order.
 
-import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, TICKER_SHAPE } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -1015,7 +1015,10 @@ function renderSym(node, rules, inputs, depth, path, trace) {
   // the plain uppercase forms a symbol actually takes are sayable; anything else
   // refuses rather than being interpolated into English unchecked.
   const ticker = String(node.value)
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) {
+  // ⭐ READ, NEVER RE-TYPED — and this copy had drifted in SPELLING already
+  // (`[A-Z0-9.\-]` against the others' `[A-Z0-9.-]`). Equivalent here, but two
+  // spellings of one rule is how the next edit makes them differ for real.
+  if (!TICKER_SHAPE.test(ticker)) {
     // ⚠️ `sentence:unsayable-name`, NOT `sentence:window`. The first draft
     // reused the window guard, whose published sentence is about a bar count
     // that is not a whole number — so a member with an odd ticker would have

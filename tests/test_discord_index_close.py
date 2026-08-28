@@ -255,6 +255,32 @@ def test_the_job_is_registered_and_the_trigger_is_fifteen_minutes_before_the_clo
     assert called.count("register_pattern_vision_jobs") == 1
 
 
+def test_the_registrar_survives_being_called_on_a_real_scheduler():
+    """⛔ 2026-08-28 — the first 15:45 the scheduler ever owned (the 8/27 post
+    was hand-fired). The AST probe above proved the registrar exists and is
+    CALLED, and stayed green while every boot raised `NameError: CronTrigger`
+    inside it: every sibling registrar imports CronTrigger locally and this one
+    didn't, the lifespan's except printed one line into a flooded log, and the
+    job existed nowhere. A trigger that will not BUILD is a registration that
+    does not exist — so this test executes the registrar against a real
+    (never-started) APScheduler and reads the job back out of the scheduler's
+    own registry."""
+    from apscheduler.schedulers.background import BackgroundScheduler
+    import api.main as m
+
+    sched = BackgroundScheduler(timezone=m._ET)
+    assert m.register_discord_index_close_job(sched) is True
+    job = sched.get_job("discord_index_close")
+    assert job is not None, "in APScheduler's registry, not merely in the source text"
+    # the trigger produces real fire times: Friday noon fires the same day at
+    # 15:45 ET; after the close it rolls over the weekend to Monday.
+    noon_fri = _dt.datetime(2026, 8, 28, 12, 0, tzinfo=m._ET)
+    nxt = job.trigger.get_next_fire_time(None, noon_fri)
+    assert (nxt.date(), nxt.hour, nxt.minute) == (noon_fri.date(), 15, 45)
+    after_close = _dt.datetime(2026, 8, 28, 16, 0, tzinfo=m._ET)
+    assert job.trigger.get_next_fire_time(None, after_close).weekday() == 0
+
+
 def test_the_manual_trigger_needs_the_push_secret():
     from api.routers import discord_interactions as r
     paths = [x.path for x in r.router.routes]

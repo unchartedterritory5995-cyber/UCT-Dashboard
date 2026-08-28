@@ -71,7 +71,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
@@ -786,6 +786,27 @@ const BUILTIN_CALL_TREE = Object.freeze({
   //
   // ⛔ `n < 2` HAS NO REGRESSION and the constant divides by `n−1`, so it falls
   // through to a refusal rather than returning Infinity dressed as a price.
+  // ⭐⭐ `vwma` IS TRADINGVIEW'S OWN CLOSED FORM, NOT AN APPROXIMATION. Its docs
+  // publish the equivalent verbatim:
+  //     pine_vwma(source, length) => ta.sma(source * volume, length)
+  //                                / ta.sma(volume, length)
+  // Every piece of that is already declared here — `sma`, `*`, `/`, `volume` — so
+  // this costs the manifest NOTHING. A table entry would have been the reflex and
+  // it would have added a name to the sayable vocabulary, the picker, the
+  // plain-language door and both interpreters, to express something the table can
+  // already say.
+  // ⛔ THE LENGTH MUST BE A WHOLE NUMBER, checked here rather than left to `sma`:
+  // the expansion uses it TWICE, so a bad window would produce two refusals
+  // pointing at a function the member never wrote.
+  vwma: (a) => {
+    const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return null
+    const vol = { type: 'series', name: 'volume' }
+    return cOp('/', [
+      cCall('sma', [cOp('*', [a[0], vol]), cNum(n)]),
+      cCall('sma', [vol, cNum(n)]),
+    ])
+  },
   linreg: (a) => {
     const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
     const off = a[2] === undefined ? 0
@@ -3028,7 +3049,8 @@ class Resolver {
     if (!node || depth > 4) return null
     if (node.type === 'string') {
       const ticker = String(node.value).trim().toUpperCase()
-      return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : null
+      // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
+      return TICKER_SHAPE.test(ticker) ? ticker : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)

@@ -275,8 +275,22 @@ describe('the whole corpus, in one number', () => {
     // script that translated into something other than itself.
     // ⭐ The eight that remain each compute EVERY column they offer — asserted
     // below, and the reason this is a gain rather than a number.
-    expect(translating, 'scripts that translate').toBe(8)
-    expect(columns, 'columns this engine computes').toBe(30)
+    //
+    // ⭐⭐ 8 → 9, 30 → 33: `close(symbol = …)` NOW FOLDS TO THE `sym` NODE, and
+    // `08-relative-strength-zscore-vs-spy` is back — the same file this block
+    // records being REFUSED AGAIN in W3.6 as a FALSE GAIN, because it translated
+    // its side plots while `close(symbol = "SPY")`, the entire subject of the
+    // script, sat as one refused column among several.
+    // ⛔ SO THE THING TO CHECK WAS NOT THE COUNT. Measured: its `RSZ_Line`,
+    // `RSZ_Hist` and `Signal` outputs each now carry `sym('SPY', close)` — the
+    // relative-strength computation the script is NAMED for. That is the
+    // difference between this gain and the one this block warns about, and it is
+    // why the file returns rather than the wall being lowered.
+    // ⚠️ `TS_HARD_GUARDS` STILL LISTS `thinkscript:symbol`, and it should: a
+    // symbol that does NOT fold to a ticker still blocks the whole script. The
+    // mechanism self-corrected — 08 simply stopped firing the guard.
+    expect(translating, 'scripts that translate').toBe(9)
+    expect(columns, 'columns this engine computes').toBe(33)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
@@ -364,7 +378,7 @@ describe('the whole corpus, in one number', () => {
     // expansion, lookback 15, non-repainting.
     const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
     const translating = FILES.filter((f) => entry(f).translates)
-    expect(saveable.length).toBe(8)
+    expect(saveable.length).toBe(9)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
     // ⛔ NAMES, so a script that translates-but-cannot-save is reported as
     // itself rather than as an arithmetic disagreement between two counts.
@@ -395,7 +409,12 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
   //                seed this door may invent; a self-lag deeper than one bar is
   //                deleted, not banked). These never translate as written.
 
-  const DESIGN = ['06-vwap-rejection.ts', '08-relative-strength-zscore-vs-spy.ts',
+  // ⭐ `08-relative-strength-zscore-vs-spy.ts` LEFT THIS CLASS when
+  // `close(symbol = …)` learned to fold to the `sym` node. It was here because
+  // the engine refused another instrument inside one column; the engine has held
+  // `sym` for a while and only this DOOR had not learned to emit it, which is a
+  // missing translation rather than a refusal by design.
+  const DESIGN = ['06-vwap-rejection.ts',
     '09-above-average-price-volume.ts', '15-scan-premarket-gap-up.ts',
     '18-fold-up-down-points-ratio.ts', '21-strategy-ma-crossover-addorder.ts',
     '22-average-daily-range-zones.ts', '23-previous-day-high-low-mean.ts',
@@ -409,7 +428,13 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
 
   it('⭐ (1) TRANSLATING TODAY — measured, and every one computes every column it offers', () => {
     expect(translating).toEqual(['02-macd-lookback-cross-watchlist.ts', '03-adx-dmi-lower.ts',
-      '04-rsi-with-rate-of-change.ts', '11-money-flow-index-mobile.ts',
+      '04-rsi-with-rate-of-change.ts',
+      // ⭐⭐ AND ITS SUBJECT, NOT ITS CHROME — which is the distinction the line
+      // below exists to enforce, and the reason this file records REFUSING this
+      // same script again in W3.6 as a false gain. Measured: `RSZ_Line`,
+      // `RSZ_Hist` and `Signal` each now carry `sym('SPY', close)`, the
+      // relative-strength computation the script is NAMED for.
+      '08-relative-strength-zscore-vs-spy.ts', '11-money-flow-index-mobile.ts',
       '12-scan-volume-2x-avg-price-up-5pct.ts', '13-scan-52-week-high.ts',
       '14-scan-inside-bar.ts', '20-roc-stdev-lower-switch.ts'])
     // ⛔ A SCRIPT THAT TRANSLATES ITS CHROME AND REFUSES ITS SUBJECT IS NOT A GAIN.
@@ -418,12 +443,15 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
     }
   })
 
-  it('⛔ the four classes are TOTAL and DISJOINT — 8 + 9 + 4 + 3 = 24', () => {
+  it('⛔ the four classes are TOTAL and DISJOINT — 9 + 8 + 4 + 3 = 24', () => {
     const all = [...translating, ...DESIGN, ...DOCS, ...RULED]
     expect(new Set(all).size, 'a script is in two classes').toBe(all.length)
     expect([...all].sort(), 'a script is in no class').toEqual([...FILES].sort())
-    expect(translating.length).toBe(8)
-    expect(DESIGN.length).toBe(9)
+    // ⭐ 9 + 8, WAS 8 + 9: one script moved BETWEEN classes rather than the total
+    // changing, which is exactly what a total-and-disjoint partition is for — a
+    // count alone would have shown 24 either way.
+    expect(translating.length).toBe(9)
+    expect(DESIGN.length).toBe(8)
     expect(DOCS.length).toBe(4)
     expect(RULED.length).toBe(3)
   })
@@ -459,19 +487,36 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
     expect(reachable, 'a script an ordinary task could still move').toEqual([])
   })
 
-  it('⛔⛔ …so the WAVE-1 CEILING IS 8, NOT 15, AND THE CORPUS IS AT IT', () => {
+  it('⛔⛔ …so the WAVE-1 CEILING IS 9, NOT 15, AND THE CORPUS IS AT IT', () => {
     // ⭐ THE SPEC'S 15 IS UNREACHABLE BY CONSTRUCTION, and this says why in
     // arithmetic rather than in prose: reaching it would need every doc-blocked
     // script (4) AND every correctly-ruled one (3) — which would still be 15
     // only by also moving a DESIGN-deferred script, and Wave 1 defines those as
     // out of scope. A4 is at its real ceiling, not short of a wished-for one.
+    // ⭐⭐ 8 → 9, AND THE CEILING DID NOT MOVE BECAUSE ANYONE BEAT IT. It is
+    // ARITHMETIC OVER THE PARTITION, and one script was in the wrong class:
+    // `08-relative-strength-zscore-vs-spy` sat in DESIGN as "the engine refuses
+    // another instrument inside one column", which had stopped being true — the
+    // engine has held `sym` for a while and only this DOOR had not learned to
+    // emit it. A missing translation filed as a design deferral.
+    // ⛔ THE LESSON IS ABOUT CEILINGS GENERALLY: this one was correct arithmetic
+    // over an incorrect classification, and it read as a hard limit for exactly
+    // as long as nobody re-checked the class its inputs came from. The other
+    // DESIGN entries are worth the same question before anyone quotes 9 either.
     const ceilingNoDocs = translating.length
     const ceilingIfVendorPublishes = translating.length + DOCS.length
-    expect(ceilingNoDocs).toBe(8)
-    expect(ceilingIfVendorPublishes).toBe(12)
-    // 24 − 9 design = 15 was the brief's arithmetic; the 3 RULED scripts are what
-    // it did not know about, and they are refusals this door is RIGHT to make.
-    expect(24 - DESIGN.length).toBe(15)
-    expect(ceilingIfVendorPublishes + RULED.length).toBe(15)
+    expect(ceilingNoDocs).toBe(9)
+    expect(ceilingIfVendorPublishes).toBe(13)
+    // ⚠️ THE BRIEF'S ARITHMETIC WAS `24 − DESIGN = 15`, AND IT NOW READS 16 —
+    // which is the same fact as the line above, seen from the other side: one
+    // script left DESIGN, so the number the brief would compute today is larger.
+    // Both are kept, and both are DERIVED from `DESIGN.length` rather than typed,
+    // so they move together and neither can drift into fiction.
+    // ⛔ THE INVARIANT THAT ACTUALLY MATTERS IS THE SECOND ONE and it is unchanged
+    // in shape: everything not refused BY DESIGN is either translating, waiting
+    // on a vendor document, or a refusal this door is RIGHT to make. That
+    // partition still closes exactly.
+    expect(24 - DESIGN.length).toBe(16)
+    expect(ceilingIfVendorPublishes + RULED.length).toBe(16)
   })
 })

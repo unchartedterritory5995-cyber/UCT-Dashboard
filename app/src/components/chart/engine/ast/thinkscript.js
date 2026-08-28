@@ -70,7 +70,7 @@
 //   * Studies — /center/reference/Tech-Indicators/studies-library/…
 //   * Tutorials — /center/reference/thinkScript/tutorials/{Basic,Advanced}/…
 
-import { TABLE, parseFormula, astHash } from './parse.js'
+import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
 import { printFormula, treeYieldsBool, forgetsItsSeed } from './pine.js'
 
 /** guard → the sentence it always refuses with. CLOSED, and closed in two places
@@ -159,11 +159,36 @@ export const REFUSALS = Object.freeze({
   // SECONDS — the single entry in Pine's own clock-mismatch table. A translation
   // that lines those up wrongly is off by a factor of a thousand and looks
   // plausible, so the mapping has to be written per function, not assumed.
+  // ✅ INVESTIGATED IN FULL, AND THE ANSWER IS THAT THIS STAYS REFUSED — recorded
+  // here so nobody re-opens it without the three findings that closed it.
+  //
+  // The engine is NOT short of clock fields: the manifest declares thirteen, and
+  // `hour`/`minute` are documented as NEW YORK TIME, which is the same clock
+  // thinkorswim's regular session is defined in. So `getTime() <
+  // RegularTradingStart(getYYYYMMDD())` LOOKS like `hour < 9 || (hour == 9 &&
+  // minute < 30)`. Three separate things make that wrong:
+  //
+  // ⛔ 1. UNITS. `GetTime()` is MILLISECONDS; this engine's `time` is SECONDS.
+  //    A factor of a thousand is invisible in the output — every comparison still
+  //    returns a clean 0 or 1, just always the same one.
+  // ⛔ 2. EARLY CLOSES. `RegularTradingEnd` is 13:00 ET on roughly nine days a
+  //    year, not 16:00. A hardcoded 16:00 is right ~96% of the time, which is the
+  //    worst possible failure shape: it reads as working.
+  // ⛔ 3. THE SCREEN IS DAILY. Both corpus scripts that reach this guard are
+  //    INTRADAY session logic — `15-scan-premarket-gap-up` says so in its own
+  //    header ("Run Scan at premarket on one minute aggregation") — and a
+  //    session-relative test has no meaning on a daily bar. Translating it would
+  //    hand a member a column that computes, and answers about nothing.
+  //
+  // ⭐ SO THIS IS A CORRECT REFUSAL, NOT A MISSING TRANSLATION, and that is a
+  // different sentence from the one this guard used to carry ("a session clock
+  // reading is outside the bar fields this engine keeps"), which was false.
   'thinkscript:time':
-    'this door does not yet map thinkorswim\'s session-clock functions onto the '
-    + 'clock fields this engine declares. \u26a0\ufe0f `GetTime()` is in milliseconds '
-    + 'and this engine\'s `time` is in seconds, so each function needs its own '
-    + 'stated mapping rather than a shared assumption',
+    'this reads the session clock, which only means something on intraday bars — '
+    + 'a daily screen has no session to be inside. \u26a0\ufe0f Two further walls sit '
+    + 'behind that one: `GetTime()` is in milliseconds while this engine\'s '
+    + '`time` is in seconds, and `RegularTradingEnd` is 13:00 on an early-close '
+    + 'day rather than 16:00, so neither can be assumed',
   // ⚰️⚰️ THE STEM SAID "whose FORMULA thinkorswim does not publish", AND THAT IS
   // TRUE OF EXACTLY ONE OF THE FIVE STUDIES IT IS PRINTED WITH. Measured: RSI,
   // BollingerBands, MovAvgExponential and SimpleMovingAvg all say "publishes no
@@ -1383,6 +1408,22 @@ const TS_DEFERRED_CALLS = Object.freeze({
  *  ANOTHER series — `close(symbol = "SPY")`, `high(period = AggregationPeriod.DAY)`.
  *  ⭐ The field set is READ FROM THE MANIFEST, never typed here, so a manifest
  *  that gains a bar field gets the same treatment with no edit. */
+/** thinkorswim `AggregationPeriod` values this engine can actually serve.
+ *
+ *  ⛔⛔ `DAY` IS DELIBERATELY ABSENT, AND IT IS THE CARE THIS TABLE EXISTS FOR.
+ *  Pine's `timeframe.period` means "whatever this chart is", so reading it as a
+ *  no-op is exact. thinkorswim's values are ABSOLUTE — `DAY` means daily bars,
+ *  full stop. On a daily screen that IS the identity; on an INTRADAY chart it is
+ *  a higher-timeframe read this engine cannot serve, because it resamples only
+ *  UPWARD from the bars it is handed. A no-op would be right in one lane and
+ *  silently wrong in the other, so it refuses in both.
+ *
+ *  ⭐ WEEK AND MONTH ARE NOT A SHORTLIST SOMEBODY TYPED — they are what
+ *  `TF_RESAMPLABLE` declares the engine can serve from daily bars. Offering a code
+ *  the interpreter then refuses is the "told it would run, answers nothing" shape
+ *  this codebase has already paid for twice. */
+const TS_AGGREGATION_TF = Object.freeze({ week: 'W', month: 'M' })
+
 const TS_SERIES_ARG_GUARDS = Object.freeze({
   // ⚰⚰ EVERY `why` HERE ASSERTED SOMETHING FALSE ABOUT THE ENGINE. The symbol
   // one said "a comparison against a benchmark needs a second column, not a
@@ -2828,14 +2869,101 @@ class Resolver {
    *  get different sentences, pointed at the argument the member wrote. */
   foreignSeriesCall(n) {
     if (n.base) return null
-    if (!has(this.table.series, normaliseName(key(n.name)))) return null
+    const field = normaliseName(key(n.name))
+    if (!has(this.table.series, field)) return null
     for (const a of n.args || []) {
       if (a.name == null) continue
       const rule = TS_SERIES_ARG_GUARDS[key(a.name)]
-      if (rule) {
-        return new ThinkScriptRefusal(rule.guard,
-          `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+      if (!rule) continue
+      // ⭐⭐ `symbol =` NOW TRANSLATES WHEN IT FOLDS TO A TICKER. The engine holds
+      // another instrument as `sym`, the Pine door has emitted it since the node
+      // landed, and this door refused it with a sentence that was false about the
+      // engine: "a comparison against a benchmark needs a second column, not a
+      // second symbol inside this one" — which is exactly what `sym` is.
+      // ⛔ IT STILL REFUSES WHEN THE SYMBOL DOES NOT FOLD, and that is the whole
+      // guard: a computed ticker is not knowable at translation time, and reading
+      // the wrong instrument is worse than refusing.
+      if (rule.guard === 'thinkscript:symbol') {
+        const ticker = this.foreignSymbolOf(a.value)
+        if (ticker) return { sym: ticker, field }
       }
+      // ⭐ THE SAME SHAPE ONE ARGUMENT OVER: a period that folds to a servable
+      // code becomes the engine's higher-timeframe read. One that does not —
+      // `DAY`, an intraday value, anything computed — falls through to the
+      // refusal, which now names what is missing rather than denying `tf` exists.
+      if (rule.guard === 'thinkscript:aggregation') {
+        const code = this.foreignPeriodOf(a.value)
+        if (code) return { tf: code, field }
+      }
+      return new ThinkScriptRefusal(rule.guard,
+        `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+    }
+    return null
+  }
+
+  /** A node that names an `AggregationPeriod` this engine can serve → its tf
+   *  code, or null.
+   *
+   *  ⚠️ THE CONSTANT'S NAMESPACE IS CHECKED, not just its member. `WEEK` on its
+   *  own is not an aggregation period, and a member could bind that name to
+   *  anything; only `AggregationPeriod.WEEK` — or a name bound to it — counts.
+   *
+   *  ⛔ BOUNDED, and a binding is followed only to an INPUT'S DEFAULT. A period
+   *  chosen per bar reaches no constant and returns null, which keeps
+   *  `close(period = if … then WEEK else MONTH)` refused: there is no single
+   *  timeframe that column reads. */
+  foreignPeriodOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.e === 'member' && node.base && node.base.e === 'name'
+        && key(node.base.name) === 'aggregationperiod') {
+      return TS_AGGREGATION_TF[key(node.name)] || null
+    }
+    if (node.e === 'name') {
+      // ⚠️ A DOTTED CONSTANT IS ONE TOKEN HERE, not a member expression — the
+      // lexer keeps `AggregationPeriod.WEEK` whole, the same way Pine's door
+      // keeps `display.none` whole. Reading only the `member` shape above matched
+      // nothing at all, and the tests said so before anything shipped.
+      const dot = String(node.name).indexOf('.')
+      if (dot > 0) {
+        const ns = key(node.name.slice(0, dot))
+        return ns === 'aggregationperiod'
+          ? (TS_AGGREGATION_TF[key(node.name.slice(dot + 1))] || null) : null
+      }
+      const bound = this.env.get(key(node.name))
+      if (!bound) return null
+      if (bound.kind === 'input') return this.foreignPeriodOf(bound.expr, depth + 1)
+      if (bound.expr) return this.foreignPeriodOf(bound.expr, depth + 1)
+      return null
+    }
+    return null
+  }
+
+  /** A node that names ANOTHER INSTRUMENT → its ticker, or null.
+   *
+   *  ⚠️ SHAPE ONLY, NOT THE ROSTER — and that is deliberate rather than lax.
+   *  `pine.js::otherSymbolNameOf` validates the spelling and lets
+   *  `assert_scannable` decide whether the benchmark roster allows it: ONE
+   *  authority, asked once, at the gate that owns the answer. A second opinion
+   *  here would let the two dialects drift about which benchmarks are permitted.
+   *
+   *  ⛔ BOUNDED, and a binding is followed only to an INPUT'S DEFAULT or another
+   *  name. A computed symbol reaches no literal and returns null, which is what
+   *  keeps `close(symbol = if … then "SPY" else "QQQ")` refused. */
+  foreignSymbolOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.e === 'text') {
+      const ticker = String(node.value).trim().toUpperCase()
+      // ⭐ READ, NEVER RE-TYPED. ⚰️ I TYPED THIS COPY MYSELF one commit ago,
+      // mirroring `pine.js` — which is exactly how a pattern reaches three
+      // owners. `parse.js` owns it.
+      return TICKER_SHAPE.test(ticker) ? ticker : null
+    }
+    if (node.e === 'name') {
+      const bound = this.env.get(key(node.name))
+      if (!bound) return null
+      if (bound.kind === 'input') return this.foreignSymbolOf(bound.expr, depth + 1)
+      if (bound.expr) return this.foreignSymbolOf(bound.expr, depth + 1)
+      return null
     }
     return null
   }
@@ -2848,11 +2976,24 @@ class Resolver {
       this.resolve(n.base)
       throw refuse('thinkscript:function', n.tok)
     }
+    // ⚠️ A TRANSLATION, NOT A REFUSAL, IS NOW A POSSIBLE ANSWER FROM
+    // `foreignSeriesCall`: `{sym, field}` means the symbol folded to a ticker and
+    // the read becomes the engine's cross-symbol node.
     // ⛔⛔ WHAT IT READS IS CHECKED BEFORE WHETHER WE CAN COMPUTE IT. A bar field
     // called as a function is thinkorswim reaching for ANOTHER series — another
     // symbol or another timeframe — and naming that is far more use to a member
     // than "this engine declares no function for that call".
     const foreign = this.foreignSeriesCall(n)
+    // ⭐ A TRANSLATION OR A REFUSAL. `{sym, field}` means the symbol folded to a
+    // ticker, so `close(symbol = "SPY")` becomes the engine's cross-symbol read
+    // over that instrument's own bar field. Anything else is still the refusal it
+    // always was, thrown unchanged.
+    if (foreign && foreign.sym) {
+      return { type: 'sym', value: foreign.sym, args: [cSeries(foreign.field)] }
+    }
+    if (foreign && foreign.tf) {
+      return { type: 'tf', value: foreign.tf, args: [cSeries(foreign.field)] }
+    }
     if (foreign) throw foreign
     const deferredCall = TS_DEFERRED_CALLS[key(n.name)]
     if (deferredCall) {

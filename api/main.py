@@ -2172,6 +2172,12 @@ def register_discord_index_close_job(scheduler):
     `DISCORD_TSDR_WEBHOOK_URL`, and skips non-trading days and a session it has
     already posted. Registering it dark keeps arming it an env change rather
     than a deploy."""
+    # ⛔ CronTrigger is NOT a module-level name here — the lifespan imports it
+    # into its own scope. Every registrar imports it locally; without this line
+    # the add_job below raised NameError on every boot, the caller's except
+    # printed one line, and the 15:45 post silently never fired (2026-08-28).
+    from apscheduler.triggers.cron import CronTrigger
+
     def _run():
         try:
             from api.routers.discord_interactions import run_index_close
@@ -2630,15 +2636,12 @@ async def lifespan(app: FastAPI):
         readiness.register("dashboard")
         _start_dashboard_warm_background()
         _start_chart_renderer_warm_background()
-        # Keep the charts members actually ask for rendered ahead of demand.
-        # Every minute, not every two: a live-hours chart holds for 120 s, so a
-        # two-minute cycle let warmed entries expire between passes and warmed
-        # nothing that lasted. `due()` keeps the cost down - it only returns
-        # entries past 70% of their TTL, so a quiet-hours cycle usually renders
-        # nothing at all.
-        _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
-                           id="discord_chart_hot_warm", max_instances=1,
-                           coalesce=True, misfire_grace_time=60)
+        # ⛔ The discord-chart hot-warm interval job does NOT register here:
+        # `_scheduler` is assigned ~1,300 lines below in this same function, so
+        # a use at this line is an unbound LOCAL (UnboundLocalError every boot)
+        # — and the raise skipped the calendar warm on the next line too. It
+        # registers in the scheduler block instead
+        # (tests/test_lifespan_scheduler_binds_before_use.py).
         _start_calendar_enrichment_warm_background()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
@@ -2661,12 +2664,12 @@ async def lifespan(app: FastAPI):
             except Exception:
                 logging.getLogger(__name__).exception("[startup] theme_index prewarm failed")
         try:
+            # The 15-min re-warm registers in the scheduler block below —
+            # `_scheduler` does not exist yet at this line (see the
+            # discord-chart hot-warm note above). Only the boot Timer runs here.
             _t = threading.Timer(35, _theme_index_prewarm)
             _t.daemon = True
             _t.start()
-            _scheduler.add_job(_theme_index_prewarm, "interval", minutes=15,
-                               id="theme_index_prewarm", max_instances=1,
-                               coalesce=True, misfire_grace_time=120)
         except Exception:
             logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
 
@@ -4904,6 +4907,35 @@ async def lifespan(app: FastAPI):
                       f"webhook={'set' if _os.environ.get('DISCORD_TSDR_WEBHOOK_URL', '').strip() else 'UNSET(posts nothing)'}")
         except Exception as e:
             print(f"[scheduler] discord index-close registration error: {e}")
+
+        # -- Warm-keeper interval jobs whose warmers start earlier in boot --
+        # Their `add_job` calls used to sit beside the warmers, textually ABOVE
+        # `_scheduler = BackgroundScheduler(...)` — an unbound local there, so
+        # neither ever registered (2026-08-28 boot log; the rail is
+        # tests/test_lifespan_scheduler_binds_before_use.py).
+        try:
+            # Keep the charts members actually ask for rendered ahead of
+            # demand. Every minute, not every two: a live-hours chart holds for
+            # 120 s, so a two-minute cycle let warmed entries expire between
+            # passes and warmed nothing that lasted. `due()` keeps the cost
+            # down - it only returns entries past 70% of their TTL, so a
+            # quiet-hours cycle usually renders nothing at all.
+            _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
+                               id="discord_chart_hot_warm", max_instances=1,
+                               coalesce=True, misfire_grace_time=60)
+            print("[startup] discord-chart hot-warm scheduled (every 60s)")
+        except Exception as e:
+            print(f"[scheduler] discord-chart hot-warm registration error: {e}")
+        if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
+            try:
+                # 15-min refresh under theme_index's 30-min cache TTL; the
+                # 35s boot Timer beside the warmers covers the cold start.
+                _scheduler.add_job(_theme_index_prewarm, "interval", minutes=15,
+                                   id="theme_index_prewarm", max_instances=1,
+                                   coalesce=True, misfire_grace_time=120)
+                print("[startup] theme_index re-warm scheduled (every 15m)")
+            except Exception as e:
+                print(f"[scheduler] theme_index re-warm registration error: {e}")
 
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:

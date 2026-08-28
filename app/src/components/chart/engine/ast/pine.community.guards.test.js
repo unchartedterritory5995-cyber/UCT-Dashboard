@@ -14,6 +14,11 @@
 // another and the community gate stayed green and silent about both.
 //
 //   20-cm-ultimate-ma-mtf   pine:window @L25 `len`  →  pine:function @L32 `vwma`
+//                                                   →  ✅ TRANSLATES. Three refusals
+//     deep, none visible until the one before it cleared: the ternary timeframe
+//     fold, then window constant-folding, then `vwma` — which cost the manifest
+//     nothing, being TradingView's own published expansion over names this table
+//     already declares.
 //   26-spy-to-es-qqq-to-nq  pine:named-argument @L47 `source`
 //                                                   →  pine:request @L40 `request.security`
 //
@@ -64,7 +69,6 @@ const REFUSES = Object.freeze({
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
   // in `closedTable.json` and not in `PINE_INEXPRESSIBLE` either.
-  '20-cm-ultimate-ma-mtf.pine': ['pine:function', 32, 'vwma'],
   '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 132, 'array.get'],
   '23-higher-timeframe-ema.pine': ['pine:request', 14, 'request.security'],
   '25-spy-expected-move-by-vix.pine': ['pine:function', 8, 'time'],
