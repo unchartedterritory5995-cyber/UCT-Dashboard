@@ -102,6 +102,7 @@ function ChartPane({
   density = 'full',
   stored = null,
   onStore = null,
+  chartId = null,
   chartsTheme = null,
   stockChartProps = null,
   slots = null,
@@ -822,9 +823,12 @@ function ChartPane({
              new ticker auto-fits into the same vertical band scaled to its own
              range. Cleared only by right-click → "Reset view" (vertMarginsRef). */
           carryDragPlacement
-          /* Persist that manual view (pan/zoom + price-scale) so it survives a page
-             refresh; restored on load, cleared by "Reset view". */
-          viewLockKey="uct.charts.viewLock"
+          /* Persist that manual view (pan/zoom + price-scale) PER CHART (keyed by the
+             slot's persisted id) so it survives a refresh + ticker switches — but a
+             NEW chart widget (fresh id) opens at the default view instead of inheriting
+             the last chart's scroll position. Falls back to the shared key if a chart
+             has no persisted id (non-workspace surfaces). Cleared by "Reset view". */
+          viewLockKey={chartId ? `uct.charts.viewLock.${chartId}` : 'uct.charts.viewLock'}
           keepPresentOnSymbolChange
           dragMeasure
           verticalLegend

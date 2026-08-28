@@ -398,6 +398,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         onTfChange={setTf}
         stored={activeStoredSettings}
         onStore={persistActiveSettings}
+        chartId={paneChartId}
         chartsTheme={chartsTheme}
         onApplyThemeAll={applyThemeToAllCharts}
         onApplyThemeAllWidgets={applyThemeToAllWidgets}
