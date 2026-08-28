@@ -2073,6 +2073,26 @@ def register_call_recap_warm_jobs(scheduler):
         _run_warm_sweep, trigger="date",
         run_date=_dt.now(_ET) + _td(seconds=120),
         id="call_recap_warm_boot", replace_existing=True)
+
+    # The Batch lane's collector. A sweep submits and the NEXT sweep reaps, but
+    # sweeps are ~5h apart and a batch usually finishes in minutes — that gap is
+    # a recap sitting paid-for and unread. This ticks every 20 min so a result
+    # lands close to when it is ready; it is a no-op when nothing is pending,
+    # and reaping is idempotent (the ledger row is dropped once collected).
+    def _reap_recap_batches():
+        try:
+            from api.services import call_recap_warmer as warmer
+            if not warmer.batch_enabled():
+                return
+            out = warmer.reap_batches()
+            if out.get("batches"):
+                _wlog.info("[recap_warm] reaper %s", out)
+        except Exception as exc:
+            _wlog.warning("[recap_warm] reaper failed: %s", exc)
+
+    scheduler.add_job(
+        _reap_recap_batches, trigger=CronTrigger(minute="*/20", timezone=_ET),
+        id="call_recap_batch_reap", max_instances=1, replace_existing=True)
     return True
 
 
