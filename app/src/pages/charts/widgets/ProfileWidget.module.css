@@ -83,7 +83,9 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  /* Brighter (strong chrome) — the muted chrome dims to a hard-to-read grey on a
+     custom navy/surface canvas. */
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,7 +109,7 @@
   font-weight: 700;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   margin-bottom: 7px;
 }
 .earnTable {
@@ -121,7 +123,7 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   padding: 0 0 6px;
 }
 .earnTable td {
@@ -131,7 +133,7 @@
 }
 .thLeft, .tdLeft { text-align: left; }
 .thNum, .tdNum { text-align: right; padding-left: 8px; }
-.tdLeft { color: var(--prof-chrome, var(--text-muted, #9b9482)); }
+.tdLeft { color: var(--prof-chrome-strong, var(--text-muted, #cfcac0)); }
 
 /* Up / down / neutral coloring for the performance stat values.
    Fallback is the canonical token var(--ut-green-bright) (dark #34d17c), and
@@ -188,7 +190,7 @@
 }
 .keyLabel {
   font-size: 10.5px;
-  color: var(--prof-chrome, var(--text-muted, #8b8674));
+  color: var(--prof-chrome-strong, var(--text-muted, #cfcac0));
   white-space: nowrap;
 }
 .keyVal {

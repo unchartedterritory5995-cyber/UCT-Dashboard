@@ -48,7 +48,9 @@
   font-weight: 700;
   font-size: 0.95em;
   letter-spacing: 0.3px;
-  color: var(--cal-chrome-strong, var(--cal-text, var(--text-bright, #e0dac8)));
+  /* Bright white — the widget's own text color (readableInk on a seeded canvas),
+     the SAME resolution the Stock Profile ticker uses, so the two read identically. */
+  color: var(--cal-text, var(--text-bright, #f8f7f3));
   white-space: nowrap;
 }
 .dateSub {
