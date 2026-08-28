@@ -71,3 +71,28 @@ def test_holding_daily_bars_falls_back_to_massive_when_cold(monkeypatch):
     sentinel = [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]
     monkeypatch.setattr(ti, "get_agg_bars", lambda s, f, t: sentinel)
     assert ti._holding_daily_bars("XYZ", "2020-01-01", "2026-01-01") == sentinel
+
+
+def test_overlay_today_replaces_stale_and_appends_missing(monkeypatch):
+    import datetime as _dt
+    from api.services import theme_index as ti
+    from api.services import massive
+    today = _dt.date.today()
+    t_today = ti._ymd_to_ms(today.year * 10000 + today.month * 100 + today.day)
+    t_prev = ti._ymd_to_ms(20200102)
+    snap = {
+        "AAPL": {"day_open": 10.0, "day_high": 12.0, "day_low": 9.5, "day_c": 11.0, "today_vol": 500},
+        "MSFT": {"day_open": 20.0, "day_high": 21.0, "day_low": 19.0, "day_c": 20.5, "today_vol": 300},
+        "ZZZZ": {"day_open": 0.0, "day_high": 0.0, "day_low": 0.0, "day_c": 0.0, "today_vol": 0},  # pre-open → skip
+    }
+    monkeypatch.setattr(massive, "get_full_market_snapshot_hl_cached", lambda ttl=2.0: snap)
+    hb = {
+        "AAPL": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+                 {"t": t_today, "o": 9, "h": 9, "l": 9, "c": 9, "v": 1}],   # stale today-bar
+        "MSFT": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}],     # no today-bar
+        "ZZZZ": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}],     # no RTH print
+    }
+    ti._overlay_today(hb)
+    assert len(hb["AAPL"]) == 2 and hb["AAPL"][-1]["c"] == 11.0 and hb["AAPL"][-1]["t"] == t_today  # replaced
+    assert len(hb["MSFT"]) == 2 and hb["MSFT"][-1]["c"] == 20.5 and hb["MSFT"][-1]["t"] == t_today   # appended
+    assert len(hb["ZZZZ"]) == 1   # pre-open snapshot ignored
