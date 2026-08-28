@@ -110,7 +110,18 @@ class ScanRefused(Exception):
         super().__init__(f"[gate:{gate}] {detail}")
 
 
-def _declared_kind(name: Any, table: Optional[Mapping[str, Any]]) -> str:
+#: The sections a ``series`` NODE may legally name.
+#:
+#: ⛔ FUNCTIONS AND OPERATORS ARE ABSENT, AND THAT IS THE WHOLE POINT. A leaf
+#: named ``crossOver`` is not a call — it is a name the interpreter refuses at
+#: ``resolve:name``. Letting the yields lookup find the FUNCTION entry answered
+#: ``bool`` for it, and the gate stamped the tree scannable while every sweep row
+#: refused. Derived from ``ast_table``'s own section names, never retyped.
+_LEAF_SECTIONS = (ast_table.CLOCK_SECTION, ast_table.SCALARS_SECTION)
+
+
+def _declared_kind(name: Any, table: Optional[Mapping[str, Any]],
+                   sections: Optional[tuple] = None) -> str:
     """What the table says a name's values can be, or the numeric default.
 
     ⛔ AN UNDECLARED NAME READS AS THE NUMERIC DEFAULT RATHER THAN RAISING, and
@@ -121,7 +132,7 @@ def _declared_kind(name: Any, table: Optional[Mapping[str, Any]]) -> str:
     somebody declares otherwise.
     """
     try:
-        return ast_table.yields_of(name, table)
+        return ast_table.yields_of(name, table, sections)
     except KeyError:
         return ast_table.YIELDS_DEFAULT
 
@@ -196,7 +207,13 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             kinds[id(node)] = _leaf_kind(node.get("value"))
             continue
         if node_type == _SERIES:
-            kinds[id(node)] = _settle(_declared_kind(node.get("name"), table))
+            # ⚠️ SCOPED TO THE SECTIONS A LEAF MAY NAME. Unscoped, a leaf named
+            # after a bool-yielding FUNCTION borrowed that function's declaration
+            # — see `_LEAF_SECTIONS`. A bar field and an instance input both miss
+            # every section here and settle to the numeric default, which is the
+            # honest answer for both and is what this arm did before.
+            kinds[id(node)] = _settle(
+                _declared_kind(node.get("name"), table, _LEAF_SECTIONS))
             continue
         if node_type == _OFFSET:
             # ⭐ AN OFFSET CHANGES *WHEN*, NEVER *WHAT*. `(close > open)[1]` is

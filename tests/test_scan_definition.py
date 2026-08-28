@@ -755,3 +755,43 @@ def test_a_correct_condition_argument_still_scans():
     tree = {"type": "op", "name": ">", "args": [inner, {"type": "num", "value": 5}]}
     out = scan_definition.assert_scannable(_definition(tree))
     assert out["yields"] == "bool"
+
+
+def test_a_leaf_named_after_a_function_does_not_borrow_its_yields():
+    """⚰️⚰️ THE GATE SAID `scannable, yields=bool` AND THE SWEEP REFUSED THE NAME.
+
+    `{"type": "series", "name": "crossOver"}` is not a call — it is a name
+    `interpret` refuses outright at `resolve:name`. But the yields lookup walked
+    every section including FUNCTIONS, found `crossOver` there, and answered
+    `bool`. So the tree was stamped scannable while every row of the sweep
+    refused: the member is told the scan will run and it answers nothing.
+
+    ⛔ THIRD INSTANCE OF THIS SHAPE in one engine — after `_assert_resamplable`
+    (`tf(close,'60')`) and `_assert_arg_roles` (`barssince(close,100) > 5`). All
+    three are the same sentence: a check the GATE does not run, or runs
+    differently, from the walker that will actually answer.
+    """
+    tree = {"type": "series", "name": "crossOver"}
+    with pytest.raises(scan_definition.ScanRefused):
+        scan_definition.assert_scannable(_definition(tree))
+    bars = [{"t": i, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10}
+            for i in range(60)]
+    with pytest.raises(ast_interpret.TableRefusal):
+        ast_interpret.interpret(tree, bars)
+
+
+def test_a_leaf_named_after_a_BOOL_SCALAR_still_scans():
+    """⭐⭐ THE CONTROL THAT MAKES THE FIX A SCOPING AND NOT A DELETION.
+
+    `nr7` is a declared SCALAR whose manifest entry yields `bool` — a real 0/1
+    screener column, and reading it by name is the feature. Narrowing the lookup
+    to the sections a leaf may legally name must not take that away; if this ever
+    fails, the fix above went too far and every boolean scalar screen died with
+    it.
+    """
+    bool_scalars = [n for n, e in (ast_table.TABLE.get(ast_table.SCALARS_SECTION)
+                                   or {}).items() if e.get("yields") == "bool"]
+    assert bool_scalars, "no scalar declares yields=bool — this control is vacuous"
+    out = scan_definition.assert_scannable(
+        _definition({"type": "series", "name": bool_scalars[0]}))
+    assert out["yields"] == "bool"
