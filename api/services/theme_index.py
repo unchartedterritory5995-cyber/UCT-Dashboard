@@ -30,6 +30,7 @@ import re
 import statistics
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from api.services.cache import cache
 from api.services.engine import _load_wire_data
@@ -40,7 +41,8 @@ _BAR_DAYS = 760            # ~2y of daily history to fetch per holding
 _MAX_WORKERS = 6
 _MAX_HOLDINGS = 60         # safety cap on constituents fetched per index
 _BASE = 100.0
-_CACHE_TTL = 1800          # 30 min — daily bars, cheap to re-derive
+_CACHE_TTL = 1800          # 30 min — closed session, daily bar is final
+_CACHE_TTL_RTH = 180       # 3 min during RTH — keep the developing candle fresh
 _WARM_BARS = 620           # daily rows to pull from the shared cache (~2.4y)
 _WARM_STALE_DAYS = 5       # a cached series older than this → refetch from Massive
 
@@ -73,6 +75,40 @@ def _holding_daily_bars(sym: str, from_date: str, to_date: str) -> list[dict]:
         if not stale:
             return [{"t": _ymd_to_ms(int(r[0])), "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]} for r in rows]
     return get_agg_bars(sym, from_date, to_date)
+
+
+def _overlay_today(holdings_bars: dict[str, list[dict]]) -> None:
+    """During RTH, overlay each holding's LIVE developing daily candle from the
+    shared whole-market snapshot (already polled ~every 2-3s by the live scanners →
+    ~free) so the index's last candle reflects intraday moves even when the warm
+    bars cache's today-bar lags (the R2 bridge writes it a bit behind). RTH-gated by
+    the caller, so we never append a candle on a closed day. Mutates in place."""
+    try:
+        from api.services.massive import get_full_market_snapshot_hl_cached, to_polygon_symbol
+        snap = get_full_market_snapshot_hl_cached(ttl=2.0)
+    except Exception:
+        return
+    if not snap:
+        return
+    et = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).date()
+    t_ms = _ymd_to_ms(et.year * 10000 + et.month * 100 + et.day)
+    today_str = _et_date_str(t_ms)
+    for sym, bars in holdings_bars.items():
+        s = snap.get(to_polygon_symbol(sym))
+        if not s:
+            continue
+        o = float(s.get("day_open") or 0.0)
+        hi = float(s.get("day_high") or 0.0)
+        lo = float(s.get("day_low") or 0.0)
+        c = float(s.get("day_c") or s.get("last_price") or 0.0)
+        if o <= 0 or hi <= 0 or lo <= 0 or c <= 0:
+            continue  # pre-open / no RTH print yet → leave the warm series alone
+        hi, lo = max(hi, o, c), min(lo, o, c)   # keep the candle valid
+        today = {"t": t_ms, "o": o, "h": hi, "l": lo, "c": c, "v": int(s.get("today_vol") or 0)}
+        if bars and _et_date_str(bars[-1]["t"]) == today_str:
+            bars[-1] = today          # replace a stale today-bar from the warm cache
+        else:
+            bars.append(today)        # today's bar not in the warm cache yet
 
 
 def _slugify(name: str) -> str:
@@ -278,6 +314,16 @@ def get_theme_index(slug: str, tf: str = "D") -> dict:
             except Exception:
                 holdings_bars[s] = []
 
+    # Live developing candle: during RTH, refresh today's bar from the shared
+    # whole-market snapshot so the index tracks intraday even if the warm bars
+    # cache's today-bar lags. Closed sessions serve the warm cache's final close.
+    try:
+        from api.services import bars_liveness
+        if bars_liveness.is_market_open():
+            _overlay_today(holdings_bars)
+    except Exception:
+        pass
+
     daily = _compute_index_bars(holdings_bars)
     bars = _resample(daily, tf)
     used = [s for s, b in holdings_bars.items() if b]
@@ -290,7 +336,15 @@ def get_theme_index(slug: str, tf: str = "D") -> dict:
         "bars": bars,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    cache.set(cache_key, result, ttl=_CACHE_TTL)
+    # SHORT TTL during RTH so the live developing candle stays fresh (a recompute is
+    # cheap now — warm bars reads + the shared snapshot); LONG when closed, where the
+    # daily bar is final and a hit should be instant.
+    try:
+        from api.services import bars_liveness
+        ttl = _CACHE_TTL_RTH if bars_liveness.is_market_open() else _CACHE_TTL
+    except Exception:
+        ttl = _CACHE_TTL
+    cache.set(cache_key, result, ttl=ttl)
     return result
 
 
