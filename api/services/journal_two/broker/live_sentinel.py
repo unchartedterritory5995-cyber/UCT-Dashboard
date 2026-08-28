@@ -556,7 +556,37 @@ def run_daily_pulse_blocking() -> None:
             conn.close()
         bv = snap["byVerdict"]
         structural = bv.get("structural", 0)
-        red = structural or (mirror["bad"] or 0) or (syncs["errs"] or 0)
+        # Backup freshness — the crown-jewel DB's off-box copy. A backup rail
+        # that dies silently is only discovered the day it's needed; here it
+        # is affirmatively reported every close instead (restore-drill
+        # verified 2026-08-27: newest snapshot downloads, integrity_check ok,
+        # row counts match live minus the post-snapshot day).
+        backup_line = "backup status unknown"
+        backup_stale = False
+        try:
+            import os as _os
+            from api.services import authdb_backup as _ab
+            from api.services import data_sync as _ds
+            _client = _ds._client()
+            _bucket = _os.environ.get("DATA_SYNC_BUCKET")
+            if _client and _bucket:
+                _resp = _client.list_objects_v2(
+                    Bucket=_bucket, Prefix=_ab.KEY_PREFIX)
+                _objs = _resp.get("Contents", [])
+                if _objs:
+                    _newest = max(o["LastModified"] for o in _objs)
+                    _age_h = (datetime.now(timezone.utc) - _newest
+                              ).total_seconds() / 3600.0
+                    backup_stale = _age_h > 30
+                    backup_line = (f"last DB backup {_age_h:.0f}h ago "
+                                   f"({len(_objs)} retained)")
+                else:
+                    backup_stale = True
+                    backup_line = "NO DB BACKUPS IN R2"
+        except Exception:  # noqa: BLE001 — the pulse must never crash on this
+            logger.warning("pulse backup-freshness probe failed", exc_info=True)
+        red = (structural or (mirror["bad"] or 0) or (syncs["errs"] or 0)
+               or backup_stale)
         tone = "🔴" if red else "🟢"
         _post_discord(
             f"{tone} Journal fidelity pulse — {et_today}",
@@ -566,7 +596,7 @@ def run_daily_pulse_blocking() -> None:
             f"${(mirror['worst'] or 0):,.2f} · live checks: "
             f"{bv.get('ok', 0)} ok / {bv.get('book_lag', 0)} fills-pending / "
             f"{structural} structural (worst residual "
-            f"${snap['worstResidualDollar']:,.2f}).\n"
+            f"${snap['worstResidualDollar']:,.2f}) · {backup_line}.\n"
             + ("Everything reconciled. This line posts every close — a "
                "missing pulse means the pulse itself broke, not that all is "
                "well." if not red else
