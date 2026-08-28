@@ -353,3 +353,115 @@ def delete_definition(def_id: str, user: dict = Depends(require_paid)):
     if not removed:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True, "def_id": def_id}
+
+
+# ═══ sharing ════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ NOTHING HERE IS PUBLIC BY DEFAULT. Every route below is `require_paid` and
+# scoped to `user["id"]` EXCEPT `resolve` and `install`, which take a token — and
+# a token exists only because an owner minted one. There is no listing of shared
+# definitions and no way to walk the token space (128 bits), so the only route to
+# somebody else's work is a link they chose to send.
+
+
+@router.post("/{def_id}/share")
+def share_definition(def_id: str, user: dict = Depends(require_paid)):
+    """Mint (or return) the share link for one of my definitions.
+
+    ⭐ IDEMPOTENT. Pressing Share twice returns the SAME token, because the first
+    one may already be in somebody's chat window and minting a replacement would
+    break it while the button said success. Re-sharing after an edit moves the
+    pinned version and leaves the link alone.
+    """
+    try:
+        out = svc.share(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return out
+
+
+@router.get("/{def_id}/share")
+def share_state(def_id: str, user: dict = Depends(require_paid)):
+    """Is this definition shared, and under what token? ⛔ READ-ONLY — a GET that
+    minted a token would publish a definition because somebody opened a panel."""
+    try:
+        out = svc.share_status(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return out or {"token": None}
+
+
+@router.delete("/{def_id}/share")
+def unshare_definition(def_id: str, user: dict = Depends(require_paid)):
+    """Turn the link off. The token is tombstoned rather than deleted, so a
+    recipient gets `revoked` — which explains their 404 — instead of
+    `not-found`, which does not."""
+    try:
+        revoked = svc.unshare(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "def_id": def_id, "revoked": revoked}
+
+
+@router.get("/{def_id}/history")
+def definition_history(def_id: str, user: dict = Depends(require_paid)):
+    """Every version of one of my definitions, oldest first, tombstones included.
+
+    ⭐ THE STORE ALREADY KEPT THIS — every save appends a row rather than
+    overwriting one, and `soft_delete` writes a tombstone version. What was
+    missing was a door onto it.
+    """
+    try:
+        rows = svc.history(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not rows:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"def_id": def_id, "versions": rows}
+
+
+#: share refusal → HTTP status. ⭐ A CLOSED MAP, so a reason this module does not
+#: know becomes a 400 rather than silently reading as "not found" — the two say
+#: very different things to somebody holding a link.
+_SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410, "table-version": 409}
+
+
+def _share_http(exc: "svc.ShareRefused") -> HTTPException:
+    return HTTPException(status_code=_SHARE_STATUS.get(exc.reason, 400),
+                         detail={"reason": exc.reason, "message": exc.detail})
+
+
+@router.get("/shared/{token}")
+def resolve_shared(token: str, user: dict = Depends(require_paid)):
+    """Preview a shared definition before installing it.
+
+    ⛔⛔ THIS IS WHERE THE GRAMMAR CHECK FIRES, and it is the acceptance
+    criterion rather than a nicety: a byte-identical, hash-verified copy can
+    still COMPUTE SOMETHING ELSE if the closed table moved under it, because the
+    numbers live in the table and not in the document. A mismatch refuses by
+    name, with both versions in the message.
+    """
+    try:
+        return svc.resolve_share(token)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
+
+
+@router.post("/shared/{token}/install")
+def install_shared(token: str,
+                   user: dict = Depends(require_paid),
+                   limits: Limits = Depends(limits_dependency)):
+    """Install a shared definition as MY OWN copy, carrying its origin.
+
+    ⚠️ IT TAKES THE TOOLKIT, for the same reason `PUT` does: an install makes a
+    definition live that was not live before, so it is exactly the case the count
+    cap exists for.
+    """
+    try:
+        return svc.install_share(user["id"], token, limits=limits)
+    except svc.ShareRefused as exc:
+        raise _share_http(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

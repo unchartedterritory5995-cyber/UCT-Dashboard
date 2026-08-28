@@ -2815,7 +2815,11 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     thing from the other side so neither file can be the only one that knows.
     """
     routes = [r for r in router_mod.router.routes if getattr(r, "methods", None)]
-    assert len(routes) == 6
+    # ⚠️ 6 → 12 with W5b's sharing and version-history routes. This number is
+    # deliberately duplicated with `test_user_definitions.EXPECTED_ROUTE_COUNT`
+    # — the docstring above says why: neither file may be the only one that
+    # knows, so a route added while only one is updated stays red.
+    assert len(routes) == 12
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]

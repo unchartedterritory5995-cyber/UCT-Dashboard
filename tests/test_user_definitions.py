@@ -1312,7 +1312,16 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: the behavioural 402 sweep's `seen`) until this line moved, so the new route
 #: could not ride in uncovered. Its own gate is checked by the same two halves
 #: below, plus `tests/test_definition_concierge.py`'s route cases.
-EXPECTED_ROUTE_COUNT = 6
+#: 2026-08-27, W5b: SIX MORE — sharing and version history. `POST/GET/DELETE
+#: {id}/share`, `GET {id}/history`, and `GET/POST shared/{token}[/install]`.
+#: ⛔⛔ THE TWO `shared/{token}` ROUTES ARE THE ONES TO LOOK AT TWICE, because
+#: they are the only endpoints in this router that read something the CALLER
+#: does not own — which is the whole point of a share link. They are still
+#: `require_paid`, and the token is the authorisation: 128 bits, minted only
+#: by an owner, and unguessable. There is no listing of shared definitions
+#: anywhere, so the only route to another member's work is a link they chose
+#: to send. Both halves of this rail cover them like any other route.
+EXPECTED_ROUTE_COUNT = 12
 
 
 def _routes():

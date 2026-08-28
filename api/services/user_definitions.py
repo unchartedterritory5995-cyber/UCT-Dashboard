@@ -213,6 +213,22 @@ CREATE TABLE IF NOT EXISTS user_definitions (
 );
 CREATE INDEX IF NOT EXISTS idx_user_definitions_owner
   ON user_definitions(user_id, def_id, version DESC);
+
+CREATE TABLE IF NOT EXISTS definition_shares (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  token         TEXT    NOT NULL,
+  user_id       TEXT    NOT NULL,
+  def_id        TEXT    NOT NULL,
+  version       INTEGER NOT NULL,
+  ast_hash      TEXT    NOT NULL,
+  table_version INTEGER NOT NULL,
+  revoked       INTEGER NOT NULL,
+  created_at    INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_shares_token
+  ON definition_shares(token, id DESC);
+CREATE INDEX IF NOT EXISTS idx_definition_shares_owner
+  ON definition_shares(user_id, def_id, id DESC);
 """
 
 
@@ -1164,6 +1180,242 @@ def history(user_id: Any, def_id: str) -> list[dict]:
             (str(user_id), def_id),
         ).fetchall()
     return [_row_to_dict(r) for r in rows]
+
+
+# ═══ sharing ════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ NOTHING IS PUBLIC BY DEFAULT, AND THE TABLE IS THE PROOF. A definition is
+# reachable by a stranger only when a row exists in `definition_shares`, which
+# only `share()` writes and only the owner can call. There is no "is_public"
+# column on `user_definitions` on purpose: a flag defaults, and a default that
+# means "visible" is one migration away from publishing everybody's work.
+# `saved_screens.update` states the same rule for screens; this is that rule
+# again for definitions.
+
+
+def share_token() -> str:
+    """A fresh share token. 32 hex = 128 bits, so it cannot be guessed or walked."""
+    return "sh_" + secrets.token_hex(16)
+
+
+def _newest_share(c: sqlite3.Connection, user_id: Any, def_id: str):
+    """The current state of one definition's link — the LAST row written."""
+    return c.execute(
+        "SELECT * FROM definition_shares WHERE user_id=? AND def_id=?"
+        " ORDER BY id DESC LIMIT 1",
+        (str(user_id), def_id),
+    ).fetchone()
+
+
+def share(user_id: Any, def_id: str) -> Optional[dict]:
+    """Mint (or re-pin) the share link for a definition. ``None`` if there is
+    nothing live to share.
+
+    ⭐ IDEMPOTENT ON THE TOKEN. Pressing Share twice must not mint a second one:
+    the first may already be in somebody's chat window, and replacing it would
+    break their link while the button reported success. Re-sharing after an EDIT
+    writes a new row carrying the SAME token and the new version — the link is the
+    stable thing, the pinned version is not.
+
+    ⚠️ THE TOKEN PINS A VERSION *AND* THE `tableVersion` OF THE DAY IT WAS WRITTEN,
+    both recorded rather than resolved later: the recipient is entitled to the
+    definition the owner actually shared, and to a refusal if the grammar has moved
+    under it (see `resolve_share`).
+    """
+    _check_def_id(def_id)
+    row = get(user_id, def_id)
+    if row is None:
+        return None
+    table_version = _current_table_version()
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        with c:
+            live = _newest_share(c, user_id, def_id)
+            token = (live["token"] if live is not None and not live["revoked"]
+                     else share_token())
+            c.execute(
+                "INSERT INTO definition_shares"
+                " (token, user_id, def_id, version, ast_hash, table_version,"
+                "  revoked, created_at) VALUES (?,?,?,?,?,?,0,?)",
+                (token, str(user_id), def_id, row["version"], row["ast_hash"],
+                 table_version, int(time.time())),
+            )
+    return {"token": token, "def_id": def_id, "version": row["version"],
+            "ast_hash": row["ast_hash"], "table_version": table_version}
+
+
+def unshare(user_id: Any, def_id: str) -> bool:
+    """Turn the link off by APPENDING a revocation.
+
+    ⛔⛔ AN INSERT, NOT AN UPDATE, AND NOT A DELETE — the same rule this module
+    already holds one table over, for the same reason. `test_the_MODULE_ISSUES_NO_
+    UPDATE_STATEMENT` is module-wide by AST, and it is right to be: a share row
+    records that a member published something at a moment in time, and rewriting
+    it would erase the fact rather than end it. The audit trail is a side effect of
+    getting the safety property right.
+
+    ⭐ AND "revoked" AND "never shared" STAY DIFFERENT FACTS, which is what lets a
+    recipient be told why their link stopped working.
+    """
+    _check_def_id(def_id)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        with c:
+            live = _newest_share(c, user_id, def_id)
+            if live is None or live["revoked"]:
+                return False
+            c.execute(
+                "INSERT INTO definition_shares"
+                " (token, user_id, def_id, version, ast_hash, table_version,"
+                "  revoked, created_at) VALUES (?,?,?,?,?,?,1,?)",
+                (live["token"], str(user_id), def_id, live["version"],
+                 live["ast_hash"], live["table_version"], int(time.time())),
+            )
+    return True
+
+
+def share_status(user_id: Any, def_id: str) -> Optional[dict]:
+    """The live token for a definition, or ``None``. ⛔ READ-ONLY — never mints.
+    A GET that minted would publish a definition because somebody opened a panel."""
+    _check_def_id(def_id)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        row = _newest_share(c, user_id, def_id)
+    if row is None or row["revoked"]:
+        return None
+    return {"token": row["token"], "def_id": row["def_id"], "version": row["version"],
+            "ast_hash": row["ast_hash"], "table_version": row["table_version"]}
+
+
+class ShareRefused(Exception):
+    """A share link that cannot be honoured, and the reason BY NAME.
+
+    ⭐ ITS OWN TYPE, so the router maps `revoked` to 410 and `table-version` to
+    409 rather than pattern-matching prose. A stale link and a link this engine can
+    no longer compute are different situations and deserve different answers.
+    """
+
+    def __init__(self, reason: str, detail: str) -> None:
+        self.reason = reason
+        self.detail = detail
+        super().__init__(f"[share:{reason}] {detail}")
+
+
+def _current_table_version() -> int:
+    """The grammar version this process computes on. ⛔ READ FROM THE MANIFEST,
+    never typed here — a second copy would be the authority that goes stale, and
+    the whole point of recording it is that it moves."""
+    from api.services import ast_table                          # noqa: PLC0415
+    value = (ast_table.TABLE or {}).get("tableVersion")
+    return int(value) if isinstance(value, (int, float)) else 0
+
+
+def resolve_share(token: str) -> dict:
+    """The shared document, or a refusal that names its own reason.
+
+    ⛔⛔ THE `tableVersion` CHECK IS THE ACCEPTANCE CRITERION, NOT A NICETY. A
+    recipient can hold a byte-identical, hash-verified copy of a definition and
+    still COMPUTE SOMETHING ELSE, because the numbers do not live in the document
+    — they live in the closed table its names are resolved against. If the grammar
+    moved between minting and installing, the same tree is a different indicator,
+    and the honest answer is a refusal naming both versions rather than a chart
+    that draws confidently.
+    """
+    if not isinstance(token, str) or not token.startswith("sh_"):
+        raise ShareRefused("not-found", "that is not a share link this engine minted")
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        row = c.execute(
+            "SELECT * FROM definition_shares WHERE token=? ORDER BY id DESC LIMIT 1",
+            (token,),
+        ).fetchone()
+    if row is None:
+        raise ShareRefused("not-found", "no share link with that token")
+    if row["revoked"]:
+        raise ShareRefused(
+            "revoked",
+            "the member who shared this has since turned the link off")
+    now_version = _current_table_version()
+    if int(row["table_version"]) != now_version:
+        raise ShareRefused(
+            "table-version",
+            "this was shared against grammar version %s and this engine now reads "
+            "version %s. The formula is unchanged, but the table its names are "
+            "resolved against is not, so installing it could compute something "
+            "other than what was shared. Ask the owner to re-share it."
+            % (row["table_version"], now_version))
+
+    # ⛔⛔ LIVENESS IS ASKED OF THE DEFINITION, NOT OF THE PINNED VERSION, and the
+    # first draft got this exactly wrong. A share pins version N; deleting appends
+    # a TOMBSTONE as version N+1. Reading `deleted_at` off the pinned row therefore
+    # always answers "alive" — so an owner could delete a definition and the link
+    # would keep serving it forever, which is the one thing a delete must
+    # guarantee. `test_a_DELETED_definition_reports_GONE_rather_than_serving_a_
+    # tombstone` is what caught it.
+    newest = get(row["user_id"], row["def_id"])
+    if newest is None or newest.get("deleted_at") is not None:
+        raise ShareRefused("gone", "the member who shared this has since deleted it")
+    doc = get(row["user_id"], row["def_id"], version=row["version"])
+    if doc is None:
+        raise ShareRefused("gone", "the version that was shared is no longer in the store")
+    return {
+        "definition": doc["definition"],
+        "author_id": row["user_id"],
+        "origin_def_id": row["def_id"],
+        "origin_version": row["version"],
+        "origin_ast_hash": row["ast_hash"],
+        "table_version": int(row["table_version"]),
+    }
+
+
+def install_share(user_id: Any, token: str, limits: Any = None) -> dict:
+    """Install a shared definition as the recipient's OWN copy.
+
+    ⭐⭐ A COPY, NEVER A REFERENCE, and the provenance rides ON the copy. `origin`
+    records who wrote it, which definition it came from, and at which version and
+    hash. The forward record travels because it is keyed by AST HASH: a recipient
+    running the identical tree contributes to — and benefits from — the same
+    measured history as the author, without either being able to edit the other's
+    document.
+
+    ⛔ AND IT IS A NEW `def_id`. Installing under the author's id would make two
+    members' edits collide in one row family; a new one means the recipient owns
+    what they hold and can edit it freely, and ORIGIN is what says where it came
+    from.
+    """
+    resolved = resolve_share(token)
+    doc = json.loads(json.dumps(resolved["definition"]))
+    def_id = new_def_id()
+    doc["id"] = def_id
+    doc["origin"] = {
+        "author_id": resolved["author_id"],
+        "def_id": resolved["origin_def_id"],
+        "version": resolved["origin_version"],
+        "ast_hash": resolved["origin_ast_hash"],
+        "table_version": resolved["table_version"],
+    }
+    out = save(user_id, def_id, doc, limits=limits)
+    out["origin"] = doc["origin"]
+    return out
+
+
+def share_history(user_id: Any, def_id: str) -> list[dict]:
+    """Every share row for one definition, oldest first — a member's own record of
+    when they published something and when they took it back.
+
+    ⭐ THIS EXISTS BECAUSE THE TABLE IS APPEND-ONLY, not the other way round. The
+    audit trail is what falls out of refusing to rewrite rows.
+    """
+    _check_def_id(def_id)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        rows = c.execute(
+            "SELECT * FROM definition_shares WHERE user_id=? AND def_id=? ORDER BY id",
+            (str(user_id), def_id),
+        ).fetchall()
+    return [{"token": r["token"], "version": r["version"], "ast_hash": r["ast_hash"],
+             "table_version": r["table_version"], "revoked": bool(r["revoked"]),
+             "created_at": r["created_at"]} for r in rows]
 
 
 def stats(user_id: Any = None) -> dict:
