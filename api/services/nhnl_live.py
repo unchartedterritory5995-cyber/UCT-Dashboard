@@ -572,7 +572,8 @@ def _tick_once(snapshot: dict, window: str, today: str, now: datetime) -> None:
 
 
 def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
-             group: str = None, value: str = None, session: str = "auto") -> dict:
+             group: str = None, value: str = None, session: str = "auto",
+             restrict: set = None) -> dict:
     """Ranked New-Highs / New-Lows leaderboards for the endpoint.
 
     ONE row per symbol (deduped), ranked by running count DESCENDING then recency.
@@ -606,6 +607,11 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
     except (TypeError, ValueError):
         limit = 100
 
+    # An ETF-holdings / watchlist restriction is a FLAT leaderboard over that symbol
+    # set — it overrides any group-by dimension (you can't group-overview a 30-name list
+    # meaningfully, and the picker offers them as alternatives, not combinable).
+    if restrict is not None:
+        group = None
     dim = group if group in GROUP_DIMS else None
     gmap = _group_map() if dim else {}
     etf = _etf_set()
@@ -633,6 +639,8 @@ def get_live(limit: int = 100, min_price: float = 0.0, min_count: int = 1,
         for sym, nh, nl, last, hts, lts, prev in sym_rows:
             cnt = nh if hi else nl
             if cnt < min_count or sym in etf:              # stocks only
+                continue
+            if restrict is not None and sym not in restrict:  # ETF/watchlist scope
                 continue
             if isinstance(last, (int, float)) and last < min_price:
                 continue

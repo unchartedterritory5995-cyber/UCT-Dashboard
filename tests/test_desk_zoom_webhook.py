@@ -222,7 +222,7 @@ def test_insights_status_happy_shape_with_stubbed_service(client, monkeypatch):
         "fail_streaks": {2: 3},
     })
     monkeypatch.setattr(education_service, "list_videos", lambda: [
-        {"id": 5, "title": "V5", "meeting_uuid": "U5", "insights_at": 123,
+        {"id": 5, "title": "V5", "youtube_id": "YT5", "meeting_uuid": "U5", "insights_at": 123,
          "zoom_cleaned": 1, "chapters": '[{"t":0,"title":"a"}]',
          "ticker_moments": '[{"ticker":"AAPL","t":0}]'},
         {"id": 6, "title": "V6 (not a session)", "meeting_uuid": "", "insights_at": None,
@@ -241,6 +241,7 @@ def test_insights_status_happy_shape_with_stubbed_service(client, monkeypatch):
     videos = data["recent_videos"]
     assert len(videos) == 2  # V6 excluded — no meeting_uuid
     assert videos[0]["id"] == 5  # newest (highest id) first
+    assert videos[0]["youtube_id"] == "YT5"
     assert videos[0]["chapters"] == 1
     assert videos[0]["tickers"] == 1
     assert videos[0]["zoom_cleaned"] is True

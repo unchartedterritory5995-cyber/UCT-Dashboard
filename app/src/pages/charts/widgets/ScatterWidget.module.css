@@ -11,18 +11,24 @@
   scrollbar-width: none;
 }
 .uniTabs::-webkit-scrollbar { display: none; }
+/* Square pill matching the Theme Tracker period buttons (.periodTab): transparent by
+   default, uppercase, gold when active. Keeps the count badge + hover-X + ＋ add. */
 .uniTab {
   position: relative; display: inline-flex; align-items: center; gap: 5px;
-  flex: 0 0 auto; height: 24px; padding: 0 8px;
-  border: 1px solid var(--nh-divider, var(--wl-divider, rgba(255, 255, 255, 0.16)));
-  border-radius: 7px; background: transparent;
+  flex: 0 0 auto; height: 24px; padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 3px; background: transparent;
   color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
-  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600;
+  font-family: var(--font-sans); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.8px; text-transform: uppercase;
   cursor: pointer; white-space: nowrap; user-select: none;
   transition: border-color .12s, background .12s, color .12s;
 }
-.uniTab:hover { border-color: color-mix(in srgb, var(--ut-gold) 55%, transparent); }
-.uniTabActive { border-color: var(--ut-gold); color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 11%, transparent); }
+.uniTab:hover { background: var(--nh-row-hover, var(--widget-row-hover, rgba(255, 255, 255, 0.06))); }
+.uniTabActive, .uniTabActive:hover {
+  border-color: var(--ut-gold); color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
 .uniTabLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
 .uniTabCount { font-size: 9.5px; font-weight: 700; opacity: 0.72; font-variant-numeric: tabular-nums; }
 .uniTabX {
@@ -34,7 +40,7 @@
 .uniTabX:hover { opacity: 1; background: rgba(242, 75, 66, 0.85); color: #fff; }
 .uniAdd {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 7px;
+  width: 24px; height: 24px; border-radius: 3px;
   border: 1px solid var(--nh-divider, rgba(255, 255, 255, 0.16));
   background: transparent; color: var(--nh-sym, var(--text-bright)); cursor: pointer;
   transition: border-color .12s, color .12s;
@@ -106,42 +112,58 @@
 }
 .zoomBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
-/* ── Shared dropdown menu (universe + metric pickers), portaled to <body> ── */
+/* ── Shared dropdown menu (universe + metric pickers), portaled to <body> ──
+   IDENTICAL to the NH/NL scanner menu (NhnlDropdown.module.css): the app --menu-*
+   palette, same paddings/radius/selected-state, and a sticky search bar on the
+   universe picker. NO top padding so the search sits flush (rows never peek above it). */
 .menu {
   position: fixed; z-index: 4200;
   min-width: 190px; max-width: 260px; overflow-y: auto;   /* max-height set inline to fit view */
-  padding: 5px; border-radius: 10px;
-  border: 1px solid var(--menu-border, var(--nh-divider, rgba(255, 255, 255, 0.14)));
-  background: var(--menu-bg, var(--nh-elev, #14171d));
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
-  /* Scrollbar blends into the menu (no bright OS bar). */
+  padding: 0 4px 4px; border-radius: 8px;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  background: var(--menu-bg, #0e0e10);
+  box-shadow: 0 12px 34px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  font-family: var(--font-sans);
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-color: var(--menu-divider, rgba(255, 255, 255, 0.14)) transparent;
 }
 .menu::-webkit-scrollbar { width: 9px; }
 .menu::-webkit-scrollbar-track { background: transparent; }
-.menu::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+.menu::-webkit-scrollbar-thumb { background: var(--menu-divider, rgba(255, 255, 255, 0.14)); border-radius: 5px; }
+
+.searchWrap {
+  position: sticky; top: 0; z-index: 2;
+  padding: 5px 2px; margin-bottom: 2px;
+  background: var(--menu-bg, #0e0e10);
+  border-bottom: 1px solid var(--menu-divider, rgba(255, 255, 255, 0.06));
 }
-.menu::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.26); background-clip: padding-box; }
-.menuGroup { padding-top: 3px; }
+.searchInput {
+  width: 100%; box-sizing: border-box; padding: 5px 8px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  border-radius: 5px; color: var(--menu-text, #ededed);
+  font-family: var(--font-sans); font-size: 11px; outline: none;
+}
+.searchInput:focus { border-color: var(--menu-accent, var(--ut-gold)); }
+.searchInput::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.menuEmpty { padding: 10px 9px; font-size: 11px; color: var(--menu-text-dim, #8a8a8f); text-align: center; }
+
+.menuGroup + .menuGroup { margin-top: 1px; }
 .menuGroupLabel {
-  padding: 6px 8px 3px; font-size: 9px; letter-spacing: 0.09em; font-weight: 700;
-  text-transform: uppercase; color: var(--nh-text, var(--text-muted)); opacity: 0.7;
+  padding: 8px 9px 3px; font-size: 9px; letter-spacing: 0.9px; font-weight: 700;
+  text-transform: uppercase; color: var(--menu-text-faint, #6b6b6b);
 }
 .menuItem {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  min-height: 28px; padding: 0 8px; border: 0; border-radius: 6px;
-  background: transparent; color: var(--nh-sym, var(--wl-sym, var(--text-bright)));
-  font-family: var(--font-sans); font-size: 12px; text-align: left; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  padding: 5px 9px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--menu-text, #ededed);
+  font-family: inherit; font-size: 11.5px; text-align: left; cursor: pointer; white-space: nowrap;
 }
-.menuItem:hover { background: var(--menu-hover, var(--nh-hover, rgba(255, 255, 255, 0.07))); }
-.menuItemOn { color: var(--ut-gold); background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
-.menuItemLabel { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menuItemHint { font-size: 9px; color: var(--nh-text, var(--text-muted)); opacity: 0.7; text-transform: uppercase; letter-spacing: 0.04em; }
+.menuItem:hover { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12)); color: var(--menu-text, #f4f4f4); }
+.menuItemOn { color: var(--menu-accent, var(--ut-gold)); font-weight: 700; }
+.menuItemOn:hover { color: var(--menu-accent, var(--ut-gold)); }
+.menuItemLabel { overflow: hidden; text-overflow: ellipsis; }
+.menuItemHint { font-size: 10px; color: var(--menu-text-dim, #8a8a8f); flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.04em; }
 .menuDot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
 
 .hint {
