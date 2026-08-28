@@ -427,8 +427,20 @@ describe('the whole corpus, in one number', () => {
     // ⚠️ A NUMBER GOING DOWN HERE IS WHY IT IS PINNED IN BOTH DIRECTIONS — said
     // twice before on this same line, true a third time. Nothing that worked
     // yesterday stopped working. What changed is that 12/52 was never true.
-    expect(translating).toBe(11)
-    expect(columns).toBe(47)
+    // ⭐⭐ 11/47 → 12/51, LATER THE SAME DAY, AND THE SCRIPT THAT CLEARED IS
+    // `20-smc-toolkit-udt` — on an identity the refusal it used to hit had
+    // ASKED FOR IN WRITING. That entry said: "TO UNBLOCK: cite the Pine reference
+    // page that pins WHICH bar the return value lands on, then apply that shift
+    // at this door." Pine returns a pivot at its CONFIRMATION bar, `rightbars`
+    // after the pivot, so `ta.pivothigh(src, L, R)` is `pivothigh(src, L, R)[R]`.
+    //
+    // ⭐ AND THE SHIFT PAYS TWICE. Stepping back exactly `R` bars nets the child's
+    // forward reach to zero, so the translated column is `non-repainting` where
+    // the bare call is `preview-repaints` — which is precisely WHY Pine publishes
+    // at the confirmation bar. The badge is computed by the reach walk, not
+    // awarded. The whole script comes out saveable and non-repainting.
+    expect(translating).toBe(12)
+    expect(columns).toBe(51)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -437,10 +449,11 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    // ⚠️ 12 → 11 with `12-ichimoku-clouds`, whose fifteen NaN columns are covered
-    // above. `translating` and `saveable` remain the SAME SET, which is the
-    // property this case exists to hold.
-    expect(saveable.length).toBe(11)
+    // ⚠️ 12 → 11 with `12-ichimoku-clouds` (fifteen NaN columns, covered above),
+    // then 11 → 12 with `20-smc-toolkit-udt` clearing on the pivot identity.
+    // `translating` and `saveable` remain the SAME SET, which is the property
+    // this case exists to hold — through both movements.
+    expect(saveable.length).toBe(12)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

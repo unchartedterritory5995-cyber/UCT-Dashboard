@@ -477,6 +477,54 @@ export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
  *  `PINE_INEXPRESSIBLE` below — they cannot be written as identities in this
  *  engine, and a near-miss under the right name is the worst outcome available.
  */
+/** Pine calls whose NAMESPACED spelling means something this table can express,
+ *  but whose BARE spelling already resolves to a different (also correct) thing.
+ *
+ *  ⭐⭐ `ta.pivothigh` IS THE CASE THIS EXISTS FOR, AND IT IS AN EXACT IDENTITY.
+ *  Pine returns a pivot AT ITS CONFIRMATION BAR — `rightbars` after the pivot —
+ *  which is why published scripts draw it with `offset=-rightbars`. This table's
+ *  `pivothigh(source, left, right)` emits ON THE PIVOT BAR and honestly declares
+ *  the forward reach that implies. The two are the same column at different
+ *  indices, so:
+ *
+ *      ta.pivothigh(src, L, R)   ≡   pivothigh(src, L, R)[R]
+ *
+ *  ⭐ AND THE OFFSET DOES NOT MERELY RE-INDEX IT — IT CANCELS THE LOOK-AHEAD.
+ *  Stepping back exactly `R` bars nets the child's forward reach to zero, so the
+ *  translated column is `non-repainting` where the bare call is
+ *  `preview-repaints`. That is not a badge we award it; it is what the reach
+ *  walk computes, and it is exactly WHY Pine publishes the value at the
+ *  confirmation bar in the first place.
+ *
+ *  ⛔ KEYED ON THE FULL PINE NAME, and consulted only for that spelling. The
+ *  bare `pivothigh(...)` still resolves to this table's own function, unshifted,
+ *  because a member typing the bare name in OUR box means OUR vocabulary — the
+ *  same rule `ta.barssince` established. */
+const PINE_NAMESPACED_TREE = Object.freeze({
+  'ta.pivothigh': (a) => pivotAtConfirmation('pivothigh', a),
+  'ta.pivotlow': (a) => pivotAtConfirmation('pivotlow', a),
+})
+
+/** `<pivot>(src, L, R)` shifted to its confirmation bar, or null if `R` is not a
+ *  literal (the offset's bar count is a FIELD, so it must be known here). */
+function pivotAtConfirmation(name, args) {
+  // Pine allows `ta.pivothigh(leftbars, rightbars)` with the source defaulting to
+  // `high`/`low`. ⚠️ THE DEFAULT IS THE FUNCTION'S OWN EXTREME, not `close`:
+  // reading a pivot LOW off closes would answer a different question entirely.
+  const three = args.length >= 3
+  const src = three ? args[0] : { type: 'series', name: name === 'pivothigh' ? 'high' : 'low' }
+  const left = three ? args[1] : args[0]
+  const right = three ? args[2] : args[1]
+  if (!right || right.type !== 'num' || !Number.isInteger(Number(right.value))
+      || Number(right.value) < 0) {
+    return null
+  }
+  const call = cCall(name, [src, left, right])
+  return Number(right.value) === 0
+    ? call
+    : { type: 'offset', value: Number(right.value), args: [call] }
+}
+
 const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
@@ -618,28 +666,20 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // number, indexed differently", which is the shape a member cannot see.
   //
   // ⭐ AND THE REFUSAL NAMES WHAT WOULD UNBLOCK IT, in countable terms.
-  pivothigh: 'the price of a pivot high — and Pine RETURNS it at the '
-    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
-    + 'scripts draw it with `offset=-rightbars`. This table\'s '
-    + '`pivothigh(source, left, right)` emits ON THE PIVOT BAR instead, and '
-    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
-    + 'rather than hiding it behind a lag. Same values, different index: '
-    + 'translating the name straight across shifts the column by `rightbars`. '
-    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
-    + 'value lands on, then apply that shift at this door. Meanwhile write '
-    + '`pivothigh(source, left, right)` yourself, which emits on the pivot bar.',
-  pivotlow: 'the price of a pivot low — and Pine RETURNS it at the '
-    + 'CONFIRMATION bar, `rightbars` after the pivot, which is why published '
-    + 'scripts draw it with `offset=-rightbars`. This table\'s '
-    + '`pivotlow(source, left, right)` emits ON THE PIVOT BAR instead, and '
-    + 'declares that forward reach (`forward: "arg2"`, badge `preview-repaints`) '
-    + 'rather than hiding it behind a lag. Same values, different index: '
-    + 'translating the name straight across shifts the column by `rightbars`. '
-    + 'TO UNBLOCK: cite the Pine reference page that pins WHICH bar the return '
-    + 'value lands on, then apply that shift at this door. Meanwhile write '
-    + '`pivotlow(source, left, right)` yourself, which emits on the pivot bar.',
-  // ⚠️ THIS ONE IS NOW A NAME THE TABLE ALSO DECLARES, AND THAT MAKES IT MORE
-  // DANGEROUS RATHER THAN LESS — see the `own(PINE_INEXPRESSIBLE, …)` gate below.
+  // ⚰️ `pivothigh` AND `pivotlow` LIVED HERE UNTIL 2026-08-27, and their entry
+  // said: "TO UNBLOCK: cite the Pine reference page that pins WHICH bar the
+  // return value lands on, then apply that shift at this door." That is exactly
+  // what was done — Pine returns a pivot at its CONFIRMATION bar, `rightbars`
+  // after the pivot, so `ta.pivothigh(src, L, R)` now expands to
+  // `pivothigh(src, L, R)[R]` in `PINE_NAMESPACED_TREE`, where the full
+  // reasoning now lives.
+  //
+  // ⛔ THEY ARE DELETED RATHER THAN LEFT AS A RECORD, because an entry in THIS
+  // map is not documentation — it is a live refusal, and a name that is now
+  // expressible reading as inexpressible would be a false claim in the one place
+  // a member is told what this engine cannot do. `highestbars`/`lowestbars` stay,
+  // and they are the contrast worth keeping: a SIGN flip is not a shift, and no
+  // offset node can express a negation.
   barssince: 'the number of bars since a condition was last true, UNBOUNDED. '
     + 'This table declares `barssince(condition, n)`, and it is NOT the same '
     + 'function: ours saturates at a declared window and answers `n` for "not '
@@ -2718,6 +2758,20 @@ class Resolver {
     // may spell a `ta.` builtin bare, and that spelling is then genuinely
     // ambiguous. `LEGACY_BARE_NAMESPACE` is this file's existing mechanism for
     // that decision and it is the pine lane's to widen; nothing here guesses.
+    // ⭐ AN EXACT IDENTITY BEATS A REFUSAL, and this one is keyed on the SPELLING
+    // the member wrote rather than on the table's name — see `PINE_NAMESPACED_TREE`.
+    if (own(PINE_NAMESPACED_TREE, pineName)) {
+      // ⚠️ RESOLVED HERE, because `built` above lives inside the expansion branch
+      // and this gate sits outside it. Same call, same order — spelled out rather
+      // than reached for, so the two cannot quietly become different lists.
+      const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      const shifted = PINE_NAMESPACED_TREE[pineName](resolved)
+      if (shifted) return shifted
+      throw new PineRefusal('pine:arity',
+        `\`${pineName}\` returns its value \`rightbars\` after the pivot, so this `
+        + 'engine has to know that number when it builds the formula — write it '
+        + 'as a plain whole number', locate(tok))
+    }
     if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
       throw new PineRefusal('pine:function',
         `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))

@@ -858,10 +858,26 @@ def test_a_declared_FORWARD_reach_still_reads_as_one_through_an_offset():
     tree = {"type": "offset", "value": 2,
             "args": [{"type": "call", "name": "peek",
                       "args": [{"type": "series", "name": "close"}]}]}
+    # ⭐ 3, NOT 5 — AN OFFSET NETS ITS CHILD'S FORWARD REACH DOWN. At bar ``i``
+    # this node reads bar ``i - 2``, whose ``peek`` reaches to ``(i - 2) + 5``:
+    # three bars ahead of ``i``. The control still does its job — a forward reach
+    # is still SEEN and the badge still says so.
     reach = al.ast_reach(tree, {"table": table})
-    assert reach["forward"] == 5
+    assert reach["forward"] == 3
     assert reach["back"] == 2
     assert al.lint_repaint(tree, {"table": table})["mode"] == "preview-repaints"
+
+    # ⭐⭐ AND THE OTHER HALF OF THE SAME ARITHMETIC, which is what makes Pine's
+    # pivot idiom honest: step back exactly as far as the child looks forward and
+    # the look-ahead is gone. `ta.pivothigh` is this identity in the wild — Pine
+    # returns a pivot at its confirmation bar precisely so it does not repaint.
+    cancelled = dict(tree, value=5)
+    assert al.ast_reach(cancelled, {"table": table})["forward"] == 0
+    assert al.lint_repaint(cancelled, {"table": table})["mode"] == "non-repainting"
+
+    # ⛔ AND IT CANNOT GO NEGATIVE: stepping back further than the child looks
+    # forward is still zero, never a credit against another node's look-ahead.
+    assert al.ast_reach(dict(tree, value=9), {"table": table})["forward"] == 0
 
 
 # ─── the clock, linted — the window comes from the MANIFEST ─────────────────

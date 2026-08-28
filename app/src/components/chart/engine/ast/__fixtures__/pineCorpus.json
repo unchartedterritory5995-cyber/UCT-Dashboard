@@ -229,14 +229,13 @@
   "selectedFormula": null,
   "downstream": null,
   "refusal": {
-   "guard": "pine:function",
-   "line": 64,
-   "column": 12,
-   "token": "ta.pivothigh"
+   "guard": "pine:builtin",
+   "line": 92,
+   "column": 46,
+   "token": "time"
   },
   "perOutputRefusals": {
-   "pine:builtin": 9,
-   "pine:function": 1,
+   "pine:builtin": 10,
    "pine:state": 1
   }
  },
@@ -298,19 +297,16 @@
  },
  "20-smc-toolkit-udt.pine": {
   "version": 6,
-  "translates": false,
+  "translates": true,
   "outputs": 6,
-  "usable": 0,
-  "selectedFormula": null,
-  "downstream": null,
-  "refusal": {
-   "guard": "pine:function",
-   "line": 179,
-   "column": 12,
-   "token": "ta.pivothigh"
+  "usable": 4,
+  "selectedFormula": "accum(0, !0 && ((!na(accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250)) && close > accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250) && !accum(0, !na(pivothigh(high, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0) || (!na(accum(0 / 0, !na(pivotlow(low, 5, 5)[5]) ? pivotlow(low, 5, 5)[5] : self, 250)) && close < accum(0 / 0, !na(pivotlow(low, 5, 5)[5]) ? pivotlow(low, 5, 5)[5] : self, 250) && !accum(0, !na(pivotlow(low, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0)) ? 1 : self, 250) ? ((!na(accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250)) && close > accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250) && !accum(0, !na(pivothigh(high, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0) ? (accum(0, !0 && ((!na(accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250)) && close > accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250) && !accum(0, !na(pivothigh(high, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0) || (!na(accum(0 / 0, !na(pivotlow(low, 5, 5)[5]) ? pivotlow(low, 5, 5)[5] : self, 250)) && close < accum(0 / 0, !na(pivotlow(low, 5, 5)[5]) ? pivotlow(low, 5, 5)[5] : self, 250) && !accum(0, !na(pivotlow(low, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0)) ? (!na(accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250)) && close > accum(0 / 0, !na(pivothigh(high, 5, 5)[5]) ? pivothigh(high, 5, 5)[5] : self, 250) && !accum(0, !na(pivothigh(high, 5, 5)[5]) ? 0 : self, 250) ? 1 : 0) : self, 250) ? 1 : 0) : 0) : 0",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:function": 4,
    "pine:reassign": 2
   }
  },

@@ -482,7 +482,18 @@ export function astReach(ast, opts = {}) {
           break
         }
         const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
-        reachOf.set(node, { back: addReach(n, child.back), forward: child.forward })
+        // ⭐⭐ AN OFFSET NETS ITS CHILD'S FORWARD REACH DOWN. At bar `i` this node
+        // reads bar `i - n`, whose child reaches to `(i - n) + child.forward` —
+        // i.e. `child.forward - n` relative to `i`. Step back by exactly as many
+        // bars as the child looks forward and the look-ahead is gone, which is
+        // why Pine returns `ta.pivothigh` at the CONFIRMATION bar.
+        // ⛔ IT CAN ONLY REDUCE: `n` is a non-negative literal (the parse door
+        // refuses the sign and the shape has no slot for an expression), so the
+        // clamp cannot invent a forward reference. Mirrors `ast_lint`'s arm.
+        const forward = typeof child.forward === 'number'
+          ? Math.max(0, child.forward - n)
+          : child.forward
+        reachOf.set(node, { back: addReach(n, child.back), forward })
         break
       }
       case 'tf': {

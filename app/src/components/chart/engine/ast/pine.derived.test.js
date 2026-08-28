@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine, PINE_INEXPRESSIBLE } from './pine.js'
 import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
+import { lintRepaint } from './lint.js'
 
 /** A one-plot script, so the translator's own door is the thing under test. */
 const script = (expr) => `//@version=5
@@ -146,6 +147,18 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     stoch: 'ta.stoch — %K, shape-mapped', crossOver: 'ta.crossover — same event',
     crossUnder: 'ta.crossunder — same event',
     vwap: 'ta.vwap — session accumulator', avwap: 'ta.vwap(anchor) — shape-mapped',
+    // — VETTED WITH AN INDEX SHIFT, which is the case this list's warning is about.
+    //   Pine RETURNS a pivot at its CONFIRMATION bar, `rightbars` after the pivot;
+    //   this table's `pivothigh` emits ON the pivot bar. Same values, different
+    //   index — exactly the class that "shipped green with the sign inverted".
+    //   ⭐ SO THE MAPPING IS NOT THE BARE NAME: `PINE_NAMESPACED_TREE` expands
+    //   `ta.pivothigh(src, L, R)` to `pivothigh(src, L, R)[R]`, and the offset
+    //   cancels the child's forward reach so the result is `non-repainting` —
+    //   which is WHY Pine publishes at the confirmation bar in the first place.
+    //   The bare `pivothigh(…)` still resolves unshifted and still reads
+    //   `preview-repaints`, because in our box the bare name means our function.
+    pivothigh: 'ta.pivothigh — shifted to the CONFIRMATION bar, [rightbars]',
+    pivotlow: 'ta.pivotlow — shifted to the CONFIRMATION bar, [rightbars]',
     // — NOT `ta.` NAMES IN PINE AT ALL (they live in `math.*`), so `ta.x` is a
     //   spelling no real script contains. Resolving is harmless; refusing them
     //   would be inventing a rule about a name Pine does not have.
@@ -239,39 +252,64 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     }
   })
 
-  it('⛔ …and every INDEXING-MISMATCH door is REFUSED, with an ACTIONABLE reason', () => {
+  it('⛔ a SIGN-mismatch door is REFUSED, with an ACTIONABLE reason', () => {
     // ⭐ THE REFUSAL MUST NAME WHAT WOULD UNBLOCK IT. "Unmappable" is what let a
     // false refusal hide for a whole task elsewhere in this wave — an unactionable
     // refusal is never revisited because nobody knows what would change it.
-    // ⭐ TWO KINDS OF INDEXING MISMATCH, ONE RULING. `highestbars`/`lowestbars`
-    // differ from Pine by a SIGN; `pivothigh`/`pivotlow` differ by an OFFSET
-    // (Pine returns at the CONFIRMATION bar, `rightbars` later — which is why
-    // published scripts pair it with `offset=-rightbars`). Both are "the same
-    // number, indexed differently", which is the shape a member cannot see, so
-    // both refuse and both must name what would settle it.
+    //
+    // ⚰️ THIS CASE USED TO COVER FOUR NAMES, AND THE OTHER TWO HAVE SINCE BEEN
+    // SETTLED — see the case below. `highestbars`/`lowestbars` differ from Pine by
+    // a SIGN, which no offset can express: a negation is not a shift, and there is
+    // no node for it. They stay refused, and the ruling stands.
     for (const [expr, ours] of [['ta.highestbars(high, 5)', 'highestbars'],
-                                ['ta.lowestbars(low, 5)', 'lowestbars'],
-                                ['ta.pivothigh(high, 5, 5)', 'pivothigh'],
-                                ['ta.pivotlow(low, 5, 5)', 'pivotlow']]) {
+                                ['ta.lowestbars(low, 5)', 'lowestbars']]) {
       const r = refusalOf(expr)
       expect(r, `${expr} still translates — that is a sign-flipped column`).toBeTruthy()
       expect(r.guard).toBe('pine:function')
-      // the DEFECT, named — each kind in its own words, never a shared vague one
-      expect(r.message).toMatch(/non-positive|confirmation bar/i)
-      expect(r.message).toMatch(/sign-flipped|negation|shifts the column/i)
-      // ⭐ THE COUNTABLE UNBLOCKER. "Unmappable" is what let a false refusal
-      // hide for a whole task in this wave — an unactionable refusal is never
-      // revisited because nobody knows what would change it.
+      expect(r.message).toMatch(/non-positive/i)
+      expect(r.message).toMatch(/sign-flipped|negation/i)
       expect(r.message).toMatch(/cite the Pine reference/i)
-      expect(r.message).toMatch(/apply `-`|apply that shift/i)
-      // …and what to write meanwhile — which MUST be a spelling this door accepts.
-      const sig = ours.startsWith('pivot') ? `${ours}(source, left, right)` : `${ours}(source, n)`
-      const call = ours.startsWith('pivot') ? `${ours}(high, 5, 5)` : `${ours}(high, 5)`
+      expect(r.message).toMatch(/apply `-`/i)
+      const sig = `${ours}(source, n)`
       expect(r.message).toContain(sig)
-      expect(treeOfOrNull(call),
+      expect(treeOfOrNull(`${ours}(high, 5)`),
         `the refusal recommends \`${sig}\` and the same door rejects it`)
         .toBeTruthy()
     }
+  })
+
+  it('⭐⭐ an OFFSET-mismatch door now OPENS, because the shift was applied', () => {
+    // ⛔⛔ THIS IS THE REFUSAL BEING ACTED ON, NOT OVERRIDDEN. The ruling it
+    // carried was "refuse until somebody cites the Pine reference and APPLIES THAT
+    // SHIFT" — an unblocker written down precisely so it could one day be done.
+    // Pine returns a pivot at its CONFIRMATION bar, `rightbars` after the pivot,
+    // which is why published scripts pair it with `offset=-rightbars`. So:
+    //
+    //     ta.pivothigh(src, L, R)  ≡  pivothigh(src, L, R)[R]
+    //
+    // ⭐ AND THE SHIFT DOES MORE THAN RE-INDEX. Stepping back exactly `R` bars
+    // nets the child's forward reach to zero, so the translated column is
+    // `non-repainting` where the bare call is `preview-repaints` — which is
+    // exactly WHY Pine publishes at the confirmation bar. The badge is computed by
+    // the reach walk, not awarded here.
+    for (const [expr, ours, right] of [['ta.pivothigh(high, 5, 5)', 'pivothigh', 5],
+                                       ['ta.pivotlow(low, 3, 2)', 'pivotlow', 2]]) {
+      const tree = treeOfOrNull(expr)
+      expect(tree, `${expr} should translate now that the shift is applied`).toBeTruthy()
+      expect(tree.type, `${expr} must be SHIFTED, not the bare call`).toBe('offset')
+      expect(tree.value).toBe(right)
+      expect(tree.args[0].type).toBe('call')
+      expect(tree.args[0].name).toBe(ours)
+      expect(lintRepaint(tree).mode,
+        `${expr} cancels its own look-ahead, so it cannot read as repainting`)
+        .toBe('non-repainting')
+    }
+
+    // ⛔ AND THE BARE SPELLING IS UNTOUCHED — in our box it means OUR function,
+    // unshifted, and it still declares the forward reach that implies.
+    const bare = treeOfOrNull('pivothigh(high, 5, 5)')
+    expect(bare.type).toBe('call')
+    expect(lintRepaint(bare).mode).toBe('preview-repaints')
   })
 
   it('⛔ A BARE table name still RESOLVES — the refusal must not reject its own advice', () => {

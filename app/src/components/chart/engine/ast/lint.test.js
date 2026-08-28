@@ -907,10 +907,28 @@ describe('the bounded backward offset, linted', () => {
       value: 2,
       args: [{ type: 'call', name: 'peek', args: [{ type: 'series', name: 'close' }] }],
     }
+    // ⭐ 3, NOT 5 — AN OFFSET NETS THE CHILD'S FORWARD REACH DOWN. At bar `i` the
+    // node reads bar `i - 2`, whose `peek` reaches to `(i - 2) + 5`, i.e. three
+    // bars ahead of `i`. The control still does its job: a forward reach is still
+    // SEEN, and the badge still says so.
     const r = lint.astReach(tree, { table })
-    expect(r.forward).toBe(5)
+    expect(r.forward).toBe(3)
     expect(r.back).toBe(2)
     expect(lint.lintRepaint(tree, { table }).mode).toBe('preview-repaints')
+
+    // ⭐⭐ AND THE OTHER HALF OF THE SAME ARITHMETIC, which is what makes Pine's
+    // pivot idiom honest: step back by EXACTLY as far as the child looks forward
+    // and the look-ahead is gone. `ta.pivothigh` is this identity in the wild —
+    // Pine returns a pivot at its confirmation bar precisely so it does not
+    // repaint.
+    const cancelled = { ...tree, value: 5 }
+    expect(lint.astReach(cancelled, { table }).forward).toBe(0)
+    expect(lint.lintRepaint(cancelled, { table }).mode).toBe('non-repainting')
+
+    // ⛔ AND IT CANNOT GO NEGATIVE. Stepping back further than the child looks
+    // forward is still zero forward reach, never a credit against some other
+    // node's look-ahead.
+    expect(lint.astReach({ ...tree, value: 9 }, { table }).forward).toBe(0)
   })
 })
 

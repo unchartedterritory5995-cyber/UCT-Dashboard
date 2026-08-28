@@ -527,7 +527,31 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                     "got %r over %d" % (n, len(args)))
             else:
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
-                reach_of[id(node)] = (_add_reach(int(n), cb), cf)
+                # ⭐⭐ AN OFFSET NETS ITS CHILD'S FORWARD REACH DOWN, AND THIS IS THE
+                # ARITHMETIC THAT MAKES PINE'S PIVOT IDIOM HONEST. At bar `i` this
+                # node reads bar `i - n`; that child reads as far ahead as
+                # `(i - n) + child.forward`, which relative to `i` is
+                # `child.forward - n`. Step back by exactly as many bars as the
+                # child looks forward and the look-ahead is GONE — which is
+                # precisely why Pine returns `ta.pivothigh` at the CONFIRMATION
+                # bar rather than at the pivot.
+                #
+                # ⛔ IT CAN ONLY EVER REDUCE. `parse.js` refuses a negative literal
+                # at the door and the shape has no slot for an expression, so `n`
+                # is a non-negative whole number and `max(0, …)` cannot invent a
+                # forward reference. `test_an_offset_grows_BACK_and_leaves_FORWARD_
+                # at_zero` states that property and still holds: every case there
+                # has a child with no forward reach, and `0 - n` clamps to 0.
+                #
+                # ⚠️ THE OLD ARM PASSED `cf` STRAIGHT THROUGH, which was SAFE but
+                # untrue — it badged a genuinely non-repainting column
+                # `preview-repaints`. Conservative in the right direction, and
+                # still wrong about the thing a member reads.
+                if cf in (UNKNOWN, UNBOUNDED):
+                    forward = cf
+                else:
+                    forward = max(0, int(cf) - int(n))
+                reach_of[id(node)] = (_add_reach(int(n), cb), forward)
         elif kind == "tf":
             # ⭐⭐ THE WINDOW GROWS BY A WHOLE PERIOD, AND `forward` STAYS PUT.
             # `tf(expr, 'W')` reads the LAST CLOSED weekly bar, so at bar `i` it
