@@ -401,8 +401,34 @@ describe('the whole corpus, in one number', () => {
     // cannot be SAVED". True for ten days and worth keeping: a headline column
     // count that nobody can act on is worse than a smaller honest one, which is
     // why the two numbers are asserted separately and always have been.
-    expect(translating).toBe(12)
-    expect(columns).toBe(52)
+    // 🔴🔴 2026-08-27: 12/52 → 11/47, AND THIS IS THE THIRD TIME THIS FILE HAS
+    // HAD TO WRITE DOWN THE SAME DEFECT — each time one level deeper than the last.
+    // First a `display.none` output was counted as a column. Then a hidden
+    // CONSTANT baseline. Now: a column its author never hid, that is not a number
+    // on any bar.
+    //
+    // `12-ichimoku-clouds` left the translating set, and it should never have been
+    // in it. Every one of its plots reads `plot(<toggle> ? <value> : na)`, and
+    // every toggle is declared `input(false, …)` BY THE SCRIPT'S OWN AUTHOR — so
+    // under the defaults this engine folds (which is what TradingView's own Pine
+    // Screener does too), all fifteen of its "columns" fold to `0 / 0`. Fifteen
+    // NaN columns, on every bar, counted as the largest single contribution in
+    // this corpus, under the title of an Ichimoku indicator.
+    //
+    // ⭐ THE FIX WAS A PREDICATE THAT ALREADY EXISTED. `readsBars` was written for
+    // `chooseOutput` — to decide which column to offer FIRST — and the comment
+    // there already said a constant "would be a screen that matches nothing,
+    // presented as the obvious choice". The same fact answers the larger question
+    // it was never asked: a tree with no series and no call is the same value for
+    // every symbol, so it is not a screen at all. It now rides the `hidden`
+    // channel, because `display.none` is an author's own statement of exactly that
+    // and one flag should mean one definition of "usable column".
+    //
+    // ⚠️ A NUMBER GOING DOWN HERE IS WHY IT IS PINNED IN BOTH DIRECTIONS — said
+    // twice before on this same line, true a third time. Nothing that worked
+    // yesterday stopped working. What changed is that 12/52 was never true.
+    expect(translating).toBe(11)
+    expect(columns).toBe(47)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -411,7 +437,10 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(12)
+    // ⚠️ 12 → 11 with `12-ichimoku-clouds`, whose fifteen NaN columns are covered
+    // above. `translating` and `saveable` remain the SAME SET, which is the
+    // property this case exists to hold.
+    expect(saveable.length).toBe(11)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

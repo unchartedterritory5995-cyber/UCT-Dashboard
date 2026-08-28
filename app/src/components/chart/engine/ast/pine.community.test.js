@@ -44,10 +44,10 @@ describe('the community corpus, by name', () => {
     '12-vcp-tightness-score.pine',
     '13-relative-strength-vs-benchmark-spy.pine',
     '15-inside-bar.pine',
+    '16-nr4-nr7.pine',
     '17-pocket-pivot-breakout.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
-    '27-support-resistance-channels.pine',
   ]
 
   const outcome = (f) => {

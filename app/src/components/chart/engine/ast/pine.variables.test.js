@@ -470,7 +470,18 @@ plot(anchor)
     // here at all.
     expect(guards).toEqual([])
     expect(out.ok).toBe(true)
-    expect(out.outputs.filter((o) => o.formula && !o.hidden)).toHaveLength(5)
+    // ⭐ 5 → 9 ON 2026-08-27, and the four that arrived are `plotshape` — the
+    // script's own BUY/SELL markers, which this door ignored until `plotshape`
+    // became an output-producing call. A marked bar is a column: the tree is the
+    // condition Pine draws the glyph for, so it scans exactly as written. The
+    // kinds are asserted below rather than only the count, because "nine outputs"
+    // would also be satisfied by four duplicates of something already here.
+    const usable = out.outputs.filter((o) => o.formula && !o.hidden)
+    expect(usable).toHaveLength(9)
+    expect(usable.map((o) => o.kind)).toEqual([
+      'plot', 'plotshape', 'plotshape', 'plot', 'plotshape', 'plotshape',
+      'alertcondition', 'alertcondition', 'alertcondition',
+    ])
     expect(out.outputs.filter((o) => o.formula && o.hidden)).toHaveLength(1)
 
     // ⛔ NOT MERELY "IT PRODUCED SOMETHING". Attempt one of this feature emitted a

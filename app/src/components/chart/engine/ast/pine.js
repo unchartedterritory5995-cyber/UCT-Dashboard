@@ -193,6 +193,34 @@ export const REFUSALS = Object.freeze({
  *  rather than translating into a timeframe the engine would then refuse at
  *  `interpret:timeframe`. Refusing at the DOOR the member typed at is the whole
  *  point of the translator. */
+/** The Pine calls that OFFER A COLUMN, and the argument each names it with.
+ *
+ *  ⭐⭐ `plotshape` AND `plotchar` MARK BARS, AND A MARKED BAR *IS* A COLUMN.
+ *  Pine draws a glyph where the first argument is true; this engine renders that
+ *  as a marker series and SCANS it as the 0/1 column it already is. So they cost
+ *  no new machinery at all — they are `alertcondition`'s shape with `plot`'s
+ *  parameter name, and both of those were already here.
+ *
+ *  ⚠️ WHAT IS NOT CLAIMED: the GLYPH. Pine can ask for a triangle above the bar
+ *  and this engine draws its own marker at the bar. The bars marked are exactly
+ *  the bars Pine marks — the VALUE is identical and that is what a scan reads —
+ *  but the shape and the vertical placement are ours. That is a difference in
+ *  appearance, not in arithmetic, which is why it translates rather than refusing:
+ *  contrast `plot(offset = n)`, which moves a value to a DIFFERENT BAR and is
+ *  refused, because that one changes the answer.
+ *
+ *  ⛔ `plotcandle`, `plotbar`, `plotarrow` ARE DELIBERATELY ABSENT. Each needs
+ *  more than one column to mean anything (`plotcandle` takes four), so reading one
+ *  as a single series would offer a member a quarter of a candle under the
+ *  script's title. They keep refusing at `pine:no-output` until there is a
+ *  multi-column output shape to land them in. */
+const OUTPUT_CALLS = Object.freeze({
+  plot: 'series',
+  alertcondition: 'condition',
+  plotshape: 'series',
+  plotchar: 'series',
+})
+
 const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
@@ -3692,7 +3720,7 @@ export function translatePine(source, opts = {}) {
     }
 
     // ── outputs ────────────────────────────────────────────────────────────
-    if ((word === 'plot' || word === 'alertcondition') && isPunct(toks[1], '(')) {
+    if (own(OUTPUT_CALLS, word) && isPunct(toks[1], '(')) {
       outputs.push({ kind: word, toks, tok: first })
       continue
     }
@@ -3798,7 +3826,7 @@ export function translatePine(source, opts = {}) {
       // binds both of its plots and offered NO column at all until this branch
       // existed. The binding is a chart handle and nothing here can read it; the
       // COLUMN is what the screener wants, and it is right there.
-      if (rhs[0].kind === 'ident' && (rhs[0].value === 'plot' || rhs[0].value === 'alertcondition')
+      if (rhs[0].kind === 'ident' && own(OUTPUT_CALLS, rhs[0].value)
           && isPunct(rhs[1], '(')) {
         outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0] })
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
@@ -3949,7 +3977,21 @@ export function translatePine(source, opts = {}) {
         formula,
         ast,
         inputsFolded: [...resolver.usedInputs.values()],
-        hidden: outputHidden(args),
+        // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
+        // moment `plotshape` becomes an output. `03-rsi-directional-momentum-
+        // scanner` guards four of its signals behind `input.bool` toggles that
+        // default OFF, so `i_scn_show_short and choice_cont_ret ? x : false`
+        // folds to the literal `0`. Offered as a column that is a saveable scan
+        // titled "Cont 3rd Short" which matches NOTHING, on every symbol, forever
+        // — and it looks identical to a screen that simply had a quiet day.
+        //
+        // ⭐ `readsBars` ALREADY EXISTED for precisely this reason; it was only
+        // being used to decide which output to offer FIRST. The same fact answers
+        // the bigger question: a tree with no series and no call is the same
+        // number for every symbol, so it is not a screen at all. It rides the
+        // `hidden` channel because `display.none` is the author's own statement of
+        // the same thing, and one flag means one definition of "usable column".
+        hidden: outputHidden(args) || !readsBars(ast),
         refusal: null,
       }
     } catch (err) {
@@ -4109,7 +4151,12 @@ function pickOutputArgument(args, kind, tok) {
     throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
       locate(offset.tok || tok))
   }
-  const named = kind === 'plot' ? 'series' : 'condition'
+  // ⭐ PINE'S OWN PARAMETER NAME, per call. `alertcondition` takes `condition`;
+  // `plot`, `plotshape` and `plotchar` all take `series`. Reading the wrong one
+  // sends a named-argument script down the positional path and picks up whatever
+  // came first, which for `plotshape(cond, title = "x")` is still right by luck
+  // — and by luck is not a translation.
+  const named = OUTPUT_CALLS[kind]
   const byName = args.find((a) => a.name === named)
   if (byName) return byName
   const positional = args.find((a) => !a.name)
