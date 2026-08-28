@@ -21,8 +21,8 @@ describe('suggestionsFor', () => {
     // a company that reports tonight, and vice versa.
     expect(pre).not.toEqual(post)
     expect(pre.join(' ')).toMatch(/into the print/)
-    expect(post.join(' ')).toMatch(/How did NVDA's print go/)
-    expect(pre.join(' ')).not.toMatch(/How did NVDA's print go/)
+    expect(post.join(' ')).toMatch(/How did NVDA's print compare to estimates/)
+    expect(pre.join(' ')).not.toMatch(/How did NVDA's print compare/)
     // …and the reverse: nothing pre-print asks about a number that isn't out.
     expect(post.join(' ')).toMatch(/since the print/)
     expect(pre.join(' ')).not.toMatch(/since the print/)

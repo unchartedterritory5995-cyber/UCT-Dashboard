@@ -40,7 +40,8 @@
 const REPORTED = new Set(['PRINTED', 'POST', 'CALL_LIVE'])
 
 const PRE_TEMPLATES = [
-  // ungated — patterns + tape + quote + regime attach on any ticker question
+  // → technical-posture pack ("setting up" / "extended"); patterns + tape +
+  // quote + regime still attach ungated on any ticker question
   (sym) => `Is ${sym} setting up or extended here?`,
   // → options-flow pack
   (sym) => `What's the options flow saying on ${sym} into the print?`,
@@ -51,16 +52,21 @@ const PRE_TEMPLATES = [
   // margins hold up?" entirely). Reword around those two terms, not away from
   // them; the Python contract test is what will tell you if you did.
   (sym) => `How do ${sym}'s valuation and revenue growth look going in?`,
-  // ungated — history lives on the web, not in our stores
-  (sym) => `How has ${sym} traded after past earnings?`,
+  // → earnings-deep pack (quarters vs estimates + reaction history + the
+  // implied move — the series only the desk holds)
+  (sym) => `How has ${sym} reacted to past earnings, and what's the expected move this time?`,
   // → insider pack
   (sym) => `Any insider buying at ${sym} lately?`,
+  // → levels pack (dark-pool zones + gamma walls where available)
+  (sym) => `What are the key levels to watch on ${sym} into the print?`,
 ]
 
 const POST_TEMPLATES = [
-  (sym) => `How did ${sym}'s print go?`,
+  // → earnings-deep pack — actuals vs estimates + the reaction, from desk data
+  (sym) => `How did ${sym}'s print compare to estimates?`,
   // ungated, but trips the why-moved intent → news + catalyst
   (sym) => `Why is ${sym} moving after earnings?`,
+  // → call-recap pack (transcript-grounded guidance + management tone)
   (sym) => `What did management guide to on the ${sym} call?`,
   // → analyst pack — the post-print revision wave is the whole question here
   (sym) => `Any analyst upgrades or downgrades on ${sym} since the print?`,
@@ -69,6 +75,11 @@ const POST_TEMPLATES = [
   // → fundamentals pack. Same trap as the pre-print one: "revenue growth" is
   // the term carrying this, not "margins".
   (sym) => `Did ${sym}'s revenue growth and margins hold up in the print?`,
+  // → verdict pack (deterministic GO/HOLD/SKIP grade with entry/stop/size)
+  (sym) => `Is there a trade setup on ${sym} for the coming days?`,
+  // → insider pack, post-print lane (was deliberately cold; the dip-buy question
+  // is the one members actually ask after a move)
+  (sym) => `Did any insiders buy ${sym} after the move?`,
 ]
 
 /**

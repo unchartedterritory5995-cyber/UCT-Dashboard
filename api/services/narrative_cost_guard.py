@@ -183,9 +183,15 @@ def over_budget(surface: str, env_name: str = _ENV_CAP,
 
 
 def record(surface: str, model: str, input_tokens: int = 0,
-           output_tokens: int = 0, web_searches: int = 0) -> float:
-    """Accrue one call. Never raises; always accrues in-process."""
-    cost = estimate_cost(model, input_tokens, output_tokens, web_searches)
+           output_tokens: int = 0, web_searches: int = 0,
+           cost_usd: float | None = None) -> float:
+    """Accrue one call. Never raises; always accrues in-process.
+
+    `cost_usd` overrides the Anthropic-priced estimate — for non-Anthropic
+    providers (e.g. Perplexity sonar) whose models `estimate_cost` would price
+    at the priciest known Anthropic rate and wildly over-report."""
+    cost = cost_usd if cost_usd is not None else estimate_cost(
+        model, input_tokens, output_tokens, web_searches)
     _accrue_memory(surface, cost)
     try:
         _init()
