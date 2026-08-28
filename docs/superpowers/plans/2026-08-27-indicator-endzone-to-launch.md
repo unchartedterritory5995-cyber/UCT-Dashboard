@@ -897,6 +897,107 @@ reviewed. That is the failure mode this plan should be read against.
 
 ---
 
+
+---
+
+## ✅ SEGMENT H — PERSONAL COLUMNS: designed, gated on four owner decisions
+
+The ruling in "Points of contention" said an account read becomes a **declared
+personal column**. This is the design that implements it, and the questions that
+must be answered before anyone starts. It is written here rather than left in a
+review thread because the ruling without the design is not actionable, and the
+design without the questions is a trap.
+
+### H0. The shape — NO NEW NODE TYPE
+
+**A declared name in a new manifest section, `account`, riding the existing
+`series` node.**
+
+⛔⛔ THE MANIFEST ALREADY MADE THIS EXACT RULING ONCE, for exactly this shape.
+`closedTable.json::_scalars_node` says a scalar rides the `series` node rather
+than adding one of its own, because *"every stored tree's `astHash` is taken over
+`{type,…}` — so adding one is a decision that can never be undone without a
+migration of every persisted definition."* `market_cap` is one number per symbol;
+`shares_held` is one number per (symbol, viewer). **The only new axis is WHO, and
+a node type is the wrong place to carry it** — the node vocabulary is what
+`astHash` is taken over, and that hash is the identity every pin, share, migration
+and forward-record row hangs off.
+
+### H1. The invariants — each one testable
+
+1. `personal` is a **total function of `def_hash`**: two definitions with equal
+   `ast_hash` get the same verdict. It is a pure walk of the tree, DERIVED like
+   the repaint badge, never asserted by the author.
+2. `NODE_TYPES` and `_CANONICAL_KEYS` are **byte-identical in both lanes** before
+   and after. The feature adds no node type and moves no persisted `astHash`.
+3. **No row** exists in `scan_hits`, `scan_hits_live`, `scan_coverage` or
+   `definition_evaluations` whose `def_hash` is a personal tree's. A census, both
+   sides derived, with a size floor on each.
+4. The nightly and live sweeps **refuse and write NOTHING** — every writer
+   monkeypatched to raise, and the refusal appears in the receipt with its gate.
+5. An on-demand run with no viewer **refuses**; it never evaluates against an
+   empty account map.
+6. ⭐ `assert_scannable` **SUCCEEDS** and returns `personal: True`. This is the
+   negative control that stops the gate quietly becoming "no account reads at all".
+7. `values_for` issues **one** SQL statement, its WHERE carries `user_id` as a
+   bound parameter, and no reader of the definition's `author_id` reaches it —
+   asserted by AST over the module and over `api/**`.
+8. ⛔ **A shared personal definition evaluated for member B never returns a value
+   derived from member A's positions.** A symbol B does not hold is
+   `not_computable` naming the account read — never a confident 0.
+9. `unresolved_inputs` names every account name with no usable value on the row,
+   so `shares_held > 0` on an unheld symbol is a HOLE, not a comparison with NaN.
+10. The member-scoped name set is DERIVED from `scope: "member"`, is non-empty,
+    and equals the `account` section's keys.
+11. `FRESHNESS_MODES` still has exactly three members; a personal tree answers
+    `as-of-snapshot` with cadence `broker-sync`.
+12. The two lanes agree to 1e-9 on a tree naming an account name, given the same
+    supplied map.
+
+### H2. ⛔ THE FOUR OWNER DECISIONS — DO NOT START WITHOUT THESE
+
+1. **The SIGN of a short position.** `j2_positions` stores `side` plus POSITIVE
+   `shares`. thinkorswim's `GetQuantity()` sign for a short is not pinned by any
+   citation this work could find, so `shares_held`'s convention would be OURS
+   alone. ⚠️ A member screening `shares_held > 0` gets a different universe
+   depending on the answer, and nothing in the output reveals which was chosen.
+2. **Multi-lot and multi-account aggregation.** One member can hold a symbol
+   across several connected accounts. Summing is a convention, not a fact.
+3. **Which `as_of` dates an account value** — the position row's `updated_at`
+   (stale-but-recent for a symbol whose row did not change) or the broker
+   connection's last successful sync (the real freshness of the whole answer).
+   `_scalars_as_of` reasons that freshness is PER SYMBOL; the broker's own
+   semantics point the other way.
+4. **The share copy.** The ruling says a shared personal definition is a TEMPLATE
+   — it means the recipient's positions. That is a sentence a member must read
+   before they share, and it needs the owner's words, not mine.
+
+### H3. ⚠️ RISKS MEASURED DURING DESIGN, worth carrying forward
+
+- **The alert lane is a hole until it refuses.** `admit_user_definition` would arm
+  a personal tree today and `_make_value_fn` supplies no account map. Harmless
+  only because no account name exists yet — it must land WITH the section, not
+  after it.
+- **`stop_price` is a placeholder for broker rows** — `broker/balances.py` writes
+  `entry_price` into the NOT NULL `stop_price` column. Any future `stop_held` name
+  would be reading a placeholder as a fact.
+- **Widening `ast_table.SECTIONS` widens `declared_names`**, which several rails
+  compare against — including the conformance floors partition. Those move in the
+  same change or they cry wolf.
+
+### H4. Why this is not built here
+
+⛔ Three of the four decisions above have **no citable answer**, and the fourth is
+copy a member reads before sharing their own account data. The privacy invariant
+(8) is the kind that must be reviewed by someone other than its author. Building
+it unilaterally would mean choosing a short-position convention by coin flip and
+writing the privacy sentence for the owner — which is exactly the shape of
+decision this plan's own rules reserve for them.
+
+⭐ What IS done: the ruling, the design, the invariants, and the questions. Anyone
+picking this up starts at H2, not at a blank page.
+
+
 ## Self-review
 
 **1. Spec coverage.** Every row of the scorecard's "what moves the number" table has a segment: strategies → A, drawing objects → B, programs → C, accumulator → D, functions/import tail → E, library → F. The launch surface (mobile, perf, entitlements, onboarding, observability, docs) is G, which the scorecard did not cover and a launch does.
