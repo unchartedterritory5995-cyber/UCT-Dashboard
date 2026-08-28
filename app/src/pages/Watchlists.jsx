@@ -52,6 +52,7 @@ import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
@@ -328,6 +329,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 // setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys, brandMark = false,
+  displayName = null,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
@@ -371,7 +373,7 @@ const WatchRow = React.memo(function WatchRow({
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
-          <span className={styles.rowSym}>{sym}</span>
+          <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
         </span>
       )
     }
@@ -897,6 +899,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
+  // Thematic-index rows ("$IDX:<slug>", the "UCT Thematic Indexes" prebuilt list)
+  // have no Massive feed — their live daily % comes from the theme-performance
+  // snapshot via a batch endpoint, fetched only when such rows are on screen.
+  const hasIdxRows = useMemo(() => allTickers.some(s => typeof s === 'string' && s.startsWith('$IDX:')), [allTickers])
+  const { quotes: idxQuotes } = useThemeIndexQuotes(hasIdxRows)
   // Mirror the chart: when a StockChart of the same ticker is open, its published
   // readout (the EXACT price/volume/%chg its legend + "Pre" tag + volume pane
   // show) overrides the watchlist's own polling feed, so the two never disagree.
@@ -1745,6 +1752,26 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
   function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false }) {
+    // Thematic-index row: no market feed — pull its live daily % from the batch
+    // quotes map (keyed by lowercase slug), and show the theme's name instead of
+    // the raw "$IDX:CYBERSECURITY" pseudo-ticker.
+    const isIdx = typeof sym === 'string' && sym.startsWith('$IDX:')
+    const idxq = isIdx ? idxQuotes[themeIndexKey(sym)] : null
+    if (isIdx) {
+      const q = { price: idxq?.price ?? null, change_pct: idxq?.change_pct ?? null, volume: null }
+      const label = idxq?.name || themeIndexLabel(sym)
+      return (
+        <WatchRow
+          key={sym} sym={sym} name={label} displayName={label} brandMark
+          price={q.price} changePct={q.change_pct} volume={null}
+          coName={idxq?.name ?? null}
+          flagged={isFlagged(sym)} selected={selectedSym === sym} orderedKeys={orderedKeys}
+          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize}
+          isOwner={isOwner} wlId={wlId} isMember={isMember}
+          onSelect={onRowSelect} onToggleFlag={onRowFlag} onIntent={onRowIntent} onCtx={onRowCtx}
+        />
+      )
+    }
     const q = prices[sym]
     // N-day % change, computed LIVE from the current price vs the reference close N
     // trading days ago (backend `refs`), so these columns tick/flash/tint with every
