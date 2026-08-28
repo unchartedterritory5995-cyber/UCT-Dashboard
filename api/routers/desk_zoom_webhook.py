@@ -106,6 +106,32 @@ def creative_cover_backfill_status(request: Request):
     return desk_cover_backfill.status()
 
 
+@router.post("/description-backfill")
+def description_backfill_start(request: Request, limit: int | None = None):
+    """Fire the back-catalog YouTube-description sweep as ONE background
+    daemon. Idempotent/resumable via the volume ledger; re-POST after a
+    redeploy to resume. Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_description_backfill
+    started = desk_description_backfill.start_background(limit=limit)
+    return {"started": started, **desk_description_backfill.status()}
+
+
+@router.get("/description-backfill")
+def description_backfill_status(request: Request):
+    """Sweep progress: ledger counts + how many eligible videos remain.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_description_backfill
+    return desk_description_backfill.status()
+
+
 @router.post("/creative-cover-retry")
 async def creative_cover_retry_enqueue(request: Request):
     """Queue a published session for a creative-cover attempt (the publish
@@ -392,17 +418,17 @@ def recap_source(video_id: int, request: Request):
 
 
 @router.get("/insights-status")
-async def insights_status(request: Request):
+async def insights_status(request: Request, limit: int = 8):
     """Diagnostics for the session-insights backfill pass: pending queue +
     recent pass results/errors + per-video fail streaks (all from
-    `desk_session_insights.get_insights_status()`) plus the last 8 session
-    videos' insight state. Gated by the PUSH_SECRET bearer, mirroring
-    /sessions-status exactly."""
+    `desk_session_insights.get_insights_status()`) plus the last `limit`
+    (default 8) session videos' insight state. Gated by the PUSH_SECRET
+    bearer, mirroring /sessions-status exactly."""
     expected = os.environ.get("PUSH_SECRET", "")
     auth = request.headers.get("authorization", "")
     if not expected or auth != f"Bearer {expected}":
         return Response(status_code=401)
     from api.services import desk_session_insights
     data = desk_session_insights.get_insights_status()
-    data["recent_videos"] = _recent_session_video_summaries()
+    data["recent_videos"] = _recent_session_video_summaries(limit=limit)
     return data

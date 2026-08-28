@@ -10,6 +10,7 @@
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { mergeWatchlistSettings } from '../watchlist/watchlistSettings'
 import { mergeNewsWidgetSettings } from './widgets/newsWidgetSettings'
+import { mergeNotebookWidgetSettings } from './widgets/notebookWidgetSettings'
 import { mergeProfileWidgetSettings } from './widgets/profileWidgetSettings'
 import { mergeAlertsWidgetSettings } from './widgets/alertsWidgetSettings'
 import { mergeCalendarWidgetSettings } from './widgets/calendarWidgetSettings'
@@ -93,13 +94,14 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'news' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter') {
+  if (surrogate.type === 'news' || surrogate.type === 'notebook' || surrogate.type === 'profile' || surrogate.type === 'alerts' || surrogate.type === 'calendar' || surrogate.type === 'optionsflow' || surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter') {
     const mergeFn = surrogate.type === 'news'
       ? mergeNewsWidgetSettings
-      : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
-        : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings
-          : surrogate.type === 'optionsflow' ? mergeOptionsFlowWidgetSettings
-            : (surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter') ? mergeNhnlSettings : mergeProfileWidgetSettings
+      : surrogate.type === 'notebook' ? mergeNotebookWidgetSettings
+        : surrogate.type === 'alerts' ? mergeAlertsWidgetSettings
+          : surrogate.type === 'calendar' ? mergeCalendarWidgetSettings
+            : surrogate.type === 'optionsflow' ? mergeOptionsFlowWidgetSettings
+              : (surrogate.type === 'nhnl' || surrogate.type === 'nhnlPulse' || surrogate.type === 'volumescan' || surrogate.type === 'scatter') ? mergeNhnlSettings : mergeProfileWidgetSettings
     const own = simpleOwnCanvas(surrogate.opts?.settings, mergeFn)
     if (!own) return null
     const entry = canvasEntry(own.canvas)

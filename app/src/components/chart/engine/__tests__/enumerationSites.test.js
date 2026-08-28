@@ -604,6 +604,20 @@ const LEDGER = [
   { file: 'app/src/components/chart/engine/ast/pcf.js',
     region: 'PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time',
     anchor: 'export const PCF_FUSED', fate: 'keep' },
+  // ⭐ THE SAME ARGUMENT AS `pcf.js` ABOVE, ONE LEVEL DOWN: that one holds another
+  // vendor's names for our FUNCTIONS, this one holds another vendor's names for
+  // their PARAMETERS. "TradingView calls `ta.sma`'s first parameter `source`" is a
+  // fact about Pine; our manifest declares what that argument IS (a series) and
+  // could never derive what it is CALLED.
+  // ⛔ IT IS INERT ON ITS OWN, WHICH IS THE SAFETY PROPERTY. A named argument is
+  // matched only where this table AND a measured role order both exist, so
+  // `ta.stoch` — measured permutation, no TradingView-hosted page naming its
+  // parameters — still refuses. Every row carries its own `evidence` string so the
+  // table cannot grow by convention, and "source is usually first" is a convention
+  // that would have been wrong by 126 points of a 0-100 oscillator.
+  { file: 'app/src/components/chart/engine/ast/pine.js',
+    region: 'PINE_ARG_NAMES — the parameter names Pine gives each function, each row carrying its evidence',
+    anchor: 'export const PINE_ARG_NAMES', fate: 'keep' },
 ]
 
 /** What Task 12 RETIRED OUTRIGHT — kept in the file because a retired site that
@@ -1114,7 +1128,7 @@ const RETIRED_BY_B4_ALERTS = [
 // TC2000 reader. It is the first site that enumerates our indicator names in
 // order to translate ANOTHER vendor's language into them, which is why it is
 // `keep` and why the row says what cannot be derived and what is.
-const SITE_COUNT = 13
+const SITE_COUNT = 14
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1292,7 +1306,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // functions bound to maths the chart already ships — and both are `keep`,
     // because a walker has to spell a name somewhere. What makes them safe is a
     // two-way key-set equality against the manifest, not a hope; see their rows.
-    expect(counts).toEqual({ keep: 13 })
+    expect(counts).toEqual({ keep: 14 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1385,6 +1399,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
       ["app/src/components/chart/engine/ast/interpret.js::FN — the manifest`s functions bound to the chart`s own maths","keep"],
       ["app/src/components/chart/engine/ast/pcf.js::PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time","keep"],
+      ["app/src/components/chart/engine/ast/pine.js::PINE_ARG_NAMES — the parameter names Pine gives each function, each row carrying its evidence","keep"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays","keep"],
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
       ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
@@ -1945,9 +1960,22 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // resolved in `TABLE.functions`, the argument shape checked against the
     // manifest's own `args`), which is why a rename refuses by name instead of
     // producing a wrong tree.
+    // ⭐⭐⭐⭐⭐ AND AGAIN, FOR A THIRD DISTINCT REASON: `ast/pine.js` joins the
+    // set with `PINE_ARG_NAMES` — the names TradingView gives each PARAMETER of
+    // each function, which is a fact about Pine and not about us. Our manifest
+    // declares what each argument IS (a series, a window); it cannot know that
+    // TradingView spells the first one `source`. So the table is a real
+    // enumeration site, exactly like `pcf.js`'s `AVGC50` map one entry above.
+    // ⛔ WHAT MAKES IT SAFE IS THAT EVERY ROW CARRIES ITS OWN EVIDENCE and the
+    // table is USELESS WITHOUT a measured role order: a named argument is matched
+    // only where BOTH exist, so `ta.stoch` — which has a measured permutation but
+    // no TradingView-hosted page naming its parameters — still refuses. That
+    // asymmetry is the design: mapping `ta.stoch` by the convention "source is
+    // usually first" was WRONG BY 126 POINTS of a 0-100 oscillator.
     ).toEqual([
       'app/src/components/chart/engine/ast/interpret.js',
       'app/src/components/chart/engine/ast/pcf.js',
+      'app/src/components/chart/engine/ast/pine.js',
       'app/src/components/chart/engine/instances.js',
       'app/src/components/chart/engine/nativeRegistry.js',
       'app/src/components/chart/engine/registrySizes.js',
@@ -2038,6 +2066,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
       .toEqual(['app/src/components/chart/engine/ast/interpret.js',
         'app/src/components/chart/engine/ast/pcf.js',
+        'app/src/components/chart/engine/ast/pine.js',
         'app/src/components/chart/engine/instances.js',
         'app/src/components/chart/engine/nativeRegistry.js',
         'app/src/components/chart/engine/registrySizes.js',
