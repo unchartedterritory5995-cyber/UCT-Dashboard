@@ -970,13 +970,25 @@ def _guarded_mod(x: float, y: float) -> float:
     the operator is spelled out rather than borrowed."""
     if _isnan(x) or _isnan(y) or y == 0:
         return NAN
-    return x - y * float(int(x / y))
+    # ⚰️⚰️ THE QUOTIENT CAN BE INFINITE, and `int(inf)` raises `OverflowError`
+    # — not a ``TableRefusal``, so it reached the sweep as a crash rather than as a
+    # refusal. The JS lane failed the OTHER way on the same inputs: `Math.trunc`
+    # of Infinity is Infinity, so `> 0` answered a confident TRUE on every bar of
+    # every symbol. NaN is this engine's word for "not computable" and is what
+    # both lanes now say.
+    quotient = x / y
+    if not math.isfinite(quotient):
+        return NAN
+    return x - y * float(int(quotient))
 
 
 def _guarded_idiv(x: float, y: float) -> float:
     if _isnan(x) or _isnan(y) or y == 0:
         return NAN
-    return float(int(x / y))
+    quotient = x / y
+    if not math.isfinite(quotient):
+        return NAN
+    return float(int(quotient))
 
 
 def _guarded_sin(x: float) -> float:

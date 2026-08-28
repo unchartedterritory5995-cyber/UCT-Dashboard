@@ -127,16 +127,43 @@ export const REFUSALS = Object.freeze({
     'this value carries forward from bar to bar in a way the bounded accumulator cannot hold',
   'thinkscript:block':
     'this thinkorswim block spans several statements and this engine stores a single expression',
+  // ⚰️⚰️ THESE TWO SENTENCES USED TO DENY CAPABILITIES THIS ENGINE SHIPS.
+  // They read "a second aggregation period reads bars of another size than the
+  // ones being screened" and "another ticker inside one column is outside what a
+  // single screened value reads". Both are false: the grammar declares `tf` and
+  // `sym`, the PINE door emits both, and the scan gate already limits `sym` to
+  // the benchmark roster. What is missing is the TRANSLATION at this door — not
+  // the node, not the evaluator, not the gate.
+  // ⛔ A REFUSAL THAT NAMES A MISSING CAPABILITY INSTEAD OF A MISSING TRANSLATION
+  // IS HOW A FIXABLE SCRIPT GETS ABANDONED, and it is how three of these sat
+  // unexamined: `ta.highestbars` and the displaced plot were both recovered this
+  // week purely by re-reading a refusal's own last sentence against what the
+  // table already held.
   'thinkscript:aggregation':
-    'a second aggregation period reads bars of another size than the ones being screened',
+    'this door does not yet fold a second aggregation period onto the engine\'s '
+    + 'higher-timeframe read. The `tf` node exists and serves weekly and monthly '
+    + 'from daily bars; what is missing is this translation',
   'thinkscript:symbol':
-    'another ticker inside one column is outside what a single screened value reads',
+    'this door does not yet fold another ticker onto the engine\'s cross-symbol '
+    + 'read. The `sym` node exists, the Pine door emits it, and the scan gate '
+    + 'limits it to the benchmark roster; what is missing is this translation',
   'thinkscript:strategy':
     'placing an order is a backtest instruction and answers with no value to filter on',
   'thinkscript:account':
     'this reads your own position, which is a fact about your account and not about the stock',
+  // ⚰️ ALSO FALSE AS WRITTEN: it said "a session clock reading is outside the
+  // bar fields this engine keeps". The manifest declares THIRTEEN clock fields
+  // and the Pine door binds them.
+  // ⚠️ BUT THE HAZARD IS REAL AND WORTH NAMING RATHER THAN HIDING: thinkorswim's
+  // `GetTime()` is MILLISECONDS since the epoch and this engine's `time` is
+  // SECONDS — the single entry in Pine's own clock-mismatch table. A translation
+  // that lines those up wrongly is off by a factor of a thousand and looks
+  // plausible, so the mapping has to be written per function, not assumed.
   'thinkscript:time':
-    'a session clock reading is outside the bar fields this engine keeps',
+    'this door does not yet map thinkorswim\'s session-clock functions onto the '
+    + 'clock fields this engine declares. \u26a0\ufe0f `GetTime()` is in milliseconds '
+    + 'and this engine\'s `time` is in seconds, so each function needs its own '
+    + 'stated mapping rather than a shared assumption',
   'thinkscript:study-ref':
     'this names another thinkorswim study whose formula thinkorswim does not publish',
   'thinkscript:fold':
@@ -1342,16 +1369,26 @@ const TS_DEFERRED_CALLS = Object.freeze({
  *  ⭐ The field set is READ FROM THE MANIFEST, never typed here, so a manifest
  *  that gains a bar field gets the same treatment with no edit. */
 const TS_SERIES_ARG_GUARDS = Object.freeze({
+  // ⚰⚰ EVERY `why` HERE ASSERTED SOMETHING FALSE ABOUT THE ENGINE. The symbol
+  // one said "a comparison against a benchmark needs a second column, not a
+  // second symbol inside this one" — which is exactly what the `sym` node is,
+  // and exactly what `08-relative-strength-zscore-vs-spy` asks for with
+  // `close(symbol = benchmark)` where `benchmark` is an input defaulting to
+  // "SPY", a ticker already ON the benchmark roster. The Pine door translates
+  // that identical shape.
   symbol: { guard: 'thinkscript:symbol',
-    why: 'this asks for another symbol\'s prices, and a screen answers about the one symbol '
-      + 'it is run on; a comparison against a benchmark needs a second column, not a second '
-      + 'symbol inside this one' },
+    why: 'this asks for another symbol\'s prices. The engine holds that as `sym` and '
+      + 'the Pine door emits it; what is missing is folding this argument to a '
+      + 'ticker here, after which the scan gate decides whether that ticker is on '
+      + 'the benchmark roster' },
   period: { guard: 'thinkscript:aggregation',
-    why: 'this asks for another timeframe\'s bars, and a screen answers on the timeframe it '
-      + 'is run on' },
+    why: 'this asks for another timeframe\'s bars. The engine holds that as `tf` and '
+      + 'serves weekly and monthly from daily bars; what is missing is folding this '
+      + 'argument to one of those codes here' },
   aggregationperiod: { guard: 'thinkscript:aggregation',
-    why: 'this asks for another timeframe\'s bars, and a screen answers on the timeframe it '
-      + 'is run on' },
+    why: 'this asks for another timeframe\'s bars. The engine holds that as `tf` and '
+      + 'serves weekly and monthly from daily bars; what is missing is folding this '
+      + 'argument to one of those codes here' },
 })
 
 const TS_CHROME_METHODS = Object.freeze({

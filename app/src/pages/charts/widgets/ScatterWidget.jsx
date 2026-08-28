@@ -75,9 +75,17 @@ function fmtAxis(v, unit) {
 }
 
 // ── Shared portaled dropdown (universe + metric pickers) ──
-function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, align = 'left' }) {
+function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, align = 'left', searchable = false }) {
   const ref = useRef(null)
+  const searchRef = useRef(null)
   const [pos, setPos] = useState(null)
+  const [q, setQ] = useState('')
+  const needle = q.trim().toLowerCase()
+  const shown = (!searchable || !needle)
+    ? groups
+    : groups
+      .map(g => ({ ...g, items: g.items.filter(it => (it.label || '').toLowerCase().includes(needle)) }))
+      .filter(g => g.items.length)
   useLayoutEffect(() => {
     if (!anchorEl) return undefined
     const place = () => {
@@ -111,22 +119,36 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
     window.addEventListener('keydown', onKey)
     return () => { clearTimeout(t); document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey) }
   }, [onClose, anchorEl])
+  useEffect(() => { if (searchable) requestAnimationFrame(() => searchRef.current?.focus()) }, [searchable])
   return createPortal((
     <div ref={ref} className={styles.menu}
       style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, width: pos.width, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}>
-      {groups.map((g, gi) => (
-        <div key={gi} className={styles.menuGroup}>
-          {g.label && <div className={styles.menuGroupLabel}>{g.label}</div>}
-          {g.items.map((it) => (
-            <button key={it.key} type="button"
-              className={`${styles.menuItem}${it.key === selectedKey ? ' ' + styles.menuItemOn : ''}`}
-              onClick={() => { onPick(it); onClose() }}>
-              <span className={styles.menuItemLabel}>{it.label}</span>
-              {it.hint && <span className={styles.menuItemHint}>{it.hint}</span>}
-            </button>
-          ))}
+      {searchable && (
+        <div className={styles.searchWrap}>
+          <input
+            ref={searchRef}
+            className={styles.searchInput}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search groups, ETFs, industries…"
+          />
         </div>
-      ))}
+      )}
+      {shown.length === 0
+        ? <div className={styles.menuEmpty}>No matches</div>
+        : shown.map((g, gi) => (
+          <div key={gi} className={styles.menuGroup}>
+            {g.label && <div className={styles.menuGroupLabel}>{g.label}</div>}
+            {g.items.map((it) => (
+              <button key={it.key} type="button"
+                className={`${styles.menuItem}${it.key === selectedKey ? ' ' + styles.menuItemOn : ''}`}
+                onClick={() => { onPick(it); onClose() }}>
+                <span className={styles.menuItemLabel}>{it.label}</span>
+                {it.hint && <span className={styles.menuItemHint}>{it.hint}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
     </div>
   ), document.body)
 }
@@ -480,7 +502,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
 
       {menu?.type === 'uni' && (
         <DropMenu groups={uniGroups} selectedKey={`${source}:${value ?? ''}`} anchorEl={menu.anchor} themeVars={panelThemeVars}
-          onPick={addUniverse} onClose={closeMenu} />
+          onPick={addUniverse} onClose={closeMenu} searchable />
       )}
       {menu?.type === 'x' && (
         <DropMenu groups={metricGroups} selectedKey={xKey} anchorEl={menu.anchor} themeVars={panelThemeVars}

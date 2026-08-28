@@ -90,8 +90,16 @@ describe('AuthContext fetchUser — transient vs definitive session-check failur
   it('503 on a REFETCH with a logged-in user → user and plan state PRESERVED', async () => {
     fetchMock.mockResolvedValueOnce(okRes(ME))
     renderProvider()
-    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev'))
-    expect(screen.getByTestId('plan')).toHaveTextContent('pro')
+    // ⚰️ BOTH READS INSIDE THE WAIT — this was a flake. `user` and `plan` are
+    // written by different updates, so waiting on one and then reading the other
+    // synchronously could land between them: React 19 flushes passive effects in
+    // a separate Scheduler task while RTL's `waitFor` drains with one
+    // `setTimeout(…, 0)`. Same shape as the `AiSearchWidget` and `BreadthCharts`
+    // flakes fixed alongside it, and no weaker — both values are still demanded.
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('member@uct.dev')
+      expect(screen.getByTestId('plan')).toHaveTextContent('pro')
+    })
 
     fetchMock.mockResolvedValueOnce(errRes(503))
     await act(async () => { fireEvent.click(screen.getByText('retry')) })

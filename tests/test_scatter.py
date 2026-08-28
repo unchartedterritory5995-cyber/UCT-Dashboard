@@ -127,7 +127,12 @@ def test_resolve_universe_is_defensive_on_unknown_or_broken_source():
 
 
 def test_list_universes_always_has_the_static_groups():
-    groups = {g["group"] for g in scatter.list_universes(None)}
-    assert {"Indices", "My Lists", "Scanners", "Breadth", "Market"} <= groups
-    idx = next(g for g in scatter.list_universes(None) if g["group"] == "Indices")
+    gs = scatter.list_universes(None)
+    groups = {g["group"] for g in gs}
+    assert {"Universe", "Indices", "My Lists", "Scanners", "Breadth"} <= groups
+    idx = next(g for g in gs if g["group"] == "Indices")
     assert any(it["value"] == "sp500" for it in idx["items"])
+    # "UCT Universe" (the whole market) leads the menu — no bottom "Market" group.
+    assert gs[0]["group"] == "Universe"
+    assert gs[0]["items"][0]["label"] == "UCT Universe"
+    assert "Market" not in groups
