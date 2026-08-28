@@ -15,11 +15,13 @@
 /* Ticker/company header row — locked to the shared 34px first-header-row height so its
    bottom lines up with the tab/search divider on Watchlist / Theme Tracker. */
 .bar {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;   /* ticker + company centered in the row (gear floats right) */
   gap: 8px;
   height: 34px;
-  padding: 0 8px;
+  padding: 0 28px;           /* symmetric inset so the centered block clears the gear */
   box-sizing: border-box;
   background: transparent;
   border-bottom: 1px solid var(--prof-divider, var(--divider, rgba(255, 255, 255, 0.08)));
@@ -49,7 +51,10 @@
   min-width: 0;
 }
 .gearBtn {
-  margin-left: auto;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
