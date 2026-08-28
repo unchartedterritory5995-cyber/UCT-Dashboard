@@ -345,6 +345,17 @@ _INDEX_SETS = [
 _INDEX_COL = {k: col for k, _lbl, col in _INDEX_SETS}
 _INDEX_LABEL = {k: lbl for k, lbl, _c in _INDEX_SETS}
 
+# Curated equity ETFs offered as scatter universes (resolved via their holdings) —
+# the same set the NH/NL scanner offers, minus the four already in "Indices" above.
+# S&P 100 + the 11 sector SPDRs; no commodity/bond funds (nothing to plot).
+_ETF_SETS = [
+    ("OEF", "S&P 100"),
+    ("XLV", "XLV"), ("XLE", "XLE"), ("XLF", "XLF"), ("XLK", "XLK"),
+    ("XLI", "XLI"), ("XLU", "XLU"), ("XLB", "XLB"), ("XLY", "XLY"),
+    ("XLP", "XLP"), ("XLC", "XLC"), ("XLRE", "XLRE"),
+]
+_ETF_LABEL = dict(_ETF_SETS)
+
 _SCANNERS = [
     ("volume", "Volume Surge"), ("nhnl", "New Highs / Lows"),
     ("movers", "Movers"), ("catalysts", "Catalysts"), ("candidates", "Scanner Candidates"),
@@ -427,6 +438,12 @@ def resolve_universe(source: str, value: Optional[str], user_id: Optional[str]) 
         elif src == "uct20":
             from api.services import engine
             tickers = _syms_from(engine.get_leadership(), "sym", "ticker", "symbol")
+        elif src == "etf" and value:
+            from api.services import etf_holdings
+            tickers = _syms_from(etf_holdings.get_holdings(value.upper()), "sym", "ticker")
+        elif src == "industry" and value:
+            from api.services import industry_map
+            tickers = industry_map.tickers_in_industry(value)
         elif src == "theme" and value:
             from api.services import theme_db
             tickers = _syms_from(theme_db.get_theme_holdings(value), "sym", "ticker")
@@ -486,6 +503,10 @@ def list_universes(user_id: Optional[str]) -> list:
         "group": "Indices",
         "items": [{"source": "index", "value": k, "label": lbl} for k, lbl, _c in _INDEX_SETS],
     }]
+    groups.append({
+        "group": "ETFs",
+        "items": [{"source": "etf", "value": t, "label": lbl} for t, lbl in _ETF_SETS],
+    })
 
     mine = [{"source": "flagged", "value": "", "label": "Flagged"},
             {"source": "uct20", "value": "", "label": "UCT 20"}]
@@ -528,6 +549,15 @@ def list_universes(user_id: Optional[str]) -> list:
     if themes:
         groups.append({"group": "Themes", "items": themes})
 
+    try:
+        from api.services import industry_map
+        inds = industry_map.list_industries()
+        if inds:
+            groups.append({"group": "Industries",
+                           "items": [{"source": "industry", "value": n, "label": n} for n in inds]})
+    except Exception:
+        pass
+
     groups.append({"group": "Market", "items": [
         {"source": "market", "value": "", "label": "Whole Market"}]})
     return groups
@@ -540,6 +570,10 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
         return "Whole Market"
     if src == "index":
         return _INDEX_LABEL.get((value or "").lower(), "Index")
+    if src == "etf":
+        return _ETF_LABEL.get((value or "").upper(), (value or "ETF").upper())
+    if src == "industry":
+        return value or "Industry"
     if src == "flagged":
         return "Flagged"
     if src == "uct20":
