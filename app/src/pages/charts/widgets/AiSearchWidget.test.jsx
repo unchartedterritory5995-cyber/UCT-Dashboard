@@ -213,6 +213,43 @@ describe('AiSearchWidget', () => {
     expect(box.value).toBe('my question')
   })
 
+  it('renders a one-tap alert proposal chip and posts on member confirm', async () => {
+    mockFetchOnce(200, { ...GOOD, answer: 'Watching it.', citations: [],
+      proposal: { kind: 'price_alert', sym: 'NVDA', direction: 'above', price: 190 } })
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'alert me when NVDA breaks 190' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    const chip = await waitFor(() => screen.getByText(/Set alert: NVDA above \$190/))
+    // the confirm is the MEMBER action — nothing was posted yet
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) })
+    fireEvent.click(chip)
+    await waitFor(() => expect(screen.getByText(/Alert set/)).toBeTruthy())
+    const call = global.fetch.mock.calls.find((c) => c[0] === '/api/watchlist-alerts')
+    expect(call).toBeTruthy()
+    expect(JSON.parse(call[1].body)).toEqual({ sym: 'NVDA', target_price: 190, direction: 'above' })
+  })
+
+  it('reads an answer aloud via speechSynthesis and toggles to Stop', async () => {
+    const synth = { cancel: vi.fn(), speak: vi.fn() }
+    vi.stubGlobal('speechSynthesis', synth)
+    vi.stubGlobal('SpeechSynthesisUtterance', class { constructor(t) { this.text = t } })
+    mockFetchOnce(200, GOOD)
+    render(<AiSearchWidget />)
+    const box = screen.getByLabelText('Ask anything about the markets')
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByTitle('Read this answer aloud')).toBeTruthy())
+    fireEvent.click(screen.getByTitle('Read this answer aloud'))
+    expect(synth.speak).toHaveBeenCalledTimes(1)
+    // spoken text is the PLAIN answer — link syntax and bold stripped
+    expect(synth.speak.mock.calls[0][0].text).not.toMatch(/\]\(\$/)
+    expect(screen.getByTitle('Stop reading')).toBeTruthy()
+    fireEvent.click(screen.getByTitle('Stop reading'))
+    expect(synth.cancel).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
   it('renders "## Section" markdown as a styled subhead without the hashes', async () => {
     mockFetchOnce(200, { ...GOOD, answer: '## Main catalyst\n- Analyst upgrade cycle.' })
     const { container } = render(<AiSearchWidget />)

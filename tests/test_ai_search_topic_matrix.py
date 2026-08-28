@@ -493,3 +493,54 @@ def test_response_carries_grounding_and_quota(client):
     d = r.json()
     assert "quote" in d["grounding"]["sources"]
     assert d["quota"]["limit"] > 0 and "used" in d["quota"]
+
+
+# ── Category: do-things-from-the-ask-box (alert proposals, 2026-08-28) ──────
+# The server PROPOSES, never creates — the widget's confirm chip posts to the
+# existing /api/watchlist-alerts. Fixture quote provider pins last=$100.
+@pytest.mark.parametrize("q,expected", [
+    ("alert me when NVDA breaks 190", {"sym": "NVDA", "direction": "above", "price": 190.0}),
+    ("let me know if NVDA drops below 150", {"sym": "NVDA", "direction": "below", "price": 150.0}),
+    ("set an alert if NVDA reclaims $120.50", {"sym": "NVDA", "direction": "above", "price": 120.5}),
+    # ambiguous verb + price under the live quote → below
+    ("alert me when NVDA hits 90", {"sym": "NVDA", "direction": "below", "price": 90.0}),
+])
+def test_alert_proposal_shapes(client, q, expected):
+    r = client.post("/api/ai-search", json={"query": q})
+    assert r.status_code == 200
+    p = r.json().get("proposal")
+    assert p and p["kind"] == "price_alert", q
+    assert {k: p[k] for k in ("sym", "direction", "price")} == expected, q
+
+
+@pytest.mark.parametrize("q", [
+    "Why is NVDA moving today?",                 # no alert phrasing
+    "alert me when it breaks 190",               # no ticker to attach to
+    "alert me about NVDA earnings",              # no price/direction clause
+    # 2026-08-28 review: numbers that are NOT price levels
+    "alert me if NVDA drops 5%",
+    "let me know when NVDA hits 52-week highs",
+    "notify me when NVDA reaches 4 trillion market cap",
+    "alert me if NVDA drops to 2022 levels",
+])
+def test_no_alert_proposal_without_full_intent(client, q):
+    r = client.post("/api/ai-search", json={"query": q})
+    assert r.status_code == 200
+    assert r.json().get("proposal") is None, q
+
+
+def test_explicit_above_is_never_quote_flipped(client):
+    # NVDA last=$100 in the fixture; target 90 is BELOW the quote — but the
+    # member said "above", and the first cut flipped it into the opposite
+    # alert. Explicit words are literal.
+    r = client.post("/api/ai-search", json={"query": "alert me when NVDA breaks back above 90"})
+    p = r.json().get("proposal")
+    assert p and p["direction"] == "above" and p["price"] == 90.0
+
+
+def test_ambiguous_verb_without_a_quote_proposes_nothing(client, monkeypatch):
+    # "hits 90" needs the live quote to orient; when the quote provider is
+    # down, guessing a direction could create an alert that fires instantly.
+    monkeypatch.setattr(ai, "_quote_provider", lambda s: (_ for _ in ()).throw(RuntimeError()))
+    r = client.post("/api/ai-search", json={"query": "alert me when NVDA hits 90"})
+    assert r.json().get("proposal") is None

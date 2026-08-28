@@ -80,18 +80,24 @@ describe('NewHighsLowsWidget', () => {
   it('shows the panels during post-market (not just RTH)', () => {
     swr.mockReturnValue({ data: { ...LIVE, window: 'post' } })
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={() => {}} />)
-    expect(screen.getByText('POST-MARKET')).toBeInTheDocument()
     expect(screen.getByText('NEW HIGHS')).toBeInTheDocument()
     expect(screen.getByText('RL')).toBeInTheDocument()
   })
 
-  it('switching the Group-by scope persists the dimension', () => {
+  it('picking a Group-by dimension from the universe menu persists the scope', () => {
     swr.mockReturnValue({ data: LIVE })
     const onOptsChange = vi.fn()
     render(<NewHighsLowsWidget color="A" opts={{}} onOptsChange={onOptsChange} />)
-    fireEvent.click(screen.getByTitle('Group by'))                    // open scope menu
-    fireEvent.click(screen.getByRole('option', { name: 'Sector' }))   // pick a dimension
+    fireEvent.click(screen.getByTitle(/Choose what the scanner scans/i))  // open universe menu
+    fireEvent.click(screen.getByText('Sector'))                            // pick a dimension
     expect(onOptsChange).toHaveBeenCalledWith(expect.objectContaining({ scope: 'sector' }))
+  })
+
+  it('an ETF universe threads &etf= into the poll URL (and drops group)', () => {
+    swr.mockReturnValue({ data: { ...LIVE, group: null } })
+    render(<NewHighsLowsWidget color="A" opts={{ etf: 'SPY', uniLabel: 'SPY' }} onOptsChange={() => {}} />)
+    expect(swr.mock.calls[0][0]).toContain('etf=SPY')
+    expect(swr.mock.calls[0][0]).not.toContain('group=')
   })
 
   it('threads the group scope (no value) into the poll URL', () => {

@@ -1,8 +1,153 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import AiSearchWidget, { AIS_HANDOFF_KEY } from './charts/widgets/AiSearchWidget'
+import AiSearchWidget, { AIS_HANDOFF_KEY, AnswerBody } from './charts/widgets/AiSearchWidget'
 import { WorkspaceContext, WORKSPACE_FALLBACK } from './charts/WorkspaceContext'
 import styles from './AiSearchPage.module.css'
+
+/**
+ * Deep Research rail — async multi-step reports (plan → desk data + house KB +
+ * web sweeps → Opus-written cited report, 1-3 minutes). Jobs are member-keyed
+ * server-side; this panel submits, polls while anything runs, and renders a
+ * finished report with the widget's own answer renderer so report markdown can
+ * never drift from answer markdown.
+ */
+function DeepResearchPanel({ onTicker }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [jobs, setJobs] = useState([])
+  const [expanded, setExpanded] = useState(null)   // job_id
+  const [detail, setDetail] = useState(null)       // fetched report
+  const [notice, setNotice] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const refresh = useCallback(() => {
+    try {
+      Promise.resolve(fetch('/api/ai-search/deep', { credentials: 'include' }))
+        .then((r) => (r?.ok ? r.json() : null))
+        .then((d) => { if (Array.isArray(d?.jobs)) setJobs(d.jobs) })
+        .catch(() => {})
+    } catch { /* noop */ }
+  }, [])
+  useEffect(() => { refresh() }, [refresh])
+  const anyLive = jobs.some((j) => j.status === 'queued' || j.status === 'running')
+  useEffect(() => {
+    if (!anyLive) return undefined
+    const t = setInterval(refresh, 5000)
+    return () => clearInterval(t)
+  }, [anyLive, refresh])
+
+  const submit = () => {
+    const query = q.trim()
+    if (query.length < 8 || submitting) return   // a double-click billed twice
+    setNotice(null)
+    setSubmitting(true)
+    try {
+      Promise.resolve(fetch('/api/ai-search/deep', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      }))
+        .then(async (r) => {
+          const d = await r.json().catch(() => null)
+          if (r?.ok) { setQ(''); refresh() }
+          else setNotice(d?.detail || 'Could not start the report.')
+        })
+        .catch(() => setNotice('Could not start the report.'))
+        .finally(() => setSubmitting(false))
+    } catch { setNotice('Could not start the report.'); setSubmitting(false) }
+  }
+
+  const fetchDetail = useCallback((jobId) => {
+    try {
+      Promise.resolve(fetch(`/api/ai-search/deep/${encodeURIComponent(jobId)}`, { credentials: 'include' }))
+        .then((r) => (r?.ok ? r.json() : null))
+        .then((d) => { if (d?.report) setDetail(d) })
+        .catch(() => {})
+    } catch { /* noop */ }
+  }, [])
+
+  const openJob = (j) => {
+    if (expanded === j.job_id) { setExpanded(null); setDetail(null); return }
+    setExpanded(j.job_id); setDetail(null)
+    if (j.status === 'done') fetchDetail(j.job_id)
+  }
+
+  // Watching a running report is the natural flow — when the 5s poll flips it
+  // to done, load the report the member is already looking at.
+  useEffect(() => {
+    if (!expanded || detail) return
+    const j = jobs.find((x) => x.job_id === expanded)
+    if (j?.status === 'done') fetchDetail(expanded)
+  }, [jobs, expanded, detail, fetchDetail])
+
+  const removeJob = (j) => {
+    try {
+      Promise.resolve(fetch(`/api/ai-search/deep/${encodeURIComponent(j.job_id)}`, {
+        method: 'DELETE', credentials: 'include',
+      })).then(() => refresh()).catch(() => {})
+    } catch { /* noop */ }
+    if (expanded === j.job_id) { setExpanded(null); setDetail(null) }
+  }
+
+  const statusWord = (j) => (
+    j.status === 'done' ? 'ready'
+      : j.status === 'error' ? (j.error || 'error')
+        : (j.progress || j.status))
+
+  return (
+    <div className={styles.deepBar}>
+      <button type="button" className={styles.historyToggle} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        Deep research {anyLive ? '· running' : ''} {open ? '▴' : '▾'}
+      </button>
+      {open && (
+        <div className={styles.deepPanel}>
+          <div className={styles.deepAskRow}>
+            <textarea
+              className={styles.deepInput}
+              rows={2}
+              placeholder="One big question — the desk plans the research, sweeps sources, and writes a cited report (1-3 min)…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <button type="button" className={styles.historyToggle} onClick={submit}
+              disabled={q.trim().length < 8 || submitting}>
+              {submitting ? 'Starting…' : 'Research'}
+            </button>
+          </div>
+          {notice && <div className={styles.deepNotice}>{notice}</div>}
+          {jobs.slice(0, 10).map((j) => (
+            <div key={j.job_id} className={styles.deepJob}>
+              <button type="button" className={styles.historyRow} onClick={() => openJob(j)}>
+                <span className={styles.historyTitle}>{j.query}</span>
+                <span className={styles.historyMeta}>{statusWord(j)}</span>
+              </button>
+              {expanded === j.job_id && j.status === 'done' && detail?.report && (
+                <div className={styles.deepReport}>
+                  <AnswerBody text={detail.report} onTicker={onTicker} cites={detail.citations || []} />
+                  {(detail.citations || []).length > 0 && (
+                    <div className={styles.deepSources}>
+                      {(detail.citations || []).map((c, i) => {
+                        let host = c
+                        try { host = new URL(c).hostname.replace(/^www\./, '') } catch { /* raw */ }
+                        return <a key={c} href={c} target="_blank" rel="noreferrer">[{i + 1}] {host}</a>
+                      })}
+                    </div>
+                  )}
+                  <button type="button" className={styles.deepDelete} onClick={() => removeJob(j)}>Delete report</button>
+                </div>
+              )}
+              {expanded === j.job_id && j.status === 'error' && (
+                <div className={styles.deepNotice}>{j.error || 'The researcher hit an error — resubmit.'}
+                  <button type="button" className={styles.deepDelete} onClick={() => removeJob(j)}>Dismiss</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /**
  * Standalone AI Search page — the mobile home for the widget (the /charts
@@ -110,6 +255,7 @@ export default function AiSearchPage() {
 
   return (
     <div className={styles.page}>
+      <DeepResearchPanel onTicker={onTicker} />
       {threads.length > 0 && (
         <div className={styles.historyBar}>
           <button

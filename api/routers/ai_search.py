@@ -1699,6 +1699,79 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
     return system, salt, meta
 
 
+# ── Do-things-from-the-ask-box (2026-08-28): "alert me when NVDA breaks 190"
+# yields a PROPOSAL the widget renders as a one-tap confirm chip. The server
+# never auto-creates the alert — an LLM surface must not mutate member state
+# off a regex; the member's tap posts to the existing /api/watchlist-alerts.
+_ALERT_ASK_RE = re.compile(
+    r"\b(alert me|let me know (?:if|when)|notify me|ping me|set (?:an?|a price) alert"
+    r"|watch (?:for|it) (?:and )?(?:tell|ping|alert) me)\b", re.I)
+# A "price" that is really a percent, a period ("52-week"), or a magnitude
+# ("4 trillion") must never become an alert level — the review executed the
+# first cut of these regexes and got 'below $5' from "drops 5%" and
+# 'below $52' from "hits 52-week highs".
+_NUM = r"(\d+(?:\.\d+)?)\b(?!\s*(?:%|percent\b))(?!-)"
+# EXPLICIT direction words are taken literally — never quote-flipped.
+_ALERT_ABOVE_EXPLICIT_RE = re.compile(
+    r"\b(?:above|over|breaks?\s+(?:above|over|out\s+over)|crosses?\s+(?:above|over)"
+    r"|clears?|reclaims?|takes?\s+out)\s+\$?" + _NUM, re.I)
+# AMBIGUOUS verbs ("hits 90", bare "breaks 150") need the live quote to decide.
+_ALERT_AMBIG_RE = re.compile(
+    r"\b(?:breaks?|crosses?|hits?|reaches?|gets?\s+to)\s+\$?" + _NUM, re.I)
+_ALERT_BELOW_RE = re.compile(
+    r"\b(?:below|under|drops?(?:\s+(?:below|under|to))?|falls?(?:\s+(?:below|under|to))?"
+    r"|loses|breaks?\s+down(?:\s+(?:through|below))?|undercuts?)\s+\$?" + _NUM, re.I)
+# Words after the number that reveal it was never a price level.
+_ALERT_NOT_A_PRICE_TAIL = re.compile(
+    r"^\s*(?:%|percent\b|trillion\b|billion\b|million\b|levels?\b|users?\b"
+    r"|shares?\b|contracts?\b|handles?\b|points?\b|pts?\b)", re.I)
+
+
+def _alert_num(m, q: str) -> float | None:
+    price = float(m.group(1))
+    if not (0 < price < 1_000_000):
+        return None
+    if _ALERT_NOT_A_PRICE_TAIL.match(q[m.end():m.end() + 16]):
+        return None
+    return price
+
+
+def _alert_proposal(query: str, syms: list[str]) -> dict | None:
+    """{kind, sym, direction, price} when the ask reads as a price-alert
+    request for a named ticker, else None. Explicit direction words are taken
+    literally (the first cut quote-flipped 'breaks back above 175' into a
+    below-alert); ambiguous verbs ("hits 90") pick the direction from the live
+    quote — and propose NOTHING when no quote is available, because a guessed
+    direction can create an alert that fires the moment it's confirmed."""
+    q = query or ""
+    if not syms or not _ALERT_ASK_RE.search(q):
+        return None
+    price = None
+    m = _ALERT_BELOW_RE.search(q)
+    if m is not None:
+        price = _alert_num(m, q)
+    if price is not None:
+        direction = "below"
+    else:
+        m = _ALERT_ABOVE_EXPLICIT_RE.search(q)
+        price = _alert_num(m, q) if m is not None else None
+        if price is not None:
+            direction = "above"
+        else:
+            m = _ALERT_AMBIG_RE.search(q)
+            price = _alert_num(m, q) if m is not None else None
+            if price is None:
+                return None
+            try:
+                last = float((_quote_provider(syms[0]) or {}).get("last") or 0)
+            except Exception:
+                last = 0.0
+            if last <= 0:
+                return None   # can't orient an ambiguous verb — never guess
+            direction = "above" if price >= last else "below"
+    return {"kind": "price_alert", "sym": syms[0], "direction": direction, "price": price}
+
+
 _DEGRADED_NOTE = (
     "\n\nWEB SEARCH IS TEMPORARILY UNAVAILABLE. Answer ONLY from the UCT DESK "
     "CONTEXT above plus general market knowledge. Open with one brief phrase "
@@ -1907,6 +1980,9 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     result["grounding"] = {"sources": meta.get("grounding_sources") or [],
                            "intents": meta.get("grounding_intents") or []}
     result["quota"] = _quota_snapshot(user_id)
+    proposal = _alert_proposal(body.query, meta.get("query_tickers") or [])
+    if proposal:
+        result["proposal"] = proposal
     # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
     _log_answer(body=body, user_id=user_id, answer_id=answer_id, endpoint="single",
                 mode=effective_mode, result=result, meta=meta, history=history,
@@ -1952,6 +2028,10 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
     loop = asyncio.get_running_loop()
     system, salt, meta = await loop.run_in_executor(None, _grounded_system, body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
+    # Proposal parse can hit the live quote (ambiguous verbs) — a blocking
+    # Massive read that must never ride the shared event loop inside gen().
+    proposal = await loop.run_in_executor(
+        None, lambda: _alert_proposal(body.query, meta.get("query_tickers") or []))
     answer_id = ai_search_log_new_id()
 
     async def gen():
@@ -2015,6 +2095,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                             settled_fb = {'type': 'final', 'answer_id': answer_id,
                                           'grounding': grounding,
                                           'quota': _quota_snapshot(user_id), **fb}
+                            if proposal:
+                                settled_fb['proposal'] = proposal
                             yield f"data: {json.dumps(settled_fb)}\n\n"
                             continue
                         dg = await _fb_loop.run_in_executor(
@@ -2030,12 +2112,16 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                             dg_final = {'type': 'final', 'answer_id': answer_id,
                                         'grounding': grounding,
                                         'quota': _quota_snapshot(user_id), **dg}
+                            if proposal:
+                                dg_final['proposal'] = proposal
                             yield f"data: {json.dumps(dg_final)}\n\n"
                             continue
                     captured["result"] = {"answer": "", "error": ev.get("error") or "stream error"}
                 if t == "final":
                     ev = {**ev, "answer_id": answer_id, "grounding": grounding,
                           "quota": _quota_snapshot(user_id)}
+                    if proposal:
+                        ev["proposal"] = proposal
                 yield f"data: {json.dumps(ev)}\n\n"
         finally:
             if not settled:
@@ -2068,6 +2154,9 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
     """Today's live AI Search usage: burn vs caps, mode mix, cache-hit rate.
     In-memory — resets at midnight ET and on redeploy (same lifetime as the caps).
     De-identified: no per-user breakdown (that lives nowhere now)."""
+    # Ledger reads OUTSIDE the hot-path lock — four SQLite SUMs against /data
+    # must never block member reserves behind an admin page load.
+    spend = _spend_block()
     with _usage_lock:
         requests = _stats["requests"]
         cache_hits = _stats["cache_hits"]
@@ -2085,7 +2174,23 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
             "single_shot_requests": _stats["single"],
             "note": ("billed units re-seed from the durable ledger after a redeploy; "
                      "request/cache-hit stats are in-memory since last deploy"),
+            # Dollar telemetry off the shared ledger (Perplexity had NONE until
+            # 2026-08-28 — every completion now records under pplx:* surfaces).
+            "spend_today_usd": spend,
         }
+
+
+def _spend_block() -> dict:
+    try:
+        from api.services import narrative_cost_guard as guard
+        return {
+            "perplexity_ai_search": round(guard.spend_today_usd("pplx:ai_search"), 4),
+            "perplexity_deep": round(guard.spend_today_usd("pplx:ai_search_deep"), 4),
+            "perplexity_other": round(guard.spend_today_usd("pplx:perplexity"), 4),
+            "deep_research_anthropic": round(guard.spend_today_usd("ai_search_deep"), 4),
+        }
+    except Exception:
+        return {}
 
 
 @router.get("/admin/log")
@@ -2197,6 +2302,50 @@ def ai_search_saved_put(body: AiSavedIn, user: dict = Depends(require_paid)):
 def ai_search_saved_delete(answer_id: str, user: dict = Depends(require_paid)):
     from api.services import ai_search_member
     return {"ok": ai_search_member.delete_saved(_member_uid(user), answer_id)}
+
+
+# ── Deep Research (2026-08-28): async multi-step reports. Submission bills 5
+# quota units (a report is ~5 asks of spend, refunded by the service on error);
+# per-user/day + global-dollar caps live in ai_search_deep.
+
+class AiDeepIn(BaseModel):
+    query: str
+
+
+@router.post("/deep")
+def ai_search_deep_submit(body: AiDeepIn, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    uid = _member_uid(user)
+    if not (body.query or "").strip():
+        raise HTTPException(status_code=422, detail="Empty question.")
+    _reserve(user.get("id"), ai_search_deep._QUOTA_UNITS)
+    out = ai_search_deep.submit(uid, body.query)
+    if not out.get("ok"):
+        _refund(user.get("id"), ai_search_deep._QUOTA_UNITS)
+        raise HTTPException(status_code=429, detail=out.get("reason") or "unavailable")
+    _record_request("deep", stream=False)
+    return {**out, "quota": _quota_snapshot(user.get("id"))}
+
+
+@router.get("/deep")
+def ai_search_deep_list(limit: int = 20, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    return {"jobs": ai_search_deep.list_jobs(_member_uid(user), limit=limit)}
+
+
+@router.get("/deep/{job_id}")
+def ai_search_deep_detail(job_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    out = ai_search_deep.get_job(_member_uid(user), job_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="report not found")
+    return out
+
+
+@router.delete("/deep/{job_id}")
+def ai_search_deep_delete(job_id: str, user: dict = Depends(require_paid)):
+    from api.services import ai_search_deep
+    return {"ok": ai_search_deep.delete_job(_member_uid(user), job_id)}
 
 
 class AiSignalIn(BaseModel):

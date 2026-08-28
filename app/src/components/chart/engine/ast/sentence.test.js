@@ -2245,6 +2245,20 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sym_an_unsupplied_benchmark_is_not_computable',
       'tf_live_close_weekly',
       'tf_live_compared_to_the_closed_week',
+      // ⭐ FOUR ADDED WITH THE mod/idiv OVERFLOW FIX. The two `*_overflow_to_nan`
+      // cases drive an arm the corpus had NEVER driven, and the lanes were wrong
+      // there in OPPOSITE directions — Python raised `OverflowError` from
+      // `int(inf)`, JS returned `Infinity` so `> 0` answered 1 for every symbol.
+      // ⛔ THEY ARE WRITTEN AS COMPARISONS ON PURPOSE. A bare overflow column is
+      // laundered to NaN on write, so `na(overflow)` cannot tell the lanes apart
+      // — the first draft of these cases was exactly that, and a mutant survived
+      // it. The Infinity survives long enough to be COMPARED, and a scan IS
+      // `<tree> != 0`. Mutation-checked: removing the JS guard turns `--check`
+      // red on 580 findings.
+      'idiv_overflow_to_nan',
+      'mod_overflow_to_nan',
+      'idiv_truncates_toward_zero',
+      'mod_sign_follows_left_operand',
     ])
   })
 
