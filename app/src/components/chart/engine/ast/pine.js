@@ -786,6 +786,27 @@ const BUILTIN_CALL_TREE = Object.freeze({
   //
   // ⛔ `n < 2` HAS NO REGRESSION and the constant divides by `n−1`, so it falls
   // through to a refusal rather than returning Infinity dressed as a price.
+  // ⭐⭐ `vwma` IS TRADINGVIEW'S OWN CLOSED FORM, NOT AN APPROXIMATION. Its docs
+  // publish the equivalent verbatim:
+  //     pine_vwma(source, length) => ta.sma(source * volume, length)
+  //                                / ta.sma(volume, length)
+  // Every piece of that is already declared here — `sma`, `*`, `/`, `volume` — so
+  // this costs the manifest NOTHING. A table entry would have been the reflex and
+  // it would have added a name to the sayable vocabulary, the picker, the
+  // plain-language door and both interpreters, to express something the table can
+  // already say.
+  // ⛔ THE LENGTH MUST BE A WHOLE NUMBER, checked here rather than left to `sma`:
+  // the expansion uses it TWICE, so a bad window would produce two refusals
+  // pointing at a function the member never wrote.
+  vwma: (a) => {
+    const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return null
+    const vol = { type: 'series', name: 'volume' }
+    return cOp('/', [
+      cCall('sma', [cOp('*', [a[0], vol]), cNum(n)]),
+      cCall('sma', [vol, cNum(n)]),
+    ])
+  },
   linreg: (a) => {
     const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
     const off = a[2] === undefined ? 0

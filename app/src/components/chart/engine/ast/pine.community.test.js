@@ -56,6 +56,14 @@ describe('the community corpus, by name', () => {
     // cleared, which is the whole argument for reading refusals at the line
     // rather than estimating them from what a script contains.
     '19-cm-macd-ult-mtf.pine',
+    // ⭐ `vwma` WAS THE LAST THING HOLDING IT, and it cost the manifest nothing:
+    // TradingView publishes the equivalent verbatim as
+    // `ta.sma(source * volume, length) / ta.sma(volume, length)`, every piece of
+    // which this table already declares. Three refusals deep in total — it cleared
+    // `pine:request` on the ternary timeframe fold, then `pine:window` on window
+    // constant-folding, then this. None of the three was visible until the one
+    // before it cleared.
+    '20-cm-ultimate-ma-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
     '28-support-resistance-dynamic-v2.pine',
