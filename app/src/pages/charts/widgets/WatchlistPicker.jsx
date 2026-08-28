@@ -236,6 +236,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
           ) : prebuiltGroups.map(g => (
             <div key={g.category} className={styles.catGroup}>
               <div className={styles.catHeader}>
+                <span className={styles.catMark} aria-hidden="true">◆</span>
                 <span>{g.category}</span>
                 <span className={styles.catCount}>{g.count ?? g.lists.length} lists</span>
               </div>
