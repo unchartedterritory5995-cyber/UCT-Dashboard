@@ -69,8 +69,11 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: that already know it. Phase D Task 13 moved this 5 → 6 when the concierge route
 #: (`POST /propose`) landed; it turned both halves of the sweep red until it was
 #: updated DELIBERATELY, which is the whole mechanism. A seventh route must cost
-#: the same three deliberate edits.
-EXPECTED_ROUTE_COUNT = 6
+#: the same three deliberate edits. 2026-08-28: 6 → 12 when the indicator-endzone
+#: wave landed its six new routes — the sweep went red in exactly the designed
+#: way (the other two sites were updated first) and every new route was verified
+#: to carry its OWN require_paid before this number moved.
+EXPECTED_ROUTE_COUNT = 12
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -135,7 +138,7 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
     seen = []
     for r in routes:
         for method in _http_methods(r):
-            path = r.path.replace("{def_id}", "u_abc")
+            path = r.path.replace("{def_id}", "u_abc").replace("{token}", "tok_abc")
             resp = free_client.request(method, path)
             assert resp.status_code == 402, (
                 f"{method} {r.path} answered a free user {resp.status_code} — "
@@ -146,12 +149,14 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
             seen.append(f"{method} {r.path}")
 
     assert len(seen) == EXPECTED_ROUTE_COUNT, seen
-    # …and they really are six DISTINCT doors, not one route counted six times by
-    # a walk that lost its way. Three paths carry the six verbs: the collection
-    # (`GET`/`POST`), the concierge (`POST /propose`) and the item
-    # (`GET`/`PUT`/`DELETE /{def_id}`).
+    # …and they really are twelve DISTINCT doors, not one route counted twelve
+    # times by a walk that lost its way. Seven paths carry the twelve verbs:
+    # the collection (`GET`/`POST`), the concierge (`POST /propose`), the item
+    # (`GET`/`PUT`/`DELETE /{def_id}`), sharing (`POST`/`GET`/`DELETE
+    # /{def_id}/share`), history (`GET /{def_id}/history`), and the shared-link
+    # pair (`GET /shared/{token}`, `POST /shared/{token}/install`).
     assert sorted(seen) == sorted(set(seen)), seen
-    assert len({s.split(" ", 1)[1] for s in seen}) == 3, seen
+    assert len({s.split(" ", 1)[1] for s in seen}) == 7, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():
