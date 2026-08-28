@@ -173,6 +173,7 @@ function DeepResearchPanel({ onTicker }) {
 function BriefingsRail() {
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState([])
+  const [notice, setNotice] = useState(null)   // server refusal ("capped at 1 — pause one first")
   const refresh = useCallback(() => {
     try {
       Promise.resolve(fetch('/api/ai-search/briefings', { credentials: 'include' }))
@@ -190,11 +191,18 @@ function BriefingsRail() {
     return () => window.removeEventListener('ais:briefings-changed', onChanged)
   }, [refresh])
   const toggle = (b) => {
+    setNotice(null)
     try {
       Promise.resolve(fetch(
         `/api/ai-search/briefings/${encodeURIComponent(b.briefing_id)}/toggle?enabled=${b.enabled ? 'false' : 'true'}`,
         { method: 'POST', credentials: 'include' },
-      )).then(() => refresh()).catch(() => {})
+      ))
+        // the toggle endpoint answers 200 with {ok:false, reason} on a cap
+        // refusal (resume re-check) — dropping the body made Resume look
+        // like a dead button (2026-08-28 review)
+        .then((r) => r?.json?.().catch(() => null))
+        .then((d) => { if (d && d.ok === false && d.reason) setNotice(d.reason) })
+        .then(() => refresh()).catch(() => {})
     } catch { /* noop */ }
   }
   const remove = (b) => {
@@ -212,13 +220,15 @@ function BriefingsRail() {
       </button>
       {open && (
         <div className={styles.deepPanel}>
+          {notice && <div className={styles.outageNote}>{notice}</div>}
           {rows.map((b) => (
             <div key={b.briefing_id} className={styles.historyRow} style={{ cursor: 'default' }}>
               <span className={styles.historyTitle}>
                 {b.sym ? `${b.sym} · ` : ''}{b.query}
               </span>
               <span className={styles.historyMeta}>
-                {b.cadence === 'postmarket' ? 'each close' : 'each morning'}
+                {b.cadence === 'weekly_deep' ? 'deep report every Sunday'
+                  : b.cadence === 'postmarket' ? 'each close' : 'each morning'}
                 {b.last_status ? ` · ${b.last_status}` : ''}
               </span>
               <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>

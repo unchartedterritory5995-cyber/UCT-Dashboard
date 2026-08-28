@@ -105,7 +105,9 @@ _AGENT_SYSTEM_TAIL = (
     "cite a web_search result, use the [n] indices its result provides — never "
     "invent a source. Desk tool data needs no citation; attribute it to 'UCT "
     "desk data'. If a tool errors, work with what you have and say what's "
-    "missing plainly."
+    "missing plainly. You are READ-ONLY research: you cannot place trades, "
+    "create alerts or positions, or modify anything — when asked to act, say "
+    "so in one phrase and give the read that would inform the action instead."
 )
 
 
@@ -118,12 +120,14 @@ def _shrink(obj) -> str:
 
 
 def run_agent(query: str, system: str, history: list | None, user: dict | None,
-              emit=None, cancel=None) -> dict:
+              emit=None, cancel=None, capture: list | None = None) -> dict:
     """Blocking tool loop. Returns {answer, citations, tools_used, error?}.
     `emit(text)` (optional, thread-safe on the caller's side) surfaces live
     activity to the member; `cancel` (threading.Event) stops the loop early
     when the client disconnected — a dead stream must not keep burning the
-    agent dollar cap."""
+    agent dollar cap. `capture` (optional list) receives one
+    {name, args, result} per EXECUTED tool call — the report-card harness's
+    ground truth; the member path never passes it and is unchanged."""
     from api.services import voice_tools
     from api.services import narrative_cost_guard as guard
     from api.services.engine import _get_anthropic_client
@@ -212,6 +216,8 @@ def run_agent(query: str, system: str, history: list | None, user: dict | None,
                     payload = {"ok": False, "error": f"tool failed: {type(e).__name__}"}
             else:   # the model asked for something off the allowlist
                 payload = {"ok": False, "error": "tool not available in this lane"}
+            if capture is not None:   # exam ground truth — covers all 3 branches
+                capture.append({"name": name, "args": args, "result": payload})
             results.append({"type": "tool_result", "tool_use_id": tu.id,
                             "content": _shrink(payload)})
         messages.append({"role": "user", "content": results})

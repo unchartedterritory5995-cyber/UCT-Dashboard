@@ -71,3 +71,12 @@
   border-radius: 6px; padding: 2px 8px;
 }
 .deepDelete:hover { color: var(--loss, #f87171); border-color: rgba(248, 113, 113, 0.4); }
+
+/* server refusal surfaced in the briefings rail (e.g. resume over the cap) */
+.outageNote {
+  font-size: 11px;
+  color: var(--color-warning, #eab308);
+  padding: 4px 8px;
+  border-left: 2px solid rgba(234, 179, 8, 0.5);
+  margin-bottom: 4px;
+}

@@ -282,3 +282,108 @@ def test_synthesize_merges_and_renumbers_citations(monkeypatch, tmp_path):
     assert "beta [2]" in captured["prompt"]
     assert "[1] https://a.com/1" in captured["prompt"]
     assert report == "report body [2]"
+
+
+# ── scheduled (weekly) jobs — source='scheduled' rails (2026-08-28) ──────────
+
+def test_scheduled_job_delivers_and_never_refunds_on_error(monkeypatch, tmp_path):
+    """A scheduled job reserved no router units, so its failure must refund
+    nothing (a refund here would mint phantom credit), and its success must
+    deliver a ready-alert through the watchlist alert door."""
+    _fresh(monkeypatch, tmp_path)
+    refunded, delivered = [], []
+    monkeypatch.setattr(deep, "_refund_units", lambda uid: refunded.append(uid))
+    import api.services.watchlist_alert_service as was
+    monkeypatch.setattr(was, "deliver_alert_payload",
+                        lambda uid, sym, title, msg, **kw: delivered.append((uid, title, kw)))
+    # success path → delivered, severity info, no refund
+    out = deep.submit("u1", "weekly deep question one", source="scheduled")
+    assert out["ok"]
+    job = deep.get_job("u1", out["job_id"])
+    assert job["status"] == "done"
+    assert len(delivered) == 1
+    uid, title, kw = delivered[0]
+    assert uid == "u1" and "ready" in title.lower()
+    assert kw.get("severity") == "info"          # info skips the Discord webhook
+    assert refunded == []
+    # error path → error status, STILL no refund
+    monkeypatch.setattr(deep, "_synthesize",
+                        lambda q, d, f: (_ for _ in ()).throw(RuntimeError("boom")))
+    out2 = deep.submit("u1", "weekly deep question two", source="scheduled")
+    assert deep.get_job("u1", out2["job_id"])["status"] == "error"
+    assert refunded == []
+    # interactive failure in the same store still refunds (control)
+    out3 = deep.submit("u1", "interactive question that fails")
+    assert deep.get_job("u1", out3["job_id"])["status"] == "error"
+    assert refunded == ["u1"]
+
+
+def test_scheduled_jobs_do_not_consume_interactive_slots(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    monkeypatch.setenv("AI_SEARCH_DEEP_PERUSER_CAP", "2")
+    assert deep.submit("u1", "scheduled weekly report one", source="scheduled")["ok"]
+    assert deep.submit("u1", "scheduled weekly report two", source="scheduled")["ok"]
+    # both interactive slots still free
+    assert deep.submit("u1", "interactive question one")["ok"]
+    assert deep.submit("u1", "interactive question two")["ok"]
+    assert not deep.submit("u1", "interactive question three")["ok"]
+
+
+def test_reclaim_never_refunds_a_scheduled_job(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    refunded = []
+    monkeypatch.setattr(deep, "_refund_units", lambda uid: refunded.append(uid))
+    import contextlib
+    deep._ensure_init()
+    with contextlib.closing(deep._connect()) as conn:
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at, source) "
+            "VALUES ('sched1','u1','q','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00','scheduled')")
+        conn.commit()
+    assert deep.reclaim_stale() == 1
+    assert deep.get_job("u1", "sched1")["status"] == "error"
+    assert refunded == []
+
+
+def test_scheduled_budget_fraction_reserves_interactive_headroom(monkeypatch, tmp_path):
+    """Scheduled submits stop at 60% of the daily dollar cap; interactive
+    keeps the full cap — the Sunday batch can never black out members."""
+    _fresh(monkeypatch, tmp_path)
+    import api.services.narrative_cost_guard as guard
+    monkeypatch.setattr(guard, "spend_today_usd", lambda s: 3.5)   # 7.0 total of $10
+    out = deep.submit("u1", "a scheduled weekly report", source="scheduled")
+    assert not out["ok"] and "scheduled budget" in out["reason"]
+    assert deep.submit("u1", "an interactive question")["ok"]      # reserve intact
+    # under the fraction, scheduled submits work
+    monkeypatch.setattr(guard, "spend_today_usd", lambda s: 2.0)   # 4.0 total
+    assert deep.submit("u1", "another scheduled weekly report", source="scheduled")["ok"]
+
+
+def test_interactive_cap_never_blocks_the_scheduled_weekly(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    monkeypatch.setenv("AI_SEARCH_DEEP_PERUSER_CAP", "1")
+    assert deep.submit("u1", "interactive question one")["ok"]
+    assert not deep.submit("u1", "interactive question two")["ok"]   # cap hit
+    # the Sunday report the member's briefing entitles them to still runs
+    assert deep.submit("u1", "their weekly scheduled report", source="scheduled")["ok"]
+
+
+def test_reclaimed_scheduled_job_gets_sunday_copy_not_resubmit(monkeypatch, tmp_path):
+    _fresh(monkeypatch, tmp_path)
+    monkeypatch.setattr(deep, "_refund_units", lambda uid: None)
+    import contextlib
+    deep._ensure_init()
+    with contextlib.closing(deep._connect()) as conn:
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at, source) "
+            "VALUES ('sc1','u1','q','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00','scheduled')")
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at) "
+            "VALUES ('in1','u2','q2','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00')")
+        conn.commit()
+    deep.reclaim_stale()
+    assert "next Sunday" in deep.get_job("u1", "sc1")["error"]
+    assert "resubmit" in deep.get_job("u2", "in1")["error"]

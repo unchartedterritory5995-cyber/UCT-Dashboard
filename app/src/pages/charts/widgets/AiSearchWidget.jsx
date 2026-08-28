@@ -310,11 +310,16 @@ function ProposalChip({ proposal }) {
   const [state, setState] = useState('idle')   // idle | busy | done | error
   const [detail, setDetail] = useState(null)   // server's actionable refusal reason
   if (!proposal) return null
-  const isBriefing = proposal.kind === 'briefing'
+  // deep_briefing rides the same briefings API — it is a briefing row whose
+  // cadence is weekly_deep (a Sunday Deep Research report, not a text brief)
+  const isDeep = proposal.kind === 'deep_briefing'
+  const isBriefing = proposal.kind === 'briefing' || isDeep
   if (!isBriefing && proposal.kind !== 'price_alert') return null
-  const label = isBriefing
-    ? `Schedule ${proposal.cadence === 'postmarket' ? 'closing' : 'morning'} brief${proposal.sym ? `: ${proposal.sym}` : ''}`
-    : `Set alert: ${proposal.sym} ${proposal.direction} $${proposal.price}`
+  const label = isDeep
+    ? `Schedule weekly deep report${proposal.sym ? `: ${proposal.sym}` : ''}`
+    : isBriefing
+      ? `Schedule ${proposal.cadence === 'postmarket' ? 'closing' : 'morning'} brief${proposal.sym ? `: ${proposal.sym}` : ''}`
+      : `Set alert: ${proposal.sym} ${proposal.direction} $${proposal.price}`
   const confirm = () => {
     setState('busy')
     const req = isBriefing
@@ -353,18 +358,22 @@ function ProposalChip({ proposal }) {
   if (state === 'done') {
     return (
       <span className={styles.proposalDone}>
-        <UIcon name="check" size={11} /> {isBriefing
-          ? `Briefing scheduled — every ${proposal.cadence === 'postmarket' ? 'close' : 'morning'}`
-          : `Alert set — ${proposal.sym} ${proposal.direction} $${proposal.price}`}
+        <UIcon name="check" size={11} /> {isDeep
+          ? 'Deep report scheduled — every Sunday'
+          : isBriefing
+            ? `Briefing scheduled — every ${proposal.cadence === 'postmarket' ? 'close' : 'morning'}`
+            : `Alert set — ${proposal.sym} ${proposal.direction} $${proposal.price}`}
       </span>
     )
   }
   return (
     <button type="button" className={styles.proposalBtn} onClick={confirm}
       disabled={state === 'busy'}
-      title={isBriefing
-        ? 'Schedule this as a standing brief (delivered via bell, email and Discord)'
-        : 'Create this price alert (delivered via bell, email and Discord per your settings)'}>
+      title={isDeep
+        ? 'Schedule a full Deep Research report every Sunday (you get an alert when each one is ready)'
+        : isBriefing
+          ? 'Schedule this as a standing brief (delivered via bell, email and Discord)'
+          : 'Create this price alert (delivered via bell, email and Discord per your settings)'}>
       <UIcon name={isBriefing ? 'clock' : 'bell'} size={11} /> {state === 'error' ? (detail || `Retry — ${label}`) : label}
     </button>
   )

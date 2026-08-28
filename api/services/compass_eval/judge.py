@@ -126,7 +126,11 @@ def judged(axes: dict) -> bool:
     return not axes.get("judge_error")
 
 
-def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL) -> dict:
+def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL,
+                 rubric: str | None = None) -> dict:
+    """`rubric` overrides the Compass axis definitions — the AI-Search lane
+    grades the same four axis NAMES against its own product contract
+    (web citations, computed verdicts) instead of Compass's craft grounding."""
     q = transcript["question"]
     user = (
         f"QUESTION (rung {q['rung']}): {q['question']}\n\n"
@@ -138,7 +142,7 @@ def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL) -> dict:
     )
     resp = client.messages.create(
         model=model, max_tokens=500,
-        messages=[{"role": "user", "content": f"{_RUBRIC}\n\n{user}"}],
+        messages=[{"role": "user", "content": f"{rubric or _RUBRIC}\n\n{user}"}],
     )
     text = resp.content[0].text if getattr(resp, "content", None) else ""
     usage = getattr(resp, "usage", None)
