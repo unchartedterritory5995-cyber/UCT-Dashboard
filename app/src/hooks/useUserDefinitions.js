@@ -304,3 +304,120 @@ export async function deleteUserDefinition(defId) {
   } catch { /* not JSON — an HTML error page, or an empty body */ }
   return { ok: false, error: detail || `The server refused to delete this formula (${r.status}).` }
 }
+
+/**
+ * The share link for a definition — mint it, read it, or turn it off.
+ *
+ * ⛔⛔ `read` NEVER MINTS, AND THAT SPLIT IS THE WHOLE SAFETY STORY. The panel
+ * asks on open; if that call could create a token, opening a panel would publish
+ * a formula. The server enforces it too (`GET {id}/share` is read-only) — this is
+ * the second lock, not the only one.
+ *
+ * ⚠️ EVERY BRANCH RETURNS `{ok, …}`, never null, and a refusal's `error` is a
+ * non-blank string — the same contract `saveUserDefinition` states above, so a
+ * caller never has to know which of the four doors it went through.
+ */
+async function shareCall(method, defId) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/share`, {
+      method,
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) return { ok: true, token: (body && body.token) || null }
+  const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
+  return { ok: false, error: detail || `The server refused that (${r.status}).` }
+}
+
+export const readShareLink = (defId) => shareCall('GET', defId)
+export const createShareLink = (defId) => shareCall('POST', defId)
+export const revokeShareLink = (defId) => shareCall('DELETE', defId)
+
+/**
+ * Preview a share link somebody sent you, WITHOUT installing it.
+ *
+ * ⛔⛔ THE REFUSAL REASON IS CARRIED THROUGH, not flattened into a message. The
+ * server distinguishes `revoked` (the owner turned it off), `gone` (they deleted
+ * it) and `table-version` (this engine's grammar moved, so the same formula could
+ * now compute something else). A panel that showed one sentence for all three
+ * would be unable to tell a member which of them they can do something about —
+ * and only the last one has an action: ask the owner to re-share.
+ */
+export async function previewSharedDefinition(token) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/shared/${encodeURIComponent(token)}`, {
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) return { ok: true, shared: body }
+  const d = body && body.detail
+  if (d && typeof d === 'object' && typeof d.message === 'string') {
+    return { ok: false, reason: d.reason || null, error: d.message }
+  }
+  return {
+    ok: false,
+    reason: null,
+    error: typeof d === 'string' && d.trim()
+      ? d.trim()
+      : `That link could not be opened (${r.status}).`,
+  }
+}
+
+/** Install a shared definition as your own copy. */
+export async function installSharedDefinition(token) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/shared/${encodeURIComponent(token)}/install`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  // ⚠️ REVALIDATE BOTH, exactly as the save and delete doors do: an install adds
+  // a live definition, which changes the list AND may change whether the screener
+  // has anything scannable to offer.
+  mutate(USER_DEFINITIONS_KEY)
+  mutate(META_KEY)
+  if (r.ok) return { ok: true, row: body }
+  const d = body && body.detail
+  if (d && typeof d === 'object' && typeof d.message === 'string') {
+    return { ok: false, reason: d.reason || null, error: d.message }
+  }
+  return {
+    ok: false,
+    reason: null,
+    error: typeof d === 'string' && d.trim()
+      ? d.trim()
+      : `That formula could not be installed (${r.status}).`,
+  }
+}
+
+/** Every stored version of one definition, oldest first — tombstones included. */
+export async function fetchDefinitionHistory(defId) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/history`, {
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) return { ok: true, versions: (body && body.versions) || [] }
+  const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
+  return { ok: false, error: detail || `The version history could not be read (${r.status}).` }
+}

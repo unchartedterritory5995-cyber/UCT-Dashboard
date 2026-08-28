@@ -113,6 +113,7 @@ import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
 import EvidenceTab from './EvidenceTab'
+import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -596,6 +597,13 @@ const DEFAULT_MODE = 'library'
  *  use for a gallery of starters above it, and leaving one there invites a click
  *  that replaces their work. Spelled once; `openForEdit` reads the same name. */
 const EDIT_MODE = 'formula'
+
+/** Build modes whose TAB only exists while a stored definition is open.
+ *
+ *  ⛔ EVERY NAME HERE MUST BE RESET when edit mode ends, or the sheet paints a
+ *  panel with no tab selected. Adding an editing-only tab means adding it to
+ *  this set — which is the whole reason it is a set and not a comparison. */
+const EDITING_ONLY_MODES = new Set(['evidence', 'share'])
 const openingMode = (editRow, initialMode) => (
   editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
 )
@@ -1125,12 +1133,16 @@ export default function BuilderSheet({
     // ⛔ AND THE PLOTS GO WITH IT. "New formula" empties the form; a second
     // plot left behind would be a tree in a document whose box shows nothing.
     resetPlots()
-    // ⛔ AND THE EVIDENCE DOOR CANNOT BE LEFT STANDING OPEN. Its tab is gated on
-    // `editing`, so leaving edit mode removes the tab — but `buildMode` is a
-    // separate value and would still read `'evidence'`, leaving a member on a
-    // panel with no tab selected and nothing to show. Only that mode is moved:
-    // a member who was on Formula or Conditions stays where they were.
-    setBuildMode((m) => (m === 'evidence' ? EDIT_MODE : m))
+    // ⛔ AND THE EDITING-ONLY DOORS CANNOT BE LEFT STANDING OPEN. Their tabs are
+    // gated on `editing`, so leaving edit mode removes the tab — but `buildMode`
+    // is a separate value and would still read `'evidence'` or `'share'`, leaving
+    // a member on a panel with no tab selected and nothing to show. Only those
+    // modes are moved: a member who was on Formula or Conditions stays put.
+    //
+    // ⚠️ A SET, NOT AN `||` CHAIN, because the next editing-only tab must land
+    // here by adding one name rather than by remembering this line exists —
+    // `share` was added second and only because this comment said so.
+    setBuildMode((m) => (EDITING_ONLY_MODES.has(m) ? EDIT_MODE : m))
   }, [resetPlots])
 
   // ── W4a HAND-BACK: the `/screener` door opens the sheet ON A ROW ──────────
@@ -1669,6 +1681,20 @@ export default function BuilderSheet({
                 onClick={() => setBuildMode('evidence')}
               >Evidence</button>
             )}
+            {/* ⛔ SAME CONDITION AS EVIDENCE, AND FOR THE SAME REASON. A share
+                link points at a definition the STORE holds — there is nothing to
+                share about a sheet that has never been saved, and a tab offering
+                it would be an affordance that is false about the thing it sits
+                on. `editing` is the store's own row id, which is exactly when a
+                link can exist. */}
+            {editing && (
+              <button
+                type="button" role="tab"
+                className={`${styles.modeTab} ${buildMode === 'share' ? styles.modeTabActive : ''}`}
+                aria-selected={buildMode === 'share'}
+                onClick={() => setBuildMode('share')}
+              >Share</button>
+            )}
           </div>
 
           {buildMode === 'library' && (
@@ -1771,6 +1797,14 @@ export default function BuilderSheet({
 
           {buildMode === 'evidence' && editing && (
             <EvidenceBody editing={editing} rows={rows} source={source} plotRows={plotRows} />
+          )}
+
+          {buildMode === 'share' && editing && (
+            <SharePanel
+              defId={editing.defId}
+              defName={(editing.row && editing.row.definition
+                && editing.row.definition.meta && editing.row.definition.meta.name) || null}
+            />
           )}
 
           <FormulaField

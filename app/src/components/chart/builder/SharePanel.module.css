@@ -1,0 +1,171 @@
+/* app/src/components/chart/builder/SharePanel.module.css
+ *
+ * ⚠️ EVERY COLOUR IS A TOKEN, none a literal — the same rule the rest of the
+ * builder follows, and the reason a theme change reaches this panel for free. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 2px 8px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 46ch;
+}
+
+.linkRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.link {
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: var(--tap-min);
+  padding: 6px 10px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-bright);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) { border-color: var(--gold); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.quiet {
+  align-self: flex-start;
+  min-height: var(--tap-min);
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.quiet:hover:not(:disabled) { color: var(--text-bright); }
+.quiet:disabled { opacity: 0.45; cursor: not-allowed; }
+.quiet:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.previewName {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.error {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-danger);
+  max-width: 46ch;
+}
+
+/* ⭐ THE ACTION IS VISUALLY SEPARATE FROM THE REFUSAL, because they answer two
+ * different questions: what happened, and what you can do about it. */
+.todo {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
+
+.versions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.version {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.vNum {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--gold);
+  min-width: 3ch;
+}
+
+.vName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-bright);
+}
+
+.vHash {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  color: var(--text-muted);
+}
+
+.footer {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
