@@ -1153,6 +1153,12 @@
   border: none; padding: 8px 14px; text-align: left;
   font-size: 11px; cursor: pointer; font-family: inherit;
 }
+/* Gold widget glyph before each name in the in-widget "+" tab menu (mirrors the
+   top-bar Widgets menu). Inline so the shared .addMenuItem layout is untouched. */
+.addMenuIcon {
+  vertical-align: -2px;
+  margin-right: 9px;
+}
 .addMenuItem:hover { background: var(--bg-hover, #1f2937); color: var(--accent, #dcbb5e); }
 
 /* Grouped Add-Widget menu: category sections, scrollable as the list grows. */

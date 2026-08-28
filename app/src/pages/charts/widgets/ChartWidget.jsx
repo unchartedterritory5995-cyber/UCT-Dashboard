@@ -18,7 +18,7 @@ import {
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
-import { WORKSPACE_MENU_TYPES, labelMap } from '../../../widgets/registry'
+import { WORKSPACE_MENU_TYPES, labelMap, catalogMeta } from '../../../widgets/registry'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
@@ -520,7 +520,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                       className={styles.chartCtxItem}
                       onClick={() => { floatNewWidget?.(t, { x: ctxMenu.rawX, y: ctxMenu.rawY }); closeCtx() }}
                     >
-                      <UIcon name="plus" size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
+                      <UIcon name={catalogMeta(t).icon} size={14} className={styles.chartCtxIcon} />{ADD_WIDGET_LABELS[t] || t}
                     </button>
                   ))}
                 </div>

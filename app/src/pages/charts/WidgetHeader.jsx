@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../components/ui/UIcon'
 import { WIDGET_TAB_TYPES, WIDGET_TAB_MENU_LABEL } from './widgetTabs'
+import { catalogMeta } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 // 'N' = grey "not linked": the widget syncs its ticker with nothing.
@@ -255,7 +256,10 @@ export default function WidgetHeader({
               type="button"
               className={styles.addMenuItem}
               onClick={() => { onAddTab(t); setAddOpen(false) }}
-            >{WIDGET_TAB_MENU_LABEL[t] || t}</button>
+            >
+              <UIcon name={catalogMeta(t).icon} size={14} className={styles.addMenuIcon} />
+              {WIDGET_TAB_MENU_LABEL[t] || t}
+            </button>
           ))}
         </div>,
         addPos.target,
