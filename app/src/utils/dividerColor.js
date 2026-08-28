@@ -120,6 +120,36 @@ export function panelFor(canvasColor) {
   }
 }
 
+/** CANVAS-MATCHED `--menu-*` bag for the WIDGET add-tab ("+") menu ONLY.
+ *
+ *  Deliberately NOT `menuThemeVars` (which is fixed by owner decision so settings /
+ *  context / search menus keep one identity). The add-tab menu is per-widget chrome:
+ *  the owner asked for it to wear the color of the widget it opens from, so a chart
+ *  widget's + menu is the chart's canvas, a watchlist's is its canvas, etc. Derived
+ *  from the same primitives the rest of a widget's chrome uses (toolbarFor / chromeFor
+ *  / dividerFor) so it lands on the exact surface tone. Returns null when the color
+ *  can't be parsed → caller keeps the fixed dark palette. */
+export function menuVarsForCanvas(canvasColor) {
+  const tb = toolbarFor(canvasColor)
+  const ch = chromeFor(canvasColor)
+  if (!tb || !ch) return null
+  const rgb = parseColor(canvasColor)
+  const light = rgb ? luminance(rgb) > 0.5 : false
+  return {
+    '--menu-bg': tb.bg,
+    '--menu-bg-top': tb.bgHover,
+    '--menu-input-bg': tb.bg,
+    '--menu-border': dividerFor(canvasColor, { strong: true }) || 'rgba(255,255,255,0.09)',
+    '--menu-divider': dividerFor(canvasColor) || 'rgba(255,255,255,0.06)',
+    '--menu-text': ch.textStrong,
+    '--menu-text-dim': ch.text,
+    '--menu-text-faint': ch.text,
+    '--menu-accent': ch.accent,
+    '--menu-accent-bg': ch.accentBg,
+    '--menu-hover': light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)',
+  }
+}
+
 /** The ONE palette every popup menu wears — chart settings, watchlist/theme-tracker/
  *  fundamentals/breadth settings panels, earnings markers, timeframe menu, ticker
  *  search, leverage panel, and the right-click context menus.
