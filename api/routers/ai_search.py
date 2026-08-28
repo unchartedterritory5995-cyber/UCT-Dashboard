@@ -1706,37 +1706,69 @@ def _grounded_system(query: str) -> tuple[str, str, dict]:
 _ALERT_ASK_RE = re.compile(
     r"\b(alert me|let me know (?:if|when)|notify me|ping me|set (?:an?|a price) alert"
     r"|watch (?:for|it) (?:and )?(?:tell|ping|alert) me)\b", re.I)
-_ALERT_ABOVE_RE = re.compile(
-    r"\b(?:above|over|breaks?(?:\s+(?:above|over|out\s+over))?|crosses?(?:\s+(?:above|over))?"
-    r"|clears?|reclaims?|hits?|reaches?|gets?\s+to|takes?\s+out)\s+\$?(\d+(?:\.\d+)?)\b", re.I)
+# A "price" that is really a percent, a period ("52-week"), or a magnitude
+# ("4 trillion") must never become an alert level — the review executed the
+# first cut of these regexes and got 'below $5' from "drops 5%" and
+# 'below $52' from "hits 52-week highs".
+_NUM = r"(\d+(?:\.\d+)?)\b(?!\s*(?:%|percent\b))(?!-)"
+# EXPLICIT direction words are taken literally — never quote-flipped.
+_ALERT_ABOVE_EXPLICIT_RE = re.compile(
+    r"\b(?:above|over|breaks?\s+(?:above|over|out\s+over)|crosses?\s+(?:above|over)"
+    r"|clears?|reclaims?|takes?\s+out)\s+\$?" + _NUM, re.I)
+# AMBIGUOUS verbs ("hits 90", bare "breaks 150") need the live quote to decide.
+_ALERT_AMBIG_RE = re.compile(
+    r"\b(?:breaks?|crosses?|hits?|reaches?|gets?\s+to)\s+\$?" + _NUM, re.I)
 _ALERT_BELOW_RE = re.compile(
     r"\b(?:below|under|drops?(?:\s+(?:below|under|to))?|falls?(?:\s+(?:below|under|to))?"
-    r"|loses|breaks?\s+down(?:\s+(?:through|below))?|undercuts?)\s+\$?(\d+(?:\.\d+)?)\b", re.I)
+    r"|loses|breaks?\s+down(?:\s+(?:through|below))?|undercuts?)\s+\$?" + _NUM, re.I)
+# Words after the number that reveal it was never a price level.
+_ALERT_NOT_A_PRICE_TAIL = re.compile(
+    r"^\s*(?:%|percent\b|trillion\b|billion\b|million\b|levels?\b|users?\b"
+    r"|shares?\b|contracts?\b|handles?\b|points?\b|pts?\b)", re.I)
+
+
+def _alert_num(m, q: str) -> float | None:
+    price = float(m.group(1))
+    if not (0 < price < 1_000_000):
+        return None
+    if _ALERT_NOT_A_PRICE_TAIL.match(q[m.end():m.end() + 16]):
+        return None
+    return price
 
 
 def _alert_proposal(query: str, syms: list[str]) -> dict | None:
     """{kind, sym, direction, price} when the ask reads as a price-alert
-    request for a named ticker, else None. Ambiguous verbs ("hits 190") pick
-    the direction from the live quote when one is cached; default above."""
+    request for a named ticker, else None. Explicit direction words are taken
+    literally (the first cut quote-flipped 'breaks back above 175' into a
+    below-alert); ambiguous verbs ("hits 90") pick the direction from the live
+    quote — and propose NOTHING when no quote is available, because a guessed
+    direction can create an alert that fires the moment it's confirmed."""
     q = query or ""
     if not syms or not _ALERT_ASK_RE.search(q):
         return None
-    m_below = _ALERT_BELOW_RE.search(q)
-    m_above = _ALERT_ABOVE_RE.search(q)
-    if m_below and not m_above:
-        direction, price = "below", float(m_below.group(1))
-    elif m_above:
-        direction, price = "above", float(m_above.group(1))
-        try:
-            last = float((_quote_provider(syms[0]) or {}).get("last") or 0)
-            if last and price < last:
-                direction = "below"
-        except Exception:
-            pass
+    price = None
+    m = _ALERT_BELOW_RE.search(q)
+    if m is not None:
+        price = _alert_num(m, q)
+    if price is not None:
+        direction = "below"
     else:
-        return None
-    if not (0 < price < 1_000_000):
-        return None
+        m = _ALERT_ABOVE_EXPLICIT_RE.search(q)
+        price = _alert_num(m, q) if m is not None else None
+        if price is not None:
+            direction = "above"
+        else:
+            m = _ALERT_AMBIG_RE.search(q)
+            price = _alert_num(m, q) if m is not None else None
+            if price is None:
+                return None
+            try:
+                last = float((_quote_provider(syms[0]) or {}).get("last") or 0)
+            except Exception:
+                last = 0.0
+            if last <= 0:
+                return None   # can't orient an ambiguous verb — never guess
+            direction = "above" if price >= last else "below"
     return {"kind": "price_alert", "sym": syms[0], "direction": direction, "price": price}
 
 
@@ -1996,6 +2028,10 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
     loop = asyncio.get_running_loop()
     system, salt, meta = await loop.run_in_executor(None, _grounded_system, body.query)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
+    # Proposal parse can hit the live quote (ambiguous verbs) — a blocking
+    # Massive read that must never ride the shared event loop inside gen().
+    proposal = await loop.run_in_executor(
+        None, lambda: _alert_proposal(body.query, meta.get("query_tickers") or []))
     answer_id = ai_search_log_new_id()
 
     async def gen():
@@ -2010,7 +2046,6 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
         # desk feeds grounded the answer (the widget's "grounded on" chips).
         grounding = {"sources": meta.get("grounding_sources") or [],
                      "intents": meta.get("grounding_intents") or []}
-        proposal = _alert_proposal(body.query, meta.get("query_tickers") or [])
         yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id, 'grounding': grounding})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
@@ -2060,6 +2095,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                             settled_fb = {'type': 'final', 'answer_id': answer_id,
                                           'grounding': grounding,
                                           'quota': _quota_snapshot(user_id), **fb}
+                            if proposal:
+                                settled_fb['proposal'] = proposal
                             yield f"data: {json.dumps(settled_fb)}\n\n"
                             continue
                         dg = await _fb_loop.run_in_executor(
@@ -2075,6 +2112,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                             dg_final = {'type': 'final', 'answer_id': answer_id,
                                         'grounding': grounding,
                                         'quota': _quota_snapshot(user_id), **dg}
+                            if proposal:
+                                dg_final['proposal'] = proposal
                             yield f"data: {json.dumps(dg_final)}\n\n"
                             continue
                     captured["result"] = {"answer": "", "error": ev.get("error") or "stream error"}
@@ -2115,6 +2154,9 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
     """Today's live AI Search usage: burn vs caps, mode mix, cache-hit rate.
     In-memory — resets at midnight ET and on redeploy (same lifetime as the caps).
     De-identified: no per-user breakdown (that lives nowhere now)."""
+    # Ledger reads OUTSIDE the hot-path lock — four SQLite SUMs against /data
+    # must never block member reserves behind an admin page load.
+    spend = _spend_block()
     with _usage_lock:
         requests = _stats["requests"]
         cache_hits = _stats["cache_hits"]
@@ -2134,7 +2176,7 @@ def ai_search_admin_stats(user: dict = Depends(require_admin)):
                      "request/cache-hit stats are in-memory since last deploy"),
             # Dollar telemetry off the shared ledger (Perplexity had NONE until
             # 2026-08-28 — every completion now records under pplx:* surfaces).
-            "spend_today_usd": _spend_block(),
+            "spend_today_usd": spend,
         }
 
 

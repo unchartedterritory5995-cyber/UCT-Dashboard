@@ -49,7 +49,8 @@ def _fresh(monkeypatch, tmp_path):
     import api.services.ai_search_log as ail
     ail._reset_for_tests()
     monkeypatch.setattr(deep, "_DEEP_POOL", _InlinePool())
-    # fake every external stage
+    # fake every external stage (incl. the fail-fast synthesis-client probe)
+    monkeypatch.setattr(deep, "_anthropic_available", lambda: True)
     monkeypatch.setattr(deep, "_plan", lambda q: ["sub one about CRM", "sub two about CRM"])
     monkeypatch.setattr(deep, "_desk_block", lambda q: "UCT DESK DATA: CRM last $252")
     monkeypatch.setattr(deep, "_web", lambda sq: {
@@ -84,13 +85,16 @@ def test_job_lifecycle_and_member_scoping(monkeypatch, tmp_path):
 
 def test_finished_report_feeds_the_capture_log(monkeypatch, tmp_path):
     _fresh(monkeypatch, tmp_path)
-    deep.submit("u1", "full picture on CRM after the print")
+    out = deep.submit("u1", "full picture on CRM after the print")
     import api.services.ai_search_log as ail
     rows = ail._all_rows_for_test()
     assert len(rows) == 1
     assert rows[0]["endpoint"] == "deep" and rows[0]["mode"] == "deep"
     assert "CRM ripped" in rows[0]["answer"]
     assert rows[0]["user_bucket"]   # de-identified bucket, never a raw id
+    # ⛔ PRIVACY RAIL: the capture-log answer_id must NEVER equal the member-
+    # keyed job PK — that join would re-identify the de-identified log.
+    assert rows[0]["answer_id"] != out["job_id"]
 
 
 def test_per_user_daily_cap(monkeypatch, tmp_path):
@@ -132,13 +136,102 @@ def test_reclaim_marks_stale_running_jobs(monkeypatch, tmp_path):
     deep._ensure_init()
     with contextlib.closing(deep._connect()) as conn:
         conn.execute(
-            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
-            "VALUES ('stale1','u1','q','running','researching','2026-08-27T00:00:00+00:00')")
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at, started_at) "
+            "VALUES ('stale1','u1','q','running','researching',"
+            "'2026-08-27T00:00:00+00:00','2026-08-27T00:00:01+00:00')")
         conn.commit()
     assert deep.reclaim_stale() == 1
     job = deep.get_job("u1", "stale1")
     assert job["status"] == "error" and "deploy" in job["error"]
     assert refunded == ["u1"]
+    # idempotent: a second reclaim (second tab polling) must not double-credit
+    assert deep.reclaim_stale() == 0
+    assert refunded == ["u1"]
+
+
+def test_queued_jobs_get_the_longer_wall(monkeypatch, tmp_path):
+    """Pool-queue wait is NOT staleness: a queued job 20 min old (busy morning,
+    2-worker pool) must survive the running-wall that would have falsely
+    reclaimed it — and refunded a member who then ALSO got the report."""
+    _fresh(monkeypatch, tmp_path)
+    import contextlib
+    from datetime import datetime, timedelta, timezone
+    deep._ensure_init()
+    ts = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+    with contextlib.closing(deep._connect()) as conn:
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
+            "VALUES ('q20','u1','q','queued','queued',?)", (ts,))
+        conn.commit()
+    assert deep.reclaim_stale() == 0
+    assert deep.get_job("u1", "q20")["status"] == "queued"
+
+
+def test_late_worker_never_overwrites_a_reclaimed_job(monkeypatch, tmp_path):
+    """Reclaim refunded the member — a worker finishing late must not flip the
+    row to done (member would get the report AND the refund), and must not
+    write the capture log."""
+    _fresh(monkeypatch, tmp_path)
+    import contextlib
+    deep._ensure_init()
+    with contextlib.closing(deep._connect()) as conn:
+        conn.execute(
+            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
+            "VALUES ('gone1','u1','full picture on CRM','error','queued','2026-08-27T00:00:00+00:00')")
+        conn.commit()
+    deep._run_job("gone1")   # early-exit on terminal status
+    job = deep.get_job("u1", "gone1")
+    assert job["status"] == "error" and not job["report"]
+    import api.services.ai_search_log as ail
+    assert ail._all_rows_for_test() == []
+
+
+def test_duplicate_inflight_query_is_refused(monkeypatch, tmp_path):
+    """The double-click rail: same member, same question, still queued/running
+    → refused (the router then refunds the second reservation)."""
+    _fresh(monkeypatch, tmp_path)
+
+    class _NeverRuns:   # keep the first job queued
+        def submit(self, fn, *a):
+            class _F:
+                def result(self, timeout=None):
+                    return None
+            return _F()
+
+    monkeypatch.setattr(deep, "_DEEP_POOL", _NeverRuns())
+    assert deep.submit("u1", "full picture on CRM after the print")["ok"]
+    out = deep.submit("u1", "full picture on CRM after the print")
+    assert not out["ok"] and "already running" in out["reason"]
+
+
+def test_cost_cap_sums_both_ledger_surfaces(monkeypatch, tmp_path):
+    """The advertised $10/day is Anthropic + Perplexity — counting one surface
+    under-reported the cap."""
+    _fresh(monkeypatch, tmp_path)
+    import api.services.narrative_cost_guard as guard
+    monkeypatch.setattr(guard, "spend_today_usd",
+                        lambda s: 6.0 if s == "pplx:ai_search_deep" else 5.0)
+    out = deep.submit("u1", "an expensive question today")
+    assert not out["ok"] and "cooling down" in out["reason"]
+
+
+def test_pool_reject_refunds_exactly_once(monkeypatch, tmp_path):
+    """Service used to refund AND the router refunds on ok:False — one
+    reservation came back twice, silently erasing other billed usage."""
+    _fresh(monkeypatch, tmp_path)
+
+    class _Dead:
+        def submit(self, fn, *a):
+            raise RuntimeError("executor shut down")
+
+    monkeypatch.setattr(deep, "_DEEP_POOL", _Dead())
+    c = _client(user_id=9)
+    # seed prior legitimate usage so a double refund can't hide behind max(0,..)
+    ai._reserve(9, 7)
+    before = ai._usage_global
+    r = c.post("/api/ai-search/deep", json={"query": "a question that cannot start"})
+    assert r.status_code == 429
+    assert ai._usage_global == before   # the 5-unit reservation came back ONCE
 
 
 def test_endpoints_bill_five_units_and_scope(monkeypatch, tmp_path):

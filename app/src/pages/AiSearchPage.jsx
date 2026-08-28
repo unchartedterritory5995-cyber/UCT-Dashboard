@@ -18,6 +18,7 @@ function DeepResearchPanel({ onTicker }) {
   const [expanded, setExpanded] = useState(null)   // job_id
   const [detail, setDetail] = useState(null)       // fetched report
   const [notice, setNotice] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const refresh = useCallback(() => {
     try {
@@ -37,8 +38,9 @@ function DeepResearchPanel({ onTicker }) {
 
   const submit = () => {
     const query = q.trim()
-    if (query.length < 8) return
+    if (query.length < 8 || submitting) return   // a double-click billed twice
     setNotice(null)
+    setSubmitting(true)
     try {
       Promise.resolve(fetch('/api/ai-search/deep', {
         method: 'POST', credentials: 'include',
@@ -51,20 +53,32 @@ function DeepResearchPanel({ onTicker }) {
           else setNotice(d?.detail || 'Could not start the report.')
         })
         .catch(() => setNotice('Could not start the report.'))
-    } catch { setNotice('Could not start the report.') }
+        .finally(() => setSubmitting(false))
+    } catch { setNotice('Could not start the report.'); setSubmitting(false) }
   }
 
-  const openJob = (j) => {
-    if (expanded === j.job_id) { setExpanded(null); setDetail(null); return }
-    setExpanded(j.job_id); setDetail(null)
-    if (j.status !== 'done') return
+  const fetchDetail = useCallback((jobId) => {
     try {
-      Promise.resolve(fetch(`/api/ai-search/deep/${encodeURIComponent(j.job_id)}`, { credentials: 'include' }))
+      Promise.resolve(fetch(`/api/ai-search/deep/${encodeURIComponent(jobId)}`, { credentials: 'include' }))
         .then((r) => (r?.ok ? r.json() : null))
         .then((d) => { if (d?.report) setDetail(d) })
         .catch(() => {})
     } catch { /* noop */ }
+  }, [])
+
+  const openJob = (j) => {
+    if (expanded === j.job_id) { setExpanded(null); setDetail(null); return }
+    setExpanded(j.job_id); setDetail(null)
+    if (j.status === 'done') fetchDetail(j.job_id)
   }
+
+  // Watching a running report is the natural flow — when the 5s poll flips it
+  // to done, load the report the member is already looking at.
+  useEffect(() => {
+    if (!expanded || detail) return
+    const j = jobs.find((x) => x.job_id === expanded)
+    if (j?.status === 'done') fetchDetail(expanded)
+  }, [jobs, expanded, detail, fetchDetail])
 
   const removeJob = (j) => {
     try {
@@ -95,8 +109,9 @@ function DeepResearchPanel({ onTicker }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
-            <button type="button" className={styles.historyToggle} onClick={submit} disabled={q.trim().length < 8}>
-              Research
+            <button type="button" className={styles.historyToggle} onClick={submit}
+              disabled={q.trim().length < 8 || submitting}>
+              {submitting ? 'Starting…' : 'Research'}
             </button>
           </div>
           {notice && <div className={styles.deepNotice}>{notice}</div>}

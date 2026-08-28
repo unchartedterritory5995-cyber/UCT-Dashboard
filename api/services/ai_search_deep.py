@@ -101,7 +101,10 @@ def _ensure_init() -> None:
                 "job_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, query TEXT, "
                 "status TEXT, progress TEXT, report TEXT, citations TEXT, "
                 "error TEXT, cost_usd REAL DEFAULT 0, "
-                "created_at TEXT, finished_at TEXT)")
+                "created_at TEXT, started_at TEXT, finished_at TEXT)")
+            have = {r[1] for r in conn.execute("PRAGMA table_info(ais_deep_jobs)").fetchall()}
+            if "started_at" not in have:
+                conn.execute("ALTER TABLE ais_deep_jobs ADD COLUMN started_at TEXT")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_aisdj_user ON ais_deep_jobs(user_id, created_at)")
             conn.commit()
@@ -118,38 +121,61 @@ def _utc_day() -> str:
 
 
 def _jobs_today(conn, uid: str) -> int:
+    # Error jobs COUNT toward the cap (2026-08-28 review): failed jobs refund
+    # their quota units, so excluding them made a failing pipeline (e.g. an
+    # Anthropic outage while Perplexity still bills) loopable for free.
     row = conn.execute(
         "SELECT COUNT(*) FROM ais_deep_jobs WHERE user_id=? "
-        "AND substr(created_at,1,10)=? AND status != 'error'",
+        "AND substr(created_at,1,10)=?",
         (uid, _utc_day())).fetchone()
     return int(row[0] or 0)
 
 
+# Queued jobs may legitimately wait behind the 2-worker pool, so their wall is
+# longer; a RUNNING job's wall starts when it actually started.
+_QUEUED_WALL_SECS = 40 * 60
+
+
+def _age_secs(iso: str | None) -> float:
+    try:
+        return (datetime.now(timezone.utc) - datetime.fromisoformat(iso)).total_seconds()
+    except Exception:
+        return float("inf")
+
+
 def reclaim_stale() -> int:
-    """Mark queued/running jobs past the wall as interrupted (redeploy killed
-    the pool). Refunds the member's quota units. Returns rows reclaimed."""
+    """Mark stranded jobs as interrupted (a redeploy killed the pool) and refund
+    ONCE. Every transition is a GUARDED UPDATE (status still queued/running) with
+    the refund conditioned on rowcount and issued AFTER commit — two tabs polling
+    concurrently, or a live worker finishing late, can never double-credit
+    (2026-08-28 review). Returns rows reclaimed."""
     _ensure_init()
     n = 0
     try:
         with contextlib.closing(_connect()) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT job_id, user_id, created_at FROM ais_deep_jobs "
+                "SELECT job_id, user_id, status, created_at, started_at FROM ais_deep_jobs "
                 "WHERE status IN ('queued','running')").fetchall()
+            to_refund: list[str] = []
             for r in rows:
-                try:
-                    age = (datetime.now(timezone.utc)
-                           - datetime.fromisoformat(r["created_at"])).total_seconds()
-                except Exception:
-                    age = _STALE_WALL_SECS + 1
-                if age > _STALE_WALL_SECS:
-                    conn.execute(
-                        "UPDATE ais_deep_jobs SET status='error', "
-                        "error='interrupted by a deploy — resubmit', finished_at=? "
-                        "WHERE job_id=?", (_now(), r["job_id"]))
+                if r["status"] == "running":
+                    stale = _age_secs(r["started_at"] or r["created_at"]) > _STALE_WALL_SECS
+                else:
+                    stale = _age_secs(r["created_at"]) > _QUEUED_WALL_SECS
+                if not stale:
+                    continue
+                cur = conn.execute(
+                    "UPDATE ais_deep_jobs SET status='error', "
+                    "error='interrupted by a deploy — resubmit', finished_at=? "
+                    "WHERE job_id=? AND status IN ('queued','running')",
+                    (_now(), r["job_id"]))
+                if cur.rowcount:
                     n += 1
-                    _refund_units(r["user_id"])
+                    to_refund.append(r["user_id"])
             conn.commit()
+        for uid in to_refund:   # refund only transitions THIS call committed
+            _refund_units(uid)
     except Exception:
         pass
     return n
@@ -163,8 +189,14 @@ def _refund_units(user_id) -> None:
         pass
 
 
+_SUBMIT_LOCK = threading.Lock()
+
+
 def submit(user_id, query: str) -> dict:
-    """Queue one report. Caps: per-user/day count + the global dollar guard.
+    """Queue one report. Caps: per-user/day count (atomic under one lock — the
+    check-then-insert raced under concurrent submits) + the global dollar guard
+    summed across BOTH ledger surfaces (Anthropic synthesis AND the Perplexity
+    sweeps — counting only one under-reported the advertised cap).
     Returns {ok, job_id} or {ok: False, reason}."""
     q = (query or "").strip()
     if not user_id or len(q) < 8:
@@ -173,28 +205,39 @@ def submit(user_id, query: str) -> dict:
     reclaim_stale()
     try:
         from api.services import narrative_cost_guard as guard
-        if guard.spend_today_usd("ai_search_deep") >= _cost_cap():
+        spent = (guard.spend_today_usd("ai_search_deep")
+                 + guard.spend_today_usd("pplx:ai_search_deep"))
+        if spent >= _cost_cap():
             return {"ok": False,
                     "reason": "Deep research is cooling down for the day — try again tomorrow."}
     except Exception:
         pass
     uid = str(user_id)
     job_id = uuid.uuid4().hex
-    with contextlib.closing(_connect()) as conn:
-        if _jobs_today(conn, uid) >= _peruser_cap():
-            return {"ok": False,
-                    "reason": f"Deep research is capped at {_peruser_cap()} reports a day — "
-                              "it resets at midnight UTC."}
-        conn.execute(
-            "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
-            "VALUES (?,?,?,?,?,?)",
-            (job_id, uid, q[:2000], "queued", "queued", _now()))
-        conn.commit()
+    with _SUBMIT_LOCK:
+        with contextlib.closing(_connect()) as conn:
+            # double-click / duplicate guard: the same question queued or
+            # running again would bill twice for one intent
+            dup = conn.execute(
+                "SELECT 1 FROM ais_deep_jobs WHERE user_id=? AND query=? "
+                "AND status IN ('queued','running')", (uid, q[:2000])).fetchone()
+            if dup:
+                return {"ok": False, "reason": "That report is already running."}
+            if _jobs_today(conn, uid) >= _peruser_cap():
+                return {"ok": False,
+                        "reason": f"Deep research is capped at {_peruser_cap()} reports a day — "
+                                  "it resets at midnight UTC."}
+            conn.execute(
+                "INSERT INTO ais_deep_jobs (job_id, user_id, query, status, progress, created_at) "
+                "VALUES (?,?,?,?,?,?)",
+                (job_id, uid, q[:2000], "queued", "queued", _now()))
+            conn.commit()
     try:
         _DEEP_POOL.submit(_run_job, job_id)
     except Exception:
+        # NO refund here — the router refunds on every ok:False (refunding in
+        # both places double-credited one reservation, 2026-08-28 review).
         _set_error(job_id, "could not start the researcher — resubmit")
-        _refund_units(uid)
         return {"ok": False, "reason": "could not start the researcher — resubmit"}
     return {"ok": True, "job_id": job_id}
 
@@ -256,15 +299,19 @@ def _set_progress(job_id: str, status: str, progress: str) -> None:
         pass
 
 
-def _set_error(job_id: str, msg: str) -> None:
+def _set_error(job_id: str, msg: str) -> bool:
+    """Guarded terminal transition — returns False when the job was ALREADY
+    terminal (e.g. reclaim beat the worker), so callers never refund twice."""
     try:
         with contextlib.closing(_connect()) as conn:
-            conn.execute(
-                "UPDATE ais_deep_jobs SET status='error', error=?, finished_at=? WHERE job_id=?",
+            cur = conn.execute(
+                "UPDATE ais_deep_jobs SET status='error', error=?, finished_at=? "
+                "WHERE job_id=? AND status IN ('queued','running')",
                 (str(msg)[:300], _now(), job_id))
             conn.commit()
+            return bool(cur.rowcount)
     except Exception:
-        pass
+        return False
 
 
 def _anthropic_text(model: str, system: str, prompt: str, max_tokens: int,
@@ -385,6 +432,14 @@ def _synthesize(query: str, desk: str, findings: list[dict]) -> tuple[str, list[
     return report[:_REPORT_CAP], citations[:20]
 
 
+def _anthropic_available() -> bool:
+    try:
+        from api.services.engine import _get_anthropic_client
+        return _get_anthropic_client() is not None
+    except Exception:
+        return False
+
+
 def _run_job(job_id: str) -> None:
     _ensure_init()
     with contextlib.closing(_connect()) as conn:
@@ -394,7 +449,16 @@ def _run_job(job_id: str) -> None:
         return
     query, uid = row["query"], row["user_id"]
     try:
-        _set_progress(job_id, "running", "planning the research")
+        # Fail fast BEFORE any paid Perplexity sweep: no synthesis client means
+        # this job can only end in an error after burning web spend.
+        if not _anthropic_available():
+            raise RuntimeError("anthropic client unavailable")
+        with contextlib.closing(_connect()) as conn:
+            conn.execute(
+                "UPDATE ais_deep_jobs SET started_at=?, status='running', "
+                "progress='planning the research' WHERE job_id=? "
+                "AND status IN ('queued','running')", (_now(), job_id))
+            conn.commit()
         subs = _plan(query)
         desk = _desk_block(query)
         findings: list[dict] = []
@@ -408,22 +472,30 @@ def _run_job(job_id: str) -> None:
         if not report:
             raise RuntimeError("synthesis returned nothing")
         with contextlib.closing(_connect()) as conn:
-            conn.execute(
+            # GUARDED: if reclaim already marked this job interrupted (and
+            # refunded), the late worker must not overwrite it into a state
+            # where the member got the report AND the refund.
+            cur = conn.execute(
                 "UPDATE ais_deep_jobs SET status='done', progress='done', report=?, "
-                "citations=?, finished_at=? WHERE job_id=?",
+                "citations=?, finished_at=? WHERE job_id=? AND status IN ('queued','running')",
                 (report, json.dumps(citations), _now(), job_id))
             conn.commit()
+            if not cur.rowcount:
+                return
         # de-identified capture (same contract as every answer) — deep reports
-        # are exactly the durable, demand-signaling knowledge dossiers feed on
+        # are exactly the durable, demand-signaling knowledge dossiers feed on.
+        # ⛔ answer_id is FRESHLY MINTED, never the job PK: ais_deep_jobs stores
+        # the raw user id beside job_id, so logging job_id would hand anyone
+        # with both DBs a re-identifying join into the de-identified log.
         try:
             from api.services import ai_search_log
             ai_search_log.log(
-                user_id=uid, answer_id=job_id, endpoint="deep", query=query,
-                answer=report, answer_kind="ok", mode="deep", model=_synth_model(),
-                citations=citations, units=_QUOTA_UNITS)
+                user_id=uid, answer_id=ai_search_log.new_answer_id(), endpoint="deep",
+                query=query, answer=report, answer_kind="ok", mode="deep",
+                model=_synth_model(), citations=citations, units=_QUOTA_UNITS)
         except Exception:
             pass
     except Exception as e:
         log.warning("deep job %s failed: %s", job_id, e)
-        _set_error(job_id, "the researcher hit an error — resubmit")
-        _refund_units(uid)
+        if _set_error(job_id, "the researcher hit an error — resubmit"):
+            _refund_units(uid)   # refund ONLY when this call made the transition

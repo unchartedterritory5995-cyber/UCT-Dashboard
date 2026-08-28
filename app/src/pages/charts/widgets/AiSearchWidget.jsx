@@ -773,22 +773,34 @@ export default function AiSearchWidget({
   const askFollowUp = (q) => { run(q); inputRef.current?.focus() }
 
   // Read-aloud: browser speechSynthesis, one answer at a time, toggles off on
-  // a second tap. Cancelled on unmount so navigation never leaves a voice on.
+  // a second tap. speechSynthesis is a BROWSER-GLOBAL queue — the unmount
+  // cleanup cancels only when THIS widget owns the active utterance (a ref,
+  // because the []-dep cleanup closure would only ever see the initial state),
+  // so closing widget B never cuts widget A (or Compass) off mid-sentence.
+  const speakingIdRef = useRef(null)
   const speakExchange = useCallback((entry) => {
     try {
       const synth = window.speechSynthesis
       if (!synth) return
-      if (speakingId === entry.id) { synth.cancel(); setSpeakingId(null); return }
+      if (speakingId === entry.id) {
+        synth.cancel(); setSpeakingId(null); speakingIdRef.current = null; return
+      }
       synth.cancel()
       const u = new SpeechSynthesisUtterance(plainAnswer(entry.answer))
-      const clear = () => setSpeakingId((cur) => (cur === entry.id ? null : cur))
+      const clear = () => {
+        setSpeakingId((cur) => (cur === entry.id ? null : cur))
+        if (speakingIdRef.current === entry.id) speakingIdRef.current = null
+      }
       u.onend = clear
       u.onerror = clear
       setSpeakingId(entry.id)
+      speakingIdRef.current = entry.id
       synth.speak(u)
     } catch { /* noop */ }
   }, [speakingId])
-  useEffect(() => () => { try { window.speechSynthesis?.cancel() } catch { /* noop */ } }, [])
+  useEffect(() => () => {
+    try { if (speakingIdRef.current != null) window.speechSynthesis?.cancel() } catch { /* noop */ }
+  }, [])
 
   const copyExchange = useCallback((entry) => {
     // Strip the [Label]($TICKER) link syntax and bold markers for a clean paste.
