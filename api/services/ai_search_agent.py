@@ -149,6 +149,15 @@ def run_agent(query: str, system: str, history: list | None, user: dict | None,
     citations: list[str] = []
     tools_used: list[str] = []
     sys_prompt = system + _AGENT_SYSTEM_TAIL
+    # Prompt caching (2026-08-28 cost census): the tools registry + system
+    # prompt (~4-5k tok) are byte-identical across all 2-6 steps of one ask
+    # AND across member asks within the 5-min TTL — without the breakpoints
+    # the loop re-bills the full prefix at 1x on every step. Cached reads
+    # bill 0.1x; the guard's record_from_response prices the cache fields.
+    if tools:
+        tools[-1]["cache_control"] = {"type": "ephemeral"}
+    sys_blocks = [{"type": "text", "text": sys_prompt,
+                   "cache_control": {"type": "ephemeral"}}]
 
     for _step in range(_MAX_STEPS):
         if cancel is not None and cancel.is_set():
@@ -156,7 +165,7 @@ def run_agent(query: str, system: str, history: list | None, user: dict | None,
                     "citations": citations, "tools_used": tools_used}
         try:
             resp = client.with_options(timeout=50).messages.create(
-                model=model, max_tokens=_MAX_TOKENS, system=sys_prompt,
+                model=model, max_tokens=_MAX_TOKENS, system=sys_blocks,
                 tools=tools, messages=messages)
         except Exception as e:
             log.warning("agent llm call failed: %s", e)

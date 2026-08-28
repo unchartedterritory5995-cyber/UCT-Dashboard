@@ -106,3 +106,29 @@ def test_record_adds_web_search_fees(monkeypatch):
                              0, 0, search_requests=100)
     assert cost == 1.0  # 100 searches x $0.01
     assert logged["cost_usd"] == 1.0
+
+
+def test_cache_tokens_are_priced_not_ignored():
+    """hunter.py runs prompt-CACHED: its prefix bills under
+    cache_read_input_tokens (0.1x) / cache_creation_input_tokens (1.25x)
+    instead of input_tokens. Pricing only input_tokens under-counted the
+    cached lane and silently loosened the $8/$15 daily caps (2026-08-28)."""
+    from api.services.catalyst import cost_guard
+    # sonnet-5 input = $3/MTok in this module's table
+    assert cost_guard.estimate_cost("claude-sonnet-5", 0, 0,
+                                    cache_read_tokens=1_000_000) == 0.3
+    assert cost_guard.estimate_cost("claude-sonnet-5", 0, 0,
+                                    cache_creation_tokens=1_000_000) == 3.75
+    # and the old positional contract is unchanged
+    assert cost_guard.estimate_cost("claude-sonnet-5", 1_000_000, 0) == 3.0
+
+
+def test_hunter_reports_cache_tokens_to_the_guard():
+    """Mutation guard: the accumulator must actually reach cost_guard.record —
+    a cached call whose cache fields are dropped bills as if it were free."""
+    import inspect
+    from api.services.catalyst import hunter
+    src = inspect.getsource(hunter.run_hunt)
+    assert "cache_read_input_tokens" in src
+    assert "cache_read_tokens=cr_tok" in src
+    assert "cache_creation_tokens=cc_tok" in src

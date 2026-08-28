@@ -40,9 +40,16 @@ _PRICING = {
 _WEB_SEARCH_USD_EACH = 0.01
 
 
-def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+def estimate_cost(model: str, input_tokens: int, output_tokens: int,
+                  cache_read_tokens: int = 0,
+                  cache_creation_tokens: int = 0) -> float:
     """USD cost for one call. An UNKNOWN model is priced at the priciest KNOWN
-    rate and logged — never $0, which would make every cap unenforceable."""
+    rate and logged — never $0, which would make every cap unenforceable.
+
+    Cache-aware (2026-08-28): a prompt-cached call (hunter.py) reports its
+    prefix under cache_read_input_tokens (0.1x input) /
+    cache_creation_input_tokens (1.25x) INSTEAD of input_tokens — pricing only
+    input_tokens under-counted the cached lane and loosened these caps."""
     # Tolerate dated model aliases like claude-haiku-4-5-20251001
     base = model.rsplit("-", 1)[0] if model.count("-") >= 3 else model
     rates = _PRICING.get(model) or _PRICING.get(base)
@@ -55,6 +62,8 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
                        "known rate ($%.0f/$%.0f) so caps stay enforced",
                        model, rates["input"], rates["output"])
     return (input_tokens * rates["input"] / 1_000_000.0
+            + (cache_read_tokens or 0) * rates["input"] * 0.1 / 1_000_000.0
+            + (cache_creation_tokens or 0) * rates["input"] * 1.25 / 1_000_000.0
             + output_tokens * rates["output"] / 1_000_000.0)
 
 
@@ -87,12 +96,18 @@ def may_synthesize(market_date: str) -> bool:
 
 def record(market_date: str, ticker: str, model: str,
            input_tokens: int, output_tokens: int,
-           was_cached: bool = False, search_requests: int = 0) -> float:
+           was_cached: bool = False, search_requests: int = 0,
+           cache_read_tokens: int = 0, cache_creation_tokens: int = 0) -> float:
     """Record a synthesis/hunter call. Returns the cost in USD.
 
     search_requests: server-side web_search invocations made during the call,
-    billed at $10/1k on top of token cost so the daily caps see real spend."""
-    cost = 0.0 if was_cached else estimate_cost(model, input_tokens, output_tokens)
+    billed at $10/1k on top of token cost so the daily caps see real spend.
+    cache_*_tokens: prompt-cache usage fields (see estimate_cost). Note
+    `was_cached` is the APP-level skip-if-stable reuse — a different thing."""
+    cost = 0.0 if was_cached else estimate_cost(
+        model, input_tokens, output_tokens,
+        cache_read_tokens=cache_read_tokens,
+        cache_creation_tokens=cache_creation_tokens)
     cost += max(0, int(search_requests or 0)) * _WEB_SEARCH_USD_EACH
     store.log_cost(market_date=market_date, ticker=ticker, model=model,
                    input_tokens=input_tokens, output_tokens=output_tokens,

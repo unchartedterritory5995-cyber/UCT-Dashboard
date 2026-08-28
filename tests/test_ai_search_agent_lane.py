@@ -241,3 +241,62 @@ def test_stream_agent_empty_walks_the_ladder(monkeypatch):
     final = [e for e in _read_sse(r.text) if e.get("type") == "final"][-1]
     assert final["answer"] == "fallback web answer"
     assert ai._usage_global == 1   # 2 agent units refunded, 1 fast unit billed
+
+
+def test_agent_call_carries_cache_breakpoints_and_guard_prices_them(monkeypatch):
+    """2026-08-28 cost census: the loop's tools registry + system prompt must
+    ride under cache_control (they are byte-identical across all steps of an
+    ask), and the cost guard must price the cache token fields — otherwise
+    caching silently loosens the $15/day cap."""
+    import api.services.ai_search_agent as agent
+    import api.services.narrative_cost_guard as guard
+    captured = {}
+
+    class _Usage:
+        input_tokens = 10
+        output_tokens = 5
+        cache_read_input_tokens = 1_000_000
+        cache_creation_input_tokens = 0
+        server_tool_use = None
+
+    class _Resp:
+        content = [type("T", (), {"type": "text", "text": "done"})()]
+        usage = _Usage()
+
+    class _Msgs:
+        def create(self, **kw):
+            captured.update(kw)
+            return _Resp()
+
+    class _Client:
+        def with_options(self, **kw):
+            return self
+        messages = _Msgs()
+
+    import api.services.engine as engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: _Client())
+    recorded = {}
+    real_estimate = guard.estimate_cost
+
+    def spy_record_from_response(surface, model, resp):
+        u = resp.usage
+        recorded["cost"] = real_estimate(
+            "claude-sonnet-5", u.input_tokens, u.output_tokens,
+            cache_read_tokens=u.cache_read_input_tokens,
+            cache_creation_tokens=u.cache_creation_input_tokens)
+        return recorded["cost"]
+
+    import api.services.narrative_cost_guard as nguard
+    monkeypatch.setattr(nguard, "record_from_response", spy_record_from_response)
+    out = agent.run_agent("q", "system text", [], None)
+    assert out.get("answer") == "done"
+    # tools: last entry carries the breakpoint
+    assert captured["tools"][-1].get("cache_control") == {"type": "ephemeral"}
+    # system: list-of-blocks shape with the breakpoint
+    sys_blocks = captured["system"]
+    assert isinstance(sys_blocks, list)
+    assert sys_blocks[0]["cache_control"] == {"type": "ephemeral"}
+    assert "system text" in sys_blocks[0]["text"]
+    # the guard priced 1M cached-read tokens at 0.1x the input rate (sonnet-5
+    # = $2/MTok in -> $0.20), not at 0 and not at 1x
+    assert 0.15 < recorded["cost"] < 0.35

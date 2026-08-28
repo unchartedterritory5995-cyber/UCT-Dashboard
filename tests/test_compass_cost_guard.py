@@ -102,3 +102,26 @@ def test_handle_user_turn_not_blocked_when_under_budget(monkeypatch):
     except Exception:
         pass  # streaming path blew up (expected) — the point is we got PAST the guard
     assert got_cost_capped is False
+
+
+def test_record_prices_cache_fields(monkeypatch):
+    """2026-08-28 caching: a cached call reports its prefix under
+    cache_read_input_tokens (0.1x) / cache_creation_input_tokens (1.25x)
+    INSTEAD of input_tokens — a guard reading only input_tokens under-counts
+    and silently loosens the daily circuit-breaker."""
+    from api.services.journal_two import compass_cost_guard as g
+    g._reset_for_test()
+    g.record(input_tokens=0, output_tokens=0,
+             cache_read_tokens=1_000_000, cache_creation_tokens=1_000_000)
+    spent = g._state["usd"]
+    assert abs(spent - (g._IN_PER_MTOK * 0.1 + g._IN_PER_MTOK * 1.25)) < 1e-9
+
+    class _U:
+        input_tokens = 0
+        output_tokens = 0
+        cache_read_input_tokens = 2_000_000
+        cache_creation_input_tokens = 0
+
+    g._reset_for_test()
+    g.record_from_usage(_U())
+    assert abs(g._state["usd"] - g._IN_PER_MTOK * 0.2) < 1e-9

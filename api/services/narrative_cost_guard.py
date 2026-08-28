@@ -136,8 +136,15 @@ def cap_usd(env_name: str = _ENV_CAP, default: float = DEFAULT_CAP_USD) -> float
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int,
-                  web_searches: int = 0) -> float:
-    """USD for one call. An unknown model prices at the priciest known rate."""
+                  web_searches: int = 0, cache_read_tokens: int = 0,
+                  cache_creation_tokens: int = 0) -> float:
+    """USD for one call. An unknown model prices at the priciest known rate.
+
+    Cache-aware (2026-08-28): prompt-cached calls report their prefix under
+    `cache_read_input_tokens` (billed 0.1x input rate) and
+    `cache_creation_input_tokens` (1.25x) INSTEAD of input_tokens — a guard
+    that reads only input_tokens under-counts a cached surface and silently
+    loosens its daily cap."""
     rates = _PRICES.get(model)
     if rates is None:
         # Tolerate a dated alias like claude-sonnet-4-6-20260101.
@@ -153,6 +160,8 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int,
             "enforceable", model, rates[0], rates[1])
     pin, pout = rates
     return (float(input_tokens or 0) * pin / 1e6
+            + float(cache_read_tokens or 0) * pin * 0.1 / 1e6
+            + float(cache_creation_tokens or 0) * pin * 1.25 / 1e6
             + float(output_tokens or 0) * pout / 1e6
             + float(web_searches or 0) * _WEB_SEARCH_USD_EACH)
 
@@ -194,14 +203,17 @@ def over_budget(surface: str, env_name: str = _ENV_CAP,
 
 def record(surface: str, model: str, input_tokens: int = 0,
            output_tokens: int = 0, web_searches: int = 0,
-           cost_usd: float | None = None) -> float:
+           cost_usd: float | None = None, cache_read_tokens: int = 0,
+           cache_creation_tokens: int = 0) -> float:
     """Accrue one call. Never raises; always accrues in-process.
 
     `cost_usd` overrides the Anthropic-priced estimate — for non-Anthropic
     providers (e.g. Perplexity sonar) whose models `estimate_cost` would price
     at the priciest known Anthropic rate and wildly over-report."""
     cost = cost_usd if cost_usd is not None else estimate_cost(
-        model, input_tokens, output_tokens, web_searches)
+        model, input_tokens, output_tokens, web_searches,
+        cache_read_tokens=cache_read_tokens,
+        cache_creation_tokens=cache_creation_tokens)
     _accrue_memory(surface, cost)
     try:
         _init()
@@ -222,8 +234,9 @@ def record(surface: str, model: str, input_tokens: int = 0,
 
 def record_from_response(surface: str, model: str, response) -> float:
     """Accrue from an Anthropic message. Reads `usage.input_tokens` /
-    `usage.output_tokens` and `usage.server_tool_use.web_search_requests`
-    defensively — a shape change must not raise into a request handler."""
+    `usage.output_tokens`, the prompt-cache token fields, and
+    `usage.server_tool_use.web_search_requests` defensively — a shape change
+    must not raise into a request handler."""
     usage = getattr(response, "usage", None)
     searches = 0
     tool_use = getattr(usage, "server_tool_use", None)
@@ -233,7 +246,9 @@ def record_from_response(surface: str, model: str, response) -> float:
         surface, model,
         getattr(usage, "input_tokens", 0) or 0,
         getattr(usage, "output_tokens", 0) or 0,
-        searches)
+        searches,
+        cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
+        cache_creation_tokens=getattr(usage, "cache_creation_input_tokens", 0) or 0)
 
 
 def snapshot(surface: str, env_name: str = _ENV_CAP,

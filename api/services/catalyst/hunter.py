@@ -214,6 +214,7 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
     )
 
     in_tok = out_tok = 0
+    cr_tok = cc_tok = 0      # prompt-cache read / creation tokens
     searches = 0
     msg = None
     try:
@@ -233,6 +234,11 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
             try:
                 in_tok += msg.usage.input_tokens
                 out_tok += msg.usage.output_tokens
+                # this lane is prompt-CACHED: the prefix bills under these
+                # fields, not input_tokens — omitting them under-counted the
+                # daily caps (2026-08-28 cost census)
+                cr_tok += getattr(msg.usage, "cache_read_input_tokens", 0) or 0
+                cc_tok += getattr(msg.usage, "cache_creation_input_tokens", 0) or 0
             except Exception:
                 pass
             try:
@@ -255,7 +261,8 @@ def run_hunt(mode: str = "deep", existing_tickers: Optional[set[str]] = None) ->
     # the $10/1k web-search fees, which token counts alone don't capture.
     try:
         cost_guard.record(md, "__hunter__", model, in_tok, out_tok,
-                          was_cached=False, search_requests=searches)
+                          was_cached=False, search_requests=searches,
+                          cache_read_tokens=cr_tok, cache_creation_tokens=cc_tok)
     except Exception:
         pass
 
