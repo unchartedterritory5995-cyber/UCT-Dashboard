@@ -210,12 +210,13 @@
     "downstream": null
   },
   "08-relative-strength-zscore-vs-spy.ts": {
-    "translates": false,
+    "translates": true,
     "outputs": 6,
-    "usable": 3,
-    "selectedFormula": null,
+    "usable": 6,
+    "selectedFormula": "stdev(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126) != 0 ? ((!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0) - sma(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126)) / stdev(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126) : 0",
     "ignoredLines": [
       4,
+      25,
       33,
       34,
       36,
@@ -234,16 +235,15 @@
       "slowLen=30",
       "signalLen=9"
     ],
-    "perOutputRefusals": {
-      "thinkscript:symbol": 3
-    },
-    "refusal": {
-      "guard": "thinkscript:symbol",
-      "line": 13,
-      "column": 24,
-      "token": "symbol"
-    },
-    "downstream": null
+    "perOutputRefusals": {},
+    "refusal": null,
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting",
+      "lookback": 126,
+      "saveable": true
+    }
   },
   "09-above-average-price-volume.ts": {
     "translates": false,
@@ -672,9 +672,9 @@
     },
     "downstream": null
   },
-  "_translating": 8,
-  "_columns": 30,
-  "_saveable": 8,
+  "_translating": 9,
+  "_columns": 33,
+  "_saveable": 9,
   "_blocked": [],
   "_atLineOne": [
     "16-scan-rsi-crosses-30-70.ts"
@@ -687,7 +687,6 @@
     "thinkscript:state",
     "thinkscript:strategy",
     "thinkscript:study-ref",
-    "thinkscript:symbol",
     "thinkscript:time",
     "thinkscript:undefined"
   ]

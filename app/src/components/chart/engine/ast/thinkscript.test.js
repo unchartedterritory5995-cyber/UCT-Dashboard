@@ -229,7 +229,12 @@ describe('the refusal vocabulary', () => {
       'plot p = Inertia(close, 20);',
       'def y;\ndef z;\nif close > open then { y = 1; } else { z = 2; }\nplot p = close;',
       // W3.6 — the five constructs that are outside a screen's world.
-      'def b = close(symbol = "SPY");\nplot p = close / b;',
+      // ⚰️ THIS PROBE WAS `close(symbol = "SPY")` AND IT STOPPED MEASURING
+      // ANYTHING when that learned to fold to the `sym` node — it translates
+      // now. The guard is still live and still right: a symbol that does NOT
+      // reduce to a ticker is not knowable at translation time, and reading the
+      // wrong instrument is worse than refusing. A COMPUTED symbol reaches it.
+      'def s = if close > open then "SPY" else "QQQ";\nplot p = close(symbol = s);',
       'plot p = high(period = AggregationPeriod.DAY);',
       'plot p = GetQuantity();',
       'plot p = GetTime() > 0;',
@@ -2727,7 +2732,10 @@ describe('⛔⛔ the constructs that are OUTSIDE A SCREEN`S WORLD block the whol
   })
 
   it('close(symbol = …) → :symbol, and it names what to do instead', () => {
-    const x = r('def b = close(symbol = "SPY");\nplot s = close / b;\n')
+    // ⚰️ THE INPUT MOVED, FOR THE SAME REASON AS THE PROBE ABOVE: a LITERAL
+    // symbol now folds to `sym`, so it no longer reaches this guard. A computed
+    // one still does, and is the case the guard genuinely owns.
+    const x = r('def s = if close > open then "SPY" else "QQQ";\nplot p = close(symbol = s);\n')
     expect(x.guard).toBe('thinkscript:symbol')
     // ⚰️⚰️ THIS ASSERTION PINNED A FALSE SENTENCE. It demanded the message read
     // "needs a second column, not a second symbol inside this one" — and the engine
@@ -2782,7 +2790,7 @@ describe('⛔⛔ the constructs that are OUTSIDE A SCREEN`S WORLD block the whol
     // refused column among several. The corpus number would have called it
     // PROGRESS.
     const out = translateThinkScript(
-      'def b = close(symbol = "SPY");\nplot ok = close > open;\nplot rs = close / b;\n')
+      'def s = if close > open then "SPY" else "QQQ";\nplot ok = close > open;\nplot rs = close(symbol = s);\n')
     expect(out.ok, 'a script that reaches for another symbol is not a screen').toBe(false)
     expect(out.refusal.guard).toBe('thinkscript:symbol')
     // ⭐ AND THE CONTROL: the same script WITHOUT the foreign symbol translates,
@@ -3081,7 +3089,12 @@ describe('🔴🔴 EVERY DOCUMENTATION-BLOCKED REFUSAL NAMES THE DOCUMENT IT NEE
     for (const src of ['plot p = Floor(close);\n', 'plot p = HighestAll(high);\n',
       'def s = fold i = 0 to 8 with p do p + close;\nplot q = s;\n',
       'plot p = MovingAverage(AverageType.HULL, close, 9);\n',
-      'def b = close(symbol = "SPY");\nplot p = close / b;\n']) {
+      // ⚰️ A LITERAL SYMBOL IS NO LONGER A CAPABILITY REFUSAL AT ALL — it folds
+      // to the `sym` node and translates. What remains a capability refusal, and
+      // belongs in this list, is a symbol that cannot be reduced to a ticker at
+      // translation time: no page Schwab could publish makes a computed symbol
+      // knowable before the bars are read.
+      'def s = if close > open then "SPY" else "QQQ";\nplot p = close(symbol = s);\n']) {
       expect(msg(src), src).not.toContain('WHAT IS MISSING IS')
     }
     // 🔴 AND THE SITE THE SWEEP FOUND UNCOVERED. `engineCall`'s "the manifest does

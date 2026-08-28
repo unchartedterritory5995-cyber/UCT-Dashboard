@@ -2828,14 +2828,53 @@ class Resolver {
    *  get different sentences, pointed at the argument the member wrote. */
   foreignSeriesCall(n) {
     if (n.base) return null
-    if (!has(this.table.series, normaliseName(key(n.name)))) return null
+    const field = normaliseName(key(n.name))
+    if (!has(this.table.series, field)) return null
     for (const a of n.args || []) {
       if (a.name == null) continue
       const rule = TS_SERIES_ARG_GUARDS[key(a.name)]
-      if (rule) {
-        return new ThinkScriptRefusal(rule.guard,
-          `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+      if (!rule) continue
+      // ⭐⭐ `symbol =` NOW TRANSLATES WHEN IT FOLDS TO A TICKER. The engine holds
+      // another instrument as `sym`, the Pine door has emitted it since the node
+      // landed, and this door refused it with a sentence that was false about the
+      // engine: "a comparison against a benchmark needs a second column, not a
+      // second symbol inside this one" — which is exactly what `sym` is.
+      // ⛔ IT STILL REFUSES WHEN THE SYMBOL DOES NOT FOLD, and that is the whole
+      // guard: a computed ticker is not knowable at translation time, and reading
+      // the wrong instrument is worse than refusing.
+      if (rule.guard === 'thinkscript:symbol') {
+        const ticker = this.foreignSymbolOf(a.value)
+        if (ticker) return { sym: ticker, field }
       }
+      return new ThinkScriptRefusal(rule.guard,
+        `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))
+    }
+    return null
+  }
+
+  /** A node that names ANOTHER INSTRUMENT → its ticker, or null.
+   *
+   *  ⚠️ SHAPE ONLY, NOT THE ROSTER — and that is deliberate rather than lax.
+   *  `pine.js::otherSymbolNameOf` validates the spelling and lets
+   *  `assert_scannable` decide whether the benchmark roster allows it: ONE
+   *  authority, asked once, at the gate that owns the answer. A second opinion
+   *  here would let the two dialects drift about which benchmarks are permitted.
+   *
+   *  ⛔ BOUNDED, and a binding is followed only to an INPUT'S DEFAULT or another
+   *  name. A computed symbol reaches no literal and returns null, which is what
+   *  keeps `close(symbol = if … then "SPY" else "QQQ")` refused. */
+  foreignSymbolOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.e === 'text') {
+      const ticker = String(node.value).trim().toUpperCase()
+      return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : null
+    }
+    if (node.e === 'name') {
+      const bound = this.env.get(key(node.name))
+      if (!bound) return null
+      if (bound.kind === 'input') return this.foreignSymbolOf(bound.expr, depth + 1)
+      if (bound.expr) return this.foreignSymbolOf(bound.expr, depth + 1)
+      return null
     }
     return null
   }
@@ -2848,11 +2887,21 @@ class Resolver {
       this.resolve(n.base)
       throw refuse('thinkscript:function', n.tok)
     }
+    // ⚠️ A TRANSLATION, NOT A REFUSAL, IS NOW A POSSIBLE ANSWER FROM
+    // `foreignSeriesCall`: `{sym, field}` means the symbol folded to a ticker and
+    // the read becomes the engine's cross-symbol node.
     // ⛔⛔ WHAT IT READS IS CHECKED BEFORE WHETHER WE CAN COMPUTE IT. A bar field
     // called as a function is thinkorswim reaching for ANOTHER series — another
     // symbol or another timeframe — and naming that is far more use to a member
     // than "this engine declares no function for that call".
     const foreign = this.foreignSeriesCall(n)
+    // ⭐ A TRANSLATION OR A REFUSAL. `{sym, field}` means the symbol folded to a
+    // ticker, so `close(symbol = "SPY")` becomes the engine's cross-symbol read
+    // over that instrument's own bar field. Anything else is still the refusal it
+    // always was, thrown unchanged.
+    if (foreign && foreign.sym) {
+      return { type: 'sym', value: foreign.sym, args: [cSeries(foreign.field)] }
+    }
     if (foreign) throw foreign
     const deferredCall = TS_DEFERRED_CALLS[key(n.name)]
     if (deferredCall) {
