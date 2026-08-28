@@ -70,7 +70,7 @@
 //   * Studies — /center/reference/Tech-Indicators/studies-library/…
 //   * Tutorials — /center/reference/thinkScript/tutorials/{Basic,Advanced}/…
 
-import { TABLE, parseFormula, astHash } from './parse.js'
+import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
 import { printFormula, treeYieldsBool, forgetsItsSeed } from './pine.js'
 
 /** guard → the sentence it always refuses with. CLOSED, and closed in two places
@@ -2953,7 +2953,10 @@ class Resolver {
     if (!node || depth > 4) return null
     if (node.e === 'text') {
       const ticker = String(node.value).trim().toUpperCase()
-      return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : null
+      // ⭐ READ, NEVER RE-TYPED. ⚰️ I TYPED THIS COPY MYSELF one commit ago,
+      // mirroring `pine.js` — which is exactly how a pattern reaches three
+      // owners. `parse.js` owns it.
+      return TICKER_SHAPE.test(ticker) ? ticker : null
     }
     if (node.e === 'name') {
       const bound = this.env.get(key(node.name))

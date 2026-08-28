@@ -71,7 +71,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
-import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise } from './parse.js'
+import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
 // single commit. ⚠️ NOT A CYCLE: `sentence.js` imports `parse.js` and never
@@ -3028,7 +3028,8 @@ class Resolver {
     if (!node || depth > 4) return null
     if (node.type === 'string') {
       const ticker = String(node.value).trim().toUpperCase()
-      return /^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker) ? ticker : null
+      // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
+      return TICKER_SHAPE.test(ticker) ? ticker : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)

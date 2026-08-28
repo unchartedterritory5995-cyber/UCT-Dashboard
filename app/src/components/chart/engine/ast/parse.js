@@ -145,6 +145,29 @@ export const SESSION_MAX_BARS = (() => {
  *  walker in both lanes already descends `node.args`, so the child is reached
  *  by machinery that already exists and a walker that forgets `offset` gets the
  *  child's contribution rather than silently dropping the subtree. */
+/** What a `sym` node's ticker may look like — SHAPE ONLY, never the roster.
+ *
+ *  ⛔⛔ THIS EXISTED IN THREE PLACES AND WAS MISSING FROM A FOURTH. `pine.js`,
+ *  `thinkscript.js` and `sentence.js` each carried their own copy of this exact
+ *  pattern, and `canonicalise` — the door a member types a formula into — checked
+ *  NOTHING: `sym('!!bad!!', close)` and `sym('NASDAQ:AAPL', close)` both SAVED,
+ *  then charted as all-NaN and refused at the scan gate. Three authorities over
+ *  one pattern plus a door with none is this repo's most repeated defect, arriving
+ *  once more.
+ *
+ *  ⚠️ SHAPE IS NOT THE ROSTER, AND THE ASYMMETRY IS DELIBERATE.
+ *  `closedTable.json::_benchmarks` blesses it: `assert_scannable` REFUSES an
+ *  undeclared ticker while `interpret` ACCEPTS it, "and that is NOT the
+ *  two-authorities defect" — they answer different questions. This constant
+ *  answers only "could that string be a ticker at all"; WHICH tickers a scan may
+ *  read stays the gate's decision, asked once, where the roster lives.
+ *
+ *  ⚠️ A VENUE PREFIX FAILS IT TODAY. `NASDAQ:AAPL` is a real instrument we hold
+ *  and a member may reasonably type it; accepting it means resolving the prefix
+ *  and checking coverage, which is a design with its own open questions. Until
+ *  then a refusal AT THE DOOR beats a definition that saves and answers nothing. */
+export const TICKER_SHAPE = /^[A-Z][A-Z0-9.-]{0,9}$/
+
 export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live'])
 
 // --------------------------------------------------------------------------- //
@@ -658,6 +681,11 @@ function convert(node) {
         if (!ticker || ticker.type !== 'Literal' || typeof ticker.value !== 'string') {
           return refuse('canonicalise:symbol')
         }
+        // ⚰️ THIS DOOR CHECKED NOTHING, so `sym('!!bad!!', close)` SAVED — and then
+        // charted as all-NaN and refused at the scan gate, which is a definition a
+        // member built, kept, and can never use. The shape check belongs at the
+        // door they typed at.
+        if (!TICKER_SHAPE.test(ticker.value)) return refuse('canonicalise:symbol')
         return { type: 'sym', value: ticker.value, args: [convert(args[1])] }
       }
       return call(node.callee.name, (node.arguments || []).map(convert))
