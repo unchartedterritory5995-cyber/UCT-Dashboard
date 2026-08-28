@@ -848,7 +848,6 @@ function ChartPane({
           dailyDefaultBars={126}
           volumeSeparatePane
           showRangeSelector
-          showSma5
           canvasTheme={resolvedTheme === 'sunrise' ? 'sunrise' : null}
           volumePaneHeightPct={volPanePct}
           onVolumePaneResize={handleVolPaneResize}
