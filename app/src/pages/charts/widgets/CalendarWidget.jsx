@@ -8,7 +8,7 @@
  * the other widget settings; an uncustomized widget follows the app theme
  * (light → white canvas + dark text, OLED → black canvas + light text).
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
@@ -393,11 +393,8 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
         />
       )}
 
-      {/* Header: ◀ date ▶ + gear (+ a Today jump when off today) */}
+      {/* Header: ◀ date ▶ + gear */}
       <div className={styles.bar}>
-        {!isToday && (
-          <button type="button" className={styles.todayBtn} onClick={() => setSelected(todayView)} title="Jump to today">Today</button>
-        )}
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, -1))} aria-label="Previous day">‹</button>
         <span className={styles.dateWrap}>
           <span className={styles.dateMain}>{fmtMain(selected)}</span>

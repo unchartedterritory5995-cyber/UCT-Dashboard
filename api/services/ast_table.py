@@ -32,7 +32,7 @@ import io
 import json
 import pathlib
 from types import MappingProxyType
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 #: The manifest, resolved from THIS FILE rather than from a working directory.
 #:
@@ -240,7 +240,8 @@ YIELDS = ("num", "bool", "passthrough")
 YIELDS_DEFAULT = "num"
 
 
-def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
+def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None,
+              sections: Optional[Sequence[str]] = None) -> str:
     """What an operator, function or scalar's values can be. ``KeyError`` if the
     name is not declared in any of those three sections.
 
@@ -266,7 +267,17 @@ def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
     # not a second hand-list: a bar field declares no ``yields`` at all (it is a
     # price, always ``num``), so including it would only ever return the default
     # by a longer route. Everything else that declares names is consulted.
-    for section in (sec for sec in SECTIONS if sec != SERIES_SECTION):
+    # ⚰️⚰️ `sections` EXISTS BECAUSE ONE NAME MEANS DIFFERENT THINGS IN
+    # DIFFERENT NODES. Unscoped, this walked FUNCTIONS for a name a caller was
+    # asking about as a LEAF — so `{"type": "series", "name": "crossOver"}` was
+    # answered `bool`, borrowing the declaration of a FUNCTION that node is not
+    # calling. The scan gate then stamped that tree **scannable, yields=bool**
+    # while `interpret` refused the name outright at `resolve:name`: the member is
+    # told the scan will run and every row of the sweep refuses.
+    # ⛔ A CALLER THAT KNOWS WHICH SECTIONS ITS NODE MAY NAME MUST SAY SO. The
+    # default stays every section, so no existing reader changes behaviour.
+    wanted = tuple(sections) if sections is not None else SECTIONS
+    for section in (sec for sec in wanted if sec != SERIES_SECTION):
         entry = (m.get(section) or {}).get(name)
         if entry is not None:
             value = entry.get("yields")

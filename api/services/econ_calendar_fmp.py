@@ -105,6 +105,43 @@ def with_symposium_keynote(rows: list) -> list:
     return rows
 
 
+# Curated high-impact events FMP omits ENTIRELY — not just the keynote but the
+# "Jackson Hole Symposium" seed row `with_symposium_keynote` derives from, so some
+# years there is nothing to derive and the event vanishes from every surface (found
+# 2026-08-28: Warsh's Friday Jackson Hole keynote was on no calendar). Each entry is a
+# RAW FMP-shaped row (UTC `date`) so it flows through the SAME US/date/FED/impact
+# classification as a provider row — no special-casing downstream. Injected only when
+# the provider (or the derivation) hasn't already covered that day, so it self-retires
+# the moment FMP ships the real row. Keep this SHORT and dated: a gap-filler for
+# specific known events, never a schedule.
+_CURATED_ROWS = (
+    # Fed Chair Warsh's Jackson Hole keynote — Fri 2026-08-28 10:00 ET (14:00 UTC, EDT).
+    {"date": "2026-08-28 14:00:00", "country": "US",
+     "event": "Fed Chair Warsh Keynote (Jackson Hole)", "impact": "High"},
+)
+
+
+def with_curated_events(rows: list) -> list:
+    """Append the curated high-impact events the provider omits, skipping any the feed
+    (or `with_symposium_keynote`) already covers that day — so a real/derived row always
+    wins and no duplicate is created once FMP catches up. Match on a shared token
+    (jackson hole / keynote / the named speaker) rather than an exact title."""
+    additions = []
+    for cur in _CURATED_ROWS:
+        ds = _et_date(cur)
+        if ds is None:
+            continue
+        cur_title = str(cur.get("event") or "").lower()
+        tokens = [w for w in ("jackson hole", "keynote", "warsh") if w in cur_title]
+        covered = any(
+            _et_date(r) == ds
+            and any(tok in str(r.get("event") or "").lower() for tok in tokens)
+            for r in rows)
+        if not covered:
+            additions.append(dict(cur))
+    return rows + additions if additions else rows
+
+
 def _clean(v) -> str | None:
     if v is None or v == "":
         return None
@@ -140,6 +177,7 @@ def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
         _logger.warning("[econ-fmp-full] fetch failed: %s", exc)
         return {}
     rows = with_symposium_keynote(rows)
+    rows = with_curated_events(rows)
 
     from api.routers.calendar import _is_fed_speaker, _is_high_impact
 
@@ -209,6 +247,7 @@ def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict
         _logger.warning("[econ-fmp] fetch failed: %s", exc)
         return {}
     rows = with_symposium_keynote(rows)
+    rows = with_curated_events(rows)
 
     # Imported lazily so this module stays independent of the router. Reusing
     # the calendar's OWN _KEY_TERMS/_is_key_event means the Discord card and the

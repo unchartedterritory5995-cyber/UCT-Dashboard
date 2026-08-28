@@ -60,3 +60,9 @@ tools/ui_stress_out_run*.log
 # Per-run lane scratch (backups, mutation captures, baseline stdout/stderr).
 # Untracked and disposable; listed so an accidental `git add -A` cannot sweep it in.
 /scratchpad/
+
+# Mutated copies written by the linter's guard-deleted control (lint.test.js).
+# They live OUTSIDE `app/src` on purpose: a dozen rails walk that tree with
+# readdirSync+readFileSync, and a file that appears and vanishes mid-walk killed
+# whole test files with ENOENT at module scope. Per-run, deleted in a `finally`.
+/app/.mutations/

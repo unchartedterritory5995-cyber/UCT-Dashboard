@@ -172,6 +172,42 @@ def test_a_chair_speech_row_never_seeds_a_keynote_of_its_own():
     assert fmp.with_symposium_keynote(rows) == rows
 
 
+def _fetch_full_jh(rows):
+    resp = mock.Mock(ok=True)
+    resp.json.return_value = rows
+    with mock.patch("requests.get", return_value=resp), \
+         mock.patch.dict("os.environ", {"FMP_API_KEY": "k"}):
+        return fmp.fetch_us_econ_week_full("2026-08-24", "2026-08-28")
+
+
+def test_curated_keynote_is_injected_when_the_provider_omits_jackson_hole_entirely():
+    """FMP some years ships NEITHER the symposium seed NOR the keynote, so the
+    derivation has nothing to work from — the curated gap-filler must still surface it
+    as a high-impact FED event on the right day."""
+    out = _fetch_full_jh([_row("Michigan Consumer Sentiment", "2026-08-28 14:00:00", "Medium")])
+    fed = out.get("2026-08-28", {}).get("fed", [])
+    kn = [e for e in fed if "Keynote" in e["event"]]
+    assert len(kn) == 1
+    assert kn[0]["time"] == "10:00 AM" and kn[0]["impact"] == "high"
+
+
+def test_curated_keynote_is_suppressed_when_the_symposium_seed_derives_one():
+    """No duplicate: the derived role-labeled keynote wins, the curated one stands down."""
+    out = _fetch_full_jh([_SYMPOSIUM])
+    fed = out.get("2026-08-28", {}).get("fed", [])
+    kn = [e for e in fed if "Keynote" in e["event"]]
+    assert len(kn) == 1
+
+
+def test_curated_keynote_is_suppressed_when_the_provider_lists_the_speech():
+    out = _fetch_full_jh([
+        _row("Fed Chair Warsh Speaks at Jackson Hole", "2026-08-28 14:00:00", "High"),
+    ])
+    fed = out.get("2026-08-28", {}).get("fed", [])
+    titles = [e["event"] for e in fed]
+    assert titles == ["Fed Chair Warsh Speaks at Jackson Hole"]
+
+
 def test_marquee_releases_are_flagged_is_key_for_the_cards_accent_rail():
     """The card's gold rail must be driven by real importance, not styling."""
     out = _fetch([

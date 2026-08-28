@@ -13,14 +13,17 @@
   font-size: var(--cal-fs, 13.5px);
 }
 
-/* Header: ◀ date ▶ + gear */
+/* Header: ◀ date ▶ + gear. Locked to the shared 34px first-header-row height so its
+   bottom lines up with the tab/search divider on Watchlist / Theme Tracker. */
 .bar {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 8px;
+  height: 34px;
+  padding: 0 8px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
   flex: 0 0 auto;
 }
@@ -45,7 +48,9 @@
   font-weight: 700;
   font-size: 0.95em;
   letter-spacing: 0.3px;
-  color: var(--cal-chrome-strong, var(--cal-text, var(--text-bright, #e0dac8)));
+  /* Bright white — the widget's own text color (readableInk on a seeded canvas),
+     the SAME resolution the Stock Profile ticker uses, so the two read identically. */
+  color: var(--cal-text, var(--text-bright, #f8f7f3));
   white-space: nowrap;
 }
 .dateSub {
@@ -77,24 +82,6 @@
   color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
   background: var(--cal-row-hover, rgba(255, 255, 255, 0.06));
 }
-.todayBtn {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
-  font-family: inherit;
-  font-size: 0.68em;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.todayBtn:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); background: var(--cal-row-hover, rgba(255, 255, 255, 0.06)); }
-
 /* Body */
 .list { flex: 1; min-height: 0; overflow-y: auto; }
 .list:focus, .list:focus-visible { outline: none; }
@@ -116,10 +103,14 @@
   font-weight: 800;
   letter-spacing: 0.9px;
   text-transform: uppercase;
-  /* Muted grey (family standard) — gold stays for the active/hover column state below. */
-  color: var(--cal-chrome, var(--text-muted));
+  /* Brighter than the muted family grey — these section/column labels were hard to
+     read on a custom (navy/surface) canvas where --cal-chrome dims. Use the STRONG
+     chrome tone, bright fallback on the default dark themes. */
+  color: var(--cal-chrome-strong, var(--cal-text, var(--text, #f0efea)));
   background: var(--cal-bg-solid, var(--widget-canvas, var(--bg, #0e0f0d)));
   border-bottom: 1px solid var(--cal-divider, var(--divider, rgba(255, 255, 255, 0.08)));
+  /* Gold leading-edge accent (inset so it never shifts the header content). */
+  box-shadow: inset 2px 0 0 var(--cal-gold-strong, var(--ut-gold, #dcbb5e));
 }
 .sectionHead .headIcon { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); display: inline-flex; }
 .sectionHead.pre .headIcon { color: #e0a53c; }
@@ -131,7 +122,7 @@
   background: none; border: none; padding: 0; margin: 0;
   font: inherit; color: inherit; cursor: pointer; text-align: left;
 }
-.titleCount { margin-left: 3px; font-weight: 600; opacity: 0.6; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.titleCount { margin-left: 3px; font-weight: 600; opacity: 0.75; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .count { font-variant-numeric: tabular-nums; opacity: 0.75; }
 .colBtn { background: none; border: none; padding: 0; margin: 0; font-family: inherit; cursor: pointer; }
 .sectionHead .colBtn:hover, .headTitle:hover { color: var(--cal-gold-strong, var(--ut-gold, #dcbb5e)); }
@@ -166,7 +157,9 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.74em;
   font-variant-numeric: tabular-nums;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  /* Brighter so a non-boxed (not-high-impact) time stays readable on a dark/navy
+     canvas; the red high-impact box carries its own white text. */
+  color: var(--cal-chrome-strong, var(--text-muted, #cfcac0));
   flex: 0 0 auto;
   /* FIXED width (fits the widest boxed time) so a high-impact time box never widens
      the column — every event name starts at the same x. */
@@ -239,7 +232,9 @@
   font-weight: 700;
   font-size: 0.85em;
   letter-spacing: 0.3px;
-  color: var(--cal-symbol, var(--cal-accent, var(--cal-gold-strong, var(--ut-gold, #dcbb5e))));
+  /* Bright white by default (the symbolColor setting is emitted only when the user
+     picks a non-default color); light theme emits its own dark symbol color. */
+  color: var(--cal-symbol, #f8f7f3);
   flex: 0 0 auto;
 }
 /* Company name in parens — dims + ellipsizes, and hides entirely when the widget
@@ -247,7 +242,7 @@
 .earnCompany {
   font-size: 0.76em;
   color: var(--cal-text, var(--text-bright, #e0dac8));
-  opacity: 0.78;
+  opacity: 0.92;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,12 +277,12 @@
 .sectionHead .epsCol, .sectionHead .revCol, .sectionHead .imCol {
   font-weight: 800;
   letter-spacing: 0.4px;
-  color: var(--cal-chrome, var(--text-muted, #8b8674));
+  color: var(--cal-chrome-strong, var(--cal-text, var(--text, #f0efea)));
 }
 /* The longer "Impl. Move" label drops the header letter-spacing so it never clips. */
 .sectionHead .imCol { letter-spacing: 0; }
 /* "(est)" sits on its own line directly under the EPS / REV header label. */
-.estTag { display: block; margin-top: 1px; font-size: 0.82em; font-weight: 600; opacity: 0.72; letter-spacing: 0; text-transform: none; }
+.estTag { display: block; margin-top: 1px; font-size: 0.82em; font-weight: 600; opacity: 0.85; letter-spacing: 0; text-transform: none; }
 /* IM values always ride the settings text color (never the up/down surprise colors). */
 .earnRow .epsCol, .earnRow .revCol, .earnRow .imCol { font-weight: 700; color: var(--cal-text, var(--text-bright, #e0dac8)); }
 .earnRow .epsCol.pos, .earnRow .revCol.pos { color: var(--cal-pos, var(--ut-green-bright, #1ae51a)); }

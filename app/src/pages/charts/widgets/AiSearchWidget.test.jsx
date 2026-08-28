@@ -379,6 +379,20 @@ describe('AiSearchWidget', () => {
       fireEvent.keyDown(screen.getByLabelText('Ask anything about AAPL'), { key: 'Enter' })
       await waitFor(() => expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy())
 
+      // ⚰️ WAIT ON THE CALLBACK, NOT ON THE DOM — THIS LINE WAS THE FLAKE.
+      // The Copy button is a PROXY for "the turn finished", and it is a proxy that
+      // arrives too early: it exists at COMMIT, while `onThread` is invoked from a
+      // passive effect that React 19 flushes in a SEPARATE Scheduler task. RTL's
+      // `waitFor` drains with a single `setTimeout(…, 0)`, so the read below could
+      // land one macrotask ahead of the effect and see the mount-time call, whose
+      // payload is the EMPTY thread — "expected [] to have a length of 1", on maybe
+      // one full-suite run in three.
+      // ⛔ THIS IS NOT A LOOSENED ASSERTION. It still demands `onThread` be handed
+      // a one-turn thread; it just stops reading the mock before the effect that
+      // writes it has run. Asserting on a proxy for the thing you mean is what
+      // makes a test time-dependent in the first place.
+      await waitFor(() => expect(onThread.mock.calls.at(-1)?.[0]).toHaveLength(1))
+
       const handed = onThread.mock.calls.at(-1)[0]
       expect(handed).toHaveLength(1)
       expect(handed[0].q).toBe('why?')
