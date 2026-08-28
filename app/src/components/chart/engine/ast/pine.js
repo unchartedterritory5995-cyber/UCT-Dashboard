@@ -1347,6 +1347,10 @@ export function printFormula(node, parentBp = 0) {
       // above does it, and what keeps `tf(a > b, 'W')` from re-parsing as
       // something else.
       return `tf(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'tf_live':
+      // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
+      // back must be able to see that this one reads the FORMING period.
+      return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'sym':
       // ⭐ THE SEVENTH NODE TYPE, and the TICKER COMES FIRST — `sym('SPY', expr)`
       // — because that is the order this engine's own parser reads, which is in
@@ -2434,19 +2438,41 @@ class Resolver {
       if (!code) return null
     }
 
-    // 3. `lookahead`, wherever it appears: only OFF may translate.
+    // 3. `lookahead`, wherever it appears.
+    //
+    // ⭐⭐ `lookahead_on` NOW TRANSLATES — TO `tf_live`, WHICH IS A DIFFERENT NODE
+    // AND CARRIES A DIFFERENT BADGE. It used to refuse, and refusing was right
+    // while the only higher-timeframe node we had was the CLOSED one: taking a
+    // look-ahead script as if it were `lookahead_off` would have turned it into a
+    // look-behind one that backtests beautifully and is wrong. That is the silent
+    // mistranslation this door exists against, and nothing about it has softened.
+    //
+    // ⛔ WHAT CHANGED IS THAT WE CAN NOW SAY WHAT THE SCRIPT ACTUALLY ASKED FOR.
+    // `tf_live` reads the period the bar is INSIDE, exactly as `lookahead_on`
+    // does, and the linter derives `preview-repaints` from it — so the member gets
+    // their script AND the honest label, instead of a refusal for a thing we could
+    // model. ⚠️ An UNRECOGNISED lookahead spelling still falls through to refused:
+    // this admits the two declared values, never "anything that isn't off".
+    let live = false
     for (const a of args) {
       if (!a) continue
       const v = a.value
       const spelled = v && v.type === 'name' ? v.name : null
       const isLookahead = a.name === 'lookahead'
         || (typeof spelled === 'string' && spelled.includes('lookahead'))
-      if (isLookahead && spelled !== 'barmerge.lookahead_off') return null
+      if (!isLookahead) continue
+      if (spelled === 'barmerge.lookahead_on') live = true
+      else if (spelled !== 'barmerge.lookahead_off') return null
     }
+
+    // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
+    // there is no period to be part-way through, so `lookahead_on` at
+    // `timeframe.period` is the identity the same way `lookahead_off` is.
+    if (live && !code) live = false
 
     // 4. compose, innermost first.
     let out = this.resolve(positional[2])
-    if (code) out = { type: 'tf', value: code, args: [out] }
+    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
     if (other) out = { type: 'sym', value: other, args: [out] }
     return out
   }

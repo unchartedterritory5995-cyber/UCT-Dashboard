@@ -106,6 +106,8 @@
   "ternary": "8e06c51905d69a6b63926217eaa2b2448fa2efb2984c6f6b7ac8724903042653",
   "tf_close_weekly": "871b051209337fb0ccae345a9ba3183568425379394632982d8353ee1270157b",
   "tf_high_monthly": "941095121a542c754b4d691dd96d1ee308d8b1d8c208873e953d5c2d6ba11133",
+  "tf_live_close_weekly": "ae8f7b24cb16df670e9e8726ea1e4abdc72ec640e4806fa4af29da765bcc59bc",
+  "tf_live_compared_to_the_closed_week": "025115db4f4c3cced8797d83a74d9fc6edbcdd473489fe83b29e4d41d69c01a5",
   "tf_of_the_weekly_range": "5830d93f442ffe87e1f9bf1c3d82778623536f39f00369330e59a5a5c5a9b7e4",
   "tf_weekly_compared_to_close": "54a06c611b7c9874f044ae3134eefaae1b766f79e7da5744010686af824aa110",
   "unary_minus": "734397d94f5a4336b25154f7d844309f1b663cb6e4436cdd43321158595e29da",
@@ -250,6 +252,15 @@
    "at_head": "06333cb489312ac664be88b65543d2e185b5bbd9",
    "moved": [],
    "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 8 added, 0 removed` with `non-vacuity : 54875 finite of 64269 rows, every case non-empty, 95 table entries covered`, and `--check` is green afterwards at 111 asts x 579 bars. ZERO MOVED is the load-bearing half: `tf` and `sym` added arms to both interpreters and two walker sites each, and not one previously-recorded digest shifted — so the new node types are additive to the grammar rather than a change of meaning for anything already stored. ⚠️ THE FOUR `tf_*` CASES WERE ADDED BY W2b Task 2 AND THE LOG WAS NEVER RE-RECORDED, so `--check` had been failing on master since de1e77019 alongside `test_neither_the_budget_nor_the_interpreter_contains_a_single_try`. Both went unseen for the same reason: no backend gate in that session ever ran to completion, and the task status reported the shell wrapper's exit rather than pytest's. The four `sym_*` cases are W2b Task 4's, recorded in the same pass."
+  },
+  {
+   "added": [
+    "tf_live_close_weekly",
+    "tf_live_compared_to_the_closed_week"
+   ],
+   "at_head": "6a6606ef09891a19d9d5dcb5fa6453a6de88e18e",
+   "moved": [],
+   "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 2 added, 0 removed` with `non-vacuity : 55840 finite of 65427 rows, every case non-empty, 95 table entries covered`; `--check` green afterwards at 113 asts x 579 bars. ZERO MOVED matters most: `tf_live` shares the eval arm with `tf` and differs by a single line (bucket `b` vs `b - 1`), so a wrong edit there would have moved the four `tf_*` digests — none did. ⭐ `tf_live_compared_to_the_closed_week` is the case that can DISTINGUISH: it subtracts one node from the other over the same bars, so a lane that had quietly implemented them alike answers a flat zero column. Measured after recording: 386 finite rows, all non-zero (~6.3), in both lanes (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`)."
   }
  ]
 }

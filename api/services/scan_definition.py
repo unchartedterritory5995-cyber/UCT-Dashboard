@@ -63,6 +63,10 @@ _TF = "tf"
 #: this tuple because the classifier BRANCHES on it, and the branch census is what
 #: fails the day the engine learns a seventh type this module has not been taught.
 _SYM = "sym"
+#: ⚠️ THE FORMING higher-timeframe read. Classified with `_TF` below — a period
+#: changes WHEN, never WHAT — but it is its own constant because the branch census
+#: compares this module's set against the engine's, name for name.
+_TF_LIVE = "tf_live"
 
 #: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
 #: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
@@ -205,7 +209,7 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
                                else _KIND_NUM)
             continue
-        if node_type in (_TF, _SYM):
+        if node_type in (_TF, _SYM, _TF_LIVE):
             # ⭐ NEITHER CHANGES *WHAT*. A timeframe changes WHICH PERIOD and a
             # symbol changes WHICH INSTRUMENT, so both pass the kind through from
             # the child exactly as an offset's does: `sym('SPY', close > open)` is

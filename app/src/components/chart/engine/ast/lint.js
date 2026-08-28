@@ -515,6 +515,33 @@ export function astReach(ast, opts = {}) {
         })
         break
       }
+      case 'tf_live': {
+        // ⛔⛔ THIS ARM IS THE BADGE. `tf_live` reads the bucket the base bar is
+        // INSIDE — a forming period — so it reaches FORWARD into bars that have not
+        // happened yet at the moment it answers. `modeFromReach` turns any positive
+        // forward reach into `preview-repaints`, the honest label for a column
+        // whose past values change as the week fills in.
+        // ⭐ And this is why `tf_live` is a NODE TYPE rather than a flag on `tf`:
+        // the verdict is DERIVED here by a walker that already runs, instead of
+        // being threaded in by hand and dropped by the next refactor.
+        const args = Array.isArray(node.args) ? node.args : []
+        const span = TF_BASE_BARS[String(node.value)]
+        if (args.length !== 1 || span === undefined) {
+          reachOf.set(node, noteUnknown(
+            'a live higher-timeframe node carries one child and a timeframe this '
+            + `engine resamples (${Object.keys(TF_BASE_BARS).sort().join(', ')}), got `
+            + `${JSON.stringify(node.value)} over ${args.length}`))
+          break
+        }
+        const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+        const ahead = span - 1
+        reachOf.set(node, {
+          back: typeof child.back === 'number' ? child.back * span : child.back,
+          forward: typeof child.forward === 'number'
+            ? Math.max(ahead, child.forward * span) : child.forward,
+        })
+        break
+      }
       case 'sym': {
         // ⭐ A SYMBOL CHANGES *WHICH INSTRUMENT*, NEVER *WHEN*. One benchmark bar
         // per base bar, so the window passes straight through — no span, no +1,

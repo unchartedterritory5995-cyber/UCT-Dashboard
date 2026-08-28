@@ -420,7 +420,7 @@ def test_the_node_types_this_module_branches_on_ARE_the_declared_ones():
     branched = (scan_definition._NUM, scan_definition._SERIES,
                 scan_definition._OP, scan_definition._CALL,
                 scan_definition._OFFSET, scan_definition._TF,
-                scan_definition._SYM)
+                scan_definition._SYM, scan_definition._TF_LIVE)
     assert set(branched) == set(ast_interpret.NODE_TYPES)
     assert len(set(branched)) == len(ast_interpret.NODE_TYPES)
     assert set(branched) == set(user_definitions.NODE_TYPES)

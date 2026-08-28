@@ -108,7 +108,7 @@ INF = float("inf")
 #: expression, and that is the whole design: a shape with no slot for an
 #: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
 #: FORWARD reference stays inexpressible in both lanes at once.
-NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
+NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
 
 
 # --------------------------------------------------------------------------- #
@@ -209,7 +209,7 @@ def _assert_sym_placement(root: Any) -> None:
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
-                stack.append((a, under_tf or kind == "tf"))
+                stack.append((a, under_tf or kind in ("tf", "tf_live")))
 
 
 def _assert_resamplable(code):
@@ -1697,7 +1697,7 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call", "offset", "tf", "sym"):
+        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -2015,6 +2015,16 @@ def max_lookback(ast: Any) -> int:
             _assert_resamplable(code)
             span = TF_BASE_BARS[code]
             seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
+            continue
+        if kind == "tf_live":
+            # ⭐ THE FORMING PERIOD, SO THERE IS NO `+1`: a base bar reads the bucket
+            # it is IN, not the one before it. Everything else is the `tf` arm's
+            # arithmetic — the child is counted in higher-timeframe bars, so it is
+            # multiplied by the span, rounded UP because a lookback that is too
+            # small answers off a warmup it never had.
+            code = str(node.get("value"))
+            _assert_resamplable(code)
+            seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_BASE_BARS[code])
             continue
         if kind == "sym":
             # ⭐ THE CHILD'S OWN, UNMULTIPLIED. One benchmark bar per base bar —
@@ -2576,7 +2586,7 @@ def interpret(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf", "sym") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym", "tf_live") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -2604,7 +2614,7 @@ def interpret(ast: Any, bars: List[dict],
             for i in range(back, length):
                 out[i] = src[i - back]
             return out
-        if kind == "tf":
+        if kind in ("tf", "tf_live"):
             code = str(n.get("value"))
             _assert_resamplable(code)
             # \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the
@@ -2667,12 +2677,32 @@ def interpret(ast: Any, bars: List[dict],
             # Bucket 0 has no closed predecessor, so it is NOT COMPUTABLE: NaN,
             # never 0.0 and never the bar\u2019s own value, exactly as `offset` states
             # for its left edge.
+            # ⛔⛔ ONE LINE SEPARATES THESE TWO NODES, AND IT IS THE WHOLE REPAINT
+            # STORY. `tf` reads bucket `b - 1` — the last CLOSED period. `tf_live`
+            # reads bucket `b`, the one the base bar is INSIDE, which is still
+            # forming: its value CHANGES as the period fills in, so a backtest of
+            # it saw a number no live trader could have had.
+            #
+            # ⭐ SO IT IS A SEPARATE NODE TYPE RATHER THAN A FLAG ON `tf`, and the
+            # reason is the BADGE. `ast_lint.mode_from_reach` reads FORWARD reach:
+            # `tf` contributes none and stays `non-repainting`; `tf_live` reaches
+            # into the rest of its own period and comes out `preview-repaints`. A
+            # flag would have had to be threaded into the linter by hand; a node
+            # type is asked about by every walker that already exists.
+            #
+            # ⚠️ AND THE FIRST BUCKET IS COMPUTABLE HERE, unlike `tf`'s. Bucket 0
+            # has no closed predecessor, so `tf` must answer NaN there; the
+            # forming bucket 0 is perfectly readable, and pretending otherwise
+            # would be an artificial hole rather than an honest one.
+            live = (kind == "tf_live")
             out = _nan_col(length)
             for i, k in enumerate(keys):
                 if k is None:
                     continue
                 b = at[k]
-                if b > 0:
+                if live:
+                    out[i] = child[b]
+                elif b > 0:
                     out[i] = child[b - 1]
             return out
         if kind == "sym":

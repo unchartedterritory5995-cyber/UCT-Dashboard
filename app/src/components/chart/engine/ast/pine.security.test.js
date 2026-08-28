@@ -34,6 +34,27 @@ import { translatePine } from './pine.js'
  * `lesson_a_premise_that_says_nothing_to_find_retires_the_search`, caught only by
  * doing the work and re-measuring instead of trusting the row.
  *
+ * ⛔⛔ AND `tf_live` REPEATED THE PATTERN A THIRD TIME. The plan's blocker table
+ * said four community scripts were held by `lookahead_on` (11, 14, 22, 30).
+ * Measured after the node landed: **zero moved**, because every one of them
+ * refuses EARLIER for something else — 11 at `pine:plot-offset`, 22 at
+ * `pine:collection` (`array.get`), 14 and 30 at `pine:no-output`. `lookahead_on`
+ * was a property they SHARED, never the reason they refused.
+ *
+ * ⭐ SO THE STANDING LESSON, NOW MEASURED THREE TIMES, IS THAT A BLOCKER TABLE
+ * BUILT BY GREPPING FOR A FEATURE COUNTS SCRIPTS THAT **CONTAIN** IT, NOT SCRIPTS
+ * **BLOCKED BY** IT. Variable timeframe: predicted 6, moved 0. Another symbol:
+ * predicted ~3, moved 1. `lookahead_on`: predicted 4, moved 0. The binding
+ * constraint is whatever the translator hits FIRST, which can only be read off
+ * the refusing line — so a future estimate must be built by running the corpus
+ * and reading refusals, never by searching for a keyword
+ * (`lesson_a_premise_that_says_nothing_to_find_retires_the_search`).
+ *
+ * ⚠️ NONE OF THAT MAKES THE NODES WASTED. `sym` moved the corpus and is the
+ * relative-strength primitive this firm trades on; `tf_live` is what lets a
+ * `lookahead_on` script be ACCEPTED WITH AN HONEST BADGE instead of refused, the
+ * moment its other blockers clear. What is wasted is an estimate nobody re-measured.
+ *
  * ⭐ THE FOLD IS STILL CORRECT AND STILL KEPT: it is what TradingView's own Pine
  * Screener does, and it is what a MEMBER's pasted `input.timeframe("W")` needs.
  * The corpora simply do not contain that shape. Its exercise is here.
@@ -73,18 +94,42 @@ describe('request.security → tf', () => {
     }
   })
 
-  it('⛔⛔ lookahead_on REFUSES — it reads a bar the base bar is inside', () => {
-    // THE ONE THAT MATTERS. Our `tf` is `lookahead_off` + `[1]`: the last CLOSED
-    // higher-timeframe bar. `lookahead_on` asks for the bar still forming, i.e.
-    // the future mid-week. Translating it as if it were `off` would turn a
-    // look-ahead script into a look-behind one — it would backtest beautifully
-    // and be wrong, which is the silent mistranslation this door exists against.
-    // ⚠️ FOUR REAL SCRIPTS in the community corpus do exactly this, so this is
-    // not a hypothetical arm.
+  it('⭐⭐ lookahead_on becomes `tf_live` — the node that reads the FORMING period', () => {
+    // ⛔⛔ THIS USED TO REFUSE, AND REFUSING WAS RIGHT AT THE TIME. While the only
+    // higher-timeframe node was the CLOSED one, taking `lookahead_on` would have
+    // turned a look-ahead script into a look-behind one — it would have backtested
+    // beautifully and been wrong, which is the silent mistranslation this whole
+    // door exists against. Nothing about that has softened.
+    //
+    // ⭐ WHAT CHANGED IS THAT WE CAN NOW SAY WHAT THE SCRIPT ASKED FOR. `tf_live`
+    // reads the period the bar is INSIDE, exactly as `lookahead_on` does, and the
+    // linter derives `preview-repaints` from the node type — so the member gets
+    // their script AND the honest badge, rather than a refusal for something we
+    // can model. FOUR community scripts (11, 14, 22, 30) are this shape.
+    const ast = treeOf(translatePine(src(
+      "plot(request.security(syminfo.tickerid, 'W', close, lookahead=barmerge.lookahead_on))")))
+    expect(ast).toEqual({
+      type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }],
+    })
+  })
+
+  it('⛔ an UNRECOGNISED lookahead spelling still refuses — not \"anything that is not off\"', () => {
+    // The control on the arm above: admitting `lookahead_on` must not become
+    // admitting every value. A spelling this door does not know is a thing it
+    // cannot model, and guessing is what it refuses to do.
     const out = translatePine(src(
-      "plot(request.security(syminfo.tickerid, 'W', close, lookahead=barmerge.lookahead_on))"))
+      "plot(request.security(syminfo.tickerid, 'W', close, lookahead=barmerge.lookahead_maybe))"))
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('pine:request')
+  })
+
+  it("⛔ and lookahead_on at the CHART’S OWN timeframe is still the identity", () => {
+    // There is no period to be part-way through, so there is nothing to model
+    // and no repaint to declare — emitting `tf_live` here would badge a settled
+    // read as repainting.
+    const ast = treeOf(translatePine(src(
+      "plot(request.security(syminfo.tickerid, timeframe.period, close, lookahead=barmerge.lookahead_on))")))
+    expect(ast).toEqual({ type: 'series', name: 'close' })
   })
 
   it('…and lookahead_off, stated explicitly, still translates', () => {

@@ -283,6 +283,12 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # scan lane stays total. ⛔ Without this row the STORE refuses the feature
     # after everything else accepts it — the trap `offset` documents two rows up.
     "sym": ("type", "value", "args"),
+    # ⚠️ THE FORMING HIGHER-TIMEFRAME READ — `tf_live("W", expr)`. Same shape as
+    # `tf`, and a SEPARATE type rather than a flag on it because the repaint badge
+    # is derived from the node type by walkers that already exist: `tf` is
+    # non-repainting, this is `preview-repaints`, and a flag would have had to be
+    # threaded into the linter by hand.
+    "tf_live": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 

@@ -508,6 +508,19 @@ function readSymSentence(s) {
   return { via: 'sym', ast: { type: 'sym', value: m[1], args: [readOperand(m[2])] } }
 }
 
+/** ⭐ THE FORMING READ, whose chrome is deliberately UNLIKE `tf`'s. The two
+ *  nodes differ by one line in the interpreter and by one phrase here, and this
+ *  reader is hand-typed independently of `sentence.js` so a re-phrasing there
+ *  lands as `0 parses` rather than as a reader that moved with it. */
+const TF_LIVE_SUFFIX = /^(.+) so far this (week|month)$/
+const TF_LIVE_CODE_OF = { week: 'W', month: 'M' }
+
+function readTfLiveSentence(s) {
+  const m = TF_LIVE_SUFFIX.exec(s)
+  if (!m) return null
+  return { via: 'tf_live', ast: { type: 'tf_live', value: TF_LIVE_CODE_OF[m[2]], args: [readOperand(m[1])] } }
+}
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -526,6 +539,10 @@ function readSentenceCandidates(s) {
   try {
     const other = readSymSentence(s)
     if (other) found.push(other)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
+    const forming = readTfLiveSentence(s)
+    if (forming) found.push(forming)
   } catch { /* the chrome matched but the child did not read */ }
   for (const form of FORMS) {
     const slots = matchForm(form.parts, s)
@@ -662,6 +679,13 @@ function predictTrace(node, at = '$') {
     // rule would make this walk agree with the renderer only because both were
     // hand-typed twice.
     return [{ path: at, rule: 'sym' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
+  }
+  if (node.type === 'tf_live') {
+    // ⭐ ITS OWN RULE NAME, because the renderer attributes it that way — the two
+    // nodes share a function but not a verdict, and the trace is what lets a test
+    // ask WHICH branch produced a sentence.
+    return [{ path: at, rule: 'tf_live' },
       ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'tf') {
@@ -2219,6 +2243,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sym_subtree_is_evaluated_on_the_other_instrument',
       'sym_a_gap_in_the_benchmark_is_not_carried_forward',
       'sym_an_unsupplied_benchmark_is_not_computable',
+      'tf_live_close_weekly',
+      'tf_live_compared_to_the_closed_week',
     ])
   })
 

@@ -361,8 +361,9 @@ export function yieldsOf(node, rules) {
       return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
     }
     case 'sym':
+    case 'tf_live':
     case 'tf':
-      // ⭐ NEITHER CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
+      // ⭐ NONE OF THEM CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
       // comes from and a symbol read changes WHERE — `tf(close >
       // open, 'W')` is still the yes/no it is, read off last week's bar, so the
       // kind passes through from the child — the same rule, and the same
@@ -981,9 +982,18 @@ function renderTf(node, rules, inputs, depth, path, trace) {
       `at ${path}: no English is declared for timeframe ${JSON.stringify(node.value)} `
       + `\u2014 this grammar says ${Object.keys(TF_WORD).join(', ')}`)
   }
-  trace.push({ path, rule: 'tf' })
+  // ⭐ THE TWO NODES SHARE A RENDERER AND DIFFER BY ONE WORD, because they differ
+  // by one line in the interpreter. ⛔ "so far this week" is not decoration: it is
+  // the ONLY thing in the read-back that tells a member the value will CHANGE
+  // before the period closes, and the read-back is the artifact they are asked to
+  // trust. A shared phrase would have made a repainting column indistinguishable
+  // from a settled one in the sentence a member reads.
+  const live = node.type === 'tf_live'
+  trace.push({ path, rule: live ? 'tf_live' : 'tf' })
   const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
-  return `${inner} on the ${word} timeframe`
+  return live
+    ? `${inner} so far this ${word === 'weekly' ? 'week' : 'month'}`
+    : `${inner} on the ${word} timeframe`
 }
 
 /** ⭐ A PREFIX, WHERE `renderTf` IS A SUFFIX — and the asymmetry is the point.
@@ -1038,6 +1048,7 @@ function renderNode(node, rules, inputs, depth, path, trace) {
     case 'offset':
       return renderOffset(node, rules, inputs, depth, path, trace)
     case 'tf':
+    case 'tf_live':
       return renderTf(node, rules, inputs, depth, path, trace)
     case 'sym':
       return renderSym(node, rules, inputs, depth, path, trace)

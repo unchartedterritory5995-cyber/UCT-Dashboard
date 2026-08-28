@@ -81,7 +81,7 @@ LIVE, AS_OF_SNAPSHOT, UNKNOWN = FRESHNESS_MODES
 #: `ast_interpret.NODE_TYPES` by a test; an unlisted type is reported
 #: `unreadable`, which would make every multi-timeframe or cross-symbol
 #: definition freshness-undecidable rather than merely unhandled.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
 
 
 def _walk(tree: Any) -> List[Any]:

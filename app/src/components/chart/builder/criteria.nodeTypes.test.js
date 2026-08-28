@@ -256,6 +256,19 @@ const TYPES_NOT_PICKABLE = Object.freeze({
       + 'exemption on purpose: a single entry covering both would keep excusing '
       + 'the second after the first got its row.',
   },
+  tf_live: {
+    guard: 'picker:no-row',
+    why: '🔴 THE THIRD MODIFIER WITH NO ROW, and the one with the strongest '
+      + 'reason to stay that way for now. `tf_live("W", expr)` reads the FORMING '
+      + 'period, so any screen built on it is `preview-repaints` — its past '
+      + 'answers change as the week fills in. Offering it as a one-click picker row '
+      + 'beside settled conditions would put a repainting screen one tap from a '
+      + 'non-repainting one with nothing in the row to say so, and the badge lives '
+      + 'on the definition rather than on the row. ⚠️ So the picker gap here is '
+      + 'a DESIGN QUESTION (how a row shows its own repaint verdict), not a walker '
+      + 'somebody forgot — and it is a separate entry from `tf` above precisely so '
+      + 'that giving `tf` a row does not silently excuse this one.',
+  },
 })
 
 /** The types the picker is on record as having no row for — subtracted wherever

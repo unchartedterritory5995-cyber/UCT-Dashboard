@@ -145,7 +145,7 @@ export const SESSION_MAX_BARS = (() => {
  *  walker in both lanes already descends `node.args`, so the child is reached
  *  by machinery that already exists and a walker that forgets `offset` gets the
  *  child's contribution rather than silently dropping the subtree. */
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym'])
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset', 'tf', 'sym', 'tf_live'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -624,6 +624,18 @@ function convert(node) {
         // vocabulary, and the parser's copy would be the one that goes stale.
         return { type: 'tf', value: code.value, args: [convert(args[0])] }
       }
+      // ⭐ THE FORMING VARIANT, spelled `tf_live(expr, 'W')` — the same surface
+      // one word along, because a member who knows one should not have to learn a
+      // second grammar to say "and don't wait for the period to close".
+      if (node.callee && node.callee.name === 'tf_live') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:timeframe')
+        const code = args[1]
+        if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
+          return refuse('canonicalise:timeframe')
+        }
+        return { type: 'tf_live', value: code.value, args: [convert(args[0])] }
+      }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
       // INSTRUMENT, and both keep their parameter as a FIELD so neither can be
@@ -779,6 +791,11 @@ const CANONICAL_KEYS = Object.freeze({
   // `tf`'s timeframe is: a shape with no slot for an expression cannot hold one,
   // so a symbol can never be computed at runtime and the scan lane stays total.
   sym: ['type', 'value', 'args'],
+  // ⚠️ THE FORMING higher-timeframe read. Identical SHAPE to `tf`, and a
+  // separate TYPE for one reason: the repaint badge is derived from the node type
+  // by walkers that already exist, so `tf` comes out non-repainting and this comes
+  // out `preview-repaints` without anybody threading a flag through the linter.
+  tf_live: ['type', 'value', 'args'],
 })
 
 /** The tree really is one of the declared shapes, with exactly its own keys.

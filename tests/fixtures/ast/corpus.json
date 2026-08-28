@@ -3352,6 +3352,52 @@
      }
     ]
    }
+  },
+  {
+   "id": "tf_live_close_weekly",
+   "source": "tf_live(close, 'W')",
+   "why": "⛔⛔ THE FORMING PERIOD, and the case exists to pin the ONE line that separates it from `tf`: this reads the bucket the base bar is INSIDE, so bucket 0 answers (where `tf` must be NaN, having no closed predecessor) and every bar of a week carries that week's eventual close. A backtest of this saw a number no live trader could have had — which is why the linter badges it `preview-repaints` rather than refusing it.",
+   "ast": {
+    "type": "tf_live",
+    "value": "W",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   }
+  },
+  {
+   "id": "tf_live_compared_to_the_closed_week",
+   "source": "tf_live(close, 'W') - tf(close, 'W')",
+   "why": "⭐ THE DIFFERENCE IS THE MEASUREMENT. Both nodes over the same bars and the same timeframe, subtracted: a lane that had quietly implemented one as the other would answer a flat zero column here, which no other case in this corpus could tell from a correct one (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).",
+   "ast": {
+    "type": "op",
+    "name": "-",
+    "args": [
+     {
+      "type": "tf_live",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "tf",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     }
+    ]
+   }
   }
  ],
  "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

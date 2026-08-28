@@ -392,7 +392,7 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
 #: and sell that proof, so the copy stays and
 #: ``test_the_node_vocabulary_here_IS_the_interpreter_s`` is what binds the two.
 #: ⭐ THE BINDING LIVES IN THE TEST, WHERE BOTH MODULES MAY BE IMPORTED AT ONCE.
-_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym")
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live")
 
 #: ⛔ THE SPANS, DUPLICATED FOR THE SAME FORCED REASON AS THE VOCABULARY ABOVE,
 #: and bound to ``ast_interpret.TF_BASE_BARS`` by a test rather than by an import.
@@ -552,6 +552,35 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
                 back = cb if cb in (UNKNOWN, UNBOUNDED) else (int(cb) + 1) * span
                 forward = cf if cf in (UNKNOWN, UNBOUNDED) or cf == 0 else int(cf) * span
+                reach_of[id(node)] = (back, forward)
+        elif kind == "tf_live":
+            # ⛔⛔ THIS ARM IS THE BADGE. `tf_live` reads the bucket the base bar is
+            # INSIDE — a forming period — so it reaches FORWARD, into bars that have
+            # not happened yet at the moment it answers. `mode_from_reach` turns any
+            # positive forward reach into `preview-repaints`, which is the honest
+            # label for a column whose past values change as the week fills in.
+            #
+            # ⭐ THAT IS THE WHOLE REASON `tf_live` IS A NODE TYPE AND NOT A FLAG ON
+            # `tf`. The badge is DERIVED from reach by a walker that already visits
+            # every node; a flag would have had to be threaded in here by hand, and
+            # a hand-threaded repaint verdict is one refactor from being dropped.
+            #
+            # ⚠️ `span - 1` IS THE HONEST NUMBER: a Monday can see up to four more
+            # daily bars of its own week. Any positive value yields the same badge,
+            # so this is stated for the reader rather than for the verdict.
+            code = str(node.get("value"))
+            span = _TF_BASE_BARS.get(code)
+            if len(args) != 1 or span is None:
+                reach_of[id(node)] = unknown(
+                    "a live higher-timeframe node carries one child and a timeframe "
+                    "this engine resamples (%s), got %r over %d"
+                    % (", ".join(sorted(_TF_BASE_BARS)), node.get("value"), len(args)))
+            else:
+                cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+                back = cb if cb in (UNKNOWN, UNBOUNDED) else int(cb) * span
+                ahead = span - 1
+                forward = (cf if cf in (UNKNOWN, UNBOUNDED)
+                           else max(ahead, int(cf) * span))
                 reach_of[id(node)] = (back, forward)
         elif kind == "sym":
             # ⭐ A SYMBOL CHANGES *WHICH INSTRUMENT*, NEVER *WHEN*. One benchmark

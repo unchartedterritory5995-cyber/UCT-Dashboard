@@ -192,7 +192,7 @@ function assertSymPlacement(root, refuse) {
         + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
     }
     if (Array.isArray(node.args)) {
-      for (const a of node.args) stack.push([a, underTf || node.type === 'tf'])
+      for (const a of node.args) stack.push([a, underTf || node.type === 'tf' || node.type === 'tf_live'])
     }
   }
 }
@@ -1382,7 +1382,7 @@ function flatten(root) {
     assertNode(node)
     order.push(node)
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
-        || node.type === 'tf' || node.type === 'sym') {
+        || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -1703,6 +1703,14 @@ export function maxLookback(ast) {
       assertResamplable(code, refuse)
       const span = TF_BASE_BARS[code]
       seen.set(node, (seen.get(node.args[0]) + 1) * span)
+      continue
+    }
+    if (node.type === 'tf_live') {
+      // ⭐ THE FORMING PERIOD, SO NO `+1`: a base bar reads the bucket it is IN,
+      // not the one before it. Mirrors `ast_interpret.max_lookback`'s arm.
+      const code = String(node.value)
+      assertResamplable(code, refuse)
+      seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_BASE_BARS[code]))
       continue
     }
     if (node.type === 'sym') {
@@ -2116,7 +2124,8 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         }
         return out
       }
-      case 'tf': {
+      case 'tf':
+      case 'tf_live': {
         const code = String(n.value)
         assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
@@ -2148,12 +2157,25 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // week's eventual close \u2014 every backtest using `tf` would then be reading the
         // future and still drawing a confident line. Bucket 0 has no closed
         // predecessor, so it is NOT COMPUTABLE, exactly as `offset`'s left edge is.
+        // ⛔⛔ ONE LINE SEPARATES THESE TWO NODES, AND IT IS THE WHOLE REPAINT
+        // STORY. `tf` reads bucket `b - 1` — the last CLOSED period. `tf_live`
+        // reads bucket `b`, the one the base bar is INSIDE, which is still
+        // forming: its value CHANGES as the period fills in, so a backtest of it
+        // saw a number no live trader could have had.
+        // ⭐ Hence a separate NODE TYPE, not a flag: `lint.js` derives the badge
+        // from reach by a walker that already visits every node, so `tf` stays
+        // `non-repainting` and this comes out `preview-repaints` with nothing
+        // hand-threaded.
+        // ⚠️ And bucket 0 IS computable here, unlike `tf`'s — a forming first
+        // period is perfectly readable; an artificial hole would be dishonest.
+        const live = n.type === 'tf_live'
         const out = nan(length)
         for (let i = 0; i < length; i++) {
           const iso = isos[i]
           if (!iso) continue
           const b = at.get(tfBucket(iso, code))
-          if (b > 0) out[i] = child[b - 1]
+          if (live) out[i] = child[b]
+          else if (b > 0) out[i] = child[b - 1]
         }
         return out
       }
