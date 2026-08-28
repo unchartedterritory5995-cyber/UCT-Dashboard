@@ -62,7 +62,6 @@ const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
  *  times on this project. */
 const REFUSES = Object.freeze({
   '07-hull-suite.pine': ['pine:statement', null, null],
-  '08-smoothed-heiken-ashi-candles.pine': ['pine:no-output', null, null],
   '09-obv-oscillator-lazybear.pine': ['pine:function', 9, 'cum'],
   // ⭐ WAS `pine:undefined` — `it = … it[1] … it[2]` is a plain self-reference,
   // which this door could not see, so it refused by NAMING THE VARIABLE BEING

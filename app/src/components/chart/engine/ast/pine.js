@@ -286,6 +286,31 @@ const OUTPUT_CALLS = Object.freeze({
   plotarrow: 'series',
 })
 
+/** ⭐⭐ THE CALLS THAT DRAW A WHOLE CANDLE — FOUR COLUMNS, NOT ONE.
+ *
+ *  ⚰️ `plotcandle` AND `plotbar` WERE FILED AS PAINT, and the reason given was
+ *  right about the problem and wrong about the answer: "offering one of them
+ *  under the script's title is a quarter of a candle". So offer FOUR, each under
+ *  its own role. TradingView's own screener requirements list `plotbar()` and
+ *  `plotcandle()` beside `plot()` as outputs a screening filter may come from —
+ *  the same sentence that got `plotarrow` released from this set.
+ *
+ *  ⭐ AND THE FOUR ARE ONLY USEFUL TOGETHER, which is the argument FOR emitting
+ *  them all rather than against emitting any. The screen a member actually wants
+ *  off `08-smoothed-heiken-ashi-candles` is "the smoothed Heikin-Ashi candle
+ *  turned green" — `close > open` — and that needs BOTH columns to exist. One
+ *  column would have been a quarter of a candle; four are a candle.
+ *
+ *  ⚠️ THE ROLE NAMES ARE PINE'S OWN PARAMETER NAMES, so a fully-named call
+ *  (`plotcandle(close = c, open = o, …)`) picks the right series by name and a
+ *  positional one picks by position. Reading position only would translate a
+ *  reordered named call into a candle with its high and low swapped, which draws
+ *  perfectly and screens backwards. */
+const MULTI_OUTPUT_CALLS = Object.freeze({
+  plotcandle: Object.freeze(['open', 'high', 'low', 'close']),
+  plotbar: Object.freeze(['open', 'high', 'low', 'close']),
+})
+
 const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
@@ -924,8 +949,11 @@ const TYPE_WORDS = Object.freeze(new Set([
  *  `hidden` by `readsBars`, and worth nothing to a screen. `plotcandle`/`plotbar`
  *  are on the list and take FOUR series each; they wait for the multi-column
  *  output shape, and refuse honestly meanwhile. */
+// ⚰️ `plotcandle` AND `plotbar` LEFT THIS SET — see `MULTI_OUTPUT_CALLS`. What
+// kept them here was that each yields four columns and the output loop built one
+// row per statement; the loop now takes a ROLE, so the statement expands.
 const CHART_ONLY_CALLS = Object.freeze(new Set([
-  'plotshape', 'plotchar', 'plotcandle', 'plotbar',
+  'plotshape', 'plotchar',
   'bgcolor', 'barcolor', 'fill', 'hline', 'alert',
 ]))
 
@@ -4785,6 +4813,18 @@ export function translatePine(source, opts = {}) {
       continue
     }
 
+    // ⭐ ONE STATEMENT, FOUR COLUMNS. The expansion happens HERE rather than in
+    // the resolve loop so that each role gets its own `Resolver` — one arm
+    // refusing (`plotcandle(o, h, l, someArray.get(0))`) must cost that column
+    // and not the other three, which is exactly how a multi-`plot` script already
+    // behaves.
+    if (own(MULTI_OUTPUT_CALLS, word) && isPunct(toks[1], '(')) {
+      MULTI_OUTPUT_CALLS[word].forEach((role, roleIndex) => {
+        outputs.push({ kind: word, role, roleIndex, toks, tok: first })
+      })
+      continue
+    }
+
     // ── a binding, a function definition, or a paint call ─────────────────
     const arrow = findTop(toks, (t) => isPunct(t, '=>'))
     const eq = findTop(toks, (t) => isPunct(t, '='))
@@ -5025,7 +5065,7 @@ export function translatePine(source, opts = {}) {
       const args = parseArguments(cur)
       const rest = cur.peek()
       if (rest) throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(rest))
-      const seriesArg = pickOutputArgument(args, out.kind, out.tok)
+      const seriesArg = pickOutputArgument(args, out.kind, out.tok, out.role, out.roleIndex)
       // ⭐⭐ A POSITIVE PINE OFFSET IS A BAR OFFSET IN THE TREE. `plot(x, offset=N)`
       // draws bar i's value at bar i+N, so what stands at bar j is bar j-N's —
       // `x[N]`. Putting it in the TREE makes the chart and the scan agree by
@@ -5041,7 +5081,7 @@ export function translatePine(source, opts = {}) {
       verifyRoundTrip(formula, ast)
       row = {
         kind: out.kind,
-        title: outputTitle(args, out.kind) || null,
+        title: outputTitle(args, out.kind, out.role) || null,
         line: out.tok.line,
         column: out.tok.column,
         formula,
@@ -5071,7 +5111,12 @@ export function translatePine(source, opts = {}) {
     } catch (err) {
       row = {
         kind: out.kind,
-        title: null,
+        // ⭐ A REFUSED ROW STILL SAYS WHICH ROLE IT WAS. Four candle columns from
+        // one statement all carry the same line and token, so a nameless refusal
+        // among them tells a member their candle failed without saying WHICH
+        // series to look at — and the other three sit there translated, which
+        // makes the silence read like a whole-script problem.
+        title: out.role || null,
         line: out.tok.line,
         column: out.tok.column,
         formula: null,
@@ -5249,7 +5294,7 @@ function foldDisplacement(resolver, seriesArg) {
 /** The argument a screener reads. `plot(series, title, …)` and
  *  `alertcondition(condition, title, message)` — the first positional, or the
  *  named one Pine's own signature calls it. */
-function pickOutputArgument(args, kind, tok) {
+function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
   // ⚰️ THIS REFUSED EVERY DISPLACED PLOT, AND IT WAS CONFLATING TWO CLAIMS.
   // Its sentence — "a displaced plot writes its value at a different bar from the
   // one that produced it" — is true about the DRAWING and false about the COLUMN.
@@ -5278,9 +5323,13 @@ function pickOutputArgument(args, kind, tok) {
   // sends a named-argument script down the positional path and picks up whatever
   // came first, which for `plotshape(cond, title = "x")` is still right by luck
   // — and by luck is not a translation.
-  const named = OUTPUT_CALLS[kind]
+  // ⭐ A ROLE PICKS ITS OWN SERIES — BY PINE'S PARAMETER NAME FIRST, then by
+  // position. A candle call has four of them, so "the first positional" is the
+  // right answer for exactly one of the four and wrong for the rest.
+  const named = role || OUTPUT_CALLS[kind]
   const byName = args.find((a) => a.name === named)
-  const positional = args.find((a) => !a.name)
+  const positionals = args.filter((a) => !a.name)
+  const positional = role ? positionals[roleIndex] : positionals[0]
   const picked = byName || positional
   if (!picked) {
     throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
@@ -5314,13 +5363,21 @@ function outputHidden(args) {
   return !!(d && d.value && d.value.type === 'name' && d.value.name === 'display.none')
 }
 
-function outputTitle(args, kind) {
+function outputTitle(args, kind, role = null) {
   const byName = args.find((a) => a.name === 'title')
-  if (byName && byName.value.type === 'string') return byName.value.value
   const positional = args.filter((a) => !a.name)
   const second = positional[1]
-  if (second && second.value.type === 'string') return second.value.value
-  return null
+  let base = null
+  if (byName && byName.value.type === 'string') base = byName.value.value
+  // ⛔ THE SECOND POSITIONAL IS THE TITLE FOR `plot(series, "t")` AND IS THE HIGH
+  // FOR `plotcandle(o, h, l, c)`. Reading it for a candle would title every
+  // column after a price series.
+  else if (!role && second && second.value.type === 'string') base = second.value.value
+  if (!role) return base
+  // ⭐ THE ROLE IS PART OF THE NAME, ALWAYS. Four columns from one statement are
+  // otherwise four identical offers, and a member picking "Smoothed Ha Candles"
+  // from a list of four would be choosing at random.
+  return base ? `${base} ${role}` : role
 }
 
 /** ⭐⭐ THE PROOF THAT NOTHING HALF-TRANSLATED. The printed text is read back by

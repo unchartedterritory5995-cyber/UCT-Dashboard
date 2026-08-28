@@ -41,6 +41,13 @@ describe('the community corpus, by name', () => {
     '04-ut-bot-alerts.pine',
     '05-chandelier-exit.pine',
     '06-qqe-mod.pine',
+    // ⭐⭐ TWO WALLS FELL IN ONE SESSION AND THE SECOND WAS INVISIBLE BEHIND THE
+    // FIRST. `haopen = na(haopen[1]) ? … : …` is Pine's plain self-referencing
+    // assignment, which this door could not read at all; clearing it exposed
+    // `plotcandle`, which was filed as paint because one of its four series is a
+    // quarter of a candle. It now yields FOUR columns — open, high, low, close —
+    // and `close > open` on them is the screen the script exists for.
+    '08-smoothed-heiken-ashi-candles.pine',
     '11-52-week-high-low.pine',
     '12-vcp-tightness-score.pine',
     '13-relative-strength-vs-benchmark-spy.pine',

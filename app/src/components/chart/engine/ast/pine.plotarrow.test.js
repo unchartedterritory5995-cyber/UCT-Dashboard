@@ -61,19 +61,25 @@ describe('plotarrow is an output', () => {
 
   // ─── the ones that genuinely DO need more than one column ─────────────────
 
-  it('⛔ plotcandle still refuses — four series is a different problem', () => {
-    // ⛔⛔ NOT FIXED BY THIS CHANGE, AND MUST NOT LOOK LIKE IT WAS. `plotcandle`
-    // takes open, high, low and close; offering one of them under the script's
-    // title is a quarter of a candle. It waits for the multi-column output shape.
-    const out = translatePine(src('plotcandle(open, high, low, close)'))
-    expect(out.refusal).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:no-output')
-  })
-
-  it('⛔ and so does plotbar', () => {
-    const out = translatePine(src('plotbar(open, high, low, close)'))
-    expect(out.refusal).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:no-output')
+  it('⭐⭐ plotcandle and plotbar are outputs too now — FOUR columns each', () => {
+    // ⚰️ THESE TWO PINNED `pine:no-output`, under "offering one of them under the
+    // script's title is a quarter of a candle. It waits for the multi-column
+    // output shape." That was right about the problem and it named its own
+    // unblocker; the shape landed, so the pin moved. One column would have been a
+    // quarter of a candle — four are a candle.
+    // ⭐ THE ARGUMENT FOR EMITTING ALL FOUR IS THE OLD OBJECTION, TURNED OVER: the
+    // screen a member wants off a Heikin-Ashi script is `close > open`, and that
+    // needs both columns to exist.
+    // 📄 The full behaviour — named-argument picking, per-role titles, one bad arm
+    // costing one column — lives in `pine.plotcandle.test.js`. This file keeps the
+    // pin so the release is visible from where the refusal used to be recorded.
+    for (const call of ['plotcandle(open, high, low, close)',
+      'plotbar(open, high, low, close)']) {
+      const out = translatePine(src(call))
+      expect(out.refusal, call).toBe(null)
+      expect(out.outputs.map((o) => o.title), call)
+        .toEqual(['open', 'high', 'low', 'close'])
+    }
   })
 
   it('⛔ paint that TradingView does NOT list stays paint', () => {
