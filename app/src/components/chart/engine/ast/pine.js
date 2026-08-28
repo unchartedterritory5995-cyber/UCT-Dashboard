@@ -2772,9 +2772,33 @@ class Resolver {
     // ALMOST this one lands on `pine:request` with the namespace's own sentence
     // rather than on a special-case message that would have to be maintained
     // twice.
+    // ⚰️⚰️ AND IT YIELDS TO A USER DEFINITION OF THE SAME NAME. This carve-out
+    // ran SIXTEEN LINES BEFORE the user-function check below, so a member who
+    // wrote `security(a, b, c) => a + b + c` got THEIR function for
+    // `security(close, high, low)` and the BUILT-IN for
+    // `security(syminfo.tickerid, 'W', close)`: one name, two meanings in one
+    // script, decided by whether the arguments happened to match a shape they
+    // never wrote.
+    // ⛔ THE SHADOW RULE ITSELF IS UNCHANGED and is the one stated below — only a
+    // `f(x) =>` DEFINITION shadows a table name, never a value binding, because
+    // `rsi = rsi(src, length)` is ordinary Pine. This only lets that rule apply
+    // BEFORE the carve-out instead of after it.
+    // ⭐ FOURTH INSTANCE OF THE BINDING-ORDER DEFECT IN THIS FILE, after
+    // `ownSymbolNameOf`, `ownTimeframeOf` and `resolveName`: consult what the
+    // script SAID before what the table knows.
     if (name === 'request.security' || name === 'security') {
-      const asTf = this.securityAsNode(node)
-      if (asTf) return asTf
+      // ⚠️ BOTH DEFINITION SHAPES COUNT. `kind === 'fn'` is a definition this door
+      // can inline; `opaque` + `isFunction` is one it cannot and will refuse by
+      // name. Either way the member DEFINED the name, so either way the built-in
+      // must stand aside — checking only the second let a working
+      // `security(a, b, c) => …` keep losing to the carve-out.
+      const defined = this.env.get(name)
+      const shadowed = !!defined && (defined.kind === 'fn'
+        || (defined.kind === 'opaque' && defined.isFunction))
+      if (!shadowed) {
+        const asTf = this.securityAsNode(node)
+        if (asTf) return asTf
+      }
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]

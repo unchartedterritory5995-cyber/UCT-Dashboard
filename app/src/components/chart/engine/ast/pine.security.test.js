@@ -273,6 +273,37 @@ describe('request.security → tf', () => {
     }
   })
 
+  it('⛔⛔ a USER-DEFINED `security` shadows the built-in carve-out', () => {
+    // ⚰️⚰️ ONE NAME MEANT TWO THINGS IN ONE SCRIPT. The `security` carve-out ran
+    // SIXTEEN LINES BEFORE the user-function check, so a member who defined
+    // `security(a, b, c) => a + b + c` got THEIR function for
+    // `security(close, high, low)` and the BUILT-IN for
+    // `security(syminfo.tickerid, "W", close)` — the same call, resolved two ways,
+    // decided by whether the arguments happened to match the built-in's shape.
+    //
+    // ⛔ THE RULE ABOVE THE USER-FUNCTION CHECK IS RIGHT AND UNCHANGED: only a
+    // `f(x) =>` DEFINITION shadows a table name, never a value binding — because
+    // `rsi = rsi(src, length)` is ordinary Pine. The carve-out simply ran before
+    // that rule could apply.
+    //
+    // ⭐ FOURTH INSTANCE OF THE BINDING-ORDER DEFECT IN THIS FILE, after
+    // `ownSymbolNameOf`, `ownTimeframeOf` and `resolveName`. Consult what the
+    // script SAID before what the table knows.
+    const out = translatePine(src(
+      `security(a, b, c) => a + b + c
+plot(security(syminfo.tickerid, 'W', close))`))
+    // Their function adds a string to prices, which this grammar cannot hold — so
+    // the honest answer is a refusal, NOT a weekly resample they never asked for.
+    expect(out.refusal, 'the built-in carve-out is still winning').toBeTruthy()
+  })
+
+  it('⭐ …and with no user definition, the carve-out still works', () => {
+    // The control: the fix must be a SHADOW check, not a deletion of the carve-out.
+    const ast = treeOf(translatePine(src(
+      "plot(security(syminfo.tickerid, 'W', close))")))
+    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+  })
+
   it('⭐ and a LOCAL binding that shadows `tickerid` reads as the instrument it NAMES', () => {
     // The control on the spellings above: recognising the built-in must not become
     // “any variable called tickerid is this chart”. Bound to a literal it is a
