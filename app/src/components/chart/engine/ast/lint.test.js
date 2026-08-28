@@ -391,6 +391,32 @@ describe('the forward-reference set is derived from the manifest both lanes read
  *  module runner transforms it (a `file://` import would reach bare node, which
  *  cannot import `closedTable.json` without an attribute).
  */
+const LINT_DIR_REL = 'app/src/components/chart/engine/ast'
+
+/** Where the mutated copy goes — OUTSIDE `app/src`, and that is the whole point.
+ *
+ *  ⚰️⚰️ IT USED TO LIVE BESIDE `lint.js`, AND THAT MADE THE FULL SUITE
+ *  NONDETERMINISTIC. Roughly a dozen rails walk `app/src` with `readdirSync` and
+ *  then `readFileSync`. This copy exists for a few hundred milliseconds and is
+ *  then unlinked, so a walker IN ANOTHER FORK that listed the directory before
+ *  the unlink and read a name after it dies with ENOENT — at MODULE scope, taking
+ *  its whole test file with it. `controlDoorCensus.test.js` reddened on four runs
+ *  in five. The victim MOVED between runs because it is a race, which is exactly
+ *  why it read as "flakiness" rather than as a bug with an address, and why the
+ *  standing advice was becoming "just run it again".
+ *
+ *  ⛔ AND THE QUIETER HALF, WHICH HAS NO SYMPTOM AT ALL: while the copy exists, a
+ *  census of SHIPPED modules reads a DELIBERATELY BROKEN `lint.js` as though we
+ *  shipped it. Nothing goes red; the census is simply measuring something that
+ *  was never in the product.
+ *
+ *  ⚠️ AN EXTENSION TRICK IS NOT ENOUGH. `.mjs` would hide it from every walker
+ *  that filters `\.jsx?$` — but `sourcesAreText.test.js` counts `.mjs` too. Leaving
+ *  the scanned tree is what actually closes both halves, for every walker at once,
+ *  without editing a single one of them.
+ */
+const MUTATION_DIR = path.join(ROOT, 'app', '.mutations')
+
 async function withDeletion(fragment, replacement, fn) {
   const src = read(LINT_SRC_REL)
   if (!src.includes(fragment)) {
@@ -399,11 +425,30 @@ async function withDeletion(fragment, replacement, fn) {
   if (src.split(fragment).length - 1 !== 1) {
     throw new Error(`guard-deleted control: ${JSON.stringify(fragment)} appears more than once — the deletion is ambiguous`)
   }
+
+  // The copy no longer sits beside its imports, so every RELATIVE specifier is
+  // rewritten to point back at the real directory. ⛔ ASSERTED, NOT ASSUMED: an
+  // unrewritten `./` would resolve inside `.mutations/`, where nothing exists,
+  // and the control would fail for a reason that has nothing to do with the
+  // mutation it is supposed to be demonstrating. `lint.js` imports exactly one
+  // module today; the check is what makes a second one safe to add.
+  const here = path.join(ROOT, LINT_DIR_REL)
+  const backTo = path.relative(MUTATION_DIR, here).split(path.sep).join('/')
+  const body = src.replace(fragment, replacement)
+    .replace(/(\bfrom\s*['"])\.\/([^'"]+)(['"])/g, `$1${backTo}/$2$3`)
+  if (/\bfrom\s*['"]\.\.?\//.test(body.replace(new RegExp(backTo.replace(/\./g, '\\.'), 'g'), ''))) {
+    throw new Error('guard-deleted control: a relative import was not rewritten for the moved copy')
+  }
+
   const name = `__guardDeleted_${Math.random().toString(36).slice(2)}.js`
-  const abs = path.join(ROOT, 'app/src/components/chart/engine/ast', name)
-  fs.writeFileSync(abs, src.replace(fragment, replacement), 'utf8')
+  const abs = path.join(MUTATION_DIR, name)
+  fs.mkdirSync(MUTATION_DIR, { recursive: true })
+  fs.writeFileSync(abs, body, 'utf8')
+  // Relative to THIS file, which lives in the real directory — computed rather
+  // than typed, so the hop count cannot rot if either path moves.
+  const spec = path.relative(here, abs).split(path.sep).join('/')
   try {
-    return await fn(await import(/* @vite-ignore */ `./${name}`))
+    return await fn(await import(/* @vite-ignore */ spec.startsWith('.') ? spec : `./${spec}`))
   } finally {
     try { fs.unlinkSync(abs) } catch { /* the next run's random name is not this one */ }
   }
