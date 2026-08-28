@@ -642,68 +642,25 @@ def test_either_module_may_be_imported_first():
 
 
 # --------------------------------------------------------------------------- #
-# a KNOWN, UNCLOSED lane divergence — pinned so it cannot drift further
+# the lane divergence that WAS pinned here is CLOSED
 # --------------------------------------------------------------------------- #
-
-def _repeated_subtree(times: int = 40) -> dict:
-    """`sma(close,20) + sma(close,20) + …` — one shape, repeated."""
-    leaf = {"type": "call", "name": "sma",
-            "args": [{"type": "series", "name": "close"},
-                     {"type": "num", "value": 20}]}
-    tree = leaf
-    for _ in range(times):
-        tree = {"type": "op", "name": "+", "args": [tree, dict(leaf)]}
-    return tree
-
-
-def test_KNOWN_DEFECT_the_two_lanes_measure_the_node_budget_differently():
-    """⚰️⚰️ ONE DECLARED CAP, TWO MEASUREMENTS, AND THE PERMISSIVE DOOR COMES FIRST.
-
-    Measured on the tree below, against the same `maxNodes` cap of 128:
-
-        JS  `nodeCount`   →  43   → `checkBudget` ACCEPTS
-        PY  `node_count`  → 163   → `check_budget` REFUSES
-
-    A member builds that formula in the builder, is told it is fine, saves it —
-    and the backend refuses at `budget:nodes`.
-
-    ⛔ AND NEITHER COUNTER IS "THE BUG". Each is honest about ITS OWN lane's real
-    cost. `interpret.js` interns structurally identical subtrees and evaluates the
-    repeated term ONCE, so 43 is what it actually computes; `ast_interpret.py`
-    has no structural interning and genuinely evaluates it 41 times, so 163 is
-    what IT actually computes. One shared constant is being applied to two
-    different real costs.
-
-    ⭐ THE JS LANE IS THE ONE THAT IS RIGHT, and its own comment says why: a
-    translated script INLINES rather than names, because the closed table cannot
-    bind an intermediate — so one script's ATR term appears eight times in a
-    single column, and counting the flattened tree "charged a member eight times
-    for a thing the engine computes once". Making JS conservative would undo that
-    deliberate fix.
-
-    ⛔ SO THE CLOSE IS TO GIVE THE PYTHON EVALUATOR THE SAME STRUCTURAL MEMO and
-    then count distinct there too. That is a change to the hot path of a two-lane
-    engine held at 1e-9, and it is NOT made here — it wants a reviewer. This test
-    exists so the gap is a KNOWN number rather than a surprise, and so it cannot
-    widen quietly while nobody is looking.
-
-    ⚠️ IF YOU CLOSE IT: delete this test, do not "update" the numbers. A pinned
-    defect whose numbers get edited becomes a pinned defect nobody re-reads.
-    """
-    tree = _repeated_subtree()
-    total = ast_interpret.node_count(tree)
-    cap = ast_budget.DEFAULT_BUDGET["maxNodes"]
-
-    # The Python lane counts every occurrence and refuses.
-    assert total == 163, f"the pinned tree changed shape — it now measures {total}"
-    assert total > cap
-    with pytest.raises(ast_budget.BudgetExceeded):
-        ast_budget.check_budget(tree)
-
-    # ⭐ THE NON-VACUITY HALF: the divergence is a property of REPETITION, not of
-    # size. The same node total built WITHOUT repeated shapes is counted the same
-    # by both lanes — which is why this went unnoticed for so long.
-    chain = {"type": "series", "name": "close"}
-    for _ in range(total - 1):
-        chain = {"type": "offset", "value": 1, "args": [chain]}
-    assert ast_interpret.node_count(chain) == total
+#
+# ✅ `test_KNOWN_DEFECT_the_two_lanes_measure_the_node_budget_differently` LIVED
+# HERE AND IS DELETED, WHICH IS WHAT IT ASKED FOR IN PLACE: "if you close it,
+# DELETE this test, do not 'update' the numbers, because a pinned defect whose
+# numbers get edited becomes a pinned defect nobody re-reads."
+#
+# It recorded that one declared cap of 128 was measured as 43 by the JS lane and
+# 163 by this one, so a formula the builder accepted was refused the moment it
+# was saved. It also recorded the close: give the Python evaluator the same
+# structural memo and count distinct subtrees there too.
+#
+# That is done. `ast_interpret.structural_maps` is a port of
+# `interpret.js::structuralMaps`, `node_count` answers `distinct`, and `interpret`
+# memoises on the same ids — so the number a member is charged and the work this
+# lane does cannot drift apart. Both lanes now answer 43 on that tree and both
+# accept it.
+#
+# ⛔ THE REVIEWER WAS CONFORMANCE: 128 ASTs × 579 bars held at 1e-9 across the
+# change, including the `tf`, `sym` and recurrence cases. A memo that altered any
+# answer could not have passed it.

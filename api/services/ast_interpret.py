@@ -2418,14 +2418,135 @@ def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
     return max(0, max_lookback(ast) - have)
 
 
-def node_count(ast: Any) -> int:
-    """How many nodes the tree has. The number ``budget:nodes`` will threshold.
+def _bind_names() -> frozenset:
+    """Recurrence bind names (``self``, today), read off the manifest."""
+    return frozenset(
+        spec["binds"] for spec in RECURRENCES.values()
+        if isinstance(spec, Mapping) and isinstance(spec.get("binds"), str))
 
-    ⚠️ ITERATIVE, so it survives the 8,001-node tree that makes ``interpret``
+
+def structural_maps(root: Any) -> tuple:
+    """Structural identity for every node in a tree → ``(id_of, free_of, distinct)``.
+
+    ⭐⭐ A FAITHFUL PORT OF ``interpret.js::structuralMaps``, AND THE PORT IS THE
+    POINT. ``node_count`` thresholds on ``distinct`` and ``interpret`` MEMOISES on
+    ``id_of``, so the number a member is charged and the work this lane actually
+    does cannot drift apart — which is exactly how they HAD drifted from the JS
+    lane: one declared cap of 128, measured as 43 there and 163 here, so a formula
+    the builder accepted was refused the moment it was saved.
+
+    ⛔ IDS, NOT NESTED KEY STRINGS. Keying a node on a string containing its
+    children's keys is quadratic in depth; interning a short shape into an integer
+    is O(1) per node. The JS side records paying for that mistake once already.
+
+    ⛔ EXPLICIT POST-ORDER WITH ITS OWN STACK, not ``_flatten`` reversed — this has
+    to be correct without depending on another function's emission order, and
+    iterative so it survives a tree deep enough to overflow a recursive walk.
+
+    ⚠️ ``free_of`` IS WHAT MAKES THE MEMO SAFE. A subtree that reads a recurrence
+    bind (``self``) means something different on every bar, so it is never
+    memoised. Everything else in a single ``interpret`` call is evaluated against
+    ONE bar set — the ``tf`` and ``sym`` arms recurse into a fresh ``interpret``,
+    which builds its own maps, so a memo can never cross a bar-set boundary.
+    """
+    binds = _bind_names()
+    id_of: dict = {}
+    free_of: dict = {}
+    by_shape: dict = {}
+
+    def intern(shape: str) -> int:
+        got = by_shape.get(shape)
+        if got is None:
+            got = len(by_shape)
+            by_shape[shape] = got
+        return got
+
+    stack = [(root, False)]
+    while stack:
+        node, expanded = stack.pop()
+        key = id(node)
+        if key in id_of:
+            continue
+        if not isinstance(node, dict):
+            id_of[key] = intern("lit\x01%r" % (node,))
+            free_of[key] = True
+            continue
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if not expanded:
+            stack.append((node, True))
+            for a in args:
+                stack.append((a, False))
+            continue
+        free = not (node.get("type") == "series" and node.get("name") in binds)
+        child_ids = []
+        for a in args:
+            # ⛔⛔ RAISE, NEVER INVENT A KEY. The JS side's first draft pushed a
+            # placeholder for a missing child, and a 128-deep chain collapsed to
+            # TWO shapes — `node_count` answered 2. A silent fallback UNDER-counts,
+            # and under-counting is the one direction that turns a budget into a
+            # guard that has stopped guarding.
+            if id(a) not in id_of:
+                raise AssertionError(
+                    "structural_maps: a child was keyed after its parent — "
+                    "the post-order is broken")
+            child_ids.append(id_of[id(a)])
+            if not free_of[id(a)]:
+                free = False
+        # ⚠️ DELIMITED. Without separators `op`+`u-`+`` and `op`+`u`+`-` produce
+        # one shape, and a collision under-counts exactly like the fallback did.
+        name = node.get("name")
+        value = node.get("value")
+        id_of[key] = intern("%s\x01%s\x01%s\x01%s" % (
+            node.get("type"),
+            "" if name is None else name,
+            "" if value is None else value,
+            ",".join(str(c) for c in child_ids)))
+        free_of[key] = free
+
+    return id_of, free_of, len(by_shape)
+
+
+def flat_node_count(ast: Any) -> int:
+    """EVERY node, counting repeats — the total, not the budget number.
+
+    ⚰️ THIS EXISTS BECAUSE `node_count` CHANGED MEANING AND A THIRD CONSUMER WAS
+    ASKING IT THE OTHER QUESTION. `tools/ast_conformance.py` decodes the tree the
+    JS lane sends and checks nothing was dropped in transit by comparing against
+    the number of ROWS SENT — a total. When `node_count` began answering DISTINCT
+    subtrees it started reporting 4001 against 8001 rows and read as a decoder
+    losing half the tree.
+    ⛔ TWO QUESTIONS, TWO NAMES. "How much will this cost to evaluate?" is
+    `node_count` and is answered in distinct subtrees because the interpreter
+    memoises them. "Did every node survive the crossing?" is this one and can only
+    be answered in totals.
+    """
+    return len(_flatten(ast))
+
+
+def node_count(ast: Any) -> int:
+    """How many DISTINCT subtrees the tree has. The number ``budget:nodes`` thresholds.
+
+    ⭐⭐ DISTINCT, NOT TOTAL, AND IT IS HONEST ONLY BECAUSE ``interpret`` MEMOISES
+    ON THE SAME IDS. A translated script INLINES rather than names — the closed
+    table cannot bind an intermediate — so one script's ATR term can appear eight
+    times in a single column, and counting the flattened tree charged a member
+    eight times for a thing the engine computes once.
+
+    ⚰️ THIS RETURNED ``len(_flatten(ast))`` AND THE JS LANE RETURNED THE DISTINCT
+    COUNT, against ONE declared cap of 128. Measured on a tree repeating one
+    subtree forty times: 43 there, 163 here — so the builder accepted a formula the
+    backend then refused at ``budget:nodes``. Each number was honest about its own
+    lane's real cost; the fix was to give this lane the memo, not to pick a number.
+
+    ⛔ THE TWO MOVE TOGETHER. Counting the DAG WITHOUT the memo is the opposite
+    error and a far worse one — a budget under-reporting real cost. If the memo is
+    ever narrowed, narrow this with it.
+
+    ⚠️ STILL ITERATIVE, so it survives the 8,001-node tree that makes ``interpret``
     itself raise ``RecursionError``. That asymmetry is the point: a budget guard
     runs BEFORE the walker and must not need the walker to be safe first.
     """
-    return len(_flatten(ast))
+    return structural_maps(ast)[2]
 
 
 # --------------------------------------------------------------------------- #
@@ -2631,7 +2752,39 @@ def interpret(ast: Any, bars: List[dict],
                     f"{name!r} — this table declares {', '.join(scope)}")
         return scope[name]
 
+    #: Structural identity for this tree, computed ONCE per ``interpret`` call.
+    #:
+    #: ⚰️⚰️ THE MEMO IS WHY THIS LANE'S BUDGET NUMBER WAS HONEST AND ITS COST WAS
+    #: NOT. ``node_count`` charges a member for DISTINCT subtrees, because a
+    #: translated script INLINES rather than names — the closed table cannot bind an
+    #: intermediate, so one script's ATR term appears eight times in a single
+    #: column. The JS lane has memoised on these ids for as long as it has counted
+    #: them; this lane counted the flattened tree and evaluated every repeat.
+    #: Against ONE declared cap of 128 that measured 43 there and 163 here, so a
+    #: formula the builder accepted was refused the moment it was saved.
+    #:
+    #: ⛔ SCOPED TO ONE CALL, AND THAT IS WHAT MAKES IT SAFE. Every node here is
+    #: evaluated against ONE bar set; the ``tf`` and ``sym`` arms recurse into a
+    #: FRESH ``interpret``, which builds its own maps, so a memoised column can
+    #: never be handed to a different set of bars.
+    _id_of, _free_of, _ = structural_maps(ast)
+    _memo: dict = {}
+
     def eval_node(n: Any) -> Any:
+        # ⚠️ ``free_of`` DECIDES, NOT THE SHAPE ALONE. A subtree reading a
+        # recurrence bind (``self``) means something different on every bar of the
+        # step loop, so it is never memoised — the same rule the JS lane applies,
+        # and the reason this is a port rather than an invention.
+        _key = id(n)
+        _slot = _id_of.get(_key) if _free_of.get(_key) else None
+        if _slot is not None and _slot in _memo:
+            return _memo[_slot]
+        _value = _eval_raw(n)
+        if _slot is not None:
+            _memo[_slot] = _value
+        return _value
+
+    def _eval_raw(n: Any) -> Any:
         # ⚠️ THE FINAL `else` BELOW *IS* THE GUARD, and it has to be REACHABLE for
         # the mutation that deletes it to be lethal. A validating pre-pass would
         # make it unreachable, which is how a guard becomes an equivalent mutant.

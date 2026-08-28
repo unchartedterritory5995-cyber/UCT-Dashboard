@@ -62,6 +62,8 @@
     "lowestbars_the_offset_back_to_the_low": "865fb7ecc4f4adfa1a1b511448cd71685ba84cfde754b57984b80f9586c83de5",
     "macd_line": "197e0548065dc0a5959ed1bd1c6572275da9062084640df6fabc098472ece50a",
     "macd_signal_by_composition": "fa197ebca667ab91d0cb4c27d00e4a0ce32f7c13b59850cc6c1efd493ebb7e7e",
+    "memo_never_shares_a_self_reading_subtree": "20dcd22958957fdfcc1dbdb86b3d7dbbd463263f3d07ff06f7a9318661123f89",
+    "memo_shares_a_free_subtree_inside_a_recurrence": "1c99a562818b1653871c0c74d22f25a95cc97a159c44261ac35f4ea94c49c75d",
     "mfi_14": "661c2933ed7e5018dbdac88cc0df72b882c4966dd8dbfdd3830f5f3b6d5d89ef",
     "min_max_envelope": "803e0a7053dc62d4ce3ee84dff66f2b0ab95c57e089610d32f33d96dbcb56365",
     "minus_di": "62db546c43ecb947dd5ffd385ae2d731595800371a9dadf8e22ce378e762f326",

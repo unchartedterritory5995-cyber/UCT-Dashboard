@@ -485,10 +485,25 @@ def repainting_tree() -> dict:
 #: budget call and the same input comes back as a REPAINT refusal — a correct
 #: answer from the wrong door.
 def over_budget_and_repainting() -> dict:
-    leaf = repainting_tree()
-    tree = dict(leaf)
-    for _ in range(40):
-        tree = {"type": "op", "name": BINARY_OP, "args": [tree, repainting_tree()]}
+    """⚰️ EVERY LEAF NOW CARRIES A DIFFERENT WINDOW, AND THAT IS LOAD-BEARING.
+
+    This used to repeat ONE identical `repainting_tree()` forty times. The node
+    budget counts DISTINCT subtrees — because the interpreter memoises them, so a
+    term written forty times is computed once — and forty identical copies are ONE
+    shape. The tree was 163 nodes and 43 shapes, so it stopped being over budget
+    the hour this lane gained the memo, and the case silently began testing the
+    LINTER instead of the budget: it still refused, at `lint:repaint`, which is a
+    correct answer from the wrong door and exactly what this section exists to
+    tell apart.
+
+    ⛔ SO THE FIX IS NOT A BIGGER NUMBER — IT IS GENUINE DISTINCTNESS. A tree is
+    over the budget when it really costs that much to evaluate, and varying the
+    window per leaf makes each one a subtree the engine must actually compute.
+    """
+    tree = {"type": "call", "name": WINDOWED, "args": [s(), n(2.0)]}
+    for i in range(140):
+        leaf = {"type": "call", "name": WINDOWED, "args": [s(), n(float(i + 3))]}
+        tree = {"type": "op", "name": BINARY_OP, "args": [tree, leaf]}
     return tree
 
 

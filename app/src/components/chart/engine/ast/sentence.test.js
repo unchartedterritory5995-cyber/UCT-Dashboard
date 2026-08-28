@@ -2286,6 +2286,14 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // Added while fixing a `TypeError` crash in the Python resampler; recording
       // it proved the two lanes already agree over the real bars.
       'tf_weekly_volume_is_summed',
+      // ⭐ THE TWO THAT CAME WITH THE PYTHON STRUCTURAL MEMO. Both drive a
+      // REPEATED subtree inside a recurrence body — the one shape a memo could
+      // corrupt — and nothing drove it before. ⚠️ Measured: neither DISCRIMINATES
+      // the `free_of` guard (deleting it in either lane leaves conformance green,
+      // because both intercept the bind in the step loop first). They pin that the
+      // lanes agree on the shape; they are not evidence the guard fires.
+      'memo_never_shares_a_self_reading_subtree',
+      'memo_shares_a_free_subtree_inside_a_recurrence',
     ])
   })
 

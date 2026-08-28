@@ -3821,6 +3821,122 @@
           }
         ]
       }
+    },
+    {
+      "id": "memo_never_shares_a_self_reading_subtree",
+      "source": "accum(0, (self + close) + (self + close), 250)",
+      "why": "⭐⭐ THE CASE THE STRUCTURAL MEMO EXISTS TO BE SAFE AGAINST. `self + close` appears TWICE inside one recurrence body and is structurally identical both times — but it reads the running bind, so it means something different on every bar of the step loop and must NEVER be served from a memo. `free_of` is what decides that, in both lanes. ⛔ Nothing in the corpus drove a repeated self-reading subtree before, so a memo that ignored `free_of` would have passed every existing case and silently frozen a recurrence at its first bar. ⚰️ MEASURED AFTERWARDS, AND IT DOES NOT DISCRIMINATE THAT GUARD: deleting the `free_of` / `freeOf` check in EITHER lane leaves conformance green. Both lanes intercept the recurrence bind in the step loop before the memo is ever consulted, so `free_of` is defensive rather than load-bearing today — an equivalent mutant in both. The case is kept because it drives a shape nothing drove before and pins that the lanes agree on it; it is NOT evidence that the guard works, and this note is here so nobody reads it as such.",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 250
+          }
+        ]
+      }
+    },
+    {
+      "id": "memo_shares_a_free_subtree_inside_a_recurrence",
+      "source": "accum(0, self + (sma(close, 20) + sma(close, 20)), 250)",
+      "why": "⛔ THE CONTROL ON THE CASE ABOVE. Here the repeated subtree does NOT read the bind, so sharing it is correct and is the whole point of the memo — a translated script inlines rather than names, so one term really can appear many times. If `free_of` were made conservative enough to fix nothing, this is the case that would still pass while the budget number silently went back to charging per occurrence.",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 250
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
