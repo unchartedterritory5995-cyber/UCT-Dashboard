@@ -1,0 +1,163 @@
+/* app/src/pages/formulas/SharedFormula.module.css
+   The page a formula share link opens. It renders OUTSIDE `Layout`, so it owns
+   its own centring and page background rather than inheriting the app shell's —
+   the same posture as `pages/screener/SharedScreen.module.css`, and the tokens
+   are that file's so the two share surfaces read as one product. */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg, #0b0b0c);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(24px, 8vh, 96px) 16px 48px;
+}
+
+.card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--bg-surface, #131315);
+  border: 1px solid var(--border-accent, rgba(220, 187, 94, 0.28));
+  border-radius: var(--radius-md, 10px);
+  padding: 28px clamp(18px, 5vw, 34px) 30px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted, #8a857a);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label, 0.9px);
+}
+
+.title {
+  margin: 8px 0 22px;
+  color: var(--text-heading, #f0ece2);
+  font-size: clamp(22px, 4vw, 30px);
+  line-height: 1.2;
+}
+
+.sectionHdr {
+  margin: 0 0 10px;
+  color: var(--text-muted, #8a857a);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label, 0.9px);
+}
+
+.plots {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plot {
+  background: var(--bg-elevated, #1b1b1e);
+  border: 1px solid var(--border-accent, rgba(220, 187, 94, 0.28));
+  border-radius: var(--radius-md, 10px);
+  padding: 9px 12px;
+}
+
+.plotKey {
+  display: block;
+  color: var(--text-muted, #8a857a);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label, 0.9px);
+  margin-bottom: 4px;
+}
+
+/* A formula is code, so it is set as code — and it is allowed to scroll
+   sideways inside its own box rather than widening the page. */
+.plotSrc {
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-bright, #e8e4da);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0 0 20px;
+  font-size: 12px;
+}
+
+.meta dt {
+  color: var(--text-muted, #8a857a);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: var(--ls-label, 0.9px);
+  align-self: center;
+}
+
+.meta dd {
+  margin: 0;
+  color: var(--text-bright, #e8e4da);
+}
+
+.body {
+  margin: 0 0 20px;
+  color: var(--text, #cfcabd);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.advice {
+  margin: 0 0 20px;
+  color: var(--text-bright, #e8e4da);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.notice {
+  color: var(--text-muted, #8a857a);
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+.disclosure {
+  margin: 0 0 24px;
+  padding: 12px 14px;
+  background: var(--bg-elevated, #1b1b1e);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border-radius: 0 6px 6px 0;
+  color: var(--text, #cfcabd);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.error {
+  margin: 16px 0 0;
+  color: var(--danger, #e0705f);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cta {
+  display: inline-block;
+  background: var(--ut-gold, #dcbb5e);
+  color: var(--bg);
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  min-height: var(--tap-min, 44px);
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.cta:hover { filter: brightness(1.08); }
+.cta:disabled { opacity: 0.6; cursor: default; filter: none; }

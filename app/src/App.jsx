@@ -29,6 +29,11 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
 import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
+// The formula share link's route pattern. ⛔ DERIVED, never retyped: the Copy
+// button in `SharePanel` builds its URL from this same module. Before it existed
+// the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
+// every link a member sent resolved to the catch-all 404 below.
+import { SHARED_FORMULA_ROUTE } from './pages/formulas/formulaShareLink'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
@@ -46,6 +51,7 @@ const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
+const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
@@ -325,6 +331,16 @@ export default function App() {
                 authority; the copy-link button builds from the same module).
                 Server side has its own kill switch (J2_TRACK_RECORD_ENABLED). */}
             <Route path={TRACK_RECORD_ROUTE} element={<TrackRecordPage />} />
+
+            {/* The far end of a FORMULA share link — the fourth of these, and
+                the one that was missing. Same posture on routing: OUTSIDE
+                AuthGuard and NOT behind PreLaunchGate, so a recipient reads what
+                they were sent instead of a bare login form. ⛔ DIFFERENT on
+                AUTH, deliberately: the server pair is `require_paid`
+                (`user_definitions.py:437`), unlike the screener's open share, so
+                the page renders the 401/403 as a membership sentence rather than
+                as a broken link. Rail: `pages/formulas/sharedFormula.route.test.jsx`. */}
+            <Route path={SHARED_FORMULA_ROUTE} element={<SharedFormula />} />
 
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart
