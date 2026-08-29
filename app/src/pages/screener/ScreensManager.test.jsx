@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
 import { vi } from 'vitest'
 
 // ScreensManager.test.jsx — the mount rail's "hook is mocked here" record for
@@ -150,7 +150,7 @@ test('use-as-filter calls onUseScan with (hash, name)', () => {
   expect(onUseScan).toHaveBeenCalledWith('sha256:aaa', 'Breakout base')
 })
 
-test('a non-scannable definition never shows a Use-as-filter row', () => {
+test('a non-scannable definition is SHOWN, with the reason, and never as a filter row', () => {
   // ⚰️ THIS TEST WAS GREEN THROUGH X88, AND THAT IS THE POINT. Its fixture used
   // to be `ast: null` — a MALFORMED definition, not a NON-SCANNABLE one — so it
   // proved the menu drops a row with no tree and said nothing about a row with a
@@ -181,8 +181,28 @@ test('a non-scannable definition never shows a Use-as-filter row', () => {
   }]
   render(<ScreensManager currentSpec={{}} onApply={() => {}} onUseScan={vi.fn()} />)
   open()
-  expect(screen.queryByText('Just an indicator')).not.toBeInTheDocument()
-  expect(screen.getByText('No scannable formulas yet')).toBeInTheDocument()
+
+  // ⚰️ THIS ASSERTED THE NAME WAS **ABSENT**, and that made a SILENT DROP a
+  // green rail. A member pasted an indicator, saved it with no warning, and it
+  // was simply not in this list — so they concluded the save had failed or that
+  // we had lost it. MEASURED 2026-08-29: of 71 pasted-and-translated columns, 41
+  // refuse `gate:yields`, and every one of them vanished here.
+  // ⛔ WHAT MUST STILL BE TRUE IS THE ORIGINAL POINT, AND IT IS ASSERTED BELOW:
+  // it is not offered as a FILTER. Showing it and offering it are different
+  // things, and the bug this test was written for was the offering.
+  const panel = screen.getByTestId('screens-unscannable')
+  expect(within(panel).getByText('Just an indicator')).toBeInTheDocument()
+
+  // ⭐ AND THE SERVER'S OWN SENTENCE REACHES THE MEMBER, verbatim. `scan_refusal`
+  // has been stamped on every row since X88 and nothing rendered it.
+  expect(panel.textContent).toMatch(/returns a number, not a 0\/1 column/)
+  // …with something to DO about it, or the sentence is just a nicer silence.
+  expect(panel.textContent).toMatch(/add a plot that compares it/i)
+
+  // ⛔ THE HALF THAT MUST NOT REGRESS: no filter row, no Use-as-filter control.
+  expect(screen.queryByRole('button', { name: /Use .*Just an indicator.* as filter/i }))
+    .not.toBeInTheDocument()
+  expect(screen.queryByText('No scannable formulas yet')).not.toBeInTheDocument()
 })
 
 test('⛔ an UNSTAMPED row is not offered either — absence is not consent', () => {
