@@ -91,3 +91,46 @@ describe('the Options Flow palette mirrors the app tokens', () => {
     expect(stillThere, 'old palette values are back').toEqual([])
   })
 })
+
+// ── the surface itself must not keep private copies of the old ramp ─────────
+//
+// The palette object was only half the problem. `OptionsFlow.jsx` hardcoded 57
+// old-palette hex literals that bypassed `P` entirely (41 of them the old gold),
+// and `DarkPool.jsx` — which renders as a TAB INSIDE Options Flow — carried its
+// own full copy of the olive ramp and did not import `P` at all. Fixing only the
+// object would have left the page visibly MIXED: some gold #dcbb5e, most of it
+// still #c9a84c. That is worse than either palette used consistently.
+
+describe('the Options Flow surface keeps no private copy of the retired ramp', () => {
+  const FILES = ['src/pages/OptionsFlow.jsx', 'src/pages/DarkPool.jsx']
+  const RETIRED = {
+    '#0e0f0d': 'bg', '#1a1c17': 'card', '#22251e': 'elevated', '#2e3127': 'border',
+    '#3a3d32': 'border-accent', '#3cb868': 'bull', '#e74c3c': 'bear',
+    '#c9a84c': 'gold', '#a8a290': 'text', '#706b5e': 'dim', '#e0dac8': 'bright',
+  }
+
+  for (const rel of FILES) {
+    it(`${rel} uses no retired palette literal`, () => {
+      const src = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
+      const found = Object.entries(RETIRED)
+        .map(([hex, role]) => {
+          const n = (src.match(new RegExp(hex, 'gi')) || []).length
+          return n ? `${hex} (${role}) x${n}` : null
+        })
+        .filter(Boolean)
+      expect(found, `retired colours are back in ${rel}`).toEqual([])
+    })
+  }
+
+  it('the sweep/block blue is still there — the control', () => {
+    // Every assertion above checks for ABSENCE, which a file-read that silently
+    // returned '' would satisfy. This proves the files are actually being read
+    // and that the one colour we deliberately kept was kept.
+    for (const rel of FILES) {
+      const src = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
+      expect(src.length, `${rel} read as empty`).toBeGreaterThan(1000)
+    }
+    const of = fs.readFileSync(path.resolve(process.cwd(), FILES[1]), 'utf8')
+    expect(of).toMatch(/#6ba3be/i)
+  })
+})

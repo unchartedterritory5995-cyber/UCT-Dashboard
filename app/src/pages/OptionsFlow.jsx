@@ -229,14 +229,14 @@ function fK(n) {
 }
 function tc(t) { return t === "SWP" ? P.sw : P.bk; }
 function premC(n) {
-  if (n >= 5e6) return "#3cb868";   // $5M+ = bright green
+  if (n >= 5e6) return "#2faf68";   // $5M+ = bright green
   if (n >= 1e6) return "#66ff99";   // $1M+ = green
   if (n >= 500e3) return "#ffab00"; // $500K+ = gold
   if (n >= 100e3) return "#f0f4f8"; // $100K+ = white
   return "#4a5c73";                 // under $100K = dim
 }
 
-const GRADE_COLORS = { "A+":"#c9a84c", "A":"#ffab00", "B+":"#3cb868", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
+const GRADE_COLORS = { "A+":"#dcbb5e", "A":"#ffab00", "B+":"#2faf68", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
 
 // ─── UI Components ─────────────────────────────────────────────────────────────
 const TIPS = {
@@ -369,7 +369,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
             const _pk = _peakOI.toLocaleString();
             if (_retention >= 0.90 && _nowOI >= _peakOI) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "At/near peak OI ("+_pk+") — still on"; }
             else if (_retention >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = _carried+"% of peak OI ("+_pk+") still open — held"; }
-            else if (_retention >= 0.50) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — partial exit"; }
+            else if (_retention >= 0.50) { posLabel = "TRIMMED"; posColor = "#dcbb5e"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — partial exit"; }
             else if (_retention >= 0.15) { posLabel = "REDUCED"; posColor = "#e06c3c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — mostly closed"; }
             else { posLabel = "CLOSED"; posColor = P.be; posTitle = "Down to ~"+_carried+"% of peak OI ("+_pk+") — closed"; }
           }
@@ -2718,14 +2718,14 @@ export default function OptionsFlowDashboard() {
                     <button onClick={() => setShowDarkPool(v => !v)}
                       title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
                       style={{ padding:"2px 8px", borderRadius:3,
-                        border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
-                        background:showDarkPool?"#c9a84c22":"transparent",
-                        color:showDarkPool?"#c9a84c":P.dm,
+                        border:"1px solid "+(showDarkPool?"#dcbb5e":P.bd+"80"),
+                        background:showDarkPool?"#dcbb5e22":"transparent",
+                        color:showDarkPool?"#dcbb5e":P.dm,
                         fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
                         display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ width:6, height:6, borderRadius:"50%",
-                        background:showDarkPool?"#c9a84c":"transparent",
-                        border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
+                        background:showDarkPool?"#dcbb5e":"transparent",
+                        border:"1px solid "+(showDarkPool?"#dcbb5e":P.dm), display:"inline-block" }} />
                       Dark Pools
                     </button>
                   ),
@@ -2747,7 +2747,7 @@ export default function OptionsFlowDashboard() {
             <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6, flexShrink:0 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#6ba3be", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
-              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#c9a84c", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#dcbb5e", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
             </div>
             <div style={{ width:"100%", flex:1, minHeight:0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -2757,7 +2757,7 @@ export default function OptionsFlowDashboard() {
                     interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={32}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#c9a84c" }}
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#dcbb5e" }}
                     tickFormatter={v=>"$"+v.toFixed(1)} width={36} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
                   <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:9, fill:"#7b8fa3" }}
                     tickFormatter={v=>fK(v)} width={42} />
@@ -2766,8 +2766,8 @@ export default function OptionsFlowDashboard() {
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Bar yAxisId="voloi" dataKey="oi" fill="#6ba3be" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#c9a84c" strokeWidth={2} strokeOpacity={0.5}
-                    dot={{ r:4, fill:"#c9a84c", stroke:"#1a1c17", strokeWidth:1.5 }} connectNulls />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#dcbb5e" strokeWidth={2} strokeOpacity={0.5}
+                    dot={{ r:4, fill:"#dcbb5e", stroke:"#17181b", strokeWidth:1.5 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2943,7 +2943,7 @@ export default function OptionsFlowDashboard() {
         ))}
       </div>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -2970,7 +2970,7 @@ export default function OptionsFlowDashboard() {
           ))}
         </div>
         <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#e74c3c",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
+        <div style={{color:"#df4646",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
         <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
         <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid "+P.bl+"",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
@@ -2980,7 +2980,7 @@ export default function OptionsFlowDashboard() {
   if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -3411,7 +3411,7 @@ export default function OptionsFlowDashboard() {
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
               // Live Flow navigates to a separate page; other modes switch dataMode in place.
               const isLive = m === "liveflow";
-              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
+              const accent = m==="gex" ? "#dcbb5e" : m==="darkpool" ? "#6ba3be" : isLive ? "#2faf68" : null;
               const hasAccent = accent !== null;
               return (
                 <button key={m} onClick={()=>{
@@ -3641,9 +3641,9 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ width:3, background:"#dcbb5e", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Gamma Exposure (GEX)</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#dcbb5e", marginBottom:5 }}>Gamma Exposure (GEX)</div>
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Shows where big options activity creates price levels. Ceiling = price struggles above. Floor = price bounces here. Danger line = below this, drops get faster.</div>
                 </div>
               </div>
@@ -3658,14 +3658,14 @@ export default function OptionsFlowDashboard() {
                   placeholder="Enter ticker (SPY, NVDA, etc)"
                   style={{ flex:1, padding:"8px 14px", borderRadius:6, fontSize:12, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }} />
                 <button onClick={()=>setGexTicker(gexInput.trim())}
-                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#c9a84c", color:P.bg }}>
+                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#dcbb5e", color:P.bg }}>
                   Load
                 </button>
               </div>
               <div style={{ display:"flex", gap:4 }}>
                 {quickTickers.map(t=>(
                   <button key={t} onClick={()=>{ setGexInput(t); setGexTicker(t); }}
-                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#c9a84c22"):P.al, color:gexTicker===t?"#c9a84c":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#dcbb5e22"):P.al, color:gexTicker===t?"#dcbb5e":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                     {t}
                   </button>
                 ))}
@@ -3688,7 +3688,7 @@ export default function OptionsFlowDashboard() {
                   <button key={label} onClick={()=>setGexAdjusted(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:gexAdjusted===v?(v?"#c9a84c":P.cd):"transparent",
+                    background:gexAdjusted===v?(v?"#dcbb5e":P.cd):"transparent",
                     color:gexAdjusted===v?(v?P.bg:P.wh):P.mt
                   }}>{label}</button>
                 ))}
@@ -3720,7 +3720,7 @@ export default function OptionsFlowDashboard() {
                   const withDp = gexData.contractsWithDp || 0;
                   const total = withDp + (gexData.contractsWithoutDp || 0);
                   const lowCov = cov < 0.30 || days === 0;
-                  const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#c9a84c");
+                  const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#dcbb5e");
                   return (
                     <div style={{ background:bandC+"14", border:"1px solid "+bandC+"55", borderRadius:8, padding:"9px 14px", display:"flex", gap:16, alignItems:"center", flexWrap:"wrap", fontSize:11 }}>
                       <span style={{ fontWeight:800, color:bandC, letterSpacing:0.5 }}>⚡ TRADE-AWARE</span>
@@ -3755,7 +3755,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.putWall ? gexLevelHex((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role)||"support") : P.wh }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""}</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #dcbb5e" }}>
                     <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
                     <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
@@ -3795,9 +3795,9 @@ export default function OptionsFlowDashboard() {
                     {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
                   </button>
                   <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
-                    padding:"10px 28px", borderRadius:6, border:"1px solid #c9a84c", cursor:"pointer",
+                    padding:"10px 28px", borderRadius:6, border:"1px solid #dcbb5e", cursor:"pointer",
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
-                    background:showGexSummary?"#c9a84c22":"transparent", color:"#c9a84c"
+                    background:showGexSummary?"#dcbb5e22":"transparent", color:"#dcbb5e"
                   }}>
                     {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
                   </button>
@@ -4047,12 +4047,12 @@ export default function OptionsFlowDashboard() {
                       const pwMagnetHere = !pwBelowSpot;
                       cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (pwMagnetHere ? " · resistance" : "");
                       cwEntry.tag = !cwAboveSpot ? "support ↑" : pwMagnetHere ? "resistance" : "ceiling + floor";
-                      cwEntry.tagBg = pwMagnetHere ? "#c9a84c22" : "#00BCD422";
-                      cwEntry.tagColor = pwMagnetHere ? "#c9a84c" : "#00BCD4";
+                      cwEntry.tagBg = pwMagnetHere ? "#dcbb5e22" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#dcbb5e" : "#00BCD4";
                       if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
                       cwEntry.showMagnet = pwMagnetHere;
                       cwEntry.isPW = true;
-                      cwEntry.border = "1px solid #c9a84c";
+                      cwEntry.border = "1px solid #dcbb5e";
                       cwEntry.fillPct = 95;
                     }
                   } else if (!allLevels.find(l => l.strike === pwStrike)) {
@@ -4274,7 +4274,7 @@ export default function OptionsFlowDashboard() {
                   return (
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                      <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#dcbb5e", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDteLabel(gexPayloadDte(gexData, gexDte))}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     {gexData.adjusted && (()=>{
@@ -4376,7 +4376,7 @@ export default function OptionsFlowDashboard() {
 
                       return parts.length > 0 ? (
                         <div style={{ background:P.al, borderRadius:6, padding:"10px 14px", marginBottom:10, lineHeight:1.6 }}>
-                          <div style={{ fontSize:10, fontWeight:700, color:"#c9a84c", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
+                          <div style={{ fontSize:10, fontWeight:700, color:"#dcbb5e", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
                           <div style={{ fontSize:12, color:P.wh }}>{parts.join(" ")}</div>
                         </div>
                       ) : null;
@@ -4533,10 +4533,10 @@ export default function OptionsFlowDashboard() {
           <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
               fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#c9a84c33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.mt)
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
             }}>{t}</button>
           ))}
           </div>
@@ -4559,7 +4559,7 @@ export default function OptionsFlowDashboard() {
         {/* Global Cap Filter */}
         {FD && (()=>{
           const caps = ["All","Mega","Large","Mid-Small"];
-          const capColors = { Mega:"#c9a84c", Large:"#6ba3be", "Mid-Small":"#a8a290", All:P.wh };
+          const capColors = { Mega:"#dcbb5e", Large:"#6ba3be", "Mid-Small":"#f0efea", All:P.wh };
           const capDescriptions = {
             Mega:  "$500B+ · SPY-weight movers",
             Large: "$10B–$500B · institutional conviction plays",
@@ -6181,7 +6181,7 @@ export default function OptionsFlowDashboard() {
           };
           const sortHdr = (label, key, extraStyle) => (
             <th key={label} onClick={()=>setConvictionSort(key)} style={{
-              padding:"4px 5px", textAlign:"left", color:cSort===key?"#c9a84c":P.mt, fontSize:8, fontWeight:700,
+              padding:"4px 5px", textAlign:"left", color:cSort===key?"#dcbb5e":P.mt, fontSize:8, fontWeight:700,
               cursor:"pointer", userSelect:"none", transition:"color 0.15s", ...extraStyle
             }}>{label}{cSort===key?" ▼":""}</th>
           );
@@ -6192,7 +6192,7 @@ export default function OptionsFlowDashboard() {
                 {/* DTE */}
                 {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
                   const active=convDte===d.k;
-                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#c9a84c":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#c9a84c22":"transparent", color:active?"#c9a84c":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
+                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#dcbb5e":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#dcbb5e22":"transparent", color:active?"#dcbb5e":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
                 })}
                 <span style={{ width:1, height:16, background:P.bd }}/>
                 {/* Activity */}
@@ -6707,7 +6707,7 @@ export default function OptionsFlowDashboard() {
                     const pnl = r._pnl;
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
-                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#c9a84c";
+                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#dcbb5e";
                     const peakPnl = r._peakPnl;
                     const peakRetrace = r._peakRetrace;
                     const _isExit = r._isExit;
@@ -6719,7 +6719,7 @@ export default function OptionsFlowDashboard() {
                         onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
                         <ChartHoldCell sym={r.sym} onOpen={setChartSym}
-                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
+                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#df464633", color:"#df4646", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#dcbb5e22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#2faf6822":"#29b6f622", color:p.type==="IV_SURGE"?"#dcbb5e":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#2faf68":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -7157,7 +7157,7 @@ export default function OptionsFlowDashboard() {
             })()}
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#c9a84c":"#c9a84c55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#c9a84c22":"transparent", color:batchMode?"#c9a84c":"#c9a84c" }}>
+              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#dcbb5e":"#dcbb5e55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#dcbb5e22":"transparent", color:batchMode?"#dcbb5e":"#dcbb5e" }}>
                 📋 Batch Search
               </button>
               {batchMode && <span style={{ fontSize:9, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
@@ -7313,7 +7313,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                            <div style={{ fontSize:11, fontWeight:800, color:"#c9a84c", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                            <div style={{ fontSize:11, fontWeight:800, color:"#dcbb5e", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
                             <button onClick={()=>{
                               const allContracts = [];
                               [...topBull,...topBear].forEach(r => {
@@ -8248,8 +8248,8 @@ export default function OptionsFlowDashboard() {
                 if (peakOI <= 0) { oiState = "—"; oiStateColor = P.mt; }
                 else if (retention < 0.15) { oiState = "CLOSED"; oiStateColor = P.be; }
                 else if (retention < 0.50) { oiState = "REDUCED"; oiStateColor = "#e06c3c"; }
-                else if (retention < 0.90) { oiState = "TRIMMED"; oiStateColor = "#c9a84c"; }
-                else if (isNewOI) { oiState = "NEW"; oiStateColor = "#3cb868"; }
+                else if (retention < 0.90) { oiState = "TRIMMED"; oiStateColor = "#dcbb5e"; }
+                else if (isNewOI) { oiState = "NEW"; oiStateColor = "#2faf68"; }
                 else if (nowOI >= peakOI) { oiState = "BUILDING"; oiStateColor = P.bu; }
                 else { oiState = "HELD"; oiStateColor = "#5b9bd5"; }
                 return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI, peakOI, nowOI, carriedPct, retention, oiState, oiStateColor };
@@ -8556,7 +8556,7 @@ export default function OptionsFlowDashboard() {
                           style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#df464633", color:"#df4646", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -8586,7 +8586,7 @@ export default function OptionsFlowDashboard() {
         {/* Watchlist */}
         {tab==="Watchlist" && (() => {
           const TIERS = ["FULL","HALF","PAPER MAX","PAPER","WATCH","POST-ER","DQ"];
-          const tierC = (t) => t==="FULL"?"#3cb868":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#c9a84c":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
+          const tierC = (t) => t==="FULL"?"#2faf68":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#dcbb5e":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
           const scoreC = (s) => s>=9?P.bu:s>=7?"#ff9800":s>=5?P.ye:P.be;
 
           const REMOVE_REASONS = ["Dirty flow","Arb/Hedge","Deep ITM/OTM","Low conviction","Already moved","Bad R/R","Mega cap noise","Other"];
@@ -8641,12 +8641,12 @@ export default function OptionsFlowDashboard() {
                       const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
                       const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
                       const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
-                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c" }}>EXIT</span> : null;
+                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#df464633", color:"#df4646" }}>EXIT</span> : null;
                     })()}
                     {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
                       return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
-                        background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622",
-                        color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6"
+                        background:p.type==="IV_SURGE"?"#dcbb5e22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#2faf6822":"#29b6f622",
+                        color:p.type==="IV_SURGE"?"#dcbb5e":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#2faf68":"#29b6f6"
                       }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>);
                     })()}
                   </div>
@@ -8796,7 +8796,7 @@ export default function OptionsFlowDashboard() {
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #dcbb5e60", background:"transparent", color:"#dcbb5e", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
