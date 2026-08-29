@@ -174,6 +174,26 @@ function Refusal({ refusal, testId }) {
       {/* ⛔ VERBATIM. The refusing door owns the sentence. */}
       <span className={styles.refusalText}>{refusal.message}</span>
       {refusal.excerpt && <pre className={styles.excerpt}>{refusal.excerpt}</pre>}
+      {/* ⭐⭐ THE OFFER, WHERE THE MEMBER IS ALREADY LOOKING. thinkorswim publishes
+          no default for some study parameters, and this engine REFUSES to assume
+          one — `displace` shifts every bar, and a guessed `price` draws a
+          plausible column that is wrong everywhere with no refusal anywhere. So
+          the conventional call is shown and the MEMBER applies it: typed into
+          their own script the value is visible in the read-back, which is the
+          whole difference between their choice and our silent guess. */}
+      {refusal.suggest && (
+        <div className={styles.suggest} data-testid="import-suggest">
+          <span className={styles.suggestLead}>
+            thinkorswim doesn’t publish these defaults, so this engine won’t assume
+            them. The conventional call is:
+          </span>
+          <code className={styles.suggestCall}>{refusal.suggest}</code>
+          <span className={styles.suggestWhy}>
+            Write the arguments into your own call and it translates — and because
+            they are in your script, you can see what was assumed.
+          </span>
+        </div>
+      )}
     </div>
   )
 }

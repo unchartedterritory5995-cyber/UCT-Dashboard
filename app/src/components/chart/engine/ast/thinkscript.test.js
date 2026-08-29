@@ -382,13 +382,18 @@ describe('the empty and the unreadable', () => {
     expect(row.column).toBe(1)
   })
 
-  it('a refusal value carries the seven keys every other door in this engine carries', () => {
+  it('a refusal value carries the eight keys every other door in this engine carries', () => {
     // ⭐ THE SHAPE IS A CONTRACT, NOT A CONVENIENCE. `ImportBox` and the corpus
     // fixture both read these by name; a missing `token` reads as "somewhere in
     // your script", which is not a refusal a member can act on.
     const r = translateThinkScript('plot x = TTM_Squeeze(close, 20);').refusal
+    // The eighth is `suggest`: the conventional spelling of a call blocked on a
+    // default thinkorswim does not publish, OFFERED rather than applied. It is
+    // `null` here and on every Pine refusal -- the KEY is the contract, not the
+    // value, and a door that carried it while another did not is exactly the
+    // divergence this assertion exists to catch.
     expect(Object.keys(r).sort()).toEqual(
-      ['column', 'excerpt', 'guard', 'index', 'line', 'message', 'token'])
+      ['column', 'excerpt', 'guard', 'index', 'line', 'message', 'suggest', 'token'])
   })
 })
 
