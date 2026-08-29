@@ -704,3 +704,46 @@ describe('the `session` lookback and the lookback cap', () => {
     }
   })
 })
+
+describe('🔴 `budget:series` CANNOT FIRE TODAY, and that is declared rather than denied', () => {
+  // ⛔⛔ THIS IS AN INSTANCE OF `lesson_gate_that_cannot_fail` THAT IS BEING
+  // ADMITTED. `seriesRefs` counts DISTINCT names — deliberately, since 2026-08-09,
+  // because counting references produced a false refusal — and the closed table
+  // declares five series against a cap of 8. So the latch cannot trip.
+  //
+  // ⚰️ AND THE FILE SAID THE OPPOSITE, TWICE, IN BOTH LANES. A paragraph above
+  // `DEFAULT_BUDGET` asserted the guard "counts OCCURRENCES, not distinct names,
+  // and that is forced rather than stylistic" — the design that was REPLACED,
+  // sitting two screens above the function that replaced it. Each contradicted the
+  // other and both were read as authority.
+  //
+  // ⭐ NEITHER WAY OUT IS BETTER THAN THE LATCH, which is why this is recorded
+  // instead of fixed: counting occurrences again would refuse 73 of the 167 columns
+  // the corpora translate today, and a cap below five would refuse any formula that
+  // reads O, H, L, C and V. What matters is that nobody mistakes it for protection.
+
+  it('⛔ the cap is unreachable — derived from the table, never asserted from memory', () => {
+    const declared = Object.keys(TABLE.series).length
+    expect(declared, 'the closed table declares no series at all').toBeGreaterThan(0)
+    // ⭐ THE CONDITION, NOT THE CONCLUSION. The day the table declares more series
+    // than the cap allows, this fails and somebody re-reads the paragraph — rather
+    // than the paragraph quietly going stale the way the one it replaced did.
+    expect(declared,
+      `the closed table now declares ${declared} series against a cap of `
+      + `${DEFAULT_BUDGET.maxSeriesRefs} — \`budget:series\` may be LIVE now. Re-read `
+      + 'the note above `DEFAULT_BUDGET`: it says the guard cannot fire, and that '
+      + 'sentence has just become the stale one.')
+      .toBeLessThanOrEqual(DEFAULT_BUDGET.maxSeriesRefs)
+  })
+
+  it('⛔ …and no tree can reach it, because the counter is DISTINCT', () => {
+    // The other half: even a tree that mentions one series hundreds of times
+    // measures the number of DISTINCT columns it needs fetched.
+    const deep = 'close + close + close + close + close + close + close + close + close'
+    const ast = parseFormula(deep).ast
+    expect(seriesRefs(ast)).toBe(1)
+    const all = parseFormula('open + high + low + close + volume').ast
+    expect(seriesRefs(all)).toBe(Object.keys(TABLE.series).length)
+    expect(seriesRefs(all)).toBeLessThanOrEqual(DEFAULT_BUDGET.maxSeriesRefs)
+  })
+})

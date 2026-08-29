@@ -93,10 +93,19 @@ from api.services.ast_interpret import (
 #: widens: ``DEFAULT_BUDGET`` has no non-test consumer outside this module and its
 #: JS twin, and ``effective_budget`` still clamps a stored budget DOWNWARD only.
 #:
-#: ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. ``maxSeriesRefs`` counts
-#: OCCURRENCES, not distinct names: the closed table declares FIVE series, so a
-#: distinct-name count could never exceed 8 and ``budget:series`` would be a latch
-#: nothing can trip.
+#: ⚰️ THIS SAID ``maxSeriesRefs`` counts OCCURRENCES, and it described the design
+#: that was REPLACED. ``series_refs`` below counts DISTINCT names and has since
+#: 2026-08-09 -- its own docstring records why, and that counting references
+#: produced a FALSE REFUSAL. The stale sentence sat above the fixed function,
+#: each contradicting the other, in BOTH lanes
+#: (``lesson_rail_the_mirror_not_just_the_lane``).
+#:
+#: ⛔⛔ SO ``budget:series`` IS UNREACHABLE TODAY, RECORDED RATHER THAN REPAIRED:
+#: five declared series against a cap of 8. Counting occurrences again would
+#: refuse 73 of the 167 columns the corpora translate (measured), and a cap below
+#: 5 would refuse any formula reading O, H, L, C and V. It becomes live the day
+#: the table declares more than ``maxSeriesRefs`` series, and the rail derives
+#: that condition rather than restating it.
 #: The nested-recurrence family's warmup — the driver the lookback cap had
 #: BEFORE a session had to fit inside it, kept and named rather than deleted.
 #: ``accum`` inside ``accum`` needs TWO warmups: 250 + 250 + ATR's 22 + 1 = 524,
