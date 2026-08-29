@@ -9,8 +9,6 @@ import styles from './EarningsMarkerPopover.module.css'
 // (menuThemeVars of the chart canvas) and the CSS reads `var(--menu-*, <dark>)`,
 // so it goes white/gold on a light canvas and stays OLED on a dark one.
 
-const DIM = 'var(--menu-text-dim, #8a8a90)'
-
 // EPS / plain numbers: up to 2 decimals, trailing zeros kept for cents-like reads.
 function fmtNum(v, dp = 2) {
   if (v == null || !Number.isFinite(+v)) return '—'
@@ -54,7 +52,7 @@ function SurpriseRow({ label, absStr, pctNum, pctText, beatColor, missColor }) {
   const color = up ? beatColor : missColor
   return (
     <div className={styles.row}>
-      <span className={styles.k} style={{ color }}>{label}</span>
+      <span className={styles.k} style={{ color, opacity: 1 }}>{label}</span>
       <span className={styles.v} style={{ color }}>
         {absStr != null ? absStr : ''}{pctText != null ? ` (${pctText})` : ''}
       </span>
@@ -144,12 +142,12 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
         <div className={styles.titleWrap}>
           <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>
           {quarterLabel && <span className={styles.quarter}>{quarterLabel}</span>}
-          {isEstimate && <span className={styles.quarter} style={{ color: DIM }}>Upcoming</span>}
+          {isEstimate && <span className={styles.quarter}>Upcoming</span>}
         </div>
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
       </div>
       <div className={styles.dateRow}>
-        <span className={styles.k} style={{ color: DIM }}>Date</span>
+        <span className={styles.k}>Date</span>
         <span className={styles.v}>{fmtDate(data.date)}</span>
       </div>
 

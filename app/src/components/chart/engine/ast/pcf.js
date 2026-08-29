@@ -156,6 +156,18 @@ function refuse(guard, detail, index, token) {
 export const PCF_FUSED = Object.freeze({
   AVG:    { spelling: 'AVG<field><period>[.<offset>]',    fn: 'sma',     field: true, params: ['period', 'offset'] },
   XAVG:   { spelling: 'XAVG<field><period>[.<offset>]',   fn: 'ema',     field: true, params: ['period', 'offset'] },
+  // ⭐⭐ `HAVG` IS TC2000'S HULL AVERAGE, AND IT BECAME EXPRESSIBLE ON 2026-08-29.
+  // ⚰️ The section note below still reads "`FAVG`, `HAVG` — two moving averages,
+  // STILL OPEN", and for `HAVG` that stopped being true the moment `hma` was
+  // declared in the manifest — the same day, by a task that never came back here.
+  // That is this repo's most expensive defect shape: a stale sentence in an
+  // artifact a later engineer audits against, telling them not to look.
+  // ⛔ AND IT IS THE SAFE HALF OF THE PAIR, WHICH IS THE POINT. `HAVG` and our
+  // `hma` are the SAME published formula — Alan Hull's, which TradingView also
+  // restates as `ta.hma` — so this is a spelling, not a lookalike. `FAVG` stays
+  // refused because Worden publishes no weighting for it, and guessing one would
+  // be the `MIN`/`lowest` trap this file's header exists to warn about.
+  HAVG:   { spelling: 'HAVG<field><period>[.<offset>]',   fn: 'hma',     field: true, params: ['period', 'offset'] },
   MAX:    { spelling: 'MAX<field><period>[.<offset>]',    fn: 'highest', field: true, params: ['period', 'offset'] },
   MIN:    { spelling: 'MIN<field><period>[.<offset>]',    fn: 'lowest',  field: true, params: ['period', 'offset'] },
   STDDEV: { spelling: 'STDDEV<period>[.<offset>]',        fn: 'stdev',   series: ['close'], params: ['period', 'offset'] },
@@ -312,6 +324,10 @@ function differentFormula(text) {
 export const PCF_CALLS = Object.freeze({
   AVG:      { fn: 'sma',        shape: ['expr', 'window'] },
   XAVG:     { fn: 'ema',        shape: ['expr', 'window'] },
+  // The call spelling of the same Hull average — both forms or neither, because a
+  // member who finds `HAVG(C, 10)` refused after `HAVG10` translated learns that
+  // the reader is arbitrary.
+  HAVG:     { fn: 'hma',        shape: ['expr', 'window'] },
   MAX:      { fn: 'highest',    shape: ['expr', 'window'] },
   MIN:      { fn: 'lowest',     shape: ['expr', 'window'] },
   GREATEST: { fn: 'max',        shape: ['expr', 'expr'] },
@@ -417,6 +433,13 @@ const INFIX = Object.freeze({
   '<=': { op: '<=', bp: 7 },
   '+':  { op: '+',  bp: 9 },
   '-':  { op: '-',  bp: 9 },
+  // TC2000's doubled signs, at the SAME binding power as the single ones they
+  // reduce to — they are the identical operation, spelled the way Worden's
+  // grammar allows. See `TWO_CHAR`.
+  '++': { op: '+',  bp: 9 },
+  '--': { op: '+',  bp: 9 },
+  '+-': { op: '-',  bp: 9 },
+  '-+': { op: '-',  bp: 9 },
   '*':  { op: '*',  bp: 10 },
   '/':  { op: '/',  bp: 10 },
 })
@@ -541,8 +564,20 @@ const IDENT_START = /[A-Za-z_]/
 const IDENT_BODY = /[A-Za-z0-9_]/
 const DIGIT = /[0-9]/
 
-/** The two-character operators, longest-first so `>=` never lexes as `>`. */
-const TWO_CHAR = Object.freeze(['>=', '<=', '<>'])
+/** The two-character operators, longest-first so `>=` never lexes as `>`.
+ *
+ *  ⭐⭐ THE FOUR DOUBLED SIGNS ARE TC2000 SYNTAX, NOT TYPOS. Worden's grammar
+ *  accepts `v ++ w`, `v +- w`, `v -+ w` and `v -- w`, and the meaning is the
+ *  PRODUCT OF THE TWO SIGNS — so `++` and `--` add, `+-` and `-+` subtract. A
+ *  member pasting a real TC2000 condition got `pcf:syntax` at the second
+ *  character for a formula their own platform accepts.
+ *
+ *  ⛔ AND IT IS CONSISTENT WITH THE SPACED FORM RATHER THAN A SPECIAL CASE:
+ *  `C +- 5` and `C + -5` are the same number, and both now reach the same tree.
+ *  Lexing them as one token is what makes the unspaced spelling reachable at
+ *  all — `+` followed immediately by `-` would otherwise be an infix followed by
+ *  an infix, which is the syntax error a member was getting. */
+const TWO_CHAR = Object.freeze(['>=', '<=', '<>', '++', '+-', '-+', '--'])
 const ONE_CHAR = Object.freeze(['>', '<', '=', '+', '-', '*', '/', '^', '\\', '(', ')', ','])
 
 /** Source → tokens. Each token carries the index it starts at, because a
