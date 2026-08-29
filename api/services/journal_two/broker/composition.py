@@ -17,6 +17,8 @@ Composition rules (both lanes MUST match):
   (and cannot, since the broker's cash knows nothing of it).
 - equity row: live price when finite, else the sync mark (`brokerPrice`);
   no price at all → the row is skipped. Shorts contribute negatively.
+  When `prefer_broker` is set (see `prefer_broker_marks`) that order INVERTS:
+  the broker's own mark wins and the live price is the fallback.
 - option strategy: live mark (`optionMarks[id].currentValue`) when finite,
   else the sync value (`brokerCurrentValue`), else — for a BROKER strategy
   only — its `netEntry` (cost): a just-filled contract with no mark yet must
@@ -27,6 +29,8 @@ Composition rules (both lanes MUST match):
 from __future__ import annotations
 
 from typing import Any
+
+from .. import timeutil
 
 
 def _f(v: Any) -> float | None:
@@ -44,12 +48,67 @@ def effective_cash(account: dict | None) -> float | None:
     return live if live is not None else _f((account or {}).get("brokerCash"))
 
 
+_CLOSE_HOUR_ET = 16  # the session close
+
+
+def prefer_broker_marks(
+    account: dict | None,
+    session_closed: bool,
+    last_closed_session_et: str | None,
+) -> bool:
+    """True when equities should be valued at the BROKER's own marks.
+
+    Intraday, our live feed is the better number: the broker's balance sync
+    runs once, pre-dawn, so its marks are the PREVIOUS session's close and
+    mirroring them would hide the whole day's move. That is why this
+    composition prefers live prices at all.
+
+    Once the session is fully closed the trade inverts. The book is static,
+    the broker's marks are what the member's broker app is showing, and
+    re-valuing every row with a second vendor's closes can only manufacture a
+    difference — two market-data vendors never agree to the penny, and the
+    disagreement is multiplied by the share count. Measured 2026-08-29
+    (Saturday): a 1.5c gap on SNAP's close was $30 of a $19.96 hero
+    discrepancy on 2,000 shares, against a sync whose mirror check had drifted
+    $0.02.
+
+    BOTH conditions are required. `session_closed` alone is not enough: on a
+    weekday evening the stored marks predate that day's close (the sync ran at
+    ~03:40 ET), so mirroring them would show a DAY-STALE account — far worse
+    than the gap this closes. The watermark is the local balance-write time,
+    the same one `live_cash` uses; SnapTrade's own `holdings_synced_at` is a
+    lagging metadata field (measured Friday 15:31Z while the marks it
+    described were that day's closes) and must NOT be used here.
+
+    `last_closed_session_et` is the ET date ('YYYY-MM-DD') of the most recent
+    CLOSED session — supplied by the caller's session clock, so this stays a
+    pure function the JS mirror can be held to.
+    """
+    if not session_closed or not last_closed_session_et:
+        return False
+    # timeutil is the ET spine authority — never parse a timestamp a second
+    # way here (a private second parser is how two ET answers start drifting).
+    ts = (account or {}).get("brokerBalanceSyncedAt")
+    day = timeutil.compute_trading_day_et(ts)
+    if day is None:
+        return False
+    last = str(last_closed_session_et)
+    if day > last:
+        return True
+    # Same ET date ⇒ the sync must land at or after the close. A date-only
+    # stamp carries no hour and so cannot prove that — refuse rather than
+    # assume (a wrong "yes" here shows a day-stale account).
+    hour = timeutil.compute_hour_et(ts)
+    return day == last and hour is not None and hour >= _CLOSE_HOUR_ET
+
+
 def compose_net_liq(
     account: dict | None,
     positions: list[dict] | None,
     strategies: list[dict] | None,
     prices: dict[str, dict] | None = None,
     option_marks: dict[str, dict] | None = None,
+    prefer_broker: bool = False,
 ) -> dict[str, Any]:
     """{"marketValue": float, "netLiq": float|None} — the authority for the
     hero's composed number. Field names are the API's camelCase (the same
@@ -66,7 +125,14 @@ def compose_net_liq(
         if shares is None:
             continue
         live = _f((prices.get(p.get("symbol")) or {}).get("price"))
-        px = live if live is not None else _f(p.get("brokerPrice"))
+        broker = _f(p.get("brokerPrice"))
+        # A PREFERENCE, never a restriction: a provisional row from an
+        # intraday fill has no broker mark yet, and dropping it would debit
+        # cash for a position missing from market value (the 2026-08-26 class).
+        if prefer_broker:
+            px = broker if broker is not None else live
+        else:
+            px = live if live is not None else broker
         if px is None:
             continue
         signed = -shares if p.get("side") == "Short" else shares

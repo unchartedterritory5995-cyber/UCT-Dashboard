@@ -302,10 +302,54 @@ export const brokerLiveEquity = (account, positions, prices) => {
  * @param {Record<string, {price?: number}>} prices  live snapshot map (sym → {price})
  * @returns {number|undefined}
  */
-export const currentPriceFor = (position, prices) => {
+export const currentPriceFor = (position, prices, preferBroker = false) => {
   const live = prices?.[position?.symbol]?.price
+  const broker = position?.brokerPrice
+  // `preferBroker` (see preferBrokerMarks) inverts the order once the session
+  // is closed — the broker's own mark is what the member's broker app shows.
+  // Either way this is a PREFERENCE, not a restriction: whichever side is
+  // missing, the other still prices the row.
+  if (preferBroker && Number.isFinite(broker)) return broker
   if (Number.isFinite(live)) return live
-  return Number.isFinite(position?.brokerPrice) ? position.brokerPrice : undefined
+  return Number.isFinite(broker) ? broker : undefined
+}
+
+/**
+ * True when equity rows should be valued at the BROKER's own marks instead of
+ * our live feed. Mirror of `prefer_broker_marks` in the Python authority
+ * (api/services/journal_two/broker/composition.py) — parity-fixtured.
+ *
+ * Intraday the live feed wins: the balance sync runs once, pre-dawn, so the
+ * broker's marks are the PREVIOUS session's close and would hide today's move.
+ * Once the session is fully closed that inverts — the book is static and
+ * re-marking with a second vendor's closes only manufactures a difference
+ * (measured 2026-08-29: a 1.5c gap on SNAP's close was $30 of a $19.96 hero
+ * discrepancy on 2,000 shares).
+ *
+ * BOTH conditions are required. `sessionClosed` alone would, on a weekday
+ * evening, mirror marks that predate that day's close and show a DAY-STALE
+ * account — much worse than the gap this closes.
+ *
+ * @param {{brokerBalanceSyncedAt?: string}} account
+ * @param {boolean} sessionClosed  market fully closed (not open/pre/extended)
+ * @param {string} lastClosedSessionET  'YYYY-MM-DD' of the last CLOSED session
+ */
+export const preferBrokerMarks = (account, sessionClosed, lastClosedSessionET) => {
+  if (!sessionClosed || !lastClosedSessionET) return false
+  const raw = account?.brokerBalanceSyncedAt
+  if (!raw) return false
+  // A naive stamp means UTC (the Python spine's rule) — never local time.
+  const s = String(raw)
+  const iso = /(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`
+  const ms = Date.parse(iso)
+  if (!Number.isFinite(ms)) return false
+  const et = new Date(new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  if (Number.isNaN(et.getTime())) return false
+  const p = (n) => String(n).padStart(2, '0')
+  const day = `${et.getFullYear()}-${p(et.getMonth() + 1)}-${p(et.getDate())}`
+  if (day > lastClosedSessionET) return true
+  // Same ET date ⇒ the sync must land at or after the 16:00 close.
+  return day === lastClosedSessionET && et.getHours() >= 16
 }
 
 /**
@@ -341,14 +385,24 @@ export const effectiveBrokerCash = (account) => {
  * Prices missing for a position fall back to its `brokerPrice` for market value
  * (stable off-session), but only a real live tick contributes to Today.
  *
- * @param {{brokerCash?: number}} account
+ * `preferBroker` (from preferBrokerMarks) inverts the equity mark preference
+ * once the session is CLOSED and the broker's sync covers that close: the
+ * broker's own marks then win, because they are what the member's broker app
+ * is showing and our vendor's closes can only disagree with them. Options are
+ * deliberately untouched — the live option mark already beats the sync-time
+ * `brokerCurrentValue` (that is what option_marks.py exists for), and this
+ * change does not revisit that ruling.
+ *
+ * @param {{brokerCash?: number, brokerBalanceSyncedAt?: string}} account
  * @param {Array<{symbol,shares,side?,brokerPrice?,entryPrice?,entryDate?}>} positions
  * @param {Array<{brokerCurrentValue?: number}>} optionStrategies
  * @param {Record<string,{price?:number, prev_close?:number}>} prices
  * @param {string} [todayIso]  today's date as 'YYYY-MM-DD' (ET); enables same-day-entry handling
+ * @param {Record<string,{currentValue?:number, prevCloseValue?:number}>} [optionMarks]
+ * @param {boolean} [preferBroker]  value equities at the broker's own marks
  * @returns {{netLiq: number|null, marketValue: number, today: number, todayPct: number|null}}
  */
-export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks) => {
+export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks, preferBroker = false) => {
   let marketValue = 0
   let today = 0
   // MIRROR PURITY: a broker-linked account's hero mirrors THE BROKER — only
@@ -362,11 +416,16 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     if (brokerOnly && p?.source !== 'broker') continue
     if (!Number.isFinite(p?.shares)) continue
     const live = prices?.[p.symbol]?.price
-    const px = Number.isFinite(live) ? live : p?.brokerPrice
+    const px = currentPriceFor(p, prices, preferBroker)
     if (!Number.isFinite(px)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     marketValue += px * signed
-    if (Number.isFinite(live)) {
+    // Today is measured on the SAME price the row was valued at — pairing a
+    // broker-marked value with a live-marked move would make (netLiq − today)
+    // a previous-close equity from neither vintage. Without a live tick and
+    // without the broker preference there is no honest current side, so the
+    // row contributes 0 to Today (a stale fallback must not book a move).
+    if (Number.isFinite(live) || preferBroker) {
       // Reference price for Today: the entry (fill) if genuinely opened today
       // (placeholder-dated broker imports excluded — openedTodayFill), else the
       // previous close — the `prev_close` field when present AND > 0 (the feed
@@ -380,7 +439,7 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
         if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) ref = snap.prev_close
         else if (Number.isFinite(snap?.change_pct)) ref = live / (1 + snap.change_pct / 100)
       }
-      if (Number.isFinite(ref)) today += signed * (live - ref)
+      if (Number.isFinite(ref)) today += signed * (px - ref)
     }
   }
   for (const s of optionStrategies || []) {

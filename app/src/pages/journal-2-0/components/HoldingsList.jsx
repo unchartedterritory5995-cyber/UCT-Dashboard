@@ -59,7 +59,7 @@ function loadSort() {
   return DEFAULT_SORT
 }
 
-export default function HoldingsList({ positions = [], optionStrategies = [], prices = {}, optionMarks = null }) {
+export default function HoldingsList({ positions = [], optionStrategies = [], prices = {}, optionMarks = null, preferBrokerMarks = false }) {
   const [sort, setSort] = useState(loadSort)
 
   const todayIso = useMemo(
@@ -67,8 +67,8 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
     [],
   )
   const equityRows = useMemo(
-    () => sortRows(buildEquityRows(positions, prices, todayIso), sort.key, sort.dir),
-    [positions, prices, todayIso, sort],
+    () => sortRows(buildEquityRows(positions, prices, todayIso, preferBrokerMarks), sort.key, sort.dir),
+    [positions, prices, todayIso, sort, preferBrokerMarks],
   )
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { closes } = useHoldingsSparklines(symbols)

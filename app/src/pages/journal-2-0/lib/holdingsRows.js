@@ -19,16 +19,20 @@ function prevCloseOf(snap) {
   return null
 }
 
-export function buildEquityRows(positions, prices, todayIso) {
+// `preferBroker` must be the SAME flag the hero composed with (brokerLiveSummary):
+// if the rows priced off our live feed while the hero priced off the broker's
+// marks, the visible rows would stop summing to the number above them.
+export function buildEquityRows(positions, prices, todayIso, preferBroker = false) {
   return (positions || []).map((p) => {
     const snap = prices?.[p.symbol]
-    const price = fin(currentPriceFor(p, prices))
+    const price = fin(currentPriceFor(p, prices, preferBroker))
     const signed = (p.side === 'Short' ? -1 : 1) * (p.shares || 0)
     // Same-day-fill rule shared with brokerLiveSummary: real fills only —
     // broker imports with a placeholder (estimated) entry date use prev close.
     const ref = openedTodayFill(p, todayIso) ? fin(p.entryPrice) : prevCloseOf(snap)
     const livePrice = fin(snap?.price)
-    const todayDollar = livePrice != null && ref != null ? signed * (livePrice - ref) : null
+    const priced = livePrice != null || preferBroker
+    const todayDollar = priced && price != null && ref != null ? signed * (price - ref) : null
     const totalReturnDollar = price == null ? null : positionPnlDollar(p, price)
     const basis = (p.entryPrice || 0) * (p.shares || 0)
     return {
@@ -38,7 +42,11 @@ export function buildEquityRows(positions, prices, todayIso) {
       side: p.side,
       shares: p.shares,
       price,
-      changePct: fin(snap?.change_pct),
+      // Under broker marks the feed's own change_pct describes a DIFFERENT
+      // price than the one shown — derive it from the pair actually rendered.
+      changePct: preferBroker && price != null && ref != null && ref !== 0
+        ? ((price - ref) / ref) * 100
+        : fin(snap?.change_pct),
       todayDollar,
       marketValue: price == null ? null : Math.abs(p.shares || 0) * price,
       totalReturnDollar,

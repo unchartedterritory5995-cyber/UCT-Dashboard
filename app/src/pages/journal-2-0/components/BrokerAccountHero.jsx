@@ -101,6 +101,10 @@ function pointLabel(p) {
 export default function BrokerAccountHero({
   account, aggregates, liveSummary = null, isLive = false,
   positions = [], prices = {}, optionMarketValue = 0,
+  // True when the hero was composed from the BROKER's own marks (closed
+  // session — see useBrokerMarkPreference). The extended-hours split must
+  // then be suppressed: see where extLine is built.
+  preferBrokerMarks = false,
 }) {
   const [range, setRange] = useState(RANGES[0]) // default 1D (Robinhood default)
   const [scrub, setScrub] = useState(null)       // hovered/dragged data index
@@ -219,7 +223,14 @@ export default function BrokerAccountHero({
   // liveSummary == null means multi-broker (portfolio base) — the extended
   // split is built from the SELECTED account's book, so applying it there
   // would mix single-account legs under a portfolio headline. Single-broker only.
-  if (isIntraday && extSplit && liveSummary != null) {
+  // ⛔ Under broker marks the split is REFUSED, not recomputed. Its legs come
+  // from our vendor's day_close/ext_price, so pairing them with a headline
+  // composed from the broker's marks puts two vendors in one line. And the
+  // broker's mark IS its final word on the session — we do not model the
+  // broker's own after-hours (measured 2026-08-29: our ext prices produced
+  // -$30.71 where Robinhood showed +$2.28, on thin odd-lot prints). Showing
+  // Today whole, on one basis, beats splitting it across two.
+  if (isIntraday && extSplit && liveSummary != null && !preferBrokerMarks) {
     if (extSplit.session === 'post_market') {
       rangeChange = extSplit.regularDollar
       rangePct = extSplit.regularPct

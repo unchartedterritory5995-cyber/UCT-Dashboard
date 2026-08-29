@@ -397,6 +397,8 @@ function sortKeyFor(key, position, current, accountSize) {
 export default function PositionsTable({
   positions,
   prices,
+  // Must match the flag the hero composed with — see useBrokerMarkPreference.
+  preferBrokerMarks = false,
   accountSize,
   visibleColumns,
   onEdit,
@@ -423,8 +425,8 @@ export default function PositionsTable({
       // Sort on the price the ROWS display (live tick → broker mark), not the
       // raw feed — otherwise after-hours broker rows show values but sort as
       // blanks and sink to the bottom.
-      const av = sortKeyFor(sort.key, a, currentPriceFor(a, prices), accountSize)
-      const bv = sortKeyFor(sort.key, b, currentPriceFor(b, prices), accountSize)
+      const av = sortKeyFor(sort.key, a, currentPriceFor(a, prices, preferBrokerMarks), accountSize)
+      const bv = sortKeyFor(sort.key, b, currentPriceFor(b, prices, preferBrokerMarks), accountSize)
       const aEmpty = av == null || av === ''
       const bEmpty = bv == null || bv === ''
       if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
@@ -441,7 +443,7 @@ export default function PositionsTable({
       if (s !== 0) return s
       return String(a.id) < String(b.id) ? -1 : 1
     })
-  }, [positions, prices, accountSize, sort])
+  }, [positions, prices, accountSize, sort, preferBrokerMarks])
 
   if (sorted.length === 0) {
     return (
@@ -461,7 +463,7 @@ export default function PositionsTable({
           <PhoneCard
             key={p.id}
             position={p}
-            current={currentPriceFor(p, prices)}
+            current={currentPriceFor(p, prices, preferBrokerMarks)}
             onEdit={onEdit}
             onClose={onClose}
             onDelete={onDelete}
@@ -517,7 +519,7 @@ export default function PositionsTable({
             <Row
               key={p.id}
               position={p}
-              current={currentPriceFor(p, prices)}
+              current={currentPriceFor(p, prices, preferBrokerMarks)}
               accountSize={accountSize}
               visibleColumns={visibleColumns}
               onEdit={onEdit}

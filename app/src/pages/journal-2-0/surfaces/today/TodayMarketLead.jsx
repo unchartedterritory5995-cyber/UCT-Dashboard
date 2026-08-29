@@ -20,6 +20,7 @@ import useJ2OptionStrategies from '../../hooks/useJ2OptionStrategies'
 import useJ2OptionMarks from '../../hooks/useJ2OptionMarks'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
+import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
 import BrokerAccountHero from '../../components/BrokerAccountHero'
 import SyncFreshnessChip from '../../components/SyncFreshnessChip'
 import {
@@ -42,14 +43,16 @@ export default function TodayMarketLead({
 
   const accountSize = settings?.accountSize ?? 0
   const isBroker = account?.balanceSource === 'broker'
+  // Closed session + a sync covering that close ⇒ the broker's marks win.
+  const preferBrokerMarks = useBrokerMarkPreference(account)
 
   // Current price per position: live tick if present, else the broker's last
   // synced mark — mirrors OpenPositionsTab so after-hours numbers stay real.
   const priceMap = useMemo(() => {
     const m = {}
-    for (const p of positions) m[p.symbol] = currentPriceFor(p, prices)
+    for (const p of positions) m[p.symbol] = currentPriceFor(p, prices, preferBrokerMarks)
     return m
-  }, [positions, prices])
+  }, [positions, prices, preferBrokerMarks])
 
   const aggregates = useMemo(
     () => portfolioAggregates(positions, priceMap, accountSize),
@@ -66,9 +69,11 @@ export default function TodayMarketLead({
   )
   const liveSummary = useMemo(
     () => (brokerAccountCount <= 1
-      ? brokerLiveSummary(account, positions, optionStrategies, prices, etToday, optionMarks)
+      ? brokerLiveSummary(account, positions, optionStrategies, prices, etToday,
+                          optionMarks, preferBrokerMarks)
       : null),
-    [brokerAccountCount, account, positions, optionStrategies, prices, etToday, optionMarks],
+    [brokerAccountCount, account, positions, optionStrategies, prices, etToday,
+     optionMarks, preferBrokerMarks],
   )
   const optionMarketValue = useMemo(
     () => (optionStrategies || []).reduce(
@@ -90,6 +95,7 @@ export default function TodayMarketLead({
           <SyncFreshnessChip />
         </div>
         <BrokerAccountHero
+          preferBrokerMarks={preferBrokerMarks}
           account={account}
           aggregates={aggregates}
           liveSummary={liveSummary}
