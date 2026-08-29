@@ -250,9 +250,17 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # Two doors already asked for the NAME: Pine's `ta.hma` and thinkorswim's
     # `AverageType.HULL`, the latter derived from this manifest since before the
     # entry existed, so declaring it was the entire change in both translators.
-    assert len(ast_table.bar_names()) == 96, len(ast_table.bar_names())
+    # ⭐ 96 -> 97 IS `cumFrom`, THE ANCHORED RUNNING TOTAL, AND THE SCALAR HALF IS
+    # UNTOUCHED. It added no node type, no argument kind and no lookback form: its
+    # window is `arg2`, the plain `argN` every rolling entry already uses, so
+    # `maxLookback` stays a tree sum and no persisted `astHash` moved. What IS new
+    # about it is stated in `closedTable.json::_functions_cumulative` -- it is the
+    # first `reads: "bars"` entry that also takes a `series`, and it is the ruling
+    # that lets `_functions_excluded.obv` and the new `_functions_excluded.cum`
+    # point at a successor instead of only refusing.
+    assert len(ast_table.bar_names()) == 97, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 207, f"the table declares {len(declared)} names, not 207"
+    assert len(declared) == 208, f"the table declares {len(declared)} names, not 208"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -1370,3 +1378,257 @@ def test_unresolved_lookback_counts_the_offset_too():
     reads the SAME `max_lookback` the budget and the linter do."""
     assert ast_interpret.unresolved_lookback(OFF(3, SER("close")), BARS[:2]) == 1
     assert ast_interpret.unresolved_lookback(OFF(3, SER("close")), BARS) == 0
+# ═════════════════════════════════════════════════════════════════════════════
+# `cumFrom` — THE ANCHORED RUNNING TOTAL, AND THE SCAN LANE THAT MUST SURVIVE IT
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# ⛔⛔ THE CONFORMANCE LOG PINS THE TWO LANES AGAINST EACH OTHER; THESE PIN THE
+# CLAIM. A digest agreeing bar-for-bar proves the lanes match -- it does not prove
+# the column is a fact about the MARKET rather than about the REQUEST, because two
+# lanes can be identically request-dependent. The first case measures exactly that,
+# with the control that makes it a measurement.
+
+#: A minute series long enough to anchor inside, with a real instant on every bar.
+_CUM_BARS = [
+    {"t": 1780000000 + i * 60, "o": 10.0, "h": 11.0, "l": 9.0,
+     "c": 10.0 + (i % 7), "v": 100 + i}
+    for i in range(200)
+]
+
+
+def _cum_from(src, epoch, reach):
+    return CALL("cumFrom", src, NUM(epoch), NUM(reach))
+
+
+def test_cumFrom_reads_the_SAME_number_off_a_short_fetch_and_a_long_one():
+    """⛔⛔ THE WHOLE RULING, MEASURED — `closedTable.json::_functions_cumulative`.
+
+    ``_functions_excluded.obv`` refuses the unbounded level because *"hand it 500
+    bars and 5,000 and the same date reads two different numbers"*. Anchoring is
+    the answer, so this asks precisely that: two fetches of the SAME tape, one
+    starting 40 bars later, both containing the anchor. Every shared bar must
+    agree EXACTLY -- not to a tolerance, because the terms are identical.
+    """
+    anchor = _CUM_BARS[80]["t"]
+    tree = _cum_from(SER("volume"), anchor, 150)
+    long_col = ast_interpret.interpret(tree, _CUM_BARS)
+    short_col = ast_interpret.interpret(tree, _CUM_BARS[40:])
+    assert sum(1 for v in short_col if v is not None) > 50
+    for i in range(40, len(_CUM_BARS)):
+        assert long_col[i] == short_col[i - 40], f"bar {i} moved when the window moved"
+
+    # ⛔ THE CONTROL, AND WITHOUT IT THIS PROVES NOTHING. A total seeded at the
+    # FIRST FETCHED BAR -- what Pine's `cum` is, and what `_functions_excluded.cum`
+    # refuses -- differs by exactly the volume of the 40 bars the short fetch never
+    # saw. If that difference were zero the fixture could not tell an anchored
+    # total from a fetch-anchored one.
+    def seeded_at_fetch_start(bars):
+        run_, out = 0.0, []
+        for b in bars:
+            run_ += b["v"]
+            out.append(run_)
+        return out
+
+    unanchored_long = seeded_at_fetch_start(_CUM_BARS)
+    unanchored_short = seeded_at_fetch_start(_CUM_BARS[40:])
+    assert unanchored_long[-1] != unanchored_short[-1], (
+        "the unanchored total does not move on this fixture -- the property above "
+        "is defending against nothing")
+
+
+def test_cumFrom_refuses_an_anchor_the_fetch_cannot_place_and_ACCEPTS_one_on_bar_zero():
+    """Rule 1, verbatim from ``_fn_avwap``. ⭐ ``>=`` NOT ``>``: a wider fetch can
+    only add bars STRICTLY before an anchor equal to ``bars[0]["t"]``, and this sum
+    excludes those whatever the window is -- so refusing it would withhold a
+    well-defined column, which is the narrow over-refusal ``avwap`` already paid
+    for once."""
+    before = _cum_from(SER("volume"), _CUM_BARS[0]["t"] - 1, 150)
+    assert all(v is None for v in ast_interpret.interpret(before, _CUM_BARS))
+    on_first = ast_interpret.interpret(
+        _cum_from(SER("volume"), _CUM_BARS[0]["t"], 150), _CUM_BARS)
+    assert on_first[0] == _CUM_BARS[0]["v"]
+    assert on_first[1] == _CUM_BARS[0]["v"] + _CUM_BARS[1]["v"]
+    # …and one second later EXCLUDES bar 0 — the control proving the boundary is
+    # where it is claimed to be.
+    later = ast_interpret.interpret(
+        _cum_from(SER("volume"), _CUM_BARS[0]["t"] + 1, 150), _CUM_BARS)
+    assert later[0] != _CUM_BARS[0]["v"]
+
+
+def test_cumFrom_stops_at_the_reach_it_DECLARES():
+    """Rule 2. ⭐ Unlike ``avwap``'s session ceiling this one is an ordinary
+    ``int``, so it is reachable on an ordinary fixture -- and it is counted from
+    the ANCHOR BAR, never from the front of the fetch, which is what makes it land
+    on the same market bar however many bars the caller brought."""
+    anchor = _CUM_BARS[10]["t"]
+    col = ast_interpret.interpret(_cum_from(SER("volume"), anchor, 25), _CUM_BARS)
+    assert col[9] is None, "a bar BEFORE the anchor must not answer"
+    assert col[10] is not None, "the anchor bar must answer"
+    assert col[35] is not None, "the last bar INSIDE the reach must answer"
+    assert col[36] is None, "a bar PAST the reach must not answer"
+    assert all(v is None for v in col[36:])
+    # NON-VACUITY: a wider reach answers on the very bar the narrow one blanks.
+    wide = ast_interpret.interpret(_cum_from(SER("volume"), anchor, 150), _CUM_BARS)
+    assert wide[36] is not None
+    # …and the reach is what `lookback` declares, so the budget can see it.
+    assert ast_interpret.max_lookback(_cum_from(SER("volume"), anchor, 25)) == 25
+
+
+def test_a_hole_in_the_cumFrom_source_is_STICKY_and_nz_is_the_members_answer():
+    """⛔ A TOTAL WITH AN UNKNOWN TERM IS UNKNOWN, AND IT STAYS UNKNOWN.
+
+    ⭐ THE FIXTURE MUST HOLE AND THEN RECOVER, or it cannot tell stickiness from
+    plain propagation -- measured, not assumed: a first draft used a source whose
+    hole ran to the end of the series, and deleting the guard in either lane left
+    every gate green. Here ``ln(12 - close)`` is real, then a hole on the bars
+    where close reaches 12+, then real again.
+    """
+    holed = CALL("ln", OP("-", NUM(12), SER("close")))
+    raw = ast_interpret.interpret(holed, _CUM_BARS)
+    first_hole = next(i for i, v in enumerate(raw) if v is None)
+    assert any(v is not None for v in raw[first_hole + 1:]), (
+        "the source never recovers, so a non-sticky total would look identical")
+    col = ast_interpret.interpret(_cum_from(holed, _CUM_BARS[0]["t"], 250), _CUM_BARS)
+    assert col[first_hole - 1] is not None
+    assert all(v is None for v in col[first_hole:]), "the total resumed after a hole"
+    # …and the member's own answer totals all the way, which is the control: the
+    # blank above is the hole propagating, not a lane that stopped adding.
+    filled = CALL("nz", holed, NUM(0))
+    assert ast_interpret.interpret(
+        _cum_from(filled, _CUM_BARS[0]["t"], 250), _CUM_BARS)[-1] is not None
+
+
+def test_a_bar_with_no_instant_BLANKS_the_cumFrom_column_rather_than_crashing():
+    """⭐ A BAR-SIDE GUARD THAT REALLY FIRES: a bar carrying NO ``t`` would raise
+    from the comparison, and a walker owes a NOT-COMPUTABLE column rather than a
+    crash on one bad row. ⚰️ ITS NEIGHBOUR -- the ``AVWAP_MIN_INSTANT`` magnitude
+    check -- was DELETED here for "never changing an answer", and the test below is
+    the case where it does.
+    """
+    broken = [dict(b) for b in _CUM_BARS]
+    broken[7].pop("t")
+    tree = _cum_from(SER("volume"), _CUM_BARS[0]["t"], 250)
+    assert all(v is None for v in ast_interpret.interpret(tree, broken))
+    # NON-VACUITY: the same tree over the same bars WITH the instant answers.
+    assert any(v is not None for v in ast_interpret.interpret(tree, _CUM_BARS))
+
+
+def test_a_MIXED_UNIT_store_BLANKS_the_cumFrom_column_and_is_why_the_guard_is_BACK():
+    """⚰️ THE ARGUMENT FOR DELETING THE BAR-SIDE MAGNITUDE CHECK WAS TRUE PER BAR AND
+    FALSE OF AN ARRAY. A date-shaped ``t`` is NUMERICALLY BELOW the 1990 floor, so
+    rule 1 (``anchor >= first``) PASSES; each date-shaped bar is then skipped one at
+    a time as "before the anchor" while the epoch-shaped ones accumulate -- a finite,
+    plausible total MISSING TERMS, which is the outcome ``_functions_cumulative``
+    calls "a lie with a decimal point".
+
+    ⭐ THE FIXTURE IS THE WHOLE POINT. Every other fixture in this file carries ONE
+    unit, which is why the mutation run that deleted the guard stayed green
+    (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    """
+    mixed = [dict(b) for b in _CUM_BARS]
+    for i in range(3):
+        mixed[i]["t"] = 20200101 + i
+    anchor = _CUM_BARS[3]["t"]
+    tree = _cum_from(SER("volume"), anchor, 250)
+    assert all(v is None for v in ast_interpret.interpret(tree, mixed))
+    # NON-VACUITY, and it is what makes this DISCRIMINATE rather than merely pass:
+    # the array really is one an unguarded walker would have ANSWERED -- some bars
+    # sit below the floor and the rest are at or after the anchor, so without the
+    # guard those accumulate into a total short by exactly the skipped terms.
+    assert sum(1 for b in mixed if b["t"] < ast_interpret.AVWAP_MIN_INSTANT) == 3
+    assert any(b["t"] >= anchor for b in mixed)
+    # ...and the same tree over a UNIFORM store answers, so the blank above is about
+    # the mixed units and not about the tree.
+    assert any(v is not None for v in ast_interpret.interpret(tree, _CUM_BARS))
+
+
+def test_a_date_shaped_cumFrom_anchor_refuses_BY_NAME_and_a_short_history_does_not():
+    """The asymmetry ``_fn_avwap`` records: a defect in the TREE refuses by name at
+    the token; a fact about ONE SYMBOL'S HISTORY stays a not-computable column."""
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        ast_interpret.interpret(_cum_from(SER("volume"), 20250101, 150), _CUM_BARS)
+    assert exc.value.guard == "resolve:window"
+    assert "cumFrom" in str(exc.value) and "20250101" in str(exc.value)
+    assert "1970" in str(exc.value)
+    short = _cum_from(SER("volume"), _CUM_BARS[0]["t"] - 1, 150)
+    assert all(v is None for v in ast_interpret.interpret(short, _CUM_BARS))
+
+
+def test_the_reach_is_an_ARGUMENT_because_a_session_wide_one_could_not_hold_the_obv():
+    """⛔⛔ THE MEASUREMENT THAT DECIDED THE DECLARATION, kept so nobody
+    "simplifies" the reach back into ``lookback: "session"``.
+
+    The anchored on-balance volume is the quantity ``_functions_excluded.obv`` and
+    ``_functions_excluded.cum`` both point at, and its source reads ONE bar back.
+    Under a session-wide reach that tree measures ``sessionMaxBars + 1`` against a
+    cap of ``sessionMaxBars`` and ``budget:lookback`` refuses it -- the entry would
+    have shipped unable to express the one thing it was built for.
+    """
+    from api.services import ast_budget
+
+    obv = OP("*", CALL("sign", CALL("change", SER("close"))), SER("volume"))
+    tree = _cum_from(obv, _CUM_BARS[10]["t"], 100)
+    assert ast_interpret.max_lookback(tree) == 101
+    assert any(v is not None for v in ast_interpret.interpret(tree, _CUM_BARS))
+    # DERIVED from the manifest constant and the budget, never typed: if either
+    # moves, this sentence moves with it.
+    assert (ast_interpret.SESSION_MAX_BARS + 1
+            > ast_budget.DEFAULT_BUDGET["maxLookback"])
+
+
+def test_cumFrom_is_the_first_bar_reader_taking_a_series_and_names_no_bar_field():
+    """⭐ DERIVED, NOT TYPED. ``bar_readers()`` is read off ``closedTable.json``.
+
+    ⛔ AND ITS SERIES SLOT IS A GENERIC SOURCE, NEVER A BAR FIELD -- that is the
+    "two sources for one series" hazard the ``reads: "bars"`` rule actually guards
+    (`tests/test_ast_bounded_state.py`), and it is why this shape is legal where
+    an entry naming `high`/`low`/`close` alongside the bars would not be.
+    """
+    functions = ast_table.TABLE["functions"]
+    with_series = sorted(n for n in ast_interpret.BAR_READERS
+                         if any(k != "int" for k in functions[n]["args"]))
+    assert "cumFrom" in with_series, with_series
+    roles = functions["cumFrom"]["argRoles"]
+    assert roles[0] not in ast_table.TABLE["series"], roles
+
+
+# ─── the SCAN lane, which the ruling says must survive this ──────────────────
+
+
+def test_the_scan_lane_ADMITS_a_cumFrom_comparison_and_NAMES_it_when_it_cannot_answer():
+    """⛔⛔ THE SCAN LANE MUST EITHER ADMIT IT OR REFUSE IT BY NAME — a cumulative
+    column that silently answered differently per fetch would be far worse than
+    the refusal it replaces.
+
+    ⭐ IT IS ADMITTED, and that is the right verdict: ``assert_scannable`` resolves
+    the tree through the same ``max_lookback`` pass every door runs, so a declared
+    entry needs no edit there. What it CANNOT do is answer on the sweep's daily
+    bars, whose ``ts`` is a ``YYYYMMDD`` int rather than an instant -- and that is
+    the X23 laundering shape ``_functions_bar_readers`` measures for ``vwap``: a
+    comparison against a hole is ``0``, not a hole, so the screen would return
+    NOTHING at FULL COVERAGE. ``unresolved_inputs`` is the pre-pass that asks the
+    question BEFORE evaluating, and it reports ``cumFrom`` BY NAME.
+    """
+    from api.services.scan_definition import assert_scannable, def_hash
+
+    anchor = _CUM_BARS[10]["t"]
+    # ⚠️ THE REACH COVERS THE LAST BAR ON PURPOSE: `unresolved_inputs` asks
+    # about the bar the answer will be READ FROM, so a reach that stopped
+    # short would report `cumFrom` for the ordinary declared-window reason and
+    # this case would pass without ever exercising the unit gate below.
+    tree = OP(">", SER("close"), _cum_from(SER("volume"), anchor, 250))
+    definition = {"compute": {"kind": "ast", "ast": tree}}
+    handle = def_hash(definition)
+    described = assert_scannable(definition)
+    assert described["yields"] == "bool"
+    assert described["def_hash"] == handle
+
+    # ⛔ AND ON THE SWEEP'S OWN BARS IT IS REPORTED, NOT LAUNDERED. `ts` is a
+    # `YYYYMMDD` int there, which is not an instant, so the anchor cannot be
+    # placed and the whole column is not computable.
+    daily = [{"t": 20250101 + i, "o": 10.0, "h": 11.0, "l": 9.0, "c": 10.0, "v": 100}
+             for i in range(60)]
+    assert ast_interpret.unresolved_inputs(tree, {}, daily, -1) == ["cumFrom"]
+    # …and the CONTROL: on real instants it resolves, so the report above is the
+    # bars' fault and not a name that can never answer.
+    assert ast_interpret.unresolved_inputs(tree, {}, _CUM_BARS, -1) == []

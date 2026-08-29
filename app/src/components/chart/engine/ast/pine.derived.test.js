@@ -155,6 +155,23 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     stoch: 'ta.stoch — %K, shape-mapped', crossOver: 'ta.crossover — same event',
     crossUnder: 'ta.crossunder — same event',
     vwap: 'ta.vwap — session accumulator', avwap: 'ta.vwap(anchor) — shape-mapped',
+    // ⭐⭐ `ta.cumFrom` IS NOT A PINE NAME AT ALL, AND THAT IS WHY THE DOOR IS
+    //   SAFE RATHER THAN MERELY UNUSED. The hazard this list guards is a member
+    //   PASTING real Pine and getting our maths under their name; nobody can
+    //   paste `ta.cumFrom` because TradingView has no such function, so there is
+    //   no published definition to disagree with.
+    //   ⛔⛔ AND THE NAME PINE *DOES* HAVE FOR THIS IDEA — `ta.cum` — STAYS
+    //   REFUSED, which is the whole reason this entry is not spelled `cum`.
+    //   Pine's `cum` accumulates from the first bar of the CHART, so its level is
+    //   a fact about the fetch; ours accumulates from an instant the member typed.
+    //   Declaring it under the same spelling would have made `cum(...)` resolve to
+    //   our vocabulary in the very file this rail watches — measured on
+    //   `barssince`, which did exactly that on 2026-08-26. See
+    //   `closedTable.json::_functions_cumulative` for the ruling and
+    //   `_functions_excluded.cum` for what a translator may write instead.
+    cumFrom: 'ta.cumFrom is not a Pine builtin; the name Pine DOES have for this'
+      + ' idea, `ta.cum`, is a DIFFERENT quantity (chart-anchored, so'
+      + ' fetch-dependent) and stays refused by name',
     // — VETTED WITH AN INDEX SHIFT, which is the case this list's warning is about.
     //   Pine RETURNS a pivot at its CONFIRMATION bar, `rightbars` after the pivot;
     //   this table's `pivothigh` emits ON the pivot bar. Same values, different
