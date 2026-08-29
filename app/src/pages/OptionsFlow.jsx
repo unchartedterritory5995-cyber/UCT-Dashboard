@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment, lazy, Suspense } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
-import ChartPane from "../components/chart/pane/ChartPane";
 import TickerPopup from "../components/TickerPopup";
-import DarkPool from "./DarkPool";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
@@ -28,6 +26,42 @@ import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoad
 // A clobber that drops these call sites also drops this import -> CI fails.
 import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+
+// ─── Deferred heavy surfaces ─────────────────────────────────────────────────
+// ⛔ These two were STATIC imports until 2026-08-29, which put ~849 KB of JS
+// (ChartPane 747 KB + DarkPool 102 KB) on the critical path of EVERY Options
+// Flow load — the page could not paint until both finished downloading, even
+// though neither renders unless the user opens a contract/GEX chart or the Dark
+// Pool tab. Measured on prod: page chunks occupied 1890→4750 ms of a cold load.
+//
+// `fetchContractHistory` ALREADY warms the ChartPane chunk on contract-select
+// (see the import() there) — the static import is what made that warm dead
+// code, because the chunk was always resolved before the page ever rendered.
+// Lazy + that existing warm is the design the warm was written for.
+//
+// The shims keep the ChartPane / DarkPool NAMES bound, so every call site below
+// is untouched and each carries its own Suspense boundary — a chunk fetch can
+// never blank the page around it, only the box it renders into.
+const ChartPaneLazy = lazy(() => import("../components/chart/pane/ChartPane"));
+const DarkPoolLazy = lazy(() => import("./DarkPool"));
+
+// Fills the parent's box while the chunk lands. Every ChartPane call site sits
+// in a parent with an explicit height, so a plain filler holds the layout.
+function ChartPane(props) {
+  return (
+    <Suspense fallback={<div style={{ width: "100%", height: "100%" }} />}>
+      <ChartPaneLazy {...props} />
+    </Suspense>
+  );
+}
+
+function DarkPool(props) {
+  return (
+    <Suspense fallback={<div style={{ width: "100%", minHeight: 200 }} />}>
+      <DarkPoolLazy {...props} />
+    </Suspense>
+  );
+}
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
 // Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
