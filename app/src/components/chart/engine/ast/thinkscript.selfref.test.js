@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest'
 import { translateThinkScript, TS_STATE_WARMUP } from './thinkscript.js'
 import { translatePine, printFormula } from './pine.js'
 import { parseFormula } from './parse.js'
-import { interpret } from './interpret.js'
+import { interpret, MAX_SELF_LAG } from './interpret.js'
 import TABLE from './closedTable.json'
 
 /**
@@ -261,28 +261,97 @@ plot p = close > ST;
     expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT)
   })
 
-  it('⛔⛔ a self-lag DEEPER than one bar still refuses, saying how deep it read', () => {
-    // ⭐ THE OTHER TWO STATEFUL CORPUS SCRIPTS DIE HERE, NOT ON THE SEED, and the
-    // distinction decides who can fix them. `17-compoundvalue` writes
-    // `CompoundValue(2, x[1] + x[2], 1)` — seeded, explicitly, by its own author —
-    // and `10-rsi-laguerre` reads `Go[1] … Go[4]`. Both STATE a first-bar value,
-    // so no seeding remedy touches them: `closedTable`'s `accum` binds `self` at
+  it('⭐⭐ a self-lag DEEPER than one bar TRANSLATES, and the engine computes it', () => {
+    // ⚰️ THIS BLOCK ASSERTED THE OPPOSITE, and its reason was a claim about a
+    // MECHANISM rather than about a run: *"`closedTable`'s `accum` binds `self` at
     // ONE bar back (`recurrence.binds`), and a second bound lag is a MANIFEST
-    // change, not a translator one. Recorded here so the next reader does not
-    // spend a day re-deriving that these are the same wall as `01`. They are not.
-    for (const [depth, src] of [
-      [2, 'def x = CompoundValue(2, x[1] + x[2], 1);\nplot p = x > 0;\n'],
-      [4, 'def g = CompoundValue(1, 0.5 * g[1] - 0.2 * g[4] + close, close);\nplot p = g > 0;\n'],
-    ]) {
-      const r = translateThinkScript(src).refusal
-      expect(r.guard, `depth ${depth}`).toBe('thinkscript:state')
-      expect(r.message, `depth ${depth}`).toContain('can only be read one bar back')
-      expect(r.message, `depth ${depth}`).toContain(`${depth} bars back`)
-    }
-    // ⛔ AND THE CONTROL: one bar back WITH a seed is not refused for depth — it
-    // is the shape the two `it`s above just translated. Without this line every
-    // assertion here would pass against a door that refused every recurrence.
-    expect(translateThinkScript('def x = CompoundValue(1, if IsNaN(x[1]) then close else '
-      + '(x[1] + close) / 2, close);\nplot p = close > x;\n').refusal).toBe(null)
+    // change, not a translator one"*. It is not. `self[k]` is an ORDINARY `offset`
+    // node over the bound series, `interpret.js` has carried `MAX_SELF_LAG = 4`
+    // throughout, and `pine.js` has emitted exactly this since the 2-pole Ehlers
+    // filter landed. The manifest never had to move — one door was simply a lane
+    // behind the other, and the sentence explaining why nobody should look is what
+    // kept it there (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`,
+    // `lesson_rail_the_mirror_not_just_the_lane`).
+    //
+    // ⛔ THE OFF-BY-ONE IS THE MAPPING: inside the body `self` IS the previous bar,
+    // so thinkorswim's `x[1]` is lag 0 and `x[k]` is lag `k - 1`.
+    const two = translateThinkScript(
+      `def x = CompoundValue(2, x[1] + x[2], 1);
+plot p = x > 0;
+`)
+    // ⭐ AND IT IS THE *REASON* THAT MOVED, NOT THE GUARD — `17-compoundvalue` is
+    // FIBONACCI, and `x[1] + x[2]` genuinely never forgets where it started, so it
+    // still refuses `thinkscript:state` and SHOULD. Asserting the guard changed
+    // would have been asserting that a divergent recurrence becomes computable.
+    // What must be gone is the LAG complaint.
+    // ⚠️ AND THE DISCRIMINATOR IS THE LAG REFUSAL'S OWN PHRASE, not `bars back` —
+    // the CONVERGENCE sentence says "re-seeds a fixed number of bars back", so the
+    // looser test passed for the wrong reason. `inside its own definition` is
+    // written at exactly one place, `selfLagOf`.
+    expect(two.refusal.message, 'the lag wall must be gone')
+      .not.toContain('inside its own definition')
+    expect(two.refusal.message, 'and the CONVERGENCE wall is what is left')
+      .toContain('re-seeds')
+
+    const four = translateThinkScript(
+      `def g = CompoundValue(1, 0.5 * g[1] - 0.2 * g[4] + close, close);
+plot p = g > 0;
+`)
+    expect(four.refusal, four.refusal && four.refusal.message).toBe(null)
+    const body = four.outputs.find((o) => !o.refusal).formula
+    // `g[4]` became `self[3]` — the mapping, READ OFF the emitted formula rather
+    // than asserted about it.
+    expect(body).toContain('self[3]')
+    expect(body).not.toContain('self[4]')
+  })
+
+  it('⭐⭐ …and the value is right against a CLOSED FORM, not against ourselves', () => {
+    // ⛔⛔ EVERY OTHER NUMERIC CHECK IN THIS FAMILY COMPARES US TO US. This one does
+    // not. `g = 0.5·g[1] − 0.2·g[4] + c` has an algebraic fixed point: hold `c`
+    // constant and the recurrence settles where `g = 0.5g − 0.2g + c`, i.e.
+    // `0.7g = c`, i.e. `g = c / 0.7`. That is arithmetic anybody can redo on paper,
+    // and it is the only reason this file can say the deep lag is CORRECT rather
+    // than merely PRESENT.
+    const C = 250
+    const bars = Array.from({ length: 400 }, (_, i) => ({
+      t: 1700000000 + i * 86400, o: C, h: C, l: C, c: C, v: 1000,
+    }))
+    const out = translateThinkScript(
+      `def g = CompoundValue(1, 0.5 * g[1] - 0.2 * g[4] + close, close);
+plot p = g;
+`)
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    const ast = parseFormula(out.outputs.find((o) => !o.refusal).formula).ast
+    const col = interpret(ast, bars, {})
+    const last = col[col.length - 1]
+    expect(Number.isFinite(last)).toBe(true)
+    expect(last).toBeCloseTo(C / 0.7, 6)
+    // ⛔ THE DISCRIMINATING HALF, so this cannot pass by landing anywhere finite: a
+    // translator that DROPPED the `− 0.2·self[3]` term would still produce finite
+    // numbers on every bar, and would settle at `c / 0.5` instead.
+    expect(Math.abs(last - C / 0.5)).toBeGreaterThan(1)
+  })
+
+  it('⛔ the ceiling belongs to the INTERPRETER, asked rather than typed', () => {
+    // ⭐ `MAX_SELF_LAG` is IMPORTED, so raising the engine's ceiling moves this test
+    // with it, and a door that drifts from the engine goes red here rather than
+    // translating a tree the engine would then refuse at evaluation — a refusal at
+    // a door the member never typed at. thinkorswim's `x[k]` is engine lag `k − 1`,
+    // so this door's ceiling is `MAX_SELF_LAG + 1`.
+    const over = MAX_SELF_LAG + 2
+    const r = translateThinkScript(
+      `def g = CompoundValue(1, 0.5 * g[1] + 0.1 * g[${over}] + close, close);
+plot p = g > 0;
+`).refusal
+    expect(r.guard).toBe('thinkscript:state')
+    expect(r.message).toContain(`${over} bars back`)
+    expect(r.message).toContain(`at most ${MAX_SELF_LAG + 1} bars back`)
+    // NON-VACUITY: one lag inside the ceiling is NOT refused for depth. Without
+    // this, a door that refused every recurrence would satisfy the assertions above.
+    const ok = translateThinkScript(
+      `def g = CompoundValue(1, 0.5 * g[1] + 0.1 * g[${MAX_SELF_LAG + 1}] + close, close);
+plot p = g > 0;
+`).refusal
+    expect(ok && ok.guard).not.toBe('thinkscript:state')
   })
 })

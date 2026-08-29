@@ -316,8 +316,8 @@
     },
     "refusal": {
       "guard": "thinkscript:state",
-      "line": 19,
-      "column": 68,
+      "line": 18,
+      "column": 5,
       "token": "Go"
     },
     "downstream": null
@@ -459,8 +459,8 @@
     "refusal": {
       "guard": "thinkscript:state",
       "line": 9,
-      "column": 33,
-      "token": "x"
+      "column": 31,
+      "token": "+"
     },
     "downstream": null
   },

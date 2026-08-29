@@ -71,6 +71,11 @@
 //   * Tutorials — /center/reference/thinkScript/tutorials/{Basic,Advanced}/…
 
 import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
+// ⭐ THE INTERPRETER'S OWN CEILING ON `self[k]`, ASKED RATHER THAN RESTATED — the
+// same import `pine.js` takes, and for the same reason its docblock gives: a door
+// that restates the number translates a tree the engine then refuses at
+// evaluation, which is a refusal at a door the member never typed at.
+import { MAX_SELF_LAG } from './interpret.js'
 import {
   printFormula, treeYieldsBool, forgetsItsSeed, seedAndUpdateOf, containsFreeSelfSeries,
   derivedSeriesTree,
@@ -3649,14 +3654,29 @@ class Resolver {
     if (!(k >= 1) || this.buildingRecurrence === null) return null
     if (!n.base || n.base.e !== 'name') return null
     if (key(n.base.name) !== this.buildingRecurrence) return null
-    if (k > 1) {
+    // ⭐⭐ THIS DOOR WAS ONE LANE BEHIND THE OTHER ON A CAPABILITY THE ENGINE SHIPS.
+    // ⚰️ It refused every `k > 1` as "can only be read one bar back", which was true
+    // of this TRANSLATOR and false of the engine: `interpret.js` has carried
+    // `MAX_SELF_LAG = 4` throughout, `pine.js` learned to spell the deeper lags when
+    // the 2-pole Ehlers filter landed, and the consumption site three screens down
+    // was ALREADY written for a non-zero lag (`{type:'offset', value: lag}`). So the
+    // refusal was a sentence, not a limit — and thinkorswim scripts that read two
+    // bars of their own history were turned away from an engine that could hold them
+    // (`lesson_rail_the_mirror_not_just_the_lane`).
+    //
+    // ⛔ THE OFF-BY-ONE IS THE WHOLE MAPPING AND IT IS NOT COSMETIC. Inside an
+    // accumulator body `self` IS the previous bar's value, so thinkorswim's `x[1]`
+    // is lag 0 and `x[k]` is lag `k - 1`. The ceiling therefore sits at
+    // `MAX_SELF_LAG + 1`, not at `MAX_SELF_LAG`: reading `x[5]` asks the engine for
+    // `self[4]`, which is exactly what it holds.
+    if (k > MAX_SELF_LAG + 1) {
       throw new ThinkScriptRefusal('thinkscript:state',
         `${REFUSALS['thinkscript:state']} — inside its own definition \`${n.base.name}\` can `
-        + 'only be read one bar back, and this reads '
+        + `be read at most ${MAX_SELF_LAG + 1} bars back, and this reads `
         + `${k} bars back`,
         locate(n.tok || (n.base && n.base.tok)))
     }
-    return 0
+    return k - 1
   }
 
   binary(n) {

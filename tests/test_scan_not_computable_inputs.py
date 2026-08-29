@@ -291,15 +291,27 @@ def _manifest():
     return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 
 
-def _args_for(name, spec, anchor_instant):
+def _args_for(name, spec, anchor_instant, span):
     """A legal call's arguments, DERIVED from the entry's own declaration.
 
     ⛔ NO HAND LIST. `args`/`argRoles` are read off the manifest, so a third bar
     reader is exercised the day it lands. A future entry whose `int` role is
     neither an anchor nor a window fails HERE, by name, rather than being
     silently skipped — which is the direction this file wants to fail in.
+
+    ⭐⭐ AND A PERIOD BESIDE AN ANCHOR IS A REACH FROM THAT ANCHOR, NOT A ROLLING
+    WINDOW — derived from the roles rather than from a name. `obvN(5)` looks back
+    5 bars from the CURRENT bar, so a small number reaches every bar; but
+    `cumFrom(source, anchorEpoch, maxBars)` counts its 5 forward from the ANCHOR
+    BAR, so on a 120-bar fixture anchored at bar 1 the last 114 bars are legally
+    not computable and the (a) direction below would report the entry
+    unresolvable on bars it can perfectly well compute over. ⚠️ MEASURED, NOT
+    PREDICTED: `cumFrom` landed and this rail went red exactly there. `span` is
+    the fixture's own length, so an anchored entry is handed a reach that covers
+    it — and the hole fixtures are what still put it in a hole.
     """
     out = []
+    anchored = any("anchor" in str(r).lower() for r in spec["argRoles"])
     for i, kind in enumerate(spec["args"]):
         role = str(spec["argRoles"][i]).lower()
         if kind == "series":
@@ -307,7 +319,7 @@ def _args_for(name, spec, anchor_instant):
         elif kind == "int" and "anchor" in role:
             out.append(_num(anchor_instant))
         elif kind == "int":
-            out.append(_num(5))
+            out.append(_num(span if anchored else 5))
         else:                                             # pragma: no cover
             pytest.fail(
                 f"{name} declares argument {i} as {kind!r} (role {role!r}), a "
@@ -374,7 +386,7 @@ def test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST():
     swept = {}
     for name in declared:
         spec = functions[name]
-        node = _call(name, *_args_for(name, spec, anchor))
+        node = _call(name, *_args_for(name, spec, anchor, len(met)))
         tree = _op(">", _series("close"), node)
 
         # (a) the entry CAN compute — so (b) is about the bars, not the fixture.

@@ -1533,6 +1533,130 @@ def _fn_obvn(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
     return out
 
 
+def _fn_cum_from(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
+    """``cumFrom(source, anchorEpoch, maxBars)`` -- a RUNNING TOTAL that is a
+    fact about the market rather than about the fetch.
+
+    ⭐⭐ THE WHOLE RULING IS ``closedTable.json::_functions_cumulative``; this is
+    the half of it that runs. A cumulative sum is fixed only up to an ADDITIVE
+    CONSTANT -- widen the fetch and every value shifts by the same amount -- so
+    the fetch would otherwise be CHOOSING the answer. Naming an absolute anchor
+    takes that choice away from it.
+
+    ⛔ THE TWO REFUSALS ARE ``avwap``'S, AND THAT IS DELIBERATE: this is the same
+    bargain applied to a sum the member names, not a new one. (1) The anchor's
+    boundary must be VISIBLE -- it may not fall before the first fetched bar --
+    else the WHOLE column is not computable, because "the first bar at or after
+    the anchor" would otherwise be whichever bar the caller happened to fetch
+    first. (2) A bar more than ``maxBars`` past the anchor bar is not computable,
+    so ``lookback: "arg2"`` is a TRUE declaration rather than an under-stated one.
+
+    ⭐ AND ``maxBars`` IS AN ORDINARY ``int`` WHERE ``avwap``'S CEILING IS THE
+    SESSION, which is what keeps this composable. ``lookback: "session"`` is the
+    WHOLE budget, so a session-declared version measures 961 for
+    ``cumFrom(sign(change(close)) * volume, t)`` against a cap of 960 -- the
+    anchored on-balance volume, the exact quantity this entry exists to make
+    sayable, refused by the budget. Measured, not predicted: that is why the
+    reach is an argument.
+
+    ⛔ A STORE WHOSE ``ts`` IS A ``YYYYMMDD`` INT ANSWERS NOTHING, AND RULE 1
+    IS WHAT DOES IT rather than a second magnitude guard: those bars all land in
+    1970, strictly before any anchor the floor above accepts, so no bar is ever
+    at or after the anchor. That is the scan lane's ``DEFAULT_TF = "D"`` case,
+    and ``unresolved_inputs`` reports it NAMING ``cumFrom`` instead of letting a
+    comparison launder the hole into a confident 0 (the X23 shape
+    ``_functions_bar_readers`` measures for ``vwap``).
+
+    ⛔ A HOLE IN ``source`` PROPAGATES AND IS STICKY. A total with an unknown
+    term is unknown, and every later total contains that same unknown term -- so
+    this never resumes after one. ``cumFrom(nz(x, 0), anchor, n)`` is how a
+    member says "treat the missing bar as zero", and ``_functions_na`` is the
+    argument for why that choice is theirs and visible rather than ours and
+    silent.
+
+    ⚠️ FIRST BAR READER TAKING A ``series``. ``args[0]`` is the already-evaluated
+    column and ``bars`` is the real bar array -- the call site hands over both,
+    so nothing here reaches for a fabricated ``t``.
+    """
+    src = args[0]
+    anchor = args[1]
+    max_bars = int(args[2])
+    # ⛔ SAME NAMED REFUSAL ``_fn_avwap`` MAKES, AND FOR THE SAME REASON: a
+    # sub-1990 "epoch" is a UNIT ERROR IN THE TREE -- wrong for every symbol, on
+    # every timeframe, forever -- so it is a formula defect, and this lane
+    # refuses a formula defect by name rather than drawing a quiet column.
+    if (isinstance(anchor, (int, float)) and not isinstance(anchor, bool)
+            and anchor < AVWAP_MIN_INSTANT):
+        _refuse("resolve:window",
+                f"— cumFrom argument 1 is {anchor}, which is not a unix-second "
+                f"instant (the floor is {AVWAP_MIN_INSTANT}, 1990-01-01). A "
+                "date-shaped key like 20250101 read as seconds anchors in 1970.")
+    if not bars:
+        return []
+    # ⚠️ THE REFUSALS BELOW ARE DELIBERATELY *NOT* NAMED -- they are facts about
+    # ONE SYMBOL'S BARS, not about the tree, and refusing them by name would make
+    # one short-history symbol reject a formula that is right for the rest of the
+    # universe.
+    #
+    # ⛔⛔ THE ``AVWAP_MIN_INSTANT`` CHECK ON THE BARS STAYS, AND THE ARGUMENT FOR
+    # DELETING IT WAS TRUE OF ONE BAR AND FALSE OF AN ARRAY. ⚰️ THIS SAID a magnitude
+    # check here "could never change an answer", because a ``YYYYMMDD`` int lands in
+    # 1970, strictly before any anchor the floor above accepts, so no bar is ever at
+    # or after it. Every clause of that is true PER BAR and it does not survive a
+    # MIXED-UNIT array. Rule 1 below is ``anchor >= first``, and a date-shaped first
+    # bar (20200101) is NUMERICALLY FAR BELOW the 1990 floor -- so rule 1 PASSES, the
+    # date-shaped bars are skipped one at a time as "before the anchor", and the
+    # epoch-shaped ones accumulate into a total that is finite, plausible, and
+    # MISSING TERMS. That is the one outcome ``_functions_cumulative`` forbids in as
+    # many words: "a level that moved because somebody scrolled is a lie with a
+    # decimal point". A uniformly date-shaped store answers nothing either way, so
+    # the guard changes exactly one case -- and turns it from a quiet wrong number
+    # into an honest hole.
+    # ⚠️ THE MUTATION RUN THAT CLEARED ITS DELETION IS WHY IT IS BACK, NOT WHY IT WENT:
+    # every fixture in both lanes carried ONE unit, so no gate could distinguish the
+    # two behaviours (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). The
+    # mixed-unit case is now a fixture in BOTH lanes, so deleting this goes RED.
+    #
+    # ⭐ THE TYPE CHECK STAYS AND IT REALLY FIRES: a bar carrying no ``t`` at all
+    # would raise from the comparison below, and a walker must answer NOT
+    # COMPUTABLE rather than crash on one bad row.
+    for bar in bars:
+        t = bar.get("t")
+        if isinstance(t, bool) or not isinstance(t, (int, float)):
+            return []
+        if t < AVWAP_MIN_INSTANT:
+            return []
+    first = bars[0]["t"]
+    # ⭐ ``>=``, NOT ``>`` -- an anchor EXACTLY on the first bar is well defined:
+    # any wider fetch adds only bars strictly before it, which this sum excludes
+    # whatever the window is. The same correction ``_fn_avwap`` already carries.
+    if not anchor >= first:
+        return []
+    out: List[MaybeNum] = [None] * len(bars)
+    started = -1
+    running = 0.0
+    broken = False
+    for i, bar in enumerate(bars):
+        if bar["t"] < anchor:
+            continue
+        if started < 0:
+            started = i
+        # ⛔ RULE 2 -- counted from the ANCHOR BAR, never from the front of the
+        # fetch, which is exactly what makes the ceiling land on the same MARKET
+        # bar however many bars the caller brought.
+        if i > started + max_bars:
+            break
+        v = src[i] if src is not None and i < len(src) else NAN
+        if not (_is_number(v) and math.isfinite(float(v))):
+            broken = True
+            continue
+        if broken:
+            continue
+        running += float(v)
+        out[i] = running
+    return out
+
+
 def _aroon_col(bars: List[dict], n: int, field: str, want_max: bool) -> List[MaybeNum]:
     """Chande's Aroon, from the published formula and this table's own arg-extreme.
 
@@ -1615,6 +1739,7 @@ _BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
     "vwap": _fn_vwap,
     "avwap": _fn_avwap,
     "obvN": _fn_obvn,
+    "cumFrom": _fn_cum_from,
     "aroonUp": _fn_aroon_up,
     "aroonDown": _fn_aroon_down,
     "bop": _fn_bop,

@@ -233,13 +233,38 @@ def test_every_UNDECLARED_int_argument_has_a_REASON__a_roster_not_a_count():
     domains = ast_table.arg_domains()
     unaccounted = []
     accounted_by_forward = []
+    excused_by_role = []
     for name, spec in sorted(FUNCTIONS.items()):
         lookback = str(spec.get("lookback"))
         m = ast_interpret._LOOKBACK_RE.fullmatch(lookback)
         if m is None:
             continue
         ceiling = int(m.group(2))
-        others = [i for i in _int_slots(name) if i != ceiling]
+        roles = list(spec.get("argRoles") or ())
+        # ⛔⛔ AN ``int`` IS NOT AUTOMATICALLY A PERIOD, AND THE MANIFEST
+        # ALREADY SAYS WHICH IS WHICH. X41 is a WINDOW that can reach past the
+        # declared one; an ANCHOR is an instant and reaches nowhere by itself.
+        # Reading the declared ROLE is what tells them apart, and it is the
+        # same declaration ``_functions_arg_roles`` already makes for the
+        # translators (*"`period`-suffixed roles mark the `int` slots"*) -- a
+        # read, not a second rule.
+        # ⚠️ THE EXEMPTION IS NOT OPEN-ENDED: ``test_ast_indicators.py``
+        # refuses any ``int`` slot whose role is neither period-suffixed nor
+        # one of the declared non-window roles, so a slot excused here has
+        # been vouched for there.
+        # ⚠️ ``cumFrom(source, anchorEpoch, maxBars)`` is what forced the
+        # question: its reach IS its lookback and its anchor is an instant, so
+        # before this read it was reported as a live X41 for carrying a second
+        # ``int`` -- an over-refusal with the census's own name on it.
+        others = []
+        for i in _int_slots(name):
+            if i == ceiling:
+                continue
+            role = str(roles[i]) if i < len(roles) else ""
+            if role.lower().endswith("period"):
+                others.append(i)
+            else:
+                excused_by_role.append(f"{name} arg {i} ({role or 'no role'})")
         if not others or name in domains:
             continue
         forward = spec.get("forward")
@@ -255,6 +280,10 @@ def test_every_UNDECLARED_int_argument_has_a_REASON__a_roster_not_a_count():
     assert accounted_by_forward, (
         "no entry is excused by its `forward` reach any more — the discriminator "
         "this census rests on is gone, so it now proves nothing")
+    assert excused_by_role, (
+        "no `int` slot is excused for being a non-window role any more — the "
+        "second discriminator this census rests on is gone, so an anchor would "
+        "be reported as a live X41 again")
 
 
 # ═══════════════════════════════════════════════════════════════════════════ #

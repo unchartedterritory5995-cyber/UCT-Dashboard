@@ -180,6 +180,20 @@ const FORMS = [
     name: 'avwap',
     parts: ['the volume-weighted average price accumulated from the first bar at or after epoch ', 0] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
+  // ⭐⭐ THE ANCHORED RUNNING TOTAL (`closedTable.json::_functions_cumulative`).
+  // Hand-typed from the manifest's words like every row above, and NOT ambiguous
+  // with `avwap` even though both end in `bar at or after epoch`: a form's first
+  // literal must match at position 0, and this one opens `the running total of`
+  // where `avwap` opens `the volume-weighted average price accumulated`.
+  //
+  // ⚠️ ITS THIRD SLOT IS A REACH, NOT A WINDOW, and the sentence says so in
+  // those words -- *for at most N bars* rather than *over the last N bars*, which
+  // is `sum`'s phrase and a different quantity. A member reading this back has to
+  // be able to tell a total that GROWS from an anchor apart from one that rolls.
+  { kind: 'call',
+    name: 'cumFrom',
+    parts: ['the running total of ', 0,
+      ' from the first bar at or after epoch ', 1, ', for at most ', 2, ' bars'] },
 
   // ⭐ THE BOUNDED-STATE FIVE (2026-08-26), hand-typed from the manifest's words
   // like every row above — deriving them would make the oracle agree with the
@@ -946,6 +960,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:cos',
       'function:crossOver',
       'function:crossUnder',
+      // ⭐ 96 -> 97: `cumFrom`, the ANCHORED running total. It is a LIST entry
+      // and not a bumped count for exactly the reason above -- this reads as a
+      // cumulative sum arriving, which is a ruling
+      // (`closedTable.json::_functions_cumulative`), not as a number somebody
+      // adjusted.
+      'function:cumFrom',
       'function:dev',
       'function:donchianLower',
       'function:donchianMiddle',
@@ -995,7 +1015,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(96)
+    expect(entries.length).toBe(97)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1005,7 +1025,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(96)
+    expect(subjects.length).toBe(97)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2306,6 +2326,22 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     'hma_period_six_rounds_its_root_up',
     'hma_period_twenty_is_the_common_setting',
     'hma_composes_over_two_fields',
+      // ⭐⭐ THE ANCHORED RUNNING TOTAL (`closedTable.json::_functions_cumulative`).
+      // Eight rows because a cumulative sum has four distinct ways to differ
+      // across the lanes and each is pinned by a TWIN it must disagree with: the
+      // anchor boundary from both sides one second apart, the declared reach
+      // (same source and anchor, one shorter), and a sticky hole against its own
+      // `nz`. `_the_anchored_obv_the_exclusion_refuses` is the row the entry
+      // exists for -- the quantity `_functions_excluded.obv` and
+      // `_functions_excluded.cum` both point at, finally sayable.
+      'cumFrom_volume_from_a_mid_series_instant',
+      'cumFrom_stops_at_the_window_it_declares',
+      'cumFrom_the_anchored_obv_the_exclusion_refuses',
+      'cumFrom_of_a_computed_signed_source',
+      'cumFrom_anchor_before_the_series_is_not_computable',
+      'cumFrom_anchored_on_the_very_first_bar',
+      'cumFrom_a_hole_in_the_source_is_sticky',
+      'cumFrom_the_member_fills_the_hole_and_it_totals',
     ])
   })
 
@@ -2348,7 +2384,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 96)
+    expect(sentences.length).toBe(CORPUS.cases.length + 97)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

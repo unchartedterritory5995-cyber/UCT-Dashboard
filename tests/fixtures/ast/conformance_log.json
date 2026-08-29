@@ -36,6 +36,14 @@
     "cos_of_close": "c8e179e08c4ce6530d8270b417e93d05578fcc4a328ff8985788bbc1176dd41a",
     "cross": "5eb2c225179737b4c8b7e631d0c7eee4f3db7033a93af6dbf7190bdaf40da53e",
     "cross_under": "74e2b6026341b3c188dd7cd3346d7b6c29072e1a984b576fda3cfa15f683e556",
+    "cumFrom_a_hole_in_the_source_is_sticky": "854784556473da9f7d37fe6dc466d25b61dc47187353144785baa5774156a74c",
+    "cumFrom_anchor_before_the_series_is_not_computable": "e03a3256f9a8f9ccee14378678e33c324478d1ec9e3395815cd1ef3bf3252c0e",
+    "cumFrom_anchored_on_the_very_first_bar": "289959c3564fa1dbf7c7a360e8d904a1dc5fcf3abd294a9bca44279d9c45458f",
+    "cumFrom_of_a_computed_signed_source": "8b4dd1ba02515469f5ac7de3dbf62f379bb24cb011dff0f98e7a21fe5ff113f2",
+    "cumFrom_stops_at_the_window_it_declares": "e61a2d76b809ad336445c3d262ee1a6db8819fda472f56f694e72b362cbd1dd5",
+    "cumFrom_the_anchored_obv_the_exclusion_refuses": "e70282292b1d6c88fd28d5e20b988064abf2a9c60998157c311b975fd83a728d",
+    "cumFrom_the_member_fills_the_hole_and_it_totals": "b31a715d366da5512c21fd9113b17b1eb3af7f03ac4a80e4e18481e525527837",
+    "cumFrom_volume_from_a_mid_series_instant": "ce0a01739f6a96dac8dc41ff4dbe3ace46058d88810b30240897bc4d664c0d96",
     "deep_nest": "d8205e3a9ca12da9532dbfcbc892192b26d9270dbec65b268aaad20a265e0883",
     "dev_is_not_stdev": "f8ff1f9d3e8ec819aa14e8699a9ee7af5fc6149abe29503984233728819baee7",
     "dev_of_close": "3dcfba9d5e4b6dbd43e198cbba0e54b5bf99eebe1d0f15e14caca96364a8b121",
@@ -297,6 +305,21 @@
       "at_head": "cc37d526242330453823ae3ade15d5842a6fb088",
       "moved": [],
       "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 6 added, 0 removed` with `non-vacuity : 68374 finite of 78744 rows, every case non-empty, 96 table entries covered`; `--check` green afterwards at 136 asts x 579 bars, and `--coverage` reports 96 declared entries ALL COVERED. ⭐ ZERO MOVED IS THE HALF THAT MATTERS: `hma` is built from `wma` three times, so an edit that touched the shared `wma`/`rolling`/`windowWeightedMean` path while adding it would have moved `pine_wma_weights_the_recent_bar_most` and every other rolling digest — none moved, so the new function composes the existing one rather than forking it. ⚠️ The six cases were chosen to separate the two DERIVED windows: 9 gives floor(4.5)=4 and round(3)=3, 6 gives 3 and 2 (so a lane that swapped them differs), 1 is the clamp where floor(1/2)=0 is not a window, and 20 is long enough that the warm-up hole is visible in both lanes."
+    },
+    {
+      "added": [
+        "cumFrom_volume_from_a_mid_series_instant",
+        "cumFrom_stops_at_the_window_it_declares",
+        "cumFrom_the_anchored_obv_the_exclusion_refuses",
+        "cumFrom_of_a_computed_signed_source",
+        "cumFrom_anchor_before_the_series_is_not_computable",
+        "cumFrom_anchored_on_the_very_first_bar",
+        "cumFrom_a_hole_in_the_source_is_sticky",
+        "cumFrom_the_member_fills_the_hole_and_it_totals"
+      ],
+      "at_head": "c3c3838addef375185dcf408f2f1899a2a16b8e0",
+      "moved": [],
+      "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 8 added, 0 removed` with `non-vacuity : 70636 finite of 83376 rows, every case non-empty, 97 table entries covered`; `--check` green afterwards at 144 asts x 579 bars, and `--coverage` reports 97 declared entries ALL COVERED. ⭐ ZERO MOVED IS THE HALF THAT MATTERS: `cumFrom` is the FIRST `reads: \"bars\"` entry that also takes a `series`, so it exercises the call-site seam where a bar reader's non-`int` slots are evaluated to COLUMNS before dispatch — an edit that changed that seam while adding it would have moved `vwap`, `avwap`, `obvN`, `aroonUp`, `aroonDown` and `bop`. None moved, so the seam was already general and this entry only used it. ⭐ THE EIGHT CASES SEPARATE EVERY WAY THE TWO LANES COULD SILENTLY DIFFER, AND EACH ONE HAS A TWIN IT MUST DISAGREE WITH. The anchor boundary is pinned from BOTH sides one second apart (`_anchored_on_the_very_first_bar` totals from bar 0 where `_anchor_before_the_series_is_not_computable` is blank on every bar). The declared reach is pinned by two rows that share a source and an anchor and differ only in it (`_volume_from_a_mid_series_instant` runs to bar 578; `_stops_at_the_window_it_declares` stops at 389), so a lane that ignored the argument cannot pass both. The sticky hole is measured with a FINITE PREFIX (172 exact bars, then 407 blank) rather than an all-NaN column, because only that shape tells stickiness from plain propagation -- and it is the one case a MUTATION run corrected: an earlier draft anchored where the source never recovers, so deleting the stickiness guard in EITHER lane left the digest unmoved. Re-anchored on bar 0, where `ln(105 - close)` holes at 172 and RECOVERS at 193, it catches both. Its `nz` twin is finite over the same bars. ⭐⭐ AND `_the_anchored_obv_the_exclusion_refuses` IS THE ROW THE WHOLE ENTRY EXISTS FOR: `sign(change(close)) * volume` accumulated from an instant is the quantity `_functions_excluded.obv` and `_functions_excluded.cum` both point at, and it measures 251 against the budget where a `lookback: \"session\"` version would have measured 961 against a cap of 960 and been refused — which is the measurement that turned the reach from the session into an argument."
     }
   ]
 }
