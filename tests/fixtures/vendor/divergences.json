@@ -1,0 +1,108 @@
+{
+  "_": "NAMED, DELIBERATE-OR-SUSPECTED DIFFERENCES BETWEEN THIS ENGINE AND A VENDOR. Read tests/fixtures/vendor/README.md first. A row here is what lets `tools/vendor_truth.py` say 'this delta is EXPLAINED' instead of 'this delta is a bug' — so a row that is wrong is worse than no row at all, because it launders a real defect into an expected one.",
+  "_status_vocabulary": {
+    "suspected": "DERIVED FROM OUR CODE, NOT YET MEASURED AGAINST THE VENDOR. We can state exactly what WE do, and we have a documented reason to believe the vendor does otherwise — but nobody has read the vendor's number. ⛔ A `suspected` row NEVER explains a delta: `vendor_truth.py` counts a delta matching one as UNEXPLAINED-BUT-ANTICIPATED and still reports it, because an unmeasured belief that silences a measurement is the exact defect this directory exists to prevent.",
+    "confirmed": "MEASURED. An observation in `observations/` exhibits this delta and its `explains` names this row. Only a `confirmed` row may explain a delta.",
+    "refuted": "MEASURED, AND WE MATCH THE VENDOR AFTER ALL. Kept rather than deleted — a retired suspicion is the cheapest thing to re-suspect, and the next reader deserves to know it was checked. Carries `refutedBy`.",
+    "accepted": "CONFIRMED, AND WE ARE KEEPING OUR BEHAVIOUR ON PURPOSE. Requires `decision` — who ruled, when, and why. This is the row type that MUST reach a member: an accepted divergence is a sentence the product owes whoever pasted the script.",
+    "spec-falsified": "MEASURED AGAINST THE VENDOR'S PUBLISHED DEFINITION and found to differ, by `tools/vendor_spec_probes.py`. Stronger than `suspected` (a number was computed, not a belief stated) and weaker than `confirmed` (nobody has read the vendor's SCREEN, and prose can be incomplete). ⛔ It still may not explain a delta in `vendor_truth.py` — the asymmetry is deliberate: a falsified spec probe says we are probably wrong, which is a reason to FIX, never a reason to expect."
+  },
+  "_probe_rule": "⛔ EVERY ROW CARRIES A `probe` THAT DISCRIMINATES. The probe describes a case whose VALUE DIFFERS under the two conventions, with the two answers named. A row whose probe cannot distinguish the conventions is a description of nothing — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — and `test_vendor_truth.py` refuses a row that does not carry both answers.",
+  "rows": [
+    {
+      "id": "atr-tr-starts-at-bar-1",
+      "shape": "seeded",
+      "status": "spec-falsified",
+      "confidence": "measured",
+      "ours": "True Range is defined from bar 1 — `compute_atr_raw` loops `for i in range(1, n)`, so bar 0 contributes NO TR. The seed is the simple mean of the first `period` TRs (i.e. TR of bars 1..period) and lands on `bars[period]`.",
+      "theirs": "Pine's `ta.atr(length)` is documented as `ta.rma(ta.tr(true), length)`, and `ta.tr(true)` DEFINES bar 0 as `high - low` rather than leaving it `na`. Their TR array therefore starts one bar earlier and contains one value ours does not.",
+      "why_it_matters": "Two differences compose: the seed is the mean of a DIFFERENT SET of true ranges, and it lands one bar EARLIER. Wilder smoothing decays a seed difference rather than erasing it, so the delta is largest at the left edge and shrinks rightward — which means a fixture window chosen too far right will show agreement that is not there. ⚠️ ATR is an input to stops, position sizing and supertrend, so an early-bars delta propagates into a LATCHING difference wherever it feeds a state machine.",
+      "code": "api/services/indicator_compute.py:592-615 (compute_atr_raw); the JS twin is `computeATR`",
+      "probe": {
+        "case": "ATR(14) on the FIRST 20 bars of a series, read at bar 14 and bar 15",
+        "under_ours": "bar 14 is the first non-empty value, and it is mean(TR[1..14])",
+        "under_theirs": "bar 13 is the first non-empty value, and it is mean(TR[0..13]) where TR[0] = high[0] - low[0]",
+        "discriminates": "the two conventions disagree about WHICH BAR first carries a value, which is visible without comparing any float at all — and then about the value itself"
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "tools/vendor_spec_probes.py::probe_atr, 2026-08-29",
+        "alignment": "our first value lands on bar 14; the published definition's on bar 13 — ONE BAR LATE, on every series, forever",
+        "our_first_value": 2.7735031382965576,
+        "spec_first_value": 2.809217424010843,
+        "worst_abs_delta": 0.006484469714,
+        "shared_bars_compared": 66,
+        "calibration": "⭐ THE SAME RUN AGREED ON THREE OTHER PROBES — `sma(close,20)` to 4.3e-14, `ema(close,10)` to 0, `rma(close,14)` to 9.9e-14. That is what makes this finding credible rather than an artefact: the instrument that reports ATR wrong reports the smoother it is built on RIGHT, so the disagreement is in the true-range half and not in the harness."
+      }
+    },
+    {
+      "id": "smoother-seeds-with-sma-of-first-window",
+      "shape": "seeded",
+      "status": "refuted",
+      "confidence": "medium",
+      "ours": "`_smooth_col` accumulates until it has `n` finite values, then seeds `prev = total / n` — the SMA of the first full window — and emits its first value AT that bar. `ema` passes alpha = 2/(n+1), `rma` passes 1/n; both share the seed by construction.",
+      "theirs": "TradingView documents `ta.ema` as seeded from `ta.sma(source, length)`, which we believe MATCHES. Recorded anyway because the belief is documentation-derived and untested, and because the seeding rule is the single highest-leverage unmeasured decision in the engine: an engine seeded with the first close instead of the window SMA produces a curve that converges to ours and is wrong forever at the left edge.",
+      "why_it_matters": "If this is wrong, EVERY `ema`, `rma`, `rsi`, `atr`, `adx` and anything composed from them is wrong at the left edge, and all of them decay toward agreement — so the error is invisible in any fixture window that starts late. This is the divergence most likely to be missed by a careless harness.",
+      "code": "api/services/ast_interpret.py:657-690 (_smooth_col); interpret.js::emaCol",
+      "probe": {
+        "case": "EMA(10) read at the bar where it FIRST becomes non-empty",
+        "under_ours": "the first value equals the arithmetic mean of the first 10 closes, exactly",
+        "under_theirs_if_different": "a first-close seed would make the first emitted value equal `close[0]` smoothed 9 times toward the later closes — a different number, and a different first bar",
+        "discriminates": "the first emitted value is a pure function of the seeding rule, so one float at one bar separates the conventions"
+      },
+      "observation_ids": [],
+      "refutedBy": "tools/vendor_spec_probes.py::probe_ema and ::probe_rma, 2026-08-29. An independent implementation of TradingView's published seeding (SMA of the first `length` values, first value on bar `length - 1`) agrees with ours to 0 and 9.9e-14 respectively, on the same 80-bar series, with matching first bars. ⭐ KEPT RATHER THAN DELETED: this was the highest-leverage unmeasured decision in the engine, and the next reader deserves to know it was checked rather than re-suspect it. ⚠ The check is against their PROSE, not their screen — a real observation could still surprise us."
+    },
+    {
+      "id": "nan-restarts-the-smoother",
+      "shape": "seeded",
+      "status": "suspected",
+      "confidence": "medium",
+      "ours": "A non-finite input RESETS the smoother — `prev, count, total = NAN, 0, 0.0` — so the series re-seeds after a hole rather than carrying state across it. The docblock argues this: an EMA that carried state across a hole would report an average over bars it never saw.",
+      "theirs": "UNKNOWN, AND THIS IS THE HONEST ENTRY IN THIS FILE. Pine's `na` handling inside `ta.*` smoothers is not stated precisely enough in the docs to derive, and Pine's own `na`-propagation rules differ between the `ta.` builtins and hand-written recurrences.",
+      "why_it_matters": "It is reachable from a composed series — `ema(sma(close,20), 9)` has a 19-bar hole by construction, which is the warm-up of the inner window, so EVERY composed smoother in the product meets this rule on its left edge.",
+      "code": "api/services/ast_interpret.py:678-680",
+      "probe": {
+        "case": "EMA(5) over a series with one `na` planted in the middle",
+        "under_ours": "the output is empty for 4 bars after the hole, then restarts from a fresh window SMA",
+        "under_carry_state": "the output continues on the next finite bar with no gap, from the pre-hole state",
+        "discriminates": "the COUNT of empty bars after the hole differs (4 vs 0), which is countable rather than compared"
+      },
+      "observation_ids": []
+    },
+    {
+      "id": "mod-takes-the-sign-of-the-dividend",
+      "shape": "stateless",
+      "status": "suspected",
+      "confidence": "low",
+      "ours": "`x - y * trunc(x / y)` in both lanes — truncated division, so the result carries the sign of the DIVIDEND: `mod(-7, 3)` is -1, not 2.",
+      "theirs": "TradingView's own operator page warns that `%` on negatives may differ from other languages, which is a warning rather than a specification. Low confidence in both directions until measured.",
+      "why_it_matters": "Narrow: it is only reachable on a negative dividend, and most indicator arithmetic is on prices. Recorded because it is cheap to check once a chart is open, and because a `%` divergence is the kind that produces an occasional wrong bar rather than a wrong curve — the hardest kind to notice.",
+      "code": "app/src/components/chart/engine/ast/interpret.js:912-915; api/services/ast_interpret.py::_guarded_mod",
+      "probe": {
+        "case": "`mod(close - open, 3)` on a bar where `close < open`",
+        "under_ours": "a NEGATIVE result",
+        "under_floored_division": "a POSITIVE result in [0, 3)",
+        "discriminates": "the SIGN differs, which is visible at a glance and cannot be a rounding artefact"
+      },
+      "observation_ids": []
+    },
+    {
+      "id": "hull-half-window-floors",
+      "shape": "stateless",
+      "status": "confirmed",
+      "confidence": "high",
+      "ours": "`hma(src, n)` uses `floor(n / 2)` for the half-window and `round(sqrt(n))` for the smoothing window, each clamped at 1.",
+      "theirs": "TradingView's `ta.hma` restates Alan Hull's published definition, which is the same `floor(n / 2)`. WE MATCH — this row is `confirmed` as AGREEMENT, and it is here because the agreement was nearly broken by our own refusal advice.",
+      "why_it_matters": "⚰️ `pine.js::fractionalWindowAdvice` told members to write `round(n * 1/2)`, which is 28 where `hma(close, 55)` uses 27 — measured 0.636 apart over 140 bars. A member following our own advice built a different indicator under the same name. Fixed 2026-08-29 (`ba78a1e27`), railed by `pine.windowAdvice.test.js`, which MEASURES the two expansions against `hma` rather than reading the sentence.",
+      "code": "closedTable.json::_functions_hull; interpret.js `Math.max(1, Math.floor(n / 2))`; ast_interpret.py `max(1, int(n) // 2)`",
+      "probe": {
+        "case": "`hma(close, 55)` against its two hand expansions",
+        "under_ours": "identical to `wma(2*wma(close,27) - wma(close,55), 7)` to within 1e-9",
+        "under_round": "differs from `wma(2*wma(close,28) - wma(close,55), 7)` by up to 0.636 on the same series",
+        "discriminates": "measured in `pine.windowAdvice.test.js`, with the second assertion as the control that makes the first mean something"
+      },
+      "observation_ids": []
+    }
+  ]
+}
