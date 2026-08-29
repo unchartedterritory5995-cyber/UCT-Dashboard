@@ -48,12 +48,11 @@ def list_user_watchlists(user_id: str) -> list[dict]:
             "SELECT * FROM watchlists WHERE user_id = ? AND (is_flagged_list = 0 OR is_flagged_list IS NULL) ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
+        results = [dict(r) for r in rows]
+        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        for wl in results:
+            wl["items"] = items_by_list.get(wl["id"], [])
             wl["item_count"] = len(wl["items"])
-            results.append(wl)
         return results
     finally:
         conn.close()
@@ -69,13 +68,13 @@ def list_public_watchlists(limit: int = 50) -> list[dict]:
             "ORDER BY updated_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
+        results = [dict(r) for r in rows]
+        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        names_by_user = _get_display_names_bulk(conn, [wl["user_id"] for wl in results])
+        for wl in results:
+            wl["items"] = items_by_list.get(wl["id"], [])
             wl["item_count"] = len(wl["items"])
-            wl["owner_name"] = _get_display_name(conn, wl["user_id"])
-            results.append(wl)
+            wl["owner_name"] = names_by_user.get(wl["user_id"], "Unknown")
         return results
     finally:
         conn.close()
@@ -89,13 +88,13 @@ def list_prebuilt_watchlists(limit: int = 50) -> list[dict]:
         rows = conn.execute(
             "SELECT * FROM watchlists WHERE is_prebuilt = 1 ORDER BY name ASC LIMIT ?", (limit,)
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
+        results = [dict(r) for r in rows]
+        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        names_by_user = _get_display_names_bulk(conn, [wl["user_id"] for wl in results])
+        for wl in results:
+            wl["items"] = items_by_list.get(wl["id"], [])
             wl["item_count"] = len(wl["items"])
-            wl["owner_name"] = _get_display_name(conn, wl["user_id"])
-            results.append(wl)
+            wl["owner_name"] = names_by_user.get(wl["user_id"], "Unknown")
         return results
     finally:
         conn.close()
@@ -384,6 +383,67 @@ def _get_items(conn, wl_id: str) -> list[dict]:
         "SELECT * FROM watchlist_items WHERE watchlist_id = ? ORDER BY sort_order ASC, added_at DESC", (wl_id,)
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# Chunked so a caller with many lists can never build a statement past SQLite's
+# variable ceiling (SQLITE_MAX_VARIABLE_NUMBER — 999 on older builds).
+_ITEMS_CHUNK = 400
+
+
+def _get_items_bulk(conn, wl_ids: list[str]) -> dict[str, list[dict]]:
+    """Every list's items in ONE query per chunk, grouped by watchlist_id.
+
+    ⛔ The three list_* functions below called `_get_items` INSIDE their row loop —
+    a textbook N+1. auth.db lives on a Railway NETWORK volume, so each of those
+    round-trips paid real I/O latency rather than a local page read, and a member
+    with many lists turned one page load into thousands of them: `GET /api/watchlists`
+    measured 7.6-8.4 s on prod 2026-08-29, on the APP-SHELL path that every page
+    hits. Same rows, same order, one query.
+
+    Ordering is IDENTICAL to `_get_items` (sort_order ASC, added_at DESC) and is
+    applied by SQLite over the whole result, so each per-list slice comes back in
+    the order that function would have produced. A list with no items is absent
+    from the map — callers must default to [], exactly as an empty fetchall did.
+    """
+    out: dict[str, list[dict]] = {}
+    if not wl_ids:
+        return out
+    for i in range(0, len(wl_ids), _ITEMS_CHUNK):
+        chunk = wl_ids[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT * FROM watchlist_items WHERE watchlist_id IN ({placeholders}) "
+            "ORDER BY sort_order ASC, added_at DESC",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            d = dict(r)
+            out.setdefault(d["watchlist_id"], []).append(d)
+    return out
+
+
+def _get_display_names_bulk(conn, user_ids: list[str]) -> dict[str, str]:
+    """Owner names for many lists in one query per chunk.
+
+    Same second-N+1 as `_get_items_bulk` addresses: the community/prebuilt lists
+    called `_get_display_name` per ROW. Resolution matches `_get_display_name`
+    exactly (display_name, else the email local-part); a missing user is absent
+    from the map and callers fall back to "Unknown", as that function returns.
+    """
+    out: dict[str, str] = {}
+    uniq = list({u for u in user_ids if u})
+    if not uniq:
+        return out
+    for i in range(0, len(uniq), _ITEMS_CHUNK):
+        chunk = uniq[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, display_name, email FROM users WHERE id IN ({placeholders})",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            out[r["id"]] = r["display_name"] or (r["email"] or "").split("@")[0]
+    return out
 
 
 def _get_display_name(conn, user_id: str) -> str:

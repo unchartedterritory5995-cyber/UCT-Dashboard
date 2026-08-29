@@ -1375,10 +1375,33 @@ def _ctx_uct20() -> str:
 
 
 def _ctx_candidates() -> str:
+    """The 7 AM pre-market setup scan (`scanner_candidates.py` → the wire push).
+
+    ⛔ THE BUCKETS ARE NESTED AND THE SYMBOL KEY IS `ticker`. This read used to
+    ask `c.get("pullback_ma")` at the TOP level and pull `x["sym"]`, and
+    `get_candidates()` answers neither — it returns
+    `{generated_at, counts, candidates: {pullback_ma: [{ticker: ...}]}}`. So
+    both names came back empty, the `not pb and not rm` guard fired, and this
+    pack contributed NOTHING to any answer it was routed onto. It read as a
+    quiet market rather than as a wrong key, which is why it survived: the whole
+    failure is a bare `""`, and both tests that touch `_ctx_candidates`
+    monkeypatch it, so the suite could not see the shape at all
+    (`tests/test_ai_search_candidates_ctx.py` is the one that does).
+
+    `voice_market_tools.get_scanner_candidates` already read the true shape —
+    this is the second reader of one payload agreeing with the first, not a new
+    opinion about it.
+    """
     from api.services.engine import get_candidates
-    c = get_candidates() or {}
-    pb = ", ".join(x.get("sym", "") for x in (c.get("pullback_ma") or c.get("pullback") or [])[:5])
-    rm = ", ".join(x.get("sym", "") for x in (c.get("remount") or [])[:5])
+    buckets = (get_candidates() or {}).get("candidates") or {}
+
+    def _syms(key: str) -> str:
+        rows = buckets.get(key) or []
+        return ", ".join(
+            (r.get("ticker") or r.get("sym") or "") for r in rows[:5] if isinstance(r, dict)
+        ).strip(", ")
+
+    pb, rm = _syms("pullback_ma"), _syms("remount")
     if not pb and not rm:
         return ""
     return f"UCT scanner candidates today: pullbacks — {pb or 'none'}; remounts — {rm or 'none'}"

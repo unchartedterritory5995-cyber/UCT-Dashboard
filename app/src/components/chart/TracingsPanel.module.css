@@ -29,18 +29,21 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--menu-text-muted, #6b7280);
+  /* Exact match to the favorite-tools menu's muted labels/icons: --menu-text at 0.45. */
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.45;
 }
 .close {
   background: none;
   border: none;
-  color: var(--menu-text-muted, #6b7280);
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.45;
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
   padding: 2px 4px;
 }
-.close:hover { color: var(--menu-text, #e8eaed); }
+.close:hover { opacity: 1; }
 
 .list {
   overflow-y: auto;
@@ -87,9 +90,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* 2px right pad so an italic placeholder's trailing glyph (e.g. the "2" in
+     "Board 2") isn't shaved by overflow:hidden. */
+  padding-right: 2px;
   color: var(--menu-text, #e8eaed);
 }
-.namePlaceholder { color: var(--menu-text-muted, #6b7280); font-style: italic; }
+.namePlaceholder { color: var(--menu-text, #e8eaed); opacity: 0.45; font-style: italic; }
 .nameInput {
   flex: 1;
   min-width: 0;
@@ -103,25 +109,55 @@
 }
 .nameInput:focus { border-color: rgba(201, 168, 76, 0.6); }
 
+/* trailing controls grouped tight so the board name gets the width */
+.actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .count {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: var(--menu-text-muted, #6b7280);
+  padding-right: 2px;
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.45;
 }
 
+/* pencil (rename) + trash share the favorite-menu muted treatment */
+.edit,
 .del {
   flex: 0 0 auto;
   background: none;
   border: none;
-  color: var(--menu-text-muted, #6b7280);
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.45;
   cursor: pointer;
   padding: 3px;
   border-radius: 5px;
   display: inline-flex;
 }
-.del:hover:not(:disabled) { color: var(--color-danger, #e06666); }
-.del:disabled { opacity: 0.32; cursor: default; }
+.edit:hover { opacity: 1; }
+.del:hover:not(:disabled) { opacity: 1; color: var(--color-danger, #e06666); }
+.del:disabled { opacity: 0.2; cursor: default; }
+
+/* inline delete confirm — a small ✓ (danger) + ✕ (cancel), no browser dialog */
+.confirmDel,
+.cancelDel {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  display: inline-flex;
+}
+.confirmDel { color: var(--color-danger, #e06666); }
+.confirmDel:hover { background: rgba(224, 102, 102, 0.14); }
+.cancelDel { color: var(--menu-text, #e8eaed); opacity: 0.45; }
+.cancelDel:hover { opacity: 1; }
 
 /* New board — a final menu-style row, not a heavy button */
 .newRow {
