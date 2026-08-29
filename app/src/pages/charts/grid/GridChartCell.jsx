@@ -199,7 +199,8 @@ function GridChartCell({
     // focus wrapper — typing while it has focus must jump options natively,
     // never hijack into type-to-search.
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.tagName === 'SELECT' || tgt.isContentEditable)) return
-    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // ⛔ `!e.repeat`: a held chord auto-repeats ~30x/sec and this is a TOGGLE.
+    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
       if (!sym) return   // empty cell: flagging null would poison the Flagged list
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)

@@ -575,7 +575,8 @@ function ChartPane({
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
     // Shift+F flags the chart's current ticker — works even while interacting with
     // the chart. stopPropagation so it doesn't also fire the theme widget's Shift+F.
-    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    // ⛔ `!e.repeat`: a held chord auto-repeats ~30x/sec and this is a TOGGLE.
+    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) {
       e.preventDefault(); e.stopPropagation()
       const willFlag = !isFlagged(sym)
       toggleFlag(sym)
