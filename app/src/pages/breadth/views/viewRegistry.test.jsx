@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
+
+// echarts-for-react renders a canvas in jsdom; stub it (same shape as
+// TreemapView.test.jsx — the one board view that actually uses it) so the
+// rail's real-component renders stay pristine instead of logging ECharts'
+// "can't get DOM width/height" warning for a 0×0 jsdom container.
+vi.mock('echarts-for-react', () => ({
+  default: ({ option }) => <div data-testid="echart" data-series={JSON.stringify(option?.series?.length ?? 0)} />,
+}))
+
 import { STYLES, VIEW_CONFIG, optionDefaults } from './viewMetricConfig'
 import { VIEW_COMPONENTS, viewsByKind } from './viewRegistry'
 import { HM_METRICS } from '../heatmapMetrics'
