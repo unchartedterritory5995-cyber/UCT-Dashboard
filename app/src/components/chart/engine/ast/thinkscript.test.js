@@ -1627,15 +1627,23 @@ describe('MovingAverage — the enum dispatch, on thinkorswim`s own five constan
     expect(f('MovingAverage(AverageType.SIMPLE, close)')).toBe('sma(close, 12)')
   })
 
-  it('⛔ HULL refuses — this engine declares no `hma`, MEASURED not assumed', () => {
-    const r = translateThinkScript('plot p = MovingAverage(AverageType.HULL, close, 10);\n').refusal
-    expect(r.guard).toBe('thinkscript:function')
-    expect(r.message).toMatch(/HULL/i)
-    // ⭐ AND IT IS DERIVED: the day `hma` lands in the manifest this refusal must
-    // stop, with no edit in `thinkscript.js`. The arm maps to the NAME `hma`, and
-    // `engineCall`'s table lookup is what refuses.
-    expect(Object.keys(TABLE.functions)).not.toContain('hma')
-    expect(r.message).toContain('hma')
+  it('⭐⭐ HULL TRANSLATES — the refusal predicted its own end, and this is it', () => {
+    // ⚰️ THIS TEST PINNED THE REFUSAL AND WROTE DOWN WHAT WOULD RETIRE IT: "the
+    // day `hma` lands in the manifest this refusal must stop, WITH NO EDIT IN
+    // `thinkscript.js`." `hma` landed. `thinkscript.js` was not edited for it —
+    // `TS_AVERAGE_TYPES` had mapped the arm to the NAME `hma` all along and
+    // `engineCall`'s table lookup was what refused, so declaring the function was
+    // the whole change.
+    // ⭐ A REFUSAL THAT NAMES ITS OWN UNBLOCKER IS WORTH MORE THAN ONE THAT
+    // APOLOGISES, and this is the receipt for that claim rather than a slogan.
+    expect(Object.keys(TABLE.functions)).toContain('hma')
+    expect(translateThinkScript('plot p = MovingAverage(AverageType.HULL, close, 10);\n')
+      .outputs[0].formula).toBe('hma(close, 10)')
+    // ⛔ AND THE MECHANISM IS UNCHANGED, which is what stops this reading as a
+    // special case: an arm whose engine name the table does NOT declare still
+    // refuses, by name, through the same lookup.
+    const r = translateThinkScript('plot p = MovingAverage(AverageType.TRIANGULAR, close, 10);\n').refusal
+    expect(r.guard).toBe('thinkscript:enum-arm')
   })
 
   it('⭐ an averageType that is a FOLDED INPUT dispatches on the folded value', () => {
@@ -2241,26 +2249,26 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
 
     // ⭐ SO THE DERIVED CLAIM IS MADE THE SAFE WAY, AND IT IS STILL MEASURED: a
     // MAPPED identity names a table KEY and looks it up at call time, so a
-    // manifest that gains `hma` makes `AverageType.HULL` translate with no edit
-    // in `thinkscript.js`.
-    const withHull = {
-      ...TABLE,
-      functions: {
-        ...TABLE.functions,
-        hma: {
-          args: ['series', 'int'], lookback: 'arg1', yields: 'num',
-          argRoles: ['source', 'period'], sentence: 'the {1}-bar Hull average of {0}',
-        },
-      },
-    }
-    const out = translateThinkScript(
-      'plot p = MovingAverage(AverageType.HULL, close, 9);\n', { table: withHull })
-    expect(out.ok).toBe(true)
-    expect(out.outputs[0].formula).toBe('hma(close, 9)')
-    // ⛔ …and the CONTROL: against the shipped manifest the same paste refuses,
-    // so the case above cannot pass for a translator that accepts every name.
-    expect(translateThinkScript('plot p = MovingAverage(AverageType.HULL, close, 9);\n')
-      .refusal.guard).toBe('thinkscript:function')
+    // manifest that gains the key makes the arm translate with no edit here.
+    // ⚰️ THIS PROBE USED `hma`, WHICH THE MANIFEST NOW DECLARES — so the synthetic
+    // stopped being synthetic and the proof stopped proving anything. It is
+    // rebuilt on an arm the table still does not declare. ⭐ The REAL `hma` case
+    // is now a live capability test above, which is the better half of the story:
+    // the prediction this rail encoded actually came true.
+    // ⚰️ THE SYNTHETIC USED TO ADD `hma` TO A COPY OF THE TABLE, and it stopped
+    // measuring anything the day the real manifest gained it. Run the other way it
+    // proves MORE: take the key AWAY and the same paste refuses, put it back —
+    // that is the shipped table — and it translates. One lookup, both directions,
+    // no edit in `thinkscript.js` either way.
+    const src = 'plot p = MovingAverage(AverageType.HULL, close, 9);\n'
+    const withoutHull = { ...TABLE, functions: { ...TABLE.functions } }
+    delete withoutHull.functions.hma
+    const out = translateThinkScript(src, { table: withoutHull })
+    expect(out.refusal.guard).toBe('thinkscript:function')
+    // ⭐ AND IT NAMES THE KEY IT LOOKED FOR, which is what makes the refusal
+    // actionable rather than a shrug about an average type.
+    expect(out.refusal.message).toContain('hma')
+    expect(translateThinkScript(src).outputs[0].formula).toBe('hma(close, 9)')
   })
 
   it('⛔ every name this task looked up and REFUSED is written down, with its reason', () => {
@@ -3100,7 +3108,11 @@ describe('🔴🔴 EVERY DOCUMENTATION-BLOCKED REFUSAL NAMES THE DOCUMENT IT NEE
     const msg = (src) => translateThinkScript(src).refusal.message
     for (const src of ['plot p = Floor(close);\n', 'plot p = HighestAll(high);\n',
       'def s = fold i = 0 to 8 with p do p + close;\nplot q = s;\n',
-      'plot p = MovingAverage(AverageType.HULL, close, 9);\n',
+      // ⚰️ `MovingAverage(AverageType.HULL, …)` WAS ON THIS LIST and is now a
+      // CAPABILITY rather than a capability refusal — the manifest declares `hma`.
+      // It was the right example while it lasted: no page Schwab could publish
+      // would have supplied a function this engine did not have. What supplied it
+      // was declaring it.
       // ⚰️ A LITERAL SYMBOL IS NO LONGER A CAPABILITY REFUSAL AT ALL — it folds
       // to the `sym` node and translates. What remains a capability refusal, and
       // belongs in this list, is a symbol that cannot be reduced to a ticker at

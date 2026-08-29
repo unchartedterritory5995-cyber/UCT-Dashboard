@@ -244,9 +244,15 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # All three are BAR READERS: none names a series, because Aroon is defined on
     # high/low and Balance of Power on all four fields, exactly as `obvN` is
     # defined on close-and-volume. The scalar half is untouched at 111.
-    assert len(ast_table.bar_names()) == 95, len(ast_table.bar_names())
+    # ⭐ 95 -> 96 IS `hma`, AND THE SCALAR HALF IS UNTOUCHED. Alan Hull's average
+    # is `wma` composed three times, so it added no node type, no argument kind and
+    # no lookback form -- it reuses `2*arg1`, the whole-multiple form `adx` needed.
+    # Two doors already asked for the NAME: Pine's `ta.hma` and thinkorswim's
+    # `AverageType.HULL`, the latter derived from this manifest since before the
+    # entry existed, so declaring it was the entire change in both translators.
+    assert len(ast_table.bar_names()) == 96, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 111, len(ast_table.scalar_names())
-    assert len(declared) == 206, f"the table declares {len(declared)} names, not 206"
+    assert len(declared) == 207, f"the table declares {len(declared)} names, not 207"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

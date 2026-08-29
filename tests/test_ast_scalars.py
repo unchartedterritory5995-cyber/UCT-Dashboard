@@ -691,7 +691,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # for being exactly that. Nobody counts the bumps; the two numbers ARE the
     # claim, and git carries the history.
     # 92 -> 95 (2026-08-27): the TC2000 remainder. Scalar half untouched again.
-    assert len(parts["bar"]) == 95 and len(parts["scalar"]) == 111
+    # ⭐ 95 -> 96 IS `hma`, AND THE SCALAR HALF IS UNTOUCHED AT 111 -- which is the
+    # whole reason this assertion has two numbers in it rather than one total.
+    assert len(parts["bar"]) == 96 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

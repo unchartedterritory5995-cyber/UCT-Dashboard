@@ -135,6 +135,11 @@ const FORMS = [
   { kind: 'call', name: 'ema', parts: ['the ', 1, '-bar exponential average of ', 0] },
   { kind: 'call', name: 'stdev', parts: ['the ', 1, '-bar standard deviation of ', 0] },
   { kind: 'call', name: 'sma', parts: ['the ', 1, '-bar average of ', 0] },
+  // ⚠️ `Hull average` MUST NOT READ AS `average` WITH A STRAY WORD IN FRONT.
+  // It does not: `sma`'s chrome is `-bar average of ` and this sentence carries
+  // `-bar Hull average of `, so the two forms cannot both match — and a form only
+  // counts when its OPERANDS parse, which `Hull average of close` never would.
+  { kind: 'call', name: 'hma', parts: ['the ', 1, '-bar Hull average of ', 0] },
   { kind: 'call', name: 'highest', parts: ['the highest ', 0, ' of the last ', 1, ' bars'] },
   { kind: 'call', name: 'lowest', parts: ['the lowest ', 0, ' of the last ', 1, ' bars'] },
   { kind: 'call', name: 'change', parts: ['the bar-over-bar change in ', 0] },
@@ -949,6 +954,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:exp',
       'function:highest',
       'function:highestbars',
+      'function:hma',
       'function:ichimokuChikou',
       'function:ichimokuKijun',
       'function:ichimokuSpanA',
@@ -989,7 +995,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(95)
+    expect(entries.length).toBe(96)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -999,7 +1005,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(95)
+    expect(subjects.length).toBe(96)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2294,6 +2300,12 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // lanes agree on the shape; they are not evidence the guard fires.
       'memo_never_shares_a_self_reading_subtree',
       'memo_shares_a_free_subtree_inside_a_recurrence',
+    'hma_classic_nine',
+    'hma_period_one_is_the_floor_case',
+    'hma_period_two_rounds_its_root_down',
+    'hma_period_six_rounds_its_root_up',
+    'hma_period_twenty_is_the_common_setting',
+    'hma_composes_over_two_fields',
     ])
   })
 
@@ -2336,7 +2348,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 95)
+    expect(sentences.length).toBe(CORPUS.cases.length + 96)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

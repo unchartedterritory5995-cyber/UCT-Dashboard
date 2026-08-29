@@ -698,6 +698,31 @@ def _rma_col(series: Sequence[float], n: int) -> List[float]:
     return _smooth_col(series, n, 1 / n)
 
 
+def _hma_col(series: Sequence[float], n: int) -> List[float]:
+    """Alan Hull's average -- ``wma`` three times, mirroring ``interpret.js::hma``.
+
+    ⛔ ``round(sqrt(n))`` IS WRITTEN OUT AS ``floor(x + 0.5)`` RATHER THAN
+    ``round`` -- Python's ``round`` is banker's rounding, JavaScript's
+    ``Math.round`` rounds half away from zero, and the two disagree exactly on a
+    half.
+
+    ⭐ AND IT IS AN EQUIVALENT MUTANT, RECORDED AS ONE RATHER THAN IMPLIED TO BE
+    A GUARD. The manifest types this argument ``int``, and ``sqrt(m)`` is never a
+    half-integer for a positive integer ``m``: ``(k + 1/2)**2 = k**2 + k + 1/4``
+    is never whole. So no ``n`` a member may write can reach the disagreement, and
+    swapping this back to ``round`` would not redden any test. It stays because it
+    states JavaScript's rule at the seam instead of resting on a proof that stops
+    holding the day the argument stops being an integer -- and saying which of
+    those two it is costs one paragraph.
+    """
+    half = max(1, int(n) // 2)
+    root = max(1, int(math.floor(math.sqrt(float(n)) + 0.5)))
+    near = _rolling(series, half, _window_weighted_mean)
+    full = _rolling(series, n, _window_weighted_mean)
+    raw = [2.0 * a - b for a, b in zip(near, full)]
+    return _rolling(raw, root, _window_weighted_mean)
+
+
 def _window_weighted_mean(series: Sequence[float], lo: int, hi: int) -> float:
     """The linearly weighted mean of ``[lo, hi]`` -- the most recent bar carries
     the most weight.
@@ -1319,6 +1344,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "rma": lambda series, n: _rma_col(series, n),
     "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),
+    "hma": lambda series, n: _hma_col(series, n),
     "sign": lambda series: [_guarded_sign(v) for v in series],
     "round": lambda series: [_guarded_round(v) for v in series],
     "na": lambda series: [_guarded_na(v) for v in series],

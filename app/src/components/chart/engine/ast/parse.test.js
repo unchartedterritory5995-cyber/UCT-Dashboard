@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 62 functions and 111 scalars — 206 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 63 functions and 111 scalars — 207 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -461,7 +461,7 @@ describe('the manifest', () => {
     // series: Aroon is defined on high/low and Balance of Power on all four
     // fields, exactly as `obvN` is defined on close-and-volume. No new node
     // type, argument kind or lookback form.
-    expect(Object.keys(TABLE.functions)).toHaveLength(62)
+    expect(Object.keys(TABLE.functions)).toHaveLength(63)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -529,9 +529,14 @@ describe('the manifest', () => {
     // ⭐ 85 -> 90 IS THE BOUNDED-STATE FIVE. The SCALAR half is untouched at 111.
     // ⭐ 90 -> 92 IS THE PIVOT PAIR. Scalar half untouched at 111.
     // 92 -> 95 IS THE TC2000 REMAINDER. Scalar half untouched at 111.
-    expect(bar.size).toBe(95)
+    // ⭐ 95 -> 96 IS `hma`, AND IT COST THE GRAMMAR NOTHING: Alan Hull's average
+    // is `wma` composed three times, so the node vocabulary is unmoved and every
+    // stored `astHash` with it. Two doors already asked for it by name — Pine's
+    // `ta.hma` and thinkorswim's `AverageType.HULL`, the latter DERIVED from this
+    // table since before the entry existed. Scalar half untouched at 111.
+    expect(bar.size).toBe(96)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(206)
+    expect(declared.size).toBe(207)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

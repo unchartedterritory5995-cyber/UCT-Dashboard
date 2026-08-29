@@ -987,6 +987,20 @@ export const FN = Object.freeze({
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
   rma: (series, n) => rmaCol(series, n),
   wma: (series, n) => rolling(series, n, windowWeightedMean),
+  // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
+  // the manifest carries one period and the member writes one number. Alan Hull's
+  // published definition, restated verbatim by TradingView's `ta.hma`.
+  // ⛔ `floor(n / 2)` AND `round(sqrt(n))`, EACH FLOORED AT 1 — see the manifest's
+  // `_functions_hull`. A window of 0 is not a window, and `hma(close, 1)` is the
+  // case that finds a missing floor.
+  hma: (series, n) => {
+    const half = Math.max(1, Math.floor(n / 2))
+    const root = Math.max(1, Math.round(Math.sqrt(n)))
+    const near = rolling(series, half, windowWeightedMean)
+    const full = rolling(series, n, windowWeightedMean)
+    const raw = near.map((v, i) => 2 * v - full[i])
+    return rolling(raw, root, windowWeightedMean)
+  },
 
   // ── pure math, lifted to columns ─────────────────────────────────────────
   // ⭐ EACH ONE IS THE POINTWISE SCALAR APPLIED PER BAR AND NOTHING ELSE, so the

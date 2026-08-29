@@ -47,6 +47,12 @@
     "exp_overflow": "3d7472a231446fa27716d81eea82d25e33bd6fd0351663c4fbcab647c00a9c4d",
     "float_division": "73cda8db44d16b45d6df5cb11e114bd483d3779a53b1f8184e8ca43b6b7a4c2b",
     "highestbars_the_offset_back_to_the_high": "8424b0cebfbe4437cdc746cbf3c085c0969051f01133f888b57cf234ab926804",
+    "hma_classic_nine": "2d9a822250fcd73f7d0129777f459c929c8e4e00c26dda348fdf87a7a561676c",
+    "hma_composes_over_two_fields": "b9132ae7723ec79c2a73e6820b319312e45dcc8e48d4f7fd4f5deffc05f419e3",
+    "hma_period_one_is_the_floor_case": "d480bf1c50bba884006896396e27d0cc417c0847c1b38a0d9fa48bfce4f603fc",
+    "hma_period_six_rounds_its_root_up": "c4aacd6185ecfbb17f9b5619ffc64b4119f20c91f7b94a9c9b0e00eba75bbe9d",
+    "hma_period_twenty_is_the_common_setting": "54cc946553d059640b4cadd314faee80cb88adfb957b1ce3e4100c9b89c93eb1",
+    "hma_period_two_rounds_its_root_down": "62131c6cbc26b8962a74f29fd500c77b524fcf619bd99e7fdb7e1cc3bbcfcfee",
     "ichimoku_chikou": "96004ec3131f7b937775a18014e70cce082af3ced59ff0a4ced475c0472203e0",
     "ichimoku_kijun": "d5749257d33430cc1a11749e662709d4b09cb938f70d0e8e9d8e0dfd175756da",
     "ichimoku_span_a": "b272b83b024e00b1cbdaa9665bebbffc030d4843fde77c553322c4baa71f8816",
@@ -278,6 +284,19 @@
       "at_head": "6a6606ef09891a19d9d5dcb5fa6453a6de88e18e",
       "moved": [],
       "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 2 added, 0 removed` with `non-vacuity : 55840 finite of 65427 rows, every case non-empty, 95 table entries covered`; `--check` green afterwards at 113 asts x 579 bars. ZERO MOVED matters most: `tf_live` shares the eval arm with `tf` and differs by a single line (bucket `b` vs `b - 1`), so a wrong edit there would have moved the four `tf_*` digests — none did. ⭐ `tf_live_compared_to_the_closed_week` is the case that can DISTINGUISH: it subtracts one node from the other over the same bars, so a lane that had quietly implemented them alike answers a flat zero column. Measured after recording: 386 finite rows, all non-zero (~6.3), in both lanes (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`)."
+    },
+    {
+      "added": [
+        "hma_classic_nine",
+        "hma_period_one_is_the_floor_case",
+        "hma_period_two_rounds_its_root_down",
+        "hma_period_six_rounds_its_root_up",
+        "hma_period_twenty_is_the_common_setting",
+        "hma_composes_over_two_fields"
+      ],
+      "at_head": "cc37d526242330453823ae3ade15d5842a6fb088",
+      "moved": [],
+      "proof": "`--record --force` printed `vs the previous log: 0 MOVED [], 6 added, 0 removed` with `non-vacuity : 68374 finite of 78744 rows, every case non-empty, 96 table entries covered`; `--check` green afterwards at 136 asts x 579 bars, and `--coverage` reports 96 declared entries ALL COVERED. ⭐ ZERO MOVED IS THE HALF THAT MATTERS: `hma` is built from `wma` three times, so an edit that touched the shared `wma`/`rolling`/`windowWeightedMean` path while adding it would have moved `pine_wma_weights_the_recent_bar_most` and every other rolling digest — none moved, so the new function composes the existing one rather than forking it. ⚠️ The six cases were chosen to separate the two DERIVED windows: 9 gives floor(4.5)=4 and round(3)=3, 6 gives 3 and 2 (so a lane that swapped them differs), 1 is the clamp where floor(1/2)=0 is not a window, and 20 is long enough that the warm-up hole is visible in both lanes."
     }
   ]
 }

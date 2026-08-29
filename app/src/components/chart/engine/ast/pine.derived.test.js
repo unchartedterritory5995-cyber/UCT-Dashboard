@@ -139,6 +139,14 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   pointwise math; no sign, no offset, no unit to get wrong.
     sma: 'ta.sma — same window mean', ema: 'ta.ema — same smoother',
     rma: 'ta.rma — Wilder, same', wma: 'ta.wma — same weighting',
+    // ⭐ VETTED AGAINST TRADINGVIEW'S OWN PUBLISHED SOURCE, not against the name.
+    // `ta.hma(_src, _length) => ta.wma(2 * ta.wma(_src, _length / 2) -
+    // ta.wma(_src, _length), math.round(math.sqrt(_length)))`. Three things had to
+    // match and all three do: ARGUMENT ORDER is (source, length) like ours;
+    // `_length / 2` is INT division in Pine, which is our `floor(n / 2)`; and
+    // `math.round` rounds half away from zero, which is our `round(sqrt(n))`
+    // written out as `floor(x + 0.5)` in the Python lane. No sign, no offset.
+    hma: 'ta.hma — same composition of wma, same two derived windows',
     stdev: 'ta.stdev — same population divisor', dev: 'ta.dev — Pine ta.dev IS mean-absolute',
     sum: 'ta.sum — same window sum', change: 'ta.change(src) 1-arg — the n-arg form is refused by arity',
     highest: 'ta.highest — a VALUE, so no offset convention to disagree about',
