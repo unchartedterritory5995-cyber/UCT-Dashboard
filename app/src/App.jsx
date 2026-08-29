@@ -78,7 +78,6 @@ const FormulaReference = lazy(() => import('./pages/formulas/FormulaReference'))
 const AiSearchPage = lazyPage('/ai-search', () => import('./pages/AiSearchPage'))
 const OptionsFlow = lazyPage('/options-flow', () => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazyPage('/flow-scoreboard', () => import('./pages/FlowScoreboard'))
-const LiveFlow = lazyPage('/live-flow', () => import('./pages/LiveFlow'))
 const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlowMassive'))
 const Traders = lazyPage('/traders', () => import('./pages/Traders'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
@@ -451,7 +450,20 @@ export default function App() {
                 <Route path="/options-flow" element={<OptionsFlowRoute />} />
                 {/* Live Flow pages render inside the app shell (left nav) so users
                     can navigate back out — same as every other section. */}
-                <Route path="/live-flow" element={<LiveFlow />} />
+                {/* ⚰️ /live-flow is the BULLFLOW page, and Bullflow is retired
+                    ("live flow is from massive, bullflow is no more" — owner,
+                    2026-07-27). It is not in the nav (which correctly points at
+                    /live-massive), but the route still existed, so a stale
+                    bookmark landed on a page that showed "Connecting to
+                    stream…" forever behind a red SSE 403 — a broken door with
+                    a working one right next to it.
+
+                    Redirect rather than 404: the member wanted live flow, and
+                    live flow exists — it just moved rails. Same idiom as the
+                    /theme-tracker, /watchlists and /multi-chart redirects above.
+                    `LiveFlow.jsx` is kept (unrouted) as rollback backup; full
+                    removal is flow-family work to coordinate with the partner. */}
+                <Route path="/live-flow" element={<Navigate to="/live-massive" replace />} />
                 <Route path="/live-massive" element={<LiveFlowMassive />} />
                 {/* 🔴 RESTORED 2026-08-09. This route redirected to
                     /options-flow?view=scoreboard, which `ed608046` had already

@@ -2889,24 +2889,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] massive_curated_stream start failed: %s", e)
 
-    # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
-    # Previously disabled because the in-process SSE consumer was starving
-    # FastAPI's main event loop (Cloudflare 524s, 19s CSV loads). The fix:
-    # run liveflow_worker.run_forever() inside a dedicated daemon thread with
-    # its own asyncio loop, so httpx SSE reads (timeout=None) can never block
-    # request-handling. See api/liveflow_worker_threaded.py.
-    # If perf regresses (CSV fetch >5s on /options-flow), wrap this block in
-    # `if False:` to disable and ping the dev channel.
-    try:
-        from api import liveflow_worker_threaded
-        liveflow_worker_threaded.start()
-        logging.getLogger(__name__).info(
-            "[startup] liveflow_worker started in isolated thread"
-        )
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            "[startup] failed to start liveflow_worker thread: %s", e
-        )
+    # ⚰️ Live Flow (Bullflow) worker — RETIRED 2026-08-29. DO NOT RE-ENABLE.
+    #
+    # Bullflow is no longer used: "live flow is from massive, bullflow is no
+    # more" (owner, 2026-07-27). The live page is served by an entirely
+    # different rail —
+    #     DEAD:  Bullflow SSE → liveflow_worker → /api/live/alerts/recent → LiveFlow.jsx
+    #     LIVE:  Massive WS  → massive_ws_worker → FlowDB → /api/live/massive/recent
+    #                                                     → LiveFlowMassive.jsx
+    # — which is why disabling this is safe: nothing a member looks at touches it.
+    #
+    # Left running, it dialled a dead endpoint forever on the pod that serves
+    # every member, logging `403 API subscription inactive` every 30 s. That is
+    # not a lapsed account to renew; it is a retired integration with nobody on
+    # the other end. Both prior reads of it (including mine, twice) mistook the
+    # symptom for a billing problem, so the reason is written here rather than
+    # left to be re-derived from the log line.
+    #
+    # ⛔ NOT gated on `BULLFLOW_API_KEY` being unset. That works — `run_forever`
+    # early-returns without a key — but it makes a retired integration's silence
+    # depend on a Railway variable staying absent, and a variable that must stay
+    # unset is not a decision anyone can see in the code.
+    #
+    # `api/liveflow_worker*.py` are KEPT as rollback backup (the trades.py
+    # retirement idiom: stop calling it, delete later). Full removal of the
+    # module + the `/api/live/alerts/*` routes is flow-family work to coordinate
+    # with the partner, not a unilateral deletion.
+    logging.getLogger(__name__).info(
+        "[startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; "
+        "live flow is served by the Massive rail"
+    )
 
     # SQLite integrity: near-instant smoke probe at boot + a rare, DEFERRED full scan.
     #
