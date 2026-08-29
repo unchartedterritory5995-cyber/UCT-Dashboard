@@ -156,6 +156,18 @@ function refuse(guard, detail, index, token) {
 export const PCF_FUSED = Object.freeze({
   AVG:    { spelling: 'AVG<field><period>[.<offset>]',    fn: 'sma',     field: true, params: ['period', 'offset'] },
   XAVG:   { spelling: 'XAVG<field><period>[.<offset>]',   fn: 'ema',     field: true, params: ['period', 'offset'] },
+  // ⭐⭐ `HAVG` IS TC2000'S HULL AVERAGE, AND IT BECAME EXPRESSIBLE ON 2026-08-29.
+  // ⚰️ The section note below still reads "`FAVG`, `HAVG` — two moving averages,
+  // STILL OPEN", and for `HAVG` that stopped being true the moment `hma` was
+  // declared in the manifest — the same day, by a task that never came back here.
+  // That is this repo's most expensive defect shape: a stale sentence in an
+  // artifact a later engineer audits against, telling them not to look.
+  // ⛔ AND IT IS THE SAFE HALF OF THE PAIR, WHICH IS THE POINT. `HAVG` and our
+  // `hma` are the SAME published formula — Alan Hull's, which TradingView also
+  // restates as `ta.hma` — so this is a spelling, not a lookalike. `FAVG` stays
+  // refused because Worden publishes no weighting for it, and guessing one would
+  // be the `MIN`/`lowest` trap this file's header exists to warn about.
+  HAVG:   { spelling: 'HAVG<field><period>[.<offset>]',   fn: 'hma',     field: true, params: ['period', 'offset'] },
   MAX:    { spelling: 'MAX<field><period>[.<offset>]',    fn: 'highest', field: true, params: ['period', 'offset'] },
   MIN:    { spelling: 'MIN<field><period>[.<offset>]',    fn: 'lowest',  field: true, params: ['period', 'offset'] },
   STDDEV: { spelling: 'STDDEV<period>[.<offset>]',        fn: 'stdev',   series: ['close'], params: ['period', 'offset'] },
@@ -240,6 +252,25 @@ export const PCF_FUSED = Object.freeze({
  *  name members trust. That is a refusal to keep, not a backlog item. */
 export const PCF_DIFFERENT_FORMULA = Object.freeze({
   RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
+  // ⚰️ `FAVG` WAS THE ONE REFUSED NAME IN THIS WHOLE READER WITH NO SENTENCE.
+  // Every other name here tells a member what happened and what would change it;
+  // `FAVG(C, 10)` answered only *"this is not a TC2000 name this reader knows"*,
+  // which is indistinguishable from a typo — so a member would retype it, or
+  // conclude the reader is broken. An over-refusal is invisible unless it says
+  // what would change its mind (`lesson_an_over_refusal_is_invisible`).
+  // ⛔ AND IT IS NOT A "DIFFERENT FORMULA" — IT IS AN UNPUBLISHED ONE, which is a
+  // different fact and the sentence says so. `HAVG` sat beside it in the same
+  // sentence ("two moving averages, still open") until 2026-08-29, and the two
+  // parted ways for exactly this reason: Alan Hull PUBLISHED his weighting, so
+  // `HAVG` became a spelling of `hma`; Worden has not published this one, so
+  // fitting weights to the plotted curve would be our number under their name.
+  FAVG:  'the front-weighted average, and Worden publishes no weighting for it — the '
+    + 'syntax table names `FAVG` without saying how the front is weighted, so any '
+    + 'weights this reader chose would be ours wearing their label. TO UNBLOCK: Worden '
+    + 'publishing the arithmetic, the way it already has for the Worden Stochastic '
+    + '(`help.tc2000.com/m/69445/l/755879`). ⭐ The other moving averages DO read: '
+    + '`AVGC10` (simple), `XAVGC10` (exponential) and `HAVGC10` (Hull) are all '
+    + 'published formulas this engine declares',
   // ⭐ CITED, NOT ASSERTED — and the citation is what makes the refusal actionable.
   // Worden publishes the formula on its own indicator page (`/m/69445/l/755879`):
   // "Worden Stochastic = (100/n-1)(Rank)", where Rank is the ascending position of
@@ -312,6 +343,10 @@ function differentFormula(text) {
 export const PCF_CALLS = Object.freeze({
   AVG:      { fn: 'sma',        shape: ['expr', 'window'] },
   XAVG:     { fn: 'ema',        shape: ['expr', 'window'] },
+  // The call spelling of the same Hull average — both forms or neither, because a
+  // member who finds `HAVG(C, 10)` refused after `HAVG10` translated learns that
+  // the reader is arbitrary.
+  HAVG:     { fn: 'hma',        shape: ['expr', 'window'] },
   MAX:      { fn: 'highest',    shape: ['expr', 'window'] },
   MIN:      { fn: 'lowest',     shape: ['expr', 'window'] },
   GREATEST: { fn: 'max',        shape: ['expr', 'expr'] },
@@ -417,6 +452,13 @@ const INFIX = Object.freeze({
   '<=': { op: '<=', bp: 7 },
   '+':  { op: '+',  bp: 9 },
   '-':  { op: '-',  bp: 9 },
+  // TC2000's doubled signs, at the SAME binding power as the single ones they
+  // reduce to — they are the identical operation, spelled the way Worden's
+  // grammar allows. See `TWO_CHAR`.
+  '++': { op: '+',  bp: 9 },
+  '--': { op: '+',  bp: 9 },
+  '+-': { op: '-',  bp: 9 },
+  '-+': { op: '-',  bp: 9 },
   '*':  { op: '*',  bp: 10 },
   '/':  { op: '/',  bp: 10 },
 })
@@ -541,8 +583,20 @@ const IDENT_START = /[A-Za-z_]/
 const IDENT_BODY = /[A-Za-z0-9_]/
 const DIGIT = /[0-9]/
 
-/** The two-character operators, longest-first so `>=` never lexes as `>`. */
-const TWO_CHAR = Object.freeze(['>=', '<=', '<>'])
+/** The two-character operators, longest-first so `>=` never lexes as `>`.
+ *
+ *  ⭐⭐ THE FOUR DOUBLED SIGNS ARE TC2000 SYNTAX, NOT TYPOS. Worden's grammar
+ *  accepts `v ++ w`, `v +- w`, `v -+ w` and `v -- w`, and the meaning is the
+ *  PRODUCT OF THE TWO SIGNS — so `++` and `--` add, `+-` and `-+` subtract. A
+ *  member pasting a real TC2000 condition got `pcf:syntax` at the second
+ *  character for a formula their own platform accepts.
+ *
+ *  ⛔ AND IT IS CONSISTENT WITH THE SPACED FORM RATHER THAN A SPECIAL CASE:
+ *  `C +- 5` and `C + -5` are the same number, and both now reach the same tree.
+ *  Lexing them as one token is what makes the unspaced spelling reachable at
+ *  all — `+` followed immediately by `-` would otherwise be an infix followed by
+ *  an infix, which is the syntax error a member was getting. */
+const TWO_CHAR = Object.freeze(['>=', '<=', '<>', '++', '+-', '-+', '--'])
 const ONE_CHAR = Object.freeze(['>', '<', '=', '+', '-', '*', '/', '^', '\\', '(', ')', ','])
 
 /** Source → tokens. Each token carries the index it starts at, because a

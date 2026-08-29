@@ -451,19 +451,25 @@ describe('🔴 withheld renders as BREADTH, never folded into "no matches"', () 
 describe('the scan surface is a real destination, not a rail-satisfying stub', () => {
   it('the "Screens ▾" door is offered on the page App.jsx routes to', async () => {
     renderScreenerPage()
-    expect(screen.getByRole('heading', { name: /scanner hub/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^screener$/i })).toBeInTheDocument()
     // The control a member clicks — findable by its label, like every other one.
     expect(await screen.findByRole('button', { name: 'Screens ▾' })).toBeInTheDocument()
   })
 
-  it('and it is NOT gated on the candidate board, which is a different feed', async () => {
-    // ⛔ `Screener.jsx` guards its non-`scanner` tabs on `/api/candidates`
-    // (`error ? … : !data ? <SkeletonTable/> : …`), but `ScannerShell` — and the
-    // manager mounted inside it — renders in the FIRST arm of that ternary,
-    // ahead of the chain entirely (see `ScannerShell.jsx`'s own header note).
-    // Mounted below that line instead, this surface would go blank on every
-    // morning the 7 AM pre-market scan failed — a mount reachable only when an
-    // unrelated job succeeded.
+  it('and the page never asks for /api/candidates at all', async () => {
+    // ⚰️ THIS TEST USED TO SAY "NOT gated on the candidate board", and that
+    // claim is retired rather than deleted because it names the shape someone
+    // could rebuild. `Screener.jsx` once guarded its non-`scanner` tabs on
+    // `/api/candidates` (`error ? … : !data ? <SkeletonTable/> : …`) and
+    // ScannerShell mounted in the FIRST arm, deliberately ahead of that chain —
+    // below it, this surface went blank every morning the 7 AM pre-market scan
+    // failed, a mount reachable only when an unrelated job succeeded.
+    //
+    // ⛔ THE TAB IS GONE (2026-08-29) SO THE GATE IS GONE, WHICH WOULD MAKE THE
+    // OLD ASSERTION PASS VACUOUSLY — it rejected a fetch the page no longer
+    // makes. The falsifiable claim left is the STRONGER one: the request is not
+    // issued. That is what keeps a future "just show today's candidates up top"
+    // from quietly re-coupling this surface to the wire's 06:40 push.
     vi.stubGlobal('fetch', vi.fn((url) => {
       const u = String(url)
       H.calls.push(u)
@@ -472,13 +478,13 @@ describe('the scan surface is a real destination, not a rail-satisfying stub', (
       }
       if (u.startsWith(USER_DEFINITIONS_KEY)) return json(H.defs)
       if (u.startsWith(RESULTS_ENDPOINT)) return json(H.results)
-      // The candidate board is DOWN.
-      return Promise.reject(new Error('candidates unavailable'))
+      return Promise.reject(new Error(`unexpected fetch: ${u}`))
     }))
     const user = userEvent.setup()
     renderScreenerPage()
     await openTheScanSurface(user)
     expect(await screen.findByTestId('coverage-line', {}, { timeout: 6000 })).toBeInTheDocument()
+    expect(H.calls.filter(u => u.includes('/api/candidates'))).toEqual([])
   })
 
   it('a member with no saved formulas is told so — never shown a blank panel', async () => {

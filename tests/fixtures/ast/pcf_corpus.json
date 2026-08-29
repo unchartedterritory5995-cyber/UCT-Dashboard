@@ -359,6 +359,20 @@
       "source": "AROONDOWN25 < 30",
       "native": "aroonDown(25) < 30",
       "note": "`< 30` rather than `> 70` on purpose: an Aroon-Down reading is the mirror of an Aroon-Up one, so a row that asked the SAME question of both legs would still pass with the two columns swapped."
+    },
+    {
+      "id": "hull_average",
+      "cite": "help-indicator-templates",
+      "what": "HAVG — the Hull moving average. ⚰️ REFUSED UNTIL 2026-08-29 as a formula this table did not declare; `hma` landed in the manifest that morning and the section note next to it still said \"still open\". Same published formula (Alan Hull's, which TradingView also restates as `ta.hma`), so this is a SPELLING and not a lookalike — the distinction `FAVG` below is still on the wrong side of.",
+      "source": "HAVG(C, 10)",
+      "native": "hma(close, 10)"
+    },
+    {
+      "id": "double_plus_add",
+      "cite": "help-syntax",
+      "what": "TC2000 accepts `v ++ w`, `v +- w`, `v -+ w` and `v -- w`, and the meaning is the PRODUCT OF THE TWO SIGNS. ⚰️ This entry read \"This reader does not, and says so at the character\" — a member pasting a real TC2000 condition got a syntax error for a formula their own platform accepts. Lexed as one token since 2026-08-29, and consistent with the spaced form: `C +- 5` and `C + -5` reach the same tree.",
+      "source": "C ++ O",
+      "native": "close + open"
     }
   ],
   "refused": [
@@ -370,15 +384,6 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "FAVG"
-    },
-    {
-      "id": "hull_average",
-      "cite": "help-indicator-templates",
-      "what": "HAVG — the Hull moving average",
-      "source": "HAVG(C, 10)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "HAVG"
     },
     {
       "id": "moneystream",
@@ -460,15 +465,6 @@
       "guard": "pcf:syntax",
       "at": 3,
       "names": ""
-    },
-    {
-      "id": "double_plus_add",
-      "cite": "help-syntax",
-      "what": "TC2000 accepts `v ++ w`, `v +- w`, `v -+ w` and `v -- w` as add/subtract typo-tolerance. This reader does not, and says so at the character",
-      "source": "C ++ O",
-      "guard": "pcf:syntax",
-      "at": 3,
-      "names": "+"
     },
     {
       "id": "field_letter_the_table_does_not_declare",

@@ -48,15 +48,39 @@ describe('TracingsPanel', () => {
     expect(drawingsStore.listTracings()[0].name).toBe('Levels')
   })
 
-  it('delete respects window.confirm and removes the sheet', () => {
-    vi.stubGlobal('confirm', vi.fn(() => true))
+  it('delete is a two-step inline confirm (no browser dialog) and removes the sheet', () => {
+    const confirmSpy = vi.fn(() => true)
+    vi.stubGlobal('confirm', confirmSpy)
     render(<TracingsPanel />)
     fireEvent.click(screen.getByText(/New board/i))     // 2 sheets
     const before = rows().length
-    // delete the non-active 'default'
     const defaultRow = rows().find((r) => within(r).queryByText('Board 1'))
-    fireEvent.click(within(defaultRow).getByLabelText(/Delete Board 1/i))
+    // first click reveals the inline confirm — nothing deleted yet
+    fireEvent.click(within(defaultRow).getByLabelText(/^Delete Board 1/i))
+    expect(rows().length).toBe(before)
+    // confirm removes it, and the native confirm() is never used
+    fireEvent.click(within(defaultRow).getByLabelText(/Confirm delete Board 1/i))
     expect(rows().length).toBe(before - 1)
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('cancelling the inline delete confirm keeps the sheet', () => {
+    render(<TracingsPanel />)
+    fireEvent.click(screen.getByText(/New board/i))     // 2 sheets
+    const before = rows().length
+    const defaultRow = rows().find((r) => within(r).queryByText('Board 1'))
+    fireEvent.click(within(defaultRow).getByLabelText(/^Delete Board 1/i))
+    fireEvent.click(within(defaultRow).getByLabelText(/Cancel delete/i))
+    expect(rows().length).toBe(before)
+  })
+
+  it('pencil starts an inline rename', () => {
+    render(<TracingsPanel />)
+    fireEvent.click(screen.getByLabelText(/Rename Board 1/i))
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Levels' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(drawingsStore.listTracings()[0].name).toBe('Levels')
   })
 
   it('the only sheet cannot be deleted (button disabled)', () => {

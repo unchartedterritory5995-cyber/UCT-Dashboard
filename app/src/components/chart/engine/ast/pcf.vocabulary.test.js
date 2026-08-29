@@ -53,7 +53,13 @@ const VOCABULARY = {
  *  once already. */
 const EXPECTED = {
   'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
-  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 10,
+  logical: 7, crossing: 2,
+  // 5 -> 6 (2026-08-29): `HAVGC20` reads now that `hma` is declared. The
+  // seventh, `FAVG`, stays refused — Worden publishes no weighting for the
+  // front-weighted average, and inventing one would be a wrong formula
+  // wearing a vendor's name. This census is a MEASUREMENT of the vocabulary
+  // this reader can say, so it moves when the reader really moves.
+  'moving averages': 6, aggregates: 7, oscillators: 10,
   conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
@@ -147,7 +153,16 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // on task 5's `highestbars`/`lowestbars`, whose most-recent-bar tie-break IS
     // "days since". `BOP20` did not move the number: it already read as an
     // expansion and now reads as a declared entry.
-    expect(expected).toBe(63)
+    // ⭐ 64: `HAVG` (2026-08-29). It cost NO new vocabulary either — `hma` was
+    // declared in the manifest that morning for Pine and thinkorswim, and TC2000's
+    // Hull average IS the same published formula (Alan Hull's), so this reader
+    // gained a SPELLING rather than a maths. That is the third time this table has
+    // moved without inventing anything: `STOC14.3`, `AROONUP25`, and now this.
+    // ⛔ `FAVG` STAYS REFUSED ONE LINE AWAY, and the pairing is the point — same
+    // family, same shape, and Worden publishes no weighting for the front-weighted
+    // average. A row for it would be a formula we made up wearing a vendor's name,
+    // which is exactly the `MIN`/`lowest` trap this file exists to keep out.
+    expect(expected).toBe(64)
   })
 })
 

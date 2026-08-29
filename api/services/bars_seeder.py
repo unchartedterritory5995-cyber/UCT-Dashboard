@@ -119,11 +119,14 @@ def _build_tier2(tier1_set: set[str]) -> list[str]:
     try:
         from api.services.cache import cache
         wire = cache.get("wire_data") or {}
-        # Screener candidates
-        cands = wire.get("candidates") or {}
-        for bucket in (cands.get("pullback_ma") or [], cands.get("remount") or [], cands.get("gappers") or []):
-            for c in bucket:
-                _add(c.get("ticker") or c.get("sym") or "")
+        # Screener candidates — ⛔ VIA `engine.candidate_tickers()`. This read
+        # the ENVELOPE as if it were the buckets AND asked for `gappers`, a
+        # bucket name that has never existed (it is `gapper_news`), so it seeded
+        # ZERO candidates. Two independent wrong keys on one line, both failing
+        # silently to an empty list.
+        from api.services.engine import candidate_tickers
+        for _sym in candidate_tickers():
+            _add(_sym)
         # Theme holdings
         for th in (wire.get("themes") or []):
             for sym in (th.get("holdings") or []):

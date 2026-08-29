@@ -443,11 +443,14 @@ def run_prewarmer_forever():
             for pick in (wd.get("uct20") or wd.get("leadership") or []):
                 sym = pick.get("ticker") or pick.get("sym")
                 if sym: tickers.add(sym.upper())
-            cands = wd.get("candidates") or {}
-            for group in (cands.get("pullback_ma") or [], cands.get("remount") or [], cands.get("gapper_news") or []):
-                for c in (group if isinstance(group, list) else []):
-                    sym = c.get("ticker") or c.get("sym")
-                    if sym: tickers.add(sym.upper())
+            # ⛔ VIA `engine.candidate_tickers()`, NOT off `wd["candidates"]`.
+            # This block read the ENVELOPE as if it were the buckets and warmed
+            # ZERO tickers for however long it had been here — measured against
+            # a real payload 2026-08-29. It failed to an empty set, which is
+            # indistinguishable from a morning with no candidates, so nothing
+            # ever reported it. The accessor owns the shape now.
+            from api.services.engine import candidate_tickers
+            tickers.update(candidate_tickers())
             earn = wd.get("earnings") or {}
             for bucket in (earn.get("bmo") or [], earn.get("amc") or []):
                 for e in bucket:
