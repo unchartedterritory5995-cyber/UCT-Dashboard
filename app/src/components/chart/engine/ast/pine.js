@@ -953,6 +953,31 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
 export const PINE_INEXPRESSIBLE = Object.freeze({
+  // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
+  // positions line up perfectly, which is what makes it dangerous. Pine's
+  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
+  // most recent time the condition was true, `2` is three occurrences ago, and it
+  // looks back as far as it needs to. This table's `valuewhen(condition, source,
+  // period)` takes a BAR WINDOW: the most recent bar within the last `period`
+  // bars where the condition held. A positional map builds cleanly and answers a
+  // different number on most bars — `ta.valuewhen(c, src, 2)` would become "within
+  // the last 2 bars" — which is the silent mistranslation this door exists
+  // against, and exactly the trade `barssince` below is refused for.
+  //
+  // ⚰️ IT REFUSED ALREADY, BUT FOR THE WRONG REASON. `valuewhen` declares two
+  // `series` slots and no measured Pine order, so it fell into the generic
+  // `pine:role-order` arm: *"this table states what kind each argument is and
+  // never what role it plays"*. That sentence is FALSE of this entry — the
+  // manifest declares `argRoles: [condition, source, period]` — and it sends a
+  // reader to declare a role order, which would produce exactly the wrong number.
+  // The refusal was right and its reason was not.
+  valuewhen: 'the value of a source when a condition was last true. This table declares '
+    + '`valuewhen(condition, source, period)` and it is NOT the same function: the '
+    + 'Pine call counts OCCURRENCES back, while `period` here is a BAR WINDOW. '
+    + 'The two line up positionally and answer different numbers, so mapping them would '
+    + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
+    + 'with the number of BARS you want searched — and note that an occurrence older '
+    + 'than the most recent one has no spelling here at all.',
   cum: 'a running total from the first bar. This engine\'s only accumulator '
     + 're-seeds a fixed number of bars back, so `cum` would silently become a '
     + 'rolling sum — and a true cumulative would change value with how many bars '

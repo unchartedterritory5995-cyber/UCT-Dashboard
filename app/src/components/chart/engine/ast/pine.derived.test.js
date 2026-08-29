@@ -7,7 +7,7 @@
 // to a neighbour that would parse, lint, save, scan and be wrong.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, PINE_INEXPRESSIBLE } from './pine.js'
+import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool } from './pine.js'
 import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
 import { lintRepaint } from './lint.js'
@@ -504,5 +504,51 @@ var float anchor = close
 plot(close > anchor ? 1 : 0)
 `)
     expect(r.ok, JSON.stringify((r.outputs || []).map((o) => o.refusal))).toBe(true)
+  })
+})
+
+describe('🔴 `valuewhen` refuses for the reason that is actually true', () => {
+  // ⛔⛔ THE POSITIONS LINE UP PERFECTLY, WHICH IS WHAT MAKES IT DANGEROUS. Pine's
+  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
+  // most recent time the condition held, `2` is three occurrences ago — and looks
+  // back as far as it needs to. This table's `valuewhen(condition, source, period)`
+  // takes a BAR WINDOW. A positional map builds cleanly and answers a different
+  // number on most bars, which is the one outcome this door exists to prevent.
+  //
+  // ⚰️ IT REFUSED ALREADY, AND ITS REASON WAS FALSE. `valuewhen` declares two
+  // `series` slots and no measured Pine order, so it fell into the generic
+  // `pine:role-order` arm — "this table states what kind each argument is and never
+  // what role it plays". The manifest declares `argRoles: [condition, source,
+  // period]` for this very entry, so that sentence was untrue of it, and it sent a
+  // reader to supply a role order that would have produced the wrong number.
+
+  it('⭐⭐ the sentence names OCCURRENCES vs a WINDOW, and what to write instead', () => {
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 0))\n')
+    expect(out.ok).toBe(false)
+    const m = out.refusal.message
+    expect(m).toMatch(/OCCURRENCES/)
+    expect(m).toMatch(/BAR WINDOW/i)
+    // ⛔ THE REMEDY, because a refusal that only says no is a wall.
+    expect(m).toMatch(/valuewhen\(condition, source, n\)/)
+  })
+
+  it('⛔ …and it no longer claims the table states no roles — it does', () => {
+    // ⚰️ THE EXACT FALSE SENTENCE THIS REPLACED. Asserting its ABSENCE is what
+    // stops the generic arm quietly reclaiming this entry later.
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 2))\n')
+    expect(out.refusal.guard).not.toBe('pine:role-order')
+    expect(out.refusal.message).not.toMatch(/never what role it plays/)
+    expect(TABLE.functions.valuewhen.argRoles,
+      'the manifest must still declare the roles this refusal used to deny')
+      .toEqual(['condition', 'source', 'period'])
+  })
+
+  it('⛔ the NATIVE form still works — the refusal is about Pine, not the function', () => {
+    // ⭐ THE HALF THAT KEEPS THIS HONEST. `valuewhen` is declared, computed and
+    // correct; a member can write it directly with the window they mean. If this
+    // ever fails, the roster entry has quietly become a capability removal.
+    const p = parseFormula('valuewhen(close > open, close, 20)')
+    expect(p.ok, JSON.stringify(p)).toBe(true)
+    expect(treeYieldsBool(p.ast)).toBe(false)
   })
 })
