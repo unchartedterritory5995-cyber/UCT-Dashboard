@@ -5,6 +5,7 @@ Uses /data/auth.db on Railway (persistent volume) or local ./data/auth.db.
 
 import os
 import sqlite3
+import time
 
 _DB_PATH = os.environ.get("AUTH_DB_PATH", "/data/auth.db")
 
@@ -486,6 +487,32 @@ def get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def execute_with_retry(sql: str, params: tuple = (), tries: int = 2, backoff: float = 0.15) -> None:
+    """Autocommit a single write statement, retrying once on a transient
+    'database is locked' — this is what was landing as a 500 on
+    POST /api/auth/preferences under concurrent writes. Mirrors
+    theme_engine/store.py's _exec_retry on this same db, but kept to ONE
+    retry (tries=2) rather than that helper's tries=3: this runs on every
+    preference save, not an occasional engine write, so a longer tail
+    multiplies across concurrent requests instead of covering the rare
+    case. The retry only adds cost to a request that already failed once —
+    see the timeout=3 note on get_connection above for why that matters.
+    """
+    for attempt in range(tries):
+        conn = get_connection()
+        try:
+            conn.execute(sql, params)
+            conn.commit()
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < tries - 1:
+                time.sleep(backoff)
+                continue
+            raise
+        finally:
+            conn.close()
 
 
 def init_db():

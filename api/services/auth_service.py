@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
-from api.services.auth_db import get_connection
+from api.services.auth_db import get_connection, execute_with_retry
 
 
 # Displayed Pro price used for the admin MRR estimate. Keep in sync with the
@@ -1435,27 +1435,17 @@ def get_user_preferences(user_id: str) -> dict:
 def set_user_preference(user_id: str, key: str, value: str) -> None:
     """Upsert a single preference."""
     pref_id = str(uuid.uuid4())
-    conn = get_connection()
-    try:
-        conn.execute(
-            """INSERT INTO user_preferences (id, user_id, pref_key, pref_value)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value""",
-            (pref_id, user_id, key, value),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    execute_with_retry(
+        """INSERT INTO user_preferences (id, user_id, pref_key, pref_value)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(user_id, pref_key) DO UPDATE SET pref_value = excluded.pref_value""",
+        (pref_id, user_id, key, value),
+    )
 
 
 def delete_user_preference(user_id: str, key: str) -> None:
     """Remove a single preference."""
-    conn = get_connection()
-    try:
-        conn.execute(
-            "DELETE FROM user_preferences WHERE user_id = ? AND pref_key = ?",
-            (user_id, key),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    execute_with_retry(
+        "DELETE FROM user_preferences WHERE user_id = ? AND pref_key = ?",
+        (user_id, key),
+    )
