@@ -151,11 +151,15 @@ def _build_app() -> FastAPI:
     def internal_health():
         return _health()
 
-    # railway.json (SHARED by web + worker + flow-worker) points healthcheckPath
-    # at /api/ready. The flow-worker has no user-facing warm gates, so it is
-    # ready as soon as it can answer. Without this route its deploys would fail
-    # their healthcheck outright -- and a failed flow-worker deploy costs the
-    # OPRA tape a WS handoff, which does not replay.
+    # ⚰️ This said "railway.json (SHARED by web + worker + flow-worker) points
+    # healthcheckPath at /api/ready". It does NOT, and must not: gating the
+    # healthcheck on readiness caused a ~3 min site outage on 2026-07-26 (see
+    # api/services/readiness.py). The shared healthcheckPath is /api/health,
+    # answered above. Route kept anyway — it costs nothing, keeps the three
+    # entrypoints symmetric, and means a future healthcheckPath change cannot
+    # fail THIS service for a missing route. That last point is load-bearing
+    # here: a failed flow-worker deploy costs the OPRA tape a WS handoff, and
+    # OPRA does not replay.
     @app.get("/api/ready")
     def ready():
         return {"ready": True, "service": "flow-worker", "pending": []}

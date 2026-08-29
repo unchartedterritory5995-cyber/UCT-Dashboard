@@ -18,9 +18,33 @@ prevent (`compute_rs_scores` computes INLINE on a miss). On 2026-07-26 there
 were 40 deploys -> 40 such windows, reported by the owner as "slow to load
 different sections, slow to load different charts" all day.
 
-This module is the gate. `/api/ready` (the new healthcheckPath) stays 503 until
-every registered warmer has finished, so Railway keeps serving from the OLD --
-already warm -- pod until the new one can actually take traffic.
+🔴 THE PREMISE ABOVE IS TRUE. THE FIX BELOW WAS NOT — READ THIS BEFORE WIRING IT.
+
+This module was built to be that gate. Wiring it into the Railway healthcheck was
+tried in production on 2026-07-26 (deploy 650865d5) and it caused a
+~3 MINUTE OUTAGE. Railway does **not** keep the OLD pod serving while the new one
+healthchecks -- the old pod is already gone. So a 503-until-warm probe does not
+hold traffic on the warm pod; it takes the site DOWN until the gate releases:
+
+    Path: /api/ready
+    Attempt #1..#8 failed with service unavailable
+    -> https://uctintelligence.com/ returned 502 for ~3 min
+
+Slow-but-serving beats hard-down, so `healthcheckPath` is `/api/health` and
+**nothing may gate a deploy on this module**. `tests/api/test_ready_endpoint.py::
+test_railway_healthcheck_must_not_gate_on_readiness` is the standing guard; the
+gate itself remains valuable as OBSERVABILITY ("is this pod warm yet").
+
+⚰️ This paragraph used to read "`/api/ready` (the new healthcheckPath)", stating
+the wiring as fact. It was false for over a month, and three other files repeated
+it (`api/main.py`, `api/worker_main.py`, `api/flow_worker_main.py`) — four copies
+of one claim, which read as corroboration rather than as four unverified guesses.
+Acting on the sentence reproduces the outage, so it was worse than merely stale.
+
+⭐ The cold-cutover window is still REAL and still unsolved. Fixing it needs an
+approach that never makes the pod unreachable — make the warm cheap or
+unnecessary (seed the caches from the /data volume, which survives deploys),
+or move the work off the pod — not a probe that withholds the only pod there is.
 
 DESIGN NOTES
 ------------
