@@ -7,6 +7,23 @@ import { metricValue, percentileRank, resolveViewColors } from './breadthViewSha
 
 const MIN_READINGS = 20
 const BINS = 10
+// The marker's own width, and the viewBox it must stay inside.
+const MARKER_W = 1.4
+const TRACK_W = 100
+
+/**
+ * 🔴 THE 100th-PERCENTILE MARKER USED TO DRAW NOTHING AT ALL.
+ *
+ * `x={pct}` inside `viewBox="0 0 100 26"` puts a reading at the top of its own
+ * distribution at x ∈ [100, 101.4] — entirely outside the box, so the svg
+ * clipped it — and 96-99 were progressively half-clipped. A reading at the very
+ * top of its distribution is exactly what this lens exists to surface, so the
+ * one position that mattered most was the one that rendered blank.
+ *
+ * The marker is centred on its percentile and then clamped into the track.
+ */
+export const markerX = (pct) =>
+  Math.min(Math.max(pct - MARKER_W / 2, 0), TRACK_W - MARKER_W)
 
 export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
@@ -69,7 +86,8 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
                 })}
                 <line x1="0" y1="20.5" x2="100" y2="20.5" stroke="#334155" strokeWidth="0.6"
                       vectorEffect="non-scaling-stroke" />
-                <rect data-testid={`marker-${m.key}`} x={pct} y="1" width="1.4" height="21"
+                <rect data-testid={`marker-${m.key}`} x={markerX(pct)} y="1"
+                      width={MARKER_W} height="21"
                       fill={colors.bull} opacity={colors.fillOpacity}>
                   <title>{`${m.getFmt(currentRow)} — ${pct}th percentile`}</title>
                 </rect>

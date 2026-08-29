@@ -52,12 +52,19 @@ export default function DivergenceView({ rows = [], rowIdx = 0, options = {} }) 
         : `Breadth leading price — ${active.end - active.start + 1} sessions and counting`)
     : 'In step — no sustained divergence'
 
+  // ⛔ THE COLOUR IS THE DIRECTION, NOT THE PRESENCE OF A DIVERGENCE. Painting
+  // any active run bearish called "Breadth leading price" — the bullish half of
+  // this lens — a warning. Price outrunning the troops is the warning; the
+  // troops outrunning price is not. The shaded runs in the SVG below already
+  // read `r.dir`; this line is what disagreed with them.
+  const verdictColor = active && active.dir === 'price-leads' ? colors.bear : colors.bull
+
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '10px 18px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
         <span data-testid="divergence-verdict"
               style={{ font: '800 15px \'Instrument Sans\', sans-serif',
-                       color: active ? colors.bear : colors.bull }}>
+                       color: verdictColor }}>
           {verdict}
         </span>
         <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>

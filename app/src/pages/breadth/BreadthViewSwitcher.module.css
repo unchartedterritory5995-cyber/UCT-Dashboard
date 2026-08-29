@@ -11,7 +11,8 @@
 .groupLabel { font: 800 8px 'Instrument Sans', sans-serif; letter-spacing: .8px;
   text-transform: uppercase; color: var(--text-dim, #64748b); padding: 0 4px; user-select: none; }
 
-/* Phone — 8 view buttons wrap to 2-3 bulky rows. Convert to a single
+/* Phone — the view buttons wrap to several bulky rows, and the strip grows
+   whenever a view is added, so no count belongs here. Convert to a single
    horizontal scroll strip with ≥44px tap targets (mirrors the Breadth tab
    strip + SegmentedNav momentum-scroll pattern). */
 @media (max-width: 640px) {

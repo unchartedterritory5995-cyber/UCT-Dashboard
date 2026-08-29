@@ -6,6 +6,12 @@
  * schema. Spec: docs/superpowers/specs/2026-06-01-breadth-views-per-view-customize-design.md
  */
 import { PAIRS } from './breadthViewShared'
+// ⛔ THE EVENT FAMILIES HAVE ONE AUTHOR, AND IT IS `EVENT_DEFS`. A hand-typed
+// copy here meant an event in a NEW family was unfilterable, and a removed
+// family left a dropdown entry that rendered an empty grid with no explanation.
+// (`viewMetricConfig → breadthEvents → heatmapMetrics → breadthViewShared` has
+// no cycle — verified 2026-08-29.)
+import { EVENT_FAMILIES } from './breadthEvents'
 
 export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events', 'attribution', 'analogues']
 
@@ -120,15 +126,12 @@ const ROTATION_OPTIONS = [
     choices: [10, 20, 60].map(v => ({ value: v, label: `${v} days` })) },
 ]
 
+const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1)
 const EVENTS_OPTIONS = [
   { name: 'families', label: 'Event family', type: 'select', default: 'all',
     choices: [
       { value: 'all', label: 'All families' },
-      { value: 'thrust', label: 'Thrust' },
-      { value: 'volume', label: 'Volume' },
-      { value: 'oscillator', label: 'Oscillator' },
-      { value: 'supply', label: 'Supply' },
-      { value: 'washout', label: 'Washout' },
+      ...EVENT_FAMILIES.map(f => ({ value: f, label: titleCase(f) })),
     ] },
 ]
 

@@ -7,27 +7,41 @@
  */
 import useSWR from 'swr'
 import { resolveViewColors } from './breadthViewShared'
+// ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 401 from `require_paid`
+// or a 503 answers JSON too, and its `{detail}` body is a perfectly good object —
+// so `data.ok === false` is `undefined === false`, the refusal branch is skipped,
+// and `.filter` on a missing `components` takes the WHOLE Breadth route down
+// through `RouteErrorBoundary`. `jsonFetcher` throws on a non-ok status so SWR
+// reports it as an error instead. See `utils/jsonFetcher.test.js`.
+import jsonFetcher from '../../../utils/jsonFetcher'
 
-// Declared inline to match Breadth.jsx:47 — this app has no shared fetcher module.
-const fetcher = url => fetch(url).then(r => r.json())
-
-export default function ScoreAttributionView({ currentRow, options = {} }) {
+export default function ScoreAttributionView({ rows = [], currentRow, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const date = currentRow?.date
+  // ⭐ The window the CLIENT loaded, not a fourth one nobody warms. `get_history`
+  // caches per `days` value and startup warms only 90, so a hardcoded 400 here
+  // paid a cold ~415-row fetch plus a full derivation pass every 5 minutes on a
+  // single-process pod. `rows` IS the loaded window and `currentRow` came out of
+  // it, so this can never ask for less history than it needs.
+  const days = Math.min(3650, Math.max(1, rows.length || 90))
   const { data, isLoading, error } = useSWR(
-    date ? `/api/breadth-monitor/score-components/${date}` : null,
-    fetcher,
+    date ? `/api/breadth-monitor/score-components/${date}?days=${days}` : null,
+    jsonFetcher,
   )
 
   if (isLoading) {
     return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#64748b' }}>Loading attribution…</div>
   }
-  if (error || !data || data.ok === false) {
+  // ⛔ `data.ok === false` ALONE IS NOT THE GUARD. A non-ok body answers
+  // `undefined` there, which is not `false`, so a malformed payload sailed
+  // straight into `.filter` below. The shape the render needs is checked
+  // instead of the shape a healthy server happens to send.
+  if (error || !data || data.ok === false || !Array.isArray(data.components)) {
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
         <div data-testid="attribution-unavailable">
           {error ? `Could not load attribution — ${error.message ?? 'network error'}`
-                 : (data?.reason ?? 'No attribution for this session')}
+                 : (data?.reason ?? data?.detail ?? 'No attribution for this session')}
         </div>
       </div>
     )

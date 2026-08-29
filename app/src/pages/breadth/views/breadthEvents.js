@@ -100,14 +100,25 @@ export const EVENT_DEFS = [
     note: 'Names >7× ATR extended at their own top tier',
     detect: (ctx, i) => tierIs('atr_ext_7', ctx.rows[i], 'g3') },
 
+  // ⛔ A PERCENTILE EVENT OWNS ITS OWN FIELD. `pctileField` / `pctileQ` are read
+  // by BOTH the coverage guard in `scanEvents` and the detector below, so a
+  // second percentile event on a different series cannot end up guarded against
+  // this one's — which is what a hardcoded `'new_52w_lows'` in the guard did.
   { key: 'lowWashout', label: 'New-Low Washout', family: 'washout', basis: 'percentile',
+    pctileField: 'new_52w_lows', pctileQ: WASHOUT_PCTILE,
     note: `New 52-week lows in the top ${Math.round((1 - WASHOUT_PCTILE) * 100)}% of the loaded window`,
-    detect: (ctx, i) => {
-      const cut = ctx.pctileCut('new_52w_lows', WASHOUT_PCTILE)
-      const v = ctx.rows[i]?.new_52w_lows
+    detect: (ctx, i, def) => {
+      const cut = ctx.pctileCut(def.pctileField, def.pctileQ)
+      const v = ctx.rows[i]?.[def.pctileField]
       return (cut == null || v == null) ? null : Number(v) >= cut
     } },
 ]
+
+/** The families the ledger actually defines — the ONE authority the Customize
+ *  dropdown builds its choices from (`viewMetricConfig.js`). A family added or
+ *  removed here moves the filter with it; a hand-typed copy there offered a
+ *  filter that rendered an empty grid with no explanation. */
+export const EVENT_FAMILIES = [...new Set(EVENT_DEFS.map(d => d.family))]
 
 /**
  * Scan the window for every event. Returns one row per event with whether it
@@ -145,7 +156,7 @@ export function scanEvents(rows = [], { families = null } = {}) {
       if (d.key === 'zweig' && adCoverage < ZWEIG_PERIOD + 1) {
         unavailable = `Advance/decline counts cover ${adCoverage} of ${n} sessions — needs ${ZWEIG_PERIOD + 1}`
       }
-      if (d.basis === 'percentile' && pctileCut('new_52w_lows', WASHOUT_PCTILE) == null) {
+      if (d.basis === 'percentile' && pctileCut(d.pctileField, d.pctileQ) == null) {
         unavailable = `Needs ${PCTILE_MIN_N} readings to rank a percentile`
       }
 
@@ -160,7 +171,7 @@ export function scanEvents(rows = [], { families = null } = {}) {
         // so this generic rule only fires when neither of those applied.
         let everMeasurable = false
         for (let i = 0; i < n; i++) {
-          const hit = d.detect(ctx, i)
+          const hit = d.detect(ctx, i, d)
           if (hit != null) everMeasurable = true
           if (hit === true) { lastIdx = i; break }
         }

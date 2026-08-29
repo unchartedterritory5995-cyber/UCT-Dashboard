@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { render } from '@testing-library/react'
 
 const mockData = { current: null }
-vi.mock('swr', () => ({ default: () => ({ data: mockData.current, isLoading: false, error: null }) }))
+const mockUrls = []
+vi.mock('swr', () => ({
+  default: (url) => { mockUrls.push(url); return { data: mockData.current, isLoading: false, error: null } },
+}))
 
 const { default: ScoreAttributionView } = await import('./ScoreAttributionView')
 
@@ -40,5 +43,37 @@ describe('ScoreAttributionView', () => {
     mockData.current = { ok: false, date: '2026-08-28', reason: 'no stored session for that date' }
     const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
     expect(getByTestId('attribution-unavailable').textContent).toMatch(/no stored session/i)
+  })
+
+  // 🔴 THE SHAPE THAT TOOK THE WHOLE ROUTE DOWN. A 401 from `require_paid` on an
+  // expired session — or a 503 — answers JSON, and `{detail: …}` has no `ok`
+  // key at all. `data.ok === false` is `undefined === false`, so the refusal
+  // branch was skipped and `data.components.filter(...)` threw; the nearest
+  // boundary is `RouteErrorBoundary` in App.jsx, which replaces the ENTIRE
+  // Breadth page and keeps it replaced until the route changes.
+  it('🔴 renders the refusal — not a crash — when the body is a non-ok payload', () => {
+    mockData.current = { detail: 'Subscription inactive' }
+    let out
+    expect(() => { out = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />) })
+      .not.toThrow()
+    expect(out.getByTestId('attribution-unavailable').textContent).toMatch(/subscription inactive/i)
+  })
+
+  it('refuses a body whose components are not an array at all', () => {
+    // The guard checks the shape the render NEEDS, not the shape a healthy
+    // server happens to send — `ok: true` is not a promise of a components list.
+    mockData.current = { ok: true, date: '2026-08-28', total: 80, components: null }
+    const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
+    expect(getByTestId('attribution-unavailable')).toBeTruthy()
+  })
+
+  it('asks for the window the page actually loaded, not a fourth one', () => {
+    // `get_history` caches per `days`; startup warms only 90. A hardcoded 400
+    // meant a cold ~415-row fetch plus a full derivation pass every 5 minutes.
+    mockData.current = { ok: true, date: '2026-08-28', total: 80, min_weight_met: true,
+                         components: [], prev: null }
+    const rows = Array.from({ length: 180 }, (_, i) => ({ date: `d${i}` }))
+    render(<ScoreAttributionView rows={rows} rowIdx={0} currentRow={row} options={{}} />)
+    expect(mockUrls.at(-1)).toBe('/api/breadth-monitor/score-components/2026-08-28?days=180')
   })
 })

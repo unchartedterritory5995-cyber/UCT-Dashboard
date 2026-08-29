@@ -193,11 +193,22 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
     return _score_breakdown(row)[0]
 
 
-def score_components(date: str) -> dict:
+def score_components(date: str, days: int = 90) -> dict:
     """The score attribution for `date`, plus the prior session's, so a caller
     can draw the delta in one request. An unrecorded date answers ok:false —
-    absence is not an error, same as `session_path`."""
-    hist = get_history(400)
+    absence is not an error, same as `session_path`.
+
+    `days` is the window the CLIENT already loaded, not a window of this
+    function's own choosing. `get_history` caches five minutes PER `days` value
+    and startup warms only `days=90`; the Views tab legitimately produces
+    90/180/365. A hardcoded 400 here was therefore a fourth window nothing warms
+    and no other surface shares, so every five minutes the first Attribution
+    render paid a cold ~415-row fetch plus a full derivation pass on a
+    single-process pod, with no single-flight guard in front of it. Taking the
+    caller's window makes this share a cache entry the page has already paid
+    for. (`get_history` was measured spiking 28s uncached — see CLAUDE.md.)
+    """
+    hist = get_history(days)
     idx = next((i for i, r in enumerate(hist) if r.get("date") == date), None)
     if idx is None:
         return {"ok": False, "date": date, "reason": "no stored session for that date"}

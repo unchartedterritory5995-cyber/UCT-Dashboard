@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import RegimeClockView, { quadrantOf } from './RegimeClockView'
+import { optionsSchema } from './viewMetricConfig'
 
 const mkRows = (levels) => levels.map((v, i) => ({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, pct_above_50sma: v }))
 
@@ -37,5 +38,19 @@ describe('RegimeClockView', () => {
       options={{ rocWindow: 20, level: 'pct_above_50sma', trail: 10 }} />)
     expect(queryByTestId('regime-name')).toBeNull()
     expect(getByTestId('clock-insufficient').textContent).toMatch(/needs 21 sessions/i)
+  })
+
+  // The refusal used to read "Needs 21 sessions of pct_above_50sma" — the raw
+  // field key, at a reader the Customize panel has only ever shown "% above 50
+  // SMA" to. One series, two names, and the internal one was on screen.
+  it('names the series the way the option schema names it, not by field key', () => {
+    const { getByTestId } = render(<RegimeClockView rows={mkRows([70, 60, 50])} rowIdx={0}
+      currentRow={{ pct_above_50sma: 70 }} onDrill={() => {}}
+      options={{ rocWindow: 20, level: 'pct_above_50sma', trail: 10 }} />)
+    const text = getByTestId('clock-insufficient').textContent
+    const label = optionsSchema('clock').find(o => o.name === 'level')
+      .choices.find(c => c.value === 'pct_above_50sma').label
+    expect(text).toContain(label)
+    expect(text).not.toContain('pct_above_50sma')
   })
 })

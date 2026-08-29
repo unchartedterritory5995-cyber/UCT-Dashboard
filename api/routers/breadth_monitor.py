@@ -356,15 +356,22 @@ def get_breadth_analogues(top_n: int = Query(default=5, ge=3, le=10),
 
 
 @router.get("/api/breadth-monitor/score-components/{date}")
-def get_breadth_score_components(date: str, _user: dict = Depends(require_paid)):
+def get_breadth_score_components(date: str,
+                                 days: int = Query(default=90, ge=1, le=3650),
+                                 _user: dict = Depends(require_paid)):
     """Per-component attribution behind `breadth_score` for one session.
 
     The client MUST NOT re-derive these from `_SCORE_WEIGHTS`: the score
     renormalizes over present inputs, so the weights alone do not reproduce the
     points. Server-side is the only place the two can be guaranteed to agree.
+
+    `days` is bounded exactly like `/api/breadth-monitor` above, and for the
+    same reason: it selects a `get_history` cache entry, and the sibling
+    endpoint is what warms it. The client passes the window it already loaded,
+    so this shares that entry instead of opening a fourth one nothing warms.
     """
     try:
-        return svc.score_components(date)
+        return svc.score_components(date, days=days)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

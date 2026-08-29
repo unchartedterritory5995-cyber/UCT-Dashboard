@@ -5,6 +5,14 @@
  * show both, which is the whole reason this lens exists.
  */
 import { resolveViewColors } from './breadthViewShared'
+import { optionsSchema } from './viewMetricConfig'
+
+// The option schema already carries the human label the Customize panel shows
+// ("% above 50 SMA"). The refusal below printed the raw field key at the reader
+// instead — two names for one series, and the one shown was the internal one.
+const levelLabel = (value) =>
+  optionsSchema('clock').find(o => o.name === 'level')?.choices
+    ?.find(c => c.value === value)?.label ?? value
 
 export function quadrantOf(level, momentum) {
   if (level >= 50) return momentum >= 0 ? 'Expansion' : 'Distribution'
@@ -35,7 +43,7 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
         <div data-testid="clock-insufficient">
-          Needs {need} sessions of {levelKey} to measure momentum — has {window.length}.
+          Needs {need} sessions of {levelLabel(levelKey)} to measure momentum — has {window.length}.
         </div>
         <div style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
           Widen the window with the day pills above.

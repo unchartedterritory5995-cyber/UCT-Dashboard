@@ -5,9 +5,11 @@
  */
 import useSWR from 'swr'
 import { resolveViewColors } from './breadthViewShared'
-
-// Declared inline to match Breadth.jsx:47 — this app has no shared fetcher module.
-const fetcher = url => fetch(url).then(r => r.json())
+// ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 402/401 answers JSON too,
+// and its `{detail}` body is truthy — so `data?.analogues ?? []` would render a
+// paywall as "no historical session resembles today", which is a different
+// sentence and the wrong one. `jsonFetcher` throws so SWR reports the status.
+import jsonFetcher from '../../../utils/jsonFetcher'
 
 const HORIZON_LABEL = { fwd_5d: '5 days', fwd_10d: '10 days', fwd_20d: '20 days', fwd_60d: '60 days' }
 
@@ -16,8 +18,13 @@ export default function AnalogueDeckView({ options = {} }) {
   const horizon = options.horizon ?? 'fwd_20d'
   const topN = Number(options.matches ?? 5)
 
+  // ⭐ A BARE `useSWR`, DELIBERATELY — see the census row for this file in
+  // `hooks/pollingSites.rail.test.js`. The analogues feed refreshes 6-hourly and
+  // the endpoint is server-cached for 6 hours, so `useMobileSWR`'s
+  // `revalidateOnFocus: true`, its visibilitychange listener and its 60s
+  // `useMarketOpen` timer would all be cost for data that moves at most daily.
   const { data, isLoading, error } = useSWR(
-    `/api/breadth-monitor/analogues?top_n=${topN}`, fetcher,
+    `/api/breadth-monitor/analogues?top_n=${topN}`, jsonFetcher,
     { refreshInterval: 6 * 60 * 60 * 1000 },
   )
 

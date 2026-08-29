@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scanEvents, zweigEma } from './breadthEvents'
+import { scanEvents, zweigEma, EVENT_DEFS, EVENT_FAMILIES } from './breadthEvents'
 
 const base = { date: '2026-08-01', advancing: 2000, declining: 2000, up_vol_ratio: 1.0,
                mcclellan_osc: 0, hvc_52w: 5, atr_ext_7: 5, new_52w_lows: 10, is_ftd: 0 }
@@ -115,5 +115,52 @@ describe('coverage refusal reaches every event, not just Zweig/percentile', () =
     expect(ev.unavailable).toBeNull()
     expect(ev.firedToday).toBe(false)
     expect(ev.lastIdx).toBeNull()
+  })
+})
+
+describe('a percentile event is guarded against ITS OWN series', () => {
+  // 🔴 The coverage guard read a hardcoded `'new_52w_lows'`, so a SECOND
+  // percentile event on a different field would have been declared available —
+  // or refused — on the strength of a series it never reads. The field now has
+  // one author: the event def, read by both the guard and the detector.
+  const percentileDefs = () => EVENT_DEFS.filter(d => d.basis === 'percentile')
+
+  it('every percentile event names the field it ranks', () => {
+    expect(percentileDefs().length).toBeGreaterThan(0)
+    for (const d of percentileDefs()) {
+      expect(typeof d.pctileField, `${d.key} has no pctileField`).toBe('string')
+      expect(typeof d.pctileQ, `${d.key} has no pctileQ`).toBe('number')
+    }
+  })
+
+  it('refuses when ITS OWN field is too thin, even where another series is deep', () => {
+    // One reading of new_52w_lows; advancing/declining deep enough for Zweig.
+    const rows = mkRows(30, i => (i === 0 ? {} : { new_52w_lows: null }))
+    const ev = find(scanEvents(rows), 'lowWashout')
+    expect(ev.unavailable).toMatch(/readings to rank a percentile/i)
+  })
+
+  it('ranks against its own field when that field IS deep', () => {
+    const rows = mkRows(30, i => ({ new_52w_lows: i === 0 ? 900 : 10 }))
+    const ev = find(scanEvents(rows), 'lowWashout')
+    expect(ev.unavailable).toBeNull()
+    expect(ev.firedToday).toBe(true)
+  })
+})
+
+describe('EVENT_FAMILIES', () => {
+  it('is the deduped family list of EVENT_DEFS, in definition order', () => {
+    const seen = []
+    for (const d of EVENT_DEFS) if (!seen.includes(d.family)) seen.push(d.family)
+    expect(EVENT_FAMILIES).toEqual(seen)
+  })
+
+  it('every family it names actually filters the scan to something', () => {
+    const rows = mkRows(30)
+    for (const f of EVENT_FAMILIES) {
+      const got = scanEvents(rows, { families: [f] })
+      expect(got.length, `family "${f}" filters to an empty ledger`).toBeGreaterThan(0)
+      expect(got.every(e => e.family === f)).toBe(true)
+    }
   })
 })

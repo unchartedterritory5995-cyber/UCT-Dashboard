@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import PercentileLadderView from './PercentileLadderView'
+import PercentileLadderView, { markerX } from './PercentileLadderView'
 
 const mk = (key) => ({ key, label: key, group: 'G', polarity: 'bull',
                        getFmt: r => String(r[key]), getTier: () => 'g2' })
@@ -18,10 +18,28 @@ describe('PercentileLadderView', () => {
     expect(getByTestId('pctile-a').textContent).toBe('100')
   })
 
-  it('places the marker at the percentile position', () => {
+  // 🔴 THE OLD ASSERTION DEFENDED THE DEFECT. It read `x ≈ 100`, which is the
+  // value that put the 1.4-wide marker at x ∈ [100, 101.4] — entirely outside
+  // `viewBox="0 0 100 26"`, so the svg clipped it and a reading at the top of
+  // its own distribution drew NOTHING. Assert the RENDERED position instead.
+  it('draws the 100th-percentile marker INSIDE the track rather than clipping it', () => {
     const { getByTestId } = render(<PercentileLadderView rows={rows} rowIdx={0} currentRow={rows[0]}
       metrics={metrics} onDrill={() => {}} options={{}} />)
-    expect(Number(getByTestId('marker-a').getAttribute('x'))).toBeCloseTo(100, 0)
+    const rect = getByTestId('marker-a')
+    const x = Number(rect.getAttribute('x'))
+    const w = Number(rect.getAttribute('width'))
+    expect(getByTestId('pctile-a').textContent).toBe('100')   // it IS the top reading
+    expect(x).toBeGreaterThanOrEqual(0)
+    expect(x + w).toBeLessThanOrEqual(100)
+  })
+
+  it('still tracks the percentile in the middle of the range', () => {
+    // The clamp must not flatten the scale — a rail that only checks the ends
+    // would pass for a marker pinned at 0.
+    expect(markerX(0)).toBe(0)
+    expect(markerX(50)).toBeCloseTo(49.3, 5)
+    expect(markerX(100)).toBeCloseTo(98.6, 5)
+    expect(markerX(97)).toBeCloseTo(96.3, 5)
   })
 
   it('refuses a metric with too few readings instead of inventing a rank', () => {
