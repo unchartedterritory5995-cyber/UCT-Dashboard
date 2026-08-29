@@ -14,6 +14,7 @@ import EqualizerView from './EqualizerView'
 import HeatRibbonView from './HeatRibbonView'
 import PercentileLadderView from './PercentileLadderView'
 import RegimeClockView from './RegimeClockView'
+import DivergenceView from './DivergenceView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -29,4 +30,5 @@ export const VIEW_COMPONENTS = {
   ribbon: HeatRibbonView,
   ladder: PercentileLadderView,
   clock: RegimeClockView,
+  divergence: DivergenceView,
 }

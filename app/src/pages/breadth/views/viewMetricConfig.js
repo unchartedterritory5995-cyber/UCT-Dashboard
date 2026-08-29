@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -102,6 +102,19 @@ const CLOCK_OPTIONS = [
     choices: [10, 30, 60].map(v => ({ value: v, label: `${v} days` })) },
 ]
 
+const DIVERGENCE_OPTIONS = [
+  { name: 'price', label: 'Price series', type: 'select', default: 'sp500_close',
+    choices: [{ value: 'sp500_close', label: 'S&P 500' }, { value: 'qqq_close', label: 'QQQ' }] },
+  { name: 'participation', label: 'Participation series', type: 'select', default: 'pct_above_50sma',
+    choices: [
+      { value: 'pct_above_50sma', label: '% above 50 SMA' },
+      { value: 'pct_above_200sma', label: '% above 200 SMA' },
+      { value: 'breadth_score', label: 'Health score' },
+    ] },
+  { name: 'minGap', label: 'Minimum run', type: 'select', default: 5,
+    choices: [3, 5, 10].map(v => ({ value: v, label: `${v} sessions` })) },
+]
+
 export const VIEW_CONFIG = {
   treemap:    { kind: 'board', label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
   rings:      { kind: 'board', label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
@@ -114,6 +127,7 @@ export const VIEW_CONFIG = {
   ribbon:     { kind: 'board', label: 'Heat Ribbon', eligibleKeys: all, defaultVisible: HEADLINE, options: [...RIBBON_OPTIONS, ...THEME_OPTIONS] },
   ladder:     { kind: 'board', label: 'Percentile Ladder', eligibleKeys: all, defaultVisible: HEADLINE, options: [...LADDER_OPTIONS, ...THEME_OPTIONS] },
   clock: { kind: 'lens', label: 'Regime Clock', eligibleKeys: () => [], defaultVisible: [], options: [...CLOCK_OPTIONS, ...THEME_OPTIONS] },
+  divergence: { kind: 'lens', label: 'Divergence', eligibleKeys: () => [], defaultVisible: [], options: [...DIVERGENCE_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).
