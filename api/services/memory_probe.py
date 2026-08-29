@@ -38,6 +38,7 @@ import gc
 import json
 import random
 import sys
+import threading
 import time
 from collections import Counter
 
@@ -111,6 +112,81 @@ def _estimate_bytes(cache) -> dict:
     # Extrapolate the sample mean across the whole cache.
     out["estimated_bytes"] = int(total / len(sample) * n)
     return out
+
+
+# ─── Per-job memory attribution ──────────────────────────────────────────────
+# Prod 2026-08-29: RSS jumped 1497.5 -> 6134 MB between two 30s samples — ~4.6 GB
+# in one step, on the pod that serves members. That is not the slow arena
+# fragmentation `malloc_trim` addresses (which released 120.9 MB in the same
+# window); it is one job allocating enormously. The scheduler runs 135 of them,
+# and the logs only narrow it to whichever cluster happened to be running.
+#
+# So every job records its own RSS delta. DERIVED, not enumerated: `add_job` is
+# wrapped once, so all 135 are covered and so is the 136th.
+_JOB_MEM: dict[str, dict] = {}
+_JOB_MEM_LOCK = threading.Lock()
+
+
+def record_job(job_id: str, before, after, seconds: float) -> None:
+    """Record one job execution's RSS delta. Never raises."""
+    try:
+        if before is None or after is None:
+            return
+        d = round(after - before, 1)
+        with _JOB_MEM_LOCK:
+            row = _JOB_MEM.setdefault(job_id, {
+                "calls": 0, "last_delta_mb": 0.0, "max_delta_mb": 0.0,
+                "total_delta_mb": 0.0, "max_seconds": 0.0,
+            })
+            row["calls"] += 1
+            row["last_delta_mb"] = d
+            row["max_delta_mb"] = max(row["max_delta_mb"], d)
+            row["total_delta_mb"] = round(row["total_delta_mb"] + d, 1)
+            row["max_seconds"] = round(max(row["max_seconds"], seconds), 2)
+    except Exception:
+        pass
+
+
+def job_memory_report(limit: int = 15) -> list[dict]:
+    """Jobs ranked by the largest single RSS jump they have caused."""
+    with _JOB_MEM_LOCK:
+        rows = [dict(v, job=k) for k, v in _JOB_MEM.items()]
+    rows.sort(key=lambda r: r["max_delta_mb"], reverse=True)
+    return rows[:limit]
+
+
+def instrument_scheduler(scheduler) -> None:
+    """Wrap `scheduler.add_job` so EVERY job records its RSS delta.
+
+    ⛔ Must be called BEFORE any add_job, or the jobs registered first — which
+    includes the heavy startup ones — are the very ones left unmeasured.
+
+    The wrapper is deliberately paranoid: it never changes the return value,
+    never swallows the job's exception (the `finally` records and re-raises),
+    and a failure in the recording itself is discarded. A diagnostic that can
+    break a scheduled job is worse than no diagnostic.
+    """
+    original = scheduler.add_job
+
+    def add_job(func=None, *args, **kwargs):
+        job_id = kwargs.get("id") or getattr(func, "__name__", None) or "unnamed"
+
+        def wrapped(*fa, **fkw):
+            before = _rss_mb()
+            t0 = time.monotonic()
+            try:
+                return func(*fa, **fkw)
+            finally:
+                record_job(job_id, before, _rss_mb(), time.monotonic() - t0)
+
+        try:
+            wrapped.__name__ = getattr(func, "__name__", "job")
+            wrapped.__doc__ = getattr(func, "__doc__", None)
+        except Exception:
+            pass
+        return original(wrapped, *args, **kwargs)
+
+    scheduler.add_job = add_job
 
 
 def malloc_trim() -> dict:
@@ -196,6 +272,9 @@ def snapshot(deep: bool = False) -> dict:
         "gc_counts": list(gc.get_count()),
         "gc_tracked_objects": None,
         "caches": caches,
+        # Which scheduled job made RSS jump, ranked by worst single delta. This
+        # is what turns "some job allocated 4.6 GB" into a name.
+        "jobs_by_rss_delta": job_memory_report(),
         "deep": deep,
         "note": "byte figures are ESTIMATES extrapolated from a bounded sample",
     }

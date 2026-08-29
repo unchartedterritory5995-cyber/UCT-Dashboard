@@ -228,3 +228,106 @@ def test_the_trim_job_logs_duration_not_just_megabytes():
     assert "elapsed_ms" in src, (
         "the trim job logs no duration — a slow trim would be invisible"
     )
+
+
+# ── per-job memory attribution ───────────────────────────────────────────────
+
+
+class _FakeScheduler:
+    def __init__(self): self.registered = []
+    def add_job(self, func, *a, **kw):
+        self.registered.append((func, a, kw)); return ("job", func)
+
+
+def test_instrumentation_wraps_every_job_without_a_roster():
+    """DERIVED: wrapping add_job once covers all 135 jobs — and the 136th."""
+    s = _FakeScheduler()
+    mp.instrument_scheduler(s)
+    calls = []
+    s.add_job(lambda: calls.append(1), "interval", id="job_a")
+    s.add_job(lambda: calls.append(2), "interval", id="job_b")
+    for func, _a, _kw in s.registered:
+        func()
+    assert calls == [1, 2], "the wrapper changed which jobs ran"
+
+
+def test_a_job_delta_is_recorded_under_its_id(monkeypatch):
+    mp._JOB_MEM.clear()
+    rss = iter([100.0, 4700.0])            # before, after
+    monkeypatch.setattr(mp, "_rss_mb", lambda: next(rss))
+    s = _FakeScheduler()
+    mp.instrument_scheduler(s)
+    s.add_job(lambda: None, "interval", id="the_hog")
+    s.registered[0][0]()
+
+    row = next(r for r in mp.job_memory_report() if r["job"] == "the_hog")
+    assert row["max_delta_mb"] == 4600.0
+    assert row["calls"] == 1
+
+
+def test_the_report_ranks_the_worst_offender_first(monkeypatch):
+    """⚠️ Names chosen so ALPHABETICAL order is the REVERSE of size order.
+
+    The first version used "huge"/"medium"/"small", which happen to sort the
+    same way by name as by megabytes — so a mutation replacing the size key with
+    `key=lambda r: r["job"]` SURVIVED. That is the SECOND time in this session a
+    sort fixture proved nothing for exactly this reason (see
+    `test_the_biggest_cache_sorts_first`). If a test asserts an ORDER, the names
+    must not already be in it.
+    """
+    mp._JOB_MEM.clear()
+    mp.record_job("alpha_tiny", 100.0, 105.0, 0.1)     # smallest, sorts FIRST by name
+    mp.record_job("zeta_hog", 100.0, 4700.0, 12.0)     # largest,  sorts LAST by name
+    mp.record_job("mid_job", 100.0, 400.0, 1.0)
+    assert [r["job"] for r in mp.job_memory_report()][:3] == \
+        ["zeta_hog", "mid_job", "alpha_tiny"]
+
+
+def test_the_wrapper_re_raises_the_job_s_exception(monkeypatch):
+    """⛔ A diagnostic that swallows a job's failure is worse than none.
+
+    The recording lives in a `finally`, so the exception must still propagate —
+    otherwise every broken scheduled job would start looking healthy.
+    """
+    mp._JOB_MEM.clear()
+    # ⚠️ Pin RSS: on Windows/macOS `_rss_mb()` returns None (no /proc, no
+    # `resource`), `record_job` correctly discards the sample, and the
+    # "it was still measured" half below would fail for a platform reason
+    # rather than a real one.
+    rss = iter([100.0, 150.0])
+    monkeypatch.setattr(mp, "_rss_mb", lambda: next(rss))
+
+    s = _FakeScheduler()
+    mp.instrument_scheduler(s)
+
+    def boom(): raise ValueError("job failed")
+    s.add_job(boom, "interval", id="explodes")
+
+    with pytest.raises(ValueError, match="job failed"):
+        s.registered[0][0]()
+    # …and it was still measured, because the record is in a `finally`.
+    assert any(r["job"] == "explodes" for r in mp.job_memory_report())
+
+
+def test_recording_never_raises_on_a_missing_rss_reading():
+    """Non-Linux, or a /proc read that failed: record nothing, break nothing."""
+    mp._JOB_MEM.clear()
+    mp.record_job("x", None, 100.0, 0.1)
+    mp.record_job("y", 100.0, None, 0.1)
+    assert mp.job_memory_report() == []
+
+
+def test_instrumentation_runs_before_any_add_job_in_main():
+    """⛔ The ordering IS the feature.
+
+    Jobs registered before instrumentation are unmeasured — and the ones
+    registered first are the heavy startup ones, i.e. exactly the candidates.
+    """
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    instr = src.index("instrument_scheduler(_scheduler)")
+    first_add = src.index("_scheduler.add_job(")
+    assert instr < first_add, (
+        "instrument_scheduler runs AFTER the first add_job — the earliest jobs "
+        "are silently unmeasured"
+    )
