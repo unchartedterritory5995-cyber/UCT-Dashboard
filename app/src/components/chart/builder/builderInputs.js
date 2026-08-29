@@ -454,52 +454,67 @@ export function inputsFromFolded(folded, source) {
  * and importing `pine.js` here would put a second edge into the translator from
  * a layer that only ever reads its output — the caller already holds it.
  *
- * @returns `{ok, formula, inputs, skipped, outputs, selected, refusal}` — `inputs`
- *   in `BUILDER_INPUTS` shape; `skipped` every refused entry WITH its reason, so
- *   the paste box can tell a member which knobs did not survive and why.
+ * @returns the pass-2 translation with each output annotated `memberInputs`
+ *   (rows in `BUILDER_INPUTS` shape) and `skippedInputs` (every refused entry
+ *   WITH its reason), plus `declared` — the names that survived. The paste box
+ *   renders both halves, so a member is told which knobs did not come across.
  */
-export function pineMemberInputs(translate, source, opts = {}) {
-  const pick = (out) => (out.outputs || []).find((o) => !o.refusal) || null
-  const bail = (out) => ({
-    ok: false, formula: '', inputs: [], skipped: [],
-    outputs: out.outputs || [], selected: out.selected, refusal: out.refusal,
-  })
+export function memberInputTranslation(translate, source, opts = {}) {
+  const usable = (t) => (t.outputs || []).filter((o) => !o.refusal && o.formula)
 
   const first = translate(source, { ...opts, declareInputs: 'all' })
-  const probe = pick(first)
-  if (!probe) return bail(first)
+  const probed = usable(first)
+  if (!probed.length) return { ...first, declared: [] }
 
-  // The names `pine.js` could NOT keep as identifiers on a full-declare run.
-  const windowBound = new Set(
-    (probe.inputsFolded || []).filter((e) => e.windowBound && e.name).map((e) => e.name))
-  const declarable = (probe.inputsFolded || [])
-    .filter((e) => e.name && !windowBound.has(e.name))
-    .map((e) => e.name)
+  // ⛔ THE WINDOW VERDICT IS COLLECTED ACROSS *EVERY* OUTPUT, not just the
+  // selected one. A script can plot a length-driven average and a threshold
+  // crossing from ONE input; declaring it because the output the member happens
+  // to be looking at can take it would weld the literal into the other column
+  // while handing out a knob — the half-applied trap, one level up.
+  const windowBound = new Set()
+  for (const o of probed) {
+    for (const e of (o.inputsFolded || [])) if (e.windowBound && e.name) windowBound.add(e.name)
+  }
+  const declarable = [...new Set(probed.flatMap(
+    (o) => (o.inputsFolded || []).filter((e) => e.name && !windowBound.has(e.name))
+      .map((e) => e.name)))]
 
   const final = declarable.length
     ? translate(source, { ...opts, declareInputs: declarable })
     : translate(source, opts)
-  const out = pick(final)
-  if (!out) return bail(final)
 
-  // ⛔ THE ROWS COME FROM THE FINAL PASS, never the probe. The probe's formula is
-  // a different string, and `positionVerdict` READS the formula to decide whether
-  // a name is actually reachable in it — judging pass 2's rows against pass 1's
+  // ⛔ THE ROWS COME FROM THE FINAL PASS, never the probe. The probe's formulas
+  // are different strings, and `positionVerdict` READS the formula to decide
+  // whether a name is reachable in it — judging pass 2's rows against pass 1's
   // text would answer a question about a formula nobody is going to run.
   //
-  // ⛔ …BUT THE *WINDOW* VERDICT IS PASS 1'S AND MUST BE CARRIED. Pass 2 never
-  // declared these names, so it never folded a declared node and its resolver
-  // reports no `windowBound` at all — the reader would then fall through to
-  // *"the formula never reads `len`"*, which is true of the TEXT and wrong about
-  // the REASON. The member would be told their knob does nothing, instead of that
-  // a length cannot be a knob in this engine and why. Only pass 1 was in a
-  // position to find out; carrying its answer is not duplication, it is the
-  // knowing side stamping its verdict.
-  const folded = (out.inputsFolded || []).map(
-    (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
-  const { inputs, skipped } = inputsFromFolded(folded, out.formula)
+  // ⛔ …BUT THE WINDOW VERDICT IS PASS 1'S AND MUST BE CARRIED. Pass 2 never
+  // declared those names, so it never folded a declared node and reports no
+  // `windowBound` at all — the reader would fall through to *"the formula never
+  // reads `len`"*, true of the TEXT and wrong about the REASON. The member would
+  // be told their knob does nothing, instead of that a length cannot be a knob
+  // here and why. Only pass 1 was in a position to find out.
+  const outputs = (final.outputs || []).map((o) => {
+    if (!o.formula) return { ...o, memberInputs: [], skippedInputs: [] }
+    const folded = (o.inputsFolded || []).map(
+      (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
+    const { inputs, skipped } = inputsFromFolded(folded, o.formula)
+    return { ...o, memberInputs: inputs, skippedInputs: skipped }
+  })
+  return { ...final, outputs, declared: declarable }
+}
+
+/** The single-output convenience over `memberInputTranslation`. */
+export function pineMemberInputs(translate, source, opts = {}) {
+  const t = memberInputTranslation(translate, source, opts)
+  const out = (t.outputs || []).find((o) => !o.refusal && o.formula)
+  if (!out) {
+    return { ok: false, formula: '', inputs: [], skipped: [],
+             outputs: t.outputs || [], selected: t.selected, refusal: t.refusal }
+  }
   return {
-    ok: true, formula: out.formula, inputs, skipped,
-    outputs: final.outputs, selected: final.selected, refusal: null,
+    ok: true, formula: out.formula,
+    inputs: out.memberInputs, skipped: out.skippedInputs,
+    outputs: t.outputs, selected: t.selected, refusal: null,
   }
 }

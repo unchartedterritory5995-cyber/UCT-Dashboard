@@ -27,7 +27,7 @@ import { translatePine } from '../engine/ast/pine'
 import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
-import { BUILDER_INPUT_SCOPE } from './builderInputs'
+import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -47,7 +47,14 @@ plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, "Signal")`
  * raising and `evaluateFormula` is already the door that cannot throw.
  */
 export function inspectPine(source) {
-  const translated = translatePine(source)
+  // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
+  // runs `translatePine` twice — once declaring every bound input to find which
+  // ones the engine has to fold back into a window, then again declaring only the
+  // survivors — and annotates each output with `memberInputs` / `skippedInputs`.
+  // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
+  // refusals; the only difference is that a threshold or a multiplier reaches the
+  // formula as its own identifier instead of as somebody else's constant.
+  const translated = memberInputTranslation(translatePine, source)
   const outputs = translated.outputs.map((out) => ({
     ...out,
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
@@ -99,7 +106,13 @@ export function inspectSource(source, dialect = 'auto') {
   const stamp = (r) => (r ? { ...r, source } : r)
 
   if (lang === 'pine' || lang === 'thinkscript') {
-    const t = lang === 'pine' ? translatePine(source) : translateThinkScript(source)
+    // ⛔ THE PINE LANE GOES THROUGH THE MEMBER-INPUT DOOR AND THINKSCRIPT DOES
+    // NOT, because `declareInputs` is `pine.js`'s option and thinkScript's own
+    // input form has not been given the same hand-back. Routing both through it
+    // would be a claim about a capability one of them does not have.
+    const t = lang === 'pine'
+      ? memberInputTranslation(translatePine, source)
+      : translateThinkScript(source)
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
       refusal: stamp(out.refusal),
@@ -206,7 +219,16 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   }, [report, chosen])
 
   const use = useCallback(() => {
-    if (active && active.formula) onPick?.(active.formula)
+    if (!active || !active.formula) return
+    // ⭐⭐ THE OBJECT FORM CARRIES THE AUTHOR'S KNOBS. `BuilderSheet` has branched
+    // on `{source, inputs}` since W1b.9 and nothing ever produced one — the only
+    // thing that did was a `vi.mock` in its own test, which is the "built, tested,
+    // green and reachable from nothing" shape this repo keeps paying for.
+    // ⛔ THE STRING FORM IS UNCHANGED FOR EVERY OTHER CALLER. `StarterLibrary` and
+    // a paste with no declarable input still hand back a bare string, byte for
+    // byte, so the sheet's older path is untouched rather than migrated.
+    const rows = active.memberInputs || []
+    onPick?.(rows.length ? { source: active.formula, inputs: rows } : active.formula)
   }, [active, onPick])
 
   const usable = report ? report.outputs.filter((o) => o.formula) : []
@@ -314,13 +336,30 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </fieldset>
           )}
 
-          {active && active.inputsFolded && active.inputsFolded.length > 0 && (
+          {active && active.memberInputs && active.memberInputs.length > 0 && (
+            <p className={styles.folded} data-testid="pine-inputs-kept">
+              {/* ⭐⭐ THE HALF THAT USED NOT TO EXIST. These are the author's own
+                  controls, carried across as knobs the member can turn after
+                  saving — with the author's own minval/maxval as their bounds. */}
+              <UIcon name="sliders" size={12} /> Inputs you can change later:{' '}
+              {active.memberInputs.map((r) => `${r.label} = ${r.default}`).join(' · ')}
+            </p>
+          )}
+
+          {active && active.skippedInputs && active.skippedInputs.length > 0 && (
             <p className={styles.folded} data-testid="pine-inputs-folded">
               {/* ⭐ SAID OUT LOUD. A knob folded to its default silently would be a
                   formula that means something other than the script the member
-                  reads on TradingView. */}
-              Inputs are fixed at their defaults:{' '}
-              {active.inputsFolded.map((f) => `${f.title || f.call} = ${f.folded}`).join(' · ')}
+                  reads on TradingView.
+                  ⛔ AND IT NOW LISTS ONLY WHAT IS ACTUALLY FIXED. It used to print
+                  EVERY folded entry, which was true when nothing could be declared
+                  and became a false sentence the moment one could — a member would
+                  read "fixed at their defaults" about a control sitting live in
+                  their own settings. */}
+              Fixed at their defaults:{' '}
+              {active.skippedInputs.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
+              {active.skippedInputs.some((f) => /lands in a WINDOW/.test(f.reason || ''))
+                && ' — a length cannot be a member input in this engine, so it stays as written.'}
             </p>
           )}
 
