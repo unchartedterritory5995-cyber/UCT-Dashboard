@@ -4241,10 +4241,14 @@ async def lifespan(app: FastAPI):
             from api.darkpool_flatfile_ingest import scheduled_run as _dp_ff_run
             _scheduler.add_job(
                 _dp_ff_run,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=11, minute=45, timezone=_ET),
+                # Mon-SAT (2026-08-29): Friday's T+1 flat file publishes on
+                # Saturday (verified 2026-08-29), so Saturday backfills Friday
+                # instead of waiting for Monday. Monday's run is the backstop if
+                # the file publishes after 11:45 ET.
+                trigger=CronTrigger(day_of_week="mon-sat", hour=11, minute=45, timezone=_ET),
                 id="darkpool_flatfile_ingest", max_instances=1, replace_existing=True,
                 misfire_grace_time=7200)
-            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (weekdays 11:45 ET, gated)")
+            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)")
         except Exception as _e_dpff:
             print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
 

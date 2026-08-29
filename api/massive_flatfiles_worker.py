@@ -637,11 +637,15 @@ def register_jobs(scheduler) -> bool:
     # Three retries -- each is a no-op if previous already succeeded.
     # timezone is EXPLICIT (2026-07-16): the flow-worker scheduler runs UTC,
     # so without it these "ET" times fired at 7:30/8:00/8:30 AM ET.
+    # Mon-SAT (2026-08-29): Friday's flat file is published T+1 on Saturday
+    # (verified 2026-08-29 -- absent at 01:00 ET, present by ~12:15 ET), so the
+    # Saturday run backfills Friday instead of waiting for Monday. 5-day lookback
+    # + Monday's run remain the backstop if the file publishes after 12:30 ET.
     for hh, mm in [(11, 30), (12, 0), (12, 30)]:
         scheduler.add_job(
             _wrapped,
             trigger=CronTrigger(
-                day_of_week="mon-fri", hour=hh, minute=mm, timezone=ET,
+                day_of_week="mon-sat", hour=hh, minute=mm, timezone=ET,
             ),
             id=f"massive_flatfiles_daily_{hh:02d}{mm:02d}",
             max_instances=1,
@@ -650,6 +654,6 @@ def register_jobs(scheduler) -> bool:
 
     logger.info(
         "[massive-ff] scheduler jobs registered: 11:30, 12:00, 12:30 PM ET "
-        "Mon-Fri (idempotent retries)"
+        "Mon-Sat (idempotent retries)"
     )
     return True
