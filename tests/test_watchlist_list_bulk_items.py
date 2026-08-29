@@ -137,3 +137,103 @@ def test_owner_name_matches_the_per_row_lookup():
     assert got is not None, "a public list must appear in the community tab"
     assert got["owner_name"] == expected
     assert [i["sym"] for i in got["items"]] == ["NVDA"]
+
+
+# ── slim mode (`include_items=False`) ────────────────────────────────────────
+# The app shell asks for names, not symbols. The risk in a slim mode is that it
+# quietly becomes a SECOND authority on what a list contains — a count that
+# disagrees with the items, or a caller that loses `items` it actually needed.
+
+
+def test_slim_mode_omits_items_but_keeps_an_honest_count():
+    uid = _user("wlslim")
+    wl = svc.create_watchlist(uid, "Index")
+    for sym in ("NVDA", "AMD", "TSLA", "MSFT"):
+        svc.add_item(uid, wl["id"], sym)
+
+    full = next(w for w in svc.list_user_watchlists(uid) if w["id"] == wl["id"])
+    slim = next(
+        w for w in svc.list_user_watchlists(uid, include_items=False) if w["id"] == wl["id"]
+    )
+
+    assert "items" not in slim, "slim mode must not ship the rows it exists to avoid"
+    # The count is the whole point: it must equal what the full response reports.
+    assert slim["item_count"] == full["item_count"] == 4
+    # Everything a name-rendering caller reads must survive.
+    for k in ("id", "name", "is_prebuilt"):
+        assert slim[k] == full[k]
+
+
+def test_default_still_includes_items():
+    """Every existing caller passes nothing — they must be unaffected."""
+    uid = _user("wldefault")
+    wl = svc.create_watchlist(uid, "Default")
+    svc.add_item(uid, wl["id"], "NVDA")
+
+    got = next(w for w in svc.list_user_watchlists(uid) if w["id"] == wl["id"])
+    assert [i["sym"] for i in got["items"]] == ["NVDA"]
+    assert got["item_count"] == 1
+
+
+def test_slim_counts_never_bleed_across_lists():
+    """The control — a GROUP BY that lost its key would give every list one count."""
+    uid = _user("wlcounts")
+    a, b, c = (svc.create_watchlist(uid, n) for n in ("A", "B", "C"))
+    for sym in ("NVDA", "AMD", "TSLA"):
+        svc.add_item(uid, a["id"], sym)
+    svc.add_item(uid, b["id"], "SPY")
+    # c stays empty.
+
+    by_id = {w["id"]: w for w in svc.list_user_watchlists(uid, include_items=False)}
+    assert by_id[a["id"]]["item_count"] == 3
+    assert by_id[b["id"]]["item_count"] == 1
+    assert by_id[c["id"]]["item_count"] == 0, "an empty list must report 0, not vanish"
+
+
+# ── the WIRE: query param → service ──────────────────────────────────────────
+# The service tests above all passed while the router ignored `include_items`
+# entirely (mutation M7 survived them). A slim mode the endpoint never forwards
+# is built, green and unreachable — the exact shape this repo keeps rediscovering
+# — so the wire gets its own rails, and they are what make M7 fail.
+
+
+def test_the_endpoint_forwards_include_items_to_the_service(monkeypatch):
+    """A router that hardcodes the flag serves 553 KB no matter what is asked."""
+    from api.routers import watchlists as r
+    from api.services import watchlist_service as wl
+
+    seen = {}
+
+    def spy(user_id, include_items=True):
+        seen["user_id"] = user_id
+        seen["include_items"] = include_items
+        return []
+
+    monkeypatch.setattr(wl, "list_user_watchlists", spy)
+
+    r.list_watchlists(include_items=False, user={"id": "u1"})
+    assert seen["include_items"] is False, "the endpoint dropped include_items=False"
+
+    seen.clear()
+    r.list_watchlists(user={"id": "u1"})
+    assert seen["include_items"] is True, "the default must still ship items"
+
+
+def test_include_items_is_a_real_query_parameter_on_the_mounted_route():
+    """`?include_items=0` must be the name the route actually answers to.
+
+    Renaming the parameter would leave every caller's query string silently
+    ignored — the request still 200s with the full 553 KB payload, so nothing
+    looks broken. Derived from the mounted route, never retyped from the source.
+    """
+    from api.routers import watchlists as r
+
+    route = next(
+        rt for rt in r.router.routes
+        if getattr(rt, "path", None) == "/api/watchlists" and "GET" in getattr(rt, "methods", set())
+    )
+    names = {q.name for q in route.dependant.query_params}
+    assert "include_items" in names, f"query params were {names}"
+    # Non-vacuity control: the probe can see query params in general, so a route
+    # that declared none would not pass this by accident.
+    assert names, "the probe found no query params at all — it cannot discriminate"

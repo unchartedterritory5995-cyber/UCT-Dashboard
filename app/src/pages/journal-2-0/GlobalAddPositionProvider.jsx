@@ -56,7 +56,13 @@ export default function GlobalAddPositionProvider() {
   const { getTag, setTag, removeTag } = useTickerTags()
   const { tagColors } = useTagColors()
   const { data: lists, mutate: mutateLists } = useSWR(
-    user ? '/api/watchlists' : null,
+    // ⚡ include_items=0: this provider is mounted APP-WIDE, so this fetch is on the
+    // shell path of every page — and it only ever reads `wl.id` + `wl.name` to build
+    // the "＋ Add to watchlist" submenu below. With items it shipped 553 KB / 4,406
+    // rows per page load on the owner's account (2.5-7.6 s measured on prod
+    // 2026-08-29); without them it is a few KB. If anything here ever needs a list's
+    // SYMBOLS, fetch that list on demand rather than dropping this flag.
+    user ? '/api/watchlists?include_items=0' : null,
     (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : [])),
     { refreshInterval: 60000, revalidateOnFocus: false },
   )
