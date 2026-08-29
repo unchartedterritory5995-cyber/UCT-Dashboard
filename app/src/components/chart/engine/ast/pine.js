@@ -1931,6 +1931,20 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     return typeof node.value === 'number' && Number.isFinite(node.value) ? node.value : null
   }
 
+  // ⭐ A DECLARED PINE INPUT FOLDS TO ITS OWN DEFAULT, and this one line is what
+  // lets a window keep working while the same input becomes a member knob
+  // everywhere else. `resolveInput` in declare mode returns a `series` node
+  // carrying `inputDefault`; in an `int` slot `foldWindow` runs it through here
+  // and gets the literal back, so `sma(close, len)` still emits `sma(close, 14)`
+  // and `windowLiteral`'s rule is untouched. Anywhere else the node survives and
+  // prints as the identifier.
+  // ⛔ A PLAIN `series` HAS NO `inputDefault`, so no other caller of this
+  // exported function changes behaviour — `close` does not suddenly fold.
+  if (node.type === 'series' && typeof node.inputDefault === 'number'
+      && Number.isFinite(node.inputDefault)) {
+    return node.inputDefault
+  }
+
   if (node.type === 'op') {
     const args = node.args || []
     if (node.name === 'u-') {
@@ -1993,6 +2007,22 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
  *  which is measured to do exactly that today. A negative folds through `cNum` to
  *  `u-(num n)`, which is not a `num`, so it refuses at THIS door — again
  *  byte-identical to a written `-4`. */
+/** Every declared-input identifier inside a subtree.
+ *
+ *  ⛔ IT EXISTS FOR ONE HAZARD: an input used in a WINDOW *and* somewhere else.
+ *  `len = input.int(14)` under `sma(close, len) + len` would emit
+ *  `sma(close, 14) + len` — a knob that moves half of the formula and silently
+ *  leaves the other half at the author's default. A half-applied control is
+ *  worse than none, because nothing on screen says which half it reached. So the
+ *  names folded into an int slot are collected and the whole input is refused BY
+ *  NAME rather than partly honoured. */
+function declaredInputNames(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.type === 'series' && typeof node.inputName === 'string') out.add(node.inputName)
+  for (const a of (node.args || [])) declaredInputNames(a, out)
+  return out
+}
+
 function foldWindow(node) {
   const v = constantValueOf(node)
   return (v !== null && Number.isInteger(v) && v >= 0) ? cNum(v) : node
@@ -2310,6 +2340,12 @@ class Resolver {
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
+    /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
+     *  or null for the shipped default (fold everything, as before). */
+    this.declareInputs = null
+    /** Bound input names that reached an `int` slot on this run — collected so a
+     *  caller can refuse them rather than hand back a half-applied knob. */
+    this.windowBoundInputs = new Set()
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -3794,6 +3830,12 @@ class Resolver {
         // `foldWindow` can only substitute an exact non-negative whole number, so
         // everything this line does NOT accept meets the identical check, with the
         // identical sentence and token, that it met before the fold existed.
+        // ⛔ RECORD WHICH DECLARED INPUTS GOT FOLDED INTO A WINDOW, BEFORE the
+        // fold erases them. An input that reaches an `int` slot cannot be a
+        // member knob (`interpret.js::windowLiteral` requires a literal), and if
+        // the same input is ALSO used elsewhere, honouring it there alone would
+        // move half the formula. The caller refuses the whole input by name.
+        for (const n of declaredInputNames(resolved)) this.windowBoundInputs.add(n)
         resolved = foldWindow(resolved)
         // ⛔ A WINDOW MUST BE A LITERAL, AND THAT IS THE REPAINT LINTER'S RULE
         // RATHER THAN THIS MODULE'S TASTE. `lint.js::resolveDeclaration` returns
@@ -3842,13 +3884,76 @@ class Resolver {
         `${REFUSALS['pine:input-kind']} — \`${name}\` states no default`, locate(node.tok))
     }
     const resolved = this.resolve(defval)
+    const boundName = typeof node.boundName === 'string' ? node.boundName : null
+    // ⭐ DECLARE MODE: hand back the IDENTIFIER instead of the literal.
+    // `translatePine(src, { declareInputs })` asks for this; the default path is
+    // byte-identical to what shipped before, so every existing caller and every
+    // committed corpus digest is untouched.
+    // ⛔ THE NODE STILL CARRIES ITS DEFAULT (`inputDefault`), which is what lets
+    // `foldWindow` reduce it back to a literal in an `int` slot. Emitting a bare
+    // identifier into a window would produce a formula this engine refuses.
+    const declared = boundName && this.declareInputs
+      && (this.declareInputs === 'all' || this.declareInputs.has(boundName))
+    // ⭐ THE BOUNDS ARE THE AUTHOR'S OWN, not ours. Passing `minval`/`maxval`
+    // through means the member's control stops where the script's author said it
+    // stops; inventing a range here would be a second authority over a number the
+    // paste already carries.
+    // `builderInputs.inputsFromFolded` has been able to turn a folded Pine input
+    // back into a MEMBER KNOB since W1b.9, and it refused every entry with the
+    // same sentence — "no bound name on the folded entry … TO UNBLOCK: the W3b
+    // hand-back, `usedInputs[]` gaining `name` (the Pine variable the input was
+    // assigned to)". This is that hand-back. A refusal that names its own
+    // unblocker is worth more than one that apologises, and this is the second
+    // time this month one has retired itself (see `hma`).
+    //
+    // ⛔ WITHOUT IT A PASTED SCRIPT'S KNOBS ARE WELDED SHUT. `length =
+    // input.int(14, "Length")` folds to the literal 14 so the tree stays
+    // statically decidable — right for the maths, wrong for the member, who gets
+    // somebody else's constant and no way to change it.
+    //
+    const bound = (key) => {
+      const arg = node.args.find((a) => a.name === key)
+      if (!arg) return null
+      const v = this.resolve(arg.value)
+      return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+    }
     this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
       call: name,
       title: title && title.type === 'string' ? title.value : null,
       folded: printFormula(resolved),
+      name: boundName,
+      min: bound('minval'),
+      max: bound('maxval'),
       line: node.tok.line,
       column: node.tok.column,
     })
+    if (declared) {
+      const v = constantValueOf(resolved)
+      if (v !== null) {
+        // ⛔⛔ THE METADATA IS NON-ENUMERABLE, AND THAT IS LOAD-BEARING RATHER
+        // THAN TIDY. `astHash` walks a node's OWN ENUMERABLE KEYS and
+        // `assertCanonical` refuses any node whose key set is not byte-equal to
+        // `CANONICAL_KEYS.series` (`{name, type}`) — so a plain
+        // `{type, name, inputName, inputDefault}` is not a legal tree, and
+        // `verifyRoundTrip` caught exactly that: "the translator wrote formula
+        // text it could not read back". Defining the two extras as
+        // non-enumerable keeps them readable HERE (`constantValueOf`,
+        // `declaredInputNames`) while `Object.keys`, `JSON.stringify`,
+        // `stableStringify` and every persisted copy see an ordinary `series`.
+        // ⭐ So the canonical grammar is not widened by one byte to add this
+        // feature — no node type, no key, no `astHash` movement, nothing to
+        // migrate.
+        const leaf = { type: 'series', name: boundName }
+        Object.defineProperty(leaf, 'inputName', { value: boundName, enumerable: false })
+        Object.defineProperty(leaf, 'inputDefault', { value: v, enumerable: false })
+        return leaf
+      }
+      // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
+      // `input.source(hl2)` folds to `(high + low) / 2` — a column, not a number
+      // — and a member input resolves to one finite value. Falling through to the
+      // folded expression is the honest answer, and `inputsFromFolded` already
+      // refuses that entry by name ("the fold printed an EXPRESSION").
+    }
     return resolved
   }
 }
@@ -4299,6 +4404,33 @@ const PINE_STATE_WARMUP = 250
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
 
+/** Stamp the identifier an `input.*(…)` call was bound to onto its own node.
+ *
+ *  ⭐ WHY THE NODE AND NOT A RESOLVER FIELD. `resolveInput` runs deep inside
+ *  expression resolution and has no idea what statement it is under, so the
+ *  obvious shortcut — set `this._bindingName` around each binding resolve — is
+ *  WRONG in a way that would ship: `x = sma(close, input.int(14))` would record
+ *  the input as bound to `x`, and `x` is a formula CONTAINING an input, not the
+ *  input itself. Declaring a knob named `x` there hands the member a control
+ *  that renames their own moving average.
+ *
+ *  ⛔ SO THE TEST IS STRUCTURAL AND NARROW: the binding's whole right-hand side
+ *  IS the input call. `len = input.int(14, "Length")` stamps; anything with the
+ *  call nested inside it does not, and `builderInputs.inputsFromFolded` then
+ *  refuses that entry by name ("no bound name on the folded entry") exactly as
+ *  it does today. The conservative direction is a missing knob, never a wrong one.
+ *
+ *  ⚠️ Mutates the parsed node in place, which is safe here because the node was
+ *  just built by `parseWholeExpression` for this binding and is reachable from
+ *  nowhere else yet. */
+const stampInputName = (node, name) => {
+  if (node && node.type === 'call' && typeof node.name === 'string'
+      && (node.name === 'input' || node.name.startsWith('input.'))) {
+    node.boundName = name
+  }
+  return node
+}
+
 /** The `if` / `else if` / `else` statements at `i`, re-joined into one chain.
  *  ⚠️ They arrive as SEPARATE statements at the same indent because that is how
  *  Pine is written; joining them here keeps `blockStatements` free of any
@@ -4605,7 +4737,9 @@ function foldStatements(stmts, ctx, env) {
         i = folded.next
         continue
       }
-      env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
+      env.set(nameTok.value, exprBinding(
+        stampInputName(parseWholeExpression(rhs), nameTok.value),
+        new Map(env), locate(nameTok)))
       i += 1
       continue
     }
@@ -5086,7 +5220,9 @@ export function translatePine(source, opts = {}) {
         continue
       }
       try {
-        env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
+        env.set(nameTok.value, exprBinding(
+        stampInputName(parseWholeExpression(rhs), nameTok.value),
+        new Map(env), locate(nameTok)))
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN
@@ -5169,6 +5305,13 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes, { finalBindings, mutated: reassigned })
+    // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
+    // shipped caller, every committed corpus digest and every saved definition
+    // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
+    if (opts.declareInputs) {
+      resolver.declareInputs = opts.declareInputs === 'all'
+        ? 'all' : new Set(opts.declareInputs)
+    }
     let row
     try {
       const cur = new Cursor(out.toks.slice(2))
@@ -5196,7 +5339,14 @@ export function translatePine(source, opts = {}) {
         column: out.tok.column,
         formula,
         ast,
-        inputsFolded: [...resolver.usedInputs.values()],
+        inputsFolded: [...resolver.usedInputs.values()].map((e) => (
+          // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
+          // by the reader. Whether an input reached an `int` slot is a fact about
+          // THIS resolution — the reader sees only the folded formula, where the
+          // literal has already replaced the identifier, so it is not recoverable
+          // downstream. A consumer that tried would be guessing.
+          e.name && resolver.windowBoundInputs.has(e.name)
+            ? { ...e, windowBound: true } : e)),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
         // moment `plotshape` becomes an output. `03-rsi-directional-momentum-
         // scanner` guards four of its signals behind `input.bool` toggles that

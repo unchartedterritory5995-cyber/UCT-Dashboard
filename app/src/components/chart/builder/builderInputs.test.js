@@ -20,7 +20,7 @@ import path from 'node:path'
 
 import {
   inputsFromFolded, formulaNameRoles, FOLDED_INPUT_TYPES, FOLDED_INPUT_INEXPRESSIBLE,
-  BUILDER_INPUTS,
+  BUILDER_INPUTS, pineMemberInputs,
 } from './builderInputs'
 import { evaluateFormula } from './FormulaField'
 import { translatePine } from '../engine/ast/pine'
@@ -51,16 +51,33 @@ describe('inputsFromFolded — the translator\'s folded list becomes member inpu
     // is why nothing can be declared yet however the door is called.
     expect(active.formula).toBe('sma(close, 21) * 2.5')
 
+    // ⚰️ THIS ASSERTED `/no bound name/`, AND THAT IS NO LONGER THE SHIPPED
+    // SHAPE. `pine.js::resolveInput` now records the bound identifier, so these
+    // entries walk past that guard — which is precisely the movement this file
+    // was written to detect. What refuses them here is the NEXT wall: called
+    // plainly, the translator folds every input to its literal, so the formula
+    // reads none of these names and a knob would change nothing.
+    expect(folded[0].name).toBe('len')
     const { inputs, skipped } = inputsFromFolded(folded, active.formula)
     expect(inputs).toEqual([])
     expect(skipped.map((s) => s.reason)).toEqual(
-      expect.arrayContaining([expect.stringMatching(/no bound name/)]),
+      expect.arrayContaining([expect.stringMatching(/never reads/)]),
     )
-    // ⭐ AND IT NAMES WHAT WOULD UNBLOCK IT. `lesson_an_over_refusal_is_invisible`:
-    // a wrong "no" has no red test and no complaint, so the honest ceiling is
-    // whatever the refusal says would change its mind.
-    expect(skipped[0].reason).toMatch(/TO UNBLOCK/)
-    expect(skipped[0].reason).toContain('`usedInputs[]` gaining `name`')
+    // ⭐ AND IT STILL NAMES WHAT WOULD UNBLOCK IT — which is now a call that
+    // EXISTS. `lesson_an_over_refusal_is_invisible`: a wrong "no" has no red test
+    // and no complaint, so the honest ceiling is whatever the refusal says would
+    // change its mind. This one says `pineMemberInputs`, and the next case runs it.
+    expect(skipped[0].reason).toContain('pineMemberInputs')
+
+    // ⭐⭐ THE SAME PASTE, THROUGH THE DOOR THAT ASKS FOR THE BINDING. This is the
+    // movement in one assertion: `mult` was an unturnable constant and is now a
+    // knob, while `len` is still correctly refused for being a window.
+    const door = pineMemberInputs(translatePine, SCRIPT)
+    expect(door.formula).toBe('sma(close, 21) * mult')
+    expect(door.inputs).toEqual([
+      { key: 'mult', type: 'float', label: 'Mult', default: 2.5 },
+    ])
+    expect(door.skipped.find((s) => s.name === 'len').reason).toMatch(/lands in a WINDOW/)
   })
 
   it('🔴 with a bound name, an int THRESHOLD and a float MULTIPLIER become rows — a bool is skipped by name', () => {
@@ -107,16 +124,20 @@ describe('inputsFromFolded — the translator\'s folded list becomes member inpu
     expect(skipped[0].reason).toMatch(/TO UNBLOCK/)
   })
 
-  it('🔴 a name the formula never reads is skipped, naming the hand-back that would change it', () => {
-    // ⭐ NOT A DEFECT IN THE DOOR — it is what EVERY entry looks like today,
-    // because the translator still prints the folded literal. The refusal says
-    // which hand-back moves it rather than reading as "we could not".
+  it('☠️ a name the formula never reads is skipped — and the hand-back it named now SHIPS', () => {
+    // ⚰️ THIS CASE READ "NOT A DEFECT IN THE DOOR — it is what EVERY entry looks
+    // like today, because the translator still prints the folded literal." That
+    // stopped being true: `pineMemberInputs` runs the translator in declare mode
+    // and the identifier reaches the formula. Reaching THIS sentence now means
+    // the caller did not ask for the binding — which is a real state (a plain
+    // `translatePine` call), so the branch stays, with a sentence that says so.
     const { inputs, skipped } = inputsFromFolded(
       [{ call: 'input', title: null, folded: '3', name: 'k' }], 'close * 2',
     )
     expect(inputs).toEqual([])
     expect(skipped[0].reason).toMatch(/the formula never reads `k`/)
-    expect(skipped[0].reason).toMatch(/inputs: 'declare'/)
+    expect(skipped[0].reason).toMatch(/HAND-BACK NOW SHIPS/)
+    expect(skipped[0].reason).toMatch(/pineMemberInputs/)
   })
 
   it('🔴🔴 an int bound to a WINDOW is refused BY NAME — and the engine proves the refusal right', () => {
@@ -306,35 +327,67 @@ describe('formulaNameRoles — the slot kinds are READ off the manifest, never l
 // ─── THE CORPORA, MEASURED ──────────────────────────────────────────────────
 //
 // ⭐ A CLAIM ABOUT THE REAL SCRIPTS, NOT ABOUT A FIXTURE. Both committed corpora
-// go through the door as a member's paste would, and the answer today is ZERO
-// rows for a stated reason — the translator records no bound `name` yet (W3b).
-// That is what makes this task's corpus effect a MEASUREMENT: the moment W3b
-// lands, this assertion is what tells us the number moved.
+// go through the door as a member's paste would.
+//
+// ⚰️ THIS BLOCK READ "the answer today is ZERO rows … the translator records no
+// bound `name` yet (W3b). That is what makes this task's corpus effect a
+// MEASUREMENT: the moment W3b lands, this assertion is what tells us the number
+// moved." W3b LANDED. The number moved, and this is the record of by how much.
+//
+// ⭐⭐ AND THE INTERESTING HALF IS THE REFUSALS, NOT THE ADMISSIONS. Across 51
+// real published scripts the door admits a handful of knobs and refuses ~31 for
+// ONE reason: the input is a LENGTH, and this engine cannot take a window from an
+// input because `maxLookback` is a static tree sum the repaint linter depends on.
+// That is not a bug to fix in this file — it is the measured price of static
+// decidability, and `closedTable.json::_no_offset_reopened_by` names who may
+// re-open it. A member pasting a typical indicator gets their thresholds and
+// multipliers as controls and their lengths as constants, and is TOLD which.
 const dir = (p) => path.resolve(process.cwd(), p)
 const read = (d, f) => fs.readFileSync(path.join(d, f), 'utf8')
 const files = (d) => fs.readdirSync(dir(d)).filter((f) => f.endsWith('.pine')).sort()
 
 describe('both committed Pine corpora, through the real door', () => {
   for (const corpus of ['../tests/fixtures/pine', '../tests/fixtures/pine_community']) {
-    it(`${corpus} — every folded entry is refused for a reason that names the missing hand-back`, () => {
+    it(`${corpus} — the plain call still folds everything, and the DOOR admits real knobs`, () => {
       const names = files(corpus)
       expect(names.length, 'a gate with no inputs is not a gate').toBeGreaterThanOrEqual(21)
       let entries = 0
-      let admitted = 0
+      let plainAdmitted = 0
+      let doorAdmitted = 0
+      let windowRefused = 0
       for (const f of names) {
-        const out = translatePine(read(dir(corpus), f))
-        for (const o of out.outputs || []) {
-          const { inputs, skipped } = inputsFromFolded(o.inputsFolded, o.formula)
+        const src = read(dir(corpus), f)
+        // ⭐ THE CONTROL, AND IT IS WHAT MAKES THE SECOND NUMBER MEAN ANYTHING: a
+        // plain `translatePine` still folds every input to its literal, so the
+        // door's admissions come from ASKING for the binding and not from the
+        // translator having quietly started declaring names on every call.
+        const plain = translatePine(src)
+        for (const o of plain.outputs || []) {
           entries += (o.inputsFolded || []).length
-          admitted += inputs.length
-          for (const s of skipped) {
-            expect(s.reason, `${f}: ${s.call}`).toMatch(/no bound name/)
-            expect(s.reason, `${f}: ${s.call}`).toMatch(/TO UNBLOCK/)
-          }
+          plainAdmitted += inputsFromFolded(o.inputsFolded, o.formula).inputs.length
+        }
+        const door = pineMemberInputs(translatePine, src)
+        if (!door.ok) continue
+        doorAdmitted += door.inputs.length
+        for (const s of door.skipped) {
+          if (/lands in a WINDOW/.test(s.reason)) windowRefused += 1
+          // ⛔ EVERY refusal still says what would change its mind. A door that
+          // silently drops a knob is the shape this whole module exists against.
+          expect(s.reason, `${f}: ${s.call}`).toMatch(/TO UNBLOCK|WINDOW|SHIPS/)
         }
       }
       expect(entries, 'the corpus must actually fold inputs').toBeGreaterThan(0)
-      expect(admitted, 'nothing can be declared until the translator binds a name').toBe(0)
+      expect(plainAdmitted, 'the plain call must still fold totally').toBe(0)
+      // ⛔ A FLOOR, NOT AN EXACT COUNT. An exact number reds this file the day a
+      // correctly-translating script joins the corpus — which trains the next
+      // reader to edit a number instead of reading a failure. Measured 2026-08-29:
+      // 2 admitted from `pine`, 3 from `pine_community`.
+      expect(doorAdmitted, 'the door must admit at least one real knob').toBeGreaterThan(0)
+      // ⭐ AND THE DOMINANT REFUSAL IS NAMED AND COUNTED, so the ceiling this
+      // feature actually hits is visible rather than inferred. 31 across both
+      // corpora at 2026-08-29; if this ever reads 0 the window guard has stopped
+      // firing and knobs are being handed out for lengths the engine cannot take.
+      expect(windowRefused, 'lengths must still be refused as windows').toBeGreaterThan(0)
     })
   }
 })

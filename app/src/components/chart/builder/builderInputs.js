@@ -237,6 +237,27 @@ export function formulaNameRoles(ast) {
   return { read, literalOnly }
 }
 
+/** The one sentence for "this input lands in a WINDOW".
+ *
+ *  ⛔ IT IS A FUNCTION BECAUSE TWO READERS REACH THE SAME VERDICT BY DIFFERENT
+ *  ROUTES AND MUST SAY THE IDENTICAL THING. `pine.js` stamps `windowBound` on the
+ *  entry when it folds an input back into an `int` slot; `formulaNameRoles` derives
+ *  `literalOnly` from a formula that still carries the identifier there. Two copies
+ *  of this paragraph would drift, and a member would get a different explanation
+ *  depending on which door noticed — for one fact about one input. */
+function windowRefusal(key, entry) {
+      return `\`${key}\` lands in a WINDOW, and this engine cannot take a window from an `
+        + 'input: `interpret.js::windowLiteral` refuses any window argument that is not a '
+        + 'whole-number literal (`resolve:window`), because `maxLookback(ast)` is handed no '
+        + 'bars and no inputs and the repaint linter is a tree sum over it. Measured: '
+        + '`sma(close, len)` answers *"a window must be a whole-number literal"*. The default '
+        + `(\`${entry.folded}\`) stays folded into the formula, so the column is still right `
+        + '— it is the KNOB that cannot exist. TO UNBLOCK: '
+        + '`closedTable.json::_no_offset_reopened_by` names who may re-open static '
+        + 'decidability — the repaint-claim owner and the manifest owner, together. No later '
+        + 'task may grant it alone.'
+}
+
 /** Why this candidate key cannot be a member input of THIS formula, or `null`.
  *  Built once per call, so the formula is read exactly once however many
  *  candidates there are. */
@@ -265,23 +286,28 @@ function positionVerdict(source, candidates) {
   }
   const { read: namesRead, literalOnly } = formulaNameRoles(result.ast)
   return (key, entry) => {
+    // ⛔ THE TRANSLATOR'S OWN VERDICT COMES FIRST, because by the time the
+    // formula reaches here the evidence is GONE. In declare mode an input that
+    // reached an `int` slot was folded back to its literal, so `len` is not in
+    // the tree at all and `literalOnly` cannot see it — this reader would fall
+    // through to *"the formula never reads `len`"*, which is true of the text
+    // and false about the reason. `windowBound` is stamped by `pine.js` on the
+    // run that actually did the folding (`lesson_a_second_authority_over_one_value`:
+    // the knowing side stamps its answer rather than the reader re-deriving it).
+    if (entry && entry.windowBound) {
+      return windowRefusal(key, entry)
+    }
     if (literalOnly.has(key)) {
-      return `\`${key}\` lands in a WINDOW, and this engine cannot take a window from an `
-        + 'input: `interpret.js::windowLiteral` refuses any window argument that is not a '
-        + 'whole-number literal (`resolve:window`), because `maxLookback(ast)` is handed no '
-        + 'bars and no inputs and the repaint linter is a tree sum over it. Measured: '
-        + '`sma(close, len)` answers *"a window must be a whole-number literal"*. The default '
-        + `(\`${entry.folded}\`) stays folded into the formula, so the column is still right `
-        + '— it is the KNOB that cannot exist. TO UNBLOCK: '
-        + '`closedTable.json::_no_offset_reopened_by` names who may re-open static '
-        + 'decidability — the repaint-claim owner and the manifest owner, together. No later '
-        + 'task may grant it alone.'
+      return windowRefusal(key, entry)
     }
     if (!namesRead.has(key)) {
       return `the formula never reads \`${key}\` — this translation folded it to its default `
         + `(\`${entry.folded}\`), so declaring it would hand the member a knob that changes `
-        + 'nothing. TO UNBLOCK: `translatePine(source, { inputs: \'declare\' })` (the W3b '
-        + 'hand-back) prints the bound identifier where the literal is now.'
+        + 'nothing. ⚰️ THIS SENTENCE NAMED ITS OWN UNBLOCKER — the W3b hand-back that '
+        + 'prints the bound identifier where the literal is now — AND THAT HAND-BACK NOW '
+        + 'SHIPS, as the `declareInputs` option on `translatePine`. So reaching this line '
+        + 'today means the caller did NOT ask for it: use `pineMemberInputs`, which runs '
+        + 'both passes and hands back the bound formula together with its rows.'
     }
     return null
   }
@@ -393,4 +419,87 @@ export function inputsFromFolded(folded, source) {
     inputs.push(d.row)
   }
   return { inputs, skipped }
+}
+
+/**
+ * ⭐⭐ THE ONE DOOR: a pasted Pine script → the formula the engine will run, with
+ * the author's own knobs still turnable.
+ *
+ * A member pastes `length = input.int(14, "Length")` and, until this shipped,
+ * got `14` welded into their formula — somebody else's constant, no way to change
+ * it, and nothing on screen saying a control had been taken away. That is the
+ * shape this module was written for, and `inputsFromFolded` has been ready since
+ * W1b.9, refusing every entry with one sentence: *"no bound name on the folded
+ * entry … TO UNBLOCK: `usedInputs[]` gaining `name`"*. This is that hand-back
+ * arriving, and it is the second refusal this month to retire itself by naming
+ * what would end it (see `hma`).
+ *
+ * ⛔ TWO PASSES, AND THE SECOND IS NOT AN OPTIMISATION — IT IS THE CORRECTNESS.
+ * An input that reaches an `int` slot cannot be a knob (`windowLiteral` needs a
+ * literal), so pass 1 declares EVERYTHING and lets `pine.js` report which names
+ * it had to fold back into a window. Pass 2 declares only the survivors.
+ *
+ * ⛔⛔ WITHOUT THE SPLIT, AN INPUT USED IN A WINDOW *AND* SOMEWHERE ELSE IS THE
+ * TRAP: `len = input.int(14)` under `sma(close, len) + len` would emit
+ * `sma(close, 14) + len`, and turning that knob would move HALF the formula while
+ * the other half silently stayed at the author's default. A half-applied control
+ * is worse than an absent one, because nothing on screen says which half it
+ * reached. So a window-bound name is refused WHOLE, by name, with the reason.
+ *
+ * ⚠️ IT NEVER RETURNS A WORSE FORMULA THAN THE PLAIN CALL. When nothing can be
+ * declared it calls `translate(source, opts)` unchanged, so the output is byte
+ * for byte what ships today.
+ *
+ * ⛔ `translate` IS INJECTED rather than imported. This module is the BUILDER's,
+ * and importing `pine.js` here would put a second edge into the translator from
+ * a layer that only ever reads its output — the caller already holds it.
+ *
+ * @returns `{ok, formula, inputs, skipped, outputs, selected, refusal}` — `inputs`
+ *   in `BUILDER_INPUTS` shape; `skipped` every refused entry WITH its reason, so
+ *   the paste box can tell a member which knobs did not survive and why.
+ */
+export function pineMemberInputs(translate, source, opts = {}) {
+  const pick = (out) => (out.outputs || []).find((o) => !o.refusal) || null
+  const bail = (out) => ({
+    ok: false, formula: '', inputs: [], skipped: [],
+    outputs: out.outputs || [], selected: out.selected, refusal: out.refusal,
+  })
+
+  const first = translate(source, { ...opts, declareInputs: 'all' })
+  const probe = pick(first)
+  if (!probe) return bail(first)
+
+  // The names `pine.js` could NOT keep as identifiers on a full-declare run.
+  const windowBound = new Set(
+    (probe.inputsFolded || []).filter((e) => e.windowBound && e.name).map((e) => e.name))
+  const declarable = (probe.inputsFolded || [])
+    .filter((e) => e.name && !windowBound.has(e.name))
+    .map((e) => e.name)
+
+  const final = declarable.length
+    ? translate(source, { ...opts, declareInputs: declarable })
+    : translate(source, opts)
+  const out = pick(final)
+  if (!out) return bail(final)
+
+  // ⛔ THE ROWS COME FROM THE FINAL PASS, never the probe. The probe's formula is
+  // a different string, and `positionVerdict` READS the formula to decide whether
+  // a name is actually reachable in it — judging pass 2's rows against pass 1's
+  // text would answer a question about a formula nobody is going to run.
+  //
+  // ⛔ …BUT THE *WINDOW* VERDICT IS PASS 1'S AND MUST BE CARRIED. Pass 2 never
+  // declared these names, so it never folded a declared node and its resolver
+  // reports no `windowBound` at all — the reader would then fall through to
+  // *"the formula never reads `len`"*, which is true of the TEXT and wrong about
+  // the REASON. The member would be told their knob does nothing, instead of that
+  // a length cannot be a knob in this engine and why. Only pass 1 was in a
+  // position to find out; carrying its answer is not duplication, it is the
+  // knowing side stamping its verdict.
+  const folded = (out.inputsFolded || []).map(
+    (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
+  const { inputs, skipped } = inputsFromFolded(folded, out.formula)
+  return {
+    ok: true, formula: out.formula, inputs, skipped,
+    outputs: final.outputs, selected: final.selected, refusal: null,
+  }
 }
