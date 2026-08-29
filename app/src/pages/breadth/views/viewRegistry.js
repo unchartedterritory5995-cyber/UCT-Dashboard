@@ -16,6 +16,7 @@ import PercentileLadderView from './PercentileLadderView'
 import RegimeClockView from './RegimeClockView'
 import DivergenceView from './DivergenceView'
 import RotationView from './RotationView'
+import EventLedgerView from './EventLedgerView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -33,4 +34,5 @@ export const VIEW_COMPONENTS = {
   clock: RegimeClockView,
   divergence: DivergenceView,
   rotation: RotationView,
+  events: EventLedgerView,
 }
