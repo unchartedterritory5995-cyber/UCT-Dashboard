@@ -328,8 +328,16 @@ describe('the whole corpus, in one number', () => {
     // chrome/deferred work moved others onto `:symbol`/`:account`/`:time`/
     // `:aggregation`. The floor is now over the UNION of "refused at a
     // thinkorswim NAME", which is the thing this rail was ever measuring.
+    // ⏳ 2026-08-29 ADDED `:arity`, AND IT IS THE SAME MEASUREMENT. When the four
+    // mapped studies stopped refusing wholesale and started refusing at the ONE
+    // parameter the member left unstated, their guard became `:arity` — but the
+    // refusal is still raised AT THE STUDY'S OWN TOKEN (`RSI`, `SimpleMovingAvg`,
+    // …), which is exactly what "refused at a thinkorswim NAME" has always meant
+    // here. Leaving it out would have dropped this rail from 8 to 4 and read as a
+    // regression while the door had strictly improved — the guard is a label on
+    // the refusal, and this rail is about WHERE the wall is.
     const NAME_GUARDS = ['thinkscript:function', 'thinkscript:study-ref',
-      'thinkscript:account', 'thinkscript:time']
+      'thinkscript:arity', 'thinkscript:account', 'thinkscript:time']
     const atAFunction = FILES.filter((f) => NAME_GUARDS.includes(at(f).guard))
     expect(atAFunction.length).toBeGreaterThanOrEqual(8)
 

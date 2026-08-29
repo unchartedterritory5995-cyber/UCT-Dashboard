@@ -189,3 +189,100 @@ describe('thinkorswim`s derived price series expand', () => {
     }
   })
 })
+
+/**
+ * 🔴 THE SEEDLESS REFUSAL'S REMEDY, RUN RATHER THAN READ.
+ *
+ * `01-supertrend-mobius.ts` — a real Mobius script — writes
+ * `def ST = if close < ST[1] then UP else DN;` and states no first-bar value. The
+ * door refuses it, and that refusal is CORRECT and permanent: a seed this engine
+ * picks is a number the member cannot see, and the widening that would let one be
+ * assumed was disproved by counterexample (`close < self ? 0 : 1000000` differs on
+ * 350 of 350 computable bars between a `0/0` seed and a `1000000` one).
+ *
+ * ⭐ BUT THE REFUSAL ALSO OFFERS TWO REMEDIES, AND AN OFFERED REMEDY IS A CLAIM
+ * ABOUT A RUN. This lane has already shipped one refusal whose named remedy
+ * returned the same refusal — a loop that read as help and cost a member an edit
+ * to discover — and that sentence was corrected twice before the MECHANISM was.
+ * So both remedies are executed here, on the corpus script's own body rather than
+ * a reduction of it, and the assertion is that the whole SuperTrend comes out.
+ *
+ * ⛔⛔ THIS IS ALSO THE MEASURED ANSWER TO "does CompoundValue's explicit seed
+ * form close `01`?" — asked directly of this lane. It does. `01` is therefore
+ * blocked by exactly ONE thing, the absence of a published first-bar value in the
+ * script as its author wrote it, and by nothing about `accum`, `hma`,
+ * `AverageType.HULL`, `TrueRange` or the ternary. That is a far narrower fact
+ * than "the script refuses", and it is the one worth writing down.
+ */
+describe('the seedless refusal names remedies that WORK', () => {
+  const SUPERTREND = `input AtrMult = 1.0;
+input nATR = 4;
+input AvgType = AverageType.HULL;
+def ATR = MovingAverage(AvgType, TrueRange(high, close, low), nATR);
+def UP = HL2 + (AtrMult * ATR);
+def DN = HL2 + (-AtrMult * ATR);
+`
+  // The seedless original, exactly as Mobius published the recurrence.
+  const SEEDLESS = `${SUPERTREND}def ST = if close < ST[1] then UP else DN;
+plot p = close > ST;
+`
+  it('⛔ the published script refuses, and says a first-bar value is what is missing', () => {
+    const r = translateThinkScript(SEEDLESS).refusal
+    expect(r.guard).toBe('thinkscript:state')
+    expect(r.message).toContain('states a first-bar value')
+    // ⭐ THE CONTROL that makes the two `it`s below mean anything: the refusal is
+    // about the SEED and nothing else, so the remedies may change only that.
+    expect(r.message).toContain('IsNaN')
+    expect(r.message).toContain('CompoundValue')
+  })
+
+  // ⭐ ONE EXPECTED TREE FOR BOTH REMEDIES. thinkorswim's two spellings of "this
+  // is where the value starts" mean the same recurrence, so they must produce the
+  // same column — and asserting the FORMULA rather than merely `ok` is what makes
+  // this a test of the maths instead of a test that something compiled.
+  const WANT = 'close > accum((high + low) / 2 + -1 * hma(max(close[1], high) '
+    + '- min(close[1], low), 4), close < self ? (high + low) / 2 + 1 * hma(max(close[1], '
+    + 'high) - min(close[1], low), 4) : (high + low) / 2 + -1 * hma(max(close[1], high) '
+    + `- min(close[1], low), 4), ${TS_STATE_WARMUP})`
+
+  it('⭐ remedy 1 — `if IsNaN(ST[1]) then <first> else …` translates the whole study', () => {
+    const out = translateThinkScript(`${SUPERTREND}`
+      + 'def ST = if IsNaN(ST[1]) then DN else if close < ST[1] then UP else DN;\n'
+      + 'plot p = close > ST;\n')
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT)
+  })
+
+  it('⭐ remedy 2 — `CompoundValue(1, …, DN)` translates it to the SAME tree', () => {
+    const out = translateThinkScript(`${SUPERTREND}`
+      + 'def ST = CompoundValue(1, if close < ST[1] then UP else DN, DN);\n'
+      + 'plot p = close > ST;\n')
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    expect(out.outputs.find((o) => !o.refusal).formula).toBe(WANT)
+  })
+
+  it('⛔⛔ a self-lag DEEPER than one bar still refuses, saying how deep it read', () => {
+    // ⭐ THE OTHER TWO STATEFUL CORPUS SCRIPTS DIE HERE, NOT ON THE SEED, and the
+    // distinction decides who can fix them. `17-compoundvalue` writes
+    // `CompoundValue(2, x[1] + x[2], 1)` — seeded, explicitly, by its own author —
+    // and `10-rsi-laguerre` reads `Go[1] … Go[4]`. Both STATE a first-bar value,
+    // so no seeding remedy touches them: `closedTable`'s `accum` binds `self` at
+    // ONE bar back (`recurrence.binds`), and a second bound lag is a MANIFEST
+    // change, not a translator one. Recorded here so the next reader does not
+    // spend a day re-deriving that these are the same wall as `01`. They are not.
+    for (const [depth, src] of [
+      [2, 'def x = CompoundValue(2, x[1] + x[2], 1);\nplot p = x > 0;\n'],
+      [4, 'def g = CompoundValue(1, 0.5 * g[1] - 0.2 * g[4] + close, close);\nplot p = g > 0;\n'],
+    ]) {
+      const r = translateThinkScript(src).refusal
+      expect(r.guard, `depth ${depth}`).toBe('thinkscript:state')
+      expect(r.message, `depth ${depth}`).toContain('can only be read one bar back')
+      expect(r.message, `depth ${depth}`).toContain(`${depth} bars back`)
+    }
+    // ⛔ AND THE CONTROL: one bar back WITH a seed is not refused for depth — it
+    // is the shape the two `it`s above just translated. Without this line every
+    // assertion here would pass against a door that refused every recurrence.
+    expect(translateThinkScript('def x = CompoundValue(1, if IsNaN(x[1]) then close else '
+      + '(x[1] + close) / 2, close);\nplot p = close > x;\n').refusal).toBe(null)
+  })
+})

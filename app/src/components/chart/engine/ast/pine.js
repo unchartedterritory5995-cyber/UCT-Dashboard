@@ -90,7 +90,12 @@ import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 // Importing it here would falsify a comment that is a claim about a run
 // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`), and `FN` is
 // defined in terms of it anyway, so there is still exactly one authority.
-import { FN } from './interpret.js'
+// ⭐ AND `MAX_SELF_LAG` FOR THE SAME REASON — it is the interpreter's OWN ceiling
+// on `self[k]`, so the convergence gate asks the engine rather than restating a
+// 4 that would drift the day the interpreter moves. A translated body that
+// looked back further would build a tree that translates and then refuses at
+// evaluation time, which is a refusal at the wrong door.
+import { FN, MAX_SELF_LAG } from './interpret.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -1160,6 +1165,42 @@ export function lexPine(src) {
  *  `maColour = not colourMA ? teal :` / `     risingMA ? green :` as a block. */
 const BLOCK_OPENERS = Object.freeze(new Set(['if', 'else', 'for', 'while', 'switch']))
 
+/** ⭐⭐ A LINE ENDING IN A BINARY OPERATOR IS NOT A STATEMENT — IT IS HALF OF ONE.
+ *
+ *  The indent rule above tells a block's BODY from a CONTINUATION, and it is right
+ *  about both. What it could not see is a continuation at the SAME indent, which is
+ *  how the ternary chain in a function body is published:
+ *
+ *      Mode(sw, src, len) =>
+ *            sw == "Hma"  ? HMA(src, len) :
+ *            sw == "Ehma" ? EHMA(src, len) :
+ *            sw == "Thma" ? THMA(src, len / 2) : na
+ *
+ *  All three lines sit at the same indent, so the splitter read them as THREE
+ *  statements and refused the first — `… ? HMA(src, len) :` — as an unreadable
+ *  shape, which is a refusal about a line the member never wrote.
+ *
+ *  ⛔ THIS IS NOT THE "DOES THE PREVIOUS LINE END IN AN OPERATOR" GUESS
+ *  `BLOCK_OPENERS` warns about, and the difference is which question it answers.
+ *  That guess was proposed for telling a BODY from a CONTINUATION, where it is
+ *  wrong: `maColour = not colourMA ? teal :` / `    risingMA ? green :` is a
+ *  continuation and `if cond` / `    x := 1` is a body, and both look alike to it.
+ *  `BLOCK_OPENERS` still answers that question and this never overrides it. This
+ *  answers a different one — may a statement END here — and there the answer is not
+ *  a guess at all: a dangling binary operator has no right operand, so Pine itself
+ *  rejects the line, and no statement can legally follow.
+ *
+ *  ⭐ DERIVED FROM `PINE_BINARY`, so an operator added to the grammar is covered
+ *  the day it lands. ⛔⛔ `=>` IS DELIBERATELY ABSENT: it is the one trailing token
+ *  that OPENS something rather than leaving something unfinished, and treating it
+ *  as dangling would swallow a function's entire body into its header. */
+const danglesIntoNextLine = (tok) => {
+  if (!tok) return false
+  if (tok.kind === 'punct' && (tok.value === '?' || tok.value === ':'
+    || tok.value === ',' || tok.value === '=' || tok.value === ':=')) return true
+  return (tok.kind === 'punct' || tok.kind === 'ident') && own(PINE_BINARY, tok.value)
+}
+
 /**
  * Tokens → a TREE of statements: `{header, body, sub}` at every level.
  *
@@ -1188,8 +1229,13 @@ function blockStatements(toks, indents, indent) {
     while (i < toks.length) {
       const tok = toks[i]
       const ln = indents[tok.line - 1] || 0
-      const firstOnLine = header.length > 0 && tok.line !== header[header.length - 1].line
-      if (firstOnLine && depth === 0 && (ln <= indent || opened)) break
+      const last = header[header.length - 1]
+      const firstOnLine = header.length > 0 && tok.line !== last.line
+      // ⛔ THE DANGLE TEST IS THE LAST CLAUSE, so it can only ever KEEP a
+      // statement open — it never opens one the indent rule had already closed
+      // for a reason of its own.
+      if (firstOnLine && depth === 0 && (ln <= indent || opened)
+        && !danglesIntoNextLine(last)) break
       header.push(tok)
       if (tok.kind === 'punct') {
         if (tok.value === '(' || tok.value === '[') depth += 1
@@ -1416,6 +1462,11 @@ function readsOwnPrevious(node, name) {
 export { containsFreeSelfSeries }
 
 export function seedAndUpdateOf(body, table) {
+  return ternarySeedAndUpdate(body, table) || nzSeedAndUpdate(body, table)
+}
+
+/** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
+function ternarySeedAndUpdate(body, table) {
   if (!body || body.type !== 'op' || body.name !== '?:') return null
   const args = body.args || []
   if (args.length !== 3) return null
@@ -1425,6 +1476,85 @@ export function seedAndUpdateOf(body, table) {
   if (containsFreeSelfSeries(seed, table)) return null
   if (!containsFreeSelfSeries(update, table)) return null
   return { seed, update }
+}
+
+/** ⭐⭐ THE SECOND SPELLING OF ONE FIRST-BAR VALUE: `nz(self…, SEED)` IN PLACE.
+ *
+ *  `na(x[1]) ? SEED : UPDATE` states the seed in an arm. `x = f(nz(x[1], SEED))`
+ *  states the SAME seed at the point of use, and it is what the DSP family is
+ *  actually published as — Ehlers writes
+ *  `it = … + 2*(1-a)*nz(it[1], s) - (1-a)*(1-a)*nz(it[2], s)`, and every 2-pole
+ *  filter in circulation is written that way because a ternary cannot supply an
+ *  initial value for TWO lags at once. Refusing it refused the whole family while
+ *  the engine held the node that computes it — `interpret.js` seeds `self[k]` for
+ *  every lag from the one seed, which is exactly what this spelling asks for.
+ *
+ *  ⛔ ONE SEED, OR NONE. Every `nz` wrapper in the body must state the SAME
+ *  first-bar value: `accum` has one seed slot, so `nz(x[1], a) + nz(x[2], b)`
+ *  with `a ≠ b` is a recurrence this node cannot express, and picking one of them
+ *  would answer a question nobody asked.
+ *  ⛔ AND EVERY FREE `self` MUST BE WRAPPED. `nz(x[1], s) + x[2]` is `na` on
+ *  every bar in Pine itself — the unwrapped read is unknown on the first bar and
+ *  NaN propagates forever — so translating it as if the seed covered both lags
+ *  would draw a line Pine never draws.
+ *  ⛔ AND THE WRAPPED THING MUST BE A BARE `self[k]`, not an expression
+ *  containing one. `nz(self + close, s)` means "this SUM, or `s` where it is
+ *  unknown", which is a NaN guard rather than an initial condition, and the
+ *  accumulator has nowhere to put it.
+ *
+ *  ⭐ WHY THE SUBSTITUTION IS EXACT, not an approximation on top of `accum`'s
+ *  own: inside the built body `self[k]` is never unknown — `interpret.js` fills
+ *  the whole lag history with the seed before the first step — so `nz(self[k], S)`
+ *  and `self[k]` are the same value at every step once `S` IS the seed. The
+ *  wrapper is removed because it has become a no-op, not because it was ignored. */
+function nzSeedAndUpdate(body, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return null
+  const bind = spec.recurrence.binds
+  const isSelfRead = (n) => !!n && (
+    (n.type === 'series' && n.name === bind)
+    || (n.type === 'offset' && n.args && n.args[0]
+        && n.args[0].type === 'series' && n.args[0].name === bind))
+
+  const wrappers = []
+  let unwrapped = false
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (isSelfRead(n)) { unwrapped = true; return }
+    if (n.type === 'call' && n.name === 'nz' && (n.args || []).length === 2
+        && isSelfRead(n.args[0])) {
+      if (containsFreeSelfSeries(n.args[1], table)) { unwrapped = true; return }
+      wrappers.push(n)
+      return
+    }
+    // ⭐ A NESTED RECURRENCE BINDS ITS OWN `self`, so its body slot is not this
+    // recurrence's business — the same rule `containsFreeSelfSeries` applies, read
+    // off the manifest rather than typed.
+    const inner = n.type === 'call' && table.functions[n.name]
+      && table.functions[n.name].recurrence
+    const args = n.args || []
+    args.forEach((a, i) => { if (!inner || i !== inner.body) walk(a) })
+  }
+  walk(body)
+  if (unwrapped || !wrappers.length) return null
+
+  const seed = wrappers[0].args[1]
+  // ⛔ IDENTITY BY THE READ-BACK, not by object reference: the two seeds in a
+  // 2-pole filter are two parses of the same source text and are never the same
+  // object. `printFormula` is this file's own faithful rendering of a tree — the
+  // one a member is shown — so two trees it prints alike are the same value.
+  const want = printFormula(seed)
+  for (const w of wrappers) if (printFormula(w.args[1]) !== want) return null
+
+  const seen = new Set(wrappers)
+  const substitute = (n) => {
+    if (!n || typeof n !== 'object') return n
+    if (seen.has(n)) return n.args[0]
+    if (!Array.isArray(n.args)) return n
+    const next = n.args.map(substitute)
+    return next.every((v, i) => v === n.args[i]) ? n : { ...n, args: next }
+  }
+  return { seed, update: substitute(body) }
 }
 
 /** Does this tree read a `self` that NOTHING HAS BOUND?
@@ -1515,6 +1645,31 @@ function containsSelfSeries(node, table) {
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
 export const SEED_RESIDUAL_TOLERANCE = 1e-6
 
+/** ⚰️⚰️ A TRANSIENT-GROWTH CEILING WAS WRITTEN BESIDE THE TOLERANCE ABOVE AND
+ *  THEN MEASURED AWAY. The worry was real in shape: a multi-lag form is a MATRIX
+ *  recurrence, and `A^n → 0` says nothing about `‖A^k‖` for `k < n`, so the seed's
+ *  influence can balloon before it decays. In doubles (~1e-16 relative) an
+ *  intermediate amplification of `M` would leave `M × 1e-16` of rounding error in
+ *  the answer, and past `M ≈ 1e10` the residual would be a number this loop cannot
+ *  actually compute. A `peak <= 1e6` clause guarded that.
+ *
+ *  ⛔ IT COULD NOT FIRE, AND A GATE THAT CANNOT FAIL READS AS PROTECTION. Two
+ *  searches over the region this rule actually admits — coefficient vectors of 2
+ *  to 5 lags, `warmup` 250 — asked for the largest peak reachable by a vector that
+ *  PASSES the residual test: 3,000,000 uniform random draws in [-2, 2] found a
+ *  maximum peak of 10.1, and a 400-restart hill-climb in [-4, 4] optimising
+ *  directly for peak subject to the residual reached 159.7. Six orders under the
+ *  ceiling, because the two quantities pull against each other: a big transient
+ *  needs slow decay, and slow decay is exactly what the residual refuses.
+ *
+ *  ⭐ SO THE MEASUREMENT IS THE JUSTIFICATION, AND IT IS STRONGER THAN THE GUARD
+ *  WAS. At a peak of ~160 the rounding error in the surviving seed is ~1e-14 —
+ *  eight orders under `SEED_RESIDUAL_TOLERANCE` — so the residual this loop
+ *  computes IS the residual the arithmetic has. ⚠️ WHAT WOULD REOPEN IT: the
+ *  region was searched at `warmup = 250` and `MAX_SELF_LAG = 4`. Both are read
+ *  from elsewhere, and a much larger lag ceiling widens the admitted set. Re-run
+ *  the search before raising `MAX_SELF_LAG`; do not re-add an unfireable clause. */
+
 export function forgetsItsSeed(node, table, warmup) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -1561,26 +1716,136 @@ export function forgetsItsSeed(node, table, warmup) {
     return null
   }
 
-  const contracts = (n) => {
-    const a = coefficient(n)
-    if (a === null || !Number.isFinite(a)) return false
-    return Math.abs(a) ** warmup <= SEED_RESIDUAL_TOLERANCE
+  /** The lag `k` this node reads — 0 for bare `self`, `k` for `self[k]` — or null
+   *  when it is not a bare read of the running value. ⛔ `(self + close)[1]` is
+   *  NOT a lag: it is a past value of an expression, which the step loop never
+   *  held (see `interpret.js`, which refuses exactly that). */
+  const selfLagOf = (n) => {
+    if (isSelf(n)) return 0
+    if (n && n.type === 'offset' && isSelf((n.args || [])[0])
+        && Number.isInteger(n.value) && n.value >= 0) return n.value
+    return null
   }
 
-  const ok = (n) => {
+  /** ⭐⭐ THE COEFFICIENT VECTOR `[a0, a1, … aL]` OF `Σ ak·self[k] + <self-free>`,
+   *  or null when the tree is not ONE linear form in the running value's history.
+   *
+   *  ⛔⛔ THIS IS THE PIECE AN ADVERSARY ALREADY PROVED UNSOUND IN ITS OBVIOUS
+   *  FORM, AND THE COUNTEREXAMPLE IS PINNED IN `pine.convergence.test.js`. Letting
+   *  a ternary's arms each produce a vector and asking each one separately is
+   *  sound for SCALARS — a product of numbers each under the threshold is under
+   *  the threshold — and FALSE for vectors: a switched linear system can diverge
+   *  while every arm contracts on its own. `close > open ? -1.7·self - 0.8·self[1]
+   *  + close : 0.2·self - 0.8·self[1] + close` has both arms passing at residuals
+   *  3.17e-12 and 5.84e-13 and reaches 2.157e+24 on a hundred-dollar stock.
+   *  So this function recognises NO switch of any kind — no `?:`, no `min`/`max`,
+   *  no `nz` — and `contracts` refuses to call it from under one. What is admitted
+   *  is exactly the unswitched case: `+ - * /` over `self[k]` and self-free terms,
+   *  which is a single linear time-invariant recurrence and nothing else. */
+  const coefficientVector = (n) => {
+    if (!n || typeof n !== 'object') return null
+    const lag = selfLagOf(n)
+    if (lag !== null) {
+      // ⛔ THE INTERPRETER'S CEILING, ASKED RATHER THAN RESTATED. Admitting a
+      // deeper lag here would translate a tree that then refuses at evaluation —
+      // a refusal at a door the member never typed at.
+      if (lag > MAX_SELF_LAG) return null
+      const v = new Array(lag + 1).fill(0)
+      v[lag] = 1
+      return v
+    }
+    if (!carries(n)) return [0]
+    const args = n.args || []
+    const combine = (a, b, sign) => {
+      if (a === null || b === null) return null
+      const out = new Array(Math.max(a.length, b.length)).fill(0)
+      for (let i = 0; i < out.length; i += 1) out[i] = (a[i] || 0) + sign * (b[i] || 0)
+      return out
+    }
+    if (n.type === 'op' && n.name === 'u-' && args.length === 1) {
+      const a = coefficientVector(args[0])
+      return a === null ? null : a.map((x) => -x)
+    }
+    if (n.type === 'op' && (n.name === '+' || n.name === '-') && args.length === 2) {
+      return combine(coefficientVector(args[0]), coefficientVector(args[1]),
+        n.name === '+' ? 1 : -1)
+    }
+    if (n.type === 'op' && n.name === '*' && args.length === 2) {
+      if (carries(args[0]) && carries(args[1])) return null
+      const carrier = carries(args[0]) ? args[0] : args[1]
+      const scale = carries(args[0]) ? args[1] : args[0]
+      const k = constantValueOf(scale)
+      const a = coefficientVector(carrier)
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k)) return null
+      return a.map((x) => x * k)
+    }
+    if (n.type === 'op' && n.name === '/' && args.length === 2) {
+      if (carries(args[1])) return null
+      const k = constantValueOf(args[1])
+      const a = coefficientVector(args[0])
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k) || k === 0) return null
+      return a.map((x) => x / k)
+    }
+    return null
+  }
+
+  /** ⭐⭐ HOW MUCH OF THE SEED SURVIVES `warmup` STEPS — SIMULATED ON THE ENGINE'S
+   *  OWN LOOP rather than reasoned about.
+   *
+   *  The body is linear, so the seed's contribution obeys the SAME recurrence the
+   *  values do, driven by the initial condition `interpret.js` actually uses: the
+   *  whole lag history filled with the seed. So this walks the identical shift
+   *  register for the identical number of steps and reads the sensitivity off the
+   *  end. ⛔ NOT THE SPECTRAL RADIUS: `ρ(A) < 1` is an asymptotic statement, and
+   *  `accum` re-seeds at a FIXED distance — the question is what is left after
+   *  exactly `warmup` steps, and for a repeated root (every critically-damped
+   *  filter) the `n·ρⁿ` term makes those two answers differ by orders of
+   *  magnitude. ⭐ AND IT DEGENERATES TO THE SCALAR RULE EXACTLY: with `[a]` the
+   *  loop computes `aⁿ`, which is what the scalar path tests. */
+  const seedResidual = (coeffs) => {
+    const last = coeffs.length - 1
+    const history = new Array(last + 1).fill(1)
+    for (let step = 0; step < warmup; step += 1) {
+      let next = 0
+      for (let k = 0; k <= last; k += 1) next += coeffs[k] * history[k]
+      if (!Number.isFinite(next)) return Infinity
+      for (let k = last; k > 0; k -= 1) history[k] = history[k - 1]
+      history[0] = next
+    }
+    return Math.abs(history[0])
+  }
+
+  const contracts = (n, switched) => {
+    const a = coefficient(n)
+    if (a !== null) {
+      if (!Number.isFinite(a)) return false
+      return Math.abs(a) ** warmup <= SEED_RESIDUAL_TOLERANCE
+    }
+    // ⛔⛔ THE ONE PLACE THE VECTOR PATH IS REACHABLE, AND THE FLAG IS THE WHOLE
+    // GUARD. `switched` is set by every arm-taking parent below, so a multi-lag
+    // form under a `?:`, a `min`/`max` or an `nz` is still exactly as refused as
+    // it was — that is the counterexample's home and it stays shut.
+    if (switched) return false
+    const v = coefficientVector(n)
+    if (v === null) return false
+    const residual = seedResidual(v)
+    return Number.isFinite(residual) && residual <= SEED_RESIDUAL_TOLERANCE
+  }
+
+  const ok = (n, switched) => {
     if (!n || typeof n !== 'object') return true
     if (isSelf(n)) return true
     if (!carries(n)) return true
     const args = n.args || []
     if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
       const withSelf = args.filter(carries)
-      return withSelf.length === 1 && ok(withSelf[0])
+      return withSelf.length === 1 && ok(withSelf[0], true)
     }
-    if (n.type === 'call' && n.name === 'nz') return args.every(ok)
-    if (n.type === 'op' && n.name === '?:') return ok(args[1]) && ok(args[2])
-    return contracts(n)
+    if (n.type === 'call' && n.name === 'nz') return args.every((a) => ok(a, true))
+    if (n.type === 'op' && n.name === '?:') return ok(args[1], true) && ok(args[2], true)
+    return contracts(n, switched)
   }
-  return ok(node)
+  return ok(node, false)
 }
 
 function findTop(toks, pred) {
@@ -3167,6 +3432,26 @@ class Resolver {
         `${REFUSALS['pine:arity']} — \`${name}\` was given ${arity} `
         + `argument${arity === 1 ? '' : 's'}`, locate(node.tok))
     }
+    // ⚰️ PINE'S NUMERIC CASTS WERE WRITTEN HERE AND TAKEN BACK OUT, AND THE
+    // MEASUREMENT IS WHY. `int(x)` truncates toward zero, which is exactly
+    // `idiv(x, 1)` — the manifest's own sentence for `idiv` reads "divided by,
+    // rounded toward zero", and both lanes implement it as `trunc(x / y)` — and
+    // `float(x)` is the identity in an engine with one numeric column type. So
+    // both are expressible in vocabulary this table already declares, `vwma`-style,
+    // and MEASURED they move `07-hull-suite` two walls deeper (`pine:function int`
+    // → `pine:window` at line 22, which names `hma` as the thing that would spare
+    // the member the expansion) and take `02-ict`'s four `pine:function` output
+    // refusals to the `pine:state` that is actually blocking them.
+    // ⛔ THE CORPUS SNAPSHOT IS WHAT STOPPED IT: `__fixtures__/pineCorpus.json`
+    // records 02's per-output refusals as `{state: 4, function: 4}`, so the change
+    // is a snapshot edit as well as a translator edit, and the snapshot was outside
+    // the lane that wrote this. It is recorded here rather than left half-shipped
+    // behind a dead flag: `if (false && …)` in a file this size is how an
+    // unreachable branch survives long enough to be mistaken for live code.
+    // ⛔⛔ AND `bool(x)` WOULD NOT HAVE COME WITH THEM. TradingView documents the
+    // cast for `na` and for bools; what `bool(<float>)` means for a `ta.pivothigh`
+    // result is NOT published, and the plausible reading (`not na(x)`) would be
+    // this translator INVENTING a meaning and drawing a column from it.
     // ⛔ `fixnan` STAYS REFUSED, AND NOT FOR WANT OF A TABLE ENTRY. It carries the
     // last known value FORWARD ACROSS BARS for an unbounded distance, so it is
     // state with no warm-up a member could state — `accum` bounds its window on

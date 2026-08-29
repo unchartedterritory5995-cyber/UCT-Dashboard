@@ -137,10 +137,10 @@
       "RSI_Threshold=25"
     ],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 11,
       "column": 22,
       "token": "BollingerBands"
@@ -256,10 +256,10 @@
     ],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 8,
       "column": 15,
       "token": "SimpleMovingAvg"
@@ -430,10 +430,10 @@
     "ignoredLines": [],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 1,
       "column": 1,
       "token": "RSI"
@@ -496,10 +496,10 @@
     ],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 4,
       "column": 31,
       "token": "MovAvgExponential"
@@ -681,6 +681,7 @@
   "_guardsFired": [
     "thinkscript:account",
     "thinkscript:aggregation",
+    "thinkscript:arity",
     "thinkscript:block",
     "thinkscript:fold",
     "thinkscript:state",

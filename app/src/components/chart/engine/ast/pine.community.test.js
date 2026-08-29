@@ -48,6 +48,17 @@ describe('the community corpus, by name', () => {
     // quarter of a candle. It now yields FOUR columns — open, high, low, close —
     // and `close > open` on them is the screen the script exists for.
     '08-smoothed-heiken-ashi-candles.pine',
+    // ⭐⭐ THE 2-POLE FILTER FAMILY, AND IT WAS TWO WALLS AGAIN. Ehlers'
+    // Instantaneous Trendline is
+    // `it = … + 2(1-a)·nz(it[1], s) - (1-a)²·nz(it[2], s)` — a second-order
+    // recurrence that states its first-bar value AT THE POINT OF USE, because a
+    // `na(x[1]) ? … : …` ternary cannot supply an initial value for two lags at
+    // once. `pine.js` read only the ternary spelling, so it refused at the seed;
+    // past that, the convergence gate read a SCALAR coefficient and answered
+    // "unknown" as soon as a second lag appeared. `interpret.js` could always
+    // compute this — `MAX_SELF_LAG` is 4 and its own comment calls the 2-pole
+    // case "the keystone" — so both walls were in the translator.
+    '10-ehlers-instantaneous-trend-lazybear.pine',
     '11-52-week-high-low.pine',
     '12-vcp-tightness-score.pine',
     '13-relative-strength-vs-benchmark-spy.pine',

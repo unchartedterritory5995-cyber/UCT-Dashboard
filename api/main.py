@@ -6688,6 +6688,8 @@ app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
+from api.routers import indicator_vision as indicator_vision_router  # noqa: E402
+app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
