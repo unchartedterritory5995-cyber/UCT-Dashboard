@@ -1151,7 +1151,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // `flagToast === 'added'` branch below was unreachable the day it was
     // written: a rendered state with no writer. It TOGGLES now, the same verb
     // ChartPane, GridChartCell, Breadth and the Theme Tracker already use.
-    if (e.shiftKey && e.key === 'F' && selectedSym) {
+    // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
+    // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
+    // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
+    // a TOGGLE leaves the flag on whichever parity the release happens to catch.
+    // Reported 2026-08-29.
+    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && selectedSym) {
       e.preventDefault()
       const willFlag = !flagged.includes(selectedSym)
       toggleFlag(selectedSym)
