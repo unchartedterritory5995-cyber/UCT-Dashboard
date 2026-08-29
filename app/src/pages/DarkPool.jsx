@@ -49,15 +49,15 @@ function parseCSV(text) {
 
 // ── colours (matched to OptionsFlow dashboard palette) ─────────────────────
 const C = {
-  bg:"#0e0f0d", bg2:"#1a1c17", bg3:"#22251e", bg4:"#1a1c17", bgH:"#2a2d23",
-  bdr:"#2e3127", bdr2:"#3a3d32",
-  tx:"#e0dac8", tx2:"#a8a290", tx3:"#706b5e",
-  blue:"#6ba3be", green:"#3cb868", red:"#e74c3c", amber:"#c9a84c",
+  bg:"#101012", bg2:"#17181b", bg3:"#1d1f23", bg4:"#17181b", bgH:"#2a2d23",
+  bdr:"#2a2c31", bdr2:"#383b41",
+  tx:"#f8f7f3", tx2:"#f0efea", tx3:"#8a8a8f",
+  blue:"#6ba3be", green:"#2faf68", red:"#df4646", amber:"#dcbb5e",
   cyan:"#6ba3be", purple:"#a78bfa", pink:"#c97a8b", orange:"#c9844c",
 };
 const CAT_COLORS = {
-  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#c9a84c","Small Cap":"#e74c3c",
-  "Sector ETFs":"#3cb868","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
+  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#dcbb5e","Small Cap":"#df4646",
+  "Sector ETFs":"#2faf68","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ function fmt(n){
   return "$"+n;
 }
 function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
-function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#a8a290"; }
+function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#f0efea"; }
 function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
 
 // Format large avg vol percentages readably (897112% → 8,971×)
@@ -112,7 +112,7 @@ function Sparkline({it, w=140, h=36}){
   const zoneY1=y(hi), zoneY2=y(lo);
   const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
   const lastP=pts[pts.length-1].p;
-  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#a8a290";
+  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#f0efea";
 
   // Big print level — clamp to visible range
   const bp = it.bigPrint;
@@ -134,13 +134,13 @@ function Sparkline({it, w=140, h=36}){
         <>
           {/* Thick zone band */}
           <rect x={P} y={bpY - bpThick/2} width={w-P*2} height={bpThick}
-            fill="#c9a84c33" stroke="none" rx={1}/>
+            fill="#dcbb5e33" stroke="none" rx={1}/>
           {/* Center line */}
           <line x1={P} y1={bpY} x2={w-P} y2={bpY}
-            stroke="#c9a84c" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
+            stroke="#dcbb5e" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
           {/* Left anchor tick */}
           <line x1={P} y1={bpY-4} x2={P} y2={bpY+4}
-            stroke="#c9a84c" strokeWidth={2} opacity={0.9}/>
+            stroke="#dcbb5e" strokeWidth={2} opacity={0.9}/>
         </>
       )}
 
@@ -191,7 +191,7 @@ function TickerCell({it, catColor}){
 // ── Zone display ──────────────────────────────────────────────────────────────
 function ZoneCell({it}){
   const pos=it.pos;
-  const color=pos==="above"?C.green:pos==="below"?C.red:"#a8a290";
+  const color=pos==="above"?C.green:pos==="below"?C.red:"#f0efea";
   const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
     <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:13}}>
@@ -254,8 +254,8 @@ function CatPill({cat}){
 
 // ── Signal badges ────────────────────────────────────────────────────────────
 const SIG_COLORS={
-  YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c",
-  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c",
+  YEARLY_RECORD:"#dcbb5e", MONTHLY_RECORD:"#2faf68", NOTIONAL_SPIKE:"#df4646",
+  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#dcbb5e",
 };
 const SIG_SHORT={
   YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge",
@@ -287,13 +287,13 @@ function SignalBadges({signals,compact}){
 // ── Flow table ────────────────────────────────────────────────────────────────
 const TH = ({children,style={}}) => (
   <th style={{padding:"8px 10px",textAlign:"left",fontSize:11,
-    color:"#706b5e",fontWeight:600,borderBottom:"1px solid #2e3127",
-    position:"sticky",top:0,background:"#22251e",whiteSpace:"nowrap",...style}}>
+    color:"#8a8a8f",fontWeight:600,borderBottom:"1px solid #2a2c31",
+    position:"sticky",top:0,background:"#1d1f23",whiteSpace:"nowrap",...style}}>
     {children}
   </th>
 );
 const TD = ({children,style={}}) => (
-  <td style={{padding:"7px 10px",borderBottom:"1px solid #2e312733",
+  <td style={{padding:"7px 10px",borderBottom:"1px solid #2a2c3133",
     verticalAlign:"middle",...style}}>
     {children}
   </td>
@@ -427,7 +427,7 @@ function ZoneGauge({above,inside,below}){
         textTransform:"uppercase",marginBottom:10}}>Zone Positioning</div>
       <div style={{display:"flex",gap:3,alignItems:"flex-start"}}>
         {seg(above,pA,C.green,"Above","flex-start")}
-        {seg(inside,pI,"#706b5e","Inside","center")}
+        {seg(inside,pI,"#8a8a8f","Inside","center")}
         {seg(below,pB,C.red,"Below","flex-end")}
       </div>
     </div>
@@ -774,10 +774,10 @@ const TF_MAP = {
 // PatternTickerRow (badges in notable variant) and OverviewPane (group
 // headers in Patterns Detected) can read from the same source.
 const SIG_META = {
-  MONTHLY_RECORD:    {color:"#3cb868", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
-  YEARLY_RECORD:     {color:"#c9a84c", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
-  NOTIONAL_SPIKE:    {color:"#e74c3c", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
-  ZONE_BREAK_RECORD: {color:"#c9a84c", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
+  MONTHLY_RECORD:    {color:"#2faf68", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
+  YEARLY_RECORD:     {color:"#dcbb5e", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
+  NOTIONAL_SPIKE:    {color:"#df4646", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
+  ZONE_BREAK_RECORD: {color:"#dcbb5e", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
   SIZE_ESCALATION:   {color:"#a78bfa", short:"Growing Daily", groupLabel:"Building Up Over Days",      groupTip:"Print sizes are getting bigger each day in a row — possible accumulation", tagTip:"Print sizes are getting bigger each day in a row"},
   RARE_FLOW:         {color:"#6ba3be", short:"First Seen",    groupLabel:"First Time Seen",            groupTip:"These stocks haven't appeared in dark pool prints recently — fresh interest", tagTip:"Hasn't shown up in dark pool prints recently"},
 };
