@@ -52,6 +52,7 @@ const Screener = lazy(() => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
 const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
+const FormulaReference = lazy(() => import('./pages/formulas/FormulaReference'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
@@ -394,6 +395,16 @@ export default function App() {
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
+                {/* ⭐⭐ THE VOCABULARY A MEMBER BUILDS WITH. Until this route
+                    existed the only complete list of names anywhere in the
+                    product was inside an ERROR message — `interpret.js` joins
+                    every key in scope when it refuses an unknown name, and that
+                    ~1,700-character dump in a red chip was the reference.
+                    ⛔ INSIDE `Layout` and inside `AuthGuard`, deliberately: it
+                    is a product surface, not a shared link, and making it public
+                    is a marketing decision rather than an engineering one.
+                    Rail: `pages/formulas/formulaReference.route.test.jsx`. */}
+                <Route path="/formulas/reference" element={<FormulaReference />} />
                 <Route path="/ai-search" element={<AiSearchPage />} />
                 {/* ?view=scoreboard forwards to /flow-scoreboard — see
                     OptionsFlowRoute above for why it cannot live in the page. */}

@@ -11,6 +11,7 @@ import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import BuilderSheet from './builder/BuilderSheet'
 import PatternToolbarButton from './PatternToolbarButton'
+import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
@@ -950,6 +951,7 @@ function ChartToolbar({
   setMagnet = null,              // when provided, shows the magnet toggle
   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
   hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
+  showTracings = false,          // charts workspace only: append the Drawing Boards button after the drawing tools
   // ⭐ The chart's own engine instances, forwarded to the alert popover so an
   // alert can name the INSTANCE it was armed from (Phase C Task 15). Default
   // `[]`, so every mount site that does not pass it behaves exactly as before:
@@ -1219,6 +1221,11 @@ function ChartToolbar({
             {ICONS[t.id]}
           </button>
         ))}
+        {/* Drawing Boards — at the END of the drawing tools, styled identically (it's
+            handed this toolbar's own scoped button classes). Charts workspace only. */}
+        {!toolFilter && showTracings && (
+          <BoardsToolButton btnClassName={styles.btn} activeClassName={styles.active} currentSym={currentSym} />
+        )}
         {/* ── Favorite Drawings: show/hide tools + pick favorites for the floating toolbar ── */}
         {!toolFilter && (
           <button
