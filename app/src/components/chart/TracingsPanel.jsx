@@ -31,10 +31,21 @@ const Plus = () => (
     <line x1="8" y1="3" x2="8" y2="13" /><line x1="3" y1="8" x2="13" y2="8" />
   </svg>
 )
+const Pencil = () => (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.8 2.6l2.6 2.6" /><path d="M11.6 1.8 14.2 4.4 5.4 13.2 2 14l.8-3.4z" />
+  </svg>
+)
+const XMark = () => (
+  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" />
+  </svg>
+)
 
 function BoardRow({ t, active, currentSym, onActivate, onRename, onDelete, canDelete }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [confirming, setConfirming] = useState(false)
 
   const count = currentSym ? peekTracingDrawings(t.id, currentSym).length : 0
   const label = tracingLabel(t)
@@ -52,7 +63,7 @@ function BoardRow({ t, active, currentSym, onActivate, onRename, onDelete, canDe
         className={styles.pick}
         aria-pressed={active}
         title={active ? 'Active board — you draw on this one' : 'Draw on this board'}
-        onClick={() => onActivate(t.id)}
+        onClick={() => { setConfirming(false); onActivate(t.id) }}
       >
         <span className={styles.check}>{active ? <Check /> : null}</span>
         {editing ? (
@@ -80,18 +91,54 @@ function BoardRow({ t, active, currentSym, onActivate, onRename, onDelete, canDe
         )}
       </button>
 
-      {currentSym ? <span className={styles.count} title={`${count} on ${currentSym}`}>{count}</span> : null}
+      <div className={styles.actions}>
+        {currentSym ? <span className={styles.count} title={`${count} on ${currentSym}`}>{count}</span> : null}
 
-      <button
-        type="button"
-        className={styles.del}
-        title={canDelete ? 'Delete this board' : 'Keep at least one board'}
-        aria-label={`Delete ${label}`}
-        disabled={!canDelete}
-        onClick={(e) => { e.stopPropagation(); onDelete(t.id, label) }}
-      >
-        <Trash />
-      </button>
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className={styles.confirmDel}
+              title="Confirm delete"
+              aria-label={`Confirm delete ${label}`}
+              onClick={(e) => { e.stopPropagation(); onDelete(t.id, label) }}
+            >
+              <Check />
+            </button>
+            <button
+              type="button"
+              className={styles.cancelDel}
+              title="Cancel"
+              aria-label="Cancel delete"
+              onClick={(e) => { e.stopPropagation(); setConfirming(false) }}
+            >
+              <XMark />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={styles.edit}
+              title="Rename this board"
+              aria-label={`Rename ${label}`}
+              onClick={(e) => { e.stopPropagation(); setDraft(t.name || ''); setEditing(true) }}
+            >
+              <Pencil />
+            </button>
+            <button
+              type="button"
+              className={styles.del}
+              title={canDelete ? 'Delete this board' : 'Keep at least one board'}
+              aria-label={`Delete ${label}`}
+              disabled={!canDelete}
+              onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+            >
+              <Trash />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -104,8 +151,9 @@ export default function TracingsPanel({ currentSym = null, onClose = null }) {
     const id = createTracing()
     setActiveTracing(id)          // a new board is made to draw on — switch to it
   }, [createTracing, setActiveTracing])
-  const handleDelete = useCallback((id, label) => {
-    if (typeof window !== 'undefined' && window.confirm && !window.confirm(`Delete "${label}" and its drawings on every ticker?`)) return
+  // Deletion is confirmed inline in the row (a second ✓ button), NOT a browser
+  // dialog — so this just removes the board once the row's confirm is clicked.
+  const handleDelete = useCallback((id) => {
     deleteTracing(id)
   }, [deleteTracing])
 
