@@ -1679,7 +1679,18 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     # ⛔ AND AN ON-DEMAND RUN WRITES NOTHING AT ALL — `mode` in the docstring.
     persisted = False
     if mode == NIGHTLY and not history_withheld:
-        scan_store.record_hits(def_hash, tf_code, session, hits)
+        # ⭐⭐ THE VALUE RIDES WITH THE HIT NOW. `hit_rows` was already built a few
+        # screens up and the comment beside it said the sweep DISCARDS it — which
+        # is why a member could filter on a definition and never sort by it, the
+        # gap two independent competitive registers both ranked first (TC2000's
+        # whole product is a sortable column of any formula).
+        # ⛔ `hits` IS STILL THE AUTHORITY ON WHO MATCHED. The values are a map
+        # BESIDE it, so a symbol missing from the map writes NULL rather than
+        # dropping the hit — the membership answer cannot regress behind a
+        # presentation feature.
+        scan_store.record_hits(
+            def_hash, tf_code, session, hits,
+            values={r["symbol"]: r["value"] for r in hit_rows if "value" in r})
         scan_store.record_coverage(
             def_hash, tf_code, session,
             evaluated=evaluated, answered=answered, dropped=dropped,
