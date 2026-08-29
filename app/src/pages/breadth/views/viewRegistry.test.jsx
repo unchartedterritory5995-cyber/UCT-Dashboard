@@ -9,6 +9,12 @@ vi.mock('echarts-for-react', () => ({
   default: ({ option }) => <div data-testid="echart" data-series={JSON.stringify(option?.series?.length ?? 0)} />,
 }))
 
+// ScoreAttributionView calls useSWR; this rail renders every registered
+// style with no server behind it, so stub swr to the empty/no-data shape.
+// The view's error branch renders fine with null data — exactly the
+// "renders without throwing" property this rail checks.
+vi.mock('swr', () => ({ default: () => ({ data: null, isLoading: false, error: null }) }))
+
 import { STYLES, VIEW_CONFIG, optionDefaults } from './viewMetricConfig'
 import { VIEW_COMPONENTS, viewsByKind } from './viewRegistry'
 import { HM_METRICS } from '../heatmapMetrics'

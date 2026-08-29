@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events', 'attribution']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -147,6 +147,7 @@ export const VIEW_CONFIG = {
   divergence: { kind: 'lens', label: 'Divergence', eligibleKeys: () => [], defaultVisible: [], options: [...DIVERGENCE_OPTIONS, ...THEME_OPTIONS] },
   rotation: { kind: 'lens', label: 'Rotation', eligibleKeys: () => [], defaultVisible: [], options: [...ROTATION_OPTIONS, ...THEME_OPTIONS] },
   events: { kind: 'lens', label: 'Event Ledger', eligibleKeys: () => [], defaultVisible: [], options: [...EVENTS_OPTIONS, ...THEME_OPTIONS] },
+  attribution: { kind: 'lens', label: 'Score Attribution', eligibleKeys: () => [], defaultVisible: [], options: THEME_OPTIONS },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).

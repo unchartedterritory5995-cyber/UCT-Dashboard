@@ -17,6 +17,7 @@ import RegimeClockView from './RegimeClockView'
 import DivergenceView from './DivergenceView'
 import RotationView from './RotationView'
 import EventLedgerView from './EventLedgerView'
+import ScoreAttributionView from './ScoreAttributionView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -35,4 +36,5 @@ export const VIEW_COMPONENTS = {
   divergence: DivergenceView,
   rotation: RotationView,
   events: EventLedgerView,
+  attribution: ScoreAttributionView,
 }
