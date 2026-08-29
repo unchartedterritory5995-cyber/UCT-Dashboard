@@ -2638,9 +2638,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
-    # Readiness gates -- /api/ready (railway.json healthcheckPath) stays 503
-    # until each of these warmers finishes, so Railway keeps serving from the
-    # OLD warm pod instead of cutting traffic to a cold one. Each gate is
+    # Readiness gates -- /api/ready stays 503 until each of these warmers
+    # finishes. ⛔ That is OBSERVABILITY, not routing: `healthcheckPath` is
+    # `/api/health` and must stay there (pointing it here caused a ~3 min
+    # outage on 2026-07-26 -- see the /api/ready docstring below). Each gate is
     # registered immediately before its warmer starts and released in the
     # `except` if the warmer could not even be scheduled, so a scheduling
     # failure can never hold a deploy hostage.
@@ -6293,11 +6294,29 @@ def health():
 
 @app.get("/api/ready")
 def ready():
-    """Readiness probe -- railway.json `healthcheckPath` points here.
+    """Readiness probe -- OBSERVABILITY ONLY. ⛔ NOTHING GATES A DEPLOY ON THIS.
 
-    Returns 503 until every warm gate has finished, so Railway holds live
-    traffic on the OLD (already warm) pod instead of cutting over to a cold
-    one. See api/services/readiness.py for the full why.
+    ⚰️ This docstring used to read "railway.json `healthcheckPath` points here",
+    and it was FALSE for over a month. `healthcheckPath` is `/api/health`, on
+    purpose. Pointing it here WAS tried in production on 2026-07-26 (deploy
+    650865d5) and caused a ~3 MINUTE OUTAGE: Railway does NOT keep the old pod
+    serving while the new one healthchecks -- the old pod is already gone, so a
+    503-until-warm probe does not hold traffic on the warm pod, it takes the
+    site DOWN until the gate releases (`Attempt #1..#8 failed with service
+    unavailable`, uctintelligence.com 502 for ~3 min). Slow-but-serving beats
+    hard-down. `tests/api/test_ready_endpoint.py::
+    test_railway_healthcheck_must_not_gate_on_readiness` is the standing guard.
+
+    ⭐ Why the correction matters more than the value: FOUR places in this repo
+    asserted the wiring existed (here, `api/services/readiness.py`,
+    `api/worker_main.py`, `api/flow_worker_main.py`). Four copies of one claim
+    read as corroboration, so the single config line that falsifies them went
+    unopened -- and the sentence is an active trap, because acting on it
+    reproduces the outage. A comment naming a mechanism is a claim about a run.
+
+    Returns 503 until every warm gate has finished, which is genuinely useful
+    for "is this pod warm yet" -- read it by hand, or from a monitor that does
+    not control routing. See api/services/readiness.py for the full why.
 
     This is deliberately SEPARATE from /api/health (liveness): that route is
     polled by worker_main's down-alert monitor, which posts a red "site down"

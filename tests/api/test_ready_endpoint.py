@@ -1,9 +1,21 @@
-"""`/api/ready` — the readiness healthcheck Railway gates traffic on.
+"""`/api/ready` — OBSERVABILITY. ⛔ Railway does NOT gate traffic on it.
 
-See tests/api/test_readiness.py for the why. These cover the HTTP surface and,
-critically, the fact that railway.json is SHARED by web + worker + flow-worker:
-if healthcheckPath moves to /api/ready, all three services must serve it or
-their deploys fail the healthcheck.
+⚰️ This docstring used to open "the readiness healthcheck Railway gates traffic
+on" — inside the very file whose `test_railway_healthcheck_must_not_gate_on_readiness`
+forbids exactly that. It was the FIFTH copy of a claim that was false everywhere
+(`api/main.py`, `api/services/readiness.py`, `api/worker_main.py`,
+`api/flow_worker_main.py`, here). Gating the healthcheck on readiness caused a
+~3 min outage on 2026-07-26; see that test's docstring for the incident.
+
+⭐ Five files asserting one unverified sentence is not five confirmations — it is
+one guess with five copies, and it reads as consensus. That is why
+`test_no_source_file_claims_the_healthcheck_gates_on_readiness` below pins the
+PROSE as well as the value: the config guard alone did not stop an engineer from
+"fixing" the config to match the comments and reproducing the outage.
+
+These cover the HTTP surface and, critically, the fact that railway.json is
+SHARED by web + worker + flow-worker: all three serve /api/ready anyway, so a
+future healthcheckPath change can never fail a service for a missing route.
 """
 import asyncio
 import json
@@ -153,3 +165,68 @@ async def test_flow_worker_serves_ready_because_railway_json_is_shared():
     async with AsyncClient(transport=ASGITransport(app=fw_app), base_url="http://test") as ac:
         r = await ac.get("/api/ready")
     assert r.status_code == 200, "flow-worker deploy would fail its healthcheck"
+
+
+# RAIL-SELF-EXEMPT-BELOW  (the matcher below quotes the forbidden sentence)
+def test_no_source_file_claims_the_healthcheck_gates_on_readiness():
+    """The PROSE guard, beside the value guard above.
+
+    `test_railway_healthcheck_must_not_gate_on_readiness` pins the config. It did
+    NOT stop the config from being changed, because five files said the wiring
+    already existed and an engineer trusted the majority over the JSON. A stale
+    claim here is not cosmetic: acting on it reproduces a multi-minute outage.
+
+    So: no source file may assert that healthcheckPath points at the readiness
+    route. Saying it does NOT (as every one of those files now does) is fine —
+    the check is scoped to affirmative claims.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    targets = [
+        root / "api" / "main.py",
+        root / "api" / "services" / "readiness.py",
+        root / "api" / "worker_main.py",
+        root / "api" / "flow_worker_main.py",
+        pathlib.Path(__file__).resolve(),
+    ]
+    # "points healthcheckPath at /api/ready", "healthcheckPath ... /api/ready",
+    # "/api/ready (the new healthcheckPath)", "railway.json healthcheckPath) stays"
+    claim = re.compile(
+        r"(healthcheckPath[^\n]{0,60}/api/ready)"
+        r"|(/api/ready[^\n]{0,40}healthcheckPath)"
+        r"|(railway\.json[^\n]{0,40}points here)",
+        re.IGNORECASE,
+    )
+    # Sentences that explicitly DENY the wiring are the correction, not the defect.
+    denial = re.compile(r"do(es)? NOT|must not|never|⚰️|used to (read|say|open)", re.IGNORECASE)
+
+    # This file states the forbidden sentence on purpose (the patterns above), so
+    # it scans only itself UP TO the sentinel — its docstring stays covered, which
+    # is what actually drifted, while the matcher does not flag its own source.
+    sentinel = "RAIL" + "-SELF-EXEMPT-BELOW"
+
+    offenders = []
+    for path in targets:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if path == pathlib.Path(__file__).resolve():
+            cut = next((i for i, l in enumerate(lines) if sentinel in l), len(lines))
+            lines = lines[:cut]
+        # ⚠️ MATCH OVER A SLIDING WINDOW, NOT SINGLE LINES. The real historical
+        # sentence WRAPPED: "…points healthcheckPath" ended one comment line and
+        # "at /api/ready." began the next, so a line-at-a-time regex never saw
+        # both halves and read green against the very defect it exists to catch.
+        # (Caught by mutation-testing this rail — the line-based version survived
+        # having the original comment pasted back in.)
+        WINDOW = 3
+        for i in range(len(lines)):
+            window = " ".join(l.lstrip(" #").rstrip() for l in lines[i:i + WINDOW])
+            if claim.search(window) and not denial.search(window):
+                offenders.append(f"{path.relative_to(root)}:{i + 1}: {lines[i].strip()[:100]}")
+
+    assert not offenders, (
+        "a source file asserts the Railway healthcheck points at /api/ready. It "
+        "does not, and pointing it there caused a ~3 min outage on 2026-07-26. "
+        "Correct the sentence (or phrase it as a denial):\n  " + "\n  ".join(offenders)
+    )

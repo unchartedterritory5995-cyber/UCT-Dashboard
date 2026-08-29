@@ -697,10 +697,13 @@ def _build_app() -> FastAPI:
     def health_alias():
         return _health_payload()
 
-    # railway.json (SHARED by web + worker + flow-worker) points healthcheckPath
-    # at /api/ready. The worker serves no user traffic and has no warm gates, so
-    # it is ready as soon as it can answer. Without this route the worker's
-    # deploys would fail their healthcheck outright.
+    # ⚰️ This said "railway.json (SHARED by web + worker + flow-worker) points
+    # healthcheckPath at /api/ready". It does NOT, and must not: gating the
+    # healthcheck on readiness caused a ~3 min site outage on 2026-07-26 (see
+    # api/services/readiness.py). The shared healthcheckPath is /api/health,
+    # which this app answers above. Route kept anyway — it costs nothing, it
+    # keeps the three entrypoints symmetric, and it means a future
+    # healthcheckPath change cannot fail THIS service for a missing route.
     @app.get("/api/ready")
     def ready():
         return {"ready": True, "service": "worker", "pending": []}
