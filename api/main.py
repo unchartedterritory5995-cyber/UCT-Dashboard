@@ -6448,6 +6448,24 @@ def health_threads(_admin: dict = Depends(require_admin)):
     return _thread_groups()
 
 
+@app.get("/api/health/memory")
+def health_memory(deep: bool = False, _admin: dict = Depends(require_admin)):
+    """Live memory attribution — names WHAT is holding the pod's RSS.
+
+    ADMIN ONLY, same reasoning as `/api/health/threads` above (it enumerates
+    internal module paths). The thread histogram exists because "58->931 threads"
+    was unattributable from a total; this is the same tool for bytes: RSS climbs
+    ~2.2 MB/s on this pod (1201 MB at 105s, 1661 MB at 318s, 11,665 MB observed
+    on a long-lived one) and nothing said what was holding it.
+
+    `?deep=1` adds a GC type histogram and per-cache byte estimates. Those walk
+    every tracked object, which on a multi-GB process costs real time AND
+    allocates while it runs — so they are opt-in, never on a timer. Byte figures
+    are sampled estimates and say so in the payload."""
+    from api.services import memory_probe
+    return memory_probe.snapshot(deep=deep)
+
+
 @app.get("/api/health/thread-stacks")
 def health_thread_stacks(_admin: dict = Depends(require_admin)):
     """Companion to /threads: dump WHERE each thread is stuck (deepest app-level
