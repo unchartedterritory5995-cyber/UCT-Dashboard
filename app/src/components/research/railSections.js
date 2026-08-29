@@ -24,7 +24,9 @@ export const SECTIONS = [
   { id: 'brief', label: 'Brief', icon: 'document' },
   { id: 'call', label: 'Call', icon: 'chat' },
   { id: 'financials', label: 'Financials', icon: 'chart' },
-  { id: 'analysts', label: 'Analysts', icon: 'user' },
+  // Label matches the chart pop-up's own Analyst+Ownership tab (owner ask,
+  // 2026-08-28) — same question, same name everywhere it's asked.
+  { id: 'analysts', label: 'The Street', icon: 'user' },
   // Our generated catalysts (+ earnings reactions + curated wire) sit right
   // beside News on purpose: News is outside links; this is OUR read of what
   // actually moved the stock.
