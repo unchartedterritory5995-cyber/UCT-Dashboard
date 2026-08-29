@@ -388,7 +388,31 @@ def test_the_key_carries_NOTHING_about_a_MEMBER(store):
         assert not (cols & forbidden), (
             f"{table} carries {sorted(cols & forbidden)} — the store stopped "
             "being member-independent")
-    assert set(_columns(store, "scan_hits")) == {"def_hash", "tf", "as_of", "ticker"}
+    # ⭐⭐ A ROSTER WITH A REASON PER COLUMN, still CLOSED-WORLD. The bare set this
+    # replaces was doing real work that the blocklist above cannot: it catches a
+    # member-identifying column added under a name nobody thought to forbid
+    # (`owner`, `account`, `subscriber`). Keeping that strength while admitting a
+    # legitimate column means naming WHY each one is member-independent, so the next
+    # addition is a decision somebody wrote down rather than a set somebody widened.
+    #
+    # ⚰️ `value` BROKE THIS ASSERTION AND THE INVARIANT WAS NEVER IN DANGER — it is
+    # not in `forbidden`, and the check above passed. What failed was an exact
+    # equality standing in for a property, which is the "count beside the list"
+    # shape this repo keeps paying for.
+    member_independent = {
+        "def_hash": "the FORMULA, not who typed it — two members with the same maths"
+                    " share one row and one sweep, which is the whole property",
+        "tf": "the timeframe the formula was evaluated on",
+        "as_of": "the session it was evaluated for",
+        "ticker": "the symbol it matched",
+        "value": "the number THAT FORMULA answered with on THAT symbol — a fact about"
+                 " the definition and the market, identical for every member who"
+                 " typed it, so it carries no member either",
+    }
+    assert set(_columns(store, "scan_hits")) == set(member_independent), (
+        "scan_hits gained or lost a column. Every column here must be a fact about"
+        " the FORMULA, the MARKET or the SESSION — never about a member. Add it to"
+        " `member_independent` WITH the reason it qualifies, or do not add it.")
 
 
 def test_screener_rows_still_holds_EXACTLY_its_own_columns_and_no_scan_column(store):
