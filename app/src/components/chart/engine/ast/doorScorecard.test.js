@@ -37,6 +37,8 @@ import path from 'node:path'
 import { translatePine } from './pine.js'
 import { translateThinkScript } from './thinkscript.js'
 import { parsePcf } from './pcf.js'
+import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 
 const ROOT = path.resolve(process.cwd(), '..')
 const rel = (p) => path.join(ROOT, p)
@@ -189,5 +191,86 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
 
   it('the doors that translate at all may not translate fewer', () => {
     expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(41)
+  })
+})
+
+describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets', () => {
+  // ⛔⛔ EVERY NUMBER ABOVE THIS BLOCK STOPS AT THE TRANSLATOR, and the product
+  // promise does not. A member pastes a script to CHART it, SCAN with it and ALERT
+  // on it — so a column that translates and then cannot be kept is not a win, it is
+  // the "built, green and unreachable" shape wearing a passing test.
+  //
+  // ⚰️ AND IT WAS UNMEASURED ON ONE SIDE. `thinkscriptCorpus.json` records
+  // `saveable` and `lookback` in its `downstream` block; `pineCorpus.json` records
+  // only `{ok, guard, repaint}`. Reading the Pine fixture for saveability returns
+  // UNDEFINED, and undefined counted as false says "0 of 12 Pine scripts can be
+  // saved" — which is not a measurement, it is an absent key. `absent is not zero`
+  // is the same trap this repo keeps paying for, so this measures LIVE through the
+  // shipped doors instead of trusting either fixture.
+  //
+  // ⭐ THE DOORS ARE THE REAL ONES: `evaluateFormula` and `canSaveFormula` from
+  // `FormulaField.jsx`, which is what the builder itself calls. Asking anything
+  // else would report a verdict the product does not honour.
+
+  const reach = (rows, dir, translate) => {
+    const out = { translate: 0, evaluate: 0, saveable: 0, needsAck: [] }
+    for (const r of rows) {
+      if (!r.ok) continue
+      out.translate += 1
+      const o = translate(fs.readFileSync(path.join(rel(dir), r.file), 'utf8'))
+      const sel = o.selected >= 0 ? o.outputs[o.selected] : null
+      if (!sel || !sel.formula) continue
+      const ev = evaluateFormula(sel.formula, BUILDER_INPUT_SCOPE)
+      if (!ev.ok) continue
+      out.evaluate += 1
+      // ⭐ TWO QUESTIONS, NOT ONE. `canSaveFormula(ev, false)` asks "can this be
+      // kept as-is"; passing `true` asks "…once the member acknowledges its repaint
+      // claim". A script that reads the FORMING higher-timeframe bar is honestly
+      // labelled `preview-repaints` and is saveable on acknowledgement — that is
+      // the `tf_live` bargain working, not a script the product cannot take.
+      if (canSaveFormula(ev, false)) out.saveable += 1
+      else if (canSaveFormula(ev, true)) {
+        out.saveable += 1
+        out.needsAck.push(`${r.file} — ${(ev.verdict && ev.verdict.mode) || 'repaints'}`)
+      }
+    }
+    return out
+  }
+
+  const REACH = [
+    reach(DOORS[0].rows, 'tests/fixtures/pine', translatePine),
+    reach(DOORS[1].rows, 'tests/fixtures/pine_community', translatePine),
+    reach(DOORS[2].rows, 'tests/fixtures/thinkscript', translateThinkScript),
+  ]
+  const total = REACH.reduce((a, r) => ({
+    translate: a.translate + r.translate,
+    evaluate: a.evaluate + r.evaluate,
+    saveable: a.saveable + r.saveable,
+    needsAck: [...a.needsAck, ...r.needsAck],
+  }), { translate: 0, evaluate: 0, saveable: 0, needsAck: [] })
+
+  it('⭐ the end-to-end reach prints itself', () => {
+    console.log(`\nend to end: ${total.translate} translate -> ${total.evaluate} evaluate `
+      + `-> ${total.saveable} SAVEABLE`
+      + (total.needsAck.length
+        ? `\n  saveable once the repaint claim is acknowledged:\n    ${total.needsAck.join('\n    ')}\n`
+        : '\n'))
+    expect(total.translate).toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ every script that translates can be SAVED — translating is not the finish line', () => {
+    // ⛔ THE ASSERTION THAT MAKES THE REST WORTH HAVING. If this ever fails, some
+    // script translates into a column a member cannot keep, and the door is
+    // reporting a success the product will not honour. Name it rather than
+    // counting it, so the failure says WHICH.
+    const lost = total.translate - total.saveable
+    expect(lost, `${lost} script(s) translate but cannot be saved`).toBe(0)
+  })
+
+  it('⛔ …and evaluating is not skipped on the way — the middle door is real', () => {
+    // Without this, a `saveable` count that happened to equal `translate` could be
+    // produced by a gate that never ran.
+    expect(total.evaluate).toBe(total.translate)
+    expect(total.evaluate).toBeGreaterThanOrEqual(41)
   })
 })
