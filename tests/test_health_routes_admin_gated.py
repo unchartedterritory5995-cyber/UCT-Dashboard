@@ -48,6 +48,7 @@ GATED = (
     "/api/health/thread-stacks",
     "/api/health/threads",
     "/api/health/cache",
+    "/api/health/memory",
     "/api/watchdog/stacks",
 )
 
@@ -209,3 +210,56 @@ def test_gating_did_not_leak_into_the_admin_guard_middleware():
             f"live under that prefix")
     for path in STILL_OPEN:
         assert not ag._is_guarded(path), f"{path} is now middleware-guarded"
+
+
+# ── and the roster itself cannot go stale ───────────────────────────────────
+
+
+def test_every_diagnostic_health_route_is_either_gated_or_documented_open(real_app):
+    """SWEEP: a NEW /api/health/* route must be classified, not merely added.
+
+    ⛔ `GATED` above is a hand-typed roster, and until this test existed nothing
+    noticed a route that was neither in it nor gated — which is precisely how the
+    original defect shipped: four routes handing out process internals to anyone,
+    each added one at a time by someone who never saw the list.
+
+    This reads the ACTUAL route table and requires every /api/health/* path to be
+    one of: gated (per the dependency tree, not a text scan), or explicitly
+    listed in STILL_OPEN with a reason recorded there. Adding a diagnostic route
+    without deciding which it is now fails HERE rather than in an audit months
+    later.
+    """
+    guarded_or_open = set(GATED) | set(STILL_OPEN)
+    unclassified = []
+    for path, route in _routes_by_path(real_app).items():
+        if not path.startswith("/api/health"):
+            continue
+        if path in guarded_or_open:
+            continue
+        if asc._guard_names_for(route):
+            # Gated but unlisted: still a drift, because the OTHER direction
+            # (an admin actually reaching the payload) is only asserted for
+            # roster members.
+            unclassified.append(f"{path} (gated, but missing from GATED)")
+        else:
+            unclassified.append(f"{path} (NOT GATED and not in STILL_OPEN)")
+
+    joined = "; ".join(sorted(unclassified))
+    assert not unclassified, (
+        "a /api/health route is unclassified — decide whether it is admin-only "
+        "(add to GATED) or deliberately anonymous (add to STILL_OPEN, with the "
+        "reason): " + joined
+    )
+
+
+def test_the_sweep_can_actually_see_health_routes(real_app):
+    """Non-vacuity control for the sweep above.
+
+    The sweep asserts an EMPTY list, which a probe that finds no routes at all
+    would satisfy forever. Pin that it sees the family it is policing.
+    """
+    seen = [p for p in _routes_by_path(real_app) if p.startswith("/api/health")]
+    assert len(seen) >= len(GATED), (
+        f"the sweep only sees {len(seen)} /api/health routes; it is not "
+        "discriminating and its empty-list assertion proves nothing"
+    )
