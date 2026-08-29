@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -115,6 +115,11 @@ const DIVERGENCE_OPTIONS = [
     choices: [3, 5, 10].map(v => ({ value: v, label: `${v} sessions` })) },
 ]
 
+const ROTATION_OPTIONS = [
+  { name: 'lookback', label: 'Change over', type: 'select', default: 20,
+    choices: [10, 20, 60].map(v => ({ value: v, label: `${v} days` })) },
+]
+
 export const VIEW_CONFIG = {
   treemap:    { kind: 'board', label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
   rings:      { kind: 'board', label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
@@ -128,6 +133,7 @@ export const VIEW_CONFIG = {
   ladder:     { kind: 'board', label: 'Percentile Ladder', eligibleKeys: all, defaultVisible: HEADLINE, options: [...LADDER_OPTIONS, ...THEME_OPTIONS] },
   clock: { kind: 'lens', label: 'Regime Clock', eligibleKeys: () => [], defaultVisible: [], options: [...CLOCK_OPTIONS, ...THEME_OPTIONS] },
   divergence: { kind: 'lens', label: 'Divergence', eligibleKeys: () => [], defaultVisible: [], options: [...DIVERGENCE_OPTIONS, ...THEME_OPTIONS] },
+  rotation: { kind: 'lens', label: 'Rotation', eligibleKeys: () => [], defaultVisible: [], options: [...ROTATION_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).

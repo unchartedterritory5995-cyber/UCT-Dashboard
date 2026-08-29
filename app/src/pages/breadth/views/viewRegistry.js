@@ -15,6 +15,7 @@ import HeatRibbonView from './HeatRibbonView'
 import PercentileLadderView from './PercentileLadderView'
 import RegimeClockView from './RegimeClockView'
 import DivergenceView from './DivergenceView'
+import RotationView from './RotationView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -31,4 +32,5 @@ export const VIEW_COMPONENTS = {
   ladder: PercentileLadderView,
   clock: RegimeClockView,
   divergence: DivergenceView,
+  rotation: RotationView,
 }
