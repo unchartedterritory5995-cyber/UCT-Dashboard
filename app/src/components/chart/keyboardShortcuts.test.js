@@ -1,10 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { INDICATOR_CHORDS, matchShortcut, matchOverlayTool, chordForTool, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { INDICATOR_CHORDS, matchShortcut, matchOverlayTool, chordForTool, resetShiftLatch, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
 import { labelFor } from './indicatorCatalog';
 import { CHART_DEFAULTS } from './chartDefaults';
 import * as engineRegistry from './engine/nativeRegistry';
 import { listDefinitions } from './engine/nativeRegistry';
 
+
+// ⛔ THE SHIFT LATCH IS MODULE STATE, and a keydown-only test never fires the
+// keyup that would clear it. Without this reset the 26-letter Shift sweep below
+// latches every letter and silently mutes the bare-letter tests that follow —
+// the leak showed up as "arms undefined" the first time this file grew a sweep.
+beforeEach(() => resetShiftLatch());
 
 function evt(key, opts = {}) {
   return {
@@ -14,6 +20,7 @@ function evt(key, opts = {}) {
     shiftKey: opts.shift,
     altKey: opts.alt,
     metaKey: opts.meta,
+    repeat: opts.repeat,
   };
 }
 
@@ -353,7 +360,6 @@ describe('matchOverlayTool — reachability is preserved', () => {
   });
 
   it('the bare-letter tools are untouched (they are the railed design)', () => {
-    expect(matchOverlayTool(evt('f'))).toBe('fib');
     expect(matchOverlayTool(evt('t'))).toBe('trendline');
     expect(matchOverlayTool(evt('h'))).toBe('horizontal');
     expect(matchOverlayTool(evt('r'))).toBe('rect');
@@ -422,5 +428,69 @@ describe('chordForTool round-trips through matchOverlayTool', () => {
       .map(t => [t, chordForTool(t)])
       .filter(([, c]) => c && /^Shift+/.test(c));
     expect(shifted).toEqual([]);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⛔⛔ THE TIMING CROSSOVER, REPORTED 2026-08-29: "sometimes the crossover
+// between SHIFT+F and just F get mixed up and Fibonacci gets called instead of
+// flagged."
+//
+// Not a mapping bug — the mapping was already fixed. A PHYSICAL one. You lift
+// the modifier before the letter, so the tail of a Shift+F press arrives as
+// `{ key: 'f', shiftKey: false, repeat: true }`, which is a picture-perfect bare
+// F. Two independent vectors, both railed below:
+//   1. auto-repeat — hold the chord past ~500ms and it fires ~30x/sec;
+//   2. release order — Shift up while F is still down.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Shift+F cannot decay into bare F', () => {
+  // ⭐ THE GUARANTEE. Every mitigation below is defence in depth; THIS is the
+  // reason the crossover cannot recur. F arms no tool at either door, in any
+  // modifier state, so no timing accident can turn a flag press into one.
+  it('bare F arms nothing — Fibonacci is Alt+F only', () => {
+    expect(matchOverlayTool(evt('f', { code: 'KeyF' }))).toBe(null);
+    expect(matchOverlayTool(evt('F', { code: 'KeyF' }))).toBe(null);   // CapsLock
+    expect(matchShortcut(evt('f', { code: 'KeyF' }))).toBe(null);
+    expect(matchShortcut(evt('F', { code: 'KeyF' }))).toBe(null);
+    // ...and the real chord still works, so this is a MOVE, not a deletion.
+    expect(matchOverlayTool(evt('f', { alt: true, code: 'KeyF' }))).toBe('fib');
+  });
+
+  // The latch still guards every OTHER bare letter that has a Shift sibling —
+  // bare t vs Shift+T (theme toggle). Exercised on KeyT for exactly that reason.
+  it('auto-repeat never arms a tool', () => {
+    expect(matchOverlayTool(evt('t', { code: 'KeyT', repeat: true }))).toBe(null);
+    expect(matchShortcut(evt('t', { code: 'KeyT', repeat: true }))).toBe(null);
+  });
+
+  it('a first press still arms normally (the repeat guard is not a blanket off-switch)', () => {
+    expect(matchOverlayTool(evt('t', { code: 'KeyT' }))).toBe('trendline');
+    expect(matchShortcut(evt('t', { code: 'KeyT' }))).toBe('tool:trendline');
+  });
+
+  it('Shift released mid-press does NOT arm the tool — the key stays latched', () => {
+    // Shift+T goes down: the theme toggle.
+    expect(matchOverlayTool(evt('T', { shift: true, code: 'KeyT' }))).toBe(null);
+    // Shift comes off first; T is still physically held and keeps repeating.
+    expect(matchOverlayTool(evt('t', { code: 'KeyT' }))).toBe(null);
+    expect(matchShortcut(evt('t', { code: 'KeyT' }))).toBe(null);
+  });
+
+  it('after T is actually released, bare T arms again', () => {
+    matchOverlayTool(evt('T', { shift: true, code: 'KeyT' }));
+    expect(matchOverlayTool(evt('t', { code: 'KeyT' }))).toBe(null);
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyT' }));
+    expect(matchOverlayTool(evt('t', { code: 'KeyT' }))).toBe('trendline');
+  });
+
+  it('the latch is per physical key — Shift+T does not disarm bare R', () => {
+    matchOverlayTool(evt('T', { shift: true, code: 'KeyT' }));
+    expect(matchOverlayTool(evt('r', { code: 'KeyR' }))).toBe('rect');
+  });
+
+  it('Alt+Shift power chords still resolve (the latch must not eat them)', () => {
+    expect(matchOverlayTool(evt('E', { alt: true, shift: true, code: 'KeyE' }))).toBe('eraser');
+    expect(matchOverlayTool(evt('P', { alt: true, shift: true, code: 'KeyP' }))).toBe('priceRange');
   });
 });

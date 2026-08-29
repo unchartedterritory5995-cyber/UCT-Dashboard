@@ -2026,9 +2026,60 @@ function fractionalWindowAdvice(node) {
   let text = null
   try { text = printFormula(node) } catch { text = null }
   const named = text ? `\`${text}\`` : 'that length'
+
+  // ⭐ THE TWO WHOLE NUMBERS EITHER SIDE, NAMED WITH THEIR VALUES. A member
+  // told only to "write `round(…)`" cannot see that the other choice exists,
+  // still less that it is the one this engine's own entries use.
+  const down = Math.floor(v)
+  const up = Math.round(v)
+  // ⛔ `floor` IS NOT DECLARED — `idiv` IS, and it is the only spelling of the
+  // downward choice a member can actually type. Deriving the roster rather than
+  // asserting it means this sentence stops offering `idiv` on the day the
+  // manifest stops declaring it, instead of advising a name that refuses.
+  //   AND ONLY ABOVE ZERO. `idiv` is declared as "rounded toward ZERO", which
+  //   equals `floor` for a positive value and NOT for a negative one. A window is
+  //   >= 1 by the `int` kind, so the two never diverge where this sentence is
+  //   reached — but offering a spelling whose semantics only coincide inside the
+  //   range you happen to be in is how the next reader inherits a false general
+  //   claim, so the bound is written down rather than relied upon.
+  const has = (k) => own(TABLE.functions || {}, k)
+  const downSpell = (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
+  const upSpell = has('round') && text ? `\`round(${text})\`` : null
+
+  let choice = ''
+  if (downSpell && upSpell && down !== up) {
+    choice = `. WHICH whole number is a real choice and the two are different `
+      + `indicators: ${downSpell} is ${down}, ${upSpell} is ${up}`
+    // ⚰⚰ THIS SENTENCE USED TO NAME `round` ALONE, AND THAT WAS A SECOND
+    // AUTHORITY OVER A VALUE THE MANIFEST ALREADY DECLARES. `closedTable.json::
+    // _functions_hull` states Hull's half-window as `floor(n / 2)` and both lanes
+    // implement it (`interpret.js` `Math.max(1, Math.floor(n / 2))`,
+    // `ast_interpret.py` `max(1, int(n) // 2)`). So a member hand-expanding a Hull
+    // average, following this advice, got `round(55 * 1/2)` = 28 where `hma(close,
+    // 55)` uses 27 — measured 0.636 apart over 140 bars on the same series, under
+    // the member's own title, with nothing on the chart announcing it.
+    // ⛔ THE FIX IS NOT TO SWAP ONE NAME FOR THE OTHER. The docblock above is
+    // right that no TradingView page states a rounding for `ta.sma`, so PICKING
+    // one here would be the same defect pointing the other way. What the sentence
+    // owes the member is both spellings, both values, and — where this engine
+    // HAS a declared convention for the shape they are writing — which way its
+    // own entry goes.
+    // ⛔ A HALF-INTEGER IS `v * 2` BEING WHOLE while `v` is not — which is
+    // exactly the shape `n / 2` produces for an odd `n`, and the only shape a
+    // hand-expanded Hull half-window can take.
+    if (Number.isInteger(v * 2) && has('hma')) {
+      choice += `. ⚠ If you are expanding a HULL average by hand, this engine's own `
+        + `\`hma\` declares the half-window as the DOWNWARD one (\`floor(n / 2)\`, `
+        + `\`closedTable.json::_functions_hull\`) — so \`hma(…)\` uses ${down} here, `
+        + `and \`hma\` is already declared, which spares you the expansion entirely`
+    }
+  } else if (upSpell) {
+    choice = `. Write ${upSpell} if that is the length you mean`
+  }
+
   return ` — ${named} reduces to ${v}, and Pine's \`/\` on two whole numbers keeps `
     + 'the fraction (their own docs: `5 / 2 = 2.5`), so this is not a whole number '
-    + `of bars. Write \`round(${text || '…'})\` if that is the length you mean`
+    + `of bars${choice}`
 }
 
 /** Is this tree the literal `na` this translator emits — `0 / 0`?

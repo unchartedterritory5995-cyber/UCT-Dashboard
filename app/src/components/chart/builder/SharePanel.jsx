@@ -20,28 +20,24 @@ import {
   previewSharedDefinition, installSharedDefinition,
   fetchDefinitionHistory,
 } from '../../../hooks/useUserDefinitions'
+import {
+  sharedFormulaUrl, tokenFromShareInput,
+} from '../../../pages/formulas/formulaShareLink'
+import { WHAT_TO_DO } from '../../../pages/formulas/shareRefusal'
 import styles from './SharePanel.module.css'
 
-/** A share token → the URL a member actually pastes to somebody. */
-export function shareUrlFor(token) {
-  if (!token) return ''
-  const origin = typeof window !== 'undefined' && window.location
-    ? window.location.origin
-    : ''
-  return `${origin}/formulas/shared/${token}`
-}
-
-/** ⭐ WHAT A MEMBER CAN DO ABOUT EACH REFUSAL, keyed by the server's own reason.
+/** A share token → the URL a member actually pastes to somebody.
  *
- *  ⛔ NOT ONE SENTENCE FOR ALL OF THEM. `revoked`, `gone` and `table-version`
- *  are three different situations and only the last has an action the member can
- *  take. Collapsing them would leave somebody re-clicking a link that will never
- *  work, or failing to ask for the one that would. */
-const WHAT_TO_DO = Object.freeze({
-  revoked: 'Ask them for a new link.',
-  gone: 'They have deleted it, so there is nothing to install.',
-  'table-version': 'Ask them to open it and share it again — that will re-issue the link against the current engine.',
-})
+ *  ⚰️⚰️ THIS FUNCTION USED TO HAND-TYPE `${origin}/formulas/shared/${token}`
+ *  AND NOTHING ROUTED IT. `App.jsx` carried no `/formulas` path at all, so every
+ *  link this button ever produced resolved to the catch-all 404 — a complete
+ *  six-route sharing backend reachable from nothing on the recipient's side.
+ *  It is kept as a named export because callers and tests already import it, but
+ *  the path itself now comes from `pages/formulas/formulaShareLink.js`, which
+ *  `App.jsx` routes on. One authority: the link and the route cannot disagree,
+ *  because there is no longer a second place to disagree in. */
+export const shareUrlFor = sharedFormulaUrl
+
 
 export default function SharePanel({ defId, defName, onInstalled }) {
   const [token, setToken] = useState(null)
@@ -98,18 +94,22 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     const raw = incoming.trim()
     if (!raw) return
     // A member will paste the whole URL far more often than the bare token.
-    const found = raw.match(/sh_[0-9a-f]{32}/i)
+    // ⛔ THE SHAPE IS SPELLED ONCE, in `formulaShareLink.js`. It was inline HERE
+    // and inline again in `install` below, so the two could have been edited
+    // apart — a member looking a link up under one spelling and installing under
+    // another is the same defect class as the link and the route disagreeing.
+    const found = tokenFromShareInput(raw)
     setBusy(true); setPreview(null); setPreviewError(null)
-    const r = await previewSharedDefinition(found ? found[0] : raw)
+    const r = await previewSharedDefinition(found || raw)
     setBusy(false)
     if (r.ok) setPreview(r.shared)
     else setPreviewError({ reason: r.reason, message: r.error })
   }, [incoming])
 
   const install = useCallback(async () => {
-    const found = incoming.trim().match(/sh_[0-9a-f]{32}/i)
+    const found = tokenFromShareInput(incoming)
     setBusy(true)
-    const r = await installSharedDefinition(found ? found[0] : incoming.trim())
+    const r = await installSharedDefinition(found || incoming.trim())
     setBusy(false)
     if (!r.ok) { setPreviewError({ reason: r.reason, message: r.error }); return }
     setPreview(null); setIncoming('')

@@ -691,7 +691,12 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useEffect(() => {
     if (!selectedSym) return
     const handler = (e) => {
-      if (e.shiftKey && e.key === 'F') {
+      // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
+      // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
+      // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
+      // a TOGGLE leaves the flag on whichever parity the release happens to catch.
+      // Reported 2026-08-29.
+      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat) {
         const willFlag = !isFlagged(selectedSym)
         toggleFlag(selectedSym)
         setFlagToast(willFlag ? 'added' : 'removed')

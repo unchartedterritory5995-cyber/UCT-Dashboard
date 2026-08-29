@@ -219,7 +219,9 @@ const CTRL_KEY_TO_COMMAND = Object.freeze(Object.assign(Object.create(null), {
  * Ignores events with ctrl/meta held (so browser shortcuts like Ctrl+F work).
  */
 export function matchShortcut(event) {
-  if (!event || event.altKey) return null;
+  if (!event) return null;
+  _observeShift(event);
+  if (event.altKey) return null;
   const key = event.key;
   const shift = event.shiftKey;
   const ctrl = event.ctrlKey || event.metaKey;
@@ -235,13 +237,19 @@ export function matchShortcut(event) {
   // Direct key match
   if (!shift) {
     if (/^[0-9]$/.test(key)) return BARE_DIGIT_TF[key] || null;
+    // ⛔ Every bare LETTER below arms a drawing tool, so the same latch that
+    // protects the overlay has to protect this door too — StockChart consults
+    // this matcher, not `matchOverlayTool`. Railing one lane and not its mirror
+    // is how the original Shift+F collision survived a shortcut audit.
+    if (/^[a-zA-Z]$/.test(key) && !_bareLetterArms(event)) return null;
     if (key === 't' || key === 'T') return 'tool:trendline';
     if (key === 'h' || key === 'H') return 'tool:horizontal';
     if (key === 'v' || key === 'V') return 'tool:vertical';
     if (key === 'r' || key === 'R') return 'tool:rect';
     if (key === 'c' || key === 'C') return 'tool:circle';
     if (key === 'a' || key === 'A') return 'tool:arrow';
-    if (key === 'f' || key === 'F') return 'tool:fib';
+    // ⛔ NO BARE-F ROW HERE. Fibonacci is Alt+F only — see BARE_TOOL's note: it
+    // is the immediate neighbour of the flag chord, and that race is unwinnable.
     if (key === 'x' || key === 'X') return 'tool:text';
     if (key === 'Escape') return 'tool:cursor';
     if (key === ' ' || key === 'Spacebar') return 'replay:playpause';
@@ -286,6 +294,66 @@ export function matchShortcut(event) {
  *
  * Returns a tool id, or null when the event arms nothing.
  */
+/**
+ * ⭐ THE SHIFT LATCH — why a bare letter is not always a bare letter.
+ *
+ * ⚰️ REPORTED BY THE OWNER 2026-08-29: "sometimes the crossover between SHIFT+F
+ * and just F get mixed up and Fibonacci gets called instead of flagged." The
+ * MAPPING was already correct. The problem is PHYSICAL.
+ *
+ * A modifier is released before the letter it modifies — that is simply how
+ * hands work. So the tail of one Shift+F press reaches the page as:
+ *
+ *     keydown { key: 'F', shiftKey: true,  code: 'KeyF' }   ← flag
+ *     keydown { key: 'f', shiftKey: false, code: 'KeyF', repeat: true }  ← "bare F"
+ *     keydown { key: 'f', shiftKey: false, code: 'KeyF', repeat: true }  ← "bare F"
+ *     keyup   { code: 'KeyF' }
+ *
+ * Those middle events are indistinguishable from a deliberate bare F by VALUE.
+ * The only thing that separates them is that they belong to a physical press
+ * that BEGAN shifted — so that is what we remember. Once `KeyF` goes down with
+ * Shift held, it is a flag press for its whole lifetime and arms no tool until
+ * it is actually released.
+ *
+ * ⛔ KEYED ON `event.code`, NEVER `event.key`. `key` is exactly the field that
+ * changes out from under us mid-press ('F' → 'f'); `code` is the physical key
+ * and is stable for the entire press. It is also what makes the latch per-key,
+ * so Shift+F cannot disarm bare T.
+ *
+ * Cleared on keyup and on window blur — a blur while a key is held would
+ * otherwise strand a latch and mute that letter until it was pressed again.
+ */
+const _shiftLatched = new Set();
+let _latchBound = false;
+
+function _bindLatchListeners() {
+  if (_latchBound || typeof window === 'undefined') return;
+  _latchBound = true;
+  // Capture phase: nothing downstream can stopPropagation the release away.
+  window.addEventListener('keyup', (e) => { if (e.code) _shiftLatched.delete(e.code); }, true);
+  window.addEventListener('blur', () => _shiftLatched.clear());
+}
+
+/** Record a shifted press so its unshifted tail can be recognised. */
+function _observeShift(event) {
+  _bindLatchListeners();
+  if (event.shiftKey && event.code) _shiftLatched.add(event.code);
+}
+
+/**
+ * May this event arm a tool from a BARE letter? No if it is an auto-repeat, and
+ * no if this physical key went down shifted and has not been released since.
+ */
+function _bareLetterArms(event) {
+  if (event.repeat) return false;
+  return !(event.code && _shiftLatched.has(event.code));
+}
+
+/** Test seam — the latch is module state, so a test must be able to clear it. */
+export function resetShiftLatch() {
+  _shiftLatched.clear();
+}
+
 const ALT_TOOL = Object.freeze(Object.assign(Object.create(null), {
   KeyT: 'trendline', KeyH: 'horizontal', KeyJ: 'hray', KeyV: 'vertical',
   KeyR: 'rect', KeyC: 'circle', KeyA: 'arrow', KeyF: 'fib', KeyE: 'fibext',
@@ -303,12 +371,37 @@ const ALT_SHIFT_TOOL = Object.freeze(Object.assign(Object.create(null), {
 // Null-prototype so 'constructor'/'toString' cannot resolve to a function.
 const BARE_TOOL = Object.freeze(Object.assign(Object.create(null), {
   v: 'cursor', t: 'trendline', h: 'horizontal', r: 'rect',
-  f: 'fib', x: 'text', m: 'measure',
+  x: 'text', m: 'measure',
 }));
+
+/**
+ * ⛔⛔ `f` IS ABSENT FROM THE MAP ABOVE, AND THAT IS THE WHOLE POINT.
+ *
+ * The shift latch stops a Shift+F press DECAYING into a bare F (modifier
+ * released first, auto-repeat). It cannot stop the opposite race: if the letter
+ * is physically struck a few milliseconds BEFORE Shift registers, that first
+ * keydown is genuinely unshifted and nothing can know Shift was coming.
+ *
+ * Two commands that differ only by a modifier on ONE physical key cannot be told
+ * apart with certainty when one of them is hammered while scanning a list — and
+ * Shift+F (flag) is hammered. So the neighbour is gone: Fibonacci is Alt+F, the
+ * chord the `?` sheet and the toolbar tooltip have always shown. The owner asked
+ * how to ENSURE the crossover cannot happen; removing the ambiguity is the only
+ * answer that is a guarantee rather than a mitigation.
+ *
+ * ⚠️ The other bare letters KEEP their Shift siblings (bare t / Shift+T theme,
+ * bare r, bare x, bare m). Those are safe on the latch alone because they are not
+ * pressed at flagging speed — if one ever starts crossing over, delete it here
+ * and it costs nothing but the chord.
+ */
 
 export function matchOverlayTool(event) {
   if (!event) return null;
+  _observeShift(event);
   if (event.ctrlKey || event.metaKey) return null;
+  // Holding a chord must not re-arm ~30x/sec (StockChart TOGGLES on tool:, so a
+  // repeat there flickers the tool on and off under your fingers).
+  if (event.repeat) return null;
 
   if (event.altKey) {
     const map = event.shiftKey ? ALT_SHIFT_TOOL : ALT_TOOL;
@@ -319,6 +412,9 @@ export function matchOverlayTool(event) {
   // entry, never to a drawing tool. Removing this gate is what caused the
   // Shift+F collision described above.
   if (event.shiftKey) return null;
+
+  // ⛔ AND NEITHER IS THE UNSHIFTED TAIL OF A SHIFTED PRESS. See _shiftLatched.
+  if (!_bareLetterArms(event)) return null;
 
   return BARE_TOOL[String(event.key || '').toLowerCase()] || null;
 }

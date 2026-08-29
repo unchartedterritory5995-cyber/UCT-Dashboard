@@ -108,3 +108,35 @@ test('Shift+F on an ALREADY-flagged ticker still unflags it (no regression)', as
 
   expect(flagSpy.toggle).toHaveBeenCalledWith('AAPL')
 })
+
+// ── The timing/casing vectors, on a real mount of the page ──
+// `userEvent.keyboard` always emits the tidy uppercase, un-repeated event; these
+// two go through `fireEvent` because the whole point is the events a real
+// keyboard produces that a tidy synthetic one never will.
+import { fireEvent } from '@testing-library/react'
+
+test('CapsLock on: Shift+F still flags (the event carries lowercase "f")', async () => {
+  const user = userEvent.setup()
+  render(<Watchlists pickList="user:wl1" pickName="Momentum Plays" />)
+  await user.click(screen.getByText('AAPL'))
+
+  // CapsLock + Shift inverts the case: shiftKey is true but key is 'f'.
+  fireEvent.keyDown(window, { key: 'f', code: 'KeyF', shiftKey: true })
+
+  expect(flagSpy.toggle).toHaveBeenCalledWith('AAPL')
+})
+
+test('holding Shift+F flags ONCE, not once per auto-repeat', async () => {
+  const user = userEvent.setup()
+  render(<Watchlists pickList="user:wl1" pickName="Momentum Plays" />)
+  await user.click(screen.getByText('AAPL'))
+
+  fireEvent.keyDown(window, { key: 'F', code: 'KeyF', shiftKey: true })
+  for (let i = 0; i < 20; i++) {
+    fireEvent.keyDown(window, { key: 'F', code: 'KeyF', shiftKey: true, repeat: true })
+  }
+
+  // A toggle fired 21 times lands wherever the release parity falls — the flag
+  // would appear not to "stick". Exactly one call is the whole contract.
+  expect(flagSpy.toggle).toHaveBeenCalledTimes(1)
+})
