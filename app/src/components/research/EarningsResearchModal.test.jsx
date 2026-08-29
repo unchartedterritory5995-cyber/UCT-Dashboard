@@ -96,14 +96,16 @@ describe('shell structure', () => {
     expect(tabs).toContain('Call')
   })
 
-  it('Analysts and Filings are TABS, and nothing navigates away', () => {
+  it('The Street and Filings are TABS, and nothing navigates away', () => {
     // These used to be links that CLOSED the modal and pushed /research — a
     // context switch in the middle of reading one company. Analyst & Ownership
-    // has since merged into the broader Analysts section.
+    // has since merged into the broader Analysts section (relabeled "The
+    // Street", 2026-08-28, to match the chart pop-up's tab of the same name —
+    // the section id stays 'analysts').
     renderModal()
-    expect(screen.getByRole('tab', { name: /^Analysts$/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^The Street$/i })).toBeTruthy()
     expect(screen.getByRole('tab', { name: /Filings/i })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: /Analysts/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /The Street/i })).toBeNull()
     expect(screen.queryByRole('link', { name: /Filings/i })).toBeNull()
 
     // The rail must contain NO link that leaves for /research. The explicit
@@ -720,7 +722,7 @@ describe('the whole report is reachable without leaving the modal', () => {
     // modal REQUESTS, not on aria-selected flipping under a no-op handler.
     const onSectionChange = vi.fn()
     renderModal({ onSectionChange })
-    fireEvent.click(screen.getByRole('tab', { name: /^Analysts$/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /^The Street$/i }))
     expect(onSectionChange).toHaveBeenCalledWith('analysts')
 
     fireEvent.click(screen.getByRole('tab', { name: /^Filings/i }))
@@ -729,7 +731,7 @@ describe('the whole report is reachable without leaving the modal', () => {
 
   it('renders the panel when the parent HAS selected one of them', () => {
     renderModal({ section: 'analysts' })
-    expect(screen.getByRole('tab', { name: /^Analysts$/i })
+    expect(screen.getByRole('tab', { name: /^The Street$/i })
       .getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTestId('erm-canvas')).toBeTruthy()
   })

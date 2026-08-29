@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INDICATOR_CHORDS, matchShortcut, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
+import { INDICATOR_CHORDS, matchShortcut, matchOverlayTool, chordForTool, SHORTCUTS, TF_ORDER, resolveTfCycle } from './keyboardShortcuts';
 import { labelFor } from './indicatorCatalog';
 import { CHART_DEFAULTS } from './chartDefaults';
 import * as engineRegistry from './engine/nativeRegistry';
@@ -305,5 +305,122 @@ describe('resolveTfCycle', () => {
 
   it('returns null for a command outside the ladder', () => {
     expect(resolveTfCycle({ command: 'tf:ZZ', currentTf: 'D', ...cold })).toBe(null);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// matchOverlayTool — the drawing overlay's key→tool door.
+//
+// ⛔⛔ REGRESSION RAIL (2026-08-28). `ChartDrawingOverlay` used to carry its OWN
+// key→tool switch, and that switch bound **Shift+F → fibext** and
+// **Shift+P → pitchfork**. Every list surface (Watchlists, Breadth, Theme
+// Tracker, ChartPane, GridChartCell) binds **Shift+F to FLAG the selected
+// ticker**, and BOTH listeners sit on `window` — so one Shift+F flagged the
+// ticker AND armed the Fibonacci extension. The owner hit this scanning lists.
+//
+// `stopPropagation()` in the pane handlers could never save it: two listeners on
+// the SAME node need `stopImmediatePropagation`, and from a list row the event
+// never passes through the pane element at all.
+//
+// The sweep below is the real rail — it pins the CLASS (no Shift+letter arms a
+// tool), not just the one letter that was reported.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('matchOverlayTool — Shift+letter is never a drawing tool', () => {
+  const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  it('Shift+F arms no tool (it is the flag chord)', () => {
+    expect(matchOverlayTool(evt('F', { shift: true, code: 'KeyF' }))).toBe(null);
+  });
+
+  it('Shift+P arms no tool (pitchfork moved to Alt+Y)', () => {
+    expect(matchOverlayTool(evt('P', { shift: true, code: 'KeyP' }))).toBe(null);
+  });
+
+  it('NO Shift+<letter> arms a tool, for any letter', () => {
+    const armed = LETTERS
+      .map(L => [L, matchOverlayTool(evt(L, { shift: true, code: 'Key' + L }))])
+      .filter(([, tool]) => tool !== null);
+    expect(armed).toEqual([]);
+  });
+});
+
+describe('matchOverlayTool — reachability is preserved', () => {
+  it('every tool the old Shift chords reached still has a chord', () => {
+    expect(matchOverlayTool(evt('e', { alt: true, code: 'KeyE' }))).toBe('fibext');
+    expect(matchOverlayTool(evt('y', { alt: true, code: 'KeyY' }))).toBe('pitchfork');
+    expect(matchOverlayTool(evt('m', { alt: true, code: 'KeyM' }))).toBe('measure');
+  });
+
+  it('the bare-letter tools are untouched (they are the railed design)', () => {
+    expect(matchOverlayTool(evt('f'))).toBe('fib');
+    expect(matchOverlayTool(evt('t'))).toBe('trendline');
+    expect(matchOverlayTool(evt('h'))).toBe('horizontal');
+    expect(matchOverlayTool(evt('r'))).toBe('rect');
+    expect(matchOverlayTool(evt('x'))).toBe('text');
+    expect(matchOverlayTool(evt('m'))).toBe('measure');
+    expect(matchOverlayTool(evt('v'))).toBe('cursor');
+  });
+
+  it('Alt+Shift power tools still resolve', () => {
+    expect(matchOverlayTool(evt('P', { alt: true, shift: true, code: 'KeyP' }))).toBe('priceRange');
+    expect(matchOverlayTool(evt('D', { alt: true, shift: true, code: 'KeyD' }))).toBe('dateRange');
+    expect(matchOverlayTool(evt('E', { alt: true, shift: true, code: 'KeyE' }))).toBe('eraser');
+  });
+
+  it('Ctrl/Meta combos are left to the browser', () => {
+    expect(matchOverlayTool(evt('f', { ctrl: true, code: 'KeyF' }))).toBe(null);
+    expect(matchOverlayTool(evt('f', { meta: true, code: 'KeyF' }))).toBe(null);
+  });
+});
+
+describe('every overlay tool chord is declared in the help sheet', () => {
+  it('Alt+Y (pitchfork) and Alt+M (measure) appear in SHORTCUTS', () => {
+    const commands = SHORTCUTS.map(s => s.command);
+    expect(commands).toContain('tool:pitchfork');
+    expect(commands).toContain('tool:measure');
+  });
+
+  it('no SHORTCUTS row still advertises a Shift+<letter> drawing tool', () => {
+    const offenders = SHORTCUTS
+      .filter(s => s.command.startsWith('tool:'))
+      .filter(s => /^Shift\+[A-Z]$/.test(s.keys));
+    expect(offenders).toEqual([]);
+  });
+});
+
+
+// ⭐ THE ROUND TRIP. An advertised chord is a PROMISE about a keypress, so it is
+// not enough that the tooltip and the matcher agree on a NAME — press the chord
+// and the matcher must hand back that exact tool. This is what would have caught
+// "Fibonacci Extension (Shift+F)" and "Position Tool (P)" the day they rotted.
+describe('chordForTool round-trips through matchOverlayTool', () => {
+  const TOOLBAR_TOOLS = [
+    'trendline', 'horizontal', 'hray', 'vertical', 'rect', 'circle', 'arrow',
+    'fib', 'fibext', 'pitchfork', 'avwap', 'text', 'measure', 'position',
+  ];
+
+  // Turn 'Alt+E' / 'Alt+Shift+P' / 'F' back into the event that spells it.
+  function eventFor(chord) {
+    const parts = chord.split('+');
+    const letter = parts[parts.length - 1];
+    return evt(letter.toLowerCase(), {
+      alt: parts.includes('Alt'),
+      shift: parts.includes('Shift'),
+      code: 'Key' + letter.toUpperCase(),
+    });
+  }
+
+  it.each(TOOLBAR_TOOLS)('pressing the advertised chord for %s arms %s', (tool) => {
+    const chord = chordForTool(tool);
+    expect(chord, `${tool} has no chord to advertise`).toBeTruthy();
+    expect(matchOverlayTool(eventFor(chord))).toBe(tool);
+  });
+
+  it('no toolbar tool advertises a Shift+<letter> chord', () => {
+    const shifted = TOOLBAR_TOOLS
+      .map(t => [t, chordForTool(t)])
+      .filter(([, c]) => c && /^Shift+/.test(c));
+    expect(shifted).toEqual([]);
   });
 });

@@ -16,6 +16,7 @@ import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
+import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import { toolbarFor } from '../../utils/dividerColor'
@@ -83,31 +84,45 @@ const _loadArr = (k) => { try { const a = JSON.parse(localStorage.getItem(k) || 
 const _saveArr = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)) } catch { /* ignore */ } }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
+//
+// ⭐ THE CHORD IN A TOOLTIP IS DERIVED, NEVER TYPED.
+//
+// ⚰️ These labels used to spell their own chords, and they drifted: this list
+// advertised **"Fibonacci Extension (Shift+F)"** and **"Pitchfork (Shift+P)"**
+// long after Shift+F became the flag-the-ticker chord on every list surface, and
+// **"Position Tool (P)"** for a tool bare P has never armed. A tooltip is a
+// PROMISE about a keypress, so it now asks `chordForTool`, which reads the very
+// maps `matchOverlayTool` dispatches on. A click-only tool shows no chord.
+const chorded = (id, name) => {
+  const chord = chordForTool(id)
+  return chord ? `${name} (${chord})` : name
+}
+
 const TOOLS = [
   // Select/cursor button removed — you can hover-and-drag annotations with no tool
   // armed (the default), so a dedicated Select mode is redundant.
-  { id: 'trendline',  label: 'Trendline (T)' },
+  { id: 'trendline',  label: chorded('trendline', 'Trendline') },
   { id: 'extended',   label: 'Extended Line' },
-  { id: 'horizontal', label: 'Horizontal Line (H)' },
-  { id: 'hray',       label: 'Horizontal Ray' },
-  { id: 'vertical',   label: 'Vertical Line' },
+  { id: 'horizontal', label: chorded('horizontal', 'Horizontal Line') },
+  { id: 'hray',       label: chorded('hray', 'Horizontal Ray') },
+  { id: 'vertical',   label: chorded('vertical', 'Vertical Line') },
   'sep',
-  { id: 'rect',       label: 'Rectangle (R)' },
-  { id: 'circle',     label: 'Circle' },
-  { id: 'arrow',      label: 'Arrow' },
+  { id: 'rect',       label: chorded('rect', 'Rectangle') },
+  { id: 'circle',     label: chorded('circle', 'Circle') },
+  { id: 'arrow',      label: chorded('arrow', 'Arrow') },
   'sep',
-  { id: 'fib',        label: 'Fibonacci Retracement (F)' },
-  { id: 'fibext',     label: 'Fibonacci Extension (Shift+F)' },
-  { id: 'pitchfork',  label: 'Pitchfork (Shift+P)' },
+  { id: 'fib',        label: chorded('fib', 'Fibonacci Retracement') },
+  { id: 'fibext',     label: chorded('fibext', 'Fibonacci Extension') },
+  { id: 'pitchfork',  label: chorded('pitchfork', 'Pitchfork') },
   { id: 'channel',    label: 'Parallel Channel' },
   { id: 'cup',        label: 'Cup Curve — click the left rim, the bottom, then the right rim' },
-  { id: 'avwap',      label: 'Anchored VWAP' },
+  { id: 'avwap',      label: chorded('avwap', 'Anchored VWAP') },
   'sep',
-  { id: 'text',       label: 'Text Note (X)' },
-  { id: 'measure',    label: 'Measure (M)' },
+  { id: 'text',       label: chorded('text', 'Text Note') },
+  { id: 'measure',    label: chorded('measure', 'Measure') },
   { id: 'advance',    label: 'Advance % Label — click the setup candle, then the candle where the move tops' },
   'sep',
-  { id: 'position',   label: 'Position Tool (P)' },
+  { id: 'position',   label: chorded('position', 'Position Tool') },
 ]
 
 const WIDTHS = [1, 2, 3]

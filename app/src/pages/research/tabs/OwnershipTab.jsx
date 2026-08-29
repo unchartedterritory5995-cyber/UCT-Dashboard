@@ -140,8 +140,8 @@ export default function OwnershipTab({ sym }) {
                     <tr key={`${h.name}-${i}`}>
                       <td className={`${styles.fperiod} ${styles.holderName}`}>
                         {h.name}
-                        {h.is_new && <span className={styles.up} style={{ fontSize: 9, marginLeft: 5 }}>NEW</span>}
-                        {h.is_sold_out && <span className={styles.down} style={{ fontSize: 9, marginLeft: 5 }}>SOLD</span>}
+                        {h.is_new && <span className={styles.up} style={{ fontSize: 9, marginLeft: 5 }} data-holder-badge="new">NEW</span>}
+                        {h.is_sold_out && <span className={styles.down} style={{ fontSize: 9, marginLeft: 5 }} data-holder-badge="sold">SOLD</span>}
                       </td>
                       <td>{fmtShares(h.shares)}</td>
                       <td className={chgClass(h.change_shares)}>{h.change_shares != null ? fmtShares(h.change_shares) : '—'}</td>
