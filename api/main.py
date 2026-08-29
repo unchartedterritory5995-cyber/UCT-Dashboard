@@ -2889,24 +2889,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] massive_curated_stream start failed: %s", e)
 
-    # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
-    # Previously disabled because the in-process SSE consumer was starving
-    # FastAPI's main event loop (Cloudflare 524s, 19s CSV loads). The fix:
-    # run liveflow_worker.run_forever() inside a dedicated daemon thread with
-    # its own asyncio loop, so httpx SSE reads (timeout=None) can never block
-    # request-handling. See api/liveflow_worker_threaded.py.
-    # If perf regresses (CSV fetch >5s on /options-flow), wrap this block in
-    # `if False:` to disable and ping the dev channel.
-    try:
-        from api import liveflow_worker_threaded
-        liveflow_worker_threaded.start()
-        logging.getLogger(__name__).info(
-            "[startup] liveflow_worker started in isolated thread"
-        )
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            "[startup] failed to start liveflow_worker thread: %s", e
-        )
+    # ⚰️ Live Flow (Bullflow) worker — RETIRED 2026-08-29. DO NOT RE-ENABLE.
+    #
+    # Bullflow is no longer used: "live flow is from massive, bullflow is no
+    # more" (owner, 2026-07-27). The live page is served by an entirely
+    # different rail —
+    #     DEAD:  Bullflow SSE → liveflow_worker → /api/live/alerts/recent → LiveFlow.jsx
+    #     LIVE:  Massive WS  → massive_ws_worker → FlowDB → /api/live/massive/recent
+    #                                                     → LiveFlowMassive.jsx
+    # — which is why disabling this is safe: nothing a member looks at touches it.
+    #
+    # Left running, it dialled a dead endpoint forever on the pod that serves
+    # every member, logging `403 API subscription inactive` every 30 s. That is
+    # not a lapsed account to renew; it is a retired integration with nobody on
+    # the other end. Both prior reads of it (including mine, twice) mistook the
+    # symptom for a billing problem, so the reason is written here rather than
+    # left to be re-derived from the log line.
+    #
+    # ⛔ NOT gated on `BULLFLOW_API_KEY` being unset. That works — `run_forever`
+    # early-returns without a key — but it makes a retired integration's silence
+    # depend on a Railway variable staying absent, and a variable that must stay
+    # unset is not a decision anyone can see in the code.
+    #
+    # `api/liveflow_worker*.py` are KEPT as rollback backup (the trades.py
+    # retirement idiom: stop calling it, delete later). Full removal of the
+    # module + the `/api/live/alerts/*` routes is flow-family work to coordinate
+    # with the partner, not a unilateral deletion.
+    logging.getLogger(__name__).info(
+        "[startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; "
+        "live flow is served by the Massive rail"
+    )
 
     # SQLite integrity: near-instant smoke probe at boot + a rare, DEFERRED full scan.
     #
@@ -4038,6 +4050,17 @@ async def lifespan(app: FastAPI):
         from apscheduler.triggers.interval import IntervalTrigger
         from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
         _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+        # ⚡ Instrument BEFORE any add_job — the jobs registered first are the
+        # heavy startup ones, i.e. exactly the ones worth measuring. Wrapping
+        # add_job once covers all 135 (and the 136th) rather than a roster that
+        # would omit whichever job is added next. Prod 2026-08-29: RSS jumped
+        # 1497.5 -> 6134 MB between two samples and the logs could only narrow it
+        # to a cluster; this names it.
+        try:
+            from api.services import memory_probe as _memprobe
+            _memprobe.instrument_scheduler(_scheduler)
+        except Exception as e:
+            print(f"[startup] scheduler memory instrumentation failed (non-fatal): {e}")
 
         # -- Compass automation master switch ------------------------------
         # Pauses ALL automated (scheduled) Compass + voice LLM interactions
@@ -6063,6 +6086,46 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] cache snapshot job registration failed (non-fatal): {e}")
 
+        # ⚡ PERIODIC malloc_trim — the fix for a MEASURED cause, not a guess.
+        #
+        # `/api/health/memory?trim=1` on prod 2026-08-29, on an 8-minute-old pod:
+        # RSS 1490.0 -> 1276.6 MB, **213.4 MB released in one call**, glibc
+        # returned 1. So the pod's RSS growth is allocator-held FREE memory —
+        # glibc keeps per-arena free lists and this process runs ~64 threads,
+        # which is the textbook setup for it. It is NOT a leak: the memory is
+        # already freed, just never handed back to the OS.
+        #
+        # That also rules the two rival explanations out with evidence rather
+        # than argument: the caches hold ~3 MB (0.17% of RSS) and +481 MB of
+        # growth came with only +11% GC-tracked objects.
+        #
+        # ⛔ This does NOT replace MALLOC_ARENA_MAX, it is the half that needs no
+        # environment change and no redeploy to take effect. Capping arenas
+        # prevents the fragmentation; trimming returns it. If the elapsed_ms
+        # logged below ever climbs into the hundreds, this is the wrong shape and
+        # the env cap is the answer — that is why the duration is logged, not
+        # just the megabytes.
+        try:
+            def _malloc_trim_job():
+                from api.services import memory_probe as _mp
+                r = _mp.malloc_trim()
+                if r.get("available") and (r.get("released_mb") or 0) >= 1:
+                    logging.getLogger(__name__).info(
+                        "[mem-trim] released %.1f MB (%.1f -> %.1f MB) in %.1f ms",
+                        r["released_mb"], r["rss_mb_before"], r["rss_mb_after"],
+                        r.get("elapsed_ms", -1))
+
+            from apscheduler.triggers.interval import IntervalTrigger as _TrimInterval
+            _scheduler.add_job(
+                _malloc_trim_job,
+                trigger=_TrimInterval(minutes=int(os.environ.get("MALLOC_TRIM_MINUTES", "10"))),
+                id="malloc_trim", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] malloc_trim scheduled -- every "
+                  f"{os.environ.get('MALLOC_TRIM_MINUTES', '10')} min")
+        except Exception as e:
+            print(f"[startup] malloc_trim job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -6449,7 +6512,7 @@ def health_threads(_admin: dict = Depends(require_admin)):
 
 
 @app.get("/api/health/memory")
-def health_memory(deep: bool = False, _admin: dict = Depends(require_admin)):
+def health_memory(deep: bool = False, trim: bool = False, _admin: dict = Depends(require_admin)):
     """Live memory attribution — names WHAT is holding the pod's RSS.
 
     ADMIN ONLY, same reasoning as `/api/health/threads` above (it enumerates
@@ -6463,7 +6526,16 @@ def health_memory(deep: bool = False, _admin: dict = Depends(require_admin)):
     allocates while it runs — so they are opt-in, never on a timer. Byte figures
     are sampled estimates and say so in the payload."""
     from api.services import memory_probe
-    return memory_probe.snapshot(deep=deep)
+    snap = memory_probe.snapshot(deep=deep)
+    if trim:
+        # `?trim=1` runs glibc malloc_trim(0) and reports RSS either side — the
+        # one call that separates "allocator is hoarding freed pages" from "a C
+        # extension is genuinely holding this". Admin-only, on demand, never on a
+        # timer. It releases only already-freed memory, so it is a hint to the
+        # allocator rather than a change to application state — which is why it
+        # rides this GET instead of needing a mutating route of its own.
+        snap["malloc_trim"] = memory_probe.malloc_trim()
+    return snap
 
 
 @app.get("/api/health/thread-stacks")

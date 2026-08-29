@@ -229,3 +229,120 @@
 }
 
 .suggestWhy { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+/* ⭐ TURN A NUMERIC COLUMN INTO A SCREEN. A quiet inline row rather than a banner:
+   the column is already usable for charting, so this is an offer, not an error. */
+.toScreen {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 4px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.toScreenLead { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+.toScreenRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.toScreenCol {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.toScreenOp,
+.toScreenValue {
+  min-height: var(--tap-min, 44px);
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text-bright);
+  background: var(--bg-input, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+}
+
+.toScreenValue { width: 90px; font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+.toScreenPreview {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--gold, #c9a84c);
+  overflow-wrap: anywhere;
+}
+
+.toScreenWhy { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+/* ⭐ THE LIBRARY MANIFEST — what happens to a whole folder. Four reaches shown
+   side by side and never summed: they answer different questions. */
+.manifest {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.manifestLead { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+.manifestReaches { display: flex; flex-wrap: wrap; gap: 14px; }
+
+.manifestReach { font-size: 12px; color: var(--text-dim); }
+.manifestReach strong {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 15px;
+  color: var(--gold, #c9a84c);
+  margin-right: 4px;
+}
+
+.manifestNote { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+.manifestRows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.manifestRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 7px;
+  border-left: 2px solid var(--color-success, #4ade80);
+  border-radius: 0 3px 3px 0;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.manifestRow[data-ok='0'] { border-left-color: var(--color-warning, #fbbf24); }
+
+.manifestName { font-size: 11px; color: var(--text-bright); }
+
+.manifestFormula {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.manifestWhy { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+.manifestGuard {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  color: var(--color-warning, #fbbf24);
+  margin-right: 6px;
+}
+
+.manifestPartial { display: block; margin-top: 3px; color: var(--color-success, #4ade80); }

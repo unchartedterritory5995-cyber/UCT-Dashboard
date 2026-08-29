@@ -752,10 +752,27 @@ function guardedBy(tree, node, guard) {
 
 describe('the one entry point', () => {
   it('`ChartToolbar` mounts the builder behind the SAME pair the library uses', () => {
-    const src = read('app/src/components/chart/ChartToolbar.jsx')
-    expect(src).toContain("import BuilderSheet from './builder/BuilderSheet'")
-
+    // ⚰️ THIS ASSERTED THE LITERAL STATIC IMPORT LINE, and that is the source-TEXT
+    // probe this very file warns about two screens up. It was also asserting the
+    // WRONG THING: a static import here fused `PineBox` and both translators into
+    // `ChartPane` (788KB / 250KB gzip), and `ChartToolbar` renders on EVERY
+    // `StockChart` — the dashboard, breadth, watchlists, the journal. The builder
+    // must be REACHABLE from here, which is what the mount check below proves; it
+    // must not be EAGER, which is what this now proves.
     const tree = toolbarTree()
+    let lazyImport = false
+    walkAst(tree, (n) => {
+      if (n.type !== 'CallExpression' || n.callee?.name !== 'lazy') return
+      walkAst(n, (m) => {
+        if (m.type === 'ImportExpression'
+            && String(m.source?.value || '').includes('builder/BuilderSheet')) lazyImport = true
+      })
+    })
+    expect(lazyImport,
+      'the builder is imported EAGERLY from the chart toolbar — that pulls both '
+      + 'translators into the chart chunk, which every StockChart in the app loads')
+      .toBe(true)
+
     const mounts = jsxMountsOf(tree, 'BuilderSheet')
     expect(mounts, 'the builder is mounted somewhere other than exactly once')
       .toHaveLength(1)

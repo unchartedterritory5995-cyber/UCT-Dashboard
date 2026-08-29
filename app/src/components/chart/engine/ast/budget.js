@@ -106,11 +106,28 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  `DEFAULT_BUDGET` has no non-test consumer outside this module and its Python
  *  twin, and `effectiveBudget` still clamps a stored budget DOWNWARD only.
  *
- *  ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. `maxSeriesRefs` counts
- *  OCCURRENCES, not distinct names, and that is forced rather than stylistic:
- *  the closed table declares FIVE series, so a distinct-name count could never
- *  exceed 8 and `budget:series` would be a latch nothing can trip — the exact
- *  shape of `lesson_gate_that_cannot_fail`.
+ *  ⚰️ THIS SAID *"`maxSeriesRefs` counts OCCURRENCES, not distinct names, and
+ *  that is forced rather than stylistic"*, AND IT DESCRIBED THE DESIGN THAT WAS
+ *  REPLACED. `seriesRefs` below counts DISTINCT names and has since 2026-08-09,
+ *  deliberately: counting references produced a FALSE REFUSAL, and `high` read
+ *  four times is ONE column by every measure the cap is about — fetched once,
+ *  held once, walked once. The stale sentence sat two screens above the fixed
+ *  function, each contradicting the other, which is how it survived.
+ *
+ *  ⛔⛔ SO `budget:series` IS UNREACHABLE TODAY, AND THAT IS RECORDED RATHER THAN
+ *  REPAIRED. The closed table declares FIVE series and the cap is 8, so a
+ *  distinct count cannot reach it. Both ways out are worse than the latch:
+ *  counting occurrences again would refuse 73 of the 167 columns the corpora
+ *  translate today (measured; the deepest is 285 occurrences of five series in
+ *  `10-supertrend`), and lowering the cap below 5 would refuse any formula that
+ *  reads O, H, L, C and V — which is an ordinary formula.
+ *
+ *  ⭐ WHAT MATTERS IS THAT NOBODY READS IT AS PROTECTION. It becomes live the day
+ *  the table declares more than `maxSeriesRefs` series, and `budget.test.js`
+ *  DERIVES that condition rather than restating it, so the day it changes the
+ *  rail says so instead of a reader re-discovering this paragraph
+ *  (`lesson_gate_that_cannot_fail` — named here because this is an instance of
+ *  it that is being DECLARED, not one that is being denied).
  */
 /** The nested-recurrence family's warmup — the driver the lookback cap had
  *  BEFORE a session had to fit inside it, kept and named rather than deleted.

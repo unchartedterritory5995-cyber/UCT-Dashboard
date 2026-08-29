@@ -310,6 +310,18 @@ const AWAITING_A_DECISION = {
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
     + 'four admin-gating assertions with no counterpart in that page\'s own tests. '
     + 'Removing the shim is a test repoint + rename, not a deletion.',
+  'app/src/pages/LiveFlow.jsx':
+    'THE BULLFLOW PAGE, unrouted 2026-08-29. Bullflow is retired — "live flow is '
+    + 'from massive, bullflow is no more" (owner, 2026-07-27) — so this page sat '
+    + 'on a dead rail: Bullflow SSE → liveflow_worker → /api/live/alerts/recent → '
+    + 'here, versus the LIVE Massive WS → FlowDB → LiveFlowMassive.jsx. It was '
+    + 'never in the nav, but /live-flow still routed to it, so a stale bookmark '
+    + 'landed on "Connecting to stream…" forever behind a red SSE 403. That route '
+    + 'now redirects to /live-massive. ⛔ Kept rather than deleted for the same '
+    + 'reason as the three partner-owned entries below: the page, '
+    + 'liveflow_worker*.py and the /api/live/alerts/* routes are one flow-family '
+    + 'unit, and removing them is coordination with the partner, not a unilateral '
+    + 'deletion. A COUNTDOWN, not a parking space — delete this entry with the file.',
   'app/src/pages/OptionsFlow_admin.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',
   'app/src/pages/LiveFlow_admin.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',
   'app/src/LiveFlow_integration_guide.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',

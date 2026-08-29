@@ -153,3 +153,57 @@ def test_the_warm_call_actually_passes_the_budget():
         "_discord_chart_hot_warm calls warm_hot_charts without deadline_s — the "
         "cycle is still unbounded in production"
     )
+
+
+# ── fairness: "deferred" has to be true, not a comforting label ──────────────
+
+
+def test_a_budgeted_cycle_does_not_starve_the_same_tail_forever(monkeypatch, slow_warm):
+    """⛔ THE REGRESSION THE DEADLINE ITSELF INTRODUCED.
+
+    `hotset.due` sorts by HIT COUNT descending — a STABLE order, the same charts
+    in the same positions every cycle. So a deadline that always cuts from the
+    end cuts THE SAME TAIL every time: those entries are never warmed again.
+    Prod 2026-08-29 showed exactly the setup for it — a chronically over-budget
+    cycle reporting "6 chart(s) deferred" on every single run.
+
+    Deferral is only honest if the next cycle resumes where the last stopped.
+    Run several budgeted cycles and require that EVERY due chart gets warmed at
+    least once — which is false under the naive implementation.
+    """
+    hs = _Hotset(12)
+    monkeypatch.setattr(di, "hotset", hs)
+    monkeypatch.setattr(di, "_WARM_CURSOR", 0)
+
+    seen = set()
+    for _ in range(8):                       # enough cycles to cover 12 at ~3/cycle
+        seen.update(_warm(limit=12, deadline_s=0.16))
+
+    expected = {f"KEY{i}" for i in range(12)}
+    missed = expected - seen
+    assert not missed, (
+        f"{len(missed)} chart(s) were never warmed across 8 budgeted cycles: "
+        f"{sorted(missed)} — the budget is starving the tail, not deferring it"
+    )
+
+
+def test_the_cursor_only_advances_when_something_was_deferred(monkeypatch, slow_warm):
+    """A cycle that finished everything must not rotate the next one.
+
+    Otherwise the ordering drifts for no reason and the hottest chart stops
+    being warmed first on a healthy cycle.
+    """
+    monkeypatch.setattr(di, "hotset", _Hotset(3))
+    monkeypatch.setattr(di, "_WARM_CURSOR", 0)
+    _warm(limit=3, deadline_s=5.0)           # ample budget: nothing deferred
+    assert di._WARM_CURSOR == 0, "cursor moved despite nothing being deferred"
+
+
+def test_the_unbounded_path_keeps_strict_hottest_first_order(monkeypatch, slow_warm):
+    """No deadline ⇒ no rotation. The whole list is processed in `due` order."""
+    monkeypatch.setattr(di, "hotset", _Hotset(5))
+    monkeypatch.setattr(di, "_WARM_CURSOR", 3)   # deliberately non-zero
+    warmed = _warm(limit=5)
+    assert warmed == [f"KEY{i}" for i in range(5)], (
+        f"the un-deadlined path rotated the order: {warmed}"
+    )

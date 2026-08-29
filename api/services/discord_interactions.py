@@ -1299,6 +1299,13 @@ def seed_roster(symbols, tf: str = "D", limit: int | None = None) -> int:
     return n
 
 
+# Round-robin cursor for the budgeted warm cycle. Module-level because the cycle
+# is stateless per call and fairness has to survive across calls; the lock is for
+# the scheduler thread vs any manual/admin invocation.
+_WARM_CURSOR = 0
+_WARM_CURSOR_LOCK = threading.Lock()
+
+
 def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
                     deadline_s: float | None = None) -> list:
     """Re-render the charts members keep asking for, just before their cache
@@ -1326,10 +1333,31 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
     warmed = []
     started = time.monotonic()
     deferred = 0
-    for key, req, prefs in hotset.due(png_cache.age_of, limit=limit):
+
+    items = hotset.due(png_cache.age_of, limit=limit)
+
+    # ⛔ ROUND-ROBIN, AND IT IS LOAD-BEARING — NOT A REFINEMENT.
+    # `hotset.due` sorts by HIT COUNT descending, which is a stable order: the
+    # same charts come back in the same positions cycle after cycle. A deadline
+    # that always cuts from the end therefore cuts THE SAME TAIL FOREVER — those
+    # entries would never be warmed again, which is starvation, not deferral.
+    # (Prod 2026-08-29 showed a chronically over-budget cycle deferring 6 charts
+    # EVERY run — the same 6.) Resuming where the last cycle stopped is what
+    # makes "deferred to the next cycle" true rather than a comforting label.
+    # Only applies when a deadline is in play; the unbounded path processes the
+    # whole list and needs no fairness.
+    global _WARM_CURSOR
+    if deadline_s is not None and items:
+        with _WARM_CURSOR_LOCK:
+            start = _WARM_CURSOR % len(items)
+        items = items[start:] + items[:start]
+
+    processed = 0
+    for key, req, prefs in items:
         if deadline_s is not None and (time.monotonic() - started) >= deadline_s:
             deferred += 1
             continue
+        processed += 1
         try:
             options = prefs_mod.render_options(prefs, req.tf)
             if req.to:
@@ -1350,11 +1378,17 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
     if warmed:
         log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
     if deferred:
+        # Advance so the NEXT cycle starts on the first entry this one skipped.
+        # Without this the same tail is cut every time (see the round-robin note
+        # above). Advancing by what we actually attempted — not by `limit` —
+        # keeps the cursor on the real boundary even when the list shrinks.
+        with _WARM_CURSOR_LOCK:
+            _WARM_CURSOR = (_WARM_CURSOR + processed) % max(len(items), 1)
         # Visible on purpose: a cycle that keeps deferring means the renderer is
         # slow or the hot set outgrew the budget, and that is a real signal —
         # not something to discover later from a latency graph.
         log.info("[discord-chart] hot warm hit its %.0fs budget after %.1fs — "
-                 "%d chart(s) deferred to the next cycle",
+                 "%d chart(s) deferred to the next cycle (resuming there)",
                  deadline_s, time.monotonic() - started, deferred)
     return warmed
 
