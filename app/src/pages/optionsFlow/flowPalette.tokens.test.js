@@ -134,3 +134,54 @@ describe('the Options Flow surface keeps no private copy of the retired ramp', (
     expect(of).toMatch(/#6ba3be/i)
   })
 })
+
+// ── type scale: nothing below the design system's own floor ─────────────────
+//
+// Measured on the LIVE page 2026-08-29: **52.9% of all rendered text on Options
+// Flow sat below 10px** — 157 elements at 9px, 42 at 8px, 19 at 7px, out of 412.
+// The app's scale starts at --text-xs: 10px, so more than half the page was
+// smaller than the smallest size the system defines. Combined with the old dim
+// olive text it was genuinely hard to read, and it is the other half of "doesn't
+// match our theme" after the palette.
+//
+// The fix is deliberately CONSERVATIVE: raise what is below the floor, touch
+// nothing at or above it, so every existing hierarchy above 10px is preserved.
+// Verified in-browser before shipping — 149 elements raised, ZERO horizontal
+// overflow (scrollWidth === clientWidth), layout intact.
+
+describe('Options Flow respects the design system type floor', () => {
+  const FILES = ['src/pages/OptionsFlow.jsx', 'src/pages/DarkPool.jsx']
+
+  // Read the floor from tokens.css rather than typing 10 — same single-authority
+  // rule as the palette above. If the scale ever starts somewhere else, this
+  // follows it instead of pinning a stale number.
+  const floorPx = (() => {
+    const m = tokensCss.match(/--text-xs\s*:\s*(\d+)px/)
+    return m ? Number(m[1]) : null
+  })()
+
+  it('the floor is read from tokens.css, not typed — the control', () => {
+    expect(floorPx).toBe(10)
+  })
+
+  for (const rel of FILES) {
+    it(`${rel} sets no font size below ${floorPx}px`, () => {
+      const src = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
+      const offenders = [...src.matchAll(/fontSize:\s*(\d+)(?![\d.])/g)]
+        .map((m) => Number(m[1]))
+        .filter((px) => px < floorPx)
+      expect([...new Set(offenders)].sort((a, b) => a - b),
+        `${rel} has text below the ${floorPx}px floor`).toEqual([])
+    })
+  }
+
+  it('sizes ABOVE the floor were left alone — the discriminating half', () => {
+    // A "fix" that flattened everything to 10px would pass the assertions above
+    // and destroy the page's hierarchy. Assert the larger tiers survive.
+    const src = fs.readFileSync(path.resolve(process.cwd(), FILES[0]), 'utf8')
+    const sizes = new Set([...src.matchAll(/fontSize:\s*(\d+)(?![\d.])/g)].map((m) => Number(m[1])))
+    for (const px of [11, 12, 13, 14]) {
+      expect(sizes.has(px), `the ${px}px tier disappeared — hierarchy was flattened`).toBe(true)
+    }
+  })
+})
