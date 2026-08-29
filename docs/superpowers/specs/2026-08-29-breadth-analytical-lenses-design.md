@@ -65,8 +65,10 @@ metric checklist that changes nothing on screen.
 
 - **`kind: 'board'`** — the existing contract, unchanged. The current 8 plus Heat Ribbon
   and Percentile Ladder. Customize shows the metric checklist + options.
-- **`kind: 'lens'`** — receives `{ rows, currentRow, rowIdx, prevRow, onDrill, options }`:
-  the **full loaded window** instead of a metric list. `eligibleKeys` returns `[]` and the
+- **`kind: 'lens'`** — receives `{ rows, currentRow, rowIdx, prevRow, onDrill, options }`,
+  where `rows` is the **forward-filled** window (`filledRows`, newest-first) that boards
+  already normalize against — not the raw prop — so the two kinds can never disagree about
+  what a session's value was. `eligibleKeys` returns `[]` and the
   Customize panel shows options only, no checklist.
 
 `BreadthViews` passes the bundle its `kind` calls for. Board views are not edited.
@@ -94,9 +96,15 @@ shape (see `lesson_a_second_authority_over_one_value`).
 
 ### Switcher presentation
 
-One row, two labeled groups with a divider: **BOARDS** (the 8 snapshot styles) then
-**LENSES** (the 8 new ones). Grouping is read from `VIEW_CONFIG[].kind`, so a new view
-lands in the right group by declaring its kind — there is no second list of group members.
+One row, two labeled groups with a divider: **BOARDS** then **LENSES**. Grouping is read
+from `VIEW_CONFIG[].kind`, so a new view lands in the right group by declaring its kind —
+there is no second list of group members.
+
+Note this is **not** an "old 8 / new 8" split, and must not be described as one: Heat
+Ribbon and Percentile Ladder are metric boards, so kind-based grouping puts them with the
+boards. The shipped switcher reads **10 BOARDS · 6 LENSES**. Grouping by age instead of by
+kind would re-introduce exactly the hand-maintained second list this section exists to
+remove.
 
 ### Window
 
