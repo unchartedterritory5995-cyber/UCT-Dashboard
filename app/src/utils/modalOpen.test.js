@@ -117,6 +117,15 @@ describe('🔴 every chart key handler actually CONSULTS it', () => {
     'components/chart/ChartSettingsModal.jsx': "the settings modal's own Escape",
     'components/chart/ChartThemesModal.jsx': "the themes gallery's own Escape",
     'components/chart/EarningsMarkerPopover.jsx': "the popover's own dismissal",
+    // ⭐ SAME CLASS AS THE POPOVER ABOVE, AND VERIFIED RATHER THAN ASSUMED: its
+    // effect opens with `if (!open) return`, so the listener EXISTS only while
+    // its own panel does, and all it does is close that panel. It cannot reach a
+    // keystroke meant for anything else. (Classified 2026-08-29 — it arrived with
+    // the Drawing Boards ship at `b9c86d55a` and this rail caught it, which is
+    // exactly the rail working: a new global keydown must be reasoned about, not
+    // waved through.)
+    'components/chart/BoardsToolButton.jsx':
+      "the boards popover's own Escape, registered only while it is open",
     'components/chart/KeyboardHelpOverlay.jsx': "the shortcut sheet's own Escape",
     'components/chart/SymbolSearch.jsx': "the ticker box's own dropdown navigation",
     'components/chart/PatternSidePanel.jsx': "the side panel's own Escape",

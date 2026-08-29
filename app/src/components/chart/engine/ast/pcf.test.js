@@ -84,7 +84,16 @@ describe('genuine TC2000 formulas produce the tree the engine already runs', () 
     // `aroonDown` were declared. The floor moves for the reason the note above
     // sanctions -- a real graduation -- and the TOTAL below is UNMOVED, because
     // the case changed bucket rather than leaving the corpus.
-    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(23)
+    // 23 -> 21 (2026-08-29): TWO graduations, and they are different KINDS.
+    //   * `hull_average` — `HAVG` was refused as "a formula this table does not
+    //     declare", and `hma` landed in the manifest the same morning. Same
+    //     published formula, so it is a SPELLING, not the `MIN`/`lowest`
+    //     lookalike trap. `FAVG` stays refused: Worden publishes no weighting.
+    //   * `double_plus_add` — `C ++ O` is TC2000 SYNTAX (the sign is the product
+    //     of the two signs), and this reader was refusing a formula a member's
+    //     own platform accepts. Not a graduation of capability but of READING.
+    // TOTAL still unmoved: both changed bucket rather than leaving the corpus.
+    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(21)
     expect(CORPUS.offset_dependent.length).toBeGreaterThanOrEqual(7)
     expect(every.length).toBeGreaterThanOrEqual(65)
     const ids = every.map((c) => c.id)
