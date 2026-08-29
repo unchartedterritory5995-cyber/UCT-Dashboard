@@ -292,6 +292,19 @@ const AWAITING_A_DECISION = {
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
     + 'the registry would make it true by construction and unable to fail.',
+  'app/src/components/chart/engine/ast/doorCoverage.js':
+    'MEASUREMENT INFRASTRUCTURE, same class as registrySizes.js above: its '
+    + 'consumer is a RAIL, not a route. It asks which declared engine functions '
+    + 'each importer can actually reach — the question that was being answered by '
+    + 'hand, one indicator at a time, and that no gate measured because the corpus '
+    + 'can only exercise the names 75 chosen scripts happen to use. '
+    + '⛔ DELIBERATELY NOT MOUNTED. Answering it runs three translators over every '
+    + 'declared function; that belongs in a test, not in a page load, and putting '
+    + 'it on the reference page would make a member wait for a number computed for '
+    + 'engineers. ⚠️ It is nonetheless a REAL candidate for a product surface — '
+    + '"which of your platforms can reach this" is a question a member evaluating '
+    + 'a switch would want answered — so this entry is a decision recorded, not a '
+    + 'file forgotten. Rail: doorCoverage.test.js.',
   'app/src/pages/EducationalVideos.jsx':
     'A 4-line re-export shim over the LIVE pages/desk/VideosSection. Its test is '
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
