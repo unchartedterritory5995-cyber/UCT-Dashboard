@@ -355,6 +355,20 @@ def get_breadth_analogues(_user: dict = Depends(require_paid)):
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/score-components/{date}")
+def get_breadth_score_components(date: str, _user: dict = Depends(require_paid)):
+    """Per-component attribution behind `breadth_score` for one session.
+
+    The client MUST NOT re-derive these from `_SCORE_WEIGHTS`: the score
+    renormalizes over present inputs, so the weights alone do not reproduce the
+    points. Server-side is the only place the two can be guaranteed to agree.
+    """
+    try:
+        return svc.score_components(date)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
 @router.get("/api/breadth-monitor/live")
 def get_breadth_live(force: bool = False,
                      _user: dict = Depends(require_paid)):
