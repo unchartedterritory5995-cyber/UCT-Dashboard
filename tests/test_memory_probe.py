@@ -190,3 +190,41 @@ def test_the_endpoint_only_trims_when_asked():
     src = inspect.getsource(main.health_memory)
     assert "if trim:" in src, "the endpoint trims unconditionally"
     assert "trim: bool = False" in src, "trim must default to off"
+
+
+# ── the periodic trim must actually be wired ────────────────────────────────
+
+
+def test_the_trim_job_is_registered():
+    """A fix for a measured cause that never runs is not a fix.
+
+    Prod evidence for it: RSS 1490.0 -> 1276.6 MB, 213.4 MB released in ONE call
+    on an 8-minute-old pod.
+    """
+    import ast
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1] / "api" / "main.py").read_text(encoding="utf-8")
+    ids = set()
+    for n in ast.walk(ast.parse(src)):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                and n.func.attr == "add_job"):
+            for kw in n.keywords:
+                if kw.arg == "id" and isinstance(kw.value, ast.Constant):
+                    ids.add(kw.value.value)
+    assert "malloc_trim" in ids, "no add_job(id='malloc_trim') in api/main.py"
+    # Control: the probe really reads this file's job ids.
+    assert len(ids) > 50, f"job-id probe found only {len(ids)} ids — not discriminating"
+
+
+def test_the_trim_job_logs_duration_not_just_megabytes():
+    """The duration is the signal that says when this shape stops being safe.
+
+    malloc_trim takes the allocator's arena locks. Megabytes-released alone would
+    look like a success right up until the call started stalling requests.
+    """
+    import inspect
+    from api import main
+    src = inspect.getsource(main.lifespan)
+    assert "elapsed_ms" in src, (
+        "the trim job logs no duration — a slow trim would be invisible"
+    )

@@ -6075,6 +6075,46 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] cache snapshot job registration failed (non-fatal): {e}")
 
+        # ⚡ PERIODIC malloc_trim — the fix for a MEASURED cause, not a guess.
+        #
+        # `/api/health/memory?trim=1` on prod 2026-08-29, on an 8-minute-old pod:
+        # RSS 1490.0 -> 1276.6 MB, **213.4 MB released in one call**, glibc
+        # returned 1. So the pod's RSS growth is allocator-held FREE memory —
+        # glibc keeps per-arena free lists and this process runs ~64 threads,
+        # which is the textbook setup for it. It is NOT a leak: the memory is
+        # already freed, just never handed back to the OS.
+        #
+        # That also rules the two rival explanations out with evidence rather
+        # than argument: the caches hold ~3 MB (0.17% of RSS) and +481 MB of
+        # growth came with only +11% GC-tracked objects.
+        #
+        # ⛔ This does NOT replace MALLOC_ARENA_MAX, it is the half that needs no
+        # environment change and no redeploy to take effect. Capping arenas
+        # prevents the fragmentation; trimming returns it. If the elapsed_ms
+        # logged below ever climbs into the hundreds, this is the wrong shape and
+        # the env cap is the answer — that is why the duration is logged, not
+        # just the megabytes.
+        try:
+            def _malloc_trim_job():
+                from api.services import memory_probe as _mp
+                r = _mp.malloc_trim()
+                if r.get("available") and (r.get("released_mb") or 0) >= 1:
+                    logging.getLogger(__name__).info(
+                        "[mem-trim] released %.1f MB (%.1f -> %.1f MB) in %.1f ms",
+                        r["released_mb"], r["rss_mb_before"], r["rss_mb_after"],
+                        r.get("elapsed_ms", -1))
+
+            from apscheduler.triggers.interval import IntervalTrigger as _TrimInterval
+            _scheduler.add_job(
+                _malloc_trim_job,
+                trigger=_TrimInterval(minutes=int(os.environ.get("MALLOC_TRIM_MINUTES", "10"))),
+                id="malloc_trim", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] malloc_trim scheduled -- every "
+                  f"{os.environ.get('MALLOC_TRIM_MINUTES', '10')} min")
+        except Exception as e:
+            print(f"[startup] malloc_trim job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")

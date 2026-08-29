@@ -38,6 +38,7 @@ import gc
 import json
 import random
 import sys
+import time
 from collections import Counter
 
 # How many entries to serialize when estimating a cache's footprint.
@@ -147,13 +148,20 @@ def malloc_trim() -> dict:
             return out
         trim.argtypes = [ctypes.c_size_t]
         trim.restype = ctypes.c_int
+        t0 = time.monotonic()
         rc = trim(0)
+        elapsed_ms = round((time.monotonic() - t0) * 1000, 1)
         after = _rss_mb()
         out.update({
             "available": True,
             "returned": int(rc),          # glibc: 1 = some memory was released
             "rss_mb_after": after,
             "released_mb": round((before or 0) - (after or 0), 1),
+            # Reported because this call takes the allocator's arena locks. It has
+            # to stay cheap to be safe on a timer next to live request handling —
+            # if this ever grows into the hundreds of ms, the periodic job is the
+            # wrong shape and MALLOC_ARENA_MAX is the answer instead.
+            "elapsed_ms": elapsed_ms,
         })
         out["note"] = (
             "released_mb materially > 0 ⇒ the growth is allocator-held FREE memory "
