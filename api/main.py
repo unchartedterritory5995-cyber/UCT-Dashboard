@@ -6461,7 +6461,7 @@ def health_threads(_admin: dict = Depends(require_admin)):
 
 
 @app.get("/api/health/memory")
-def health_memory(deep: bool = False, _admin: dict = Depends(require_admin)):
+def health_memory(deep: bool = False, trim: bool = False, _admin: dict = Depends(require_admin)):
     """Live memory attribution — names WHAT is holding the pod's RSS.
 
     ADMIN ONLY, same reasoning as `/api/health/threads` above (it enumerates
@@ -6475,7 +6475,16 @@ def health_memory(deep: bool = False, _admin: dict = Depends(require_admin)):
     allocates while it runs — so they are opt-in, never on a timer. Byte figures
     are sampled estimates and say so in the payload."""
     from api.services import memory_probe
-    return memory_probe.snapshot(deep=deep)
+    snap = memory_probe.snapshot(deep=deep)
+    if trim:
+        # `?trim=1` runs glibc malloc_trim(0) and reports RSS either side — the
+        # one call that separates "allocator is hoarding freed pages" from "a C
+        # extension is genuinely holding this". Admin-only, on demand, never on a
+        # timer. It releases only already-freed memory, so it is a hint to the
+        # allocator rather than a change to application state — which is why it
+        # rides this GET instead of needing a mutating route of its own.
+        snap["malloc_trim"] = memory_probe.malloc_trim()
+    return snap
 
 
 @app.get("/api/health/thread-stacks")
