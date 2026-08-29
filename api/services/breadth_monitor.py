@@ -94,10 +94,17 @@ def _lerp(val, lo, hi, max_pts):
 
 
 # A component only counts toward the score if its input is actually present.
-# See `_compute_breadth_score`.
+# See `_score_breakdown`.
 _SCORE_WEIGHTS = {
     "pct_above_50sma": 20, "ratio_5day": 15, "magna": 10, "hi_ratio": 10,
     "cboe_putcall": 10, "aaii_spread": 10, "vix": 10, "stage2": 10, "adv_decline": 5,
+}
+
+_SCORE_LABELS = {
+    "pct_above_50sma": "% above 50 SMA", "ratio_5day": "5-day up/down ratio",
+    "magna": "13%/34d up share", "hi_ratio": "52w highs / universe",
+    "cboe_putcall": "CBOE put/call (contrarian)", "aaii_spread": "AAII spread (contrarian)",
+    "vix": "VIX (inverted)", "stage2": "Stage 2 share", "adv_decline": "Advance/decline",
 }
 
 # Below this much available weight the remainder is not a market read, it is a
@@ -105,8 +112,10 @@ _SCORE_WEIGHTS = {
 _SCORE_MIN_WEIGHT = 60
 
 
-def _compute_breadth_score(row: dict) -> Optional[float]:
-    """Composite market breadth health score 0-100.
+def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
+    """Composite breadth score 0-100 AND the per-component attribution, from one
+    pass. The total and the breakdown can never disagree because there is only
+    one calculation.
 
     ⚠️ RENORMALIZED over the inputs that are actually present. `_lerp(None)`
     returns 0, so before 2026-08-07 a MISSING component scored the same as a
@@ -123,13 +132,21 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
     """
     earned = 0.0
     have = 0
+    components: list[dict] = []
 
     def take(key, val, lo, hi):
         nonlocal earned, have
-        if val is None:
-            return
-        have += _SCORE_WEIGHTS[key]
-        earned += _lerp(val, lo, hi, _SCORE_WEIGHTS[key])
+        present = val is not None
+        pts = 0.0
+        if present:
+            have += _SCORE_WEIGHTS[key]
+            pts = _lerp(val, lo, hi, _SCORE_WEIGHTS[key])
+            earned += pts
+        components.append({
+            "key": key, "label": _SCORE_LABELS[key], "weight": _SCORE_WEIGHTS[key],
+            "points": pts, "max_points": _SCORE_WEIGHTS[key],
+            "present": present, "value": val,
+        })
 
     take("pct_above_50sma", row.get("pct_above_50sma"), 30, 65)
     take("ratio_5day", row.get("ratio_5day"), 0.7, 1.5)
@@ -150,15 +167,63 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
     s2, uni = row.get("stage2_count"), row.get("universe_count")
     take("stage2", (s2 / uni * 100) if (s2 is not None and uni and uni > 0) else None, 5, 25)
 
+    # Binary, not interpolated: the advance/decline component is a coin flip on
+    # the sign, which is why it cannot go through `take`'s lerp.
     ad = row.get("adv_decline")
+    ad_pts = 0.0
     if ad is not None:
         have += _SCORE_WEIGHTS["adv_decline"]
         if ad > 0:
-            earned += _SCORE_WEIGHTS["adv_decline"]
+            ad_pts = float(_SCORE_WEIGHTS["adv_decline"])
+            earned += ad_pts
+    components.append({
+        "key": "adv_decline", "label": _SCORE_LABELS["adv_decline"],
+        "weight": _SCORE_WEIGHTS["adv_decline"], "points": ad_pts,
+        "max_points": _SCORE_WEIGHTS["adv_decline"],
+        "present": ad is not None, "value": ad,
+    })
 
     if have < _SCORE_MIN_WEIGHT:
-        return None
-    return round(min(100, max(0, earned / have * 100)), 1)
+        return None, components
+    return round(min(100, max(0, earned / have * 100)), 1), components
+
+
+def _compute_breadth_score(row: dict) -> Optional[float]:
+    """Composite market breadth health score 0-100. See `_score_breakdown`."""
+    return _score_breakdown(row)[0]
+
+
+def score_components(date: str, days: int = 90) -> dict:
+    """The score attribution for `date`, plus the prior session's, so a caller
+    can draw the delta in one request. An unrecorded date answers ok:false —
+    absence is not an error, same as `session_path`.
+
+    `days` is the window the CLIENT already loaded, not a window of this
+    function's own choosing. `get_history` caches five minutes PER `days` value
+    and startup warms only `days=90`; the Views tab legitimately produces
+    90/180/365. A hardcoded 400 here was therefore a fourth window nothing warms
+    and no other surface shares, so every five minutes the first Attribution
+    render paid a cold ~415-row fetch plus a full derivation pass on a
+    single-process pod, with no single-flight guard in front of it. Taking the
+    caller's window makes this share a cache entry the page has already paid
+    for. (`get_history` was measured spiking 28s uncached — see CLAUDE.md.)
+    """
+    hist = get_history(days)
+    idx = next((i for i, r in enumerate(hist) if r.get("date") == date), None)
+    if idx is None:
+        return {"ok": False, "date": date, "reason": "no stored session for that date"}
+
+    total, components = _score_breakdown(hist[idx])
+    prev = None
+    if idx + 1 < len(hist):
+        p_total, p_components = _score_breakdown(hist[idx + 1])
+        prev = {"date": hist[idx + 1].get("date"), "total": p_total, "components": p_components}
+
+    return {
+        "ok": True, "date": date, "total": total,
+        "min_weight_met": total is not None,
+        "components": components, "prev": prev,
+    }
 
 
 # The derivation loop below reaches BACKWARD past the row it is computing:

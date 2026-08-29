@@ -171,24 +171,28 @@ export default function BreadthViewsCustomizePanel({
         </div>
       )}
 
-      <div className={styles.body}>
-        {grouped.map(({ group, list }) => (
-          <div key={group} className={styles.section}>
-            <div className={styles.sectionHeader}>{group}</div>
-            {list.map(col => (
-              <label key={col.key} className={styles.checkRow}>
-                <input type="checkbox" className={styles.checkbox} checked={visibleKeys.has(col.key)}
-                       onChange={() => guardDefault(() => onToggleVisible(col.key))} />
-                <span className={styles.checkLabel}>{col.label}</span>
-              </label>
-            ))}
-          </div>
-        ))}
-      </div>
+      {metrics.length > 0 && (
+        <div className={styles.body}>
+          {grouped.map(({ group, list }) => (
+            <div key={group} className={styles.section}>
+              <div className={styles.sectionHeader}>{group}</div>
+              {list.map(col => (
+                <label key={col.key} className={styles.checkRow}>
+                  <input type="checkbox" className={styles.checkbox} checked={visibleKeys.has(col.key)}
+                         onChange={() => guardDefault(() => onToggleVisible(col.key))} />
+                  <span className={styles.checkLabel}>{col.label}</span>
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={styles.footer}>
         <span className={styles.activeLabel}>
-          {isDefaultActive ? `Default — ${viewLabel} preset` : `${visibleKeys.size} of ${metrics.length} visible`}
+          {isDefaultActive
+            ? `Default — ${viewLabel} preset`
+            : metrics.length > 0 ? `${visibleKeys.size} of ${metrics.length} visible` : `${viewLabel} options`}
         </span>
         <button className={styles.resetLink} onClick={onResetActive} disabled={isDefaultActive}
                 title={isDefaultActive ? 'Default has nothing to reset' : 'Restore this view\'s defaults'}>

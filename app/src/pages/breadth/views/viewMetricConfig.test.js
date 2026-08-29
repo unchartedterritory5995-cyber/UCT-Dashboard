@@ -59,16 +59,36 @@ describe('viewMetricConfig', () => {
 })
 
 import { optionsSchema as optsSchema } from './viewMetricConfig'
+import { EVENT_DEFS } from './breadthEvents'
 
 describe('theming + treemap options', () => {
   const names = (style) => optsSchema(style).map(o => o.name)
-  it('the 7 chart views expose palette + intensity', () => {
-    for (const s of ['rings','tug','meters','timeline','radar','scoreboard','equalizer']) {
-      expect(names(s), s).toEqual(expect.arrayContaining(['palette', 'intensity']))
-    }
+
+  // ⛔ NOT A HAND-TYPED ROSTER. This read `for (const s of ['rings','tug',…])` —
+  // seven names, chosen when there were eight views. Fifteen of sixteen expose
+  // theming now, and both the sentence and the list had gone stale: a NEW view
+  // shipping WITHOUT theming would have passed in silence, which is the one
+  // thing this test exists to catch.
+  it('every view except the treemap exposes palette + intensity', () => {
+    expect(STYLES.filter(s => names(s).includes('palette')))
+      .toEqual(STYLES.filter(s => s !== 'treemap'))
+    expect(STYLES.filter(s => names(s).includes('intensity')))
+      .toEqual(STYLES.filter(s => s !== 'treemap'))
   })
+
   it('treemap exposes weightBy but not palette', () => {
     expect(names('treemap')).toContain('weightBy')
     expect(names('treemap')).not.toContain('palette')
+  })
+
+  // ⛔ ONE AUTHOR FOR THE FAMILIES. The dropdown used to hold its own copy of
+  // the family list, so an event in a new family was unfilterable and a removed
+  // family offered a filter that rendered an empty grid with no explanation.
+  it('the event-family filter offers exactly the families EVENT_DEFS defines', () => {
+    const offered = optsSchema('events').find(o => o.name === 'families').choices
+      .map(c => c.value).filter(v => v !== 'all')
+    expect(new Set(offered)).toEqual(new Set(EVENT_DEFS.map(d => d.family)))
+    expect(offered.length, 'a family is offered twice').toBe(new Set(offered).size)
+    expect(offered.length, 'the fixture found no families at all').toBeGreaterThan(1)
   })
 })

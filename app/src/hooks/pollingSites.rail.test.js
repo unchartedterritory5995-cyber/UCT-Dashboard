@@ -258,6 +258,15 @@ const BARE_POLL_SITES = {
   'app/src/pages/UCT20.jsx': 4,
   'app/src/pages/Watchlists.jsx': 3,
   'app/src/pages/admin/PatternAdmin.jsx': 1,
+  // ⭐ ADDED AFTER THE CENSUS, AND THE DECISION WENT TO BARE `useSWR` — measured,
+  // not defaulted. The Analogue Deck reads `/api/breadth-monitor/analogues`,
+  // which is itself server-cached for 6 hours, and the interval here matches it
+  // (6h). So `useMobileSWR`'s halving buys nothing on a phone — there is at most
+  // one tick per session either way — while its `revalidateOnFocus: true` would
+  // OVERRIDE the app-global `false` and fire a fresh request on every tab focus,
+  // and its visibilitychange listener plus a 60s `useMarketOpen` interval would
+  // be mounted per call site for data that changes at most once a day.
+  'app/src/pages/breadth/views/AnalogueDeckView.jsx': 1,
   'app/src/pages/calendar/MyStocksHub.jsx': 1,
   'app/src/pages/calendar/useCalendarData.js': 5,
   'app/src/pages/charts/widgets/AlertsWidget.jsx': 1,

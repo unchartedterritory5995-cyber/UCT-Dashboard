@@ -17,7 +17,7 @@ from api.services.breadth_monitor import _conn, get_history
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
 
-_cache: dict = {"ts": 0, "data": None}
+_cache: dict = {"ts": 0, "data": None, "top_n": None}
 _CACHE_TTL = 6 * 3600  # 6 hours
 
 
@@ -165,9 +165,12 @@ def find_analogues(
     Returns:
         dict with 'reference_date', 'analogues' list, and 'reference_metrics'.
     """
-    # Check cache
+    # Check cache — keyed on top_n too. Without this, a request for 10 matches
+    # could be served a cached result computed for 5 (or vice versa), silently,
+    # for up to _CACHE_TTL.
     now = time.time()
-    if _cache["data"] is not None and (now - _cache["ts"]) < _CACHE_TTL:
+    if (_cache["data"] is not None and _cache["top_n"] == top_n
+            and (now - _cache["ts"]) < _CACHE_TTL):
         return _cache["data"]
 
     rows = _get_all_snapshots(lookback_days)
@@ -243,6 +246,7 @@ def find_analogues(
     # Cache result
     _cache["ts"] = now
     _cache["data"] = result
+    _cache["top_n"] = top_n
 
     return result
 
@@ -251,3 +255,4 @@ def invalidate_cache():
     """Clear the analogues cache (e.g. after new breadth push)."""
     _cache["ts"] = 0
     _cache["data"] = None
+    _cache["top_n"] = None
