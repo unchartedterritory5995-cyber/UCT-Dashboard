@@ -34,7 +34,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine } from './pine.js'
+import { translatePine, treeYieldsBool } from './pine.js'
+import { parseFormula } from './parse.js'
 import { translateThinkScript } from './thinkscript.js'
 import { parsePcf } from './pcf.js'
 import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
@@ -272,5 +273,77 @@ describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets'
     // produced by a gate that never ran.
     expect(total.evaluate).toBe(total.translate)
     expect(total.evaluate).toBeGreaterThanOrEqual(41)
+  })
+})
+
+describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop', () => {
+  // ⛔⛔ THE BIGGEST REMAINING GAP IN THIS PRODUCT IS NOT IN A TRANSLATOR.
+  // 41 scripts translate and all 41 can be SAVED — and only 19 of them can be
+  // SCANNED. Every single refusal is the same gate: `yields`. The tree returns a
+  // NUMBER, and a screen needs a condition, because `<tree> != 0` over a price
+  // column is true for every symbol trading above zero. That gate is CORRECT and
+  // must not be softened; it is what stops a screen silently returning the
+  // universe.
+  //
+  // ⭐ SO THE MISSING PIECE IS AN AFFORDANCE, NOT A TRANSLATION. TradingView's Pine
+  // Screener never asks a script for a boolean: a plot becomes a NUMERIC COLUMN and
+  // the member picks the operator and the threshold in the screener UI. A pasted
+  // `rsi(close, 14)` is a perfectly good column; it is just not a filter until
+  // somebody says `< 30`. Our door requires the definition itself to be 0/1.
+  //
+  // ⚠️ WHICH IS WHY THIS SITS IN THE SCORECARD RATHER THAN IN A BACKLOG. Closing
+  // every one of the OPEN translation gaps would add at most that many scripts —
+  // and most of them PLOT NUMBERS TOO, so they would land in this same bucket. The
+  // arithmetic says the operator affordance is worth more than the whole remaining
+  // translator backlog, and a number nobody measures is a number nobody acts on.
+  //
+  // ⭐ THE VERDICT IS THE SHIPPED ONE, AND BOTH LANES AGREE ON IT. `treeYieldsBool`
+  // is `pine.js`'s, the same function `thinkscript.js` imports so the two doors ask
+  // one question. Measured against the backend's own `assert_scannable` over these
+  // exact 148 columns: 49 and 49, 19 scripts and 19 scripts. If that ever diverges,
+  // one lane is telling a member their screen will run while the other refuses it —
+  // the recorded `scannable: true` / every-row-refuses defect.
+
+  const columns = []
+  for (const [d, dir, translate] of [
+    [DOORS[0], 'tests/fixtures/pine', translatePine],
+    [DOORS[1], 'tests/fixtures/pine_community', translatePine],
+    [DOORS[2], 'tests/fixtures/thinkscript', translateThinkScript],
+  ]) {
+    for (const r of d.rows) {
+      if (!r.ok) continue
+      const o = translate(fs.readFileSync(path.join(rel(dir), r.file), 'utf8'))
+      for (const out of o.outputs) {
+        if (!out.formula || out.hidden) continue
+        let bool = false
+        try { bool = !!treeYieldsBool(parseFormula(out.formula).ast) } catch (e) { bool = false }
+        columns.push({ file: r.file, bool })
+      }
+    }
+  }
+  const scannableCols = columns.filter((c) => c.bool)
+  const scriptsScannable = new Set(scannableCols.map((c) => c.file))
+  const scriptsTranslating = new Set(columns.map((c) => c.file))
+
+  it('⭐ the third door prints itself', () => {
+    console.log(`\ncolumns: ${columns.length} offered · ${scannableCols.length} SCANNABLE`
+      + `\nscripts: ${scriptsScannable.size} of ${scriptsTranslating.size} translating scripts `
+      + `can be SCANNED — the rest offer only numeric columns\n`)
+    expect(columns.length).toBeGreaterThan(0)
+  })
+
+  it('⛔ the measurement is not vacuous in either direction', () => {
+    // ⚰️ A verdict function that answered `false` for everything would make the
+    // headline "0 scannable" and look like a catastrophe; one that answered `true`
+    // for everything would hide the gap entirely. Both directions must be present.
+    expect(scannableCols.length).toBeGreaterThan(0)
+    expect(scannableCols.length).toBeLessThan(columns.length)
+    expect(scriptsScannable.size).toBeGreaterThan(0)
+  })
+
+  it('🔴 THE RATCHET — scannable scripts may only ever increase', () => {
+    // ⛔ THE NUMBER TO DRIVE UP, and the one the operator affordance would move.
+    // Measured 2026-08-29: 19 of 41.
+    expect(scriptsScannable.size).toBeGreaterThanOrEqual(19)
   })
 })
