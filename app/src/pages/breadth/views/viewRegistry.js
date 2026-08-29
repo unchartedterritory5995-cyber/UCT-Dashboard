@@ -12,6 +12,7 @@ import RadarView from './RadarView'
 import ScoreboardView from './ScoreboardView'
 import EqualizerView from './EqualizerView'
 import HeatRibbonView from './HeatRibbonView'
+import PercentileLadderView from './PercentileLadderView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -25,4 +26,5 @@ export const VIEW_COMPONENTS = {
   scoreboard: ScoreboardView,
   equalizer: EqualizerView,
   ribbon: HeatRibbonView,
+  ladder: PercentileLadderView,
 }

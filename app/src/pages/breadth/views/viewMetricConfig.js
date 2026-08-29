@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -69,6 +69,10 @@ const RIBBON_OPTIONS = [
   { name: 'density', label: 'Row height', type: 'select', default: 'comfortable',
     choices: [{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }] },
 ]
+const LADDER_OPTIONS = [
+  { name: 'sort', label: 'Sort', type: 'select', default: 'group',
+    choices: [{ value: 'group', label: 'Group order' }, { value: 'percentile', label: 'Percentile high→low' }] },
+]
 
 const THEME_OPTIONS = [
   { name: 'palette', label: 'Color palette', type: 'select', default: 'classic',
@@ -96,6 +100,7 @@ export const VIEW_CONFIG = {
   scoreboard: { kind: 'board', label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: [...SCOREBOARD_OPTIONS, ...THEME_OPTIONS] },
   equalizer:  { kind: 'board', label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
   ribbon:     { kind: 'board', label: 'Heat Ribbon', eligibleKeys: all, defaultVisible: HEADLINE, options: [...RIBBON_OPTIONS, ...THEME_OPTIONS] },
+  ladder:     { kind: 'board', label: 'Percentile Ladder', eligibleKeys: all, defaultVisible: HEADLINE, options: [...LADDER_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).
