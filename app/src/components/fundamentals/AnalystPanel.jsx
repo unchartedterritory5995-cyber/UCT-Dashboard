@@ -89,7 +89,6 @@ function ActionRow({ a }) {
       {label && <span className={`${styles.actionLabel} ${cls}`}>{label}</span>}
       <span className={styles.firm}>{a.firm || '—'}</span>
       <span className={styles.grades}>{a.from_grade ? `${a.from_grade} → ` : ''}{a.to_grade || ''}</span>
-      {a.price_target != null && <span className={styles.muted}>{fmt$(a.price_target)}</span>}
       {a.news_url && <UIcon name="link" size={10} gold={false} className={styles.linkIcon} />}
       <span className={styles.date}>{a.date}</span>
     </Tag>

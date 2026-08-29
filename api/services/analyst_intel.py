@@ -58,12 +58,15 @@ def _fmp_recent_actions(ticker):
         return []
     out = []
     for r in data[:15]:
+        # grades-news carries no per-action price target at all (verified
+        # live — see GRADES_NEWS_FIXTURE in test_analyst_intel_fmp_shapes.py):
+        # a "price_target" key here would always be None, wrongly implying
+        # the data sometimes has one.
         out.append({"date": str(r.get("publishedDate") or "")[:10],
                     "firm": r.get("gradingCompany") or r.get("analystCompany"),
                     "action": (r.get("action") or "").lower() or None,
                     "from_grade": r.get("previousGrade"),
                     "to_grade": r.get("newGrade"),
-                    "price_target": _round(r.get("priceTarget"), 2),
                     "news_url": r.get("newsURL") or None,
                     "news_publisher": r.get("newsPublisher") or r.get("newsBaseURL") or None})
     return out

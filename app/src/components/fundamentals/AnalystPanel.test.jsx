@@ -10,7 +10,7 @@ test('renders consensus, price target, and an upgrade action', () => {
     ticker: 'AAPL',
     consensus: { rating: 'Buy', buy: 28, hold: 9, sell: 2, strong_buy: 12, strong_sell: 0 },
     price_target: { low: 210, avg: 285, high: 320, current: 250, upside_pct: 14.0 },
-    recent_actions: [{ date: '2026-06-20', firm: 'Morgan Stanley', action: 'upgrade', from_grade: 'Equal-Weight', to_grade: 'Overweight', price_target: 300 }],
+    recent_actions: [{ date: '2026-06-20', firm: 'Morgan Stanley', action: 'upgrade', from_grade: 'Equal-Weight', to_grade: 'Overweight' }],
   })
   render(<AnalystPanel sym="AAPL" />)
   expect(screen.getByText('Buy')).toBeInTheDocument()

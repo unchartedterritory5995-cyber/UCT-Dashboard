@@ -111,6 +111,17 @@ def test_fmp_recent_actions_uses_grades_news_endpoint_and_parses_firm(monkeypatc
     assert actions[1]["to_grade"] == "Neutral"
 
 
+def test_fmp_recent_actions_has_no_price_target_key(monkeypatch):
+    """grades-news's real shape (GRADES_NEWS_FIXTURE, captured live) has no
+    priceTarget field at all, so r.get("priceTarget") only ever returns
+    None — the key is dropped entirely rather than kept around always-null,
+    which would wrongly imply the data sometimes has one."""
+    ai = _mod()
+    monkeypatch.setattr(ai.ee, "_fmp_get", lambda path, params, timeout=10: GRADES_NEWS_FIXTURE)
+    actions = ai._fmp_recent_actions("AAPL")
+    assert "price_target" not in actions[0]
+
+
 def test_fmp_recent_actions_wrong_endpoint_shape_has_no_firm_field(monkeypatch):
     # grades-historical rows are aggregate counts-by-date — no gradingCompany
     # at all, so a revert to that endpoint would silently produce firm=None
