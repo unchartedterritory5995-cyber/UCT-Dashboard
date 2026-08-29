@@ -85,3 +85,35 @@ describe('zweigEma', () => {
     expect(zweigEma([0.5, 0.5, 0.5])[0]).toBeNull()
   })
 })
+
+describe('coverage refusal reaches every event, not just Zweig/percentile', () => {
+  // Fix round 1: `detect` signals "cannot evaluate" with null, but the scan
+  // loop used to treat null and false identically, so a field missing for the
+  // WHOLE window rendered as an honest "never fired" instead of "unmeasurable."
+  it('refuses a formula event whose field is absent on every row (up_vol_ratio)', () => {
+    const rows = mkRows(30, () => ({ up_vol_ratio: null }))
+    const ev = find(scanEvents(rows), 'vol90up')
+    expect(ev.unavailable).toBeTruthy()
+    expect(ev.unavailable).toMatch(/not reported/i)
+    expect(ev.firedToday).toBe(false)
+  })
+
+  it('refuses a tier event whose field is absent on every row (atr_ext_7)', () => {
+    // getTier('') for both an absent field and a genuinely tier-less reading
+    // is exactly what let this lie quietly before tierIs() checked the raw value.
+    const rows = mkRows(30, () => ({ atr_ext_7: null }))
+    const ev = find(scanEvents(rows), 'atrFroth')
+    expect(ev.unavailable).toBeTruthy()
+    expect(ev.unavailable).toMatch(/not reported/i)
+    expect(ev.firedToday).toBe(false)
+  })
+
+  it('keeps the honest negative: a measured field that never fires is NOT unavailable', () => {
+    // is_ftd: 0 on every row is a real, reported "no" — not a gap in coverage.
+    const rows = mkRows(30, () => ({ is_ftd: 0 }))
+    const ev = find(scanEvents(rows), 'ftd')
+    expect(ev.unavailable).toBeNull()
+    expect(ev.firedToday).toBe(false)
+    expect(ev.lastIdx).toBeNull()
+  })
+})
