@@ -90,8 +90,49 @@ function comingSoonMeta() {
   }
 }
 
+/** Strip the closed table's engineering prose from the BROWSER BUNDLE.
+ *
+ * `closedTable.json` is 169KB and 68KB of it is top-level `_` prose — the rulings
+ * that explain why `cum` is refused, what a vendor note may be written from, why an
+ * offset cannot run forwards. Every word is load-bearing documentation and none of
+ * it is read at runtime, yet every browser that loaded the engine parsed and held
+ * all of it.
+ *
+ * ⛔ THE FILE ON DISK IS UNTOUCHED. It is this repo's most-cited artifact and the
+ * PYTHON lane reads the very same file, so the source cannot move — only the bundle
+ * is slimmed.
+ *
+ * ⛔⛔ `apply: 'build'` IS LOAD-BEARING, NOT A DEFAULT. Dozens of rails assert on
+ * exactly this prose (`_functions_domain`'s wording, `_no_offset`'s ruling), and
+ * vitest runs through this same config. Stripping in test or dev would red them and
+ * teach the next reader that the prose is optional.
+ *
+ * ⭐ WHAT MAY BE DROPPED IS DECIDED IN ONE PLACE — `manifestProse.js::KEEP` — and
+ * `manifestProse.test.js` walks BOTH lanes for property ACCESS (never a bare
+ * mention, which every one of these keys has in comments) and fails if anything
+ * read is missing from it.
+ */
+function stripManifestProse() {
+  return {
+    name: 'uct-strip-manifest-prose',
+    apply: 'build',
+    enforce: 'pre',
+    async transform(code, id) {
+      if (!id.split('\\').join('/').endsWith('/engine/ast/closedTable.json')) return null
+      const { stripProse } = await import('./src/components/chart/engine/ast/manifestProse.js')
+      const { table, dropped, savedBytes } = stripProse(JSON.parse(code))
+      // ⚠️ SAY IT OUT LOUD AT BUILD TIME. A silent transform of the engine's own
+      // manifest is exactly the kind of thing nobody remembers is happening.
+      // eslint-disable-next-line no-console
+      console.log(`[uct] closedTable: dropped ${dropped.length} prose keys, `
+        + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
+      return { code: JSON.stringify(table), map: null }
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), comingSoonMeta()],
+  plugins: [react(), comingSoonMeta(), stripManifestProse()],
   build: {
     chunkSizeWarningLimit: 4000,
     rollupOptions: {

@@ -59,13 +59,24 @@ def check_condition(
     FUNCTION CANNOT TELL. It is pure, and that is the point — Phase C changes
     only WHO SUPPLIES ``prev``:
 
-      * ``ALERT_EVAL_MODE == "forming"`` (live today) — ``prev`` is
+      * ``ALERT_EVAL_MODE == "forming"`` (ROLLBACK ONLY) — ``prev`` is
         ``alert["last_value"]``, the number the PREVIOUS 60-SECOND POLL stored.
         So a crossing is measured between two CYCLES, and whether one is seen at
         all depends on when the loop happened to look.
-      * ``ALERT_EVAL_MODE == "closed"`` (spec §8, dark) — ``prev`` is
+      * ``ALERT_EVAL_MODE == "closed"`` (THE COMMITTED DEFAULT) — ``prev`` is
         ``series[i-1]``, the previous BAR. The answer no longer depends on the
         poll interval, and ``last_value`` is demoted to delivery-dedup.
+
+    ⚰️ AND THE LANE LABELS ABOVE WERE STALE, WHICH IS WORSE THAN VAGUE ON A
+    SAFETY-CRITICAL SWITCH. They read *"forming (live today)"* and *"closed
+    (spec §8, dark)"* long after `indicator_alert_evaluator.ALERT_EVAL_MODE` was
+    committed as ``"closed"``. An agent reading this file in 2026-08 concluded
+    from these two lines that member alerts fire on the FORMING bar — under a
+    brand whose stated non-negotiable is closed-bar alerts — and raised it as a
+    live defect. It was not one. The constant is the authority (`eval_mode()` is
+    its only reader, and an env var can still override it for rollback); these
+    labels are prose and prose goes stale
+    (``lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run``).
 
     This docstring used to say only "the value persisted from the previous
     evaluation cycle", which was true of the only lane that existed and became
