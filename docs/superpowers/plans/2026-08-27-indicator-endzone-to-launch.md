@@ -34,16 +34,47 @@ Copied verbatim from the invariants this codebase already enforces. Every task's
 
 Run at `92623df71`. Re-run before starting; do not trust these numbers if the head has moved.
 
+⚰️⚰️ **THE HEAD MOVED, AND THIS TABLE WENT STALE IN TWO CELLS — RE-DERIVED
+2026-08-28 at `1c53a5105`.** Three of the 8/28 commits moved corpus numbers the
+table below still reported at their 8/27 values, which is exactly the shape this
+program keeps recording: *a wrong reason in an artifact a later engineer audits
+against*. The re-measurement was made by running the two translators over all 75
+committed scripts and counting scripts with at least one non-refused output —
+not by reading a report.
+
+| Surface | 8/27 (as written) | **8/28, re-derived** |
+|---|---|---|
+| Pine curated | 12/21 | **12/21** — unchanged |
+| Pine community | 13/30 | **19/30** — +6 |
+| thinkScript | 8/24 “at its documented ceiling” | **9/24** — the ceiling was not one |
+| Grammar functions | 62 | **63** (`hma`) |
+| Two-lane conformance | 113 asts × 579 bars | **136 asts × 579 bars** |
+
+⭐ **THE CEILING SENTENCE WAS THE EXPENSIVE HALF, NOT THE COUNT.** “thinkScript
+8/24 (at its documented ceiling)” is the shape
+`lesson_a_premise_that_says_nothing_to_find_retires_the_search` names: a line that
+tells the next reader there is nothing left to look for. There was — `hma` alone
+moved it, and `hma` was never a thinkScript problem at all. **Report the residual
+as a named roster, never as a ceiling.**
+
+**The residual today, read off refusing lines at `1c53a5105`:**
+
+| Corpus | Refused | By guard |
+|---|---|---|
+| Pine curated (9) | 12/21 | `pine:request` 3 · `pine:state` 2 · `pine:builtin` 2 · `pine:function` 1 · `pine:declaration-strategy` 1 |
+| Pine community (11) | 19/30 | `pine:function` 3 · `pine:no-output` 2 · `pine:request` 2 · `pine:statement` 1 · `pine:state` 1 · `pine:collection` 1 · `pine:module` 1 |
+| thinkScript (15) | 9/24 | `thinkscript:study-ref` 5 · `thinkscript:state` 3 · `thinkscript:time` 2 · `block` 1 · `fold` 1 · `strategy` 1 · `aggregation` 1 · `account` 1 |
+
 | Surface | Today |
 |---|---|
 | Pine curated | **12/21**, 51 usable columns |
-| Pine community | **13/30** |
-| thinkScript | **8/24** (at its documented ceiling) |
+| Pine community | **19/30** |
+| thinkScript | **9/24** |
 | TC2000 PCF | 48 accepted / 23 refused-by-design / 7 offset-dependent |
-| Grammar | 8 node types · 62 functions · 111 scalars · 15 operators · 13 clock · 15 benchmarks |
+| Grammar | 8 node types · 63 functions · 111 scalars · 15 operators · 13 clock · 15 benchmarks |
 | Shipped indicators | 17 |
 | Screener | 179 filters over 200 columns |
-| Two-lane conformance | 113 asts × 579 bars |
+| Two-lane conformance | 136 asts × 579 bars |
 | Gates | frontend 789 files / 11,804 · backend AST+scan 1,169 |
 
 **The 43 remaining refusals, by cause** — this is the work-list, and it is read off refusing lines, not grepped:
@@ -723,12 +754,27 @@ An admin view over: definitions saved, scans run, import attempts by source and 
 
 Re-run all of these before declaring the plan done. Each is a command, not a judgement.
 
+⭐⭐ **OWNER DIRECTIVE, 2026-08-28: "My ceiling is 100/100 for all of these, not
+even 1 tiny bit below."** The import targets below were raised to the full corpus
+accordingly — 21/21, 30/30, 24/24 — replacing the ≥17 / ≥22 / "ceiling" line this
+table shipped with.
+
+⛔ **This does NOT retire the roster rule below it; it sharpens it.** A handful of
+scripts are blocked on vendor internals with no published specification (Task E5's
+five, `TTM_Squeeze` among them). For those, "100" cannot mean *"we read the vendor's
+formula and matched it"* — there is no formula to read. It must mean one of exactly
+two things, chosen per script and written down: **we ship our own derivation with the
+deviation stated in a note the member reads**, or **the script stays on a named roster
+with the document it is waiting on.** A silent approximation dressed as parity is the
+one outcome ruled out — it is the wrong-reason-in-an-artifact defect this program has
+recorded six times.
+
 | Criterion | Today | Target | How to check |
 |---|---|---|---|
-| Pine curated | 12/21 | ≥17/21 | `pine.corpus.test.js` |
-| Pine community | 13/30 | ≥22/30 | `pine.community.test.js` |
-| thinkScript | 8/24 | 8/24 (ceiling) or a written ruling | `dialect.test.js` + E5 |
-| Two-lane conformance | 113 × 579 | green, `0 MOVED` on every record | `tools/ast_conformance.py --check` |
+| Pine curated | 12/21 | **21/21** | `pine.corpus.test.js` |
+| Pine community | 19/30 | **30/30** | `pine.community.test.js` |
+| thinkScript | 9/24 | **24/24**, or a NAMED roster with a reason each | `dialect.test.js` + E5 |
+| Two-lane conformance | 136 × 579 | green, `0 MOVED` on every record | `tools/ast_conformance.py --check` |
 | Strategy corpus | 0/2 | 2/2 | A7 + A8 |
 | Drawing kinds | 0/6 | 6/6 | B5 |
 | Sharing | shipped | shipped + library | F |
@@ -954,13 +1000,25 @@ and forward-record row hangs off.
 12. The two lanes agree to 1e-9 on a tree naming an account name, given the same
     supplied map.
 
-### H2. ⛔ THE FOUR OWNER DECISIONS — DO NOT START WITHOUT THESE
+### H2. ⛔ THE FOUR OWNER DECISIONS — ONE RULED, THREE OPEN
 
-1. **The SIGN of a short position.** `j2_positions` stores `side` plus POSITIVE
-   `shares`. thinkorswim's `GetQuantity()` sign for a short is not pinned by any
-   citation this work could find, so `shares_held`'s convention would be OURS
-   alone. ⚠️ A member screening `shares_held > 0` gets a different universe
-   depending on the answer, and nothing in the output reveals which was chosen.
+1. ✅ **The SIGN of a short position — RULED 2026-08-28 by the owner:
+   `shares_held` is NEGATIVE for a short.** A short of 100 shares answers
+   `-100`. `j2_positions` stores `side` plus POSITIVE `shares`, so the sign is
+   applied when the account map is built, in ONE place, and every door reads it
+   from there — never re-derived from `side` at a second site
+   (`lesson_a_second_authority_over_one_value`).
+   ⭐ **What this buys:** `shares_held > 0` means *long*, `< 0` means *short*,
+   and `abs(shares_held)` means *size* — three questions off one declared name,
+   with no second name and no `side` string in the grammar.
+   ⛔ **The convention is OURS, and it must SAY so.** thinkorswim's
+   `GetQuantity()` sign for a short is not pinned by any citation this work could
+   find, so the manifest entry's `sentence` and the `account` section note must
+   both state the sign convention in words a member reads — otherwise a member
+   screening `shares_held > 0` gets a universe whose shape nothing in the output
+   explains. That sentence is part of the task, not documentation added later.
+   ⛔ **And it is a test, not a comment:** a fixture holding one long and one
+   short of the same symbol must answer `+n` and `-n`, in BOTH lanes, at 1e-9.
 2. **Multi-lot and multi-account aggregation.** One member can hold a symbol
    across several connected accounts. Summing is a convention, not a fact.
 3. **Which `as_of` dates an account value** — the position row's `updated_at`
