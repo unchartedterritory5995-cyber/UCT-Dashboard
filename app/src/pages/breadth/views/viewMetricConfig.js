@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events', 'attribution']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events', 'attribution', 'analogues']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -132,6 +132,16 @@ const EVENTS_OPTIONS = [
     ] },
 ]
 
+const ANALOGUE_OPTIONS = [
+  { name: 'horizon', label: 'Forward horizon', type: 'select', default: 'fwd_20d',
+    choices: [
+      { value: 'fwd_5d', label: '5 days' }, { value: 'fwd_10d', label: '10 days' },
+      { value: 'fwd_20d', label: '20 days' }, { value: 'fwd_60d', label: '60 days' },
+    ] },
+  { name: 'matches', label: 'Matches shown', type: 'select', default: 5,
+    choices: [3, 5, 10].map(v => ({ value: v, label: String(v) })) },
+]
+
 export const VIEW_CONFIG = {
   treemap:    { kind: 'board', label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
   rings:      { kind: 'board', label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
@@ -148,6 +158,7 @@ export const VIEW_CONFIG = {
   rotation: { kind: 'lens', label: 'Rotation', eligibleKeys: () => [], defaultVisible: [], options: [...ROTATION_OPTIONS, ...THEME_OPTIONS] },
   events: { kind: 'lens', label: 'Event Ledger', eligibleKeys: () => [], defaultVisible: [], options: [...EVENTS_OPTIONS, ...THEME_OPTIONS] },
   attribution: { kind: 'lens', label: 'Score Attribution', eligibleKeys: () => [], defaultVisible: [], options: THEME_OPTIONS },
+  analogues: { kind: 'lens', label: 'Analogue Deck', eligibleKeys: () => [], defaultVisible: [], options: [...ANALOGUE_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).

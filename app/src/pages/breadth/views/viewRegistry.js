@@ -18,6 +18,7 @@ import DivergenceView from './DivergenceView'
 import RotationView from './RotationView'
 import EventLedgerView from './EventLedgerView'
 import ScoreAttributionView from './ScoreAttributionView'
+import AnalogueDeckView from './AnalogueDeckView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -37,4 +38,5 @@ export const VIEW_COMPONENTS = {
   rotation: RotationView,
   events: EventLedgerView,
   attribution: ScoreAttributionView,
+  analogues: AnalogueDeckView,
 }

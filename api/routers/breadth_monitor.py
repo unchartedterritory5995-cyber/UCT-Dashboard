@@ -346,11 +346,11 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
 
 
 @router.get("/api/breadth-monitor/analogues")
-def get_breadth_analogues(_user: dict = Depends(require_paid)):
-    """Return top 5 historical dates most similar to current breadth regime."""
+def get_breadth_analogues(top_n: int = Query(default=5, ge=3, le=10),
+                          _user: dict = Depends(require_paid)):
+    """Return the top_n historical dates most similar to the current breadth regime."""
     try:
-        result = find_analogues()
-        return result
+        return find_analogues(top_n=top_n)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
