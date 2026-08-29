@@ -177,15 +177,15 @@
   "selectedFormula": null,
   "downstream": null,
   "refusal": {
-   "guard": "pine:request",
-   "line": 43,
-   "column": 9,
-   "token": "security"
+   "guard": "pine:plot-offset",
+   "line": 77,
+   "column": 45,
+   "token": "offset"
   },
   "perOutputRefusals": {
    "pine:plot-offset": 3,
    "pine:arity": 1,
-   "pine:request": 4
+   "pine:function": 4
   },
   "hiddenScaffolding": 15
  },

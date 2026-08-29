@@ -391,6 +391,20 @@ const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
 ])
 
+/** ⭐⭐ THE CALLS THAT BUILD A TICKER ID OUT OF A PREFIX AND A SYMBOL, in the two
+ *  spellings the corpora actually use: v5's `ticker.new(prefix, ticker, session,
+ *  adjustment)` and v3's `tickerid(prefix, ticker)`. In BOTH the symbol is the
+ *  SECOND positional argument, which is why one roster serves both.
+ *
+ *  ⛔ WHY THIS MATTERS MORE THAN IT LOOKS: `12-ichimoku-clouds` writes
+ *  `t = tickerid(syminfo.prefix, ticker)` and then `security(t, period, hl2)` —
+ *  this chart's own symbol at this chart's own timeframe, which is the IDENTITY.
+ *  The door already knew the bare `ticker` spelling and already followed bindings,
+ *  so the only thing between it and reading that script was seeing through one
+ *  call. A script was being refused for wrapping its own ticker in the function
+ *  Pine gives you for exactly that purpose. */
+const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
+
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
   strategy: 'pine:strategy-call',
@@ -3718,8 +3732,52 @@ class Resolver {
    *  ⚰️ THIS SAID "and `sym` is not built". It is — and the shadowing case in
    *  `pine.security.test.js` asserts `tickerid = 'SPY'` translates AS SPY, so the
    *  comment contradicted the rail sitting directly beneath it. */
+  /** The SYMBOL argument of a ticker-constructing call, or null. ⚠️ It resolves the
+   *  argument NODE rather than a name, so the caller decides whether the thing
+   *  inside means "this chart" or "another instrument" — the same two questions
+   *  `securityAsNode` already asks, and neither is answered here. */
+  tickerCallArg(node) {
+    if (!node || node.type !== 'call' || !TICKER_CALLS.has(node.name)) return null
+    const args = node.args || []
+    // ⛔⛔ A NON-DEFAULT SESSION IS A DIFFERENT SERIES, AND DROPPING IT WOULD BE THE
+    // SILENT MISTRANSLATION THIS DOOR EXISTS AGAINST. `ticker.new` takes a session
+    // as its third argument, and `session.extended` asks for pre- and post-market
+    // prints. `sym` serves the REGULAR session, so folding an extended-hours
+    // request onto it answers a real, plausible, DIFFERENT number on every bar —
+    // the identical trade this door refuses for `barmerge.lookahead_on`.
+    // ⚠️ MEASURED, NOT HYPOTHETICAL: `26-spy-to-es` asks for
+    // `ticker.new('AMEX', 'SPY', session.extended)` and translated to
+    // `sym('SPY', close)` the moment this resolver learned to read the call. It is
+    // refused again here, deliberately, and that costs a corpus point.
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      const isSession = a.name === 'session' || (!a.name && i === 2)
+      if (!isSession) continue
+      const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+      if (spelled !== 'session.regular') return null
+    }
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      if (a.name === 'ticker' || a.name === 'symbol') return a.value
+      if (!a.name && i === 1) return a.value
+    }
+    return null
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
+    // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
+    // and `timeframeLiteralOf` have carried all along, applied to the other axis.
+    // A test that does NOT fold returns null and the request refuses: a symbol that
+    // could vary per bar is exactly what the `sym` node shape forbids.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.ownSymbolNameOf(taken, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) return this.ownSymbolNameOf(tick, depth + 1)
     if (node.type === 'name') {
       // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
       // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
@@ -3753,6 +3811,17 @@ class Resolver {
    */
   otherSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
+    // ⭐ THE SAME TWO SHAPES, ON THE OTHER SIDE OF THE QUESTION.
+    // `26-spy-to-es` writes `t = is_spy ? ticker.new('AMEX','SPY',…) :
+    // ticker.new('NASDAQ','QQQ',…)` with `is_spy` an `input.bool` defaulting true,
+    // so the test folds and ONE ticker is meant. Refusing it was refusing a script
+    // whose symbol is perfectly decidable at translation time.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.otherSymbolNameOf(taken, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) return this.otherSymbolNameOf(tick, depth + 1)
     if (node.type === 'string') {
       const ticker = String(node.value).trim().toUpperCase()
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
