@@ -36,6 +36,7 @@ import path from 'node:path'
 
 import { translatePine, treeYieldsBool } from './pine.js'
 import { parseFormula } from './parse.js'
+import { conditionFrom } from '../../builder/toCondition.js'
 import { translateThinkScript } from './thinkscript.js'
 import { parsePcf } from './pcf.js'
 import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
@@ -317,7 +318,7 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
         if (!out.formula || out.hidden) continue
         let bool = false
         try { bool = !!treeYieldsBool(parseFormula(out.formula).ast) } catch (e) { bool = false }
-        columns.push({ file: r.file, bool })
+        columns.push({ file: r.file, bool, formula: out.formula })
       }
     }
   }
@@ -339,6 +340,31 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     expect(scannableCols.length).toBeGreaterThan(0)
     expect(scannableCols.length).toBeLessThan(columns.length)
     expect(scriptsScannable.size).toBeGreaterThan(0)
+  })
+
+  it('⭐⭐ …and with ONE comparison, how many become reachable as a screen', () => {
+    // ⛔⛔ THE NUMBER THE AFFORDANCE MOVES, and it is deliberately a DIFFERENT
+    // number from the one above. The scripts themselves have not changed and never
+    // will — `rsi(close, 14)` yields a number today and tomorrow. What changed is
+    // that a member can now say `< 30` beside it without editing text, so the
+    // question worth measuring is: how many pasted scripts can REACH the screener
+    // at all, given one comparison the member supplies?
+    //
+    // ⚠️ AND IT IS NOT AUTOMATIC. Nothing here wraps anything on the member's
+    // behalf — the threshold is theirs, it lands in their formula, and they can see
+    // it. This counts REACHABILITY, not a transformation somebody performed.
+    const reachable = new Set(scriptsScannable)
+    for (const c of columns) {
+      if (reachable.has(c.file)) continue
+      const r = conditionFrom(c.formula, '>', 0)
+      if (r.ok) reachable.add(c.file)
+    }
+    console.log(`\nreachable as a screen with one comparison: `
+      + `${reachable.size} of ${scriptsTranslating.size} translating scripts\n`)
+    // ⛔ THE RATCHET. 19 could be screened as written; this is what the paste path
+    // can actually deliver a member to the screener with.
+    expect(reachable.size).toBeGreaterThanOrEqual(scriptsScannable.size)
+    expect(reachable.size).toBeGreaterThanOrEqual(41)
   })
 
   it('🔴 THE RATCHET — scannable scripts may only ever increase', () => {
