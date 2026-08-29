@@ -79,8 +79,15 @@ export function resolveTfCycle({ command, currentTf, lastCommand, lastIndex }) {
  * TSLA, COIN). So a shortcut never claims a letter, even though some letters are
  * bound to drawing tools and Shift+L/T/C are display toggles; those toggles stay
  * reachable whenever a chart is NOT focused. Digits (timeframes) and Shift+digit
- * DO claim. Shift+F (flag) is handled by each widget's own branch before this is
- * consulted, so it is unaffected.
+ * DO claim.
+ *
+ * ⚰️ THE SENTENCE THAT USED TO END THIS PARAGRAPH WAS FALSE FOR MONTHS: "Shift+F
+ * (flag) is handled by each widget's own branch before this is consulted, so it is
+ * unaffected." It is true of THIS matcher and of nothing else. `matchShortcut`
+ * never answered for Shift+F — but `ChartDrawingOverlay` never asked it, carrying
+ * its own switch that read Shift+F as the Fibonacci extension. The comment named a
+ * mechanism that made the collision look already-handled, so nobody re-checked it.
+ * The overlay now routes through `matchOverlayTool` below.
  */
 export function shortcutClaimsKey(event) {
   if (!matchShortcut(event)) return false;
@@ -118,6 +125,12 @@ export const SHORTCUTS = [
   { keys: 'Alt+Shift+P', command: 'tool:priceRange', description: 'Price range' },
   { keys: 'Alt+Shift+D', command: 'tool:dateRange', description: 'Date range' },
   { keys: 'Alt+Shift+E', command: 'tool:eraser', description: 'Eraser (click to delete)' },
+  // ⛔ THESE TWO MOVED OFF `Shift+<letter>` ON 2026-08-28. `Shift+F` armed the
+  // Fibonacci extension and `Shift+P` the pitchfork, straight into the
+  // **flag-the-selected-ticker** chord every list surface binds. See
+  // `matchOverlayTool` below for the full account.
+  { keys: 'Alt+Y', command: 'tool:pitchfork', description: 'Pitchfork' },
+  { keys: 'Alt+M', command: 'tool:measure', description: 'Measure' },
 
   // Display toggles
   { keys: 'Shift+L', command: 'toggle:log', description: 'Toggle log scale' },
@@ -242,6 +255,94 @@ export function matchShortcut(event) {
     if (key === 'T') return 'toggle:theme';
     if (key === 'C') return 'toggle:countdown';
     if (key === '?' || key === '/') return 'help';
+  }
+  return null;
+}
+
+
+/**
+ * ⭐ THE DRAWING OVERLAY'S KEY→TOOL DOOR, DECLARED ONCE.
+ *
+ * ⚰️ MEASURED BY THE OWNER 2026-08-28, scanning lists: pressing **Shift+F to flag
+ * a ticker kept arming the Fibonacci extension instead.** `ChartDrawingOverlay`
+ * carried its OWN key→tool switch — a leftover from before tools moved to
+ * Alt+<letter> — and that switch read `Shift+F` as `fibext` and `Shift+P` as
+ * `pitchfork`. Every list surface (Watchlists, Breadth, Theme Tracker, ChartPane,
+ * GridChartCell) binds Shift+F to FLAG the selected ticker.
+ *
+ * ⛔⛔ THE TWO HANDLERS BOTH SAT ON `window`, WHICH IS WHY THE EXISTING GUARD
+ * COULD NOT SAVE IT. `ChartPane`/`GridChartCell` call `stopPropagation()` on their
+ * flag branch, but two listeners on the SAME node need `stopImmediatePropagation`,
+ * and an event raised on a LIST ROW never travels through the pane element at all.
+ * So one Shift+F flagged the ticker AND armed a drawing tool, every time.
+ *
+ * ⛔ A SHIFTED LETTER IS NEVER A TOOL HERE. Traders type tickers uppercase and
+ * Shift+F is the flag chord, so the bare-letter branch below is gated on
+ * `!shiftKey` — that gate is the fix, and `keyboardShortcuts.test.js` sweeps all
+ * 26 letters to keep it that way rather than pinning only the letter that was
+ * reported. The two tools that lived on Shift chords moved to `Alt+Y` (pitchfork)
+ * and `Alt+M` (measure), both now declared in `SHORTCUTS` so the `?` overlay and
+ * the toolbar tooltips can read them instead of restating them.
+ *
+ * Returns a tool id, or null when the event arms nothing.
+ */
+const ALT_TOOL = Object.freeze(Object.assign(Object.create(null), {
+  KeyT: 'trendline', KeyH: 'horizontal', KeyJ: 'hray', KeyV: 'vertical',
+  KeyR: 'rect', KeyC: 'circle', KeyA: 'arrow', KeyF: 'fib', KeyE: 'fibext',
+  KeyW: 'avwap', KeyX: 'text', KeyP: 'position',
+  KeyY: 'pitchfork', KeyM: 'measure',
+}));
+
+// Alt+Shift+<letter> → the power-user tools.
+const ALT_SHIFT_TOOL = Object.freeze(Object.assign(Object.create(null), {
+  KeyP: 'priceRange', KeyD: 'dateRange', KeyE: 'eraser',
+}));
+
+// Bare letters. Kept because they are the railed design (see `matchShortcut`) —
+// a focused pane swallows ticker characters before they reach here.
+// Null-prototype so 'constructor'/'toString' cannot resolve to a function.
+const BARE_TOOL = Object.freeze(Object.assign(Object.create(null), {
+  v: 'cursor', t: 'trendline', h: 'horizontal', r: 'rect',
+  f: 'fib', x: 'text', m: 'measure',
+}));
+
+export function matchOverlayTool(event) {
+  if (!event) return null;
+  if (event.ctrlKey || event.metaKey) return null;
+
+  if (event.altKey) {
+    const map = event.shiftKey ? ALT_SHIFT_TOOL : ALT_TOOL;
+    return map[event.code] || null;
+  }
+
+  // ⛔ LOAD-BEARING: a shifted letter belongs to the flag chord and to ticker
+  // entry, never to a drawing tool. Removing this gate is what caused the
+  // Shift+F collision described above.
+  if (event.shiftKey) return null;
+
+  return BARE_TOOL[String(event.key || '').toLowerCase()] || null;
+}
+
+/**
+ * The chord to ADVERTISE for a drawing tool, derived from the very maps
+ * `matchOverlayTool` dispatches on — so a tooltip cannot promise a keypress the
+ * matcher does not honour. Bare letter wins when one exists (it is the shortest
+ * thing that actually works), else the Alt chord, else null for a click-only tool.
+ *
+ * ⚰️ Before this existed the toolbar TYPED its chords and they rotted: it
+ * advertised `Shift+F` for the Fibonacci extension (that chord flags a ticker),
+ * `Shift+P` for the pitchfork, and `(P)` for the position tool — a bare letter
+ * that has never armed anything.
+ */
+export function chordForTool(toolId) {
+  for (const [letter, id] of Object.entries(BARE_TOOL)) {
+    if (id === toolId) return letter.toUpperCase();
+  }
+  for (const [code, id] of Object.entries(ALT_TOOL)) {
+    if (id === toolId) return 'Alt+' + code.slice(3);
+  }
+  for (const [code, id] of Object.entries(ALT_SHIFT_TOOL)) {
+    if (id === toolId) return 'Alt+Shift+' + code.slice(3);
   }
   return null;
 }
