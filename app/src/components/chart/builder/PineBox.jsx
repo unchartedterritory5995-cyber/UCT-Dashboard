@@ -30,6 +30,7 @@ import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { vendorNotesForTree } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
+import { splitPaste, inspectLibrary } from './libraryIntake'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -255,6 +256,20 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const [screenOp, setScreenOp] = useState(COMPARISONS[0] || '>')
   const [screenValue, setScreenValue] = useState('')
 
+  // ⭐⭐ A WHOLE FOLDER, THROUGH THE BOX THAT ALREADY EXISTS. A member arriving
+  // with years of scripts discovers the answer one paste at a time today, so they
+  // meet their third refusal before a chart has drawn. If the paste holds more than
+  // one script, this box answers the bigger question instead of the small one.
+  //
+  // ⛔ NO NEW TAB, AND THAT IS DELIBERATE. `ImportBox.thinkscript.test.js` records
+  // the ruling: ONE BOX, not a second paste surface. Pasting forty scripts is the
+  // same act as pasting one — the box simply notices which happened.
+  const library = useMemo(() => {
+    const split = splitPaste(text)
+    if (split.found < 2) return null
+    return { split, report: inspectLibrary(split.scripts) }
+  }, [text])
+
   const numericColumn = !!(active && active.formula && !yieldsCondition(active.formula))
   const condition = useMemo(() => {
     if (!numericColumn || String(screenValue).trim() === '') return null
@@ -465,6 +480,64 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             <a href="/formulas/reference">See every name you can write →</a>
           </p>
 
+          {/* ⭐⭐ THE LIBRARY MANIFEST. Four reaches, never one number: translating
+              is not computing, computing is not saveable, saveable is not
+              screenable, and on the committed corpora those differ by more than
+              half. One blended headline would be us computing a marketing claim
+              about a member's own work at the moment of maximum doubt. */}
+          {library && (
+            <div className={styles.manifest} data-testid="pine-library">
+              <span className={styles.manifestLead}>
+                {library.report.total} scripts in that paste
+                {library.split.how === 'version-marker'
+                  ? ' — split on each `//@version` line. A script without that header'
+                    + ' joins the one above it, so check this count against what you pasted.'
+                  : ''}
+              </span>
+              <div className={styles.manifestReaches}>
+                {[
+                  ['translate', library.report.translates],
+                  ['compute', library.report.computes],
+                  ['save', library.report.saves],
+                  ['screen as written', library.report.screensAsWritten],
+                ].map(([label, n]) => (
+                  <span key={label} className={styles.manifestReach}>
+                    <strong>{n}</strong> {label}
+                  </span>
+                ))}
+              </div>
+              {library.report.screensWithComparison > 0 && (
+                <span className={styles.manifestNote}>
+                  {library.report.screensWithComparison} more can screen once you say what
+                  you are looking for — pick one below and add a comparison.
+                </span>
+              )}
+              <ul className={styles.manifestRows}>
+                {library.report.rows.map((r, i) => (
+                  <li key={i} className={styles.manifestRow} data-ok={r.translates ? '1' : '0'}>
+                    <span className={styles.manifestName}>{r.name}</span>
+                    {r.translates
+                      ? <code className={styles.manifestFormula}>{r.formula}</code>
+                      : (
+                        <span className={styles.manifestWhy}>
+                          <span className={styles.manifestGuard}>{r.refusal?.guard}</span>
+                          {r.refusal?.message}
+                          {/* ⛔ WHAT CAME ACROSS ANYWAY. A script with six plots where
+                              one refuses is not a failure, and saying so is both
+                              wrong and discouraging. */}
+                          {r.partial.length > 0 && (
+                            <span className={styles.manifestPartial}>
+                              {r.partial.length} column{r.partial.length === 1 ? '' : 's'} from
+                              this script did translate
+                            </span>
+                          )}
+                        </span>
+                      )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {/* ⭐⭐ THE COLUMN IS A NUMBER — OFFER TO MAKE IT A SCREEN. This is the
               single biggest measured gap in the paste path: 41 scripts translate
               and save, only 19 can be scanned, and every refusal is the `yields`
