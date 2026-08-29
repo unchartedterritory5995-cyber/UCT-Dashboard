@@ -64,7 +64,10 @@ metric checklist that changes nothing on screen.
 `VIEW_CONFIG` grows a `kind` field:
 
 - **`kind: 'board'`** — the existing contract, unchanged. The current 8 plus Heat Ribbon
-  and Percentile Ladder. Customize shows the metric checklist + options.
+  and Percentile Ladder. Customize shows the metric checklist + options. The board bundle
+  also gains `rows` and `rowIdx`, because Heat Ribbon and Percentile Ladder are boards that
+  read the whole window, not just the 30-session `recentRows` slice. It is a superset — no
+  existing view sees a changed prop.
 - **`kind: 'lens'`** — receives `{ rows, currentRow, rowIdx, prevRow, onDrill, options }`,
   where `rows` is the **forward-filled** window (`filledRows`, newest-first) that boards
   already normalize against — not the raw prop — so the two kinds can never disagree about
