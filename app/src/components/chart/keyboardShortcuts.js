@@ -248,7 +248,8 @@ export function matchShortcut(event) {
     if (key === 'r' || key === 'R') return 'tool:rect';
     if (key === 'c' || key === 'C') return 'tool:circle';
     if (key === 'a' || key === 'A') return 'tool:arrow';
-    if (key === 'f' || key === 'F') return 'tool:fib';
+    // ⛔ NO BARE-F ROW HERE. Fibonacci is Alt+F only — see BARE_TOOL's note: it
+    // is the immediate neighbour of the flag chord, and that race is unwinnable.
     if (key === 'x' || key === 'X') return 'tool:text';
     if (key === 'Escape') return 'tool:cursor';
     if (key === ' ' || key === 'Spacebar') return 'replay:playpause';
@@ -370,8 +371,29 @@ const ALT_SHIFT_TOOL = Object.freeze(Object.assign(Object.create(null), {
 // Null-prototype so 'constructor'/'toString' cannot resolve to a function.
 const BARE_TOOL = Object.freeze(Object.assign(Object.create(null), {
   v: 'cursor', t: 'trendline', h: 'horizontal', r: 'rect',
-  f: 'fib', x: 'text', m: 'measure',
+  x: 'text', m: 'measure',
 }));
+
+/**
+ * ⛔⛔ `f` IS ABSENT FROM THE MAP ABOVE, AND THAT IS THE WHOLE POINT.
+ *
+ * The shift latch stops a Shift+F press DECAYING into a bare F (modifier
+ * released first, auto-repeat). It cannot stop the opposite race: if the letter
+ * is physically struck a few milliseconds BEFORE Shift registers, that first
+ * keydown is genuinely unshifted and nothing can know Shift was coming.
+ *
+ * Two commands that differ only by a modifier on ONE physical key cannot be told
+ * apart with certainty when one of them is hammered while scanning a list — and
+ * Shift+F (flag) is hammered. So the neighbour is gone: Fibonacci is Alt+F, the
+ * chord the `?` sheet and the toolbar tooltip have always shown. The owner asked
+ * how to ENSURE the crossover cannot happen; removing the ambiguity is the only
+ * answer that is a guarantee rather than a mitigation.
+ *
+ * ⚠️ The other bare letters KEEP their Shift siblings (bare t / Shift+T theme,
+ * bare r, bare x, bare m). Those are safe on the latch alone because they are not
+ * pressed at flagging speed — if one ever starts crossing over, delete it here
+ * and it costs nothing but the chord.
+ */
 
 export function matchOverlayTool(event) {
   if (!event) return null;
