@@ -14254,6 +14254,9 @@ export default function StockChart({
                the legacy V1 toolbar gear + its inline panel there. Other surfaces
                (no modal) keep it as their only settings entry point. */
             hideSettingsButton={!!onOpenSettings}
+            /* Drawing Boards tool button — charts workspace only (same signal as
+               the settings modal); appended after the drawing tools in the toolbar. */
+            showTracings={!!onOpenSettings}
             showExtended={isIntraday && !hideExtHoursToolbarToggle ? showExtended : null}
             onToggleExtended={isIntraday && !hideExtHoursToolbarToggle ? handleToggleExtended : null}
             onScreenshot={() => setScreenshotPopoverOpen(true)}
