@@ -102,6 +102,18 @@ const EXPECTED_UNEXERCISED = [
   'pine:operator',
   'pine:role-order',
   'pine:roundtrip',
+  // ⭐⭐ ARRIVED 2026-08-29, and this is the "door got better" direction the note
+  // at the foot of this file warns has to be argued rather than shrugged at.
+  // `07-hull-suite` was the ONE published script reaching `pine:statement`, and it
+  // reached it with `line: null` and `token: null` — a refusal saying "this line
+  // is not a shape the translator reads" about a line the member never wrote,
+  // because the splitter had cut a three-line ternary chain into three statements.
+  // A line ending in a dangling binary operator is not a statement in Pine either,
+  // so it now continues; the script reaches its real first wall (`pine:function`
+  // on the `int(…)` cast) at a token that is on the screen.
+  // ⚠️ Unexercised does NOT mean dead: `pine:statement` still answers for genuine
+  // constructs this door cannot read. It means no PUBLISHED script now reaches it.
+  'pine:statement',
   'pine:text-value',
   'pine:type',
   // ⭐⭐ MOVED HERE 2026-08-28, and the move IS the measurement. `pine:undefined`
@@ -116,10 +128,15 @@ const EXPECTED_UNEXERCISED = [
   'pine:window',
 ]
 
-/* ⭐ MEASURED, 51 PUBLISHED SCRIPTS ACROSS BOTH CORPORA. Nineteen of this door's
- * declared guards are reached by NONE of them.
+/* ⭐ MEASURED ACROSS BOTH PUBLISHED CORPORA. The guards above are reached by NONE
+ * of them.
  *
- * ⚠️ READ THAT CORRECTLY: it does NOT mean nineteen guards are untested. Several
+ * ⛔ NO COUNT IS WRITTEN HERE ANY MORE, AND THAT IS THE POINT. It said "Nineteen"
+ * beside a list that is the only authority on the number, so the day a guard moved
+ * on or off, the prose and the list disagreed and the list was right. Count
+ * `EXPECTED_UNEXERCISED` — it is four lines up.
+ *
+ * ⚠️ READ THE LIST CORRECTLY: it does NOT mean those guards are untested. Several
  * have dedicated unit tests — `pine.window.test.js` drives `pine:window`,
  * `pine.namedargs.test.js` drives `pine:named-argument`, and the modulo operator
  * drives `pine:operator`. What it means is that no real published indicator in

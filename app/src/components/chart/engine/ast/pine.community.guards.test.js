@@ -61,13 +61,26 @@ const FILES = fs.readdirSync(DIR).filter((f) => f.endsWith('.pine')).sort()
  *  CONTAIN it, never scripts BLOCKED BY it, and that has been measured wrong five
  *  times on this project. */
 const REFUSES = Object.freeze({
-  '07-hull-suite.pine': ['pine:statement', null, null],
+  // ⭐⭐ WAS `pine:statement` WITH NO LINE AND NO TOKEN — the least useful refusal
+  // this door can produce, and it was pointing at a line the member never wrote.
+  // The function body is a ternary chain continued across three lines at the SAME
+  // indent (`… ? HMA(src, len) :` / `… ? EHMA(src, len) :` / `… : na`), which the
+  // statement splitter read as three statements and refused the first of. A line
+  // ending in a dangling binary operator cannot be a statement in Pine either, so
+  // it now continues onto the next — and the script reaches its REAL first wall,
+  // named, at a token that is on the screen: `int(length * lengthMult)`, a numeric
+  // TYPE CAST this door reads as an unknown function.
+  '07-hull-suite.pine': ['pine:function', 35, 'int'],
   '09-obv-oscillator-lazybear.pine': ['pine:function', 9, 'cum'],
-  // ⭐ WAS `pine:undefined` — `it = … it[1] … it[2]` is a plain self-reference,
-  // which this door could not see, so it refused by NAMING THE VARIABLE BEING
-  // DEFINED. It is a SECOND-ORDER recurrence and the accumulator holds one lag,
-  // so it still refuses — now for the reason that is true, at the same token.
-  '10-ehlers-instantaneous-trend-lazybear.pine': ['pine:state', 13, 'it'],
+  // 🪦 `10-ehlers-instantaneous-trend-lazybear.pine` USED TO SIT HERE at
+  // `pine:state` @13 `it`, and the comment beside it said the accumulator "holds
+  // one lag". THAT WAS FALSE ABOUT THIS ENGINE: `interpret.js` has carried a lag
+  // history to `MAX_SELF_LAG` since `self[k]` landed, and its own docblock calls
+  // the 2-pole filter "the keystone". What actually refused was `pine.js` — the
+  // seed spelling (`nz(it[1], …)` rather than `na(it[1]) ? … : …`) and the
+  // convergence gate, which read a SCALAR coefficient and answered "unknown" the
+  // moment a second lag appeared. Both are widened now and it TRANSLATES, so its
+  // row moved to `pine.community.test.js`'s roster.
   '14-earnings-gap-ups.pine': ['pine:no-output', null, null],
   // ⭐ WAS `pine:window` @25 ON `len` — the computed windows `len / 2` and
   // `round(sqrt(len))` now fold to 10 and 4. The next wall is real: `vwma` is not
