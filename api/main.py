@@ -4050,6 +4050,17 @@ async def lifespan(app: FastAPI):
         from apscheduler.triggers.interval import IntervalTrigger
         from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
         _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+        # ⚡ Instrument BEFORE any add_job — the jobs registered first are the
+        # heavy startup ones, i.e. exactly the ones worth measuring. Wrapping
+        # add_job once covers all 135 (and the 136th) rather than a roster that
+        # would omit whichever job is added next. Prod 2026-08-29: RSS jumped
+        # 1497.5 -> 6134 MB between two samples and the logs could only narrow it
+        # to a cluster; this names it.
+        try:
+            from api.services import memory_probe as _memprobe
+            _memprobe.instrument_scheduler(_scheduler)
+        except Exception as e:
+            print(f"[startup] scheduler memory instrumentation failed (non-fatal): {e}")
 
         # -- Compass automation master switch ------------------------------
         # Pauses ALL automated (scheduled) Compass + voice LLM interactions
