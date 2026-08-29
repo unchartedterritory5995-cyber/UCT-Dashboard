@@ -430,36 +430,52 @@ describe('what the reader still refuses, and where it says so', () => {
     // be the refused study itself. The three siblings already obeyed it
     // (`sma(...) - 2 * stdev(...)`, `ExpAverage(close, 21)`, `Average(close, 20)`)
     // and `ttm_squeeze` correctly offers no remedy at all.
-    const CASES = [
-      ['RSI', 'def a = RSI(length = 14, price = close);\nplot s = close > a;\n'],
-      ['BollingerBands', 'def a = BollingerBands(close);\nplot s = close > a;\n'],
-      ['MovAvgExponential', 'def a = MovAvgExponential(close);\nplot s = close > a;\n'],
-      ['SimpleMovingAvg', 'def a = SimpleMovingAvg(close);\nplot s = close > a;\n'],
-      ['TTM_Squeeze', 'def a = TTM_Squeeze(close, 20);\nplot s = close > a;\n'],
-    ]
-    let refused = 0
-    for (const [name, src] of CASES) {
-      const out = translateThinkScript(src)
-      if (!out.refusal || out.refusal.guard !== 'thinkscript:study-ref') continue
-      refused += 1
-      // The remedy is whatever follows the last "—" clause that offers one; the
-      // cheap, discriminating check is simply that the study's own call spelling
-      // is not what the member is told to write.
-      // ⚠️ CASE-SENSITIVE, AND THE CASE IS THE WHOLE DISCRIMINATOR. A thinkScript
-      // study is `RSI(…)`; this engine's function is `rsi(…)` — a different
-      // construct in a different language, which is exactly what the corrected
-      // remedy points at. An `'i'` flag here (my first draft) flags the CORRECT
-      // remedy as the defect, which is how this rail nearly shipped inverted.
-      expect(out.refusal.message,
-        `${name}'s refusal tells the member to write ${name}(…), which is the very `
-        + 'call it refuses — following it returns this same refusal')
-        .not.toMatch(new RegExp(`\\b${name}\\s*\\(`))
+    // 🔴🔴 AND THE RULE IS NOW STATED THE WAY IT SHOULD ALWAYS HAVE BEEN:
+    // **A REMEDY MUST BE FOLLOWABLE.** The old form asserted the weaker, purely
+    // TEXTUAL proxy — that the remedy does not spell the study's own name — which
+    // was a correct diagnosis of the 2026-08-26 defect and the wrong rule to
+    // generalise from it. What actually harmed the member was not the NAME in the
+    // sentence; it was that typing the sentence returned the sentence. The moment
+    // the study rows became real mappings, the honest remedy for
+    // `RSI(length = 14)` BECAME `RSI(length = 14, price = close)` — the study's
+    // own name, now followable in one edit — and a rail pinning the proxy would
+    // have called that correct sentence the defect and blocked the fix.
+    //
+    // ⭐ SO THIS RUNS THE REMEDY. Each doc-blocked study's `unblocks` sentence
+    // carries its remedy verbatim between an em-dash and "translates today"; the
+    // probe is EXTRACTED from that string rather than typed here, so prose that
+    // starts promising something false goes red instead of drifting
+    // (`lesson_probe_names_must_be_derived_not_typed`). Edit the promise, and this
+    // test holds you to it.
+    const OFFERED = /—\s*(.+?)\s+translates today/
+    let checked = 0
+    for (const [name, entry] of Object.entries(TS_DOC_BLOCKED)) {
+      const m = OFFERED.exec(entry.unblocks || '')
+      if (!m) continue
+      checked += 1
+      const remedy = m[1]
+      const out = translateThinkScript(`plot p = ${remedy} > 0;\n`)
+      expect(out.ok,
+        `${name}'s refusal promises "${remedy} translates today" and it does NOT — `
+        + `it answers ${out.refusal && out.refusal.guard}: `
+        + `${out.refusal && out.refusal.message}`).toBe(true)
     }
-    // ⛔ NON-VACUITY. If none of these names refused as a study any more, every
-    // assertion above would be skipped and this test would pass having measured
-    // nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
-    expect(refused, 'no study-ref refusal fired — this rail measured nothing')
-      .toBeGreaterThanOrEqual(4)
+    // ⛔ NON-VACUITY, and it is a FLOOR on the registry rather than on how many
+    // happened to refuse — the old floor counted `study-ref` refusals, so the
+    // rail would have gone quietly vacuous the day those refusals changed guard,
+    // which is precisely what this change did to it
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    expect(checked, 'no doc-blocked entry offers a runnable remedy — this rail measured '
+      + 'nothing').toBeGreaterThanOrEqual(4)
+
+    // ⭐ AND THE OTHER HALF STILL HOLDS: a study with NO remedy must offer none.
+    // `TTM_Squeeze` is proprietary — thinkorswim publishes no formula at all — so
+    // there is nothing to point at, and inventing one is the failure this whole
+    // door exists against.
+    const ttm = translateThinkScript('def a = TTM_Squeeze(close, 20);\nplot s = close > a;\n')
+    expect(ttm.refusal.guard).toBe('thinkscript:study-ref')
+    expect(ttm.refusal.message, 'TTM_Squeeze must not offer a remedy — none exists')
+      .not.toMatch(/translates today/)
   })
 
   it('⭐ the caret is under the token the refusal names, and the token is REAL text', () => {
@@ -2057,17 +2073,33 @@ describe('the refusals this map makes BY NAME, and why each one is a refusal', (
     // passed, so typing it returned the identical refusal printing the identical
     // string. Walked in a browser (X90); the comment was a claim about a run that
     // never happened (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+    //
+    // ⏳ AND THE FIX AFTER THAT ONE IS WHY THE GUARD MOVED. Repairing the
+    // SENTENCE left the MECHANISM: `params: []` still refused the study however
+    // completely the member specified it, so the door was still answering a
+    // question about defaults to somebody who had supplied every value. `RSI` is
+    // now a real mapping, and the refusal is raised by the ordinary arity pass —
+    // which names the ONE parameter this call is actually missing instead of a
+    // fixed list of two.
     const r = translateThinkScript('plot p = RSI() crosses above 30;\n').refusal
-    expect(r.guard).toBe('thinkscript:study-ref')
-    // The remedy now names a construct that is NOT this refused call: the
-    // engine's own `rsi`, and the door to write it in.
-    expect(r.message).toMatch(/rsi\(close, 14\)/)
-    expect(r.message).toMatch(/Formula tab/)
-    expect(r.message, 'the remedy must not be the very call this refuses')
-      .not.toMatch(/RSI\s*\(/)
+    expect(r.guard).toBe('thinkscript:arity')
     expect(r.token).toBe('RSI')
-    // ⭐ AND THE CONTROL: the engine DOES declare `rsi`, so this is a refusal
-    // about a missing CITATION, never about a missing function.
+    // ⭐ IT NAMES THE MISSING PARAMETER, and says why nothing filled it.
+    expect(r.message).toMatch(/`length` has no value/)
+    expect(r.message).toMatch(/publishes no default for it/)
+    // ⭐ AND IT STILL CARRIES THE DOC-BLOCKED TAIL, so the member learns what
+    // would change the answer — the half `TS_DOC_BLOCKED` exists to guarantee.
+    expect(r.message).toContain(TS_DOC_BLOCKED.RSI.missing)
+    expect(r.message).toContain(TS_DOC_BLOCKED.RSI.unblocks)
+    // ⛔⛔ THE DISCRIMINATOR — the same call with both unpublished values SUPPLIED
+    // must now translate. Without this the rail cannot tell "refuses because a
+    // default is genuinely missing" from "refuses whatever you write", which is
+    // the exact defect that survived two previous fixes to this very test.
+    const ok = translateThinkScript('plot p = RSI(length = 14, price = close) crosses above 30;\n')
+    expect(ok.ok, 'a fully-specified RSI must translate — nothing is left to invent').toBe(true)
+    expect(ok.outputs[ok.selected].formula).toBe('crossOver(rsi(close, 14), 30)')
+    // ⭐ AND THE CONTROL: the engine DOES declare `rsi`, so this was never a
+    // refusal about a missing function.
     expect(Object.keys(TABLE.functions)).toContain('rsi')
   })
 
@@ -2108,8 +2140,22 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
   // reason. Nothing may be silently dropped — a dropped parameter IS the silent
   // mistranslation this rail exists to catch.
 
-  const enginesOf = (shape) => (shape.dispatch ? Object.values(shape.dispatch)
-    : shape.engine ? [shape.engine] : (shape.engines || []))
+  /** Every engine name a shape can reach, from ALL THREE places one can be named.
+   *
+   *  ⛔ THE UNION, NOT THE FIRST NON-EMPTY ONE. This was a three-way ternary, so a
+   *  shape that BOTH dispatches and names a fixed engine had the fixed one
+   *  silently dropped from every check below — and `bollingerbands` is exactly
+   *  that shape: it dispatches the midline over the five average types AND always
+   *  calls `stdev` for the band width. Under the ternary, `stdev` was never
+   *  verified against the manifest, so the rail that exists to prove "every engine
+   *  a shape names is one the CLOSED TABLE declares" would have passed a shape
+   *  reaching for a function that does not exist. Widening it costs nothing and is
+   *  strictly more of what the rail already claims to do. */
+  const enginesOf = (shape) => [...new Set([
+    ...(shape.dispatch ? Object.values(shape.dispatch) : []),
+    ...(shape.engine ? [shape.engine] : []),
+    ...(shape.engines || []),
+  ])]
 
   it('⛔ every engine name a shape names is one the CLOSED TABLE declares', () => {
     const missing = []
@@ -2293,14 +2339,29 @@ describe('⭐⭐ THE ARGUMENT PLAN — the answer to the arity rail W3.4 left re
       expect(r.guard, name).toBe('thinkscript:function')
       expect(r.token, name).toBe(name)
     }
-    // ⛔ AND THE STUDIES THAT LEFT MUST STILL REFUSE BY NAME — moving a refusal
-    // into a shape row is exactly how one could quietly stop refusing.
+    // ⛔ AND THE STUDIES THAT LEFT MUST STILL REFUSE A *PARTIAL* CALL BY NAME —
+    // turning a blanket refusal into a mapping is exactly how one could quietly
+    // stop refusing altogether. Each of these supplies two arguments and leaves at
+    // least one parameter the vendor never defaulted, so each must still refuse,
+    // at its own token, carrying its own registry entry.
+    //
+    // ⚠️ THE GUARD IS NO LONGER ONE VALUE, AND PINNING IT TO ONE WOULD BE WRONG.
+    // Four of these are now mappings whose missing parameter is caught by the
+    // arity pass (`:arity`); `TTM_Squeeze` is proprietary and has no formula to
+    // map, so it alone still refuses as `:study-ref`. What must not vary — and is
+    // what this asserts — is that a partial call REFUSES, names the study, and
+    // says what is missing.
     for (const name of ['RSI', 'SimpleMovingAvg', 'MovAvgExponential',
       'BollingerBands', 'TTM_Squeeze']) {
       const r = translateThinkScript(`plot p = ${name}(close, 5);\n`).refusal
-      expect(r.guard, name).toBe('thinkscript:study-ref')
+      expect(r, `${name} stopped refusing a partial call`).toBeTruthy()
+      expect(['thinkscript:arity', 'thinkscript:study-ref'], name).toContain(r.guard)
       expect(r.token, name).toBe(name)
       expect(r.message.length, name).toBeGreaterThan(80)
+      // ⭐ DERIVED FROM THE REGISTRY, never retyped: the refusal must carry the
+      // entry that says what is missing and what would unblock it.
+      expect(r.message, `${name} refuses without naming what is missing`)
+        .toContain(TS_DOC_BLOCKED[name].missing)
     }
   })
 

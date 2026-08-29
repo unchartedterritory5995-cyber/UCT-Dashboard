@@ -1337,22 +1337,35 @@ const TS_DEFERRED_STATEMENTS = Object.freeze({
  * door could translate the day the document appears, and none of them is work.
  */
 export const TS_DOC_BLOCKED = Object.freeze({
+  // ⭐ THESE FOUR NOW DESCRIBE A *PARTIAL* BLOCK, AND THE WORDING TRACKS THAT.
+  // The studies are MAPPED (see `TS_CALL_SHAPES`) — state every parameter the
+  // page leaves undefaulted and they translate today. So `missing` names the
+  // defaults that are absent, not the study, and `unblocks` says what a member can
+  // do NOW as well as what a vendor page would have to print.
   RSI: {
-    missing: 'a default `length` and `price`',
-    unblocks: 'the Studies-Library page gaining a Default value column, or its description '
-      + 'stating them the way ATR\'s does',
+    missing: 'a default `length` and `price` (the Wilder\'s `average type` and the 70/30 '
+      + 'levels ARE published, and this door now uses them)',
+    unblocks: 'writing them yourself — RSI(length = 14, price = close) translates today — or '
+      + 'the Studies-Library page gaining a Default value column, or its description stating '
+      + 'them the way ATR\'s does',
   },
   BollingerBands: {
-    missing: 'a default `price` and `average type` (the two standard deviations ARE published)',
-    unblocks: 'the page naming which average the bands are drawn around',
+    missing: 'a default `price`, `average type` and `displace` (the two standard deviations '
+      + 'ARE published, and this door now uses them)',
+    unblocks: 'writing them yourself — BollingerBands(price = close, length = 20, displace = '
+      + '0, "average type" = AverageType.SIMPLE).LowerBand translates today — or the page '
+      + 'naming which average the bands are drawn around',
   },
   MovAvgExponential: {
     missing: 'a default `price`, and a default `displace` — which shifts every bar',
-    unblocks: 'the page publishing both, since `displace` cannot be assumed to be zero',
+    unblocks: 'writing them yourself — MovAvgExponential(price = close, length = 21, displace '
+      + '= 0)."AvgExp" translates today — or the page publishing both, since `displace` '
+      + 'cannot be assumed to be zero',
   },
   SimpleMovingAvg: {
     missing: 'a default `price`, `length` and `displace`',
-    unblocks: 'the page publishing them; `displace` shifts every bar so it cannot be assumed',
+    unblocks: 'writing them yourself — SimpleMovingAvg(close, 20, 0) translates today — or '
+      + 'the page publishing them; `displace` shifts every bar so it cannot be assumed',
   },
   TTM_Squeeze: {
     missing: 'any published calculation at all',
@@ -2344,108 +2357,162 @@ export const TS_CALL_SHAPES = Object.freeze({
 
   // ── the STUDY references, and what the Studies-Library pages actually publish ──
   //
-  // ⛔⛔ MEASURED 2026-08-26, AND THE MEASUREMENT DECIDED ALL OF THEM. Every
+  // ⛔⛔ THE STRUCTURAL FACT, RE-FETCHED 2026-08-29 RATHER THAN RE-READ. Every
   // thinkScript **Functions** page carries `Parameter | Default value |
   // Description`. Every **Studies-Library** page carries `Parameter |
   // Description` and NOTHING ELSE — there is no Default column anywhere in the
   // library. So a study's defaults exist only where its prose happens to state
-  // them, and for these four it does not.
+  // them. Confirmed on RSI, BollingerBands and SimpleMovingAvg by walking the
+  // pages again; `RSI` is a STUDY ONLY — it is absent from the Functions index —
+  // so there is no Functions page with a Default column to fall back to.
   //
-  // ⭐ `ATR` IS THE CONTROL THAT MAKES THIS A RULE RATHER THAN A SHRUG: it is
-  // mapped, from the same library, because ITS description publishes both of its
-  // missing defaults in one sentence ("a 14-period Wilder's moving average").
-  // These four have no such sentence, so the number would have to be invented —
-  // and an invented window is invisible in the result. The member is told exactly
-  // which default is missing and exactly what to write instead, which costs them
-  // one edit and costs them nothing they cannot see.
+  // ⭐⭐ AND THE VENDOR PUBLISHES THE *RULE* WITHOUT THE *NUMBERS*.
+  // `Reserved-Words/reference` states: *"If parameters values are not defined,
+  // default values should be used"* and *"If the plot name is not defined,
+  // study's main plot should be referenced (main is the first declared in the
+  // source code)."* The second sentence IS implementable — `TS_STUDY_PLOTS`
+  // below encodes each study's declaration order. The first is not, for these
+  // studies, because the library never prints the values it is promising.
+  //
+  // 🔴🔴 SO THE ROWS BELOW ARE MAPPINGS, NOT BLANKET REFUSALS — AND THAT IS THE
+  // CORRECTION THIS TASK SHIPPED. They previously read `params: []` plus an
+  // unconditional `refuse`, which meant the door refused a study reference
+  // **however completely the member had specified it**. A member who wrote
+  // `RSI(length = 14, price = close)` — every value this engine needs, stated in
+  // their own script, nothing left to invent — was told "thinkorswim publishes no
+  // default `length` or `price`", a sentence about a default they had not asked
+  // anyone to supply. That is an OVER-REFUSAL, and this file already names the
+  // reason it survives: `TS_DOC_BLOCKED`'s header — *"a wrong 'no' has no red
+  // test, no wrong column and no complaint"*. The `rsi` row had ALREADY been
+  // corrected once for printing a remedy its own `params: []` made unfollowable;
+  // that fix repaired the SENTENCE and left the MECHANISM, so the loop stayed.
+  //
+  // ⭐ WHAT CHANGED IS ONLY WHO DECIDES. `defaults` still carries EXACTLY what a
+  // page prints and not one number more, so the arity pass — which already says
+  // *"`price` has no value, and thinkorswim publishes no default for it"* and
+  // already appends `docBlockedTail` — now names the ONE parameter actually
+  // missing from the member's own call instead of a fixed list. A study whose
+  // every value the member supplied translates; a study missing an unpublished
+  // default refuses AT THAT PARAMETER. Nothing is assumed in either direction.
+  //
+  // ⛔ MEASURED, AND THE CORPUS DID NOT MOVE: 9/24 before, 9/24 after. `05` and
+  // `16` still refuse (no published `price`), `07` is proprietary, and `09`/`19`
+  // have a SECOND wall behind the study reference (`:aggregation` on `09` line 3,
+  // `:state` on `19`) that no study resolver can reach. Both numbers were run,
+  // not forecast, and the per-script guards are in `thinkscript.corpus.test.js`.
+  //
+  // ⭐ `ATR` REMAINS THE CONTROL: it is mapped from this same library because ITS
+  // description publishes both of its missing defaults in one sentence ("a
+  // 14-period Wilder's moving average"). These four have no such sentence for
+  // `price`, so `price` stays undefaulted and stays the thing they refuse on.
   rsi: {
-    params: [],
-    refuse: {
-      guard: 'thinkscript:study-ref',
-      message: 'thinkorswim publishes no default `length` or `price` for the RSI study — its '
-        + 'Input Parameters table has only Parameter and Description columns, and its '
-        + 'description states defaults only for the overbought (70) and oversold (30) levels '
-        // ⛔⛔ THIS CLAUSE USED TO READ '— so state them: RSI(length = 14, price =
-        // close)', AND THAT INSTRUCTION COULD NOT BE FOLLOWED. `params: []` plus an
-        // unconditional `refuse` means the STUDY reference is refused whatever
-        // arguments are passed, so a member who typed exactly the string this
-        // message printed got back the same refusal printing the same string — a
-        // loop, with nothing else to act on. Walked in a browser (X90).
-        //
-        // ⭐ THE THREE SIBLINGS IN THIS TABLE ALREADY HAD THE RIGHT SHAPE and are
-        // what this was corrected against: `bollingerbands` says *write the band you
-        // mean directly — sma(close, 20) - 2 * stdev(close, 20)*,
-        // `movavgexponential` names `ExpAverage(close, 21)` and `simplemovingavg`
-        // names `Average(close, 20)` — each a DIFFERENT construct this door
-        // accepts. `ttm_squeeze` names none at all, correctly, because none exists.
-        // Only this entry named the very thing it refuses.
-        //
-        // ⚠️ AND THE REMEDY HAD TO LEAVE thinkScript, which is why the mistake was
-        // easy to make: this translator maps NO thinkScript spelling to `rsi` (unlike
-        // `ExpAverage`/`Average`, which come from the Functions library), so there is
-        // no in-dialect answer. `closedTable` DOES declare `rsi` — this entry's own
-        // `cite` says so — so the honest remedy is the engine's own formula, and the
-        // sentence says which door to write it in rather than leaving the member to
-        // guess that the advice is in a different language from their script.
-        + '— and this door refuses the STUDY reference whatever arguments you pass, so '
-        + 'write the RSI you mean in this engine\'s own formula instead, on the Formula '
-        + 'tab: rsi(close, 14)'
-        + docBlockedTail('RSI'),
+    expand: 'study',
+    study: 'rsi',
+    engine: 'rsi',
+    params: ['length', 'over bought', 'over sold', 'price', 'average type',
+      'show breakout signals'],
+    // ⭐ THREE PUBLISHED DEFAULTS, AND THE THIRD IS A CORRECTION. The page's
+    // description states "with default values of 30 for the oversold level and 70
+    // for the overbought" AND — the clause this file's previous citation omitted —
+    // **"By default, the Wilder's moving average is used in the calculation of
+    // RSI"**. That sentence is a published default for `average type`, so the door
+    // no longer demands it. `length` and `price` are still nowhere on the page.
+    defaults: { 'over bought': 70, 'over sold': 30, 'average type': { arm: 'wilders' } },
+    args: [{ from: 'price' }, { from: 'length' }],
+    // ⛔ WILDER'S ONLY, BECAUSE THAT IS WHAT `rsi` IS. `interpret.js`'s `computeRSI`
+    // smooths with `(avg * (period - 1) + x) / period` — Wilder's, read from the
+    // implementation rather than assumed — so it answers the published default
+    // exactly and answers NO OTHER arm. `RSI(…, "average type" = AverageType.SIMPLE)`
+    // asks for a different function and is refused by name rather than silently
+    // given this one.
+    gates: { 'average type': 'wildersOnly' },
+    unused: {
+      'over bought': 'thinkorswim uses this only to place the horizontal OverBought LEVEL '
+        + 'and to colour breakout signals; it changes no value of the RSI line itself, and a '
+        + 'screen compares the line against whatever number you write.',
+      'over sold': 'the OverSold LEVEL line, exactly as `over bought` — a horizontal '
+        + 'reference at a published 30, which changes nothing about the RSI value a screen '
+        + 'filters on.',
+      'show breakout signals': 'this toggles the UpSignal/DownSignal arrows the study draws '
+        + 'when the line crosses those levels; it is a drawing switch and changes no value.',
     },
-    cite: 'Tech-Indicators/studies-library/R-S/RSI: Input Parameters is `Parameter | '
-      + 'Description` with rows length, over bought, over sold, price, average type, show '
-      + 'breakout signals. NO Default value column. The description publishes "with default '
-      + 'values of 30 for the oversold level and 70 for the overbought" and nothing for '
-      + 'length or price. ⭐ closedTable DOES declare `rsi`, so this refusal is about a '
-      + 'missing CITATION and never about a missing function',
+    cite: 'Tech-Indicators/studies-library/R-S/RSI (re-fetched 2026-08-29): Input Parameters '
+      + 'is `Parameter | Description` with rows length, over bought, over sold, price, '
+      + 'average type, show breakout signals — NO Default value column. The description '
+      + 'publishes "with default values of 30 for the oversold level and 70 for the '
+      + 'overbought" and "By default, the Wilder\'s moving average is used in the calculation '
+      + 'of RSI", and publishes NOTHING for length or price. ⭐ RSI is a STUDY ONLY — it is '
+      + 'absent from the Functions/Tech-Analysis index (which lists Average, ExpAverage, '
+      + 'MovingAverage, WildersAverage …), so no Default-value column exists for it anywhere',
   },
   bollingerbands: {
-    params: [],
-    refuse: {
-      guard: 'thinkscript:study-ref',
-      message: 'thinkorswim publishes no default `price` or `average type` for the Bollinger '
-        + 'Bands study, so which average the bands are drawn around is not something this '
-        + 'door can know; the two standard deviations ARE published, so write the band you '
-        + 'mean directly — sma(close, 20) - 2 * stdev(close, 20) for the lower band'
-        + docBlockedTail('BollingerBands'),
-    },
-    cite: 'Tech-Indicators/studies-library/A-B/BollingerBands: Input Parameters is `Parameter '
-      + '| Description` (rows: price, displace, length, num dev dn, num dev up, average '
-      + 'type), NO Default value column. The description publishes the multiplier only — '
-      + '"two lines plotted, BY DEFAULT, two standard deviations above and below a moving '
-      + 'average" — and names the average types without picking one. ⚠️ Its plots are '
-      + 'declared MidLine, LowerBand, UpperBand IN THAT ORDER, so a bare reference would be '
-      + 'MidLine per Reserved-Words/reference ("the first declared in the source code"); '
-      + 'recorded because it is the fact a later task needs, not because it rescues this one',
+    expand: 'study',
+    study: 'bollingerbands',
+    // ⭐ THE MIDLINE'S AVERAGE IS DISPATCHED, exactly as `MovingAverage` dispatches:
+    // the page says the bands sit around "a moving average" and names the five
+    // types without picking one, so the arm the member writes chooses the engine
+    // and an arm this table cannot serve refuses by name.
+    dispatch: TS_AVERAGE_TYPES,
+    dispatchOn: 'average type',
+    engines: ['stdev'],
+    params: ['price', 'displace', 'length', 'num dev dn', 'num dev up', 'average type'],
+    // ⭐ THE ONLY PUBLISHED PAIR, AND THE SIGNS ARE thinkorswim's OWN INPUT
+    // CONVENTION: the description publishes "two lines plotted, BY DEFAULT, two
+    // standard deviations above and below a moving average", and the study takes
+    // that as a signed multiplier per band (`num dev dn` negative = below). The
+    // band is built as `mid + numDev * stdev`, so -2/+2 reproduce the published
+    // placement. `price`, `displace` and `average type` are published nowhere.
+    defaults: { 'num dev dn': -2, 'num dev up': 2 },
+    args: [{ from: 'price' }, { from: 'length' },
+      { from: 'num dev dn' }, { from: 'num dev up' }],
+    gates: { displace: 'zeroDisplace', 'average type': 'dispatch' },
+    cite: 'Tech-Indicators/studies-library/A-B/BollingerBands (re-fetched 2026-08-29): Input '
+      + 'Parameters is `Parameter | Description` (rows: price, displace, length, num dev dn, '
+      + 'num dev up, average type), NO Default value column. The description publishes the '
+      + 'multiplier only — "two lines plotted, BY DEFAULT, two standard deviations above and '
+      + 'below a moving average" — and names the average types without picking one. Plots '
+      + 'are declared MidLine, LowerBand, UpperBand IN THAT ORDER, which is what makes a '
+      + 'bare reference MidLine per Reserved-Words/reference. ⭐ closedTable `stdev` is the '
+      + 'POPULATION deviation, which is the divisor thinkorswim\'s own StDev page '
+      + 'reimplements itself with',
   },
   movavgexponential: {
-    params: [],
-    refuse: {
-      guard: 'thinkscript:study-ref',
-      message: 'thinkorswim publishes no default `price` for the MovAvgExponential study, and '
-        + 'its `displace` input shifts every bar of the plot with no published default '
-        + 'either; write the average directly instead — ExpAverage(close, 21)'
-        + docBlockedTail('MovAvgExponential'),
+    expand: 'study',
+    study: 'movavgexponential',
+    engine: 'ema',
+    params: ['price', 'length', 'displace', 'show breakout signals'],
+    args: [{ from: 'price' }, { from: 'length' }],
+    gates: { displace: 'zeroDisplace' },
+    unused: {
+      'show breakout signals': 'this toggles the UpSignal/DownSignal arrows drawn where price '
+        + 'crosses the average; it is a drawing switch and changes no value of the average.',
     },
     cite: 'Tech-Indicators/studies-library/M-N/MovAvgExponential: `Parameter | Description`, '
-      + 'NO Default value column; rows include `displace` — "The displacement of the EMA '
-      + 'study, in bars. Positive values signify backward displacement." Plots are AvgExp, '
-      + 'UpSignal, DownSignal in that order. ⭐ `ExpAverage` IS mapped, from the FUNCTIONS '
-      + 'library, whose page does publish length 12 — same maths, cited page',
+      + 'NO Default value column; rows price, length, displace, show breakout signals. '
+      + '`displace` — "The displacement of the EMA study, in bars. Positive values signify '
+      + 'backward displacement." Plots are AvgExp, UpSignal, DownSignal in that order. '
+      + '⭐ `ExpAverage` IS separately mapped from the FUNCTIONS library, whose page DOES '
+      + 'publish length 12 — same maths, different page, and only that page carries a default',
   },
   simplemovingavg: {
-    params: [],
-    refuse: {
-      guard: 'thinkscript:study-ref',
-      message: 'thinkorswim publishes no default `price`, `length` or `displace` for the '
-        + 'SimpleMovingAvg study, and a non-zero `displace` shifts every bar of the plot; '
-        + 'write the average directly instead — Average(close, 20)'
-        + docBlockedTail('SimpleMovingAvg'),
+    expand: 'study',
+    study: 'simplemovingavg',
+    engine: 'sma',
+    params: ['price', 'length', 'displace', 'show breakout signals'],
+    args: [{ from: 'price' }, { from: 'length' }],
+    gates: { displace: 'zeroDisplace' },
+    unused: {
+      'show breakout signals': 'this toggles the UpSignal/DownSignal arrows drawn where price '
+        + 'crosses the average; the page states "By default, breakout signals are disabled", '
+        + 'and either way it is a drawing switch that changes no value of the average.',
     },
-    cite: 'Tech-Indicators/studies-library/R-S/SimpleMovingAvg: `Parameter | Description`, NO '
-      + 'Default value column; rows price, length, displace, show breakout signals. '
-      + '`displace`: "The displacement of the SMA study, in bars." ⭐ `Average` IS mapped '
-      + 'from the Functions library, which publishes length 12',
+    cite: 'Tech-Indicators/studies-library/R-S/SimpleMovingAvg (re-fetched 2026-08-29): '
+      + '`Parameter | Description`, NO Default value column; rows price, length, displace, '
+      + 'show breakout signals. `displace`: "The displacement of the SMA study, in bars." '
+      + 'Plots are SMA, UpSignal, DownSignal in that order. The only default its description '
+      + 'publishes is for `show breakout signals` ("By default, breakout signals are '
+      + 'disabled"), which changes no value. ⭐ `Average` IS separately mapped from the '
+      + 'Functions library, which publishes length 12',
   },
   ttm_squeeze: {
     params: [],
@@ -2642,7 +2709,130 @@ const TS_EXPANSIONS = Object.freeze({
       { type: 'num', value: 100 },
     ])
   },
+
+  /**
+   * ⭐⭐ A STUDY REFERENCE, AND THE LEG OF IT THE MEMBER ASKED FOR.
+   *
+   * One expander serves all four mapped studies because the only thing that
+   * differs between them is which plot names they declare and how each plot is
+   * built — and both of those are DATA, in `TS_STUDY_PLOTS`. Adding a fifth study
+   * whose maths this table already declares is a row there plus a row above; it
+   * is not a code path.
+   *
+   * ⛔ THE LEG NAME IS RESOLVED AGAINST THE STUDY'S DECLARED PLOT LIST, NEVER
+   * GUESSED. `BollingerBands(…).LowerBnd` is a typo that must come back as a
+   * refusal naming the three real plots — not as a silent MidLine, which is what
+   * "fall back to the main plot when the name is unknown" would do, and which is
+   * indistinguishable in the result from the band the member meant.
+   *
+   * ⭐ A BARE REFERENCE IS THE FIRST-DECLARED PLOT, and that is the vendor's own
+   * rule rather than a convenience: Reserved-Words/reference says *"If the plot
+   * name is not defined, study's main plot should be referenced (main is the
+   * first declared in the source code)."* So `plots[0]` is the citation, which is
+   * why the order in `TS_STUDY_PLOTS` is load-bearing and commented as such.
+   */
+  study: (args, R, tok, ctx) => {
+    const spec = TS_STUDY_PLOTS[ctx.shape.study]
+    /* istanbul ignore next — every `study` shape declares a plot list, pinned by a rail */
+    if (!spec) throw refuse('thinkscript:study-ref', tok)
+    const wanted = ctx.leg == null ? spec.plots[0] : ctx.leg
+    const plot = spec.plots.find((p) => key(p) === key(wanted))
+    if (!plot) {
+      throw new ThinkScriptRefusal('thinkscript:study-ref',
+        `${REFUSALS['thinkscript:study-ref']} — \`${ctx.name}\` declares no plot called `
+        + `\`${wanted}\`; the plots it declares are ${spec.plots.join(', ')}`,
+        locate(ctx.legTok || tok))
+    }
+    return spec.build(key(plot), args, R, tok, ctx)
+  },
 })
+
+/**
+ * ⭐⭐ WHAT EACH MAPPED STUDY *PLOTS*, IN ITS OWN DECLARATION ORDER — the data
+ * half of the study resolver.
+ *
+ * ⛔ THE ORDER IS THE CITATION, NOT A STYLE CHOICE. Reserved-Words/reference:
+ * *"If the plot name is not defined, study's main plot should be referenced (main
+ * is the first declared in the source code)."* So reordering any `plots` array
+ * silently changes what a BARE `BollingerBands(…)` means — from MidLine to a
+ * band — with no test of the maths going red. Each list was read off its own
+ * Studies-Library page and the page is cited in the shape above.
+ *
+ * ⛔⛔ A SIGNAL-ARROW PLOT REFUSES RATHER THAN BEING APPROXIMATED. `UpSignal` /
+ * `DownSignal` are the crossing ARROWS thinkorswim draws — a mark at a bar, not a
+ * value on every bar. `close crosses above ExpAverage(...)` is the screen a member
+ * actually wants and it is one this door already translates, so the refusal says
+ * that. Answering the arrow with the average, or with the crossing's price, would
+ * be a plausible column that is not the plot they named.
+ */
+const TS_STUDY_PLOTS = Object.freeze({
+  rsi: {
+    plots: ['RSI', 'OverSold', 'OverBought'],
+    build: (leg, args, R, tok, ctx) => {
+      const [price, length] = args
+      // ⭐ THE TWO LEVEL PLOTS ARE THE PUBLISHED NUMBERS THEMSELVES. They are
+      // genuinely horizontal lines at `over sold` / `over bought`, so this is not
+      // an approximation — it is what the study plots. They read no bar, so
+      // `readsTheBar` will refuse one as a SCREEN; that is the right place for
+      // that ruling and not this one's business.
+      if (leg === 'oversold') return ctx.port.node('over sold').node
+      if (leg === 'overbought') return ctx.port.node('over bought').node
+      // ⛔ `ctx.engine`, NEVER the literal 'rsi' — the shape above already names
+      // the engine, and a second copy here is the one-value-two-authorities shape
+      // this repo keeps paying for.
+      return R.engineCall(ctx.engine, [price, length], tok)
+    },
+  },
+  bollingerbands: {
+    // ⛔ MidLine FIRST — see the header. A bare `BollingerBands(…)` is the middle
+    // average, which is exactly what corpus `05`'s band-width denominator wants.
+    plots: ['MidLine', 'LowerBand', 'UpperBand'],
+    build: (leg, args, R, tok, ctx) => {
+      const [price, length, devDn, devUp] = args
+      const mid = R.engineCall(ctx.engine, [price, length], tok)
+      if (leg === 'midline') return mid
+      const dev = { node: R.engineCall('stdev', [price, length], tok), tok }
+      // ⭐ ONE FORM FOR BOTH BANDS, `mid + numDev * stdev` — because that is what
+      // the study's two signed inputs mean. The lower band is not "minus": it is
+      // `num dev dn`, whose published default is negative, and writing a
+      // subtraction here would make a member's explicit `num dev dn = -2` draw the
+      // band ABOVE the average.
+      const mult = leg === 'lowerband' ? devDn : devUp
+      return cOp('+', [mid, cOp('*', [mult.node, dev.node])])
+    },
+  },
+  // ⭐ THE SECOND ARGUMENT IS THE IN-DIALECT REMEDY, not the engine — the engine
+  // comes off `ctx`. A member reading a refusal about `MovAvgExponential` needs a
+  // thinkScript line they can paste, and `ExpAverage` is the Functions-library
+  // spelling of the same maths that this door already maps.
+  movavgexponential: {
+    plots: ['AvgExp', 'UpSignal', 'DownSignal'],
+    build: (leg, args, R, tok, ctx) => signalOrAverage(leg, args, R, tok, ctx, 'ExpAverage'),
+  },
+  simplemovingavg: {
+    plots: ['SMA', 'UpSignal', 'DownSignal'],
+    build: (leg, args, R, tok, ctx) => signalOrAverage(leg, args, R, tok, ctx, 'Average'),
+  },
+})
+
+/** The average itself, or a refusal naming the crossing a signal arrow really is.
+ *  ⛔ ONE FUNCTION BECAUSE TWO STUDIES ASK IT — a second copy of this sentence is
+ *  the `lesson_a_second_authority_over_one_value` shape, and the two would drift
+ *  apart the first time either page's plot names changed. */
+function signalOrAverage(leg, args, R, tok, ctx, inDialect) {
+  const [price, length] = args
+  if (leg === 'upsignal' || leg === 'downsignal') {
+    const dir = leg === 'upsignal' ? 'above' : 'below'
+    throw new ThinkScriptRefusal('thinkscript:study-ref',
+      `${REFUSALS['thinkscript:study-ref']} — \`${ctx.name}\`'s ${leg === 'upsignal'
+        ? 'UpSignal' : 'DownSignal'} is the ARROW thinkorswim draws on the bar where price `
+      + `crosses ${dir} the average, not a value it plots on every bar; write the crossing `
+      + `itself — <price> crosses ${dir} ${inDialect}(<price>, <length>) — which this door `
+      + 'translates',
+      locate(ctx.legTok || tok))
+  }
+  return R.engineCall(ctx.engine, [price, length], tok)
+}
 
 class Resolver {
   constructor(env, table, notes) {
@@ -3019,7 +3209,13 @@ class Resolver {
     return null
   }
 
-  resolveCall(n) {
+  /**
+   * @param {object} n the call node
+   * @param {object|null} leg for a study reference, `{ name, tok }` naming the
+   *   plot the member asked for — `BollingerBands(…).LowerBand`. `null` means no
+   *   plot was named, which the vendor defines as the study's FIRST-declared plot.
+   */
+  resolveCall(n, leg = null) {
     // A method's receiver refuses at ITS OWN token first, so
     // `BollingerBands(length = X).LowerBand` names `BollingerBands`; and a method
     // form is never one of these shapes, so it refuses at the method name.
@@ -3151,8 +3347,17 @@ class Resolver {
     // asking the wrong average never resolves the rest of its arguments — which
     // matters because resolution records which member inputs a column folded.
     this.runGates(shape, port, n, engine)
+    // ⭐ THE FOURTH ARGUMENT IS THE CALL'S CONTEXT, and it exists because a STUDY
+    // expansion needs three things a plain expansion never did: which plot leg was
+    // asked for, which engine the average-type dispatch chose, and the port (a
+    // level plot IS one of the study's own parameters). `truerange` and
+    // `rateofchange` take three parameters and ignore it, so nothing about them
+    // changed.
     const built = shape.expand
-      ? TS_EXPANSIONS[shape.expand](shape.args.map(fill), this, n.tok)
+      ? TS_EXPANSIONS[shape.expand](shape.args.map(fill), this, n.tok, {
+        shape, engine, port, name: n.name,
+        leg: leg && leg.name, legTok: leg && leg.tok,
+      })
       : this.engineCall(engine, argumentPlan(shape, this.table).map(fill), n.tok)
     // ⭐ THE NOTE FOLLOWS THE ENGINE, NOT THE SPELLING — see `TS_NOTE_BY_ENGINE`.
     // ⛔ AND IT IS EMITTED LAST, AFTER THE CALL IS BUILT. Anything above this
@@ -3248,13 +3453,45 @@ class Resolver {
         }
         continue
       }
+      if (kind === 'zeroDisplace') {
+        // ⛔⛔ `displace` SHIFTS EVERY BAR OF THE PLOT, AND IT HAS NO PUBLISHED
+        // DEFAULT — the two facts together are why it is a required parameter with
+        // a gate rather than an `unused` one. A study drawn with `displace = 2`
+        // answers about a bar two bars away from the one a screen is filtering,
+        // which is invisible in the output and wrong on every row.
+        //
+        // ⭐ AND THE SIGN IS THE REASON THIS GATE DOES NOT JUST TRANSLATE IT. The
+        // page says "Positive values signify BACKWARD displacement", which is the
+        // opposite of the direction `offset` means here; getting that backwards
+        // draws a plausible column shifted the wrong way. Only a written 0 is a
+        // study this door can promise is the member's.
+        const shift = literalInteger(this.asNode(port.raw(p), port.at(p)))
+        if (shift !== 0) {
+          throw new ThinkScriptRefusal('thinkscript:function',
+            `${REFUSALS['thinkscript:function']} — \`displace\` shifts every bar of the plot, `
+            + `and this reads ${shift === null ? 'a displacement it cannot read here'
+              : shift}; thinkorswim publishes no default for it and states that POSITIVE `
+            + 'values mean BACKWARD displacement, so only a written displace = 0 is a study '
+            + 'this door can promise is the one you drew',
+            locate(port.at(p)))
+        }
+        continue
+      }
       if (kind === 'wildersOnly') {
         const v = port.raw(p)
         requireAverageType(v, (v && v.tok) || port.at(p), TS_AVERAGE_TYPES)
         if (v.arm !== 'wilders') {
+          // ⛔ THE NOUN IS THE ENGINE, NOT "the true range". This gate had ONE
+          // caller (`ATR`) and its sentence hard-coded that caller's subject; the
+          // moment `RSI` became the second caller it told a member that this
+          // engine's RSI is "Wilder's average of the true range", which is a
+          // sentence about a different indicator. Wilder's SMOOTHING is the thing
+          // both engines actually share, and naming the engine keeps the sentence
+          // true for whichever one raised it.
           throw new ThinkScriptRefusal('thinkscript:function',
-            `${REFUSALS['thinkscript:function']} — this engine's \`${engine}\` is Wilder's `
-            + `average of the true range, and ${armText(v.arm)} asks for a different one`,
+            `${REFUSALS['thinkscript:function']} — this engine's \`${engine}\` is computed `
+            + `with Wilder's smoothing, which is the average thinkorswim publishes as this `
+            + `study's default, and ${armText(v.arm)} asks for a different one`,
             locate(v.tok || port.at(p)))
         }
         continue
@@ -3522,6 +3759,22 @@ class Resolver {
         ])
       }
       case 'member': {
+        // ⭐ `<Study>(…).<Plot>` IS THE STUDY REFERENCE'S ONLY OTHER SPELLING, and
+        // the plot name travels INTO the call rather than being applied to its
+        // result. That direction is what lets one member access pick between two
+        // different formulas — `LowerBand` and `UpperBand` are not projections of
+        // one value, they are two expressions — and it is why the leg is a
+        // parameter of `resolveCall` and not a wrapper around it.
+        //
+        // ⭐ THE LEXER ACCEPTS BOTH `.LowerBand` AND `."AvgExp"`, because the
+        // corpus writes both: `05` uses the bare form and `19` writes
+        // `MovAvgExponential("length" = 21)."AvgExp"` with a STRING plot name.
+        // `parsePostfix` already stores either as `n.name`, so nothing here has to
+        // know which one the member typed.
+        if (n.base && n.base.e === 'call' && !n.base.base
+          && has(TS_STUDY_PLOTS, key(n.base.name))) {
+          return this.resolveCall(n.base, { name: n.name, tok: n.tok })
+        }
         this.resolve(n.base)
         throw refuse('thinkscript:study-ref', n.tok)
       }
