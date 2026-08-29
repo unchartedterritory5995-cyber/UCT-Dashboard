@@ -281,6 +281,19 @@ def _ws_reconnect_transition(consecutive_failures: int, backoff_s: float, was_st
             "next_backoff_s": min(backoff_s * 2, _WS_MAX_BACKOFF_S), "circuit_break": False}
 
 
+_RECV_TIMEOUT_S = 45
+
+# How many consecutive silent windows force a reconnect. DURING regular
+# hours one is right: trades flow constantly, so 45s of nothing means a
+# dead-but-open socket. OUTSIDE them silence is the NORMAL state, and the
+# 1-window rule turned that into a reconnect + full resubscribe every
+# ~60s, all night, every night, on the pod that serves members (observed
+# on prod 2026-08-29 post-market). The watchdog is kept — a socket that
+# dies at 02:00 must still be caught before the open — just given a
+# tolerance that matches what silence actually means at that hour.
+_CLOSED_SILENCE_WINDOWS = int(os.environ.get("STREAM_CLOSED_SILENCE_WINDOWS", "13"))
+
+
 async def _run_websocket():
     """Main WebSocket loop — connect, subscribe, process Finnhub trade messages.
 
@@ -319,7 +332,7 @@ async def _run_websocket():
     # Force a reconnect if the socket goes totally silent this long while we have
     # active subscriptions (dead-but-open feed: TCP alive, not pushing). A healthy
     # Finnhub connection always emits trades or its own app-level pings well within it.
-    _RECV_TIMEOUT_S = 45
+
     backoff = _WS_BASE_BACKOFF_S
     consecutive_failures = 0
     connect_started: float | None = None
@@ -351,6 +364,9 @@ async def _run_websocket():
                 if all_tickers:
                     _logger.info("[stream] Re-subscribed %d active tickers on reconnect", len(all_tickers))
 
+                # Consecutive 45s windows with no message. Reset by any traffic.
+                silent_windows = 0
+
                 # Process messages with a liveness ceiling. Total silence for
                 # _RECV_TIMEOUT_S while tickers are subscribed = dead-but-open feed →
                 # break to force a full reconnect + resubscribe rather than waiting on
@@ -363,9 +379,17 @@ async def _run_websocket():
                         with _lock:
                             n_sub = len(_subscribed)
                         if n_sub > 0:
+                            silent_windows += 1
+                            from api.services.bars_liveness import is_market_open
+                            tolerance = 1 if is_market_open() else _CLOSED_SILENCE_WINDOWS
+                            if silent_windows < tolerance:
+                                # Expected quiet (market closed). Keep waiting —
+                                # the websocket ping/pong still proves the socket
+                                # is alive, so nothing is being ignored here.
+                                continue
                             _logger.warning(
-                                "[stream] No Finnhub messages for %ds with %d active subs — feed silent, forcing reconnect",
-                                _RECV_TIMEOUT_S, n_sub,
+                                "[stream] No Finnhub messages for %ds x%d with %d active subs — feed silent, forcing reconnect",
+                                _RECV_TIMEOUT_S, silent_windows, n_sub,
                             )
                             # This path exits the `async with` block WITHOUT an
                             # exception, so the `except` handler below (and its
@@ -380,6 +404,7 @@ async def _run_websocket():
                             connect_started = None
                             break  # exit inner loop → context manager closes ws → outer reconnect
                         continue   # nothing subscribed: silence is expected, keep waiting
+                    silent_windows = 0
                     try:
                         data = json.loads(raw_msg)
                         msg_type = data.get("type", "")
