@@ -1801,20 +1801,49 @@ describe('🔴🔴 THE SENTENCE, NOT ONLY THE GUARD — three mistakes must not 
       .toMatch(/rolling window over the last \d+ bars/)
   })
 
-  it('🔴🔴 a DEEPER self-lag refuses at its own token — `self[k]` is deleted, not banked', () => {
-    // ⛔ `selfLagOf` returned `k - 1`, so `x[2]` became `self[1]`. That arithmetic
-    // was UNREACHABLE (`forgetsItsSeed` answers NO for any body where `self` sits
-    // under an offset) and unreachable code reads as capability. Deleted; a deeper
-    // read now refuses BY NAME at the token the member wrote.
-    const r = refusalOf('def x = CompoundValue(2, x[1] + x[2], 1);\nplot p = x;\n')
-    expect(r.guard).toBe('thinkscript:state')
-    expect(r.token, 'it points at the read, not at the operator beside it').toBe('x')
-    expect(r.message).toMatch(/can only be read one bar back, and this reads 2 bars back/)
-    // ⭐ THE CONTROL, so this cannot pass for a translator that refuses every
-    // recurrence: one bar back is still bare `self`, tree for tree.
+  it('🔴🔴 a DEEPER self-lag TRANSLATES — the premise that deleted it EXPIRED', () => {
+    // ⚰️ THIS ASSERTED THE OPPOSITE, AND ITS REASON WAS MEASURED AND TRUE ON THE DAY
+    // IT WAS WRITTEN: *"`selfLagOf` returned `k - 1`, so `x[2]` became `self[1]`.
+    // That arithmetic was UNREACHABLE (`forgetsItsSeed` answers NO for any body
+    // where `self` sits under an offset) and unreachable code reads as capability.
+    // Deleted."* The arithmetic was then deleted and the door started refusing every
+    // `k > 1` by name.
+    //
+    // ⭐⭐ WHAT CHANGED IS `forgetsItsSeed`, NOT THIS DOOR. It was rewritten as a
+    // COEFFICIENT VECTOR over `self[0..L]` when the 2-pole Ehlers filter landed in
+    // the Pine lane, and from that moment it answered YES for exactly the bodies
+    // this sentence said it could not. Nothing re-read the sentence, so a capability
+    // the engine had was refused by a door quoting a measurement that had expired
+    // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+    //
+    // ⛔ SO THE DELETION WAS RIGHT AND THE COMMENT OUTLIVED IT. That is the whole
+    // failure mode: a correct removal leaves behind a sentence asserting a general
+    // law, and the law is what the next reader believes.
+    const four = translateThinkScript(
+      `def g = CompoundValue(1, 0.5 * g[1] - 0.2 * g[4] + close, close);
+plot p = g;
+`)
+    expect(four.refusal, four.refusal && four.refusal.message).toBe(null)
+    const spec = TABLE.functions.accum
+    // `g[4]` is `self[3]`: inside the body `self` IS the previous bar.
+    expect(printFormula(four.outputs[0].ast.args[spec.recurrence.body]))
+      .toBe(`0.5 * ${spec.recurrence.binds} - 0.2 * ${spec.recurrence.binds}[3] + close`)
+
+    // ⛔ AND FIBONACCI STILL REFUSES, which is the half that proves the gate did not
+    // simply go soft. `x[1] + x[2]` genuinely never forgets where it started — it
+    // grows without bound — so `forgetsItsSeed` says NO and must. The refusal that
+    // remains is the CONVERGENCE one, not the lag one.
+    const fib = refusalOf(`def x = CompoundValue(2, x[1] + x[2], 1);
+plot p = x;
+`)
+    expect(fib.guard).toBe('thinkscript:state')
+    expect(fib.message).not.toMatch(/can only be read one bar back/)
+    expect(fib.message).toMatch(/re-seeds a fixed number of bars back/)
+
+    // ⭐ THE CONTROL, so this cannot pass for a translator that accepts everything:
+    // one bar back is still bare `self`, tree for tree.
     const one = translateThinkScript(
       'def y = CompoundValue(1, if close > open then close else y[1], 0);\nplot p = y;\n')
-    const spec = TABLE.functions.accum
     expect(printFormula(one.outputs[0].ast.args[spec.recurrence.body]))
       .toBe(`close > open ? close : ${spec.recurrence.binds}`)
   })
