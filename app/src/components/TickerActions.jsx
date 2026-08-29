@@ -90,7 +90,11 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   // the user's lists itself when the picker opens; an explicit prop still wins
   // (a caller that already holds fresh lists shouldn't trigger a second fetch).
   const { data: fetchedLists, mutate: mutateFetched } = useSWR(
-    menu && showAddList && !lists ? '/api/watchlists' : null,
+    // include_items=0: this picker reads only `is_prebuilt`, `id` and `name` (see the
+    // filter below) — the symbols in each list are never touched here, and on the
+    // owner's account they are 4,406 rows / 553 KB. An explicit `lists` prop still
+    // wins and may carry items; the filter and menu work the same either way.
+    menu && showAddList && !lists ? '/api/watchlists?include_items=0' : null,
     _listsFetcher,
   )
   // Prebuilt (UCT-curated) lists are OWNED by the admin account, so the owner's own
