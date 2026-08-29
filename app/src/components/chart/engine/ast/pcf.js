@@ -252,6 +252,25 @@ export const PCF_FUSED = Object.freeze({
  *  name members trust. That is a refusal to keep, not a backlog item. */
 export const PCF_DIFFERENT_FORMULA = Object.freeze({
   RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
+  // ⚰️ `FAVG` WAS THE ONE REFUSED NAME IN THIS WHOLE READER WITH NO SENTENCE.
+  // Every other name here tells a member what happened and what would change it;
+  // `FAVG(C, 10)` answered only *"this is not a TC2000 name this reader knows"*,
+  // which is indistinguishable from a typo — so a member would retype it, or
+  // conclude the reader is broken. An over-refusal is invisible unless it says
+  // what would change its mind (`lesson_an_over_refusal_is_invisible`).
+  // ⛔ AND IT IS NOT A "DIFFERENT FORMULA" — IT IS AN UNPUBLISHED ONE, which is a
+  // different fact and the sentence says so. `HAVG` sat beside it in the same
+  // sentence ("two moving averages, still open") until 2026-08-29, and the two
+  // parted ways for exactly this reason: Alan Hull PUBLISHED his weighting, so
+  // `HAVG` became a spelling of `hma`; Worden has not published this one, so
+  // fitting weights to the plotted curve would be our number under their name.
+  FAVG:  'the front-weighted average, and Worden publishes no weighting for it — the '
+    + 'syntax table names `FAVG` without saying how the front is weighted, so any '
+    + 'weights this reader chose would be ours wearing their label. TO UNBLOCK: Worden '
+    + 'publishing the arithmetic, the way it already has for the Worden Stochastic '
+    + '(`help.tc2000.com/m/69445/l/755879`). ⭐ The other moving averages DO read: '
+    + '`AVGC10` (simple), `XAVGC10` (exponential) and `HAVGC10` (Hull) are all '
+    + 'published formulas this engine declares',
   // ⭐ CITED, NOT ASSERTED — and the citation is what makes the refusal actionable.
   // Worden publishes the formula on its own indicator page (`/m/69445/l/755879`):
   // "Worden Stochastic = (100/n-1)(Rank)", where Rank is the ascending position of
