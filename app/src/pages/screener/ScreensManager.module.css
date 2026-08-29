@@ -1,0 +1,43 @@
+
+/* A saved formula that cannot be a screen, and the server's own reason. These
+   used to vanish from the list entirely — see ScreensManager.jsx. */
+.unscannableHead {
+  color: var(--text-muted, #8a857a);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label, 0.9px);
+  margin-bottom: 6px;
+}
+
+.unscannableRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.unscannableName {
+  color: var(--text-bright, #e8e4da);
+  font-size: 12px;
+}
+
+.unscannableWhy {
+  color: var(--text-muted, #8a857a);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.unscannableHow {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  color: var(--text, #cfcabd);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.unscannableHow code {
+  color: var(--ut-gold, #dcbb5e);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}

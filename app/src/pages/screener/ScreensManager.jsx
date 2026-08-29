@@ -225,6 +225,20 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const { saved, starters, create, update, remove, error: savedError } = useSavedScreens()
   const { rows: defRows, error: defsError, refresh: refreshDefs } = useUserDefinitions()
   const scans = useMemo(() => scannableScreens(defRows), [defRows])
+  // ⭐⭐ THE ONES THAT CANNOT SCAN, AND WHY — the server already knows and nobody
+  // was showing it. `GET /api/user-definitions` stamps `scannable` +
+  // `scan_refusal` on every row (`routers/user_definitions.py::_stamped`), and
+  // until now the ONLY consumer was the filter above: a member pasted an
+  // indicator, saved it with no warning, and it simply never appeared here.
+  // ⛔ A SILENT DROP IS THE WORST OF THE THREE POSSIBLE ANSWERS. "It scans" is
+  // fine; "it cannot scan, because it answers a NUMBER and a screen needs a
+  // yes/no" is actionable. Vanishing is neither — the member concludes the save
+  // failed, or that we lost it. MEASURED 2026-08-29: of 71 pasted-and-translated
+  // columns, 41 refuse `gate:yields` and every one of them disappeared here.
+  const unscannable = useMemo(
+    () => (Array.isArray(defRows) ? defRows : []).filter((r) => r && r.scannable === false),
+    [defRows],
+  )
 
   const [open, setOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -535,7 +549,7 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
               <p role="alert" data-testid="screens-manager-error--scans" className={styles.saveMenuEmpty}>
                 Your saved scans could not be read ({String(defsError.message || defsError)}).
               </p>
-            ) : scans.length === 0 ? (
+            ) : (scans.length === 0 && unscannable.length === 0) ? (
               <div className={styles.saveMenuEmpty}>No scannable formulas yet</div>
             ) : scans.map(row => {
               const name = scanName(row)
@@ -641,6 +655,54 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
                 </div>
               )
             })}
+
+            {/* ⭐⭐ THE SENTENCE THE SERVER ALREADY WROTE. A saved formula that
+                cannot be a screen used to VANISH from this list — a member
+                pasted an indicator, saved it with no warning, and it was simply
+                not here. `GET /api/user-definitions` stamps `scan_refusal` on
+                every row (`routers/user_definitions.py::_stamped`) and no
+                component rendered it; this is that field reaching a person.
+                ⛔ A SILENT DROP IS THE WORST OF THE THREE POSSIBLE ANSWERS.
+                "It scans" is fine. "It cannot, because it answers a NUMBER and a
+                screen needs a yes/no" is actionable. Vanishing is neither — the
+                member concludes the save failed or that we lost it. MEASURED
+                2026-08-29: of 71 pasted-and-translated columns, 41 refuse
+                `gate:yields`, and every one of them disappeared here.
+                ⛔ THE REFUSAL IS SHOWN VERBATIM — it names the gate and what the
+                tree answers, and rewording it would put a second authority over a
+                decision `assert_scannable` already made. */}
+            {unscannable.length > 0 && (
+              <div className={styles.saveMenuEmpty} data-testid="screens-unscannable">
+                <div className={styles.unscannableHead}>
+                  {unscannable.length === 1
+                    ? '1 saved formula cannot be a screen yet'
+                    : `${unscannable.length} saved formulas cannot be a screen yet`}
+                </div>
+                {unscannable.map((row) => (
+                  <div
+                    key={row.def_id}
+                    className={styles.unscannableRow}
+                    data-unscannable={row.def_id}
+                  >
+                    <span className={styles.unscannableName}>{scanName(row)}</span>
+                    {/* ⛔ `scan_refusal` IS `{gate, detail}`, NOT A STRING. The
+                        `detail` is the sentence; the `gate` names which check
+                        decided, which is what makes a report actionable rather
+                        than a complaint. Rendering the object itself throws. */}
+                    <span className={styles.unscannableWhy}>
+                      {(row.scan_refusal && row.scan_refusal.detail)
+                        || 'the server did not say why — please report this'}
+                    </span>
+                  </div>
+                ))}
+                {/* ⭐ AND WHAT TO DO ABOUT IT, once, rather than on every row. */}
+                <div className={styles.unscannableHow}>
+                  A screen needs a yes/no answer. Open one, add a plot that compares
+                  it — e.g. <code>rsi(close, 14) &lt; 30</code> — and mark that plot
+                  &ldquo;Scan&rdquo;.
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={styles.saveMenuFoot}>
