@@ -2696,6 +2696,22 @@ class Resolver {
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
+    /** ⭐⭐ THE MEMBER'S OWN VALUE FOR AN INPUT, by bound name — how a pasted
+     *  script's knob becomes a knob again.
+     *
+     *  ⛔ THE TREE STILL HOLDS A LITERAL, and that is not a compromise: it is what
+     *  keeps `maxLookback` a pure tree sum with no evaluation and what lets the
+     *  repaint linter decide statically. The knob does not live IN the tree; it
+     *  lives on the DOCUMENT, and moving it RE-TRANSLATES. A different length is a
+     *  different indicator and gets a different `astHash`, which is correct.
+     *
+     *  ⭐ TRADINGVIEW DRAWS THE SAME LINE ONE QUALIFIER LOOSER, and their docs say
+     *  so verbatim: *"length arguments require a 'simple int', 'input int', or
+     *  'const int' value; they cannot accept 'series int' values."* They forbid a
+     *  length that varies BAR TO BAR, exactly as we do — they permit one fixed
+     *  before the first bar. This is that permission, reached from the other side:
+     *  we fix it before translation instead of before execution. */
+    this.inputValues = null
     /** Bound input names that reached an `int` slot on this run — collected so a
      *  caller can refuse them rather than hand back a half-applied knob. */
     this.windowBoundInputs = new Set()
@@ -4315,7 +4331,44 @@ class Resolver {
       throw new PineRefusal('pine:input-kind',
         `${REFUSALS['pine:input-kind']} — \`${name}\` states no default`, locate(node.tok))
     }
-    const resolved = this.resolve(defval)
+    // ⭐ THE MEMBER'S VALUE WINS OVER THE AUTHOR'S DEFAULT, and only ever a value
+    // the AUTHOR'S OWN BOUNDS admit — `minval`/`maxval` are read from the paste a
+    // few lines below and are not ours to widen. An out-of-range value is refused
+    // BY NAME rather than clamped: clamping would compute a different indicator
+    // under the member's own number, silently, which is the one thing this door
+    // exists to prevent.
+    let overrideNode = null
+    const overrideName = typeof node.boundName === 'string' ? node.boundName : null
+    if (overrideName && this.inputValues
+        && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
+      const wanted = Number(this.inputValues[overrideName])
+      if (!Number.isFinite(wanted)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given a value that is `
+          + 'not a number', locate(node.tok))
+      }
+      const readBound = (key) => {
+        const a = node.args.find((x) => x.name === key)
+        if (!a) return null
+        const v = this.resolve(a.value)
+        return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+      }
+      const lo = readBound('minval')
+      const hi = readBound('maxval')
+      if ((lo !== null && wanted < lo) || (hi !== null && wanted > hi)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given ${wanted}, and the `
+          + `script's own author bounded it to ${lo === null ? '-∞' : lo}..`
+          + `${hi === null ? '∞' : hi}`, locate(node.tok))
+      }
+      // ⚠⚠ `cNum`, NOT A HAND-BUILT OBJECT FED TO `resolve`. `this.resolve` takes a
+      // PINE PARSER node and RETURNS an engine node; handing it an engine node made
+      // the whole statement unreadable (`pine:statement`) rather than failing
+      // anywhere near here. The override already IS a number, so it skips the
+      // resolve entirely and emits the canonical node directly.
+      overrideNode = cNum(wanted)
+    }
+    const resolved = overrideNode || this.resolve(defval)
     const boundName = typeof node.boundName === 'string' ? node.boundName : null
     // ⭐ DECLARE MODE: hand back the IDENTIFIER instead of the literal.
     // `translatePine(src, { declareInputs })` asks for this; the default path is
@@ -5740,6 +5793,10 @@ export function translatePine(source, opts = {}) {
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
+    // ⭐ `opts.inputValues` is `{ boundName: number }` — the member's knob positions.
+    if (opts.inputValues && typeof opts.inputValues === 'object') {
+      resolver.inputValues = opts.inputValues
+    }
     if (opts.declareInputs) {
       resolver.declareInputs = opts.declareInputs === 'all'
         ? 'all' : new Set(opts.declareInputs)

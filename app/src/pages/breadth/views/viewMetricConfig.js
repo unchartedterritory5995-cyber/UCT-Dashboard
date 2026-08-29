@@ -6,8 +6,14 @@
  * schema. Spec: docs/superpowers/specs/2026-06-01-breadth-views-per-view-customize-design.md
  */
 import { PAIRS } from './breadthViewShared'
+// ⛔ THE EVENT FAMILIES HAVE ONE AUTHOR, AND IT IS `EVENT_DEFS`. A hand-typed
+// copy here meant an event in a NEW family was unfilterable, and a removed
+// family left a dropdown entry that rendered an empty grid with no explanation.
+// (`viewMetricConfig → breadthEvents → heatmapMetrics → breadthViewShared` has
+// no cycle — verified 2026-08-29.)
+import { EVENT_FAMILIES } from './breadthEvents'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock', 'divergence', 'rotation', 'events', 'attribution', 'analogues']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -65,6 +71,14 @@ const TIMELINE_OPTIONS = [
   { name: 'windowDays', label: 'Window', type: 'select', default: 20,
     choices: [10, 20, 30].map(v => ({ value: v, label: `${v} days` })) },
 ]
+const RIBBON_OPTIONS = [
+  { name: 'density', label: 'Row height', type: 'select', default: 'comfortable',
+    choices: [{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }] },
+]
+const LADDER_OPTIONS = [
+  { name: 'sort', label: 'Sort', type: 'select', default: 'group',
+    choices: [{ value: 'group', label: 'Group order' }, { value: 'percentile', label: 'Percentile high→low' }] },
+]
 
 const THEME_OPTIONS = [
   { name: 'palette', label: 'Color palette', type: 'select', default: 'classic',
@@ -81,16 +95,73 @@ const TREEMAP_OPTIONS = [
   { name: 'weightBy', label: 'Size tiles by', type: 'select', default: 'curated',
     choices: [{ value: 'curated', label: 'Curated' }, { value: 'equal', label: 'Equal' }, { value: 'extremity', label: 'Extremity' }] },
 ]
+const CLOCK_OPTIONS = [
+  { name: 'level', label: 'Level series', type: 'select', default: 'pct_above_50sma',
+    choices: [
+      { value: 'pct_above_50sma', label: '% above 50 SMA' },
+      { value: 'pct_above_200sma', label: '% above 200 SMA' },
+      { value: 'breadth_score', label: 'Health score' },
+    ] },
+  { name: 'rocWindow', label: 'Momentum window', type: 'select', default: 20,
+    choices: [10, 20, 40].map(v => ({ value: v, label: `${v} days` })) },
+  { name: 'trail', label: 'Trail length', type: 'select', default: 30,
+    choices: [10, 30, 60].map(v => ({ value: v, label: `${v} days` })) },
+]
+
+const DIVERGENCE_OPTIONS = [
+  { name: 'price', label: 'Price series', type: 'select', default: 'sp500_close',
+    choices: [{ value: 'sp500_close', label: 'S&P 500' }, { value: 'qqq_close', label: 'QQQ' }] },
+  { name: 'participation', label: 'Participation series', type: 'select', default: 'pct_above_50sma',
+    choices: [
+      { value: 'pct_above_50sma', label: '% above 50 SMA' },
+      { value: 'pct_above_200sma', label: '% above 200 SMA' },
+      { value: 'breadth_score', label: 'Health score' },
+    ] },
+  { name: 'minGap', label: 'Minimum run', type: 'select', default: 5,
+    choices: [3, 5, 10].map(v => ({ value: v, label: `${v} sessions` })) },
+]
+
+const ROTATION_OPTIONS = [
+  { name: 'lookback', label: 'Change over', type: 'select', default: 20,
+    choices: [10, 20, 60].map(v => ({ value: v, label: `${v} days` })) },
+]
+
+const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+const EVENTS_OPTIONS = [
+  { name: 'families', label: 'Event family', type: 'select', default: 'all',
+    choices: [
+      { value: 'all', label: 'All families' },
+      ...EVENT_FAMILIES.map(f => ({ value: f, label: titleCase(f) })),
+    ] },
+]
+
+const ANALOGUE_OPTIONS = [
+  { name: 'horizon', label: 'Forward horizon', type: 'select', default: 'fwd_20d',
+    choices: [
+      { value: 'fwd_5d', label: '5 days' }, { value: 'fwd_10d', label: '10 days' },
+      { value: 'fwd_20d', label: '20 days' }, { value: 'fwd_60d', label: '60 days' },
+    ] },
+  { name: 'matches', label: 'Matches shown', type: 'select', default: 5,
+    choices: [3, 5, 10].map(v => ({ value: v, label: String(v) })) },
+]
 
 export const VIEW_CONFIG = {
-  treemap:    { label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
-  rings:      { label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
-  tug:        { label: 'Tug',        eligibleKeys: pairsOnly, defaultVisible: TUG_DEFAULT, options: THEME_OPTIONS },
-  meters:     { label: 'Meters',     eligibleKeys: all,       defaultVisible: HEADLINE, options: [...METERS_OPTIONS, ...THEME_OPTIONS] },
-  timeline:   { label: 'Timeline',   eligibleKeys: all,       defaultVisible: TIMELINE_DEFAULT, options: [...TIMELINE_OPTIONS, ...THEME_OPTIONS] },
-  radar:      { label: 'Radar',      eligibleKeys: all,       defaultVisible: RADAR_DEFAULT, options: [...RADAR_OPTIONS, ...THEME_OPTIONS] },
-  scoreboard: { label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: [...SCOREBOARD_OPTIONS, ...THEME_OPTIONS] },
-  equalizer:  { label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
+  treemap:    { kind: 'board', label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
+  rings:      { kind: 'board', label: 'Rings',      eligibleKeys: all,       defaultVisible: HEADLINE, options: THEME_OPTIONS },
+  tug:        { kind: 'board', label: 'Tug',        eligibleKeys: pairsOnly, defaultVisible: TUG_DEFAULT, options: THEME_OPTIONS },
+  meters:     { kind: 'board', label: 'Meters',     eligibleKeys: all,       defaultVisible: HEADLINE, options: [...METERS_OPTIONS, ...THEME_OPTIONS] },
+  timeline:   { kind: 'board', label: 'Timeline',   eligibleKeys: all,       defaultVisible: TIMELINE_DEFAULT, options: [...TIMELINE_OPTIONS, ...THEME_OPTIONS] },
+  radar:      { kind: 'board', label: 'Radar',      eligibleKeys: all,       defaultVisible: RADAR_DEFAULT, options: [...RADAR_OPTIONS, ...THEME_OPTIONS] },
+  scoreboard: { kind: 'board', label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: [...SCOREBOARD_OPTIONS, ...THEME_OPTIONS] },
+  equalizer:  { kind: 'board', label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
+  ribbon:     { kind: 'board', label: 'Heat Ribbon', eligibleKeys: all, defaultVisible: HEADLINE, options: [...RIBBON_OPTIONS, ...THEME_OPTIONS] },
+  ladder:     { kind: 'board', label: 'Percentile Ladder', eligibleKeys: all, defaultVisible: HEADLINE, options: [...LADDER_OPTIONS, ...THEME_OPTIONS] },
+  clock: { kind: 'lens', label: 'Regime Clock', eligibleKeys: () => [], defaultVisible: [], options: [...CLOCK_OPTIONS, ...THEME_OPTIONS] },
+  divergence: { kind: 'lens', label: 'Divergence', eligibleKeys: () => [], defaultVisible: [], options: [...DIVERGENCE_OPTIONS, ...THEME_OPTIONS] },
+  rotation: { kind: 'lens', label: 'Rotation', eligibleKeys: () => [], defaultVisible: [], options: [...ROTATION_OPTIONS, ...THEME_OPTIONS] },
+  events: { kind: 'lens', label: 'Event Ledger', eligibleKeys: () => [], defaultVisible: [], options: [...EVENTS_OPTIONS, ...THEME_OPTIONS] },
+  attribution: { kind: 'lens', label: 'Score Attribution', eligibleKeys: () => [], defaultVisible: [], options: THEME_OPTIONS },
+  analogues: { kind: 'lens', label: 'Analogue Deck', eligibleKeys: () => [], defaultVisible: [], options: [...ANALOGUE_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).
@@ -108,5 +179,17 @@ export function optionsSchema(style) {
 export function optionDefaults(style) {
   const out = {}
   for (const opt of optionsSchema(style)) out[opt.name] = opt.default
+  return out
+}
+
+// Grouped style list for the switcher, in STYLES order. The switcher renders
+// what this returns and owns no list of its own.
+export function viewsByKind() {
+  const out = { board: [], lens: [] }
+  for (const key of STYLES) {
+    const cfg = VIEW_CONFIG[key]
+    if (!cfg) continue
+    out[cfg.kind === 'lens' ? 'lens' : 'board'].push({ key, label: cfg.label })
+  }
   return out
 }

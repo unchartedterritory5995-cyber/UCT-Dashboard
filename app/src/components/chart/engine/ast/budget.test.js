@@ -747,3 +747,70 @@ describe('🔴 `budget:series` CANNOT FIRE TODAY, and that is declared rather th
     expect(seriesRefs(all)).toBeLessThanOrEqual(DEFAULT_BUDGET.maxSeriesRefs)
   })
 })
+
+describe('🔴 the clock is seeded LAZILY, and a tree that reads it is untouched', () => {
+  // ⛔⛔ MEASURED, NOT ARGUED. Across the 167 columns the committed corpora
+  // translate, exactly ZERO read any of the thirteen clock names — and every
+  // `interpret` call was computing all thirteen anyway. A/B over 30 of them at
+  // 5,000 bars: 454ms with the calendar maths, 54ms without. The clock was ~88% of
+  // this function's cost, spent on columns nobody asked for, on every repaint.
+  //
+  // ⚠️ THE FILE ALREADY KNEW. The paragraph above the seed reads "a lazy seed is
+  // the first thing to reach for if this shows in a profile". It showed.
+
+  const bars = Array.from({ length: 300 }, (_, i) => ({
+    t: Date.UTC(2024, 0, 1) / 1000 + i * 86400, o: 100, h: 101, l: 99, c: 100, v: 1000,
+  }))
+
+  it('⭐⭐ every declared clock name still computes when a tree reads it', () => {
+    // ⛔ THE LOAD-BEARING HALF. Skipping work is only safe if the work still
+    // happens whenever the answer could depend on it — and this asserts it for
+    // EVERY declared name, derived from the manifest, so a fourteenth entry is
+    // covered the day it lands.
+    for (const name of Object.keys(TABLE.clock || {})) {
+      const p = parseFormula(`${name} + 0`)
+      expect(p.ok, `${name} did not parse`).toBe(true)
+      // ⚠️ `tf` IS SUPPLIED, AND THE FIRST DRAFT OF THIS CASE DID NOT SUPPLY IT.
+      // `isintraday` and `isdaily` are NaN without one — correctly: with no
+      // timeframe the engine cannot know the bar kind, and NOT COMPUTABLE is the
+      // honest answer rather than a guess. The rail was demanding a finite value
+      // for a name that is legitimately unknowable on the fixture it was given.
+      const col = interpret(p.ast, bars, {}, undefined, undefined, { tf: 'D' })
+      expect(col.length, name).toBe(bars.length)
+      const finite = [...col].filter((v) => Number.isFinite(v)).length
+      expect(finite, `${name} produced no finite value — the lazy seed skipped a tree that READS it`)
+        .toBeGreaterThan(0)
+    }
+  })
+
+  it('⛔ a tree that does NOT read the clock still computes correctly', () => {
+    // ⚰️ The other direction: the skip must not change an answer. `close` over
+    // these bars is a constant 100, and it stays one.
+    const col = interpret(parseFormula('close + 1').ast, bars, {})
+    expect([...col].every((v) => v === 101)).toBe(true)
+  })
+
+  it('⛔ the corpora really do not read the clock — the premise is not folklore', () => {
+    // ⚠️ If a corpus script ever starts using a clock name this optimisation stops
+    // being free for it, which is fine — but the CLAIM above ("zero of 167") would
+    // be stale, and a stale measurement in a comment is what this repo keeps paying
+    // for. This fails when that day comes.
+    const CLOCK = new Set(Object.keys(TABLE.clock || {}))
+    const reads = (node) => {
+      const stack = [node]
+      while (stack.length) {
+        const n = stack.pop()
+        if (!n || typeof n !== 'object') continue
+        if (Array.isArray(n)) { stack.push(...n); continue }
+        if (n.type === 'series' && CLOCK.has(n.name)) return true
+        if (Array.isArray(n.args)) stack.push(...n.args)
+      }
+      return false
+    }
+    expect(CLOCK.size).toBeGreaterThan(5)
+    expect(reads(parseFormula('dayofweek == 2').ast), 'the detector cannot see a clock read')
+      .toBe(true)
+    expect(reads(parseFormula('sma(close, 20)').ast), 'the detector sees one that is not there')
+      .toBe(false)
+  })
+})
