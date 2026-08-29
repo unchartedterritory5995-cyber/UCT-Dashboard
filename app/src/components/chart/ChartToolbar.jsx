@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { legendModeOf, nextLegendMode } from './legendMode'
@@ -9,7 +9,25 @@ import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
-import BuilderSheet from './builder/BuilderSheet'
+// ⛔⛔ LAZY, AND THE BUNDLE IS WHY. `BuilderSheet` pulls `PineBox`, which pulls
+// the Pine AND thinkScript translators — ~540KB of source between them, plus the
+// closed table. Imported statically here they landed in `ChartPane` (788KB / 250KB
+// gzip, the largest app chunk after echarts), and `ChartToolbar` renders on EVERY
+// `StockChart`: the dashboard, breadth, watchlists, the journal, model book. Every
+// one of those paid for a translator nobody on them had asked for.
+//
+// ⚰️ THIS IS THE SECOND TIME THIS EXACT SHAPE HAS BEEN PAID FOR HERE —
+// `OptionsFlow` statically imported `ChartPane` + `DarkPool` (868KB) and made its
+// OWN dynamic warm dead code. `ScreensManager` already lazy-loads this same sheet;
+// while THIS import stayed static its laziness bought nothing, because the chunk
+// was in the main graph regardless.
+//
+// ⚠️ THE MOUNT IS DEFERRED TOO, not just the import. A `lazy()` component still
+// fetches its chunk the moment it RENDERS, and this one rendered on every toolbar
+// (closed, returning null). `builderEverOpened` holds it back until a member
+// actually opens the builder, and keeps it mounted afterwards so a draft survives
+// close-and-reopen exactly as before.
+const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 import PatternToolbarButton from './PatternToolbarButton'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -1015,6 +1033,13 @@ function ChartToolbar({
   // rendered as the panel's child would be unmounted by the very click that
   // opened it.
   const [builderOpen, setBuilderOpen] = useState(false)
+  // ⭐ ONE-WAY: once a member has opened the builder the sheet stays mounted, so
+  // its draft survives a close exactly as it did when the import was static.
+  const [builderEverOpened, setBuilderEverOpened] = useState(false)
+  const openBuilder = useCallback(() => {
+    setBuilderEverOpened(true)
+    setBuilderOpen(true)
+  }, [])
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1470,7 +1495,7 @@ function ChartToolbar({
                 chartSettings={chartSettings}
                 onUpdateSettings={onUpdateSettings}
                 onOpenIndicatorLibrary={() => setLibraryOpen(true)}
-                onOpenFormulaBuilder={() => setBuilderOpen(true)}
+                onOpenFormulaBuilder={openBuilder}
                 volumePaneFixed={volumePaneFixed}
               />
 
@@ -1524,13 +1549,14 @@ function ChartToolbar({
                `e.stopPropagation()` — two open at once means one Escape closes the
                wrong one and the scroll lock is restored by whichever unmounts
                last. */
-            onCreateFormula={() => { setLibraryOpen(false); setBuilderOpen(true) }}
+            onCreateFormula={() => { setLibraryOpen(false); openBuilder() }}
           />
         )}
 
         {/* Mounted at toolbar level for the same reason the library is — see the
             comment above it and `builderOpen`'s declaration. */}
-        {canManageIndicators && (
+        {canManageIndicators && builderEverOpened && (
+          <Suspense fallback={null}>
           <BuilderSheet
             open={builderOpen}
             onClose={() => setBuilderOpen(false)}
@@ -1549,6 +1575,7 @@ function ChartToolbar({
             sym={currentSym}
             tf={tf}
           />
+          </Suspense>
         )}
 
         {/* Color picker */}
