@@ -494,3 +494,56 @@ describe('Shift+F cannot decay into bare F', () => {
     expect(matchOverlayTool(evt('P', { alt: true, shift: true, code: 'KeyP' }))).toBe('priceRange');
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⭐ THE COLLISION LEDGER — a judgment written down and enforced.
+//
+// A bare letter and a Shift chord on the SAME physical key can cross over: the
+// modifier lifts first, or the letter lands first, and one becomes the other.
+// The shift latch covers the first case; NOTHING covers the second. So the
+// question "which keys carry that risk?" must have a reviewed answer, not an
+// assumed one.
+//
+// BOTH SIDES ARE DERIVED by asking the matchers, never by retyping their maps —
+// so a new binding shows up here whether or not whoever added it thought about
+// this file. Adding Shift+R, or giving bare 'l' a tool, turns this red and forces
+// the decision instead of shipping a silent new crossover.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('bare-letter / Shift-chord collision ledger', () => {
+  const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
+
+  // Every letter that arms a tool with no modifier, at EITHER door.
+  const bareTools = LETTERS.filter(L =>
+    matchOverlayTool(evt(L, { code: 'Key' + L.toUpperCase() })) !== null
+    || String(matchShortcut(evt(L, { code: 'Key' + L.toUpperCase() })) || '').startsWith('tool:'));
+
+  // Every letter that is bound to something WITH Shift held.
+  // Shift+F is not in either matcher — it is the flag chord, owned by the widget
+  // handlers — so it is added by hand here and asserted below to be collision-free.
+  const shiftBound = LETTERS.filter(L =>
+    matchShortcut(evt(L.toUpperCase(), { shift: true, code: 'Key' + L.toUpperCase() })) !== null);
+  const shiftOwned = [...new Set([...shiftBound, 'f'])].sort();
+
+  it('derives a non-empty picture of both sides (guards a vacuous pass)', () => {
+    expect(bareTools.length).toBeGreaterThan(3);
+    expect(shiftOwned.length).toBeGreaterThan(1);
+  });
+
+  it('the at-risk keys are exactly the reviewed set', () => {
+    const collisions = bareTools.filter(L => shiftOwned.includes(L)).sort();
+    // REVIEWED 2026-08-29:
+    //   t — bare trendline vs Shift+T theme toggle
+    //   c — bare circle    vs Shift+C bar-close countdown
+    // Both KEPT. The latch covers the realistic vector (modifier released first),
+    // and neither Shift chord is pressed at flagging speed, so the letter-lands-
+    // first race has no practical window. If either ever crosses over, delete the
+    // bare letter — the Alt chord already exists and the tooltip re-derives itself.
+    expect(collisions).toEqual(['c', 't']);
+  });
+
+  it('f is NOT at risk — the flag chord has no bare twin', () => {
+    expect(shiftOwned).toContain('f');
+    expect(bareTools).not.toContain('f');
+  });
+});
