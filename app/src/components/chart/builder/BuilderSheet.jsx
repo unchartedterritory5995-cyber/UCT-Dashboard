@@ -112,6 +112,7 @@ import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
 import { ImportBox } from './PineBox'
+import ImageBox from './ImageBox'
 import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
@@ -1660,6 +1661,16 @@ export default function BuilderSheet({
               aria-selected={buildMode === 'pine'}
               onClick={() => setBuildMode('pine')}
             >Import</button>
+            {/* ⭐⭐ THE FOURTH DOOR: a member who CANNOT export their indicator — a
+                closed-source script, a paid one, an idea from a screenshot —
+                shows us the picture. Same engine, same grammar, same save door;
+                only the way in is new. */}
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'image' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'image'}
+              onClick={() => setBuildMode('image')}
+            >Screenshot</button>
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
@@ -1777,6 +1788,30 @@ export default function BuilderSheet({
                   ])
                 }
                 setSource(formula)
+                setBuildMode('formula')
+                setReplacedAt((n) => n + 1)
+              }}
+            />
+          )}
+
+          {buildMode === 'image' && (
+            <ImageBox
+              bars={bars}
+              disabled={saving}
+              onAccept={(picked) => {
+                // ⛔ THE SAME CONTRACT AS THE IMPORT DOOR ABOVE: the SOURCE and
+                // nothing else. `ImageBox` hands back `{ast, source, repaint,
+                // sentence}` because it needs the tree to VALIDATE its own
+                // candidate before offering it — but the builder takes the text
+                // and re-parses it through the one door every other mode uses.
+                // A model-produced tree that skipped `parseFormula` would be the
+                // only tree in this sheet nobody had read back.
+                //
+                // ⭐ AND THE MEMBER LANDS IN THE FORMULA BOX, EDITING, exactly as
+                // a paste does. The screenshot answer is a STARTING POINT that a
+                // person confirms — the box says so — so it must arrive somewhere
+                // they can change it, not somewhere they can only save it.
+                setSource(picked && picked.source ? picked.source : '')
                 setBuildMode('formula')
                 setReplacedAt((n) => n + 1)
               }}

@@ -127,9 +127,23 @@ describe('🔴 the thinkScript door is REACHABLE from the builder', () => {
     expect(screen.queryByTestId('pine-box')).toBe(null)
     fireEvent.click(tab(/^import$/i))
     expect(screen.getByTestId('pine-box')).toBeTruthy()
-    // ⭐ ONE BOX, NOT A FIFTH TAB. A second paste tab would be a second write
-    // path into the same field.
-    expect(screen.queryAllByRole('tab')).toHaveLength(4)
+    // ⭐ ONE BOX, NOT A SECOND PASTE TAB. A second paste tab would be a second
+    // write path into the same field — thinkScript, Pine and PCF all arrive
+    // through THIS box, which detects the dialect rather than making a member
+    // declare it.
+    //
+    // ⚰️ THE ASSERTION WAS `toHaveLength(4)` AND IT IS NOW A NAMED ROSTER, because
+    // a bare count could not tell the two cases apart. The Screenshot tab added
+    // 2026-08-29 is a FIFTH tab and does NOT violate the ruling above: the ruling
+    // is about two ways to PASTE TEXT into one field, and an image is not text —
+    // it cannot share this box's textarea, cannot be dialect-detected, and
+    // reaches the engine through a different service entirely. What the ruling
+    // forbids is a `thinkScript` tab beside `Import`, and that is what this now
+    // asserts by NAME rather than by arithmetic.
+    const tabs = screen.queryAllByRole('tab').map((t) => t.textContent.trim().toLowerCase())
+    expect(tabs).toEqual(['library', 'conditions', 'import', 'screenshot', 'formula'])
+    expect(tabs.filter((t) => /pine|thinkscript|pcf|tc2000/.test(t)),
+      'a per-dialect paste tab is the thing this case forbids').toEqual([])
   })
 
   it('⛔ the box says WHICH dialect it read — detected, not requested', async () => {
