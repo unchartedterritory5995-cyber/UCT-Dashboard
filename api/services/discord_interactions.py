@@ -1299,15 +1299,37 @@ def seed_roster(symbols, tf: str = "D", limit: int | None = None) -> int:
     return n
 
 
-def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6) -> list:
+def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: int = 6,
+                    deadline_s: float | None = None) -> list:
     """Re-render the charts members keep asking for, just before their cache
     entry goes stale, so the next member gets a hit instead of a 2.4 s render.
 
     Runs on a scheduler, off every request path. Never raises: a warm that fails
     just means the next asker pays what they pay today. Returns the keys warmed
-    (for the log and the tests)."""
+    (for the log and the tests).
+
+    ⏱ `deadline_s` bounds the cycle in WALL CLOCK, not just in count. `limit`
+    alone assumes each chart costs about what it usually costs — and the one
+    time that assumption breaks is exactly when it matters: this module already
+    documents that "a pod 22 s old fails every attempt" during a deploy swap.
+    Measured on prod 2026-08-29 this job averaged 15.9 s against a 60 s interval
+    and peaked at 95 s, and APScheduler logged `Execution of job
+    "_discord_chart_hot_warm" skipped` — it was overrunning itself, holding a
+    thread on the member-serving pod for a quarter of every minute.
+
+    With a deadline the cycle degrades gracefully instead: it warms whatever
+    fits and leaves the rest for the next run. Nothing is lost — `hotset.due`
+    re-offers them, and a chart that misses a warm just costs its next asker
+    what it costs today. Unbounded by default so every existing caller and test
+    behaves exactly as before.
+    """
     warmed = []
+    started = time.monotonic()
+    deferred = 0
     for key, req, prefs in hotset.due(png_cache.age_of, limit=limit):
+        if deadline_s is not None and (time.monotonic() - started) >= deadline_s:
+            deferred += 1
+            continue
         try:
             options = prefs_mod.render_options(prefs, req.tf)
             if req.to:
@@ -1327,6 +1349,13 @@ def warm_hot_charts(*, bars_fn, render_fn, house_fn=None, quote_fn=None, limit: 
             log.warning("[discord-chart] hot warm failed %s: %s", key, e)
     if warmed:
         log.info("[discord-chart] warmed %d hot chart(s): %s", len(warmed), ", ".join(warmed))
+    if deferred:
+        # Visible on purpose: a cycle that keeps deferring means the renderer is
+        # slow or the hot set outgrew the budget, and that is a real signal —
+        # not something to discover later from a latency graph.
+        log.info("[discord-chart] hot warm hit its %.0fs budget after %.1fs — "
+                 "%d chart(s) deferred to the next cycle",
+                 deadline_s, time.monotonic() - started, deferred)
     return warmed
 
 

@@ -720,6 +720,18 @@ def _warm_hot_tier_now() -> None:
         pass
 
 
+# ⏱ The warm cycle's interval and its wall-clock budget, together, because the
+# budget is DERIVED from the interval — a cycle must never occupy more than a
+# third of the gap before its own next run. Measured on prod 2026-08-29 this job
+# averaged 15.9s and peaked at 95s against a 60s interval, overrunning itself
+# (APScheduler logged `Execution of job "_discord_chart_hot_warm" skipped`) and
+# holding a thread on the member-serving pod for a quarter of every minute.
+# Writing the two as one expression is what stops a future interval change from
+# silently restoring the overrun.
+DISCORD_CHART_WARM_INTERVAL_S = int(os.environ.get("DISCORD_CHART_WARM_INTERVAL_S", "60"))
+DISCORD_CHART_WARM_BUDGET_S = DISCORD_CHART_WARM_INTERVAL_S / 3.0
+
+
 def _discord_chart_hot_warm() -> None:
     """Re-render the charts members keep asking for, just before their cache
     entry expires. A chart costs ~2.4 s of a shared Chromium and the same
@@ -760,7 +772,8 @@ def _discord_chart_hot_warm() -> None:
             log.info("[discord-chart] roster seeded %d chart(s) from %d name(s)", seeded, len(roster))
         _, limit = di.roster_budget()
         di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
-                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit)
+                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit,
+                           deadline_s=DISCORD_CHART_WARM_BUDGET_S)
     except Exception:
         log.exception("[discord-chart] hot warm cycle failed")
 
@@ -4969,10 +4982,12 @@ async def lifespan(app: FastAPI):
             # passes and warmed nothing that lasted. `due()` keeps the cost
             # down - it only returns entries past 70% of their TTL, so a
             # quiet-hours cycle usually renders nothing at all.
-            _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
+            _scheduler.add_job(_discord_chart_hot_warm, "interval",
+                               seconds=DISCORD_CHART_WARM_INTERVAL_S,
                                id="discord_chart_hot_warm", max_instances=1,
                                coalesce=True, misfire_grace_time=60)
-            print("[startup] discord-chart hot-warm scheduled (every 60s)")
+            print(f"[startup] discord-chart hot-warm scheduled (every "
+                  f"{DISCORD_CHART_WARM_INTERVAL_S}s, {DISCORD_CHART_WARM_BUDGET_S:.0f}s cycle budget)")
         except Exception as e:
             print(f"[scheduler] discord-chart hot-warm registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
