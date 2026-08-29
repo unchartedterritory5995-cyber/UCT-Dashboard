@@ -19,11 +19,52 @@
  */
 
 // ─── Color Palette ─────────────────────────────────────────────────────────────
+// ⛔ THESE ARE MIRRORS OF `app/src/styles/tokens.css`, NOT INDEPENDENT CHOICES.
+//
+// Options Flow ran its own palette — a warm olive ramp (#0e0f0d / #1a1c17 /
+// #2e3127) with the OLD gold #c9a84c and dim olive text — while the rest of the
+// app moved to the cool graphite ramp with brighter type. Two color systems on
+// one screen: the page body read warmer and dimmer than the chrome around it,
+// which is the "doesn't match our theme" the owner has been describing.
+//
+// ⚠️ THEY ARE HEX LITERALS ON PURPOSE, NOT `var(--token)` STRINGS. Two reasons,
+// both load-bearing:
+//   1. This module is imported by `flow.worker.js`, which has no `document` — it
+//      cannot resolve a CSS variable.
+//   2. Call sites CONCATENATE alpha onto these values (`P.ac+"22"`,
+//      `P.bd+"80"`). `"var(--border)80"` is not a color; the page would lose
+//      every translucent border in one commit.
+// `tests` pin every value against tokens.css so the mirror cannot drift —
+// tokens.css stays the single authority, this is a checked copy of it.
+//
+// ⚠️ ONE DELIBERATE TRADE-OFF, measured rather than assumed: bear red moves
+// #e74c3c -> #df4646 (the app's --loss), which LOWERS its contrast on a card
+// from 4.50 (AA) to 4.31 (AA-large). Accepted because every other surface in the
+// app already uses --loss, and matching is the entire point here — but it is a
+// small regression, not an improvement, and it is written down so the next
+// person does not have to rediscover it. Everything else improves sharply:
+// body text on a card 6.74 -> 15.42, dim text 3.23 (AA-large) -> 5.17 (AA).
 export const P = {
-  bg:"#0e0f0d", cd:"#1a1c17", al:"#22251e", bd:"#2e3127", bl:"#3a3d32",
-  bu:"#3cb868", be:"#e74c3c", ac:"#c9a84c", tx:"#a8a290", dm:"#706b5e",
-  mt:"#a8a290", wh:"#e0dac8", ye:"#c9a84c", ma:"#c9a84c", sw:"#6ba3be",
-  bk:"#6ba3be", uc:"#706b5e"
+  bg:"#101012",   // --bg
+  cd:"#17181b",   // --bg-surface
+  al:"#1d1f23",   // --bg-elevated
+  bd:"#2a2c31",   // --border
+  bl:"#383b41",   // --border-accent
+  bu:"#2faf68",   // --gain
+  be:"#df4646",   // --loss
+  ac:"#dcbb5e",   // --ut-gold
+  tx:"#f0efea",   // --text
+  dm:"#8a8a8f",   // --menu-text-dim  (the app's dimmest text tier)
+  mt:"#cfcac0",   // --text-muted     (was identical to `tx`; now a real tier)
+  wh:"#f8f7f3",   // --text-bright
+  ye:"#dcbb5e",   // --ut-gold
+  ma:"#dcbb5e",   // --ut-gold
+  // Sweep/block blue has NO token equivalent — it is a flow-specific signal
+  // colour, not part of the app ramp, so it stays as-is rather than being
+  // forced onto a token that does not mean the same thing.
+  sw:"#6ba3be",
+  bk:"#6ba3be",
+  uc:"#8a8a8f",   // --menu-text-dim
 };
 
 // ─── Grade System ──────────────────────────────────────────────────────────────
