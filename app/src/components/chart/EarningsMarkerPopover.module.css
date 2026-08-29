@@ -13,7 +13,7 @@
   border-radius: 10px;
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
   padding: 10px 12px 12px;
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: 'Instrument Sans', sans-serif;
   color: var(--menu-text, #e6e6e8);
   animation: earnPopIn 120ms ease-out;
 }
@@ -38,14 +38,14 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #dcbb5e);      /* gold accent, matching the app */
+  color: var(--menu-text, #e6e6e8);        /* bright white, same as the reported values */
 }
 .quarter {
   font-size: 11px;
   font-weight: 600;
   /* Muted grey matched to the drawing-tools + Drawing Boards menus: --menu-text @ 0.45. */
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.45;
+  opacity: 0.6;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -53,7 +53,7 @@
   background: transparent;
   border: none;
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.45;
+  opacity: 0.6;
   font-size: 12px;
   cursor: pointer;
   padding: 2px 4px;
@@ -77,7 +77,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.45;
+  opacity: 0.6;
   margin: 9px 0 3px;
 }
 
@@ -93,7 +93,7 @@
      The Surprise row reuses .k with an inline semantic color + opacity:1, so its
      green/red label is never dimmed by this. */
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.45;
+  opacity: 0.6;
 }
 .v {
   font-size: 12.5px;
