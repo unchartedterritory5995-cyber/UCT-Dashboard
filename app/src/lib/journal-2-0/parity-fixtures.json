@@ -525,6 +525,293 @@
         "marketValue": 10.0,
         "netLiq": null
       }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": -22165.75,
+          "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"
+        },
+        "positions": [
+          {
+            "symbol": "DELL",
+            "side": "Long",
+            "shares": 5.0,
+            "brokerPrice": 456.07,
+            "source": "broker"
+          },
+          {
+            "symbol": "ORCL",
+            "side": "Long",
+            "shares": 100.0,
+            "brokerPrice": 150.72,
+            "source": "broker"
+          },
+          {
+            "symbol": "SNAP",
+            "side": "Long",
+            "shares": 2000.0,
+            "brokerPrice": 5.445,
+            "source": "broker"
+          },
+          {
+            "symbol": "SPY",
+            "side": "Long",
+            "shares": 0.2606,
+            "brokerPrice": 769.39,
+            "source": "broker"
+          },
+          {
+            "symbol": "TH",
+            "side": "Long",
+            "shares": 150.0,
+            "brokerPrice": 18.56,
+            "source": "broker"
+          }
+        ],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": 675.0,
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {
+          "DELL": {
+            "price": 456.24
+          },
+          "ORCL": {
+            "price": 150.85
+          },
+          "SNAP": {
+            "price": 5.43
+          },
+          "SPY": {
+            "price": 769.35
+          },
+          "TH": {
+            "price": 18.55
+          }
+        },
+        "optionMarks": {
+          "s1": {
+            "currentValue": 665.0
+          }
+        }
+      },
+      "expected": {
+        "marketValue": 31874.19,
+        "netLiq": 9708.44
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": -22165.75,
+          "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"
+        },
+        "positions": [
+          {
+            "symbol": "DELL",
+            "side": "Long",
+            "shares": 5.0,
+            "brokerPrice": 456.07,
+            "source": "broker"
+          },
+          {
+            "symbol": "ORCL",
+            "side": "Long",
+            "shares": 100.0,
+            "brokerPrice": 150.72,
+            "source": "broker"
+          },
+          {
+            "symbol": "SNAP",
+            "side": "Long",
+            "shares": 2000.0,
+            "brokerPrice": 5.445,
+            "source": "broker"
+          },
+          {
+            "symbol": "SPY",
+            "side": "Long",
+            "shares": 0.2606,
+            "brokerPrice": 769.39,
+            "source": "broker"
+          },
+          {
+            "symbol": "TH",
+            "side": "Long",
+            "shares": 150.0,
+            "brokerPrice": 18.56,
+            "source": "broker"
+          }
+        ],
+        "strategies": [
+          {
+            "id": "s1",
+            "brokerCurrentValue": 675.0,
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {
+          "DELL": {
+            "price": 456.24
+          },
+          "ORCL": {
+            "price": 150.85
+          },
+          "SNAP": {
+            "price": 5.43
+          },
+          "SPY": {
+            "price": 769.35
+          },
+          "TH": {
+            "price": 18.55
+          }
+        },
+        "optionMarks": {
+          "s1": {
+            "currentValue": 665.0
+          }
+        },
+        "preferBroker": true
+      },
+      "expected": {
+        "marketValue": 31891.85,
+        "netLiq": 9726.1
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [
+          {
+            "symbol": "A",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 50,
+            "source": "broker"
+          },
+          {
+            "symbol": "NEW",
+            "side": "Long",
+            "shares": 10,
+            "source": "broker"
+          }
+        ],
+        "strategies": [],
+        "prices": {
+          "A": {
+            "price": 51
+          },
+          "NEW": {
+            "price": 4
+          }
+        },
+        "optionMarks": {},
+        "preferBroker": true
+      },
+      "expected": {
+        "marketValue": 540.0,
+        "netLiq": 540.0
+      }
+    }
+  ],
+  "markPreference": [
+    {
+      "label": "closed session, sync after the close \u2192 broker marks",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": true
+    },
+    {
+      "label": "session open \u2192 never (stored marks are the PREVIOUS close)",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"
+        },
+        "sessionClosed": false,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": false
+    },
+    {
+      "label": "weekday evening, sync predates that day's close \u2192 refused",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-28T07:40:30+00:00"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": false
+    },
+    {
+      "label": "sync exactly at 16:00 ET on the session's date \u2192 counts",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-28T20:00:00+00:00"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": true
+    },
+    {
+      "label": "one minute before the close \u2192 does not",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-28T19:59:00+00:00"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": false
+    },
+    {
+      "label": "naive stamp is read as UTC, never local",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "2026-08-29T07:40:30"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": true
+    },
+    {
+      "label": "missing watermark \u2192 refused",
+      "inputs": {
+        "account": {},
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": false
+    },
+    {
+      "label": "unparseable watermark \u2192 refused",
+      "inputs": {
+        "account": {
+          "brokerBalanceSyncedAt": "not-a-date"
+        },
+        "sessionClosed": true,
+        "lastClosedSessionET": "2026-08-28"
+      },
+      "expected": false
     }
   ]
 }

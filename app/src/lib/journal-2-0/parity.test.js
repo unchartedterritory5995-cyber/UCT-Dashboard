@@ -62,7 +62,7 @@ describe('JS↔Python options parity', () => {
 // with it); the JS mirror is brokerLiveSummary. On 2026-08-26 the display
 // showed a figure the server could not reproduce — this block is the rail
 // that keeps the two lanes one. Case 0 is that incident's book, pinned.
-import { brokerLiveSummary } from './calculations'
+import { brokerLiveSummary, preferBrokerMarks } from './calculations'
 
 describe('JS↔Python net-liq composition parity', () => {
   fixtures.composition.forEach((f, i) => {
@@ -70,6 +70,7 @@ describe('JS↔Python net-liq composition parity', () => {
       const r = brokerLiveSummary(
         f.inputs.account, f.inputs.positions, f.inputs.strategies,
         f.inputs.prices, '2026-01-01', f.inputs.optionMarks,
+        f.inputs.preferBroker === true,
       )
       // The Python authority rounds to cents; JS composes unrounded floats —
       // parity holds at money precision (2 dp), the unit members see.
@@ -77,6 +78,21 @@ describe('JS↔Python net-liq composition parity', () => {
       else expect(r.marketValue).toBeCloseTo(f.expected.marketValue, 2)
       if (f.expected.netLiq === null) expect(r.netLiq).toBeNull()
       else expect(r.netLiq).toBeCloseTo(f.expected.netLiq, 2)
+    })
+  })
+})
+
+// ── JS↔Python MARK-PREFERENCE parity ────────────────────────────────────────
+// Which vendor's marks value an equity row. Python authority:
+// composition.py :: prefer_broker_marks. Both lanes must agree exactly — a
+// divergence here silently shows one surface the broker's closes and another
+// our vendor's, and the two stop summing.
+describe('JS↔Python mark-preference parity', () => {
+  fixtures.markPreference.forEach((f, i) => {
+    it(`mark preference case ${i}: ${f.label}`, () => {
+      expect(preferBrokerMarks(
+        f.inputs.account, f.inputs.sessionClosed, f.inputs.lastClosedSessionET,
+      )).toBe(f.expected)
     })
   })
 })
