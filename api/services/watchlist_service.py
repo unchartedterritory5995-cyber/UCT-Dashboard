@@ -41,7 +41,22 @@ def get_watchlist(wl_id: str, user_id: str = None) -> dict | None:
         conn.close()
 
 
-def list_user_watchlists(user_id: str) -> list[dict]:
+def list_user_watchlists(user_id: str, include_items: bool = True) -> list[dict]:
+    """The user's lists. `include_items=False` returns metadata + item_count only.
+
+    ⚠️ `include_items` defaults to True so every existing caller is byte-identical.
+    Pass False ONLY from a surface that renders list NAMES and never reads `items`.
+
+    Why it exists: `GlobalAddPositionProvider` is mounted app-wide, so this endpoint
+    is on the app-shell path of EVERY page — and it was shipping every symbol of
+    every list to draw an "＋ Add to watchlist" menu of names. On the owner's account
+    that is 33 lists / 4,406 rows / 553 KB per page load (the prebuilt index lists —
+    Russell 2000 alone is 1,921 symbols — are owned by the admin user, so they come
+    back as "his" lists). Measured 2.5-7.6 s on prod 2026-08-29.
+
+    `item_count` is preserved in BOTH modes and stays derived from the same rows the
+    response describes — a slim row must never carry a count the full row wouldn't.
+    """
     conn = get_connection()
     try:
         rows = conn.execute(
@@ -49,10 +64,16 @@ def list_user_watchlists(user_id: str) -> list[dict]:
             (user_id,),
         ).fetchall()
         results = [dict(r) for r in rows]
-        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
-        for wl in results:
-            wl["items"] = items_by_list.get(wl["id"], [])
-            wl["item_count"] = len(wl["items"])
+        ids = [wl["id"] for wl in results]
+        if include_items:
+            items_by_list = _get_items_bulk(conn, ids)
+            for wl in results:
+                wl["items"] = items_by_list.get(wl["id"], [])
+                wl["item_count"] = len(wl["items"])
+        else:
+            counts = _get_item_counts_bulk(conn, ids)
+            for wl in results:
+                wl["item_count"] = counts.get(wl["id"], 0)
         return results
     finally:
         conn.close()
@@ -419,6 +440,29 @@ def _get_items_bulk(conn, wl_ids: list[str]) -> dict[str, list[dict]]:
         for r in rows:
             d = dict(r)
             out.setdefault(d["watchlist_id"], []).append(d)
+    return out
+
+
+def _get_item_counts_bulk(conn, wl_ids: list[str]) -> dict[str, int]:
+    """Row counts per list, without carrying the rows themselves.
+
+    Counted by SQLite over the same table + predicate `_get_items_bulk` reads, so a
+    slim response's `item_count` cannot disagree with the full response's
+    `len(items)` — the two are the same number by construction, not by convention.
+    """
+    out: dict[str, int] = {}
+    if not wl_ids:
+        return out
+    for i in range(0, len(wl_ids), _ITEMS_CHUNK):
+        chunk = wl_ids[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT watchlist_id, COUNT(*) AS n FROM watchlist_items "
+            f"WHERE watchlist_id IN ({placeholders}) GROUP BY watchlist_id",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            out[r["watchlist_id"]] = r["n"]
     return out
 
 

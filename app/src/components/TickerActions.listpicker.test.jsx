@@ -9,6 +9,13 @@ import { MemoryRouter } from 'react-router-dom'
 import { vi, beforeEach, test, expect } from 'vitest'
 import { SWRConfig } from 'swr'
 
+// The picker renders list NAMES and never reads a list's symbols, so it asks for
+// the slim payload. Kept as ONE constant: these tests mock `fetch` by exact URL,
+// so a hand-typed copy that drifts from the component would make every case below
+// fall through to the empty default and fail as "No lists yet" — the very bug this
+// file exists to pin, reported against a picker that is actually fine.
+const LISTS_URL = '/api/watchlists?include_items=0'
+
 vi.mock('../hooks/useFlagged', () => ({
   useFlagged: () => ({ toggle: vi.fn(), isFlagged: () => false }),
 }))
@@ -46,7 +53,7 @@ beforeEach(() => {
 
 test('opening the picker fetches the user lists itself — no prop required', async () => {
   global.fetch = vi.fn(async (url) => {
-    if (url === '/api/watchlists') {
+    if (url === LISTS_URL) {
       return { ok: true, json: async () => [{ id: 'a', name: 'Momentum' }, { id: 'b', name: 'Earnings' }] }
     }
     return { ok: true, json: async () => ({}) }
@@ -57,14 +64,14 @@ test('opening the picker fetches the user lists itself — no prop required', as
   await screen.findByRole('button', { name: 'Momentum' })
   await screen.findByRole('button', { name: 'Earnings' })
   expect(screen.queryByText(/no lists yet/i)).toBeNull()
-  expect(global.fetch).toHaveBeenCalledWith('/api/watchlists', expect.anything())
+  expect(global.fetch).toHaveBeenCalledWith(LISTS_URL, expect.anything())
 })
 
 test('picking a list POSTs the symbol to it and closes the menu', async () => {
   const onClose = vi.fn()
   const posts = []
   global.fetch = vi.fn(async (url, opts) => {
-    if (url === '/api/watchlists' && !opts?.method) {
+    if (url === LISTS_URL && !opts?.method) {
       return { ok: true, json: async () => [{ id: 'a', name: 'Momentum' }] }
     }
     posts.push([url, opts])
@@ -83,7 +90,7 @@ test('a truly empty account says "No lists yet" — and can create one inline', 
   const calls = []
   global.fetch = vi.fn(async (url, opts) => {
     calls.push([url, opts])
-    if (url === '/api/watchlists' && !opts?.method) {
+    if (url === LISTS_URL && !opts?.method) {
       return { ok: true, json: async () => [] }
     }
     if (url === '/api/watchlists' && opts?.method === 'POST') {
@@ -110,12 +117,12 @@ test('an explicit lists prop wins — no self-fetch fires', async () => {
   renderMenu({ lists: [{ id: 'p', name: 'Provided' }] })
   fireEvent.click(screen.getByRole('button', { name: /add to list/i }))
   await screen.findByRole('button', { name: 'Provided' })
-  expect(global.fetch).not.toHaveBeenCalledWith('/api/watchlists', expect.anything())
+  expect(global.fetch).not.toHaveBeenCalledWith(LISTS_URL, expect.anything())
 })
 
 test('prebuilt (UCT-curated) lists are not offered — the seeder owns them, and the owner holds ~30', async () => {
   global.fetch = vi.fn(async (url) => {
-    if (url === '/api/watchlists') {
+    if (url === LISTS_URL) {
       return { ok: true, json: async () => [
         { id: 'a', name: 'Momentum' },
         { id: 'p', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1 },
@@ -133,7 +140,7 @@ test('prebuilt (UCT-curated) lists are not offered — the seeder owns them, and
 
 test('an account whose only lists are prebuilt still gets the inline "New list" path, not a wall of UCT names', async () => {
   global.fetch = vi.fn(async (url) => {
-    if (url === '/api/watchlists') {
+    if (url === LISTS_URL) {
       return { ok: true, json: async () => [{ id: 'p', name: 'Sunday Scans — August 16, 2026', is_prebuilt: 1 }] }
     }
     return { ok: true, json: async () => ({}) }

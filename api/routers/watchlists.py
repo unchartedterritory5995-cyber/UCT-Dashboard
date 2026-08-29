@@ -149,8 +149,15 @@ def set_digest_settings(body: DigestSettings, user: dict = Depends(get_current_u
 # ── Regular watchlist endpoints ──
 
 @router.get("/api/watchlists")
-def list_watchlists(user: dict = Depends(get_current_user)):
-    return watchlist_service.list_user_watchlists(user["id"])
+def list_watchlists(include_items: bool = True, user: dict = Depends(get_current_user)):
+    """The user's lists. `?include_items=0` omits `items` (metadata + item_count only).
+
+    Default True keeps every existing caller byte-identical. The app-shell surfaces
+    that only draw list NAMES pass 0 — see the note in
+    `watchlist_service.list_user_watchlists` for the 553 KB / 4,406-row page-load
+    cost that motivated it.
+    """
+    return watchlist_service.list_user_watchlists(user["id"], include_items=include_items)
 
 
 @router.get("/api/watchlists/public")

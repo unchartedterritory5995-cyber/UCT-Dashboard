@@ -31,13 +31,13 @@
   text-transform: uppercase;
   /* Exact match to the favorite-tools menu's muted labels/icons: --menu-text at 0.45. */
   color: var(--menu-text, #e8eaed);
-  opacity: 0.45;
+  opacity: 0.6;
 }
 .close {
   background: none;
   border: none;
   color: var(--menu-text, #e8eaed);
-  opacity: 0.45;
+  opacity: 0.6;
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -95,7 +95,7 @@
   padding-right: 2px;
   color: var(--menu-text, #e8eaed);
 }
-.namePlaceholder { color: var(--menu-text, #e8eaed); opacity: 0.45; font-style: italic; }
+.namePlaceholder { color: var(--menu-text, #e8eaed); opacity: 0.6; font-style: italic; }
 .nameInput {
   flex: 1;
   min-width: 0;
@@ -123,7 +123,7 @@
   font-size: 12px;
   padding-right: 2px;
   color: var(--menu-text, #e8eaed);
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
 /* pencil (rename) + trash share the favorite-menu muted treatment */
@@ -133,7 +133,7 @@
   background: none;
   border: none;
   color: var(--menu-text, #e8eaed);
-  opacity: 0.45;
+  opacity: 0.6;
   cursor: pointer;
   padding: 3px;
   border-radius: 5px;
@@ -156,7 +156,7 @@
 }
 .confirmDel { color: var(--color-danger, #e06666); }
 .confirmDel:hover { background: rgba(224, 102, 102, 0.14); }
-.cancelDel { color: var(--menu-text, #e8eaed); opacity: 0.45; }
+.cancelDel { color: var(--menu-text, #e8eaed); opacity: 0.6; }
 .cancelDel:hover { opacity: 1; }
 
 /* New board — a final menu-style row, not a heavy button */

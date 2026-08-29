@@ -732,8 +732,8 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             <span onClick={() => onToggleHidden(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
               <span style={{ width: 14, height: 14, color: '#c9a84c', flexShrink: 0, display: 'flex' }}>{visible ? ICONS.check : null}</span>
-              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
-              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
+              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
+              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
             </span>
             <span onClick={() => onToggleFavorite(t.id)} title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
               style={{ flexShrink: 0, color: fav ? '#c9a84c' : 'var(--menu-text-muted,#6b7280)', display: 'flex', cursor: 'pointer' }}>

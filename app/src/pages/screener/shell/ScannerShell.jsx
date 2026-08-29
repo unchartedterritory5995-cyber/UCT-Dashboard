@@ -75,7 +75,25 @@ export default function ScannerShell({ embedded = false }) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [exportState, setExportState] = useState({})
 
-  const visibleColumns = s.visibleColumns || ['ticker']
+  // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
+  // null until `meta` lands (`viewColumnsFor` builds its map from `meta.views`),
+  // and `/api/screener/meta` is the whole filter registry while the scan is a
+  // SEPARATE request — so the scan routinely wins that race. This used to fall
+  // straight to `['ticker']`, and a member watching 3,745 rows arrive behind ONE
+  // column reads that as a broken screener; measured on prod twice, 2026-08-29.
+  //
+  // `result.view_columns` is what the query ACTUALLY selected (`query.py` L1170,
+  // echoed L1280) and it arrives WITH the rows it describes, so the two can
+  // never disagree — `exportCsv.js` L35 has always read it for exactly that
+  // reason. Deriving the list from `meta` a second time was the second
+  // authority; this makes the fallback ask the side that ran the query.
+  //
+  // ⚠️ ORDER IS DELIBERATE. `s.visibleColumns` stays FIRST so a member's own
+  // Columns/view choice still wins the moment meta is known — the echo is a
+  // fallback for the unanswered window, not a new owner of the list. `['ticker']`
+  // survives for the case where nobody has answered at all, where there are no
+  // rows for it to misdescribe.
+  const visibleColumns = s.visibleColumns || result?.view_columns || ['ticker']
   const allColumns = useMemo(() => {
     const keys = new Set(Object.keys(COLUMN_DEFS))
     for (const v of meta?.views || []) v.columns.forEach(c => keys.add(c))
