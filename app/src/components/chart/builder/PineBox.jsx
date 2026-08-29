@@ -28,6 +28,7 @@ import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { vendorNotesForTree } from '../engine/ast/parse'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -57,6 +58,7 @@ export function inspectPine(source) {
   const translated = memberInputTranslation(translatePine, source)
   const outputs = translated.outputs.map((out) => ({
     ...out,
+    vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
     downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
@@ -115,6 +117,7 @@ export function inspectSource(source, dialect = 'auto') {
       : translateThinkScript(source)
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
+      vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
       refusal: stamp(out.refusal),
       downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
     }))
@@ -334,6 +337,28 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                 )
               })}
             </fieldset>
+          )}
+
+          {active && active.vendorNotes && active.vendorNotes.length > 0 && (
+            <ul className={styles.notes} data-testid="pine-vendor-notes">
+              {/* ⭐⭐ THE SENTENCE THE PRODUCT OWES SOMEBODY WHO PASTED A SCRIPT.
+                  Where our answer for a name deliberately differs from the
+                  platform they copied it from, they read it HERE — before they
+                  commit — rather than discovering it later by comparing two
+                  charts and filing a bug. The text is the manifest's own
+                  `vendorNote`; this component writes no sentence of its own, for
+                  the same reason it renders refusals verbatim.
+                  ⛔ IT IS NOT IN THE "lines a screen does not read" LIST. That
+                  list is about text we SKIPPED; this is about maths we RAN and
+                  ran differently. Collapsing the two would bury a numeric
+                  divergence inside a note about syntax. */}
+              {active.vendorNotes.map((v) => (
+                <li key={v.name} className={styles.note} data-vendor-note={v.name}>
+                  <span className={styles.noteWhere}>{v.name}</span>
+                  <span>{v.note}</span>
+                </li>
+              ))}
+            </ul>
           )}
 
           {active && active.memberInputs && active.memberInputs.length > 0 && (

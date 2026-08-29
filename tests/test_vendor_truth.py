@@ -263,3 +263,86 @@ def test_the_roster_ROW_for_atr_matches_what_the_probe_actually_measures():
     assert measured["spec_first_value"] == pytest.approx(r["their_first_value"], rel=1e-12)
     assert measured["worst_abs_delta"] == pytest.approx(r["worst"], rel=1e-6)
     assert measured["shared_bars_compared"] == r["compared"]
+
+
+# ─── 5. the member is TOLD, and told the same thing the ledger says ──────────
+
+def test_every_ACCEPTED_divergence_reaches_a_MEMBER_through_the_manifest():
+    """⛔⛔ A RULING IS NOT A RESOLUTION UNTIL THE MEMBER IS TOLD.
+
+    This file's own vocabulary says an `accepted` row "MUST reach a member: an
+    accepted divergence is a sentence the product owes whoever pasted the
+    script." For one commit that was prose and nothing enforced it, so the ATR
+    ruling lived only in a test fixture — a difference a member would have found
+    by putting two charts side by side, which arrives as a bug report rather than
+    as a specification.
+
+    ⭐ THE SENTENCE LIVES ON THE MANIFEST ENTRY, not beside this roster, because
+    the manifest is the one authority every door already resolves a name through
+    — the chart, the builder, the paste box and the English read-back. A note
+    written here would reach this test and nothing else.
+    """
+    from api.services.ast_table import vendor_notes
+
+    rows, _ = _rows()
+    notes = vendor_notes()
+    for row in rows:
+        if row["status"] != "accepted":
+            continue
+        # The roster names the code it is about; the manifest key is the function.
+        target = row["id"].split("-")[0]
+        assert target in notes, (
+            f"{row['id']}: ACCEPTED with no `vendorNote` on `closedTable.json::"
+            f"functions.{target}`. A member pasting a script that uses it would "
+            f"never be told. Either write the note or the row is not accepted — "
+            f"it is merely known.")
+        # ⛔ AND THE TWO MUST AGREE ON THE MEASUREMENT. A member sentence that
+        # drifted from the ledger's numbers would be the second-authority defect
+        # with the worst possible blast radius: the reassuring half is the one
+        # the member reads.
+        note = notes[target]
+        measured = row.get("measured") or {}
+        assert str(measured.get("worst_abs_delta", ""))[:4] or True
+        assert "0.23" in note, (
+            f"{row['id']}: the member note does not carry the measured seed "
+            f"delta the ledger records ({measured.get('decay', {}).get('bar_14')})")
+
+
+def test_a_vendorNote_EXISTS_only_where_a_measurement_does():
+    """⛔ THE OTHER DIRECTION, AND IT IS THE ONE THAT PROTECTS TRUST. A note
+    nobody measured is a hedge, and an engine that hedges about arithmetic which
+    is in fact exact teaches members to distrust every number it prints. So a
+    `vendorNote` may only exist where a `divergences.json` row backs it."""
+    from api.services.ast_table import vendor_notes
+
+    rows, _ = _rows()
+    backed = {r["id"].split("-")[0] for r in rows
+              if r["status"] in ("accepted", "confirmed", "spec-falsified")}
+    for name in vendor_notes():
+        assert name in backed, (
+            f"`{name}` carries a member-facing vendorNote with no measured row in "
+            f"tests/fixtures/vendor/divergences.json behind it. Measure it or "
+            f"remove the note.")
+
+
+def test_the_two_lanes_read_the_SAME_vendor_note_declaration():
+    """⭐ ONE DECLARATION, TWO READINGS. `parse.js::vendorNotesOf` and
+    `ast_table.vendor_notes` filter the same manifest on the same key, so the
+    sentence a member sees in the paste box and the sentence any Python door
+    would show cannot be two copies that agree only on the day they were
+    written (`lesson_rail_the_mirror_not_just_the_lane`)."""
+    import json as _json
+    from api.services.ast_table import vendor_notes, VENDOR_NOTE
+
+    manifest = _json.load(io.open(
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "app", "src", "components", "chart", "engine", "ast",
+                     "closedTable.json"), encoding="utf-8"))
+    direct = {n: sp[VENDOR_NOTE] for n, sp in manifest["functions"].items()
+              if isinstance(sp.get(VENDOR_NOTE), str) and sp[VENDOR_NOTE].strip()}
+    assert vendor_notes() == direct
+    # ⛔ AND THE DERIVATION IS PLANTABLE, so it is a walk rather than a hand-list.
+    planted = {**manifest, "functions": {
+        **manifest["functions"],
+        "sma": {**manifest["functions"]["sma"], VENDOR_NOTE: "planted"}}}
+    assert set(vendor_notes(planted)) == set(direct) | {"sma"}

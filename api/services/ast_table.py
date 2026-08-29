@@ -379,6 +379,43 @@ def bar_readers(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
         if isinstance(spec, Mapping) and spec.get("reads") == BAR_READS))
 
 
+#: The declaration that says our answer for a name DELIBERATELY differs from the
+#: platform a member copied it from. ``closedTable.json::_functions_vendor_note``
+#: argues it, and the sentence it carries is member-facing prose, not a comment.
+VENDOR_NOTE = "vendorNote"
+
+
+def vendor_notes(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """Every function entry declaring a ``vendorNote`` → that sentence.
+
+    ⭐ THE ``reads: "bars"`` IDIOM APPLIED TO A PRODUCT FACT RATHER THAN A
+    COMPUTE ONE. ``parse.js::vendorNotesOf`` is the same read on the same
+    manifest, so the sentence a member sees in the paste box and the sentence any
+    Python door would show are one declaration read twice — never two copies that
+    agree on the day they are written.
+
+    ⛔ DERIVED, NEVER LISTED, and today that matters MORE than usual because
+    exactly ONE entry carries a note. A reader written as ``name == "atr"`` would
+    be indistinguishable from this one until the day a second divergence is
+    measured — at which point the difference is a member NOT being told about it.
+    That is precisely the failure the declaration exists to prevent, so the
+    reader must not reintroduce it.
+
+    ⚠️ It takes a manifest argument so the derivation can be RAILED: ``TABLE`` is
+    loaded once at import, so a test that only sees the constant cannot plant a
+    second note and prove the walk finds it — and a derivation nobody can plant
+    against is a hand-list that happens to be right today.
+    """
+    m = manifest if manifest is not None else TABLE
+    return {
+        name: spec[VENDOR_NOTE]
+        for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
+        if isinstance(spec, Mapping)
+        and isinstance(spec.get(VENDOR_NOTE), str)
+        and spec[VENDOR_NOTE].strip()
+    }
+
+
 #: The declaration that says an entry's OTHER ``int`` arguments must fit inside
 #: the one its ``lookback`` names. ``closedTable.json::_functions_domain`` argues
 #: it; this is the key both lanes match on, and its VALUE names which of the
