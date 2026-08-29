@@ -11,6 +11,7 @@ import TimelineView from './TimelineView'
 import RadarView from './RadarView'
 import ScoreboardView from './ScoreboardView'
 import EqualizerView from './EqualizerView'
+import HeatRibbonView from './HeatRibbonView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -23,4 +24,5 @@ export const VIEW_COMPONENTS = {
   radar: RadarView,
   scoreboard: ScoreboardView,
   equalizer: EqualizerView,
+  ribbon: HeatRibbonView,
 }

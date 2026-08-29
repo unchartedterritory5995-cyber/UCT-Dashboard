@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -65,6 +65,10 @@ const TIMELINE_OPTIONS = [
   { name: 'windowDays', label: 'Window', type: 'select', default: 20,
     choices: [10, 20, 30].map(v => ({ value: v, label: `${v} days` })) },
 ]
+const RIBBON_OPTIONS = [
+  { name: 'density', label: 'Row height', type: 'select', default: 'comfortable',
+    choices: [{ value: 'comfortable', label: 'Comfortable' }, { value: 'compact', label: 'Compact' }] },
+]
 
 const THEME_OPTIONS = [
   { name: 'palette', label: 'Color palette', type: 'select', default: 'classic',
@@ -91,6 +95,7 @@ export const VIEW_CONFIG = {
   radar:      { kind: 'board', label: 'Radar',      eligibleKeys: all,       defaultVisible: RADAR_DEFAULT, options: [...RADAR_OPTIONS, ...THEME_OPTIONS] },
   scoreboard: { kind: 'board', label: 'Scoreboard', eligibleKeys: all,       defaultVisible: [], options: [...SCOREBOARD_OPTIONS, ...THEME_OPTIONS] },
   equalizer:  { kind: 'board', label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
+  ribbon:     { kind: 'board', label: 'Heat Ribbon', eligibleKeys: all, defaultVisible: HEADLINE, options: [...RIBBON_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).
