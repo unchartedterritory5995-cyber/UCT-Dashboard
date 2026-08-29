@@ -413,6 +413,15 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </div>
           )}
 
+          {/* ⭐ THE DOOR OUT OF "I DO NOT KNOW WHAT I CAN WRITE", placed where the
+              member is actually stuck rather than in a menu they would have to
+              think to open. The reference is derived from the same manifest this
+              box translates against, so what it lists is exactly what a paste
+              here can resolve. */}
+          <p className={styles.refLink}>
+            <a href="/formulas/reference">See every name you can write →</a>
+          </p>
+
           <button
             type="button"
             className={styles.useBtn}

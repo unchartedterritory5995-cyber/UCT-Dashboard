@@ -189,3 +189,17 @@
 }
 .useBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.12); }
 .useBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* The way out of "I do not know what I can write" — placed beside the Use
+   button, which is where a member stalls. */
+.refLink {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+}
+
+.refLink a {
+  color: var(--ut-gold, #dcbb5e);
+  text-decoration: none;
+}
+
+.refLink a:hover { text-decoration: underline; }
