@@ -203,3 +203,29 @@
 }
 
 .refLink a:hover { text-decoration: underline; }
+
+/* ⭐ THE SUGGESTED COMPLETION — an OFFER, never an applied default. Styled as a
+   quiet aside under the refusal rather than a call to action, because accepting
+   it is the member's decision about their own script. */
+.suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.06);
+  border-radius: 0 4px 4px 0;
+}
+
+.suggestLead { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+.suggestCall {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+
+.suggestWhy { font-size: 11px; line-height: 1.5; color: var(--text-dim); }

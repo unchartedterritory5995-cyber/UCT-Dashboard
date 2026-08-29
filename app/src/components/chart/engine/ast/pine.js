@@ -5960,6 +5960,12 @@ function refusalValue(guard, message, at) {
     index: at ? at.index : null,
     token: at ? at.token : null,
     excerpt: null,
+    // A CONVENTIONAL COMPLETION this door could offer, when it has one.
+    // Pine publishes its defaults, so this lane never sets it -- but the KEY
+    // is here because the refusal SHAPE is a contract every door shares and
+    // `ImportBox` reads it by name. A key present in one door and absent in
+    // another is the divergence that contract exists to prevent.
+    suggest: null,
   }
 }
 

@@ -302,12 +302,15 @@ function assertNote(code) {
  *  reason: one shared class lets one guard's deletion be covered by another
  *  guard's test. */
 export class ThinkScriptRefusal extends Error {
-  constructor(guard, message, at) {
+  constructor(guard, message, at, suggest) {
     super(message)
     assertDeclared(guard)
     this.name = 'ThinkScriptRefusal'
     this.guard = guard
     this.at = at || null
+    // ⭐ THE CONVENTIONAL CALL, when this refusal has one — see `TS_DOC_BLOCKED`.
+    // It rides the refusal because the refusal is the only thing the member sees.
+    this.suggest = suggest || null
   }
 }
 
@@ -381,7 +384,7 @@ export const TS_STATE_WARMUP = 250
  *  in its own message that `assertDeclared` below is then the only check there
  *  is. The blindness was real; what was wrong was believing a wider regex could
  *  cure it. */
-function refusalValue(guard, message, at) {
+function refusalValue(guard, message, at, suggest) {
   assertDeclared(guard)
   return {
     guard,
@@ -391,6 +394,7 @@ function refusalValue(guard, message, at) {
     index: at ? at.index : null,
     token: at ? at.token : null,
     excerpt: null,
+    suggest: suggest || null,
   }
 }
 
@@ -406,7 +410,9 @@ function refusalValue(guard, message, at) {
  *  throws outranks a clean stack, and the underlying message is appended so the
  *  bug is still legible in what the member is shown. */
 function fromError(err) {
-  if (err instanceof ThinkScriptRefusal) return refusalValue(err.guard, err.message, err.at)
+  if (err instanceof ThinkScriptRefusal) {
+    return refusalValue(err.guard, err.message, err.at, err.suggest)
+  }
   return refusalValue('thinkscript:statement',
     `${REFUSALS['thinkscript:statement']} (${err && err.message ? err.message : err})`, null)
 }
@@ -1348,6 +1354,7 @@ export const TS_DOC_BLOCKED = Object.freeze({
   // defaults that are absent, not the study, and `unblocks` says what a member can
   // do NOW as well as what a vendor page would have to print.
   RSI: {
+    suggest: 'RSI(length = 14, price = close)',
     missing: 'a default `length` and `price` (the Wilder\'s `average type` and the 70/30 '
       + 'levels ARE published, and this door now uses them)',
     unblocks: 'writing them yourself — RSI(length = 14, price = close) translates today — or '
@@ -1355,6 +1362,8 @@ export const TS_DOC_BLOCKED = Object.freeze({
       + 'them the way ATR\'s does',
   },
   BollingerBands: {
+    suggest: 'BollingerBands(price = close, length = 20, displace = 0, '
+      + '"average type" = AverageType.SIMPLE)',
     missing: 'a default `price`, `average type` and `displace` (the two standard deviations '
       + 'ARE published, and this door now uses them)',
     unblocks: 'writing them yourself — BollingerBands(price = close, length = 20, displace = '
@@ -1362,12 +1371,14 @@ export const TS_DOC_BLOCKED = Object.freeze({
       + 'naming which average the bands are drawn around',
   },
   MovAvgExponential: {
+    suggest: 'MovAvgExponential(price = close, length = 21, displace = 0)',
     missing: 'a default `price`, and a default `displace` — which shifts every bar',
     unblocks: 'writing them yourself — MovAvgExponential(price = close, length = 21, displace '
       + '= 0)."AvgExp" translates today — or the page publishing both, since `displace` '
       + 'cannot be assumed to be zero',
   },
   SimpleMovingAvg: {
+    suggest: 'SimpleMovingAvg(close, 20, 0)',
     missing: 'a default `price`, `length` and `displace`',
     unblocks: 'writing them yourself — SimpleMovingAvg(close, 20, 0) translates today — or '
       + 'the page publishing them; `displace` shifts every bar so it cannot be assumed',
@@ -1379,6 +1390,7 @@ export const TS_DOC_BLOCKED = Object.freeze({
       + 'description',
   },
   RateOfChange: {
+    suggest: 'RateOfChange(price = close, length = 14)',
     missing: 'a default `length` and `price` (the MATHS is published and IS mapped)',
     unblocks: 'the page publishing the two defaults; supply both explicitly and it translates '
       + 'today',
@@ -1396,6 +1408,33 @@ export const TS_DOC_BLOCKED = Object.freeze({
       + 'output and wrong on every comparison against it',
   },
 })
+
+/** ⭐⭐ THE CONVENTIONAL SPELLING OF A DOCUMENTATION-BLOCKED CALL, OFFERED AND
+ *  NEVER APPLIED — the distinction this whole registry turns on.
+ *
+ *  ⛔⛔ THIS DOOR STILL REFUSES TO ASSUME AN UNPUBLISHED DEFAULT, and that ruling
+ *  did not soften. `displace` shifts every bar; a `price` guessed wrong draws a
+ *  plausible column that is wrong everywhere with no refusal anywhere. Applying
+ *  one silently is the mistranslation this lane exists against, and it was priced
+ *  before being refused: assuming them buys TWO corpus scripts, which is not worth
+ *  a class of invisible wrongness.
+ *
+ *  ⭐ SO THE MEMBER APPLIES IT, NOT US. `suggest` is the call written out in full,
+ *  offered as an EDIT TO THEIR SOURCE. They accept it, it lands in the script, and
+ *  the formula read-back shows `length = 14, price = close` in their own text —
+ *  so the number is their choice and visible, rather than ours and silent. That is
+ *  `closedTable.json::_functions_na`'s ruling applied one lane over: the member
+ *  says what they mean and can see that they said it.
+ *
+ *  ⛔ NOT EVERY BLOCKED ENTRY MAY CARRY ONE, and the absences are the honest half.
+ *  `TTM_Squeeze` has no published formula at all, so there is nothing to suggest.
+ *  `GetTime` is missing a UNIT and `BarNumber` an ORIGIN — a convention, not a
+ *  value, and a suggested guess at one would be the silent-wrongness this refuses.
+ *  A suggestion may only ever spell out arguments the member could have typed.
+ *
+ *  ⚠️ AND EVERY ONE IS PROVEN TO WORK rather than asserted to:
+ *  `thinkscript.suggest.test.js` translates each `suggest` and fails if any of
+ *  them refuses, so a suggestion cannot rot into advice that no longer applies. */
 
 /** The tail every documentation-blocked refusal carries, derived from the one
  *  registry so a refusal and its audit entry can never drift apart. */
@@ -3334,7 +3373,10 @@ class Resolver {
           `${REFUSALS['thinkscript:arity']} — \`${p}\` has no value, and thinkorswim `
           + 'publishes no default for it'
           + (blocked ? docBlockedTail(blocked) : ''),
-          locate(n.tok))
+          locate(n.tok),
+          // ⭐ AND THE CONVENTIONAL SPELLING RIDES ALONG, so the member can accept
+          // it into their own source rather than being told to go and look it up.
+          blocked ? (TS_DOC_BLOCKED[blocked].suggest || null) : null)
       }
     })
 
