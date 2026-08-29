@@ -95,7 +95,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -119,6 +119,23 @@ export class PineRefusal extends Error {
  *  AND `sentence.js`'s TABLES TOO. `pine.test.js` asserts that over the UNION of
  *  all five, in both directions — "no message equals another" misses the half
  *  that matters, which is "no message is a SUBSTRING of another". */
+/** How to say a code in English, for a sentence a member reads. ⚠️ THIS IS NOT A
+ *  SECOND AUTHORITY ON WHAT IS SERVABLE — it never decides anything; a code with
+ *  no entry falls back to the code itself, so a new servable timeframe appears in
+ *  the sentence the day it lands, named or not. */
+const TF_ENGLISH = Object.freeze({
+  1: 'one-minute', 5: 'five-minute', 15: 'fifteen-minute', 30: 'thirty-minute',
+  60: 'hourly', 240: 'four-hour', D: 'daily', W: 'weekly', M: 'monthly',
+})
+
+/** The servable timeframes, in English, DERIVED from the engine's own list. */
+function servableTimeframesText() {
+  const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c)
+  if (names.length === 0) return 'no higher timeframe'
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 export const REFUSALS = Object.freeze({
   'pine:empty':
     'there is no Pine here to translate',
@@ -143,6 +160,16 @@ export const REFUSALS = Object.freeze({
   'pine:request':
     'this request could not be resolved to one symbol and one servable timeframe. '
     + 'The engine reads another symbol as `sym` (limited to the benchmark roster) '
+    // ⚰️ THE SERVABLE LIST WAS TYPED HERE AS "weekly and monthly" — a FOURTH copy of
+    // a vocabulary `TF_RESAMPLABLE` already owns, and the one a member reads. A
+    // prose copy goes stale the same way a map does, and more quietly: the
+    // sentence would keep naming two timeframes on the day the engine served
+    // four, and nothing anywhere would go red.
+    // ⚠️ THE LIST IS PROSE HERE AND RAILED ELSEWHERE, not interpolated: this table
+    // is built at module load and `TF_RESAMPLABLE` arrives through an import cycle,
+    // so calling a helper here left `REFUSALS` undefined for every importer. The
+    // drift this sentence could carry is caught by `pine.timeframe.test.js`, which
+    // fails if it stops naming every timeframe the engine can serve.
     + 'and another timeframe as `tf` (weekly and monthly from daily bars); what '
     + 'stops this one is that its arguments do not fold to those',
   'pine:drawing':
@@ -316,7 +343,29 @@ const MULTI_OUTPUT_CALLS = Object.freeze({
   plotbar: Object.freeze(['open', 'high', 'low', 'close']),
 })
 
-const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
+/** ⭐⭐ PINE'S SPELLINGS FOR A TIMEFRAME, MAPPED TO THIS ENGINE'S CODES — and
+ *  NOTHING ELSE. Which of those codes can actually be SERVED is
+ *  `interpret.js::TF_RESAMPLABLE`'s answer, asked below rather than restated here.
+ *
+ *  ⚰️ THIS MAP USED TO DO BOTH JOBS: it held `{W, 1W, M, 1M}` and a spelling it
+ *  did not list was refused, so it was a SECOND AUTHORITY on which timeframes this
+ *  engine serves — the defect this repo records more than any other. Nothing was
+ *  wrong with its answer on the day it was written, because the two sets happened
+ *  to coincide. The cost is all in the future tense: the day `TF_RESAMPLABLE`
+ *  grows, this door keeps refusing a timeframe the engine can serve, and the
+ *  refusal reads like a limit rather than a stale copy. That is precisely how the
+ *  thinkScript door came to refuse a self-lag the interpreter had held all along.
+ *
+ *  ⭐ SO THE SPELLINGS INCLUDE CODES THE ENGINE CANNOT SERVE TODAY (`D`, `60`,
+ *  `240`, …) ON PURPOSE. Recognising a spelling and serving it are two different
+ *  questions, and separating them is what lets the ONE authority answer the second
+ *  one. Today `D` is recognised and then refused by the engine's list, exactly as
+ *  before — same behaviour, derived reason. */
+const PINE_TF_SPELLING = Object.freeze({
+  '1': '1', '1M': 'M', '1W': 'W', '5': '5', '15': '15', '30': '30',
+  '60': '60', '1H': '60', '240': '240', '4H': '240',
+  D: 'D', '1D': 'D', W: 'W', M: 'M',
+})
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
  *
@@ -3801,8 +3850,12 @@ class Resolver {
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
-      code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
-      if (!code) return null
+      // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
+      // engine serve it? The second belongs to `TF_RESAMPLABLE` and is asked, not
+      // copied — so a timeframe the engine learns to resample reaches this door on
+      // the same day rather than a release later.
+      code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      if (!code || !TF_RESAMPLABLE.includes(code)) return null
     }
 
     // 3. `lookahead`, wherever it appears.
