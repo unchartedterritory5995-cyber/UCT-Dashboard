@@ -108,6 +108,28 @@ class TTLCache:
         with self._lock:
             return [k for k in self._store if k.startswith(prefix)]
 
+    def items_with_expiry(self) -> list[tuple[str, Any, float]]:
+        """Snapshot of live entries as ``(key, value, expires_at)``.
+
+        `expires_at` is an ABSOLUTE unix time, which is what makes a durable
+        snapshot correct rather than merely plausible: `api/services/
+        cache_snapshot.py` restores each entry with its REMAINING ttl, so a
+        value's lifetime is unchanged by a pod restart — it expires at the same
+        wall-clock instant it would have on the pod that computed it.
+
+        Reading it through this method (rather than `cache._store`) keeps the
+        expiry in ONE authority. A caller that recomputed "when does this
+        expire" from its own clock would drift from the value `get()` enforces.
+
+        Expired-but-unreaped entries are filtered here, so a caller never has to
+        re-implement the staleness rule `get()` already owns.
+        """
+        now = time.time()
+        with self._lock:
+            return [
+                (k, v, exp) for k, (v, exp) in self._store.items() if exp > now
+            ]
+
     def delete_prefix(self, prefix: str) -> int:
         """Remove every key starting with ``prefix``. Returns the count.
 

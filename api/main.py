@@ -2306,6 +2306,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
+    # ⚡ Carry the warm cache across the deploy — FIRST, before anything slow and
+    # long before uvicorn binds, so the pod is already warm the instant it takes
+    # traffic instead of ~3.5 min later. Each entry comes back with the life it
+    # had LEFT (absolute expiry), so this accelerates the boot without extending
+    # any value's lifetime. Reading the volume is a few ms.
+    #
+    # ⛔ Why not hold traffic back until warm instead: tried 2026-07-26, ~3 min
+    # outage — Railway does not keep the old pod serving during a healthcheck
+    # (see api/services/readiness.py). The pod cannot be withheld, so the warm
+    # has to be unnecessary rather than awaited.
+    try:
+        from api.services import cache_snapshot
+        from api.services.cache import cache as _shared_cache
+        if cache_snapshot.enabled():
+            _cs = cache_snapshot.restore(_shared_cache)
+            print(f"[startup] cache snapshot restored: {_cs['restored']}/{_cs['found']} "
+                  f"entries (age {_cs['age_seconds']}s)")
+        else:
+            print("[startup] cache snapshot DISABLED (CACHE_SNAPSHOT_ENABLED=0)")
+    except Exception as e:
+        # A cold boot is the pre-existing behaviour and is always survivable;
+        # a failed boot is not. This can never be fatal.
+        print(f"[startup] cache snapshot restore failed (non-fatal, booting cold): {e}")
+
     try:
         _init_auth_db()
     except Exception as e:
@@ -5992,6 +6016,38 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] Theme engine scheduled -- orphans Mon-Fri 11 PM ET; improve Sat 10 AM ET")
 
+        # ⚡ Periodic cache snapshot. The shutdown hook is the PRIMARY writer (a
+        # graceful deploy is when this matters most), but it only runs on a clean
+        # SIGTERM — an OOM kill, a crash, or a hard pod eviction skips it entirely
+        # and would leave the next boot restoring a snapshot hours stale. A cheap
+        # periodic write bounds that staleness to one interval no matter how the
+        # pod dies. Restore drops anything past its deadline, so an old snapshot
+        # is never wrong, only less useful.
+        try:
+            # Local import: the module-level name does not exist here (the other
+            # IntervalTrigger imports in this file are function-scoped), and a
+            # NameError inside this try would be swallowed as "registration
+            # failed" — the job would silently never run.
+            from apscheduler.triggers.interval import IntervalTrigger
+
+            def _cache_snapshot_job():
+                from api.services import cache_snapshot as _cs_mod
+                from api.services.cache import cache as _c
+                if _cs_mod.enabled():
+                    _cs_mod.save(_c)
+
+            _scheduler.add_job(
+                _cache_snapshot_job,
+                trigger=IntervalTrigger(minutes=3),
+                id="cache_snapshot_save",
+                max_instances=1,
+                replace_existing=True,
+                coalesce=True,
+            )
+            print("[startup] cache snapshot scheduled -- every 3 min + on shutdown")
+        except Exception as e:
+            print(f"[startup] cache snapshot job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -6178,6 +6234,22 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+
+    # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
+    # Deliberately after the scheduler stops (no job can be mutating the cache
+    # underneath us) and inside the 30s drainingSeconds window. A deploy is
+    # exactly the moment this matters, and it is the one moment a periodic timer
+    # is guaranteed to miss.
+    try:
+        from api.services import cache_snapshot
+        from api.services.cache import cache as _shared_cache
+        if cache_snapshot.enabled():
+            _cs = cache_snapshot.save(_shared_cache)
+            print(f"[shutdown] cache snapshot saved: {_cs['written']} entries, "
+                  f"{_cs['bytes'] / 1024:.0f} KB")
+    except Exception as e:
+        print(f"[shutdown] cache snapshot save failed (non-fatal): {e}")
+
     stop_snapshot_scheduler()
     try:
         from api.services import nhnl_live
