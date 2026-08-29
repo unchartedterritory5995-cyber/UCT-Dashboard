@@ -13,6 +13,7 @@ import ScoreboardView from './ScoreboardView'
 import EqualizerView from './EqualizerView'
 import HeatRibbonView from './HeatRibbonView'
 import PercentileLadderView from './PercentileLadderView'
+import RegimeClockView from './RegimeClockView'
 
 export { viewsByKind } from './viewMetricConfig'
 
@@ -27,4 +28,5 @@ export const VIEW_COMPONENTS = {
   equalizer: EqualizerView,
   ribbon: HeatRibbonView,
   ladder: PercentileLadderView,
+  clock: RegimeClockView,
 }

@@ -7,7 +7,7 @@
  */
 import { PAIRS } from './breadthViewShared'
 
-export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder']
+export const STYLES = ['treemap', 'rings', 'tug', 'meters', 'timeline', 'radar', 'scoreboard', 'equalizer', 'ribbon', 'ladder', 'clock']
 
 const PAIR_KEYS = new Set(PAIRS.flat())
 export const isPairMetric = (key) => PAIR_KEYS.has(key)
@@ -89,6 +89,18 @@ const TREEMAP_OPTIONS = [
   { name: 'weightBy', label: 'Size tiles by', type: 'select', default: 'curated',
     choices: [{ value: 'curated', label: 'Curated' }, { value: 'equal', label: 'Equal' }, { value: 'extremity', label: 'Extremity' }] },
 ]
+const CLOCK_OPTIONS = [
+  { name: 'level', label: 'Level series', type: 'select', default: 'pct_above_50sma',
+    choices: [
+      { value: 'pct_above_50sma', label: '% above 50 SMA' },
+      { value: 'pct_above_200sma', label: '% above 200 SMA' },
+      { value: 'breadth_score', label: 'Health score' },
+    ] },
+  { name: 'rocWindow', label: 'Momentum window', type: 'select', default: 20,
+    choices: [10, 20, 40].map(v => ({ value: v, label: `${v} days` })) },
+  { name: 'trail', label: 'Trail length', type: 'select', default: 30,
+    choices: [10, 30, 60].map(v => ({ value: v, label: `${v} days` })) },
+]
 
 export const VIEW_CONFIG = {
   treemap:    { kind: 'board', label: 'Treemap',    eligibleKeys: all,       defaultVisible: [], options: TREEMAP_OPTIONS },
@@ -101,6 +113,7 @@ export const VIEW_CONFIG = {
   equalizer:  { kind: 'board', label: 'Levels',     eligibleKeys: all,       defaultVisible: LEVELS_DEFAULT, options: [...LEVELS_OPTIONS, ...THEME_OPTIONS] },
   ribbon:     { kind: 'board', label: 'Heat Ribbon', eligibleKeys: all, defaultVisible: HEADLINE, options: [...RIBBON_OPTIONS, ...THEME_OPTIONS] },
   ladder:     { kind: 'board', label: 'Percentile Ladder', eligibleKeys: all, defaultVisible: HEADLINE, options: [...LADDER_OPTIONS, ...THEME_OPTIONS] },
+  clock: { kind: 'lens', label: 'Regime Clock', eligibleKeys: () => [], defaultVisible: [], options: [...CLOCK_OPTIONS, ...THEME_OPTIONS] },
 }
 
 // `defaultVisible: []` means "the full eligible board" (Treemap, Scoreboard).
