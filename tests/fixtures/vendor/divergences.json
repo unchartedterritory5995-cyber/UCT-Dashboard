@@ -12,7 +12,7 @@
     {
       "id": "atr-tr-starts-at-bar-1",
       "shape": "seeded",
-      "status": "spec-falsified",
+      "status": "accepted",
       "confidence": "measured",
       "ours": "True Range is defined from bar 1 — `compute_atr_raw` loops `for i in range(1, n)`, so bar 0 contributes NO TR. The seed is the simple mean of the first `period` TRs (i.e. TR of bars 1..period) and lands on `bars[period]`.",
       "theirs": "Pine's `ta.atr(length)` is documented as `ta.rma(ta.tr(true), length)`, and `ta.tr(true)` DEFINES bar 0 as `high - low` rather than leaving it `na`. Their TR array therefore starts one bar earlier and contains one value ours does not.",
@@ -32,7 +32,29 @@
         "spec_first_value": 2.809217424010843,
         "worst_abs_delta": 0.006484469714,
         "shared_bars_compared": 66,
-        "calibration": "⭐ THE SAME RUN AGREED ON THREE OTHER PROBES — `sma(close,20)` to 4.3e-14, `ema(close,10)` to 0, `rma(close,14)` to 9.9e-14. That is what makes this finding credible rather than an artefact: the instrument that reports ATR wrong reports the smoother it is built on RIGHT, so the disagreement is in the true-range half and not in the harness."
+        "calibration": "⭐ THE SAME RUN AGREED ON THREE OTHER PROBES — `sma(close,20)` to 4.3e-14, `ema(close,10)` to 0, `rma(close,14)` to 9.9e-14. That is what makes this finding credible rather than an artefact: the instrument that reports ATR wrong reports the smoother it is built on RIGHT, so the disagreement is in the true-range half and not in the harness.",
+        "decay": {
+          "bar_14": "0.2333%",
+          "bar_20": "0.1623%",
+          "bar_30": "0.0793%",
+          "bar_80": "0.0022%",
+          "bar_200": "~0%",
+          "bar_299": "4.36e-12 absolute",
+          "note": "the VALUE defect decays; the ALIGNMENT defect (one fewer emitted value) does not."
+        }
+      },
+      "decision": {
+        "ruled": "2026-08-29 — KEEP OURS. Wilder's original stands; we do not move it for this.",
+        "prior_ruling": "⛔⛔ THIS WAS ALREADY ADJUDICATED, and the adjudication is a test: `tests/test_ast_indicators.py::test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED`. It answered a cross-product finding that our ATR 'matches neither Wilder RMA nor SMA-of-TR — a third convention', proved ours IS Wilder's exactly (with the SMA-of-TR alternative computed as a DISAGREEING control), identified this same bar-0 mechanism by name, and warned in its own words: “a cross-product probe must not sample the warm-up — 0.20 vs 0.21 read at bar 15 is two seeds, not two formulas, and reading it as a formula difference is how a correct implementation gets ‘fixed’.”",
+        "what_happened": "⚰️ I DID EXACTLY THAT, and it is recorded rather than quietly reverted. `probe_atr` measured the delta, I changed `compute_atr_raw` and `computeATR` to the published `ta.rma(ta.tr(true), n)` form, the probes went 4/4 green — and the golden fixtures went red by design (`atr_14`, `atr_bands_14_2`, `test_hand_computed_atr`), which is how the prior ruling surfaced. Reverted the same session.",
+        "why_keep_ours": [
+          "OURS IS CORRECT WILDER. This is not a bug being tolerated; it is one valid convention beside another. TradingView's `ta.atr` is Wilder smoothing over a TR series that includes bar 0; ours is Wilder smoothing over a TR series that starts where a true range is actually defined. Neither is wrong about Wilder.",
+          "THE DELTA IS INVISIBLE WHERE IT IS READ. Measured over 300 bars: 0.233% at the seed, 0.079% by bar 30, 0.0022% by bar 80, 4.4e-12 by bar 299. A chart shows thousands of bars; nothing a member looks at differs.",
+          "THE CONSUMERS THAT WOULD MOVE ARE NOT THE PASTE SURFACE. `compute_atr_raw` feeds supertrend, `screener/technicals` (atr_pct, a50), `screener/bar_character`, `alert_series`'s armed member alerts, and the chart overlay. Those want the firm's own convention and have no stake in TradingView parity; changing them to serve the import lane would move live stops, sizing and saved-scan results for a difference of 4e-12 where it is read.",
+          "A SECOND, VENDOR-FAITHFUL `atr` IS THE WORSE ANSWER. Two entries computing 'the ATR' is a second authority over one value — this repo's most repeated defect — and the member could not tell which one their formula got."
+        ],
+        "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
+        "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
       }
     },
     {

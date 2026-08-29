@@ -178,6 +178,18 @@ def test_a_MEASURED_row_carries_the_measurement_and_a_suspected_row_does_not():
         if row["status"] == "suspected":
             assert not row.get("measured"), \
                 f"{row['id']}: carries a measurement but is still only 'suspected'"
+        # ⛔ AN `accepted` ROW MUST CARRY ITS ARGUMENT. The vocabulary block says
+        # so in words ("Requires `decision`"), and a status whose requirement lives
+        # only in prose is a rule nothing enforces. Without this, an accepted
+        # divergence degrades into "we know about it" with no record of WHY it was
+        # kept — which is exactly how the next engineer re-fixes it.
+        if row["status"] == "accepted":
+            dec = row.get("decision") or {}
+            assert dec.get("ruled"), f"{row['id']}: accepted with no ruling"
+            assert dec.get("why_keep_ours"), f"{row['id']}: accepted with no argument"
+            # ⭐ A DECISION NOTHING COULD OVERTURN IS A BELIEF, NOT A RULING.
+            assert dec.get("what_would_reopen_it"), (
+                f"{row['id']}: accepted with no condition that would reopen it")
 
 
 # ─── 4. the findings, pinned so they expire honestly ─────────────────────────
@@ -198,24 +210,41 @@ def test_the_STATELESS_AND_SEEDED_probes_AGREE_with_the_published_definition():
         assert r["worst"] < 1e-9, f"{name}: worst delta {r['worst']}"
 
 
-def test_ATR_DISAGREES_with_TradingViews_published_definition_ONE_BAR_LATE():
-    """🔴 A MEASURED, MEMBER-FACING DIVERGENCE — asserted so it cannot be
-    forgotten, and so that FIXING it turns this red.
+def test_ATR_differs_from_TradingViews_definition_and_that_is_an_ACCEPTED_RULING():
+    """🟡 A MEASURED DIVERGENCE THIS REPO HAS DELIBERATELY KEPT — pinned so the
+    decision cannot be re-made by accident in either direction.
 
     Ours defines True Range from bar 1 (`compute_atr_raw`: `for i in range(1, n)`).
     TradingView's `ta.atr(length)` is `ta.rma(ta.tr(true), length)`, and
-    `ta.tr(true)` defines bar 0 as `high - low`. So their TR array starts one bar
+    `ta.tr(true)` defines bar 0 as `high - low`. Their TR array starts one bar
     earlier and their seed averages a different set of ranges.
 
-    ⛔ WHEN THIS GOES RED BECAUSE SOMEBODY FIXED IT: do not delete this test.
-    Invert it, and move the `atr-tr-starts-at-bar-1` row to `refuted` with the
-    commit that fixed it. A finding that is silently dropped becomes folklore.
+    ⛔⛔ IT WAS ALREADY ADJUDICATED, AND THE ADJUDICATION IS A TEST:
+    `test_ast_indicators.py::test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED`
+    proves ours IS Wilder's exactly (with a disagreeing control), names this same
+    bar-0 mechanism, and warns that "reading it as a formula difference is how a
+    correct implementation gets 'fixed'."
+
+    ⚰️ I DID FIX IT, ON 2026-08-29, BEFORE FINDING THAT TEST. The probes went
+    4/4 green and the golden fixtures went red — which is how the prior ruling
+    surfaced. Reverted the same session. The episode is why this test is worded
+    as a RULING rather than a defect: the next person to measure this delta will
+    reach for the same fix, and the roster row is where the argument lives.
+
+    Measured decay over 300 bars: 0.233% at the seed → 4.4e-12 by bar 299. The
+    VALUE difference is invisible where a member reads it; the ALIGNMENT
+    difference (one fewer emitted value) never decays, and THAT is the half that
+    could reopen this — see `what_would_reopen_it` on the roster row.
     """
     r = probes.probe_atr()
     assert not r["agrees"], (
-        "ATR now AGREES with the published definition. If that is deliberate, "
-        "invert this test and move `atr-tr-starts-at-bar-1` to `refuted` in "
-        "tests/fixtures/vendor/divergences.json, naming the commit.")
+        "ATR now AGREES with TradingView's published definition. That is a real "
+        "decision with real blast radius — supertrend, screener technicals, "
+        "bar_character, armed member alerts and the chart overlay all read "
+        "`compute_atr_raw`. If it was deliberate, move `atr-tr-starts-at-bar-1` "
+        "to `refuted` in tests/fixtures/vendor/divergences.json naming the "
+        "commit, and invert this assertion. If it was NOT deliberate, you have "
+        "just moved live stops and saved-scan results — revert.")
     # The two axes, separately, because they are two different defects.
     assert r["our_first_bar"] == r["their_first_bar"] + 1, \
         f"alignment moved: ours {r['our_first_bar']}, spec {r['their_first_bar']}"
