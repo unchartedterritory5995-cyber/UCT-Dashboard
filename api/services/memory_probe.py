@@ -112,6 +112,61 @@ def _estimate_bytes(cache) -> dict:
     return out
 
 
+def malloc_trim() -> dict:
+    """Ask glibc to return free heap pages to the OS. Reports RSS either side.
+
+    THIS IS THE DECISIVE TEST for the growth signature this pod shows: RSS climbs
+    ~0.27 MB/s while the caches hold ~3 MB and the GC-tracked object count barely
+    moves. Memory that is neither live Python objects nor cached data is either
+    (a) genuinely in use by a C extension, or (b) FREED but still held by the
+    allocator — glibc keeps per-arena free lists and, with ~64 threads, creates
+    many arenas that each hoard.
+
+    Those two look identical from outside and are completely different problems.
+    `malloc_trim(0)` separates them in one call: if RSS drops materially, the
+    memory was (b) — allocator-held free space — and the mitigation is
+    MALLOC_ARENA_MAX or a periodic trim. If it does not move, it is (a) and the
+    next step is finding the extension holding it.
+
+    Safe: it releases only memory the process has already freed. It is a hint to
+    the allocator, not a change to application state. Cost is proportional to
+    heap size, which is why it is admin-triggered and never on a timer.
+
+    Returns `available: False` on non-glibc (musl/macOS/Windows) rather than
+    pretending a no-op was a measurement.
+    """
+    before = _rss_mb()
+    out = {"available": False, "rss_mb_before": before, "rss_mb_after": before,
+           "released_mb": 0.0, "note": ""}
+    try:
+        import ctypes
+        libc = ctypes.CDLL("libc.so.6")
+        trim = getattr(libc, "malloc_trim", None)
+        if trim is None:
+            out["note"] = "libc has no malloc_trim (not glibc) — nothing measured"
+            return out
+        trim.argtypes = [ctypes.c_size_t]
+        trim.restype = ctypes.c_int
+        rc = trim(0)
+        after = _rss_mb()
+        out.update({
+            "available": True,
+            "returned": int(rc),          # glibc: 1 = some memory was released
+            "rss_mb_after": after,
+            "released_mb": round((before or 0) - (after or 0), 1),
+        })
+        out["note"] = (
+            "released_mb materially > 0 ⇒ the growth is allocator-held FREE memory "
+            "(arena fragmentation); MALLOC_ARENA_MAX or a periodic trim is the "
+            "mitigation. ~0 ⇒ the memory is genuinely in use by a C extension."
+        )
+    except OSError as e:
+        out["note"] = f"libc unavailable ({e}) — nothing measured"
+    except Exception as e:  # noqa: BLE001
+        out["note"] = f"trim failed ({type(e).__name__}) — nothing measured"
+    return out
+
+
 def snapshot(deep: bool = False) -> dict:
     """Where the memory is. `deep` adds the costly walks — admin, on demand."""
     caches = []

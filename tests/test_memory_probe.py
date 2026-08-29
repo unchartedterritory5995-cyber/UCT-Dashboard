@@ -1,9 +1,19 @@
 """The memory probe has to find caches it was never told about.
 
-RSS on the web pod climbs ~2.2 MB/s (1201 MB at 105s uptime, 1661 MB at 318s,
-11,665 MB seen on a long-lived pod) and no existing diagnostic said what was
-holding it — `/api/health` reports the total, `/api/health/threads` showed a flat
-64 (not a thread leak), `/api/health/cache` is about R2 bars sync.
+RSS on the web pod climbs and no existing diagnostic said what was holding it —
+`/api/health` reports the total, `/api/health/threads` showed a flat 64 (not a
+thread leak), `/api/health/cache` is about R2 bars sync.
+
+⚠️ THE RATE, corrected: ~0.27 MB/s (~1 GB/h), sampled over a quiet 6-minute
+stretch (1748.6 MB -> 1848.9 MB). The 2.2 MB/s first reported here was measured
+across the BOOT window (1201 MB at 105s -> 1661 MB at 318s), which is warm-up
+allocation rather than steady state — a real number describing the wrong thing.
+11,665 MB has been seen on a long-lived pod, consistent with the slower rate.
+
+What this probe then established: it is NOT the caches (2.9 MB, 0.17% of RSS)
+and NOT the Python heap (+481 MB of RSS against +11% GC-tracked objects). That
+leaves native memory, and `malloc_trim` below is what splits the two remaining
+explanations apart.
 
 The value of this probe is entirely in DISCOVERY: a hand-written roster of caches
 would omit whichever one was added last, which is the one most likely to be the
@@ -143,3 +153,40 @@ def test_an_unserializable_value_is_still_counted():
 def test_the_payload_says_the_bytes_are_estimates():
     """A sampled number presented as exact is how a wrong conclusion gets made."""
     assert "ESTIMATE" in mp.snapshot()["note"].upper()
+
+
+# ── malloc_trim: the one call that separates the two explanations ────────────
+
+
+def test_trim_reports_rss_either_side_and_never_raises():
+    """It must return a MEASUREMENT or say it could not measure — never throw.
+
+    On this dev box (Windows) libc.so.6 does not exist, so the honest answer is
+    `available: False` with a reason, not a fabricated 0.0 that would read as
+    "nothing was held".
+    """
+    out = mp.malloc_trim()
+    assert set(out) >= {"available", "rss_mb_before", "rss_mb_after", "released_mb", "note"}
+    assert isinstance(out["available"], bool)
+    assert out["note"], "an unavailable trim must say why"
+
+
+def test_an_unavailable_trim_is_not_reported_as_zero_released():
+    """⛔ The failure that would mislead: 'released 0.0 MB' on a platform that
+    never ran the call at all reads as 'the allocator is holding nothing', which
+    is the opposite conclusion from 'we did not measure'."""
+    out = mp.malloc_trim()
+    if not out["available"]:
+        assert out["released_mb"] == 0.0
+        assert "nothing measured" in out["note"], (
+            "an unavailable trim must SAY nothing was measured, not imply a result"
+        )
+
+
+def test_the_endpoint_only_trims_when_asked():
+    """A GET that always trimmed would make every status check do real work."""
+    import inspect
+    from api import main
+    src = inspect.getsource(main.health_memory)
+    assert "if trim:" in src, "the endpoint trims unconditionally"
+    assert "trim: bool = False" in src, "trim must default to off"
