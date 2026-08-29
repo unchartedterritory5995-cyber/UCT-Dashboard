@@ -29,6 +29,7 @@ import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
 import { vendorNotesForTree } from '../engine/ast/parse'
+import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -241,6 +242,25 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     return report.outputs[chosen] || null
   }, [report, chosen])
 
+  // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
+  // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
+  // save, and only 19 can be RUN as a screen — every refusal is the `yields` gate
+  // saying "this tree returns a number". Nothing here softens that gate; the member
+  // supplies the comparison that satisfies it, exactly as TradingView's Pine
+  // Screener has them pick an operator beside a plotted column.
+  //
+  // ⛔ AND IT IS OPTIONAL BY DESIGN. A number is a perfectly good column to chart,
+  // so the box does not demand a threshold to let the member proceed — leaving it
+  // blank hands back the column itself, unchanged.
+  const [screenOp, setScreenOp] = useState(COMPARISONS[0] || '>')
+  const [screenValue, setScreenValue] = useState('')
+
+  const numericColumn = !!(active && active.formula && !yieldsCondition(active.formula))
+  const condition = useMemo(() => {
+    if (!numericColumn || String(screenValue).trim() === '') return null
+    return conditionFrom(active.formula, screenOp, screenValue)
+  }, [numericColumn, active, screenOp, screenValue])
+
   const use = useCallback(() => {
     if (!active || !active.formula) return
     // ⭐⭐ THE OBJECT FORM CARRIES THE AUTHOR'S KNOBS. `BuilderSheet` has branched
@@ -251,8 +271,11 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     // a paste with no declarable input still hand back a bare string, byte for
     // byte, so the sheet's older path is untouched rather than migrated.
     const rows = active.memberInputs || []
-    onPick?.(rows.length ? { source: active.formula, inputs: rows } : active.formula)
-  }, [active, onPick])
+    // ⛔ THE COMPARISON WRAPS THE COLUMN, so the author's knobs still sit inside it
+    // and travel unchanged. A member who left the threshold blank gets the column.
+    const picked = condition && condition.ok ? condition.formula : active.formula
+    onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
+  }, [active, onPick, condition])
 
   const usable = report ? report.outputs.filter((o) => o.formula) : []
   const anyDialect = dialect !== undefined
@@ -441,6 +464,63 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
           <p className={styles.refLink}>
             <a href="/formulas/reference">See every name you can write →</a>
           </p>
+
+          {/* ⭐⭐ THE COLUMN IS A NUMBER — OFFER TO MAKE IT A SCREEN. This is the
+              single biggest measured gap in the paste path: 41 scripts translate
+              and save, only 19 can be scanned, and every refusal is the `yields`
+              gate. The gate is right; what was missing is the one thing the
+              member has to say. */}
+          {numericColumn && (
+            <div className={styles.toScreen} data-testid="pine-to-screen">
+              <span className={styles.toScreenLead}>
+                This column is a number, so it can be charted as it is. To SCREEN
+                with it, say what you are looking for:
+              </span>
+              <div className={styles.toScreenRow}>
+                <code className={styles.toScreenCol}>{active.formula}</code>
+                <select
+                  className={styles.toScreenOp}
+                  data-testid="pine-screen-op"
+                  aria-label="comparison"
+                  value={screenOp}
+                  disabled={disabled}
+                  onChange={(e) => setScreenOp(e.target.value)}
+                >
+                  {COMPARISONS.map((op) => (
+                    <option key={op} value={op}>{operatorLabel(op)}</option>
+                  ))}
+                </select>
+                <input
+                  className={styles.toScreenValue}
+                  data-testid="pine-screen-value"
+                  aria-label="threshold"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="value"
+                  value={screenValue}
+                  disabled={disabled}
+                  onChange={(e) => setScreenValue(e.target.value)}
+                />
+              </div>
+              {condition && condition.ok && (
+                <code className={styles.toScreenPreview} data-testid="pine-screen-preview">
+                  {condition.formula}
+                </code>
+              )}
+              {condition && !condition.ok && (
+                <span className={styles.toScreenWhy} data-testid="pine-screen-why">
+                  {condition.reason}
+                </span>
+              )}
+              {/* ⛔ SAY WHAT HAPPENS IF THEY LEAVE IT BLANK, rather than letting an
+                  empty box read as an unfinished step. */}
+              {!condition && (
+                <span className={styles.toScreenWhy}>
+                  Leave this blank to keep the column as it is — you can still chart it.
+                </span>
+              )}
+            </div>
+          )}
 
           <button
             type="button"
