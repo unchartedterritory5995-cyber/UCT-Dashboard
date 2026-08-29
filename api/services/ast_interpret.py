@@ -2704,6 +2704,34 @@ def node_count(ast: Any) -> int:
 # interpret
 # --------------------------------------------------------------------------- #
 
+def _reads_clock(ast: Any) -> bool:
+    """Does this tree read any name the manifest declares as a clock entry?
+
+    ⛔ ITERATIVE, like ``node_count`` and ``max_lookback`` and for the same
+    recorded reason: the escape corpus's deepest case is 8,001 nodes and Python's
+    recursion limit is ~1,000. A measurement that dies inside the guard is not a
+    measurement.
+
+    ⛔ IT ASKS THE MANIFEST WHICH NAMES ARE CLOCK NAMES rather than listing them,
+    so a fourteenth entry is covered the day it lands.
+    """
+    names = TABLE.get(CLOCK_SECTION) or {}
+    stack = [ast]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, list):
+            stack.extend(node)
+            continue
+        if not isinstance(node, dict):
+            continue
+        if node.get("type") == "series" and node.get("name") in names:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
 def interpret(ast: Any, bars: List[dict],
               inputs: Optional[Mapping[str, Any]] = None,
               budget: Optional[Mapping[str, Any]] = None,
@@ -2825,18 +2853,33 @@ def interpret(ast: Any, bars: List[dict],
     # measurement, and a NEGATIVE delta for purely ADDED work is the tell.
     # The trade still holds in the units that decide it: even at the top of the
     # range, 3,700 symbols is well under a second per nightly sweep.
-    clock_cols = compute_clock(bars, (opts or {}).get("tf"))
-    for name in TABLE.get(CLOCK_SECTION) or {}:
-        col = clock_cols.get(name)
-        if col is None:
-            raise ValueError(
-                f"interpret: the table declares the clock name {name!r} and "
-                f"`indicator_compute.compute_clock` produces no such column "
-                f"(it produces {', '.join(sorted(clock_cols))}). The manifest is "
-                "the authority over WHICH clock names exist and the maths over "
-                "what each MEANS; seeding NaN here would make a declared name "
-                "read `not computable` on every bar forever.")
-        scope[name] = [NAN if v is None else float(v) for v in col]
+    # ⛔⛔ SEEDED ONLY WHEN THE TREE ACTUALLY READS A CLOCK NAME. The mirror of
+    # ``interpret.js``, and it matters MORE on this lane: the nightly sweep runs
+    # every definition against every symbol, and this seed is not just thirteen
+    # allocations but thirteen PYTHON-LEVEL list comprehensions per call.
+    #
+    # ⚠️ MEASURED ON THE JS LANE, where the same waste is easier to time: across
+    # the 167 columns the committed corpora translate, exactly ZERO read any of the
+    # thirteen clock names, and an A/B over 30 of them at 5,000 bars read 454ms with
+    # the calendar maths against 54ms without. The paragraph above already called a
+    # lazy seed "the first thing to reach for if this shows in a profile".
+    #
+    # ⭐ A TREE THAT DOES READ THE CLOCK IS UNCHANGED: same ``compute_clock``, same
+    # thirteen columns, same validation. What is skipped is skipped only when the
+    # answer could not have depended on it.
+    if _reads_clock(ast):
+        clock_cols = compute_clock(bars, (opts or {}).get("tf"))
+        for name in TABLE.get(CLOCK_SECTION) or {}:
+            col = clock_cols.get(name)
+            if col is None:
+                raise ValueError(
+                    f"interpret: the table declares the clock name {name!r} and "
+                    f"`indicator_compute.compute_clock` produces no such column "
+                    f"(it produces {', '.join(sorted(clock_cols))}). The manifest is "
+                    "the authority over WHICH clock names exist and the maths over "
+                    "what each MEANS; seeding NaN here would make a declared name "
+                    "read `not computable` on every bar forever.")
+            scope[name] = [NAN if v is None else float(v) for v in col]
 
     # ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
     # RESOLVES — an absent value seeds a NaN column, exactly like a bar with a

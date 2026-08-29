@@ -2045,6 +2045,27 @@ export function nodeCount(ast) {
  *  therefore produces a visibly unanswered column rather than a confident wrong
  *  one, which is what makes the two threading hand-backs (`nativeRegistry.js`
  *  and `scan_evaluator.py`) safe to land separately from this. */
+/** ⭐⭐ DOES THIS TREE READ THE CLOCK AT ALL? Iterative, like every other walk in
+ *  this file, and for the same recorded reason: the escape corpus has an 8,001-node
+ *  case and a measurement that dies inside the guard is not a measurement.
+ *
+ *  ⛔ IT ASKS THE MANIFEST WHICH NAMES ARE CLOCK NAMES rather than listing them.
+ *  A fourteenth clock entry is covered the day it lands. */
+function readsClock(ast, table) {
+  const names = table.clock || {}
+  const stack = [ast]
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (Array.isArray(node)) { for (const c of node) stack.push(c); continue }
+    if (node.type === 'series' && Object.prototype.hasOwnProperty.call(names, node.name)) {
+      return true
+    }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return false
+}
+
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
@@ -2123,7 +2144,20 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // transient per call at full history -- GC churn on every repaint, and the
   // reason a lazy seed is the first thing to reach for if this shows in a
   // profile.
-  {
+  // ⛔⛔ SEEDED ONLY WHEN THE TREE ACTUALLY READS A CLOCK NAME — the lazy seed the
+  // paragraph above called "the first thing to reach for if this shows in a
+  // profile". It showed.
+  //
+  // ⚠️ MEASURED, NOT ARGUED. Across the 167 columns the committed corpora translate,
+  // exactly ZERO read any of the thirteen clock names — and every `interpret` call
+  // was computing all thirteen regardless. A/B over 30 of those columns at 5,000
+  // bars: 454ms with the calendar maths, 54ms without. The clock was ~88% of this
+  // function's cost, spent entirely on columns nobody asked for, on every repaint.
+  //
+  // ⭐ BEHAVIOUR IS UNCHANGED FOR A TREE THAT DOES READ IT: the same
+  // `computeClock` call, the same thirteen columns, the same validation. What is
+  // skipped is skipped only when the answer could not have depended on it.
+  if (readsClock(ast, TABLE)) {
     const cols = computeClock(bars, opts ? opts.tf : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
