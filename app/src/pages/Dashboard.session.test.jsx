@@ -36,9 +36,15 @@ afterEach(() => {
 })
 
 async function renderAt(session) {
+  // ⚠️ The mock must carry EVERY export the tree imports — Zone A now reads
+  // `useNextBoundary` for its countdown, and a partial factory throws
+  // "No X export is defined on the mock" rather than falling through.
   vi.doMock('./dashboard/useSessionState', () => ({
     default: () => session,
     resolveSession: () => session,
+    nextBoundary: () => ({ kind: 'close', ms: 0 }),
+    formatCountdown: () => '0m',
+    useNextBoundary: () => ({ kind: 'close', ms: 0, label: 'Closes in 0m' }),
   }))
   const { default: Dashboard } = await import('./Dashboard')
   render(<MemoryRouter><Dashboard /></MemoryRouter>)

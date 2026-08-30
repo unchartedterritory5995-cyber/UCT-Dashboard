@@ -3,15 +3,37 @@
  * System. Zone A's height is declared by Dashboard.module.css's `.main` grid;
  * everything here sizes to 100% of that track rather than asserting a height
  * of its own, so the budget has exactly one owner.
+ *
+ * ⛔ THE 120px BUDGET, SPENT DELIBERATELY:
+ *     row 1  read + index strip   ~72px  (compact strip is one row of six)
+ *     row 2  wire stamp · note     ~14px
+ *     row 3  quote                 ~14px
+ *     grid row-gap ×2               ~8px
+ *     ────────────────────────────────────
+ *                                 ~108px, inside 120px.
+ *   Every text row below is CLAMPED TO ONE LINE (nowrap + ellipsis). A wrap
+ *   here silently spends Zone B's height, and jsdom cannot see it — so the
+ *   clamp is the invariant, not a style preference.
  */
 .read {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-md);
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  column-gap: var(--space-md);
+  row-gap: 4px;
   align-items: center;
   height: 100%;
+  min-width: 0;
 }
-.state { display: flex; align-items: center; gap: var(--space-md); }
+
+/* The read column and the strip share row 1; the two meta lines span both. */
+.state { grid-row: 1; grid-column: 1; display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; }
+.stripCell { grid-row: 1; grid-column: 2; min-width: 0; }
+.meta, .quote { grid-column: 1 / -1; }
+.meta { grid-row: 2; }
+.quote { grid-row: 3; }
+
+.stateTop { display: flex; align-items: center; gap: 8px; }
 .pill {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -25,10 +47,20 @@
 }
 .live { color: var(--gain); border-color: var(--gain-border); }
 .premarket, .closed, .weekend { color: var(--text-muted); }
+
+.countdown {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .exposure { display: flex; align-items: baseline; gap: 6px; }
 .exposure b {
   font-family: var(--font-mono);
   font-size: 26px;
+  line-height: 1;
   color: var(--ut-gold, #dcbb5e);
 }
 .exposureLabel {
@@ -39,11 +71,38 @@
   white-space: nowrap;
 }
 
+/* ── The two clamped meta lines ─────────────────────────────────────────── */
+.meta, .quote {
+  margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+/* A stale wire is the one thing here that is allowed to shout. */
+.metaStale { color: var(--warning, #f5a623); opacity: 1; }
+.dot { opacity: 0.5; }
+
+.quote { font-size: 11px; color: var(--text-muted); }
+.quoteText { font-style: italic; opacity: 0.9; }
+.quoteAuthor { font-family: var(--font-mono); font-size: 10px; color: var(--ut-gold, #dcbb5e); opacity: 0.7; }
+
 /* Touch: the strip stacks under the read rather than competing with it for a
    narrow row, and the zone stops asserting a height it no longer owns (the
-   .main grid switches to auto rows at the same breakpoint). */
+   .main grid switches to auto rows at the same breakpoint). Text may wrap here
+   — the budget only binds on desktop. */
 @media (max-width: 1024px) {
-  .read { grid-template-columns: 1fr; height: auto; gap: var(--space-sm); }
+  .read { grid-template-columns: 1fr; grid-template-rows: none; height: auto; row-gap: var(--space-sm); }
+  .state, .stripCell, .meta, .quote { grid-row: auto; grid-column: 1; }
+  .meta, .quote { white-space: normal; overflow: visible; text-overflow: clip; }
 }
 @media (max-width: 640px) {
   .exposure b { font-size: 22px; }

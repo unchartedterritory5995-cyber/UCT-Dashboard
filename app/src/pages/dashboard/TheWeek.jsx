@@ -35,6 +35,10 @@ import styles from './TheWeek.module.css'
 // slice of `data` is missing — same degrade-to-absence behaviour, minus the
 // silent misclassification. See utils/jsonFetcher.js for the error contract.
 import fetcher from '../../utils/jsonFetcher'
+// ⭐ THE QUOTE'S FIRST-CLASS HOME (spec, Zone A): "It becomes a first-class
+// element of the WEEKEND state, where there is room for it." Zone A demotes it
+// to one line every day; here, on the only state with space, it gets a panel.
+import useQuoteOfTheDay from '../../hooks/useQuoteOfTheDay'
 
 function ArticleLink({ article, className }) {
   const { title, slug, has_body, url } = article
@@ -47,6 +51,7 @@ function ArticleLink({ article, className }) {
 export default function TheWeek() {
   const { data: desk } = useSWR('/api/desk/articles?limit=12', fetcher)
   const { data: cal } = useSWR('/api/calendar', fetcher)
+  const { quote } = useQuoteOfTheDay()
 
   const articles = desk?.articles ?? []
   const scan = articles.find(a => (a.slug || '').startsWith('sunday-scans-'))
@@ -75,6 +80,12 @@ export default function TheWeek() {
   // here — degrading to absence rather than to a labelled empty box. SWR
   // still retries on the thrown error, so a transient failure heals into
   // content (rail: TheWeek.errors.test.jsx).
+  // ⛔ THE QUOTE IS DELIBERATELY NOT PART OF THIS TEST. It is available almost
+  // always (server pick, with a local rotation as the offline fallback), so
+  // counting it would make this condition unreachable and quietly restore the
+  // very defect the gate exists to remove: a "The Week" header over a card that
+  // says nothing about the week. Nothing to say about the week is still said by
+  // saying nothing — the quote rides along when there IS a week to show.
   if (!scan && onDeck.length === 0 && reading.length === 0) return null
 
   return (
@@ -102,6 +113,16 @@ export default function TheWeek() {
                 <li key={a.slug || a.id}><ArticleLink article={a} /></li>
               ))}
             </ul>
+          </section>
+        )}
+        {quote && (
+          <section className={`${styles.panel} ${styles.quotePanel}`}>
+            <h3 className={styles.h}>Quote of the Day</h3>
+            <blockquote className={styles.quoteText}>&#8220;{quote.t}&#8221;</blockquote>
+            <div className={styles.quoteAuthor}>
+              &mdash; {quote.a}
+              {quote.src && <span className={styles.quoteSrc}> · {quote.src}</span>}
+            </div>
           </section>
         )}
       </div>

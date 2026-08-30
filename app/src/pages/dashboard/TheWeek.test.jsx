@@ -54,6 +54,26 @@ describe('TheWeek', () => {
     expect(screen.getByText('The Week')).toBeTruthy()
   })
 
+  // ─── S4 · the Quote of the Day is first-class on the WEEKEND state ───────
+  test('renders the Quote of the Day as its own panel', () => {
+    // The mocked `swr` above answers every key with calData, so
+    // useQuoteOfTheDay sees `{days:{}}` — no `.quote` — and falls back to the
+    // local rotation, which is exactly the offline path a member would get.
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText(/quote of the day/i)).toBeTruthy()
+  })
+
+  test('a card with NOTHING about the week is still null — the quote does not resurrect the frame', () => {
+    // ⛔ THE GATE MUST NOT COUNT THE QUOTE. The quote is available almost
+    // always, so counting it would make the empty-frame gate unreachable and
+    // put a "The Week" header over a card that says nothing about the week.
+    deskData = { articles: [] }
+    calData = { days: {} }
+    const { container } = render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(container.textContent).toBe('')
+    expect(screen.queryByText(/quote of the day/i)).toBeNull()
+  })
+
   test('omits panels with no data instead of rendering an empty frame', () => {
     // calendar returned no days at all — "on deck" must not render an empty shell
     render(<MemoryRouter><TheWeek /></MemoryRouter>)
