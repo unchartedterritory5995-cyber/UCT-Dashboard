@@ -1,0 +1,68 @@
+{
+  "_": "MEASURED LIFT PER NAMED STRUCTURE. This file is the ONLY authority on what a structure has been measured to do; `base_catalog.Structure` deliberately carries no lift field, so the catalog can never disagree with the harness. `published: false` means we have no number -- either it was never measured or it was measured and refused -- and `base_catalog.meta()` surfaces None for both, because to a member they say the same honest thing. The reasons stay here for anyone auditing.",
+  "measured_at": "2026-08-30",
+  "method": "Lift = conditional rate - pattern-free rate, where the pattern-free half is restricted to the YEARS the structure actually fired in (the baseline drifts: target-first ran 17.1% in 2018 and 35.7% in 2020). Anchors are stepped by the full 20-session horizon so no two observations share a forward window. The CI is a 400-draw CLUSTER BOOTSTRAP resampling tickers with replacement, because detections cluster by ticker and a two-proportion SE assumes that away. The null re-runs the IDENTICAL detector over MOVING-BLOCK resampled series (21-bar blocks) so local volatility clustering survives and only the long-range order is destroyed -- an iid shuffle would hand a quiet-regime detector a free volatility premium.",
+  "gates": "All three must pass or NO number is published: (1) the lift's 95% CI excludes zero; (2) the CI's LOWER BOUND exceeds the random-data null's maximum -- not the point estimate, which let a 32.97pp lift on n=13 through on the first run; (3) n is whatever (1) requires, derived rather than typed.",
+  "sample": "374 tickers x up to 3,000 daily bars, drawn seeded-random from the 3,707-name screener universe.",
+  "baseline_metric": "P(+10% before -8% within 20 sessions). Measured unconditionally over the whole 3,705-name universe by an independent code path: 27.51% target-first, 33.41% stop-first, 39.08% neither. The per-structure pattern-free baselines below came out at 27.01-28.71%, which is the cross-check that this harness measures what it claims to.",
+  "limitations": "Published intervals are still optimistic in one respect not yet closed: the sample is 374 tickers, not the full 3,707. Widening it can only tighten the estimate, not change its sign, but the numbers below should be re-measured on the full universe before any of them is quoted externally.",
+  "structures": {
+    "darvas-box": {
+      "published": true,
+      "lift": 0.0765,
+      "ci_low": 0.0556,
+      "ci_high": 0.0982,
+      "n": 2625,
+      "rate": 0.3467,
+      "baseline": 0.2701,
+      "null_max": 0.0210,
+      "null_trials": 30,
+      "note": "The only structure of the four that clears every gate. Its null was deliberately re-run at 30 trials rather than 5 to try to break it: min -2.06pp, median +0.73pp, max +2.10pp, mean +0.60 with stdev 0.88 -- and ZERO of the 30 trials reached the CI's lower bound of +5.56pp, which sits ~5.6 standard deviations above the null mean. The moving-block null was built specifically to strip out a volatility premium (a box detector selects a quiet stretch) and removed nothing: the null max moved only +2.31 -> +2.10pp when clustering was preserved."
+    },
+    "green-line-breakout": {
+      "published": false,
+      "lift": -0.0496,
+      "ci_low": -0.0852,
+      "ci_high": -0.0142,
+      "n": 800,
+      "rate": 0.2375,
+      "baseline": 0.2871,
+      "null_max": 0.0332,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound -0.0852 does not exceed the random-data null (max of 5 trials = +0.0332) at n=800"
+      ],
+      "note": "Measurably NEGATIVE, not merely unproven. Breaking above a multi-year high underperformed its own pattern-free baseline by ~5 percentage points. This independently replicates Grimes, who measured buying 50-day highs and found significant underperformance against a ~15%/yr base rate -- a different dataset and a different definition arriving at the same sign, and the opposite of what the momentum literature asserts."
+    },
+    "pocket-pivot": {
+      "published": false,
+      "lift": -0.0655,
+      "ci_low": -0.1030,
+      "ci_high": -0.0306,
+      "n": 628,
+      "rate": 0.2102,
+      "baseline": 0.2757,
+      "null_max": 0.0150,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound -0.1030 does not exceed the random-data null (max of 5 trials = +0.0150) at n=628"
+      ],
+      "note": "Also measurably negative. Kacher asserts 'about half of high quality stocks showing pocket pivots will work' -- published with no sample size, no date range, no universe and no benchmark, and elsewhere the same authors call asking for aggregate performance 'silly at best'. On our universe the daily-computable half of his rule resolved BELOW its own baseline. Note the honest caveat: the fundamentals gate and the 'constructive base' requirement are not computable from bars and were not applied, so this measures our implementable subset, not his complete method."
+    },
+    "power-play": {
+      "published": false,
+      "lift": 0.3297,
+      "ci_low": 0.0271,
+      "ci_high": 0.6370,
+      "n": 13,
+      "rate": 0.6154,
+      "baseline": 0.2857,
+      "null_max": 0.2641,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound +0.0271 does not exceed the random-data null (max of 5 trials = +0.2641) at n=13"
+      ],
+      "note": "The largest point estimate and the least evidence. n=13 gives a cluster CI 61 percentage points wide, and the structure's own moving-block null reached +26.41pp -- so the result is entirely consistent with the detector's mechanical behaviour on data where it cannot be right. This is the structure that PUBLISHED on the first run, when the gate compared the point estimate rather than the interval's lower bound. It is also why gate 3 works without anyone choosing a minimum n: a thin sample widens the interval, the lower bound sinks under the null, and the refusal happens on its own."
+    }
+  }
+}
