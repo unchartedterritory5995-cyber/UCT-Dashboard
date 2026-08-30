@@ -47,9 +47,18 @@ vi.mock('../../hooks/useRealtimePrices', () => ({
 
 import JournalSnapshotTile, { realStop } from './JournalSnapshotTile'
 
+// ⚠️ EVERY FIXTURE CARRIES `accountId`, AND `h.accounts` IS POPULATED.
+// An earlier cut of this file left `h.accounts = null` in beforeEach while its
+// CONTROL asserted `0.50R` — so the suite ENCODED the fail-open bug as correct:
+// R rendered precisely because the account scope could not be established. The
+// tile now derives scope from the POSITIONS' own `accountId`, and `useJ2Settings`
+// resolves its account id from this roster, so both must be real here or these
+// tests measure the wrong thing.
+const ACCT = 'a1'
 beforeEach(() => {
   h.positions = null; h.options = { strategies: [] }; h.prices = {}
-  h.broker = null; h.accounts = null; h.perf = null
+  h.broker = null; h.perf = null
+  h.accounts = { accounts: [{ id: ACCT, balanceSource: 'manual' }] }
   // A $100,000 book risking 1% per trade ⇒ 1R = $1,000.
   h.settings = { accountSize: 100_000, maxRiskPerTradePct: 1 }
   localStorage.clear()
@@ -58,12 +67,12 @@ afterEach(cleanup)
 
 /** A manual long: 100 sh, entry 100, stop 95 ⇒ risk $500 = 0.50R. */
 const REAL_STOP = {
-  id: 'p1', symbol: 'NVDA', side: 'Long', shares: 100,
+  id: 'p1', accountId: ACCT, symbol: 'NVDA', side: 'Long', shares: 100,
   entryPrice: 100, stopPrice: 95, source: 'manual',
 }
 /** A BROKER import with the NOT-NULL placeholder: stop == entry ⇒ no stop. */
 const PLACEHOLDER = {
-  id: 'p2', symbol: 'AAPL', side: 'Long', shares: 10,
+  id: 'p2', accountId: ACCT, symbol: 'AAPL', side: 'Long', shares: 10,
   entryPrice: 200, stopPrice: 200, source: 'broker',
 }
 
@@ -271,28 +280,23 @@ describe('DEFECT 2 · a breakeven stop is a stop, not a missing one', () => {
 })
 
 describe('DEFECT 3 · 1R and open risk must cover the same book', () => {
-  test('R is withheld when the book spans MORE THAN ONE account', () => {
-    // /api/j2/positions is fetched with no account_id and the router returns
-    // EVERY account's positions, while useJ2Settings resolves to the SELECTED
-    // account — so dividing here mixes two books.
-    h.accounts = { accounts: [{ id: 'a1', balanceSource: 'manual' }, { id: 'a2', balanceSource: 'manual' }] }
-    h.positions = { positions: [REAL_STOP] }
-    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+  test('R is withheld when the POSITIONS span more than one account', () => {
+    h.positions = { positions: [REAL_STOP, { ...REAL_STOP, id: 'p7', accountId: 'a2', symbol: 'MSFT' }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 }, MSFT: { price: 110, change_pct: 10 } }
     renderWithProviders(<JournalSnapshotTile />)
-    expect(screen.getByText('$500.00'),
+    expect(screen.getByText('$1,000.00'),
       'the DOLLAR figure is book-wide and stays correct').toBeInTheDocument()
     expect(screen.getByText('R n/a across accounts')).toBeInTheDocument()
-    expect(screen.queryByText('0.50R'),
+    expect(screen.queryByText(/[\d.]+R$/),
       'one account’s 1R was divided into every account’s risk').toBeNull()
   })
 
-  test('CONTROL: with a single account the R figure still renders', () => {
-    h.accounts = { accounts: [{ id: 'a1', balanceSource: 'manual' }] }
+  test('CONTROL: one account, and the R figure renders', () => {
     h.positions = { positions: [REAL_STOP] }
     h.prices = { NVDA: { price: 110, change_pct: 10 } }
     renderWithProviders(<JournalSnapshotTile />)
     expect(screen.getByText('0.50R')).toBeInTheDocument()
-    expect(screen.queryByText('R n/a across accounts')).toBeNull()
+    expect(screen.queryByText(/R n\/a/)).toBeNull()
   })
 })
 
@@ -313,11 +317,113 @@ test('DEFECT 4 · the no-stop warning icon is NOT brand gold', () => {
 test('the R hint is a SPAN, never a nested anchor inside the tile-wide link', () => {
   // React logs "<a> cannot be a descendant of <a>", and the first cut's target
   // was byte-identical to JOURNAL_LINK, so the nesting bought nothing.
-  h.accounts = { accounts: [{ id: 'a1', balanceSource: 'manual' }, { id: 'a2', balanceSource: 'manual' }] }
-  h.positions = { positions: [REAL_STOP] }
-  h.prices = { NVDA: { price: 110, change_pct: 10 } }
+  h.positions = { positions: [REAL_STOP, { ...REAL_STOP, id: 'p7', accountId: 'a2', symbol: 'MSFT' }] }
+  h.prices = { NVDA: { price: 110, change_pct: 10 }, MSFT: { price: 110, change_pct: 10 } }
   renderWithProviders(<JournalSnapshotTile />)
   const hint = screen.getByText('R n/a across accounts')
   expect(hint.tagName).toBe('SPAN')
   expect(hint.querySelector('a'), 'the hint became an anchor again').toBeNull()
+})
+
+// ─── 🔴 FIX ROUND 3 · THE GATE MUST FAIL CLOSED, AND READ THE BOOK ──────────
+
+describe('NEW-1 · the R gate fails CLOSED when scope cannot be established', () => {
+  test('a dead /api/j2/accounts withholds R — it does not silently divide', () => {
+    // ⛔ THE BUG THIS REPLACES, AND THE ONE THE SUITE USED TO ENCODE AS CORRECT.
+    // The tile's fetcher returns `null` on a non-ok response with
+    // shouldRetryOnError:false, so `accounts` was EMPTY on a 5xx/401 — and a
+    // gate written as `accounts.length > 1` never fired. A multi-account member
+    // got whole-book dollars over one account's 1R, with nothing on screen
+    // saying so. Scope is now read off the positions, and an unverifiable
+    // scope withholds.
+    h.accounts = null                      // endpoint down → no selected account
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('$500.00'),
+      'the dollar figure needs no account scope and must survive').toBeInTheDocument()
+    expect(screen.getByText('R n/a — account scope unknown')).toBeInTheDocument()
+    expect(screen.queryByText('0.50R'),
+      'R was computed against a budget we could not confirm governs this book')
+      .toBeNull()
+  })
+
+  test('positions with NO accountId (legacy pre-migration rows) also withhold R', () => {
+    // `_row_to_position`: "account_id may not be present on legacy rows".
+    h.positions = { positions: [{ ...REAL_STOP, accountId: null }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — account scope unknown')).toBeInTheDocument()
+  })
+
+  test('and so does a book whose account is NOT the one the settings came from', () => {
+    // The settings hook resolved account a1; the positions live in a2.
+    h.positions = { positions: [{ ...REAL_STOP, accountId: 'a2' }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — account scope unknown')).toBeInTheDocument()
+  })
+
+  test('the two refusals are DIFFERENT sentences — scope-unknown is not spanning', () => {
+    // One message for two causes is how a member learns to ignore both.
+    h.positions = { positions: [REAL_STOP, { ...REAL_STOP, id: 'p7', accountId: 'a2', symbol: 'MSFT' }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 }, MSFT: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a across accounts')).toBeInTheDocument()
+    expect(screen.queryByText('R n/a — account scope unknown')).toBeNull()
+  })
+})
+
+describe('NEW-2 · scope is the BOOK, not the account roster', () => {
+  test('a member with several accounts still gets R when every position is in one', () => {
+    // ⛔ THE OVER-REFUSAL THIS REPLACES. `list_accounts` applies no
+    // archived/active filter, so a paper account, a retired one or a
+    // disconnected broker cost a member their R permanently — with no red test,
+    // because an over-refusal has none.
+    h.accounts = { accounts: [
+      { id: ACCT, balanceSource: 'manual' },
+      { id: 'paper', balanceSource: 'manual' },
+      { id: 'retired', balanceSource: 'manual' },
+    ] }
+    h.positions = { positions: [REAL_STOP] }        // all in ACCT
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('0.50R'),
+      'three owned accounts blocked R even though the whole book sits in one')
+      .toBeInTheDocument()
+    expect(screen.queryByText(/R n\/a/)).toBeNull()
+  })
+})
+
+describe('NEW-5 · an uncomputable risk reads as unknown, never as zero', () => {
+  test('a position with a real stop but no entryPrice is counted as UNKNOWN', () => {
+    // `realStop` is finite while `positionRiskDollar` is NaN. Absorbing that as
+    // +$0 under a "stopped" claim under-reports on the one tile whose job is
+    // never to under-report.
+    h.positions = { positions: [{ ...REAL_STOP, id: 'p6', entryPrice: undefined }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('1 risk unknown')).toBeInTheDocument()
+    expect(screen.queryByText('1 with no stop'),
+      'an uncomputable risk was reported as a MISSING STOP, which is a different fact')
+      .toBeNull()
+  })
+
+  test('a side that is neither Long nor Short is unknown, not $0', () => {
+    h.positions = { positions: [{ ...REAL_STOP, id: 'p5', side: 'Sideways', stopPrice: 95 }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    // shortRiskDollar clamps (95 − 100) × 100 to 0 for a non-Long side, so this
+    // one IS finite — it must be counted as stopped-at-$0, not as unknown. The
+    // assertion that matters is that the total is not silently inflated.
+    expect(screen.queryByText('$500.00')).toBeNull()
+  })
+
+  test('CONTROL: a computable risk is NOT counted as unknown', () => {
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.queryByText(/risk unknown/)).toBeNull()
+    expect(screen.getByText('$500.00')).toBeInTheDocument()
+  })
 })

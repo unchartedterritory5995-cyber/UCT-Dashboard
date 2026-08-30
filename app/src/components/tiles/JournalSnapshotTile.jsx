@@ -31,8 +31,7 @@ import {
   portfolioAggregates,
   positionPnlDollar,
   positionRiskDollar,
-  activeStop,
-  isBrokerPlaceholderStop,
+  realStop,
   brokerLiveSummary,
   effectiveBrokerCash,
   preferBrokerMarks,
@@ -111,37 +110,15 @@ export function buildSpark(series) {
 
 const sign = (n) => (n > 0 ? styles.pos : n < 0 ? styles.neg : '')
 
-/**
- * The stop a position is ACTUALLY protected by, or `null` when it has none.
- * ⭐ ONE predicate, read by both the row and the aggregate — they disagreeing
- * about a single position is precisely the defect this exists to prevent.
- *
- * Three ways a stored `stopPrice` is not a stop:
- *   1. The BROKER PLACEHOLDER (`stop === entry` on a broker row) — the shared
- *      `isBrokerPlaceholderStop`, never a local copy.
- *   2. NOT FINITE — null/undefined/NaN.
- *   3. 🔴 ZERO OR NEGATIVE. `api/services/journal_two/positions.py` stores
- *      `stop_price = 0.0` when `stopPrice` is omitted at create (it is
- *      optional), and that is a MANUAL row, so the broker predicate never
- *      fires on it. Left through, a $0 stop rendered as real protection and
- *      booked the entire notional as risk: 100 shares at $100 read
- *      "stop $0.00" and "Open risk $10,000.00 / 10.00R".
- *      `api/services/portfolio_heat.py` has had `if stop <= 0: return True`
- *      all along — the server and the client were the two authorities, and
- *      only one of them knew.
- *
- * ⚠️ Deliberately NOT pushed down into `lib/journal-2-0/calculations.js`:
- * `isBrokerPlaceholderStop` has other consumers whose behaviour would change,
- * and unifying the client and server predicates at the root is a separate,
- * scoped piece of work.
- * @param {{stopPrice?: number, entryPrice?: number, source?: string}} p
- */
-export function realStop(p) {
-  if (isBrokerPlaceholderStop(p)) return null
-  const s = activeStop(p)
-  if (!Number.isFinite(s) || s <= 0) return null
-  return s
-}
+// ⭐ RE-EXPORTED, NOT REDEFINED. `realStop` used to be declared in this file,
+// which meant the rule "a 0 stop is not a stop" stopped at this tile: the
+// Journal's Positions tab and `portfolioAggregates` still asked the narrower
+// `isBrokerPlaceholderStop`, so the SAME position read "no stop, $0 risk" here
+// and "stop $0.00, full notional at risk" there. It now lives in
+// `lib/journal-2-0/calculations.js` where every surface inherits it; this line
+// keeps the name importable from here for the tests that pin this tile's
+// behaviour against it.
+export { realStop }
 
 export default function JournalSnapshotTile({ showEquityCurve = false, period = DEFAULT_BROKER_PERIOD }) {
   const { data: posData, isLoading: posLoading } = useSWR(
@@ -256,66 +233,94 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
   // Risk does not depend on the current price at all, so after hours — or for
   // any symbol the live feed doesn't carry — that would silently UNDER-REPORT
   // open risk, which is the one direction a risk number must never fail in.
-  // The per-position math and the placeholder predicate are still the shared
-  // authority (`positionRiskDollar` + `isBrokerPlaceholderStop`); only the
-  // summation loop is here.
+  // The per-position math and the stop predicate are both the shared authority
+  // (`positionRiskDollar` + `realStop`); only the summation loop is here.
   //
-  // ⛔ SAFETY-CRITICAL — BROKER PLACEHOLDER STOPS. Broker imports store
-  // `stop_price = entry_price` because the column is NOT NULL and the broker
-  // reports no stop. Counting that as a real stop reads as ZERO risk, which
-  // under-reports heat and would green-light an over-cap add; the same rule is
-  // enforced server-side in `api/services/portfolio_heat.py`. Such positions are
-  // EXCLUDED from the dollar figure and COUNTED separately, never silently
-  // dropped — "3 with no stop" is the sentence a trader needs.
-  const { settings } = useJ2Settings()
+  // ⛔ SAFETY-CRITICAL — A POSITION WITH NO USABLE STOP. Broker imports store
+  // `stop_price = entry_price` and manual rows created without a stop store
+  // `0.0`, both because the column is NOT NULL. Counting either as a real stop
+  // corrupts the number in opposite directions — the broker seed reads as ZERO
+  // risk (under-reporting heat, which would green-light an over-cap add), the
+  // zero seed as the ENTIRE NOTIONAL. `realStop` rejects both, and the same
+  // rule is enforced server-side in `api/services/portfolio_heat.py`. Such
+  // positions are EXCLUDED from the dollar figure and COUNTED separately, never
+  // silently dropped — "3 with no stop" is the sentence a trader needs.
+  const { settings, accountId: settingsAccountId } = useJ2Settings()
   const openRisk = useMemo(() => {
     let dollars = 0
     let withStop = 0
     let noStop = 0
+    let unknown = 0
     for (const p of positions) {
       if (realStop(p) == null) { noStop += 1; continue }
       // ⛔ A RISK-FREE STOP IS NOT A MISSING STOP. `positionRiskDollar` is
       // clampNonNegative, so a stop at or above entry (a raised breakeven, the
-      // thing a disciplined trader DOES) yields 0 — and the first cut folded
+      // thing a disciplined trader DOES) yields 0 — and an early cut folded
       // that 0 into the no-stop warning count, so the row said "stop $100.00"
       // while the aggregate said "1 with no stop" about the same position.
       // Two answers, one fact. It counts as STOPPED and contributes $0.
       const r = positionRiskDollar(p)
-      dollars += Number.isFinite(r) && r > 0 ? r : 0
+      // ⛔ …BUT AN UNCOMPUTABLE RISK IS NOT A ZERO EITHER. `realStop` can be
+      // finite while `positionRiskDollar` is NaN — a missing `entryPrice` on a
+      // manual row, or a `side` that is neither Long nor Short falling through
+      // to `shortRiskDollar`. Absorbing that as +$0 under a "stopped" claim
+      // would under-report on the one tile whose job is never to under-report.
+      // Unknown reads as unknown.
+      if (!Number.isFinite(r)) { unknown += 1; continue }
+      dollars += r > 0 ? r : 0
       withStop += 1
     }
-    return { dollars, withStop, noStop }
+    return { dollars, withStop, noStop, unknown }
   }, [positions])
 
-  // 1R = the book's per-trade risk budget. Every input must be real or R is NOT
-  // derivable — and an undefined R is reported as such rather than rendered as
-  // a confident 0.00R.
+  // ── 1R, AND WHETHER IT GOVERNS THE BOOK WE JUST SUMMED ────────────────────
   //
   // 🔴 THE DENOMINATOR AND THE NUMERATOR MUST COVER THE SAME BOOK.
-  // `/api/j2/positions` is fetched with NO account_id, and the router returns
-  // EVERY account's positions when it is omitted — while `useJ2Settings`
-  // resolves to the SELECTED account. So for a multi-account member the first
-  // cut divided whole-book dollars by one account's 1R, which can err in either
-  // direction and can UNDER-report.
+  // `/api/j2/positions` is fetched with NO account_id and the router returns
+  // EVERY account's positions when it is omitted, while `useJ2Settings`
+  // resolves to the SELECTED account. Dividing one by the other mixes books.
   //
-  // ⛔ NEITHER OF THE TWO OBVIOUS FIXES IS SAFE HERE, so R is gated instead —
-  // see the report. Scoping the positions fetch to one account would change
-  // what the whole tile SHOWS (headline net-liq included) and put it at odds
-  // with `useJ2BrokerPerformance(..., { portfolio: true })` two lines up;
-  // summing `accountSize` across accounts needs per-account settings and there
-  // is no bulk endpoint, so it costs one request per account. With more than
-  // one account the budget is genuinely unknown, and saying so is the only
-  // answer that is not a guess.
+  // ⛔ THE SCOPE IS READ OFF THE POSITIONS, NOT THE ACCOUNT ROSTER, and this is
+  // the second correction to this line:
+  //
+  //   * `accounts.length > 1` FAILED OPEN. `accounts` comes from
+  //     `acctData?.accounts ?? []`, and this tile's fetcher returns `null` on a
+  //     non-ok response with `shouldRetryOnError: false` — so a 5xx or 401 on
+  //     `/api/j2/accounts` left the array EMPTY, the gate never fired, and a
+  //     multi-account member silently got whole-book dollars over one account's
+  //     1R. The same held on every render before that request landed.
+  //   * `accounts.length > 1` ALSO OVER-REFUSED. `list_accounts` applies no
+  //     archived/active filter, so a paper account, a retired one or a
+  //     disconnected broker cost a member their R permanently even when every
+  //     open position sat in one account.
+  //
+  // Positions carry `accountId` in the SAME payload the dollars come from
+  // (`positions.py::_row_to_position`), so the book's own scope is free and
+  // cannot disagree with the numerator. It GATES ON NOT KNOWING: anything we
+  // cannot verify withholds R rather than guessing at it.
+  const rScope = useMemo(() => {
+    if (positions.length === 0) return 'ok'
+    const ids = new Set(positions.map((p) => p.accountId).filter((id) => id != null))
+    if (ids.size > 1) return 'across-accounts'
+    // Legacy pre-migration rows carry no accountId at all, so we cannot tell
+    // whose budget applies — `_row_to_position` says so in as many words.
+    if (ids.size === 0) return 'unknown'
+    // One book. Are these the settings that govern IT? In All-Accounts mode
+    // `useJ2Settings` falls back to the legacy global row, which is not
+    // necessarily this account's own budget.
+    if (settingsAccountId == null) return 'unknown'
+    return ids.has(settingsAccountId) ? 'ok' : 'unknown'
+  }, [positions, settingsAccountId])
+
   const oneR = useMemo(() => {
-    if (accounts.length > 1) return null
+    if (rScope !== 'ok') return null
     const acct = Number(settings?.accountSize)
     const pct = Number(settings?.maxRiskPerTradePct)
     if (!Number.isFinite(acct) || acct <= 0) return null
     if (!Number.isFinite(pct) || pct <= 0) return null
     return (acct * pct) / 100
-  }, [settings, accounts.length])
+  }, [settings, rScope])
   const openRiskR = oneR ? openRisk.dollars / oneR : null
-  const rBlockedByAccounts = accounts.length > 1
 
   // Equity rows, richest mover first.
   const equityRows = useMemo(() => {
@@ -386,8 +391,8 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} rBlockedByAccounts={rBlockedByAccounts} />
-              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} rBlockedByAccounts={rBlockedByAccounts} />}
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
+              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />}
 
             <div className={styles.rows}>
               {visibleRows.map((row) =>
@@ -426,8 +431,24 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
  * heat — so the exclusion has to be VISIBLE or the total reads as complete when
  * it is not.
  */
-function OpenRiskLine({ openRisk, openRiskR, rBlockedByAccounts }) {
-  if (!openRisk || (openRisk.withStop === 0 && openRisk.noStop === 0)) return null
+/** The reason R could not be derived, or null when the reason is simply that
+ *  the member has not set a budget. Each string is a different FACT, and
+ *  collapsing them would be the "one message for two causes" defect. */
+const R_SCOPE_COPY = {
+  'across-accounts': {
+    text: 'R n/a across accounts',
+    title: 'Open risk spans more than one account; 1R is per-account, so it cannot be summed here',
+  },
+  unknown: {
+    text: 'R n/a — account scope unknown',
+    title: 'Cannot confirm these positions all sit in the account whose risk budget is loaded, so R would be a guess',
+  },
+}
+
+function OpenRiskLine({ openRisk, openRiskR, rScope }) {
+  if (!openRisk
+    || (openRisk.withStop === 0 && openRisk.noStop === 0 && openRisk.unknown === 0)) return null
+  const scoped = R_SCOPE_COPY[rScope] ?? null
   return (
     <div className={styles.riskLine}>
       <span className={styles.riskLabel}>Open risk</span>
@@ -446,18 +467,22 @@ function OpenRiskLine({ openRisk, openRiskR, rBlockedByAccounts }) {
             // "set account size" while landing on the Positions tab.
             <span
               className={styles.riskHint}
-              title={rBlockedByAccounts
-                ? 'Open risk spans every account; 1R is per-account, so it cannot be summed here'
+              title={scoped
+                ? scoped.title
                 : 'R needs your account size and max risk per trade, in Portfolio settings'}
             >
-              {rBlockedByAccounts
-                ? 'R n/a across accounts'
-                : 'R n/a — set account size & risk %'}
+              {scoped ? scoped.text : 'R n/a — set account size & risk %'}
             </span>
           )}
         </>
       ) : (
         <span className={styles.riskHint}>no stops set</span>
+      )}
+      {openRisk.unknown > 0 && (
+        <span className={styles.riskNoStop}>
+          <UIcon name="warning" size={11} gold={false} style={{ verticalAlign: '-1px', marginRight: 3 }} />
+          {openRisk.unknown} risk unknown
+        </span>
       )}
       {openRisk.noStop > 0 && (
         <span className={styles.riskNoStop}>
@@ -487,7 +512,7 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period, openRisk, openRiskR, rBlockedByAccounts }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period, openRisk, openRiskR, rScope }) {
   const series = perf?.equitySeries || []
   const value = brokerLive?.netLiq ?? brokerBase
 
@@ -525,14 +550,14 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
           values={series.map((p) => p?.value)}
         />
       )}
-      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rBlockedByAccounts={rBlockedByAccounts} />
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
       <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
     </div>
   )
 }
 
 /** Manual hero — live mark-to-market of open equity positions. */
-function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rBlockedByAccounts }) {
+function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rScope }) {
   const prevValue = today == null ? null : agg.value - today
   const todayPct = prevValue ? today / prevValue : null
   const costBasis = agg.value - agg.unrealized
@@ -544,7 +569,7 @@ function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rB
         <PerfFigure label="Today" dollar={today} pct={todayPct} />
         <PerfFigure label="Open P&L" dollar={agg.unrealized} pct={openPct} />
       </div>
-      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rBlockedByAccounts={rBlockedByAccounts} />
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
       <CountLine positions={positions} strategies={strategies} />
     </div>
   )

@@ -25,7 +25,7 @@ import {
   percent,
   shares as fmtShares,
   dateShort,
-  isBrokerPlaceholderStop,
+  hasNoRealStop,
 } from '../../../lib/journal-2-0'
 import TickerPopup from '../../../components/TickerPopup'
 import UIcon from '../../../components/ui/UIcon'
@@ -87,10 +87,13 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
   const active = activeStop(position)
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
-  // Broker-imported positions have no stop; the importer stores stop_price =
-  // entry_price as a NOT-NULL placeholder. Treat that as "no stop set" and blank
-  // the stop-derived columns until the user sets a real stop.
-  const noRealStop = isBrokerPlaceholderStop(position)
+  // No usable stop ⇒ blank every stop-derived column until the user sets one.
+  // ⛔ `hasNoRealStop`, NOT `isBrokerPlaceholderStop`: the latter answers only
+  // "is this the broker's NOT-NULL seed", so a MANUAL row created without a
+  // stop (positions.py stores 0.0) rendered `stop $0.00` here and the full
+  // notional as Risk $, while the dashboard cockpit correctly called it no
+  // stop — the client holding two answers about one position's protection.
+  const noRealStop = hasNoRealStop(position)
   // Broker holdings imported before activity history reconstructs the real fill
   // have an unknown (placeholder) entry date — show "est." not a misleading day.
   const dateEstimated = !!position.entryEstimated
@@ -182,7 +185,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
       case 'current':
         return hasPrice ? money(current) : <span className={styles.dash}>—</span>
       case 'stop':
-        return noRealStop ? DASH('No stop set on this broker-imported position') : money(active)
+        return noRealStop ? DASH('No stop set on this position') : money(active)
       case 'pnlDollar':
         return pnlCell(pnlD, moneySigned)
       case 'pnlPercent':
@@ -278,7 +281,7 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
   const active = activeStop(position)
-  const noRealStop = isBrokerPlaceholderStop(position)
+  const noRealStop = hasNoRealStop(position)
 
   const pnlD = isOpt ? position.optPnlDollar : (hasPrice ? positionPnlDollar(position, current) : null)
   const pnlP = isOpt ? position.optPnlPercent : (hasPrice ? positionPnlPercent(position, current) : null)
@@ -373,7 +376,7 @@ function sortKeyFor(key, position, current, accountSize) {
     }
   }
   const active = activeStop(position)
-  const noRealStop = isBrokerPlaceholderStop(position)
+  const noRealStop = hasNoRealStop(position)
   switch (key) {
     case 'symbol': return position.symbol
     case 'side': return position.side
