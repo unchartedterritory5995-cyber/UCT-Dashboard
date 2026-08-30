@@ -23,6 +23,14 @@
    the only thing standing where the hero would be, so it keeps body size. */
 .moveNa { font-size: var(--text-sm); color: var(--text-muted); }
 
+/* TABLET — the five key stats land 4-across with a lone orphan on the next row
+   at this width (measured: 610px of canvas, so auto-fit takes 4 at the 130px
+   desktop floor). A lower floor fits all five on one line; nothing here needs
+   130px (the widest value is a market cap like "$1.42B"). */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .stats { grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); }
+}
+
 @media (max-width: 640px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
   .wrap { gap: var(--space-lg); }

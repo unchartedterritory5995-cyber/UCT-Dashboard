@@ -261,6 +261,45 @@ describe('extended-hours hero rows', () => {
     expect(screen.queryByText(/\+\$20\.00/)).toBeNull()
   })
 
+  it('SHOWS which moment the number is from when it is not all live', () => {
+    // A number the member cannot account for reads as broken whatever its
+    // size — that was the whole 2026-08-29 complaint. This is the line that
+    // answers it, and a formatter nothing renders is not a feature.
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{
+          netLiq: 9726.10, today: -10, todayPct: -0.001,
+          vintage: { basis: 'broker', session: '2026-08-28', conflicts: [],
+                     components: { live: 0, broker: 5, cost: 0 } },
+        }}
+        positions={positions}
+        prices={{}}
+        preferBrokerMarks
+      />,
+    )
+    expect(screen.getByText('As of Fri Aug 28 close')).toBeInTheDocument()
+  })
+
+  it('says NOTHING on an all-live book — a label on every screen is noise', () => {
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{
+          netLiq: 9726.10, today: -10, todayPct: -0.001,
+          vintage: { basis: 'live', session: null, conflicts: [],
+                     components: { live: 5, broker: 0, cost: 0 } },
+        }}
+        positions={positions}
+        prices={{}}
+      />,
+    )
+    expect(screen.queryByText(/As of .* close/)).toBeNull()
+    expect(screen.queryByText(/broker's/)).toBeNull()
+  })
+
   it('pre-market: the single change line relabels to Overnight', () => {
     const prices = {
       AAPL: { price: 111, ext_price: 111, ext_session: 'pre_market', prev_close: 108 },
