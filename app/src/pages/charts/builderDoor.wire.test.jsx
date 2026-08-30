@@ -40,10 +40,11 @@
 // make a "How to build this" tablist appear, because not one of them renders one.
 //
 // ⭐ BOTH VIEWPORTS, BECAUSE THE DEFECT WAS ON BOTH. `/charts` renders through
-// `MobileWorkspace` at ≤640px and through the RGL grid above it, and the
+// `MobileChartsApp` at ≤640px and through the RGL grid above it, and the
 // audit found the builder unreachable on desktop AND phone. The phone case
 // drives `useMediaQuery` the way `ChartsWorkspace` reads it, so it exercises the
-// real `MobileWorkspace` branch.
+// real `MobileChartsApp` branch (the chart-first phone shell, which composes
+// `ChartPane` directly — same StockChart → ChartToolbar path, no widget host).
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -138,7 +139,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 // Viewport. `ChartsWorkspace` asks for `(max-width: 640px)`; every OTHER query
 // in the tree keeps its desktop answer, so flipping this flips exactly the
-// branch that chooses `MobileWorkspace`.
+// branch that chooses `MobileChartsApp`.
 let phone = false
 vi.mock('../../hooks/useMediaQuery', () => ({
   default: (q) => (String(q).includes('640') ? phone : false),
@@ -249,13 +250,13 @@ describe('/charts — the criteria builder has a door', () => {
     }
   })
 
-  it('PHONE (≤640px, the MobileWorkspace branch): the same door opens the same builder', async () => {
+  it('PHONE (≤640px, the MobileChartsApp branch): the same door opens the same builder', async () => {
     phone = true
     const user = userEvent.setup()
     render(<ChartsWorkspace />)
-    // The phone branch really is the one under test: MobileWorkspace draws the
-    // widget tab strip, the RGL grid does not exist.
-    await screen.findByRole('tablist', { name: 'Chart widgets' })
+    // The phone branch really is the one under test: the mobile shell draws its
+    // thumb-zone chart toolbar, the RGL grid does not exist.
+    await screen.findByTestId('mobile-chart-toolbar')
     expect(screen.queryByTestId('rgl-responsive')).toBeNull()
 
     await openTheBuilderFromCharts(user)

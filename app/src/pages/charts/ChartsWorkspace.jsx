@@ -19,7 +19,7 @@ import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
-import MobileWorkspace from './widgets/MobileWorkspace'
+import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
 import { planPlacement, nudgePlan } from './placement/place'
 import GhostPreview from './placement/GhostPreview'
@@ -1988,8 +1988,9 @@ export default function ChartsWorkspace() {
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
 
   if (isMobile) {
-    // Phone: tabbed widget stack (RGL drag/resize doesn't fit a phone). Rendered
-    // inside the provider so widgets keep color-group ticker linking. Grid mode
+    // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
+    // pickers; non-chart widgets open as full-screen pages). Rendered inside
+    // the provider so widgets keep color-group ticker linking. Grid mode
     // renders as a vertically stacked cell list (its own @media CSS).
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
@@ -2012,7 +2013,7 @@ export default function ChartsWorkspace() {
             </div>
           </div>
         ) : (
-          <MobileWorkspace
+          <MobileChartsApp
             widgets={layout.widgets}
             onRemove={handleRemoveWidget}
             onColorChange={handleColorChange}

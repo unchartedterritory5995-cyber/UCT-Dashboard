@@ -36,3 +36,15 @@
     min-height: var(--tap-min);
   }
 }
+
+/* Phone /charts: MobileChartsApp's bottom chart toolbar occupies the strip just
+   above the tab bar (it stamps html[data-mobile-chart-shell] while mounted), so
+   the "?" and its panel step up over it instead of covering the timeframe pill. */
+@media (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .fab {
+    bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  :global(html[data-mobile-chart-shell]) .panel {
+    bottom: calc(174px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

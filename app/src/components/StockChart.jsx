@@ -1598,6 +1598,13 @@ export default function StockChart({
   // (`charts_workspace_layout`, `multichart_state`); a surface without one
   // passes nothing and stays global.
   chartId = null,
+  // Optional host ref filled with the mounted ChartToolbar's imperative API
+  // ({ openIndicatorLibrary, openAlerts }) so external chrome — the phone bottom
+  // toolbar's ƒx sheet — can open the SAME IndicatorLibraryDialog / alert
+  // popover the toolbar owns instead of mounting a second one (the "ONE
+  // POPOVER, NOT A SECOND MOUNT" rule above). Calls resolve toolbarRef lazily,
+  // so they return false (not throw) while no toolbar is mounted.
+  toolbarApiRef = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3483,6 +3490,22 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
+
+  // Publish the toolbar's imperative API to a host-supplied ref (see the
+  // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
+  // valid across toolbar mount/unmount without re-running this effect.
+  useEffect(() => {
+    if (!toolbarApiRef) return undefined
+    toolbarApiRef.current = {
+      openIndicatorLibrary: () => {
+        try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
+      },
+      openAlerts: (initialFor = null) => {
+        try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
+      },
+    }
+    return () => { toolbarApiRef.current = null }
+  }, [toolbarApiRef])
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)

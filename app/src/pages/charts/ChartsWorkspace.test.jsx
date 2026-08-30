@@ -13,7 +13,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 vi.mock('./WidgetHost', () => ({
   default: ({ widget }) => <div data-testid={`body-${widget.type}`}>{widget.type}</div>,
 }))
-vi.mock('./widgets/MobileWorkspace', () => ({ default: () => <div data-testid="mobile-workspace">MOBILE</div> }))
+vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
 vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
 
@@ -535,10 +535,10 @@ test('corrupted preferences blob falls back safely to the default (starter) layo
   expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
 })
 
-test('renders MobileWorkspace (tabbed widget stack) when useMediaQuery indicates mobile', () => {
+test('renders MobileChartsApp (chart-first phone shell) when useMediaQuery indicates mobile', () => {
   mqMatches = true
   renderWS()
-  expect(screen.getByTestId('mobile-workspace')).toBeInTheDocument()
+  expect(screen.getByTestId('mobile-charts-app')).toBeInTheDocument()
   expect(screen.queryByTestId('rgl-responsive')).not.toBeInTheDocument()
 })
 
