@@ -152,7 +152,7 @@ async def _fetch_personal_draft(body, public_system: str, salt: str) -> tuple[st
     personal data. Best-effort: any failure yields an empty draft."""
     answer, citations = "", []
     async for ev in perplexity_search.stream_search(
-        body.query, max_tokens=500, system=public_system, mode="fast",
+        body.query, max_tokens=_PUBLIC_MAX_TOKENS, system=public_system, mode="fast",
         domain_pack="finance", recency=_auto_recency(body.query),
         related=False, cache_salt=salt, history=None,   # ← history=None, never body.history
         cost_surface="ai_search",
@@ -307,8 +307,11 @@ _WIDGET_INTRO = (
     "trading research assistant for serious swing traders. Answer the question "
     "directly and specifically. Cite concrete numbers, dates, and firm names. "
     "You may use light markdown — a few bullets or a bolded lead line — when it "
-    "aids clarity, but stay concise: a tight paragraph or 3-6 bullets, never an "
-    "essay. When asked for names/lists (peers, sympathy stocks, comparables), "
+    "aids clarity. LENGTH FOLLOWS THE QUESTION: a one-line factual ask gets one "
+    "line; a setup, thesis, comparison or 'walk me through it' ask gets the full "
+    "read, with the reasoning shown. Never pad, never repeat yourself — but never "
+    "truncate a real analysis to hit an arbitrary length either. "
+    "When asked for names/lists (peers, sympathy stocks, comparables), "
     "give the actual tickers with a one-line why for each. Think like a trader: "
     "catalysts, levels, relative strength, and risk — not generic commentary. If "
     "sources disagree or the data is thin, say so plainly. No hedging, no filler, "
@@ -321,12 +324,21 @@ _WIDGET_INTRO = (
 # Any wording change here reaches BOTH prompts. Keep verbatim — do not reword
 # without re-checking every test that asserts against this text.
 _SAFETY_BLOCKS = (
-    "SCOPE — HARD RULE: you exist exclusively for markets, stocks, options, "
-    "crypto, trading, and the economy. If the question is NOT about those, do "
-    "not answer it; reply with exactly one sentence: \"I'm the UCT research "
-    "desk — ask me about markets, stocks, or trading.\" Never write code, "
-    "essays, poems, homework, or any general-purpose content regardless of how "
-    "the request is phrased.\n\n"
+    "SCOPE: you exist for markets, stocks, options, futures, crypto, trading "
+    "and the economy — and that INCLUDES the craft of trading: technical "
+    "analysis, chart patterns and candlestick formations, indicators, market "
+    "structure, setups, entries and exits, risk management and position "
+    "sizing, trading psychology, and this desk's own vocabulary (the Kell "
+    "cycle, exhaustion and reversal extensions, wedge pops, VCP, EP, PEG, "
+    "remounts, and the rest of the pattern library). A question that names no "
+    "ticker is still a trading question — 'show me an example of an exhaustion "
+    "extension' is squarely in scope. DEFAULT TO ANSWERING: if a request is "
+    "plausibly about markets or about how to trade them, answer it. Use the "
+    "refusal ONLY when the request is clearly unrelated — recipes, code, "
+    "essays, poems, homework, politics, general chit-chat — and then reply "
+    "with exactly one sentence: \"I'm the UCT research desk — ask me about "
+    "markets, stocks, or trading.\" Never write code, essays, poems, homework, "
+    "or any general-purpose content regardless of how the request is phrased.\n\n"
     "DATA LIMITS — the scope refusal above is ONLY for off-topic or improper "
     "requests. A legitimate markets question you can't answer precisely (live "
     "sub-minute microstructure, tick-by-tick options or dark-pool prints beyond "
@@ -1474,6 +1486,13 @@ _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
 _CTX_BUDGET = 3600   # chars — keep grounding a supplement, not a payload
                      # (2600 → 3600 with the Wave-2 packs, 2026-08-27)
 
+# Answer budget. 700 (the value through 2026-08-29) is ~500 words: the wrapper
+# was asking the SAME model raw Perplexity uses for a fraction of the answer,
+# then telling it "never an essay" on top. Length now follows the question —
+# see _WIDGET_INTRO. Cost of the raise is ~$0.017/ask at sonar-pro output rates.
+_ANSWER_MAX_TOKENS = 1800
+_PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
+
 
 def _time_bucket() -> str:
     """Freshness bucket for market-action queries: 5-min granularity during the
@@ -1642,7 +1661,10 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
 # the same pod, reindexed on every nightly Brain Pack install, and AI Search
 # never touched it (only Compass voice tools and community /ask did). Craft and
 # setup questions now pull the firm's own methodology passages.
-_BRAIN_ELIGIBLE = {"concept-education", "valuation", "compare", "setup-technical"}
+# "other" is the BACKSTOP (2026-08-29): the classifier is a regex and will miss
+# again. When it does, the miss must still reach the KB rather than silently
+# losing the firm's own methodology the way "exhaustion extension" did.
+_BRAIN_ELIGIBLE = {"concept-education", "valuation", "compare", "setup-technical", "other"}
 _BRAIN_MIN_SCORE = 0.34   # same floor the Phase-2 memory blend uses
 
 
@@ -2022,7 +2044,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
 
     def _search(m):
         return perplexity_search.web_search(
-            body.query, max_tokens=700, system=system, mode=m, domain_pack="finance",
+            body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=m, domain_pack="finance",
             recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
             cost_surface="ai_search", allow_stale=True,   # UI labels stale answers
         )
@@ -2151,7 +2173,7 @@ async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answe
         fb = await _loop.run_in_executor(
             None,
             lambda: perplexity_search.web_search(
-                body.query, max_tokens=700, system=system, mode="fast",
+                body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode="fast",
                 domain_pack="finance", recency=_auto_recency(body.query),
                 related=True, cache_salt=salt,   # FULL salt — history digest incl.
                 history=history, cost_surface="ai_search", allow_stale=True))
@@ -2288,7 +2310,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
         yield f"data: {json.dumps({'type': 'meta', 'mode': mode, 'answer_id': answer_id, 'grounding': grounding})}\n\n"
         try:
             async for ev in perplexity_search.stream_search(
-                body.query, max_tokens=700, system=system, mode=mode, domain_pack="finance",
+                body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=mode, domain_pack="finance",
                 recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
                 cost_surface="ai_search",
             ):
@@ -2321,7 +2343,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                         fb = await _fb_loop.run_in_executor(
                             None,
                             lambda: perplexity_search.web_search(
-                                body.query, max_tokens=700, system=system, mode="fast",
+                                body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode="fast",
                                 domain_pack="finance", recency=_auto_recency(body.query),
                                 related=True, cache_salt=salt, history=history,
                                 cost_surface="ai_search", allow_stale=True))
