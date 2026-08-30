@@ -68,13 +68,28 @@ const METERS_OPTIONS = [
     choices: [{ value: 'group', label: 'Group order' }, { value: 'value', label: 'Value' }] },
 ]
 /**
- * ⛔ THE DEFAULT IS 10, NOT 20, AND THAT IS THE VIEW'S WHOLE DISTINCTION.
+ * ⛔ THE DEFAULT IS 10, NOT 20, AND THAT IS THE VIEW'S WHOLE DISTINCTION —
+ * MEASURED IN CHROMIUM, NOT ASSERTED. It changed from 20 as a side effect of a
+ * design pass, so here is the arithmetic that says it should stay changed.
  *
- * The Timeline prints the READING in every cell (see its header). Ten columns is
- * what buys a cell wide enough to read a number off at a quarter-pane width; at
- * twenty it is tight and at thirty — the ceiling `recentRows` imposes — it is a
- * colour strip again, which is the Heat Ribbon's job and it does it over 365
- * sessions instead of 30. The reader can still widen; the DEFAULT is the tape.
+ * The Timeline prints the READING in every cell (see its header), and the number
+ * of columns is the only thing that decides whether that reading fits. Counting
+ * cells whose text overflows its own box, over the ten default metrics:
+ *
+ *   window   full panel (1500×686)   compare pane (746×318)   pane (710×245)
+ *   10       0 of 100 clipped        0 of 100                 0 of 100
+ *   20       0 of 200                60 of 200 + 0 dates      71 of 200 + 20 dates
+ *   30       0 of 300                119 of 300 + 30 dates    120 of 300 + 30 dates
+ *
+ * ⭐ SO 20 IS NOT WRONG AT FULL WIDTH — it is wrong in a COMPARE PANE, where it
+ * silently cuts three readings in ten and every date header at laptop size. A
+ * default that breaks the view's one promise in a first-class layout of this tab
+ * is not a default, and the reader who wants a fortnight at full width can pick
+ * it here. Nothing at 10 is clipped at any size this tab renders.
+ *
+ * And the long window is already answered: the Heat Ribbon draws the WHOLE
+ * loaded set — up to 365 sessions against this view's ceiling of 30 — as a
+ * shape, which is the thing a 17px-wide column can honestly be.
  */
 const TIMELINE_OPTIONS = [
   { name: 'windowDays', label: 'Window', type: 'select', default: 10,

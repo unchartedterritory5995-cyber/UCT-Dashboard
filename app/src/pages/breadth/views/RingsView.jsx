@@ -31,7 +31,14 @@ const CX = 50, CY = 50, R = 39
 
 // A cell is a floor and a ceiling: it shrinks before the board scrolls, and
 // stops growing so a two-metric board does not draw two dinner plates.
-const CELL_MIN_H = 92
+//
+// ⭐ THE FLOOR IS DERIVED FROM THE SMALLEST BOX THIS BOARD IS ASKED TO FILL, not
+// picked. A 1512-wide desktop's compare pane is 316px tall and gives the grid
+// 271 of that once the basis line and the padding are taken; the default board
+// is ten metrics, which `columnsFor` lays out in three rows, so the floor is
+// `(271 − 2 gaps) / 3` rounded down. At 92 the three rows demanded 296 and the
+// bottom row was cut by a scrollbar in every compare pane on the tab.
+const CELL_MIN_H = 82
 const CELL_MAX_H = 226
 const GRID_GAP = 10
 
@@ -135,8 +142,26 @@ export default function RingsView({
             the same way the Heat Ribbon derives its strip's: rows share what is
             spare (`1fr`), stop growing at `CELL_MAX_H`, and never exceed the
             room — which is what stopped the last row's names being clipped off
-            the foot of the panel. */}
-        <div style={{ flex: '1 1 auto', display: 'grid', gap: GRID_GAP,
+            the foot of the panel.
+
+            🔴 AND `minHeight: 0` IS THE WHOLE FIX, not the ceiling above it.
+            Every gauge is an `<svg>` with a 1:1 viewBox, so its max-content
+            height is its own WIDTH — at a full-width panel each 358px-wide cell
+            wanted to be 358px tall. That reaches this box through
+            `min-height: auto`, a flex item's automatic minimum, which is its
+            MIN-CONTENT height: 1139px for three rows of it, clamped by the
+            ceiling to 698, and a minimum is a floor, so the board sat 698px tall
+            in the 641px it was given and the third row of rings was cut in half
+            by a scrollbar (measured in Chromium at 1500×686). With the automatic
+            minimum off, the grid takes the room offered, the ceiling binds only
+            when that room is larger than three rows of rings need, and a
+            two-metric board still does not draw two dinner plates.
+
+            ⛔ THE BASIS IS `0` FOR THE SAME REASON `fillsRow` uses it: siblings
+            that share space equally must not start from their own content. Both
+            are longhands because jsdom's CSSOM drops the `flex` shorthand. */}
+        <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: 0,
+                      display: 'grid', gap: GRID_GAP,
                       gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                       gridAutoRows: `minmax(${CELL_MIN_H}px, 1fr)`,
                       maxHeight: gridRows * CELL_MAX_H + Math.max(0, gridRows - 1) * GRID_GAP }}>

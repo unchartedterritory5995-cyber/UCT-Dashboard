@@ -189,23 +189,41 @@ export default function RegimeClockView({
 
             <path d={path} fill="none" stroke={colors.bull} strokeWidth="1.1" opacity="0.35"
                   vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+            {/* 🔴 A DOT DRAWN AS A `<circle>` IN THIS BOX IS AN ELLIPSE. The svg
+                is `preserveAspectRatio="none"` over a 100×100 viewBox, so at a
+                full-width panel (1438×580 measured) a viewBox unit is 2.5× wider
+                than it is tall and every trail dot rendered as a flat oval —
+                including today's, the one mark on the lens a reader looks for.
+                The Rotation lens hit exactly this on its trace head and solved it
+                the same way: a zero-length round-capped stroke is round in DEVICE
+                pixels whatever the box does, because `non-scaling-stroke` is
+                measured after the transform. (`lesson_rail_the_mirror_not_just_the_lane`
+                — this was the third lane of one fix, and the only one still open.) */}
             {pts.map((p, k) => (
-              <circle key={p.date ?? k} cx={X(p.level)} cy={Y(p.mom)} r={k === 0 ? 1.9 : 0.8}
-                      fill={k === 0 ? colors.bull : '#475569'}
-                      opacity={k === 0 ? 1 : Math.max(0.15, 1 - k / pts.length)} />
+              <line key={p.date ?? k} data-testid={`clock-mark-${k}`}
+                    x1={X(p.level)} y1={Y(p.mom)} x2={X(p.level)} y2={Y(p.mom) + 0.01}
+                    stroke={k === 0 ? colors.bull : '#475569'}
+                    strokeWidth={k === 0 ? 10 : 6} strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    opacity={k === 0 ? 1 : Math.max(0.15, 1 - k / pts.length)} />
             ))}
-            {/* A trail dot is r=0.8 in a 100×100 box — unhittable. The hit target
-                is its own transparent circle, so the drawn trail keeps the fade
-                that makes it readable as a path. */}
+            {/* A trail dot is a 3.6px mark — unhittable. The hit target is its
+                own invisible one, so the drawn trail keeps the fade that makes it
+                readable as a path. Same round-in-device-pixels construction as
+                the marks above: a viewBox-unit radius here would be an oval hit
+                area, generous sideways and a sliver vertically — and `stroke`
+                pointer-events answer whether or not the stroke is painted. */}
             {pts.map((p, k) => {
               const reachable = canSeek ? !!canSeek(p.date) : false
               return (
-                <circle key={`hit-${p.date ?? k}`} data-testid={`clock-dot-${k}`}
-                        data-seek-idx={k} data-seek-date={p.date}
-                        cx={X(p.level)} cy={Y(p.mom)} r="2.6" fill="transparent"
-                        style={{ cursor: reachable ? 'pointer' : 'default' }}>
+                <line key={`hit-${p.date ?? k}`} data-testid={`clock-dot-${k}`}
+                      data-seek-idx={k} data-seek-date={p.date}
+                      x1={X(p.level)} y1={Y(p.mom)} x2={X(p.level)} y2={Y(p.mom) + 0.01}
+                      stroke="#000" strokeOpacity="0" strokeWidth="16" strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                      style={{ pointerEvents: 'stroke', cursor: reachable ? 'pointer' : 'default' }}>
                   <title>{`${p.date} · level ${p.level.toFixed(1)} · momentum ${p.mom.toFixed(1)}`}</title>
-                </circle>
+                </line>
               )
             })}
           </svg>

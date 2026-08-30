@@ -50,8 +50,14 @@ const AHEAD_DIM = 0.26
  * two-metric board from drawing two 200px slabs, which is the opposite mistake.
  * `density: compact` moves both, so the option still means what it says.
  */
+// ⭐ AND THE CEILING IS THE ONE ITS NEIGHBOURS USE. At 52 the ten-band default
+// board drew 547px of the 641 a full-width panel offers and left 106px black —
+// the loosest fit on the tab, against 12px for the Timeline and 17px for the
+// Percentile Ladder, both of which cap a row at 62. Three boards of stacked
+// per-metric rows that stop at three different heights read as three
+// accidents; the same number reads as a decision.
 const RIBBON_MIN_H = { compact: 10, normal: 16 }
-const RIBBON_MAX_H = { compact: 28, normal: 52 }
+const RIBBON_MAX_H = { compact: 34, normal: 62 }
 // The space between two bands. ONE declaration, read by the `gap` that draws it
 // and by the strip's own ceiling below — two copies would put the playhead's
 // foot a few pixels off the last row it marks.

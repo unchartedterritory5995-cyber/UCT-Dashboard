@@ -151,52 +151,6 @@ describe('view registry', () => {
     for (const s of STYLES) expect(['board', 'lens']).toContain(VIEW_CONFIG[s].kind)
   })
 
-  /**
-   * ⏱️ EVERY SWEEP IN THIS FILE ASKS FOR ROOM, AND SAYS WHY.
-   *
-   * These loops render all sixteen registered styles against the FULL metric
-   * board — real trees, not shallow ones — and that is the whole point: a rail
-   * that renders a two-metric fixture cannot see a view that only breaks at
-   * board scale. Sixteen of those is seconds of honest work, and the default 5s
-   * budget is a limit on the MACHINE, not on the code under test: the same
-   * assertions passed alone and failed in company on a loaded fork pool, which
-   * is a false red that teaches people to distrust the file.
-   *
-   * ⛔ THE ASSERTION IS UNCHANGED. Only the time budget moved — and the
-   * accumulated trees below are cleaned up, which is the part that was actually
-   * wasteful: sixteen live view trees in one document make every later render in
-   * the same test slower for no assertion's benefit.
-   */
-  it('every style renders with the props bundle its kind receives', () => {
-    for (const s of STYLES) {
-      const Component = VIEW_COMPONENTS[s]
-      expect(() => render(<Component {...propsFor(s)} />), `"${s}" threw on render`).not.toThrow()
-      cleanup()
-    }
-  }, 30000)
-
-  /**
-   * ⭐ THE CHEAPEST POSSIBLE STAND-IN FOR OPENING THE PAGE.
-   *
-   * These are hand-rolled SVG: a coordinate that comes out `NaN` (a null value
-   * reaching a scale, a divide by a zero-length window) does not throw, does not
-   * warn, and does not fail any assertion about testids or colours — the element
-   * is simply not drawn. Every geometry change on this tab risks exactly that,
-   * and a blank shape inside a correct-looking panel is the hardest defect here
-   * to notice from a test suite.
-   */
-  it('draws no NaN coordinate into any view', () => {
-    swrState.data = SERVED
-    const bad = []
-    for (const style of STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container } = render(<Component {...propsFor(style)} />)
-      if (/\bNaN\b/.test(container.innerHTML)) bad.push(style)
-      cleanup()
-    }
-    expect(bad, 'these views put a NaN in their markup — something is not drawn').toEqual([])
-  }, 30000)
-
   it('groups styles by kind, preserving STYLES order', () => {
     const { board, lens } = viewsByKind()
     expect(board.length + lens.length).toBe(STYLES.length)
@@ -227,81 +181,166 @@ describe('view registry', () => {
  * the day a ninth view lands.
  */
 /**
- * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH.
+ * ⏱️⭐ ONE RENDER MATRIX, READ BY FIVE SWEEPS — the same trick the palette suite
+ * below already plays, applied to the structural ones.
  *
- * Ten hand-written copies of `role="button"` + `aria-label` + `onClick`, and
- * not one carried `tabIndex` or a key handler — so every drill affordance on
- * this tab ANNOUNCED itself to assistive tech as a button and could not be
- * focused, let alone pressed. A `<div role="button">` with no tab stop is worse
- * than a plain div: it promises an action to exactly the users who cannot take
- * it, and there is no OTHER keyboard path to a drill list anywhere on this tab.
+ * Five sweeps used to render all sixteen registered styles against the FULL
+ * metric board, once EACH: eighty real view trees to ask five questions, and
+ * this was the slowest file in the suite by a distance. The renders are the
+ * expensive part and they are IDENTICAL between the sweeps — what differs is the
+ * question, and a question is a string read.
  *
- * ⭐ DERIVED OVER EVERY REGISTERED STYLE, so the seventeenth view is covered on
- * the day it lands rather than on the day someone remembers to add it here.
- * `drillProps` in `breadthViewShared.js` is the one grammar; this asserts the
- * PROPERTY, not the helper, so a view that hand-rolls a correct button still
- * passes and one that hand-rolls the old broken shape does not.
+ * ⛔ THE MATRIX IS RENDERED TWICE PER STYLE, NOT ONCE, AND THAT IS NOT WASTE.
+ * The two SWR lenses have a refusal branch and a served branch, and the sweeps
+ * genuinely disagreed about which one they wanted: "renders without throwing"
+ * and the keyboard rails ran against NO server (the refusal shape — which is
+ * exactly the render most likely to divide by a missing number), while the NaN
+ * and test-id sweeps ran against a served body. Collapsing to one pass would
+ * have made this file faster by making it prove less, which is the one thing it
+ * must not do. Every question below is now asked of the pass it was asked of
+ * before — and the keyboard rails, which cost nothing extra here, are asked of
+ * BOTH, so a button that only exists once the server answers is covered too.
+ *
+ * ⛔ AND THE PER-ELEMENT `expect` CALLS ARE GONE, replaced by the collect-then-
+ * assert-once shape the rest of this file uses. Sixteen boards × ~forty drill
+ * targets was ~1,300 assertions to answer one yes/no question, and a failing
+ * one names its style and its element either way.
+ *
+ * ⛔ `cleanup()` INSIDE the loop: live view trees left in one document make
+ * every later render slower, for no assertion's benefit.
  */
-describe('every button a view declares can be reached from a keyboard', () => {
-  it('gives each one a tab stop', () => {
-    const seen = []
-    for (const style of STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container, unmount } = render(<Component {...propsFor(style)} />)
-      for (const el of container.querySelectorAll('[role="button"]')) {
-        seen.push(style)
-        // ⛔ THE ATTRIBUTE'S PRESENCE FIRST. `Number(getAttribute(...))` on a
-        // MISSING attribute is `Number(null)` === 0, which sails past
-        // `>= 0` — this rail passed with every `tabIndex` deleted until it
-        // asked the question that can be answered "no".
-        expect(el.hasAttribute('tabindex'),
-          `${style}: a role="button" with no tab stop — announced, unreachable`).toBe(true)
-        expect(Number(el.getAttribute('tabindex')),
-          `${style}: a role="button" removed from the tab order`).toBeGreaterThanOrEqual(0)
+const NO_SERVER = new Map()
+const SERVED_PASS = new Map()
+
+function sweepInto(into) {
+  for (const style of STYLES) {
+    const Component = VIEW_COMPONENTS[style]
+    const fired = []
+    const props = { ...propsFor(style), onDrill: (m) => fired.push(m?.key ?? true) }
+    const rec = { error: null, html: '', ids: [], buttons: [], fired: null }
+    try {
+      const { container } = render(<Component {...props} />)
+      rec.html = container.innerHTML
+      rec.ids = [...container.querySelectorAll('[data-testid]')]
+        .map(el => el.getAttribute('data-testid'))
+      rec.buttons = [...container.querySelectorAll('[role="button"]')].map(el => ({
+        // ⛔ THE ATTRIBUTE'S PRESENCE IS RECORDED SEPARATELY FROM ITS VALUE.
+        // `Number(getAttribute(...))` on a MISSING attribute is `Number(null)`
+        // === 0, which sails past `>= 0` — this rail passed with every
+        // `tabIndex` deleted until it asked the question that can be answered
+        // "no".
+        has: el.hasAttribute('tabindex'),
+        value: Number(el.getAttribute('tabindex')),
+      }))
+      const btn = container.querySelector('[role="button"]')
+      if (btn) {
+        fireEvent.keyDown(btn, { key: 'Enter' })
+        fireEvent.keyDown(btn, { key: ' ' })
+        rec.fired = fired.length
       }
-      unmount()
+    } catch (err) {
+      rec.error = err
     }
+    cleanup()
+    into.set(style, rec)
+  }
+}
+
+describe('every registered style, rendered against both server states', () => {
+  beforeAll(() => {
+    swrState.data = null
+    sweepInto(NO_SERVER)
+    swrState.data = SERVED
+    sweepInto(SERVED_PASS)
+    swrState.data = null
+  }, 60000)
+
+  it('every style renders with the props bundle its kind receives', () => {
+    const threw = []
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const s of STYLES) {
+        const err = pass.get(s)?.error
+        if (err) threw.push(`${s} (${label}): ${err.message}`)
+      }
+    }
+    expect(threw, 'these styles threw on render').toEqual([])
+    expect(NO_SERVER.size, 'the matrix rendered nothing — this rail proves nothing')
+      .toBe(STYLES.length)
+  })
+
+  /**
+   * ⭐ THE CHEAPEST POSSIBLE STAND-IN FOR OPENING THE PAGE.
+   *
+   * These are hand-rolled SVG: a coordinate that comes out `NaN` (a null value
+   * reaching a scale, a divide by a zero-length window) does not throw, does not
+   * warn, and does not fail any assertion about testids or colours — the element
+   * is simply not drawn. Every geometry change on this tab risks exactly that,
+   * and a blank shape inside a correct-looking panel is the hardest defect here
+   * to notice from a test suite.
+   */
+  it('draws no NaN coordinate into any view', () => {
+    const bad = STYLES.filter(s => /\bNaN\b/.test(SERVED_PASS.get(s).html))
+    expect(bad, 'these views put a NaN in their markup — something is not drawn').toEqual([])
+  })
+
+  /**
+   * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH.
+   *
+   * Ten hand-written copies of `role="button"` + `aria-label` + `onClick`, and
+   * not one carried `tabIndex` or a key handler — so every drill affordance on
+   * this tab ANNOUNCED itself to assistive tech as a button and could not be
+   * focused, let alone pressed. A `<div role="button">` with no tab stop is
+   * worse than a plain div: it promises an action to exactly the users who
+   * cannot take it, and there is no OTHER keyboard path to a drill list
+   * anywhere on this tab.
+   *
+   * ⭐ DERIVED OVER EVERY REGISTERED STYLE, so the seventeenth view is covered
+   * on the day it lands rather than on the day someone remembers to add it
+   * here. `drillProps` in `breadthViewShared.js` is the one grammar; this
+   * asserts the PROPERTY, not the helper, so a view that hand-rolls a correct
+   * button still passes and one that hand-rolls the old broken shape does not.
+   */
+  it('gives every button a view declares a tab stop', () => {
+    const offenders = []
+    let seen = 0
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const style of STYLES) {
+        for (const b of pass.get(style).buttons) {
+          seen++
+          if (!b.has) offenders.push(`${style} (${label}): a role="button" with no tab stop`)
+          else if (!(b.value >= 0)) offenders.push(`${style} (${label}): tabindex ${b.value} — out of the tab order`)
+        }
+      }
+    }
+    expect(offenders, 'announced to assistive tech, unreachable by keyboard').toEqual([])
     // ⛔ CONTROL: a sweep over zero buttons passes for the wrong reason.
-    expect(seen.length, 'no view rendered a button — this rail proved nothing')
-      .toBeGreaterThan(0)
-  }, 30000)
+    expect(seen, 'no view rendered a button — this rail proved nothing').toBeGreaterThan(0)
+  })
 
   it('activates on Enter and on Space, the two keys it claims', () => {
     // ⛔ A TAB STOP ALONE IS HALF THE FIX: focusable and inert is still a
     // button that does nothing. Driven through the container's own drill
     // bridge, per style, so a view that added `tabIndex` and forgot the key
     // handler fails by name.
+    const inert = []
     let activated = 0
-    for (const style of STYLES) {
-      const fired = []
-      const props = { ...propsFor(style), onDrill: (m) => fired.push(m?.key ?? true) }
-      const Component = VIEW_COMPONENTS[style]
-      const { container, unmount } = render(<Component {...props} />)
-      const btn = container.querySelector('[role="button"]')
-      if (btn) {
-        fireEvent.keyDown(btn, { key: 'Enter' })
-        fireEvent.keyDown(btn, { key: ' ' })
-        expect(fired.length, `${style}: a focusable button that answers no key`).toBe(2)
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const style of STYLES) {
+        const { fired } = pass.get(style)
+        if (fired == null) continue
         activated++
+        if (fired !== 2) inert.push(`${style} (${label}): a focusable button that answered ${fired} of 2 keys`)
       }
-      unmount()
     }
+    expect(inert, 'these buttons take focus and do nothing').toEqual([])
     expect(activated, 'no style exercised the key path').toBeGreaterThan(0)
-  }, 30000)
-})
-
-describe('no two views claim the same test id', () => {
-  afterEach(() => { swrState.data = null })
+  })
 
   it('every rendered test id belongs to exactly one style', () => {
-    swrState.data = SERVED
     const owners = new Map()
     const clashes = []
     for (const style of STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container } = render(<Component {...propsFor(style)} />)
-      for (const el of container.querySelectorAll('[data-testid]')) {
-        const id = el.getAttribute('data-testid')
+      for (const id of SERVED_PASS.get(style).ids) {
         if (id === 'echart') continue          // the stub at the top of this file
         const prev = owners.get(id)
         if (prev && prev !== style) clashes.push(`${id}: "${prev}" and "${style}"`)
@@ -312,7 +351,7 @@ describe('no two views claim the same test id', () => {
       .toBeGreaterThan(20)
     expect(clashes, 'these ids are ambiguous: a query matches whichever view '
       + 'mounted first').toEqual([])
-  }, 30000)
+  })
 })
 
 describe('the props bundle is the one BreadthViews passes', () => {

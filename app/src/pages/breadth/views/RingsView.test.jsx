@@ -57,3 +57,40 @@ describe('RingsView says what its arc means', () => {
     expect(container.querySelector('[data-testid^="rings-rank-"]')).toBeNull()
   })
 })
+
+/**
+ * 🔴 THE BOARD SAT 57px TALLER THAN THE PANEL IT WAS GIVEN, and the third row of
+ * rings was cut in half by a scrollbar (measured in Chromium at 1500×686).
+ *
+ * ⛔ THE CAUSE WAS `min-height: auto`, WHICH IS WHY THIS RAIL ASKS FOR THE
+ * DECLARATION AND NOT FOR A HEIGHT. Every gauge is an `<svg>` with a 1:1
+ * viewBox, so its max-content height is its own WIDTH; that reached the grid
+ * through a flex item's automatic minimum — a FLOOR — and a floor taller than
+ * the box cannot be shrunk into it. jsdom has no layout, so the height is not
+ * observable here; the two longhands that switch the floor off are, and they
+ * round-trip through jsdom's CSSOM precisely because they are longhands
+ * (see `fillsRow` — the `flex` shorthand does not).
+ */
+describe('the rings grid takes the room it is offered', () => {
+  const gridOf = (c) => [...c.querySelectorAll('div')].find(d => d.style.display === 'grid')
+
+  it('declares the two longhands that let it be sized by its container', () => {
+    const { container } = render(<RingsView currentRow={row} prevRow={null} metrics={metrics}
+                                            normalize={() => 60} onDrill={() => {}} />)
+    const grid = gridOf(container)
+    expect(grid, 'no grid rendered — this rail proves nothing').toBeTruthy()
+    expect(grid.style.minHeight, 'the automatic minimum is back: an svg cell can '
+      + 'floor this grid above its own panel').toBe('0px')
+    expect(grid.style.flexBasis, 'an `auto` basis sizes the grid from its content, '
+      + 'not from the room').toBe('0px')
+    expect(grid.style.flexGrow).toBe('1')
+  })
+
+  // …and the ceiling it is allowed to stop growing at is still declared, so this
+  // pair cannot pass on a grid that simply fills everything forever.
+  it('still caps how tall a row of rings may grow', () => {
+    const { container } = render(<RingsView currentRow={row} prevRow={null} metrics={metrics}
+                                            normalize={() => 60} onDrill={() => {}} />)
+    expect(gridOf(container).style.maxHeight).toMatch(/^\d+px$/)
+  })
+})

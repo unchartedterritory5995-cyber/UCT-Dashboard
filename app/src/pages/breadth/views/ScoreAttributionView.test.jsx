@@ -94,3 +94,37 @@ describe('ScoreAttributionView', () => {
     expect(mockUrls.at(-1)).toBe('/api/breadth-monitor/score-components/2026-08-28?days=180')
   })
 })
+
+/**
+ * 🔴 THE ONE LENS ON THIS TAB THAT NEVER READ THE ROOM. Measured in Chromium:
+ * eight components drew 235px of ink in a 686px panel and the SAME 235px in a
+ * 1000px one — 440px and 753px of dead black under a correct chart, while its
+ * neighbours one switcher-click away all flex. Each row was a 16px bar plus a
+ * 6px margin, which is a HEIGHT, and every board here says a row is a floor and
+ * a ceiling.
+ *
+ * ⛔ THE LONGHANDS ARE THE ASSERTION, for the reason `fillsRow` states in
+ * `breadthViewShared.js`: jsdom's CSSOM drops the `flex` shorthand silently, so
+ * a rail written against it would pass on a row that declares nothing at all.
+ */
+describe('ScoreAttribution rows take the height they are offered', () => {
+  it('flexes every component row between a floor and a ceiling', () => {
+    mockData.current = {
+      ok: true, date: '2026-08-28', total: 80, min_weight_met: true,
+      components: [
+        { key: 'vix', label: 'VIX (inverted)', weight: 10, points: 10, max_points: 10, present: true },
+        { key: 'hi_ratio', label: 'High/low ratio', weight: 15, points: 6, max_points: 15, present: true },
+      ],
+    }
+    const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
+    for (const key of ['vix', 'hi_ratio']) {
+      const el = getByTestId(`attribution-component-${key}`)
+      expect(el.style.flexGrow, `${key}: a row that cannot grow into the panel`).toBe('1')
+      expect(el.style.flexShrink, `${key}: a row that cannot shrink in a compare pane`).toBe('1')
+      expect(el.style.flexBasis,
+        `${key}: rows must share equally, not in proportion to their own content`).toBe('0px')
+      expect(el.style.minHeight, `${key}: no floor — the row can vanish`).toMatch(/^\d+px$/)
+      expect(el.style.maxHeight, `${key}: no ceiling — two components draw two slabs`).toMatch(/^\d+px$/)
+    }
+  })
+})

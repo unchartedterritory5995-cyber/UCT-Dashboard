@@ -36,10 +36,40 @@
 }
 
 [data-compare-pane] .root {
-  padding: 6px 12px;
-  gap: 5px;
+  padding: 5px 12px 0;
+  gap: 3px;
 }
 
 [data-compare-pane] .panel {
-  padding: 3px 10px;
+  padding: 2px 10px;
+}
+
+/**
+ * 🔴 AND THE TYPE SCALE IS A PANE LEVER TOO — measured, after the padding above
+ * had done what it could. Three panels in a 1440×772 laptop's 710×245 compare
+ * pane demanded 276px: the headline value is 22px on a panel whose whole height
+ * there is 72px, and the trace band's 18px floor is drawn at a width of 620.
+ * The lens scrolled by 31px, which cut the third panel's verdict — the one
+ * sentence a panel exists to state.
+ *
+ * ⛔ THE COMMENT ABOVE USED TO SAY "NO TYPE SIZE APPEARS BELOW", and that rule
+ * is kept where it matters: nothing here is a plain `.value` / `.trace` rule, so
+ * the full-size view still renders byte-identically. What changed is the claim
+ * that padding alone could close a 31px gap on a 245px pane — it could not, and
+ * a panel proportioned for a 200px box is not the right panel for a 72px one.
+ */
+.value {
+  font: 800 22px 'Instrument Sans', sans-serif;
+}
+
+.trace {
+  min-height: 18px;
+}
+
+[data-compare-pane] .value {
+  font-size: 17px;
+}
+
+[data-compare-pane] .trace {
+  min-height: 12px;
 }
