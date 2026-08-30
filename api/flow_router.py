@@ -69,6 +69,7 @@ from fastapi import APIRouter, Request, Depends
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
+from api.services import flow_aggregate
 from collections import OrderedDict
 import os
 import gzip
@@ -754,6 +755,67 @@ async def prune_expired(request: Request, _auth: dict = Depends(require_flow_adm
         "armed": res["armed"],
         "ignored_buffer_days": request.query_params.get("buffer_days"),
     })
+
+
+@flow_router.get("/aggregate")
+async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_user)):
+    """The PROCESSED dataset — the same thing the browser computes, computed once.
+
+    Measured on prod 2026-08-29 from the page's own `[perf]` logs: every member,
+    on every first load, downloads 14 MB of raw prints and then spends
+    ~854 ms parsing + 1,617-3,433 ms in processFlowData to reduce 107,346 prints
+    to ~26,800 trades. This endpoint does that once per data version instead.
+
+    And it is SMALLER on the wire, which was not obvious going in — measured on
+    the sample fixture: 83,643 gzipped for the aggregate against 122,093 for the
+    equivalent CSV, a 0.69x ratio. The processed set drops the ~75% of raw prints
+    that filtering discards, which more than pays for JSON being wordier than CSV.
+
+    ⛔ ADDITIVE. `/data` is untouched and remains the page's path today. A 503
+    here means "not built", never "no flow" — the caller falls back to the CSV
+    and loses speed, never correctness.
+    """
+    if not flow_aggregate.available():
+        # Deliberately explicit: a missing bundle or missing node is a DEPLOY
+        # fact, not a data fact, and saying so stops it being diagnosed as an
+        # empty tape.
+        return JSONResponse(
+            {"error": "aggregate unavailable", "detail": flow_aggregate.cache_state()},
+            status_code=503,
+        )
+
+    source = request.query_params.get("source", "stocks")
+    if source not in ("stocks", "indexes"):
+        source = "stocks"
+    days = _parse_query_days(request)
+    # The page renders a DATE SELECTION, not the whole fetch window (it opens on
+    # 'Last1'). Aggregating the window and letting the page filter is not an
+    # option -- what comes back is an aggregate, not rows -- so the selection has
+    # to be applied here or the prehydrated numbers describe a different set than
+    # the page then shows. Unrecognised values fall back to the whole CSV rather
+    # than erroring, and the allowlist is what keeps this out of argv.
+    date_filter = flow_aggregate.valid_date_filter(
+        request.query_params.get("date_filter"))
+    version = _current_version()
+    key = (source, days, date_filter)
+
+    built = flow_aggregate.get_cached_or_build(
+        key, version,
+        lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+        date_filter,
+    )
+    if not built:
+        return JSONResponse({"error": "aggregate build failed"}, status_code=503)
+
+    built_version, gz = built
+    # Same self-describing contract as _serve_csv: the version is the one the
+    # BODY was built from, so a stale-served payload never claims to be current.
+    headers = {**_FLOW_CACHE_HEADERS, "X-Flow-Version": str(built_version)}
+    accept = (request.headers.get("accept-encoding") or "").lower()
+    if "gzip" in accept:
+        return Response(content=gz, media_type="application/json",
+                        headers={**headers, "Content-Encoding": "gzip"})
+    return Response(content=gzip.decompress(gz), media_type="application/json", headers=headers)
 
 
 @flow_router.get("/dates")

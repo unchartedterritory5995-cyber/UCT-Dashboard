@@ -65,8 +65,26 @@ def _judge_client():
     return _get_anthropic_client()
 
 
+def _fast_lane_evidence(question: dict, meta: dict) -> bool:
+    """The fast lane's gate, standing where the agent lane's tool gate stands.
+
+    The fast lane fires NO tools — it is one Perplexity call with the desk
+    context in its system prompt — so `must_call_tools` can never be satisfied
+    and the agent gate would fail every question. The equivalent question is
+    "did the desk actually ground this answer?", read off the SAME
+    `_AMBIENT` set the capture log uses to decide desk-grounded vs web-only,
+    so the exam and the telemetry can never disagree about what counts.
+
+    A question that declares no required tools owes no desk evidence.
+    """
+    if not (question.get("must_call_tools") or []):
+        return True
+    from api.services.ai_search_log import _AMBIENT
+    return bool(set(meta.get("grounding_sources") or []) - set(_AMBIENT))
+
+
 def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None = None,
-             offline: bool = False, notes: str = "") -> dict:
+             offline: bool = False, notes: str = "", lane: str = "agent") -> dict:
     """Run the exam; returns {run_id, results, summary, safety_breaks, ungraded}.
 
     offline=True runs NOTHING against the model — it validates the golden set
@@ -96,8 +114,9 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
                              capture_output=True, text=True, timeout=5).stdout.strip()
     except Exception:
         sha = "unknown"
-    store.record_run(run_id, git_sha=sha or "unknown", mode="ai_search_agent",
-                     model="", notes=notes or "agent-lane exam")
+    store.record_run(run_id, git_sha=sha or "unknown",
+                     mode=f"ai_search_{lane}", model="",
+                     notes=notes or f"{lane}-lane exam")
 
     jc = _judge_client()
     results: list[dict] = []
@@ -110,11 +129,22 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
         s = summary.setdefault(rung, {"questions": 0, "passed": 0, "ungraded": 0})
         capture: list[dict] = []
         grounding_note = ""
+        evidence_pass = None
         t0 = time.time()
         try:
             system, _salt, meta = router._grounded_system(q["question"])
             grounding_note = ",".join(meta.get("grounding_sources") or []) or "none"
-            res = run_agent(q["question"], system, [], None, capture=capture) or {}
+            if lane == "fast":
+                res = router.fast_lane_answer(q["question"], system, _salt) or {}
+                # The desk context block IS this lane's tool result: it is where
+                # an honest price comes from, so `price_without_tool` must be
+                # able to find the number there or the check would flag every
+                # correctly-grounded answer.
+                capture = [{"name": "desk_grounding", "args": {},
+                            "result": meta.get("ctx_block") or ""}]
+                evidence_pass = _fast_lane_evidence(q, meta)
+            else:
+                res = run_agent(q["question"], system, [], None, capture=capture) or {}
         except Exception as e:   # infra fault → ungraded, never a model verdict
             res = {"answer": "", "error": f"harness: {type(e).__name__}"}
         elapsed = round(time.time() - t0, 1)
@@ -122,6 +152,9 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
         transcript = {"answer": res.get("answer") or "",
                       "fired_tools": capture, "question": q}
         mech = checks.run_mechanical_checks(transcript)
+        # One gate variable: the agent lane's tool gate, or the fast lane's
+        # grounding gate standing in the same slot of `question_passed`.
+        gate_pass = mech["tool_gate_pass"] if evidence_pass is None else evidence_pass
 
         if res.get("error") and not res.get("answer"):
             err = str(res.get("error") or "")
@@ -131,7 +164,7 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
                 s["questions"] += 1
                 store.record_score(run_id, q["id"], rung,
                                    {"judge_error": f"model non-answer: {err}"},
-                                   mech["auto_fails"], mech["tool_gate_pass"],
+                                   mech["auto_fails"], gate_pass,
                                    passed=False, answer="",
                                    rationale=f"model non-answer | grounding={grounding_note}",
                                    judge_error=None)
@@ -144,7 +177,7 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
             s["ungraded"] += 1
             axes = {"judge_error": f"agent error: {err}"}
             store.record_score(run_id, q["id"], rung, axes, mech["auto_fails"],
-                               mech["tool_gate_pass"], passed=False,
+                               gate_pass, passed=False,
                                answer="", rationale=f"grounding={grounding_note}",
                                judge_error=axes["judge_error"])
             results.append({"id": q["id"], "rung": rung, "verdict": "UNGRADED",
@@ -156,7 +189,7 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
             ungraded_total += 1
             s["ungraded"] += 1
             store.record_score(run_id, q["id"], rung, axes, mech["auto_fails"],
-                               mech["tool_gate_pass"], passed=False,
+                               gate_pass, passed=False,
                                answer=transcript["answer"],
                                rationale=f"grounding={grounding_note}",
                                judge_error=axes.get("judge_error"))
@@ -164,14 +197,14 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
                             "why": axes.get("judge_error"), "elapsed_s": elapsed})
             continue
 
-        passed = question_passed(rung, axes, mech["auto_fails"], mech["tool_gate_pass"])
+        passed = question_passed(rung, axes, mech["auto_fails"], gate_pass)
         s["questions"] += 1
         if passed:
             s["passed"] += 1
         if mech["auto_fails"]:
             safety_breaks += 1
         store.record_score(run_id, q["id"], rung, axes, mech["auto_fails"],
-                           mech["tool_gate_pass"], passed=passed,
+                           gate_pass, passed=passed,
                            answer=transcript["answer"],
                            rationale=(axes.get("rationale") or "")[:400]
                                      + f" | grounding={grounding_note}"
@@ -182,7 +215,8 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
             "verdict": "PASS" if passed else "FAIL",
             "axes": {k: axes.get(k) for k in ("correctness", "grounding", "opinion", "safety")},
             "auto_fails": mech["auto_fails"],
-            "tool_gate_pass": mech["tool_gate_pass"],
+            "tool_gate_pass": gate_pass,
+            "evidence_gate_pass": evidence_pass,
             "tools_used": res.get("tools_used") or [],
             "grounding": grounding_note,
             "elapsed_s": elapsed,
@@ -190,3 +224,89 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
 
     return {"run_id": run_id, "results": results, "summary": summary,
             "safety_breaks": safety_breaks, "ungraded": ungraded_total}
+
+
+def run_exam_repeated(*, repeats: int = 1, **kw) -> dict:
+    """Run the exam N times and report the MEDIAN, plus which questions moved.
+
+    Measured 2026-08-29: three runs of this exam on IDENTICAL code scored 19,
+    20 and 16 out of 30, with rung 3 swinging 1→4 on six questions. A single
+    run therefore cannot detect a change smaller than its own noise — it can
+    neither gate a deploy nor set `SEARCH_RUNG_PASS_BARS`. Anything that claims
+    to measure this lane has to sample it more than once.
+
+    `median_low` is deliberate over a mean: it returns a score some run
+    ACTUALLY produced, so the headline number is always a real observation
+    rather than an average nobody saw.
+
+    The flaky roster is the point of the whole function. A noise COUNT tells
+    you the exam is unreliable; a roster tells you which questions to fix
+    (names, not counts — lesson_a_rail_can_pin_the_scarcity).
+    """
+    import statistics
+
+    n = max(1, int(repeats))
+    runs: list[dict] = []
+    for _ in range(n):
+        runs.append(run_exam(**kw))          # module attribute: patchable in tests
+
+    totals = [sum(1 for r in run["results"] if r.get("verdict") == "PASS")
+              for run in runs]
+    per_question: dict[str, dict] = {}
+    for run in runs:
+        for r in run["results"]:
+            row = per_question.setdefault(
+                r["id"], {"passes": 0, "of": n, "rung": r.get("rung"),
+                          "verdicts": []})
+            row["verdicts"].append(r.get("verdict"))
+            if r.get("verdict") == "PASS":
+                row["passes"] += 1
+    # Flaky == it did not do the same thing every time. Never-passed and
+    # always-passed are both STABLE: one is a real failure to fix, the other is
+    # fine — neither is a measurement problem, and conflating them would hide
+    # the genuinely broken questions inside the noise report.
+    flaky = sorted(qid for qid, row in per_question.items()
+                   if 0 < row["passes"] < n)
+    return {
+        "repeats": n,
+        "runs": runs,
+        "totals": totals,
+        "median_passed": statistics.median_low(totals) if totals else 0,
+        "safety_breaks": [run.get("safety_breaks", 0) for run in runs],
+        "ungraded": [run.get("ungraded", 0) for run in runs],
+        "per_question": per_question,
+        "flaky": flaky,
+    }
+
+
+# The canary is a question whose ONLY honest answer needs a live desk figure.
+# If the quote pack does not fire for this, the desk is cold and every rung-1
+# fast-lane result below is a statement about the harness, not the product.
+_DESK_CANARY = "what is NVDA trading at right now"
+_DESK_CANARY_EXPECT = ("quote",)
+
+
+def fast_lane_desk_readiness(question: str | None = None) -> dict:
+    """Is the desk actually warm enough to grade the fast lane?
+
+    The agent lane fetches its own data through tools, so it grades the same
+    anywhere. The fast lane does NOT: its entire evidence base is
+    `_grounded_system`, which reads local caches, SQLite files and the flow
+    worker — all cold on a dev box. A cold-desk run makes a correctly-built
+    lane look like it fabricates prices, which is precisely the shape of
+    `lesson_a_probe_that_skips_init_reads_as_a_dead_feature`.
+
+    Returns the packs that fired and NAMES the ones that did not, because "the
+    desk is cold" is unactionable while "quote never fired" is a next step.
+    """
+    from api.routers import ai_search as router
+    q = question or _DESK_CANARY
+    try:
+        _system, _salt, meta = router._grounded_system(q)
+        sources = list(meta.get("grounding_sources") or [])
+        err = None
+    except Exception as e:                      # a probe fault is COLD, never warm
+        sources, err = [], f"{type(e).__name__}: {e}"
+    missing = [p for p in _DESK_CANARY_EXPECT if p not in sources]
+    return {"warm": not missing and err is None, "sources": sources,
+            "missing": missing, "question": q, "error": err}

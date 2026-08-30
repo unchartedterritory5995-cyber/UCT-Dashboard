@@ -344,6 +344,16 @@ const ICONS = {
       <path d="M5 15.5V5a1 1 0 0 1 1-1h9.5" />
     </>
   ),
+  // Added 2026-08-29 for Options Flow's screenshot/preview controls, which had
+  // been reaching for a camera emoji because the registry had no glyph. Adding
+  // one here is the sanctioned move — the alternative is a one-off emoji, and
+  // that is the drift this registry exists to prevent.
+  camera: (
+    <>
+      <path d="M3 8.6a1.6 1.6 0 0 1 1.6-1.6h2.2l1.3-2h7.8l1.3 2h2.2A1.6 1.6 0 0 1 21 8.6v9.8a1.6 1.6 0 0 1-1.6 1.6H4.6A1.6 1.6 0 0 1 3 18.4z" />
+      <circle cx="12" cy="13" r="3.6" />
+    </>
+  ),
   magnet: (
     <>
       <path d="M6 3v9a6 6 0 0 0 12 0V3h-3.6v9a2.4 2.4 0 0 1-4.8 0V3z" />

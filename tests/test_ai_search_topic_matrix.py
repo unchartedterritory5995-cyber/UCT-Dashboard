@@ -335,7 +335,7 @@ def test_cot_aliases_respect_word_boundaries(monkeypatch):
 ])
 def test_scope_and_format_rules_always_present(client, q):
     c = ask(client, q)
-    assert "SCOPE — HARD RULE" in c["system"]
+    assert "I'm the UCT research desk" in c["system"]
     assert "CRITICAL FORMATTING" in c["system"]
     assert "finance" == c["domain_pack"]
     assert c["related"] is True
@@ -356,7 +356,7 @@ def test_crypto_macro_clean_routing(client, q):
     c = ask(client, q)
     # no phantom ticker quotes, guardrails intact
     assert ": last $" not in c["system"], q
-    assert "SCOPE — HARD RULE" in c["system"]
+    assert "I'm the UCT research desk" in c["system"]
 
 
 # ── Category: options education / greeks (no flow hop — not tape questions) ─
@@ -381,7 +381,7 @@ def test_options_education_no_flow_hop(client, q):
 def test_trading_craft_routes(client, q):
     c = ask(client, q)
     assert c["mode"] in ("fast", "reasoning"), q
-    assert "SCOPE — HARD RULE" in c["system"]
+    assert "I'm the UCT research desk" in c["system"]
 
 
 # ── Category: sympathy / theme questions ────────────────────────────────────

@@ -4,6 +4,8 @@ import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
+import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
+import FlowIcon from "./optionsFlow/FlowIcon";
 import {
   P,
   gradeCluster,
@@ -1275,6 +1277,30 @@ export default function OptionsFlowDashboard() {
     // handlers that own those actions.
     const t0 = performance.now();
 
+    // ── PREHYDRATE: render the numbers while the tape is still parsing ───────
+    // Measured on prod: the 14 MB download is 88 ms. The wait is 854 ms of
+    // parsing plus 1,617-3,433 ms of processFlowData — arithmetic every member
+    // repeats on the same tape. `/api/flow/aggregate` did it once per version,
+    // so ask for the answer in parallel with the CSV and paint as soon as it
+    // lands. The spinner is gated `csvLoading && !D`, so setting D IS the
+    // first paint; the CSV keeps downloading behind it and the worker still
+    // parses, because the rows are what later range changes and ticker drills
+    // read from.
+    //
+    // ⛔ IT CAN ONLY EVER FILL AN EMPTY SCREEN. The client computation stays
+    // the authority: this fires only when nothing has been processed yet, and
+    // re-checks that on arrival, so a slow aggregate can never land on top of
+    // a fresher real result. flowPrehydrate declines any shape it cannot
+    // answer for exactly (see that file) rather than approximating one.
+    if (!silent && !_processedOnce.current) {
+      fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
+        if (cancelled || !pre || _processedOnce.current) return;
+        console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
+          + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
+        setD(pre.D);
+      });
+    }
+
     // A version-driven refresh (baseNonce > 0) MUST bypass the browser cache.
     // csvFile is version-stable and the response carries max-age=300, so a
     // plain fetch would hand back the very bytes we are trying to replace.
@@ -1480,7 +1506,7 @@ export default function OptionsFlowDashboard() {
     try {
       const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      setStatus("📸 Copied to clipboard!");
+      setStatus(<><FlowIcon name="camera"/> Copied to clipboard!</>);
       setTimeout(() => setStatus(""), 2000);
     } catch(e) {
       // Fallback to download if clipboard fails
@@ -1518,7 +1544,7 @@ export default function OptionsFlowDashboard() {
         .map(cardItem);
       const bull = topN(wlBull), bear = topN(wlBear);
       if (!bull.length && !bear.length) {
-        setStatus("⚠️ No watchlist items to render");
+        setStatus(<><FlowIcon name="warning"/> No watchlist items to render</>);
         setTimeout(() => setStatus(""), 3000);
         return;
       }
@@ -1530,7 +1556,7 @@ export default function OptionsFlowDashboard() {
       });
       const data = await resp.json();
       if (!data.ok) {
-        setStatus(`❌ Render failed: ${data.error || ("HTTP " + resp.status)}`);
+        setStatus(<><FlowIcon name="x"/> {`Render failed: ${data.error || ("HTTP " + resp.status)}`}</>);
         setTimeout(() => setStatus(""), 4000);
         return;
       }
@@ -1549,7 +1575,7 @@ export default function OptionsFlowDashboard() {
       }
       setWlPreview({ imgs, dateRange, pushing: false });
     } catch (e) {
-      setStatus(`❌ Preview error: ${e.message}`);
+      setStatus(<><FlowIcon name="x"/> {`Preview error: ${e.message}`}</>);
     } finally {
       setWlPreviewBusy(false);
     }
@@ -1584,9 +1610,9 @@ export default function OptionsFlowDashboard() {
     const fail = results.filter(r => !r.ok);
     if (ok.length && !fail.length) {
       const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
-      setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+      setStatus(<><FlowIcon name="camera"/> {`${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`}</>);
     } else {
-      setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+      setStatus(<><FlowIcon name="x"/> {`Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`}</>);
     }
     setTimeout(() => setStatus(""), 4000);
     closeWlPreview();
@@ -1603,7 +1629,7 @@ export default function OptionsFlowDashboard() {
         await new Promise(r => { s.onload = r; s.onerror = () => r(); });
         h2c = window.html2canvas;
       }
-      if (!h2c) { setStatus("❌ Could not load screenshot library"); setDiscordImgPushing(false); return; }
+      if (!h2c) { setStatus(<><FlowIcon name="x"/> Could not load screenshot library</>); setDiscordImgPushing(false); return; }
 
       const dateRange = FD ? FD.dateRange || "" : "";
       const results = [];
@@ -1644,19 +1670,19 @@ export default function OptionsFlowDashboard() {
       }
 
       if (!results.length) {
-        setStatus("⚠️ No watchlist sections to capture");
+        setStatus(<><FlowIcon name="warning"/> No watchlist sections to capture</>);
       } else {
         const ok = results.filter(r => r.ok);
         const fail = results.filter(r => !r.ok);
         if (ok.length && !fail.length) {
           const totalKB = ok.reduce((s, r) => s + (r.kb || 0), 0);
-          setStatus(`📸 ${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`);
+          setStatus(<><FlowIcon name="camera"/> {`${ok.map(r => r.side).join(" + ")} pushed to Discord (${totalKB}KB)`}</>);
         } else if (fail.length) {
-          setStatus(`❌ Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`);
+          setStatus(<><FlowIcon name="x"/> {`Failed: ${fail.map(r => r.side + ": " + r.error).join(", ")}`}</>);
         }
       }
     } catch (e) {
-      setStatus(`❌ Discord screenshot error: ${e.message}`);
+      setStatus(<><FlowIcon name="x"/> {`Discord screenshot error: ${e.message}`}</>);
     }
     setDiscordImgPushing(false);
     setTimeout(() => setStatus(""), 4000);
@@ -2367,7 +2393,7 @@ export default function OptionsFlowDashboard() {
   const wlPushDiscord = async (mode) => {
     setDiscordPushing(true);
     if (!wlBull.length && !wlBear.length) {
-      setStatus("⚠️ No items to push"); setTimeout(()=>setStatus(""),2000); setDiscordPushing(false); return;
+      setStatus(<><FlowIcon name="warning"/> No items to push</>); setTimeout(()=>setStatus(""),2000); setDiscordPushing(false); return;
     }
     let overallBull = 0, overallBear = 0, tickerCount = 0;
     if (D && D.clean_confirmed) {
@@ -2410,7 +2436,7 @@ export default function OptionsFlowDashboard() {
       });
       const data = await resp.json();
       if (data.ok) {
-        setStatus(`✅ Pushed to Discord — ${data.messages_sent} message(s)`);
+        setStatus(<><FlowIcon name="check"/> {`Pushed to Discord — ${data.messages_sent} message(s)`}</>);
         // Push hand-picked watchlist top 10 bull + top 10 bear to Tracker.
         // Discord push is the curation commit moment — those are the picks
         // worth tracking. This is intentional (not auto-saved on every CSV
@@ -2451,9 +2477,9 @@ export default function OptionsFlowDashboard() {
           }).catch(()=>{});
         }
       } else {
-        setStatus(`❌ Discord push failed: ${data.error||"unknown error"}`);
+        setStatus(<><FlowIcon name="x"/> {`Discord push failed: ${data.error||"unknown error"}`}</>);
       }
-    } catch(e) { setStatus(`❌ Discord push error: ${e.message}`); }
+    } catch(e) { setStatus(<><FlowIcon name="x"/> {`Discord push error: ${e.message}`}</>); }
     setDiscordPushing(false);
     setTimeout(()=>setStatus(""),4000);
   };
@@ -2969,7 +2995,7 @@ export default function OptionsFlowDashboard() {
             }}>{label}</button>
           ))}
         </div>
-        <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
+        <div style={{fontSize:32,marginBottom:12}}><FlowIcon name="warning" size={32}/></div>
         <div style={{color:"#df4646",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
         <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
@@ -3491,11 +3517,11 @@ export default function OptionsFlowDashboard() {
               }}>
                 {dateFrom && dateTo
                   ? `${dateFrom.slice(5).replace("-","/")} → ${dateTo.slice(5).replace("-","/")}`
-                  : "📅 Dates"}
+                  : <><FlowIcon name="calendar"/> Dates</>}
               </button>
               {dateFrom && dateTo && (
                 <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
-                  style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
+                  style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}><FlowIcon name="x" size={12}/></button>
               )}
               <span style={{ fontSize:10, color:P.dm }}>
                 {csvLoading ? "Loading..." : dateFrom && dateTo
@@ -3723,11 +3749,11 @@ export default function OptionsFlowDashboard() {
                   const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#dcbb5e");
                   return (
                     <div style={{ background:bandC+"14", border:"1px solid "+bandC+"55", borderRadius:8, padding:"9px 14px", display:"flex", gap:16, alignItems:"center", flexWrap:"wrap", fontSize:11 }}>
-                      <span style={{ fontWeight:800, color:bandC, letterSpacing:0.5 }}>⚡ TRADE-AWARE</span>
+                      <span style={{ fontWeight:800, color:bandC, letterSpacing:0.5 }}><FlowIcon name="bolt"/> TRADE-AWARE</span>
                       <span style={{ color:P.mt }}>Flow coverage <b style={{ color:P.wh }}>{Math.round(cov*100)}%</b> <span style={{ color:P.dm }}>({withDp}/{total} contracts)</span></span>
                       <span style={{ color:P.mt }}>Confidence <b style={{ color:P.wh }}>{Math.round(conf*100)}%</b></span>
                       <span style={{ color:P.mt }}>{days} day{days===1?"":"s"} of attribution</span>
-                      {lowCov && <span style={{ color:P.be, fontWeight:700 }}>{days===0 ? "⚠ No attribution data — run a dealer-positioning backfill (mostly naive)." : "⚠ Low coverage — levels are mostly naive; treat the flip as tentative."}</span>}
+                      {lowCov && <span style={{ color:P.be, fontWeight:700 }}>{days===0 ? <><FlowIcon name="warning"/> No attribution data — run a dealer-positioning backfill (mostly naive).</> : <><FlowIcon name="warning"/> Low coverage — levels are mostly naive; treat the flip as tentative.</>}</span>}
                     </div>
                   );
                 })()}
@@ -3758,7 +3784,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #dcbb5e" }}>
                     <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? <><FlowIcon name="warning"/> Below danger line</> : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -3792,14 +3818,14 @@ export default function OptionsFlowDashboard() {
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
                     background:showGexChart?P.ac+"22":"transparent", color:P.ac
                   }}>
-                    {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
+                    {showGexChart ? <><FlowIcon name="x"/> Hide Chart</> : <><FlowIcon name="chart"/> Chart with Levels</>}
                   </button>
                   <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
                     padding:"10px 28px", borderRadius:6, border:"1px solid #dcbb5e", cursor:"pointer",
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
                     background:showGexSummary?"#dcbb5e22":"transparent", color:"#dcbb5e"
                   }}>
-                    {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
+                    {showGexSummary ? <><FlowIcon name="x"/> Hide Summary</> : <><FlowIcon name="sparkle"/> Generate Summary</>}
                   </button>
                 </div>
 
@@ -3968,11 +3994,11 @@ export default function OptionsFlowDashboard() {
                         verdictIcon = "⇡"; verdictBg = P.bu+"22"; verdictColor = P.bu;
                       } else {
                         verdictText = "Ceiling and floor at the same price ($" + cwStrike + ") — " + fmtGex(cwGex + pwGex) + " combined. Price is stuck here. Every push up or down gets pulled back.";
-                        verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                        verdictIcon = <FlowIcon name="pin"/>; verdictBg = P.ac+"22"; verdictColor = P.ac;
                       }
                     } else {
                       verdictText = "Price squeezed between two key levels pulling inward. " + fmtGex(cwGex + pwGex) + " combined traps price in a tight $" + Math.min(cwStrike,pwStrike) + "–$" + Math.max(cwStrike,pwStrike) + " range.";
-                      verdictIcon = "📌"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                      verdictIcon = <FlowIcon name="pin"/>; verdictBg = P.ac+"22"; verdictColor = P.ac;
                     }
                   } else if (squeezeSetup) {
                     const lo = Math.min(cwStrike,pwStrike), hi = Math.max(cwStrike,pwStrike);
@@ -3985,7 +4011,7 @@ export default function OptionsFlowDashboard() {
                     const cwProxVerdict = (sp - cwStrike) / sp;
                     if (cwProxVerdict < 0.02) {
                       verdictText = isIntraday ? "Decision point at $" + cwStrike + " — " + fmtGex(cwGex) + " below. Hold above = wall absorbed, next target $" + (firstResAbove ? firstResAbove.strike : cwStrike + Math.round(sp*0.005)) + ". Lose it = quick slide." : "Decision point at $" + cwStrike + " this week. A close above absorbs the wall" + (firstResAbove ? " — target $" + firstResAbove.strike : "") + ". A close below confirms the pull.";
-                      verdictIcon = "⚡"; verdictBg = P.ac+"22"; verdictColor = P.ac;
+                      verdictIcon = <FlowIcon name="bolt"/>; verdictBg = P.ac+"22"; verdictColor = P.ac;
                     } else {
                       // Price well above the call wall — wall is acting as major support
                       verdictText = isIntraday ? "$" + cwStrike + " (" + fmtGex(cwGex) + ") cleared and acting as support below. " + (firstResAbove ? "Next target $" + firstResAbove.strike + "." : "Room to run above.") : "$" + cwStrike + " (" + fmtGex(cwGex) + ") is now major support — price cleared the wall with room above. " + (firstResAbove ? "Swing target $" + firstResAbove.strike + "." : "Buy dips toward $" + cwStrike + ".");
@@ -4065,7 +4091,7 @@ export default function OptionsFlowDashboard() {
                       border:"1px solid "+P.be });
                   }
                   if (zg) {
-                    allLevels.push({ strike:zg, fillPct:100, dir:"⚡", dirColor:P.ac,
+                    allLevels.push({ strike:zg, fillPct:100, dir:"◆", dirColor:P.ac,
                       label:"", tag:"danger line", tagBg:P.ac+"22", tagColor:P.ac,
                       fillColor:P.ac, fillText:P.bg, isZero:true, border:"1px dashed "+P.ac });
                   }
@@ -4229,9 +4255,9 @@ export default function OptionsFlowDashboard() {
 
                   // Zero gamma proximity warning
                   if (zgNearSpot) {
-                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line right here — price at $"+sp.toFixed(0)+", danger line at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" the safety net breaks and drops get faster." : "Above $"+zg.toFixed(0)+" the safety net turns back on.")+(isIntraday?"":" Watch for a daily close below — that confirms the regime flip.")+" Smaller positions." });
+                    trades.push({ i:<FlowIcon name="bolt"/>, bg:P.ac+"33", c:P.ac, t:"Danger line right here — price at $"+sp.toFixed(0)+", danger line at $"+zg.toFixed(0)+". "+(sp > zg ? "Below $"+zg.toFixed(0)+" the safety net breaks and drops get faster." : "Above $"+zg.toFixed(0)+" the safety net turns back on.")+(isIntraday?"":" Watch for a daily close below — that confirms the regime flip.")+" Smaller positions." });
                   } else if (zgBelowClose) {
-                    trades.push({ i:"⚡", bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
+                    trades.push({ i:<FlowIcon name="bolt"/>, bg:P.ac+"33", c:P.ac, t:"Danger line at $"+zg.toFixed(0)+" is only "+(Math.abs((sp-zg)/sp)*100).toFixed(1)+"% away. "+(isIntraday?"One bad move and the safety net breaks — drops would get faster after that.":"A daily close below $"+zg.toFixed(0)+" flips the regime — expect faster drops and wider swings after that.") });
                   }
 
                   // Blocked path — the inverse of clear air. Named explicitly so
@@ -4262,7 +4288,7 @@ export default function OptionsFlowDashboard() {
                   // Danger zone
                   const dangerLevel = pwBelowSpot ? pwStrike : Math.round(sp * 0.97);
                   if (thinBelow && !pinSetup && !squeezeSetup) {
-                    trades.push({ i:"⚠", bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
+                    trades.push({ i:<FlowIcon name="warning"/>, bg:P.be+"33", c:P.be, t:(isIntraday?"Thin air below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — if support breaks, price can slice through fast. No cushion to slow the drop.":"Thin support below $"+(firstSupBelow?firstSupBelow.strike:dangerLevel)+" — a break means fast downside with nothing to catch it.") });
                   }
                   const cwCloseBelow = cwMagnet && (sp - cwStrike) / sp < 0.02;
                   trades.push({ i:"!", bg:P.be+"33", c:P.be, t:"Danger: "+(isIntraday?"below":"a daily close below")+" $"+dangerLevel+" "+(isIntraday?"the floor breaks.":"means the floor is gone.")+(zg && !zgNearSpot && sp > zg ? " Below $"+zg.toFixed(0)+" the safety net breaks too — drops snowball." : (zg && !zgNearSpot && sp < zg ? " Safety net is already off below $"+zg.toFixed(0)+" — drops are faster here." : ""))+(cwCloseBelow && !pinSetup && !squeezeSetup ? " Broken support at $"+cwStrike+" would speed up the drop." : "") });
@@ -4283,12 +4309,12 @@ export default function OptionsFlowDashboard() {
                       const bc=low?P.be:(cov>=60&&conf>=50?P.bu:P.ac);
                       return (
                         <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:bc+"22", color:bc, display:"inline-block", marginBottom:10, marginRight:8 }}>
-                          ⚡ Flow-signed · {cov}% coverage · {conf}% confidence{low?(days===0?" · no attribution yet — reads as naive":" · low coverage, tentative"):""}
+                          <FlowIcon name="bolt"/> Flow-signed · {cov}% coverage · {conf}% confidence{low?(days===0?" · no attribution yet — reads as naive":" · low coverage, tentative"):""}
                         </div>
                       );
                     })()}
                     <div style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:4, background:belowDangerLine?P.ac+"22":isPositive?P.bu+"22":P.be+"22", color:belowDangerLine?P.ac:isPositive?P.bu:P.be, display:"inline-block", marginBottom:10 }}>
-                      {belowDangerLine?"⚠️ Below danger line — drops accelerate":isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" "+gexLevelName((_clsL.zero_gamma&&_clsL.zero_gamma.role),"danger line").toLowerCase():""}
+                      {belowDangerLine?<><FlowIcon name="warning"/> Below danger line — drops accelerate</>:isPositive?"Safety net ON — dips tend to bounce":"Safety net OFF — moves get wild"}{zgDist && !belowDangerLine?" · "+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+" "+gexLevelName((_clsL.zero_gamma&&_clsL.zero_gamma.role),"danger line").toLowerCase():""}
                     </div>
 
                     {/* Quick Read — auto-generated narrative */}
@@ -4369,7 +4395,7 @@ export default function OptionsFlowDashboard() {
 
                       // Danger line proximity add-on
                       if (zgNearSpot) {
-                        parts.push("⚠️ Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle flips the safety net off.");
+                        parts.push("Danger line at $"+(zg?.toFixed(0)||"—")+" is RIGHT HERE — one bad candle flips the safety net off.");
                       } else if (zgBelowClose) {
                         parts.push("Danger line at $"+(zg?.toFixed(0)||"—")+" is close — thin cushion before the safety net breaks.");
                       }
@@ -4774,13 +4800,13 @@ export default function OptionsFlowDashboard() {
                               const bullNarrow = top3BullPct >= 50;
                               const bearNarrow = top3BearPct >= 50;
                               if (bullNarrow && bearNarrow) {
-                                return <><span style={{ fontWeight:800 }}>⚠ Narrow on both sides</span> — top 3 names carry {top3BullPct}% of bull and {top3BearPct}% of bear flow.</>;
+                                return <><span style={{ fontWeight:800 }}><FlowIcon name="warning"/> Narrow on both sides</span> — top 3 names carry {top3BullPct}% of bull and {top3BearPct}% of bear flow.</>;
                               }
                               if (bullNarrow) {
-                                return <><span style={{ fontWeight:800 }}>⚠ Narrow bull flow</span> — 3 names carry {top3BullPct}% of bull premium. Bear flow is broad ({top3BearPct}%).</>;
+                                return <><span style={{ fontWeight:800 }}><FlowIcon name="warning"/> Narrow bull flow</span> — 3 names carry {top3BullPct}% of bull premium. Bear flow is broad ({top3BearPct}%).</>;
                               }
                               if (bearNarrow) {
-                                return <><span style={{ fontWeight:800 }}>⚠ Narrow bear flow</span> — 3 names carry {top3BearPct}% of bear premium. Bull flow is broad ({top3BullPct}%).</>;
+                                return <><span style={{ fontWeight:800 }}><FlowIcon name="warning"/> Narrow bear flow</span> — 3 names carry {top3BearPct}% of bear premium. Bull flow is broad ({top3BullPct}%).</>;
                               }
                               return <>Broad flow — top 3 carry {top3BullPct}% of bull, {top3BearPct}% of bear.</>;
                             })()}
@@ -5091,7 +5117,7 @@ export default function OptionsFlowDashboard() {
                                       <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
                                         title={`Open ${tk.s} chart in TradingView`}
                                         style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
-                                        📈 Chart
+                                        <FlowIcon name="chart"/> Chart
                                       </button>
                                     </div>
                                     {/* Bull/Bear summary */}
@@ -5248,7 +5274,7 @@ export default function OptionsFlowDashboard() {
                                       <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
                                         title={`Open ${tk.s} chart in TradingView`}
                                         style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
-                                        📈 Chart
+                                        <FlowIcon name="chart"/> Chart
                                       </button>
                                     </div>
                                     <div style={{ display:"flex", gap:10, fontSize:10, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
@@ -5541,7 +5567,7 @@ export default function OptionsFlowDashboard() {
                       <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                           fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                        {fetchLoading?"Fetching…":"⚡ Fetch Live P/L"}
+                        {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live P/L</>}
                       </button>
                     </div>
                   </div>
@@ -5638,27 +5664,27 @@ export default function OptionsFlowDashboard() {
                       const bidPct = tc&&tc.prem>0 ? tc.bidPrem/tc.prem*100 : 0;
                       if (haveOIData) {
                         // Live OI is the source of truth
-                        if (oiPct >= 0.20) posNote = `📈 Adding — OI +${oiDelta.toLocaleString()}`;
-                        else if (oiPct >= 0.05) posNote = "📈 Accumulating";
+                        if (oiPct >= 0.20) posNote = <><FlowIcon name="chart"/> {`Adding — OI +${oiDelta.toLocaleString()}`}</>;
+                        else if (oiPct >= 0.05) posNote = <><FlowIcon name="chart"/> Accumulating</>;
                         else if (oiPct > -0.10) {
                           // Flat OI — distinguish by bid-side activity within the flat band
-                          if (bidPct >= 30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
-                          else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = "🆕 New entry";
-                          else if (p.daysSince<=3 && tc && tc.hits>=5 && bidPct<15) posNote = "🔥 Active — OI pending";
-                          else posNote = "✅ Holding";
+                          if (bidPct >= 30) posNote = <><FlowIcon name="warning"/> {`Partial exits — ${Math.round(bidPct)}% bid`}</>;
+                          else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = <><FlowIcon name="sparkle"/> New entry</>;
+                          else if (p.daysSince<=3 && tc && tc.hits>=5 && bidPct<15) posNote = <><FlowIcon name="flame"/> Active — OI pending</>;
+                          else posNote = <><FlowIcon name="check"/> Holding</>;
                         }
-                        else if (oiPct > -0.30) posNote = `⚠️ Fading — ${oiDelta.toLocaleString()}`;
-                        else if (oiPct > -0.70) posNote = `🔻 Partial exits — ${oiDelta.toLocaleString()}`;
-                        else posNote = `🔻 Mostly exited — ${oiDelta.toLocaleString()}`;
+                        else if (oiPct > -0.30) posNote = <><FlowIcon name="warning"/> {`Fading — ${oiDelta.toLocaleString()}`}</>;
+                        else if (oiPct > -0.70) posNote = <><FlowIcon name="chevronDown"/> {`Partial exits — ${oiDelta.toLocaleString()}`}</>;
+                        else posNote = <><FlowIcon name="chevronDown"/> {`Mostly exited — ${oiDelta.toLocaleString()}`}</>;
                       } else {
                         // No live OI data — fall back to bid-side ratio
-                        if (bidPct >= 50) posNote = `🔻 Heavy exits — ${Math.round(bidPct)}% closing`;
-                        else if (bidPct >= 30) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
-                        else if (bidPct >= 15) posNote = `⚠️ Partial exits — ${Math.round(bidPct)}% bid`;
-                        else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = "🆕 New entry";
-                        else if (p.daysSince<=3 && tc && tc.hits>=5) posNote = "🔥 Active — OI pending";
-                        else if (p.daysSince>=7) posNote = "💤 Holding";
-                        else posNote = "✅ Holding";
+                        if (bidPct >= 50) posNote = <><FlowIcon name="chevronDown"/> {`Heavy exits — ${Math.round(bidPct)}% closing`}</>;
+                        else if (bidPct >= 30) posNote = <><FlowIcon name="warning"/> {`Partial exits — ${Math.round(bidPct)}% bid`}</>;
+                        else if (bidPct >= 15) posNote = <><FlowIcon name="warning"/> {`Partial exits — ${Math.round(bidPct)}% bid`}</>;
+                        else if (p.daysSince<=2 && tc && tc.hits<=3) posNote = <><FlowIcon name="sparkle"/> New entry</>;
+                        else if (p.daysSince<=3 && tc && tc.hits>=5) posNote = <><FlowIcon name="flame"/> Active — OI pending</>;
+                        else if (p.daysSince>=7) posNote = <><FlowIcon name="moon"/> Holding</>;
+                        else posNote = <><FlowIcon name="check"/> Holding</>;
                       }
                       // Freshness + last OI
                       const freshC = p.daysSince<=1?P.bu:p.daysSince<=3?P.ac:p.daysSince>=7?P.be:P.dm;
@@ -5791,7 +5817,7 @@ export default function OptionsFlowDashboard() {
                                 <button onClick={e=>{e.stopPropagation(); setChartModal({sym:p.sym}); setChartInterval("D");}}
                                   title={`Open ${p.sym} chart`}
                                   style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                                  📈 Chart
+                                  <FlowIcon name="chart"/> Chart
                                 </button>
                                 <div style={{ fontSize:10, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
                               </div>
@@ -6060,7 +6086,10 @@ export default function OptionsFlowDashboard() {
           const stN = cc.filter(t=>t.DTE>=0&&t.DTE<60).length;
           const ltN = cc.filter(t=>t.DTE>=60&&t.DTE<180).length;
           const leN = cc.filter(t=>t.DTE>=180).length;
-          const momIcon = m => m==="accel"?"🟢":m==="fading"?"🔴":"🟡";
+          // (removed 2026-08-29) `momIcon` mapped momentum to a coloured circle emoji.
+          // It was declared here and CALLED NOWHERE — one reference in the whole file,
+          // its own definition. Deleted rather than converted: there is no surface to
+          // match, so a UIcon here would be inventing a requirement.
           const renderRow = (tk, idx, side) => {
             const total = tk.bull + tk.bear;
             const net = tk.bull - tk.bear;
@@ -6196,7 +6225,7 @@ export default function OptionsFlowDashboard() {
                 })}
                 <span style={{ width:1, height:16, background:P.bd }}/>
                 {/* Activity */}
-                {[{k:"new",l:"🆕 New"},{k:"uoa",l:"UOA"}].map(d=>{
+                {[{k:"new",l:"New"},{k:"uoa",l:"UOA"}].map(d=>{
                   const active=cAct===d.k;
                   return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
@@ -6336,7 +6365,7 @@ export default function OptionsFlowDashboard() {
                           }}
                           title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
                         >
-                          {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${_lbContracts.length})`}
+                          {fetchLoading ? "Fetching…" : <><FlowIcon name="bolt"/> {`Fetch Live OI (${_lbContracts.length})`}</>}
                         </button>
                         {/* Still-open flow toggle (2026-07-18; auto-fetch 2026-08-10):
                             turning it ON auto-fetches Live OI if not loaded yet (one
@@ -6360,7 +6389,7 @@ export default function OptionsFlowDashboard() {
                             background:lbStillOpenOnly?P.bu+"22":"transparent",
                             color:lbStillOpenOnly?P.bu:P.mt,
                             letterSpacing:0.5, opacity:(fetchLoading || !_lbAllContracts.length)?0.6:1 }}>
-                          {(fetchLoading && lbStillOpenOnly) ? "Still-open · loading OI…" : (lbStillOpenOnly ? "✓ Still-open" : "Still-open")}
+                          {(fetchLoading && lbStillOpenOnly) ? "Still-open · loading OI…" : (lbStillOpenOnly ? <><FlowIcon name="check"/> Still-open</> : "Still-open")}
                         </button>
                         {/* Coverage. computeStillOpen can only confirm contracts with
                             a live quote, so without this the trader cannot tell
@@ -6376,7 +6405,7 @@ export default function OptionsFlowDashboard() {
                           ) : (
                             <div style={{ fontSize:10, color:P.ye, fontWeight:700 }}
                                  title="No contract on this board has live OI yet, so still-open premium cannot be computed. Showing raw premium instead of an empty board.">
-                              ⚠ no live OI for these tickers — showing raw
+                              <FlowIcon name="warning"/> no live OI for these tickers — showing raw
                             </div>
                           )
                         )}
@@ -6646,7 +6675,7 @@ export default function OptionsFlowDashboard() {
                   <button onClick={()=>fetchPrices(ranked.map(c=>({sym:c.sym,cp:c.cp,strike:c.K,exp:c.exp})))} disabled={fetchLoading}
                     style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                       fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                    {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                    {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live Prices</>}
                   </button>
                   {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
                 </div>
@@ -6821,11 +6850,11 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", gap:6, alignItems:"center" }}>
                   <button onClick={fetchLeaderYtd} disabled={leaderYtdLoading}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid "+P.bl, background:"transparent", color:leaderYtdLoading?P.dm:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:leaderYtdLoading?"wait":"pointer" }}>
-                    {leaderYtdLoading?"Loading…":"📈 Fetch Data"}
+                    {leaderYtdLoading?"Loading…":<><FlowIcon name="chart"/> Fetch Data</>}
                   </button>
                   <button onClick={autoPopulateLeaders}
                     style={{ padding:"5px 12px", borderRadius:4, border:"1px solid #6ba3be55", background:"#6ba3be11", color:"#6ba3be", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
-                    ⚡ Auto-Fill Top 25{capFilter !== "All" ? " ("+capFilter+")" : ""}
+                    <FlowIcon name="bolt"/> Auto-Fill Top 25{capFilter !== "All" ? " ("+capFilter+")" : ""}
                   </button>
                 </div>
               </div>
@@ -6922,7 +6951,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             ) : (
               <Card><div style={{ textAlign:"center", padding:24, color:P.dm, fontSize:11 }}>
-                Click "⚡ Auto-Fill Top 25" to populate leaders from flow data.
+                Click "Auto-Fill Top 25" to populate leaders from flow data.
               </div></Card>
             )}
           </div>
@@ -6997,7 +7026,7 @@ export default function OptionsFlowDashboard() {
                         {themeMatches.map(t=>(
                           <button key={t} onClick={()=>{ setSearch(t); setSelectedTicker(null); setSearchGroup({type:"theme",name:t,tickers:THEMES_DEF[t]}); }}
                             style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:P.ac, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
-                            📁 {t} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({THEMES_DEF[t].length} tickers)</span>
+                            <FlowIcon name="library"/> {t} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({THEMES_DEF[t].length} tickers)</span>
                           </button>
                         ))}
                       </div>
@@ -7010,7 +7039,7 @@ export default function OptionsFlowDashboard() {
                           return (
                             <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(null); setSearchGroup({type:"sector",name:s,tickers:sectorTickers}); }}
                               style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:"#6ba3be", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
-                              🏢 {s} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({sectorTickers.length} tickers)</span>
+                              <FlowIcon name="factory"/> {s} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({sectorTickers.length} tickers)</span>
                             </button>
                           );
                         })}
@@ -7055,12 +7084,12 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                     <div>
                       <span style={{ fontSize:10, fontWeight:800, color:searchGroup.type==="theme"?P.ac:"#6ba3be", textTransform:"uppercase", letterSpacing:1 }}>
-                        {searchGroup.type==="theme"?"📁":"🏢"} {searchGroup.name}
+                        <FlowIcon name={searchGroup.type==="theme"?"library":"factory"}/> {searchGroup.name}
                       </span>
                       <span style={{ fontSize:10, color:P.dm, marginLeft:8 }}>{rows.length} tickers with flow · {searchGroup.tickers.length} in group</span>
                     </div>
                     <button onClick={()=>{ setSearchGroup(null); setSearch(""); }}
-                      style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:10, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}>✕ Clear</button>
+                      style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:10, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}><FlowIcon name="x"/> Clear</button>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:12 }}>
                     <div>
@@ -7158,7 +7187,7 @@ export default function OptionsFlowDashboard() {
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#dcbb5e":"#dcbb5e55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#dcbb5e22":"transparent", color:batchMode?"#dcbb5e":"#dcbb5e" }}>
-                📋 Batch Search
+                <FlowIcon name="document"/> Batch Search
               </button>
               {batchMode && <span style={{ fontSize:10, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
             </div>
@@ -7313,7 +7342,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                            <div style={{ fontSize:11, fontWeight:800, color:"#dcbb5e", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                            <div style={{ fontSize:11, fontWeight:800, color:"#dcbb5e", letterSpacing:0.5 }}><FlowIcon name="bolt"/> TOP IDEAS FROM YOUR WATCHLIST</div>
                             <button onClick={()=>{
                               const allContracts = [];
                               [...topBull,...topBear].forEach(r => {
@@ -7323,7 +7352,7 @@ export default function OptionsFlowDashboard() {
                             }} disabled={fetchLoading}
                               style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                              {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
+                              {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; Prices</>}
                             </button>
                           </div>
                           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -7352,7 +7381,7 @@ export default function OptionsFlowDashboard() {
                           title="Fetch live OI and P/L for every Top Contract in this batch."
                           style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                             fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                          {fetchLoading?"Fetching…":"⚡ Fetch Live OI & P/L (all rows)"}
+                          {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; P/L (all rows)</>}
                         </button>
                       </div>
                     )}
@@ -7372,7 +7401,7 @@ export default function OptionsFlowDashboard() {
                           }:undefined}
                             style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:10, fontWeight:active?800:600,
                               cursor:sortable?"pointer":"default", userSelect:"none" }}
-                            title={h==="Live OI"?"Current OI from Schwab vs the max OI seen in the flow window. Green=position growing, red=fading. Click ⚡ Fetch above to populate.":h==="P/L%"?"Median entry from flow trades → current mark. Click ⚡ Fetch above to populate.":undefined}>
+                            title={h==="Live OI"?"Current OI from Schwab vs the max OI seen in the flow window. Green=position growing, red=fading. Click Fetch above to populate.":h==="P/L%"?"Median entry from flow trades → current mark. Click Fetch above to populate.":undefined}>
                             {h}{arrow}
                           </th>;
                         })}
@@ -7519,7 +7548,7 @@ export default function OptionsFlowDashboard() {
                             }} disabled={fetchLoading}
                               style={{ padding:"6px 14px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                                 fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
-                              {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
+                              {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; Prices</>}
                             </button>
                             <button onClick={()=>{ setSearch(d.sym); setSelectedTicker(FD.TICKER_DB.find(t=>t.s===d.sym)||null); setSearchDte("All"); setBatchMode(false); setBatchResults(null); setBatchDetail(null); }}
                               style={{ padding:"6px 14px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer",
@@ -7527,7 +7556,7 @@ export default function OptionsFlowDashboard() {
                               Open in Search →
                             </button>
                             <button onClick={()=>setBatchDetail(null)}
-                              style={{ padding:"4px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.dm }}>✕</button>
+                              style={{ padding:"4px 10px", borderRadius:6, border:"none", cursor:"pointer", fontSize:14, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.dm }}><FlowIcon name="x" size={14}/></button>
                           </div>
                         </div>
                         <div style={{ display:"flex", gap:16, marginBottom:12, fontSize:10 }}>
@@ -8045,7 +8074,7 @@ export default function OptionsFlowDashboard() {
                             {dirOpen}
                           </span>
                           {dirOpen !== dir && total > 0 && (
-                            <span style={{ marginLeft:4, color:P.ac, fontWeight:700 }} title="Net direction flips once closures are accounted for">⚠ flipped</span>
+                            <span style={{ marginLeft:4, color:P.ac, fontWeight:700 }} title="Net direction flips once closures are accounted for"><FlowIcon name="warning"/> flipped</span>
                           )}
                         </div>
                       )}
@@ -8121,7 +8150,7 @@ export default function OptionsFlowDashboard() {
                     <button onClick={_fetchAllSearchOI} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                      {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
+                      {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI &amp; Prices</>}
                     </button>
                     <span style={{ fontSize:10, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
                     {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
@@ -8197,7 +8226,7 @@ export default function OptionsFlowDashboard() {
                 }} disabled={fetchLoading}
                   style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                  {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
+                  {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live OI</>}
                 </button>
                 {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
               </div>
@@ -8484,7 +8513,7 @@ export default function OptionsFlowDashboard() {
                     }} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
-                      {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
+                      {fetchLoading?"Fetching…":<><FlowIcon name="bolt"/> Fetch Live Prices</>}
                     </button>
                     {status && <span style={{ fontSize:10, color:P.dm, marginLeft:8 }}>{status}</span>}
                   </div>
@@ -8630,7 +8659,7 @@ export default function OptionsFlowDashboard() {
                 <button onClick={e=>{e.stopPropagation(); const n=[...list]; n.splice(idx,1); setList(n);}}
                   style={{ background:"transparent", border:"none", color:P.dm, fontSize:12, cursor:"pointer", padding:"2px 4px", lineHeight:1, flexShrink:0, opacity:0.5 }}
                   onMouseEnter={e=>e.target.style.opacity=1} onMouseLeave={e=>e.target.style.opacity=0.5}
-                  title="Remove ticker">✕</button>
+                  title="Remove ticker"><FlowIcon name="x" size={11}/></button>
                 <div style={{ width:120, flexShrink:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
@@ -8717,7 +8746,7 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:11 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:800 }}>{fmt(item.prem)}</span></span>
                   {isEditing && !isRemoving && (
                     <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
-                      style={{ fontSize:10, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
+                      style={{ fontSize:10, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}><FlowIcon name="x"/> Remove</button>
                   )}
                 </div>
                 {/* P&L Column */}
@@ -8801,7 +8830,7 @@ export default function OptionsFlowDashboard() {
                   </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
-                    🗑 Clear All
+                    <FlowIcon name="trash"/> Clear All
                   </button>
                   {/* Discord push — admin-only. Preview Images is the single push
                       path (renders the branded card, previews, then posts). The old
@@ -8821,7 +8850,7 @@ export default function OptionsFlowDashboard() {
                         title="Render the Bull + Bear watchlist as a branded image and preview it before pushing to Discord"
                         style={{ padding:"5px 12px", borderRadius:"0 5px 5px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
                           color:"#fff", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                        {wlPreviewBusy ? "📸 Rendering…" : "📸 Preview Images"}
+                        {wlPreviewBusy ? <><FlowIcon name="camera"/> Rendering…</> : <><FlowIcon name="camera"/> Preview Images</>}
                       </button>
                     </div>
                   )}
@@ -8832,12 +8861,12 @@ export default function OptionsFlowDashboard() {
                         style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:10, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, marginBottom:12, flexWrap:"wrap" }}>
                           <div style={{ fontSize:13, fontWeight:800, color:P.wh, fontFamily:"inherit" }}>
-                            📸 Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
+                            <FlowIcon name="camera"/> Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
                           </div>
                           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <button onClick={pushPreviewToDiscord} disabled={wlPreview.pushing}
                               style={{ padding:"6px 16px", borderRadius:5, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-                              {wlPreview.pushing ? "Pushing…" : "📤 Push to Discord"}
+                              {wlPreview.pushing ? "Pushing…" : <><FlowIcon name="upload"/> Push to Discord</>}
                             </button>
                             <button onClick={closeWlPreview} disabled={wlPreview.pushing}
                               style={{ padding:"6px 14px", borderRadius:5, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
@@ -8859,13 +8888,13 @@ export default function OptionsFlowDashboard() {
                   )}
                   {wlPreviewBusy && !wlPreview && (
                     <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"center", justifyContent:"center", color:P.wh, fontSize:13, fontWeight:700, fontFamily:"inherit" }}>
-                      📸 Rendering preview…
+                      <FlowIcon name="camera"/> Rendering preview…
                     </div>
                   )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
                     style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
-                    {wlOILoading?"Fetching…":"📊 Fetch Live OI"}
+                    {wlOILoading?"Fetching…":<><FlowIcon name="chart"/> Fetch Live OI</>}
                   </button>
                 </div>
               </div>
@@ -9098,7 +9127,7 @@ export default function OptionsFlowDashboard() {
 
               return (
                 <Card>
-                  <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:8 }}>📋 SCANNER SUGGESTIONS — not yet on watchlist</div>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.ac, letterSpacing:1, marginBottom:8 }}><FlowIcon name="document"/> SCANNER SUGGESTIONS — not yet on watchlist</div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                     <div>
                       <div style={{ fontSize:10, fontWeight:700, color:P.bu, marginBottom:4 }}>▲ Bull ({bullSugg.length})</div>
@@ -9122,7 +9151,7 @@ export default function OptionsFlowDashboard() {
             {wlRemoved.length>0 && (
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>✕ REMOVED ({wlRemoved.length})</div>
+                  <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}><FlowIcon name="x"/> REMOVED ({wlRemoved.length})</div>
                   <span style={{ fontSize:10, color:P.dm }}>Saved with watchlist for pattern analysis</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>

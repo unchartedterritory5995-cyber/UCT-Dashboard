@@ -329,8 +329,15 @@ def test_flow_and_patterns_grounding_wiring(monkeypatch):
 
 
 def test_scope_guard_present_in_widget_prompt():
-    assert "SCOPE — HARD RULE" in ai._WIDGET_SYSTEM
-    assert "exclusively for markets" in ai._WIDGET_SYSTEM
+    # The refusal sentence + the hard no-general-purpose clause are the guard.
+    assert "I'm the UCT research desk" in ai._WIDGET_SYSTEM
+    assert "never write code" in ai._WIDGET_SYSTEM.lower()
+    # …and scope must NOT be exclusive to instruments. "you exist exclusively
+    # for markets" was pinned here until 2026-08-29, and it is exactly what made
+    # the desk refuse "find me an example of an exhaustion extension" twice in
+    # one minute — the firm's own candle vocabulary, answered as off-topic.
+    assert "exclusively for markets" not in ai._WIDGET_SYSTEM
+    assert "technical analysis" in ai._WIDGET_SYSTEM.lower()
 
 
 def test_ticker_extraction_filters_noise(monkeypatch):
