@@ -21,8 +21,11 @@ function usePageTracking() {
     if (path === lastPath.current) return
     lastPath.current = path
 
-    // Only track if user has a session cookie (logged in)
-    if (!document.cookie.includes('uct_session')) return
+    // ⛔ DO NOT reinstate a `document.cookie` check here. `uct_session` is
+    // set httponly=True (api/routers/auth.py:1657), so JS can never see it
+    // and this hook recorded ZERO rows for its entire life. The endpoint
+    // already requires auth (Depends(get_current_user)); an anonymous call
+    // 401s and costs nothing. Guard on auth state or not at all.
 
     // Fire-and-forget — no await, no error handling
     fetch('/api/auth/track', {
