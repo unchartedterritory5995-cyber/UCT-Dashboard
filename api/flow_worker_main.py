@@ -720,6 +720,19 @@ def _start_recent_cache_warmer():
                                 _fr.build_aggregate("stocks", _d, f"Last{_d}")
                             except Exception:
                                 log.exception("[recent-warmer] flow/aggregate warm failed: days=%s", _d)
+                        # …then say so if the fast path is BROKEN, not merely
+                        # cold. This whole path fails soft, so without a signal
+                        # the symptom is a member saying "flow feels slow again"
+                        # weeks later. Transition-only: a check that repeats
+                        # while something is broken gets muted, and a muted
+                        # alert reads as coverage.
+                        try:
+                            from api.services import flow_aggregate as _fa
+                            from api.flow_gap_autofill import _post_discord as _pd
+                            _fa.alert_if_unavailable(
+                                current_version=_fr._current_version(), post=_pd)
+                        except Exception:
+                            log.exception("[recent-warmer] aggregate health check failed")
                         last_flow_data_warm = time.time()
                     except Exception:
                         log.exception("[recent-warmer] flow/data warm import failed")

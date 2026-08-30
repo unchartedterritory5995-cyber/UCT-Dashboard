@@ -777,6 +777,24 @@ def build_aggregate(source: str, days: int, date_filter, version=None):
     )
 
 
+@flow_router.get("/aggregate-health")
+async def aggregate_health():
+    """Is Options Flow's server-computed first paint actually working?
+
+    Deliberately UNAUTHENTICATED and read-only, matching /api/flow-gap-fill/status:
+    it returns booleans, byte counts and a reason string — no tape data — and a
+    health check nobody can reach without a session is a health check nobody runs.
+
+    ⛔ THE VERDICT IS `warm`, AND IT IS AN ARTIFACT READ. "Is there a usable
+    aggregate for the CURRENT version, right now" is answerable from state, so
+    it is true immediately after a restart with no traffic and no history. The
+    tallies beside it are process-local and reset on every deploy — read them
+    as colour, never as the verdict (a resetting counter is how the desk
+    insights pass reported healthy through a total failure).
+    """
+    return JSONResponse(flow_aggregate.health(current_version=_current_version()))
+
+
 @flow_router.get("/aggregate")
 async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_user)):
     """The PROCESSED dataset — the same thing the browser computes, computed once.
@@ -819,6 +837,7 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
     version = _current_version()
     key = (source, days, date_filter)
 
+    flow_aggregate._STATS["endpoint_requests"] += 1   # member traffic only
     built = build_aggregate(source, days, date_filter, version)
     if not built:
         return JSONResponse({"error": "aggregate build failed"}, status_code=503)

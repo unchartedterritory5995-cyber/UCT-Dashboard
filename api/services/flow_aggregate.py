@@ -137,6 +137,13 @@ def build(csv_text: str, date_filter: str | None = None) -> dict | None:
     stats = payload.get("stats") or {}
     stats["buildMs"] = int((time.monotonic() - t0) * 1000)
     stats["jsonBytes"] = len(raw)
+    _STATS["builds"] += 1
+    _STATS["last_build"] = {"ms": stats["buildMs"], "json_bytes": stats["jsonBytes"],
+                            "raw_rows": stats.get("rawRows"),
+                            "selected_rows": stats.get("selectedRows"),
+                            "trades": stats.get("totalTrades"),
+                            "date_filter": stats.get("dateFilter"),
+                            "at": time.time()}
     return {"json_bytes": raw, "stats": stats}
 
 
@@ -153,9 +160,11 @@ def get_cached_or_build(key: tuple, version, csv_provider,
     ⚠️ The returned version is the one the payload was BUILT FROM, never simply
     the current one, so a stale-served body always describes itself honestly.
     """
+    _STATS["requests"] += 1
     cached = _CACHE.get(key)
     if cached and cached[0] == version:
         _CACHE.move_to_end(key)
+        _STATS["cache_hits"] += 1
         return cached
 
     def _store(gz_bytes):
@@ -168,6 +177,7 @@ def get_cached_or_build(key: tuple, version, csv_provider,
     if not _BUILD_LOCK.acquire(blocking=False):
         # Someone is building. Serve the previous answer rather than queue
         # behind a multi-second subprocess; if there is none, decline.
+        _STATS["stale_served" if cached else "declined_busy"] += 1
         return cached if cached else None
     try:
         again = _CACHE.get(key)
@@ -178,6 +188,7 @@ def get_cached_or_build(key: tuple, version, csv_provider,
             return None
         built = build(csv_text, date_filter)
         if not built:
+            _STATS["build_failures"] += 1
             return None
         gz = gzip.compress(built["json_bytes"], compresslevel=6)
         log.info("[flow-agg] built %s: %d raw rows -> %d trades, json %.1f MB "
@@ -201,3 +212,124 @@ def cache_state() -> dict:
         "entries": [{"key": str(k), "version": v[0], "gz_bytes": len(v[1])}
                     for k, v in _CACHE.items()],
     }
+
+
+# ── observability ───────────────────────────────────────────────────────────
+#
+# WHY THIS EXISTS: this whole path FAILS SOFT by design. A missing bundle, a
+# missing `node`, a flipped flag, a changed proxy prefix — every one returns
+# None, the page silently takes the slow path it took before, and nothing
+# anywhere goes red. That is correct for safety and terrible for noticing: the
+# symptom is "the flow page feels slow again", weeks later, from a member.
+
+# Process-local tallies. ⚠️ THESE RESET ON EVERY DEPLOY, so they are the
+# SECONDARY signal only — never the health verdict. A counter that resets is
+# exactly how the desk insights pass reported healthy straight through a total
+# failure (its 4-consecutive-failure streak never survived a redeploy).
+_STATS = {"requests": 0, "cache_hits": 0, "builds": 0, "build_failures": 0,
+          "stale_served": 0, "declined_busy": 0, "last_build": None,
+          # ⛔ MEMBER traffic, counted SEPARATELY from the warmer's own calls.
+          # The warmer goes through the same builder, so a single `requests`
+          # tally cannot answer the question that actually matters — "are
+          # members reaching the fast path?" — because the warmer keeps it
+          # non-zero forever even if every browser stopped asking. A signal
+          # that cannot distinguish the thing being measured from the thing
+          # measuring it is not a signal.
+          "endpoint_requests": 0}
+
+
+def stats() -> dict:
+    return dict(_STATS)
+
+
+def health(current_version=None, view=("stocks", 1, "Last1")) -> dict:
+    """Is the fast path ACTUALLY available right now?
+
+    ⛔ READS THE ARTIFACT, NOT A COUNTER. The verdict is "is there a usable
+    aggregate for the CURRENT data version, this second" — answerable from
+    state alone, so it is true immediately after a restart with no history to
+    accumulate. A tally-based check would have to wait for traffic to prove
+    anything, and would read healthy on a pod that has served nobody.
+
+    `warm` is the one that matters. `available` only says the machinery COULD
+    run (flag on, bundle present, node on PATH); `warm` says the answer the
+    page asks for is already sitting there, which is the difference between a
+    204 ms first paint and a member waiting for a 3 s cold build.
+    """
+    bundle = bundle_path()
+    node = shutil.which(node_bin())
+    out = {
+        "enabled": enabled(),
+        "bundle": bundle,
+        "bundle_exists": os.path.exists(bundle),
+        "node": node,
+        "available": False,
+        "warm": False,
+        "current_version": current_version,
+        "view": list(view),
+        "entries": [{"key": str(k), "version": v[0], "gz_bytes": len(v[1])}
+                    for k, v in _CACHE.items()],
+        "stats_process_local": stats(),
+        "reason": None,
+    }
+    if not out["enabled"]:
+        out["reason"] = "disabled"
+        return out
+    if not out["bundle_exists"]:
+        # The build step did not run, or the image shipped without app/dist.
+        out["reason"] = "bundle_missing"
+        return out
+    if not node:
+        out["reason"] = "node_missing"
+        return out
+    out["available"] = True
+
+    cached = _CACHE.get(tuple(view))
+    if cached is None:
+        out["reason"] = "cold"
+    elif current_version is not None and cached[0] != current_version:
+        # A warm entry for a SUPERSEDED version is not warm: the next caller
+        # rebuilds. Reporting it as warm is how a stalled warmer would hide.
+        out["reason"] = f"stale (cached v{cached[0]} vs current v{current_version})"
+    else:
+        out["warm"] = True
+    return out
+
+
+def alert_if_unavailable(current_version=None, post=None,
+                         view=("stocks", 1, "Last1")) -> dict:
+    """Post to Discord when the fast path STOPS or STARTS working.
+
+    ⛔ ON TRANSITION ONLY. A check that posts every cycle while something is
+    broken gets muted inside a week, and a muted alert is worse than none —
+    it reads as coverage. The recovery message matters as much as the failure
+    one: without it nobody knows whether an alert from this morning still
+    stands.
+
+    ⚠️ `cold` is NOT unhealthy. A pod that has just booted has an empty cache
+    by construction; the warmer fills it within its cycle. Only a hard
+    unavailability (flag off, bundle gone, node gone) is worth waking someone.
+    """
+    h = health(current_version=current_version, view=view)
+    bad = not h["available"]
+    prev = _STATS.get("_last_alert_bad")
+    h["alerted"] = False
+    if prev is None:
+        _STATS["_last_alert_bad"] = bad          # first observation: no alert
+        return h
+    if bad != prev:
+        _STATS["_last_alert_bad"] = bad
+        msg = (f"\U0001F534 FLOW AGGREGATE UNAVAILABLE — {h['reason']}. Options "
+               f"Flow has fallen back to client-side compute (~2-4 s of the "
+               f"member's own CPU per load). bundle={h['bundle_exists']} "
+               f"node={bool(h['node'])} enabled={h['enabled']}"
+               if bad else
+               "\U0001F7E2 Flow aggregate available again — Options Flow is back "
+               "on the server-computed first paint.")
+        try:
+            if post is not None:
+                post(msg)
+                h["alerted"] = True
+        except Exception:  # noqa: BLE001
+            log.exception("[flow-agg] health alert post failed")
+    return h
