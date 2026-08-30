@@ -196,6 +196,18 @@ export function setErCache(set) {
 }
 
 /**
+ * Test-only: restore the TRUE initial state (no earnings set yet).
+ *
+ * ⛔ `setErCache` refuses anything that is not a Set, so a test could seed an
+ * EMPTY one but never get back to null — and null is what a real first load
+ * starts from, because /api/calendar has not answered yet. Seeding an empty
+ * Set quietly makes `erSoonArr` non-null from the first render, which hides
+ * any regression that gates on it. Mutation testing found exactly that: a
+ * planted "wait for the earnings set before painting" survived.
+ */
+export function _resetErCache() { _erSet = null }
+
+/**
  * URL for a base fetch.
  *
  * First paint uses the bare, version-STABLE URL so it can be served from a
