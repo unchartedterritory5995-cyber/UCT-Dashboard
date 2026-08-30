@@ -29,13 +29,44 @@
 | `api/services/pattern_engine/primitives/shape.py` | **Create.** Comparisons *between* pivots: roundness (U vs V), rim equality, symmetry. The primitive whose absence actually blocks cup-with-handle. |
 | `api/services/pattern_engine/primitives/trendlines.py` | **Modify.** Add opt-in log-space fitting. |
 | `tools/base_coverage.py` | **Create.** Reports a predicate's universe hit-rate so a structure can never ship at 0% or 35% unnoticed. |
-| `tests/pattern_engine/test_zigzag.py` | **Create.** |
-| `tests/pattern_engine/test_shape.py` | **Create.** |
-| `tests/pattern_engine/test_trendlines_logspace.py` | **Create.** |
+| `tests/pattern_engine/primitives/test_zigzag.py` | **Create.** |
+| `tests/pattern_engine/primitives/test_shape.py` | **Create.** |
+| `tests/pattern_engine/primitives/test_trendlines_logspace.py` | **Create.** |
 
 ---
 
-### Task 1: Volatility-scaled zigzag segmentation
+### Task 1: Volatility-scaled zigzag segmentation ✅ DONE
+
+> **AMENDED DURING EXECUTION 2026-08-30.** The code and tests below are the plan
+> as written; four things were wrong and the shipped versions differ. Read the
+> shipped files, not these blocks. Recorded so the same traps are not re-walked
+> in Tasks 2-4.
+>
+> 1. **`MIN_SIGMA = 1e-6` floor added.** On a constant-return series the sample
+>    variance is 0 in exact arithmetic and ~1e-34 in floating point, so
+>    `sigma > 0` is TRUE and the threshold lands near 1e-17 — at which point any
+>    bar's own high-low spread "confirms" a reversal. A smooth 1%/bar rise
+>    produced 90 confirmed pivots, all float residue. A zero volatility estimate
+>    is a REFUSAL, not a small number.
+> 2. **Extreme tracking moved ABOVE the threshold gate.** `continue`-ing on an
+>    unusable sigma also skipped `hi`/`lo` bookkeeping, stranding them on the
+>    seed bar; the first confirmation after sigma recovered then named the wrong
+>    bar. Measured: an 80-bar rise into a hard reversal reported its swing high
+>    at bar 30 instead of the peak at bar 79.
+> 3. **The non-repainting rail as written did NOT discriminate.** A deliberately
+>    non-causal implementation (whole-series sigma) PASSED
+>    `test_confirmed_pivots_are_prefix_stable_as_bars_arrive` on a plain random
+>    walk — a uniformly-volatile series barely moves its own sigma as it grows.
+>    Fixed two ways, both now mutation-verified RED against that implementation:
+>    a direct `test_trailing_sigma_reads_no_bar_after_i` (causality is a property
+>    of the function, so assert it on the function) and a **volatility
+>    regime-change fixture** for the end-to-end test.
+> 4. **`test_a_reversal_smaller_than_the_threshold_confirms_nothing` asserted
+>    too much.** From a rising series the seed bar legitimately confirms as a
+>    swing LOW; the test now asserts no swing HIGH and is renamed accordingly.
+>    Its fixture also needed `spread=0.0` — with an intrabar spread a nominal
+>    "0.5% dip" is a 1.5% high-to-low excursion and the fixture stopped
+>    expressing its own intent.
 
 The segmenter. Everything downstream consumes its output, so it lands first.
 
@@ -43,7 +74,7 @@ The segmenter. Everything downstream consumes its output, so it lands first.
 
 **Files:**
 - Create: `api/services/pattern_engine/primitives/zigzag.py`
-- Test: `tests/pattern_engine/test_zigzag.py`
+- Test: `tests/pattern_engine/primitives/test_zigzag.py`
 
 **Interfaces:**
 - Consumes: `Bar` from `api/services/pattern_engine/types.py` — `{t:int, o:float, h:float, l:float, c:float, v:float}`
@@ -54,7 +85,7 @@ The segmenter. Everything downstream consumes its output, so it lands first.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/pattern_engine/test_zigzag.py`:
+Create `tests/pattern_engine/primitives/test_zigzag.py`:
 
 ```python
 import math
@@ -167,7 +198,7 @@ def test_dedup_bars_constant_is_exposed_for_callers():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/pattern_engine/test_zigzag.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_zigzag.py -v`
 Expected: collection error — `ModuleNotFoundError: No module named 'api.services.pattern_engine.primitives.zigzag'`
 
 - [ ] **Step 3: Write the implementation**
@@ -349,7 +380,7 @@ def _walk(bars: List[Bar], k: float, window: int, n: int) -> List[Swing]:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/pattern_engine/test_zigzag.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_zigzag.py -v`
 Expected: 9 passed.
 
 If `test_confirmed_pivots_are_prefix_stable_as_bars_arrive` fails, the cause is almost certainly a non-causal statistic — check that nothing reads `bars[j]` for `j > i`.
@@ -370,20 +401,20 @@ p.with_suffix(".py.bak").write_text(src, encoding="utf-8")
 # Make sigma read the WHOLE series (the repainting implementation).
 p.write_text(src.replace("lo = max(1, i - SIGMA_WINDOW + 1)", "lo = 1; i = len(bars) - 1"), encoding="utf-8")
 EOF
-python -m pytest tests/pattern_engine/test_zigzag.py::test_confirmed_pivots_are_prefix_stable_as_bars_arrive -v
+python -m pytest tests/pattern_engine/primitives/test_zigzag.py::test_confirmed_pivots_are_prefix_stable_as_bars_arrive -v
 ```
 Expected: **FAIL** — "confirmed history changed at n=...". This proves the rail
 discriminates. Now restore:
 ```bash
 python -c "import pathlib,shutil; p=pathlib.Path('api/services/pattern_engine/primitives/zigzag.py'); shutil.move(str(p.with_suffix('.py.bak')), str(p))"
-python -m pytest tests/pattern_engine/test_zigzag.py -v
+python -m pytest tests/pattern_engine/primitives/test_zigzag.py -v
 ```
 Expected: 9 passed.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add api/services/pattern_engine/primitives/zigzag.py tests/pattern_engine/test_zigzag.py
+git add api/services/pattern_engine/primitives/zigzag.py tests/pattern_engine/primitives/test_zigzag.py
 git commit -m "feat(primitives): volatility-scaled non-repainting zigzag segmentation"
 ```
 
@@ -393,7 +424,7 @@ git commit -m "feat(primitives): volatility-scaled non-repainting zigzag segment
 
 **Files:**
 - Modify: `api/services/pattern_engine/primitives/trendlines.py`
-- Test: `tests/pattern_engine/test_trendlines_logspace.py`
+- Test: `tests/pattern_engine/primitives/test_trendlines_logspace.py`
 
 **Interfaces:**
 - Consumes: existing `fit_trendline(pivots, touch_tolerance_pct=0.5) -> Trendline`
@@ -401,7 +432,7 @@ git commit -m "feat(primitives): volatility-scaled non-repainting zigzag segment
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/pattern_engine/test_trendlines_logspace.py`:
+Create `tests/pattern_engine/primitives/test_trendlines_logspace.py`:
 
 ```python
 """Edwards & Magee: arithmetic price scaling MANUFACTURES falling wedges.
@@ -474,7 +505,7 @@ def test_log_space_refuses_non_positive_prices():
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `python -m pytest tests/pattern_engine/test_trendlines_logspace.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_trendlines_logspace.py -v`
 Expected: `test_log_space_fit_reports_a_uniform_decline_as_parallel` and
 `test_log_space_refuses_non_positive_prices` FAIL with
 `TypeError: fit_trendline() got an unexpected keyword argument 'log_space'`.
@@ -550,7 +581,7 @@ two anchors are exponentiated, for drawing.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/pattern_engine/test_trendlines_logspace.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_trendlines_logspace.py -v`
 Expected: 4 passed.
 
 - [ ] **Step 5: Verify no existing caller regressed**
@@ -563,7 +594,7 @@ pure rename.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add api/services/pattern_engine/primitives/trendlines.py tests/pattern_engine/test_trendlines_logspace.py
+git add api/services/pattern_engine/primitives/trendlines.py tests/pattern_engine/primitives/test_trendlines_logspace.py
 git commit -m "feat(primitives): opt-in log-space trendline fitting with the E&M control"
 ```
 
@@ -578,7 +609,7 @@ level' are still not expressible — those need shape comparison between pivots.
 
 **Files:**
 - Create: `api/services/pattern_engine/primitives/shape.py`
-- Test: `tests/pattern_engine/test_shape.py`
+- Test: `tests/pattern_engine/primitives/test_shape.py`
 
 **Interfaces:**
 - Consumes: `Bar` from `types.py`
@@ -589,7 +620,7 @@ level' are still not expressible — those need shape comparison between pivots.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/pattern_engine/test_shape.py`:
+Create `tests/pattern_engine/primitives/test_shape.py`:
 
 ```python
 from api.services.pattern_engine.primitives.shape import (
@@ -669,7 +700,7 @@ def test_symmetry_refuses_an_out_of_order_window():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/pattern_engine/test_shape.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_shape.py -v`
 Expected: collection error — `No module named '...primitives.shape'`
 
 - [ ] **Step 3: Write the implementation**
@@ -778,7 +809,7 @@ def symmetry(bars: List[Bar], start_idx: int, low_idx: int,
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/pattern_engine/test_shape.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_shape.py -v`
 Expected: 11 passed.
 
 If `test_a_sharp_v_scores_low_roundness` or the U test misses its bound,
@@ -788,7 +819,7 @@ before touching the formula — the formula's V=0.5 anchor is analytic.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/services/pattern_engine/primitives/shape.py tests/pattern_engine/test_shape.py
+git add api/services/pattern_engine/primitives/shape.py tests/pattern_engine/primitives/test_shape.py
 git commit -m "feat(primitives): pivot-shape comparison (roundness, rim equality, symmetry)"
 ```
 
@@ -803,7 +834,7 @@ hit-rate visible while a structure is being written.
 
 **Files:**
 - Create: `tools/base_coverage.py`
-- Test: `tests/pattern_engine/test_base_coverage.py`
+- Test: `tests/pattern_engine/primitives/test_base_coverage.py`
 
 **Interfaces:**
 - Consumes: `segment` from Task 1 (only as an example predicate in the CLI docstring)
@@ -814,7 +845,7 @@ hit-rate visible while a structure is being written.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/pattern_engine/test_base_coverage.py`:
+Create `tests/pattern_engine/primitives/test_base_coverage.py`:
 
 ```python
 from tools.base_coverage import classify, coverage
@@ -865,7 +896,7 @@ def test_classify_boundaries_are_explicit():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/pattern_engine/test_base_coverage.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_base_coverage.py -v`
 Expected: collection error — `No module named 'tools.base_coverage'`
 
 - [ ] **Step 3: Write the implementation**
@@ -940,7 +971,7 @@ def coverage(predicate: Callable[[List[dict]], bool],
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/pattern_engine/test_base_coverage.py -v`
+Run: `python -m pytest tests/pattern_engine/primitives/test_base_coverage.py -v`
 Expected: 6 passed.
 
 - [ ] **Step 5: Run the whole affected suite**
@@ -951,7 +982,7 @@ Expected: all pass, including the pre-existing pattern-engine tests.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/base_coverage.py tests/pattern_engine/test_base_coverage.py
+git add tools/base_coverage.py tests/pattern_engine/primitives/test_base_coverage.py
 git commit -m "feat(tools): universe coverage harness for structure authoring"
 ```
 
