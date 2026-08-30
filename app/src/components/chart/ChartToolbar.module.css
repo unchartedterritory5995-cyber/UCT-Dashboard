@@ -517,6 +517,13 @@
     border-radius: var(--radius-md);
     padding: 2px;
   }
+  /* Collapsed (the phone shell's default): the tools/actions are display:none,
+     so drop the strip's backdrop too — otherwise an empty grey band spans the
+     top of the chart with just the expand chevron in it. */
+  .toolbar.collapsed {
+    background: transparent;
+    padding: 0;
+  }
 }
 
 /* Touch has no hover — keep the toolbar fully visible (don't depend on :hover). */

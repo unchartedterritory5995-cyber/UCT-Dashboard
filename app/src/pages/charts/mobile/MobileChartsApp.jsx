@@ -108,6 +108,9 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   const stockChartProps = useMemo(() => ({
     chartId: chartWidget?.id || null,
     toolbarApiRef,
+    // Clean canvas by default on phone: the drawing toolbar starts collapsed
+    // (chevron to expand) unless this browser has explicitly chosen otherwise.
+    toolbarDefaultCollapsed: true,
   }), [chartWidget?.id])
 
   return (

@@ -1605,6 +1605,11 @@ export default function StockChart({
   // POPOVER, NOT A SECOND MOUNT" rule above). Calls resolve toolbarRef lazily,
   // so they return false (not throw) while no toolbar is mounted.
   toolbarApiRef = null,
+  // Seed the drawing toolbar COLLAPSED on a browser that has never touched its
+  // show/hide toggle (localStorage 'uct.chart.toolbar.collapsed' unset). An
+  // explicit user choice always wins over this. The phone shell passes true so
+  // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
+  toolbarDefaultCollapsed = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2384,7 +2389,14 @@ export default function StockChart({
   // "hide toolbar" survives a refresh / arrangement save until it's reopened.
   const TOOLBAR_COLLAPSED_LS = 'uct.chart.toolbar.collapsed'
   const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
-    try { return localStorage.getItem(TOOLBAR_COLLAPSED_LS) === '1' } catch { return false }
+    // An explicit user choice (either direction) always wins; the host default
+    // only seeds a browser that has never touched the toggle. The phone shell
+    // passes toolbarDefaultCollapsed so its canvas starts clean, chevron to expand.
+    try {
+      const v = localStorage.getItem(TOOLBAR_COLLAPSED_LS)
+      if (v != null) return v === '1'
+    } catch { /* private mode — fall through to the host default */ }
+    return !!toolbarDefaultCollapsed
   })
   const setToolbarCollapsedPersist = useCallback((v) => {
     setToolbarCollapsed(v)
