@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
+  { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
