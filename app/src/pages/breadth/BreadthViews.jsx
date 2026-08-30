@@ -3,7 +3,7 @@
  * computation, the useBreadthViews preset hook, and dispatch to the active
  * visualization style. Spec: docs/superpowers/specs/2026-06-01-breadth-views-multi-style-design.md
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from './heatmapMetrics'
 import useBreadthViews from './useBreadthViews'
 import { LAYOUTS } from './compareQuad'
@@ -157,34 +157,49 @@ export default function BreadthViews({
 
   /**
    * `?date=` — resolved through Wave A's EXISTING refusal path, not a second
-   * one. `onSeek` already answers "is this session reachable?" with a boolean,
-   * so a date outside the loaded window is refused here for the same reason and
-   * with the same sentence (`SEEK_OUT_OF_WINDOW`) a dead Analogue Deck card
-   * carries. The link does not silently land on the newest row pretending to be
-   * the date it named.
+   * one. `resolveSeekIndex` already answers "is this session reachable?", so a
+   * date outside the loaded window is refused here for the same reason and with
+   * the same sentence (`SEEK_OUT_OF_WINDOW`) a dead Analogue Deck card carries.
+   * The link does not silently land on the newest row pretending to be the date
+   * it named.
    *
-   * It RETRIES on a window change: `onSeek`'s identity is a function of the
-   * loaded rows, so widening the window with the day pills re-runs this and the
+   * It RETRIES on a window change: `urlSeekIdx` is a function of the loaded
+   * rows, so widening the window with the day pills makes it resolve and the
    * link lands — the same "widen and the same card becomes live" promise. Once
-   * it lands, `landedRef` stops it, so the user's own scrubbing is never
-   * yanked back.
+   * it lands, `landedDate` stops it, so the user's own scrubbing is never
+   * yanked back. (Across a tab switch the whole component unmounts; the link's
+   * "already spent" memory is `pages/Breadth.jsx`'s, not this one's.)
    *
    * ⭐ THE REFUSAL IS DERIVED, NOT STORED. "Is the link's date reachable in the
    * loaded window?" is a pure question about two values already on hand, and
-   * `canSeek` is the one thing that answers it — the same resolver `onSeek`
-   * uses. A second copy in state could disagree with the guard that produced it,
-   * which is exactly the shape Wave A built `canSeek`/`onSeek` to avoid.
+   * `resolveSeekIndex` is the one thing that answers it — the same resolver
+   * `onSeek` and `canSeek` use. A second copy in state could disagree with the
+   * guard that produced it, which is exactly the shape Wave A built
+   * `canSeek`/`onSeek` to avoid.
+   *
+   * ⛔ IT RECONCILES DURING RENDER, NOT IN AN EFFECT — the same "adjusting state
+   * when props change" shape as the window clamp above, and for the same
+   * reason. As an effect it tripped `react-hooks/set-state-in-effect`, and the
+   * rule was right about the mechanism even where the intent was legitimate: an
+   * effect paints one frame from the pre-seek cursor and then re-renders, so a
+   * deep-linked session flickered through the newest row on the way in. It is
+   * NOT suppressed with a disable comment; the pattern the rule names is gone.
+   *
+   * ⭐ `landedDate` IS STATE, NOT A REF, because React's documented form of this
+   * pattern compares against state — a ref written during render is a mutation
+   * the reconciler cannot see, and would be re-read as "already landed" by a
+   * render React chose to throw away.
    */
   const urlDate = urlState?.date ?? null
-  const landedRef = useRef(null)
-  const urlDateRefused = urlDate && !canSeek(urlDate) ? urlDate : null
-  useEffect(() => {
-    if (!urlDate || !filledRows.length || landedRef.current === urlDate) return
+  const urlSeekIdx = urlDate ? resolveSeekIndex(urlDate, dateIndex, filledRows.length) : null
+  const urlDateRefused = urlDate && urlSeekIdx == null ? urlDate : null
+  const [landedDate, setLandedDate] = useState(null)
+  if (urlDate !== landedDate && urlSeekIdx != null) {
+    setLandedDate(urlDate)
     // Already sitting on it (including our own write-back arriving as input):
-    // claim it without calling onSeek, which would pause playback for nothing.
-    if (currentRow?.date === urlDate) { landedRef.current = urlDate; return }
-    if (onSeek(urlDate)) landedRef.current = urlDate
-  }, [urlDate, filledRows.length, onSeek, currentRow?.date])
+    // claim it without moving the cursor.
+    if (currentRow?.date !== urlDate) setRowIdx(urlSeekIdx)
+  }
 
   /**
    * What this container's state IS, reported upward so the page can put it in

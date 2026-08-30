@@ -864,6 +864,47 @@ export default function Breadth() {
   const isViewsTab = activeTab === 'heatmap'
   const effectiveDays = isViewsTab ? viewsDays : days
 
+  /**
+   * 🔴 THE LINK IS AN ENTRY CONDITION FOR THE PAGE VISIT — NOT FOR EVERY MOUNT.
+   *
+   * `BreadthViews` is rendered conditionally on `activeTab === 'heatmap'`, so an
+   * ordinary tab switch UNMOUNTS it and coming back MOUNTS A FRESH ONE.
+   * `urlInitial` is parsed once and frozen for the life of this page, so every
+   * remount handed the child the ORIGINAL link again and `useBreadthViews`
+   * re-applied its `view` / `compare` / `layout` over whatever the reader had
+   * chosen in between. `?date=` was re-seeked the same way.
+   *
+   * ⛔ AND THE REVERSION IS PERSISTED. `useBreadthViews` debounce-writes every
+   * state change to localStorage and, once hydrated, to the server preference —
+   * so opening a `?view=` link, picking a different style, and glancing at
+   * another tab silently stomped the standing preference, and it stayed stomped
+   * on later visits carrying no query at all (`loadFromStorage` reads the
+   * corrupted blob).
+   *
+   * ⭐ SO THE "ALREADY APPLIED" MEMORY LIVES HERE, ABOVE THE CHILD'S MOUNT
+   * BOUNDARY. A ref inside `useBreadthViews` cannot hold it: it dies with the
+   * mount that is the problem. Once a mounted Views tab has been left, the link
+   * is SPENT and the next mount is handed nothing — the child's own state,
+   * restored from the preference blob it just flushed, is the authority.
+   *
+   * The spend is on LEAVING a mounted Views tab, not on the first report back:
+   * an out-of-window `?date=` legitimately keeps retrying while the tab is up
+   * (widen the window with the day pills and the link lands), and clearing on
+   * the first `onUrlChange` would kill that inside the very mount it serves.
+   *
+   * ⛔ AND IT RECONCILES DURING RENDER, not in an effect — React's documented
+   * "adjusting state when props change", the same shape `BreadthViews` uses for
+   * its cursor clamp. An effect here would trip `react-hooks/set-state-in-effect`
+   * for the same reason the `?date=` seek did, and it would also let one frame
+   * commit with the link still live. `pending` also means a link is still
+   * waiting for a Views tab that has not been opened yet, so `?date=` on a page
+   * that lands on Monitor still applies when the reader walks over.
+   */
+  const [urlVisit, setUrlVisit] = useState('pending')   // pending → open → spent
+  if (isViewsTab && urlVisit === 'pending') setUrlVisit('open')
+  if (!isViewsTab && urlVisit === 'open') setUrlVisit('spent')
+  const viewsUrlState = urlVisit === 'spent' ? null : urlInitial
+
   // What BreadthViews last reported about itself; composed with `days` here so
   // the query is written from ONE place.
   const [viewsUrl, setViewsUrl] = useState(null)
@@ -1101,7 +1142,7 @@ export default function Breadth() {
 
       {rows.length > 0 && activeTab === 'heatmap' && (
         <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock}
-                      urlState={urlInitial} onUrlChange={setViewsUrl} />
+                      urlState={viewsUrlState} onUrlChange={setViewsUrl} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

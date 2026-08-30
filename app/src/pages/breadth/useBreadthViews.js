@@ -164,9 +164,21 @@ function writeToStorage(state) {
 }
 
 export default function useBreadthViews(allMetrics = [], usePrefs = usePreferences, urlOverrides = null) {
-  // Captured on the first render and never re-read: the URL is an ENTRY
-  // condition, not a live input, so a later write-back cannot re-apply itself
-  // over a choice the user has since made.
+  // Captured on the first render of THIS MOUNT and never re-read, so a
+  // write-back arriving as a new prop cannot re-apply itself mid-life.
+  //
+  // ⛔ THIS REF IS NOT THE "APPLIED ONCE" MEMORY, AND A COMMENT HERE ONCE SAID
+  // IT WAS. It claimed "the URL is an ENTRY condition, not a live input, so a
+  // later write-back cannot re-apply itself over a choice the user has since
+  // made" — true within one mount, false across the page visit the feature
+  // exists to serve. `BreadthViews` is conditionally rendered, so a tab switch
+  // unmounts it and this ref dies with it; the next mount re-applied the
+  // original link over the reader's later choice and the debounced writes below
+  // persisted that reversion to localStorage AND the server preference.
+  //
+  // The memory that actually survives lives in `pages/Breadth.jsx`, which stops
+  // handing `urlState` down once a mounted Views tab has been left. Read the
+  // block there before changing either side.
   const overridesRef = useRef(urlOverrides)
   const [state, setState] = useState(() => applyUrlOverrides(loadFromStorage(), overridesRef.current))
   const { prefs, setPref, loading } = usePrefs()

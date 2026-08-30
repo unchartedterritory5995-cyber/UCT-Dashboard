@@ -45,6 +45,7 @@ vi.mock('swr', () => ({
 }))
 
 import Breadth from '../Breadth'
+import { STORAGE_KEY } from './useBreadthViews'
 
 // MemoryRouter keeps its own stack, so the query is read through the router
 // rather than off `window.location`. (The `replaceState` semantics themselves
@@ -116,6 +117,74 @@ describe('an absent or invalid link is today’s behaviour exactly', () => {
     expect(quad[0]).toBe('ribbon')
     expect(quad).toHaveLength(4)
     expect(new Set(quad).size).toBe(4)
+  })
+})
+
+/**
+ * 🔴 THE LINK USED TO RE-APPLY ITSELF ON EVERY TAB ROUND TRIP — AND PERSIST IT.
+ *
+ * `BreadthViews` is rendered conditionally, so leaving the Views tab UNMOUNTS it
+ * and returning MOUNTS A FRESH ONE against the same frozen `urlInitial`. The
+ * reader's later choice was overwritten by the original link, and
+ * `useBreadthViews` wrote that reversion into localStorage and the server
+ * preference — so it outlived the visit.
+ *
+ * ⛔ A TEST THAT MOUNTS ONCE CANNOT SEE THIS. Every assertion in the two blocks
+ * above stays green with the bug present. These cross the unmount boundary, and
+ * the second one reads the STORE rather than the screen, because the persisted
+ * stomp is the half that follows the user home.
+ */
+describe('the link is spent after the first visit to the Views tab', () => {
+  const switcher = () => within(screen.getByRole('group', { name: 'Visualization style' }))
+  const activeStyle = () => switcher().getAllByRole('button')
+    .find(b => b.getAttribute('aria-pressed') === 'true')?.textContent
+
+  it('a style picked after a ?view= link survives leaving and re-entering the tab', () => {
+    at('?view=clock')
+    expect(activeStyle()).toBe('Regime Clock')
+
+    fireEvent.click(switcher().getByRole('button', { name: 'Radar' }))
+    expect(activeStyle()).toBe('Radar')
+
+    fireEvent.click(tab('Monitor'))                     // BreadthViews UNMOUNTS
+    expect(screen.queryByTestId('scrubber')).toBeNull()  // …proving it did
+    fireEvent.click(tab('Views'))                       // and a fresh one MOUNTS
+
+    expect(activeStyle()).toBe('Radar')
+  })
+
+  it('does not write the reverted style back into the stored preference', () => {
+    at('?view=clock')
+    fireEvent.click(switcher().getByRole('button', { name: 'Radar' }))
+    fireEvent.click(tab('Monitor'))     // flush-on-unmount writes localStorage
+    fireEvent.click(tab('Views'))
+    fireEvent.click(tab('Monitor'))     // second flush — after the remount
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    expect(stored.viewStyle).toBe('radar')
+  })
+
+  it('a ?compare= quad the reader left behind does not come back', () => {
+    at('?compare=clock,divergence,events,analogues')
+    expect(screen.getByTestId('layout-compare')).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByTestId('layout-single'))
+    fireEvent.click(tab('Monitor'))
+    fireEvent.click(tab('Views'))
+
+    expect(screen.getByTestId('layout-single')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByTestId('compare-grid')).toBeNull()
+  })
+
+  it('still applies the link on the FIRST mount after a tab switch away and back', () => {
+    // The control: the spend must not be so eager that a link never lands. A
+    // page opened WITHOUT views params keeps nothing to re-apply either way, so
+    // this asserts the positive case the fix must not break.
+    at('?view=clock')
+    expect(activeStyle()).toBe('Regime Clock')
+    fireEvent.click(tab('Monitor'))
+    fireEvent.click(tab('Views'))
+    expect(activeStyle()).toBe('Regime Clock')   // nothing was changed, nothing moved
   })
 })
 
