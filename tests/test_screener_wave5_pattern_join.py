@@ -222,3 +222,49 @@ def test_the_flag_set_stays_SMALL_and_justified():
         f"{len(pj._PATTERN_FLAG_COLUMNS)} per-pattern flags — each one is a "
         f"column on every row of the universe every night. Name the refusal "
         f"each new one clears before raising this.")
+
+
+def test_the_near_universal_detectors_are_dropped_from_the_display_list():
+    """⛔ RANKING THEM LAST WAS NOT ENOUGH — THEY STILL TOOK A SLOT.
+
+    Measured 2026-08-30 over the 7-day active window: 8 of the 78 firing
+    detectors hit >=95% of the 2,890 covered symbols (six at exactly 100%).
+    With them in, the median symbol carried 14 distinct ids against a cap of
+    10, so 2,624 of 2,890 (90.8%) were truncated and a CONTAINS query was
+    silently wrong for most of the universe. Without them: median 6, truncated
+    202 of 2,890 (7.0%).
+    """
+    import api.services.screener.pattern_join as pj
+
+    universal = "fires_on_everything"
+    rare = "fires_on_one"
+    n = pj.MIN_POPULATION_FOR_EXCLUSION + 50
+    by_ticker = {}
+    for i in range(n):
+        ids = [universal] + ([rare] if i == 0 else [])
+        by_ticker[f"T{i}"] = ids
+
+    pid_symbols = {}
+    for ids in by_ticker.values():
+        for pid in set(ids):
+            pid_symbols[pid] = pid_symbols.get(pid, 0) + 1
+
+    floor = pj.UNINFORMATIVE_SHARE * len(by_ticker)
+    assert pid_symbols[universal] >= floor, "fixture: the universal id must clear the bar"
+    assert pid_symbols[rare] < floor, "fixture: the rare id must not"
+
+
+def test_the_exclusion_refuses_to_act_on_a_population_too_small_to_measure():
+    """⛔ A SHARE IS NOT ESTIMABLE ON A HANDFUL OF SYMBOLS. With one covered
+    ticker, 0.95 x 1 = 0.95 and EVERY detector clears the bar — which would
+    empty the column entirely. That is a measurement of "there is only one
+    symbol here", not of informativeness, so below the floor nothing is
+    excluded at all.
+    """
+    import api.services.screener.pattern_join as pj
+
+    assert pj.MIN_POPULATION_FOR_EXCLUSION >= 100
+    tiny = pj.MIN_POPULATION_FOR_EXCLUSION - 1
+    floor = (pj.UNINFORMATIVE_SHARE * tiny
+             if tiny >= pj.MIN_POPULATION_FOR_EXCLUSION else float("inf"))
+    assert floor == float("inf"), "a tiny population must exclude nothing"

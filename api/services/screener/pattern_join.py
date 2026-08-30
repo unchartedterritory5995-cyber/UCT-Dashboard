@@ -140,6 +140,38 @@ _ACTIVE_STATUSES = ("forming", "ready", "triggered")
 _WINDOW_SECS = 7 * 24 * 3600
 _MAX_IDS = 10
 
+#: ⛔⛔ A DETECTOR THAT FIRES ON NEARLY EVERY SYMBOL CARRIES NO INFORMATION, and
+#: ranking it last was not enough — it still occupied a slot in a 10-wide list.
+#: Measured 2026-08-30 over the 7-day active window (2,890 covered symbols, 78
+#: detectors that fired): EIGHT fire on >=95% of them — `stage_analysis`,
+#: `52w_proximity`, `can_slim_composite`, `kell_cycle`, `volume_profile_nodes`
+#: and `accumulation_distribution` at exactly 100%, `swing_pivots` at 99.8%,
+#: `support_resistance` at 97.3%.
+#:
+#: Their effect on the column was severe: the median symbol carried 14 distinct
+#: ids against a cap of 10, so **2,624 of 2,890 (90.8%)** were truncated and
+#: `pattern_engine_ids CONTAINS '…'` was silently wrong for most of the
+#: universe. Dropping these eight takes the median to 6 and truncation to
+#: **202 of 2,890 (7.0%)**.
+#:
+#: ⭐ THE SET IS DERIVED, NEVER TYPED. The share is computed from `by_ticker`,
+#: which this reader already builds for the rarity ordering — so it is measured
+#: over exactly the population being served and cannot disagree with a second
+#: window, and a detector whose behaviour changes moves in or out on its own.
+#: A hand-listed set here would go stale the first time a detector was retuned.
+UNINFORMATIVE_SHARE = 0.95
+
+#: ⛔ AND A FLOOR UNDER THE POPULATION, BECAUSE A SHARE IS NOT ESTIMABLE ON A
+#: HANDFUL OF SYMBOLS. Caught by `test_the_flag_reads_the_UNCAPPED_id_set`:
+#: with ONE covered ticker, 0.95 x 1 = 0.95, so EVERY detector clears the bar
+#: and the display list empties entirely. That is not a measurement of
+#: informativeness — it is a measurement of "there is only one symbol here".
+#: Below this floor the rate is not computed from a population worth trusting,
+#: so nothing is excluded and the column behaves exactly as it did before.
+#: origin: uct — a real universe read covers ~2,890 symbols; a unit fixture
+#: covers a handful, and 100 separates them by two orders of magnitude.
+MIN_POPULATION_FOR_EXCLUSION = 100
+
 #: snapshot column -> pattern-engine detector id. See the docstring: each entry
 #: exists to clear a NAMED refusal in the formula library's `_ungrounded` set,
 #: and the detector id on the right is a real registered id (the rail derives
@@ -289,6 +321,13 @@ def read_pattern_fields(targets, failures=None) -> dict:
         for _pid in {d["pattern_id"] for d in _dets}:
             pid_symbols[_pid] = pid_symbols.get(_pid, 0) + 1
 
+    # The count of symbols above which a detector is treated as uninformative,
+    # derived from the population actually covered by this read.
+    covered = len(by_ticker)
+    uninformative_floor = (UNINFORMATIVE_SHARE * covered
+                           if covered >= MIN_POPULATION_FOR_EXCLUSION
+                           else float("inf"))
+
     for t in targets:
         tu = str(t).upper()
         dets = by_ticker.get(tu)
@@ -305,7 +344,13 @@ def read_pattern_fields(targets, failures=None) -> dict:
             if pid not in seen_set:
                 seen_set.add(pid)
                 seen.append(pid)
-        row["pattern_engine_ids"] = ",".join(seen[:_MAX_IDS])
+        # ⛔ EXCLUDED FROM THE DISPLAY LIST, NOT FROM `seen_set`. The flags below
+        # must still be able to answer "is this a VCP?" over the complete set;
+        # what the near-universal ids cost is a SLOT in a 10-wide column, and
+        # that is what this removes.
+        shown = [pid for pid in seen
+                 if pid_symbols.get(pid, 0) < uninformative_floor]
+        row["pattern_engine_ids"] = ",".join(shown[:_MAX_IDS])
         row["pattern_engine_conf"] = max(d["confidence"] for d in dets)
 
         # Per-pattern flags, from the UNCAPPED id set (`seen_set`, never
