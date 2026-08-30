@@ -1796,6 +1796,13 @@ _ANSWER_MAX_TOKENS = 1800
 _PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
 
 
+#: Own cost surface, so synthesis spend is separable from the Perplexity leg in
+#: `llm_route_cost_log` and cappable on its own.
+_SYNTH_SURFACE = "ai_search_synth"
+_SYNTH_CAP_ENV = "AI_SEARCH_SYNTH_DAILY_CAP"
+_SYNTH_CAP_DEFAULT = 5.0          # USD/ET-day; ~135 asks at the measured $0.037
+
+
 def _claude_synth_enabled() -> bool:
     """OFF by default. Adds one Anthropic call per ask — a spend decision, so a
     Railway var rather than a code default."""
@@ -1834,6 +1841,16 @@ def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | Non
     web_answer = (web.get("answer") or "").strip()
     if not web_answer and not (system or "").strip():
         return None                    # nothing to reason over
+    try:
+        # Bounded and visible. This lane called Anthropic directly and recorded
+        # NOTHING — invisible to /admin/stats.spend_today_usd and capped by
+        # nothing. Over budget we skip Claude entirely and the member still gets
+        # the Perplexity answer: degrade, never fail.
+        from api.services import narrative_cost_guard as _guard
+        if _guard.over_budget(_SYNTH_SURFACE, _SYNTH_CAP_ENV, _SYNTH_CAP_DEFAULT):
+            return None
+    except Exception:
+        pass                      # a guard fault must not silence the lane
     try:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
@@ -1878,6 +1895,15 @@ def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | Non
         resp = client.with_options(timeout=30).messages.create(
             model=model, max_tokens=_ANSWER_MAX_TOKENS,
             system=sys_param, messages=msgs)
+        try:
+            # ⛔ record_from_response, not record(input_tokens=...): a cached
+            # prefix arrives as cache_read_input_tokens (0.1x) /
+            # cache_creation_input_tokens (1.25x) and NEVER as input_tokens, so
+            # a guard fed only input_tokens mis-bills every cached call.
+            from api.services import narrative_cost_guard as _g
+            _g.record_from_response(_SYNTH_SURFACE, model, resp)
+        except Exception:
+            pass                  # accounting is bookkeeping; the answer stands
         text = "".join(
             b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
         ).strip()
