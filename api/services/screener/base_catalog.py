@@ -1794,6 +1794,745 @@ CUP_WITH_HANDLE = Structure(
 )
 
 
+# -- Double Bottom, the "W" (William J. O'Neil / IBD) -----------------------
+# ⭐⭐ THE ONE PATTERN WHERE TWO AUTHORITIES REQUIRE OPPOSITE THINGS OF THE
+# SAME FEATURE. IBD REQUIRES the second low to undercut the first -- that
+# shakeout is the pattern's whole purpose. Bulkowski and Edwards & Magee want
+# the two lows at roughly the SAME price and treat an undercut as a flaw. Same
+# name, contradictory definitions, and a detector cannot satisfy both. We
+# implement IBD's, say so, and record theirs rather than quietly averaging the
+# two into something neither house would recognise.
+
+_IBD_DBL = "ibd_double_bottom"
+_CLASSIC_DBL = "classic_ta_double_bottom"   # Bulkowski; Edwards & Magee
+
+#: "Double bottoms must also be at least seven weeks in length."
+DBL_MIN_BARS = 35
+
+#: "Undercutting the first low by 5% to 10% or so is also acceptable."
+DBL_MAX_UNDERCUT = 0.10
+
+#: CONFLICT, unresolved: 30% (one handout) vs 40% (another). Both are med
+#: confidence and they cannot both be the rule. We take the LOOSER, so the
+#: gate refuses only what BOTH would refuse -- the same choice made for the
+#: cup's handle depth, and for the same reason: when two published numbers
+#: disagree, the tighter one would reject bases one of the sources accepts.
+DBL_MAX_DEPTH = 0.40
+
+#: "30% or more" prior uptrend (med confidence).
+DBL_PRIOR_UPTREND = 0.30
+DBL_UPTREND_LOOKBACK = 120
+
+#: "the middle peak of the W plus a dime"
+DBL_PIVOT_PAD = 0.10
+
+#: Ours: the second low must be recent or the W is history, not a setup. Same
+#: lesson `darvas-box` and `green-line-breakout` both had to learn -- without a
+#: recency bound a walk simply reports wherever it ended.
+DBL_MAX_AGE_BARS = 40
+
+
+def double_bottom_state(ctx) -> Optional[dict]:
+    """The current W, or None. Reads CONFIRMED swings only.
+
+    ⛔ The undercut is the DEFINING feature, not a tolerance. A second low that
+    fails to undercut the first is not a weak double bottom in IBD's sense --
+    it is a different pattern, and one the classical authorities would call a
+    proper double bottom. That disagreement is recorded in the criteria.
+    """
+    bars = ctx.bars
+    lows, highs = ctx.lows, ctx.highs
+    if len(lows) < 2 or not bars:
+        return None
+
+    low1, low2 = lows[-2], lows[-1]
+    if low2["bar_index"] <= low1["bar_index"]:
+        return None
+
+    n = len(bars)
+    if (n - 1) - low2["bar_index"] > DBL_MAX_AGE_BARS:
+        return None
+
+    p1, p2 = low1["price"], low2["price"]
+    if p1 <= 0 or p2 <= 0:
+        return None
+    if p2 >= p1:
+        return None                      # no undercut: not IBD's W
+    if (p1 - p2) / p1 > DBL_MAX_UNDERCUT:
+        return None                      # undercut far beyond the tolerated band
+
+    mid = [h for h in highs
+           if low1["bar_index"] < h["bar_index"] < low2["bar_index"]]
+    if not mid:
+        return None
+    middle_peak = max(mid, key=lambda h: h["price"])
+
+    # The base opens at the swing high before the first low.
+    prior = [h for h in highs if h["bar_index"] < low1["bar_index"]]
+    if not prior:
+        return None
+    start = prior[-1]
+    length = (n - 1) - start["bar_index"]
+    if length < DBL_MIN_BARS:
+        return None
+
+    top = start["price"]
+    if top <= 0:
+        return None
+    depth = (top - p2) / top
+    if depth > DBL_MAX_DEPTH:
+        return None
+
+    adv = _prior_advance(bars, n - start["bar_index"], look=DBL_UPTREND_LOOKBACK)
+    if (adv or 0.0) < DBL_PRIOR_UPTREND:
+        return None
+
+    return {"low1": p1, "low2": p2, "undercut": (p1 - p2) / p1,
+            "middle_peak": middle_peak["price"], "depth": depth,
+            "bars": length, "prior_uptrend": adv,
+            "pivot": middle_peak["price"] + DBL_PIVOT_PAD}
+
+
+def _detect_double_bottom(ctx) -> bool:
+    return double_bottom_state(ctx) is not None
+
+
+DOUBLE_BOTTOM = Structure(
+    key="double-bottom",
+    label="Double Bottom",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=14,
+    min_bars=DBL_MIN_BARS,
+    desc=("A W: two down legs where the second undercuts the first, shaking "
+          "out everyone who bought the first low. The pivot is ten cents "
+          "above the middle peak."),
+    criteria=(
+        Criterion(
+            condition="Base length, minimum",
+            value=DBL_MIN_BARS,
+            quote="Double bottoms must also be at least seven weeks in length.",
+            source_id=_IBD_DBL, confidence="high",
+        ),
+        Criterion(
+            condition=("The second leg MUST undercut the first. This is the "
+                       "defining feature, not a preference."),
+            value="undercut-required",
+            quote=("The low of the second leg should fall slightly beneath the "
+                   "low of the first leg."),
+            source_id=_IBD_DBL, confidence="high",
+        ),
+        Criterion(
+            condition="Tolerated undercut magnitude",
+            value=DBL_MAX_UNDERCUT,
+            quote="Undercutting the first low by 5% to 10% or so is also acceptable.",
+            source_id=_IBD_DBL, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐ DIRECT CONTRADICTION BETWEEN AUTHORITIES, recorded "
+                       "and NOT reconciled. The classical definition wants the "
+                       "two lows at roughly the SAME price and treats an "
+                       "undercut as a flaw; IBD REQUIRES the undercut. Same "
+                       "pattern name, opposite requirement on the defining "
+                       "feature. We implement IBD's and label it."),
+            value="classical-forbids-what-IBD-requires",
+            quote="Price variation between bottoms is small",
+            source_id=_CLASSIC_DBL, confidence="high",
+        ),
+        Criterion(
+            condition="Pivot / buy point -- the middle peak of the W",
+            value=DBL_PIVOT_PAD,
+            quote=("In a double bottom, the ideal time to buy shares is when "
+                   "the stock crosses 10 cents above the middle peak between "
+                   "the two lows."),
+            source_id=_IBD_DBL, confidence="high",
+        ),
+        Criterion(
+            condition=("CONFLICT on the depth ceiling: 30% and 40% are both "
+                       "published, both med confidence, and they cannot both "
+                       "be the rule. We take the LOOSER so the gate refuses "
+                       "only what both sources would refuse."),
+            value=DBL_MAX_DEPTH,
+            quote="Max 30% ... 40% or less",
+            source_id=_IBD_DBL, confidence="med",
+        ),
+        Criterion(
+            condition="Prior uptrend before the base",
+            value=DBL_PRIOR_UPTREND,
+            quote="30% or more",
+            source_id=_IBD_DBL, confidence="med",
+        ),
+        Criterion(
+            condition="Early entry -- 'shakeout plus three'",
+            value=None,
+            quote="Add three points to the price of the first low.",
+            source_id=_IBD_DBL, confidence="high",
+            missing=("The 'plus three' and 'plus six' early entries are "
+                     "absolute DOLLARS, and the house ties the choice to the "
+                     "stock's price level ('80 to 100 a share'). Two sample "
+                     "points do not define a function, so everything between "
+                     "and beyond them is undefined and a naive percentage "
+                     "conversion would invent the rule. Not implemented."),
+        ),
+        Criterion(
+            condition="Breakout volume, double-bottom specific",
+            value=None,
+            quote=("look for a surge in [volume] as it clears the entry"),
+            source_id=_IBD_DBL, confidence="high",
+            missing=("The column states a surge with no percentage. A separate "
+                     "handout gives 40-50% above average at med confidence, "
+                     "which is the general rule rather than this base's."),
+        ),
+        Criterion(
+            condition="Relative frequency versus the cup",
+            value=None,
+            quote="It tends to occur less frequently than the cup base",
+            source_id=_IBD_DBL, confidence="high",
+            missing="No count or rate is published, so this is not testable.",
+        ),
+        Criterion(
+            condition="Maximum age of the second low, so the W is a setup and not history",
+            value=DBL_MAX_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=6.9,
+    detect=_detect_double_bottom,
+)
+
+
+# -- High, Tight Flag (William J. O'Neil / IBD) -----------------------------
+# ⚠️ THE HOUSE ITSELF SAYS "MANY FAIL". Every performance figure IBD publishes
+# for this base -- 200%, 450%, 1,300% -- is a named winner, and by its own
+# admission those examples are drawn from the surviving tail. They are
+# recorded as refusals, never as expectancy.
+#
+# ⭐ RARITY IS THE SANITY RAIL, and the corpus says so outright: a screener
+# emitting high tight flags at any meaningful daily rate is almost certainly
+# mis-detecting, and the natural failure mode is a LOOSE FLAGPOLE ANCHOR. So
+# the pole is anchored to a confirmed swing low, never to an arbitrary window
+# edge -- otherwise the rule fires on any 40-day stretch inside a longer trend.
+
+_IBD_HTF = "ibd_high_tight_flag"
+_ONEIL_SUMMARY = "stockbee_oneil_summary"   # third-party summary, not IBD
+
+#: "The stock begins by climbing 100% to 120% in four to eight weeks."
+HTF_POLE_MIN_GAIN = 1.00
+HTF_POLE_MAX_GAIN = 1.20
+HTF_POLE_MIN_BARS = 20      # 4 weeks
+HTF_POLE_MAX_BARS = 40      # 8 weeks
+
+#: "Next, the stock corrects 10% to 25% in three to five weeks."
+#: CONFLICT, minor and recorded: another column renders the same rule as
+#: "usually 10% to 20% or sometimes 25%". The looser ceiling is used.
+HTF_FLAG_MIN_DEPTH = 0.10
+HTF_FLAG_MAX_DEPTH = 0.25
+HTF_FLAG_MIN_BARS = 15      # 3 weeks
+HTF_FLAG_MAX_BARS = 25      # 5 weeks
+
+
+def high_tight_flag_state(ctx) -> Optional[dict]:
+    """A near-doubling followed by a shallow, tight flag, or None.
+
+    The pole is measured from a CONFIRMED SWING LOW to the highest high that
+    follows it. Anchoring on a window edge instead is the mis-detection the
+    corpus warns about: any 40-day slice of a long advance shows a big rise,
+    so the rule would fire constantly on a pattern IBD calls rare.
+    """
+    bars = ctx.bars
+    n = len(bars)
+    if n < HTF_POLE_MIN_BARS + HTF_FLAG_MIN_BARS:
+        return None
+
+    for low in reversed(ctx.lows):
+        origin = low["bar_index"]
+        base_px = low["price"]
+        if base_px <= 0:
+            continue
+        # The flag must END at the last bar, so the pole peak sits between
+        # HTF_FLAG_MIN_BARS and HTF_FLAG_MAX_BARS back from now.
+        first = max(origin + HTF_POLE_MIN_BARS, n - HTF_FLAG_MAX_BARS)
+        last = min(origin + HTF_POLE_MAX_BARS, n - HTF_FLAG_MIN_BARS)
+        if first > last:
+            continue
+
+        best = None
+        for peak_i in range(first, last + 1):
+            pole = bars[origin:peak_i + 1]
+            highs = [b.get("h") or 0.0 for b in pole]
+            if not highs:
+                continue
+            pole_high = max(highs)
+            if pole_high <= 0:
+                continue
+            gain = (pole_high - base_px) / base_px
+            if gain < HTF_POLE_MIN_GAIN or gain > HTF_POLE_MAX_GAIN:
+                continue
+            pole_bars = peak_i - origin
+            if not (HTF_POLE_MIN_BARS <= pole_bars <= HTF_POLE_MAX_BARS):
+                continue
+
+            flag = bars[peak_i + 1:]
+            if not (HTF_FLAG_MIN_BARS <= len(flag) <= HTF_FLAG_MAX_BARS):
+                continue
+            lows_f = [b.get("l") or 0.0 for b in flag if (b.get("l") or 0) > 0]
+            if not lows_f:
+                continue
+            flag_low = min(lows_f)
+            depth = (pole_high - flag_low) / pole_high
+            if depth < HTF_FLAG_MIN_DEPTH or depth > HTF_FLAG_MAX_DEPTH:
+                continue
+            # "volume generally dries up" -- a DIRECTION, no number published.
+            pv = [b.get("v") or 0 for b in pole]
+            fv = [b.get("v") or 0 for b in flag]
+            if not pv or not fv:
+                continue
+            if (sum(fv) / len(fv)) >= (sum(pv) / len(pv)):
+                continue
+
+            cand = {"pole_gain": gain, "pole_bars": pole_bars,
+                    "pole_high": pole_high, "pole_low": base_px,
+                    "flag_bars": len(flag), "flag_low": flag_low,
+                    "flag_depth": depth,
+                    # IBD editorial: the buy point is the flagpole PEAK. The
+                    # +$0.10 comes only from a third-party summary, so it is
+                    # recorded as a conflict and not applied here.
+                    "pivot": pole_high}
+            if best is None or cand["pole_gain"] > best["pole_gain"]:
+                best = cand
+        if best is not None:
+            return best
+    return None
+
+
+def _detect_high_tight_flag(ctx) -> bool:
+    return high_tight_flag_state(ctx) is not None
+
+
+HIGH_TIGHT_FLAG = Structure(
+    key="high-tight-flag",
+    label="High Tight Flag",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=11,
+    min_bars=HTF_POLE_MIN_BARS + HTF_FLAG_MIN_BARS,
+    desc=("A near-vertical doubling in four to eight weeks, then a shallow, "
+          "tight three-to-five week flag on drying volume. Rare, and the "
+          "house that named it says many fail."),
+    criteria=(
+        Criterion(
+            condition="Flagpole gain",
+            value=(HTF_POLE_MIN_GAIN, HTF_POLE_MAX_GAIN),
+            quote="The stock begins by climbing 100% to 120% in four to eight weeks.",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Flagpole duration",
+            value=(HTF_POLE_MIN_BARS, HTF_POLE_MAX_BARS),
+            quote="a stock must gain 100% to 120% in a span of four to eight weeks",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Flag depth",
+            value=(HTF_FLAG_MIN_DEPTH, HTF_FLAG_MAX_DEPTH),
+            quote="Next, the stock corrects 10% to 25% in three to five weeks.",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Flag duration",
+            value=(HTF_FLAG_MIN_BARS, HTF_FLAG_MAX_BARS),
+            quote="The flag then forms with three to five weeks of tight sideways trading.",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Flag volume dries up -- a direction, no percentage published",
+            value="dries-up",
+            quote=("volume generally dries up. Big fund managers are holding "
+                   "the stock"),
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Pivot / buy point",
+            value="flagpole-peak",
+            quote="when the stock clears the peak of the flagpole in big turnover",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition=("CONFLICT on the pivot: IBD editorial says the flagpole "
+                       "peak with NO dime; a third-party O'Neil summary adds "
+                       "10 cents. We use IBD's and record theirs."),
+            value="peak vs peak+0.10",
+            quote="the high of the pattern plus 10 cents",
+            source_id=_ONEIL_SUMMARY, confidence="low",
+        ),
+        Criterion(
+            condition=("CONFLICT on flag depth, minor: one column says 10-25%, "
+                       "another 'usually 10% to 20% or sometimes 25%'. The "
+                       "looser ceiling is used."),
+            value="10-25% vs 10-20%/25%",
+            quote="usually 10% to 20% or sometimes 25%",
+            source_id=_IBD_HTF, confidence="high",
+        ),
+        Criterion(
+            condition="Tightness of the flag",
+            value=None,
+            quote="three to five weeks of tight sideways trading",
+            source_id=_IBD_HTF, confidence="high",
+            missing=("The house calls the flag tight and publishes no measure "
+                     "for it -- no maximum weekly range, no close dispersion. "
+                     "The depth and duration bounds already constrain the "
+                     "shape hard, so no invented tightness gate is added."),
+        ),
+        Criterion(
+            condition="Failure rate behind 'many fail'",
+            value=None,
+            quote="High, tight flags are high-risk bases. Many fail.",
+            source_id=_IBD_HTF, confidence="high",
+            missing=("The warning is published without the statistic. 'Many' "
+                     "is not a frequency."),
+        ),
+        Criterion(
+            condition=("The published upside figures are ANECDOTES and are not "
+                       "used: 200%, 450%, 1,300%, and a roster of named "
+                       "winners."),
+            value=None,
+            source_id=_IBD_HTF, confidence="high",
+            missing=("Every example the house publishes is a winner, and by "
+                     "its own admission ('Many fail') they are drawn from the "
+                     "surviving tail. n=1 each, no benchmark, no period. "
+                     "Treating them as expectancy would be survivorship bias "
+                     "with a citation attached."),
+        ),
+    ),
+    coverage_pct=0.08,
+    detect=_detect_high_tight_flag,
+)
+
+
+# -- Volatility Contraction Pattern (Mark Minervini) ------------------------
+# ⭐⭐ NOT A SHAPE. Minervini is explicit that the VCP is a PROPERTY imposed on
+# whatever base shape is present -- "I'm looking for volatility to contract
+# from left to right" -- which is why it sits on the relation axis beside the
+# shapes rather than competing with them. A symbol can carry a cup AND a VCP.
+
+_MINERVINI = "minervini_ttlac"   # Mark Minervini, "Trade Like a Stock Market Wizard"
+
+#: "you will generally see a sequence of anywhere from two to six price
+#: contractions" -- the outer bound. "Typically ... two to four" is the typical
+#: case and is recorded separately, as a description rather than a gate.
+VCP_MIN_CONTRACTIONS = 2
+VCP_MAX_CONTRACTIONS = 6
+
+#: "Most constructive setups correct between 10 percent and 35 percent, some
+#: as much as 40 percent."
+VCP_MIN_DEPTH = 0.10
+VCP_MAX_DEPTH = 0.40
+
+#: "A stock that has corrected 60 percent or more is off my radar." A hard
+#: disqualifier, distinct from the normal band above.
+VCP_HARD_DEPTH = 0.60
+
+#: "the VCP is going to happen at higher levels, after the stock has already
+#: moved up 30, 40, 50 percent or even much more, because the VCP is a
+#: CONTINUATION pattern as part of a much larger upward move."
+VCP_PRIOR_ADVANCE = 0.30
+VCP_ADVANCE_LOOKBACK = 120
+
+#: ⛔⛔ OURS, AND THE BOOK SAYS SO. The rule is "each successive contraction is
+#: generally contained to about half (plus or minus a reasonable amount) of the
+#: previous" -- and the tolerance behind "a reasonable amount" is NEVER
+#: published. So any band is the implementer's invention; these are ours,
+#: taken from the range the corpus itself names as an example of what an
+#: implementer would have to supply. Each bound earns its place separately:
+#:   - the UPPER bound forces each contraction to be meaningfully tighter than
+#:     the last, which is the property the pattern is named for;
+#:   - the LOWER bound stops a trivial blip completing a sequence. Without it a
+#:     1% wobble after a 25% pullback counts as "a contraction", and noise
+#:     produces those constantly -- the count would then measure how jittery a
+#:     series is rather than whether supply is drying up.
+#: Minervini's own worked example sits comfortably inside: 25% -> 15% -> 8% is
+#: ratios of 0.60 and 0.53.
+VCP_RATIO_MIN = 0.35
+VCP_RATIO_MAX = 0.75
+
+#: Ours: how stale the last CONFIRMED contraction may be. Same lesson
+#: `darvas-box` and `green-line-breakout` each had to learn -- a walk with no
+#: recency bound reports wherever it happened to end.
+#: ⚠️ DELIBERATELY LOOSE, AND PAIRED WITH A STRUCTURAL TEST. A tight bound
+#: here interacts badly with the confirmation threshold: the tighter a VCP's
+#: final contractions are, the less likely they confirm, so the last CONFIRMED
+#: contraction sits further back -- and a 30-bar gate refused a five-
+#: contraction base at 47 bars, which is to say it refused the pattern
+#: precisely when it was most complete. The real question is not "when did a
+#: swing last confirm" but "is price still IN the base", which is what
+#: `_vcp_still_in_base` asks.
+VCP_MAX_AGE_BARS = 60
+
+
+def vcp_state(ctx, max_depth: float = VCP_MAX_DEPTH) -> Optional[dict]:
+    """The current volatility contraction sequence, or None.
+
+    Contractions are read off the CONFIRMED swing sequence: each (high, low)
+    pair is one pullback, and the pattern requires them to shrink left to
+    right. The provisional trailing swing is deliberately excluded -- a
+    contraction built on a swing that can still move is the repainting this
+    whole library exists to avoid.
+    """
+    bars = ctx.bars
+    swings = ctx.swings
+    if not bars or len(swings) < 3:
+        return None
+
+    # Walk the confirmed swings and collect (high -> next low) pullbacks.
+    pulls = []
+    for a, b in zip(swings, swings[1:]):
+        if a["type"] == "high" and b["type"] == "low":
+            hi, lo = a["price"], b["price"]
+            if hi > 0 and lo > 0 and lo < hi:
+                pulls.append({"high": hi, "low": lo,
+                              "depth": (hi - lo) / hi,
+                              "start": a["bar_index"], "end": b["bar_index"]})
+    if len(pulls) < VCP_MIN_CONTRACTIONS:
+        return None
+
+    n = len(bars)
+    if (n - 1) - pulls[-1]["end"] > VCP_MAX_AGE_BARS:
+        return None
+
+    # Take the longest RUN of successively tighter contractions ending at the
+    # most recent pullback -- the sequence is what the pattern is, so it is
+    # read backwards from now rather than searched for anywhere in history.
+    run = [pulls[-1]]
+    for prev in reversed(pulls[:-1]):
+        nxt = run[0]
+        if prev["depth"] <= nxt["depth"]:
+            break                       # not contracting at this step
+        ratio = nxt["depth"] / prev["depth"]
+        if not (VCP_RATIO_MIN <= ratio <= VCP_RATIO_MAX):
+            break
+        run.insert(0, prev)
+        if len(run) >= VCP_MAX_CONTRACTIONS:
+            break
+
+    if len(run) < VCP_MIN_CONTRACTIONS:
+        return None
+
+    top = run[0]["high"]
+    floor = min(x["low"] for x in run)
+    if top <= 0:
+        return None
+    depth = (top - floor) / top
+    if depth >= VCP_HARD_DEPTH:
+        return None                     # "off my radar"
+    if depth < VCP_MIN_DEPTH or depth > max_depth:
+        return None
+
+    # "on successively lower volume as the supply diminishes" -- a DIRECTION,
+    # no ratio published, so the test is first-versus-last and nothing more.
+    def _vol(pull):
+        seg = bars[pull["start"]:pull["end"] + 1]
+        vals = [b.get("v") or 0 for b in seg]
+        return (sum(vals) / len(vals)) if vals else 0.0
+
+    if _vol(run[-1]) >= _vol(run[0]):
+        return None
+
+    adv = _prior_advance(bars, n - run[0]["start"], look=VCP_ADVANCE_LOOKBACK)
+    if (adv or 0.0) < VCP_PRIOR_ADVANCE:
+        return None
+
+    # ⭐ THE STRUCTURAL RECENCY TEST. A VCP is current while price is still
+    # inside the consolidation: above its floor and not yet through the pivot.
+    # Asking that, rather than "did a swing confirm recently", is what stops
+    # the confirmation lag refusing the tightest and most complete bases.
+    last_close = bars[-1].get("c") or 0.0
+    if not (floor <= last_close <= top):
+        return None
+
+    return {"contractions": len(run), "depths": [x["depth"] for x in run],
+            "depth": depth, "top": top, "floor": floor,
+            "prior_advance": adv, "bars": (n - 1) - run[0]["start"],
+            "pivot": top}
+
+
+def _detect_vcp(ctx) -> bool:
+    return vcp_state(ctx) is not None
+
+
+VCP = Structure(
+    key="vcp",
+    label="Volatility Contraction",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=9,
+    min_bars=60,
+    desc=("Successive pullbacks each meaningfully tighter than the last, on "
+          "falling volume, inside an existing advance. A property of a base "
+          "rather than a shape of its own."),
+    criteria=(
+        Criterion(
+            condition="Number of contractions -- outer bound",
+            value=(VCP_MIN_CONTRACTIONS, VCP_MAX_CONTRACTIONS),
+            quote=("During a VCP, you will generally see a sequence of anywhere "
+                   "from two to six price contractions."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("Number of contractions -- TYPICAL case. Descriptive, "
+                       "never a gate: gating on it would refuse the five- and "
+                       "six-contraction bases the same sentence allows."),
+            value="2-4",
+            quote=("Typically, most VCP setups will be formed by two to four "
+                   "contractions, although sometimes there can be as many as "
+                   "five or six."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Each successive contraction is about half the previous",
+            value="about-half",
+            quote=("As a rule of thumb, each successive contraction is "
+                   "generally contained to about half (plus or minus a "
+                   "reasonable amount) of the previous pullback or "
+                   "contraction."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="The tolerance behind 'plus or minus a reasonable amount'",
+            value=None,
+            source_id=_MINERVINI, confidence="high",
+            missing=("The book never quantifies it. Any numeric band is the "
+                     "implementer's invention, so ours is recorded separately "
+                     "as ours rather than presented as his rule."),
+        ),
+        Criterion(
+            condition=("The worked sequence 25% -> 15% -> 8% is an EXAMPLE, "
+                       "not a threshold -- the book prefaces it 'For example'."),
+            value="25/15/8-illustrative",
+            quote=("For example, a stock will initially come off by, say, 25 "
+                   "percent from its absolute high to its low."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Volume falls with the contractions -- a direction, no ratio",
+            value="successively-lower",
+            quote=("it corrects less and less from left to right on "
+                   "successively lower volume as the supply diminishes"),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Base depth, normal conditions",
+            value=(VCP_MIN_DEPTH, VCP_MAX_DEPTH),
+            quote=("Most constructive setups correct between 10 percent and 35 "
+                   "percent, some as much as 40 percent."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Hard depth disqualifier",
+            value=VCP_HARD_DEPTH,
+            quote=("A stock that has corrected 60 percent or more is off my "
+                   "radar, especially because a decline of that magnitude "
+                   "often signals a serious problem."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="It is a CONTINUATION pattern -- there must be an advance to continue",
+            value=VCP_PRIOR_ADVANCE,
+            quote=("the VCP is going to happen at higher levels, after the "
+                   "stock has already moved up 30, 40, 50 percent or even much "
+                   "more, because the VCP is a continuation pattern as part of "
+                   "a much larger upward move."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Minimum base duration",
+            value=None,
+            source_id=_MINERVINI, confidence="high",
+            missing=("The VCP section publishes NO minimum. The worked "
+                     "examples run 6, 8, 19, 27 and 40 weeks, which is a range "
+                     "of illustrations rather than a floor. The 3-week floor "
+                     "published elsewhere in the book is stated for the 3-C "
+                     "pattern, not for the VCP, and importing it would be "
+                     "borrowing a number across rules."),
+        ),
+        Criterion(
+            condition="Tightness of closes inside the contractions",
+            value=None,
+            quote=("Tightness in price from absolute highs to lows and tight "
+                   "closes with little change in price from one day to the "
+                   "next ... are generally constructive."),
+            source_id=_MINERVINI, confidence="high",
+            missing=("No number for what counts as 'little change', and none "
+                     "for what counts as a 'significant decrease' in volume. "
+                     "The contraction ratio already enforces tightening, so no "
+                     "second invented threshold is added."),
+        ),
+        Criterion(
+            condition="Depth relative to the general market -- 2.5x to 3x is disqualifying",
+            value=None,
+            quote=("Under most conditions, stocks that correct more than two "
+                   "and a half or three times the decline of the general "
+                   "market should be avoided."),
+            source_id=_MINERVINI, confidence="high",
+            missing=("Computable in principle, but it needs the index decline "
+                     "over the same window, which this per-symbol detector is "
+                     "not given. Recorded so the gap is visible rather than "
+                     "forgotten."),
+        ),
+        Criterion(
+            condition=("The book's per-name outcomes (465%, 118%, 525%, 75%) "
+                       "are NOT performance and are not used."),
+            value=None,
+            source_id=_MINERVINI, confidence="high",
+            missing=("No win rate, no failure rate, no sample size, no period, "
+                     "no base rate. They are selected illustrations of "
+                     "successful trades and carry survivorship selection by "
+                     "construction. His one quasi-measured claim -- that a "
+                     "close below the 20-day after breakout cuts success 'in "
+                     "about half' -- is RELATIVE, with no absolute base rate "
+                     "published, so it cannot be converted into a number "
+                     "either."),
+        ),
+        Criterion(
+            condition=("⚠️ KNOWN LIMITATION, measured: the contraction COUNT is "
+                       "a LOWER BOUND. Contractions are read off confirmed "
+                       "swings, and the segmenter confirms a reversal only "
+                       "past k*sigma, so a pullback tighter than that never "
+                       "registers. Minervini's own worked sequence -- 25%, "
+                       "15%, 8% -- yields TWO confirmed contractions on a "
+                       "series with ordinary daily noise, not three: the final "
+                       "8% leg is below the threshold. The tight end of the "
+                       "sequence is exactly where this truncates, which is the "
+                       "part the pattern is named for. Reported counts are "
+                       "therefore conservative, and lowering k to recover the "
+                       "third leg would trade a non-repainting segmentation "
+                       "for a repainting one -- a far worse bargain."),
+            # OURS, with a value: this is a consequence of a choice we made
+            # (a volatility-scaled, non-repainting segmenter), not a gap in
+            # what Minervini published. A `missing:` here would have made it a
+            # refusal AND ours at once, which the provenance rail refuses --
+            # correctly, since the two say different things about who owns it.
+            value="count-is-a-lower-bound",
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Contraction ratio band, successive over previous",
+            value=(VCP_RATIO_MIN, VCP_RATIO_MAX),
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Maximum age of the last contraction",
+            value=VCP_MAX_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=1.8,
+    detect=_detect_vcp,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -1841,9 +2580,10 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX, FLAT_BASE,
-             GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY,
-             STAGE2_BREAKOUT, STAGE4_BREAKDOWN]
+RELATIONS = [BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX, DOUBLE_BOTTOM,
+             FLAT_BASE, GREEN_LINE_BREAKOUT, HIGH_TIGHT_FLAG,
+             POCKET_PIVOT, POWER_PLAY, STAGE2_BREAKOUT,
+             STAGE4_BREAKDOWN, VCP]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

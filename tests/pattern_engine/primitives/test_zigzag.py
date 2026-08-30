@@ -1,5 +1,6 @@
 import math
 
+from api.services.pattern_engine.primitives import zigzag
 from api.services.pattern_engine.primitives.zigzag import (
     DEDUP_BARS, DEFAULT_K, SIGMA_WINDOW, _trailing_sigma, segment,
 )
@@ -190,3 +191,40 @@ def test_default_k_is_the_measured_base_scale_value():
     a swing, so it fails here loudly rather than drifting quietly.
     """
     assert DEFAULT_K == 5.0
+
+
+def test_the_precomputed_log_cache_changes_no_value():
+    """⛔ A CACHE IN THE SEGMENTER MOVES EVERY STRUCTURE AT ONCE.
+
+    `_trailing_sigma` reads a 60-bar trailing window at every bar, so the logs
+    were recomputed sixty times over. Precomputing them changes no number and
+    no summation order -- but "should" is not "does", and a fractional drift in
+    sigma flips marginal swing confirmations, which would silently move every
+    measurement built on swings. So both forms are compared directly.
+    """
+    import random
+    rng = random.Random(20260830)
+    for trial in range(20):
+        px, bars = 40.0, []
+        for i in range(220):
+            px = max(0.5, px * (1 + rng.gauss(0.0004, 0.025)))
+            bars.append({"t": 20240000 + i, "o": px, "c": px,
+                         "h": px * 1.01, "l": px * 0.99, "v": 1_000})
+        logs = zigzag._log_returns(bars)
+        for i in range(30, len(bars), 7):
+            a = zigzag._trailing_sigma(bars, i, zigzag.SIGMA_WINDOW)
+            b = zigzag._trailing_sigma(bars, i, zigzag.SIGMA_WINDOW, logs)
+            assert a == b, "trial %d bar %d: %r != %r" % (trial, i, a, b)
+
+
+def test_a_zero_or_missing_close_still_drops_out_of_the_window():
+    """The old form skipped a bar whose close was non-positive. The cache must
+    too, or sigma would be computed over a return that was never valid.
+    """
+    bars = [{"t": 20240000 + i, "o": 10.0, "c": 10.0 + i * 0.01,
+             "h": 11.0, "l": 9.0, "v": 1} for i in range(80)]
+    bars[40]["c"] = 0.0
+    logs = zigzag._log_returns(bars)
+    assert logs[40] is None and logs[41] is None
+    assert logs[0] is None
+    assert all(logs[j] is not None for j in range(1, 40))

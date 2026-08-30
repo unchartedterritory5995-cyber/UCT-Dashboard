@@ -190,10 +190,46 @@ refused). No structure ships on the strength of its geometry alone.
       matched 4.5%. `flat_base_qualifies` is now the single definition both
       ask -- a structure built out of another must never be looser than the
       thing it is built from. Coverage 0.62%.
-- [ ] **E3** Stage / trend / remount (8): Stage 2 Breakout · Stage 2 Momentum ·
-      Stage 4 Breakdown · 20EMA Hold · EMA Crossback · EMA Crossover · FTD ·
-      Mean Reversion. ⚠️ Weinstein's volume rule is **asymmetric by design** —
-      ~2x on a Stage 2 breakout, explicitly none on a Stage 4 breakdown.
+- [~] **E3 — SCOPE CORRECTED AFTER CHECKING THE CORPUS.** Stage 2 Breakout
+      and Stage 4 Breakdown shipped (Weinstein's volume rule is **asymmetric
+      by design** — ~2x on the breakout, explicitly none on the breakdown).
+      The other six do not survive contact with the research, and this is a
+      finding, not a scheduling problem:
+
+      **⛔ FOUR OF THEM HAVE NO PUBLISHED SOURCE AT ALL.** `20EMA Hold`,
+      `EMA Crossback`, `EMA Crossover` and `Stage 2 Momentum` appear NOWHERE
+      in the 15-source corpus that was assembled specifically to find this
+      material. They come from our own `setupGroups.js` model-book taxonomy.
+      The nearest real material is Qullamaggie's, and it is about EXIT
+      management — "the rest of the position should be trailed with the 10- or
+      the 20-day moving average" — plus a description of price "surfing" the
+      rising 10- and 20-day *inside a base*. Neither is a standalone entry
+      structure. Shipping them as canon would be inventing criteria and
+      attributing them; shipping them as `origin="uct"` is honest but they are
+      then OUR setups, not classics, and should be labelled that way on the
+      surface. **Owner decision, not mine to make silently.**
+
+      **⛔ FTD IS A CATEGORY ERROR ON THIS AXIS.** The Follow-Through Day is a
+      MARKET-level gate — the "M" of CAN SLIM, measured on an index, not on a
+      symbol. As a per-symbol RELATION it would return the identical value for
+      all 3,705 rows, which is the purest possible form of the failure the
+      coverage harness exists to catch (a label the whole market carries is
+      not information). It belongs with regime/breadth, where the dashboard
+      already reads market state. Its criteria are worth capturing regardless,
+      because the corpus shows the commonly-quoted numbers are WRONG: IBD
+      publishes "at least 1% to 1.25%" for the index gain, not the widely
+      repeated 1.7%, and volume need only exceed the prior session, NOT the
+      average. Also note the only measured test (Quantifiable Edges, 37 years,
+      54.7%) publishes **no base rate**, so it is not comparable to anything.
+
+      **Mean Reversion** has real sourcing (Grimes; Connors/Raschke) and is
+      genuinely buildable — carried into E4 with the other momentum work.
+
+      ⭐ SHIPPED INSTEAD, because they are canon and fully sourced: the O'Neil
+      SEVEN BASES that were still missing. Cup with Handle, Flat Base and Base
+      on Base are in; **Double Bottom** is in; Saucer with Handle, Ascending
+      Base and High Tight Flag remain. That is a better use of the same effort
+      than four detectors with nothing behind them.
 - [ ] **E4** Momentum continuation (7): Low-Cheat · Go Signal · HVC · Launchpad ·
       Wedge Pop · Measured Move · Oops Reversal.
 - [ ] **E5** Short setups (3): 7-Week Short Rule · Late-Stage Climax ·

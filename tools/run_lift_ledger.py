@@ -5,6 +5,13 @@
     python tools/run_lift_ledger.py --sample 800       # wider sample, slower
     python tools/run_lift_ledger.py --null-trials 30   # harder null
     python tools/run_lift_ledger.py --only darvas-box
+    python tools/run_lift_ledger.py --only flat-base,cup-with-handle
+
+⭐ SEVERAL KEYS IN ONE RUN SHARE THE UNIVERSE LOAD, which is the whole
+setup cost. Launching several PROCESSES instead used to be worse than
+slow: each loaded the artifact, added its row and wrote the file back,
+so a concurrent run silently erased the other's measurement. The write
+path now merges, but one process is still the cheaper way.
 
 ⛔ WHY THIS IS A TOOL AND NOT A SCHEDULER JOB. The completion plan called for a
 cron job; that was the wrong call and this is the correction. The web pod
@@ -57,6 +64,13 @@ WINDOWS = {
     # A cup may run 65 weeks (325 bars) plus a handle, so a 400-bar window
     # would silently redefine the pattern as a shorter one.
     "cup-with-handle":     500,
+    # The W plus the advance it rests, plus prior-uptrend history behind that.
+    "double-bottom":       400,
+    # Pole (<=40) + flag (<=25) plus swing history to anchor the pole's origin.
+    "high-tight-flag":     400,
+    # The contraction sequence plus the advance it continues, plus the
+    # prior-advance lookback behind that.
+    "vcp":                 400,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,
@@ -153,7 +167,11 @@ def main() -> int:
     ap.add_argument("--sample", type=int, default=400)
     ap.add_argument("--null-trials", type=int, default=ll.NULL_TRIALS)
     ap.add_argument("--bootstrap", type=int, default=ll.BOOTSTRAP_TRIALS)
-    ap.add_argument("--only", default=None)
+    ap.add_argument("--only", default=None, help=(
+        "One structure key, or several comma-separated. Several in ONE run "
+        "share a single universe load, which is the expensive setup step, and "
+        "-- since the write path merges -- is also the safe way to measure "
+        "more than one structure at a time."))
     ap.add_argument("--null-seed", type=int, default=ll.NULL_SEED)
     ap.add_argument("--nulls-out", default=None, help=(
         "Compute ONLY this structure's null trials and write them to PATH as a "
@@ -167,14 +185,28 @@ def main() -> int:
     ap.add_argument("--out", default=ll.LEDGER_PATH)
     args = ap.parse_args()
 
+    wanted = ([k.strip() for k in args.only.split(",") if k.strip()]
+              if args.only else None)
+    if wanted:
+        known = {r.key for r in bc.RELATIONS}
+        unknown = [k for k in wanted if k not in known]
+        if unknown:
+            # ⛔ A TYPO MUST NOT LOOK LIKE A CLEAN RUN. Silently matching
+            # nothing is how `--only double-bottom` would have reported
+            # success while measuring zero structures.
+            raise SystemExit(
+                "unknown structure key(s): %s%sknown: %s"
+                % (", ".join(unknown), chr(10), ", ".join(sorted(known))))
+
     bars_by = load_universe(args.sample)
     print(f"universe: {len(bars_by)} tickers\n")
 
     existing = ll.load(args.out)
     structures = dict((existing.get("structures") or {}))
+    measured: list = []          # keys THIS run actually re-measured
 
     for s in bc.RELATIONS:
-        if args.only and s.key != args.only:
+        if wanted and s.key not in wanted:
             continue
         window = WINDOWS.get(s.key, DEFAULT_WINDOW)
         usable = {k: v for k, v in bars_by.items() if len(v) >= window + 25}
@@ -256,6 +288,7 @@ def main() -> int:
         if prior.get("note"):
             row["note"] = prior["note"]
         structures[s.key] = row
+        measured.append(s.key)
 
     if args.nulls_out:
         # ⛔ A NULLS-ONLY RUN MUST NOT TOUCH THE ARTIFACT. Without this the
@@ -270,8 +303,23 @@ def main() -> int:
         print("--dry-run: artifact not written")
         return 0
 
+    # ⛔⛔ RE-READ AND MERGE AT WRITE TIME, NEVER WRITE THE COPY LOADED AT
+    # START. Two `--only` runs launched together each loaded the artifact,
+    # added their own row, and wrote the WHOLE file back -- so the one that
+    # finished four seconds later silently erased the other's row. The
+    # measurement had run for nine minutes and left no trace, and nothing
+    # complained: the file was valid JSON with one fewer structure in it.
+    # (`--nulls-out` was given its own early return for this reason; that
+    # fixed the chunk runs and left the ordinary publish path exposed.)
+    # Merging the rows THIS run actually measured, over whatever is on disk
+    # now, makes concurrent measurement of different structures safe.
+    on_disk = ll.load(args.out)
+    merged = dict(on_disk.get("structures") or {})
+    for key in measured:
+        merged[key] = structures[key]
+
     data = dict(existing)
-    data["structures"] = structures
+    data["structures"] = merged
     data["measured_at"] = time.strftime("%Y-%m-%d")
     data["sample"] = (
         "Seeded-random draw from the screener universe, up to 3,000 daily bars "

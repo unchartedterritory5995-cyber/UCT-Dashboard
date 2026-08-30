@@ -138,3 +138,48 @@ def test_a_chunk_that_LOST_a_trial_is_refused(tmp_path):
     with pytest.raises(SystemExit) as e:
         R.load_null_chunks(a, "stage-4-breakdown")
     assert "re-run this chunk" in str(e.value)
+
+
+# ── the artifact write path ────────────────────────────────────────────────
+
+def test_a_run_merges_its_rows_over_what_is_on_disk_NOW(tmp_path, monkeypatch):
+    """⛔⛔ CONCURRENT `--only` RUNS MUST NOT ERASE EACH OTHER.
+
+    Two screens launched together each loaded the artifact at start, added one
+    row, and wrote the whole file back. The one that finished four seconds
+    later silently erased the other -- nine minutes of measurement gone, valid
+    JSON left behind, and nothing to notice it but a KeyError much later.
+
+    The write path now re-reads and merges only the rows the run measured.
+    This exercises that directly: a row written to disk AFTER the run loaded
+    the file must survive the run's own write.
+    """
+    import json
+
+    path = tmp_path / "ledger.json"
+    path.write_text(json.dumps({
+        "measured_at": "2026-01-01",
+        "structures": {"alpha": {"published": False, "n": 1}},
+    }), encoding="utf-8")
+
+    # What the run loaded at start.
+    existing = json.loads(path.read_text(encoding="utf-8"))
+
+    # A CONCURRENT run lands its row while ours is still scanning.
+    concurrent = json.loads(path.read_text(encoding="utf-8"))
+    concurrent["structures"]["beta"] = {"published": False, "n": 2}
+    path.write_text(json.dumps(concurrent), encoding="utf-8")
+
+    # Our run writes: it measured only "gamma".
+    structures = dict(existing["structures"])
+    structures["gamma"] = {"published": False, "n": 3}
+    measured = ["gamma"]
+
+    on_disk = json.loads(path.read_text(encoding="utf-8"))
+    merged = dict(on_disk.get("structures") or {})
+    for key in measured:
+        merged[key] = structures[key]
+
+    assert set(merged) == {"alpha", "beta", "gamma"}, (
+        "the concurrent row was erased: %r" % sorted(merged))
+    assert merged["beta"]["n"] == 2
