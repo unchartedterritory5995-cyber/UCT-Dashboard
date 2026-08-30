@@ -63,3 +63,24 @@
   color: #64748b;
   flex-basis: 100%;
 }
+
+/* ⛔ PHONE — the play button measured 34×24, the speed picker 62×24 and the
+   slider 16px tall at 390px wide, all under `--tap-min`. The scrubber IS the
+   keyboard/touch path to the cursor (see `drillProps` in `breadthViewShared`),
+   so it is the last control on this tab that may be hard to hit. */
+@media (max-width: 640px) {
+  .btn,
+  .speed {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  /* The two word-labels are a desktop nicety. At 390px they cost the slider a
+     whole line each, and the position readout beside it already says which end
+     the cursor is on. */
+  .ends { display: none; }
+  .range {
+    min-height: var(--tap-min, 44px);
+    flex: 1 1 120px;
+  }
+  .position { min-width: 72px; }
+}

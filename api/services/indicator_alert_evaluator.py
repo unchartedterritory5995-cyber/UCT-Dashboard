@@ -19,26 +19,39 @@ directly from the persistent SQLite store (``bars_sqlite.get_bars``); the
 universe pre-warmer + background fetchers keep that store fresh, so we
 never block on a remote API from this loop.
 
-⭐ THERE ARE NOW TWO LANES, AND ONLY ONE OF THEM IS LIVE.
+⭐ THERE ARE TWO LANES, AND THE LIVE ONE IS ``"closed"``.
 
-``ALERT_EVAL_MODE`` selects between them and it is ``"forming"``. Step 3 above
-describes the forming lane exactly: it judges the bar that is still being built,
-and ``prev`` is whatever the PREVIOUS 60-SECOND POLL happened to store in
-``last_value`` — so "RSI crossed above 70" can fire on a wick that unwinds before
-the bar closes, and whether it fires at all depends on when the loop happened to
-look. Task 2 measured that as 636,205 keyed / 17,295 identity disagreements
-across intra-bar granularities on frozen real bars.
+⚰️⚰️ THIS PARAGRAPH SAID ``ALERT_EVAL_MODE`` "is ``"forming"``" — THREE TIMES,
+ON A SAFETY-CRITICAL SWITCH, ninety lines above a constant that reads
+``"closed"``. It was true when written and false from the cutover commit onward.
+``alert_conditions.py``'s own docstring already records what that cost: *"An agent
+reading this file in 2026-08 concluded from these two lines that member alerts
+fire on the FORMING bar — under a brand whose stated non-negotiable is closed-bar
+alerts — and raised it as a live defect."* The identical stale claim was still
+here, in the module that OWNS the constant, so the correction landed one file
+short. Verified against production 2026-08-30: no ``ALERT_EVAL_MODE`` variable is
+set on the web service, so the committed constant is what runs, and it is
+``"closed"``. ``test_the_docstring_cannot_contradict_the_constant`` is the rail
+that stops this paragraph going stale a third time.
+
+The FORMING lane (kept, and reachable only as a rollback) judges the bar that is
+still being built, and ``prev`` is whatever the PREVIOUS 60-SECOND POLL happened
+to store in ``last_value`` — so "RSI crossed above 70" can fire on a wick that
+unwinds before the bar closes, and whether it fires at all depends on when the
+loop happened to look. Task 2 measured that as 636,205 keyed / 17,295 identity
+disagreements across intra-bar granularities on frozen real bars.
 
 The CLOSED lane (``_evaluate_one_closed``) judges the newest bar that has
 actually closed, and takes ``prev`` from ``series[i-1]`` — the bar before it —
 so a crossing is a comparison of two BARS rather than two CYCLES. Through the
 same oracle, the same bars and the same grid it reads 0 / 0 at every k.
 
-⛔ NOTHING SWITCHES THE LANE IN THIS COMMIT. ``ALERT_EVAL_MODE`` is ``"forming"``,
-which is byte for byte what an armed alert did yesterday. The cutover is one
-constant in its own commit, after the shadow-mode soak — spec §8. Until then the
-closed lane is reachable only by asking for it explicitly (``mode="closed"``),
-which is what the tests do.
+✅ THE CUTOVER HAPPENED. This said *"NOTHING SWITCHES THE LANE IN THIS COMMIT
+… the cutover is one constant in its own commit, after the shadow-mode soak"* —
+an accurate description of the commit it was written in, and a false description
+of the file ever since that constant moved. The closed lane is the live one; the
+FORMING lane is now the one reachable only by asking for it (``mode="forming"``,
+or the rollback variable below), which is what the forming-lane tests do.
 
 ⭐ AND THE LANE NOW HAS A ROLLBACK LEVER: the ``ALERT_EVAL_MODE`` **environment
 variable** overrides the constant, so the mode can be reverted from the Railway

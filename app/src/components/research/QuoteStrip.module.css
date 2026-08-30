@@ -1,32 +1,51 @@
+/* On the token scale, like every other surface in this modal. This file used to
+   run on its own private sizes (11.5px / 10.5px / 10px) and its own colour
+   aliases (--color-text, --color-text-muted) while the banner above it and the
+   canvas below it were both on --text-* / --text-bright / --text-muted. It was
+   the smallest type in the modal and it was small by accident, not by design. */
 .strip {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 6px 0 2px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  /* The strip is a direct child of the modal, NOT of the padded canvas, so it
+     had no horizontal inset at all and sat flush on the panel edge — the O of
+     "O 19.13" was against the border. Its only consumer is
+     EarningsResearchModal, so it carries the canvas's own inset. */
+  padding: var(--space-sm) var(--space-xl) var(--space-xs);
+  border-bottom: 1px solid var(--glass-border-neutral);
   font-variant-numeric: tabular-nums;
 }
-.price { font-size: 18px; font-weight: 700; color: var(--color-text, #d8dade); }
-.chg { font-size: 13px; font-weight: 600; }
-.up { color: var(--ut-green, #7ed957); }
-.down { color: var(--ut-red, #e57373); }
+
 .cells {
-  display: flex; gap: 10px; flex-wrap: wrap;
-  font-size: 11.5px; color: var(--color-text, #d8dade);
+  display: flex;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  font-size: var(--text-md);
+  color: var(--text-bright);
 }
-.cells b {
-  margin-right: 3px; font-weight: 700; font-size: 10px; letter-spacing: .06em;
-  color: var(--color-text-muted, #8a8f98);
+
+/* Each O/H/L/PC/VOL pair is one unit, so the gap between PAIRS is wider than
+   the gap inside one. Previously every token was separated by the same 10px
+   and the row read as ten loose items rather than five readings. */
+.cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  white-space: nowrap;
 }
-.range { display: flex; align-items: center; gap: 6px; }
-.rangeTrack {
-  position: relative; display: inline-block; width: 86px; height: 3px;
-  border-radius: 2px; background: rgba(255,255,255,.14);
+
+.cell b {
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-label);
+  color: var(--text-muted);
 }
-.rangeDot {
-  position: absolute; top: -2px; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--ut-gold, #dcbb5e); transform: translateX(-50%);
-}
-.rangeCap { font-size: 10.5px; color: var(--color-text-muted, #8a8f98); }
 
 @media (max-width: 640px) {
-  .cells { gap: 8px; font-size: 11px; }
-  .range { display: none; }   /* the strip must not wrap to three rows on phone */
+  .strip { padding-left: var(--space-md); padding-right: var(--space-md); }
+  /* --space-sm, not --space-md: measured at 390px the row's natural width is
+     336px against 327px of space, so a 12px gap wrapped all five readings onto
+     a second line for the sake of 9px. Four 8px gaps buy 16px and it fits. */
+  .cells { gap: var(--space-sm); font-size: var(--text-base); }
 }

@@ -1,0 +1,45 @@
+/**
+ * The Rotation lens's CHROME — its outer box and its panels' padding. Nothing
+ * else about this lens leaves the inline styles, and these two left for one
+ * reason: they are the only numbers that should be different in a quarter-size
+ * compare pane, and a media query cannot reach an inline style.
+ *
+ * 🔴 WHAT THIS DOES AND DOES NOT CLOSE — measured in Chromium, not assumed.
+ * Three stacked panels at 740px wide demand ~282px once a verdict line wraps to
+ * two rows. A 1512-wide desktop's compare pane is 746×318 and holds them with
+ * room to spare (0px of scroll, measured); a 1440×772 laptop's pane is 710×245
+ * and does not. The ~31px this recovers is real and it costs the full-size view
+ * nothing, but it is NOT what makes the lens fit — the lens fits when its
+ * content fits, and scrolls in its own `overflow: auto` root when it does not.
+ * That is the honest outcome: what shipped before was not a fit either, it was a
+ * 66px panel floor holding content that needed 88, with the overflow — the
+ * "measured from X on DATE" line, the panel's own stated basis — painted over
+ * the header of the panel beneath it.
+ *
+ * ⛔ NO TYPE SIZE APPEARS BELOW. Only padding and gaps, so the full-size view
+ * renders byte-identically; that is the whole point of the second rule being a
+ * DESCENDANT of `[data-compare-pane]` rather than an edit to the constants.
+ *
+ * `[data-compare-pane]` is set by `CompareGrid.jsx` on the pane body. A plain
+ * attribute rather than a CSS-module class on purpose: a hashed class from
+ * `CompareGrid.module.css` cannot be named from this file, and the alternative —
+ * an `!important` override sitting in the grid's stylesheet reaching into a
+ * lens's inline styles — puts a second authority on this box's padding.
+ */
+.root {
+  padding: 9px 16px 10px;
+  gap: 8px;
+}
+
+.panel {
+  padding: 6px 12px 5px;
+}
+
+[data-compare-pane] .root {
+  padding: 6px 12px;
+  gap: 5px;
+}
+
+[data-compare-pane] .panel {
+  padding: 3px 10px;
+}

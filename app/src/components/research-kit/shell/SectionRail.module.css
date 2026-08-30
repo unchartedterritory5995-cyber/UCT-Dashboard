@@ -130,3 +130,41 @@
     font-size: var(--text-sm);
   }
 }
+
+/* MOUSE/TRACKPAD, and only for a caller that ASKED (`dense`). `--tap-min`
+   (44px) is a TOUCH target floor, and on a pointer:fine device it is simply
+   oversized: 12 sections x 44px + gaps is ~570px of rail, which is what made
+   the earnings modal's rail read as sparse and chunky beside a dense canvas.
+
+   ⛔ Scoped to `[data-rk-dense]`, NOT to a bare `.rail`. This module is shared by three
+   surfaces — EarningsResearchModal, ResearchPage and CatalystFlow — and only
+   the first one was looked at. A bare `.rail` rule here silently re-spaces the
+   other two, which is a layout change nobody reviewed on the pages where it
+   would actually land. The media query stays, so touch keeps the full floor
+   even for a caller that opts in.
+
+   Both selectors combine the ATTRIBUTE with a class on purpose: a bare
+   `[data-rk-dense]` is specificity (0,1,0) and would lose to any class rule
+   later in the cascade — the trap that has bitten `[data-tone]` in this repo.
+
+   ⛔ The width bound is NOT redundant beside `pointer: fine`, and it is the
+   DESKTOP literal (1025px), not the phone one. Two measured findings:
+     - Below 641px this rail is a horizontal CHIP ROW, where a chip's short
+       axis is its HEIGHT — so the rule shrank the tap target instead of the
+       rail's length. Measured at a real 390px viewport: every chip 34px
+       against a 44px floor.
+     - `pointer: fine` does NOT mean desktop. A narrow window on a laptop
+       reports it, so the pointer query alone excluded neither the chip row nor
+       the tablet two-pane. Measured at 820px: 11 tabs at 34px.
+   This repo's canonical TOUCH tier is <=1024px (see breakpoints.css, and
+   PinnedFooter's own 44px floor which uses exactly that bound), so the
+   tightening is scoped to DESKTOP, where the 570px rail was the actual
+   complaint. Verified by opening it at each viewport, not by reading it. */
+@media (pointer: fine) and (min-width: 1025px) {
+  .rail[data-rk-dense] {
+    gap: var(--space-sm);
+  }
+  .rail[data-rk-dense] .item {
+    min-height: 34px;
+  }
+}

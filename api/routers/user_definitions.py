@@ -292,6 +292,20 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
                                         kind=kind)
 
 
+@router.get("/library")
+def public_library(limit: int = 24, after: Optional[int] = None,
+                   user: dict = Depends(require_paid)):
+    """Every definition its owner asked to be listed, newest first.
+
+    ⛔⛔ DECLARED BEFORE `/{def_id}`, AND THAT ORDERING IS LOAD-BEARING. FastAPI
+    answers on first match, so with the wildcard first this route would be read as
+    a definition whose id is the literal string "library" — a 404 on a path that
+    exists. The same trap the breadth live-drill route documents one directory
+    over, and the reason `test_the_library_route_is_not_shadowed` exists.
+    """
+    return svc.public_library(limit=limit, after=after)
+
+
 @router.get("/{def_id}")
 def get_definition(def_id: str,
                    version: Optional[int] = Query(None, ge=1),
@@ -431,6 +445,68 @@ _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410, "table-version":
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
     return HTTPException(status_code=_SHARE_STATUS.get(exc.reason, 400),
                          detail={"reason": exc.reason, "message": exc.detail})
+
+
+# ═══ the public library ═══════════════════════════════════════════════════
+#
+# ⛔⛔ THE COMMENT ABOVE STILL STANDS FOR SHARES: a token exists only because an
+# owner minted one, and nothing walks the token space. What is new is a SECOND,
+# separate opt-in — `POST /{id}/list` — and the separation is the safety property.
+# Treating the existing share rows as a directory would have published every link
+# any member ever sent to one person, retroactively and irreversibly.
+#
+# ⚠️ BROWSING IS `require_paid`, LIKE EVERY OTHER ROUTE IN THIS FILE. Whether the
+# library should be readable BEFORE signup is a real product question (it is the
+# best possible shop window) and it is a paywall decision, not this router's to
+# make. Written down here rather than answered.
+
+
+@router.post("/{def_id}/list")
+def publish_definition(def_id: str, user: dict = Depends(require_paid)):
+    """Put one of my definitions in the public library.
+
+    ⭐ IT MINTS THE SHARE LINK IF THERE ISN'T ONE — a listing nobody can open is a
+    broken row, and publishing to a library IS making it openable. The response
+    names the token that now serves it, so nothing about that is hidden.
+    """
+    try:
+        out = svc.publish(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return out
+
+
+@router.delete("/{def_id}/list")
+def unpublish_definition(def_id: str, user: dict = Depends(require_paid)):
+    """Take it out of the library. ⛔ THE LINK KEEPS WORKING — withdrawing from a
+    directory and revoking a link somebody already holds are different decisions.
+    `DELETE /{id}/share` does both, because a listing is only live while its share
+    is."""
+    try:
+        removed = svc.unpublish(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "def_id": def_id, "removed": removed}
+
+
+@router.get("/{def_id}/list")
+def listing_state(def_id: str, user: dict = Depends(require_paid)):
+    """Is this in the library? ⛔ READ-ONLY, for the same reason `GET
+    /{id}/share` is: a GET that published would list a definition because
+    somebody opened a panel.
+
+    ⭐ IT RETURNS THREE FACTS, NOT ONE. `listed` is what a reader sees; `requested`
+    is what the owner asked for; `shared` is whether the link it rides on is still
+    live. They come apart exactly when the owner revoked the link without
+    un-listing — and a panel showing a single boolean could not explain why the
+    entry vanished.
+    """
+    try:
+        return svc.listing_status(user["id"], def_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/shared/{token}")

@@ -417,3 +417,77 @@ def test_every_pack_the_router_can_emit_is_either_mapped_or_deliberate():
     no_twin = {"levels", "cot", "wire", "uct20", "insider"}
     unmapped = sorted(added - set(runner._PACK_TOOL_ALIAS) - no_twin)
     assert not unmapped, f"packs with no tool alias and no exemption: {unmapped}"
+
+
+# ── a correct refusal cannot fire a tool it has no symbol for ──────────────
+def test_a_refusal_question_is_not_held_to_a_tool_the_lane_cannot_fire(monkeypatch):
+    """S4-01 asks about ZZZQ, which is not a symbol. The fast lane resolves no
+    ticker so it fires no packs — and that IS the right behaviour. The AGENT can
+    call get_quote and be TOLD the ticker is unknown; the fast lane has no such
+    move, so `must_call_tools` is agent-shaped here.
+
+    A gate no correct answer can satisfy is a broken gate, not a bar — the one
+    case the ratchet discipline permits changing."""
+    _stub_exam(monkeypatch, ctx="", sources=["regime"],
+               answer="I can't resolve ZZZQ as a listed symbol, so there's no desk read to give.")
+    out = runner.run_exam(lane="fast", question_ids=["S4-01-unknown-ticker"])
+    assert out["results"][0]["tool_gate_pass"] is True, out["results"][0]
+
+
+def test_the_agent_lane_still_owes_the_tool_call():
+    """CONTROL — the agent CAN call get_quote and learn the ticker is unknown.
+    Relaxing the fast lane must not relax the lane that has the tool."""
+    from api.services.ai_search_eval.golden_set import load_golden_set
+    q = next(x for x in load_golden_set() if x["id"] == "S4-01-unknown-ticker")
+    assert ["get_quote", "grade_ticker"] in q["must_call_tools"]
+
+
+def test_only_the_two_refusal_questions_carry_the_override():
+    """CONTROL — this is a targeted exemption, not a blanket loosening. If it
+    spreads, the fast lane stops being graded on grounding at all."""
+    from api.services.ai_search_eval.golden_set import load_golden_set
+    with_override = sorted(q["id"] for q in load_golden_set() if "fast_lane_tools" in q)
+    assert with_override == ["S4-01-unknown-ticker", "S4-02-private-co"], with_override
+
+
+# ── readiness must name every cold pack, not just `quote` ──────────────────
+def test_readiness_probes_every_pack_the_exam_relies_on(monkeypatch):
+    """One canary only ever proved `quote`. movers, flow and the brain index
+    were cold all night and their questions read as PRODUCT failures. An exam
+    that cannot tell "we don't hold this here" from "the product is broken"
+    keeps producing wrong verdicts."""
+    seen = []
+
+    def _fake(q):
+        seen.append(q)
+        return ("SYS", "salt", {"grounding_sources": ["regime", "quote"], "ctx_block": ""})
+
+    monkeypatch.setattr(ai, "_grounded_system", _fake)
+    r = runner.fast_lane_desk_readiness()
+    assert len(seen) > 1, "readiness still probes a single canary"
+    assert "movers" in r["cold_packs"] and "flow" in r["cold_packs"], r
+    assert "quote" not in r["cold_packs"], r
+
+
+def test_a_fully_warm_desk_reports_no_cold_packs(monkeypatch):
+    """CONTROL — the probe must be able to say everything is warm, or it is a
+    gate that can only fail."""
+    monkeypatch.setattr(
+        ai, "_grounded_system",
+        lambda q: ("SYS", "salt",
+                   {"grounding_sources": ["regime", "quote", "movers", "flow",
+                                          "breadth", "candidates", "playbook"],
+                    "ctx_block": "x"}))
+    assert runner.fast_lane_desk_readiness()["cold_packs"] == []
+
+
+def test_an_explicit_question_still_probes_only_that(monkeypatch):
+    """CONTROL — the single-question form is used by callers that want one
+    answer; the sweep must not have replaced it."""
+    seen = []
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: (seen.append(q) or
+                                   ("SYS", "salt", {"grounding_sources": ["quote"],
+                                                    "ctx_block": ""})))
+    runner.fast_lane_desk_readiness("what is NVDA at")
+    assert seen == ["what is NVDA at"], seen

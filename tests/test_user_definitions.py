@@ -1321,7 +1321,20 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: by an owner, and unguessable. There is no listing of shared definitions
 #: anywhere, so the only route to another member's work is a link they chose
 #: to send. Both halves of this rail cover them like any other route.
-EXPECTED_ROUTE_COUNT = 12
+#: 2026-08-30: FOUR MORE — the public library. `POST/GET/DELETE {id}/list` and
+#: `GET /library`.
+#: ⚰️ AND THE PARAGRAPH ABOVE STOPPED BEING TRUE WITH THEM. It says *"There is no
+#: listing of shared definitions anywhere, so the only route to another member's
+#: work is a link they chose to send"* — accurate for a year and false the moment
+#: `GET /library` mounted. Corrected rather than left standing, because a sentence
+#: describing a safety property that no longer holds is worse than none:
+#: `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`.
+#: ⛔⛔ WHAT REPLACES IT, AND IT IS THE POINT OF THE WHOLE FEATURE: a listing is a
+#: SECOND, SEPARATE opt-in. Sharing a link still publishes nothing. `GET /library`
+#: returns only definitions whose owners asked for that specifically, and
+#: `tests/test_definition_library.py::test_a_SHARED_definition_is_NOT_in_the_
+#: library_until_it_is_also_LISTED` is the rail that keeps the two apart.
+EXPECTED_ROUTE_COUNT = 16
 
 
 def _routes():

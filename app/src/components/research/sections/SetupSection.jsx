@@ -201,22 +201,27 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
         </div>
       )}
 
-      <EyebrowLabel>Key stats</EyebrowLabel>
-      {!fundamentals ? (
-        // `fundamentals` is `undefined` on EVERY user's first render (SWR
-        // before its first resolve) — this is not a rare edge case, it is
-        // what everyone sees first. data-testid so a test can assert this
-        // branch renders without depending on a CSS-module class.
-        <div data-testid="setup-stats-loading"><SkeletonBlock height={72} /></div>
-      ) : (
-        <div className={styles.stats} data-testid="setup-stats">
-          <StatTile label="Mkt cap" value={compactCap(fundamentals.market_cap)} />
-          <StatTile label="Fwd P/E" value={fixedText(fundamentals.forward_pe, 1)} />
-          <StatTile label="Beta" value={fixedText(fundamentals.beta, 2)} />
-          <StatTile label="Avg vol" value={compactVol(fundamentals.avg_vol)} />
-          <StatTile label="Div yield" value={divYieldText(fundamentals.div_yield)} />
-        </div>
-      )}
+      {/* The eyebrow and the grid it labels are ONE block, so the 24px canvas
+          rhythm falls between blocks rather than between a label and the thing
+          it names. */}
+      <div className={styles.block}>
+        <EyebrowLabel>Key stats</EyebrowLabel>
+        {!fundamentals ? (
+          // `fundamentals` is `undefined` on EVERY user's first render (SWR
+          // before its first resolve) — this is not a rare edge case, it is
+          // what everyone sees first. data-testid so a test can assert this
+          // branch renders without depending on a CSS-module class.
+          <div data-testid="setup-stats-loading"><SkeletonBlock height={72} /></div>
+        ) : (
+          <div className={styles.stats} data-testid="setup-stats">
+            <StatTile label="Mkt cap" value={compactCap(fundamentals.market_cap)} />
+            <StatTile label="Fwd P/E" value={fixedText(fundamentals.forward_pe, 1)} />
+            <StatTile label="Beta" value={fixedText(fundamentals.beta, 2)} />
+            <StatTile label="Avg vol" value={compactVol(fundamentals.avg_vol)} />
+            <StatTile label="Div yield" value={divYieldText(fundamentals.div_yield)} />
+          </div>
+        )}
+      </div>
 
       {lo52 != null && hi52 != null && (
         <div data-testid="setup-52w">

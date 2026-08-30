@@ -3,7 +3,7 @@
  * window, colored by that session's OWN tier. Answers "when did the regime
  * change?", which no snapshot view can.
  */
-import { ALL_METRICS_HIDDEN, fillsRow, metricColor, resolveViewColors } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, drillProps, fillsRow, metricColor, resolveViewColors } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 
@@ -52,6 +52,10 @@ const AHEAD_DIM = 0.26
  */
 const RIBBON_MIN_H = { compact: 10, normal: 16 }
 const RIBBON_MAX_H = { compact: 28, normal: 52 }
+// The space between two bands. ONE declaration, read by the `gap` that draws it
+// and by the strip's own ceiling below — two copies would put the playhead's
+// foot a few pixels off the last row it marks.
+const ROW_GAP = 3
 
 export default function HeatRibbonView({
   rows = [], rowIdx = 0, metrics = [], onDrill, onSeek, canSeek, options = {},
@@ -131,8 +135,20 @@ export default function HeatRibbonView({
           it would slide off the rows it marks the moment the strip scrolled. */}
       <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto',
                     display: 'flex', flexDirection: 'column' }}>
+      {/* 🔴 THE STRIP HAS A CEILING, AND THE PLAYHEAD IS WHY.
+          Bands stop growing at `RIBBON_MAX_H`, but this box did not: on a tall
+          panel with few metrics it kept every leftover pixel, and the playhead
+          — `top: 0; bottom: 0` of this box — ran ~90px past the last band into
+          empty black. The line marks WHICH SESSION, and it was drawing that
+          claim over rows that do not exist.
+          ⛔ It is DERIVED from the same two constants the bands lay out with,
+          never a second number: the tallest the strip can legitimately be is
+          every band at its ceiling plus the gaps between them. When the room is
+          smaller the cap is inert and the bands share what there is, so nothing
+          about a quarter-size pane changes. */}
       <div style={{ position: 'relative', flex: '1 1 auto',
-                    display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    maxHeight: metrics.length * maxH + Math.max(0, metrics.length - 1) * ROW_GAP,
+                    display: 'flex', flexDirection: 'column', gap: ROW_GAP }}>
         {metrics.map(m => (
           <div key={m.key} style={{ display: 'flex', alignItems: 'stretch', gap: LABEL_GAP,
                                     ...fillsRow(minH, maxH) }}>
@@ -142,9 +158,7 @@ export default function HeatRibbonView({
                           display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           cursor: m.drillKey ? 'pointer' : 'default' }}
-                 role={m.drillKey ? 'button' : undefined}
-                 aria-label={m.drillKey ? `${m.label} details` : undefined}
-                 onClick={m.drillKey ? () => onDrill(m) : undefined}>
+                 {...drillProps(m, onDrill)}>
               {m.label}
             </div>
             <div style={{ display: 'grid', gap: 1, flex: 1, height: '100%',

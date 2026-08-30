@@ -33,14 +33,74 @@ describe('SharePanel', () => {
   beforeEach(() => { calls = [] })
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-  it('⛔⛔ opening the panel READS the link state and never MINTS one', async () => {
-    global.fetch = jsonRoute([[/^GET .*\/share$/, { body: { token: null } }]])
+  it('⛔⛔ opening the panel READS both consents and grants NEITHER', async () => {
+    // ⭐ TWO CONSENTS NOW, AND OPENING THE PANEL MUST GRANT NEITHER. A share link
+    // goes to a person the member chose; a library listing goes on a page every
+    // member can browse. Each is read on mount and each is written only by its own
+    // button — so this asserts the exact call list (a THIRD request appearing here
+    // is a change somebody has to justify) and then, separately, that no write
+    // verb reached either door.
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: null } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+    ])
     render(<SharePanel defId="u_abc" />)
 
     await screen.findByText(/This formula is private/i)
-    expect(calls).toEqual(['GET /api/user-definitions/u_abc/share'])
-    // ⛔ THE ASSERTION THAT COUNTS: not one POST anywhere in that sequence.
-    expect(calls.some((c) => c.startsWith('POST'))).toBe(false)
+    expect(new Set(calls)).toEqual(new Set([
+      'GET /api/user-definitions/u_abc/share',
+      'GET /api/user-definitions/u_abc/list',
+    ]))
+    // ⛔ THE ASSERTION THAT COUNTS: not one write verb anywhere in that sequence.
+    expect(calls.some((c) => c.startsWith('POST') || c.startsWith('DELETE'))).toBe(false)
+  })
+
+  it('⛔⛔ …and a SHARED formula is still NOT in the library', async () => {
+    // ⚰️ THE CONFLATION THIS WHOLE FEATURE IS BUILT AROUND. Every share token in
+    // the store was minted to send a link to one person. If the panel read
+    // "shared" as "listed", a member would be told they are on a public page when
+    // they are not — and the schema's separation would have a UI arguing with it.
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: `sh_${'a'.repeat(32)}` } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: true } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+
+    expect(await screen.findByTestId('library-publish')).toBeTruthy()
+    expect(screen.queryByTestId('library-withdraw')).toBeNull()
+    expect(screen.getByTestId('library-block')).toHaveTextContent(/Nothing is listed until you say so/i)
+  })
+
+  it('⭐⭐ publishing lists it AND turns the link on, because a listing must open', async () => {
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: null } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+      [/^POST .*\/list$/, { body: { listed: true, token: `sh_${'b'.repeat(32)}` } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+    fireEvent.click(await screen.findByTestId('library-publish'))
+
+    expect(await screen.findByTestId('library-withdraw')).toBeTruthy()
+    // ⛔ THE HALF THAT IS EASY TO MISS: the share block must stop saying "This
+    // formula is private" about something now on a public page.
+    expect(screen.queryByText(/This formula is private/i)).toBeNull()
+    expect(screen.getByLabelText('Share link').value).toContain('b'.repeat(32))
+  })
+
+  it('⛔⛔ withdrawing leaves the LINK alone', async () => {
+    // Two different decisions. Breaking a link somebody already saved, as a side
+    // effect of leaving a directory, is a consequence nobody asked for.
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: `sh_${'c'.repeat(32)}` } }],
+      [/^GET .*\/list$/, { body: { listed: true, requested: true, shared: true } }],
+      [/^DELETE .*\/list$/, { body: { ok: true, removed: true } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+    fireEvent.click(await screen.findByTestId('library-withdraw'))
+
+    expect(await screen.findByTestId('library-publish')).toBeTruthy()
+    expect(screen.getByLabelText('Share link')).toBeTruthy()
+    expect(calls.some((c) => c.startsWith('DELETE /api/user-definitions/u_abc/share'))).toBe(false)
   })
 
   it('⭐ …and the button is what mints, once, on a press', async () => {

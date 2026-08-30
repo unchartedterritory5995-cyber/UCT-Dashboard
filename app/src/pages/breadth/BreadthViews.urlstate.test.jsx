@@ -8,7 +8,7 @@
  * this component without them and is unchanged.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 
 vi.mock('echarts-for-react', () => ({ default: () => <div data-testid="echart" /> }))
 
@@ -113,6 +113,73 @@ describe('?date= uses Wave A’s refusal, not a second one', () => {
   })
 })
 
+/**
+ * 🔴 A REFUSAL IS A CLAIM ABOUT NOW, AND THIS ONE KEPT STANDING.
+ *
+ * "2026-07-13 — that session is outside the loaded window" is true the moment a
+ * link opens on a window that does not hold it. It stops describing the
+ * reader's situation the moment they scrub somewhere reachable: the cursor is
+ * now where THEY put it, and a banner still naming the link's date reads as a
+ * live condition rather than as what happened on the way in.
+ *
+ * ⭐ ONE LATCH, TWO BEHAVIOURS. "The reader has taken the cursor" also retires
+ * the RETRY — a later widen must not yank them back to the link's date from
+ * wherever they went. Both hang off the same fact, so they cannot disagree.
+ */
+describe('a refused ?date= stops asserting itself once the reader moves', () => {
+  const OUT = '2025-03-11'
+
+  it('shows the refusal on arrival, and drops it on the reader\'s first seek', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}}
+                         urlState={{ view: null, date: OUT, compare: null }} />)
+    expect(screen.getByTestId('url-date-refusal')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText('Previous day'))
+    expect(screen.queryByTestId('url-date-refusal'),
+      'the banner kept naming a session the reader had already scrubbed away from').toBeNull()
+  })
+
+  it('drops it on an arrow KEY too — every door the cursor moves through', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}}
+                         urlState={{ view: null, date: OUT, compare: null }} />)
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(screen.queryByTestId('url-date-refusal')).toBeNull()
+  })
+
+  it('and stays gone when the reader returns to the newest row', () => {
+    // ⛔ THE REASON THE LATCH IS NOT `rowIdx !== 0`. Scrub away and back and a
+    // position-derived banner would return, re-asserting a link the reader has
+    // already answered.
+    render(<BreadthViews rows={rows} onDrill={() => {}}
+                         urlState={{ view: null, date: OUT, compare: null }} />)
+    fireEvent.click(screen.getByLabelText('Previous day'))
+    fireEvent.click(screen.getByRole('button', { name: 'LATEST' }))
+    expect(screen.queryByTestId('url-date-refusal')).toBeNull()
+  })
+
+  it('CONTROL: an untouched cursor keeps the refusal, and the widen still lands', () => {
+    // Without this the rule above could be satisfied by a banner that never
+    // shows, and by a link that never retries.
+    const target = deep[150].date
+    const { rerender } = render(<BreadthViews rows={rows} onDrill={() => {}}
+                                              urlState={{ view: null, date: target, compare: null }} />)
+    expect(screen.getByTestId('url-date-refusal')).toBeTruthy()
+    rerender(<BreadthViews rows={deep} onDrill={() => {}}
+                           urlState={{ view: null, date: target, compare: null }} />)
+    expect(cursorDate()).toBe(target)
+  })
+
+  it('a widen does NOT yank a reader who has taken the cursor', () => {
+    const target = deep[150].date
+    const { rerender } = render(<BreadthViews rows={rows} onDrill={() => {}}
+                                              urlState={{ view: null, date: target, compare: null }} />)
+    fireEvent.click(screen.getByLabelText('Previous day'))
+    const mine = cursorDate()
+    rerender(<BreadthViews rows={deep} onDrill={() => {}}
+                           urlState={{ view: null, date: target, compare: null }} />)
+    expect(cursorDate(), 'the spent link pulled the reader off their own session').toBe(mine)
+  })
+})
+
 describe('what the container reports back for the link', () => {
   const lastCall = (fn) => fn.mock.calls[fn.mock.calls.length - 1][0]
 
@@ -135,6 +202,46 @@ describe('what the container reports back for the link', () => {
     expect(lastCall(onUrlChange).date).toBe(rows[1].date)
     fireEvent.click(screen.getByRole('button', { name: 'LATEST' }))
     expect(lastCall(onUrlChange).date).toBeNull()
+  })
+
+  /**
+   * 🔴 A RUN IN FLIGHT USED TO REPORT EVERY TICK.
+   *
+   * Playback steps the cursor up to sixteen times a second and each step was
+   * reported upward, re-rendering the page to hand a 300ms-debounced writer a
+   * value that was stale before it could be written. The debounce was doing its
+   * job; the REPORT above it was the churn, and playback is this tab's
+   * showpiece. The link still ends up describing where the reader is: the
+   * effect fires once when the run stops, which is the only position during a
+   * run a share was ever going to mean.
+   */
+  it('reports NOTHING while playback runs, and once when it stops', async () => {
+    vi.useFakeTimers()
+    try {
+      const onUrlChange = vi.fn()
+      render(<BreadthViews rows={rows} onDrill={() => {}}
+                           urlState={{ view: null, date: null, compare: null }}
+                           onUrlChange={onUrlChange} />)
+      // Off the newest row first: playback refuses to start there, by design.
+      fireEvent.change(screen.getByTestId('scrubber-range'),
+        { target: { value: String(rows.length - 1 - 20) } })
+      const before = onUrlChange.mock.calls.length
+      const at20 = cursorDate()
+
+      fireEvent.click(screen.getByTestId('scrubber-play'))
+      act(() => { vi.advanceTimersByTime(1200) })          // ~10 sessions at 8/s
+      expect(cursorDate(), 'the run did not advance, so this proves nothing').not.toBe(at20)
+      expect(onUrlChange.mock.calls.length,
+        'every playback tick was reported upward').toBe(before)
+
+      fireEvent.click(screen.getByTestId('scrubber-play'))  // pause
+      const settled = cursorDate()
+      expect(onUrlChange.mock.calls.length).toBeGreaterThan(before)
+      expect(onUrlChange.mock.calls[onUrlChange.mock.calls.length - 1][0].date,
+        'the link did not end up on the session the run stopped at').toBe(settled)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('reports the layout and the quad when compare is on', () => {
