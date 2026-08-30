@@ -473,8 +473,23 @@ def _ratio(window: list, key_up: str, key_dn: str) -> Optional[float]:
     return round(sum(ups) / total_dn, 2)
 
 
-def patch_field(date_str: str, key: str, value) -> bool:
-    """Update a single field in an existing snapshot's metrics JSON."""
+def patch_fields(date_str: str, values: dict) -> bool:
+    """Update SEVERAL fields of one snapshot's metrics JSON in ONE transaction.
+
+    ⭐ ONE transaction, not a loop of `patch_field`, because a pair of fields
+    that are only meaningful TOGETHER must land together. `advancing` and
+    `declining` are exactly that: the backfill's whole correctness gate is
+    `advancing - declining == adv_decline`, and a process that died between two
+    single-field writes would leave a row where that sentence cannot even be
+    evaluated — a half-written pair reads as "we measured advancers and not
+    decliners", which never happened on any session.
+
+    `patch_field` is this with one key, so the read-modify-write and the cache
+    drop have a single implementation. Returns False when no row exists for
+    `date_str` (absence is not an error here — the caller decides).
+    """
+    if not values:
+        return False
     try:
         with _conn() as c:
             row = c.execute(
@@ -483,7 +498,7 @@ def patch_field(date_str: str, key: str, value) -> bool:
             if not row:
                 return False
             m = json.loads(row["metrics"])
-            m[key] = value
+            m.update(values)
             c.execute(
                 "UPDATE breadth_snapshots SET metrics = ? WHERE date = ?",
                 (json.dumps(m), date_str),
@@ -493,8 +508,13 @@ def patch_field(date_str: str, key: str, value) -> bool:
         cache.delete_prefix("breadth_history_")
         return True
     except Exception as e:
-        print(f"[breadth_monitor] patch_field error: {e}")
+        print(f"[breadth_monitor] patch_fields error: {e}")
         return False
+
+
+def patch_field(date_str: str, key: str, value) -> bool:
+    """Update a single field in an existing snapshot's metrics JSON."""
+    return patch_fields(date_str, {key: value})
 
 
 def delete_snapshot(date_str: str) -> bool:
