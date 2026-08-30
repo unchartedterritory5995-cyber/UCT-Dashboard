@@ -30,7 +30,13 @@
 .ovWrap { display: flex; flex-direction: column; gap: 10px; }
 .chartCard { padding: 8px; }
 .ovChart { height: 300px; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* minmax(0, 1fr), NOT 1fr. A grid item defaults to `min-width: auto`, so a
+   `1fr` track refuses to shrink below its content's intrinsic minimum. These
+   cards are composed into the earnings modal as well as this page, and inside
+   the modal's narrower canvas the tracks resolved to 369px + 130px inside a
+   348px column — 137px of horizontal overflow, measured live on FCEL's The
+   Street canvas. minmax(0, ...) lets the track actually take its share. */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 
 @media (max-width: 640px) {
   .ovChart { height: 240px; }
@@ -110,7 +116,7 @@
 
 @media (max-width: 640px) {
   .page { padding: 14px 12px 80px; }
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
   .hdrPx { margin-left: 0; text-align: left; flex-basis: 100%; }
   /* Tab strip → edge-to-edge horizontal scroller with 44px tap targets. */
   .tabs {
