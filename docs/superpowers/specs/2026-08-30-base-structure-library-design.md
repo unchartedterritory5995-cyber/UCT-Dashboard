@@ -429,6 +429,18 @@ and that rail already exists.
   only validated pattern output; a confirmed-only surface is a later wave.
 - **Changing `setup_templates`' unsourced numbers.** The corpus now proves several
   are unattributable; correcting the model book is its own reviewed change.
+- 🔴 **`Base-on-Base` — DEFERRED 2026-08-30, blocked on a real dependency.**
+  It is the one O'Neil base defined by its relationship to a PRIOR base, not by
+  its own shape: *"If the gain is less than 20% and the stock forms another
+  base, it's a base-on-base pattern and counted as one stage."* Detecting it
+  needs the previous base's **pivot**, the max price after that pivot, and then
+  the new base's geometry — so it depends on a flat/cup base detector that does
+  not exist yet. The corpus is explicit that a partial version is not the
+  pattern: *"This base's whole function is bookkeeping: it exists to stop the
+  base count from incrementing, so a detector that finds the shape but does not
+  feed the count has implemented half of it."* Shipping a lookalike would put a
+  wrong number under O'Neil's name — exactly what the provenance rail exists to
+  prevent. It returns once the flat-base detector and a base-count field land.
 
 ---
 

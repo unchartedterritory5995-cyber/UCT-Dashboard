@@ -643,6 +643,170 @@ POCKET_PIVOT = Structure(
 )
 
 
+# ── Power Play / High Tight Flag (Mark Minervini) ──────────────────────────
+# ⚠️ THE SAME PATTERN UNDER TWO NAMES, WITH DIFFERENT PUBLISHED TOLERANCES.
+# Minervini names the equivalence himself ("the power play, also referred to as
+# the high tight flag"), but his numbers and O'Neil/IBD's differ at BOTH ends:
+# he publishes 100%+ within 8 weeks and a <=20% flag over 3-6 weeks; the IBD
+# figures usually quoted are 100-120% in 4-8 weeks with a 10-25% flag over 3-5
+# weeks. A 95%-in-8-weeks name passes one and fails the other. The corpus could
+# not fetch an IBD primary, so NO IBD number is asserted here — only Minervini's
+# verbatim figures are implemented, and the conflict is recorded, not averaged.
+
+_MINERVINI = "minervini_ttlac_2017"   # "Think & Trade Like a Champion" (2017), Section 7
+
+POWER_THRUST_PCT = 1.00      # sourced — "up 100 percent or more"
+POWER_THRUST_BARS = 40       # sourced — "within eight weeks" (~40 sessions)
+POWER_MAX_DEPTH = 0.20       # sourced — "not correcting more than 20 percent"
+POWER_MIN_CONSOL = 10        # sourced — "some can emerge after only 10 or 12 days"
+POWER_MAX_CONSOL = 30        # sourced — "three to six weeks"
+
+
+def _detect_power_play(ctx) -> bool:
+    """An explosive thrust, then a shallow tight consolidation.
+
+    ⚠️ Minervini does not say whether the 100% is measured close-to-close,
+    low-to-high, or base-low-to-thrust-high. CLOSE-TO-CLOSE is ours, recorded
+    below — and it is the most conservative of the three, so it under-counts
+    rather than manufacturing thrusts.
+    """
+    bars = ctx.bars
+    if len(bars) < POWER_THRUST_BARS + POWER_MAX_CONSOL + 2:
+        return False
+    n = len(bars)
+
+    # The consolidation starts at the highest high of the recent window.
+    window_start = n - 1 - POWER_MAX_CONSOL
+    hi_i = max(range(window_start, n), key=lambda i: bars[i].get("h") or 0)
+    consol_len = n - 1 - hi_i
+    if not (POWER_MIN_CONSOL <= consol_len <= POWER_MAX_CONSOL):
+        return False
+    if hi_i - POWER_THRUST_BARS < 0:
+        return False
+
+    closes = [b.get("c") or 0 for b in bars]
+    base_close = closes[hi_i - POWER_THRUST_BARS]
+    if base_close <= 0:
+        return False
+    if closes[hi_i] / base_close - 1.0 < POWER_THRUST_PCT:
+        return False
+
+    thrust_high = bars[hi_i].get("h") or 0
+    lows = [b.get("l") for b in bars[hi_i:] if (b.get("l") or 0) > 0]
+    if thrust_high <= 0 or not lows:
+        return False
+    depth = (thrust_high - min(lows)) / thrust_high
+    return depth <= POWER_MAX_DEPTH
+
+
+POWER_PLAY = Structure(
+    key="power-play",
+    label="Power Play",
+    axis="relation",
+    family="Momentum Continuation",
+    bias="bullish",
+    rank=40,
+    min_bars=POWER_THRUST_BARS + POWER_MAX_CONSOL + 2,
+    desc=("A doubling inside eight weeks, then a shallow sideways range that "
+          "has held within a fifth of the thrust high."),
+    criteria=(
+        Criterion(
+            condition="Prior advance and its window",
+            value="100%+ within 8 weeks",
+            quote=("An explosive price move on huge volume that propels the "
+                   "stock price up 100 percent or more within eight weeks."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Consolidation depth ceiling",
+            value=POWER_MAX_DEPTH,
+            quote=("the stock price moves sideways in a relatively tight "
+                   "range, not correcting more than 20 percent"),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition="Consolidation duration",
+            value="3 to 6 weeks; some emerge after only 10 or 12 days",
+            quote=("over a period of three to six weeks (some can emerge "
+                   "after only 10 or 12 days)"),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐ THE 10% VCP WAIVER IS SCOPED TO THIS SETUP, NOT TO "
+                       "EVERY BASE. It is published as the third bullet of the "
+                       "Power Play list; applying it to all bases is an "
+                       "extension beyond the source. Not yet consumed here — "
+                       "no contraction-sequence test exists to waive."),
+            value=0.10,
+            quote=("If the correction in the base, from high to low, does not "
+                   "exceed 10 percent, it is not necessary to see price "
+                   "tightening in the form of a volatility contraction, "
+                   "because the price is already tight enough."),
+            source_id=_MINERVINI, confidence="high",
+        ),
+        Criterion(
+            condition=("How the 100% is measured — close-to-close vs low-to-high "
+                       "vs base-low-to-thrust-high. Ours: CLOSE-TO-CLOSE, the "
+                       "most conservative of the three, so it under-counts "
+                       "rather than manufacturing thrusts. The book does not say."),
+            value="close-to-close",
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Depth allowance for lower-priced names",
+            value=None,
+            quote="some lower-priced stocks can correct as much as 25 percent",
+            source_id=_MINERVINI, confidence="high",
+            missing=("'Lower-priced' is never defined — no price threshold is "
+                     "published — so the 25% branch is not implementable and "
+                     "the flat 20% ceiling applies to every name."),
+        ),
+        Criterion(
+            condition="'Huge volume' on the thrust",
+            value=None,
+            quote="An explosive price move on huge volume",
+            source_id=_MINERVINI, confidence="high",
+            missing="No volume multiple and no averaging window for 'huge'.",
+        ),
+        Criterion(
+            condition="Stage-1 quiescence before the thrust",
+            value=None,
+            quote=("The best power plays are stocks that were quiet in Stage 1 "
+                   "and then suddenly explode."),
+            source_id=_MINERVINI, confidence="high",
+            missing="No threshold for 'quiet' — no range or volume figure.",
+        ),
+        Criterion(
+            condition="Tight weekly closes across the consolidation",
+            value=None,
+            quote=("With a power play, you should look for tight weekly closes "
+                   "over three to six weeks."),
+            source_id=_MINERVINI, confidence="high",
+            missing="No numeric weekly close-to-close range is published.",
+        ),
+        Criterion(
+            condition=("⚠️ CONFLICT, RECORDED NOT RESOLVED: O'Neil/IBD publish "
+                       "the same pattern as the High Tight Flag with different "
+                       "tolerances (commonly quoted 100-120% in 4-8 weeks, "
+                       "10-25% flag over 3-5 weeks). The corpus could not fetch "
+                       "an IBD primary, so no IBD number is asserted and only "
+                       "Minervini's verbatim figures are implemented."),
+            value="minervini-figures-only",
+            origin="uct", confidence="high",
+        ),
+    ),
+    detect=_detect_power_play,
+    #: 5 of 3,707 (0.13%) — verdict `thin`, and CORRECT. A doubling inside
+    #: eight weeks followed by a sub-20% flag is genuinely rare. Independent
+    #: cross-check: the pattern engine's own separately-written
+    #: `high_tight_flag` detector fires on 8 symbols over the same universe.
+    #: Two independent implementations of one pattern landing at 5 and 8 is a
+    #: meaningful agreement — Nekrasov's implementation of LMW's PUBLISHED
+    #: algorithm diverged from theirs by 15x.
+    coverage_pct=0.13,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -690,7 +854,7 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT]
+RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

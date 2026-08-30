@@ -376,7 +376,18 @@ def test_pocket_pivot_fundamentals_gate_is_a_refusal():
 def test_every_relation_records_its_measured_coverage():
     """A structure whose real-universe hit-rate was never measured has not
     been authored — that is how `cup_handle_uct` shipped green at 2 of 2,890.
+
+    ⚠️ `thin` IS ALLOWED, and this test was WRONG to forbid it. The first
+    version required 0.5% <= coverage <= 35%, i.e. the harness's `ok` band —
+    and immediately rejected the Power Play at 0.13%, which is correct: a
+    doubling inside eight weeks followed by a sub-20% flag is genuinely rare.
+    `tools/base_coverage` says so in as many words ("a genuinely rare
+    structure (high tight flag: 8 symbols) is legitimately thin and should
+    still ship"). What must never ship is a structure that was never measured
+    (None), one that fires on nothing (0), or one so common it carries no
+    information (>35%).
     """
     for s in bc.RELATIONS:
         assert s.coverage_pct is not None, f"{s.key} has no measured coverage"
-        assert 0.5 <= s.coverage_pct <= 35.0, f"{s.key} at {s.coverage_pct}%"
+        assert s.coverage_pct > 0, f"{s.key} fires on nothing"
+        assert s.coverage_pct <= 35.0, f"{s.key} at {s.coverage_pct}% is uninformative"
