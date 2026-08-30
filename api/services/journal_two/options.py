@@ -339,6 +339,12 @@ def _validate_create_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, Any]:
     keys = row.keys() if hasattr(row, "keys") else []
     bcv = row["broker_current_value"] if "broker_current_value" in keys else None
+    # The broker's PRIOR-session mark. Stored + served as EVIDENCE for the
+    # disputed LEAP move (our feed 675->665 vs the broker's 655->665 on
+    # 2026-08-29); deliberately NOT consumed by Today — see
+    # option_reconstruct._roll_option_marks for why moving one end alone is wrong.
+    bcv_prev = (row["broker_current_value_prev"]
+                if "broker_current_value_prev" in keys else None)
     return {
         "id": row["id"],
         "userId": row["user_id"],
@@ -368,6 +374,11 @@ def _row_to_strategy(row: sqlite3.Row, legs: list[dict[str, Any]]) -> dict[str, 
         # broker option strategies can show Current + P&L like equity positions.
         "source": row["source"] if "source" in keys else None,
         "brokerCurrentValue": None if bcv is None else float(bcv),
+        "brokerCurrentValuePrev": None if bcv_prev is None else float(bcv_prev),
+        "brokerCurrentValuePrevSession": (
+            row["broker_current_value_prev_session"]
+            if "broker_current_value_prev_session" in keys else None
+        ),
         "legs": legs,
     }
 
