@@ -2609,6 +2609,12 @@ export default function StockChart({
   const comparisonSeriesRefs = useRef(new Map()) // sym -> LineSeries (multi-symbol comparison overlays)
   const vpCanvasRef = useRef(null)
   const priceLineRefs = useRef([])
+  // ── Price-axis labels hide when the latest bar is scrolled off-screen.
+  // `lastBarOff` (state) gates the Post/Pre session tag + re-render; `lastBarOffRef`
+  // is read by updateChart so a data-poll can't re-enable the tags.
+  const [lastBarOff, setLastBarOff] = useState(false)
+  const lastBarOffRef = useRef(false)
+  const barCountRef = useRef(0)
   // Identity guard so updateChart doesn't tear down + rebuild price lines on
   // every real-time tick. mergedPriceLines is useMemo'd, so when its deps
   // (priceLines prop, j2 markers) are stable across ticks the reference is
@@ -5876,6 +5882,54 @@ export default function StockChart({
     if (!sessionAppliedBars?.length) return sessionAppliedBars
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
   }, [sessionAppliedBars, cs.heikinAshi])
+  barCountRef.current = displayBars?.length || 0
+
+  // ── Hide price-axis labels when the latest bar is scrolled off-screen ──────
+  // When today's / the most-recent bar is not visible, strip ALL right-axis tags
+  // (candle last-price + MA tags + the Post/Pre session tag). Bring them all back
+  // the moment the latest bar scrolls back into view.
+  const visLabelApplyRef = useRef(null)
+  useEffect(() => {
+    const chart = chartRef.current
+    const cSeries = candleSeriesRef.current
+    if (!chart || !cSeries || !chartReady) return undefined
+    const ts = chart.timeScale()
+    let raf = 0
+    const defaultPriceTag = () => !hideLastValue && cs.showPriceLabels !== false
+    const defaultVolTag = () => (volumeLastValue || (!boldCandles && !hidePriceLine))
+    const apply = () => {
+      let lr = null
+      try { lr = ts.getVisibleLogicalRange() } catch { return }
+      const N = barCountRef.current
+      if (!lr || N < 1) return
+      const lastIdx = N - 1
+      const off = lr.to < lastIdx - 0.5
+      if (off === lastBarOffRef.current) return
+      lastBarOffRef.current = off
+      setLastBarOff(off)
+      try { cSeries.applyOptions({ lastValueVisible: off ? false : defaultPriceTag() }) } catch { /* older LWC */ }
+      overlaySeriesRefs.current.forEach((s) => { try { s?.applyOptions({ lastValueVisible: off ? false : !!cs.showMaLabels }) } catch { /* */ } })
+      try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: off ? false : defaultVolTag() }) } catch { /* */ }
+    }
+    visLabelApplyRef.current = apply
+    const onRange = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(apply) }
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    apply()
+    return () => {
+      cancelAnimationFrame(raf)
+      try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ }
+      const cs2 = candleSeriesRef.current
+      if (lastBarOffRef.current) {
+        lastBarOffRef.current = false
+        setLastBarOff(false)
+        try { cs2?.applyOptions({ lastValueVisible: !hideLastValue && cs.showPriceLabels !== false }) } catch { /* */ }
+        try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine) }) } catch { /* */ }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartReady, cs.showMaLabels, hideLastValue, cs.showPriceLabels])
+  // Re-evaluate on a bar-set change (new bar / symbol / tf) without re-subscribing.
+  useEffect(() => { try { visLabelApplyRef.current?.() } catch { /* */ } }, [filteredBars])
 
   // Right-axis session tags — green locked at the last RTH close (from the pure
   // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
@@ -7819,7 +7873,7 @@ export default function StockChart({
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
         const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false && !lastBarOffRef.current, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -8637,7 +8691,7 @@ export default function StockChart({
           priceLineVisible: !boldCandles && !hidePriceLine,
           // volumeLastValue opt-in shows the current-volume tag on the right scale
           // (mirrors the main chart's price tag) even in the bold/charts-workspace look.
-          lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine),
+          lastValueVisible: (volumeLastValue || (!boldCandles && !hidePriceLine)) && !lastBarOffRef.current,
         }
         const vs = volBarStyle === 'histogram'
           ? chart.addCustomSeries(new ThinVolumeSeries(), volOpts, volSeparatePane ? 1 : 0)
@@ -8853,7 +8907,7 @@ export default function StockChart({
         // Reuse existing series — always setData (even empty) to clear stale data.
         // lastValueVisible = the colored right-axis chip showing this MA's latest
         // value (opt-in via cs.showMaLabels; the chip auto-uses the series color).
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels, autoscaleInfoProvider: _ovAutoscale })
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current, autoscaleInfoProvider: _ovAutoscale })
         _applyData(overlaySeriesRefs.current[i], baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
@@ -8864,7 +8918,7 @@ export default function StockChart({
           lineType: _ovLineType,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
-          lastValueVisible: !!cs.showMaLabels,
+          lastValueVisible: !!cs.showMaLabels && !lastBarOffRef.current,
           autoscaleInfoProvider: _ovAutoscale,
         })
         ls.setData(baseData)
@@ -9935,7 +9989,7 @@ export default function StockChart({
     // Price labels off ⇒ suppress the Pre/Post chip + locked RTH close too, so the
     // one toggle governs every last-value tag on the axis. Empty list ⇒ the count
     // check below tears down any existing session price lines.
-    const tags = cs.showPriceLabels === false ? [] : (activeSessionTags || [])
+    const tags = (cs.showPriceLabels === false || lastBarOff) ? [] : (activeSessionTags || [])
     const opts = (t) => ({
       price: t.price,
       color: t.color || cs.textColor,
@@ -9965,7 +10019,7 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff])
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
