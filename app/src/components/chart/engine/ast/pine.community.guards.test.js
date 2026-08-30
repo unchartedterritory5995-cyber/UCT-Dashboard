@@ -70,7 +70,14 @@ const REFUSES = Object.freeze({
   // it now continues onto the next — and the script reaches its REAL first wall,
   // named, at a token that is on the screen: `int(length * lengthMult)`, a numeric
   // TYPE CAST this door reads as an unknown function.
-  '07-hull-suite.pine': ['pine:function', 35, 'int'],
+  // ⭐⭐ MOVED TWO WALLS DEEPER on 2026-08-30, from a DEAD END to an OFFER.
+  // `int(length * lengthMult)` folds to `int(55)`, and `int` is now taken where its
+  // argument already reduces to a whole number — where truncation, rounding and
+  // floor are the same number, so no unpublished vendor rule is needed. What it
+  // reaches is the sentence that actually helps: a hand-expanded Hull hands `wma` a
+  // half-window of 27.5, and the door hands back `hma(close, 55)`, which this table
+  // declares and which spares the expansion entirely.
+  '07-hull-suite.pine': ['pine:window', 22, '_length'],
   '09-obv-oscillator-lazybear.pine': ['pine:function', 9, 'cum'],
   // 🪦 `10-ehlers-instantaneous-trend-lazybear.pine` USED TO SIT HERE at
   // `pine:state` @13 `it`, and the comment beside it said the accumulator "holds
