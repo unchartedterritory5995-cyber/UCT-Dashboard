@@ -25,8 +25,16 @@ import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../../components/TileCard'
 import styles from './TheWeek.module.css'
-
-const fetcher = (u) => fetch(u).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// ⛔ CARRIED FIX (was `fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)`):
+// that shape collapses a 402/500/network error into the same `null` as "no
+// content published this week" — a desk outage would render as a quiet
+// week, indistinguishable from the genuine empty state. jsonFetcher throws
+// on any non-ok response instead; this component doesn't read the SWR
+// `error` it produces, so both a real outage and a real empty week land on
+// `data === undefined` and every panel below already omits itself when its
+// slice of `data` is missing — same degrade-to-absence behaviour, minus the
+// silent misclassification. See utils/jsonFetcher.js for the error contract.
+import fetcher from '../../utils/jsonFetcher'
 
 function ArticleLink({ article, className }) {
   const { title, slug, has_body, url } = article
