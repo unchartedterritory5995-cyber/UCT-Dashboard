@@ -106,6 +106,7 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
         # ── broker truth from the payload ────────────────────────────────
         raw_by_key: dict[tuple, float] = {}     # (sym, side) -> abs units
         mark_by_sym: dict[str, float] = {}
+        _cost_weight: dict[tuple, list] = {}     # (sym, side) -> [Σ units*avg, Σ units]
         for p in raw_positions:
             sym = _balances._pos_symbol(p)
             units = _balances._num(p.get("units"))
@@ -116,6 +117,13 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
             px = _balances._num(p.get("price"))
             if px is not None:
                 mark_by_sym[sym] = px
+            # The broker's OWN cost basis. Consumed elsewhere to seed entry
+            # price, and until now never compared to what we stored.
+            avg = _balances._num(p.get("average_purchase_price"))
+            if avg is not None:
+                w = _cost_weight.setdefault((sym, side), [0.0, 0.0])
+                w[0] += abs(units) * avg
+                w[1] += abs(units)
 
         held: dict[tuple, dict] = {}
         if raw_option_holdings is not None:
@@ -132,7 +140,8 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
         # conservation sentinel vouches for those; holdings parity must only
         # grade what holdings attested, or every fresh fill reads as drift.
         j2_pos = conn.execute(
-            "SELECT symbol, side, shares, broker_price FROM j2_positions "
+            "SELECT symbol, side, shares, broker_price, entry_price, entry_estimated "
+            "FROM j2_positions "
             "WHERE user_id = ? AND account_id = ? AND source = 'broker' "
             "AND closed_at IS NULL AND external_id NOT LIKE 'bkprov:%'",
             (user_id, j2_account_id),
@@ -253,9 +262,35 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
                 tol = max(EQUITY_TOL_FLOOR, EQUITY_TOL_PCT * abs(stored_equity))
                 equity_ok = abs(drift_dollar) <= tol
 
+        # ── COST-BASIS parity ────────────────────────────────────────────
+        # Quantity parity checks how many shares; equity parity uses MARKS.
+        # Neither touches what we paid, so a wrong entry price is invisible to
+        # every other rail while it silently drives unrealized P&L, total
+        # return %, R multiples, win rate and the public track record.
+        #
+        # ⛔ OBSERVED, NOT PAGED. Divergence is not automatically a defect:
+        # brokers adjust basis for wash sales, corporate actions and splits, and
+        # a position transferred in carries a basis our activity ledger cannot
+        # possibly know. Paging on all of it would cry wolf and get muted, which
+        # is worse than not looking. It is reported with BOTH numbers so a human
+        # can tell a reconstruction bug from a legitimate adjustment.
+        basis_mismatches: list[str] = []
+        for r in j2_pos:
+            w = _cost_weight.get((r["symbol"], r["side"]))
+            ours = _balances._num(r["entry_price"])
+            if not w or not w[1] or ours is None:
+                continue
+            theirs = w[0] / w[1]
+            if abs(ours - theirs) > max(0.01, abs(theirs) * _BASIS_TOL_PCT):
+                tag = " (seeded)" if r["entry_estimated"] else ""
+                basis_mismatches.append(
+                    f"{r['symbol']} {r['side']}{tag}: journal cost {ours:.4f} vs "
+                    f"broker {theirs:.4f} ({(ours - theirs) / theirs * 100:+.2f}%)")
+
         structural_ok = not pos_mismatches and not opt_mismatches
         ok = structural_ok and equity_ok
-        detail = {"positions": pos_mismatches, "options": opt_mismatches}
+        detail = {"positions": pos_mismatches, "options": opt_mismatches,
+                  "basis": basis_mismatches}
 
         prev = conn.execute(
             "SELECT consecutive_drifts FROM j2_broker_mirror_checks "
@@ -269,7 +304,7 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
             " consecutive_drifts, detail_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (user_id, broker_account_id, _now_iso(), 1 if ok else 0,
              drift_dollar, drift_pct, consecutive,
-             json.dumps(detail) if not ok else None),
+             json.dumps(detail) if (not ok or basis_mismatches) else None),
         )
         # Append the point to the SERIES as well. The row above is a verdict
         # (latest state, threshold alerting); this is the shape over time, and
@@ -373,6 +408,8 @@ def drift_series(broker_account_id: str, days: int = 30, conn=None) -> dict:
 
 # Bias thresholds. A lean smaller than BOTH is inside the noise floor of
 # mark timing and not worth a member's attention or the owner's.
+# A penny, or half a percent — below both is rounding and fee convention.
+_BASIS_TOL_PCT = float(os.environ.get("BROKER_BASIS_TOL_PCT", "0.005"))
 _BIAS_MIN_SAMPLES = int(os.environ.get("BROKER_BIAS_MIN_SAMPLES", "6"))
 _BIAS_DOLLAR = float(os.environ.get("BROKER_BIAS_DOLLAR", "10"))
 _BIAS_PCT = float(os.environ.get("BROKER_BIAS_PCT", "0.0002"))  # 0.02%
@@ -436,8 +473,31 @@ def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
         if owned:
             conn.close()
     out.sort(key=lambda r: -abs(r["mean"] or 0))
+    # Cost-basis divergences ride the same daily channel: they are the other
+    # thing no tolerance can see, and they are recorded by the mirror check at
+    # sync time (the payload is only in hand there).
+    basis: list[str] = []
+    try:
+        conn2 = get_connection()
+        try:
+            for r in conn2.execute(
+                    "SELECT ba.brokerage_name AS n, ba.account_number_masked AS m, "
+                    "c.detail_json AS d FROM j2_broker_mirror_checks c "
+                    "LEFT JOIN j2_broker_accounts ba ON ba.id = c.broker_account_id "
+                    "WHERE c.detail_json IS NOT NULL"):
+                try:
+                    for line in (json.loads(r["d"]) or {}).get("basis") or []:
+                        basis.append(f"{r['n'] or '?'} {r['m'] or ''} — {line}")
+                except (ValueError, TypeError):
+                    continue
+        finally:
+            conn2.close()
+    except Exception:  # noqa: BLE001 — a digest never raises
+        pass
+
     return {
         "days": days,
+        "basisDivergences": basis,
         "leaning": [r for r in out if r["verdict"] == "leaning"],
         "insufficient": [r for r in out if r["verdict"] == "insufficient"],
         "accounts": out,
@@ -459,6 +519,13 @@ def bias_digest_text(scan: dict[str, Any]) -> str:
     else:
         body = ("No account is leaning: every book with enough readings averages "
                 "inside the noise floor.")
+    basis = scan.get("basisDivergences") or []
+    if basis:
+        body += (f"{chr(10)}{chr(10)}Cost basis disagreeing with the broker "
+                 f"(OBSERVED, not an alarm — wash sales, corporate actions and "
+                 f"transfers-in all move a broker's basis legitimately; both "
+                 f"numbers are shown so you can tell which):" + chr(10)
+                 + chr(10).join(f"• {b}" for b in basis))
     if scan["insufficient"]:
         body += (f"{chr(10)}{chr(10)}Not yet judged ({len(scan['insufficient'])} account(s) under "
                  f"{_BIAS_MIN_SAMPLES} readings) — too little data is not a clean bill.")
