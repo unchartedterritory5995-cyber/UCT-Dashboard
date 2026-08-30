@@ -31,13 +31,28 @@ const PANELS = [
     read: r => (r.vxn == null || r.vix == null ? null : Number(r.vxn) - Number(r.vix)) },
 ]
 
-export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
+const pointIndex = (e) => {
+  const el = e.target?.closest?.('[data-seek-idx]')
+  if (!el) return null
+  const i = Number(el.getAttribute('data-seek-idx'))
+  return Number.isInteger(i) ? i : null
+}
+
+export default function RotationView({
+  rows = [], rowIdx = 0, onSeek, canSeek, options = {},
+}) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const lookback = Number(options.lookback ?? 20)
   // `win`, not `window`: a local named `window` shadows the global for the
   // whole function body.
   const win = rows.slice(rowIdx)
   if (!win.length) return null
+
+  // The sparklines below plot oldest → newest; this is the session each drawn
+  // x-position belongs to, computed ONCE rather than per panel.
+  const ascRows = [...win].reverse()
+  const colW = 100 / Math.max(1, ascRows.length - 1)
+  const reachable = ascRows.map(r => (canSeek ? !!canSeek(r.date) : false))
 
   // ⛔ THE SPAN MEASURED IS THE SPAN PRINTED. `series[Math.min(lookback, len-1)]`
   // silently compared against the OLDEST available row and still printed
@@ -104,12 +119,26 @@ export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
                 )}
               </div>
               <svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none"
-                   style={{ marginTop: 6 }} aria-hidden="true">
+                   style={{ marginTop: 6 }} aria-hidden="true"
+                   onClick={(e) => {
+                     const i = pointIndex(e)
+                     if (i == null || !reachable[i]) return
+                     onSeek?.(ascRows[i].date)
+                   }}>
                 {pts
                   ? <polyline data-testid={`rotation-spark-${p.key}`} points={pts} fill="none" strokeWidth="1.4"
                               vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity}
                               stroke={deltaColor} />
                   : <line x1="0" y1="15" x2="100" y2="15" stroke="#334155" strokeDasharray="2 2" />}
+                {pts && asc.map((v, i) => (v == null ? null : (
+                  <rect key={ascRows[i]?.date ?? i} data-testid={`rotation-point-${p.key}-${i}`}
+                        data-seek-idx={i} data-seek-date={ascRows[i]?.date}
+                        x={Math.max(0, (i / Math.max(1, asc.length - 1)) * 100 - colW / 2)}
+                        y="0" width={colW} height="30" fill="transparent"
+                        style={{ cursor: reachable[i] ? 'pointer' : 'default' }}>
+                    <title>{`${ascRows[i]?.date} · ${p.sub} ${Number(v).toFixed(3)}`}</title>
+                  </rect>
+                )))}
               </svg>
               <div data-testid={`rotation-verdict-${p.key}`}
                    style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#94a3b8', marginTop: 4 }}>

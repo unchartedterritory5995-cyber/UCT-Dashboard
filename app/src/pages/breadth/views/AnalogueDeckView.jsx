@@ -5,6 +5,7 @@
  */
 import useSWR from 'swr'
 import { resolveViewColors } from './breadthViewShared'
+import SeekDate from './SeekDate'
 // ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 402/401 answers JSON too,
 // and its `{detail}` body is truthy — so `data?.analogues ?? []` would render a
 // paywall as "no historical session resembles today", which is a different
@@ -46,8 +47,16 @@ export function medianOf(values) {
  * against {reference_date}", straight off the response, so the session the
  * comparison is really anchored to is on screen rather than assumed. A
  * per-date endpoint is the change that would make the cursor meaningful here.
+ *
+ * ⭐ IT DOES TAKE `onSeek`/`canSeek`, AND THAT IS NOT A CONTRADICTION. The lens
+ * ignores the cursor as an INPUT — the match set does not change when you scrub
+ * — while each card NAMES a historical session the reader may want to look at.
+ * This is the deck the refusal was designed for: the server matches against all
+ * of history, so most named dates fall outside a 90-day window and MUST render
+ * as disabled affordances that say so. Widen the window and the same card
+ * becomes live, with no other change.
  */
-export default function AnalogueDeckView({ options = {} }) {
+export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const horizon = options.horizon ?? 'fwd_20d'
   const topN = Number(options.matches ?? 5)
@@ -107,7 +116,9 @@ export default function AnalogueDeckView({ options = {} }) {
                  style={{ background: '#0e131a', borderRadius: 8, padding: 10,
                           border: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ font: '700 12px \'Instrument Sans\', sans-serif', color: '#e2e8f0' }}>{a.date}</span>
+                <span style={{ font: '700 12px \'Instrument Sans\', sans-serif', color: '#e2e8f0' }}>
+                  <SeekDate date={a.date} styleKey="analogues" onSeek={onSeek} canSeek={canSeek} />
+                </span>
                 <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
                   {Number(a.similarity).toFixed(1)}% match
                 </span>

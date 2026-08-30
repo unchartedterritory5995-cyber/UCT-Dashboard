@@ -4,6 +4,7 @@
  * so a reader can check the claim rather than trust it.
  */
 import { resolveViewColors } from './breadthViewShared'
+import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
 
 const BASIS_LABEL = {
@@ -38,7 +39,9 @@ const BASIS_LABEL = {
  */
 export const firedAccent = (colors) => colors.tier.a
 
-export default function EventLedgerView({ rows = [], rowIdx = 0, options = {} }) {
+export default function EventLedgerView({
+  rows = [], rowIdx = 0, onSeek, canSeek, options = {},
+}) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const accent = firedAccent(colors)
   // `win`, not `window`: a local named `window` shadows the global for the whole
@@ -70,12 +73,23 @@ export default function EventLedgerView({ rows = [], rowIdx = 0, options = {} })
 
       <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
         {events.map(e => {
+          // ⭐ "Last fired 2026-08-04 · 18 sessions ago" was DEAD TEXT — the one
+          // line on this tab that most obviously names a session the reader
+          // wants to see. The date is the affordance now; the rest of the
+          // sentence is unchanged, and an unreachable date still renders (as a
+          // disabled control that says why) rather than disappearing.
           const status = e.unavailable
             ? e.unavailable
             : e.firedToday
               ? 'Fired today'
               : e.lastDate
-                ? `Last fired ${e.lastDate} · ${e.sessionsAgo} session${e.sessionsAgo === 1 ? '' : 's'} ago`
+                ? (
+                  <>
+                    Last fired{' '}
+                    <SeekDate date={e.lastDate} styleKey="events" onSeek={onSeek} canSeek={canSeek} />
+                    {` · ${e.sessionsAgo} session${e.sessionsAgo === 1 ? '' : 's'} ago`}
+                  </>
+                )
                 : `Not in the last ${e.windowLength} sessions`
 
           return (

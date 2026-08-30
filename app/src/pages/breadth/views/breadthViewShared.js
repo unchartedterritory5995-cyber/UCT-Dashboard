@@ -26,6 +26,16 @@ export const clamp = (v) => Math.max(0, Math.min(100, v))
 export const WIDEN_WINDOW_HINT = 'Widen the window with the day pills above.'
 export const ALL_METRICS_HIDDEN = 'All metrics hidden — open Customize to show some.'
 
+/**
+ * `SEEK_OUT_OF_WINDOW` — the ONE sentence a view says when it names a date the
+ * cursor cannot reach. The Analogue Deck routinely names 2025 sessions a 90-day
+ * window does not hold, and the Event Ledger can name a last-fired date older
+ * than the window; both must render that date as a DISABLED affordance carrying
+ * this reason rather than as a link that silently does nothing. Composed from
+ * `WIDEN_WINDOW_HINT` so the "what to do about it" half has one author.
+ */
+export const SEEK_OUT_OF_WINDOW = `Outside the loaded window. ${WIDEN_WINDOW_HINT}`
+
 // MA-stack metrics are a count of 4 boolean columns; expose the count.
 const MA_STACK_COLS = {
   spy_ma_stack: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],

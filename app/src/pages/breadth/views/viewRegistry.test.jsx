@@ -81,14 +81,21 @@ const rows = mkRows()
  * `describe('the props bundle is the one BreadthViews passes')` below — an
  * added, removed or renamed prop on either side fails by name.
  */
+// The cursor contract the container hands every view: `canSeek` is asked before
+// paint, `onSeek` on click, and here both answer for any date the fixture rows
+// carry — so a view that gates an affordance on `canSeek` still renders it.
+const rowDates = new Set(rows.map(r => r.date))
 const propsFor = (style) => {
   const options = optionDefaults(style)
+  const onSeek = (t) => (typeof t === 'number' ? true : rowDates.has(t))
+  const canSeek = (t) => (typeof t === 'number' ? true : rowDates.has(t))
   if (VIEW_CONFIG[style].kind === 'lens') {
-    return { rows, currentRow: rows[0], prevRow: rows[3], rowIdx: 0, onDrill: () => {}, options }
+    return { rows, currentRow: rows[0], prevRow: rows[3], rowIdx: 0, onDrill: () => {},
+             onSeek, canSeek, options }
   }
   return {
     currentRow: rows[0], prevRow: rows[3], recentRows: rows.slice(0, 30), rows, rowIdx: 0,
-    metrics: METRICS, normalize: () => 62, onDrill: () => {},
+    metrics: METRICS, normalize: () => 62, onDrill: () => {}, onSeek, canSeek,
     signalKey: null, notableKey: null, options,
     pctileByKey: {}, visibleKeys: new Set(METRICS.map(m => m.key)),
   }

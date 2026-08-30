@@ -14,8 +14,11 @@ import { resolveViewColors } from './breadthViewShared'
 // through `RouteErrorBoundary`. `jsonFetcher` throws on a non-ok status so SWR
 // reports it as an error instead. See `utils/jsonFetcher.test.js`.
 import jsonFetcher from '../../../utils/jsonFetcher'
+import SeekDate from './SeekDate'
 
-export default function ScoreAttributionView({ rows = [], currentRow, options = {} }) {
+export default function ScoreAttributionView({
+  rows = [], currentRow, onSeek, canSeek, options = {},
+}) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const date = currentRow?.date
   // ⭐ The window the CLIENT loaded, not a fourth one nobody warms. `get_history`
@@ -58,9 +61,15 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
           {data.total == null ? '—' : data.total}
         </span>
         {totalDelta != null && (
+          // The one date this lens puts on screen is the session it is
+          // comparing against — so it is the one thing here worth a cursor.
+          // It comes off the SERVER's payload, not the loaded window, so it can
+          // legitimately fall outside it (a cursor on the oldest loaded row has
+          // a prior session nobody fetched) and renders disabled when it does.
           <span style={{ font: '700 12px \'Instrument Sans\', sans-serif',
                          color: totalDelta >= 0 ? colors.bull : colors.bear }}>
-            {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(1)} vs {data.prev.date}
+            {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(1)} vs{' '}
+            <SeekDate date={data.prev.date} styleKey="attribution" onSeek={onSeek} canSeek={canSeek} />
           </span>
         )}
         <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>

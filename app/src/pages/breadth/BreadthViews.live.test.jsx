@@ -49,18 +49,33 @@ function makeRows() {
 // What useLiveBreadth hands down: which metrics are carried, and from when.
 const LIVE_META = { carried: new Set(['atr_ext_7', 'naaim']), carriedFrom: '2026-08-04' }
 
+/**
+ * ⚠️ THESE THREE ASSERTIONS READ THE CURSOR READOUT BY TEST ID, NOT BY TEXT.
+ *
+ * They used to say `getByText('2026-08-04')`, which quietly assumed the date
+ * appeared EXACTLY once on the page. The scrubber (2026-08-29) states the
+ * session it sits on beside its slider, which is a second legitimate display of
+ * the same value — so a text query now matches two elements and the failure
+ * reads as a broken component rather than "a new control also shows the date".
+ * The invariant these tests exist for is unchanged and, if anything, tightened:
+ * a provisional reading must never be presented as a finished day. The scrubber
+ * is checked for the same thing.
+ */
 describe('BreadthViews with a provisional row', () => {
   it('shows a clock, not a date, while the cursor sits on the live row', () => {
     render(<BreadthViews rows={makeRows()} onDrill={vi.fn()} liveStamp="1:44 PM" />)
-    expect(screen.getByText(/LIVE · 1:44 PM/)).toBeInTheDocument()
-    expect(screen.queryByText('2026-08-05')).not.toBeInTheDocument()
+    expect(screen.getByTestId('cursor-live').textContent).toMatch(/LIVE · 1:44 PM/)
+    expect(screen.queryByTestId('cursor-date')).not.toBeInTheDocument()
+    // …and the one other place the session is named marks it provisional too.
+    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-05 · live')
   })
 
   it('shows the plain date once the cursor moves to a settled day', async () => {
     render(<BreadthViews rows={makeRows()} onDrill={vi.fn()} liveStamp="1:44 PM" />)
     await userEvent.click(screen.getByLabelText('Previous day'))
-    expect(screen.getByText('2026-08-04')).toBeInTheDocument()
-    expect(screen.queryByText(/LIVE ·/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('cursor-date').textContent).toBe('2026-08-04')
+    expect(screen.queryByTestId('cursor-live')).not.toBeInTheDocument()
+    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-04')
   })
 
   it('offers a live-measured tile on the live row and drills it', async () => {
@@ -119,7 +134,7 @@ describe('BreadthViews with a provisional row', () => {
   it('renders unchanged when there is no live row at all', () => {
     const rows = makeRows().slice(1)
     render(<BreadthViews rows={rows} onDrill={vi.fn()} />)
-    expect(screen.getByText('2026-08-04')).toBeInTheDocument()
-    expect(screen.queryByText(/LIVE ·/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('cursor-date').textContent).toBe('2026-08-04')
+    expect(screen.queryByTestId('cursor-live')).not.toBeInTheDocument()
   })
 })

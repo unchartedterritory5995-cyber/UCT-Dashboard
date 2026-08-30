@@ -3,12 +3,14 @@
  * computation, the useBreadthViews preset hook, and dispatch to the active
  * visualization style. Spec: docs/superpowers/specs/2026-06-01-breadth-views-multi-style-design.md
  */
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { HM_METRICS, PCTILE_KEYS, FFILL_KEYS } from './heatmapMetrics'
 import useBreadthViews from './useBreadthViews'
 import { drillTarget } from './liveDrill'
 import { normalizeMetric, pickSignals } from './views/breadthViewShared'
+import { buildDateIndex, resolveSeekIndex } from './views/seek'
 import BreadthSignalStrip from './views/BreadthSignalStrip'
+import BreadthScrubber from './BreadthScrubber'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
 import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
 import QuickPresetSwitcher from './QuickPresetSwitcher'
@@ -25,17 +27,22 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
   const ALL_METRICS = useMemo(() => HM_METRICS.filter(m => !m.isHeader), [])
   const views = useBreadthViews(ALL_METRICS)
   const [rowIdx, setRowIdx] = useState(0)
+  const [playing, setPlaying] = useState(false)
   const [customizeOpen, setCustomizeOpen] = useState(false)
 
   const viewLabel = VIEW_CONFIG[views.viewStyle]?.label ?? views.viewStyle
   const panelMetrics = useMemo(() => views.eligibleMetrics(), [views])
 
+  // ⭐ ONE keydown binding, unchanged from the day the cursor shipped — except
+  // that arrow navigation now PAUSES playback. A user reaching for the arrows
+  // while the scrubber is running is taking the cursor back; leaving the
+  // interval alive would have them fighting it a tick later.
   useEffect(() => {
     const handler = e => {
       const t = e.target
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      if (e.key === 'ArrowLeft')  setRowIdx(p => Math.min(p + 1, rows.length - 1))
-      if (e.key === 'ArrowRight') setRowIdx(p => Math.max(p - 1, 0))
+      if (e.key === 'ArrowLeft')  { setPlaying(false); setRowIdx(p => Math.min(p + 1, rows.length - 1)) }
+      if (e.key === 'ArrowRight') { setPlaying(false); setRowIdx(p => Math.max(p - 1, 0)) }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -55,6 +62,36 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
     }
     return result.reverse()
   }, [rows])
+
+  // ── the seekable cursor ────────────────────────────────────────────────────
+  //
+  // ⭐ `onSeek` and `canSeek` are ONE decision asked twice. Both resolve through
+  // `resolveSeekIndex`, so a view can render an affordance disabled (canSeek
+  // said no) in the certain knowledge that clicking it would have been refused
+  // for the same reason. Two independent copies of "is this date reachable?" is
+  // how a dead link ships looking live.
+  const dateIndex = useMemo(() => buildDateIndex(filledRows), [filledRows])
+
+  const canSeek = useCallback(
+    (target) => resolveSeekIndex(target, dateIndex, filledRows.length) != null,
+    [dateIndex, filledRows.length],
+  )
+
+  // Returns TRUE when the cursor moved, FALSE when the target is unreachable —
+  // so a caller that did not ask first still gets an answer instead of a
+  // silent no-op. Any manual seek pauses playback.
+  const onSeek = useCallback((target) => {
+    const idx = resolveSeekIndex(target, dateIndex, filledRows.length)
+    if (idx == null) return false
+    setPlaying(false)
+    setRowIdx(idx)
+    return true
+  }, [dateIndex, filledRows.length])
+
+  // The playback advance — deliberately NOT `onSeek`, which pauses. The
+  // scrubber owns the interval; this is the only door that moves the cursor
+  // without stopping the run.
+  const stepTo = useCallback((idx) => setRowIdx(idx), [])
 
   const currentRow = filledRows[rowIdx] ?? filledRows[0]
   const isLiveRow = !!currentRow?._live
@@ -138,10 +175,11 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
   const activeKind = VIEW_CONFIG[views.viewStyle]?.kind ?? 'board'
 
   const viewProps = activeKind === 'lens'
-    ? { rows: filledRows, currentRow, prevRow, rowIdx, onDrill: drill, options: views.options }
+    ? { rows: filledRows, currentRow, prevRow, rowIdx, onDrill: drill,
+        onSeek, canSeek, options: views.options }
     : {
         currentRow, prevRow, recentRows, rows: filledRows, rowIdx,
-        metrics: visibleMetrics, normalize, onDrill: drill,
+        metrics: visibleMetrics, normalize, onDrill: drill, onSeek, canSeek,
         signalKey: signals.signalKey, notableKey: signals.notableKey,
         options: views.options, pctileByKey, visibleKeys,
       }
@@ -151,10 +189,11 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 4px', flexWrap: 'wrap' }}>
         <BreadthViewSwitcher viewStyle={views.viewStyle} onSelect={views.setViewStyle} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={() => setRowIdx(p => Math.min(p + 1, rows.length - 1))}
+          <button onClick={() => onSeek(rowIdx + 1)}
                   disabled={rowIdx >= rows.length - 1} aria-label="Previous day">←</button>
           {currentRow._live ? (
             <span
+              data-testid="cursor-live"
               className={signalStyles.liveTag}
               title={`Provisional — computed ${liveStamp ?? 'now'} ET. The 4:15 PM `
                 + `collector writes the day's authoritative reading.`}
@@ -163,11 +202,12 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
               LIVE · {liveStamp ?? 'now'}
             </span>
           ) : (
-            <span style={{ font: '600 12px Instrument Sans, sans-serif', color: '#cbd5e1' }}>{currentRow.date}</span>
+            <span data-testid="cursor-date"
+                  style={{ font: '600 12px Instrument Sans, sans-serif', color: '#cbd5e1' }}>{currentRow.date}</span>
           )}
-          <button onClick={() => setRowIdx(p => Math.max(p - 1, 0))}
+          <button onClick={() => onSeek(rowIdx - 1)}
                   disabled={rowIdx === 0} aria-label="Next day">→</button>
-          {rowIdx > 0 && <button onClick={() => setRowIdx(0)}>LATEST</button>}
+          {rowIdx > 0 && <button onClick={() => onSeek(0)}>LATEST</button>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
           <QuickPresetSwitcher presetNames={views.presetNames}
@@ -201,6 +241,11 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
           </div>
         </div>
       </div>
+
+      <BreadthScrubber
+        rows={filledRows} rowIdx={rowIdx} playing={playing}
+        onSeek={onSeek} onStep={stepTo} onPlayingChange={setPlaying}
+      />
 
       <BreadthSignalStrip
         signalMetric={signalMetric} signalReason={signals.signalReason}

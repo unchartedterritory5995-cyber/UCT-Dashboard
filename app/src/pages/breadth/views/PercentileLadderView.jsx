@@ -25,7 +25,21 @@ const TRACK_W = 100
 export const markerX = (pct) =>
   Math.min(Math.max(pct - MARKER_W / 2, 0), TRACK_W - MARKER_W)
 
-export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, options = {} }) {
+/**
+ * ⭐ THE SEEKABLE MARK HERE IS THE HISTOGRAM BAND, NOT THE TODAY-MARKER.
+ *
+ * The marker IS the cursor's own session, so "seeking" to it is a no-op dressed
+ * as a link. The bands, though, are built FROM sessions — each one holds the
+ * readings that fell in its slice of the range — so a band has a real date to
+ * offer: the most recent session at that level. That is the question this lens
+ * makes a reader ask ("when were we last down there?") and the one thing on it
+ * that a cursor can answer. An empty band offers nothing and says so.
+ */
+const bandDate = (e) => e.target?.closest?.('[data-seek-date]')?.getAttribute('data-seek-date') ?? null
+
+export default function PercentileLadderView({
+  rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, onSeek, canSeek, options = {},
+}) {
   const colors = resolveViewColors(options.palette, options.intensity)
   // ⭐ `rows.slice(rowIdx)` — the window AS OF THE CURSOR, never all loaded
   // rows. Scrubbing back a month must rank that day against the history it
@@ -52,7 +66,14 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
   const sortMode = options.sort ?? 'group'
 
   const entries = metrics.map(m => {
-    const vals = win.map(r => metricValue(m, r)).filter(v => v != null)
+    // Value AND date together: the histogram is a count, but a band that can be
+    // clicked has to name the session it sends the cursor to.
+    const readings = []
+    for (const r of win) {
+      const v = metricValue(m, r)
+      if (v != null) readings.push({ v, date: r.date })
+    }
+    const vals = readings.map(x => x.v)
     const today = metricValue(m, currentRow)
     if (vals.length < MIN_READINGS || today == null) {
       return { m, ok: false, have: vals.length }
@@ -62,12 +83,16 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
     const min = sorted[0], max = sorted[sorted.length - 1]
     const span = max - min || 1
     const hist = Array.from({ length: BINS }, () => 0)
-    for (const v of vals) {
-      const bin = Math.min(BINS - 1, Math.floor((v - min) / span * BINS))
+    const bandLast = Array.from({ length: BINS }, () => null)
+    for (const x of readings) {
+      const bin = Math.min(BINS - 1, Math.floor((x.v - min) / span * BINS))
       hist[bin] += 1
+      // `win` is newest-first, so the FIRST reading to land in a band is the
+      // most recent session at that level.
+      if (bandLast[bin] == null) bandLast[bin] = x.date
     }
     const peak = Math.max(...hist, 1)
-    return { m, ok: true, pct, hist, peak, min, max, today, count: vals.length }
+    return { m, ok: true, pct, hist, bandLast, peak, min, max, today, count: vals.length }
   })
 
   const ordered = sortMode === 'percentile'
@@ -81,7 +106,7 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
       <div data-testid="ladder-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', marginBottom: 8 }}>{basis}</div>
-      {ordered.map(({ m, ok, pct, hist, peak, today, have }) => (
+      {ordered.map(({ m, ok, pct, hist, bandLast, peak, have }) => (
         <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
                         font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
@@ -98,11 +123,32 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
             <>
               <svg width="100%" height="26" viewBox="0 0 100 26" preserveAspectRatio="none"
                    style={{ flex: 1, minWidth: 0 }} role="img"
-                   aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${win.length} sessions`}>
+                   aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${win.length} sessions`}
+                   onClick={(e) => {
+                     const d = bandDate(e)
+                     if (d && (canSeek ? canSeek(d) : false)) onSeek?.(d)
+                   }}>
                 {hist.map((c, i) => {
                   const h = (c / peak) * 18
                   return <rect key={i} x={i * 10 + 0.6} y={20 - h} width={8.8} height={h}
                                fill={colors.tier.g1} opacity={0.35} />
+                })}
+                {/* A short bar is a 1px target; the click band is the whole
+                    column, and it is a SEPARATE transparent rect so the drawn
+                    distribution keeps its own geometry. */}
+                {hist.map((c, i) => {
+                  const d = bandLast?.[i] ?? null
+                  const reachable = c > 0 && d != null && (canSeek ? !!canSeek(d) : false)
+                  return (
+                    <rect key={`band-${i}`} data-testid={`ladder-band-${m.key}-${i}`}
+                          data-seek-date={d ?? undefined}
+                          x={i * 10} y="0" width="10" height="21" fill="transparent"
+                          style={{ cursor: reachable ? 'pointer' : 'default' }}>
+                      <title>{c === 0
+                        ? 'No session in this band'
+                        : `${c} session${c === 1 ? '' : 's'} in this band · last ${d}`}</title>
+                    </rect>
+                  )
                 })}
                 <line x1="0" y1="20.5" x2="100" y2="20.5" stroke="#334155" strokeWidth="0.6"
                       vectorEffect="non-scaling-stroke" />
