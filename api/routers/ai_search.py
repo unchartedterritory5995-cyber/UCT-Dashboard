@@ -619,24 +619,48 @@ def _agent_autoroute_enabled() -> bool:
         "1", "true", "yes", "on")
 
 
+_MULTI_STEP_RE = re.compile(
+    r"\b(then|after that|and also|as well as|followed by|and give me)\b", re.I)
+
+
+def _intent_breadth(q: str) -> int:
+    """How many DISTINCT desk intents one question trips.
+
+    Derived by asking the gates that already exist — two lookups in one ask is
+    multi-step work by definition. A new regex meaning "this is complicated"
+    would be a second authority over a question the gates already answer.
+    """
+    gates = (_VERDICT_RE, _LEVELS_RE, _FLOW_RE, _FUNDAMENTALS_RE, _ANALYST_RE,
+             _INSIDER_RE, _EARNINGS_DEEP_RE, _CALL_RECAP_RE, _POSTURE_RE,
+             _MACRO_CAL_RE, _COT_RE, _SHORT_INT_RE)
+    return sum(1 for rx in gates if rx.search(q or ""))
+
+
 def _wants_agent(query: str, client_mode) -> bool:
     """Should an UNPINNED ask go to the tool-calling lane?
 
-    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
-    only lane that can iterate and call the desk's 16 tools is hidden behind a
-    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
-    with the gap concentrated in rung 3: "give me the desk's call".
+    MEASURED, back-to-back, rung 3, 3 repeats each (2026-08-30):
+      S3-02 COMPOUND — "pull the desk verdict AND the street's reaction, THEN
+                        the swing view"      FAIL c1 -> PASS c4   agent WINS
+      S3-01 SIMPLE   — "what's the desk read on NVDA"
+                                             PASS   -> FAIL c2 g1 agent LOSES
 
-    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
-    a request for the desk's call. A second regex meaning the same thing is this
-    repo's most repeated defect. Everything else stays on one fast shot, which
-    answers it well and costs half as much.
+    So the agent's value is MULTI-STEP work, not the word "verdict". The first
+    trigger routed every desk-call ask at it, which made simple questions WORSE
+    and left the median unchanged — which is why this flag was not armed.
+
+    Still anchored on `_VERDICT_RE` (a compound ask that is not a desk call has
+    no business burning 2 units), then requires genuine multi-step shape: two
+    distinct desk intents, or an explicit sequencing step.
     """
     if client_mode in ("fast", "reasoning"):
         return False                      # a stated choice is never overridden
     if not _agent_autoroute_enabled():
         return False
-    return bool(_VERDICT_RE.search(query or ""))
+    q = query or ""
+    if not _VERDICT_RE.search(q):
+        return False
+    return _intent_breadth(q) >= 2 or bool(_MULTI_STEP_RE.search(q))
 
 
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
