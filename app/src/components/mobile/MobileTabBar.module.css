@@ -39,3 +39,10 @@
 @media (min-width: 1025px) {
   .bar { display: none; }
 }
+
+/* Landscape immersive charting: the phone chart shell owns the whole screen
+   when rotated (html[data-mobile-chart-shell]) — the tab bar steps aside.
+   Portrait and every other route are untouched. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .bar { display: none; }
+}

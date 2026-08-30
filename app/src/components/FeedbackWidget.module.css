@@ -48,3 +48,10 @@
     bottom: calc(174px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* Landscape immersive charting (html[data-mobile-chart-shell]): the rotated
+   phone chart owns the whole screen — the "?" sits out; it's one rotation away
+   in portrait. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .fab { display: none !important; }
+}

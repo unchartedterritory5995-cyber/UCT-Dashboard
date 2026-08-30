@@ -53,6 +53,8 @@ vi.mock('../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {
 vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useBreadthSymbols', () => ({ default: () => new Map() }))
 vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: vi.fn() }) }))
+const createAlert = vi.fn(() => Promise.resolve({}))
+vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ createAlert }) }))
 
 // The shape ChartsWorkspace hands down once prefs resolve — Themes FIRST, the
 // arrangement that produced the original measured defect.
@@ -172,6 +174,60 @@ describe('the thumb toolbar drives the chart widget through the SAME persistence
     expect(value.setGroupSym).toHaveBeenCalledWith('A', 'SPY')
     // Committed picks land in the recents rail for next time.
     expect(JSON.parse(localStorage.getItem('uct.charts.mobileRecents'))).toContain('SPY')
+  })
+})
+
+describe('the ★ watchlist button — the scan→tap→chart loop, one tap away', () => {
+  test('opens the layout’s watchlist widget as a full-screen page', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: 'Watchlist' }))
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+    // The chart stays mounted beneath — back is free.
+    expect(screen.getByTestId('chart-pane')).toBeInTheDocument()
+  })
+
+  test('with no watchlist widget saved: adds one and opens it the moment it hydrates', async () => {
+    const user = userEvent.setup()
+    const noWatch = [HYDRATED[0], HYDRATED[1]] // themes + chart only
+    const { rerenderWith, handlers } = renderApp([])
+    rerenderWith(noWatch)
+
+    await user.click(screen.getByRole('button', { name: 'Watchlist' }))
+    expect(handlers.onAddWidget).toHaveBeenCalledWith('watchlist')
+    expect(screen.queryByTestId('widget-body-watchlist')).toBeNull()
+
+    // The layout save round-trips and the new widget lands.
+    rerenderWith([...noWatch, { id: 'w-new-watch', type: 'watchlist', color: 'A', opts: {} }])
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+  })
+})
+
+describe('price alert from the chart', () => {
+  test('More → Set price alert → typed price + "Alert above" reaches createAlert', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /set price alert/i }))
+
+    const input = await screen.findByRole('textbox', { name: /alert price/i })
+    await user.type(input, '250.50')
+    await user.click(screen.getByRole('button', { name: /alert above/i }))
+    expect(createAlert).toHaveBeenCalledWith('NVDA', 250.5, 'above')
+  })
+
+  test('an unparseable price cannot fire — both commit buttons stay disabled', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /set price alert/i }))
+    expect(screen.getByRole('button', { name: /alert above/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /alert below/i })).toBeDisabled()
   })
 })
 

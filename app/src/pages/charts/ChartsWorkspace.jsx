@@ -630,7 +630,14 @@ function DeleteConfirm({ onYes, onCancel }) {
 }
 
 export default function ChartsWorkspace() {
-  const isMobile = useMediaQuery('(max-width: 640px)')
+  const isPhonePortrait = useMediaQuery('(max-width: 640px)')
+  // A rotated phone (coarse pointer, short landscape viewport) also gets the
+  // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
+  // 700–930px landscape width fell into the desktop RGL branch, which is
+  // unusable on a phone. The shell + the fixed bars go immersive via CSS
+  // scoped to html[data-mobile-chart-shell] (see MobileCharts.module.css).
+  const isPhoneLandscape = useMediaQuery('(pointer: coarse) and (orientation: landscape) and (max-height: 500px)')
+  const isMobile = isPhonePortrait || isPhoneLandscape
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
   // newer-wins against the server via the preferences store. Renders nothing.

@@ -11,6 +11,7 @@ import MobileSymbolSheet from './MobileSymbolSheet'
 import MobileTfSheet from './MobileTfSheet'
 import MobileChartTypeSheet from './MobileChartTypeSheet'
 import MobileIndicatorSheet from './MobileIndicatorSheet'
+import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import { pushRecent } from './mobileRecents'
 import wsStyles from '../ChartsWorkspace.module.css'
@@ -45,12 +46,16 @@ export function chartWidgetIndex(widgets) {
 export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOptsChange, onAddWidget }) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
-  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'more'
+  // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
   const [sheet, setSheet] = useState(null)
   const closeSheet = useCallback(() => setSheet(null), [])
   // A non-chart widget opened as a full-screen page (by id, so a layout change
   // can never re-point it at a different widget).
   const [screenWidgetId, setScreenWidgetId] = useState(null)
+  // The toolbar's ★ tapped with no watchlist widget in the layout: one is
+  // added, and this flag opens it the moment it lands in `widgets` (the add is
+  // async through the layout save path, so the id isn't knowable at tap time).
+  const [pendingWatchlistOpen, setPendingWatchlistOpen] = useState(false)
 
   const paneRef = useRef(null)
   // Filled by StockChart with the mounted ChartToolbar's imperative API — the
@@ -104,6 +109,23 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
 
   const openSettings = useCallback(() => paneRef.current?.openSettings(), [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
+
+  // ★ Watchlist — the scan→tap→chart loop, one tap from the chart. Opens the
+  // layout's first watchlist widget; with none saved, adds one and opens it as
+  // soon as it hydrates into `widgets`.
+  const watchlistWidget = useMemo(() => (widgets || []).find((w) => w.type === 'watchlist'), [widgets])
+  const handleOpenWatchlist = useCallback(() => {
+    if (watchlistWidget) { setScreenWidgetId(watchlistWidget.id); return }
+    setPendingWatchlistOpen(true)
+    onAddWidget('watchlist')
+  }, [watchlistWidget, onAddWidget])
+  // Render-time state adjustment (the you-might-not-need-an-effect pattern):
+  // the moment the added watchlist hydrates into `widgets`, consume the pending
+  // flag and open it — React re-renders before committing, no effect pass.
+  if (pendingWatchlistOpen && watchlistWidget) {
+    setPendingWatchlistOpen(false)
+    setScreenWidgetId(watchlistWidget.id)
+  }
 
   const stockChartProps = useMemo(() => ({
     chartId: chartWidget?.id || null,
@@ -164,6 +186,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
             onOpenTf={() => setSheet('tf')}
             onOpenType={() => setSheet('type')}
             onOpenIndicators={() => setSheet('indicators')}
+            onOpenWatchlist={handleOpenWatchlist}
             onOpenMore={() => setSheet('more')}
           />
         </>
@@ -201,6 +224,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onBrowseLibrary={browseLibrary}
         onOpenSettings={openSettings}
       />
+      <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} />
       <MobileMoreSheet
         open={sheet === 'more'}
         onClose={closeSheet}
@@ -209,6 +233,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onOpenWidget={setScreenWidgetId}
         onAddWidget={(t) => { onAddWidget(t) }}
         onOpenSettings={openSettings}
+        onSetAlert={() => setSheet('alert')}
       />
     </div>
   )

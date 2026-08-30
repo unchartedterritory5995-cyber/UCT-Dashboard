@@ -2,13 +2,14 @@ import UIcon from '../../../components/ui/UIcon'
 import { tfLabel } from '../../../components/chart/timeframes'
 import styles from './MobileCharts.module.css'
 
-/* The thumb-zone control strip under the phone chart. Four doors, every one a
- * bottom sheet: timeframe (the gold pill — the control traders hit most),
- * chart type, indicators, and the More sheet (flag / settings / the layout's
- * other widgets). 44px+ targets throughout; labels under the glyphs so no
- * button needs guessing.
+/* The thumb-zone control strip under the phone chart. Five doors: timeframe
+ * (the gold pill — the control traders hit most), chart type, indicators, the
+ * watchlist (the scan → tap → chart loop TradingView/Deepvue live on — the
+ * watchlist page shares the chart's color group, so tapping a row retargets
+ * the chart), and the More sheet (alert / flag / settings / other widgets).
+ * 44px+ targets throughout.
  */
-export default function MobileChartToolbar({ tf, onOpenTf, onOpenType, onOpenIndicators, onOpenMore }) {
+export default function MobileChartToolbar({ tf, onOpenTf, onOpenType, onOpenIndicators, onOpenWatchlist, onOpenMore }) {
   return (
     <div className={styles.toolbar} role="toolbar" aria-label="Chart controls" data-testid="mobile-chart-toolbar">
       <button
@@ -25,6 +26,9 @@ export default function MobileChartToolbar({ tf, onOpenTf, onOpenType, onOpenInd
       </button>
       <button type="button" className={styles.tbBtn} onClick={onOpenIndicators} aria-label="Indicators" aria-haspopup="dialog">
         <UIcon name="wave" size={19} gold={false} />
+      </button>
+      <button type="button" className={styles.tbBtn} onClick={onOpenWatchlist} aria-label="Watchlist">
+        <UIcon name="star" size={19} gold={false} />
       </button>
       <button type="button" className={styles.tbBtn} onClick={onOpenMore} aria-label="More tools" aria-haspopup="dialog">
         <UIcon name="more" size={19} gold={false} />

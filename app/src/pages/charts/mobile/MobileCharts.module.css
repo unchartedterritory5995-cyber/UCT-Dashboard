@@ -497,6 +497,89 @@
   font-size: 13px;
 }
 
+/* ── Price-alert sheet ─────────────────────────────────────────────────── */
+
+.alertBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 16px 16px;
+}
+
+.alertLive {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.alertLivePx {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.alertInput {
+  min-height: 52px;
+  padding: 0 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  /* ≥16px or iOS zooms on focus */
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.alertInput:focus { border-color: var(--ut-gold); }
+
+.alertActions { display: flex; gap: 10px; }
+
+.alertBtn {
+  flex: 1 1 0;
+  min-height: var(--tap-min);
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  background: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.alertBtn:disabled { opacity: 0.4; cursor: default; }
+.alertBtnUp {
+  color: var(--gain);
+  border-color: color-mix(in srgb, var(--gain) 55%, transparent);
+  background: color-mix(in srgb, var(--gain) 10%, transparent);
+}
+.alertBtnUp:active { background: color-mix(in srgb, var(--gain) 20%, transparent); }
+.alertBtnDown {
+  color: var(--loss);
+  border-color: color-mix(in srgb, var(--loss) 55%, transparent);
+  background: color-mix(in srgb, var(--loss) 10%, transparent);
+}
+.alertBtnDown:active { background: color-mix(in srgb, var(--loss) 20%, transparent); }
+
+.alertOk { color: var(--gain); font-size: 13px; }
+.alertErr { color: var(--loss); font-size: 13px; }
+
+/* ── Landscape immersive (phone rotated) ───────────────────────────────────
+ * TradingView's rotate-to-fullscreen: while the chart shell is mounted, a
+ * coarse-pointer landscape short screen hides the app chrome (MobileNav /
+ * MobileTabBar hide themselves via the same attribute — see their modules) and
+ * the shell takes the whole dynamic viewport, with slimmer strip + toolbar and
+ * notch-safe side padding. Scoped to html[data-mobile-chart-shell] so no other
+ * route is touched. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .shell {
+    height: 100vh;
+    height: 100dvh;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  :global(html[data-mobile-chart-shell]) .symStrip { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
+  :global(html[data-mobile-chart-shell]) .toolbar { min-height: var(--tap-min); padding-top: 2px; padding-bottom: max(2px, env(safe-area-inset-bottom, 0px)); }
+}
+
 /* ── Empty board state ─────────────────────────────────────────────────── */
 
 .empty {

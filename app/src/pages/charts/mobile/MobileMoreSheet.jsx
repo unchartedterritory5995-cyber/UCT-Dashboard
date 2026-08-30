@@ -17,6 +17,7 @@ export default function MobileMoreSheet({
   onOpenWidget,            // (widgetId) => void — open as a full-screen page
   onAddWidget,             // (type) => void
   onOpenSettings,          // chart settings modal
+  onSetAlert,              // opens the price-alert sheet
 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const flagged = isFlagged(sym)
@@ -24,6 +25,11 @@ export default function MobileMoreSheet({
   return (
     <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Tools" ariaLabel="Chart tools">
       <div className={styles.sheetList}>
+        <button type="button" className={styles.row} onClick={() => { onClose(); onSetAlert?.() }}>
+          <span className={styles.rowIcon}><UIcon name="bell" size={17} gold={false} /></span>
+          <span className={styles.rowLabel}>Set price alert…</span>
+          <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+        </button>
         <button
           type="button"
           className={styles.row}

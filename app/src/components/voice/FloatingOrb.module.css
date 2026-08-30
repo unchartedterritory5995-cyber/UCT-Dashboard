@@ -274,3 +274,10 @@
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* Landscape immersive charting (html[data-mobile-chart-shell]): the rotated
+   phone chart owns the whole screen — the orb sits out; it's one rotation away
+   in portrait. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .orbCluster { display: none; }
+}

@@ -117,15 +117,37 @@ Every picker is a **bottom sheet** (`components/mobile/Sheet`), every commit fir
 | phone assertion in `builderDoor.wire.test.jsx` (`tablist "Chart widgets"`) | the shell's toolbar (`data-testid="mobile-chart-toolbar"`); the builder walk itself is unchanged and unmocked |
 | `ChartsWorkspace.test.jsx` mobile-branch mock | same test, new mock path/testid |
 
-## Deliberately deferred (Phase 2+)
+## Phase 2 — competitor parity (shipped same branch, 2026-08-30)
 
-- **Touch drawing pass** — restyle ChartToolbar for touch (left rail, 44px), test
-  pointer-based drawing end-to-end on iOS Safari.
-- **Landscape** — rotating past 640px lands on the tablet/desktop branch today;
-  a dedicated landscape full-screen chart is its own task.
-- **Alerts from the toolbar** — `toolbarApiRef.openAlerts` is wired and unused;
-  the desktop popover needs a Sheet treatment first.
+Grounded in a research pass on TradingView mobile (bottom interval/indicators/
+draw controls, rotate-to-fullscreen — our layout matched the pattern) and
+Deepvue (whose signature is the watchlist scan→tap→chart loop with mini
+charts):
+
+- **Landscape immersive** — a coarse-pointer landscape short viewport
+  (`max-height: 500px`) now lands in `MobileChartsApp` too (it previously fell
+  into the desktop RGL branch at 700–930px width). While the shell is mounted
+  (`html[data-mobile-chart-shell]`) that media state hides MobileNav,
+  MobileTabBar and both FABs, zeroes Layout's bar reservations, and the shell
+  takes `100dvh` with slimmed strip/toolbar + notch-safe side padding
+  (`viewport-fit=cover` is already set). Rotate = fullscreen chart; every
+  other route is untouched.
+- **★ Watchlist in the toolbar** — one tap opens the layout's watchlist widget
+  full-screen over the chart (color-group linked, so tapping a row retargets
+  the chart); with none saved, one is added and opened when it hydrates
+  (render-time state adjustment, not an effect).
+- **Price alerts from the chart** — More → "Set price alert…" →
+  `MobileAlertSheet`: 20px decimal input seeded from the live price, "Alert
+  above" / "Alert below" as the commit buttons, riding the same `createAlert`
+  (bell + email + Discord delivery) the desktop right-click uses.
+
+## Deliberately deferred (Phase 3+)
+
+- **Touch drawing pass** — restyle ChartToolbar for touch (left rail, 44px),
+  test pointer-based drawing end-to-end on iOS Safari. (The toolbar now starts
+  collapsed on phone; its chevron expands it.)
+- **Deepvue-style watchlist mini-charts** — sparkline per row on the phone
+  watchlist page.
 - **Price + interval in the top app bar** (reclaim MobileNav's title row on
-  /charts), long-press crosshair inspect card, watchlist swipe-up mini-panel,
-  per-widget mobile headers.
-- **Tablet (641–1024px)** still renders the RGL workspace.
+  /charts), long-press crosshair inspect card, per-widget mobile headers.
+- **Tablet (641–1024px portrait)** still renders the RGL workspace.
