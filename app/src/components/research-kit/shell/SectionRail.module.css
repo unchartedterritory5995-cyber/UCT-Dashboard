@@ -130,3 +130,19 @@
     font-size: var(--text-sm);
   }
 }
+
+/* MOUSE/TRACKPAD — `--tap-min` (44px) is a TOUCH target floor, and on a
+   pointer:fine device it is simply oversized: 12 sections x 44px + gaps is
+   ~570px of rail, which is what made the rail read as sparse and chunky beside
+   a dense canvas. Touch keeps the full floor; this only relaxes it where the
+   pointer is precise. Scoped to the media feature rather than to a prop so it
+   applies wherever the rail is used (the modal, ResearchPage, CatalystFlow)
+   without three call sites having to opt in. */
+@media (pointer: fine) {
+  .item {
+    min-height: 34px;
+  }
+  .rail {
+    gap: var(--space-sm);
+  }
+}

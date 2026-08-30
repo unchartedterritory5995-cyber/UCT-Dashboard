@@ -1,11 +1,22 @@
 // app/src/components/research-kit/charts/ImpliedVsRealized.jsx
+import { useEffect, useState } from 'react'
+
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import VerdictChip from '../VerdictChip'
 import styles from './ImpliedVsRealized.module.css'
 
+// `width` is the FALLBACK only. The rendered chart re-cuts its viewBox to the
+// wrapper's MEASURED pixel width (see `useMeasuredWidth`) so the viewBox scale
+// is always exactly 1 and one viewBox unit is one CSS pixel. Before that, the
+// svg was `width:100%` with a fixed 320-unit box and `meet`, which is
+// HEIGHT-limited at any container wider than 320px: scale pinned at
+// min(boxW/320, 140/140) = 1, so the chart drew 320px wide and centred inside
+// the modal's ~604px canvas — 53% of its width, with ~140px of dead margin on
+// each side, and the labels stuck at their literal 7-8 unit sizes.
 export const VIEWBOX = { width: 320, height: 140 }
-/** §3.4 skeleton size contract. */
+/** §3.4 skeleton size contract. The HEIGHT is what a skeleton has to reserve;
+ *  the width is fluid by design and always was (`SIZE.width === '100%'`). */
 export const SIZE = { width: '100%', height: VIEWBOX.height }
 
 const PAD_TOP = 12
@@ -211,7 +222,14 @@ export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.he
   const baselineY = PAD_TOP + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
-  const barW = Math.min(9, slot * 0.28)
+  // The cap used to be 9 units, which was the RIGHT number when the viewBox was
+  // always 320 wide (slot 35.6 -> 0.28*slot = 9.96, so the cap bound). Now that
+  // the box tracks the real container the slot roughly doubles on desktop, and a
+  // 9px bar in a 67px slot reads as a stick, not a column. 18 keeps the pair
+  // occupying the same FRACTION of its slot at the width this actually renders
+  // at; below ~320px the 0.28 term still binds first, so narrow layouts are
+  // byte-identical to before.
+  const barW = Math.min(18, slot * 0.28)
   const half = barW / 2 + 1
 
   const cols = list.map((p, i) => {
@@ -237,6 +255,52 @@ export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.he
 }
 
 /**
+ * The wrapper's live pixel width, or `fallback` until (and unless) it can be
+ * measured. Feeding this back as the viewBox width is what pins the scale at
+ * 1 — see the VIEWBOX docblock for what the fixed-320 box was doing instead.
+ *
+ * `ResizeObserver` is guarded exactly the way every other chart wrapper in
+ * this repo guards it (e.g. pages/charts/widgets/NhnlPulseWidget.jsx:154):
+ * jsdom does not implement it, so under test this returns the fallback and
+ * the geometry stays byte-identical to the pre-change 320-unit box. That is
+ * deliberate — it keeps `pairGeometry`'s existing unit tests meaningful
+ * rather than silently re-baselining them against a measured width that no
+ * test environment can produce.
+ */
+function useMeasuredWidth(fallback) {
+  // ⛔ A CALLBACK REF, NOT useRef. This measured 320 forever in the real modal
+  // while every test passed: on the first render the payload has not arrived,
+  // `hasAnything` is false, and the component returns <EmptyState/> — so the
+  // wrapper div does not exist yet. A `useEffect(..., [ref])` runs ONCE against
+  // that absent node, bails on `!el`, and never runs again, because a `useRef`
+  // object is referentially stable for the life of the component: the element
+  // appearing later is invisible to the dependency array. A callback ref is
+  // CALLED by React when the node attaches, so the measurement happens whenever
+  // the chart actually mounts — including after SWR resolves.
+  //
+  // The unit tests could not have caught this: they render with data already
+  // present, so the div is there on the first pass. `mounts empty first` below
+  // is the rail for the real ordering.
+  const [node, setNode] = useState(null)
+  const [width, setWidth] = useState(null)
+  useEffect(() => {
+    if (!node || typeof ResizeObserver === 'undefined') return undefined
+    const read = () => {
+      const w = node.clientWidth
+      // A detached or display:none wrapper measures 0; drawing a 0-wide
+      // viewBox would divide the slot by zero and collapse every bar onto
+      // x=NaN. Keep the last good width (or the fallback) instead.
+      if (w > 0) setWidth(w)
+    }
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(node)
+    return () => ro.disconnect()
+  }, [node])
+  return [setNode, width ?? fallback]
+}
+
+/**
  * THE Setup hero (spec §4.3.1a): what the options market charged for each past
  * print versus what the stock actually did.
  *
@@ -258,6 +322,10 @@ export default function ImpliedVsRealized({
   ariaLabel,
   recordedCount = null,
 }) {
+  // Both hooks run ABOVE the EmptyState early-return — an early return that
+  // skips a hook is the classic hook-order crash, and this component has one.
+  const [wrapRef, vbWidth] = useMeasuredWidth(VIEWBOX.width)
+
   const paired = pairQuarters(quarters, impliedHistory, live)
   const cold = coldStartState(paired, historySince, { recorded: recordedCount })
 
@@ -279,7 +347,7 @@ export default function ImpliedVsRealized({
     )
   }
 
-  const geo = pairGeometry(plotted)
+  const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height })
   const chip = cold.cold ? null : impliedVerdict(paired, live)
   // I2: coldStartState's `cold` flag counts the LIVE current quarter as
   // "recorded", so it can read warm (cold.cold === false, cold.caption ===
@@ -294,12 +362,12 @@ export default function ImpliedVsRealized({
     : `Realized move by quarter. ${coverageCaption ?? ''}`.trim())
 
   return (
-    <div className={`${styles.wrap} ${className}`}>
+    <div ref={wrapRef} className={`${styles.wrap} ${className}`}>
       {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
 
       <svg
         className={styles.svg}
-        viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+        viewBox={`0 0 ${vbWidth} ${VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
         style={{ height }}
         role="img"

@@ -1,13 +1,29 @@
-.wrap { display: flex; flex-direction: column; gap: var(--space-lg); }
-.breakeven { display: flex; flex-direction: column; gap: var(--space-xs); }
-.horizon { font-size: var(--text-xs); color: var(--text-muted); }
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-sm); }
+/* Blocks are separated by --space-xl and packed tighter INSIDE themselves. The
+   whole canvas used to run on one flat --space-lg (16px) between every element,
+   which is why it read as an undifferentiated stack rather than four groups:
+   with a single gap value there is no grouping signal for the eye to use. */
+.wrap { display: flex; flex-direction: column; gap: var(--space-xl); }
+
+/* A labelled block: its eyebrow belongs WITH its content, not floating equally
+   between the block above and the block below. Explicit wrapper rather than a
+   `[class*="eyebrow"]` child selector — CSS-module class names are hashed, and
+   matching their SHAPE is the coupling research-kit/testing/restraint.js
+   deliberately retired. */
+.block { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
+
+.breakeven { display: flex; flex-direction: column; gap: var(--space-sm); }
+/* --text-xs is 10px. "Priced +/-12.9% through 2026-09-04" is a SENTENCE, not a
+   label, and 10px is below where this modal's body copy is readable. */
+.horizon { font-size: var(--text-sm); color: var(--text-muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-md); }
 .drift { font-size: var(--text-sm); color: var(--text); }
 /* §3.1 gold budget: the hero's RICH/CHEAP chip is the one gold element on this
    canvas, so the "no expected move, and here is why" line is deliberately
-   muted — it is a disclosure, not a highlight. */
-.moveNa { font-size: var(--text-xs); color: var(--text-muted); }
+   muted — it is a disclosure, not a highlight. Muted, not microscopic: it is
+   the only thing standing where the hero would be, so it keeps body size. */
+.moveNa { font-size: var(--text-sm); color: var(--text-muted); }
 
 @media (max-width: 640px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
+  .wrap { gap: var(--space-lg); }
 }
