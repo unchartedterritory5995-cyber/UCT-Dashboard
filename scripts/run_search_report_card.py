@@ -36,9 +36,11 @@ parser.add_argument("--questions", default=None, help="comma list of question id
 parser.add_argument("--offline", action="store_true",
                     help="validate the golden set + print bars; run nothing")
 parser.add_argument("--notes", default="")
-parser.add_argument("--lane", default="agent", choices=("agent", "fast"),
+parser.add_argument("--lane", default="agent", choices=("agent", "fast", "auto"),
                     help="which lane to grade. 'fast' is the Perplexity path "
                          "49 of 50 real member asks take; 'agent' is the "
+                         "tool-calling lane; 'auto' mirrors the endpoint's "
+                         "own routing decision so the autoroute flag can be A/B'd. "
                          "tool-calling lane that gets 1 in 50.")
 parser.add_argument("--grounding-audit", action="store_true",
                     help="RETRIEVAL only: which desk packs reach the prompt for "

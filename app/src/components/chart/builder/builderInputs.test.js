@@ -20,7 +20,7 @@ import path from 'node:path'
 
 import {
   inputsFromFolded, formulaNameRoles, FOLDED_INPUT_TYPES, FOLDED_INPUT_INEXPRESSIBLE,
-  BUILDER_INPUTS, pineMemberInputs,
+  BUILDER_INPUTS, pineMemberInputs, memberInputTranslation,
 } from './builderInputs'
 import { evaluateFormula } from './FormulaField'
 import { translatePine } from '../engine/ast/pine'
@@ -109,6 +109,42 @@ describe('inputsFromFolded — the translator\'s folded list becomes member inpu
     expect(ran.readback).toMatch(/mult/)
 
     expect(skipped).toHaveLength(2)
+  })
+
+  it('⛔⛔ a WINDOW skip is FLAGGED, not merely worded — by BOTH paths that reach it', () => {
+    // ⭐⭐ A CONSUMER NEEDS TO ASK "IS THIS ONE A LENGTH?" AND GET A FACT.
+    // `PineBox` renders a number field for exactly these rows, and it used to
+    // decide by matching `/lands in a WINDOW/` against the prose — a second
+    // authority over something this function already knows, and one that would
+    // start silently rendering nothing the day a refusal was reworded.
+    //
+    // ⛔ TWO PATHS REACH THE WINDOW REFUSAL AND ONLY ONE ARRIVES PRE-FLAGGED.
+    // `pine.js` stamps `windowBound` on the entry when IT did the folding
+    // (`memberInputTranslation` carries it across); a direct caller has no such
+    // stamp and the verdict finds the name in an `int` slot itself. Both must
+    // come back flagged, so both are driven here.
+    const stamped = inputsFromFolded(
+      [{ call: 'input.int', title: 'Length', folded: '14', name: 'len', windowBound: true }],
+      'sma(close, 14)',
+    )
+    expect(stamped.inputs).toEqual([])
+    expect(stamped.skipped[0].windowBound).toBe(true)
+
+    const walked = inputsFromFolded(
+      [{ call: 'input.int', title: 'Length', folded: '14', name: 'len' }],
+      'sma(close, len)',
+    )
+    expect(walked.inputs).toEqual([])
+    expect(walked.skipped[0].windowBound, 'the literalOnly path must flag it too').toBe(true)
+    // ⛔ THE PROSE IS STILL THERE — the flag is for a machine, the sentence for a
+    // member, and neither replaces the other.
+    expect(walked.skipped[0].reason).toMatch(/lands in a WINDOW/)
+
+    // ⛔⛔ AND IT DISCRIMINATES. A skip for a DIFFERENT reason must not carry the
+    // flag, or a consumer would render a number field seeded with `close`.
+    const other = inputsFromFolded(
+      [{ call: 'input.bool', title: 'Flag', folded: '1', name: 'flag' }], 'close > flag')
+    expect(other.skipped[0].windowBound).toBeUndefined()
   })
 
   it('🔴 a bool is skipped BY NAME — it is not a numeric input', () => {
@@ -390,4 +426,39 @@ describe('both committed Pine corpora, through the real door', () => {
       expect(windowRefused, 'lengths must still be refused as windows').toBeGreaterThan(0)
     })
   }
+
+  it('⭐⭐ …and every one of those lengths reaches the member as a FIELD', () => {
+    // ⛔⛔ THE HALF THE COUNT ABOVE DOES NOT SAY. `windowRefused` measures that
+    // the engine still refuses a length as a KNOB, which is correct and was the
+    // whole story until the paste box learned to set one before translation. On
+    // its own it reads as pure loss. This measures what the member actually gets:
+    // the same rows, as number fields seeded with the author's own value.
+    //
+    // ⛔ THE PREDICATE IS `PineBox`'s, not a re-description of it — the flag plus
+    // "the folded value is a number", because a source input folds to `close` and a
+    // field seeded with that is a control nobody can use.
+    //
+    // ⚠️ A ROSTER, AND A FLOOR. Names so a regression says WHICH script lost its
+    // fields; a floor rather than an equality so a new corpus script does not red
+    // this file and train the next reader to edit a number instead of reading a
+    // failure. Measured 2026-08-29: 21 scripts, 43 fields.
+    const withFields = []
+    let fields = 0
+    for (const corpus of ['../tests/fixtures/pine', '../tests/fixtures/pine_community']) {
+      for (const f of files(corpus)) {
+        const t = memberInputTranslation(translatePine, read(dir(corpus), f))
+        const per = new Set()
+        for (const o of (t.outputs || [])) {
+          if (o.refusal || !o.formula) continue
+          for (const k of (o.skippedInputs || [])) {
+            if (k.windowBound === true && k.name && Number.isFinite(Number(k.folded))) per.add(k.name)
+          }
+        }
+        if (per.size) { withFields.push(`${f} (${per.size})`); fields += per.size }
+      }
+    }
+    expect(withFields.length, `scripts arriving with length fields:\n  ${withFields.join('\n  ')}`)
+      .toBeGreaterThanOrEqual(21)
+    expect(fields).toBeGreaterThanOrEqual(43)
+  })
 })

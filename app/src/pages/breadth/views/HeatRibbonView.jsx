@@ -3,7 +3,7 @@
  * window, colored by that session's OWN tier. Answers "when did the regime
  * change?", which no snapshot view can.
  */
-import { ALL_METRICS_HIDDEN, metricColor, resolveViewColors } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, fillsRow, metricColor, resolveViewColors } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 
@@ -35,6 +35,23 @@ const STRIP_LEFT = LABEL_W + LABEL_GAP
 // the intensity option's own opacity rather than a second opacity scale, so
 // "subtle" stays subtler than "normal" on both sides of the playhead.
 const AHEAD_DIM = 0.26
+
+/**
+ * 🔴 THE BAND HEIGHT IS A FLOOR AND A CEILING, NOT A HEIGHT.
+ *
+ * This view is `height: 100%` of the box `BreadthViews` hands it, and it always
+ * was — but every band inside it was a fixed `cellH` px, so the ink stopped at
+ * ten times sixteen pixels and left ~400px of the offered height black. The
+ * parent was never the problem: the height was offered and the content declined
+ * it. Nothing that scrubs under a playhead should be 13px tall.
+ *
+ * So the rows FLEX. `RIBBON_MIN_H` is what a band shrinks to in a quarter-size
+ * compare pane before the strip scrolls instead; `RIBBON_MAX_H` stops a
+ * two-metric board from drawing two 200px slabs, which is the opposite mistake.
+ * `density: compact` moves both, so the option still means what it says.
+ */
+const RIBBON_MIN_H = { compact: 10, normal: 16 }
+const RIBBON_MAX_H = { compact: 28, normal: 52 }
 
 export default function HeatRibbonView({
   rows = [], rowIdx = 0, metrics = [], onDrill, onSeek, canSeek, options = {},
@@ -90,7 +107,9 @@ export default function HeatRibbonView({
   // it, so the reader is never left inferring which of the cells count as "now".
   const basis = `${win.length} sessions · since ${win[0].date}`
     + ` · playhead ${headRow?.date ?? '—'} (${head + 1} of ${win.length})`
-  const cellH = compact ? 10 : 16
+  const density = compact ? 'compact' : 'normal'
+  const minH = RIBBON_MIN_H[density]
+  const maxH = RIBBON_MAX_H[density]
   // Asked once per session, not once per cell: the answer depends on the date,
   // and every metric row draws the same dates.
   const reachable = win.map(r => (canSeek ? !!canSeek(r.date) : false))
@@ -98,18 +117,29 @@ export default function HeatRibbonView({
 
   return (
     <div ref={hostRef}
-         style={{ overflow: 'auto', height: '100%', padding: '12px 18px', position: 'relative' }}>
+         style={{ height: '100%', minHeight: 0, padding: '12px 18px', position: 'relative',
+                  display: 'flex', flexDirection: 'column' }}>
       <div data-testid="ribbon-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
-                    letterSpacing: '.4px', marginBottom: 8 }}>
+                    letterSpacing: '.4px', marginBottom: 8, flex: '0 0 auto' }}>
         {basis}
       </div>
-      <div style={{ position: 'relative' }}>
+      {/* ⭐ TWO BOXES, NOT ONE, AND THE SPLIT IS LOAD-BEARING. The outer one
+          scrolls (a 30-metric board in a quarter-size pane still has to be
+          reachable); the inner one is what the playhead is positioned against.
+          Collapsing them would anchor the playhead to the scroll VIEWPORT, so
+          it would slide off the rows it marks the moment the strip scrolled. */}
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto',
+                    display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', flex: '1 1 auto',
+                    display: 'flex', flexDirection: 'column', gap: 3 }}>
         {metrics.map(m => (
-          <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: LABEL_GAP, marginBottom: 3 }}>
+          <div key={m.key} style={{ display: 'flex', alignItems: 'stretch', gap: LABEL_GAP,
+                                    ...fillsRow(minH, maxH) }}>
             <div style={{ width: LABEL_W, flex: `0 0 ${LABEL_W}px`, textAlign: 'right',
                           font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
                           textTransform: 'uppercase', color: '#94a3b8',
+                          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                           cursor: m.drillKey ? 'pointer' : 'default' }}
                  role={m.drillKey ? 'button' : undefined}
@@ -117,7 +147,7 @@ export default function HeatRibbonView({
                  onClick={m.drillKey ? () => onDrill(m) : undefined}>
               {m.label}
             </div>
-            <div style={{ display: 'grid', gap: 1, flex: 1,
+            <div style={{ display: 'grid', gap: 1, flex: 1, height: '100%',
                           gridTemplateColumns: `repeat(${win.length}, minmax(0, 1fr))` }}
                  onClick={(e) => {
                    const i = cellIndex(e)
@@ -136,7 +166,7 @@ export default function HeatRibbonView({
                      data-seek-idx={i} data-seek-date={row.date}
                      data-ahead={i > head ? 'true' : undefined}
                      title={`${row.date} · ${m.label} ${m.getFmt(row)}`}
-                     style={{ height: cellH, borderRadius: 1,
+                     style={{ height: '100%', borderRadius: 1,
                               cursor: reachable[i] ? 'pointer' : 'default',
                               opacity: opacityAt(i),
                               background: metricColor(m, row, colors.tier) }} />
@@ -154,10 +184,11 @@ export default function HeatRibbonView({
             column it marks. */}
         <div data-testid="ribbon-playhead" data-playhead-date={headRow?.date}
              aria-hidden="true"
-             style={{ position: 'absolute', top: -2, bottom: 1, width: 1, pointerEvents: 'none',
+             style={{ position: 'absolute', top: 0, bottom: 0, width: 1, pointerEvents: 'none',
                       left: `calc(${STRIP_LEFT}px + (100% - ${STRIP_LEFT}px) * ${(head + 0.5) / win.length})`,
                       background: 'rgba(226,232,240,0.92)',
                       boxShadow: '0 0 0 1px rgba(2,6,12,0.65)' }} />
+      </div>
       </div>
       <HoverReadout tipRef={tipRef} styleKey="ribbon" />
     </div>
