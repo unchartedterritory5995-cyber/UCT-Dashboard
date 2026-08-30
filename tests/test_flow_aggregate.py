@@ -351,12 +351,18 @@ def test_the_warmer_uses_the_routers_builder_not_its_own_key(monkeypatch):
     assert "build_aggregate" in names, (
         "flow_worker_main no longer calls build_aggregate — the aggregate warm "
         "is gone, so the first visitor after a restart pays the cold build")
-    assert "get_cached_or_build" not in names or "build_aggregate" in names
-    # ...and it must NOT reach past the router into the service directly, which
-    # is how the two keys would drift apart.
-    assert "flow_aggregate" not in src, (
-        "flow_worker_main imports the aggregate service directly — form the key "
-        "in ONE place (flow_router.build_aggregate) or it will drift")
+    # ⛔ THE INVARIANT IS ABOUT THE CACHE KEY, NOT THE IMPORT. flow-worker may
+    # import the service for read-only diagnostics (health, alerting); what it
+    # must never do is call the KEY-FORMING entry point itself, because then
+    # the warm and the read can drift apart silently.
+    #
+    # ⚰️ This previously asserted `"flow_aggregate" not in src`, which went red
+    # the moment a health check imported the module — a correct change caught
+    # by an assertion that was broader than the rule it stood for.
+    assert "get_cached_or_build" not in names, (
+        "flow_worker_main calls get_cached_or_build directly — form the key in "
+        "ONE place (flow_router.build_aggregate) or the warm will drift from "
+        "the read and silently warm nothing")
 
 
 def test_the_warm_range_filters_mirror_the_pages_range_chips():
@@ -368,3 +374,105 @@ def test_the_warm_range_filters_mirror_the_pages_range_chips():
         "worker's warm keys now describe a view nobody asks for")
     worker = _pl.Path("api/flow_worker_main.py").read_text(encoding="utf-8")
     assert 'f"Last{_d}"' in worker
+
+
+# ── observability: is the fast path working, and would we KNOW if it stopped ──
+
+
+@pytest.fixture(autouse=True)
+def _clean_stats():
+    fa._STATS.pop("_last_alert_bad", None)
+    yield
+    fa._STATS.pop("_last_alert_bad", None)
+
+
+def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
+    """⛔ THE CASE A STALLED WARMER WOULD HIDE BEHIND.
+
+    An entry for a SUPERSEDED version is not warm — the next caller rebuilds.
+    Counting it as warm is how a warmer that stopped running would keep
+    reporting healthy: the cache is non-empty forever after one success.
+    """
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+        "json_bytes": b'{"ok":true}', "stats": {}})
+    fa.get_cached_or_build(("stocks", 1, "Last1"), 5, lambda: "csv", "Last1")
+
+    assert fa.health(current_version=5)["warm"] is True
+    stale = fa.health(current_version=6)
+    assert stale["warm"] is False
+    assert "stale" in stale["reason"] and "v5" in stale["reason"]
+
+
+def test_cold_is_reported_but_is_not_a_failure():
+    """A pod that just booted has an empty cache BY CONSTRUCTION."""
+    h = fa.health(current_version=1)
+    assert h["warm"] is False and h["reason"] == "cold"
+    # ...and `available` still reflects the machinery, not the cache.
+    assert h["available"] is fa.available()
+
+
+@pytest.mark.parametrize("env,expected", [
+    ({"FLOW_AGGREGATE_ENABLED": "0"}, "disabled"),
+    ({"FLOW_FACTS_BUNDLE": "/nope/missing.cjs"}, "bundle_missing"),
+    ({"FLOW_NODE_BIN": "definitely-not-a-real-binary-xyz"}, "node_missing"),
+])
+def test_each_way_it_can_break_names_itself(monkeypatch, env, expected):
+    """The reason string is the whole point — 'unhealthy' with no cause sends
+    someone reading code at 7am."""
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    h = fa.health(current_version=1)
+    assert h["available"] is False
+    assert h["reason"] == expected
+
+
+def test_it_alerts_on_TRANSITION_only(monkeypatch):
+    """⛔ A check that posts every cycle while broken gets muted inside a week,
+    and a muted alert is worse than none because it reads as coverage."""
+    posts = []
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa.alert_if_unavailable(post=posts.append)          # first observation: arm only
+    assert posts == []
+
+    monkeypatch.setattr(fa, "available", lambda: False)
+    monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+    fa.alert_if_unavailable(post=posts.append)          # healthy -> broken
+    assert len(posts) == 1 and "UNAVAILABLE" in posts[0]
+
+    fa.alert_if_unavailable(post=posts.append)          # still broken
+    fa.alert_if_unavailable(post=posts.append)
+    assert len(posts) == 1, "it re-alerted while the state was unchanged"
+
+
+def test_recovery_is_announced_too(monkeypatch):
+    """Without this nobody knows whether this morning's alert still stands."""
+    posts = []
+    monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "0")
+    fa.alert_if_unavailable(post=posts.append)          # arm as broken
+    monkeypatch.setenv("FLOW_AGGREGATE_ENABLED", "1")
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa.alert_if_unavailable(post=posts.append)
+    assert len(posts) == 1 and "again" in posts[0]
+
+
+def test_a_merely_COLD_cache_never_wakes_anyone(monkeypatch):
+    """Cold is normal after every restart. Alerting on it trains people to
+    ignore the channel."""
+    posts = []
+    monkeypatch.setattr(fa, "available", lambda: True)
+    fa.alert_if_unavailable(post=posts.append)
+    fa._CACHE.clear()
+    fa.alert_if_unavailable(current_version=99, post=posts.append)
+    assert posts == []
+
+
+def test_the_health_route_is_registered_and_open():
+    """Unauthenticated on purpose: a health check nobody can reach is one
+    nobody runs. It must return no tape data — booleans and counts only."""
+    from api import flow_router as fr
+    route = next((r for r in fr.flow_router.routes
+                  if getattr(r, "path", "") == "/api/flow/aggregate-health"), None)
+    assert route is not None, "/api/flow/aggregate-health is not registered"
+    body = fa.health(current_version=1)
+    assert set(body) >= {"enabled", "available", "warm", "reason", "entries"}
+    assert "json_bytes" not in body and "D" not in body

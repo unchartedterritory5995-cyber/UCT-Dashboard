@@ -31,6 +31,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import options as opt
+from api.services.journal_two import timeutil
 # Imported as a MODULE, not `from … import _opt_contract_multiplier`: a
 # from-import binds the function object at import time and severs this module
 # from any patch/redefinition of the authority (lesson_from_import_severs_a_
@@ -503,6 +504,47 @@ _OPEN_BROKER_OPT_SQL = """
 """
 
 
+def _roll_option_marks(conn, j2_account_id: str, session: str) -> None:
+    """Carry each broker strategy's mark into `broker_current_value_prev` when
+    the SESSION turns over — run before this sync overwrites the marks.
+
+    EVIDENCE ONLY, deliberately not consumed. On 2026-08-29 our option feed said
+    the owner's SNAP Jan-2028 LEAP fell 675 -> 665 on Friday (−$10) while the
+    broker's own marks said it ROSE 655 -> 665 (+$10) — a $20 swing on one
+    wide-spread contract, and most of what still separates a closed-session
+    Today from Robinhood's figure. A single Saturday cannot decide which prior
+    mark is right, so this stores the broker's beside the one our feed reports
+    and lets a few sessions settle it.
+
+    ⛔ Do NOT wire this into Today without also moving the CURRENT side. The
+    option's current value under broker marks is still our LIVE mark (a prior
+    measured ruling — the broker itself re-marked to our 665 that evening).
+    Taking the broker's PRIOR mark while keeping our CURRENT one puts two
+    vendors on opposite ends of the subtraction: exactly the defect the equity
+    fix removed.
+
+    The current mark's session is DERIVED from `broker_mark_synced_at`, which
+    all three write sites already stamp — no second time authority. A mark with
+    no timestamp is SKIPPED, never guessed.
+    """
+    rows = conn.execute(
+        "SELECT id, broker_current_value, broker_mark_synced_at "
+        "FROM j2_option_strategies "
+        "WHERE account_id = ? AND source = 'broker' AND status = 'open' "
+        "AND broker_current_value IS NOT NULL",
+        (j2_account_id,),
+    ).fetchall()
+    for r in rows:
+        prev_session = timeutil.session_day_et(r["broker_mark_synced_at"])
+        if not prev_session or prev_session == session:
+            continue
+        conn.execute(
+            "UPDATE j2_option_strategies SET broker_current_value_prev = ?, "
+            "broker_current_value_prev_session = ? WHERE id = ?",
+            (r["broker_current_value"], prev_session, r["id"]),
+        )
+
+
 def reconcile_option_holdings(
     user_id: str, broker_account: dict, raw_option_holdings: list[dict],
     conn: sqlite3.Connection | None = None,
@@ -541,6 +583,7 @@ def reconcile_option_holdings(
 
     try:
         conn.execute("BEGIN")
+        _roll_option_marks(conn, j2_account_id, timeutil.session_day_et(_now_iso()))
         # Current held contracts → {key: contract w/ signed units}.
         held: dict[tuple, dict] = {}
         for h in (raw_option_holdings or []):
