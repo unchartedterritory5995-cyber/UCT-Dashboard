@@ -1673,7 +1673,8 @@ def _fresh_salt(query: str, salt: str) -> str:
 
 def _empty_meta() -> dict:
     return {"grounding_sources": [], "grounding_intents": [], "regime_label": None,
-            "recency": None, "had_live_price": False, "ctx_block": "", "query_tickers": []}
+            "recency": None, "had_live_price": False, "ctx_block": "",
+            "query_tickers": [], "grounding_gaps": []}
 
 
 def _uct_context(query: str) -> tuple[str, str, dict]:
@@ -1780,13 +1781,22 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
     for rx, fn_name in _INTENT_SPECS:
         if not rx.search(query or ""):
             continue
+        name = fn_name.replace("_ctx_", "")
         try:
             line = getattr(this_mod, fn_name)()
-            if line:
-                _add(fn_name.replace("_ctx_", ""), line)
-                meta["grounding_intents"].append(fn_name.replace("_ctx_", ""))
         except Exception:
-            pass
+            line = ""
+        if line:
+            _add(name, line)
+            meta["grounding_intents"].append(name)
+        else:
+            # The member ASKED for this and the desk has nothing. Silence is
+            # indistinguishable from "we never looked", so the model fills the
+            # gap — rung 4 (data-limits honesty) scores 0/5 on this lane and the
+            # breadth question fabricates every run. Declaring the absence is
+            # NOT the same as leaking a null: "score None" reads as a data
+            # VALUE, "no current data" reads as a stated gap.
+            meta["grounding_gaps"].append(name)
     # Historical session — query-resolved like COT below, because the trigger is
     # a DATE in the question, which the per-ticker machinery has no notion of.
     # Answers the most-asked shape in the capture log ("what moved X on DATE?
@@ -1809,6 +1819,12 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
                 meta["grounding_intents"].append("cot")
         except Exception:
             pass
+    if meta["grounding_gaps"]:
+        parts.append(
+            "DESK GAPS (the member asked for these and the desk has no current "
+            "data for them: " + ", ".join(meta["grounding_gaps"]) + ") — say so "
+            "plainly, do not estimate them, and never pass a web figure off as "
+            "desk data.")
     if not parts:
         return "", "", meta
     ctx = "\n".join(parts)[:_CTX_BUDGET]
