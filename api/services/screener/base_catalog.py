@@ -270,6 +270,379 @@ DARVAS_BOX = Structure(
 )
 
 
+# ── Green Line Breakout (Dr. Eric Wish) ────────────────────────────────────
+# ⚠️ ATTRIBUTION: Eric **Wish**, not "Eric Krull" — three independent sources
+# agree, and the wrong name circulates widely.
+
+_WISH = "wish_glb"        # Dr. Eric Wish, Wishing Wealth Blog, "Green line breakout (GLB) explained" (2018-05)
+
+#: Wish's own count, in CALENDAR MONTHS. ⛔ Not 63 trading days — the corpus
+#: flags that a 63-bar version fires on structures the monthly version rejects
+#: and vice versa. Pick one and label it; we picked his.
+GLB_MONTHS_UNBROKEN = 3
+
+
+def _month_key(t) -> int:
+    """`YYYYMM` from a bar timestamp.
+
+    ⚠️ Screener daily bars carry `t` as an int **YYYYMMDD** (verified:
+    `bars_sqlite.get_bars` returns 20260817), while `pattern_engine.types.Bar`
+    documents unix seconds. Both shapes reach this module, so the form is
+    detected rather than assumed — an 8-digit date and a 10-digit epoch are
+    not confusable by magnitude, and guessing wrong silently buckets every
+    bar into one month.
+    """
+    v = int(t)
+    if 10_000_000 <= v <= 99_999_999:          # YYYYMMDD
+        return v // 100
+    import time as _time                        # unix seconds
+    tm = _time.gmtime(v)
+    return tm.tm_year * 100 + tm.tm_mon
+
+
+def green_line(bars) -> Optional[dict]:
+    """The most recent qualifying green line, or None.
+
+    A green line is the highest monthly HIGH in the series that has not been
+    surpassed by any of the following `GLB_MONTHS_UNBROKEN` completed months.
+    """
+    if not bars:
+        return None
+    monthly: dict = {}
+    for b in bars:
+        hi = b.get("h") or 0
+        if hi <= 0:
+            continue
+        k = _month_key(b["t"])
+        monthly[k] = max(monthly.get(k, 0.0), hi)
+    if len(monthly) < GLB_MONTHS_UNBROKEN + 1:
+        return None
+
+    keys = sorted(monthly)
+    running_max = 0.0
+    best = None
+    # The last month is in progress; a line needs N COMPLETED months after it.
+    for i, k in enumerate(keys):
+        hi = monthly[k]
+        if hi >= running_max:
+            running_max = hi
+            after = keys[i + 1:]
+            if len(after) >= GLB_MONTHS_UNBROKEN and \
+                    all(monthly[j] <= hi for j in after[:GLB_MONTHS_UNBROKEN]):
+                best = {"price": hi, "month": k}
+    return best
+
+
+#: ⛔ OURS, AND MEASURED — the same trap the Darvas box sprang.
+#: Wish phrases the condition two ways in one sentence: "When a stock MOVES
+#: THROUGH the green line **or IS ABOVE** its last green line I become
+#: interested." Those are an EVENT and a STATE, and they are different facts.
+#: Implementing the state under a label that says "Breakout" names stocks that
+#: broke out months ago.
+#:
+#: Measured 2026-08-30 over 3,541 tickers with >=260 sessions: 496 (14.0%) sit
+#: above their green line, and the median cleared it **74 sessions ago** —
+#: max 741, nearly three years. Requiring the break to be RECENT:
+#:
+#:     within (sessions)    5     10     20     40     60    120
+#:     % of universe     1.16%  1.67%  3.33%  4.49%  6.16%  9.91%
+#:
+#: 20 sessions ships, matching the Darvas frame-age choice so the two
+#: structures mean "recent" the same way. Wish publishes no recency bound at
+#: all — his "is above" is unbounded — so this is entirely ours.
+GLB_MAX_BREAKOUT_AGE_BARS = 20
+
+
+def glb_breakout_age(bars) -> Optional[int]:
+    """Sessions since price FIRST closed above the current green line.
+
+    `None` when there is no line or price is not above it. `0` means the break
+    happened on the latest bar.
+    """
+    line = green_line(bars)
+    if not line:
+        return None
+    lp = line["price"]
+    last_close = bars[-1].get("c") or 0
+    if last_close <= 0 or last_close < lp:
+        return None
+    first_above = 0
+    for i in range(len(bars) - 1, -1, -1):
+        if (bars[i].get("c") or 0) < lp:
+            first_above = i + 1
+            break
+    return len(bars) - 1 - first_above
+
+
+def _detect_green_line_breakout(ctx) -> bool:
+    """A RECENT break above the green line — the event, not the standing state.
+
+    ⚠️ Wish never says whether the trigger is an intraday touch, a daily close
+    or a MONTHLY close — the corpus checked three secondary sources and none
+    resolves it. Daily close is OURS, recorded as such below.
+    """
+    bars = ctx.bars_full or ctx.bars
+    age = glb_breakout_age(bars)
+    return age is not None and age <= GLB_MAX_BREAKOUT_AGE_BARS
+
+
+GREEN_LINE_BREAKOUT = Structure(
+    key="green-line-breakout",
+    label="Green Line Breakout",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=20,
+    min_bars=260,
+    desc=("Price has recently cleared the highest monthly high in the "
+          "history we hold — a level that had stood unsurpassed for at least "
+          "three completed months."),
+    criteria=(
+        Criterion(
+            condition="Months the high must stand unsurpassed",
+            value=GLB_MONTHS_UNBROKEN,
+            quote="that has not been surpassed for at least 3 months",
+            source_id=_WISH, confidence="high",
+        ),
+        Criterion(
+            condition="Reference price is the monthly HIGH, not the monthly close",
+            value="monthly-high",
+            quote="the highest price reached at any month",
+            source_id=_WISH, confidence="high",
+        ),
+        Criterion(
+            condition="Sell rule — a close back below the line",
+            value="close-below-line-voids",
+            quote=("I have a strict rule to sell a stock immediately if it "
+                   "comes back below its green line."),
+            source_id=_WISH, confidence="high",
+        ),
+        Criterion(
+            condition="Breakout volume expectation",
+            value=None,
+            quote="It does help if the stock showed above average volume at the break-out.",
+            source_id=_WISH, confidence="high",
+            missing=("No multiple and no averaging window. 'It does help' is a "
+                     "preference, not a requirement, so the criterion is not "
+                     "computable as published and ships uncomputed."),
+        ),
+        Criterion(
+            condition=("Trigger resolution — intraday touch vs daily close vs "
+                       "monthly close. Ours: DAILY CLOSE. Wish says only 'moves "
+                       "through the green line' and no secondary source "
+                       "resolves it."),
+            value="daily-close",
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Break must be RECENT (sessions since price first closed "
+                       "above the line). Ours entirely — Wish's 'is above its "
+                       "last green line' is unbounded, and measured, the median "
+                       "name above its line cleared it 74 sessions ago (max "
+                       "741). A column labelled Breakout must mean the event."),
+            value=GLB_MAX_BREAKOUT_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("⛔ SCOPE: this is a since-data-start high, NOT a true "
+                       "all-time high. Wish requires an all-time high; our "
+                       "deepest daily history is bounded (AAPL starts "
+                       "2002-10-16 against a 1980 IPO). The corpus names this "
+                       "as a real and common defect in GLB screeners, so the "
+                       "label says 'the history we hold' rather than claiming "
+                       "all-time."),
+            value="since-data-start",
+            origin="uct", confidence="high",
+        ),
+    ),
+    detect=_detect_green_line_breakout,
+    coverage_pct=3.2,   # full universe (3,707); the 3.33% sweep figure used the >=260-session subset
+)
+
+
+# ── Pocket Pivot (Dr. Chris Kacher) ────────────────────────────────────────
+
+_KACHER = "morales_kacher_2010"   # Morales & Kacher, "Trade Like an O'Neil Disciple" (Wiley, 2010), p.160 + virtueofselfishinvesting.com
+
+PP_WINDOW = 10          # sourced — "over the prior 10 days"
+PP_TOP_HALF = 0.5       # sourced — "closes in the top half of its trading range"
+PP_DOWNTREND_BARS = 105  # ~5 months, ours; see the criterion below
+
+
+def _sma(closes, period):
+    if len(closes) < period:
+        return None
+    return sum(closes[-period:]) / period
+
+
+def _detect_pocket_pivot(ctx) -> bool:
+    """Institutional accumulation INSIDE a base, not at the breakout.
+
+    Only the daily-OHLCV-computable half of Kacher's rule is implemented. The
+    fundamentals gate ("excellent earnings, sales, pretax margins, ROE"), the
+    "constructive base" judgement, and the authors' discretionary permission to
+    disregard a red volume day are all explicitly NOT computable from bars, and
+    are recorded as refusals rather than approximated into a number.
+    """
+    bars = ctx.bars
+    if len(bars) < max(PP_WINDOW + 2, 200, PP_DOWNTREND_BARS + 1):
+        return False
+    t = len(bars) - 1
+    cur, prev = bars[t], bars[t - 1]
+    c, h, l, v = cur.get("c"), cur.get("h"), cur.get("l"), cur.get("v") or 0
+    if not c or not h or not l or h <= l or v <= 0:
+        return False
+
+    # up day
+    if c <= (prev.get("c") or 0):
+        return False
+
+    # close in the top half of the day's range
+    if (c - l) / (h - l) < PP_TOP_HALF:
+        return False
+
+    # volume vs the MAX down-day volume in the prior 10 sessions (exclusive)
+    down_vols = [
+        bars[i].get("v") or 0
+        for i in range(t - PP_WINDOW, t)
+        if (bars[i].get("c") or 0) < (bars[i - 1].get("c") or 0)
+    ]
+    if not down_vols:
+        # ⛔ The rule's right-hand side is max of an empty set. The authors
+        # never address it. We REFUSE rather than pass vacuously — a window
+        # with no down days would otherwise make every up-day a pocket pivot.
+        return False
+    if v <= max(down_vols):
+        return False
+
+    closes = [b.get("c") or 0 for b in bars]
+    sma10, sma50, sma200 = _sma(closes, 10), _sma(closes, 50), _sma(closes, 200)
+    if not sma10 or not sma50 or not sma200:
+        return False
+
+    # "Do not buy pocket pivots if the stock is under a critical moving
+    # average such as the 50-dma or 200-dma."
+    if c < sma50 or c < sma200:
+        return False
+
+    # The authors' own worked extension example: the whole day's LOW above the
+    # 10-dma reads as (mildly) extended.
+    if l > sma10:
+        return False
+
+    # "Do not buy pocket pivots if the overall chart formation is in a
+    # multi-month downtrend (5 months or longer)." The 5 months is theirs; the
+    # test is ours — they publish no formula.
+    if c <= closes[t - PP_DOWNTREND_BARS]:
+        return False
+
+    return True
+
+
+POCKET_PIVOT = Structure(
+    key="pocket-pivot",
+    label="Pocket Pivot",
+    axis="relation",
+    family="Accumulation",
+    bias="bullish",
+    rank=30,
+    min_bars=210,
+    desc=("An up day whose volume exceeds the largest down-day volume of the "
+          "prior ten sessions, closing in the top half of its range while "
+          "holding above the 50- and 200-day averages."),
+    criteria=(
+        Criterion(
+            condition="Volume exceeds the largest DOWN-day volume in the window",
+            value="max",
+            quote=("The day's volume should be larger than the highest down "
+                   "volume day over the prior 10 days."),
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition="Lookback window length (trading days)",
+            value=PP_WINDOW,
+            quote="over the prior 10 days",
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition=("Whether the signal day itself sits inside the 10-day "
+                       "window. Ours: EXCLUSIVE. No primary text states it; "
+                       "exclusive is the only reading consistent with 'up day "
+                       "vs prior down days', but it is an inference."),
+            value="exclusive",
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Close location in the day's range (minimum tolerance)",
+            value=PP_TOP_HALF,
+            quote=("However, if it closes in the top half of its trading range "
+                   "and is up on the day, it could still be considered valid."),
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition="Must not sit under a critical moving average",
+            value="above-50dma-and-200dma",
+            quote=("Do not buy pocket pivots if the stock is under a critical "
+                   "moving average such as the 50-dma or 200-dma."),
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition="Extension test — the day's LOW above the 10-dma reads as extended",
+            value="low>sma10 ⇒ extended",
+            quote=("We did not notify members on 2/8/12 since KORS could be "
+                   "considered mildly extended since the low of the trading day "
+                   "was above its 10dma."),
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition="Disqualifying multi-month downtrend (months)",
+            value=5,
+            quote=("Do not buy pocket pivots if the overall chart formation is "
+                   "in a multi-month downtrend (5 months or longer)."),
+            source_id=_KACHER, confidence="high",
+        ),
+        Criterion(
+            condition=("How that 5-month downtrend is tested. Ours: close above "
+                       "the close 105 sessions ago. The 5 months is theirs; "
+                       "they publish no formula, so the test is ours."),
+            value=PP_DOWNTREND_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Behaviour when the prior-10-day window contains ZERO "
+                       "down-close days. Ours: REFUSE. The rule's right-hand "
+                       "side is max of an empty set; the authors never address "
+                       "it, and passing vacuously would make every up day a "
+                       "pocket pivot."),
+            value="refuse",
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Fundamentals gate",
+            value=None,
+            quote=("The stock's fundamentals should be strong, i.e., excellent "
+                   "earnings, sales, pretax margins, ROE, strong leader in its "
+                   "space, etc."),
+            source_id=_KACHER, confidence="high",
+            missing=("The authors publish only the adjective 'excellent' — no "
+                     "numeric thresholds — and none of it is computable from "
+                     "OHLCV anyway. Ships uncomputed."),
+        ),
+        Criterion(
+            condition="'Constructive base' context and the wedging prohibition",
+            value=None,
+            quote=("As with base breakouts, proper pocket pivots should emerge "
+                   "within or out of constructive basing patterns."),
+            source_id=_KACHER, confidence="high",
+            missing=("No computable definition of 'constructive' or of "
+                     "'wedging' exists in the authors' own text."),
+        ),
+    ),
+    detect=_detect_pocket_pivot,
+    coverage_pct=1.5,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -317,7 +690,7 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [DARVAS_BOX]
+RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

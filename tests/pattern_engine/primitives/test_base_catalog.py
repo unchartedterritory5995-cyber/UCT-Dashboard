@@ -238,3 +238,145 @@ def test_darvas_box_records_its_measured_coverage():
     assert 0.5 <= box.coverage_pct <= 35.0, (
         f"{box.coverage_pct}% is outside the informative band"
     )
+
+
+# ── Green Line Breakout ────────────────────────────────────────────────────
+
+def _daily(i, price, spread=0.005):
+    """Bars keyed YYYYMMDD, the form screener bars actually carry."""
+    y, m, d = 2020 + i // 252, ((i // 21) % 12) + 1, (i % 21) + 1
+    return {"t": y * 10000 + m * 100 + d, "o": price,
+            "h": price * (1 + spread), "l": price * (1 - spread),
+            "c": price, "v": 1_000_000}
+
+
+def test_month_key_handles_both_timestamp_forms():
+    """Screener bars are int YYYYMMDD; pattern_engine.types.Bar documents unix
+    seconds. Guessing wrong buckets every bar into one month.
+    """
+    assert bc._month_key(20260817) == 202608
+    assert bc._month_key(1_600_000_000) == 202009
+
+
+def test_green_line_needs_the_high_to_stand_for_three_months():
+    """A peak with only two quiet months after it is not yet a green line."""
+    bars = [_daily(i, 100.0) for i in range(21)]          # month 1
+    bars += [_daily(i, 130.0) for i in range(21, 42)]     # month 2 — the peak
+    bars += [_daily(i, 110.0) for i in range(42, 84)]     # 2 quiet months
+    assert bc.green_line(bars) is None
+
+
+def test_green_line_latches_once_three_months_pass():
+    bars = [_daily(i, 100.0) for i in range(21)]
+    bars += [_daily(i, 130.0) for i in range(21, 42)]
+    bars += [_daily(i, 110.0) for i in range(42, 126)]    # 4 quiet months
+    line = bc.green_line(bars)
+    assert line is not None
+    assert line["price"] > 130.0 * 0.99
+
+
+def test_glb_fires_only_on_a_RECENT_break():
+    """⛔ THE SAME TRAP THE DARVAS BOX SPRANG, CAUGHT AGAIN.
+
+    Measured 2026-08-30: 496 tickers (14.0%) sit above their green line and
+    the median cleared it 74 sessions ago — max 741. A column labelled
+    "Breakout" must mean the event, not a state entered three years back.
+    """
+    from types import SimpleNamespace
+    base = [_daily(i, 100.0) for i in range(21)]
+    base += [_daily(i, 130.0) for i in range(21, 42)]
+    base += [_daily(i, 110.0) for i in range(42, 126)]
+    fresh = base + [_daily(i, 140.0) for i in range(126, 130)]
+    stale = base + [_daily(i, 140.0) for i in range(126, 126 + 80)]
+
+    glb = bc.by_key("green-line-breakout")
+    assert bc.glb_breakout_age(fresh) is not None
+    assert glb.detect(SimpleNamespace(bars=fresh, bars_full=fresh)) is True
+    assert glb.detect(SimpleNamespace(bars=stale, bars_full=stale)) is False
+
+
+def test_glb_records_that_our_high_is_not_truly_all_time():
+    """Wish requires an ALL-TIME high. Our deepest daily history is bounded
+    (AAPL starts 2002-10-16 against a 1980 IPO), and the corpus names an
+    unlabelled since-IPO high as a real, common defect in GLB screeners.
+    """
+    glb = bc.by_key("green-line-breakout")
+    scope = [c for c in glb.criteria if "scope" in c.condition.lower()]
+    assert scope and all(c.origin == "uct" for c in scope)
+    assert "history we hold" in glb.desc
+
+
+def test_glb_volume_criterion_is_a_refusal_not_a_number():
+    """"It does help if the stock showed above average volume" — no multiple,
+    no window. Not computable as published, so it ships uncomputed.
+    """
+    glb = bc.by_key("green-line-breakout")
+    vol = [c for c in glb.criteria if "volume" in c.condition.lower()]
+    assert vol and all(c.value is None and c.missing for c in vol)
+
+
+# ── Pocket Pivot ───────────────────────────────────────────────────────────
+
+def _pp_series(n=260, base=100.0):
+    """A gently rising series with alternating up/down closes so the prior
+    10-day window always contains down days.
+    """
+    out = []
+    for i in range(n):
+        p = base * (1.0 + 0.0015 * i) * (0.995 if i % 3 == 0 else 1.0)
+        out.append({"t": 20200101 + i, "o": p, "h": p * 1.01,
+                    "l": p * 0.99, "c": p, "v": 1_000_000})
+    return out
+
+
+def test_pocket_pivot_refuses_when_the_window_has_no_down_days():
+    """⛔ The rule's right-hand side is max of an empty set. The authors never
+    address it. Passing vacuously would make EVERY up day a pocket pivot.
+    """
+    from types import SimpleNamespace
+    bars = []
+    for i in range(260):
+        p = 100.0 * (1.0 + 0.002 * i)          # strictly rising: no down days
+        bars.append({"t": 20200101 + i, "o": p, "h": p * 1.01,
+                     "l": p * 0.985, "c": p, "v": 1_000_000})
+    bars[-1]["v"] = 50_000_000
+    pp = bc.by_key("pocket-pivot")
+    assert pp.detect(SimpleNamespace(bars=bars, bars_full=bars)) is False
+
+
+def test_pocket_pivot_needs_the_close_in_the_top_half_of_the_range():
+    from types import SimpleNamespace
+    bars = _pp_series()
+    last = bars[-1]
+    last["v"] = 90_000_000
+    last["c"] = last["l"] + (last["h"] - last["l"]) * 0.2   # bottom fifth
+    pp = bc.by_key("pocket-pivot")
+    assert pp.detect(SimpleNamespace(bars=bars, bars_full=bars)) is False
+
+
+def test_pocket_pivot_window_length_is_sourced_but_exclusivity_is_ours():
+    """The 10 days are Kacher's; whether day t sits inside the window is an
+    inference no primary text states, so it is labelled ours.
+    """
+    pp = bc.by_key("pocket-pivot")
+    win = [c for c in pp.criteria if "window length" in c.condition.lower()]
+    excl = [c for c in pp.criteria if "signal day itself" in c.condition.lower()]
+    assert win and win[0].origin == "source" and win[0].value == bc.PP_WINDOW
+    assert excl and excl[0].origin == "uct"
+
+
+def test_pocket_pivot_fundamentals_gate_is_a_refusal():
+    pp = bc.by_key("pocket-pivot")
+    fund = [c for c in pp.criteria if "fundamentals" in c.condition.lower()]
+    assert fund and all(c.value is None and c.missing for c in fund)
+
+
+# ── every relation carries a measured coverage ─────────────────────────────
+
+def test_every_relation_records_its_measured_coverage():
+    """A structure whose real-universe hit-rate was never measured has not
+    been authored — that is how `cup_handle_uct` shipped green at 2 of 2,890.
+    """
+    for s in bc.RELATIONS:
+        assert s.coverage_pct is not None, f"{s.key} has no measured coverage"
+        assert 0.5 <= s.coverage_pct <= 35.0, f"{s.key} at {s.coverage_pct}%"

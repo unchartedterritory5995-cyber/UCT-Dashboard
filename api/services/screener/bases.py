@@ -56,18 +56,24 @@ class BaseCtx:
     predicates that legitimately want to know where price is right now.
     """
     bars: list
+    #: The DEEP series, when the caller has one. Structures whose definition
+    #: reaches past the working window (Green Line Breakout needs every month
+    #: we hold) read this; everything else reads `bars`. Defaults to `bars` so
+    #: a caller with only one series is never handed None.
+    bars_full: list
     swings: list          # confirmed only
     provisional: Optional[dict]
     highs: list           # confirmed swing highs, oldest -> newest
     lows: list            # confirmed swing lows, oldest -> newest
 
 
-def _context(bars: list) -> BaseCtx:
+def _context(bars: list, bars_full: list) -> BaseCtx:
     swings = zigzag.segment(bars)
     confirmed = [s for s in swings if not s["provisional"]]
     prov = next((s for s in swings if s["provisional"]), None)
     return BaseCtx(
         bars=bars,
+        bars_full=bars_full or bars,
         swings=confirmed,
         provisional=prov,
         highs=[s for s in confirmed if s["type"] == "high"],
@@ -145,7 +151,7 @@ def _render(labels: List[str]) -> Optional[str]:
     return f"{out} +{extra}" if extra > 0 else out
 
 
-def classify(bars) -> dict:
+def classify(bars, bars_full=None) -> dict:
     """Name this symbol's multi-week structure.
 
     Returns the snapshot columns. On refusal every KEY is still present with a
@@ -155,7 +161,7 @@ def classify(bars) -> dict:
     if not bars or len(bars) < MIN_HISTORY:
         return dict(_NULL)
 
-    ctx = _context(bars)
+    ctx = _context(bars, bars_full)
     shape_key = _classify_shape(ctx)
     relation_keys = _collect_relations(ctx)
 
