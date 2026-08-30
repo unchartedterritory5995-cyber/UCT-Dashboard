@@ -106,11 +106,16 @@ import { memberNumber } from './memberValue.js'
  *  the exact token, because "somewhere in your script" is not a refusal a member
  *  can act on. */
 export class PineRefusal extends Error {
-  constructor(guard, message, at) {
+  constructor(guard, message, at, suggest) {
     super(message)
     this.name = 'PineRefusal'
     this.guard = guard
     this.at = at || null
+    // ⭐ THE CALL A MEMBER CAN COPY, when this refusal has one — the same fourth
+    // argument `ThinkScriptRefusal` has carried since the doc-blocked defaults
+    // shipped. It rides the refusal because the refusal is the only thing the
+    // member sees.
+    this.suggest = suggest || null
   }
 }
 
@@ -2404,6 +2409,35 @@ function foldWindow(node) {
  *  TradingView-hosted page states what `ta.sma`/`ta.wma` do with a fractional
  *  length; rounding it here would compute a different indicator under the
  *  member's own title, and no chart announces the substitution. */
+/** ⭐⭐ THE ONE CALL A MEMBER CAN COPY, when a fractional window has one.
+ *
+ *  ⛔ DERIVED FROM THE MANIFEST, NEVER TYPED. `hma` is offered only when the table
+ *  DECLARES it and the value is a half-integer — the shape `n / 2` produces for an
+ *  odd `n`, and the only shape a hand-expanded Hull half-window can take. The
+ *  manifest's own `_functions_hull` states the half-window as `floor(n / 2)`, which
+ *  is why this can name a specific replacement instead of a choice.
+ *
+ *  ⚠️ IT RETURNS null RATHER THAN GUESSING. Where the engine has no declared
+ *  convention for the shape being written, the member gets the two spellings and
+ *  their two values from `fractionalWindowAdvice` and makes the choice themselves
+ *  — which is the whole point of that sentence. An offer this door cannot stand
+ *  behind is worse than none.
+ */
+function windowSuggestion(node, arg) {
+  const v = constantValueOf(node)
+  if (v === null || Number.isInteger(v)) return null
+  if (!own(TABLE.functions || {}, 'hma')) return null
+  // a half-integer: `n / 2` for odd n, the hand-expanded Hull half-window
+  if (!Number.isInteger(v * 2)) return null
+  let src = 'close'
+  try {
+    const printed = arg && arg.value ? printFormula(arg.value) : null
+    if (printed) src = printed
+  } catch { /* the source expression is decoration here, never the claim */ }
+  void src
+  return `hma(close, ${Math.round(v * 2)})`
+}
+
 function fractionalWindowAdvice(node) {
   const v = constantValueOf(node)
   if (v === null || Number.isInteger(v)) return ''
@@ -3596,6 +3630,38 @@ class Resolver {
     // state with no warm-up a member could state — `accum` bounds its window on
     // purpose, and quietly picking a bound here would answer a different question
     // from the one the script asks.
+    // ⭐⭐ `int(x)` FOLDS ONLY WHERE THE ANSWER NEEDS NO RULING. TradingView does
+    // NOT publish, on the type-system page or the migration guide, whether casting
+    // a FRACTIONAL float truncates, rounds or floors — I looked, and the reference
+    // manual is a JS app this engine's author cannot quote from. So the fold is
+    // narrowed to an argument that already folds to a WHOLE NUMBER, where
+    // truncation, rounding and floor are the same number and no vendor claim is
+    // needed at all.
+    //
+    // ⭐ THAT IS EXACTLY THE CORPUS CASE. `07-hull-suite` writes
+    // `int(length * lengthMult)` with `length = input(55)` and `lengthMult =
+    // input(1.0)`, which folds to `int(55)`. It was dying on `pine:function` — a
+    // dead end naming the whole declared vocabulary — two walls before the
+    // `pine:window` sentence that actually helps it, which names `hma` as the thing
+    // that spares the expansion entirely.
+    //
+    // ⛔ A FRACTIONAL ARGUMENT STILL REFUSES, AND SAYS WHY. Guessing a rounding
+    // here is the same defect as the `bool` ruling above pointing the other way:
+    // one of them invented a meaning, and this one would too.
+    if (name === 'int' && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(name)) {
+      const inner = this.resolve(node.args[0].value)
+      const folded = foldWindow(inner)
+      if (folded && folded.type === 'num' && Number.isInteger(folded.value)) return folded
+      throw new PineRefusal('pine:function',
+        `${REFUSALS['pine:function']} — \`int\` is only taken here when its argument `
+        + 'already reduces to a whole number, and this one does not. TradingView does '
+        + 'not publish whether casting a fractional float truncates, rounds or floors, '
+        + 'and picking one would compute a different indicator under your own title. '
+        + 'TO UNBLOCK: write the rounding you mean — `idiv(x, 1)` rounds toward zero '
+        + 'and `round(x)` rounds to nearest, and both are declared.',
+        locate(node.tok))
+    }
     // ⭐ ONE UNNAMED ARGUMENT, AND IT YIELDS TO A USER DEFINITION — the same two
     // conditions `na`/`nz` carry above, for the same reason: a member writing
     // `bool(a, b) => …` must get their own function. `pine.bindingOrder.test.js`
@@ -4338,10 +4404,17 @@ class Resolver {
         // names the length; refusing there would name the badge.
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
+          // ⭐⭐ THE ADVICE RIDES AS `suggest`, NOT ONLY AS PROSE IN THE MESSAGE.
+          // `PineBox` renders `refusal.suggest` as a code block a member can copy;
+          // a sentence buried in a paragraph is not the same offer. This is also
+          // what lets `doorScorecard`'s OFFERED roster be a CHECKED claim rather
+          // than an honour-system label — that table now asserts every script it
+          // names actually hands something back.
           throw new PineRefusal('pine:window',
             `${REFUSALS['pine:window']} — argument ${i + 1} of \`${pineName}\``
             + fractionalWindowAdvice(resolved),
-            locate(src))
+            locate(src),
+            windowSuggestion(resolved, args[slot.pine]))
         }
       }
       out.push(resolved)
@@ -6208,7 +6281,7 @@ function verifyRoundTrip(formula, ast) {
 // refusal values
 // --------------------------------------------------------------------------- //
 
-function refusalValue(guard, message, at) {
+function refusalValue(guard, message, at, suggest) {
   return {
     guard,
     message,
@@ -6217,17 +6290,22 @@ function refusalValue(guard, message, at) {
     index: at ? at.index : null,
     token: at ? at.token : null,
     excerpt: null,
-    // A CONVENTIONAL COMPLETION this door could offer, when it has one.
-    // Pine publishes its defaults, so this lane never sets it -- but the KEY
+    // ⭐ A CONVENTIONAL COMPLETION this door could offer, when it has one. The KEY
     // is here because the refusal SHAPE is a contract every door shares and
-    // `ImportBox` reads it by name. A key present in one door and absent in
+    // `ImportBox` reads it by name; a key present in one door and absent in
     // another is the divergence that contract exists to prevent.
-    suggest: null,
+    // ⚰️ THIS SAID "Pine publishes its defaults, so this lane never sets it", which
+    // was true until `pine:window` learned to hand back the `hma` call that spares
+    // a hand-expanded Hull its fractional half-window. The reason was never that
+    // Pine is fully documented — it is that this door had nothing to offer YET.
+    suggest: suggest || null,
   }
 }
 
 function fromError(err) {
-  if (err instanceof PineRefusal) return refusalValue(err.guard, err.message, err.at)
+  if (err instanceof PineRefusal) {
+    return refusalValue(err.guard, err.message, err.at, err.suggest)
+  }
   return refusalValue('pine:statement',
     `${REFUSALS['pine:statement']} (${err && err.message ? err.message : err})`, null)
 }

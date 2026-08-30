@@ -109,6 +109,16 @@ const OFFERED = {
   '09-above-average-price-volume.ts': 'SimpleMovingAvg defaults are unpublished',
   '16-scan-rsi-crosses-30-70.ts': 'RSI length and price are unpublished',
   '19-consecutive-bars-above-ema-count.ts': 'MovAvgExponential defaults are unpublished',
+  // ⭐⭐ EARNED IT ON 2026-08-30 RATHER THAN BEING FILED HERE. This was one of the
+  // four candidates REFUSED from this table the same week, because it emitted no
+  // advice at all — it died two walls earlier, on `pine:function` naming the whole
+  // vocabulary. Two changes made the claim true instead of plausible: `int(x)` now
+  // folds where its argument is already whole, and `pine:window` now carries its
+  // advice as a copyable `suggest`. The rail below checks that; the label is not
+  // takeable by description.
+  '07-hull-suite.pine': 'a hand-expanded Hull hands `wma` a half-window of 27.5 and '
+    + 'TradingView publishes no rounding for it — the door hands back `hma`, which '
+    + 'this table already declares and which spares the expansion entirely',
   // ⛔⛔ FOUR CANDIDATES WERE REJECTED FROM THIS TABLE ON 2026-08-30, and the
   // reason is the definition at the top of this file: OFFERED means *"the door
   // hands back the exact text that works, so it is one member edit away"*.
@@ -244,12 +254,12 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   // Lower it when a gap closes; never raise it. ⚠️ And it can only be lowered by
   // making a script TRANSLATE — moving one into `RULED` is caught by the bucketing
   // assertion above needing a written reason, and by review of that reason.
-  it('no more than 13 scripts are OPEN', () => {
+  it('no more than 12 scripts are OPEN', () => {
     // ⭐ 20 → 18 on 2026-08-30: `27-support-resistance-channels` translates (the
     // `bool(x)` cast is published after all), and `18-fold-up-down-points-ratio`
     // before it. A ratchet that is not tightened when a gap closes lets the gain
     // regress in silence, which is the one thing a ratchet exists to stop.
-    expect(open.length).toBeLessThanOrEqual(13)
+    expect(open.length).toBeLessThanOrEqual(12)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {
