@@ -192,7 +192,10 @@ test('the cockpit row is DERIVED from the zone heights, never a typed sum', () =
     expect(expr, `--zone-stack does not read ${name}`).toContain(name)
   }
   // A hand-summed 860px would not track a change to any zone.
-  expect(expr, 'a literal pixel sum crept into --zone-stack').not.toMatch(/\d{3,}px/)
+  // ⚠️ A word boundary typed through a heredoc became a literal BACKSPACE
+  // byte here (0x08) and src/__tests__/sourcesAreText.test.js caught it: the
+  // file read as BINARY to git and ripgrep. This pattern needs no boundary.
+  expect(expr, 'a literal pixel sum crept into --zone-stack').not.toMatch(/\d{3,}px/)
 })
 
 test('I1: the cockpit declares an EXPLICIT row, so the rail has a height to resolve against', () => {
