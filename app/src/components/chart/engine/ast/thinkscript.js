@@ -1042,6 +1042,101 @@ function parseValue(c, minBp) {
   return parseBinary(c, minBp, { e: 'if', cond, then: a, otherwise, tok })
 }
 
+/** ⭐⭐ A `fold` THAT IS A ROLLING SUM, RECOGNISED — the one fold shape the corpus
+ *  actually contains, and it needs no grammar at all.
+ *
+ *  ⛔⛔ THE MEASUREMENT THAT PUT THIS HERE RATHER THAN A COLLECTION NODE TYPE. Four
+ *  independent designs and three adversaries examined adding collections to the
+ *  closed grammar. `pine:collection` is the FIRST wall for exactly ONE script in 75
+ *  and appears nowhere else, and that script has FOUR more walls behind the array
+ *  (`pine:tuple`, `pine:builtin`, `pine:state`, and `pine:request` for a `'D'` rung
+ *  `TF_RESAMPLABLE` cannot serve). Measured corpus delta of the permanent grammar
+ *  change: ZERO scripts. What the corpus rewards is this recogniser instead.
+ *
+ *  ⭐ `fold i = 0 to 8 with p do p + GetValue(<expr>, i)` IS `sum(<expr>, 8)`.
+ *  thinkorswim's fold runs while `index < end`, so `0 to 8` is eight terms — the
+ *  bound is EXCLUSIVE, and reading it as inclusive would compute a nine-bar sum
+ *  under the member's own title with nothing announcing the substitution.
+ *
+ *  ⛔ IT RECOGNISES ONE SHAPE AND REFUSES EVERYTHING ELSE. The accumulator must be
+ *  `acc + <term>`, the term must be `GetValue(<expr>, <the loop's own index>)`, both
+ *  bounds must be whole-number literals, and the seed must be absent or 0. A fold
+ *  that multiplies, that reads a different index, or that seeds non-zero is NOT a
+ *  rolling sum and keeps the refusal it has today. Recognising a shape loosely is
+ *  how a translator answers a plausible different number.
+ *
+ *  ⚠️ PARSED IN FULL BEFORE IT IS JUDGED, deliberately: a fold this cannot take is
+ *  thrown on, so consumed tokens never need restoring. */
+function foldAsRollingSum(c, foldTok) {
+  const wordIs = (t, w) => !!(t && t.kind === 'ident' && key(t.value) === w)
+  const literalInt = (node) => (node && node.e === 'num' && Number.isInteger(node.value)
+    ? node.value : null)
+
+  const idx = peek(c)
+  if (!idx || idx.kind !== 'ident') return null
+  take(c)
+  if (!isPunctTok(peek(c), '=')) return null
+  take(c)
+  const from = literalInt(parseExpression(c))
+  if (from === null) return null
+  if (!wordIs(peek(c), 'to')) return null
+  take(c)
+  const to = literalInt(parseExpression(c))
+  if (to === null) return null
+  if (!wordIs(peek(c), 'with')) return null
+  take(c)
+  const acc = peek(c)
+  if (!acc || acc.kind !== 'ident') return null
+  take(c)
+  // ⛔ AN EXPLICIT SEED MUST BE ZERO. `with p = 5` is a sum plus five, which is a
+  // different number, and the shape below cannot carry it.
+  if (isPunctTok(peek(c), '=')) {
+    take(c)
+    if (literalInt(parseExpression(c)) !== 0) return null
+  }
+  if (!wordIs(peek(c), 'do')) return null
+  take(c)
+  const body = parseExpression(c)
+
+  // body must be exactly `<acc> + <term>`
+  if (!body || body.e !== 'binary' || body.op !== '+') return null
+  const { left, right } = body
+  if (!left || left.e !== 'name' || key(left.name) !== key(acc.value)) return null
+  // term must be `GetValue(<expr>, <idx>)`
+  if (!right || right.e !== 'call' || key(right.name) !== 'getvalue') return null
+  // ⚠⚠ EVERY ARGUMENT IS A `{name, nameTok, value}` WRAPPER, not the node. Reading
+  // the wrapper as if it WERE the node is the exact mistake `pine.js::securityAsNode`
+  // records against itself — "how the first draft returned null for every shape,
+  // including the ones it exists to take" — and it made this recogniser match
+  // NOTHING while looking perfectly reasonable.
+  const args = right.args || []
+  if (args.length !== 2) return null
+  // ⛔ POSITIONAL ONLY. `GetValue(source = x, index = i)` is a shape this has not
+  // measured, and guessing at a named form is how a translator answers a different
+  // number.
+  if (args.some((a) => !a || a.name)) return null
+  const which = args[1].value
+  if (!which || which.e !== 'name' || key(which.name) !== key(idx.value)) return null
+
+  const count = to - from
+  if (!(count >= 1)) return null
+  // ⭐ `sum(source, n)` — the rolling reduction this table has declared since v1.
+  return {
+    e: 'call',
+    name: 'sum',
+    base: null,
+    // ⚠⚠ AND THE WRAPPER GOES BACK ON, ON THE WAY OUT. `parseArguments` produces
+    // `{name, nameTok, value}` and every consumer reads that shape, so emitting raw
+    // nodes here refused `thinkscript:named-argument` — the same wrapper mistake as
+    // above, in the other direction, two lines apart.
+    args: [
+      { name: null, nameTok: null, value: args[0].value },
+      { name: null, nameTok: null, value: { e: 'num', value: count, tok: foldTok } },
+    ],
+    tok: foldTok,
+  }
+}
+
 function parseExpression(c) {
   return parseValue(c, LOOSEST_BP)
 }
@@ -1138,7 +1233,14 @@ function parseAtom(c) {
     // false reason at a true position, which is the worse half of a wrong
     // refusal. This engine stores ONE expression rather than a program, so the
     // construct has nowhere to go and says exactly that.
-    if (k === 'fold') throw refuse('thinkscript:fold', t)
+    if (k === 'fold') {
+      // ⭐ THE ONE SHAPE THAT IS A ROLLING SUM TRANSLATES; every other fold keeps
+      // the refusal it has, with the same sentence and the same token.
+      take(c)
+      const asSum = foldAsRollingSum(c, t)
+      if (asSum) return asSum
+      throw refuse('thinkscript:fold', t)
+    }
     // ⛔ `reference <Study>` NAMES ANOTHER STUDY, and thinkorswim publishes no
     // formula for one. Refusing at the word is the whole reason `:study-ref`
     // exists; before this it reported a syntax error at the study's NAME, which

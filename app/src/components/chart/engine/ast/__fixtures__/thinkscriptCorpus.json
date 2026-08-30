@@ -465,26 +465,25 @@
     "downstream": null
   },
   "18-fold-up-down-points-ratio.ts": {
-    "translates": false,
+    "translates": true,
     "outputs": 1,
-    "usable": 0,
-    "selectedFormula": null,
+    "usable": 1,
+    "selectedFormula": "sum(close > close[1] ? close - close[1] : 0, 8) / abs(sum(close < close[1] ? close - close[1] : 0, 8))",
     "ignoredLines": [
       7,
       17,
       18
     ],
     "folded": [],
-    "perOutputRefusals": {
-      "thinkscript:undefined": 1
-    },
-    "refusal": {
-      "guard": "thinkscript:fold",
-      "line": 9,
-      "column": 18,
-      "token": "fold"
-    },
-    "downstream": null
+    "perOutputRefusals": {},
+    "refusal": null,
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting",
+      "lookback": 9,
+      "saveable": true
+    }
   },
   "19-consecutive-bars-above-ema-count.ts": {
     "translates": false,
@@ -671,9 +670,9 @@
     },
     "downstream": null
   },
-  "_translating": 9,
-  "_columns": 33,
-  "_saveable": 9,
+  "_translating": 10,
+  "_columns": 34,
+  "_saveable": 10,
   "_blocked": [],
   "_atLineOne": [
     "16-scan-rsi-crosses-30-70.ts"
@@ -683,7 +682,6 @@
     "thinkscript:aggregation",
     "thinkscript:arity",
     "thinkscript:block",
-    "thinkscript:fold",
     "thinkscript:state",
     "thinkscript:strategy",
     "thinkscript:study-ref",
