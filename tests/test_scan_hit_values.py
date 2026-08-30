@@ -122,3 +122,36 @@ def test_an_OLD_table_without_the_column_is_WIDENED_by_init(tmp_path, monkeypatc
         (ticker, value) = conn.execute(
             "SELECT ticker, value FROM scan_hits").fetchone()
     assert (ticker, value) == ("OLD", None)
+
+
+def test_hit_values_returns_the_map_and_omits_unrecorded(store):
+    """⛔ ABSENT, NOT 0.0 — the caller must be able to tell "answered 0" from "not
+    recorded", and only an absence can say the second."""
+    scan_store.record_hits("j" * 12, "D", 20260829, ["AAPL", "MSFT"],
+                           values={"AAPL": 8.25})
+    vals = scan_store.hit_values("j" * 12, "D", 20260829)
+    assert vals == {"AAPL": 8.25}
+    assert "MSFT" not in vals
+
+
+def test_a_recorded_ZERO_survives_as_a_real_answer(store):
+    """⚰️ THE CASE A TRUTHY TEST WOULD DROP. 0.0 is a legitimate answer for a
+    definition and must reach the member; only NULL means "not recorded"."""
+    scan_store.record_hits("k" * 12, "D", 20260829, ["AAPL"], values={"AAPL": 0.0})
+    assert scan_store.hit_values("k" * 12, "D", 20260829) == {"AAPL": 0.0}
+
+
+def test_hits_for_carries_the_NIGHTLY_value_when_there_is_no_live_row(store):
+    """⭐ THE COMPLETION OF THE PATH. The sweep stored the value; `_row` sourced it
+    from the LIVE row alone, so a nightly-only symbol reported None and the screen
+    still could not be sorted — stored and never read."""
+    scan_store.record_hits("m" * 12, "D", 20260829, ["AAPL", "MSFT"],
+                           values={"AAPL": 71.5})
+    out = scan_store.hits_for("m" * 12, "D", 20260829)
+    by = {r["symbol"]: r for r in out["rows"]}
+    assert by["AAPL"]["value"] == 71.5
+    assert by["AAPL"]["tier"] == "nightly"
+    # ⛔ and the one with no recorded value stays None rather than 0.0
+    assert by["MSFT"]["value"] is None
+    # ⛔ membership is unchanged either way
+    assert sorted(by) == ["AAPL", "MSFT"]
