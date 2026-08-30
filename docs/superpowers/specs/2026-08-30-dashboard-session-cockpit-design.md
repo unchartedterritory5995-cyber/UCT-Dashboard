@@ -60,6 +60,45 @@ test, `renders dashboard page without crashing`. There is no composition
 rail and no height rail. This is the mechanism by which 2,714 px of empty
 box shipped and stayed.
 
+**Route analytics are fully built and silently disabled by an impossible guard.**
+
+Every layer exists and is correct:
+
+```
+Layout.jsx::usePageTracking()  →  POST /api/auth/track
+  →  auth.py:772 track_page_view()  →  auth_service.py:854 log_page_view()
+  →  INSERT INTO page_views   (60s per-user-per-page dedup, 3 indexes)
+```
+
+It is read by four queries — `get_page_analytics()`, two engagement
+summaries, and active-users — and rendered in the Admin user drawer as
+`total_page_views`.
+
+**It has never recorded a row.** `GET /api/auth/admin/analytics` returns
+`[]` for both 30- and 90-day windows on production.
+
+The cause is one line in `Layout.jsx`:
+
+```js
+// Only track if user has a session cookie (logged in)
+if (!document.cookie.includes('uct_session')) return
+```
+
+`uct_session` is set with `httponly=True` (`api/routers/auth.py:1657`), so
+it is invisible to `document.cookie` **by construction**. Measured on the
+live logged-in dashboard, `document.cookie` is the empty string. The guard
+can never pass; the POST is never sent.
+
+This is the repo's `a guard that tests the adjacent thing` shape. Written as
+two sentences: the *condition* is "the session cookie is readable from
+JavaScript"; the *invariant* is "the user is logged in". They differ, and
+the difference is the bug.
+
+The fix is to delete the guard — `/api/auth/track` already requires auth via
+`Depends(get_current_user)`, so an anonymous call simply 401s and costs
+nothing. Phase 0 is therefore a **one-line change plus a rail**, and it
+unlocks the usage evidence the whole redesign wants.
+
 ### The four defects
 
 1. **Sector Rotation void — 2,714 px, 47% of the page.**
@@ -199,8 +238,11 @@ tile-sized fetches.
 
 Returns to what `2026-02-22-dashboard-redesign.md` originally specified: a
 dedicated narrow right rail, Dashboard only, capped height, scrolling
-internally. Absorbs `TapeFeed` as its "On the tape" section — which is
-already how `MoversSidebar` renders it on mobile.
+internally. It gains an "On the tape" section that absorbs `TapeFeed`.
+
+Note this is **new work, not a move**. `MoversSidebar.jsx` today renders
+exactly two sections, `RIPPING` and `DRILLING`; CLAUDE.md's claim of an
+existing "full-width ON THE TAPE section" in that file is stale.
 
 ---
 
@@ -313,7 +355,7 @@ Each phase ships independently and is separately revertible.
 
 | # | Phase | Scope | Est. |
 |---|---|---|---|
-| 0 | **Instrument** | In-app route analytics. Runs in parallel; blocks nothing. | ~0.5 d |
+| 0 | **Instrument** | Wire the existing, unreachable `log_page_view()` to a route-change caller. Runs in parallel; blocks nothing. | ~1 h |
 | 1 | **Repair** | The 4 defects + height-budget rail. Nothing moves. | ~1 d |
 | 2 | **Rehome** | The 3 orphans. Prerequisite for Phase 3. | ~1 d |
 | 3 | **Restructure** | Zones A–D, session states, signpost endpoint. | ~3 d |
