@@ -4,7 +4,8 @@ import { render } from '@testing-library/react'
 const mockData = { current: null }
 vi.mock('swr', () => ({ default: () => ({ data: mockData.current, isLoading: false, error: null }) }))
 
-const { default: AnalogueDeckView, medianOf } = await import('./AnalogueDeckView')
+const { default: AnalogueDeckView } = await import('./AnalogueDeckView')
+const { medianOf } = await import('./breadthViewShared')
 
 describe('AnalogueDeckView', () => {
   it('ranks matches and shows what happened next', () => {

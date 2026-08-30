@@ -8,10 +8,9 @@ vi.mock('echarts-for-react', () => ({
 
 import TreemapView from './TreemapView'
 
-const metrics = [
-  { key: 'breadth_score', label: 'Health', getTier: () => 'g2', getFmt: () => '75' },
-  { key: 'up_4pct_today', label: 'Up 4%+', getTier: () => 'g3', getFmt: () => '383', drillKey: 'up_4pct_today_list' },
-]
+// ⛔ NO `metrics` FIXTURE. This view is a BOARD: it reads `visibleKeys` and
+// resolves each tile off the registry itself, so a hand-built metric list here
+// was an unused prop-shaped decoy that read as though it were the input.
 
 describe('TreemapView', () => {
   it('renders an ECharts treemap for the visible metrics', () => {

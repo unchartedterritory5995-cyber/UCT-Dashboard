@@ -152,6 +152,38 @@ describe('HeatRibbonView', () => {
     })
   })
 
+  /**
+   * 🔴 THE PLAYHEAD RAN ~90px PAST THE LAST BAND, INTO EMPTY BLACK.
+   *
+   * The line is `top: 0; bottom: 0` of the strip box, and bands stop growing at
+   * `RIBBON_MAX_H` while that box kept every leftover pixel — so on a tall panel
+   * with few metrics the strip's ceiling and the bands' ceiling were different
+   * numbers, and the line marked "which session" over rows that do not exist.
+   *
+   * ⛔ DERIVED, NOT TYPED. The ceiling asserted here is recomputed from the same
+   * two facts the bands lay out with — the count on screen and the band's own
+   * declared maximum — so tuning either moves this with it. A literal here would
+   * be the second authority that put the foot off the last row in the first
+   * place. (Longhands, not the `flex` shorthand: jsdom drops the shorthand.)
+   */
+  it('caps the strip at what its bands can occupy, so the playhead ends on the last one', () => {
+    const many = ['a', 'b', 'c'].map(k => mk(k, r => (r.a >= 50 ? 'g3' : 'r3')))
+    const { container } = render(<HeatRibbonView rows={rows} rowIdx={0} currentRow={rows[0]}
+      metrics={many} onDrill={() => {}} options={{}} />)
+    const playhead = container.querySelector('[data-testid="ribbon-playhead"]')
+    const strip = playhead.parentElement
+    const band = container.querySelector('[data-testid="ribbon-cell-a-0"]')
+      .parentElement.parentElement
+
+    const bandMax = Number.parseFloat(band.style.maxHeight)
+    const gap = Number.parseFloat(getComputedStyle(strip).gap) || 0
+    expect(bandMax, 'the band declares no ceiling, so the strip cannot derive one')
+      .toBeGreaterThan(0)
+    expect(Number.parseFloat(strip.style.maxHeight),
+      'the strip may grow past every band at its ceiling — the playhead overhangs by the difference')
+      .toBe(many.length * bandMax + (many.length - 1) * gap)
+  })
+
   // 🔴 EVERY METRIC UNCHECKED USED TO RENDER `null`: a blank panel with nothing
   // to read, which looks exactly like a broken view.
   it('explains an empty board instead of going blank', () => {

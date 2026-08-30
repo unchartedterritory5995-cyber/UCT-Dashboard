@@ -16,12 +16,11 @@ import { optionLabel } from './viewMetricConfig'
 // names the same series and must name it the same way.
 const levelLabel = (value) => optionLabel('clock', 'level', value)
 
-// ⭐ `quadrantOf` MOVED TO `breadthViewShared.js` and is re-exported here, so
-// every existing importer (and this lens's own test) is unchanged while there
-// stays exactly ONE implementation. The Read names the regime too, and a second
-// copy of the `>= 50` / `>= 0` boundaries is how the strip and the plot beneath
-// it would come to disagree about which quadrant today is in.
-export { quadrantOf }
+// ⭐ `quadrantOf` LIVES IN `breadthViewShared.js` — exactly ONE implementation.
+// The Read names the regime too, and a second copy of the `>= 50` / `>= 0`
+// boundaries is how the strip and the plot beneath it would come to disagree
+// about which quadrant today is in.
+// ⛔ It is NOT re-exported from here (see the note in `AnalogueDeckView.jsx`).
 
 const QUADRANT_NOTE = {
   Expansion:    'Broad and still broadening',

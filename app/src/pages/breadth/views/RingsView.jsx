@@ -3,7 +3,7 @@
  * orbit as smaller rings. Fill arc = normalize(metric,row); color = metricColor.
  * The Signal of the Day gets a gold ★; the notable divergence pulses.
  */
-import { metricColor, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricColor, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -21,10 +21,8 @@ function Ring({ metric, row, norm, size, onDrill, isSignal, isNotable, colors })
          style={{ textAlign: 'center', borderRadius: 12, padding: 4,
                   boxShadow: isSignal ? '0 0 0 1px #c9a84c, 0 0 14px rgba(201,168,76,.35)' : 'none' }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-           role={clickable ? 'button' : undefined}
-           aria-label={clickable ? `${metric.label} details` : undefined}
-           style={{ cursor: clickable ? 'pointer' : 'default' }}
-           onClick={clickable ? () => onDrill(metric) : undefined}>
+           {...drillProps(metric, onDrill)}
+           style={{ cursor: clickable ? 'pointer' : 'default' }}>
         <circle cx={cx} cy={cx} r={r} fill="none" stroke="#1e293b" strokeWidth={stroke} />
         <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeWidth={stroke}
                 strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import PercentileLadderView, { markerX } from './PercentileLadderView'
+import PercentileLadderView from './PercentileLadderView'
+import { markerX } from './percentileLadder'
 import MetersView from './MetersView'
 import { ALL_METRICS_HIDDEN, PALETTES } from './breadthViewShared'
 

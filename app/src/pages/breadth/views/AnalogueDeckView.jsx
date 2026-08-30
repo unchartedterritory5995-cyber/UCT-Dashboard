@@ -24,11 +24,12 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { optionLabel } from './viewMetricConfig'
 const horizonLabel = (h) => optionLabel('analogues', 'horizon', h)
 
-// ⭐ `medianOf` MOVED TO `breadthViewShared.js` and is re-exported here — one
-// implementation, every existing importer unchanged. The Read quotes the same
-// median this deck prints, and the even-length bug the helper's comment records
-// is exactly the kind that would be reintroduced by a second copy.
-export { medianOf }
+// ⭐ `medianOf` LIVES IN `breadthViewShared.js` — one implementation. The Read
+// quotes the same median this deck prints, and the even-length bug the helper's
+// comment records is exactly the kind a second copy would reintroduce.
+// ⛔ It is NOT re-exported from here: a component module that also exports a
+// value stops hot-reloading as a component, and importers reach the one author
+// directly.
 
 /**
  * ⛔ THIS LENS DELIBERATELY IGNORES `rowIdx` / `currentRow`, ALONE AMONG ITS
