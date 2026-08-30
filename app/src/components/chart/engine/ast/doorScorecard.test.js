@@ -237,6 +237,48 @@ describe('the measurement is real before any number is read off it', () => {
     expect(offers.length).toBe(Object.keys(OFFERED).length)
   })
 
+  it('⭐⭐ every OPEN refusal is ACTIONABLE — 100% of what is reachable', () => {
+    // ⛔⛔ "100% TRANSLATED" IS NOT REACHABLE AND SAYING SO IS THE POINT. Of the
+    // scripts still OPEN, four need intraday bars in the scan lane, three need an
+    // unbounded accumulator that would end static decidability, and one needs a
+    // symbol on a venue this product carries no bars for. Driving that number to
+    // zero would mean either lying about a ruling or breaking the engine.
+    //
+    // ⭐ WHAT *IS* REACHABLE, AND IS NOW TRUE: every OPEN refusal either names what
+    // would change the answer, or hands back a `suggest` the member can act on.
+    // OPEN means "a real gap"; it does not have to mean "a dead end". Measured
+    // when this was written: 7 of the 10 said nothing actionable at all.
+    //
+    // ⚠️ ONE IS DELIBERATELY EXEMPT AND IT IS NAMED, not silently skipped.
+    // `pine.test.js` asserts the `time` clock-mismatch refusal must NOT say
+    // TO UNBLOCK — "the refusal must say what DIFFERS, not that work is pending" —
+    // because the millisecond-versus-second gap is permanent. A refusal that
+    // states an unfixable difference IS actionable: it tells a member to stop.
+    const ACTIONABLE = /TO UNBLOCK|would change this answer|write if IsNaN|arrives with|not yet fold|no session to be inside|MILLISECONDS|NOT THE SAME REQUEST|is NOT what stops it/i
+    const silent = []
+    for (const [d, dir, ext, translate] of [
+      ['Pine', 'tests/fixtures/pine', '.pine', translatePine],
+      ['Pine (community)', 'tests/fixtures/pine_community', '.pine', translatePine],
+      ['thinkScript', 'tests/fixtures/thinkscript', '.ts', translateThinkScript],
+    ]) {
+      void d
+      for (const f of fs.readdirSync(rel(dir)).filter((x) => x.endsWith(ext))) {
+        if (RULED[f] || OFFERED[f]) continue
+        const out = translate(fs.readFileSync(path.join(rel(dir), f), 'utf8'))
+        if (out.ok) continue
+        const r = out.refusal || {}
+        const msg = String(r.message || '')
+        if (ACTIONABLE.test(msg) || (r.suggest && String(r.suggest).trim())) continue
+        silent.push(`${f} [${r.guard}] ${msg.slice(0, 120)}`)
+      }
+    }
+    expect(silent, ['OPEN refusals that name no way forward:', ...silent].join('\n'))
+      .toEqual([])
+    // ⛔ NON-VACUITY: there ARE still OPEN scripts. If this ever reads zero the
+    // sweep has stopped finding them and the assertion above means nothing.
+    expect(open.length).toBeGreaterThan(0)
+  })
+
   it('⛔ every rostered name is a real corpus file', () => {
     const known = new Set(ALL.map((r) => r.file))
     const ghosts = [...Object.keys(RULED), ...Object.keys(OFFERED)].filter((f) => !known.has(f))

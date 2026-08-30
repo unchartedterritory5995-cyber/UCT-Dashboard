@@ -134,8 +134,17 @@ export const REFUSALS = Object.freeze({
     'a negative bar index reads a bar that has not happened, and a closed-bar engine cannot',
   'thinkscript:state':
     'this value carries forward from bar to bar in a way the bounded accumulator cannot hold',
+  // ⭐ AND THE SENTENCE NAMES THE FORM THAT DOES WORK. `def x = if a then b else c;`
+  // — thinkorswim's inline conditional EXPRESSION — translates today; what has
+  // nowhere to go is the multi-statement block that assigns one name across
+  // several lines. Without that half a member reads "blocks are unsupported" and
+  // stops, when the rewrite is one they already know how to write.
   'thinkscript:block':
-    'this thinkorswim block spans several statements and this engine stores a single expression',
+    'this thinkorswim block spans several statements and this engine stores a '
+    + 'single expression per column. TO UNBLOCK: the inline conditional '
+    + '`if <condition> then <a> else <b>` is an EXPRESSION and translates today — '
+    + 'it is the statement-block form, which assigns one name across several '
+    + 'lines, that has nowhere to go',
   // ⚰️⚰️ THESE TWO SENTENCES USED TO DENY CAPABILITIES THIS ENGINE SHIPS.
   // They read "a second aggregation period reads bars of another size than the
   // ones being screened" and "another ticker inside one column is outside what a
