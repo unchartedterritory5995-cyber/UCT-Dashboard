@@ -25,12 +25,14 @@ import { Link } from 'react-router-dom'
 import useSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
+import { useMarkPreferenceContext } from '../../hooks/useBrokerMarkPreference'
 import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPerformance'
 import {
   portfolioAggregates,
   positionPnlDollar,
   brokerLiveSummary,
   effectiveBrokerCash,
+  preferBrokerMarks,
   money,
   moneySigned,
   percent,
@@ -158,9 +160,20 @@ export default function JournalSnapshotTile() {
       .filter((c) => Number.isFinite(c))
     return withCash.length ? withCash.reduce((s, c) => s + c, 0) : null
   }, [brokerAccounts])
+  // ALL-or-nothing across accounts: this tile sums every broker account into
+  // one figure, and accounts sync on their own schedules. Mixing one broker's
+  // marks with another's live prices inside a single total is a number from
+  // neither vintage, so the preference must hold for every account or none.
+  const { sessionClosed, lastClosedSessionET } = useMarkPreferenceContext()
+  const preferBroker = useMemo(
+    () => brokerAccounts.length > 0
+      && brokerAccounts.every((a) => preferBrokerMarks(a, sessionClosed, lastClosedSessionET)),
+    [brokerAccounts, sessionClosed, lastClosedSessionET],
+  )
   const brokerLive = useMemo(
-    () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices, etToday, optionMarks),
-    [brokerCashTotal, positions, strategies, prices, etToday, optionMarks],
+    () => brokerLiveSummary({ brokerCash: brokerCashTotal }, positions, strategies, prices,
+                            etToday, optionMarks, preferBroker),
+    [brokerCashTotal, positions, strategies, prices, etToday, optionMarks, preferBroker],
   )
   const manualToday = useMemo(() => {
     let s = 0

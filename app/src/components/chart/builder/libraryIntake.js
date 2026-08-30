@@ -35,6 +35,7 @@ import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { parseFormula } from '../engine/ast/parse'
 import { treeYieldsBool } from '../engine/ast/pine'
 import { conditionFrom } from './toCondition'
+import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
 
 /** Pine's own file header. The only marker any of these languages guarantees. */
 const VERSION_MARKER = /^\s*\/\/\s*@version\s*=/m
@@ -94,6 +95,21 @@ export function inspectScript(source, name = null) {
     refusal: null,
     formula: null,
     partial: [],
+    foreign: null,
+  }
+  // ⛔⛔ NAME WHAT THIS ACTUALLY IS BEFORE BLAMING A LANGUAGE THE MEMBER DID NOT
+  // USE. Measured: MQL5, EasyLanguage and NinjaScript all detect as `pcf` (TC2000's
+  // markers are loose by nature and every C-like program trips them), and Python
+  // detects as `thinkscript` and is refused with "thinkorswim has no character like
+  // this one" — a sentence that is FALSE about what was pasted. A member arriving
+  // with MetaTrader being told TC2000 cannot parse it is a confident answer to a
+  // question nobody asked, at the first moment of contact.
+  const foreign = foreignLanguage(source)
+  if (foreign) {
+    row.dialect = 'foreign'
+    row.foreign = foreign.name
+    row.refusal = { guard: 'language', message: foreignRefusal(foreign) }
+    return row
   }
   if (!translate) {
     row.refusal = { guard: 'dialect', message: 'this does not read as Pine, thinkScript or a TC2000 formula' }

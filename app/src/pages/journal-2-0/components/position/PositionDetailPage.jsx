@@ -11,6 +11,7 @@ import useSWR from 'swr'
 import CompanyLogo from '../../../../components/CompanyLogo'
 import useFundamentalSnapshot from '../../../../hooks/useFundamentalSnapshot'
 import useRealtimePrices from '../../../../hooks/useRealtimePrices'
+import useBrokerMarkPreference from '../../../../hooks/useBrokerMarkPreference'
 import useEarningsTable from '../../../../hooks/useEarningsTable'
 import useJ2Positions from '../../hooks/useJ2Positions'
 import useJ2Trades from '../../hooks/useJ2Trades'
@@ -126,11 +127,14 @@ export default function PositionDetailPage() {
     return sum || null
   }, [selectedAccount, accounts])
 
+  // Same mark preference the hero and holdings rows use — a detail page that
+  // priced off the other vendor would disagree with the row you clicked.
+  const preferBrokerMarks = useBrokerMarkPreference(selectedAccount)
   const positionModels = useMemo(
     () => symPositions
-      .map((p) => yourPositionModel(p, live, netLiq, todayIso))
+      .map((p) => yourPositionModel(p, live, netLiq, todayIso, preferBrokerMarks))
       .filter(Boolean),
-    [symPositions, live, netLiq, todayIso],
+    [symPositions, live, netLiq, todayIso, preferBrokerMarks],
   )
   const stats = useMemo(
     () => statsModel(snapshot?.metrics, barsData?.bars),

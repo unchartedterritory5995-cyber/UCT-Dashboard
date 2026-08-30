@@ -35,17 +35,19 @@ export function fmtVolume(v) {
  * Today's return uses the Phase-2 reference rule: fill price for same-day
  * entries, else prev close (derived from change_pct when the feed lacks it).
  */
-export function yourPositionModel(position, snap, netLiq, todayIso) {
+export function yourPositionModel(position, snap, netLiq, todayIso, preferBroker = false) {
   if (!position) return null
   const prices = snap ? { [position.symbol]: snap } : {}
-  const price = fin(currentPriceFor(position, prices))
+  const price = fin(currentPriceFor(position, prices, preferBroker))
   const signed = (position.side === 'Short' ? -1 : 1) * (position.shares || 0)
   // entryDate is a FULL ISO timestamp — date-part compare (see brokerLiveSummary).
   const openedToday =
     todayIso && position.entryDate && String(position.entryDate).slice(0, 10) === todayIso
   const ref = openedToday ? fin(position.entryPrice) : prevCloseOf(snap)
   const livePrice = fin(snap?.price)
-  const todayDollar = livePrice != null && ref != null ? signed * (livePrice - ref) : null
+  // Today rides the SAME price the row was valued at (see brokerLiveSummary).
+  const priced = livePrice != null || preferBroker
+  const todayDollar = priced && price != null && ref != null ? signed * (price - ref) : null
   const marketValue = price == null ? null : Math.abs(position.shares || 0) * price
   const totalReturnDollar = price == null ? null : positionPnlDollar(position, price)
   const basis = (position.entryPrice || 0) * (position.shares || 0)

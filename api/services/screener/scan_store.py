@@ -214,7 +214,7 @@ def init_db() -> None:
 # --------------------------------------------------------------------------- #
 
 def record_hits(def_hash: str, tf: Any, as_of: Any,
-                tickers: Iterable[Any]) -> int:
+                tickers: Iterable[Any], values: Any = None) -> int:
     """File the symbols this definition matched on this session. Returns the count.
 
     ⭐ THE SET IS REPLACED, NOT UNIONED, and the key is why: ``(def_hash, tf,
@@ -229,6 +229,17 @@ def record_hits(def_hash: str, tf: Any, as_of: Any,
     stored upper-cased and is the column ``join_clause`` joins on — a lower-case
     hit would be a row that exists and never matches, which is worse than a
     missing one.
+
+    ⭐⭐ ``values`` IS THE NUMBER EACH HIT ANSWERED WITH, keyed by ticker, and it is
+    what lets a screen be SORTED by its own definition rather than only filtered by
+    it. The sweep computed it on every hit and discarded it; the on-demand door
+    already returned it and the live lane already stored it, so this closes the one
+    lane that dropped it.
+
+    ⛔ OPTIONAL, AND ABSENT IS NOT ZERO. A caller that passes nothing writes NULL,
+    which reads as "not recorded" — 0.0 would be a number a member could sort by,
+    indistinguishable from a real answer. Every pre-existing caller keeps its exact
+    behaviour.
     """
     h, code, day = _key(def_hash, tf, as_of)
     seen = sorted({str(t).strip().upper() for t in (tickers or []) if str(t).strip()})
@@ -238,9 +249,20 @@ def record_hits(def_hash: str, tf: Any, as_of: Any,
             "DELETE FROM scan_hits WHERE def_hash=? AND tf=? AND as_of=?",
             (h, code, day))
         if seen:
+            # ⛔ THE VALUE IS LOOKED UP BY THE SAME UPPER-CASED KEY the ticker was
+            # normalised to, not by whatever case the caller happened to pass — a
+            # map keyed in the caller's casing would silently write NULL for every
+            # row while the hits themselves landed perfectly.
+            vals = {}
+            for k, v in (values or {}).items():
+                try:
+                    vals[str(k).strip().upper()] = float(v)
+                except (TypeError, ValueError):
+                    continue
             conn.executemany(
-                "INSERT INTO scan_hits (def_hash, tf, as_of, ticker) VALUES (?,?,?,?)",
-                [(h, code, day, t) for t in seen])
+                "INSERT INTO scan_hits (def_hash, tf, as_of, ticker, value) "
+                "VALUES (?,?,?,?,?)",
+                [(h, code, day, t, vals.get(t)) for t in seen])
         conn.commit()
     return len(seen)
 

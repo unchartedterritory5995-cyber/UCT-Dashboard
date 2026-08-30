@@ -24,6 +24,7 @@ import AddOptionStrategyModal from '../components/options/AddOptionStrategyModal
 import CloseOptionStrategyModal from '../components/options/CloseOptionStrategyModal'
 import ExpiredBanner from '../components/options/ExpiredBanner'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
+import useBrokerMarkPreference from '../../../hooks/useBrokerMarkPreference'
 import PositionsTable, { POSITIONS_COLUMNS } from '../components/PositionsTable'
 import HoldingsList from '../components/HoldingsList'
 import HoldingsListSkeleton from '../components/HoldingsListSkeleton'
@@ -259,11 +260,16 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   // Unrealized stats + reconciled hero stay correct) after hours when the live
   // feed is quiet. Built over positions (not the live feed) so a position with
   // no live entry at all still resolves its broker mark.
+  // Once the session is CLOSED and the balance sync covers that close, the
+  // broker's own marks win over our live feed — they are what the member's
+  // broker app is showing, and a second vendor's closes can only disagree.
+  // The hero and every row below it must share this one flag.
+  const preferBrokerMarks = useBrokerMarkPreference(selectedAccount)
   const priceMap = useMemo(() => {
     const m = {}
-    for (const p of positions) m[p.symbol] = currentPriceFor(p, prices)
+    for (const p of positions) m[p.symbol] = currentPriceFor(p, prices, preferBrokerMarks)
     return m
-  }, [positions, prices])
+  }, [positions, prices, preferBrokerMarks])
 
   const aggregates = useMemo(() => {
     const base = portfolioAggregates(positions, priceMap, accountSize)
@@ -298,9 +304,11 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   )
   const liveSummary = useMemo(
     () => (brokerAccountCount <= 1
-      ? brokerLiveSummary(selectedAccount, positions, optionStrategies, prices, etToday, optionMarks)
+      ? brokerLiveSummary(selectedAccount, positions, optionStrategies, prices, etToday,
+                          optionMarks, preferBrokerMarks)
       : null),
-    [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday, optionMarks],
+    [brokerAccountCount, selectedAccount, positions, optionStrategies, prices, etToday,
+     optionMarks, preferBrokerMarks],
   )
   // Σ option market value (broker mark) — flat contribution to the intraday curve.
   const optionMarketValue = useMemo(
@@ -333,6 +341,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           BrokerSyncStatus bar's Sync-now (no stacked chrome bands). */}
       <SyncTrustCenter onSynced={() => { refreshPositions(); refreshOptions() }} />
       <BrokerAccountHero
+        preferBrokerMarks={preferBrokerMarks}
         account={selectedAccount}
         aggregates={aggregates}
         liveSummary={liveSummary}
@@ -466,11 +475,13 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
             optionStrategies={showOptions ? optionStrategies : []}
             prices={prices}
             optionMarks={optionMarks}
+            preferBrokerMarks={preferBrokerMarks}
           />
         ) : (
           <PositionsTable
             positions={mergedPositions}
             prices={prices}
+            preferBrokerMarks={preferBrokerMarks}
             accountSize={accountSize}
             visibleColumns={visibleColumns}
             onEdit={(p) => setEditTarget(p)}

@@ -224,6 +224,15 @@ CREATE TABLE IF NOT EXISTS scan_hits (
   tf       TEXT    NOT NULL,
   as_of    INTEGER NOT NULL,
   ticker   TEXT    NOT NULL,
+  -- ⭐⭐ THE VALUE THE DEFINITION ANSWERED WITH, so a screen can be SORTED by its
+  -- own number rather than only filtered by it. The sweep computed this on every
+  -- hit and threw it away; `scan_evaluator` says so in as many words beside the
+  -- line that built the row: "THE VALUE AND THE BAR IT CAME FROM, beside the
+  -- symbol. The sweep discards both."
+  -- ⛔ NULLABLE, AND NOT MERELY FOR THE WIDENING. A row written before this column
+  -- existed HAS no value, and 0.0 would be a number somebody could sort by — a
+  -- fabricated answer indistinguishable from a real one. NULL says "not recorded".
+  value    REAL,
   PRIMARY KEY (def_hash, tf, as_of, ticker)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_scan_hits_ticker ON scan_hits(ticker, as_of DESC);
@@ -453,6 +462,15 @@ def init_db() -> None:
                                  f"ADD COLUMN {_coldef(c)}")
         # 🔴 THE FOURTH SCRIPT NEEDS THE SAME ALTER-ADD THE THIRD ONE NEEDED
         # (measured 2026-08-25: `CREATE TABLE IF NOT EXISTS` never widens).
+        # ⛔⛔ `CREATE TABLE IF NOT EXISTS` NEVER WIDENS, and this repo has already paid
+        # for that once (`screener_live` sat at 0 rows for as long as nobody read
+        # it). A pod that already holds `scan_hits` from before the `value` column
+        # existed keeps the old four-column shape unless it is ALTERed, and every
+        # write naming `value` would fail there while passing in every test.
+        have_hits = {r[1] for r in conn.execute("PRAGMA table_info(scan_hits)")}
+        if have_hits and "value" not in have_hits:
+            conn.execute("ALTER TABLE scan_hits ADD COLUMN value REAL")
+
         conn.executescript(_scan_live_schema_sql())
         from api.services.screener import scan_store as _ss
         for table, cols in ((_ss.LIVE_HITS_TABLE, _ss.LIVE_HIT_COLUMNS),

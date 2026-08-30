@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/build-cot-facts.mjs",
+    "build": "vite build && node scripts/build-cot-facts.mjs && node scripts/build-flow-facts.mjs",
     "lint": "eslint .",
     "lint:css": "stylelint \"src/**/*.css\"",
     "preview": "vite preview",
