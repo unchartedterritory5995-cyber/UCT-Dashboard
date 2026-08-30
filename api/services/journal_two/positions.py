@@ -60,6 +60,21 @@ def _row_to_position(row: sqlite3.Row) -> dict[str, Any]:
             if "broker_price" in keys and row["broker_price"] is not None
             else None
         ),
+        # The broker's PRIOR-session mark, and the sessions the two marks
+        # belong to. Lets a closed-session "Today" be measured broker-mark to
+        # broker-mark instead of against a second vendor's prev_close.
+        "brokerPricePrev": (
+            float(row["broker_price_prev"])
+            if "broker_price_prev" in keys and row["broker_price_prev"] is not None
+            else None
+        ),
+        "brokerPriceSession": (
+            row["broker_price_session"] if "broker_price_session" in keys else None
+        ),
+        "brokerPrevSession": (
+            row["broker_price_prev_session"]
+            if "broker_price_prev_session" in keys else None
+        ),
         # Intraday fill materialized by the rail (apply_intraday_growth),
         # awaiting the broker's holdings confirmation at the next sync.
         "provisional": (
@@ -86,6 +101,8 @@ def list_open_positions(
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
                        created_at, updated_at, closed_at, broker_price,
+                       broker_price_session, broker_price_prev,
+                       broker_price_prev_session,
                        entry_estimated, source, external_id
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL AND account_id = ?
@@ -100,6 +117,8 @@ def list_open_positions(
                        entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                        setup, notes, context_at_entry, account_id,
                        created_at, updated_at, closed_at, broker_price,
+                       broker_price_session, broker_price_prev,
+                       broker_price_prev_session,
                        entry_estimated, source, external_id
                   FROM j2_positions
                  WHERE user_id = ? AND closed_at IS NULL
@@ -128,6 +147,8 @@ def get_position(
                    entry_price, stop_price, breakeven_stop, raise_to_breakeven,
                    setup, notes, context_at_entry, account_id,
                    created_at, updated_at, closed_at, broker_price,
+                   broker_price_session, broker_price_prev,
+                   broker_price_prev_session,
                    entry_estimated, source
               FROM j2_positions
              WHERE id = ? AND user_id = ?
