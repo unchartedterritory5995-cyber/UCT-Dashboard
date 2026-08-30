@@ -2334,10 +2334,8 @@ export default function StockChart({
   // (Model Book, popups, gallery charts…) keeps its own inline row untouched.
   //   vertical   → the stacked label/value table  (.legendVertical)
   //   horizontal → a flat, box-less two-line strip (.legendFlat)
-  //   inline     → OHLC chip + per-line value tags at each line's right edge (.legendInlineMode)
-  const legendInline = verticalLegend && cs.header?.legendLayout === 'inline'
   const legendFlat = verticalLegend && cs.header?.legendLayout === 'horizontal'
-  const legendStacked = verticalLegend && !legendFlat && !legendInline
+  const legendStacked = verticalLegend && !legendFlat
   // ── WHETHER THE LEGEND SHOWS AT ALL: 'always' | 'click' | 'off' ────────────
   //
   // ⭐ DERIVED, NEVER READ OFF A FIELD. `legendModeOf` is the one reader — it
@@ -13803,16 +13801,11 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${legendInline ? ' ' + styles.legendInlineMode : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it; reserve
              the right price-axis width so a horizontal legend wraps before it (the
-             vertical stack is narrow + single-file, so it never needs the reserve).
-             Inline mode spans the WHOLE plot (transparent, pointer-events:none) so
-             its value tags can pin to each line's right-edge y-coordinate. */
-          style={legendInline ? {
-            ...(overlayBounds ? { top: overlayBounds.top, height: overlayBounds.height } : null),
-            left: 0, right: legendAxisReserve || 0, maxWidth: 'none',
-          } : {
+             vertical stack is narrow + single-file, so it never needs the reserve). */
+          style={{
             ...(overlayBounds ? { top: overlayBounds.top + 6 } : null),
             // max-width (NOT right) so the legend box stays shrink-to-fit for a short
             // row, but a long MA row wraps at the plot's right edge instead of under
@@ -13822,49 +13815,7 @@ export default function StockChart({
               : null),
           }}
         >
-          {legendInline ? (() => {
-            /* INLINE ("Trace") layout — a compact OHLC chip top-left + one value
-               TAG per line, pinned at that line's right-edge y (via the candle
-               series' priceToCoordinate). Custom elements, NOT <IndicatorChip>, so
-               the parity gate's chip/‛+N’ counts are untouched; they still live
-               inside legendRef so the export CSS hides them. Both the classic MA
-               overlays and engine indicator chips become tags. */
-            const H = overlayBounds?.height || 0
-            const s = candleSeriesRef.current
-            const tags = []
-            const coord = (v) => { if (v == null || !s) return null; try { const y = s.priceToCoordinate(v); return Number.isFinite(y) ? y : null } catch { return null } }
-            ;(crosshairData.overlays || []).forEach((ov, i) => {
-              const y = coord(ov?.value)
-              if (y != null) tags.push({ key: 'ov' + i, label: ov.label, color: opaqueColor(ov.color), text: ov.value.toFixed(2), y })
-            })
-            indChips.forEach((c) => {
-              const y = coord(c?.value)
-              if (y != null) tags.push({ key: `${c.instanceId}::${c.plotKey}`, label: c.label, color: c.color, text: c.value.toFixed(Number.isInteger(c.decimals) ? c.decimals : 2), y })
-            })
-            // Anti-overlap: stack from the top, never closer than GAP; clamp in-plot.
-            tags.sort((a, b) => a.y - b.y)
-            const GAP = 17
-            let prev = -Infinity
-            tags.forEach((t) => { let ty = Math.max(t.y, prev + GAP); if (H) ty = Math.min(ty, H - 8); t.ty = ty; prev = ty })
-            return (
-              <>
-                <div className={styles.legendInlineChip}>
-                  <span className={styles.legendInlineDate} style={legBase}>{formatLegendTime(crosshairData.time)}</span>
-                  <span className={styles.legendInlineChg} style={{ color: legChgColor }}>{legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)</span>
-                  <span className={styles.legendInlineOhlc} style={legBase}>
-                    O {crosshairData.open?.toFixed(2)}  H {crosshairData.high?.toFixed(2)}  L {crosshairData.low?.toFixed(2)}  C {crosshairData.close?.toFixed(2)}
-                    {crosshairData.volume != null ? `  V ${formatVolume(crosshairData.volume)}` : ''}
-                  </span>
-                </div>
-                {tags.map((t) => (
-                  <div key={t.key} className={styles.legendInlineTag} style={{ top: t.ty, color: t.color }}>
-                    <span className={styles.legendInlineTagDash} style={{ background: t.color }} />
-                    {t.label} <strong>{t.text}</strong>
-                  </div>
-                ))}
-              </>
-            )
-          })() : legendFlat ? (
+          {legendFlat ? (
             <>
               {/* Values only — the ticker/company/timeframe live in the widget
                   header already, so the strip sits where that title line was. */}

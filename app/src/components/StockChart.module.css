@@ -209,57 +209,6 @@
   /* Smoothly slide up/down when the drawing toolbar is hidden/shown. */
   transition: transform 0.16s ease;
 }
-
-/* ── Inline ("Trace") legend ─────────────────────────────────────────────────
-   The container spans the whole plot and carries no box of its own; a compact
-   OHLC chip sits top-left and each line's value rides as a tag at its right
-   edge (positioned inline via priceToCoordinate). */
-.legendInlineMode {
-  top: 0;
-  display: block;
-  flex-wrap: nowrap;
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  overflow: visible;
-}
-.legendInlineChip {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 3px 8px;
-  border-radius: 3px;
-  background: var(--chart-panel-bg, rgba(26, 28, 23, 0.82));
-  font-family: var(--font-mono);
-  line-height: 1.4;
-}
-.legendInlineDate { font-size: 11px; font-weight: 600; color: var(--text); }
-.legendInlineChg { font-size: 11px; font-weight: 600; }
-.legendInlineOhlc { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
-.legendInlineTag {
-  position: absolute;
-  right: 6px;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  white-space: nowrap;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.9);
-}
-.legendInlineTag strong { font-weight: 700; }
-.legendInlineTagDash {
-  display: inline-block;
-  width: 11px;
-  height: 2px;
-  border-radius: 1px;
-  flex-shrink: 0;
-}
 /* Drawing toolbar collapsed → reclaim its band: shift the crosshair legend
    (horizontal, flat, or vertical — all share .legend) up toward the header. The
    transform composes with each variant's own `top`, so one rule covers them all. */

@@ -141,7 +141,6 @@ const TITLE_MODES = [
 const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
   { val: 'horizontal', label: 'Horizontal' },
-  { val: 'inline', label: 'Inline' },
 ]
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
