@@ -330,3 +330,74 @@ describe('wire_status "unknown" — the edges', () => {
     expect(screen.getByText(/Leadership intact/)).toBeInTheDocument()
   })
 })
+
+// ─── 🔴 THE PILL AND THE COUNTDOWN MUST NOT CONTRADICT EACH OTHER ───
+//
+// Teaching the countdown about NYSE closures without teaching the PILL made
+// Zone A incoherent on the one day the work exists for: at 11:00 ET on
+// Thanksgiving it rendered "Opens in 22h 30m" — correct — beside a pill saying
+// "Open", because `resolveSession` is still holiday-blind. Consistently wrong
+// became visibly wrong, which is worse.
+describe('the pill on a market holiday', () => {
+  const HOLIDAY_MIDSESSION = {
+    kind: 'open', ms: 81_000_000, label: 'Opens in 22h 30m',
+    verified: true, holidayToday: true,
+  }
+
+  test('reads Holiday, not Open, when the calendar says today is a closure', () => {
+    h.session = 'LIVE'                       // resolveSession is holiday-blind
+    h.boundary = HOLIDAY_MIDSESSION
+    mount()
+    expect(screen.getByText('Holiday')).toBeInTheDocument()
+    expect(screen.queryByText('Open'),
+      'the pill claimed the session was open beside a countdown to the next open')
+      .toBeNull()
+  })
+
+  test('⭐ and the two halves now say the same thing', () => {
+    // The whole point, asserted as ONE statement rather than two: an "Opens in"
+    // countdown and a pill that says the market is Open cannot both be true.
+    h.session = 'LIVE'
+    h.boundary = HOLIDAY_MIDSESSION
+    mount()
+    expect(screen.getByText('Opens in 22h 30m')).toBeInTheDocument()
+    expect(screen.getByText('Holiday')).toBeInTheDocument()
+  })
+
+  test('a holiday before the bell relabels the PREMARKET pill too', () => {
+    h.session = 'PREMARKET'
+    h.boundary = { ...HOLIDAY_MIDSESSION, label: 'Opens in 1d 2h' }
+    mount()
+    expect(screen.getByText('Holiday')).toBeInTheDocument()
+    expect(screen.queryByText('Pre-market')).toBeNull()
+  })
+
+  test('a WEEKEND closure is NOT relabelled — "Weekend" is already the true word', () => {
+    h.session = 'WEEKEND'
+    h.boundary = { ...HOLIDAY_MIDSESSION, holidayToday: true }
+    mount()
+    expect(screen.getByText('Weekend')).toBeInTheDocument()
+    expect(screen.queryByText('Holiday')).toBeNull()
+  })
+
+  test('CONTROL: an ordinary weekday still reads its session label', () => {
+    // Without this, every assertion above is satisfied by a pill hardcoded to
+    // "Holiday".
+    h.session = 'LIVE'
+    h.boundary = { kind: 'close', ms: 0, label: 'Closes in 3h 02m', verified: true, holidayToday: false }
+    mount()
+    expect(screen.getByText('Open')).toBeInTheDocument()
+    expect(screen.queryByText('Holiday')).toBeNull()
+  })
+
+  test('⛔ an UNKNOWN calendar falls through to the session label, never to "Holiday"', () => {
+    // `holidayToday` is null when the calendar has not landed or failed. "We
+    // cannot tell" is not "it is a closure" — asserting one on no evidence is
+    // the same class of error as the lie this whole change removes.
+    h.session = 'LIVE'
+    h.boundary = { kind: null, ms: null, label: null, verified: false, holidayToday: null }
+    mount()
+    expect(screen.getByText('Open')).toBeInTheDocument()
+    expect(screen.queryByText('Holiday')).toBeNull()
+  })
+})

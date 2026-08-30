@@ -24,19 +24,33 @@ import useSWR from 'swr'
 import jsonFetcher from '../utils/jsonFetcher'
 
 /**
- * @returns {{holidays: Set<string>|null, coversThrough: string|null, known: boolean}}
+ * @returns {{holidays: Set<string>|null, coversThrough: string|null,
+ *            status: string|null, known: boolean, isLoading: boolean}}
  *   `holidays` — ET calendar dates as 'YYYY-MM-DD', or null when unknown.
  *   `coversThrough` — the last ET date the table is authoritative about.
- *   `known` — false while loading AND on any failure. Deliberately one flag:
- *   a consumer must not draw a verified answer in either case, and a hook that
- *   distinguished them would invite one that did.
+ *   `status` — the server's own runway verdict: 'ok' | 'expiring' | 'expired'
+ *   | 'unknown'. `null` means the field was absent, i.e. a deploy that did not
+ *   look — which is a different answer from "looked, and it is fine".
+ *   `known` — false while loading AND on any failure. STILL ONE FLAG, and it
+ *   is the only thing a caller may gate a drawn answer on.
+ *   `isLoading` — ⛔ DIAGNOSTIC ONLY. It exists so a blank countdown can SAY
+ *   which of three things it is (in flight · endpoint down · past the horizon)
+ *   instead of one blank meaning all three. It must never widen what gets
+ *   rendered: "not loaded yet" and "failed" both mean do not draw.
  */
 export default function useMarketCalendar() {
-  const { data } = useSWR('/api/market-calendar', jsonFetcher)
+  const { data, isLoading } = useSWR('/api/market-calendar', jsonFetcher)
   const holidays = useMemo(
     () => (Array.isArray(data?.holidays) ? new Set(data.holidays) : null),
     [data],
   )
   const coversThrough = typeof data?.covers_through === 'string' ? data.covers_through : null
-  return { holidays, coversThrough, known: holidays != null && coversThrough != null }
+  const status = typeof data?.status === 'string' ? data.status : null
+  return {
+    holidays,
+    coversThrough,
+    status,
+    known: holidays != null && coversThrough != null,
+    isLoading: !!isLoading,
+  }
 }

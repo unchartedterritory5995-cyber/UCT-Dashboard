@@ -53,6 +53,36 @@ import styles from './ZoneRead.module.css'
 const LABEL = { PREMARKET: 'Pre-market', LIVE: 'Open', CLOSED: 'Closed', WEEKEND: 'Weekend' }
 
 /**
+ * 🔴 THE PILL AND THE COUNTDOWN MUST AGREE, AND FOR ONE DAY THEY DID NOT.
+ * At 11:00 ET on Thanksgiving the served calendar is loaded and inside its
+ * horizon, so the countdown correctly reads "Opens in 22h 30m" — beside a pill
+ * reading "Open", because `resolveSession` is still holiday-blind. Zone A went
+ * from consistently wrong to visibly incoherent, on the exact day the holiday
+ * work exists for. The justification for leaving `resolveSession` alone was
+ * "the pill beside it still names the session, which is the load-bearing
+ * half"; on a holiday that half is the wrong one, and it is the half that
+ * stays.
+ *
+ * ⛔ RECONCILED HERE, NOT IN `resolveSession`. That function is PURE and
+ * SYNCHRONOUS, read at first render, and its four states are branched on
+ * across the codebase and mocked by `Dashboard.session.test.jsx`; the calendar
+ * arrives asynchronously, so teaching it holidays means making the session
+ * state async. This is a label on one component, touching no shared contract:
+ * the four states are untouched and Zone B still branches on them.
+ *
+ * ⛔ `=== true`, NOT TRUTHINESS. `holidayToday` is `null` when the calendar is
+ * unknown — "we cannot tell" is not "it is a normal day" — and a null must
+ * fall through to the session label rather than assert either way. WEEKEND
+ * already says the true thing, so a Saturday closure is not relabelled.
+ */
+function pillFor(session, holidayToday) {
+  if (holidayToday === true && session !== 'WEEKEND') {
+    return { label: 'Holiday', tone: 'holiday' }
+  }
+  return { label: LABEL[session], tone: session.toLowerCase() }
+}
+
+/**
  * @param {object} props
  * @param {boolean} [props.showQuote] render the Quote of the Day as a single
  *   line. ⭐ THE SPEC'S ONE FLAG ON THE ZONE A COMPONENT ("Reversible: it is
@@ -63,6 +93,12 @@ const LABEL = { PREMARKET: 'Pre-market', LIVE: 'Open', CLOSED: 'Closed', WEEKEND
 export default function ZoneRead({ showQuote = true }) {
   const session = useSessionState()
   const boundary = useNextBoundary()
+  // ⭐ ONE READ, TWO ELEMENTS. `useNextBoundary` already holds the served
+  // calendar and a ticking clock, so the pill asks IT rather than mounting a
+  // second `useMarketCalendar` and a second `new Date()` — two authorities on
+  // "is today a holiday" is exactly the shape that produced the disagreement
+  // this fixes.
+  const pill = pillFor(session, boundary.holidayToday)
   const { quote } = useQuoteOfTheDay()
   const { data: breadth } = useMobileSWR('/api/breadth', jsonFetcher, {
     refreshInterval: 300_000,
@@ -80,8 +116,15 @@ export default function ZoneRead({ showQuote = true }) {
   // pushing, the dashboard served the prior day's rating all day, and a stale
   // 55 was pixel-identical to a fresh 55. Zone A now LEADS with that number,
   // which makes the stamp more load-bearing here than it was there.
-  // `wire_status` is judged server-side against the trading calendar and
-  // re-judged on every read, so it cannot itself go stale.
+  // `wire_status` is re-judged server-side on every read, so the STAMP itself
+  // cannot go stale the way the score behind it can.
+  // ⚠️ BUT IT IS NOT HOLIDAY-AWARE, and this comment used to claim it was
+  // ("judged against the trading calendar"). `engine.expected_wire_date()`
+  // says so in its own docstring — "(Holiday-naive: a market holiday reads as
+  // one calendar day of 'stale' — acceptable)" — so on Thanksgiving this line
+  // reads `stale` for a run that was never due. The backend trade-off stands;
+  // a comment asserting a mechanism that does not operate is how a false
+  // premise never gets revisited, so the sentence goes rather than the code.
   const wireDate = breadth?.wire_date ?? null
   const wireStale = breadth?.wire_status === 'stale'
   // ⛔ 'unknown' IS ITS OWN ANSWER, NOT A MISSING ONE. `engine.wire_freshness`
@@ -112,8 +155,8 @@ export default function ZoneRead({ showQuote = true }) {
     <div className={styles.read}>
       <div className={styles.state}>
         <div className={styles.stateTop}>
-          <span className={`${styles.pill} ${styles[session.toLowerCase()]}`}>
-            {LABEL[session]}
+          <span className={`${styles.pill} ${styles[pill.tone]}`}>
+            {pill.label}
           </span>
           {/* Countdown to the next bell — spec, Zone A.
               ⛔ ONLY WHEN IT IS VERIFIABLE. `useNextBoundary` returns a null

@@ -1,5 +1,5 @@
 // app/src/pages/dashboard/useSessionState.js
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import useMarketCalendar from '../../hooks/useMarketCalendar'
 
 /**
@@ -48,6 +48,24 @@ const isSessionDay = (et, holidays) => {
 /** NYSE has never closed for two weeks; the walk below is bounded by this and
  *  reports failure rather than looping. */
 const MAX_CLOSURE_WALK_DAYS = 14
+
+/**
+ * Is this ET calendar day a NYSE full closure, per the served calendar?
+ *
+ * ⭐ EXPORTED SO THE PILL AND THE COUNTDOWN CANNOT DISAGREE. Zone A used to
+ * render "Opens in 22h 30m" — correct, once the calendar landed — beside a pill
+ * reading "Open", because `resolveSession` is holiday-blind and the countdown
+ * no longer is. Consistently wrong became visibly incoherent, on the one day
+ * the whole change exists for. Both now read this.
+ *
+ * `null` (not `false`) when the calendar is unknown: "we cannot tell" is not
+ * "it is a normal day", and the pill must fall back to the session label rather
+ * than assert a holiday it cannot see.
+ */
+export function isMarketHoliday(date = new Date(), holidays = null) {
+  if (!holidays) return null
+  return holidays.has(etDayKey(etClock(date)))
+}
 
 export function resolveSession(date = new Date()) {
   const et = etClock(date)
@@ -186,7 +204,7 @@ export default function useSessionState() {
  * half; a missing countdown is not wrong, and a shown one might be.
  */
 export function useNextBoundary() {
-  const { holidays, coversThrough, known } = useMarketCalendar()
+  const { holidays, coversThrough, known, isLoading } = useMarketCalendar()
   // ⭐ THE CLOCK IS THE STATE, NOT THE ANSWER. Storing the derived boundary
   // (the old shape) meant it could only be recomputed by the interval — so the
   // calendar arriving mid-minute would not have re-derived anything. Ticking
@@ -201,11 +219,51 @@ export function useNextBoundary() {
   // `dayKey === null` means the walk ran out of days; `> coversThrough` means
   // we walked past what the table can speak for. Both are "cannot verify".
   const verified = known && b.dayKey != null && b.dayKey <= coversThrough && b.ms != null
-  if (!verified) return { kind: null, ms: null, label: null, verified: false }
+
+  // ⭐ WHY THERE IS NO COUNTDOWN, AS A VALUE. One blank meant three different
+  // things — in flight, endpoint down, and the closure table having lapsed —
+  // and the third is PERMANENT while the first two clear on their own. A
+  // permanent failure wearing a transient's appearance is how it goes
+  // unnoticed for a year. ⛔ DIAGNOSTIC ONLY: `verified` alone still decides
+  // what is drawn, so naming the reason cannot widen what gets claimed.
+  const reason = verified
+    ? null
+    : !known
+      ? (isLoading ? 'calendar-loading' : 'calendar-unavailable')
+      : (b.dayKey == null ? 'no-session-in-range' : 'beyond-horizon')
+
+  // The client half of the anti-rot signal (the server half is
+  // `/api/market-calendar`'s own `status` field plus its admin alert). Once
+  // per mount, never per tick, and only for the lapsed case — the two
+  // transients are not worth a line.
+  const warned = useRef(false)
+  useEffect(() => {
+    if (reason !== 'beyond-horizon' || warned.current) return
+    warned.current = true
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[market-calendar] the NYSE closure table ends at ' + coversThrough
+      + ' — the dashboard countdown is suppressed past that date. Refresh '
+      + 'api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD from '
+      + 'nyse.com/markets/hours-calendars.',
+    )
+  }, [reason, coversThrough])
+
+  // ⛔ REPORTED EVEN WHEN THE BOUNDARY IS NOT VERIFIED. Whether TODAY is a
+  // closure and whether the NEXT BELL is inside the table's horizon are two
+  // different questions; a table that has lapsed at its far end still answers
+  // the first one correctly for today.
+  const holidayToday = isMarketHoliday(now, holidays)
+
+  if (!verified) {
+    return { kind: null, ms: null, label: null, verified: false, reason, holidayToday }
+  }
   return {
     kind: b.kind,
     ms: b.ms,
     label: `${b.kind === 'open' ? 'Opens' : 'Closes'} in ${formatCountdown(b.ms)}`,
     verified: true,
+    reason: null,
+    holidayToday,
   }
 }

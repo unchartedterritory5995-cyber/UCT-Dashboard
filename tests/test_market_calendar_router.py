@@ -10,6 +10,7 @@ exactly the failure the route was built to prevent, so the derivation itself
 is what is asserted here, not a sample of dates.
 """
 import re
+from datetime import date
 
 from fastapi.testclient import TestClient
 
@@ -70,11 +71,147 @@ def test_it_names_where_it_read_from_so_the_next_engineer_finds_the_one_table():
 
 
 def test_CONTROL_the_equality_check_can_actually_fail(monkeypatch):
-    # A rail nobody has seen fire is not a rail. Perturb the ONE table and the
-    # route's answer must move with it — proving it derives rather than
-    # carrying a copy that would stay right while the source changed.
+    """A rail nobody has seen fire is not a rail. Perturb the ONE table and the
+    derived list must move with it — proving it derives rather than carrying a
+    copy that would stay right while the source changed.
+
+    ⚠️ THE PERTURBATION HAS TO RE-RUN THE IMPORT. The list is now built once at
+    module scope, so patching the frozenset on the live module changes nothing
+    — which is not evidence the derivation is dead, only that it already ran.
+    Reloading is what a deploy does, and it is the only perturbation that can
+    still discriminate. (An earlier version of this test patched the name and
+    passed for the wrong reason the moment the list was precomputed; it failed
+    loudly instead, which is the whole point of keeping a control.)
+    """
+    import importlib
+
+    import api.services.bars_fetch as bf
     import api.routers.market_calendar as mc
 
-    extra = frozenset(_NYSE_HOLIDAYS_YYYYMMDD | {20260102})
-    monkeypatch.setattr(mc, "_NYSE_HOLIDAYS_YYYYMMDD", extra)
-    assert "2026-01-02" in _payload()["holidays"]
+    original = bf._NYSE_HOLIDAYS_YYYYMMDD
+    try:
+        bf._NYSE_HOLIDAYS_YYYYMMDD = frozenset(original | {20260102})
+        reloaded = importlib.reload(mc)
+        assert "2026-01-02" in reloaded._HOLIDAYS_ISO
+    finally:
+        bf._NYSE_HOLIDAYS_YYYYMMDD = original
+        importlib.reload(mc)
+
+    # …and with the source restored, so is the answer.
+    assert "2026-01-02" not in importlib.import_module(
+        "api.routers.market_calendar")._HOLIDAYS_ISO
+
+
+# ---------------------------------------------------------------------------
+# The anti-rot signal
+# ---------------------------------------------------------------------------
+#
+# 🔴 WHAT WAS MISSING. The horizon clause makes the dashboard countdown
+# DISAPPEAR once the closure table lapses — correct, and silent. "No countdown"
+# already means "still loading" and "endpoint down", so a permanent failure
+# would be indistinguishable from a transient that clears on its own, and the
+# in-file "refresh annually" contract was enforced by nothing at all.
+#
+# ⛔ AND THE FIX IS NOT `assert max_year >= today.year + 1`. That rail goes red
+# purely because time passed — a dated time bomb, on a suite that runs against
+# every unrelated change. So the signal is a FIELD in the payload (always
+# present, POSITIVE when clean) plus an admin alert when it is not, and every
+# test below INJECTS the date it classifies against instead of asking the clock.
+
+def test_status_is_always_present_so_silence_means_nobody_looked():
+    # ⭐ THE "did not look" vs "clean" DISTINCTION, and the whole reason this is
+    # a field rather than a warning. A check that only speaks up when unhappy
+    # cannot tell "I looked and it is fine" from "I never ran": both are quiet.
+    # A positive `status` is evidence of the former; its ABSENCE is the latter.
+    body = _payload()
+    assert "status" in body
+    assert body["status"] in ("ok", "expiring", "expired", "unknown")
+    assert "days_remaining" in body
+
+
+def test_the_runway_classifies_against_an_INJECTED_date_never_the_clock():
+    import api.routers.market_calendar as mc
+
+    horizon = date.fromisoformat(mc._COVERS_THROUGH)
+    day = lambda n: date.fromordinal(horizon.toordinal() - n)  # noqa: E731
+
+    # Comfortably inside → clean, with the runway stated.
+    assert mc._classify(day(400)) == ("ok", 400)
+    # One day the far side of the warning threshold → still clean.
+    assert mc._classify(day(mc._EXPIRING_WITHIN_DAYS + 1))[0] == "ok"
+    # On it → speaking up, while the countdown still works.
+    assert mc._classify(day(mc._EXPIRING_WITHIN_DAYS))[0] == "expiring"
+    # The last day it can answer for is still not expired.
+    assert mc._classify(horizon) == ("expiring", 0)
+    # Past it → expired, and `days_remaining` goes negative rather than absent.
+    assert mc._classify(date.fromordinal(horizon.toordinal() + 1)) == ("expired", -1)
+
+
+def test_the_warning_fires_BEFORE_the_countdown_vanishes_not_with_it():
+    # ⭐ THE POINT OF THE THRESHOLD. A signal that arrives the day the feature
+    # breaks is not a warning, it is a post-mortem. The source list is refreshed
+    # BY HAND once a year, so the notice period has to be a meaningful fraction
+    # of that cadence.
+    import api.routers.market_calendar as mc
+
+    assert mc._EXPIRING_WITHIN_DAYS >= 90, (
+        "less than a quarter's notice on an annually-refreshed, hand-maintained "
+        "table is not enough for anyone to act on"
+    )
+
+
+def test_a_non_clean_runway_reaches_the_admin_alert_feed(monkeypatch):
+    # `chart_health_alerts` is rendered by pages/admin/ChartHealth.jsx and pages
+    # Discord on `critical` — a surface a human actually reads, unlike a log
+    # line nobody greps or a tool nobody runs.
+    import api.routers.market_calendar as mc
+    from api.services import chart_health_alerts
+
+    seen: list[tuple] = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda *a, **kw: seen.append(a) or True)
+
+    mc._announce("expiring", 30)
+    mc._announce("expired", -5)
+    assert [a[0] for a in seen] == ["market_calendar_stale"] * 2
+    assert [a[1] for a in seen] == ["warning", "critical"]
+    # The message has to carry the FIX, not just the complaint.
+    assert "_NYSE_HOLIDAYS_YYYYMMDD" in seen[0][2]
+    assert "nyse.com" in seen[0][2]
+
+
+def test_CONTROL_a_clean_runway_raises_nothing(monkeypatch):
+    # Without this, the alert above is satisfied by one that fires every day —
+    # which is the same as never firing, because nobody would read it.
+    import api.routers.market_calendar as mc
+    from api.services import chart_health_alerts
+
+    seen = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda *a, **kw: seen.append(a) or True)
+    mc._announce("ok", 488)
+    assert seen == []
+
+
+def test_the_alert_can_never_break_the_route(monkeypatch):
+    # Best-effort, exactly like provider_coverage_monitor._alert. A diagnostic
+    # that can 500 the endpoint it diagnoses is worse than no diagnostic.
+    import api.routers.market_calendar as mc
+    from api.services import chart_health_alerts
+
+    def boom(*a, **kw):
+        raise RuntimeError("alert feed down")
+
+    monkeypatch.setattr(chart_health_alerts, "emit", boom)
+    mc._announce("expired", -5)          # must not raise
+    assert _payload()["status"] in ("ok", "expiring", "expired", "unknown")
+
+
+def test_the_list_is_built_once_at_import_not_per_request():
+    # Cheap, and it also pins that the payload SHARES the precomputed tuple
+    # rather than re-deriving a second copy that could drift from it.
+    import api.routers.market_calendar as mc
+
+    assert isinstance(mc._HOLIDAYS_ISO, tuple)
+    assert _payload()["holidays"] == list(mc._HOLIDAYS_ISO)
+    assert _payload()["covers_through"] == mc._COVERS_THROUGH

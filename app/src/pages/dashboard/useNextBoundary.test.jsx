@@ -28,8 +28,9 @@ const serve = (body, ok = true) => {
 }
 
 /** The real payload shape of GET /api/market-calendar. */
-const calendar = (holidays, coversThrough = '2027-12-31') => ({
-  holidays, covers_through: coversThrough, source: 'bars_fetch._NYSE_HOLIDAYS_YYYYMMDD',
+const calendar = (holidays, coversThrough = '2027-12-31', status = 'ok') => ({
+  holidays, covers_through: coversThrough, status, days_remaining: 488,
+  source: 'bars_fetch._NYSE_HOLIDAYS_YYYYMMDD',
 })
 
 const at = (iso) => { vi.useFakeTimers({ shouldAdvanceTime: true }); vi.setSystemTime(new Date(iso)) }
@@ -105,6 +106,7 @@ describe('useNextBoundary', () => {
   // it — at which point the countdown DISAPPEARS rather than quietly going
   // holiday-blind again with nothing on screen to say so.
   it('refuses when the boundary lands past the horizon the table can speak for', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})   // its own warning is asserted below
     at('2026-08-28T11:30:00Z')                       // Fri 07:30 EDT
     serve(calendar([], '2026-08-27'))                // table ends YESTERDAY
     const { result } = renderHook(() => useNextBoundary(), { wrapper })
@@ -127,5 +129,91 @@ describe('useNextBoundary', () => {
     renderHook(() => useNextBoundary(), { wrapper })
     await waitFor(() => expect(global.fetch).toHaveBeenCalled())
     expect(global.fetch.mock.calls[0][0]).toBe('/api/market-calendar')
+  })
+
+  // ─── holidayToday — what the PILL reads ────────────────────────
+  //
+  // ⭐ ONE READ FEEDS BOTH HALVES OF ZONE A. The countdown learning about
+  // closures while the pill did not is what made the zone contradict itself;
+  // the pill now asks this hook rather than mounting its own calendar.
+  it('reports that today is a closure, so the pill can stop saying "Open"', async () => {
+    at('2026-11-26T16:00:00Z')                     // Thanksgiving 11:00 ET
+    serve(calendar(['2026-11-26']))
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await waitFor(() => expect(result.current.verified).toBe(true))
+    expect(result.current.holidayToday).toBe(true)
+    // …and the countdown it sits beside points at the NEXT open, not a close.
+    expect(result.current.kind).toBe('open')
+  })
+
+  it('CONTROL: an ordinary session day reports false, not true', async () => {
+    at('2026-11-27T16:00:00Z')                     // Fri 11:00 ET, market open
+    serve(calendar(['2026-11-26']))
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await waitFor(() => expect(result.current.verified).toBe(true))
+    expect(result.current.holidayToday).toBe(false)
+    expect(result.current.kind).toBe('close')
+  })
+
+  it('⛔ null — not false — when the calendar is unknown', async () => {
+    // "We cannot tell" is not "it is a normal day". A `false` here would let
+    // the pill assert a trading session on no evidence, which is the same
+    // class of error as the countdown lie this whole change removes.
+    at('2026-11-26T16:00:00Z')
+    serve({}, false)
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.holidayToday).toBeNull()
+  })
+
+  // ─── reason — a blank countdown that says WHICH blank it is ─────────
+  //
+  // 🔴 THREE CAUSES SHARED ONE APPEARANCE, AND ONE OF THEM IS PERMANENT.
+  // In flight and endpoint-down clear on their own; the closure table lapsing
+  // does not, and it would look exactly like a transient for as long as nobody
+  // noticed. ⛔ DIAGNOSTIC ONLY — `verified` still decides what is drawn.
+  it('names the horizon case, which is the one that never clears by itself', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    at('2026-08-28T11:30:00Z')
+    serve(calendar([], '2026-08-27', 'expired'))   // table ended yesterday
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.reason).toBe('beyond-horizon')
+    expect(result.current.label).toBeNull()
+  })
+
+  it('and warns ONCE, naming the file and the fix, on that case only', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    at('2026-08-28T11:30:00Z')
+    serve(calendar([], '2026-08-27', 'expired'))
+    const { result, rerender } = renderHook(() => useNextBoundary(), { wrapper })
+    await act(async () => { await Promise.resolve() })
+    rerender()
+    await act(async () => { await Promise.resolve() })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0][0])).toMatch(/_NYSE_HOLIDAYS_YYYYMMDD/)
+    expect(result.current.reason).toBe('beyond-horizon')
+  })
+
+  it('CONTROL: the two TRANSIENT blanks are named differently and warn about nothing', async () => {
+    // Without this, "warns on the horizon case" passes for a hook that warns
+    // on every suppression — which would fire on every cold load and teach
+    // whoever reads the console to ignore it.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    at('2026-08-28T11:30:00Z')
+    serve({}, false)                                // endpoint down
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    expect(result.current.reason).toBe('calendar-loading')
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.reason).toBe('calendar-unavailable')
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL: a healthy calendar names no reason at all', async () => {
+    at('2026-08-28T11:30:00Z')
+    serve(calendar([]))
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await waitFor(() => expect(result.current.verified).toBe(true))
+    expect(result.current.reason).toBeNull()
   })
 })
