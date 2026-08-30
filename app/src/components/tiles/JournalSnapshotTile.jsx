@@ -30,6 +30,9 @@ import useJ2BrokerPerformance from '../../pages/journal-2-0/hooks/useJ2BrokerPer
 import {
   portfolioAggregates,
   positionPnlDollar,
+  positionRiskDollar,
+  activeStop,
+  isBrokerPlaceholderStop,
   brokerLiveSummary,
   effectiveBrokerCash,
   preferBrokerMarks,
@@ -37,6 +40,11 @@ import {
   moneySigned,
   percent,
 } from '../../lib/journal-2-0'
+// ⭐ The account's own risk settings — the ONLY place 1R is defined. Reused, not
+// re-derived: `useJ2Settings` is context-free (localStorage + SWR) and its
+// accounts fetch shares `/api/j2/accounts` with this tile, so it costs exactly
+// one new request.
+import useJ2Settings from '../../pages/journal-2-0/hooks/useJ2Settings'
 import {
   buildStrategyLabel,
   computeDaysToExpiration,
@@ -204,6 +212,56 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
     return any ? s : null
   }, [positions, prices])
 
+  // ── ZONE C · OPEN RISK ────────────────────────────────────────────────────
+  //
+  // 🔴 THE SINGLE MOST-QUOTED NEED FROM THE TRADER ANALYSIS was "where are my
+  // stops". The spec's Zone C is "today's P&L, open positions WITH THEIR STOPS,
+  // and open risk in dollars and R" — the rows below now carry the stop, and
+  // this is the aggregate.
+  //
+  // ⛔ NOT `agg.risk`, and the reason is load-bearing: `portfolioAggregates`
+  // skips any position with no live price (`if (current == null) continue`).
+  // Risk does not depend on the current price at all, so after hours — or for
+  // any symbol the live feed doesn't carry — that would silently UNDER-REPORT
+  // open risk, which is the one direction a risk number must never fail in.
+  // The per-position math and the placeholder predicate are still the shared
+  // authority (`positionRiskDollar` + `isBrokerPlaceholderStop`); only the
+  // summation loop is here.
+  //
+  // ⛔ SAFETY-CRITICAL — BROKER PLACEHOLDER STOPS. Broker imports store
+  // `stop_price = entry_price` because the column is NOT NULL and the broker
+  // reports no stop. Counting that as a real stop reads as ZERO risk, which
+  // under-reports heat and would green-light an over-cap add; the same rule is
+  // enforced server-side in `api/services/portfolio_heat.py`. Such positions are
+  // EXCLUDED from the dollar figure and COUNTED separately, never silently
+  // dropped — "3 with no stop" is the sentence a trader needs.
+  const { settings } = useJ2Settings()
+  const openRisk = useMemo(() => {
+    let dollars = 0
+    let withStop = 0
+    let noStop = 0
+    for (const p of positions) {
+      if (isBrokerPlaceholderStop(p) || !Number.isFinite(activeStop(p))) { noStop += 1; continue }
+      const r = positionRiskDollar(p)
+      if (!Number.isFinite(r) || r <= 0) { noStop += 1; continue }
+      dollars += r
+      withStop += 1
+    }
+    return { dollars, withStop, noStop }
+  }, [positions])
+
+  // 1R = the account's per-trade risk budget. Both halves must be real numbers
+  // or R is NOT derivable — and an undefined R is reported as such rather than
+  // rendered as a confident 0.0R.
+  const oneR = useMemo(() => {
+    const acct = Number(settings?.accountSize)
+    const pct = Number(settings?.maxRiskPerTradePct)
+    if (!Number.isFinite(acct) || acct <= 0) return null
+    if (!Number.isFinite(pct) || pct <= 0) return null
+    return (acct * pct) / 100
+  }, [settings])
+  const openRiskR = oneR ? openRisk.dollars / oneR : null
+
   // Equity rows, richest mover first.
   const equityRows = useMemo(() => {
     return positions
@@ -217,7 +275,11 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
           ? null
           : (p.side === 'Short' ? -1 : 1) * Number(live.change_pct)
         const open = price == null ? null : positionPnlDollar(p, price)
-        return { kind: 'equity', key: `e-${p.id}`, p, price, today, todayPct, open }
+        // The stop the risk math actually uses (breakeven override included),
+        // or null when the broker placeholder means "no stop set".
+        const stop = isBrokerPlaceholderStop(p) ? null : activeStop(p)
+        const risk = stop == null ? null : positionRiskDollar(p)
+        return { kind: 'equity', key: `e-${p.id}`, p, price, today, todayPct, open, stop, risk }
       })
       .sort((a, b) => (Math.abs(b.today ?? -1) - Math.abs(a.today ?? -1)))
   }, [positions, prices])
@@ -269,8 +331,8 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} />
-              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} />
+              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} />}
 
             <div className={styles.rows}>
               {visibleRows.map((row) =>
@@ -293,6 +355,56 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
   )
 }
 
+/**
+ * Zone C's risk line: open risk in DOLLARS and in R, plus an explicit count of
+ * positions carrying no real stop.
+ *
+ * ⛔ "R n/a" IS A REPORTED FACT, NOT A BLANK. R needs the account's own budget
+ * (accountSize × maxRiskPerTradePct); a member who has never set those has no
+ * 1R, and inventing one — or quietly printing dollars only — would be a number
+ * with no basis on the page whose whole job is risk. It says which setting is
+ * missing and links to where it is set.
+ *
+ * ⛔ THE NO-STOP COUNT IS NEVER HIDDEN. A broker import stores
+ * `stop_price = entry_price` as a placeholder; those positions are excluded
+ * from the dollar figure precisely because counting them as 0 risk under-reports
+ * heat — so the exclusion has to be VISIBLE or the total reads as complete when
+ * it is not.
+ */
+function OpenRiskLine({ openRisk, openRiskR }) {
+  if (!openRisk || (openRisk.withStop === 0 && openRisk.noStop === 0)) return null
+  return (
+    <div className={styles.riskLine}>
+      <span className={styles.riskLabel}>Open risk</span>
+      {openRisk.withStop > 0 ? (
+        <>
+          <span className={styles.riskValue}>{money(openRisk.dollars)}</span>
+          {openRiskR != null ? (
+            <span className={styles.riskR}>{openRiskR.toFixed(2)}R</span>
+          ) : (
+            <Link
+              to="/journal?j2tab=positions"
+              className={styles.riskHint}
+              title="R needs your account size and max risk per trade"
+              onClick={(e) => e.stopPropagation()}
+            >
+              R n/a — set account size &amp; risk %
+            </Link>
+          )}
+        </>
+      ) : (
+        <span className={styles.riskHint}>no stops set</span>
+      )}
+      {openRisk.noStop > 0 && (
+        <span className={styles.riskNoStop}>
+          <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />
+          {openRisk.noStop} with no stop
+        </span>
+      )}
+    </div>
+  )
+}
+
 function CountLine({ positions, strategies, suffix }) {
   return (
     <div className={styles.countLine}>
@@ -306,7 +418,7 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period, openRisk, openRiskR }) {
   const series = perf?.equitySeries || []
   const value = brokerLive?.netLiq ?? brokerBase
 
@@ -344,13 +456,14 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
           values={series.map((p) => p?.value)}
         />
       )}
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} />
       <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
     </div>
   )
 }
 
 /** Manual hero — live mark-to-market of open equity positions. */
-function ManualHero({ agg, today, positions, strategies }) {
+function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR }) {
   const prevValue = today == null ? null : agg.value - today
   const todayPct = prevValue ? today / prevValue : null
   const costBasis = agg.value - agg.unrealized
@@ -362,6 +475,7 @@ function ManualHero({ agg, today, positions, strategies }) {
         <PerfFigure label="Today" dollar={today} pct={todayPct} />
         <PerfFigure label="Open P&L" dollar={agg.unrealized} pct={openPct} />
       </div>
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} />
       <CountLine positions={positions} strategies={strategies} />
     </div>
   )
@@ -384,7 +498,7 @@ function PerfFigure({ label, dollar, pct }) {
 }
 
 function EquityRow({ row }) {
-  const { p, price, today, todayPct, open } = row
+  const { p, price, today, todayPct, open, stop } = row
   return (
     <div className={styles.row}>
       <div className={styles.rowLeft}>
@@ -394,6 +508,12 @@ function EquityRow({ row }) {
         </span>
         <span className={styles.rowMeta}>
           {p.shares} @ {price == null ? '—' : money(price)}
+          {/* 🔴 "Where are my stops" — the single most-quoted need from the
+              trader analysis. A broker placeholder (stop == entry) is NOT a
+              stop and must never render as one; it reads "no stop". */}
+          {stop == null
+            ? <span className={styles.noStop}> · no stop</span>
+            : <span className={styles.stop}> · stop {money(stop)}</span>}
         </span>
       </div>
       <div className={styles.rowRight}>

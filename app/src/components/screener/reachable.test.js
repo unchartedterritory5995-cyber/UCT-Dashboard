@@ -328,14 +328,26 @@ const AWAITING_A_DECISION = {
     'ORPHANED BY INHERITANCE — its only importer is DeskVideoRail.jsx above. '
     + 'Moves with it.',
   'app/src/components/tiles/TapeFeed.jsx':
-    'RENDERING TWICE, NOT RETIRED. `64960303b` moved the tape INTO '
-    + 'MoversSidebar (the rail beside the zones), and this tile kept its own '
-    + 'Dashboard mount, so the same feed drew twice. The Dashboard mount is the '
-    + 'copy that was cut. ⚠️ The FEED is live and unaffected — MoversSidebar '
-    + 'reads it through hooks/useTweetFeed against /api/tweets/feed.',
+    'SUPERSEDED, NOT ROLLBACK BACKUP — and the distinction is the point. '
+    + '`64960303b` did not merely unmount this tile: MoversSidebar now '
+    + 'RE-IMPLEMENTS the tape against hooks/useTweetFeed, so the two rendered '
+    + 'the same feed twice on one page and the Dashboard mount is the copy that '
+    + 'was cut. ⛔ RESTORING IT WOULD RESTORE THE DUPLICATE, which is why this '
+    + 'entry does NOT say "kept as rollback backup" like the seven door tiles '
+    + 'above it. This repo already deleted hooks/useTapeFeed.js for exactly this '
+    + 'reason (CLAUDE.md: "superseded, not merely unmounted"), and the name '
+    + 'surviving onto the successor is what made the old wiring read as live for '
+    + 'weeks. ⚠️ ONE REAL CONSEQUENCE, recorded rather than fixed here: under '
+    + 'VITE_TWITTER_UI_ENABLED=0 this tile was the only path that still rendered '
+    + 'NewsFeed, because MoversSidebar hides its tape behind that same flag with '
+    + 'no fallback. Flag-off users therefore lose the news list outright. Decide '
+    + 'that deliberately — either give MoversSidebar a flag-off NewsFeed '
+    + 'fallback, or delete this pair — do not leave it as an accident.',
   'app/src/components/tiles/NewsFeed.jsx':
-    'ORPHANED BY INHERITANCE — its only importer is TapeFeed.jsx above. Moves '
-    + 'with it.',
+    'ORPHANED BY INHERITANCE — its only importer is TapeFeed.jsx above, so it '
+    + 'moves with it. ⚠️ It is NOT superseded the way TapeFeed is: MoversSidebar '
+    + 'renders tweet rows, not this component, so with VITE_TWITTER_UI_ENABLED=0 '
+    + 'nothing renders a news list at all. See the TapeFeed entry.',
   'app/src/components/EmptyState.jsx':
     'ORPHANED BY MASTER, NOT BY THIS BRANCH, on the 2026-08-27 merge. Its last '
     + 'importer was pages/Patterns.jsx (line 7), which master DELETED when it '

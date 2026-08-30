@@ -505,3 +505,32 @@
   letter-spacing: 0.2px;
   color: var(--accent);
 }
+
+/* ── ZONE C · open risk + per-row stops ─────────────────────────────────────
+   The stop is the thing members asked for most; it sits on the row's meta line
+   beside shares @ price, and the aggregate sits directly under the P&L figures
+   so "what am I risking" is one glance from "what am I making". */
+.riskLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.riskLabel {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.riskValue { color: var(--text-bright); font-weight: 600; }
+.riskR { color: var(--ut-gold, #dcbb5e); font-weight: 600; }
+.riskHint { color: var(--text-muted); font-size: 10px; text-decoration: none; }
+.riskHint:hover { color: var(--ut-gold, #dcbb5e); }
+/* A position with no real stop is the one thing on this line allowed to shout. */
+.riskNoStop { color: var(--warning, #f5a623); font-size: 10px; }
+
+.stop { color: var(--text-muted); }
+.noStop { color: var(--warning, #f5a623); opacity: 0.85; }
