@@ -3,7 +3,7 @@
  * sits on its range (normalize), color = tier. Signal of the Day column is gold
  * ★ + outlined; the notable column pulses.
  */
-import { metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -22,9 +22,7 @@ export default function EqualizerView({ currentRow, metrics, normalize, onDrill,
           const isNotable = m.key === notableKey
           const clickable = !!m.drillKey
           return (
-            <div key={m.key} onClick={clickable ? () => onDrill(m) : undefined}
-                 role={clickable ? 'button' : undefined}
-                 aria-label={clickable ? `${m.label} details` : undefined}
+            <div key={m.key} {...drillProps(m, onDrill)}
                  style={{ flex: '1 0 34px', minWidth: 34, height: '100%', display: 'flex',
                           flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
                           cursor: clickable ? 'pointer' : 'default' }}>

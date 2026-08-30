@@ -192,6 +192,42 @@ export const fillsRow = (min, max) => ({
   flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: min, maxHeight: max,
 })
 
+/**
+ * ⭐ ONE GRAMMAR FOR "THIS MARK OPENS THE NAMES BEHIND IT".
+ *
+ * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH. Ten hand-written
+ * copies of `role="button"` + `aria-label` + `onClick`, and not one of them
+ * carried `tabIndex` or a key handler — so every drill affordance on this tab
+ * ANNOUNCED itself to assistive tech as a button and then could not be focused,
+ * let alone pressed. A `<div role="button">` with no tab stop is worse than a
+ * plain div: it promises an action to exactly the users who cannot take it.
+ *
+ * ⛔ AND IT IS NOT A SIBLING OF THE DENSE MARKS. A ribbon cell, a timeline
+ * column, a clock dot and a divergence point all do ONE thing — move the date
+ * cursor — and the scrubber plus the arrow keys already reach every session in
+ * the window, in order, with the date announced on each step. Drill is the
+ * action with NO keyboard equivalent anywhere on the tab, which is why it is
+ * the one that gets tab stops here. (`lesson_one_grammar_four_hand_written_copies`.)
+ *
+ * Returns `{}` — not a disabled button — when the metric carries no `drillKey`:
+ * a metric with no list behind it must not read as an affordance at all.
+ */
+export function drillProps(metric, onDrill) {
+  if (!metric?.drillKey || typeof onDrill !== 'function') return {}
+  const open = () => onDrill(metric)
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': `${metric.label} details`,
+    onClick: open,
+    // Space scrolls the page by default, and Enter/Space are what a native
+    // button answers to — the two keys this element is claiming to be.
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
+    },
+  }
+}
+
 export function metricColor(metric, row, tierMap = VIEW_TIER_COLOR) {
   const tier = metric.getTier ? (metric.getTier(row) || '') : ''
   return tierMap[tier] ?? tierMap[''] ?? VIEW_TIER_COLOR['']

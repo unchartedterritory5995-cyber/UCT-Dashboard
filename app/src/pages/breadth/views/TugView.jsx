@@ -5,7 +5,7 @@
  * A net-posture line summarizes the paired board. The Signal of the Day is marked
  * with a gold ★; the notable divergence with a ◆ (and pulses when unpaired).
  */
-import { metricValue, netPosture, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricValue, netPosture, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 
 function Side({ metric, value, share, align, color, onDrill }) {
@@ -13,9 +13,7 @@ function Side({ metric, value, share, align, color, onDrill }) {
   return (
     <div style={{ display: 'flex', justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
       <div
-        role={clickable ? 'button' : undefined}
-        aria-label={clickable ? `${metric.label} details` : undefined}
-        onClick={clickable ? () => onDrill(metric) : undefined}
+        {...drillProps(metric, onDrill)}
         style={{ width: `${share}%`, minWidth: 28, height: 20, background: color,
                  borderRadius: 4, display: 'flex', alignItems: 'center',
                  justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
@@ -37,9 +35,7 @@ function SingleBar({ metric, norm, value, onDrill, isSignal, isNotable, colors }
   const color = isBull ? colors.bull : colors.bear
   const bar = (
     <div
-      role={clickable ? 'button' : undefined}
-      aria-label={clickable ? `${metric.label} details` : undefined}
-      onClick={clickable ? () => onDrill(metric) : undefined}
+      {...drillProps(metric, onDrill)}
       className={isNotable ? signalStyles.pulse : undefined}
       style={{ width: `${mag}%`, minWidth: 24, height: 18, background: color, borderRadius: 3,
                display: 'flex', alignItems: 'center',

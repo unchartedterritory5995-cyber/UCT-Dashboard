@@ -32,13 +32,17 @@
  * for the second. What is left is a line, the dashed reference it is measured
  * from, and the two numbers that bound the axis.
  */
-import { fillsRow, resolveViewColors } from './breadthViewShared'
+import { resolveViewColors } from './breadthViewShared'
 // ⭐ The panel table MOVED to `rotation.js` (framework-free) — The Read quotes a
 // panel's own `up`/`down` sentence, and a second copy of that copy is how the
 // strip and the card beneath it would end up naming opposite directions. The
 // `risingIsBull` ruling and the `measured` ruling both live there now, and so
 // does the drawn domain.
 import { ROTATION_PANELS as PANELS, rotationMeasured, traceDomain } from './rotation'
+// Outer padding + inter-panel gap only — and the pane-scoped trim of both. The
+// reason both live in a stylesheet instead of the inline style below is stated
+// at the top of that file.
+import styles from './RotationView.module.css'
 
 const pointIndex = (e) => {
   const el = e.target?.closest?.('[data-seek-idx]')
@@ -56,10 +60,22 @@ const H = 40
 const TOP = 3
 const BOT = H - 3
 
-// The smallest a panel is allowed to get before the lens scrolls instead of
-// clipping. Three of these plus the basis line is ~230px — inside what a
-// quarter-size compare pane offers, and far inside a full-height single view.
-const PANEL_MIN_H = 66
+/**
+ * A panel's PREFERRED size — three of these plus the basis line is ~230px,
+ * inside what a quarter-size compare pane offers and far inside a full-height
+ * single view. All three share equally, so with equal bases the panels come out
+ * the same height at any container size.
+ *
+ * 🔴 IT IS A `flex-basis`, NOT A `min-height`, AND THE DIFFERENCE IS A BUG.
+ * As an explicit px floor it sat BELOW the panel's own content whenever the
+ * verdict line wrapped — at 358px wide (a phone's compare pane) the footer
+ * takes two lines and the panel needs ~88px. The panel was pinned at 66, the
+ * content did not fit, and `overflow: visible` painted the overflow straight
+ * over the header of the panel beneath it. With no explicit minimum the flex
+ * item's automatic one is its CONTENT, so a squeezed lens scrolls — which is
+ * what the root's `overflow: auto` is for — instead of overlapping itself.
+ */
+const PANEL_BASIS_H = 66
 // Enough for the two domain bounds at 9px with a sign, and no more: it is a
 // scale, not a column.
 const AXIS_W = 46
@@ -92,8 +108,9 @@ export default function RotationView({
   const measured = rotationMeasured(lookback, win.length)
 
   return (
-    <div style={{ height: '100%', minHeight: 0, overflow: 'auto', padding: '9px 16px 10px',
-                  display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className={styles.root}
+         style={{ height: '100%', minHeight: 0, overflow: 'auto',
+                  display: 'flex', flexDirection: 'column' }}>
       <div data-testid="rotation-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', flex: '0 0 auto' }}>
@@ -141,10 +158,14 @@ export default function RotationView({
         const head = drawn.length ? drawn[drawn.length - 1] : null
 
         return (
-          <div key={p.key} data-testid={`rotation-panel-${p.key}`}
-               style={{ background: '#0e131a', borderRadius: 10, padding: '6px 12px 5px',
+          <div key={p.key} data-testid={`rotation-panel-${p.key}`} className={styles.panel}
+               style={{ background: '#0e131a', borderRadius: 10,
                         border: '1px solid rgba(255,255,255,0.05)',
-                        ...fillsRow(PANEL_MIN_H), minWidth: 0,
+                        // Longhands, never the `flex` shorthand: jsdom's CSSOM
+                        // drops the shorthand silently, so the rail that pins
+                        // this would pass on a panel declaring nothing at all.
+                        flexGrow: 1, flexShrink: 1, flexBasis: PANEL_BASIS_H,
+                        minWidth: 0,
                         display: 'flex', flexDirection: 'column' }}>
 
             {/* Header — what this is, on the left; what it reads, on the right.
@@ -193,8 +214,19 @@ export default function RotationView({
                   <span>{fmt(lo)}</span>
                 </div>
               )}
+              {/* 🔴 THE PLOT IS OUT OF FLOW, AND THAT IS A SIZING FIX, NOT A
+                  LAYOUT ONE. An `<svg>` with a viewBox has an INTRINSIC ASPECT
+                  RATIO, so its min-content height is a function of its width:
+                  at page width each panel's automatic minimum became ~520px and
+                  the lens demanded seventeen hundred pixels it never drew.
+                  Absolutely positioned inside a relative wrapper it contributes
+                  nothing to that calculation, so the panel's own minimum is what
+                  its TEXT needs — which is the number that has to be right, since
+                  it is what stops a wrapped verdict line from spilling over the
+                  panel beneath it. */}
+              <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
               <svg width="100%" height="100%" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none"
-                   style={{ flex: 1, minWidth: 0, display: 'block' }}
+                   style={{ position: 'absolute', inset: 0, display: 'block' }}
                    aria-hidden="true"
                    onClick={(e) => {
                      const i = pointIndex(e)
@@ -240,6 +272,7 @@ export default function RotationView({
                   </rect>
                 )))}
               </svg>
+              </div>
             </div>
 
             {/* Footer — the sentence this panel's direction means, and the

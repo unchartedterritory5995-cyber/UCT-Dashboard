@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, fireEvent } from '@testing-library/react'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
@@ -106,7 +107,12 @@ const propsFor = (style) => {
 // ⛔ AN AST, NOT A GREP (`lesson_probe_names_must_be_derived_not_typed`): a grep
 // for `rowIdx` in that file matches the state hook, the keyboard handler and
 // three memo deps before it reaches the bundle.
-const CONTAINER = path.join(__dirname, '..', 'BreadthViews.jsx')
+// `__dirname` does not exist in an ES module — this file is one, and the bare
+// reference only ever resolved because vitest's transform happened to leave a
+// CJS shim in scope. Derived from `import.meta.url`, which is the module's own
+// authority on where it lives.
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const CONTAINER = path.join(HERE, '..', 'BreadthViews.jsx')
 
 function bundlesFromContainer() {
   const src = fs.readFileSync(CONTAINER, 'utf8').replace(/\r\n/g, '\n')
@@ -203,6 +209,70 @@ describe('view registry', () => {
  * like that is exactly what goes stale, and it would have to grow an exemption
  * the day a ninth view lands.
  */
+/**
+ * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH.
+ *
+ * Ten hand-written copies of `role="button"` + `aria-label` + `onClick`, and
+ * not one carried `tabIndex` or a key handler — so every drill affordance on
+ * this tab ANNOUNCED itself to assistive tech as a button and could not be
+ * focused, let alone pressed. A `<div role="button">` with no tab stop is worse
+ * than a plain div: it promises an action to exactly the users who cannot take
+ * it, and there is no OTHER keyboard path to a drill list anywhere on this tab.
+ *
+ * ⭐ DERIVED OVER EVERY REGISTERED STYLE, so the seventeenth view is covered on
+ * the day it lands rather than on the day someone remembers to add it here.
+ * `drillProps` in `breadthViewShared.js` is the one grammar; this asserts the
+ * PROPERTY, not the helper, so a view that hand-rolls a correct button still
+ * passes and one that hand-rolls the old broken shape does not.
+ */
+describe('every button a view declares can be reached from a keyboard', () => {
+  it('gives each one a tab stop', () => {
+    const seen = []
+    for (const style of STYLES) {
+      const Component = VIEW_COMPONENTS[style]
+      const { container, unmount } = render(<Component {...propsFor(style)} />)
+      for (const el of container.querySelectorAll('[role="button"]')) {
+        seen.push(style)
+        // ⛔ THE ATTRIBUTE'S PRESENCE FIRST. `Number(getAttribute(...))` on a
+        // MISSING attribute is `Number(null)` === 0, which sails past
+        // `>= 0` — this rail passed with every `tabIndex` deleted until it
+        // asked the question that can be answered "no".
+        expect(el.hasAttribute('tabindex'),
+          `${style}: a role="button" with no tab stop — announced, unreachable`).toBe(true)
+        expect(Number(el.getAttribute('tabindex')),
+          `${style}: a role="button" removed from the tab order`).toBeGreaterThanOrEqual(0)
+      }
+      unmount()
+    }
+    // ⛔ CONTROL: a sweep over zero buttons passes for the wrong reason.
+    expect(seen.length, 'no view rendered a button — this rail proved nothing')
+      .toBeGreaterThan(0)
+  })
+
+  it('activates on Enter and on Space, the two keys it claims', () => {
+    // ⛔ A TAB STOP ALONE IS HALF THE FIX: focusable and inert is still a
+    // button that does nothing. Driven through the container's own drill
+    // bridge, per style, so a view that added `tabIndex` and forgot the key
+    // handler fails by name.
+    let activated = 0
+    for (const style of STYLES) {
+      const fired = []
+      const props = { ...propsFor(style), onDrill: (m) => fired.push(m?.key ?? true) }
+      const Component = VIEW_COMPONENTS[style]
+      const { container, unmount } = render(<Component {...props} />)
+      const btn = container.querySelector('[role="button"]')
+      if (btn) {
+        fireEvent.keyDown(btn, { key: 'Enter' })
+        fireEvent.keyDown(btn, { key: ' ' })
+        expect(fired.length, `${style}: a focusable button that answers no key`).toBe(2)
+        activated++
+      }
+      unmount()
+    }
+    expect(activated, 'no style exercised the key path').toBeGreaterThan(0)
+  })
+})
+
 describe('no two views claim the same test id', () => {
   afterEach(() => { swrState.data = null })
 
