@@ -4824,6 +4824,21 @@ async def lifespan(app: FastAPI):
             # owner on 2 consecutive structural misses. Self-gates on market
             # window + BROKER_LIVE_SENTINEL_ENABLED (default ON). Cron
             # :11/:41 keeps it off the other broker jobs' minutes.
+            # Daily BIAS digest — the half a tolerance cannot do. mirror_check
+            # pages when drift is BIG; it is structurally blind to drift that is
+            # small and never goes away, which is the shape that actually
+            # reaches a member (the owner's own hero sat $19.96 off every day
+            # for weeks under every tolerance, found only by comparing two
+            # screens by hand). Ten of eleven books belong to MEMBERS and
+            # nobody does that comparing for them. ALWAYS posts green-or-red:
+            # a monitor that only speaks on bad news reads exactly like a dead
+            # one. 08:05 ET, after the nightly reconcile + canary have landed.
+            from api.services.journal_two.broker import mirror_check as _broker_mirror
+            _scheduler.add_job(
+                _broker_mirror.run_bias_digest,
+                trigger=CronTrigger(hour=8, minute=5, timezone=_ET),
+                id="broker_bias_digest", max_instances=1, replace_existing=True,
+            )
             from api.services.journal_two.broker import live_sentinel as _broker_live_sentinel
             _scheduler.add_job(
                 _broker_live_sentinel.run_sentinel_blocking,

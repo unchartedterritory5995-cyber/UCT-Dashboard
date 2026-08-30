@@ -3553,15 +3553,60 @@ class Resolver {
     // the lane that wrote this. It is recorded here rather than left half-shipped
     // behind a dead flag: `if (false && …)` in a file this size is how an
     // unreachable branch survives long enough to be mistaken for live code.
-    // ⛔⛔ AND `bool(x)` WOULD NOT HAVE COME WITH THEM. TradingView documents the
-    // cast for `na` and for bools; what `bool(<float>)` means for a `ta.pivothigh`
-    // result is NOT published, and the plausible reading (`not na(x)`) would be
-    // this translator INVENTING a meaning and drawing a column from it.
+    // ⚰️⚰️ `bool(x)` NOW FOLDS, AND THIS PARAGRAPH USED TO SAY IT COULD NOT —
+    // WRONG ON BOTH HALVES. It read: *"TradingView documents the cast for `na` and
+    // for bools; what `bool(<float>)` means for a `ta.pivothigh` result is NOT
+    // published, and the plausible reading (`not na(x)`) would be this translator
+    // INVENTING a meaning."*
+    //   • IT IS PUBLISHED. TradingView's v6 migration guide states it verbatim:
+    //     "In Pine v5, values of \"int\" and \"float\" types can be implicitly cast
+    //     to \"bool\" … In such cases, `na`, `0`, or `0.0` are considered `false`,
+    //     and any other value is considered `true`." and prescribes the fix "Wrap
+    //     the numeric value with the bool() function to cast it explicitly."
+    //     (https://www.tradingview.com/pine-script-docs/migration-guides/to-pine-version-6/)
+    //   • AND `not na(x)` IS BACKWARDS, WHICH IS THE WORSE HALF. TradingView says
+    //     `0` casts to FALSE; `not na(0)` is TRUE. The "plausible reading" this
+    //     paragraph declined to invent would have been a wrong number, and the
+    //     reason to decline was never that the meaning is unknown.
+    //
+    // ⭐⭐ SO THE FOLD IS `x != 0`, AND IT IS AN EXACT IDENTITY RATHER THAN AN
+    // APPROXIMATION. `interpret.js`'s `cmp` pins "A COMPARISON AGAINST NaN IS 0,
+    // NOT NaN", so `x != 0` answers false for `na`, false for `0`, true otherwise
+    // — TradingView's sentence, bar for bar. It is strictly MORE faithful than the
+    // v5 path the same author's sibling script rides today, whose bare `and`
+    // PROPAGATES NaN rather than collapsing it to false.
+    //
+    // ⛔ IT IS A PINE VERSION ARTIFACT, NOT A SEMANTICS GAP, which is what makes
+    // the refusal indefensible rather than merely conservative:
+    // `28-support-resistance-dynamic-v2.pine` is the SAME AUTHOR's v5 sibling and
+    // is already on the TRANSLATES roster with `plotshape(ph and showpp, …)`. The
+    // v6 file writes `plotshape(bool(ph) and showpp, …)` — the identical construct,
+    // differing only by the wrapper TradingView's own converter inserts. This door
+    // accepted it in v5 and refused it in v6.
+    //
+    // ⚠️ WHAT IT DOES NOT FIX, said out loud: `showpp = input.bool(defval=false)`
+    // folds to 0, so the offered column short-circuits to a constant false until a
+    // member flips it in their own source. That is NOT introduced here — measured,
+    // 11 of the 149 columns the three doors offer today already fold to a constant,
+    // including BOTH of the v5 sibling's. Widening `hidden` to cover a
+    // short-circuit-folding tree is a separate change with its own measurement and
+    // it moves the ratchets the other way; do not bundle it.
     // ⛔ `fixnan` STAYS REFUSED, AND NOT FOR WANT OF A TABLE ENTRY. It carries the
     // last known value FORWARD ACROSS BARS for an unbounded distance, so it is
     // state with no warm-up a member could state — `accum` bounds its window on
     // purpose, and quietly picking a bound here would answer a different question
     // from the one the script asks.
+    // ⭐ ONE UNNAMED ARGUMENT, AND IT YIELDS TO A USER DEFINITION — the same two
+    // conditions `na`/`nz` carry above, for the same reason: a member writing
+    // `bool(a, b) => …` must get their own function. `pine.bindingOrder.test.js`
+    // found that defect five times before it was derived rather than remembered.
+    // ⚠️ A WRONG ARITY FALLS THROUGH rather than refusing here, so it lands on the
+    // ordinary `pine:function` sentence that names the whole declared vocabulary,
+    // which is more use to a member than a bespoke one about `bool`.
+    if (name === 'bool' && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(name)) {
+      return cOp('!=', [this.resolve(node.args[0].value), cNum(0)])
+    }
     if (name === 'fixnan') {
       throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
     }

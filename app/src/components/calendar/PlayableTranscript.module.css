@@ -28,7 +28,7 @@
 .clock {
   font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
   min-width: 42px;
 }
 
@@ -39,11 +39,11 @@
   font-size: 11px;
   letter-spacing: .04em;
   text-transform: uppercase;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 .speed select {
   background: transparent;
-  color: var(--color-text, #d8dade);
+  color: var(--text-bright);
   border: 1px solid rgba(255, 255, 255, .14);
   border-radius: var(--radius-sm);
   padding: 2px 4px;
@@ -61,7 +61,7 @@
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, .14);
   background: transparent;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 .followOn {
   border-color: var(--ut-gold, #dcbb5e);
@@ -71,7 +71,7 @@
 .hint {
   margin: 0;
   font-size: 11px;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 
 .body {
@@ -98,7 +98,7 @@
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 
 .turnJump {
@@ -108,7 +108,7 @@
   cursor: pointer;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 .turnJump:hover { color: var(--ut-gold, #dcbb5e); }
 
@@ -116,7 +116,7 @@
   margin: 0;
   font-size: 13px;
   line-height: 1.75;
-  color: var(--color-text, #d8dade);
+  color: var(--text-bright);
 }
 
 .word { cursor: pointer; }

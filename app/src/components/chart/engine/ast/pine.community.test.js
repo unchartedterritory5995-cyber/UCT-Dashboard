@@ -84,6 +84,16 @@ describe('the community corpus, by name', () => {
     '20-cm-ultimate-ma-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
+    // ⭐⭐ THE SAME AUTHOR'S v6 SIBLING, AND THE DOOR ACCEPTED THE v5 ONE ALL
+    // ALONG. 28 (v5) writes `plotshape(ph and showpp, …)`; 27 (v6) writes
+    // `plotshape(bool(ph) and showpp, …)` — the identical construct, differing
+    // only by the wrapper TradingView's OWN converter inserts because v6 removed
+    // the implicit int/float→bool cast. So the refusal was a PINE VERSION
+    // ARTIFACT, not a semantics gap, and `pine.js` carried an in-file ruling
+    // saying the cast was unpublished. It is published, verbatim, and the reading
+    // that ruling called "plausible" (`not na(x)`) is BACKWARDS — TradingView
+    // says `0` casts to FALSE. See the citation at the fold site.
+    '27-support-resistance-channels.pine',
     '28-support-resistance-dynamic-v2.pine',
   ]
 

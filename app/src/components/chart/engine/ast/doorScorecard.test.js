@@ -179,8 +179,12 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   // Lower it when a gap closes; never raise it. ⚠️ And it can only be lowered by
   // making a script TRANSLATE — moving one into `RULED` is caught by the bucketing
   // assertion above needing a written reason, and by review of that reason.
-  it('no more than 20 scripts are OPEN', () => {
-    expect(open.length).toBeLessThanOrEqual(20)
+  it('no more than 18 scripts are OPEN', () => {
+    // ⭐ 20 → 18 on 2026-08-30: `27-support-resistance-channels` translates (the
+    // `bool(x)` cast is published after all), and `18-fold-up-down-points-ratio`
+    // before it. A ratchet that is not tightened when a gap closes lets the gain
+    // regress in silence, which is the one thing a ratchet exists to stop.
+    expect(open.length).toBeLessThanOrEqual(18)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {
@@ -192,7 +196,7 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   })
 
   it('the doors that translate at all may not translate fewer', () => {
-    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(41)
+    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(43)
   })
 })
 
@@ -273,7 +277,7 @@ describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets'
     // Without this, a `saveable` count that happened to equal `translate` could be
     // produced by a gate that never ran.
     expect(total.evaluate).toBe(total.translate)
-    expect(total.evaluate).toBeGreaterThanOrEqual(41)
+    expect(total.evaluate).toBeGreaterThanOrEqual(43)
   })
 })
 

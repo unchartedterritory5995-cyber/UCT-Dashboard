@@ -1,6 +1,7 @@
 // app/src/components/research-kit/charts/ImpliedVsRealized.jsx
-import { useEffect, useState } from 'react'
 
+import useMeasuredWidth from './useMeasuredWidth'
+import { labelStep } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import VerdictChip from '../VerdictChip'
@@ -255,52 +256,6 @@ export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.he
 }
 
 /**
- * The wrapper's live pixel width, or `fallback` until (and unless) it can be
- * measured. Feeding this back as the viewBox width is what pins the scale at
- * 1 — see the VIEWBOX docblock for what the fixed-320 box was doing instead.
- *
- * `ResizeObserver` is guarded exactly the way every other chart wrapper in
- * this repo guards it (e.g. pages/charts/widgets/NhnlPulseWidget.jsx:154):
- * jsdom does not implement it, so under test this returns the fallback and
- * the geometry stays byte-identical to the pre-change 320-unit box. That is
- * deliberate — it keeps `pairGeometry`'s existing unit tests meaningful
- * rather than silently re-baselining them against a measured width that no
- * test environment can produce.
- */
-function useMeasuredWidth(fallback) {
-  // ⛔ A CALLBACK REF, NOT useRef. This measured 320 forever in the real modal
-  // while every test passed: on the first render the payload has not arrived,
-  // `hasAnything` is false, and the component returns <EmptyState/> — so the
-  // wrapper div does not exist yet. A `useEffect(..., [ref])` runs ONCE against
-  // that absent node, bails on `!el`, and never runs again, because a `useRef`
-  // object is referentially stable for the life of the component: the element
-  // appearing later is invisible to the dependency array. A callback ref is
-  // CALLED by React when the node attaches, so the measurement happens whenever
-  // the chart actually mounts — including after SWR resolves.
-  //
-  // The unit tests could not have caught this: they render with data already
-  // present, so the div is there on the first pass. `mounts empty first` below
-  // is the rail for the real ordering.
-  const [node, setNode] = useState(null)
-  const [width, setWidth] = useState(null)
-  useEffect(() => {
-    if (!node || typeof ResizeObserver === 'undefined') return undefined
-    const read = () => {
-      const w = node.clientWidth
-      // A detached or display:none wrapper measures 0; drawing a 0-wide
-      // viewBox would divide the slot by zero and collapse every bar onto
-      // x=NaN. Keep the last good width (or the fallback) instead.
-      if (w > 0) setWidth(w)
-    }
-    read()
-    const ro = new ResizeObserver(read)
-    ro.observe(node)
-    return () => ro.disconnect()
-  }, [node])
-  return [setNode, width ?? fallback]
-}
-
-/**
  * THE Setup hero (spec §4.3.1a): what the options market charged for each past
  * print versus what the stock actually did.
  *
@@ -348,6 +303,9 @@ export default function ImpliedVsRealized({
   }
 
   const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height })
+  // Thin the axis on a narrow chart rather than shrinking the type below the
+  // smallest token — see labelStep's docblock.
+  const step = labelStep(geo.width / Math.max(geo.cols.length, 1))
   const chip = cold.cold ? null : impliedVerdict(paired, live)
   // I2: coldStartState's `cold` flag counts the LIVE current quarter as
   // "recorded", so it can read warm (cold.cold === false, cold.caption ===
@@ -362,10 +320,11 @@ export default function ImpliedVsRealized({
     : `Realized move by quarter. ${coverageCaption ?? ''}`.trim())
 
   return (
-    <div ref={wrapRef} className={`${styles.wrap} ${className}`}>
+    <div className={`${styles.wrap} ${className}`}>
       {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
 
       <svg
+        ref={wrapRef}
         className={styles.svg}
         viewBox={`0 0 ${vbWidth} ${VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
@@ -376,7 +335,7 @@ export default function ImpliedVsRealized({
       >
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
 
-        {geo.cols.map((c) => (
+        {geo.cols.map((c, i) => (
           <g key={c.key}>
             {c.implied && (
               <rect
@@ -402,9 +361,11 @@ export default function ImpliedVsRealized({
                 NOW
               </text>
             )}
-            <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
-              {c.isCurrent ? `±${c.label}` : c.label}
-            </text>
+            {(i % step === 0 || c.isCurrent) && (
+              <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
+                {c.isCurrent ? `±${c.label}` : c.label}
+              </text>
+            )}
           </g>
         ))}
       </svg>

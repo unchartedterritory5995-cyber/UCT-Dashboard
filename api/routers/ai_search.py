@@ -1796,6 +1796,133 @@ _ANSWER_MAX_TOKENS = 1800
 _PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
 
 
+#: Own cost surface, so synthesis spend is separable from the Perplexity leg in
+#: `llm_route_cost_log` and cappable on its own.
+_SYNTH_SURFACE = "ai_search_synth"
+_SYNTH_CAP_ENV = "AI_SEARCH_SYNTH_DAILY_CAP"
+_SYNTH_CAP_DEFAULT = 5.0          # USD/ET-day; ~135 asks at the measured $0.037
+
+
+def _claude_synth_enabled() -> bool:
+    """OFF by default. Adds one Anthropic call per ask — a spend decision, so a
+    Railway var rather than a code default."""
+    return os.environ.get("AI_SEARCH_CLAUDE_SYNTH", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+_SYNTH_NOTE = (
+    "\n\nWEB FINDINGS (a live web search already ran for this question; its "
+    "answer and numbered sources follow). Treat them as RETRIEVAL, not as your "
+    "answer: reason over them together with the UCT desk data above, and prefer "
+    "a desk figure over a web one whenever both exist. If the two disagree, say "
+    "so.\n"
+    "CITATION RULE — every FIGURE you take from the web findings carries its "
+    "[n] marker IMMEDIATELY after it, in the same sentence, reusing the SAME "
+    "numbering. A desk figure needs no [n]; attribute it to 'UCT desk data' "
+    "instead. A number with neither an [n] nor a desk attribution reads as "
+    "invented — if you cannot source it either way, leave it out.\n")
+
+
+def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | None:
+    """Perplexity retrieves; Claude thinks. Returns None to leave `web` standing.
+
+    The fast lane synthesises with `sonar-pro`, so on open-ended reasoning a
+    member was getting a Perplexity-model answer while our whole advantage — the
+    desk data — was already in the prompt. This keeps Perplexity for what it is
+    genuinely good at (searching the live web, returning cited sources) and
+    hands the SYNTHESIS to Claude over the desk context plus those findings.
+
+    ⛔ Never raises and never swallows a member's answer: any failure returns
+    None and the caller ships the Perplexity result unchanged.
+    """
+    web = web or {}
+    if web.get("error"):
+        return None                    # a provider error belongs to the outage ladder
+    web_answer = (web.get("answer") or "").strip()
+    if not web_answer and not (system or "").strip():
+        return None                    # nothing to reason over
+    try:
+        # Bounded and visible. This lane called Anthropic directly and recorded
+        # NOTHING — invisible to /admin/stats.spend_today_usd and capped by
+        # nothing. Over budget we skip Claude entirely and the member still gets
+        # the Perplexity answer: degrade, never fail.
+        from api.services import narrative_cost_guard as _guard
+        if _guard.over_budget(_SYNTH_SURFACE, _SYNTH_CAP_ENV, _SYNTH_CAP_DEFAULT):
+            return None
+    except Exception:
+        pass                      # a guard fault must not silence the lane
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        model = os.environ.get("AI_SEARCH_SYNTH_MODEL", "claude-sonnet-5").strip()
+        cites = [str(c) for c in (web.get("citations") or [])][:20]
+        block = _SYNTH_NOTE + web_answer
+        if cites:
+            block += "\n\nSOURCES: " + " ".join(
+                f"[{i}] {c}" for i, c in enumerate(cites, start=1))
+        msgs: list[dict] = []
+        for h in (history or []):
+            q, a = (h.get("q") or "").strip(), (h.get("a") or "").strip()
+            if q and a:
+                msgs.append({"role": "user", "content": q})
+                msgs.append({"role": "assistant", "content": a})
+        msgs.append({"role": "user", "content": query})
+        # Prompt caching. `_WIDGET_SYSTEM` is byte-identical on EVERY request
+        # (intro + safety blocks + formatting) and measured 1299 tokens, above
+        # Sonnet 5's 1024 minimum. Caching is a PREFIX match, so the breakpoint
+        # goes at the end of the stable text and every volatile thing — the desk
+        # quote, the playbook, the web findings — must sit AFTER it, or each
+        # request writes a fresh entry and reads nothing back.
+        #
+        # ⚠️ HONEST ECONOMICS: a 5-minute write bills 1.25x and a read 0.1x, so
+        # break-even is TWO requests sharing the prefix. At the logged ~1.7
+        # asks/day nearly every call is a cold write and this costs ~$0.03/MONTH
+        # more; at bursty member volume the reads dominate and it saves ~$70/mo
+        # at 30k asks. Kept because the structure is right and the downside is
+        # noise. ⛔ Do NOT "fix" this with ttl:"1h" — that doubles the write to
+        # 2x and only pays off for 5-60 minute gaps; ours are hours or seconds.
+        full = (system or "")
+        if full.startswith(_WIDGET_SYSTEM):
+            sys_param: object = [
+                {"type": "text", "text": _WIDGET_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": full[len(_WIDGET_SYSTEM):] + block},
+            ]
+        else:
+            sys_param = full + block      # unexpected shape → answer uncached
+        resp = client.with_options(timeout=30).messages.create(
+            model=model, max_tokens=_ANSWER_MAX_TOKENS,
+            system=sys_param, messages=msgs)
+        try:
+            # ⛔ record_from_response, not record(input_tokens=...): a cached
+            # prefix arrives as cache_read_input_tokens (0.1x) /
+            # cache_creation_input_tokens (1.25x) and NEVER as input_tokens, so
+            # a guard fed only input_tokens mis-bills every cached call.
+            from api.services import narrative_cost_guard as _g
+            _g.record_from_response(_SYNTH_SURFACE, model, resp)
+        except Exception:
+            pass                  # accounting is bookkeeping; the answer stands
+        text = "".join(
+            b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
+        ).strip()
+        if not text:
+            return None
+        out = dict(web)
+        out.update({"answer": text, "model": model, "synth": "claude"})
+        # Surfaced so a silent cache miss is observable rather than invisible:
+        # zero reads across repeated asks means an invalidator crept into the
+        # prefix.
+        u = getattr(resp, "usage", None)
+        if u is not None:
+            out["cache_read_tokens"] = getattr(u, "cache_read_input_tokens", None)
+            out["cache_write_tokens"] = getattr(u, "cache_creation_input_tokens", None)
+        return out
+    except Exception:
+        return None
+
+
 def fast_lane_answer(query: str, system: str, salt: str, *, mode: str = "fast",
                      history=None, cost_surface: str = "ai_search",
                      allow_stale: bool = True) -> dict:
@@ -1816,11 +1943,17 @@ def fast_lane_answer(query: str, system: str, salt: str, *, mode: str = "fast",
     THIS file to prove the router never opts into it, and a comment quoting it
     is indistinguishable from a call site to a text search.)
     """
-    return perplexity_search.web_search(
+    res = perplexity_search.web_search(
         query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=mode,
         domain_pack="finance", recency=_auto_recency(query), related=True,
         cache_salt=salt, history=history, cost_surface=cost_surface,
         allow_stale=allow_stale)   # UI labels stale answers
+    # Perplexity retrieves; Claude thinks — when armed. Inside the helper on
+    # purpose, so the single shot, both stream fallbacks and the exam all get it
+    # from ONE place. Falls back to `res` on any failure.
+    if _claude_synth_enabled():
+        res = _claude_synthesis(query, system, res, history) or res
+    return res
 
 
 def _time_bucket() -> str:

@@ -1,4 +1,25 @@
 import '@testing-library/jest-dom'
+import { configure } from '@testing-library/react'
+
+// ⛔ Testing Library's `waitFor`/`findBy` ceiling is SEPARATE from vitest's
+// `testTimeout` and is NOT raised by it. It defaults to 1000ms, and on this
+// suite that was the single largest source of intermittent red.
+//
+// Measured 2026-08-30, hunting a flake that had survived two sessions and
+// could never be identified — because THERE IS NO SINGLE FLAKY TEST. The
+// suite's wall speed varies ~2x with cache state (191-226s warm, 377s right
+// after `npm run build` invalidates the transform cache), and on a slow run
+// whichever `waitFor` is unluckiest blows its 1000ms budget. Three
+// consecutive reproductions killed three DIFFERENT, unrelated tests:
+//   BuilderSheet.plots  (a vitest testTimeout kill, fixed in vite.config.js)
+//   ImportWizard        ("Unable to find /1 note/i")
+//   ArticlesSection     ("Unable to find …March 31, 2026")
+// A population, not a defect — which is why re-running always looked green
+// and why every attempt to pin "the" flaky test failed.
+//
+// ⚠️ NOT a licence for slow assertions. An element that never appears still
+// fails; it just takes 5s to say so, and only FAILING waits ever pay that.
+configure({ asyncUtilTimeout: 5000 })
 import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 
