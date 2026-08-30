@@ -353,6 +353,8 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
+    'app/src/pages/optionsFlow/flowFactsEntry.js':
+    'NOT dead, and the SAME SHAPE as cotFactsEntry above — the ENTRY POINT of the flow facts bundle: app/scripts/build-flow-facts.mjs builds it into app/dist/flow-facts.cjs (npm run build), and api/services/flow_aggregate.py runs that bundle by subprocess to serve GET /api/flow/aggregate. It exists so the SERVER can run the browser own parseCSV + processFlowData rather than a Python port of them, which would put a second authority on the numbers members trade on. A walk from App.jsx cannot see a build-script entry, so it is recorded here.',
   // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
   // AND ITS ENTRY SAID "MOUNTS AT W3.7 … through ImportBox's translateThinkScript".
   // W3.7 mounted it and the entry became FALSE, which is what this rail caught —

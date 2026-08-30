@@ -22,6 +22,7 @@ Gated by AI_SEARCH_LOG_ENABLED (default on). DB at AI_SEARCH_LOG_DB_PATH
 from __future__ import annotations
 
 import contextlib
+import functools
 import hashlib
 import hmac
 import json
@@ -219,7 +220,14 @@ def _grounding_tier(sources) -> str:
 # ── classifiers (rule-based, free, versioned) ────────────────────────────────
 # Grounding sources that make an answer inherently perishable (a live price / an
 # active pattern / today's flow / today's movers) — force time_sensitive.
-_LIVE_SOURCES = {"quote", "patterns", "flow", "movers", "tape"}
+# ⛔ `quote` is deliberately NOT here (2026-08-29). A quote pack rides along with
+# EVERY ticker question, so counting it as perishable made 100% of real asks
+# time_sensitive (measured: 50/50 in the prod log) — and time_sensitive answers
+# are never indexed, so Phase-2 memory had been fed ZERO rows since launch. The
+# grounding we add must not be what disqualifies the answer. A live price is
+# garnish on an evergreen answer, not its substance; the packs below really do
+# go stale and still force time_sensitive.
+_LIVE_SOURCES = {"patterns", "flow", "movers", "tape"}
 
 _EVERGREEN_RE = re.compile(
     r"\b(what (?:is|are|does|do)|who (?:is|are)|how (?:does|do|to)|explain|define|definition"
@@ -242,18 +250,111 @@ _QTYPE_RES: list[tuple[str, re.Pattern]] = [
     ("compare", re.compile(r"\b(compare|comparison|versus|\bvs\.?\b|better (?:buy|than)|which (?:is better|of))\b", re.I)),
     ("valuation", re.compile(r"\b(valuation|p/?e|peg|market ?cap|overvalued|undervalued|cheap|expensive|fundamentals?|margins?|revenue growth|balance sheet|dividend)\b", re.I)),
     ("catalyst-news", re.compile(r"\b(catalyst|news|headline|earnings|guidance|upgrade|downgrade|analyst|price target|reports?)\b", re.I)),
-    ("setup-technical", re.compile(r"\b(setup|pattern|breakout|support|resistance|extended|pullback|entry|stop|target|levels?|chart)\b", re.I)),
+    # ⛔ 2026-08-29: this line read `chart` (singular), so "…in the charts" never
+    # matched and two REAL asks about the Kell cycle's "exhaustion extension" —
+    # a pattern this product documents by name in patterns.py::_PATTERN_METADATA —
+    # fell through to "other", which _BRAIN_ELIGIBLE excludes. The playbook KB was
+    # locked out of the exact question it exists to answer. Vocabulary now covers
+    # the house pattern library; tests/test_ai_search_unclamp.py DERIVES its rail
+    # from the registry so this drifts loudly instead of silently.
+    # ⛔ GENERIC craft vocabulary ONLY. Named patterns (bull flag, doji, wedge,
+    # VCP…) are owned by _registry_craft_re() below, derived from the product's
+    # own registry. Typing 'flags?' in here once stole "what is a bull flag?"
+    # from concept-education — a hand-typed proper noun outranking a question
+    # SHAPE is the whole failure this pair of mechanisms exists to avoid.
+    ("setup-technical", re.compile(
+        r"\b(setups?|patterns?|breakouts?|support|resistance|extended|extensions?"
+        r"|exhaustion|pullbacks?|entry|stops?|targets?|levels?|charts?|candles?"
+        r"|candlesticks?|wicks?|consolidations?|moving averages?"
+        r"|trend ?lines?|higher lows?|lower highs?)\b", re.I)),
     ("macro", re.compile(r"\b(fed|fomc|cpi|inflation|rates?|macro|economy|gdp|jobs|treasury|yield|dollar|vix)\b", re.I)),
     ("idea-screen", re.compile(r"\b(best (?:stocks|names|plays|setups)|sympathy|candidates?|what(?:'?s| is) leading|movers?|screen|ideas?)\b", re.I)),
     ("concept-education", re.compile(r"\b(what (?:is|does|are)|how (?:does|do|to)|explain|definition|history of)\b", re.I)),
 ]
 
 
+@functools.lru_cache(maxsize=1)
+def _registry_craft_re():
+    """Every pattern name this product DOCUMENTS, as one alternation.
+
+    Hand-typed vocabulary is how "exhaustion extension" — a named stage of the
+    Kell cycle, described in patterns.py::_PATTERN_METADATA — spent months being
+    classified "other" and handed to the open web instead of the firm's own KB.
+    The registry is the product's list of what it can talk about, so the
+    classifier answers to it rather than to whatever I remembered to type
+    (lesson_probe_names_must_be_derived_not_typed).
+
+    Lazy + memoised: the import is a router module, so it must not run at
+    service-import time, and this sits on the request path. Never raises — a
+    registry that won't import just falls back to the typed regexes above.
+    """
+    if os.environ.get("AI_SEARCH_CRAFT_REGISTRY", "1").strip().lower() in (
+            "0", "false", "no"):
+        return None
+    try:
+        from api.routers.patterns import _PATTERN_METADATA
+    except Exception:
+        return None
+    strong: set[str] = set()   # multi-word proper nouns — outrank the keyword regexes
+    weak: set[str] = set()     # single words — only rescue an otherwise-"other" ask
+    for key, meta in (_PATTERN_METADATA or {}).items():
+        name = str((meta or {}).get("name") or "").strip()
+        # The full display name, plus its head before a dash/paren qualifier
+        # ("NR7 — Narrow Range 7" → "NR7"; "Golden Cross (50/200 SMA)" →
+        # "Golden Cross"), plus the snake_case key as spoken words.
+        for cand in (name, name.split("—")[0], name.split("(")[0],
+                     str(key).replace("_", " ")):
+            cand = cand.strip()
+            if len(cand) < 4:
+                continue
+            # A multi-word name ≥8 chars is a product proper noun ("power
+            # earnings gap", "head and shoulders") — specific enough to beat a
+            # stray keyword. A short single word ("flag", "gap up", "doji") is
+            # NOT: promoting it would steal "why did NVDA gap up today" from
+            # why-move. Those stay in the fallback slot.
+            (strong if (" " in cand and len(cand) >= 8) else weak).add(re.escape(cand))
+
+    def _compile(frags):
+        if not frags:
+            return None
+        # Longest-first so "Inverse Head and Shoulders" wins over "Head and Shoulders".
+        return re.compile(r"(?<!\w)(" + "|".join(sorted(frags, key=len, reverse=True))
+                          + r")(?!\w)", re.I)
+
+    return _compile(strong), _compile(weak)
+
+
+#: The question types whose answers the router will load the playbook KB for —
+#: the router's `_BRAIN_ELIGIBLE` minus its "other" backstop. Duplicated here
+#: rather than imported because the router imports THIS module; a rail in
+#: tests/test_ai_search_unclamp.py pins the two against drift, so this is a
+#: mirrored constant with a guard, not a second authority.
+_PLAYBOOK_REACHABLE = frozenset(
+    {"concept-education", "valuation", "compare", "setup-technical"})
+
+
 def classify_question_type(query: str) -> str:
     q = query or ""
+    reg = _registry_craft_re()
+    strong, weak = reg if reg else (None, None)
+    hit = None
     for name, rx in _QTYPE_RES:
         if rx.search(q):
-            return name
+            hit = name
+            break
+    # A question naming a DOCUMENTED pattern must never land in a bucket the
+    # playbook can't reach. It defers to any classification that already can —
+    # "what is a bull flag" stays concept-education — and overrides only the
+    # ones that would strand it: "Power Earnings Gap" must not read as
+    # catalyst-news just because it contains the word "earnings".
+    if strong is not None and strong.search(q) and hit not in _PLAYBOOK_REACHABLE:
+        return "setup-technical"
+    if hit is not None:
+        return hit
+    # Single-word names run LAST: they rescue an otherwise-"other" ask without
+    # ever outranking a real intent ("why did NVDA gap up today" stays why-move).
+    if weak is not None and weak.search(q):
+        return "setup-technical"
     return "other"
 
 

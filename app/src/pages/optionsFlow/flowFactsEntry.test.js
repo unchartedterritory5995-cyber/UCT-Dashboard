@@ -26,8 +26,51 @@ describe('flowFactsEntry', () => {
     // If these ever diverge, the server is serving different numbers than the
     // page would compute, which is worse than the slowness it exists to fix.
     const viaEntry = aggregateCsv(csv).D
-    const direct = processFlowData(parseCSV(csv), new Set())
+    // `null`, not `new Set()` — that is the argument the entry actually passes,
+    // and the two are NOT equivalent (see the earnings-flag test below). Pinning
+    // parity against a call the entry does not make would pass here only because
+    // this fixture's ER column happens to be uniformly 'F'.
+    const direct = processFlowData(parseCSV(csv), null)
     expect(JSON.stringify(viaEntry)).toBe(JSON.stringify(direct))
+  })
+
+  it("lets the CSV's OWN earnings flag survive when no caller supplies one", () => {
+    // ⛔ THE BUG THIS PINS. processFlowData reads `erSoonSet instanceof Set` as
+    // "the caller is the authority on earnings" and otherwise falls back to the
+    // row's own ER column. An EMPTY SET IS STILL A SET, so passing `new Set([])`
+    // — the obvious server-side default — satisfies that test and silently
+    // rewrites every row to er:false, discarding a flag the tape already carries.
+    // This process has no user and therefore no earnings list to impose, so it
+    // passes null and lets the data speak.
+    //
+    // ⚠️ The shipped fixture CANNOT catch this: its ER column is uniformly 'F',
+    // so both behaviours agree on it. Hence this hand-built CSV, which carries
+    // one ER=T row and one ER=F row.
+    const header = 'CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,'
+      + 'Strike,Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,'
+      + 'StockEtf,Sector,Uoa,Weekly,MktCap,OI'
+    const row = (sym, er) => `7/24/2026,10:00:00 AM,${sym},SWEEP,500,10.5,,CALL,`
+      + `100,95.0,525000,7/31/2026,WHITE,0,7,${er},STOCK,Information Technology,F,T,5e10,900`
+    const mixed = [header, row('AAAA', 'T'), row('BBBB', 'F')].join('\n') + '\n'
+
+    const rows = parseCSV(mixed)
+    const erOf = (D) => Object.fromEntries(
+      (D.all_trades || []).map(t => [t.S, !!t.er]))
+
+    // The control: this fixture DISCRIMINATES. An empty Set must lose the flag
+    // that null keeps — if these agree, the test below proves nothing.
+    const viaEmptySet = erOf(processFlowData(rows, new Set()))
+    const viaNull = erOf(processFlowData(rows, null))
+    expect(viaNull.AAAA).toBe(true)
+    expect(viaEmptySet.AAAA).toBe(false)
+
+    // And the entry must take the honest branch.
+    expect(erOf(aggregateCsv(mixed).D).AAAA).toBe(true)
+    expect(erOf(aggregateCsv(mixed).D).BBBB).toBe(false)
+
+    // A caller that DOES supply a list still wins outright.
+    expect(erOf(aggregateCsv(mixed, { erSoon: ['BBBB'] }).D))
+      .toEqual({ AAAA: false, BBBB: true })
   })
 
   it('reports sizing telemetry the caller can act on', () => {

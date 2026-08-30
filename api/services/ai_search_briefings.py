@@ -217,7 +217,10 @@ def _answer_briefing(query: str) -> dict:
     from api.services import perplexity_search
     system, salt, meta = _router._grounded_system(query)
     res = perplexity_search.web_search(
-        query, max_tokens=700, system=system, mode="fast", domain_pack="finance",
+        # 1400, not 700 (2026-08-29): a standing brief is the ONLY thing a member
+        # reads that morning — it was capped at ~500 words. Below the interactive
+        # 1800 because a brief should still be a brief.
+        query, max_tokens=1400, system=system, mode="fast", domain_pack="finance",
         recency="day", related=False, cache_salt=salt,
         cost_surface="ai_search_brief") or {}
     res["_meta"] = meta

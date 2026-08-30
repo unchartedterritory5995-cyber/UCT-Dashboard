@@ -13,9 +13,15 @@ const FONT_FAMILY = "'Instrument Sans', sans-serif"
 const makeFont = (fp, weight = 700) => `${weight} ${fp}px ${FONT_FAMILY}`
 
 // Returns [{ text, size }] — size = px @ sizeScale 1.0, fixed per role.
-export function composeWatermarkLines(sym, meta, lines) {
+export function composeWatermarkLines(sym, meta, lines, intervalLabel = null) {
   const out = []
-  if (lines.ticker && sym) out.push({ text: String(sym), size: ROLE_SIZE.ticker })
+  if (lines.ticker && sym) {
+    // "Interval" field (default ON) appends ", <timeframe>" to the ticker line
+    // (e.g. "ARM, 1D"); off only when explicitly disabled.
+    const showInterval = lines.interval !== false
+    const t = (showInterval && intervalLabel) ? `${sym}, ${intervalLabel}` : String(sym)
+    out.push({ text: t, size: ROLE_SIZE.ticker })
+  }
   if (lines.company && meta?.name) out.push({ text: meta.name, size: ROLE_SIZE.company })
   if (lines.sector && meta?.sector) out.push({ text: meta.sector, size: ROLE_SIZE.sector })
   if (lines.industry && meta?.industry) out.push({ text: meta.industry, size: ROLE_SIZE.industry })
@@ -46,12 +52,19 @@ const EDGE_PAD = 14
 // industry names), so the mark doesn't appear to move as you scroll tickers.
 // The edge-clamped `padX` path (default) instead keeps a fixed gutter and lets
 // the centre move with width.
-export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null) {
+// NOTE: `align` does NOT affect placement — it only justifies the TEXT within the
+// block (see the draw). The block position is the same regardless of alignment.
+export function computeWatermarkRect(pos, mediaSize, block, padX = EDGE_PAD, padTop = 0, hardCenterXPx = null, custom = false) {
   const cy = pos.y * mediaSize.height
   let y = cy - block.h / 2
   y = Math.max(padTop, Math.min(y, mediaSize.height - block.h))
   let x
-  if (hardCenterXPx != null) {
+  if (custom) {
+    // Free drag / saved per-chart position: pos.x is the block CENTRE fraction.
+    const cx = pos.x * mediaSize.width
+    x = cx - block.w / 2
+    x = Math.max(padX, Math.min(x, mediaSize.width - block.w - padX))
+  } else if (hardCenterXPx != null) {
     // Exact centre — no horizontal clamp, so the centre never shifts by width.
     x = hardCenterXPx - block.w / 2
   } else {
@@ -70,8 +83,9 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
+  let lastMediaSize = null       // {width,height} of pane 0 in CSS px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
 
@@ -94,12 +108,16 @@ export function createWatermarkPrimitive(initial) {
         if (!opts.lines.length || opts.opacity <= 0) { lastRect = null; return }
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           const block = measureBlock(ctx)
-          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXPx)
+          const align = opts.align || 'center'
+          const rect = computeWatermarkRect({ x: opts.x, y: opts.y }, mediaSize, block, opts.padX, opts.padTop, opts.hardCenterXPx, opts.custom)
           lastRect = rect
+          lastMediaSize = { width: mediaSize.width, height: mediaSize.height }
           const [r, g, b] = hexToRgb(opts.color)
           const alpha = armed ? Math.min(1, opts.opacity * 2.4) : opts.opacity
+          // Text justifies to the aligned edge so a shorter line lines up with it.
+          const tx = align === 'left' ? rect.x : align === 'right' ? rect.x + rect.w : rect.x + rect.w / 2
           ctx.save()
-          ctx.textAlign = 'center'
+          ctx.textAlign = align
           ctx.textBaseline = 'top'
           ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
           let cy = rect.y
@@ -107,7 +125,7 @@ export function createWatermarkPrimitive(initial) {
             const fp = watermarkFontPx(line, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
             ctx.font = makeFont(fp, opts.weight)
-            ctx.fillText(line.text, rect.x + rect.w / 2, cy)
+            ctx.fillText(line.text, tx, cy)
             cy += fp
           })
           if (armed) {
@@ -139,5 +157,9 @@ export function createWatermarkPrimitive(initial) {
       if (!opts.lines.length || opts.opacity <= 0) return null
       return lastRect
     },
+    // Pane 0's media size (CSS px) from the last draw — the coordinate space the
+    // x/y fractions are resolved against. The drag MUST normalize to this (not the
+    // container), else a smaller price pane scales the mark up-and-left off-cursor.
+    getMediaSize() { return lastMediaSize },
   }
 }
