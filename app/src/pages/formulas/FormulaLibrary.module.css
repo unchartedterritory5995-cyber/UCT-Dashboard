@@ -1,0 +1,84 @@
+.page { padding: 16px 20px 40px; }
+
+.lead { margin: 0 0 14px; font-size: 12px; line-height: 1.6; color: var(--text-dim); }
+
+.empty { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+
+.error { margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-danger, #f87171); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+}
+
+.cardHead { display: flex; align-items: baseline; gap: 8px; }
+
+.name { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.short {
+  font-size: 10px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-muted);
+}
+
+.desc { margin: 0; font-size: 11px; line-height: 1.55; color: var(--text-dim); }
+
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.fact {
+  padding: 2px 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+}
+
+/* ⭐ The repaint verdict is the one fact worth colouring: it is what decides
+   whether a member can trust a backtest of this column. */
+.fact[data-repaint='non-repainting'] { color: var(--color-success, #4ade80); }
+.fact[data-repaint='preview-repaints'] { color: var(--color-warning, #fbbf24); }
+.fact[data-repaint='repaints'] { color: var(--color-danger, #f87171); }
+
+.actions { display: flex; align-items: center; gap: 10px; margin-top: auto; }
+
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.install:disabled { opacity: 0.55; cursor: default; }
+
+.preview { font-size: 11px; color: var(--text-muted); }
+
+.more {
+  margin-top: 14px;
+  padding: 5px 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: none;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 4px;
+  cursor: pointer;
+}
