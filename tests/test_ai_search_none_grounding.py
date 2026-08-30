@@ -72,3 +72,35 @@ def test_zero_is_a_value_not_a_gap(monkeypatch):
     out = ai._ctx_breadth()
     assert "0" in out and "4000" in out and "900" in out, out
     assert "None" not in out
+
+
+# ── short interest: in the row we already read, never rendered ─────────────
+def _stub_row(monkeypatch, row):
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row", lambda sym: row)
+
+
+def test_the_posture_pack_hands_over_short_interest(monkeypatch):
+    """`S1-07` asks "what's the short interest on CVNA" and scored c0 g0 s0 on
+    EVERY run. _POSTURE_RE already matches "short interest", and the screener
+    row it reads already CARRIES short_float_pct — the pack just never rendered
+    it, so the model invented a number instead."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 1.0, "short_float_pct": 18.4,
+                            "short_ratio": 2.1})
+    out = ai._ctx_posture("CVNA")
+    assert "18.4" in out, out
+    assert "short" in out.lower(), out
+
+
+def test_short_interest_absent_is_simply_not_rendered(monkeypatch):
+    """CONTROL — same rule as breadth: never emit a field we do not hold."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 1.0, "short_float_pct": None,
+                            "short_ratio": None})
+    out = ai._ctx_posture("CVNA")
+    assert "None" not in out and "short" not in out.lower(), out
+
+
+def test_a_zero_short_float_is_a_value(monkeypatch):
+    """CONTROL — zero short interest is a real and notable reading."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 1.0, "short_float_pct": 0.0})
+    assert "0.0%" in ai._ctx_posture("CVNA")

@@ -62,3 +62,41 @@ def test_a_gap_alone_still_produces_context(monkeypatch):
     monkeypatch.setattr(ai, "_regime_provider", lambda: {})
     ctx, _salt, _meta = ai._uct_context("what is market breadth telling us right now?")
     assert ctx.strip() != ""
+
+
+# ── a pack can FIRE and still not answer what was asked ────────────────────
+def test_asking_for_short_interest_we_lack_declares_the_gap(monkeypatch):
+    """S1-07 ("what's the short interest on CVNA") scored c0 g0 s0 on EVERY run
+    — the most reproducible wrong answer in the set. Measured cause: the desk
+    row carries short_float_pct=None, the posture pack fires anyway and renders
+    TECHNICAL posture, and the model — seeing a confident desk line with no
+    short interest in it — invents a number.
+
+    The existing gap rule only catches a pack that returned NOTHING. This is a
+    pack that returned something ELSE."""
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row",
+                        lambda sym: {"pct_vs_sma20": 1.0, "short_float_pct": None})
+    ctx, _salt, meta = ai._uct_context("What's the short interest on CVNA?")
+    assert "short interest" in (meta.get("grounding_gaps") or []), meta
+    assert "no current data" in ctx.lower(), ctx
+
+
+def test_short_interest_we_DO_hold_is_not_a_gap(monkeypatch):
+    """CONTROL — the discriminating half. When the desk has the number this
+    must stay silent, or every short-interest question would claim a gap."""
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row",
+                        lambda sym: {"pct_vs_sma20": 1.0, "short_float_pct": 18.4})
+    _ctx, _salt, meta = ai._uct_context("What's the short interest on CVNA?")
+    assert "short interest" not in (meta.get("grounding_gaps") or []), meta
+
+
+def test_a_technical_question_does_not_claim_a_short_interest_gap(monkeypatch):
+    """CONTROL — the posture gate is broad (trend, RSI, stage 2...). Only a
+    question actually ASKING about short interest may declare it missing."""
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row",
+                        lambda sym: {"pct_vs_sma20": 1.0, "short_float_pct": None})
+    _ctx, _salt, meta = ai._uct_context("is CVNA extended above its 20 day moving average?")
+    assert "short interest" not in (meta.get("grounding_gaps") or []), meta
