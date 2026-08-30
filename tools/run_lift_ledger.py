@@ -166,6 +166,93 @@ def load_null_chunks(paths: str, key: str) -> list:
     return out
 
 
+def _run_grouped(args, bars_by, wanted, existing) -> int:
+    """Measure every requested structure, one pass per WINDOW group.
+
+    ⛔ GROUPING IS BY WINDOW AND NOTHING ELSE. Two structures may only share a
+    scan if they see the same bars per anchor; a green-line breakout reading
+    1,500 bars cannot ride a 400-bar pass without silently becoming a
+    different pattern. `WINDOWS` already records that per structure, so the
+    grouping is DERIVED from it rather than declared a second time.
+    """
+    import collections
+
+    structures = dict((existing.get("structures") or {}))
+    groups = collections.OrderedDict()
+    for st in bc.RELATIONS:
+        if wanted and st.key not in wanted:
+            continue
+        groups.setdefault(WINDOWS.get(st.key, DEFAULT_WINDOW), []).append(st)
+
+    measured = []
+    for window, members in groups.items():
+        usable = {k: v for k, v in bars_by.items() if len(v) >= window + 25}
+        kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS)
+        dets = {st.key: (lambda s: (lambda ctx: bool(s.detect(ctx))))(st)
+                for st in members}
+        prep = lambda w: bases._context(w, w)
+
+        t0 = time.time()
+        print("=== window %d : %s ===" % (window, ", ".join(d.key for d in members)))
+        obs = ll.measure_many(dets, usable, prepare=prep,
+                              bootstrap=args.bootstrap, **kw)
+        nulls = ll.null_lifts_many(dets, usable, prepare=prep,
+                                   trials=args.null_trials,
+                                   seed=args.null_seed, **kw)
+        print("  %d tickers, %d structures, %.0fs"
+              % (len(usable), len(members), time.time() - t0))
+
+        for st in members:
+            o, nl = obs[st.key], nulls[st.key]
+            verdict = ll.adjudicate(o, nl)
+            print("  --- %s (%s)" % (st.label, st.key))
+            print("      anchors %s  n %s" % (o.get("anchors"), o.get("n")))
+            if o["lift"] is not None:
+                print("      lift %+.2fpp  CI [%+.2f, %+.2f]"
+                      % (o["lift"] * 100, o["ci_low"] * 100, o["ci_high"] * 100))
+            if nl:
+                print("      null n=%d  max %+.2fpp" % (len(nl), max(nl) * 100))
+            print("      PUBLISHED: %s" % verdict["published"])
+            for r in verdict.get("reasons", []):
+                print("        refused: %s" % r)
+
+            row = {"published": bool(verdict["published"]),
+                   "sample_tickers": len(usable)}
+            if o["lift"] is not None:
+                row.update({"lift": round(o["lift"], 4),
+                            "ci_low": round(o["ci_low"], 4),
+                            "ci_high": round(o["ci_high"], 4),
+                            "n": o["n"], "rate": round(o["rate"], 4),
+                            "baseline": round(o["baseline"], 4)})
+            if nl:
+                row["null_max"] = round(max(nl), 4)
+                row["null_trials"] = len(nl)
+            if not verdict["published"]:
+                row["reasons"] = verdict.get("reasons", [])
+            prior = structures.get(st.key) or {}
+            if prior.get("note"):
+                row["note"] = prior["note"]
+            structures[st.key] = row
+            measured.append(st.key)
+
+    if args.dry_run:
+        print("--dry-run: artifact not written")
+        return 0
+
+    on_disk = ll.load(args.out)
+    merged = dict(on_disk.get("structures") or {})
+    for key in measured:
+        merged[key] = structures[key]
+    data = dict(existing)
+    data["structures"] = merged
+    data["measured_at"] = time.strftime("%Y-%m-%d")
+    with open(args.out, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+        fh.write(chr(10))
+    print("wrote %s" % args.out)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sample", type=int, default=400)
@@ -177,6 +264,13 @@ def main() -> int:
         "-- since the write path merges -- is also the safe way to measure "
         "more than one structure at a time."))
     ap.add_argument("--null-seed", type=int, default=ll.NULL_SEED)
+    ap.add_argument("--grouped", action="store_true", help=(
+        "Measure structures that share a scan WINDOW in one pass. The "
+        "per-anchor context (a zigzag segmentation) is the expensive step and "
+        "is identical for every structure, so sharing it is what makes a "
+        "full-universe run tractable. Verified identical to the "
+        "one-structure-at-a-time path by "
+        "test_a_shared_scan_returns_EXACTLY_what_separate_scans_return."))
     ap.add_argument("--nulls-out", default=None, help=(
         "Compute ONLY this structure's null trials and write them to PATH as a "
         "chunk. Use with --only, --null-seed and --null-trials to split the "
@@ -208,6 +302,9 @@ def main() -> int:
     existing = ll.load(args.out)
     structures = dict((existing.get("structures") or {}))
     measured: list = []          # keys THIS run actually re-measured
+
+    if args.grouped:
+        return _run_grouped(args, bars_by, wanted, existing)
 
     for s in bc.RELATIONS:
         if wanted and s.key not in wanted:

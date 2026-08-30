@@ -588,3 +588,110 @@ def test_every_row_states_the_sample_it_was_measured_on():
                 f"must say why it is absent, not merely be blank")
         else:
             assert e["sample_tickers"] > 0, f"{key} claims a zero sample"
+
+
+# -- the shared multi-detector scan -----------------------------------------
+
+def _synthetic_universe(n_tickers=8, n_bars=520, seed=20260830):
+    import random
+    out = {}
+    for t in range(n_tickers):
+        rng = random.Random(seed + t)
+        px, bars = 40.0 + t, []
+        for i in range(n_bars):
+            px = max(1.0, px * (1 + rng.gauss(0.0005, 0.022)))
+            bars.append({"t": 20200101 + i, "o": px, "c": px,
+                         "h": px * 1.012, "l": px * 0.988,
+                         "v": rng.randint(400_000, 3_000_000)})
+        out["T%02d" % t] = bars
+    return out
+
+
+def _group():
+    """Structures that share the 400-bar window, as the runner groups them."""
+    from api.services.screener import base_catalog as bc
+    keys = ["darvas-box", "flat-base", "double-bottom", "vcp",
+            "stage-4-breakdown", "high-tight-flag", "ascending-base"]
+    return {k: (lambda st: (lambda ctx: bool(st.detect(ctx))))(bc.by_key(k))
+            for k in keys}
+
+
+def test_a_shared_scan_returns_EXACTLY_what_separate_scans_return():
+    """⛔⛔ THE RAIL THAT MAKES THE OPTIMISATION USABLE.
+
+    Fourteen structures each rebuilt the same per-anchor context, and that
+    context is the expensive part (2.28 ms of zigzag against detectors costing
+    0.25-0.5 ms). Sharing it turns a ~20-hour full-universe pass into a
+    tractable one -- but only if it changes NOTHING. The detectors share one
+    mutable object per anchor now, so a detector that wrote to it would alter
+    what every later detector in that anchor sees, and no single-structure
+    test could see that happen.
+
+    So the shared pass is compared against the separate passes it replaces,
+    field by field, on every structure in the group.
+    """
+    from api.services.screener import bases
+
+    universe = _synthetic_universe()
+    group = _group()
+    kw = dict(window=400, min_history=400, step=ll.HORIZON_BARS)
+
+    together = ll.measure_many(group, universe,
+                               prepare=lambda w: bases._context(w, w), **kw)
+
+    fired_any = False
+    for key, det in group.items():
+        alone = ll.measure(lambda w, d=det: d(bases._context(w, w)),
+                           universe, **kw)
+        for field in ("n", "wins", "free_n", "free_wins", "rate", "baseline",
+                      "lift", "ci_low", "ci_high", "years"):
+            assert together[key][field] == alone[field], (
+                "%s.%s: shared=%r separate=%r"
+                % (key, field, together[key][field], alone[field]))
+        if (alone["n"] or 0) > 0:
+            fired_any = True
+
+    assert fired_any, (
+        "no structure fired on the fixture -- the comparison would pass "
+        "vacuously, since two empty results are trivially equal")
+
+
+def test_the_shared_null_draws_the_same_series_as_the_separate_one():
+    """The null must match too, or a group run and a single run would grade
+    against different random data and their verdicts could not be compared.
+    """
+    from api.services.screener import bases
+
+    universe = _synthetic_universe(n_tickers=5, n_bars=460)
+    group = _group()
+    kw = dict(window=400, min_history=400, step=ll.HORIZON_BARS)
+    prep = lambda w: bases._context(w, w)
+
+    together = ll.null_lifts_many(group, universe, prepare=prep, trials=2, **kw)
+    for key, det in group.items():
+        alone = ll.null_lifts(lambda w, d=det: d(bases._context(w, w)),
+                              universe, trials=2, **kw)
+        assert together[key] == alone, "%s: %r != %r" % (key, together[key], alone)
+
+
+def test_one_failing_detector_does_not_poison_its_neighbours():
+    """⛔ Errors are counted PER STRUCTURE. A single global counter would
+    let one broken detector trip every other structure's
+    "the detector raised on N anchors" refusal in the same run.
+    """
+    from api.services.screener import bases
+
+    universe = _synthetic_universe(n_tickers=4, n_bars=460)
+
+    def _boom(ctx):
+        raise RuntimeError("detector is broken")
+
+    group = {"ok": lambda ctx: True, "broken": _boom}
+    kw = dict(window=400, min_history=400, step=ll.HORIZON_BARS)
+    got = ll.measure_many(group, universe,
+                          prepare=lambda w: bases._context(w, w), **kw)
+
+    assert got["broken"].get("refused"), "the broken detector must be refused"
+    assert not got["ok"].get("refused"), (
+        "the healthy detector was refused because its neighbour raised")
+    assert (got["ok"]["n"] or 0) > 0
