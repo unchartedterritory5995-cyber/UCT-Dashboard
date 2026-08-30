@@ -42,7 +42,18 @@ def test_pattern_detections_indexes_exist(tmp_path, monkeypatch):
             "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_pd_%'"
         ).fetchall()
         names = {r["name"] for r in rows}
-        assert names == {"idx_pd_sym_tf", "idx_pd_pattern", "idx_pd_status"}
+        # ⛔ A SUBSET, NOT AN EQUALITY. This asserted an exact three-name set
+        # and went stale the day `idx_pd_detected` landed (2026-08-26, with the
+        # Patterns-page retirement: the nightly prune and the windowed
+        # active-read both need it). A hand-typed set beside the schema it
+        # describes is this repo's most repeated defect -- the writer-index
+        # FOUR, the COT router's "4 routes", `len(failures) == 6`. The property
+        # actually under test is that the REQUIRED indexes exist; a legitimate
+        # new one must not turn this red.
+        required = {"idx_pd_sym_tf", "idx_pd_pattern", "idx_pd_status"}
+        assert required <= names, sorted(required - names)
+        # ...and the probe is not vacuous: it can see a name that is not there.
+        assert "idx_pd_definitely_not_a_real_index" not in names
     finally:
         conn.close()
 
