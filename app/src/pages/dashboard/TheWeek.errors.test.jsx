@@ -13,6 +13,17 @@
 // mirrors). THIS FILE MOCKS NOTHING ON THE PATH UNDER TEST: only
 // `global.fetch` is stubbed; the real `jsonFetcher` and the real SWR cache
 // both run.
+//
+// ⚠️ AMENDED WITH THE ZONE-B GATE (task 13). These three cases used to assert
+// `getByText('The Week')` — "the tile survives, not a white screen". That was
+// the right assertion when TheWeek always rendered its TileCard; it is the
+// WRONG one now. A labelled frame with nothing under it IS the defect this
+// hero replaces, so TheWeek returns null when all three panels are empty, and
+// an outage lands on exactly that path. The assertion therefore moved from
+// "the header is on screen" to "NOTHING is on screen, and in particular not
+// the refusal's own words" — which is a strictly stronger statement about the
+// same failure. The happy-path control below is what stops it becoming a test
+// of a component that renders nothing ever.
 import { render, screen, waitFor, cleanup, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
@@ -41,12 +52,15 @@ afterEach(() => { cleanup(); delete global.fetch; vi.useRealTimers() })
 describe('TheWeek under a non-ok response', () => {
   it('a 402 on both endpoints does not throw and degrades to the empty-week shape, never a refusal body as content', async () => {
     respond(402, { detail: 'This page requires a paid plan' })
-    expect(() => mount()).not.toThrow()
+    let container
+    expect(() => { ({ container } = mount()) }).not.toThrow()
 
-    // The tile itself survives — not unmounted, not a white screen.
-    await waitFor(() => expect(screen.getByText('The Week')).toBeTruthy())
+    // Nothing at all is drawn — not the panels, and NOT a labelled frame
+    // standing over them.
+    await waitFor(() => expect(container.textContent).toBe(''))
     // …and the refusal's own words never leak into the page as data.
     expect(screen.queryByText(/This page requires a paid plan/)).toBeNull()
+    expect(screen.queryByText('The Week')).toBeNull()
     // Every panel omits itself, exactly like the genuine empty-week case
     // TheWeek.test.jsx already covers.
     expect(screen.queryByText(/latest sunday scan/i)).toBeNull()
@@ -56,16 +70,19 @@ describe('TheWeek under a non-ok response', () => {
 
   it('a 500 does not throw and degrades the same way — an outage is not rendered as data', async () => {
     respond(500, {})
-    expect(() => mount()).not.toThrow()
-    await waitFor(() => expect(screen.getByText('The Week')).toBeTruthy())
+    const { container } = mount()
+    await waitFor(() => expect(container.textContent).toBe(''))
+    expect(screen.queryByText('The Week')).toBeNull()
     expect(screen.queryByText(/latest sunday scan/i)).toBeNull()
     expect(screen.queryByText(/from the desk/i)).toBeNull()
   })
 
   it('a network failure (fetch rejects) does not throw either', async () => {
     global.fetch = vi.fn(async () => { throw new Error('network down') })
-    expect(() => mount()).not.toThrow()
-    await waitFor(() => expect(screen.getByText('The Week')).toBeTruthy())
+    let container
+    expect(() => { ({ container } = mount()) }).not.toThrow()
+    await waitFor(() => expect(container.textContent).toBe(''))
+    expect(screen.queryByText('The Week')).toBeNull()
     expect(screen.queryByText(/latest sunday scan/i)).toBeNull()
   })
 

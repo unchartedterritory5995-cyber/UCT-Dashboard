@@ -32,6 +32,28 @@ describe('TheWeek', () => {
     expect(screen.getByText(/Sunday Scans/i)).toBeTruthy()
   })
 
+  // 🔴 THE CARRIED FIX (task 13). Panel-level omission was already covered;
+  // the WHOLE-COMPONENT case was not, and it is the same defect one level up
+  // — a "The Week" TileCard header standing over an empty grid. Zone B must
+  // never render an empty labelled frame, so the hero returns null when it has
+  // nothing at all to say.
+  test('renders NOTHING — not even its own header — when all three panels are empty', () => {
+    deskData = { articles: [] }
+    calData = { days: {} }
+    const { container } = render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(container.textContent).toBe('')
+    expect(screen.queryByText('The Week')).toBeNull()
+  })
+
+  // The control: without it the assertion above is satisfied by a component
+  // that renders nothing under every input.
+  test('and it DOES render its header as soon as one panel has content', () => {
+    deskData = { articles: [{ slug: 'sunday-scans-ctrl', title: 'Sunday Scans', url: '#' }] }
+    calData = { days: {} }
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText('The Week')).toBeTruthy()
+  })
+
   test('omits panels with no data instead of rendering an empty frame', () => {
     // calendar returned no days at all — "on deck" must not render an empty shell
     render(<MemoryRouter><TheWeek /></MemoryRouter>)

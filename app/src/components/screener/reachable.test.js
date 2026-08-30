@@ -277,6 +277,65 @@ const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stub
  * recorded in a diff with a reason beside it; that is the point.
  */
 const AWAITING_A_DECISION = {
+  // ── THE DASHBOARD COCKPIT RETIREMENT (2026-08-30) ────────────────────────
+  //
+  // `/dashboard` became four zones with declared heights, and eight preview
+  // tiles lost their mount there. Seven of them were replaced BY NAME with a
+  // Zone D signpost — the same section, as a link carrying one live number, at
+  // ~90px instead of the ~4,000px the previews cost — and the eighth (TapeFeed)
+  // was rendering twice, since `64960303b` moved the tape INSIDE MoversSidebar.
+  //
+  // ⛔ THE FILES ARE KEPT ON PURPOSE, and this is the repo's own idiom for it:
+  // `pages/LiveFlow.jsx` above, and `api/routers/trades.py` — cut the mount,
+  // keep the file as rollback backup, record the decision. Rolling one of
+  // these back is re-adding an import and a `<div>`; deleting them now would
+  // make it a rewrite, before anyone has used the new home for a morning.
+  //
+  // ⚠️ EACH IS A COUNTDOWN, NOT A PARKING SPACE. When the cockpit has been
+  // live long enough that nobody wants a preview back, delete the file AND
+  // this entry together. Do not re-green anything by widening a rule.
+  'app/src/components/tiles/LeadershipTile.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "UCT 20" door (/uct-20), which '
+    + 'carries the count of positions entered on the latest wire date. Kept as '
+    + 'rollback backup; see the block comment above.',
+  'app/src/components/tiles/CatalystFlow.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "Calendar" door (/calendar), '
+    + 'which carries tonight\'s AMC reporter count. Kept as rollback backup.',
+  'app/src/components/tiles/OptionsFlowPreview.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "Options Flow" door '
+    + '(/options-flow), which carries the live Top Flow pick count. Kept as '
+    + 'rollback backup.',
+  'app/src/components/tiles/SectorRotation.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "Breadth" door (/breadth). '
+    + 'Also the tile whose bare mount ate 3,081px of the old page (task 3). '
+    + 'Kept as rollback backup.',
+  'app/src/components/tiles/IntradayPulse.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "Breadth" door (/breadth). '
+    + 'Kept as rollback backup.',
+  'app/src/components/tiles/CompassTodayTile.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "Journal" door (/journal). '
+    + '⚠️ Note it renders null whenever the awareness queue is empty, so its '
+    + 'removal is invisible on most days — which is exactly why it is recorded '
+    + 'here by name rather than assumed gone unnoticed. Kept as rollback backup.',
+  'app/src/components/dashboard/DeskVideoRail.jsx':
+    'COCKPIT RETIREMENT — replaced by Zone D\'s "The Desk" door (/desk). Kept '
+    + 'as rollback backup.',
+  'app/src/components/dashboard/buildRail.js':
+    'ORPHANED BY INHERITANCE — its only importer is DeskVideoRail.jsx above, '
+    + 'and the two move together or not at all (same pairing rule as '
+    + 'useFlowWebSocket / LiveFlow_integration_guide below).',
+  'app/src/components/video/BrandBadge.jsx':
+    'ORPHANED BY INHERITANCE — its only importer is DeskVideoRail.jsx above. '
+    + 'Moves with it.',
+  'app/src/components/tiles/TapeFeed.jsx':
+    'RENDERING TWICE, NOT RETIRED. `64960303b` moved the tape INTO '
+    + 'MoversSidebar (the rail beside the zones), and this tile kept its own '
+    + 'Dashboard mount, so the same feed drew twice. The Dashboard mount is the '
+    + 'copy that was cut. ⚠️ The FEED is live and unaffected — MoversSidebar '
+    + 'reads it through hooks/useTweetFeed against /api/tweets/feed.',
+  'app/src/components/tiles/NewsFeed.jsx':
+    'ORPHANED BY INHERITANCE — its only importer is TapeFeed.jsx above. Moves '
+    + 'with it.',
   'app/src/components/EmptyState.jsx':
     'ORPHANED BY MASTER, NOT BY THIS BRANCH, on the 2026-08-27 merge. Its last '
     + 'importer was pages/Patterns.jsx (line 7), which master DELETED when it '

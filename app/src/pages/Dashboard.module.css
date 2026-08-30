@@ -13,150 +13,59 @@
   flex-direction: column;
   gap: var(--space-md);
 }
-.row1 { width: 100%; }
 
-/* ── Command-center grid (2026-07-02 restyle) ─────────────────────────────
-   Row B: catalysts HERO (7fr) + right rail (journal over movers, 5fr).
-   Row C: 4-up glance row. Row D: earnings + options flow. */
-.rowB {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: var(--space-md);
-  align-items: start;
-}
+/* ── THE FOUR-ZONE COCKPIT ────────────────────────────────────────────────
+   ⛔ THE HEIGHT BUDGET IS THE DESIGN. Zones declare their height; content
+   scrolls inside. Rail: tools/mobile_audit.py HEIGHT_BUDGETS['/dashboard'].
+   Baseline before this change: 5.5 screens at 2133, 6.9 at 1277.
 
-/* min-height keeps the hero from leaving an 849px dead column beside the
-   1,070px rail when the catalyst set is thin or the session is closed. */
-.hero {
-  min-height: 420px;
-  max-height: 680px;
-  overflow-y: auto;
-  border-radius: var(--radius-xl, 14px);
-}
+   120 + 440 + 300 + 90 + 3 gaps ≈ 990px, against a 1050px viewport.
 
-/* Gold-edge emphasis on the hero tile — element selector so TileCard's
-   hashed classes stay untouched. */
-.hero > :first-child {
+   ⛔ ONLY 640 AND 1024 ARE CANONICAL (CLAUDE.md, Responsive/Mobile System).
+   This file previously carried 1440 / 1100 / 768 blocks; the rewrite deletes
+   them rather than porting them, so no non-canonical literal survives here. */
+.cockpit { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: var(--space-md); }
+.main { display: grid; grid-template-rows: 120px 440px 300px; gap: var(--space-md); min-width: 0; }
+.zoneA, .zoneB, .zoneC, .rail { min-height: 0; overflow: hidden; }
+.zoneB > *, .zoneC > *, .rail > * { max-height: 100%; overflow-y: auto; }
+.zoneD { margin-top: var(--space-md); }
+
+/* ⛔ AN EMPTY LABELLED FRAME IS THE DEFECT THIS PAGE EXISTS TO REMOVE.
+   TheWeek returns null when all three of its panels are empty (a genuinely
+   quiet weekend, or a desk outage) — see TheWeek.jsx. Without this rule the
+   zone would still hold a 440px void where the hero used to be, which is the
+   849px dead column in a different costume. */
+.zoneB:empty { display: none; }
+
+/* Gold-edge emphasis on the hero zone — element selector so TileCard's hashed
+   classes stay untouched. */
+.zoneB > :first-child {
   border-color: var(--accent);
   box-shadow: 0 0 22px rgba(220, 187, 94, 0.07);
 }
 
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.railMovers {
-  max-height: 420px;
-  overflow-y: auto;
-  border-radius: var(--radius-xl, 14px);
-}
-
-/* ⛔ max-height is load-bearing. Without it, align-items:stretch matches
-   every tile to the tallest sibling (UCT 20's 20 rows) and a two-line
-   exposure reading gets 908px. Tiles scroll inside the row instead. */
-.rowC {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-md);
-  align-items: stretch;
-  max-height: 340px;
-}
-.rowC > * { min-height: 0; }
-
-.rowD {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
-  align-items: start;
-}
-
-/* Bare tiles have no grid track to resolve TileCard's height:100% against.
-   These wrappers supply one. See Dashboard.zones.test.jsx. */
-.rowSector { display: grid; grid-template-columns: 1fr; max-height: 420px; }
-.rowFull   { display: grid; grid-template-columns: 1fr; }
-
-/* Hover lift on every desktop tile (element selector on TileCard roots). */
-.desktopOnly :is(.rowB, .rowC, .rowD) > * > :first-child,
-.desktopOnly .rail > * > :first-child {
+/* Hover lift on the zone tiles (element selector on TileCard roots). */
+.desktopOnly :is(.zoneB, .zoneC) > :first-child {
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
-
 @media (hover: hover) {
-  .desktopOnly :is(.rowC, .rowD) > *:hover > :first-child {
+  .desktopOnly .zoneC:hover > :first-child {
     transform: translateY(-1px);
     border-color: var(--accent);
   }
 }
 
-.row2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--space-md);
-  align-items: stretch;
-}
-
-.comingSoon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 180px;
-  color: var(--text-muted);
-}
-.comingSoonIcon {
-  font-size: 28px;
-  opacity: 0.3;
-}
-.comingSoonLabel {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  opacity: 0.4;
-}
-.row3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 390px;
-  gap: var(--space-md);
-}
-.row4 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-md);
-}
-
 /* ── Hide mobile layout on desktop ────────────────────────────────────────── */
 .mobileOnly { display: none; }
 
-@media (max-width: 1440px) {
-  .rowC { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 1100px) {
-  .rowB { grid-template-columns: 1fr; }
-  .hero { max-height: none; overflow: visible; }
-  .rail {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-  .rowD { grid-template-columns: 1fr; }
-  .row2 { grid-template-columns: 1fr 1fr; }
-  .row3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
-  .row4 { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 768px) {
-  .content { padding: 10px; gap: 10px; }
-  .rail { grid-template-columns: 1fr; }
-  .row2 { grid-template-columns: 1fr; }
-  .row3 { grid-template-columns: 1fr; grid-template-rows: auto; }
+/* Tablet/touch (≤1024): the rail drops under the zones and the fixed row
+   heights become content-sized — a 440px hero in a single narrow column is a
+   scroll-in-a-scroll, not a budget. */
+@media (max-width: 1024px) {
+  .cockpit { grid-template-columns: 1fr; }
+  .main { grid-template-rows: auto auto auto; }
+  .zoneA, .zoneB, .zoneC, .rail { overflow: visible; }
+  .zoneB > *, .zoneC > *, .rail > * { max-height: none; overflow-y: visible; }
 }
 
 /* ── Mobile: swap to accordion layout ─────────────────────────────────────── */

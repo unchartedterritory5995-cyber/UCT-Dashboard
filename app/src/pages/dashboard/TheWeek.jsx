@@ -62,6 +62,21 @@ export default function TheWeek() {
     .filter(e => e && e.sym)
     .slice(0, 6)
 
+  // 🔴 CARRIED FIX — AN EMPTY LABELLED FRAME IS THE DEFECT, NOT THE FIX FOR IT.
+  // Every panel below already omits itself when its slice of data is missing,
+  // but with all three missing this still rendered a "The Week" TileCard
+  // header over an empty grid: the whole-component version of the 849px dead
+  // column this hero exists to replace. Nothing to say is said by saying
+  // nothing. Zone B's `.zoneB:empty { display: none }` collapses the zone
+  // around this null so no 440px void is left behind either.
+  //
+  // ⛔ THIS IS ALSO THE OUTAGE PATH. `jsonFetcher` throws on a non-ok
+  // response, so a 402/500 leaves both `desk` and `cal` undefined and lands
+  // here — degrading to absence rather than to a labelled empty box. SWR
+  // still retries on the thrown error, so a transient failure heals into
+  // content (rail: TheWeek.errors.test.jsx).
+  if (!scan && onDeck.length === 0 && reading.length === 0) return null
+
   return (
     <TileCard title="The Week" icon="calendar">
       <div className={styles.grid}>
