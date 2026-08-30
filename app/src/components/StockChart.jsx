@@ -4300,6 +4300,9 @@ export default function StockChart({
   // full fetch so their overlays align across the whole range.
   const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
   const pendingOriginRef = useRef(false)   // "Origin" range: centre bar 0 once full history lands
+  const originSawFetchRef = useRef(false)   // saw the deep fetch actually start (isValidating→true)
+  const originBaseLenRef = useRef(0)        // filteredBars length at click — detects the deeper history landing
+  const [originLoading, setOriginLoading] = useState(false)  // "Loading chart history…" until the true first bar lands
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
   const _overlayActive = !!(
@@ -4311,6 +4314,8 @@ export default function StockChart({
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
     pendingOriginRef.current = false   // a pending "Origin" doesn't carry to a new symbol/tf
+    originSawFetchRef.current = false
+    if (originLoading) setOriginLoading(false)
   }
   // Pinned book charts (entryDate / exactDateRange) frame a specific historical
   // year that the shallow first-paint window can miss entirely (a 2020 example
@@ -4535,7 +4540,7 @@ export default function StockChart({
   // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
   // don't poll while a cutoff is set. The static `?to=` window never changes.
   const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
-  const { data, error, mutate } = useSWR(
+  const { data, error, mutate, isValidating } = useSWR(
     swrUrl,
     fetcher,
     {
@@ -5895,8 +5900,11 @@ export default function StockChart({
     if (!chart || !cSeries || !chartReady) return undefined
     const ts = chart.timeScale()
     let raf = 0
-    const defaultPriceTag = () => !hideLastValue && cs.showPriceLabels !== false
     const defaultVolTag = () => (volumeLastValue || (!boldCandles && !hidePriceLine))
+    // The CANDLE last-value tag is owned by the dedicated effect below (keyed on
+    // lastBarOff), which also carries the session-tag suppression — so we must NOT
+    // toggle it here or the off→on restore double-shows it beside the 'rth' chip.
+    // This effect owns only the MA + volume tags (no session-tag suppression there).
     const apply = () => {
       let lr = null
       try { lr = ts.getVisibleLogicalRange() } catch { return }
@@ -5906,8 +5914,7 @@ export default function StockChart({
       const off = lr.to < lastIdx - 0.5
       if (off === lastBarOffRef.current) return
       lastBarOffRef.current = off
-      setLastBarOff(off)
-      try { cSeries.applyOptions({ lastValueVisible: off ? false : defaultPriceTag() }) } catch { /* older LWC */ }
+      setLastBarOff(off)   // drives the candle-tag effect + drops the session tags
       overlaySeriesRefs.current.forEach((s) => { try { s?.applyOptions({ lastValueVisible: off ? false : !!cs.showMaLabels }) } catch { /* */ } })
       try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: off ? false : defaultVolTag() }) } catch { /* */ }
     }
@@ -5918,11 +5925,9 @@ export default function StockChart({
     return () => {
       cancelAnimationFrame(raf)
       try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ }
-      const cs2 = candleSeriesRef.current
       if (lastBarOffRef.current) {
         lastBarOffRef.current = false
-        setLastBarOff(false)
-        try { cs2?.applyOptions({ lastValueVisible: !hideLastValue && cs.showPriceLabels !== false }) } catch { /* */ }
+        setLastBarOff(false)   // candle-tag effect restores the price tag
         try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: volumeLastValue || (!boldCandles && !hidePriceLine) }) } catch { /* */ }
       }
     }
@@ -10092,9 +10097,13 @@ export default function StockChart({
   const intradayExtTagActive = !!intradaySessionTagLines?.length
   useEffect(() => {
     if (!chartReady || !candleSeriesRef.current) return
-    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive && cs.showPriceLabels !== false
+    // lastBarOff: the whole-axis hide when the latest bar is scrolled off-screen.
+    // This is the SINGLE authority for the candle last-value tag — including the
+    // session-tags suppression — so the off→on restore can't re-add a tag the
+    // session 'rth' chip is already showing (the duplicate-716.43 bug).
+    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive && cs.showPriceLabels !== false && !lastBarOff
     try { candleSeriesRef.current.applyOptions({ lastValueVisible: on }) } catch { /* older LWC */ }
-  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType, cs.showPriceLabels])
+  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType, cs.showPriceLabels, lastBarOff])
 
   // Once the tabular-figures axis font ('Instrument Sans Tab') has actually
   // loaded, force LWC to re-measure + repaint the axis. Canvas paints with the
@@ -13232,24 +13241,53 @@ export default function StockChart({
       return true
     } catch { return false }
   }
-  // Once the full history has loaded (fetchDepth bumped to the full target), centre
-  // bar 0 for a pending "Origin" click.
+  // Finish a pending "Origin": wait for the full history to actually LAND — not just
+  // for the requested depth flag to flip — before centring bar 0. The viewport-first
+  // fetch is shallow, so `fetchDepth === _fullTarget` becomes true the instant we ask
+  // for more, while the deeper bars are still in flight; centring then would frame a
+  // shallow first bar (e.g. WMT's 2006) as the origin. We hold "Loading chart history…"
+  // and centre only once the deep fetch has SETTLED (isValidating false) and the bars
+  // have grown (or a real fetch ran and returned no more — a genuinely short history).
   useEffect(() => {
-    if (!pendingOriginRef.current || fetchDepth !== _fullTarget) return
-    if (centerFirstBar()) pendingOriginRef.current = false
+    if (!pendingOriginRef.current) return
+    if (isValidating) { originSawFetchRef.current = true; return }  // fetch in flight — wait
+    if (barCount !== _fullTarget) return
+    const grew = (filteredBars?.length || 0) > originBaseLenRef.current
+    if (!(grew || originSawFetchRef.current)) return  // deep bars haven't landed yet
+    if (centerFirstBar()) {
+      pendingOriginRef.current = false
+      originSawFetchRef.current = false
+      setOriginLoading(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredBars, fetchDepth])
+  }, [filteredBars, isValidating, barCount])
 
   const applyRange = (val) => {
     if (val === 'origin') {
-      // Load the full history first (viewport-first fetch is shallow), then centre
-      // bar 0 — immediately if it's already loaded, else via the effect above.
-      const wasFull = fetchDepth === _fullTarget
-      pendingOriginRef.current = true
-      setFetchDepth(_fullTarget)
-      if (wasFull) {
+      if (pendingOriginRef.current) return   // already loading the origin — ignore repeat clicks
+      // Already at full depth with settled data ⇒ centre immediately (no loading state).
+      const deepLoaded = barCount === _fullTarget && !isValidating && (filteredBars?.length || 0) > 1
+      if (deepLoaded) {
+        pendingOriginRef.current = true
         requestAnimationFrame(() => { if (pendingOriginRef.current && centerFirstBar()) pendingOriginRef.current = false })
+        return
       }
+      // Shallow ⇒ request the full history and show "Loading chart history…" until the
+      // true first bar lands (the effect above finishes it). Safety timeout so a stalled
+      // fetch can never trap the chart in the loading state.
+      originBaseLenRef.current = filteredBars?.length || 0
+      originSawFetchRef.current = false
+      pendingOriginRef.current = true
+      setOriginLoading(true)
+      if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
+      setTimeout(() => {
+        if (pendingOriginRef.current) {
+          centerFirstBar()
+          pendingOriginRef.current = false
+          originSawFetchRef.current = false
+          setOriginLoading(false)
+        }
+      }, 6000)
       return
     }
     try {
@@ -14362,6 +14400,23 @@ export default function StockChart({
               onClick={() => applyRange(val)}
             >{label}</button>
           ))}
+        </div>
+      )}
+      {/* "Origin" range: while the full history is still loading, hold a centered pill
+          so the user never mistakes the deepest-loaded-so-far bar for the true origin. */}
+      {originLoading && (
+        <div
+          style={{
+            position: 'absolute', top: '46%', left: '50%', transform: 'translate(-50%, -50%)',
+            zIndex: 30, pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 14px', borderRadius: 8,
+            background: 'rgba(18,22,28,0.92)', border: '1px solid rgba(255,255,255,0.12)',
+            color: '#e6e2d8', fontSize: 12.5, fontWeight: 500, letterSpacing: 0.2,
+            boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
+          }}
+        >
+          <span className={styles.originSpinner} aria-hidden="true" />
+          Loading chart history…
         </div>
       )}
       {/* blankVolume (breadth): a plain "Volume" label so the empty pane still reads
