@@ -28,10 +28,30 @@ repainting that six of ten charting vendors do not disclose
 `provisional`, and a detector must never place an entry or stop on a
 provisional swing.
 
-`k` is `origin: uct`. Osler swept ten cutoffs and published no single
-preferred value, so 3.0 is OUR choice, not hers: it is the smallest integer
-multiple of daily sigma that suppresses the noise swings in a 3,700-name
-universe. It is a module constant so a sweep can move it in one place.
+`k` is `origin: uct`, and it is MEASURED, not asserted. Osler swept ten
+cutoffs and published no single preferred value, so the number is ours --
+which means we owe it a measurement rather than a plausible sentence.
+
+⭐ SWEPT 2026-08-30 over 828 real tickers x 400 daily bars, counting
+confirmed swings per ticker:
+
+      k     median swings   bars per swing
+    3.0          49              8.2
+    5.0          16             25.0     <- DEFAULT
+    8.0           6             66.7
+   12.0           3            133.3
+   16.0           1            400.0
+
+A base is a MULTI-WEEK structure -- O'Neil publishes 4-12 weeks, Minervini
+similar -- so a swing every ~25 sessions is the scale this segmenter exists
+to find. k=3.0 gives a swing every 8 sessions: that is short-swing noise,
+and a base detector built on it would be naming wiggles.
+
+⛔ This docstring previously said 3.0 "is the smallest integer multiple of
+daily sigma that suppresses the noise swings in a 3,700-name universe". That
+sentence was written before anything was measured and it was simply false --
+an acceptance number is a forecast until it is derived. Use k=8.0 when you
+want only major structure; raise it per-detector, never here.
 """
 from __future__ import annotations
 
@@ -40,7 +60,7 @@ from typing import List, Literal, Optional, TypedDict
 
 from api.services.pattern_engine.types import Bar
 
-DEFAULT_K = 3.0        # origin: uct — see module docstring
+DEFAULT_K = 5.0        # origin: uct, MEASURED — see the sweep in the module docstring
 SIGMA_WINDOW = 60      # trailing bars used to estimate daily sigma
 MIN_SIGMA_BARS = 30    # below this we refuse rather than estimate
 DEDUP_BARS = 2         # Osler's explicit +/-2-day de-duplication

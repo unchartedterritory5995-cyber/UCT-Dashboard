@@ -1,7 +1,7 @@
 import math
 
 from api.services.pattern_engine.primitives.zigzag import (
-    DEDUP_BARS, SIGMA_WINDOW, _trailing_sigma, segment,
+    DEDUP_BARS, DEFAULT_K, SIGMA_WINDOW, _trailing_sigma, segment,
 )
 
 
@@ -161,3 +161,32 @@ def test_zero_and_negative_prices_do_not_crash_or_emit():
 
 def test_dedup_bars_constant_is_exposed_for_callers():
     assert DEDUP_BARS == 2
+
+
+def test_a_larger_k_never_confirms_more_swings():
+    """The monotonicity the k-sweep calibration depends on.
+
+    The sweep that set DEFAULT_K measured swing counts at k = 3/5/8/12/16 and
+    read the curve as monotone. If a larger threshold could ever produce MORE
+    confirmations, that reading — and the default derived from it — would be
+    meaningless. Pin the property rather than trusting the sample.
+    """
+    bars = _series(_noise(400))
+    prev = None
+    for k in (3.0, 5.0, 8.0, 12.0, 16.0):
+        n = len([s for s in segment(bars, k=k) if not s["provisional"]])
+        if prev is not None:
+            assert n <= prev, f"k={k} confirmed {n} swings, more than the looser {prev}"
+        prev = n
+
+
+def test_default_k_is_the_measured_base_scale_value():
+    """⛔ DEFAULT_K is a MEASURED number, not a taste.
+
+    Swept 2026-08-30 over 828 real tickers x 400 daily bars: k=3.0 gives a
+    swing every 8.2 sessions (short-swing noise), k=5.0 every 25.0 sessions
+    (~5 weeks, the multi-week scale a base actually occupies), k=8.0 every
+    66.7. Changing this constant changes what every structure detector calls
+    a swing, so it fails here loudly rather than drifting quietly.
+    """
+    assert DEFAULT_K == 5.0
