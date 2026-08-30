@@ -440,9 +440,9 @@ _MONTHS = {m: i for i, m in enumerate(
 # "March 3rd, 2016" | "Mar 3 2016" | "3 March 2016". The YEAR is mandatory —
 # without it "march higher" and "may rally" become dates.
 _HIST_WORD_DATE_RE = re.compile(
-    r"(?:(?P<m1>[A-Za-z]{3,9})\s+(?P<d1>\d{1,2})(?:st|nd|rd|th)?"
+    r"\b(?:(?P<m1>[A-Za-z]{3,9})\s+(?P<d1>\d{1,2})(?:st|nd|rd|th)?"
     r"|(?P<d2>\d{1,2})(?:st|nd|rd|th)?\s+(?P<m2>[A-Za-z]{3,9}))"
-    r",?\s+(?P<y>20\d{2})", re.I)
+    r",?\s+(?P<y>20\d{2})\b", re.I)
 ```
 
 In `_hist_date_ymd`, after the ISO attempt fails, try `_HIST_WORD_DATE_RE`,
