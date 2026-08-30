@@ -8,6 +8,10 @@
 
 .svg {
   width: 100%;
+  /* .wrap is align-items:flex-start so the verdict chip hugs its own text; the
+     svg has to opt back out or its measured box is content-width, not the
+     canvas width the viewBox is now cut from. */
+  align-self: stretch;
   overflow: visible;
 }
 
@@ -45,7 +49,7 @@
 .now {
   fill: var(--text-bright);
   font-family: var(--font-sans);
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: var(--ls-label);
 }
@@ -53,7 +57,7 @@
 .qlabel {
   fill: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .cold {
@@ -68,6 +72,6 @@
     gap: 2px;
   }
   .qlabel {
-    font-size: 7px;
+    font-size: 9px;
   }
 }

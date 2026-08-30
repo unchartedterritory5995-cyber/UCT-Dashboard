@@ -82,3 +82,14 @@ export function tokenFromShareInput(text) {
   const m = SHARE_TOKEN_RE.exec(String(text ?? ''))
   return m ? m[0] : ''
 }
+
+/** ⭐ WHERE THE PUBLIC LIBRARY LIVES, spelled once, for the same reason every
+ *  other path in this module is: `App.jsx` routes on it and every link to it is
+ *  built from it, so the route and the links cannot drift apart. This file's own
+ *  header records what happened when a path was hand-typed on one side and never
+ *  registered on the other — every share link a member copied went to a 404.
+ *
+ *  ⛔ IT IS A DIFFERENT THING FROM `SHARED_FORMULA_PATH`, and the names say so.
+ *  `/formulas/shared/:token` opens ONE formula somebody sent you; this browses
+ *  the ones whose owners asked to be listed. Sharing a link publishes nothing. */
+export const FORMULA_LIBRARY_PATH = '/formulas/library'

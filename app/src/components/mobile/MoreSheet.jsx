@@ -55,6 +55,11 @@ const NAV_SECTIONS = [
       // already know about is not a reference. `/formulas/reference` is derived
       // wholly from the engine's manifest, so it can never be out of date.
       { to: '/formulas/reference', label: 'Formula reference', icon: 'library' },
+      // ⭐⭐ AND WHAT OTHER MEMBERS PUBLISHED. A library nobody can find is
+      // the same defect as a reference nobody can find, one shelf over — and
+      // worse, because an empty-looking library reads as "nobody uses this"
+      // rather than "you have not found the door".
+      { to: '/formulas/library', label: 'Formula library', icon: 'book' },
       { to: '/support', label: 'Support', icon: 'chat' },
     ],
   },

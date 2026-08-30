@@ -86,6 +86,11 @@ _PACK_TOOL_ALIAS = {
     "fundamentals": "get_fundamentals",
     "posture": "get_short_interest",
     "verdict": "grade_ticker",
+    # list_verdict IS grade_ticker, run over the top names of a desk list when
+    # the member named no ticker. Missing from this map, it was invisible to
+    # every check that reads tool names — the audit reported S3-03 as an
+    # ungrounded miss for a pack that had just fired.
+    "list_verdict": "grade_ticker",
     "patterns": "find_patterns_on_ticker",
     "sector": "get_sector_strength",
     "playbook": "ask_the_brain",

@@ -339,6 +339,84 @@ export const createShareLink = (defId) => shareCall('POST', defId)
 export const revokeShareLink = (defId) => shareCall('DELETE', defId)
 
 /**
+ * The LIBRARY listing for a definition — publish it, read it, or withdraw it.
+ *
+ * ⛔⛔ A SEPARATE CALL FROM `shareCall`, BECAUSE IT IS A SEPARATE CONSENT. A
+ * share link goes to a person the member chose; a listing goes on a page every
+ * member can browse. Routing both through one function would make it one keystroke
+ * for somebody later to "simplify" them into one action, and the thing that would
+ * break is the only thing protecting a year of already-minted links from being
+ * published retroactively.
+ *
+ * ⚠️ `read` RETURNS THREE FACTS, not one. `listed` is what a reader sees;
+ * `requested` is what the owner asked for; `shared` is whether the link it rides
+ * on is still live. They come apart exactly when the owner revoked the link
+ * without withdrawing the listing — and a panel holding a single boolean could
+ * not explain why the entry disappeared.
+ */
+async function listingCall(method, defId) {
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/${encodeURIComponent(defId)}/list`, {
+      method,
+      credentials: 'include',
+    })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) {
+    return {
+      ok: true,
+      // ⛔ `POST` ANSWERS `{listed: true}` AND `GET` ANSWERS THE THREE FACTS, so
+      // the shapes are normalised HERE rather than at two call sites that could
+      // drift. `DELETE` answers `{removed}` and reports listed:false either way,
+      // which is the state afterwards — the question a caller is actually asking.
+      listed: method === 'DELETE' ? false : !!(body && body.listed),
+      requested: body && body.requested !== undefined ? !!body.requested : undefined,
+      shared: body && body.shared !== undefined ? !!body.shared : undefined,
+      token: (body && body.token) || null,
+    }
+  }
+  const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
+  return { ok: false, error: detail || `The server refused that (${r.status}).` }
+}
+
+export const readListing = (defId) => listingCall('GET', defId)
+export const publishToLibrary = (defId) => listingCall('POST', defId)
+export const withdrawFromLibrary = (defId) => listingCall('DELETE', defId)
+
+/**
+ * The public library, newest first.
+ *
+ * ⚠️ IT NEVER THROWS AND NEVER RETURNS NULL — the same contract every door in
+ * this module holds, so a page can render a refusal without knowing which of them
+ * it went through.
+ */
+export async function fetchDefinitionLibrary({ limit = 24, after = null } = {}) {
+  const q = new URLSearchParams({ limit: String(limit) })
+  if (after !== null && after !== undefined) q.set('after', String(after))
+  let r
+  try {
+    r = await fetch(`${USER_DEFINITIONS_KEY}/library?${q}`, { credentials: 'include' })
+  } catch {
+    return { ok: false, error: 'Could not reach the server — check your connection and try again.', entries: [] }
+  }
+  let body = null
+  try { body = await r.json() } catch { /* not JSON */ }
+  if (r.ok) {
+    return {
+      ok: true,
+      entries: Array.isArray(body?.entries) ? body.entries : [],
+      next: body && body.next !== undefined ? body.next : null,
+    }
+  }
+  const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
+  return { ok: false, error: detail || `The server refused that (${r.status}).`, entries: [] }
+}
+
+/**
  * Preview a share link somebody sent you, WITHOUT installing it.
  *
  * ⛔⛔ THE REFUSAL REASON IS CARRIED THROUGH, not flattened into a message. The
