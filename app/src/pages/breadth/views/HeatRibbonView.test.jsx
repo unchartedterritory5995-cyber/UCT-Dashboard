@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { describe, it, expect, vi } from 'vitest'
+import { render, fireEvent } from '@testing-library/react'
 import HeatRibbonView from './HeatRibbonView'
 import { ALL_METRICS_HIDDEN } from './breadthViewShared'
 
@@ -46,6 +46,60 @@ describe('HeatRibbonView', () => {
     const { getByTestId } = render(<HeatRibbonView rows={rows} rowIdx={0} currentRow={rows[0]}
       metrics={metrics} onDrill={() => {}} options={{}} />)
     expect(getByTestId('ribbon-basis').textContent).toMatch(/5 sessions · since 2026-08-01/)
+  })
+
+  /**
+   * 🔴 THE RIBBON USED TO GET SHORTER AS YOU SCRUBBED BACK.
+   *
+   * It drew `rows.slice(rowIdx)`, so moving the cursor to an older session
+   * removed the newer ones — during playback the strip GREW, which reads as
+   * data arriving rather than as a cursor moving. The window is fixed now and
+   * the cursor is a playhead sweeping across it.
+   */
+  describe('the cursor is a playhead, not a truncation', () => {
+    const cells = (container) => [...container.querySelectorAll('[data-testid^="ribbon-cell-a-"]')]
+    const draw = (rowIdx, props = {}) => render(<HeatRibbonView rows={rows} rowIdx={rowIdx}
+      currentRow={rows[rowIdx]} metrics={metrics} onDrill={() => {}} options={{}}
+      canSeek={() => true} {...props} />)
+
+    it('holds the whole window at every cursor position', () => {
+      // The old view drew 5, 3 and 1 cells for these three positions.
+      for (const idx of [0, 2, 4]) {
+        const { container, unmount } = draw(idx)
+        expect(cells(container), `cursor ${idx} changed the length of the strip`).toHaveLength(5)
+        unmount()
+      }
+    })
+
+    it('moves the playhead to the cursor session instead', () => {
+      // rows are newest-first and the strip runs oldest → newest, so rowIdx 2
+      // of 5 is the middle column: 2026-08-03.
+      const { getByTestId } = draw(2)
+      expect(getByTestId('ribbon-playhead').getAttribute('data-playhead-date')).toBe('2026-08-03')
+      expect(getByTestId('ribbon-basis').textContent).toMatch(/playhead 2026-08-03 \(3 of 5\)/)
+    })
+
+    it('draws the sessions ahead of it, visibly not yet current', () => {
+      const { container } = draw(2)
+      const drawn = cells(container)
+      const dim = drawn.map(el => Number(el.style.opacity))
+      // The two newest columns are ahead of the playhead…
+      expect(drawn.slice(3).every(el => el.getAttribute('data-ahead') === 'true')).toBe(true)
+      expect(drawn.slice(0, 3).every(el => el.getAttribute('data-ahead') === null)).toBe(true)
+      // …and that is a difference the eye can see, without a second colour: the
+      // tier fill is unchanged on both sides of the playhead.
+      expect(Math.max(...dim.slice(3))).toBeLessThan(Math.min(...dim.slice(0, 3)))
+      const bg = el => el.style.background.replace(/\s/g, '')
+      expect(bg(drawn[4])).toBe(bg(drawn[3]))          // still their own tier
+      expect(drawn.every(el => Number(el.style.opacity) > 0)).toBe(true)  // still drawn
+    })
+
+    it('lets the cursor move FORWARD by clicking a session ahead of it', () => {
+      const onSeek = vi.fn()
+      const { container } = draw(4, { onSeek })
+      fireEvent.click(cells(container)[4])            // the newest session
+      expect(onSeek).toHaveBeenCalledWith('2026-08-05')
+    })
   })
 
   // 🔴 EVERY METRIC UNCHECKED USED TO RENDER `null`: a blank panel with nothing

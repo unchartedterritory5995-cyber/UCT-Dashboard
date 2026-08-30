@@ -4,14 +4,36 @@
  * A metric with too few readings says so rather than ranking against noise.
  */
 import {
-  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, metricValue, percentileRank,
+  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, medianOf, metricValue, percentileRank,
   resolveViewColors,
 } from './breadthViewShared'
 
-const BINS = 10
+/**
+ * ⭐ 24 SLICES, DRAWN AS AN OUTLINE — because the thing this lens exists to show
+ * is a SHAPE.
+ *
+ * Ten bins rendered as ten separate blocks read as a bar of similar rectangles:
+ * you could see that today's marker sat at the right-hand end, but not that the
+ * window was bimodal, or long-tailed, or piled up against its own floor. The
+ * slices are finer now and the counts are joined into one filled outline — a
+ * frequency polygon, which is a HISTOGRAM RE-DRAWN, not a smoothed estimate of
+ * one.
+ *
+ * ⛔ AND THAT DISTINCTION IS THE REASON IT IS NOT SMOOTHED. Every vertex below
+ * is a raw count of sessions in one slice, so the drawn height and the tooltip's
+ * "3 sessions in this band" are the same number. A kernel-smoothed curve would
+ * look better and would put a second, softer claim on screen beside a lens whose
+ * entire discipline is that what it draws is what it read.
+ */
+const BINS = 24
 // The marker's own width, and the viewBox it must stay inside.
 const MARKER_W = 1.4
 const TRACK_W = 100
+// The row's own box: the distribution fills TOP..FLOOR, the marker overhangs it
+// slightly so a reading is legible against a slice that reaches the ceiling.
+const ROW_H = 34
+const TOP = 4
+const FLOOR = 28
 
 /**
  * 🔴 THE 100th-PERCENTILE MARKER USED TO DRAW NOTHING AT ALL.
@@ -94,7 +116,11 @@ export default function PercentileLadderView({
       if (bandLast[bin] == null) bandLast[bin] = x.date
     }
     const peak = Math.max(...hist, 1)
-    return { m, ok: true, pct, hist, bandLast, peak, min, max, today, count: vals.length }
+    // The window's own middle, from the shared helper The Read also quotes — the
+    // one reference on the track that is not today, and the thing that makes
+    // "high in its range" different from "high vs where it usually sits".
+    const mid = medianOf(vals)
+    return { m, ok: true, pct, hist, bandLast, peak, min, max, mid, span, today, count: vals.length }
   })
 
   const ordered = sortMode === 'percentile'
@@ -107,9 +133,26 @@ export default function PercentileLadderView({
     <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>
       <div data-testid="ladder-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
-                    letterSpacing: '.4px', marginBottom: 8 }}>{basis}</div>
-      {ordered.map(({ m, ok, pct, hist, bandLast, peak, have }) => (
-        <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    letterSpacing: '.4px', marginBottom: 6 }}>{basis}</div>
+
+      {/* One legend for ten identical rows, rather than a caption on each: the
+          track runs low → high, the dashed mark is the window's median, and the
+          right-hand pair is today's reading and its rank. */}
+      <div data-testid="ladder-legend"
+           style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4,
+                    font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
+                    textTransform: 'uppercase', color: '#475569' }}>
+        <div style={{ width: 104, flex: '0 0 104px' }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between' }}>
+          <span>low</span>
+          <span>distribution over the window · dashed = median</span>
+          <span>high</span>
+        </div>
+        <div style={{ width: 78, flex: '0 0 78px', textAlign: 'left' }}>today · %ile</div>
+      </div>
+
+      {ordered.map(({ m, ok, pct, hist, bandLast, peak, min, mid, span, have }) => (
+        <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
                         font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
                         textTransform: 'uppercase', color: '#94a3b8',
@@ -123,28 +166,44 @@ export default function PercentileLadderView({
 
           {ok ? (
             <>
-              <svg width="100%" height="26" viewBox="0 0 100 26" preserveAspectRatio="none"
+              <svg width="100%" height={ROW_H} viewBox={`0 0 100 ${ROW_H}`} preserveAspectRatio="none"
                    style={{ flex: 1, minWidth: 0 }} role="img"
                    aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${win.length} sessions`}
                    onClick={(e) => {
                      const d = bandDate(e)
                      if (d && (canSeek ? canSeek(d) : false)) onSeek?.(d)
                    }}>
-                {hist.map((c, i) => {
-                  const h = (c / peak) * 18
-                  return <rect key={i} x={i * 10 + 0.6} y={20 - h} width={8.8} height={h}
-                               fill={colors.tier.g1} opacity={0.35} />
-                })}
+                {/* The distribution: one filled outline through the raw slice
+                    counts, anchored to the floor at both ends so the silhouette
+                    closes. `binW / 2` puts each vertex over the MIDDLE of the
+                    slice it counts, not its left edge — off by half a slice and
+                    the shape leans against today's marker. */}
+                {(() => {
+                  const binW = 100 / BINS
+                  const y = (c) => FLOOR - (c / peak) * (FLOOR - TOP)
+                  const verts = hist.map((c, i) => `${(i * binW + binW / 2).toFixed(2)},${y(c).toFixed(2)}`)
+                  return (
+                    <>
+                      <polygon data-testid={`ladder-shape-${m.key}`}
+                               points={`0,${FLOOR} ${verts.join(' ')} 100,${FLOOR}`}
+                               fill={colors.tier.g1} opacity={0.22} />
+                      <polyline points={verts.join(' ')} fill="none" stroke={colors.tier.g1}
+                                strokeWidth="1.1" strokeLinejoin="round"
+                                vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity * 0.8} />
+                    </>
+                  )
+                })()}
                 {/* A short bar is a 1px target; the click band is the whole
                     column, and it is a SEPARATE transparent rect so the drawn
                     distribution keeps its own geometry. */}
                 {hist.map((c, i) => {
                   const d = bandLast?.[i] ?? null
                   const reachable = c > 0 && d != null && (canSeek ? !!canSeek(d) : false)
+                  const binW = 100 / BINS
                   return (
                     <rect key={`band-${i}`} data-testid={`ladder-band-${m.key}-${i}`}
                           data-seek-date={d ?? undefined}
-                          x={i * 10} y="0" width="10" height="21" fill="transparent"
+                          x={i * binW} y="0" width={binW} height={FLOOR + 1} fill="transparent"
                           style={{ cursor: reachable ? 'pointer' : 'default' }}>
                       <title>{c === 0
                         ? 'No session in this band'
@@ -152,15 +211,25 @@ export default function PercentileLadderView({
                     </rect>
                   )
                 })}
-                <line x1="0" y1="20.5" x2="100" y2="20.5" stroke="#334155" strokeWidth="0.6"
+                <line x1="0" y1={FLOOR + 0.5} x2="100" y2={FLOOR + 0.5} stroke="#334155" strokeWidth="0.6"
                       vectorEffect="non-scaling-stroke" />
+                {/* The window's median — the only fixed reference on a track
+                    whose units differ per row, and what turns "near the top of
+                    the range" into "far above where this usually sits". */}
+                {mid != null && (
+                  <line data-testid={`ladder-median-${m.key}`}
+                        x1={Math.min(100, Math.max(0, ((mid - min) / span) * 100))} y1={TOP + 1}
+                        x2={Math.min(100, Math.max(0, ((mid - min) / span) * 100))} y2={FLOOR}
+                        stroke="#475569" strokeWidth="0.8" strokeDasharray="2 2"
+                        vectorEffect="non-scaling-stroke" />
+                )}
                 {/* ⛔ `marker-{key}` COLLIDED WITH `MetersView`'s OWN MARKERS.
                     Both boards can be on screen in the same test document, and
                     both draw one marker per metric — a query for `marker-vix`
                     matched whichever rendered first. Every id this view owns is
                     namespaced to the view. */}
                 <rect data-testid={`ladder-marker-${m.key}`} x={markerX(pct)} y="1"
-                      width={MARKER_W} height="21"
+                      width={MARKER_W} height={FLOOR}
                       fill={colors.bull} opacity={colors.fillOpacity}>
                   <title>{`${m.getFmt(currentRow)} — ${pct}th percentile`}</title>
                 </rect>

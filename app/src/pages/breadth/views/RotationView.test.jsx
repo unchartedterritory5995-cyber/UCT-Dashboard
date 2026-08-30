@@ -71,6 +71,50 @@ describe('RotationView', () => {
       .toMatch(/12 sessions · since 2026-08-29 · shorter than the 60-day setting/)
   })
 
+  /**
+   * ⭐ THE PANEL NOW DRAWS THE REFERENCE IT MEASURES FROM.
+   *
+   * A sparkline plus a delta asks the reader to take the delta on trust. The
+   * dashed line sits at the reading `measured` sessions back and the panel names
+   * that reading in words, so the number beside the trace is checkable off the
+   * trace — the same "show the basis" discipline every other lens follows.
+   *
+   * ⛔ AND THE THREE NUMBERS MUST CLOSE. Reading / reference / delta are three
+   * renderings of one subtraction; a rail that only checked they exist would
+   * stay green while the reference named a different session than the delta was
+   * taken from — which is exactly the drift the `measured` ruling exists for.
+   */
+  it('draws and names the reference the delta is measured from, and the three close', () => {
+    const { getByTestId, container } = render(<RotationView rows={rows} rowIdx={0}
+      currentRow={rows[0]} onDrill={() => {}} options={{ lookback: 20 }} />)
+
+    // rows are newest-first with dates 2026-08-40 … 2026-08-01, so 20 sessions
+    // back from the newest is 2026-08-20.
+    const ref = getByTestId('rotation-reference-rsp_spy_ratio').textContent
+    expect(ref).toMatch(/on 2026-08-20$/)
+    expect(container.querySelector('[data-testid="rotation-baseline-rsp_spy_ratio"]')).toBeTruthy()
+
+    const num = (s) => Number(String(s).match(/-?\d+\.\d+/)[0])
+    const value = num(getByTestId('rotation-value-rsp_spy_ratio').textContent)
+    const reference = num(ref)
+    const delta = num(getByTestId('rotation-delta-rsp_spy_ratio').textContent)
+    expect(value - reference).toBeCloseTo(delta, 3)
+    expect(reference).not.toBeCloseTo(value, 3)   // the fixture actually moved
+  })
+
+  it('gives the trace a scale the reading can be placed on', () => {
+    const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
+      onDrill={() => {}} options={{ lookback: 20 }} />)
+    const bounds = [...getByTestId('rotation-range-rsp_spy_ratio').querySelectorAll('span')]
+      .map(s => Number(s.textContent))
+    expect(bounds).toHaveLength(2)
+    const value = Number(getByTestId('rotation-value-rsp_spy_ratio').textContent)
+    const [max, min] = bounds
+    expect(max).toBeGreaterThan(min)              // a real range, not a repeat
+    expect(value).toBeLessThanOrEqual(max)
+    expect(value).toBeGreaterThanOrEqual(min)
+  })
+
   it('carries the basis line every sibling lens carries', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)

@@ -78,6 +78,64 @@ describe('PercentileLadderView', () => {
     expect(getByTestId('ladder-refusal').textContent).toMatch(/customize/i)
   })
 
+  /**
+   * 🔴 TEN FLAT BLOCKS DID NOT READ AS A DISTRIBUTION.
+   *
+   * The lens exists to answer "where does today sit in a SHAPE", and ten
+   * separate rectangles could only ever answer "where does today sit". The
+   * slices are finer and joined into one outline now — and the property worth
+   * pinning is not that a `<polygon>` exists but that its vertices ARE the
+   * counts: a fixture that could not tell a bimodal window from a uniform one
+   * would prove nothing about the shape carrying the meaning.
+   */
+  describe('the distribution reads as a distribution', () => {
+    // Two clusters at the ends of the range, nothing in between. 24 readings, so
+    // it clears MIN_READINGS on its own.
+    const bimodal = [100, 100, 100, 100, 100, 100, 100, 99, 99, 99, 98, 98,
+                     2, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]
+    // One reading per slice: the same count everywhere, so the outline is flat.
+    const uniform = Array.from({ length: 24 }, (_, k) => 92 - k * 4)
+    const mkRows = (values) => values.map((a, i) => ({
+      date: `2026-08-${String(30 - i).padStart(2, '0')}`, a,
+    }))
+    const draw = (values) => render(<PercentileLadderView rows={mkRows(values)} rowIdx={0}
+      currentRow={mkRows(values)[0]} metrics={metrics} onDrill={() => {}} options={{}} />)
+    // The two anchors that close the silhouette on the floor are not counts.
+    const heights = (container) => container.querySelector('[data-testid="ladder-shape-a"]')
+      .getAttribute('points').trim().split(/\s+/).slice(1, -1)
+      .map(p => Number(p.split(',')[1]))
+
+    it('draws the shape of the window, not a row of similar blocks', () => {
+      const h = heights(draw(bimodal).container)
+      expect(h).toHaveLength(24)
+      const floor = Math.max(...h)                 // y grows downward: floor = empty
+      const ceiling = Math.min(...h)
+      expect(h[0]).toBe(ceiling)                   // the low cluster
+      expect(h[h.length - 1]).toBe(ceiling)        // the high cluster
+      expect(h.slice(1, -1).every(y => y === floor),
+             'the empty middle is not empty — the outline is not reading the counts').toBe(true)
+      expect(ceiling).toBeLessThan(floor)
+    })
+
+    it('CONTROL: an evenly spread window draws a flat outline', () => {
+      // Without this the assertions above could pass on a shape that is always
+      // two spikes — `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`.
+      const h = heights(draw(uniform).container)
+      expect(new Set(h).size, 'an even spread did not draw an even outline').toBe(1)
+      expect(h[0]).not.toBe(Math.max(...heights(draw(bimodal).container)))
+    })
+
+    it('marks the window median, and moves it with the window', () => {
+      const midX = (container) =>
+        Number(container.querySelector('[data-testid="ladder-median-a"]').getAttribute('x1'))
+      // Symmetric clusters at 0-2 and 98-100 → the middle of the range.
+      expect(midX(draw(bimodal).container)).toBeCloseTo(50, 1)
+      // Pile the same span up against its floor and the median follows it down.
+      const skewed = [100, ...Array.from({ length: 23 }, () => 0)]
+      expect(midX(draw(skewed).container)).toBeLessThan(10)
+    })
+  })
+
   it('ranks against the window AS OF THE CURSOR, not every loaded row', () => {
     // Newest-first. Today is a spike; YESTERDAY is the highest reading in
     // everything before it. Scrubbing the cursor back one session must rank

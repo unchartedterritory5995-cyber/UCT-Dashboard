@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, within } from '@testing-library/react'
 
 // The real scan, wrapped so the "empty window is refused BEFORE it is scanned"
 // case can distinguish the reorder it exists to pin. A fixture that cannot tell
@@ -10,7 +10,8 @@ vi.mock('./breadthEvents', async (importOriginal) => {
 })
 
 import EventLedgerView, { firedAccent } from './EventLedgerView'
-import { scanEvents } from './breadthEvents'
+import { scanEvents, EVENT_DEFS, EVENT_FAMILIES } from './breadthEvents'
+import { optionLabel } from './viewMetricConfig'
 import { PALETTES, resolveViewColors } from './breadthViewShared'
 
 const base = { advancing: 2000, declining: 2000, up_vol_ratio: 1.0, mcclellan_osc: 0,
@@ -92,6 +93,53 @@ describe('EventLedgerView', () => {
            'the fixture fires nothing, so it proves nothing about the accent').toBe(true)
     expect(paints(ocean, accentFor('ocean'))).toBe(true)
     expect(ocean).not.toBe(classic)
+  })
+
+  /**
+   * ⭐ THE FAMILIES ARE THE LEDGER'S OWN, NOT A COPY OF THEM.
+   *
+   * `EVENT_DEFS` declares a family per event and `EVENT_FAMILIES` is derived
+   * from that; the option schema owns the words. So the expectations below are
+   * DERIVED too — a family added tomorrow is covered the day it lands, and a
+   * heading that quietly stopped matching the Customize filter's wording fails
+   * by name rather than by nobody noticing.
+   */
+  describe('grouped by family', () => {
+    const draw = (options = {}) => render(<EventLedgerView rows={rows} rowIdx={0}
+      currentRow={rows[0]} onDrill={() => {}} options={options} />)
+    const familiesOnScreen = (container) =>
+      [...container.querySelectorAll('[data-testid^="events-family-"]')]
+        .map(el => el.getAttribute('data-testid').slice('events-family-'.length))
+
+    it('renders one section per declared family, in the registry’s order', () => {
+      const { container } = draw()
+      expect(EVENT_FAMILIES.length, 'nothing to group — this rail proves nothing')
+        .toBeGreaterThan(1)
+      expect(familiesOnScreen(container)).toEqual(EVENT_FAMILIES)
+    })
+
+    it('puts every event inside the section its own definition names', () => {
+      const { container } = draw()
+      for (const d of EVENT_DEFS) {
+        const section = container.querySelector(`[data-testid="events-family-${d.family}"]`)
+        expect(within(section).getByTestId(`events-card-${d.key}`),
+               `"${d.key}" is not under "${d.family}"`).toBeTruthy()
+      }
+    })
+
+    it('heads each section with the word the Customize filter offers', () => {
+      const { container } = draw()
+      for (const f of EVENT_FAMILIES) {
+        const section = container.querySelector(`[data-testid="events-family-${f}"]`)
+        expect(section.textContent).toContain(optionLabel('events', 'families', f))
+      }
+    })
+
+    it('renders only the chosen family when the filter names one', () => {
+      const one = EVENT_FAMILIES[0]
+      const { container } = draw({ families: one })
+      expect(familiesOnScreen(container)).toEqual([one])
+    })
   })
 
   it('renders nothing for an empty window WITHOUT scanning it first', () => {

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, cleanup } from '@testing-library/react'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
@@ -150,6 +150,28 @@ describe('view registry', () => {
       const Component = VIEW_COMPONENTS[s]
       expect(() => render(<Component {...propsFor(s)} />), `"${s}" threw on render`).not.toThrow()
     }
+  })
+
+  /**
+   * ⭐ THE CHEAPEST POSSIBLE STAND-IN FOR OPENING THE PAGE.
+   *
+   * These are hand-rolled SVG: a coordinate that comes out `NaN` (a null value
+   * reaching a scale, a divide by a zero-length window) does not throw, does not
+   * warn, and does not fail any assertion about testids or colours — the element
+   * is simply not drawn. Every geometry change on this tab risks exactly that,
+   * and a blank shape inside a correct-looking panel is the hardest defect here
+   * to notice from a test suite.
+   */
+  it('draws no NaN coordinate into any view', () => {
+    swrState.data = SERVED
+    const bad = []
+    for (const style of STYLES) {
+      const Component = VIEW_COMPONENTS[style]
+      const { container } = render(<Component {...propsFor(style)} />)
+      if (/\bNaN\b/.test(container.innerHTML)) bad.push(style)
+      cleanup()
+    }
+    expect(bad, 'these views put a NaN in their markup — something is not drawn').toEqual([])
   })
 
   it('groups styles by kind, preserving STYLES order', () => {
@@ -318,6 +340,50 @@ describe('every palette-honoring view paints with the palette it was given', () 
     expect(blind, 'these views offer a palette option and ignore it — the '
       + 'Customize control moves nothing on screen').toEqual([])
   })
+
+  /**
+   * ⭐ AND THE SAME SWEEP OVER ALL FOUR PALETTES, NOT JUST THE CONVENIENT ONE.
+   *
+   * Ocean is the palette the loop above uses because it is easy to detect. But
+   * the constraint is that a view survives EVERY palette — and `mono` is the one
+   * that can catch a hardcoded green or red, because it has neither: its bull is
+   * gold and its bear is grey. A visual change that reached for a literal tint
+   * would still paint an ocean colour somewhere else on the same view and pass
+   * the loop above.
+   *
+   * ⛔ DERIVED PER PALETTE. Each palette is looked for by the colours no other
+   * palette can produce, so a hit can only have come from that palette reaching
+   * the view — and a palette that shared everything would fail the guard rather
+   * than quietly make its row of the sweep vacuous.
+   */
+  const uniqueTo = (name) => {
+    const others = new Set(Object.entries(PALETTES)
+      .filter(([k]) => k !== name).flatMap(([, p]) => paletteColors(p)))
+    return paletteColors(PALETTES[name]).filter(c => !others.has(c))
+  }
+
+  // ⏱️ 60 real renders. It cleans up between them — sixteen live view trees left
+  // in one document made every later render slower — and still asks for room:
+  // green alone and red in company is the failure this timeout prevents.
+  it('paints in every palette, mono — which has no green and no red — included', () => {
+    swrState.data = SERVED
+    const blind = []
+    for (const palette of Object.keys(PALETTES)) {
+      const own = uniqueTo(palette)
+      expect(own.length, `"${palette}" shares every colour it has, so this sweep `
+        + 'cannot tell whether a view read it').toBeGreaterThan(0)
+      for (const style of PALETTE_STYLES) {
+        const Component = VIEW_COMPONENTS[style]
+        const { container } = render(
+          <Component {...propsFor(style)} options={{ ...optionDefaults(style), palette }} />)
+        const html = container.innerHTML.toLowerCase()
+        if (!own.some(c => html.includes(c) || html.includes(hexToRgb(c)))) blind.push(`${style} @ ${palette}`)
+        cleanup()
+      }
+    }
+    expect(blind, 'these views render nothing this palette can produce — a hardcoded '
+      + 'colour, or a control that moves nothing').toEqual([])
+  }, 30000)
 
   // The loop above is a sweep; this pins that the ledger is genuinely IN it
   // rather than passing because some other element happened to carry a colour.
