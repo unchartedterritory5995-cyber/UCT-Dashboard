@@ -145,8 +145,22 @@
 
    Both selectors combine the ATTRIBUTE with a class on purpose: a bare
    `[data-rk-dense]` is specificity (0,1,0) and would lose to any class rule
-   later in the cascade — the trap that has bitten `[data-tone]` in this repo. */
-@media (pointer: fine) {
+   later in the cascade — the trap that has bitten `[data-tone]` in this repo.
+
+   ⛔ The width bound is NOT redundant beside `pointer: fine`, and it is the
+   DESKTOP literal (1025px), not the phone one. Two measured findings:
+     - Below 641px this rail is a horizontal CHIP ROW, where a chip's short
+       axis is its HEIGHT — so the rule shrank the tap target instead of the
+       rail's length. Measured at a real 390px viewport: every chip 34px
+       against a 44px floor.
+     - `pointer: fine` does NOT mean desktop. A narrow window on a laptop
+       reports it, so the pointer query alone excluded neither the chip row nor
+       the tablet two-pane. Measured at 820px: 11 tabs at 34px.
+   This repo's canonical TOUCH tier is <=1024px (see breakpoints.css, and
+   PinnedFooter's own 44px floor which uses exactly that bound), so the
+   tightening is scoped to DESKTOP, where the 570px rail was the actual
+   complaint. Verified by opening it at each viewport, not by reading it. */
+@media (pointer: fine) and (min-width: 1025px) {
   .rail[data-rk-dense] {
     gap: var(--space-sm);
   }
