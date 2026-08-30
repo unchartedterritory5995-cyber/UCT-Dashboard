@@ -3715,6 +3715,19 @@ class Resolver {
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
+      // ⭐⭐ A `request.security` THAT DECLINED FOR A NAMEABLE REASON SAYS SO. Every
+      // other namespace here refuses because the thing it names has no node at all;
+      // this one refuses a call the door TAKES in other shapes, so "another symbol
+      // or another timeframe is outside what one screened column reads" leaves a
+      // member looking for a limit whose edge they cannot see.
+      if (name === 'request.security' || name === 'security') {
+        const decline = this.securityDeclineReason(node)
+        if (decline) {
+          throw new PineRefusal(guard,
+            `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
+            locate(node.tok), decline.suggest)
+        }
+      }
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     if (ns && !VALUE_NAMESPACES.has(ns)) {
@@ -3889,6 +3902,98 @@ class Resolver {
    *  argument NODE rather than a name, so the caller decides whether the thing
    *  inside means "this chart" or "another instrument" — the same two questions
    *  `securityAsNode` already asks, and neither is answered here. */
+  /** ⭐⭐ WHY `securityAsNode` DECLINED, AND THE REWRITE THAT WOULD WORK.
+   *
+   *  ⛔ A SEPARATE FUNCTION ON PURPOSE. `securityAsNode`'s contract is "NULL,
+   *  NEVER A REFUSAL OF ITS OWN", and it is called on the SUCCESS path where a
+   *  null simply falls through to the next rule. Threading a reason through it
+   *  would make the hot path carry diagnostics for a case it usually does not hit.
+   *  This runs only once, on the refusal, where the member is already stopped.
+   *
+   *  ⛔⛔ IT OFFERS ONLY REWRITES THAT ACTUALLY TRANSLATE, VERIFIED against the
+   *  real corpus scripts before this was written — `23-higher-timeframe-ema` with
+   *  `timeframe.period`, and `26-spy-to-es-qqq-to-nq` with `session.regular`.
+   *  `doorScorecard`'s OFFERED roster means "the door hands back the exact text
+   *  that WORKS", and it is now a checked claim; an offer that still refuses would
+   *  be worse than silence, because a member would spend the edit to find out.
+   *
+   *  ⚠️ `null` WHERE THIS DOOR HAS NOTHING HONEST TO SAY. A computed symbol or a
+   *  timeframe below the base has no rewrite that keeps the member's meaning, and
+   *  inventing one is the trade this whole module refuses.
+   */
+  securityDeclineReason(node) {
+    const args = node.args || []
+    const placed = positionaliseSecurityArgs(args)
+    if (!placed) return null
+    const positional = placed.slice(0, 3)
+    if (positional.some((p) => p === undefined)) return null
+
+    // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
+    //    post-market prints; `sym` serves the regular session. The rewrite keeps
+    //    the symbol and states the session this engine can actually answer for.
+    // ⛔ FOLLOWED THROUGH THE SAME SHAPES `otherSymbolNameOf` FOLLOWS — a name to
+    // its binding, a ternary to its constant branch — because that is how the
+    // corpus actually writes it. `26-spy-to-es` binds `t = is_spy ? ticker.new(…)
+    // : ticker.new(…)`, so a check that only looked at a bare call node found
+    // nothing and offered nothing. Measured: it returned null until this followed.
+    const tickerCall = this.tickerCallIn(positional[0])
+    if (tickerCall) {
+      for (let i = 0; i < (tickerCall.args || []).length; i += 1) {
+        const a = tickerCall.args[i]
+        if (!a) continue
+        const isSession = a.name === 'session' || (!a.name && i === 2)
+        if (!isSession) continue
+        const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+        if (spelled && spelled !== 'session.regular') {
+          return {
+            suggest: 'session.regular',
+            why: `\`${spelled}\` asks for pre- and post-market prints and this engine `
+              + 'serves the REGULAR session, so folding it would answer a real but '
+              + 'DIFFERENT number on every bar. Writing `session.regular` says which '
+              + 'series you meant, in your own script, where you can see it.',
+          }
+        }
+      }
+    }
+
+    // 2. THE TIMEFRAME. A spelling this table recognises but cannot resample from
+    //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
+    //    own timeframe", which is always servable because it is the base itself.
+    const tfNode = positional[1]
+    if (this.ownTimeframeOf(tfNode) === null) {
+      const raw = this.timeframeLiteralOf(tfNode)
+      const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      if (code && !TF_RESAMPLABLE.includes(code)) {
+        const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c).join(' and ')
+        return {
+          suggest: 'timeframe.period',
+          why: `this engine resamples ${names} from the daily bars it holds, and `
+            + `\`${String(raw)}\` is not one of them. ⚠️ THIS IS NOT THE SAME REQUEST: `
+            + '`timeframe.period` reads the timeframe the chart is on rather than '
+            + 'forcing one, so decide whether that is what you meant before you take it.',
+        }
+      }
+    }
+    return null
+  }
+
+  /** The `ticker.new(…)` / `tickerid(…)` call behind a symbol argument, however
+   *  the script wrote it. ⚠️ DEPTH-BOUNDED like `otherSymbolNameOf`, and for the
+   *  same reason: a binding cycle in a member's paste must not become a hang. */
+  tickerCallIn(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'call' && TICKER_CALLS.has(node.name)) return node
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.tickerCallIn(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.tickerCallIn(bound.node, depth + 1) : null
+    }
+    return null
+  }
+
   tickerCallArg(node) {
     if (!node || node.type !== 'call' || !TICKER_CALLS.has(node.name)) return null
     const args = node.args || []
