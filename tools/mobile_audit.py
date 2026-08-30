@@ -100,10 +100,24 @@ PROBE_JS = r"""
   // than silently reading "ok".
   const screens = viewportHeight > 0 ? +(scrollHeight / viewportHeight).toFixed(2) : null;
 
+  // The AI orb is fixed and, when the anchoring regresses, horizontally
+  // centred over the content column — the topmost element just below it
+  // then belongs to page content, not the orb's own subtree. Three-valued
+  // like heightFlag: null means "no orb on this route/plan tier to check"
+  // (a free or logged-out page never mounts it), never conflated with
+  // false ("an orb exists here and does not overlap content").
+  const orbEl = document.querySelector('[class*="_orb_"]');
+  let orbOverlap = null;
+  if (orbEl) {
+    const r = orbEl.getBoundingClientRect();
+    const under = document.elementsFromPoint(r.left + r.width / 2, r.bottom + 4);
+    orbOverlap = under.some(el => el.closest('[class*="_content_"]'));
+  }
+
   return {
     overflowX, vw, scrollWidth: de.scrollWidth,
     offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10),
-    scrollHeight, viewportHeight, screens,
+    scrollHeight, viewportHeight, screens, orbOverlap,
   };
 }
 """
