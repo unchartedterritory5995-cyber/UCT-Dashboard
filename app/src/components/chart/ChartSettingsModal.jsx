@@ -167,6 +167,12 @@ export default function ChartSettingsModal({
   onApplyThemeAll = null,
   // Optional: apply the theme to EVERY widget in the layout (chart or not).
   onApplyThemeAllWidgets = null,
+  // Optional (Charts workspace): the adjustable-watermark shortcuts. "Move
+  // watermark" enters the same drag+confirm mode as the right-click item;
+  // "Reset to center" clears this chart's saved position. Absent elsewhere.
+  onAdjustWatermark = null,
+  onResetWatermark = null,
+  watermarkCustomized = false,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
@@ -871,6 +877,19 @@ export default function ChartSettingsModal({
                   <span className={styles.fieldLabel}>Color &amp; opacity</span>
                   {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
                 </div>
+                {/* Per-chart position (charts workspace only) — a shortcut to the
+                    same drag+confirm the right-click "Adjust watermark" opens. */}
+                {onAdjustWatermark && (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Position</span>
+                    <div className={styles.seg}>
+                      <button type="button" className={styles.segBtn} onClick={() => onAdjustWatermark()}>Move watermark</button>
+                      {watermarkCustomized && (
+                        <button type="button" className={styles.segBtn} onClick={() => onResetWatermark?.()}>Reset to center</button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </>)}
             </div>
           </section>

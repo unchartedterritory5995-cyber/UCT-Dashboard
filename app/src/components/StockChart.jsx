@@ -1479,6 +1479,8 @@ export default function StockChart({
   exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
+  watermarkAdjusting = false, // Charts workspace: explicit "adjust watermark" mode — unlock the drag, show a confirm/cancel bar, and hold the dragged spot PENDING until confirmed (instead of the hover-drag committing immediately).
+  onWatermarkAdjustEnd = null, // (pos:{x,y} | null) => void — fired when adjust mode ends: a position to persist on Confirm, or null on Cancel.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
@@ -2373,12 +2375,18 @@ export default function StockChart({
     try { localStorage.setItem(TOOLBAR_COLLAPSED_LS, v ? '1' : '0') } catch { /* private mode — non-fatal */ }
   }, [])
 
+  // Explicit "adjust watermark" mode: the dragged spot is held here (pending)
+  // until the user hits Confirm — so a hover-drag can't silently move the mark.
+  const [wmPending, setWmPending] = useState(null)
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
-    locked: lockWatermark,
+    // In adjust mode the drag is UNLOCKED even on a surface that otherwise locks it.
+    locked: lockWatermark && !watermarkAdjusting,
     getActiveTool: () => activeToolRef.current,
     onCommit: ({ x, y }) => {
+      // Adjust mode: hold the spot pending (Confirm persists it, Cancel discards).
+      if (watermarkAdjusting) { setWmPending({ x, y }); return }
       // Setup Library: persist the new position on THIS example only, never the
       // global chart_settings (so other charts site-wide keep their watermark).
       if (onWatermarkCommit) { onWatermarkCommit({ x, y }); return }
@@ -2388,6 +2396,13 @@ export default function StockChart({
       setPref('chart_settings', JSON.stringify(next))
     },
   })
+  // Adjust mode on/off: arm the mark (highlight box) while adjusting; clear any
+  // pending drag when the mode ends (Confirm/Cancel are handled at the toolbar).
+  useEffect(() => {
+    if (!watermarkAdjusting) { setWmPending(null); return undefined }
+    try { wmCtrlRef.current?.setArmed?.(true) } catch { /* noop */ }
+    return () => { try { wmCtrlRef.current?.setArmed?.(false) } catch { /* noop */ } }
+  }, [watermarkAdjusting])
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
@@ -7516,8 +7531,10 @@ export default function StockChart({
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
         weight: cs.watermark.weight ?? 700,
-        x: watermarkX ?? cs.watermark.x,
-        y: watermarkY ?? cs.watermark.y,
+        // In adjust mode the PENDING dragged spot wins, so a data-poll re-render
+        // can't snap the mark back to its saved position mid-drag.
+        x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
+        y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
         hardCenterXPx: _wmCenterX,
       })
@@ -12421,6 +12438,14 @@ export default function StockChart({
           sections,
           clickPrice,
           currentPrice,
+          // Location-aware menu: true when the right-click landed inside the
+          // watermark's rect, so the host can offer "Adjust watermark".
+          onWatermark: (() => {
+            try {
+              const r = wmCtrlRef.current?.getRect?.()
+              return !!(r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h)
+            } catch { return false }
+          })(),
           resetView: () => {
             try {
               // VERTICAL: clear manual price-scale drag / locked placement + re-enable
@@ -13959,6 +13984,38 @@ export default function StockChart({
         </div>
         )
       })()}
+      {/* Watermark ADJUST mode — a floating confirm/cancel bar (mirrors the
+          highlight-period toolbar). While it's up the watermark drag is unlocked
+          and armed; drag it anywhere, then Confirm to keep it or Cancel to revert. */}
+      {watermarkAdjusting && (
+        <div style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 31,
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: '#0e0f0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 14px',
+          boxShadow: '0 12px 32px -14px rgba(0,0,0,0.8)', pointerEvents: 'auto', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed' }}>Drag the watermark where you want it</span>
+          <button
+            type="button"
+            onClick={() => {
+              const pos = wmPending || { x: watermarkX ?? cs.watermark.x, y: watermarkY ?? cs.watermark.y }
+              setWmPending(null)
+              onWatermarkAdjustEnd?.(pos)
+            }}
+            style={{ fontSize: 12, fontWeight: 600, color: '#0e0f0d', background: '#dcbb5e', border: 'none',
+              borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >Confirm</button>
+          <button
+            type="button"
+            onClick={() => {
+              setWmPending(null)
+              try { wmCtrlRef.current?.setOptions?.({ x: watermarkX ?? cs.watermark.x, y: watermarkY ?? cs.watermark.y }) } catch { /* noop */ }
+              onWatermarkAdjustEnd?.(null)
+            }}
+            style={{ fontSize: 12, fontWeight: 600, color: '#c9ccd1', background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.16)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >Cancel</button>
+        </div>
+      )}
       <canvas
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}

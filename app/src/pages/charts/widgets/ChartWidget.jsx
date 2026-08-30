@@ -283,6 +283,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxToast, setCtxToast] = useState(null)
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
   const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
+  const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
   const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
 
@@ -302,6 +303,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     closeCtx()
   }, [closeCtx])
 
+  // ── Adjustable watermark (per-chart position, opts.watermarkPos) ────────────
+  // Position is per-widget: a new chart widget / new layout has no opts.watermarkPos
+  // so its watermark starts centered. Persisted via onOptsChange like tf.
+  const wmPos = opts?.watermarkPos ?? null
+  const startWatermarkAdjust = useCallback(() => { setWmAdjusting(true); closeCtx() }, [closeCtx])
+  const endWatermarkAdjust = useCallback((pos) => {
+    if (pos) onOptsChange?.({ ...(opts || {}), watermarkPos: { x: pos.x, y: pos.y } })
+    setWmAdjusting(false)
+  }, [opts, onOptsChange])
+  const resetWatermark = useCallback(() => {
+    onOptsChange?.({ ...(opts || {}), watermarkPos: null })
+  }, [opts, onOptsChange])
+
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
     // Clamp so the ~230px×~180px menu stays on screen.
@@ -310,7 +324,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setCtxMenu({ x: Math.max(6, x), y: Math.max(6, y), rawX: p.clientX, rawY: p.clientY,
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
-      clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings })
+      clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
+      onWatermark: p.onWatermark })
   }, [])
 
   useEffect(() => {
@@ -421,11 +436,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         onApplyThemeAll={applyThemeToAllCharts}
         onApplyThemeAllWidgets={applyThemeToAllWidgets}
         onActivate={markActive}
+        onAdjustWatermark={startWatermarkAdjust}
+        onResetWatermark={resetWatermark}
+        watermarkCustomized={!!wmPos}
         stockChartProps={{
           onCrosshairMove: reportCrosshair,
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,
           onBarContextMenu: handleBarContextMenu,
+          // Adjustable watermark: per-chart position + explicit adjust mode.
+          // lockWatermark stays the pane's default (true); StockChart unlocks the
+          // drag itself while watermarkAdjusting is set.
+          watermarkX: wmPos?.x ?? null,
+          watermarkY: wmPos?.y ?? null,
+          watermarkAdjusting: wmAdjusting,
+          onWatermarkAdjustEnd: endWatermarkAdjust,
           // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
@@ -558,6 +583,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
                   <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
                 </button>
+                {/* Location-aware: only when the right-click landed on the watermark. */}
+                {ctxMenu.onWatermark && (
+                  <button type="button" className={styles.chartCtxItem} onClick={startWatermarkAdjust}>
+                    <UIcon name="pin" size={14} className={styles.chartCtxIcon} />Adjust watermark
+                  </button>
+                )}
                 <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>

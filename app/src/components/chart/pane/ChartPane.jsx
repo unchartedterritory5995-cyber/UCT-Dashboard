@@ -114,6 +114,11 @@ function ChartPane({
   onApplyThemeAll = null,
   // Workspace-supplied: apply a theme to EVERY widget in the layout ("All widgets").
   onApplyThemeAllWidgets = null,
+  // Adjustable watermark: the settings modal's "Move watermark" / "Reset to center"
+  // shortcuts (the per-chart position itself lives in the widget's opts).
+  onAdjustWatermark = null,
+  onResetWatermark = null,
+  watermarkCustomized = false,
 }, ref) {
   const compact = density === 'compact'
   // mini renders ONLY the timeframe bar + the chart — no identity row, no meta
@@ -882,6 +887,9 @@ function ChartPane({
         onChange={updateChartSettings}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}
+        onAdjustWatermark={onAdjustWatermark ? () => { onAdjustWatermark(); setSettingsOpen(false) } : null}
+        onResetWatermark={onResetWatermark}
+        watermarkCustomized={watermarkCustomized}
         savedColors={savedColors}
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
