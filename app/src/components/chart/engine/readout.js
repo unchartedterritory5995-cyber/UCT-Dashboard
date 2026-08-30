@@ -391,6 +391,21 @@ export function legendChips(bindings, seriesData, registry, instances) {
     formatted.set(`${c.instanceId}::${c.plotKey}`, c)
   }
 
+  // ⛔⛔ THE "DID IT DRAW" SIGNAL IS THE BINDINGS, NOT THE FORMATTED CHIPS, AND
+  // THE FIRST DRAFT GOT THAT WRONG. `engineChips` returns NOTHING when
+  // `seriesData` is null — the ordinary off-cursor case — so deriving "computed
+  // nothing" from a missing formatted chip would have marked EVERY indicator on
+  // every chart nobody happens to be hovering. `IndicatorChip.empty.test.jsx`
+  // asserts the two cases side by side, which is the only reason it was caught.
+  // A binding exists exactly when `planBindings` gave the plot a series, which is
+  // exactly when its column held a finite value.
+  const drawn = new Set()
+  for (const b of (Array.isArray(bindings) ? bindings : [])) {
+    if (b && typeof b.instanceId === 'string' && typeof b.plotKey === 'string') {
+      drawn.add(`${b.instanceId}::${b.plotKey}`)
+    }
+  }
+
   const out = []
   for (const inst of (Array.isArray(instances) ? instances : [])) {
     if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') continue
@@ -405,7 +420,7 @@ export function legendChips(bindings, seriesData, registry, instances) {
     for (const plot of (def.plots || [])) {
       if (!plot || !plot.legend || plot.legend.hide === true) continue
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
-      if (bound) { out.push({ ...bound, hidden: false }); continue }
+      if (bound) { out.push({ ...bound, hidden: false, computed: true }); continue }
       const label = chipLabel(def, plot, inputs)
       out.push({
         defId: def.id,
@@ -416,6 +431,22 @@ export function legendChips(bindings, seriesData, registry, instances) {
         decimals: Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS,
         value: null,
         hidden: isHidden,
+        // ⭐⭐ DID THIS PLOT COMPUTE ANYTHING? MEASURED, A VISIBLE INDICATOR THAT
+        // COMPUTED NOTHING AND A VISIBLE ONE WITH THE CURSOR OFF THE CHART
+        // PRODUCED BYTE-IDENTICAL CHIPS — same label, same `value: null`, same
+        // `hidden: false`. `pool.js`'s pane-existence test (trap #4) drops a
+        // series whose column holds no finite value, so an all-NaN indicator draws
+        // no line and takes no pane, and the legend said exactly what it says when
+        // you simply are not hovering. A member cannot tell "this computed
+        // nothing" from "move your cursor", and the far commoner cause is the
+        // second one — so the honest reading of the ambiguity is the wrong one.
+        //
+        // ⛔ THE KEY IS ABSENT FOR A HIDDEN PLOT RATHER THAN `true`, because
+        // nobody looked: `binder.js` skips a hidden instance before it computes
+        // (`if (inst.hidden === true) continue`). Absent is "not asked"; `false`
+        // would claim a measurement that never ran, which is the distinction this
+        // module already keeps for `value`.
+        ...(isHidden ? {} : { computed: drawn.has(`${inst.instanceId}::${plot.key}`) }),
         text: label,
       })
     }

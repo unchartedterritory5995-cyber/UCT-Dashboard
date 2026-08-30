@@ -180,11 +180,18 @@ export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
  *      that equivalence rather than asserting it in prose.
  *
  *  ⛔ WHAT THE INVESTIGATION ACTUALLY EXPOSED IS A DIFFERENT, GENERAL DEFECT, and
- *  it is NOT this one: an indicator that computes to nothing is silently absent —
- *  no line, no pane, no sentence
- *  (`lesson_a_correct_backend_can_be_invisible_on_the_page`). That deserves its own
- *  change on its own merits, and folding it into a budget-cap edit under a `tf`
- *  heading is how a real defect gets buried inside an unrelated one.
+ *  it is NOT this one. ⚰️ THIS SAID "silently absent — no line, no pane, no
+ *  sentence", AND THAT WAS WORSE THAN THE TRUTH: `readout.legendChips` walks the
+ *  INSTANCE list rather than the bindings, so such an indicator DOES keep a legend
+ *  chip carrying its name. It was AMBIGUOUS, not absent — measured, its chip was
+ *  byte-identical to any indicator's when the cursor is off the chart, which is
+ *  the far commoner cause of a null value. The correction matters because the fix
+ *  for "invisible" is a new surface and the fix for "ambiguous" is one attribute,
+ *  and only one of those is proportionate.
+ *  ✅ FIXED SEPARATELY, as it deserved: the chip now carries `data-computed` and
+ *  a sentence naming the two things a member can do about it
+ *  (`IndicatorChip.empty.test.jsx`). Folding that into a budget-cap edit under a
+ *  `tf` heading would have buried a general defect inside an unrelated one.
  *
  *  ⚠️ THE FAILURE IS A BLANK COLUMN, NOT A WRONG NUMBER — the chart hands over
  *  every bar it holds regardless of the claim, so a tree that fits still computes

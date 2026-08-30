@@ -470,13 +470,26 @@ describe('legendChips — a chip for every LIVE instance, hidden ones included',
     // the second precision table Task 5 refused to add for the Style tab.
     const viaEngine = engineChips(BINDINGS, null, engineRegistry, INSTANCES)
     expect(viaEngine, 'the comparison below would be vacuous').toHaveLength(1)
-    const withoutHidden = (c) => { const copy = { ...c }; delete copy.hidden; return copy }
+    // ⭐ THE BOOKKEEPING FIELDS ARE STRIPPED BY NAME, and the list is asserted
+    // below rather than left implicit — that is what keeps "byte-identical aside
+    // from these" from quietly becoming "byte-identical aside from whatever".
+    const ADDED = ['hidden', 'computed']
+    const withoutAdded = (c) => {
+      const copy = { ...c }
+      for (const k of ADDED) delete copy[k]
+      return copy
+    }
     const viaLegend = legendChips(BINDINGS, null, engineRegistry, INSTANCES)
       .filter(c => c.value !== null)
-    expect(viaLegend.map(withoutHidden)).toEqual(viaEngine)
-    // …and `hidden` really is the ONLY field added, so "byte-identical aside from
-    // hidden" is not hiding a second difference.
-    expect(viaLegend.every(c => 'hidden' in c)).toBe(true)
+    expect(viaLegend.map(withoutAdded)).toEqual(viaEngine)
+    // …and those really are the ONLY fields added, so the comparison above is not
+    // hiding a third difference. ⚠️ ASSERTED AS A SET DIFFERENCE rather than as
+    // `'hidden' in c`, because the weaker form passed unchanged when `computed`
+    // was added and would pass again for the next one.
+    for (const c of viaLegend) {
+      const extra = Object.keys(c).filter((k) => !(k in viaEngine[0]))
+      expect(extra.sort()).toEqual([...ADDED].sort())
+    }
   })
 
   it('chips come out in INSTANCE order × PLOT order, hidden ones in place', () => {
