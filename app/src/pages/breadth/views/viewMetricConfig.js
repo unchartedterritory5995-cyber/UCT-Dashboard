@@ -67,8 +67,17 @@ const METERS_OPTIONS = [
   { name: 'sort', label: 'Sort', type: 'select', default: 'group',
     choices: [{ value: 'group', label: 'Group order' }, { value: 'value', label: 'Value' }] },
 ]
+/**
+ * ⛔ THE DEFAULT IS 10, NOT 20, AND THAT IS THE VIEW'S WHOLE DISTINCTION.
+ *
+ * The Timeline prints the READING in every cell (see its header). Ten columns is
+ * what buys a cell wide enough to read a number off at a quarter-pane width; at
+ * twenty it is tight and at thirty — the ceiling `recentRows` imposes — it is a
+ * colour strip again, which is the Heat Ribbon's job and it does it over 365
+ * sessions instead of 30. The reader can still widen; the DEFAULT is the tape.
+ */
 const TIMELINE_OPTIONS = [
-  { name: 'windowDays', label: 'Window', type: 'select', default: 20,
+  { name: 'windowDays', label: 'Window', type: 'select', default: 10,
     choices: [10, 20, 30].map(v => ({ value: v, label: `${v} days` })) },
 ]
 const RIBBON_OPTIONS = [

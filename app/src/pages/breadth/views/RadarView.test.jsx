@@ -32,10 +32,23 @@ describe('RadarView', () => {
   })
 })
 
-const mk = (key) => ({ key, label: key, drillKey: `${key}_list`, polarity: 'bull' })
+// `getFmt` is part of the fixture because the view READS it now — every spoke
+// prints its own reading under its name.
+const mk = (key) => ({ key, label: key, drillKey: `${key}_list`, polarity: 'bull',
+                       getFmt: () => key.toUpperCase() })
 const bigMetrics = Array.from({ length: 16 }, (_, i) => mk(`m${i}`))
 const currentRow = { date: '2026-06-01' }
 const normalize = (m) => 50 + (Number(m.key.slice(1)) % 5) * 8  // deterministic spread
+
+// ⛔ AXIS LABELS ARE COUNTED BY `data-radar-axis`, NOT BY `<text>`.
+//
+// A bare `querySelectorAll('text')` counted spokes only for as long as the axis
+// captions were the ONLY text in the svg. They are not: the view draws numbered
+// scale rings now (the whole point of the redesign — a shape with no scale is
+// not a reading), so the tag counts spokes plus rings and would have gone red
+// for a change that added exactly what it should have. The attribute names the
+// thing being counted.
+const axisLabels = (c) => [...c.querySelectorAll('[data-radar-axis]')]
 
 describe('RadarView spoke cap', () => {
   it('renders at most maxSpokes axis labels', () => {
@@ -43,8 +56,10 @@ describe('RadarView spoke cap', () => {
       <RadarView currentRow={currentRow} metrics={bigMetrics} normalize={normalize}
                  onDrill={() => {}} signalKey={null} notableKey={null} options={{ maxSpokes: 8, spokeSelect: 'auto' }} />,
     )
-    // axis labels are <text> nodes
-    expect(container.querySelectorAll('text').length).toBe(8)
+    expect(axisLabels(container).length).toBe(8)
+    // …and the rings the tag-based count used to swallow are genuinely there,
+    // so this pair cannot both pass on an svg that draws no scale at all.
+    expect(container.querySelectorAll('[data-radar-scale]').length).toBeGreaterThan(2)
   })
 
   it('as-listed pick keeps the first N metrics in order', () => {
@@ -52,7 +67,23 @@ describe('RadarView spoke cap', () => {
       <RadarView currentRow={currentRow} metrics={bigMetrics} normalize={normalize}
                  onDrill={() => {}} signalKey={null} notableKey={null} options={{ maxSpokes: 10, spokeSelect: 'listed' }} />,
     )
-    const labels = [...container.querySelectorAll('text')].map(t => t.textContent.replace('★ ', ''))
+    // The caption's FIRST tspan is the name; the second is the reading.
+    const labels = axisLabels(container)
+      .map(t => t.querySelector('tspan').textContent.replace('★ ', ''))
     expect(labels).toEqual(['m0','m1','m2','m3','m4','m5','m6','m7','m8','m9'])
+  })
+
+  // 🔴 A SPIKE WITH NOTHING BESIDE IT READS AS BROKEN. Every spoke carries its
+  // own reading now, so the shape names its numbers instead of sending the
+  // reader to another view for them.
+  it('prints the reading beside every spoke it draws', () => {
+    const withValues = bigMetrics.slice(0, 4).map(m => ({ ...m, getFmt: () => `v-${m.key}` }))
+    const { container } = render(
+      <RadarView currentRow={currentRow} metrics={withValues} normalize={normalize}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{ maxSpokes: 14 }} />,
+    )
+    const readings = axisLabels(container)
+      .map(t => [...t.querySelectorAll('tspan')].at(-1).textContent)
+    expect(readings).toEqual(['v-m0', 'v-m1', 'v-m2', 'v-m3'])
   })
 })
