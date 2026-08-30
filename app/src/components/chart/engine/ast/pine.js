@@ -96,6 +96,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
+import { memberNumber } from './memberValue.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -4341,8 +4342,15 @@ class Resolver {
     const overrideName = typeof node.boundName === 'string' ? node.boundName : null
     if (overrideName && this.inputValues
         && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
-      const wanted = Number(this.inputValues[overrideName])
-      if (!Number.isFinite(wanted)) {
+      // ⛔⛔ `memberNumber`, NOT `Number(…)`. This line read
+      // `Number.isFinite(Number(v))`, and `Number(null)`, `Number([])`,
+      // `Number(false)` and `Number('')` are all `0` — so a member's
+      // RSI-below-30 screen silently became RSI-below-ZERO, which matches nothing
+      // on every symbol forever and reads exactly like a quiet market. Measured;
+      // see `memberValue.js` for the six shapes and why this file's own rail could
+      // not see it.
+      const wanted = memberNumber(this.inputValues[overrideName])
+      if (wanted === null) {
         throw new PineRefusal('pine:input-kind',
           `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given a value that is `
           + 'not a number', locate(node.tok))

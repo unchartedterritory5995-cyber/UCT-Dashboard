@@ -76,6 +76,7 @@ import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
 // that restates the number translates a tree the engine then refuses at
 // evaluation, which is a refusal at a door the member never typed at.
 import { MAX_SELF_LAG } from './interpret.js'
+import { memberNumber, isNumericText } from './memberValue.js'
 import {
   printFormula, treeYieldsBool, forgetsItsSeed, seedAndUpdateOf, containsFreeSelfSeries,
   derivedSeriesTree,
@@ -1861,6 +1862,50 @@ function readAssignmentBlock(toks, ctx, kind) {
  * statement-shaped call this lane has never seen is not something to skip
  * quietly. Anything else bare IS the output, which is what
  * `16-scan-rsi-crosses-30-70` needs: it has no `plot`, no `def` and no `;`. */
+/** ⭐⭐ THE MEMBER'S VALUE FOR ONE `input`, OR `null` TO KEEP THE AUTHOR'S.
+ *
+ *  ⛔⛔ THIS DOOR HAD NO EQUIVALENT AND THE PINE ONE DID, WHICH MADE THE PRODUCT
+ *  MEAN TWO DIFFERENT THINGS BY "we took your script". Measured on the committed
+ *  corpus: 6 of the 10 thinkScript studies that translate fold 22 inputs, and not
+ *  one of them reached the member — the paste box did not even NAME them, because
+ *  the sentence that names a folded input is `memberInputTranslation`'s and this
+ *  lane never went through it. A length silently frozen at somebody else's number
+ *  is exactly the "formula that means something other than the script the member
+ *  reads" this engine exists against, and it was the quieter of the two doors.
+ *
+ *  ⛔ THE SEMANTICS ARE PINE'S, DELIBERATELY, because one product cannot answer
+ *  two ways: an unknown name is IGNORED (it is not an input of this script), a
+ *  non-number REFUSES rather than becoming NaN in a window, and the value is never
+ *  clamped. What differs is only what the LANGUAGE offers — thinkorswim's `input`
+ *  declares no `minval`/`maxval`, so there are no author bounds to honour and none
+ *  are invented.
+ *
+ *  ⚠️ AND ONLY WHERE THE AUTHOR'S OWN DEFAULT IS A NUMBER. `input averageType =
+ *  AverageType.WILDERS` and `input price = close` are folded inputs too; replacing
+ *  either with a number would substitute a different thing entirely, so an
+ *  override aimed at one REFUSES BY NAME rather than being dropped — dropping it
+ *  would show the member a formula that is not the one they asked for. */
+function memberInputOverride(ctx, name, authorText, nameTok) {
+  const wants = ctx.inputValues
+  if (!wants || !Object.prototype.hasOwnProperty.call(wants, name)) return null
+  // ⛔⛔ THE SHARED PREDICATE, SO THE TWO DOORS CANNOT DRIFT. `Number(null)` is
+  // `0` and `0` is finite — the coercion defect measured on the Pine door and
+  // written up in `memberValue.js`. Asking the same question in two files is how
+  // one of them ends up answering differently.
+  const wanted = memberNumber(wants[name])
+  if (wanted === null) {
+    throw new ThinkScriptRefusal('thinkscript:input-kind',
+      `\`${name}\` was given a value that is not a number`, locate(nameTok))
+  }
+  if (!isNumericText(authorText)) {
+    throw new ThinkScriptRefusal('thinkscript:input-kind',
+      `\`${name}\` is not a numeric input — this study declares it as `
+      + `\`${authorText}\`, and a number would be a different thing entirely`,
+      locate(nameTok))
+  }
+  return wanted
+}
+
 function readStatement(toks, ctx) {
   const head = toks[0]
   const k = head.kind === 'ident' ? key(head.value) : null
@@ -1892,6 +1937,20 @@ function readStatement(toks, ctx) {
     if (!isPunctTok(toks[2], '=')) throw refuse('thinkscript:statement', head)
     const rest = toks.slice(3)
     if (!rest.length) throw refuse('thinkscript:input-kind', nameTok)
+    // ⛔ ABOVE THE ENUM ARM, NOT BELOW IT. An `input mode = {default A, B}` is a
+    // folded input like any other, and an override aimed at one has to REFUSE by
+    // name here rather than fall through and be silently ignored — which is what
+    // putting this after the enum branch would do.
+    const wanted = memberInputOverride(ctx, name, defaultText(rest, ctx.text), nameTok)
+    if (wanted !== null) {
+      bindNew(name, { kind: 'input', expr: { e: 'num', value: wanted, tok: nameTok }, tok: nameTok })
+      // ⭐ THE FOLD RECORDS WHAT WAS ACTUALLY FROZEN IN, which is the member's
+      // number now. The AUTHOR's default is not lost: the paste box keeps the
+      // roster from a translation with no overrides, so it can still show what the
+      // value departed from.
+      ctx.folded.push({ name, folded: String(wanted), line: nameTok.line, column: nameTok.column })
+      return
+    }
     if (isPunctTok(rest[0], '{')) {
       const { arms, chosen } = readEnumDefault(rest, nameTok)
       bindNew(name, { kind: 'enum', family: key(name), arm: chosen, arms, tok: nameTok, input: true })
@@ -1992,10 +2051,15 @@ function readStatement(toks, ctx) {
  *  ⭐ THE WHOLE PROGRAM IS STILL READ AROUND A REFUSAL, because a member's
  *  chrome line must not hide the function token their column actually died on —
  *  which is the position that tells them what to do next. */
-function readProgram(lexed) {
+function readProgram(lexed, inputValues = null) {
   const ctx = {
     env: new Map(), outputs: [], ignored: [...lexed.notes], folded: [],
     hard: [], declaration: null, text: lexed.text, plotted: new Set(),
+    // ⛔ `null`, NOT `{}`. "Nobody offered any values" and "an empty map was
+    // offered" read identically at every use site, and this repo has paid for that
+    // distinction more than once — the guard above tests the map's presence before
+    // it tests a name.
+    inputValues: inputValues || null,
   }
   for (const run of readStatements(lexed.tokens)) {
     try { readStatement(run.tokens, ctx) } catch (err) { ctx.hard.push(fromError(err)) }
@@ -4125,7 +4189,10 @@ export function translateThinkScript(source, opts = {}) {
 
     lines = sourceLines(source)
     const lexed = lexThinkScript(source)
-    const program = readProgram(lexed)
+    // ⭐ `opts.inputValues` is `{ inputName: number }` — the member's own values,
+    // frozen in BEFORE translation exactly as the Pine door does it, so the tree
+    // still holds a literal and `maxLookback` is still a pure tree sum.
+    const program = readProgram(lexed, opts.inputValues || null)
     // ⭐ THE CALL NOTES LAND IN THE SAME `ignored[]` THE STATEMENT READER WRITES
     // TO, because `ImportBox` renders one list and a member reads one list. They
     // are appended and the whole thing is re-sorted by position below, so a seed
