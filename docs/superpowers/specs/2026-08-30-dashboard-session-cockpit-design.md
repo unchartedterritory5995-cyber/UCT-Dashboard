@@ -424,3 +424,32 @@ surface at a time.
   should reduce it as a side effect. If it does not, that is its own project.
 - **`Dashboard.module.css` legacy breakpoints** are snapped as part of
   Phase 3's rewrite, not as separate work.
+
+### Shipped short of the spec — recorded 2026-08-30, at the end of the build
+
+⛔ Both of these are things THIS DOCUMENT specifies and the branch did not
+deliver. They are written down because an unshipped spec item that nobody
+recorded is indistinguishable from one nobody wanted — and the surrounding
+sections still describe them as though they exist.
+
+- **The Week ships THREE panels, not four.** §"The Week (weekend Zone B)" lists
+  four sources; the **Compass Weekly Review** panel
+  (`GET /api/j2/accounts/{id}/coach/weekly-reviews`) was dropped during planning
+  and the omission propagated silently through the task briefs into the build.
+  `TheWeek.jsx` renders Latest Sunday Scan · Next week on deck · From the Desk
+  (+ the Quote of the Day panel added later for §Zone A's weekend treatment).
+  ⚠️ It is the only one of the four that is PER-USER, which is why it is not a
+  drop-in: every other panel reads a global cache, so this one changes the
+  component's data contract rather than adding a query.
+
+- **Zone B's empty state is NOT the slim bar this spec specifies.** §"Zone B —
+  The Decision" says the empty state "collapses to a slim bar with a reason and
+  a link to `/catalysts/history` — it does not leave a hole." `CatalystTable`
+  has the reason and that link, but it never returns null, so on a
+  catalyst-gap weekday (measured: one in 17) Zone B is a fixed 440px card that
+  is ~90% empty. It is BOUNDED — the zone's declared height means it cannot grow
+  the page, which is why this is deferred rather than blocking — but it is the
+  same shape as the defect the redesign exists to remove, one zone over.
+  The weekend path IS fixed (`TheWeek` returns null and
+  `.desktopOnly:has(.zoneB:empty)` collapses the track); it is the weekday
+  catalyst gap that still shows a mostly-empty frame.

@@ -262,9 +262,12 @@ def main():
                         else:
                             hflag = "ok"
                         entry["heightFlag"] = hflag
+                    # ONE line per route/viewport. The height columns were added
+                    # as a second print(), which repeated the route and flag and
+                    # made the report twice as long to read for no new fact.
                     print(f"[{vp_name:8}] {route:24} {flag:9} {hflag:12} "
-                          f"screens={probe.get('screens')}")
-                    print(f"[{vp_name:8}] {route:24} {flag:9} overflowX={probe['overflowX']:>4}  small={probe['smallCount']}")
+                          f"screens={probe.get('screens')}  "
+                          f"overflowX={probe['overflowX']:>4}  small={probe['smallCount']}")
                 except Exception as e:  # noqa: BLE001
                     entry["error"] = str(e)
                     print(f"[{vp_name:8}] {route:24} ERROR {e}", file=sys.stderr)
