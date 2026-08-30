@@ -21,7 +21,7 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({
   positions: null, options: null, prices: {}, broker: null, accounts: null,
-  perf: null, settings: null,
+  perf: null, settings: null, settingsError: undefined,
 }))
 
 // ⚠️ ORDER MATTERS: `/api/j2/accounts/{id}/settings` contains BOTH substrings,
@@ -30,7 +30,7 @@ const h = vi.hoisted(() => ({
 vi.mock('swr', () => ({
   default: (key) => {
     const k = String(key)
-    if (k.includes('/settings')) return { data: h.settings, isLoading: false, mutate: () => {} }
+    if (k.includes('/settings')) return { data: h.settings, error: h.settingsError, isLoading: false, mutate: () => {} }
     if (k.includes('/broker/performance')) return { data: h.perf, isLoading: false }
     if (k.includes('/broker')) return { data: h.broker, isLoading: false }
     if (k.includes('/accounts')) return { data: h.accounts, isLoading: false }
@@ -45,7 +45,7 @@ vi.mock('../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: h.prices, isLoading: false, isStreaming: true, staleSymbols: new Set() }),
 }))
 
-import JournalSnapshotTile, { realStop } from './JournalSnapshotTile'
+import JournalSnapshotTile, { realStop, R_REASON_COPY } from './JournalSnapshotTile'
 
 // ⚠️ EVERY FIXTURE CARRIES `accountId`, AND `h.accounts` IS POPULATED.
 // An earlier cut of this file left `h.accounts = null` in beforeEach while its
@@ -61,6 +61,7 @@ beforeEach(() => {
   h.accounts = { accounts: [{ id: ACCT, balanceSource: 'manual' }] }
   // A $100,000 book risking 1% per trade ⇒ 1R = $1,000.
   h.settings = { accountSize: 100_000, maxRiskPerTradePct: 1 }
+  h.settingsError = undefined
   localStorage.clear()
 })
 afterEach(cleanup)
@@ -342,7 +343,10 @@ describe('NEW-1 · the R gate fails CLOSED when scope cannot be established', ()
     renderWithProviders(<JournalSnapshotTile />)
     expect(screen.getByText('$500.00'),
       'the dollar figure needs no account scope and must survive').toBeInTheDocument()
-    expect(screen.getByText('R n/a — account scope unknown')).toBeInTheDocument()
+    // ⭐ ITS OWN SENTENCE. An unreachable roster is an OUTAGE, not the member's
+    // "All Accounts" choice and not a missing setting — three different facts
+    // that all leave `settingsAccountId` null.
+    expect(screen.getByText('R n/a — accounts unavailable')).toBeInTheDocument()
     expect(screen.queryByText('0.50R'),
       'R was computed against a budget we could not confirm governs this book')
       .toBeNull()
@@ -425,5 +429,119 @@ describe('NEW-5 · an uncomputable risk reads as unknown, never as zero', () => 
     renderWithProviders(<JournalSnapshotTile />)
     expect(screen.queryByText(/risk unknown/)).toBeNull()
     expect(screen.getByText('$500.00')).toBeInTheDocument()
+  })
+})
+
+// ─── 🔴 FIX ROUND 4 ─────────────────────────────────────────────────────────
+
+describe('a MIXED book — the gate that was still open', () => {
+  test('one real account PLUS one legacy null-account row withholds R', () => {
+    // 🔴 THE DEFECT: `positions.map(p => p.accountId).filter(id => id != null)`
+    // dropped the null BEFORE sizing the set, so `ids.size === 1` and the tile
+    // rendered R — whole-book dollars, INCLUDING a position whose account is
+    // unknown, divided by a1's 1R. The `ids.size === 0` test could not see it,
+    // because an all-null book still sizes to 0; only a MIXED book exposes it.
+    h.positions = { positions: [
+      REAL_STOP,                                            // accountId: 'a1'
+      { ...REAL_STOP, id: 'p4', accountId: null, symbol: 'MSFT' },
+    ] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 }, MSFT: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('$1,000.00'),
+      'the dollar figure needs no account scope and must survive').toBeInTheDocument()
+    expect(screen.getByText('R n/a — account scope unknown')).toBeInTheDocument()
+    expect(screen.queryByText('1.00R'),
+      'a book containing a position of unknown account was divided by one '
+      + 'account’s 1R').toBeNull()
+  })
+
+  test('CONTROL: the same two positions, both in a1, DO produce R', () => {
+    // Without this, the assertion above is satisfied by a gate that never opens
+    // for a two-position book at all.
+    h.positions = { positions: [
+      REAL_STOP,
+      { ...REAL_STOP, id: 'p4', symbol: 'MSFT' },            // also accountId: 'a1'
+    ] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 }, MSFT: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('1.00R')).toBeInTheDocument()
+    expect(screen.queryByText(/R n\/a/)).toBeNull()
+  })
+})
+
+describe('the aggregate never contradicts the row beneath it', () => {
+  test('"no stops set" is NOT claimed when a position is merely uncomputable', () => {
+    // 🔴 With withStop 0 / noStop 0 / unknown 1 the line read
+    // "Open risk  no stops set · 1 risk unknown" while the row directly beneath
+    // rendered `stop $95.00`. The `else` was written when the loop had two
+    // outcomes; the third made it lie — the same "two answers, one fact" defect
+    // the loop's own comment exists to prevent.
+    h.positions = { positions: [{ ...REAL_STOP, id: 'p6', entryPrice: undefined }] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    // The row still shows the stop it really has…
+    expect(screen.getByText(/stop \$95\.00/)).toBeInTheDocument()
+    // …so the aggregate must not say there are none.
+    expect(screen.queryByText('no stops set'),
+      'the aggregate claimed "no stops set" about a book whose only position '
+      + 'renders a stop').toBeNull()
+    expect(screen.getByText('1 risk unknown')).toBeInTheDocument()
+  })
+
+  test('CONTROL: a book that genuinely has no stops still says so', () => {
+    // Without this, the assertion above is satisfied by deleting the message.
+    h.positions = { positions: [PLACEHOLDER] }
+    h.prices = {}
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('no stops set')).toBeInTheDocument()
+  })
+})
+
+describe('every reason R is missing gets its OWN sentence', () => {
+  test('All Accounts mode names itself and says how to get R back', () => {
+    // The book's scope is KNOWN here; the budget's is not. Saying "account
+    // scope unknown" was a false statement about a state the member chose and
+    // can undo.
+    localStorage.setItem('uct.j2.selectedAccountId', '_all_')
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    const hint = screen.getByText('R n/a in All Accounts')
+    expect(hint).toBeInTheDocument()
+    expect(hint.getAttribute('title')).toMatch(/pick a single account/i)
+    expect(screen.queryByText('R n/a — account scope unknown')).toBeNull()
+  })
+
+  test('a failed settings fetch is an OUTAGE, not the member’s omission', () => {
+    // `useJ2Settings`'s fetcher throws on non-ok, so `settings` is undefined and
+    // `error` is set. Telling someone to "set account size & risk %" because the
+    // endpoint 5xx'd is how a member learns to distrust the whole line.
+    h.settings = undefined
+    h.settingsError = new Error('500')
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — settings unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('R n/a — set account size & risk %'),
+      'the member was told to configure something because the server failed')
+      .toBeNull()
+  })
+
+  test('CONTROL: genuinely unset settings DO still ask the member to set them', () => {
+    // The one reason that really is the member's to fix. Without this control
+    // the assertion above passes for a tile that never gives that instruction.
+    h.settings = { accountSize: 100_000 }        // present, but no risk %
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — set account size & risk %')).toBeInTheDocument()
+  })
+
+  test('the five sentences are all different', () => {
+    // A roster of the distinct copy, so a future edit cannot quietly collapse
+    // two facts back onto one message.
+    const texts = Object.values(R_REASON_COPY).map((r) => r.text)
+    expect(new Set(texts).size).toBe(texts.length)
+    expect(texts.length).toBeGreaterThanOrEqual(5)
   })
 })

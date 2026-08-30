@@ -245,7 +245,7 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
   // rule is enforced server-side in `api/services/portfolio_heat.py`. Such
   // positions are EXCLUDED from the dollar figure and COUNTED separately, never
   // silently dropped — "3 with no stop" is the sentence a trader needs.
-  const { settings, accountId: settingsAccountId } = useJ2Settings()
+  const { settings, accountId: settingsAccountId, error: settingsError } = useJ2Settings()
   const openRisk = useMemo(() => {
     let dollars = 0
     let withStop = 0
@@ -300,17 +300,32 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
   // cannot verify withholds R rather than guessing at it.
   const rScope = useMemo(() => {
     if (positions.length === 0) return 'ok'
-    const ids = new Set(positions.map((p) => p.accountId).filter((id) => id != null))
+    // 🔴 A NULL accountId ANYWHERE MAKES THE BOOK UNKNOWN — and this clause is
+    // the whole point. The first cut filtered nulls out BEFORE sizing the set,
+    // so one `a1` row plus one legacy `null` row gave `ids.size === 1` and
+    // rendered R: whole-book dollars, INCLUDING a position of unknown account,
+    // over `a1`'s 1R. It contradicted the comment three lines below it, and the
+    // `ids.size === 0` test could not see it because an all-null book still
+    // sized to 0. `_row_to_position`: "account_id may not be present on legacy
+    // rows pre-migration."
+    if (positions.some((p) => p.accountId == null)) return 'book-unknown'
+    const ids = new Set(positions.map((p) => p.accountId))
     if (ids.size > 1) return 'across-accounts'
-    // Legacy pre-migration rows carry no accountId at all, so we cannot tell
-    // whose budget applies — `_row_to_position` says so in as many words.
-    if (ids.size === 0) return 'unknown'
     // One book. Are these the settings that govern IT? In All-Accounts mode
     // `useJ2Settings` falls back to the legacy global row, which is not
-    // necessarily this account's own budget.
-    if (settingsAccountId == null) return 'unknown'
-    return ids.has(settingsAccountId) ? 'ok' : 'unknown'
-  }, [positions, settingsAccountId])
+    // necessarily this account's own budget — the BOOK's scope is known there,
+    // the BUDGET's is not, and those are different sentences.
+    // ⛔ A DELIBERATE "All Accounts" SELECTION AND AN UNREACHABLE ROSTER BOTH
+    // leave `settingsAccountId` null, and they are not the same sentence: one
+    // is a choice the member can undo, the other is an outage. `acctData` is
+    // `null` when this tile's fetcher swallowed a non-ok response, so it
+    // separates them. Same principle as `settings-unavailable` below — never
+    // hand a member an instruction for a failure that was not theirs.
+    if (settingsAccountId == null) {
+      return acctData?.accounts ? 'all-accounts' : 'accounts-unavailable'
+    }
+    return ids.has(settingsAccountId) ? 'ok' : 'book-unknown'
+  }, [positions, settingsAccountId, acctData])
 
   const oneR = useMemo(() => {
     if (rScope !== 'ok') return null
@@ -321,6 +336,19 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
     return (acct * pct) / 100
   }, [settings, rScope])
   const openRiskR = oneR ? openRisk.dollars / oneR : null
+
+  // ⭐ WHY R IS MISSING, AS ONE VALUE. Four different facts land on the same
+  // blank number, and a member who is told "set your account size" when the
+  // settings endpoint just 5xx'd learns to distrust the whole line.
+  const rReason = useMemo(() => {
+    if (openRiskR != null) return null
+    if (rScope !== 'ok') return rScope
+    // The endpoint failed, or is still in flight — NOT the member's omission.
+    // `useJ2Settings`'s fetcher throws on non-ok, so `settings` is undefined
+    // and `error` is set; blaming them for an outage is a false statement.
+    if (settingsError || settings == null) return 'settings-unavailable'
+    return 'unset'
+  }, [openRiskR, rScope, settingsError, settings])
 
   // Equity rows, richest mover first.
   const equityRows = useMemo(() => {
@@ -391,8 +419,8 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
-              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />}
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />
+              : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />}
 
             <div className={styles.rows}>
               {visibleRows.map((row) =>
@@ -431,24 +459,43 @@ export default function JournalSnapshotTile({ showEquityCurve = false, period = 
  * heat — so the exclusion has to be VISIBLE or the total reads as complete when
  * it is not.
  */
-/** The reason R could not be derived, or null when the reason is simply that
- *  the member has not set a budget. Each string is a different FACT, and
- *  collapsing them would be the "one message for two causes" defect. */
-const R_SCOPE_COPY = {
+/**
+ * Why R is missing. ⛔ EACH KEY IS A DIFFERENT FACT and gets its own sentence:
+ * collapsing them is the "one message for two causes" defect, and a member told
+ * to "set your account size" when the endpoint 5xx'd learns to distrust the
+ * whole line. `unset` is the only one that is actually the member's to fix.
+ */
+export const R_REASON_COPY = {
   'across-accounts': {
     text: 'R n/a across accounts',
     title: 'Open risk spans more than one account; 1R is per-account, so it cannot be summed here',
   },
-  unknown: {
+  'book-unknown': {
     text: 'R n/a — account scope unknown',
     title: 'Cannot confirm these positions all sit in the account whose risk budget is loaded, so R would be a guess',
   },
+  'all-accounts': {
+    text: 'R n/a in All Accounts',
+    title: 'Pick a single account to see R — All Accounts loads a shared fallback budget rather than any one account’s 1R',
+  },
+  'accounts-unavailable': {
+    text: 'R n/a — accounts unavailable',
+    title: 'Your account list could not be loaded, so we cannot confirm which budget governs this book',
+  },
+  'settings-unavailable': {
+    text: 'R n/a — settings unavailable',
+    title: 'Your risk settings could not be loaded. This is an outage, not a missing setting.',
+  },
+  unset: {
+    text: 'R n/a — set account size & risk %',
+    title: 'R needs your account size and max risk per trade, in Portfolio settings',
+  },
 }
 
-function OpenRiskLine({ openRisk, openRiskR, rScope }) {
+function OpenRiskLine({ openRisk, openRiskR, rReason }) {
   if (!openRisk
     || (openRisk.withStop === 0 && openRisk.noStop === 0 && openRisk.unknown === 0)) return null
-  const scoped = R_SCOPE_COPY[rScope] ?? null
+  const reason = R_REASON_COPY[rReason] ?? R_REASON_COPY.unset
   return (
     <div className={styles.riskLine}>
       <span className={styles.riskLabel}>Open risk</span>
@@ -465,19 +512,19 @@ function OpenRiskLine({ openRisk, openRiskR, rScope }) {
             // above, i.e. the tile's own target — so the nesting and the
             // stopPropagation bought nothing at all, and the copy promised
             // "set account size" while landing on the Positions tab.
-            <span
-              className={styles.riskHint}
-              title={scoped
-                ? scoped.title
-                : 'R needs your account size and max risk per trade, in Portfolio settings'}
-            >
-              {scoped ? scoped.text : 'R n/a — set account size & risk %'}
-            </span>
+            <span className={styles.riskHint} title={reason.title}>{reason.text}</span>
           )}
         </>
-      ) : (
+      ) : openRisk.unknown === 0 ? (
+        // ⛔ ONLY WHEN THERE IS GENUINELY NOTHING STOPPED **AND** NOTHING
+        // UNKNOWN. This `else` was written when the loop had two outcomes; the
+        // third (`unknown`) made it lie — with withStop 0 / noStop 0 /
+        // unknown 1 the line claimed "no stops set" while the row directly
+        // beneath it rendered `stop $95.00`. That is the same "two answers, one
+        // fact" defect the loop's own comment exists to prevent, reintroduced
+        // by the branch added to fix a different one.
         <span className={styles.riskHint}>no stops set</span>
-      )}
+      ) : null}
       {openRisk.unknown > 0 && (
         <span className={styles.riskNoStop}>
           <UIcon name="warning" size={11} gold={false} style={{ verticalAlign: '-1px', marginRight: 3 }} />
@@ -512,7 +559,7 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period, openRisk, openRiskR, rScope }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period, openRisk, openRiskR, rReason }) {
   const series = perf?.equitySeries || []
   const value = brokerLive?.netLiq ?? brokerBase
 
@@ -550,14 +597,14 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
           values={series.map((p) => p?.value)}
         />
       )}
-      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />
       <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
     </div>
   )
 }
 
 /** Manual hero — live mark-to-market of open equity positions. */
-function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rScope }) {
+function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rReason }) {
   const prevValue = today == null ? null : agg.value - today
   const todayPct = prevValue ? today / prevValue : null
   const costBasis = agg.value - agg.unrealized
@@ -569,7 +616,7 @@ function ManualHero({ agg, today, positions, strategies, openRisk, openRiskR, rS
         <PerfFigure label="Today" dollar={today} pct={todayPct} />
         <PerfFigure label="Open P&L" dollar={agg.unrealized} pct={openPct} />
       </div>
-      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rScope={rScope} />
+      <OpenRiskLine openRisk={openRisk} openRiskR={openRiskR} rReason={rReason} />
       <CountLine positions={positions} strategies={strategies} />
     </div>
   )
