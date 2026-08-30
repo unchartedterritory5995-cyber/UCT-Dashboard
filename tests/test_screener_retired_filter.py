@@ -59,3 +59,44 @@ def test_no_retired_key_is_still_a_live_filter():
     """A key in both places is a second authority on whether it exists."""
     both = set(filters.RETIRED) & set(filters.FILTERS)
     assert not both, f"keys both live and retired: {sorted(both)}"
+
+
+# ── C3: exactly one pattern vocabulary reaches a member ────────────────────
+
+def test_the_retired_vocabulary_is_reachable_from_nowhere():
+    """⛔ THE SECOND-AUTHORITY RAIL. The screener carried TWO pattern
+    vocabularies with five shared key names on two different confidence scales
+    (`pattern_conf_max` 0-1 vs `pattern_engine_conf` 0-100) — a collision
+    `pattern_join.py` documented and called unresolved. It is resolved by
+    deletion, and this fails if either half comes back.
+    """
+    from api.services.screener import snapshot_db
+
+    dead = {"patterns", "pattern_conf_max"}
+
+    live_columns = {f["column"] for f in filters.FILTERS.values()}
+    assert not (dead & live_columns), "a filter still queries the retired vocabulary"
+
+    assert not (dead & set(filters.FILTERS)), "a retired key is a live filter again"
+
+    seats = {c for v in filters.VIEWS.values() for c in v["columns"]}
+    assert not (dead & seats), "a view still seats the retired vocabulary"
+
+    assert not (dead & set(snapshot_db.COLUMNS)), (
+        "the snapshot still declares the retired columns — they would be "
+        "computed nightly for nobody")
+
+
+def test_the_cheap_detector_module_is_gone():
+    """`patterns.py` computed the retired column. A module that still exists
+    invites the next engineer to wire it back in.
+    """
+    import importlib
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("api.services.screener.patterns")
+
+
+def test_both_retired_keys_are_recorded_with_a_date():
+    for key in ("pattern", "pattern_conf_max"):
+        assert key in filters.RETIRED, f"{key} was deleted without being recorded"
+        assert filters.RETIRED[key].get("when"), f"{key} retired with no date"

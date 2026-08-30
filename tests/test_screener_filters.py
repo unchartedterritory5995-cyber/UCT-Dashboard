@@ -990,15 +990,28 @@ def test_pattern_engine_flags_are_preset_free_bool_controls():
         assert f["allow_custom"] is False, key
         assert f["unit"] is None, key
         assert filters.is_valid_op(key, "eq"), key
-    # ⛔ AND THE LABEL SAYS WHICH ENGINE ANSWERED. The always-on `patterns`
-    # heuristic ships its own "VCP"/"Flat Base" presets on the `pattern` enum
-    # over a different column; two controls reading "VCP" over two different
-    # instruments is the second-authority defect wearing one word.
+    # ⛔ AND THE LABEL SAYS WHICH ENGINE ANSWERED.
     for key in ("pattern_engine_vcp", "pattern_engine_flat_base"):
         assert "engine" in filters.FILTERS[key]["label"].lower(), key
-    enum_labels = [p["label"] for p in filters.FILTERS["pattern"]["presets"]]
-    assert "VCP" in enum_labels and "Flat Base" in enum_labels
-    assert filters.FILTERS["pattern"]["column"] == "patterns"
+
+    # ⚰️ UPDATED 2026-08-30 — THE COLLISION THIS GUARDED IS GONE, BY DELETION.
+    # This used to assert that the always-on `patterns` heuristic ALSO shipped
+    # "VCP"/"Flat Base" presets over a different column, which is why the flag
+    # labels had to name their engine: two controls reading "VCP" over two
+    # instruments is the second-authority defect wearing one word. That cheap
+    # vocabulary was retired with the Base & Structure library, so the assertion
+    # now checks the stronger property — no OTHER control may offer a preset
+    # whose label collides with a per-pattern engine flag.
+    engine_words = {"vcp", "flat base"}
+    for key, f in filters.FILTERS.items():
+        if key.startswith("pattern_engine_"):
+            continue
+        for preset in f.get("presets") or []:
+            label = str(preset.get("label", "")).strip().lower()
+            assert label not in engine_words, (
+                f"{key} offers a '{preset.get('label')}' preset, colliding with "
+                f"the pattern-engine flag of the same name over a different "
+                f"instrument")
 
 
 def test_the_flag_controls_are_derived_from_the_ONE_writer():

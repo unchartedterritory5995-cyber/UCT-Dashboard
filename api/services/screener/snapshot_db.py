@@ -110,8 +110,7 @@ COLUMNS = [
     "higher_lows_run", "nr7", "consecutive_up", "consecutive_down",
     "close_cv_pct", "avg_body_pct_5",
     # patterns
-    "patterns", "pattern_conf_max",
-    # context (Wave 1)
+        # context (Wave 1)
     "theme", "in_uct20", "index_sp500", "index_ndx", "index_dow", "index_r2k",
     "is_etf", "is_leveraged", "stage2", "stage4", "hvc_52w",
     # events (Wave 2)
@@ -156,7 +155,7 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "candle_weekly", "candle_weekly_label",
          "candle_monthly", "candle_monthly_label",
          "base_shape", "base_shape_label", "base_matches", "base_render",
-         "patterns", "snapshot_date", "bars_asof",
+         "snapshot_date", "bars_asof",
          # Wave 1. `accdis` joins _TEXT here too: it has always held letter
          # grades in a REAL-declared column (latent since v1; SQLite dynamic
          # typing made it harmless). New DBs now declare it TEXT; existing DBs

@@ -1798,19 +1798,6 @@
       "yields": "num",
       "sentence": "the run of consecutive down closes"
     },
-    "pattern_conf_max": {
-      "source": {
-        "store": "screener_rows",
-        "column": "pattern_conf_max"
-      },
-      "as_of": {
-        "column": "bars_asof",
-        "grain": "date"
-      },
-      "cadence": "nightly",
-      "yields": "num",
-      "sentence": "the highest detected pattern confidence"
-    },
     "quick_ratio": {
       "source": {
         "store": "screener_rows",
@@ -2574,7 +2561,6 @@
     "exchange": "TEXT, for the same reason as `sector`",
     "ma_stack": "TEXT -- a rendered arrangement of moving averages, not a magnitude. The individual distances are declared as scalars instead",
     "candle_type": "TEXT -- a classification label. The measured components (body, wicks, close position) are declared as scalars instead",
-    "patterns": "a comma-joined LIST, not a scalar. Expressing membership needs a `contains` this table does not declare; `pattern_conf_max` is the numeric part and IS declared",
     "snapshot_date": "an `as_of` SOURCE. Declaring it as a scalar would let a formula compute on its own freshness stamp -- and it is TEXT besides",
     "bars_asof": "the same, for the bar-dated family",
     "built_at": "an operations timestamp. It dates the WRITE, not the value, so a formula reading it would be screening on when the builder ran",

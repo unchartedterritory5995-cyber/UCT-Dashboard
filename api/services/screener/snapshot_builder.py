@@ -59,7 +59,7 @@ import os
 import threading
 import time
 
-from . import (snapshot_db, candles, bar_character, bases, technicals, patterns, enrich, setup_score,
+from . import (snapshot_db, candles, bar_character, bases, technicals, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow)
 
@@ -465,13 +465,6 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))
-        try:
-            keys, conf = patterns.detect_patterns(bars)
-        except Exception as e:                                 # noqa: BLE001
-            _note_step("bars_detect_patterns", e)
-            keys = conf = None
-        row["patterns"] = keys or None
-        row["pattern_conf_max"] = conf or None
         if row.get("avg_volume_30d") is None:
             vols = [b.get("v") or 0 for b in bars[-30:]]
             if vols:

@@ -437,14 +437,6 @@ FILTERS = dict([
           base_catalog.enum_options()),
     _open_range("base_relation_count", "Named Structures", "pattern",
                 "base_relation_count"),
-    _enum("pattern", "Chart Pattern", "pattern", "patterns",
-          [{"label": "Any"},
-           {"label": "VCP", "op": "contains", "value": "vcp"},
-           {"label": "Flat Base", "op": "contains", "value": "flat_base"},
-           {"label": "Bull Flag", "op": "contains", "value": "bull_flag"},
-           {"label": "52W Breakout", "op": "contains", "value": "breakout_52w"},
-           {"label": "Golden Cross", "op": "contains", "value": "golden_cross"},
-           {"label": "Death Cross", "op": "contains", "value": "death_cross"}]),
     # ── performance (Wave 1 — all bare; return thresholds are the owner's) ──
     _open_range("chg_pct_1d", "Change Today", "performance", "chg_pct_1d", unit="%"),
     _open_range("chg_pct_1w", "Change 1W", "performance", "chg_pct_1w", unit="%"),
@@ -536,8 +528,6 @@ FILTERS = dict([
                 "upper_wick_pct"),
     _open_range("lower_wick_pct", "Lower Wick", "single_candle",
                 "lower_wick_pct"),
-    _open_range("pattern_conf_max", "Pattern Confidence", "pattern",
-                "pattern_conf_max"),
     _enum("industry", "Industry", "descriptive", "industry",
           [{"label": "Any"}], options_column="industry"),
     # ── context (Wave 1) ──
@@ -755,7 +745,29 @@ OP_OPERANDS = {
 #: use instead.
 #:
 #: Each entry: the member-facing replacement (or None), and when.
-RETIRED: dict = {}
+RETIRED: dict = {
+    # Retired 2026-08-30 with the Base & Structure library. The cheap
+    # six-detector heuristic left 59% of Overview rows blank, rendered only
+    # `v.split(',')[0]` so a name that was both a flat base and a VCP showed
+    # one word, and stood as a SECOND pattern vocabulary beside the engine —
+    # five shared key names on two different confidence scales (0-1 here,
+    # 0-100 there), a collision `pattern_join.py` documented and called
+    # unresolved.
+    # ⛔ Deleted only after MEASURING the blast radius: production held 1 saved
+    # screen and it referenced neither key; the firm's starter definitions
+    # referenced neither. A deletion without that count is not a cleanup.
+    "pattern": {
+        "label": "Chart Pattern",
+        "replaced_by": "base_structure",
+        "replaced_by_label": "Base Structure",
+        "when": "2026-08-30",
+    },
+    "pattern_conf_max": {
+        "label": "Pattern Confidence",
+        "replaced_by": None,
+        "when": "2026-08-30",
+    },
+}
 
 
 VIEWS = {
@@ -809,8 +821,7 @@ VIEWS = {
         "ticker", "company", "pattern_engine_ids", "pattern_engine_conf",
         "pattern_engine_dir", "pattern_expectancy_r", "pattern_entry_dist_pct",
         "pattern_stop_dist_pct", "pattern_engine_vcp",
-        "pattern_engine_flat_base", "patterns", "pattern_conf_max",
-        "candle_score"]},
+        "pattern_engine_flat_base", "candle_score"]},
     "flow": {"label": "Positioning & Flow", "columns": [
         "ticker", "company", "price", "chg_pct_1d", "dp_notional_1d",
         "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
@@ -1041,8 +1052,11 @@ def _structure_evidence() -> dict:
 
     ⛔ A structure with no measured lift is ABSENT from this dict. It is never
     present with a 0.0 — `pattern_join` already shipped a synthetic breakeven
-    to members as a measurement across 46 of 79 rows by treating absence as
-    zero, and the whole point of the ledger is that the blank stays honest.
+    to members as a measurement, over more than half its rows, by treating
+    absence as zero — and the whole point of the ledger is that the blank
+    stays honest. (The exact counts live in `pattern_join.py`, beside the
+    thing they describe; a number typed here would be a second authority
+    on somebody else's measurement.)
     """
     from api.services.screener import base_catalog, lift_ledger
 
