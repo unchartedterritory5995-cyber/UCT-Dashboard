@@ -41,11 +41,18 @@ export const USAGE = [
 /**
  * Run the browser's own pipeline over a CSV.
  *
- * `erSoon` is the earnings-soon symbol set the page passes in. It only drives a
- * per-row badge, so an empty set is a valid server-side default — the caller
- * that wants badges supplies one.
+ * `erSoon` is the earnings-soon symbol set the page passes in; it drives the
+ * per-row `er` badge.
+ *
+ * ⛔ WHEN NO SET IS SUPPLIED, PASS `null` — NOT AN EMPTY SET.
+ * `processFlowData` reads `erSoonSet instanceof Set` as "the caller is the
+ * authority on earnings" and otherwise falls back to the CSV's OWN `er` column.
+ * An empty Set is still a Set, so it satisfies that test and silently overrides
+ * every row to `er:false` — discarding a flag the tape already carries. Passing
+ * null lets the data speak for itself, which is the honest server-side default:
+ * this process has no user, and therefore no earnings-soon list to impose.
  */
-export function aggregateCsv(csv, { erSoon = [] } = {}) {
+export function aggregateCsv(csv, { erSoon = null } = {}) {
   if (typeof csv !== 'string' || csv.length === 0) {
     throw new Error('stdin must be a non-empty CSV')
   }
@@ -55,7 +62,7 @@ export function aggregateCsv(csv, { erSoon = [] } = {}) {
   if (!rows.length) throw new Error('CSV parsed but contained 0 valid rows')
 
   const t1 = Date.now()
-  const D = processFlowData(rows, new Set(erSoon))
+  const D = processFlowData(rows, erSoon == null ? null : new Set(erSoon))
   const processMs = Date.now() - t1
 
   return {
