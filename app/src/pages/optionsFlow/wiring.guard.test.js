@@ -229,3 +229,31 @@ describe('prehydration wiring — the server-computed first paint', () => {
     expect(SRC.includes('PREHYDRATE: render the numbers')).toBe(true)
   })
 })
+
+describe('stale-copy skip — the ORDER is the optimisation', () => {
+  it('decides before the parse, not after', () => {
+    // ⛔ THIS ASSERTION IS ABOUT SEQUENCE, and sequence is the entire value.
+    // Deciding staleness AFTER loadFlow is what the code did for months: the
+    // mismatch was detected, handled correctly, and cost a full parse plus a
+    // full processFlowData on rows that were immediately replaced. Moving the
+    // check below the parse would leave every test green and quietly restore
+    // ~6s of wasted CPU per stale load.
+    const decide = CODE.indexOf('shouldSkipStaleParse({')
+    const parse = CODE.indexOf('await loadFlow(')
+    expect(decide, 'shouldSkipStaleParse is not called' + FIX).toBeGreaterThan(-1)
+    expect(parse, 'loadFlow call not found' + FIX).toBeGreaterThan(-1)
+    expect(decide,
+      'the staleness check moved BELOW the parse — it still works, but it no '
+      + 'longer saves anything, which is the only reason it exists' + FIX)
+      .toBeLessThan(parse)
+  })
+
+  it('still bumps the nonce, or the skip drops the load on the floor', () => {
+    // Skipping the parse without triggering the corrective refetch would leave
+    // the page with no rows and nothing on the way.
+    const at = CODE.indexOf('shouldSkipStaleParse({')
+    const region = CODE.slice(at, at + 700)
+    expect(/setBaseNonce\(/.test(region),
+      'the stale skip does not trigger a refetch — the page would sit empty' + FIX).toBe(true)
+  })
+})
