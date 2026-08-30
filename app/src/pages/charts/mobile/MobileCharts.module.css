@@ -12,9 +12,12 @@
 
 /* Sizing/flex comes from ChartsWorkspace.module.css's `.mobileWorkspace`
  * (the token-subtraction contract mobileShellHeight.test.js pins) — the shell
- * class only adds paint, so the two can never disagree about height. */
+ * class only adds paint + scroll containment, so the two can never disagree
+ * about height. overscroll-behavior stops an iOS rubber-band from chaining a
+ * chart pan into the page (pull-to-refresh mid-drag). */
 .shell {
   background: var(--bg);
+  overscroll-behavior: contain;
 }
 
 /* ── Symbol strip (top) ────────────────────────────────────────────────── */

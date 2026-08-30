@@ -38,6 +38,7 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
 
   const price = Number.isFinite(q?.price) ? q.price : null
   const chg = Number.isFinite(q?.change_pct) ? q.change_pct : null
+  const chgAbs = Number.isFinite(q?.change) ? q.change : null
   const up = (chg ?? 0) >= 0
 
   return (
@@ -68,7 +69,9 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
           <span className={styles.price}>{fmtPrice(price)}</span>
           {chg != null && (
             <span className={`${styles.chg} ${up ? styles.chgUp : styles.chgDown}`}>
+              {chgAbs != null ? `${up ? '+' : ''}${Math.abs(chgAbs) >= 1 ? chgAbs.toFixed(2) : chgAbs.toFixed(3)} (` : ''}
               {up ? '+' : ''}{chg.toFixed(2)}%
+              {chgAbs != null ? ')' : ''}
             </span>
           )}
         </div>
