@@ -64,6 +64,14 @@
   font-size: 13px;
 }
 
+/* Opens upward instead of downward — for a trigger low on the page, where a
+   340px panel dropping below it would open past the bottom of the viewport.
+   Compare mode's bottom-row panes are the case this exists for. */
+.panelUp {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 .header {
   display: flex;
   align-items: center;

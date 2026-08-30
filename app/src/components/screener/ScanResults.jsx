@@ -188,6 +188,25 @@ function hitsBySymbol(payload) {
  * role, and `getByRole('button', {name: /chart NVDA/i})` is what the wire-cut
  * case binds to.
  */
+/** How a definition's own answer reads on a row.
+ *
+ *  ⛔ SIGNIFICANT DIGITS, NOT A FIXED DECIMAL COUNT. These are a member's OWN
+ *  formula's values and the engine has no idea of their scale: an RSI is ~70, a
+ *  dollar volume is ~1e9, a percentage change is ~0.03. Two decimal places would
+ *  render the third as `0.03` and the second in full. `toPrecision` keeps the
+ *  information at every scale and never invents digits the value does not have.
+ *
+ *  ⚠️ AND IT NEVER ROUNDS TO NOTHING. A tiny non-zero value must not print as `0`
+ *  — that is the "plausible different number" this engine exists against, on a
+ *  surface a member sorts by. */
+export function formatHitValue(v) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return ''
+  if (v === 0) return '0'
+  const abs = Math.abs(v)
+  if (abs >= 1e6 || abs < 1e-4) return v.toExponential(2)
+  return String(Number(v.toPrecision(6)))
+}
+
 export function ScanResultRow({ ticker, definition, onChart, tier = null }) {
   // ⭐ THE ROW SAYS WHERE IT CAME FROM. A live hit and a nightly hit answer
   // DIFFERENT questions — this tick's forming bar vs. that session's closed bar
@@ -195,12 +214,28 @@ export function ScanResultRow({ ticker, definition, onChart, tier = null }) {
   // nothing to it. A row the route sent no provenance for gets NO chip: silence
   // is honest, and defaulting it to "nightly" would claim a fact nobody stated.
   const label = tierLabel(tier)
+  // ⭐⭐ THE NUMBER THE DEFINITION ANSWERED WITH. A screen could be filtered by a
+  // member's own formula and never SORTED by it — the gap two independent
+  // competitive registers both ranked first, since a sortable column of any formula
+  // is TC2000's whole product. The sweep computed this on every hit and discarded
+  // it; now it is stored, read, and finally on screen.
+  //
+  // ⛔ SILENCE WHEN THERE IS NO VALUE, exactly as the tier chip does two lines up.
+  // A row from before the value was recorded has none, and rendering `0` would be a
+  // number a member could sort by — indistinguishable from a real answer.
+  const value = tier && typeof tier.value === 'number' && Number.isFinite(tier.value)
+    ? tier.value : null
   return (
     <li className={styles.row} data-testid={`scan-hit-${ticker}`}>
       <span className={styles.tickerCell}>
         <span className={styles.ticker}>{ticker}</span>
         {label && <span className={styles.tier} data-testid={`scan-hit-tier-${ticker}`}>{label}</span>}
       </span>
+      {value !== null && (
+        <span className={styles.value} data-testid={`scan-hit-value-${ticker}`}>
+          {formatHitValue(value)}
+        </span>
+      )}
       <button
         type="button"
         className={styles.chartBtn}
@@ -339,10 +374,13 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
   }, [charted])
 
   const status = payload && payload.status
-  const tickers = payload && Array.isArray(payload.tickers) ? payload.tickers : []
+  const scanned = payload && Array.isArray(payload.tickers) ? payload.tickers : []
   // Keyed ONCE per answer set, not per row: N rows x a linear scan of N hits is
   // the same N+1 shape `hits_for`'s own docstring warns about, one layer up.
   const provenance = useMemo(() => hitsBySymbol(payload), [payload])
+  // ⭐ SORT BY THE DEFINITION'S OWN ANSWER — off by default, because the scan's own
+  // order is a fact and a re-ordering is the member's choice.
+  const [sortByValue, setSortByValue] = useState(false)
   // ⭐ THE LIVE-ONLY TAIL, READ OFF THE ROUTE'S OWN ROWS. `tickers` is the
   // nightly half by construction, so these rows are exactly the hits the list
   // above can never show.
@@ -353,6 +391,40 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
     const rows = payload && Array.isArray(payload.hits) ? payload.hits : []
     return rows.filter((r) => r && typeof r.symbol === 'string' && r.in_nightly === false)
   }, [payload])
+
+  /** The hits in the order they are shown.
+   *
+   *  ⛔ A ROW WITH NO VALUE SINKS, NEVER SORTS AS ZERO. `null` is "not recorded",
+   *  and letting it compare as 0 would file every unrecorded row in the middle of a
+   *  member's ranking, which reads as an answer.
+   *  ⚠️ DESCENDING, and ties keep the scan's own order — `sort` is stable, so two
+   *  equal values stay in the order the sweep produced them rather than shuffling
+   *  between renders. */
+  const shown = useMemo(() => {
+    if (!sortByValue) return scanned
+    const valueOf = (t) => {
+      const r = provenance[t]
+      return r && typeof r.value === 'number' && Number.isFinite(r.value) ? r.value : null
+    }
+    return [...scanned].sort((a, b) => {
+      const va = valueOf(a)
+      const vb = valueOf(b)
+      if (va === null && vb === null) return 0
+      if (va === null) return 1
+      if (vb === null) return -1
+      return vb - va
+    })
+  }, [sortByValue, scanned, provenance])
+
+  /** Is there anything to sort BY? ⛔ The control does not appear when no hit
+   *  carries a value — an affordance that reorders nothing is a promise this
+   *  surface cannot keep. */
+  const anyValue = useMemo(
+    () => scanned.some((t) => {
+      const r = provenance[t]
+      return r && typeof r.value === 'number' && Number.isFinite(r.value)
+    }),
+    [scanned, provenance])
   const screenName = (definition && definition.meta && definition.meta.name)
     || (definition && definition.id) || ''
 
@@ -436,9 +508,22 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
 
       {status === 'evaluated' && <CoverageLine coverage={payload.coverage} />}
 
-      {status === 'evaluated' && tickers.length > 0 && (
+      {status === 'evaluated' && scanned.length > 0 && (
+        <>
+        {anyValue && (
+          <button
+            type="button"
+            className={styles.sortBtn}
+            data-testid="scan-sort-value"
+            aria-pressed={sortByValue}
+            onClick={() => setSortByValue((v) => !v)}
+          >
+            <UIcon name="chart" size={12} />
+            {sortByValue ? 'Sorted by value' : 'Sort by value'}
+          </button>
+        )}
         <ul className={styles.hits} data-testid="scan-hits">
-          {tickers.map((ticker) => (
+          {shown.map((ticker) => (
             <ScanResultRow
               key={ticker}
               ticker={ticker}
@@ -448,6 +533,7 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
             />
           ))}
         </ul>
+        </>
       )}
 
       {status === 'evaluated' && liveOnly.length > 0 && (
@@ -478,7 +564,7 @@ export default function ScanResults({ definition, asOf, tf = 'D', payload: given
         </ul>
       )}
 
-      {status === 'evaluated' && tickers.length === 0 && liveOnly.length === 0 && (
+      {status === 'evaluated' && scanned.length === 0 && liveOnly.length === 0 && (
         // ⛔ "NO MATCHES" IS SAID IN WORDS, and it is the OTHER half of
         // `CoverageLine`'s pair. That component deliberately refuses to brand an
         // empty screen at full coverage a data outage — which presumes something

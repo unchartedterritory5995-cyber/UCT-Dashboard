@@ -83,22 +83,48 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, logoEnabled: false, logoImg: null, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let lastMediaSize = null       // {width,height} of pane 0 in CSS px from last draw
   let armed = false              // hover/drag highlight
   let requestUpdate = null
 
+  // Badge geometry for the first line, sized + vertically centred on the CAP
+  // LETTERS (not the full line box, which reserves descender space for the comma).
+  // `ctx.font` must already be the first line's font. Falls back for canvas stubs
+  // (jsdom) that don't return glyph-bounding metrics.
+  function logoMetrics(ctx, fp) {
+    const prevBaseline = ctx.textBaseline
+    // Reference cap 'M' (no descender). With textBaseline='top' (how the text is
+    // drawn), its bounding-box descent is exactly cy → baseline; with 'alphabetic'
+    // its ascent is the cap height. jsdom returns no glyph metrics → fallbacks.
+    ctx.textBaseline = 'top'
+    const baselineFromTop = ctx.measureText('M').actualBoundingBoxDescent || fp * 0.78
+    ctx.textBaseline = 'alphabetic'
+    const capH = ctx.measureText('M').actualBoundingBoxAscent || fp * 0.72
+    ctx.textBaseline = prevBaseline
+    // cy → the vertical MIDDLE of the uppercase letters.
+    const capCenterOffset = baselineFromTop - capH / 2
+    const dia = capH * 1.12                                 // badge ≈ the cap height
+    const advance = dia + fp * 0.22                         // badge width + gap before the text
+    return { capCenterOffset, dia, advance }
+  }
+
   function measureBlock(ctx) {
     let w = 0
     let h = 0
+    const lineWidths = []
     opts.lines.forEach((line, i) => {
       const fp = watermarkFontPx(line, opts.sizeScale)
       ctx.font = makeFont(fp, opts.weight)
-      w = Math.max(w, ctx.measureText(line.text).width)
+      let lw = ctx.measureText(line.text).width
+      // A logo badge prefixes the FIRST line.
+      if (i === 0 && opts.logoEnabled) lw += logoMetrics(ctx, fp).advance
+      lineWidths.push(lw)
+      w = Math.max(w, lw)
       h += fp + (i > 0 ? LINE_GAP * (opts.sizeScale || 1) : 0)
     })
-    return { w, h }
+    return { w, h, lineWidths }
   }
 
   const paneView = {
@@ -114,10 +140,10 @@ export function createWatermarkPrimitive(initial) {
           lastMediaSize = { width: mediaSize.width, height: mediaSize.height }
           const [r, g, b] = hexToRgb(opts.color)
           const alpha = armed ? Math.min(1, opts.opacity * 2.4) : opts.opacity
-          // Text justifies to the aligned edge so a shorter line lines up with it.
-          const tx = align === 'left' ? rect.x : align === 'right' ? rect.x + rect.w : rect.x + rect.w / 2
           ctx.save()
-          ctx.textAlign = align
+          // Each line's left x is computed explicitly (textAlign left) so a logo can
+          // prefix the first line and every line still justifies per `align`.
+          ctx.textAlign = 'left'
           ctx.textBaseline = 'top'
           ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
           let cy = rect.y
@@ -125,7 +151,36 @@ export function createWatermarkPrimitive(initial) {
             const fp = watermarkFontPx(line, opts.sizeScale)
             if (i > 0) cy += LINE_GAP * (opts.sizeScale || 1)
             ctx.font = makeFont(fp, opts.weight)
-            ctx.fillText(line.text, tx, cy)
+            const lw = block.lineWidths[i]
+            const lineLeft = align === 'left' ? rect.x
+              : align === 'right' ? rect.x + rect.w - lw
+                : rect.x + (rect.w - lw) / 2
+            if (i === 0 && opts.logoEnabled) {
+              // A circular badge (like the header logo), sized + centred on the CAP
+              // LETTERS so it aligns with the ticker text rather than the taller line
+              // box. The circle always shows — even for a ticker with no logo image.
+              const lm = logoMetrics(ctx, fp)
+              const rad = lm.dia / 2
+              const ccx = lineLeft + rad
+              const ccy = cy + lm.capCenterOffset        // middle of the caps
+              ctx.beginPath()
+              ctx.arc(ccx, ccy, rad, 0, Math.PI * 2)
+              ctx.fill()                    // fillStyle is already the watermark colour+alpha
+              if (opts.logoImg) {
+                // Draw the (square) logo at the FULL circle size, clipped to the
+                // circle — the brand background fills the badge so it reads as a
+                // round logo (not a small square on a grey disc). The circle is
+                // inscribed in the square, so an opaque logo covers the grey entirely.
+                ctx.save()
+                ctx.beginPath(); ctx.arc(ccx, ccy, rad, 0, Math.PI * 2); ctx.clip()
+                ctx.globalAlpha = alpha     // the image honours the watermark opacity
+                try { ctx.drawImage(opts.logoImg, ccx - rad, ccy - rad, lm.dia, lm.dia) } catch { /* broken/tainted */ }
+                ctx.restore()               // restores globalAlpha + clip
+              }
+              ctx.fillText(line.text, lineLeft + lm.advance, cy)
+            } else {
+              ctx.fillText(line.text, lineLeft, cy)
+            }
             cy += fp
           })
           if (armed) {

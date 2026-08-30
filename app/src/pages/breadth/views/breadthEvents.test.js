@@ -78,6 +78,15 @@ describe('percentile events', () => {
   it('does not fire on an ordinary reading inside the same window', () => {
     expect(find(scanEvents(varied(12)), 'lowWashout').firedToday).toBe(false)
   })
+
+  it('carries the highs side the spec asks for, on the highs series', () => {
+    const t = find(scanEvents(mkRows(60, i => ({ new_52w_highs: i === 0 ? 900 : 10 + (i % 40) }))),
+                   'highThrust')
+    expect(t.basis).toBe('percentile')
+    expect(t.note).toMatch(/new 52-week highs/i)
+    expect(t.note).toMatch(/top 5%/i)
+    expect(t.firedToday).toBe(true)
+  })
 })
 
 describe('zweigEma', () => {
@@ -145,6 +154,60 @@ describe('a percentile event is guarded against ITS OWN series', () => {
     const ev = find(scanEvents(rows), 'lowWashout')
     expect(ev.unavailable).toBeNull()
     expect(ev.firedToday).toBe(true)
+  })
+
+  // ⭐ THE TEST THAT MAKES THE `def.pctileField` FIX FALSIFIABLE.
+  //
+  // With ONE percentile event, hardcoding `'new_52w_lows'` back into the guard
+  // passed every test in this file — there was no second series for the guard
+  // to be wrong about. There are two now, and each fixture below leaves ONE of
+  // the two series empty across the whole window, so the guard's answer differs
+  // per event. A hardcoded field gives one answer for both and fails here.
+  const both = (events) => ({
+    washout: find(events, 'lowWashout'),
+    thrust: find(events, 'highThrust'),
+  })
+
+  it('a highs spike beside an EMPTY lows series fires only the thrust', () => {
+    const rows = mkRows(60, i => ({
+      new_52w_highs: i === 0 ? 900 : 10 + (i % 40),
+      new_52w_lows: null,
+    }))
+    const { washout, thrust } = both(scanEvents(rows))
+
+    expect(thrust.unavailable, 'the thrust was refused on a series it does not read').toBeNull()
+    expect(thrust.firedToday).toBe(true)
+
+    expect(washout.firedToday).toBe(false)
+    expect(washout.unavailable).toMatch(/readings to rank a percentile/i)
+  })
+
+  it('and the mirror: a lows spike beside an EMPTY highs series fires only the washout', () => {
+    const rows = mkRows(60, i => ({
+      new_52w_lows: i === 0 ? 900 : 10 + (i % 40),
+      new_52w_highs: null,
+    }))
+    const { washout, thrust } = both(scanEvents(rows))
+
+    expect(washout.unavailable).toBeNull()
+    expect(washout.firedToday).toBe(true)
+
+    expect(thrust.firedToday).toBe(false)
+    // The SPECIFIC refusal, not the generic "never reported" one: a guard reading
+    // the lows series would let the thrust through to its detector and produce
+    // the generic message instead.
+    expect(thrust.unavailable).toMatch(/readings to rank a percentile/i)
+  })
+
+  it('both fire together when both series are deep and both spike', () => {
+    // The control: without this, the two tests above could pass on a scan that
+    // refuses every percentile event it is handed.
+    const rows = mkRows(60, i => ({
+      new_52w_highs: i === 0 ? 900 : 10 + (i % 40),
+      new_52w_lows: i === 0 ? 900 : 10 + (i % 40),
+    }))
+    const { washout, thrust } = both(scanEvents(rows))
+    expect([washout.firedToday, thrust.firedToday]).toEqual([true, true])
   })
 })
 
