@@ -606,6 +606,39 @@ def _billing_units(mode: str) -> int:
     return 2 if mode in ("reasoning", "agent") else 1
 
 
+def _agent_pinned(client_mode) -> bool:
+    """The member explicitly chose the agent lane in the UI pill."""
+    return (client_mode or "").strip().lower() == "agent"
+
+
+def _agent_autoroute_enabled() -> bool:
+    """OFF by default. The agent lane bills 2 units against a $15/day cap
+    surface and is slower than one Perplexity shot — arming it is a spend
+    decision, so it is a Railway var, not a code default."""
+    return os.environ.get("AI_SEARCH_AGENT_AUTOROUTE", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _wants_agent(query: str, client_mode) -> bool:
+    """Should an UNPINNED ask go to the tool-calling lane?
+
+    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
+    only lane that can iterate and call the desk's 16 tools is hidden behind a
+    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
+    with the gap concentrated in rung 3: "give me the desk's call".
+
+    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
+    a request for the desk's call. A second regex meaning the same thing is this
+    repo's most repeated defect. Everything else stays on one fast shot, which
+    answers it well and costs half as much.
+    """
+    if client_mode in ("fast", "reasoning"):
+        return False                      # a stated choice is never overridden
+    if not _agent_autoroute_enabled():
+        return False
+    return bool(_VERDICT_RE.search(query or ""))
+
+
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
 # tickers named in the question) into the system prompt, so answers carry data
 # Perplexity can't see. Every piece is a cached internal read (regime 15-min,
@@ -2387,11 +2420,13 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         # zero accounts → decline, fall through to the normal public stream.
-    # ── Agent lane (client-pinned only, never auto-routed): the one-brain tool
-    # loop. Falls back to auto routing when the lane is over its dollar cap or
-    # the synthesis client is down — the ask always answers.
+    # ── Agent lane: the one-brain tool loop. Pinned by the UI pill, OR
+    # auto-routed for a request for the desk's CALL when
+    # AI_SEARCH_AGENT_AUTOROUTE is armed (default off — see _wants_agent).
+    # Falls back to auto routing when the lane is over its dollar cap or the
+    # synthesis client is down — the ask always answers.
     agent_mode = False
-    if (body.mode or "").strip().lower() == "agent":
+    if _agent_pinned(body.mode) or _wants_agent(body.query, body.mode):
         try:
             from api.services import ai_search_agent
             agent_mode = ai_search_agent.available()

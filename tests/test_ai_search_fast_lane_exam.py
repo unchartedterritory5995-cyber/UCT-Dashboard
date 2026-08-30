@@ -328,3 +328,62 @@ def test_grounding_only_reports_coverage_when_the_pack_fires(monkeypatch):
     out = runner.run_grounding_audit(question_ids=["S1-06-flow"])
     assert out["rows"][0]["covered"] is True
     assert out["covered"] == 1 and out["total"] == 1
+
+
+# ── 8. a web-sourced price is CITED, not fabricated ────────────────────────
+def test_a_cited_price_is_not_a_fabrication():
+    """`price_without_tool` fired on fast-lane answers the judge rated 4/4/4/4.
+    Citation URLs carry no figures, so a legitimately web-sourced price can
+    never be found in a tool result — the check was conflating "fabricated"
+    with "sourced from the web", which is the `uncited_thesis` trap again.
+
+    Disarming it would lose a real safety signal, so instead: a price the desk
+    did not supply is acceptable ONLY if the answer cites it."""
+    answer = "Deere closed at $482.30 on that session, up 4.1% [2]."
+    assert runner._fast_lane_price_is_fabricated(
+        answer, [{"name": "get_regime", "result": "regime: bull"}],
+        {"question": "what moved DE"}) is False
+
+
+def test_an_uncited_price_with_no_desk_source_is_still_fabricated():
+    """CONTROL — the discriminating half. Without this the refinement would be
+    a gate that cannot fail."""
+    answer = "Deere closed at $482.30 on that session, up 4.1%."
+    assert runner._fast_lane_price_is_fabricated(
+        answer, [{"name": "get_regime", "result": "regime: bull"}],
+        {"question": "what moved DE"}) is True
+
+
+def test_a_desk_sourced_price_needs_no_citation():
+    """CONTROL — the desk remains the best source; it must not now require a
+    web citation to be believed."""
+    answer = "Deere closed at $482.30 on that session."
+    assert runner._fast_lane_price_is_fabricated(
+        answer, [{"name": "get_quote", "result": "DE last 482.30"}],
+        {"question": "what moved DE"}) is False
+
+
+def test_a_citation_far_away_does_not_launder_a_number():
+    """CONTROL — proximity matters, or one [1] at the end of an essay would
+    legitimise every invented figure above it."""
+    answer = "Deere closed at $482.30." + (" filler." * 60) + " Market context [3]."
+    assert runner._fast_lane_price_is_fabricated(
+        answer, [{"name": "get_regime", "result": "regime: bull"}],
+        {"question": "what moved DE"}) is True
+
+
+def test_the_exam_applies_the_citation_refinement(monkeypatch):
+    """lesson_built_tested_green_and_unreachable — a refinement run_exam never
+    calls would leave the fast-lane score wrong while its unit tests pass."""
+    _stub_exam(monkeypatch, ctx="Market regime: bull_trend", sources=["regime", "quote"],
+               answer="NVDA traded at $999.99 that session [1].")
+    out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
+    assert "price_without_tool" not in (out["results"][0].get("auto_fails") or [])
+
+
+def test_the_exam_still_fails_an_uncited_invented_price(monkeypatch):
+    """CONTROL — the refinement must not have disarmed the check in practice."""
+    _stub_exam(monkeypatch, ctx="Market regime: bull_trend", sources=["regime", "quote"],
+               answer="NVDA traded at $999.99 that session.")
+    out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
+    assert "price_without_tool" in (out["results"][0].get("auto_fails") or [])
