@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useEffect, useId, useMemo } from 'react'
 import styles from './ModalShell.module.css'
-import { activeStop, positionPnlDollar, tradeRMultiple, money, moneySigned, rMultiple } from '../../../lib/journal-2-0'
+import { realStop, positionPnlDollar, tradeRMultiple, money, moneySigned, rMultiple } from '../../../lib/journal-2-0'
 import TagChipPicker from './TagChipPicker'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
@@ -101,7 +101,16 @@ export default function ClosePositionModal({ position, currentPrice, onSave, onC
           <div className={styles.infoBanner}>
             <span>Remaining: <strong>{position.shares}</strong></span>
             <span>Entry: <strong>{money(position.entryPrice)}</strong></span>
-            <span>Stop: <strong>{money(activeStop(position))}</strong></span>
+            {/* ⛔ `realStop`, NOT `activeStop`. A manual row created without a
+                stop carries `stopPrice = 0.0` (positions.py seeds it; the
+                column is NOT NULL), and this dialog rendered it as
+                "Stop: $0.00" — telling a member they were protected at zero,
+                in the one place they act on the number. The cockpit and the
+                Positions tab already call that row unstopped; this was the
+                last surface holding the other answer, and it made
+                calculations.js's "the predicate every surface should ask"
+                claim false. */}
+            <span>Stop: <strong>{realStop(position) == null ? '—' : money(realStop(position))}</strong></span>
           </div>
 
           <div className={styles.grid2}>

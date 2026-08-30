@@ -106,3 +106,39 @@ describe('ClosePositionModal', () => {
     expect(screen.getByText(/\+3.0R/)).toBeInTheDocument()
   })
 })
+
+// ─── 🔴 THE LAST SURFACE HOLDING THE OTHER ANSWER ABOUT A $0 STOP ───────────
+//
+// `calculations.js` now says `realStop` is "the predicate every surface should
+// ask", and this dialog was the one that made that claim false: it rendered
+// `activeStop(position)` unguarded, so a manual row created without a stop
+// (positions.py seeds `stop_price = 0.0`; the column is NOT NULL) showed
+// **Stop: $0.00** — in the one place a member acts on the number.
+describe('ClosePositionModal — a position with no real stop', () => {
+  const NO_STOP = { ...YSS, id: 'nostop-1', entryPrice: 100, stopPrice: 0 }
+
+  it('renders a dash, never "$0.00", for a stop that does not exist', () => {
+    render(<ClosePositionModal position={NO_STOP} currentPrice={110} onSave={vi.fn()} onClose={vi.fn()} />)
+    const banner = document.querySelector('[class*="infoBanner"]')
+    expect(banner, 'the info banner is gone').not.toBeNull()
+    expect(banner.textContent).toMatch(/Stop:\s*—/)
+    expect(banner.textContent,
+      'a $0.00 stop is presented as protection in the close dialog — the cockpit '
+      + 'and the Positions tab both call this row unstopped').not.toMatch(/Stop:\s*\$0\.00/)
+  })
+
+  it('a BROKER placeholder stop reads the same way', () => {
+    const placeholder = { ...YSS, id: 'ph-1', entryPrice: 100, stopPrice: 100, source: 'broker' }
+    render(<ClosePositionModal position={placeholder} currentPrice={110} onSave={vi.fn()} onClose={vi.fn()} />)
+    const banner = document.querySelector('[class*="infoBanner"]')
+    expect(banner.textContent).toMatch(/Stop:\s*—/)
+  })
+
+  it('CONTROL: a REAL stop still renders its price', () => {
+    // Without this, the assertions above are satisfied by a dialog that never
+    // shows a stop at all.
+    render(<ClosePositionModal position={YSS} currentPrice={35.53} onSave={vi.fn()} onClose={vi.fn()} />)
+    const banner = document.querySelector('[class*="infoBanner"]')
+    expect(banner.textContent).toMatch(/Stop:\s*\$27\.90/)
+  })
+})

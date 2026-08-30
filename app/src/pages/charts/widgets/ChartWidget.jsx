@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import ShareToFloor from '../../../components/community/ShareToFloor'
@@ -286,6 +286,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
   const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
+  const ctxMenuRef = useRef(null)
+  // Location-aware in Y too: after the menu renders, measure it and nudge it fully
+  // on-screen so a right-click near the bottom (or right) never clips off. Runs in a
+  // layout effect so the correction lands BEFORE paint (no visible jump). Converges:
+  // once in-bounds the guard is false, so it doesn't loop.
+  useLayoutEffect(() => {
+    const el = ctxMenuRef.current
+    if (!ctxMenu || !el) return
+    const r = el.getBoundingClientRect()
+    const M = 8
+    let nx = ctxMenu.x, ny = ctxMenu.y
+    if (r.height && ctxMenu.y + r.height > window.innerHeight - M) ny = Math.max(M, window.innerHeight - M - r.height)
+    if (r.width && ctxMenu.x + r.width > window.innerWidth - M) nx = Math.max(M, window.innerWidth - M - r.width)
+    if (nx !== ctxMenu.x || ny !== ctxMenu.y) setCtxMenu(m => (m ? { ...m, x: nx, y: ny } : m))
+  }, [ctxMenu, ctxSub])
 
   // Saved chart-settings templates (the same `chart_templates` pref the settings
   // modal writes) — listed in the right-click "Chart template" flyout so a saved
@@ -316,16 +331,32 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onOptsChange?.({ ...(opts || {}), watermarkPos: null })
   }, [opts, onOptsChange])
 
+  // Location-aware right-click item — one row keyed to WHERE the click landed,
+  // opening Chart settings at the matching section. Order = priority (watermark
+  // sits on top of the plot). Future self-learning items extend this.
+  const ctxLocItem = ctxMenu ? (() => {
+    if (ctxMenu.onWatermark) return { icon: 'pin', label: 'Watermark settings', target: 'watermark' }
+    const rt = ctxMenu.region?.type
+    if (rt === 'priceAxis' || rt === 'timeAxis') return { icon: 'ruler', label: 'Axis settings', target: 'axis' }
+    if (rt === 'overlay') return { icon: 'sliders', label: 'MA settings', target: 'ma' }
+    if (rt === 'volume') return { icon: 'chart', label: 'Volume settings', target: 'volume' }
+    if (rt === 'price') {
+      return ctxMenu.onCandle
+        ? { icon: 'chart', label: 'Candle settings', target: 'candles' }
+        : { icon: 'gear', label: 'Canvas settings', target: 'canvas' }
+    }
+    return null
+  })() : null
+
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
-    // Clamp so the ~230px×~180px menu stays on screen.
-    const x = Math.min(p.clientX, window.innerWidth - 236)
-    const y = Math.min(p.clientY, window.innerHeight - 190)
-    setCtxMenu({ x: Math.max(6, x), y: Math.max(6, y), rawX: p.clientX, rawY: p.clientY,
+    // Open at the click; the layout effect measures the real menu and nudges it fully
+    // on-screen (so a fixed height estimate can't leave it clipped at the bottom).
+    setCtxMenu({ x: Math.max(6, p.clientX), y: Math.max(6, p.clientY), rawX: p.clientX, rawY: p.clientY,
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
       clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
-      onWatermark: p.onWatermark })
+      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle })
   }, [])
 
   useEffect(() => {
@@ -549,7 +580,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             onClick={closeCtx}
             onContextMenu={(e) => { e.preventDefault(); closeCtx() }}
           />
-          <div className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
+          <div ref={ctxMenuRef} className={styles.chartCtxMenu} style={{ left: ctxMenu.x, top: ctxMenu.y, ...menuVars }} role="menu">
             {ctxSub === 'add' ? (
               /* Add-widget picker — same roster the workspace Widgets menu shows.
                  Selecting one drops it onto the canvas as a floating widget. */
@@ -571,24 +602,41 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
-                  <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
-                    <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
-                    Set alert @ ${ctxMenu.price.toFixed(2)}
-                  </button>
+                  <>
+                    <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                      <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
+                      Set alert @ ${ctxMenu.price.toFixed(2)}
+                    </button>
+                    <div className={styles.menuDivider} />
+                  </>
                 )}
+                {/* ── Chart actions ── */}
                 <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
-                <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
+                <button type="button" className={styles.chartCtxItem} onClick={() => {
+                  ctxMenu.resetView?.(); closeCtx()
+                  // Return focus to the chart so type-to-search works immediately (else
+                  // the first keypress hits a global drawing-tool hotkey, not the search).
+                  requestAnimationFrame(() => { try { paneRef.current?.focus?.() } catch { /* noop */ } })
+                }}>
                   <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
                 </button>
-                {/* Location-aware: only when the right-click landed on the watermark. */}
-                {ctxMenu.onWatermark && (
-                  <button type="button" className={styles.chartCtxItem} onClick={startWatermarkAdjust}>
-                    <UIcon name="pin" size={14} className={styles.chartCtxIcon} />Adjust watermark
-                  </button>
+                {/* ── Location-aware section — ONE item keyed to WHERE the user
+                    right-clicked (watermark / price axis / moving average / candle /
+                    blank canvas), opening Chart settings at the matching section. ── */}
+                {ctxLocItem && (
+                  <>
+                    <div className={styles.menuDivider} />
+                    <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
+                      <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
+                    </button>
+                  </>
                 )}
+                <div className={styles.menuDivider} />
+                {/* ── Chart configuration ── */}
                 <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
@@ -629,10 +677,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
+                {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
-                  <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
-                    <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
-                  </button>
+                  <>
+                    <div className={styles.menuDivider} />
+                    <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                      <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
+                    </button>
+                  </>
                 )}
                 {ctxMenu.bar && (
                   <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>

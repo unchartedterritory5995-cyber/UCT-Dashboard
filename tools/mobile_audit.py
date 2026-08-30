@@ -35,7 +35,14 @@ VIEWPORTS = {
                            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"},
     "phone390": {"width": 390, "height": 844, "isMobile": True, "deviceScaleFactor": 3},
     "tablet": {"width": 820, "height": 1180, "isMobile": True, "deviceScaleFactor": 2},
+    "desktop": {"width": 1280, "height": 1000, "deviceScaleFactor": 1, "isMobile": False},
 }
+
+# Vertical budget in "screens" per (route, viewport). A pair absent from
+# this map is not budgeted. Phone and tablet legitimately scroll — the
+# phone dashboard is ~2,768px — so budgeting them would be permanently
+# red, and a permanently-red rail is one nobody reads.
+HEIGHT_BUDGETS = {("/dashboard", "desktop"): 1.05}
 
 PUBLIC_ROUTES = ["/", "/login", "/signup", "/terms", "/privacy"]
 
@@ -83,7 +90,21 @@ PROBE_JS = r"""
     }
   });
 
-  return { overflowX, vw, scrollWidth: de.scrollWidth, offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10) };
+  // The dashboard's scroll container is the flex child, not <html>.
+  const sc = document.querySelector('[class*="_content_"]') || de;
+  const scrollHeight = sc.scrollHeight;
+  const viewportHeight = window.innerHeight;
+  // viewportHeight <= 0 would make screens NaN, and `NaN > budget` is
+  // false — a fail-open path in a rail whose whole job is to fail loud.
+  // Report null instead so the Python side can flag it explicitly rather
+  // than silently reading "ok".
+  const screens = viewportHeight > 0 ? +(scrollHeight / viewportHeight).toFixed(2) : null;
+
+  return {
+    overflowX, vw, scrollWidth: de.scrollWidth,
+    offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10),
+    scrollHeight, viewportHeight, screens,
+  };
 }
 """
 
@@ -218,7 +239,35 @@ def main():
                     entry.update(probe)
                     entry["screenshot"] = str(shot.relative_to(OUT_DIR.parent))
                     flag = "OVERFLOW" if probe["overflowX"] > 2 else "ok"
-                    print(f"[{vp_name:8}] {route:24} {flag:9} overflowX={probe['overflowX']:>4}  small={probe['smallCount']}")
+                    # Vertical budget: /dashboard must fit one viewport.
+                    # Baseline measured 2026-08-30: 5.5 screens at 2133x1050,
+                    # 6.9 at 1277x1000. Target after Phase 3: <= 1.05.
+                    # Three states MUST stay distinguishable in report.json:
+                    # absent heightFlag = not budgeted; "ok" = checked and
+                    # passed; "OVER_BUDGET" = checked and failed. A budgeted
+                    # route therefore ALWAYS writes heightFlag, pass or fail —
+                    # never only on the failure branch, or "checked, passed"
+                    # and "never looked" become the same (missing) key.
+                    budget = HEIGHT_BUDGETS.get((route, vp_name))
+                    if budget is None:
+                        hflag = "n/a"  # console-only; not budgeted, no entry key
+                    else:
+                        screens_val = probe.get("screens")
+                        if screens_val is None:
+                            # viewportHeight was <=0 in the probe — a real
+                            # failure to measure, not a silent "ok".
+                            hflag = "NO_HEIGHT_DATA"
+                        elif screens_val > budget:
+                            hflag = "OVER_BUDGET"
+                        else:
+                            hflag = "ok"
+                        entry["heightFlag"] = hflag
+                    # ONE line per route/viewport. The height columns were added
+                    # as a second print(), which repeated the route and flag and
+                    # made the report twice as long to read for no new fact.
+                    print(f"[{vp_name:8}] {route:24} {flag:9} {hflag:12} "
+                          f"screens={probe.get('screens')}  "
+                          f"overflowX={probe['overflowX']:>4}  small={probe['smallCount']}")
                 except Exception as e:  # noqa: BLE001
                     entry["error"] = str(e)
                     print(f"[{vp_name:8}] {route:24} ERROR {e}", file=sys.stderr)

@@ -13,137 +13,117 @@
   flex-direction: column;
   gap: var(--space-md);
 }
-.row1 { width: 100%; }
 
-/* ── Command-center grid (2026-07-02 restyle) ─────────────────────────────
-   Row B: catalysts HERO (7fr) + right rail (journal over movers, 5fr).
-   Row C: 4-up glance row. Row D: earnings + options flow. */
-.rowB {
+/* ── THE FOUR-ZONE COCKPIT ────────────────────────────────────────────────
+   ⛔ THE HEIGHT BUDGET IS THE DESIGN. Zones declare their height; content
+   scrolls inside. Rail: tools/mobile_audit.py HEIGHT_BUDGETS['/dashboard'].
+   Baseline before this change: 5.5 screens at 2133, 6.9 at 1277.
+
+   120 + 440 + 300 + 90 + 3 gaps ≈ 990px, against a 1050px viewport.
+
+   ⭐ EACH ZONE HEIGHT IS WRITTEN EXACTLY ONCE, as a custom property, and every
+   other height here is DERIVED from those three by calc(). `--zone-stack` is
+   never a typed sum: change 440 to 400 and the cockpit row, the rail cap and
+   the collapse arithmetic all follow. (A second authority over one value is
+   this repo's most repeated defect; a hand-summed 860px would be one.)
+
+   ⛔ ONLY 640 AND 1024 ARE CANONICAL (CLAUDE.md, Responsive/Mobile System).
+   This file previously carried 1440 / 1100 / 768 blocks; the rewrite deletes
+   them rather than porting them, so no non-canonical literal survives here. */
+.desktopOnly {
+  --zone-a: 120px;
+  --zone-b: 440px;
+  --zone-c: 300px;
+  /* Zone D was OUTSIDE this invariant: `.zoneD` declared only a margin and the
+     90px lived in ZoneDoors.module.css with no overflow, so the one zone whose
+     content is variable-width labels was also the one nothing bounded. The
+     page measures ~1,006px against a 1,000px viewport — a wrapping door label
+     is exactly what eats the remaining headroom. */
+  --zone-d: 90px;
+  /* A + B + C plus the two gaps BETWEEN them — the height .main occupies. */
+  --zone-stack: calc(var(--zone-a) + var(--zone-b) + var(--zone-c) + 2 * var(--space-md));
+}
+.cockpit {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: minmax(0, 1fr) 240px;
+  /* 🔴 THE ROW IS EXPLICIT, AND THAT IS THE POINT. It used to be implicit and
+     auto-sized, so it resolved to max(.main, .rail) — which meant .rail had a
+     240px WIDTH and no height bound at all, and `.rail > * { max-height: 100% }`
+     computed to `none` against an indefinite parent. On a heavy gap day
+     MoversSidebar simply grew the cockpit past the A+B+C budget. That is
+     defect #1's exact shape — "no track to resolve against" — reintroduced by
+     the change that fixed it. A definite row is what makes the rail's cap real. */
+  grid-template-rows: var(--zone-stack);
   gap: var(--space-md);
-  align-items: start;
 }
+.main { display: grid; grid-template-rows: var(--zone-a) var(--zone-b) var(--zone-c); gap: var(--space-md); min-width: 0; }
 
-.hero {
-  max-height: 680px;
-  overflow-y: auto;
-  border-radius: var(--radius-xl, 14px);
-}
+/* ⛔ EXPLICIT TRACKS, NOT AUTO-PLACEMENT. Without these, hiding any zone slides
+   the ones below it up into the wrong-size track. */
+.zoneA { grid-row: 1; }
+.zoneB { grid-row: 2; }
+.zoneC { grid-row: 3; }
 
-/* Gold-edge emphasis on the hero tile — element selector so TileCard's
-   hashed classes stay untouched. */
-.hero > :first-child {
+.zoneA, .zoneB, .zoneC, .rail { min-height: 0; overflow: hidden; }
+.zoneB > *, .zoneC > *, .rail > * { max-height: 100%; overflow-y: auto; }
+.zoneD { margin-top: var(--space-md); max-height: var(--zone-d); overflow: hidden; }
+
+/* 🔴 AN EMPTY ZONE B COLLAPSES ITS TRACK — IT DOES NOT MERELY HIDE ITS ITEM.
+   TheWeek returns null when all three panels are empty (a quiet weekend, or a
+   desk outage); `.zoneB` is then genuinely `:empty`.
+
+   ⚰️ THIS RULE USED TO BE `.zoneB:empty { display: none }`, WHICH DID NOT DO
+   WHAT ITS COMMENT CLAIMED. `.main` declares three FIXED explicit tracks, and
+   removing an item does not remove a track: Zone C auto-placed into the 440px
+   track and the 300px track sat empty at the bottom. Same total height, Zone C
+   in the wrong-size box, and a 300px void — the 849px dead column in a
+   different costume, which is precisely what it was written to prevent.
+
+   ⭐ SETTING `--zone-b: 0px` IS THE WHOLE FIX, because everything downstream is
+   derived from it: `.main`'s middle track (custom properties inherit), and
+   `--zone-stack`, which resolves `var(--zone-b)` at computed-value time and so
+   shrinks the cockpit row — and the rail's cap with it — by the same 440px.
+   ⚠️ One `var(--space-md)` gap around the zero track remains; that is real and
+   deliberate, not an oversight. */
+.desktopOnly:has(.zoneB:empty) { --zone-b: 0px; }
+
+/* Gold-edge emphasis on the hero zone — element selector so TileCard's hashed
+   classes stay untouched. */
+.zoneB > :first-child {
   border-color: var(--accent);
   box-shadow: 0 0 22px rgba(220, 187, 94, 0.07);
 }
 
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  min-width: 0;
-}
-
-.railMovers {
-  max-height: 420px;
-  overflow-y: auto;
-  border-radius: var(--radius-xl, 14px);
-}
-
-.rowC {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-md);
-  align-items: stretch;
-}
-
-.rowD {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md);
-  align-items: start;
-}
-
-/* Hover lift on every desktop tile (element selector on TileCard roots). */
-.desktopOnly :is(.rowB, .rowC, .rowD) > * > :first-child,
-.desktopOnly .rail > * > :first-child {
+/* Hover lift on the zone tiles (element selector on TileCard roots). */
+.desktopOnly :is(.zoneB, .zoneC) > :first-child {
   transition: transform 0.15s ease, border-color 0.15s ease;
 }
-
 @media (hover: hover) {
-  .desktopOnly :is(.rowC, .rowD) > *:hover > :first-child {
+  .desktopOnly .zoneC:hover > :first-child {
     transform: translateY(-1px);
     border-color: var(--accent);
   }
 }
 
-.row2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--space-md);
-  align-items: stretch;
-}
-
-.comingSoon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 180px;
-  color: var(--text-muted);
-}
-.comingSoonIcon {
-  font-size: 28px;
-  opacity: 0.3;
-}
-.comingSoonLabel {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  opacity: 0.4;
-}
-.row3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 390px;
-  gap: var(--space-md);
-}
-.row4 {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-md);
-}
-
 /* ── Hide mobile layout on desktop ────────────────────────────────────────── */
 .mobileOnly { display: none; }
 
-@media (max-width: 1440px) {
-  .rowC { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 1100px) {
-  .rowB { grid-template-columns: 1fr; }
-  .hero { max-height: none; overflow: visible; }
-  .rail {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-  .rowD { grid-template-columns: 1fr; }
-  .row2 { grid-template-columns: 1fr 1fr; }
-  .row3 { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
-  .row4 { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 768px) {
-  .content { padding: 10px; gap: 10px; }
-  .rail { grid-template-columns: 1fr; }
-  .row2 { grid-template-columns: 1fr; }
-  .row3 { grid-template-columns: 1fr; grid-template-rows: auto; }
+/* Tablet/touch (≤1024): the rail drops under the zones and the fixed row
+   heights become content-sized — a 440px hero in a single narrow column is a
+   scroll-in-a-scroll, not a budget. */
+@media (max-width: 1024px) {
+  .cockpit { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .main { grid-template-rows: auto auto auto; }
+  .zoneA, .zoneB, .zoneC, .rail { overflow: visible; }
+  .zoneB > *, .zoneC > *, .rail > * { max-height: none; overflow-y: visible; }
+  /* 🔴 ZONE D IS EXEMPT HERE, AND THE EXEMPTION IS LOAD-BEARING. Below 1024 the
+     door grid drops to `repeat(4, …)`, so eight doors become TWO rows — roughly
+     114px with the gap, against a 90px cap. `ZoneDoors.module.css` used to
+     carry exactly this override (`max-height: none`) and it was deleted when
+     the cap moved onto `.zoneD`, which clipped the bottom row of four doors in
+     half with `overflow: hidden` and no scroll. 820px is the audit harness's
+     own tablet viewport. Rail: Dashboard.zones.test.jsx. */
+  .zoneD { max-height: none; overflow: visible; }
 }
 
 /* ── Mobile: swap to accordion layout ─────────────────────────────────────── */

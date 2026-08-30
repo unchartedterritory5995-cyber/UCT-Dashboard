@@ -1,23 +1,51 @@
+// app/src/pages/Dashboard.jsx
+//
+// ─── THE FOUR-ZONE COCKPIT ──────────────────────────────────────────────────
+//
+// `/dashboard` is the paid member's home. It used to stack 15 tiles with no
+// height budget and render ONE composition regardless of what kind of day it
+// was: 5.5 screens of scroll, and on a Saturday a hero reading "Markets are
+// closed" beside an 849px dead column.
+//
+// It is now four zones with DECLARED heights (Dashboard.module.css owns the
+// budget; content scrolls inside its zone, the page does not):
+//
+//   Zone A · THE READ      — session + exposure + index strip       120px
+//   Zone B · THE DECISION  — weekday: catalysts · weekend: The Week  440px
+//   Zone C · YOUR RISK     — open book, today's P&L                  300px
+//   Zone D · THE DOORS     — 8 signposts, one live number each        90px
+//   ...plus a 240px Movers rail beside A-C.
+//
+// ⛔ ZONE B IS THE ONLY ZONE THAT VARIES. `useSessionState()` resolves exactly
+// one of PREMARKET/LIVE/CLOSED/WEEKEND per render; A, C and D are constant.
+// Rail: Dashboard.session.test.jsx.
+//
+// ⛔ SEVEN PREVIEW TILES LOST THEIR MOUNT HERE AND BECAME ZONE D DOORS
+// (LeadershipTile · CatalystFlow · OptionsFlowPreview · DeskVideoRail ·
+// CompassTodayTile · SectorRotation · IntradayPulse), plus TapeFeed, whose
+// content now lives INSIDE MoversSidebar (64960303b) and was rendering twice.
+// Their FILES are kept as rollback backup — the same keep-the-file/cut-the-
+// mount idiom as LiveFlow.jsx and api/routers/trades.py — and each is recorded
+// by name, with the door that replaces it, in
+// `components/screener/reachable.test.js`'s AWAITING_A_DECISION. A signpost is
+// not a duplicate; it is a link with a number on it, at ~90px instead of the
+// ~4,000px the previews cost.
 import { useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import FuturesStrip from '../components/tiles/FuturesStrip'
-import IntradayPulse from '../components/tiles/IntradayPulse'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import ThemeTracker from '../components/tiles/ThemeTracker'
-import CatalystFlow from '../components/tiles/CatalystFlow'
-import LeadershipTile from '../components/tiles/LeadershipTile'
-import TapeFeed from '../components/tiles/TapeFeed'
 import JournalSnapshotTile from '../components/tiles/JournalSnapshotTile'
 import FlowScoreboardTile from '../components/tiles/FlowScoreboardTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
-import DeskVideoRail from '../components/dashboard/DeskVideoRail'
-import CompassTodayTile from '../components/tiles/CompassTodayTile'
-import OptionsFlowPreview from '../components/tiles/OptionsFlowPreview'
-import SectorRotation from '../components/tiles/SectorRotation'
 import UIcon from '../components/ui/UIcon'
+import useSessionState from './dashboard/useSessionState'
+import ZoneRead from './dashboard/ZoneRead'
+import TheWeek from './dashboard/TheWeek'
+import ZoneDoors from './dashboard/ZoneDoors'
 import styles from './Dashboard.module.css'
 
 /* ── Mobile accordion section ────────────────────────────────────────────── */
@@ -57,8 +85,8 @@ function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) 
 
 export default function Dashboard() {
   const { mutate } = useSWRConfig()
-  // Mobile accordion state — Movers open by default (breadth/catalysts/compass
-  // are now always-visible in the triaged stack above the accordion).
+  const session = useSessionState()
+  // Mobile accordion state — Movers open by default.
   const [openSection, setOpenSection] = useState('movers')
 
   const toggle = useCallback((key) => {
@@ -67,51 +95,42 @@ export default function Dashboard() {
 
   const handleRefresh = useCallback(() => mutate(() => true, undefined, { revalidate: true }), [mutate])
 
+  // ⛔ ONE authority for the hero, read by BOTH branches. jsdom renders desktop
+  // and mobile together (CSS hides one, and jsdom computes no CSS), so a
+  // weekday-only mobile hero would leave a Saturday member on a phone looking
+  // at the very composition this redesign exists to retire.
+  const hero = session === 'WEEKEND' ? <TheWeek /> : <CatalystTable />
+
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        {/* ── Desktop: command-center grid (2026-07-02 restyle) ──────────── */}
+        {/* ── Desktop: the four-zone cockpit ────────────────────────────── */}
         <div className={styles.desktopOnly}>
-          {/* Index boxes (QQQ/SPY/IWM/DIA/BTC/VIX) + Quote of the Day */}
-          <div className={styles.row1}>
-            <FuturesStrip />
-          </div>
-          <IntradayPulse />
+          <div className={styles.cockpit}>
+            <div className={styles.main}>
+              {/* Zone A · THE READ — session pill + UCT exposure + a compact
+                  six-across index strip, in the declared 120px. The Quote of
+                  the Day is demoted out of the top row (ZoneRead passes
+                  FuturesStrip `hideQuote`) and reduced to one line.
 
-          {/* Row B — the decision row: catalysts hero + journal/movers rail */}
-          <div className={styles.rowB}>
-            <div className={styles.hero}>
-              <CatalystTable />
+                  ⛔ …AND SUPPRESSED ENTIRELY ON THE WEEKEND, because that is
+                  the one state where Zone B's hero (`TheWeek`) gives the quote
+                  its own first-class panel. Both read the same
+                  `useQuoteOfTheDay`, which has a local rotation fallback and so
+                  is ALWAYS truthy — the duplicate was guaranteed, every
+                  weekend, not occasional. Two tasks each correct alone (Task 12
+                  gave the quote its panel; the S4 fix gave Zone A its
+                  one-liner) and nobody owned the pair. */}
+              <div className={styles.zoneA}><ZoneRead showQuote={session !== 'WEEKEND'} /></div>
+              {/* Zone B · THE DECISION — the only zone that varies. */}
+              <div className={styles.zoneB}>{hero}</div>
+              {/* Zone C · YOUR RISK */}
+              <div className={styles.zoneC}><JournalSnapshotTile /></div>
             </div>
-            <div className={styles.rail}>
-              <JournalSnapshotTile />
-              <FlowScoreboardTile />
-              <div className={styles.railMovers}>
-                <MoversSidebar />
-              </div>
-            </div>
+            <aside className={styles.rail}><MoversSidebar /></aside>
           </div>
-
-          {/* Row C — market glance */}
-          <div className={styles.rowC}>
-            <MarketBreadth />
-            <ThemeTracker />
-            <LeadershipTile />
-            <TapeFeed />
-          </div>
-
-          {/* Sector rotation — SPDR sectors ranked strongest→weakest */}
-          <SectorRotation />
-
-          {/* Row D — earnings + flow */}
-          <div className={styles.rowD}>
-            <CatalystFlow />
-            <OptionsFlowPreview />
-          </div>
-
-          <DeskVideoRail />
-          {/* Compass noticed — self-hiding awareness feed */}
-          <CompassTodayTile />
+          {/* Zone D · THE DOORS */}
+          <div className={styles.zoneD}><ZoneDoors /></div>
         </div>
 
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}
@@ -121,36 +140,28 @@ export default function Dashboard() {
             <JournalSnapshotTile />
             {/* Morning Wire entry */}
             <Link to="/morning-wire" className={styles.mwLink}>
-              <span><UIcon name="wire" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} /> Morning Wire — today's read &amp; top picks</span>
+              <span><UIcon name="wire" size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} /> Morning Wire — today&rsquo;s read &amp; top picks</span>
               <span aria-hidden="true">→</span>
             </Link>
             {/* 2. Breadth snapshot — always visible */}
             <MarketBreadth />
-            {/* 3. Catalysts / needs attention (★ highlights your tickers) */}
-            <CatalystTable />
-            {/* 4. Movers */}
+            {/* 3. The session hero — the same decision as Zone B above */}
+            {hero}
+            {/* 4. Movers (which now carries the tape) */}
             <MobileSection
               icon={<UIcon name="equity" />}
               title="Movers at the Open"
-              subtitle="Top gappers & drillers"
+              subtitle="Top gappers, drillers & the tape"
               expanded={openSection === 'movers'}
               onToggle={() => toggle('movers')}
             >
               <MoversSidebar />
             </MobileSection>
-            {/* 5. Market glance */}
-            <FuturesStrip />
-            <IntradayPulse />
-            {/* 6. The rest — collapsible */}
-            <MobileSection
-              icon={<UIcon name="flow" />}
-              title="Sector Rotation"
-              subtitle="Where money is rotating"
-              expanded={openSection === 'sectors'}
-              onToggle={() => toggle('sectors')}
-            >
-              <SectorRotation />
-            </MobileSection>
+            {/* 5. Market glance.
+                ⛔ Same weekend rule as Zone A above: on WEEKEND the hero is
+                TheWeek, which carries the quote's first-class panel, so this
+                strip must not render a second copy of the same line. */}
+            <FuturesStrip hideQuote={session === 'WEEKEND'} />
             <MobileSection
               icon={<UIcon name="flow" />}
               title="Theme Tracker"
@@ -160,48 +171,12 @@ export default function Dashboard() {
             >
               <ThemeTracker />
             </MobileSection>
-            <MobileSection
-              icon={<UIcon name="dollar" />}
-              title="Earnings"
-              subtitle="BMO & AMC catalyst flow"
-              expanded={openSection === 'earnings'}
-              onToggle={() => toggle('earnings')}
-            >
-              <CatalystFlow />
-            </MobileSection>
-            <MobileSection
-              icon={<UIcon name="star" />}
-              title="UCT 20"
-              subtitle="Leadership portfolio"
-              expanded={openSection === 'leadership'}
-              onToggle={() => toggle('leadership')}
-            >
-              <LeadershipTile />
-            </MobileSection>
-            <MobileSection
-              icon={<UIcon name="wire" />}
-              title="News"
-              subtitle="Live market tweets — on the tape"
-              expanded={openSection === 'news'}
-              onToggle={() => toggle('news')}
-            >
-              <TapeFeed />
-            </MobileSection>
-            <MobileSection
-              icon={<UIcon name="flow" />}
-              title="Options Flow"
-              subtitle="Top conviction flow today"
-              expanded={openSection === 'optflow'}
-              onToggle={() => toggle('optflow')}
-            >
-              <OptionsFlowPreview embedded />
-            </MobileSection>
             {/* Flow Scoreboard — verified Top Flow track record */}
             <FlowScoreboardTile />
-            {/* From the Desk — video discovery rail */}
-            <DeskVideoRail />
-            {/* Compass noticed — self-hiding awareness feed */}
-            <CompassTodayTile />
+            {/* 6. The doors — the same eight signposts as Zone D. This is where
+                a phone member reaches everything the retired previews used to
+                preview; without it the retirement would be only a removal. */}
+            <ZoneDoors />
           </PullToRefresh>
         </div>
 

@@ -62,9 +62,17 @@
   overflow-y: auto;
 }
 
+/* ⛔ NOT `1fr 1fr`. This renders in TWO containers of very different widths:
+   the Dashboard's 240px cockpit rail (~208px usable after padding) and a
+   full-width mobile section. Two fixed columns gave the rail ~100px each,
+   which is narrower than a ticker plus its percentage — measured 220px of
+   content in a 201px box, so the DRILLING column's percentages were clipped
+   behind a horizontal scrollbar. `auto-fit` + a 120px floor collapses to one
+   column when the container cannot honestly fit two, and keeps two on mobile.
+   Rail: MoversSidebar.overflow.test.js */
 .moversGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 24px;
   height: 100%;
 }
@@ -127,9 +135,44 @@
 .tape { color: var(--ut-gold, #dcbb5e); }
 
 .tapeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 18px;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+.tapeLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tapeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.tapeRow {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.tapeRow:last-child { border-bottom: none; padding-bottom: 0; }
+.tapeRowMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.tapeEmpty {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 4px 0;
 }
 
 .rowGroup { display: flex; flex-direction: column; }

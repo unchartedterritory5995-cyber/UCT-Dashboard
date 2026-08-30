@@ -25,6 +25,28 @@
   gap: 8px;
   height: 100%;
 }
+
+/* ── hideQuote: the index grid takes the whole strip ───────────────────────
+   Zone A demotes the Quote of the Day (brand, not data) out of the top row.
+   The quote panel is not rendered at all in this mode — these rules are what
+   stop the grid keeping the 50% width it was sharing with it. */
+.noQuote .indexSide { flex: 1 1 100%; }
+
+/* ── compact: ONE row of six, for Zone A's declared 120px ─────────────────
+   The default grid is 3 columns = 2 rows, which does not fit. */
+.compact { padding: 8px 12px; }
+.compact .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.compact .cellInner { padding: 6px 8px; }
+.compact .cellContent { width: 100%; }
+.compact .sym { font-size: 9px; margin-bottom: 1px; }
+.compact .price { font-size: 13px; margin-bottom: 0; }
+.compact .chg { font-size: 10px; }
+
+/* ⛔ Below 1024 the six-across row is too tight to read, so compact falls back
+   to the default two-row grid. Canonical breakpoints only (1024 / 640). */
+@media (max-width: 1024px) {
+  .compact .grid { grid-template-columns: repeat(3, 1fr); }
+}
 .cellInner {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -113,8 +135,12 @@
   opacity: 0.7;
 }
 
-/* ─── Tablet: stack index grid above quote ─────────────────────────────────── */
-@media (max-width: 900px) {
+/* ─── Tablet: stack index grid above quote ───────────────────────────────────
+   ⚠️ 900 → 1024 on 2026-08-30: CLAUDE.md's Responsive/Mobile System names
+   640 and 1024 as the ONLY canonical literals and says to snap a legacy one
+   when you touch the file (768/900/720 → 1024). This file was touched for the
+   compact/hideQuote props above. */
+@media (max-width: 1024px) {
   .strip {
     flex-direction: column;
   }
