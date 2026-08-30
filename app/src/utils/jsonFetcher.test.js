@@ -164,7 +164,10 @@ export const STILL_UNCHECKED = [
   'pages/OptionsFlow.jsx',
   'pages/OptionsFlow_admin.jsx',
   'pages/PostMarket.jsx',
-  'pages/Screener.jsx',
+  // ⚰️ `pages/Screener.jsx` LEFT THIS LIST ON 2026-08-29 — it was healed
+  // upstream and the exemption outlived the defect. That is what the rail
+  // below exists to catch: a stale exemption is somewhere the next offender
+  // can hide, so the list is only allowed to shrink by DELETION.
   'pages/SetupLibrary.jsx',
   'pages/ThemeTrackerPage.jsx',
   'pages/UCT20.jsx',

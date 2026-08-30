@@ -987,6 +987,20 @@ export const FN = Object.freeze({
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
   rma: (series, n) => rmaCol(series, n),
   wma: (series, n) => rolling(series, n, windowWeightedMean),
+  // ⭐ HULL — `wma` THREE TIMES, and the two derived windows are computed HERE so
+  // the manifest carries one period and the member writes one number. Alan Hull's
+  // published definition, restated verbatim by TradingView's `ta.hma`.
+  // ⛔ `floor(n / 2)` AND `round(sqrt(n))`, EACH FLOORED AT 1 — see the manifest's
+  // `_functions_hull`. A window of 0 is not a window, and `hma(close, 1)` is the
+  // case that finds a missing floor.
+  hma: (series, n) => {
+    const half = Math.max(1, Math.floor(n / 2))
+    const root = Math.max(1, Math.round(Math.sqrt(n)))
+    const near = rolling(series, half, windowWeightedMean)
+    const full = rolling(series, n, windowWeightedMean)
+    const raw = near.map((v, i) => 2 * v - full[i])
+    return rolling(raw, root, windowWeightedMean)
+  },
 
   // ── pure math, lifted to columns ─────────────────────────────────────────
   // ⭐ EACH ONE IS THE POINTWISE SCALAR APPLIED PER BAR AND NOTHING ELSE, so the
@@ -1286,8 +1300,120 @@ function barBop(bars, args) {
   return out
 }
 
+/** `cumFrom(source, anchorEpoch, maxBars)` — a RUNNING TOTAL that is a fact
+ *  about the market rather than about the fetch.
+ *
+ *  ⭐⭐ THE WHOLE RULING IS `closedTable.json::_functions_cumulative`; this is the
+ *  half of it that runs. A cumulative sum is fixed only up to an ADDITIVE
+ *  CONSTANT — widen the fetch and every value shifts by the same amount — so the
+ *  fetch would otherwise be CHOOSING the answer. Naming an absolute anchor takes
+ *  that choice away from it.
+ *
+ *  ⛔ THE TWO REFUSALS ARE `avwap`'S, AND THAT IS DELIBERATE: this is the same
+ *  bargain applied to a sum the member names, not a new one. (1) The anchor's
+ *  boundary must be VISIBLE — it may not fall before the first fetched bar —
+ *  else the WHOLE column is not computable, because "the first bar at or after
+ *  the anchor" would otherwise be whichever bar the caller happened to fetch
+ *  first. (2) A bar more than `maxBars` past the anchor bar is not computable,
+ *  so `lookback: 'arg2'` is a TRUE declaration rather than an under-stated one.
+ *
+ *  ⭐ AND `maxBars` IS AN ORDINARY `int` WHERE `avwap`'S CEILING IS THE SESSION,
+ *  which is what keeps this composable. `lookback: 'session'` is the WHOLE
+ *  budget (`budget.maxLookback` = max(NESTED_RECURRENCE_WARMUP, sessionMaxBars)),
+ *  so a session-declared version measures 961 for `cumFrom(sign(change(close)) *
+ *  volume, t)` against a cap of 960 — the anchored on-balance volume, the exact
+ *  quantity this entry exists to make sayable, refused by the budget. Measured,
+ *  not predicted: that is why the reach is an argument.
+ *
+ *  ⛔ A STORE WHOSE `ts` IS A `YYYYMMDD` INT ANSWERS NOTHING, AND RULE 1 IS WHAT
+ *  DOES IT rather than a second magnitude guard: those bars all land in 1970,
+ *  strictly before any anchor the floor above accepts, so no bar is ever at or
+ *  after the anchor. That is the scan lane's `DEFAULT_TF = 'D'` case, and
+ *  `unresolved_inputs` reports it NAMING `cumFrom` instead of letting a
+ *  comparison launder the hole into a confident 0 (the X23 shape
+ *  `_functions_bar_readers` measures for `vwap`).
+ *
+ *  ⛔ A HOLE IN `source` PROPAGATES AND IS STICKY. A total with an unknown term
+ *  is unknown, and every later total contains that same unknown term — so this
+ *  never resumes after one. `cumFrom(nz(x, 0), anchor, n)` is how a member says
+ *  "treat the missing bar as zero", and `_functions_na` is the argument for why
+ *  that choice is theirs and visible rather than ours and silent.
+ *
+ *  ⚠️ FIRST BAR READER TAKING A `series`. `args[0]` is the already-evaluated
+ *  column and `bars` is the real bar array — the call site hands over both, so
+ *  nothing here reaches for a fabricated `t`. */
+function barCumFrom(bars, args) {
+  const src = args[0]
+  const anchor = args[1]
+  const maxBars = args[2]
+  // ⛔ SAME NAMED REFUSAL `avwap` MAKES, AND FOR THE SAME REASON: a sub-1990
+  // "epoch" is a UNIT ERROR IN THE TREE — wrong for every symbol, on every
+  // timeframe, forever — so it is a formula defect and this lane refuses a
+  // formula defect by name rather than drawing a quiet column.
+  if (typeof anchor === 'number' && anchor < AVWAP_MIN_INSTANT) {
+    refuse('resolve:window',
+      `— cumFrom argument 1 is ${anchor}, which is not a unix-second instant `
+      + `(the floor is ${AVWAP_MIN_INSTANT}, 1990-01-01). A date-shaped key like `
+      + '20250101 read as seconds anchors in 1970.')
+  }
+  if (!bars.length) return []
+  // ⚠️ THE OTHER REFUSALS BELOW ARE DELIBERATELY *NOT* NAMED — they are facts
+  // about ONE SYMBOL'S BARS, not about the tree, and refusing them by name would
+  // make one short-history symbol reject a formula that is right for the rest of
+  // the universe.
+  //
+  // ⛔⛔ THE `AVWAP_MIN_INSTANT` CHECK ON THE BARS STAYS. ⚰️ THIS SAID a magnitude
+  // check "could never change an answer here", because a `YYYYMMDD` int lands in
+  // 1970, strictly before any anchor the floor above accepts, so no bar is ever at
+  // or after it. That is true PER BAR and FALSE OF A MIXED-UNIT ARRAY. Rule 1 below
+  // is `anchor >= first`, and a date-shaped first bar (20200101) is NUMERICALLY FAR
+  // BELOW the 1990 floor — so rule 1 PASSES, the date-shaped bars are skipped one at
+  // a time as "before the anchor", and the epoch-shaped ones accumulate into a total
+  // that is finite, plausible, and MISSING TERMS. `_functions_cumulative` forbids
+  // exactly that outcome in as many words: "a level that moved because somebody
+  // scrolled is a lie with a decimal point". A uniformly date-shaped store answers
+  // nothing either way, so this guard changes exactly one case — and turns it from a
+  // quiet wrong number into an honest hole.
+  // ⚠️ THE MUTATION RUN THAT CLEARED ITS DELETION IS WHY IT IS BACK, NOT WHY IT WENT:
+  // every fixture in both lanes carried ONE unit, so no gate could tell the two
+  // behaviours apart (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). The
+  // mixed-unit case is a fixture in BOTH lanes now, so deleting this goes RED.
+  //
+  // ⭐ THE FINITENESS CHECK STAYS AND IT REALLY FIRES: a bar carrying no `t`
+  // would compare `undefined < anchor` as false and silently fold that bar into
+  // the total, so a hole in the clock has to blank the column instead.
+  for (let i = 0; i < bars.length; i++) {
+    if (!Number.isFinite(bars[i] ? bars[i].t : undefined)) return []
+    if (bars[i].t < AVWAP_MIN_INSTANT) return []
+  }
+  const first = bars[0].t
+  // ⭐ `>=`, NOT `>` — an anchor EXACTLY on the first bar is well defined: any
+  // wider fetch adds only bars strictly before it, which this sum excludes
+  // whatever the window is. The same correction `avwap` already carries.
+  if (!(anchor >= first)) return []
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i].t, value: NaN }
+  let started = -1
+  let running = 0
+  let broken = false
+  for (let i = 0; i < bars.length; i++) {
+    if (bars[i].t < anchor) continue
+    if (started < 0) started = i
+    // ⛔ RULE 2 — counted from the ANCHOR BAR, never from the front of the fetch,
+    // which is exactly what makes the ceiling land on the same MARKET bar however
+    // many bars the caller brought.
+    if (i > started + maxBars) break
+    const v = src ? src[i] : NaN
+    if (!Number.isFinite(v)) { broken = true; continue }
+    if (broken) continue
+    running += v
+    out[i].value = running
+  }
+  return out
+}
+
 export const BAR_FN = Object.freeze({
-  vwap: barVwap, avwap: barAvwap, obvN: barObvN,
+  vwap: barVwap, avwap: barAvwap, obvN: barObvN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
 })
 
@@ -1919,6 +2045,27 @@ export function nodeCount(ast) {
  *  therefore produces a visibly unanswered column rather than a confident wrong
  *  one, which is what makes the two threading hand-backs (`nativeRegistry.js`
  *  and `scan_evaluator.py`) safe to land separately from this. */
+/** ⭐⭐ DOES THIS TREE READ THE CLOCK AT ALL? Iterative, like every other walk in
+ *  this file, and for the same recorded reason: the escape corpus has an 8,001-node
+ *  case and a measurement that dies inside the guard is not a measurement.
+ *
+ *  ⛔ IT ASKS THE MANIFEST WHICH NAMES ARE CLOCK NAMES rather than listing them.
+ *  A fourteenth clock entry is covered the day it lands. */
+function readsClock(ast, table) {
+  const names = table.clock || {}
+  const stack = [ast]
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (Array.isArray(node)) { for (const c of node) stack.push(c); continue }
+    if (node.type === 'series' && Object.prototype.hasOwnProperty.call(names, node.name)) {
+      return true
+    }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return false
+}
+
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
@@ -1997,7 +2144,20 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // transient per call at full history -- GC churn on every repaint, and the
   // reason a lazy seed is the first thing to reach for if this shows in a
   // profile.
-  {
+  // ⛔⛔ SEEDED ONLY WHEN THE TREE ACTUALLY READS A CLOCK NAME — the lazy seed the
+  // paragraph above called "the first thing to reach for if this shows in a
+  // profile". It showed.
+  //
+  // ⚠️ MEASURED, NOT ARGUED. Across the 167 columns the committed corpora translate,
+  // exactly ZERO read any of the thirteen clock names — and every `interpret` call
+  // was computing all thirteen regardless. A/B over 30 of those columns at 5,000
+  // bars: 454ms with the calendar maths, 54ms without. The clock was ~88% of this
+  // function's cost, spent entirely on columns nobody asked for, on every repaint.
+  //
+  // ⭐ BEHAVIOUR IS UNCHANGED FOR A TREE THAT DOES READ IT: the same
+  // `computeClock` call, the same thirteen columns, the same validation. What is
+  // skipped is skipped only when the answer could not have depended on it.
+  if (readsClock(ast, TABLE)) {
     const cols = computeClock(bars, opts ? opts.tf : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]

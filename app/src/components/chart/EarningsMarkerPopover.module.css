@@ -13,7 +13,7 @@
   border-radius: 10px;
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
   padding: 10px 12px 12px;
-  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-family: 'Instrument Sans', sans-serif;
   color: var(--menu-text, #e6e6e8);
   animation: earnPopIn 120ms ease-out;
 }
@@ -38,26 +38,29 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: var(--menu-accent, #dcbb5e);      /* gold accent, matching the app */
+  color: var(--menu-text, #e6e6e8);        /* bright white, same as the reported values */
 }
 .quarter {
   font-size: 11px;
   font-weight: 600;
-  color: var(--menu-text-dim, #8a8a90);    /* dim subtitle — secondary to the gold title */
+  /* Muted grey matched to the drawing-tools + Drawing Boards menus: --menu-text @ 0.45. */
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.6;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .close {
   background: transparent;
   border: none;
-  color: var(--menu-text-faint, #6c6c70);
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.6;
   font-size: 12px;
   cursor: pointer;
   padding: 2px 4px;
   line-height: 1;
   border-radius: var(--radius-sm);
 }
-.close:hover { color: var(--menu-text, #d4d4d6); background: var(--menu-hover, #1a1a1d); }
+.close:hover { opacity: 1; background: var(--menu-hover, #1a1a1d); }
 
 .dateRow {
   display: flex;
@@ -73,7 +76,8 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--menu-text-faint, #6c6c70);
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.6;
   margin: 9px 0 3px;
 }
 
@@ -85,7 +89,11 @@
 }
 .k {
   font-size: 12px;
-  color: var(--menu-text-dim, #a6a6ac);
+  /* Muted grey matched to the drawing-tools + Drawing Boards menus: --menu-text @ 0.45.
+     The Surprise row reuses .k with an inline semantic color + opacity:1, so its
+     green/red label is never dimmed by this. */
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.6;
 }
 .v {
   font-size: 12.5px;

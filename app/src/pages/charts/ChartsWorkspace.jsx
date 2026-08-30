@@ -39,6 +39,7 @@ import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
+import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -631,6 +632,9 @@ function DeleteConfirm({ onYes, onCancel }) {
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
+  // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
+  // newer-wins against the server via the preferences store. Renders nothing.
+  useTracingsSync()
   // Current app theme, read live by handleAddWidget to STAMP a new widget with the
   // theme it was placed under (persists in opts so a theme-following widget keeps its
   // placement color across reloads; only NEW widgets pick up the current theme).

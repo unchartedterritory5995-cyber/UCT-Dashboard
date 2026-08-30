@@ -3937,6 +3937,409 @@
           }
         ]
       }
+    },
+    {
+      "id": "hma_classic_nine",
+      "source": "hma(close, 9)",
+      "why": "Alan Hull's average at the period every published implementation uses as its example: the inner windows are floor(9 / 2) = 4 and round(sqrt(9)) = 3, so a lane that rounded 4.5 up instead of down would answer a DIFFERENT indicator with no warm-up difference to give it away",
+      "ast": {
+        "type": "call",
+        "name": "hma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 9
+          }
+        ]
+      }
+    },
+    {
+      "id": "hma_period_one_is_the_floor_case",
+      "source": "hma(close, 1)",
+      "why": "⛔ THE FLOOR. floor(1 / 2) is 0 and a window of 0 bars is not a window -- both lanes clamp to 1, and without the clamp one lane divides by zero while the other returns an empty-window NaN. This case is the whole reason the clamp is written out in both",
+      "ast": {
+        "type": "call",
+        "name": "hma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "hma_period_two_rounds_its_root_down",
+      "source": "hma(close, 2)",
+      "why": "sqrt(2) = 1.4142 rounds to 1 and floor(2 / 2) = 1, so the outer average is a single bar and the result is 2*wma(close,1) - wma(close,2) exactly. The smallest period where the two derived windows differ from the period itself",
+      "ast": {
+        "type": "call",
+        "name": "hma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "hma_period_six_rounds_its_root_up",
+      "source": "hma(close, 6)",
+      "why": "sqrt(6) = 2.449 rounds to 2 and floor(6 / 2) = 3 -- the pair that catches a lane which swapped the two derived windows, since 2 and 3 are both plausible and neither is the period",
+      "ast": {
+        "type": "call",
+        "name": "hma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "hma_period_twenty_is_the_common_setting",
+      "source": "hma(close, 20)",
+      "why": "floor(20 / 2) = 10, round(sqrt(20)) = round(4.472) = 4. A long enough period that the warm-up prefix is visible: the first n + root - 1 bars are not computable and both lanes must hold the hole rather than average what is there",
+      "ast": {
+        "type": "call",
+        "name": "hma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "hma_composes_over_two_fields",
+      "source": "hma(high, 30) - hma(low, 30)",
+      "why": "the Hull channel width. Two independent accumulations subtracted bar by bar, so a lane whose warm-up prefix is one bar short shows up as a number where the other holds a hole",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "hma",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "num",
+                "value": 30
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "hma",
+            "args": [
+              {
+                "type": "series",
+                "name": "low"
+              },
+              {
+                "type": "num",
+                "value": 30
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_volume_from_a_mid_series_instant",
+      "source": "cumFrom(volume, 1762189200, 600)",
+      "why": "⭐⭐ THE ANCHORED RUNNING TOTAL — the answer `_functions_excluded.obv` asked for and did not have. A cumulative sum is fixed only up to an ADDITIVE CONSTANT, so a wider fetch does not perturb it, it CHOOSES a different member of a one-parameter family; naming an absolute instant takes that choice away from the request. The anchor is 2025-11-03 12:00 ET, the middle of this corpus's second ET session, so the column is BLANK before it and exact after it — a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ `cumFrom` is the FIRST `reads: \"bars\"` entry that also takes a `series`, so this row is where a lane that packed fabricated bars out of its argument column instead of taking the real ones would show up. ⭐ VOLUME because it is the field with the largest magnitudes and no tie anywhere in this corpus — a float-associativity difference between the lanes surfaces here first, and a running total accumulates one. ⚠️ THE REACH IS WIDER THAN WHAT FOLLOWS THE ANCHOR ON PURPOSE (600 vs 290 bars), so this row measures the accumulation alone; `cumFrom_stops_at_the_window_it_declares` is the same source and anchor with a reach that bites.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 1762189200
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_stops_at_the_window_it_declares",
+      "source": "cumFrom(volume, 1762189200, 100)",
+      "why": "⛔⛔ THE SECOND DECLARED-WINDOW REFUSAL, MEASURED — and `avwap` could never reach it. `avwap`'s ceiling is `sessionMaxBars` (960), which needs a series longer than a session, so its own corpus case records the gap and rails it per-lane instead; `cumFrom`'s ceiling is an ORDINARY `int` the member types, so a 579-bar corpus reaches it. A bar more than 100 bars past the anchor bar is NOT COMPUTABLE, because answering it would mean reading further back than `lookback: \"arg2\"` promised — the one direction `_functions_warmup` says a window declaration may never take. ⭐ IT IS THE DISCRIMINATING TWIN OF THE ROW ABOVE: identical source, identical anchor, and the two agree bar for bar until bar 390 and then part forever, so neither can be passing because a lane ignores the reach argument entirely. ⚠️ AND THE CEILING IS COUNTED FROM THE ANCHOR BAR, never from the front of the fetch — which is exactly what makes it land on the same MARKET bar however many bars the caller brought.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 1762189200
+          },
+          {
+            "type": "num",
+            "value": 100
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_the_anchored_obv_the_exclusion_refuses",
+      "source": "cumFrom(sign(change(close)) * volume, 1762189200, 250)",
+      "why": "⭐⭐ THE QUANTITY THIS WHOLE ENTRY EXISTS FOR, AND THE ONE `_functions_excluded.obv` and `_functions_excluded.cum` both point at: on-balance volume, ANCHORED. Pine's `cum(sign(change(src)) * volume)` is refused because its level is a fact about where the fetch started; the same arithmetic accumulated from an instant the member named is a fact about the market, and this row is the proof that the closed grammar can now say it. ⛔ IT IS ALSO WHY THE REACH IS AN ARGUMENT RATHER THAN THE SESSION: `change` reads one bar back, so under `lookback: \"session\"` this exact tree measures 961 against a 960 cap and `budget:lookback` refuses it — the entry would have shipped unable to express the one thing it was built for. Here it measures 251. ⚠️ THE FIRST BAR AT OR AFTER THE ANCHOR STILL HAS A COMPUTABLE `change`, because the anchor is 289 bars into the series — an anchor on bar 0 would hole and stay holed, which is `cumFrom_a_hole_in_the_source_is_sticky`'s subject.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "sign",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "change",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "volume"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1762189200
+          },
+          {
+            "type": "num",
+            "value": 250
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_of_a_computed_signed_source",
+      "source": "cumFrom(close - open, 1762189200, 600)",
+      "why": "⭐ THE SOURCE IS AN EXPRESSION, NOT A BAR FIELD, and it changes sign bar to bar — a cumulative net body, which is the shape real scripts reach for (cumulative delta, a running P&L). It pins that the `series` slot is evaluated to a COLUMN before the bar reader is dispatched, and that partial cancellation is carried at full precision rather than through an abs or a max somewhere. Same anchor and reach as the volume row, so the two differ only in what is summed.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1762189200
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_anchor_before_the_series_is_not_computable",
+      "source": "cumFrom(volume, 1761897599, 600)",
+      "why": "⛔ THE REQUEST-DEPENDENCE REFUSAL, MEASURED ACROSS THE LANES — `avwap`'s rule 1, applied to a sum the member names. The anchor is ONE SECOND before this corpus's first bar, so \"the first bar at or after it\" would be whichever bar the caller happened to fetch first and every value would move when the window moved (`lesson_a_derived_value_must_not_depend_on_the_request`). Both lanes must answer NOT COMPUTABLE for the WHOLE column rather than a plausible partial total, and a lane that dropped the refusal produces finite rows — which `allNaN` turns into a named failure instead of a moved digest nobody can attribute. ⭐ ITS CONTROL IS `cumFrom_anchored_on_the_very_first_bar`, one second later, which totals from bar 0.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 1761897599
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      },
+      "allNaN": true
+    },
+    {
+      "id": "cumFrom_anchored_on_the_very_first_bar",
+      "source": "cumFrom(close - open, 1761897600, 600)",
+      "why": "⭐ `>=`, NOT `>` — AN ANCHOR EXACTLY ON THE FIRST BAR IS WELL DEFINED, and refusing it was a narrow over-refusal `avwap` already paid for once. Any wider fetch adds only bars strictly BEFORE this instant, and this sum excludes those whatever the window is, so the answer is the same off a 579-bar request and off a 5,000-bar one — which is the entire property the anchor exists to buy. It totals from bar 0 where `cumFrom_anchor_before_the_series_is_not_computable` is blank on every bar, one second apart, so the boundary is pinned from both sides.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1761897600
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_a_hole_in_the_source_is_sticky",
+      "source": "cumFrom(ln(105 - close), 1761897600, 600)",
+      "why": "⛔⛔ A TOTAL WITH AN UNKNOWN TERM IS UNKNOWN, AND IT STAYS UNKNOWN — measured on a source that HOLES AND THEN RECOVERS, which is the only shape that can tell stickiness from plain propagation. This corpus's close crosses 105 three times, so `ln(105 - close)` is a real number for bars 0-171, a hole for 172-192, real again for 193-385 and a hole thereafter. Anchored on the first bar, the honest answer is exact for 172 bars and BLANK for all 407 after: a lane that skipped the hole and resumed would light bars 193-385 back up with the sum of the bars it COULD read — a confident number wearing a warm-up's clothes. ⭐ MEASURED, NOT ASSUMED: an earlier draft of this case anchored mid-series where the source never recovers, so deleting the stickiness guard in EITHER lane left the digest unmoved. It is a fixture that could not distinguish, caught by mutating the thing it claimed to watch. ⭐ ITS DISCRIMINATING TWIN IS THE NEXT CASE: same anchor, same source under one `nz`, finite throughout.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "call",
+            "name": "ln",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 105
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1761897600
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      }
+    },
+    {
+      "id": "cumFrom_the_member_fills_the_hole_and_it_totals",
+      "source": "cumFrom(nz(ln(105 - close), 0), 1761897600, 600)",
+      "why": "⭐ THE MEMBER'S CHOICE, VISIBLE IN THE READ-BACK — `_functions_na`'s whole argument, reached from the cumulative side. `nz` turns the undefined logs into declared zeros, so the total runs from bar 0 to the last bar; the engine never makes that substitution on the member's behalf. ⛔ IT IS ALSO THE CONTROL ON THE ROW ABOVE: identical anchor, identical source under one wrapper, finite where that one goes blank — so the blank there is the hole propagating and not a lane that stopped accumulating.",
+      "ast": {
+        "type": "call",
+        "name": "cumFrom",
+        "args": [
+          {
+            "type": "call",
+            "name": "nz",
+            "args": [
+              {
+                "type": "call",
+                "name": "ln",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 105
+                      },
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1761897600
+          },
+          {
+            "type": "num",
+            "value": 600
+          }
+        ]
+      }
     }
   ],
   "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",

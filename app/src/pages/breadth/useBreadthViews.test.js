@@ -129,7 +129,8 @@ describe('useBreadthViews v2', () => {
     localStorage.setItem(STORAGE_KEY, '{not json')
     const { result } = render()
     expect(result.current.activePreset).toBe(DEFAULT_PRESET)
-    expect(STYLES.length).toBe(8)
+    expect(result.current.viewStyle).toBe(DEFAULT_STYLE)
+    expect(STYLES).toContain(DEFAULT_STYLE)
   })
 })
 

@@ -149,6 +149,13 @@ _STREAM_BATCH = 2000
 _DEFAULT_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 
 
+# How long `get_available_dates` may serve a cached answer. The list only ever
+# GAINS a date, so a stale read can omit a brand-new trading day for at most this
+# long and can never invent one. 60s turns a ~3s query into a free one for the
+# repeat calls that dominate (/live-massive alone asks twice per page load).
+_DATES_CACHE_TTL_S = float(os.environ.get("FLOW_DATES_CACHE_TTL_S", "60"))
+
+
 class FlowDB:
     def __init__(self, db_path: str = _DEFAULT_DB_PATH):
         self.db_path = db_path
@@ -791,7 +798,34 @@ class FlowDB:
             }
 
     def get_available_dates(self, source: str = "stocks") -> list:
-        """Get all available trading dates for a source, sorted chronologically."""
+        """Get all available trading dates for a source, sorted chronologically.
+
+        ⚡ CACHED (2026-08-29). The query is `SELECT DISTINCT CreatedDate` over the
+        `flow` table — 678,988 rows for `stocks` — to produce ~53 dates. Even with
+        `idx_flow_source_date` covering it, SQLite still walks every index entry
+        for that source to dedupe, and post-cutover this runs on the flow-worker
+        behind an HTTP proxy hop. Measured on prod: **~3.0 s, on a WARM pod**, and
+        `/live-massive` asks for it TWICE per page load.
+
+        The answer changes only when a new trading day's first rows land, so a
+        short TTL is the right shape: the list is at most `FLOW_DATES_CACHE_TTL_S`
+        behind, and it only ever GAINS a date (never loses one), so a stale read
+        can omit a brand-new day for under a minute and can never invent one.
+
+        ⛔ Keyed by `self.db_path`, not just `source`. Two FlowDB instances
+        pointing at different files (web's frozen pre-cutover copy vs the
+        flow-worker's live one, and every test that builds its own) would
+        otherwise serve each other's answers — a cross-database cache hit that
+        looks like data corruption and reproduces nowhere.
+
+        Returns a COPY: the cached list must not be mutable through a caller.
+        """
+        from api.services.cache import cache as _shared
+        ck = f"flow_dates::{self.db_path}::{source}"
+        hit = _shared.get(ck)
+        if hit is not None:
+            return list(hit)
+
         with self._conn() as conn:
             cursor = conn.execute(
                 "SELECT DISTINCT CreatedDate FROM flow WHERE source = ?",
@@ -805,7 +839,12 @@ class FlowDB:
             if parsed:
                 dated.append((parsed, d))
         dated.sort(key=lambda x: x[0])
-        return [d[1] for d in dated]
+        out = [d[1] for d in dated]
+        try:
+            _shared.set(ck, list(out), ttl=_DATES_CACHE_TTL_S)
+        except Exception:
+            pass          # a cache failure must never fail the read
+        return out
 
     def get_mktcap_batch(self, symbols: list[str]) -> dict[str, int]:
         """Return the most recent non-zero MktCap value seen in flow data

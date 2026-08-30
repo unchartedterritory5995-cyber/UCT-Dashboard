@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { interpret } from './interpret.js'
 import { parseFormula, TABLE } from './parse.js'
-import { translatePine, PINE_CALL_SHAPES } from './pine.js'
+import { translatePine, PINE_INEXPRESSIBLE, PINE_CALL_SHAPES } from './pine.js'
 
 const N = 60
 
@@ -197,8 +197,29 @@ describe('the fail-closed default', () => {
         TABLE.functions[key].args[i] === 'int' ? '14' : 'close')).join(', ')
       const out = translatePine(wrap('m', `ta.${key}(${args})`))
       expect(out.ok, `ta.${key} translated without a measured argument order`).toBe(false)
-      expect(out.refusal.guard, `ta.${key}`).toBe('pine:role-order')
+      // ⭐ THE INVARIANT IS FAIL-CLOSED, NOT ONE GUARD NAME. A function this door
+      // refuses for a MORE SPECIFIC published reason still satisfies it — and a
+      // more specific reason is strictly better for the member.
+      //
+      // ⚰️ `valuewhen` IS THE CASE THAT FORCED THE DISTINCTION. It has two `series`
+      // slots and no measured order, so it landed here and reported "this table
+      // states what kind each argument is and never what role it plays" — a
+      // sentence that is FALSE of it, since the manifest declares
+      // `argRoles: [condition, source, period]`. Worse, it sent a reader to supply
+      // a role order, and the positions line up perfectly: Pine's third argument
+      // counts OCCURRENCES and this table's counts BARS, so the "fix" would have
+      // built cleanly and answered a different number. It is in
+      // `PINE_INEXPRESSIBLE` now and refuses by naming that difference.
+      const inexpressible = Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, key)
+      expect(out.refusal.guard, `ta.${key}`)
+        .toBe(inexpressible ? 'pine:function' : 'pine:role-order')
     }
+    // ⛔ AND THE SPLIT IS NOT VACUOUS IN EITHER DIRECTION — a roster that swallowed
+    // every multi-series name would make the fail-closed default untestable.
+    expect(multi.some((k) => Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
+      'no multi-series name is on the inexpressible roster — this branch is dead').toBe(true)
+    expect(multi.some((k) => !Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
+      'EVERY multi-series name is inexpressible — the role-order default is dead').toBe(true)
   })
 
   it('a shape that no longer fits the manifest refuses instead of filling what it can', () => {

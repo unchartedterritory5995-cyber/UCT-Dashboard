@@ -67,6 +67,25 @@ OPTION_CASES = [
 # Python authority: broker/composition.py; JS mirror: brokerLiveSummary
 # (marketValue + netLiq only — Today has its own tests). Case 0 is the
 # 2026-08-26 incident book, pinned with its real numbers.
+# The 2026-08-29 book as measured in prod. broker marks (brokerPrice) are
+# Robinhood's own; prices are our vendor's Friday closes. Every one differs.
+_AUG29_POSITIONS = [
+    {"symbol": "DELL", "side": "Long", "shares": 5.0, "brokerPrice": 456.07,
+     "source": "broker"},
+    {"symbol": "ORCL", "side": "Long", "shares": 100.0, "brokerPrice": 150.72,
+     "source": "broker"},
+    {"symbol": "SNAP", "side": "Long", "shares": 2000.0, "brokerPrice": 5.445,
+     "source": "broker"},
+    {"symbol": "SPY", "side": "Long", "shares": 0.2606, "brokerPrice": 769.39,
+     "source": "broker"},
+    {"symbol": "TH", "side": "Long", "shares": 150.0, "brokerPrice": 18.56,
+     "source": "broker"},
+]
+_AUG29_PRICES = {
+    "DELL": {"price": 456.24}, "ORCL": {"price": 150.85}, "SNAP": {"price": 5.43},
+    "SPY": {"price": 769.35}, "TH": {"price": 18.55},
+}
+
 COMPOSITION_CASES = [
     {   # incident book: fill-derived cash + live marks → the true ~$10.9k
         "account": {"balanceSource": "broker", "brokerCash": -18760.66,
@@ -149,6 +168,62 @@ COMPOSITION_CASES = [
         "prices": {"X": {"price": 10}},
         "optionMarks": {},
     },
+    {   # 2026-08-29 SATURDAY, live marks — the $9,708.44 the owner reported
+        # while Robinhood showed $9,728.40. Pinned as the incident book.
+        "account": {"balanceSource": "broker", "brokerCash": -22165.75,
+                     "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"},
+        "positions": _AUG29_POSITIONS,
+        "strategies": [{"id": "s1", "brokerCurrentValue": 675.0,
+                         "netEntry": 610.0, "source": "broker"}],
+        "prices": _AUG29_PRICES,
+        "optionMarks": {"s1": {"currentValue": 665.0}},
+    },
+    {   # SAME book, session closed ⇒ equities at the BROKER's marks. The
+        # option keeps its live mark (option_marks beats a lagging sync value —
+        # a prior measured ruling this change does not revisit).
+        "account": {"balanceSource": "broker", "brokerCash": -22165.75,
+                     "brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"},
+        "positions": _AUG29_POSITIONS,
+        "strategies": [{"id": "s1", "brokerCurrentValue": 675.0,
+                         "netEntry": 610.0, "source": "broker"}],
+        "prices": _AUG29_PRICES,
+        "optionMarks": {"s1": {"currentValue": 665.0}},
+        "preferBroker": True,
+    },
+    {   # PREFERENCE, NOT RESTRICTION: a provisional row with no broker mark
+        # still prices off the live feed under prefer_broker. Dropping it would
+        # debit cash for a position missing from market value (2026-08-26).
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [
+            {"symbol": "A", "side": "Long", "shares": 10, "brokerPrice": 50,
+             "source": "broker"},
+            {"symbol": "NEW", "side": "Long", "shares": 10, "source": "broker"},
+        ],
+        "strategies": [],
+        "prices": {"A": {"price": 51}, "NEW": {"price": 4}},
+        "optionMarks": {},
+        "preferBroker": True,
+    },
+]
+
+# The 2026-08-29 book, measured in prod: broker marks vs our vendor's closes.
+_MARK_PREFERENCE_CASES = [
+    # (label, account, session_closed, last_closed_session_et)
+    ("closed session, sync after the close → broker marks",
+     {"brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"}, True, "2026-08-28"),
+    ("session open → never (stored marks are the PREVIOUS close)",
+     {"brokerBalanceSyncedAt": "2026-08-29T07:40:30+00:00"}, False, "2026-08-28"),
+    ("weekday evening, sync predates that day's close → refused",
+     {"brokerBalanceSyncedAt": "2026-08-28T07:40:30+00:00"}, True, "2026-08-28"),
+    ("sync exactly at 16:00 ET on the session's date → counts",
+     {"brokerBalanceSyncedAt": "2026-08-28T20:00:00+00:00"}, True, "2026-08-28"),
+    ("one minute before the close → does not",
+     {"brokerBalanceSyncedAt": "2026-08-28T19:59:00+00:00"}, True, "2026-08-28"),
+    ("naive stamp is read as UTC, never local",
+     {"brokerBalanceSyncedAt": "2026-08-29T07:40:30"}, True, "2026-08-28"),
+    ("missing watermark → refused", {}, True, "2026-08-28"),
+    ("unparseable watermark → refused",
+     {"brokerBalanceSyncedAt": "not-a-date"}, True, "2026-08-28"),
 ]
 
 
@@ -163,14 +238,23 @@ def _py_leg(leg: dict) -> dict:
 
 
 def main() -> None:
-    fixtures = {"equity": [], "options": [], "composition": []}
+    fixtures = {"equity": [], "options": [], "composition": [],
+                "markPreference": []}
     for case in COMPOSITION_CASES:
         fixtures["composition"].append({
             "inputs": case,
             "expected": composition.compose_net_liq(
                 case["account"], case["positions"], case["strategies"],
                 case["prices"], case["optionMarks"],
+                case.get("preferBroker", False),
             ),
+        })
+    for label, account, closed, last_close in _MARK_PREFERENCE_CASES:
+        fixtures["markPreference"].append({
+            "label": label,
+            "inputs": {"account": account, "sessionClosed": closed,
+                        "lastClosedSessionET": last_close},
+            "expected": composition.prefer_broker_marks(account, closed, last_close),
         })
     for side, e, x, sh, stop, ed, xd, be in EQUITY_CASES:
         pnl = calc.trade_pnl_dollar(side, e, x, sh)
@@ -206,7 +290,8 @@ def main() -> None:
     out.write_text(json.dumps(fixtures, indent=2))
     print(f"wrote {out} ({len(fixtures['equity'])} equity, "
           f"{len(fixtures['options'])} option, "
-          f"{len(fixtures['composition'])} composition cases)")
+          f"{len(fixtures['composition'])} composition, "
+          f"{len(fixtures['markPreference'])} mark-preference cases)")
 
 
 if __name__ == "__main__":

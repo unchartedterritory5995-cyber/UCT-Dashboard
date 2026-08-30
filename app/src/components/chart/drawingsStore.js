@@ -133,6 +133,7 @@ function _commit(sym, e, updated, record = true) {
   _writeSym(sym, updated)
   e.snapshot = _buildSnapshot(e)
   _notify(sym)
+  _bumpAny()
 }
 
 // ── Read side ───────────────────────────────────────────────────────────────
@@ -248,6 +249,7 @@ export function snapshotHistory(sym) {
   e.future = []
   e.snapshot = _buildSnapshot(e)
   _notify(sym)
+  _bumpAny()
 }
 
 export function undo(sym) {
@@ -265,6 +267,7 @@ export function undo(sym) {
   _writeSym(sym, e.drawings)
   e.snapshot = _buildSnapshot(e)
   _notify(sym)
+  _bumpAny()
 }
 
 export function redo(sym) {
@@ -280,6 +283,347 @@ export function redo(sym) {
   _writeSym(sym, e.drawings)
   e.snapshot = _buildSnapshot(e)
   _notify(sym)
+  _bumpAny()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TRACINGS — named, transparent overlay sheets that span every ticker (Phase 0)
+// ─────────────────────────────────────────────────────────────────────────────
+// A "tracing" is a sheet of drawings. Phase 0 lands the DATA MODEL + migration
+// ONLY: exactly one tracing is active and owns all existing drawings, which stay
+// byte-for-byte where they already live (STORAGE_KEY). There is no switching, no
+// multi-sheet render, and no UI yet — those are Phase 1.
+//
+// ⭐ INVARIANT: the ACTIVE tracing's per-sym drawings ALWAYS live in STORAGE_KEY
+// ('uct-chart-drawings'); every NON-active tracing's drawings live in the tracings
+// doc's `archive`. That is the whole reason the per-sym registry above needed ZERO
+// changes — loadAll / _writeSym operate on the active slot BY CONSTRUCTION. A
+// Phase-1 active-switch is therefore a SWAP through STORAGE_KEY (plus entry
+// invalidation), never a rewrite of the drawing path.
+//
+// ⭐ The doc is only persisted once the user TOUCHES the tracing system (a meta
+// mutation). Absent a persisted doc, the store reports a single implicit default
+// tracing — so a member who never opens the tracings UI writes no new key and their
+// storage is identical to before this landed. That is what keeps every pre-existing
+// drawings test green without modification.
+//
+// ⛔ Default sheets carry NO name (empty string). The numbered "Tracing N" is a
+// DISPLAY placeholder derived by tracingLabel() so the UI and tests share ONE
+// definition — never a name baked into stored data.
+
+const TRACINGS_KEY = 'uct-chart-tracings'
+const DEFAULT_TRACING_ID = 'default'
+// Distinct, theme-agnostic sheet colors; createTracing picks the next by order.
+const TRACING_PALETTE = ['#c9a84c', '#5b9bd5', '#e06666', '#63c384', '#b48ce0', '#e0a35b', '#4fc0c0']
+
+/** Display name for a board: the user's name if set, else the numbered placeholder
+ *  derived from its position. ONE authority for both UI and tests. (The feature is
+ *  called "Drawing Boards" in the UI; the internal identifiers stay `tracing*`.) */
+export function tracingLabel(t) {
+  const nm = t && typeof t.name === 'string' ? t.name.trim() : ''
+  return nm || `Board ${((t && t.order) || 0) + 1}`
+}
+
+function _defaultTracing() {
+  return { id: DEFAULT_TRACING_ID, name: '', color: TRACING_PALETTE[0], order: 0 }
+}
+
+// What an un-migrated store reports: one active default tracing owning STORAGE_KEY.
+// NOT persisted until a mutation materializes it.
+function _virtualDoc() {
+  const t = _defaultTracing()
+  return { v: 1, tracings: [t], activeId: t.id, visibleIds: [t.id], archive: {} }
+}
+
+function _loadDoc() {
+  try {
+    const raw = localStorage.getItem(TRACINGS_KEY)
+    if (!raw) return null
+    const doc = JSON.parse(raw)
+    if (!doc || !Array.isArray(doc.tracings) || doc.tracings.length === 0) return null
+    // Self-repair a partial/foreign doc rather than throwing user data away.
+    if (!doc.tracings.some((t) => t && t.id === doc.activeId)) doc.activeId = doc.tracings[0].id
+    // visibleIds: drop ghost ids, force-include the active sheet, keep tracing order.
+    const valid = new Set(doc.tracings.map((t) => t.id))
+    const vis = new Set((Array.isArray(doc.visibleIds) ? doc.visibleIds : []).filter((id) => valid.has(id)))
+    vis.add(doc.activeId)
+    doc.visibleIds = doc.tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
+    if (!doc.archive || typeof doc.archive !== 'object') doc.archive = {}
+    // The ACTIVE sheet's data lives in STORAGE_KEY — archive[activeId] is never
+    // authoritative, so drop any stale duplicate a prior swap left behind.
+    if (doc.archive[doc.activeId]) { const a = { ...doc.archive }; delete a[doc.activeId]; doc.archive = a }
+    if (typeof doc.v !== 'number') doc.v = 1
+    return doc
+  } catch { return null }
+}
+
+// Read-only resolve (never persists) — reads see a coherent doc even pre-migration.
+function _ensureDoc() { return _loadDoc() || _virtualDoc() }
+
+function _saveDoc(doc) {
+  try { localStorage.setItem(TRACINGS_KEY, JSON.stringify(doc)) }
+  catch { /* quota — the in-memory snapshot stays authoritative for the session */ }
+}
+
+// Tracings have their OWN stable snapshot + subscription (mirrors the per-sym one),
+// so a Phase-1 useTracings() hook is a thin useSyncExternalStore adapter.
+let _tracingsSnapshot = null
+const _tracingSubs = new Set()
+
+function _buildTracingsSnapshot(doc) {
+  return {
+    tracings: doc.tracings.map((t) => ({ ...t })),
+    activeId: doc.activeId,
+    visibleIds: [...doc.visibleIds],
+  }
+}
+
+function _tracingsSnap() {
+  if (!_tracingsSnapshot) _tracingsSnapshot = _buildTracingsSnapshot(_ensureDoc())
+  return _tracingsSnapshot
+}
+
+function _commitDoc(doc) {
+  _saveDoc(doc)
+  _tracingsSnapshot = _buildTracingsSnapshot(doc)
+  _tracingSubs.forEach((cb) => { try { cb() } catch { /* one bad subscriber never breaks the rest */ } })
+  _bumpAny()
+}
+
+// ── Tracings read API ────────────────────────────────────────────────────────
+export function getTracingsSnapshot() { return _tracingsSnap() }
+export function subscribeTracings(cb) {
+  _tracingSubs.add(cb)
+  return () => { _tracingSubs.delete(cb) }
+}
+export function listTracings() { return _tracingsSnap().tracings }
+export function getActiveTracingId() { return _tracingsSnap().activeId }
+export function getVisibleTracingIds() { return _tracingsSnap().visibleIds }
+
+// ── Tracings meta mutations ──────────────────────────────────────────────────
+// Phase 0 ships the SAFE subset only: these touch tracing META (name/color/order/
+// visibility) + the archive, NEVER the ACTIVE sheet's live drawings or the per-sym
+// registry, so no entry invalidation is required. setActiveTracing + deleteTracing
+// are Phase 1: they swap STORAGE_KEY and must invalidate mounted entries, wired
+// alongside the multi-sheet overlay render.
+export function createTracing(opts = {}) {
+  const doc = _ensureDoc()
+  const id = crypto.randomUUID()
+  const order = doc.tracings.length
+  const color = opts.color || TRACING_PALETTE[order % TRACING_PALETTE.length]
+  const name = typeof opts.name === 'string' ? opts.name.trim().slice(0, 60) : ''
+  doc.tracings = [...doc.tracings, { id, name, color, order }]
+  _commitDoc(doc)
+  return id
+}
+
+export function renameTracing(id, name) {
+  const doc = _ensureDoc()
+  if (!doc.tracings.some((t) => t.id === id)) return
+  const nm = typeof name === 'string' ? name.slice(0, 60) : ''
+  doc.tracings = doc.tracings.map((t) => (t.id === id ? { ...t, name: nm } : t))
+  _commitDoc(doc)
+}
+
+export function recolorTracing(id, color) {
+  if (typeof color !== 'string' || !color) return
+  const doc = _ensureDoc()
+  if (!doc.tracings.some((t) => t.id === id)) return
+  doc.tracings = doc.tracings.map((t) => (t.id === id ? { ...t, color } : t))
+  _commitDoc(doc)
+}
+
+export function reorderTracings(orderedIds) {
+  if (!Array.isArray(orderedIds)) return
+  const doc = _ensureDoc()
+  const byId = new Map(doc.tracings.map((t) => [t.id, t]))
+  const next = []
+  orderedIds.forEach((id) => { if (byId.has(id)) { next.push(byId.get(id)); byId.delete(id) } })
+  // Any tracing not named in orderedIds keeps its relative order, appended at the end.
+  doc.tracings.forEach((t) => { if (byId.has(t.id)) next.push(t) })
+  doc.tracings = next.map((t, i) => ({ ...t, order: i }))
+  _commitDoc(doc)
+}
+
+export function setTracingVisible(id, visible) {
+  const doc = _ensureDoc()
+  if (!doc.tracings.some((t) => t.id === id)) return
+  const set = new Set(doc.visibleIds)
+  if (visible) set.add(id); else set.delete(id)
+  // The active sheet stays visible (single-sheet render floor); preserve order.
+  set.add(doc.activeId)
+  doc.visibleIds = doc.tracings.filter((t) => set.has(t.id)).map((t) => t.id)
+  _commitDoc(doc)
+}
+
+// ── Active-switch + delete (the ops that move drawing data) ──────────────────
+// Reload every MOUNTED sym's entry from an authoritative active-slot map, dropping
+// per-sym undo/redo history, and notify — so mounted charts repaint on the new
+// sheet. Takes the map IN MEMORY (not a disk re-read) so a failed STORAGE_KEY write
+// (quota) can't desync the live session from what the user sees.
+function _reloadAllEntriesFrom(activeMap) {
+  for (const [sym, e] of _entries) {
+    e.drawings = activeMap[sym] || []
+    e.past = []
+    e.future = []
+    e.snapshot = _buildSnapshot(e)
+    _notify(sym)
+  }
+}
+
+// Make `id` the active sheet. The active sheet's drawings live in STORAGE_KEY, so
+// this SWAPS: the outgoing sheet is archived, the incoming sheet's archived data is
+// promoted into STORAGE_KEY. Writes the doc (durable archive) BEFORE STORAGE_KEY so
+// the microsecond gap between two synchronous writes can only mis-DISPLAY a sheet
+// until the next switch — never lose the archive.
+export function setActiveTracing(id) {
+  const doc = _ensureDoc()
+  if (id === doc.activeId) return
+  if (!doc.tracings.some((t) => t.id === id)) return
+  const outgoing = loadAll()                                  // current active sym→drawings
+  const incoming = (doc.archive && doc.archive[id]) || {}
+  doc.archive = { ...(doc.archive || {}), [doc.activeId]: outgoing }
+  doc.activeId = id
+  const vis = new Set(doc.visibleIds); vis.add(id)
+  doc.visibleIds = doc.tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
+  _commitDoc(doc)                                             // write #1 — durable archive + meta
+  saveAll(incoming)                                           // write #2 — new active slot
+  _reloadAllEntriesFrom(incoming)                             // repaint mounted charts
+}
+
+// Delete a sheet. Never removes the last one. Deleting the ACTIVE sheet discards its
+// live drawings (that IS the delete) and promotes a fallback into the active slot.
+export function deleteTracing(id) {
+  const doc = _ensureDoc()
+  if (doc.tracings.length <= 1) return                        // always keep one sheet
+  if (!doc.tracings.some((t) => t.id === id)) return
+  const deletingActive = id === doc.activeId
+  doc.tracings = doc.tracings.filter((t) => t.id !== id).map((t, i) => ({ ...t, order: i }))
+  const nextArchive = { ...(doc.archive || {}) }; delete nextArchive[id]
+  doc.archive = nextArchive
+  doc.visibleIds = doc.visibleIds.filter((x) => x !== id)
+  if (deletingActive) {
+    const fallback = doc.tracings[0].id
+    const incoming = (doc.archive && doc.archive[fallback]) || {}
+    doc.activeId = fallback
+    if (!doc.visibleIds.includes(fallback)) doc.visibleIds = [fallback, ...doc.visibleIds]
+    _commitDoc(doc)
+    saveAll(incoming)
+    _reloadAllEntriesFrom(incoming)
+  } else {
+    if (!doc.visibleIds.length) doc.visibleIds = [doc.activeId]
+    _commitDoc(doc)
+  }
+}
+
+/** Coverage counts for a tracing — how many symbols carry marks and the total
+ *  number of drawings across all of them. Powers the panel's "233 syms" line.
+ *  Side-effect free. */
+export function tracingStats(tracingId) {
+  const doc = _ensureDoc()
+  const map = tracingId === doc.activeId ? loadAll() : ((doc.archive && doc.archive[tracingId]) || {})
+  let syms = 0
+  let drawings = 0
+  for (const k in map) {
+    const arr = map[k]
+    if (Array.isArray(arr) && arr.length) { syms += 1; drawings += arr.length }
+  }
+  return { syms, drawings }
+}
+
+/** Capture-time peek at ONE tracing's drawings for a sym (used by the Phase-1b
+ *  multi-sheet ghost render). Side-effect free; returns a deep copy. Reads the
+ *  active sheet from STORAGE_KEY and any other sheet from the doc archive. */
+export function peekTracingDrawings(tracingId, sym) {
+  if (!sym || !tracingId) return []
+  try {
+    const doc = _ensureDoc()
+    const src = tracingId === doc.activeId ? loadAll() : ((doc.archive && doc.archive[tracingId]) || {})
+    const arr = src[sym]
+    return Array.isArray(arr) ? JSON.parse(JSON.stringify(arr)) : []
+  } catch { return [] }
+}
+
+// ── Cross-device sync surface (Phase 2) ──────────────────────────────────────
+// The sync layer (useTracingsSync) needs (1) a single "anything changed" signal to
+// debounce a push on, and (2) whole-state export/import to move the full set of
+// sheets between this browser and the server. USER mutations funnel through _commit
+// (drawings), the undo/redo/snapshot paths, and _commitDoc (sheet meta), so
+// _bumpAny() is called at exactly those points — never on a sync-IN import, so
+// adopting the server copy can't echo straight back as a push.
+let _changeSeq = 0
+const _anySubs = new Set()
+function _bumpAny() {
+  _changeSeq += 1
+  _anySubs.forEach((cb) => { try { cb() } catch { /* one bad subscriber never breaks the rest */ } })
+}
+export function subscribeAnyChange(cb) { _anySubs.add(cb); return () => { _anySubs.delete(cb) } }
+export function getChangeSeq() { return _changeSeq }
+
+/** Is there any user-created tracing content in THIS browser? (a drawing on any
+ *  sheet, or more than the single default sheet). Lets the sync layer avoid
+ *  clobbering a device that has local work when it first meets an empty server. */
+export function hasLocalTracingContent() {
+  const doc = _loadDoc()
+  if (doc && doc.tracings.length > 1) return true
+  const hasDraw = (m) => { for (const k in m) { if (Array.isArray(m[k]) && m[k].length) return true } return false }
+  if (hasDraw(loadAll())) return true
+  if (doc && doc.archive) { for (const id in doc.archive) { if (hasDraw(doc.archive[id])) return true } }
+  return false
+}
+
+/** Serialize ALL tracings (meta + every sheet's drawings) into one plain object for
+ *  server storage. The active sheet's data (STORAGE_KEY) is folded into
+ *  byTracing[activeId] so the blob is a complete, self-contained snapshot. */
+export function exportTracings() {
+  const doc = _ensureDoc()
+  const byTracing = { ...(doc.archive || {}) }
+  byTracing[doc.activeId] = loadAll()
+  return {
+    v: doc.v || 1,
+    tracings: doc.tracings.map((t) => ({ ...t })),
+    activeId: doc.activeId,
+    visibleIds: [...doc.visibleIds],
+    byTracing,
+  }
+}
+
+/** Replace ALL local tracings with a server blob (shape from exportTracings). Splits
+ *  it back into the two-key storage, reloads every mounted chart's entry, and
+ *  refreshes the tracings snapshot. No-ops on a malformed blob. Does NOT bump the
+ *  change signal — a sync-IN must not trigger a push back out. */
+export function importTracings(blob) {
+  if (!blob || !Array.isArray(blob.tracings) || blob.tracings.length === 0) return
+  if (!blob.byTracing || typeof blob.byTracing !== 'object') return
+  const tracings = blob.tracings
+    .filter((t) => t && t.id)
+    .map((t, i) => ({
+      id: t.id,
+      name: typeof t.name === 'string' ? t.name : '',
+      color: (typeof t.color === 'string' && t.color) ? t.color : TRACING_PALETTE[i % TRACING_PALETTE.length],
+      order: i,
+    }))
+  if (!tracings.length) return
+  let activeId = blob.activeId
+  if (!tracings.some((t) => t.id === activeId)) activeId = tracings[0].id
+  const valid = new Set(tracings.map((t) => t.id))
+  const vis = new Set((Array.isArray(blob.visibleIds) ? blob.visibleIds : []).filter((id) => valid.has(id)))
+  vis.add(activeId)
+  const visibleIds = tracings.filter((t) => vis.has(t.id)).map((t) => t.id)
+  const okMap = (m) => (m && typeof m === 'object' && !Array.isArray(m)) ? m : {}
+  const activeMap = okMap(blob.byTracing[activeId])
+  const archive = {}
+  for (const t of tracings) {
+    if (t.id === activeId) continue
+    const m = blob.byTracing[t.id]
+    if (m && typeof m === 'object' && !Array.isArray(m)) archive[t.id] = m
+  }
+  const doc = { v: blob.v || 1, tracings, activeId, visibleIds, archive }
+  saveAll(activeMap)                    // STORAGE_KEY = active sheet
+  _saveDoc(doc)
+  _tracingsSnapshot = _buildTracingsSnapshot(doc)
+  _reloadAllEntriesFrom(activeMap)      // repaint mounted charts
+  _tracingSubs.forEach((cb) => { try { cb() } catch { /* */ } })
 }
 
 // ── Test/debug helpers (mirrors realtimeCandle.js) ──────────────────────────
@@ -291,6 +635,10 @@ export function _reset() {
   _pendingNotify.clear()
   _flushScheduled = false
   _syncNotify = _SYNC_NOTIFY_DEFAULT
+  _tracingsSnapshot = null
+  _tracingSubs.clear()
+  _changeSeq = 0
+  _anySubs.clear()
 }
 
 export function _setSyncNotify(v) { _syncNotify = !!v }

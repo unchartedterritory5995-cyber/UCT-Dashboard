@@ -49,15 +49,15 @@ function parseCSV(text) {
 
 // ── colours (matched to OptionsFlow dashboard palette) ─────────────────────
 const C = {
-  bg:"#0e0f0d", bg2:"#1a1c17", bg3:"#22251e", bg4:"#1a1c17", bgH:"#2a2d23",
-  bdr:"#2e3127", bdr2:"#3a3d32",
-  tx:"#e0dac8", tx2:"#a8a290", tx3:"#706b5e",
-  blue:"#6ba3be", green:"#3cb868", red:"#e74c3c", amber:"#c9a84c",
+  bg:"#101012", bg2:"#17181b", bg3:"#1d1f23", bg4:"#17181b", bgH:"#2a2d23",
+  bdr:"#2a2c31", bdr2:"#383b41",
+  tx:"#f8f7f3", tx2:"#f0efea", tx3:"#8a8a8f",
+  blue:"#6ba3be", green:"#2faf68", red:"#df4646", amber:"#dcbb5e",
   cyan:"#6ba3be", purple:"#a78bfa", pink:"#c97a8b", orange:"#c9844c",
 };
 const CAT_COLORS = {
-  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#c9a84c","Small Cap":"#e74c3c",
-  "Sector ETFs":"#3cb868","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
+  "Indexes":"#6ba3be","Large Cap":"#a78bfa","Mid Cap":"#dcbb5e","Small Cap":"#df4646",
+  "Sector ETFs":"#2faf68","Bond ETFs":"#6ba3be","Intl/EM ETFs":"#c97a8b","Commodity ETFs":"#c9844c"
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ function fmt(n){
   return "$"+n;
 }
 function fP(p){ return p!=null?"$"+p.toFixed(2):"—"; }
-function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#a8a290"; }
+function zC(p,lo,hi){ return p>hi?C.green:p<lo?C.red:"#f0efea"; }
 function pctFmt(p){ return p===0?"IN":(p>0?"+":"")+p.toFixed(2)+"%"; }
 
 // Format large avg vol percentages readably (897112% → 8,971×)
@@ -112,7 +112,7 @@ function Sparkline({it, w=140, h=36}){
   const zoneY1=y(hi), zoneY2=y(lo);
   const polyline = pts.map((pt,i)=>x(i)+","+y(pt.p)).join(" ");
   const lastP=pts[pts.length-1].p;
-  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#a8a290";
+  const lineColor=lastP>hi?C.green:lastP<lo?C.red:"#f0efea";
 
   // Big print level — clamp to visible range
   const bp = it.bigPrint;
@@ -134,13 +134,13 @@ function Sparkline({it, w=140, h=36}){
         <>
           {/* Thick zone band */}
           <rect x={P} y={bpY - bpThick/2} width={w-P*2} height={bpThick}
-            fill="#c9a84c33" stroke="none" rx={1}/>
+            fill="#dcbb5e33" stroke="none" rx={1}/>
           {/* Center line */}
           <line x1={P} y1={bpY} x2={w-P} y2={bpY}
-            stroke="#c9a84c" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
+            stroke="#dcbb5e" strokeWidth={1.5} strokeDasharray="3,2" opacity={0.9}/>
           {/* Left anchor tick */}
           <line x1={P} y1={bpY-4} x2={P} y2={bpY+4}
-            stroke="#c9a84c" strokeWidth={2} opacity={0.9}/>
+            stroke="#dcbb5e" strokeWidth={2} opacity={0.9}/>
         </>
       )}
 
@@ -168,7 +168,7 @@ function TickerCell({it, catColor}){
         fontSize:13,cursor:"default"}}>
         ${it.t}
       </span>
-      {it.u && <span style={{marginLeft:4,fontSize:9,color:C.amber,background:C.amber+"18",
+      {it.u && <span style={{marginLeft:4,fontSize:10,color:C.amber,background:C.amber+"18",
         padding:"1px 4px",borderRadius:4,fontWeight:700}}>UOA</span>}
       {show && it.top5 && (
         <div style={{position:"absolute",left:0,top:"100%",zIndex:50,
@@ -191,7 +191,7 @@ function TickerCell({it, catColor}){
 // ── Zone display ──────────────────────────────────────────────────────────────
 function ZoneCell({it}){
   const pos=it.pos;
-  const color=pos==="above"?C.green:pos==="below"?C.red:"#a8a290";
+  const color=pos==="above"?C.green:pos==="below"?C.red:"#f0efea";
   const pct=pos==="in"?"IN ZONE":(pos==="above"?"+":"")+it.pct.toFixed(2)+"%";
   return (
     <span style={{color,fontWeight:700,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:13}}>
@@ -225,7 +225,7 @@ function BigPrintCell({it}){
       onMouseEnter={handleEnter} onMouseLeave={()=>setHover(false)}>
       <span style={{color:C.amber,fontWeight:700,cursor:"default"}}>
         {fP(it.bigPrint)}
-        {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+        {tip && <span style={{fontSize:10,color:C.amber,opacity:0.5,marginLeft:3,
           verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
       </span>
       {hover && tip && (
@@ -254,8 +254,8 @@ function CatPill({cat}){
 
 // ── Signal badges ────────────────────────────────────────────────────────────
 const SIG_COLORS={
-  YEARLY_RECORD:"#c9a84c", MONTHLY_RECORD:"#3cb868", NOTIONAL_SPIKE:"#e74c3c",
-  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#c9a84c",
+  YEARLY_RECORD:"#dcbb5e", MONTHLY_RECORD:"#2faf68", NOTIONAL_SPIKE:"#df4646",
+  RARE_FLOW:"#6ba3be", SIZE_ESCALATION:"#a78bfa", ZONE_BREAK_RECORD:"#dcbb5e",
 };
 const SIG_SHORT={
   YEARLY_RECORD:"Yr Record", MONTHLY_RECORD:"Mo Record", NOTIONAL_SPIKE:"Vol Surge",
@@ -287,13 +287,13 @@ function SignalBadges({signals,compact}){
 // ── Flow table ────────────────────────────────────────────────────────────────
 const TH = ({children,style={}}) => (
   <th style={{padding:"8px 10px",textAlign:"left",fontSize:11,
-    color:"#706b5e",fontWeight:600,borderBottom:"1px solid #2e3127",
-    position:"sticky",top:0,background:"#22251e",whiteSpace:"nowrap",...style}}>
+    color:"#8a8a8f",fontWeight:600,borderBottom:"1px solid #2a2c31",
+    position:"sticky",top:0,background:"#1d1f23",whiteSpace:"nowrap",...style}}>
     {children}
   </th>
 );
 const TD = ({children,style={}}) => (
-  <td style={{padding:"7px 10px",borderBottom:"1px solid #2e312733",
+  <td style={{padding:"7px 10px",borderBottom:"1px solid #2a2c3133",
     verticalAlign:"middle",...style}}>
     {children}
   </td>
@@ -394,7 +394,7 @@ function StatCard({label, value, sub, color, icon}){
       padding:"10px 14px"}}>
       <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
         {icon && <span style={{fontSize:10,opacity:0.7}}>{icon}</span>}
-        <span style={{fontSize:9,color:C.tx3,textTransform:"uppercase",
+        <span style={{fontSize:10,color:C.tx3,textTransform:"uppercase",
           letterSpacing:"0.06em",fontWeight:700}}>{label}</span>
       </div>
       <div style={{fontSize:18,fontWeight:700,color:color||C.tx,fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>
@@ -418,7 +418,7 @@ function ZoneGauge({above,inside,below}){
       </div>
       <div style={{width:"100%",height:8,borderRadius:4,background:color,opacity:0.85,
         transition:"all 0.3s ease"}}/>
-      <div style={{fontSize:9,color:C.tx3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</div>
+      <div style={{fontSize:10,color:C.tx3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</div>
     </div>
   );
   return (
@@ -427,7 +427,7 @@ function ZoneGauge({above,inside,below}){
         textTransform:"uppercase",marginBottom:10}}>Zone Positioning</div>
       <div style={{display:"flex",gap:3,alignItems:"flex-start"}}>
         {seg(above,pA,C.green,"Above","flex-start")}
-        {seg(inside,pI,"#706b5e","Inside","center")}
+        {seg(inside,pI,"#8a8a8f","Inside","center")}
         {seg(below,pB,C.red,"Below","flex-end")}
       </div>
     </div>
@@ -473,7 +473,7 @@ const CAT_SHORT={"Indexes":"IDX","Large Cap":"LG","Mid Cap":"MD","Small Cap":"SM
 function CatBadge({cat}){
   const color=CAT_COLORS[cat]||C.tx3;
   return (
-    <span style={{fontSize:8,padding:"1px 4px",borderRadius:4,
+    <span style={{fontSize:10,padding:"1px 4px",borderRadius:4,
       background:color+"15",color,fontWeight:700,letterSpacing:"0.03em"}}>
       {CAT_SHORT[cat]||cat}
     </span>
@@ -519,7 +519,7 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
     return (
       <span onClick={()=>toggleSort(key)}
-        style={{fontSize:9,color:active?C.amber:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+        style={{fontSize:10,color:active?C.amber:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
           cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>
         {label}{arrow}
       </span>
@@ -535,14 +535,14 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
           {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           {hdr("mktcap","Mkt Cap",52)}
           {hdr("bigPrint","Print $",56)}
           {hdr("bigPrintN","Notional",60)}
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
           {hdr("last","Last",52)}
           {hdr("bpMove","% Move",48)}
           {hdr("avgVol","% AvgVol",52)}
@@ -573,7 +573,7 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                   fontSize:12,color:cc}}>{it.t}</span>
                 {hov===i ? <SignalBadges signals={it.signals} compact/>
-                  : <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span>}
+                  : <span style={{fontSize:10,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span>}
               </div>
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:10,
@@ -652,7 +652,7 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
     return (
       <span onClick={()=>toggleSort(key)}
-        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+        style={{fontSize:10,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
           cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>
         {label}{arrow}
       </span>
@@ -668,15 +668,15 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
       <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,width:18,textAlign:"center"}}>#</span>
           {hdr("t","Ticker",50)}
         </div>
         <div style={{display:"flex",gap:10,alignItems:"center"}}>
           {hdr("mktcap","Mkt Cap",52)}
           {hdr("bigPrint","Print $",56)}
           {hdr("bigPrintN","Notional",60)}
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:38,textAlign:"right"}}>Date</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,minWidth:52,textAlign:"right"}}>Last</span>
           {hdr("bpMove","% Move",48)}
           {hdr("avgVol","% AvgVol",52)}
         </div>
@@ -705,7 +705,7 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
                 <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontWeight:700,
                   fontSize:12,color:cc}}>{it.t}</span>
                 {hov===i && it.signals&&it.signals.length>0 ? <SignalBadges signals={it.signals} compact/>
-                  : it.signals&&it.signals.length>0 ? <span style={{fontSize:8,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span> : null}
+                  : it.signals&&it.signals.length>0 ? <span style={{fontSize:10,color:C.amber,fontWeight:700,opacity:0.6}}>{it.signals.length}s</span> : null}
 
               </div>
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
@@ -774,10 +774,10 @@ const TF_MAP = {
 // PatternTickerRow (badges in notable variant) and OverviewPane (group
 // headers in Patterns Detected) can read from the same source.
 const SIG_META = {
-  MONTHLY_RECORD:    {color:"#3cb868", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
-  YEARLY_RECORD:     {color:"#c9a84c", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
-  NOTIONAL_SPIKE:    {color:"#e74c3c", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
-  ZONE_BREAK_RECORD: {color:"#c9a84c", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
+  MONTHLY_RECORD:    {color:"#2faf68", short:"Monthly High",  groupLabel:"Biggest of the Month",       groupTip:"These stocks just had their biggest dark pool print in 30 days", tagTip:"Biggest print on this stock in 30 days"},
+  YEARLY_RECORD:     {color:"#dcbb5e", short:"Yearly High",   groupLabel:"Biggest of the Year",        groupTip:"These stocks just had their biggest dark pool print in 12 months", tagTip:"Biggest print on this stock in 12 months"},
+  NOTIONAL_SPIKE:    {color:"#df4646", short:"Heavy Volume",  groupLabel:"Heavier Than Usual Volume",  groupTip:"Print size was many times the stock's normal daily average", tagTip:"Print was much bigger than this stock's normal average"},
+  ZONE_BREAK_RECORD: {color:"#dcbb5e", short:"New Range",     groupLabel:"Broke Out of Trading Range", groupTip:"Print is at a price level outside the recent trading range", tagTip:"Print sits outside the recent trading range — fresh territory"},
   SIZE_ESCALATION:   {color:"#a78bfa", short:"Growing Daily", groupLabel:"Building Up Over Days",      groupTip:"Print sizes are getting bigger each day in a row — possible accumulation", tagTip:"Print sizes are getting bigger each day in a row"},
   RARE_FLOW:         {color:"#6ba3be", short:"First Seen",    groupLabel:"First Time Seen",            groupTip:"These stocks haven't appeared in dark pool prints recently — fresh interest", tagTip:"Hasn't shown up in dark pool prints recently"},
 };
@@ -1065,7 +1065,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
           onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = "transparent"; }}>
           <span style={{color: CAT_COLORS[it.cat] || C.tx, fontWeight:700, fontSize:12,
             fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{it.t}</span>
-          <span style={{fontSize:8, padding:"1px 5px", borderRadius:6,
+          <span style={{fontSize:10, padding:"1px 5px", borderRadius:6,
             background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
             fontWeight:700, textAlign:"center", letterSpacing:"0.03em"}}>
             {CAT_SHORT[it.cat] || ""}
@@ -1106,15 +1106,15 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
                   Three states: (1) loaded → "$144B mkt cap", (2) loading →
                   "loading mkt cap…", (3) failed/missing → cat pill ("Large Cap"). */}
               {effectiveMktcap > 0 ? (
-                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                <span style={{fontSize:10, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
                   fontWeight:700}}>{fmt(effectiveMktcap)} mkt cap</span>
               ) : mktcapLoading ? (
-                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                <span style={{fontSize:10, padding:"2px 6px", borderRadius:8,
                   background:C.bg3, color:C.tx3,
                   fontWeight:600, fontStyle:"italic"}}>loading mkt cap…</span>
               ) : (
-                <span style={{fontSize:9, padding:"2px 6px", borderRadius:8,
+                <span style={{fontSize:10, padding:"2px 6px", borderRadius:8,
                   background:(CAT_COLORS[it.cat]||C.tx3)+"22", color:CAT_COLORS[it.cat]||C.tx3,
                   fontWeight:700}}
                   title={mktcapErr ? `Mkt cap fetch: ${mktcapErr}` : undefined}>{it.cat || "—"}</span>
@@ -1161,13 +1161,13 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
               {/* Row 1 — dark pool window (how many days of prints to fetch).
                   Amber styling matches the rest of the dark pool theming. */}
               <div style={{display:"flex", gap:3, alignItems:"center"}}>
-                <span style={{fontSize:8, color:C.tx3, marginRight:4, letterSpacing:"0.05em",
+                <span style={{fontSize:10, color:C.tx3, marginRight:4, letterSpacing:"0.05em",
                   fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>PRINTS</span>
                 {Object.keys(TF_MAP).map(tf => {
                   const active = tf === timeframe;
                   return (
                     <button key={tf} onClick={() => setTimeframe(tf)}
-                      style={{padding:"3px 9px", borderRadius:4, fontSize:9, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
+                      style={{padding:"3px 9px", borderRadius:4, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer",
                         border:`1px solid ${active ? C.amber : C.bdr2}`,
                         background: active ? C.amber+"22" : "transparent",
                         color: active ? C.amber : C.tx2}}>{tf}</button>
@@ -1218,7 +1218,7 @@ function PatternTickerRow({it, sig, mktcap, onJumpTo, variant="pattern", noColla
             </Suspense>
           </div>
 
-          <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:9, color:C.tx3, flexWrap:"wrap"}}>
+          <div style={{display:"flex", alignItems:"center", gap:14, marginTop:8, fontSize:10, color:C.tx3, flexWrap:"wrap"}}>
             <span><span style={{display:"inline-block", width:14, height:6, background:C.amber, verticalAlign:"middle", marginRight:4}}></span>Top 3 prints labeled (top 5 in gold, biggest brightest)</span>
             <span><span style={{display:"inline-block", width:14, height:5, background:"#9c9588", verticalAlign:"middle", marginRight:4, opacity:0.6}}></span>Smaller prints (hover to see $ amount)</span>
             <span>·</span>
@@ -1290,10 +1290,10 @@ function SectorDarkPoolPanel({allItems, mktcapData, onJumpTo}){
                 <div style={{display:"flex", alignItems:"center", gap:6, minWidth:0}}>
                   <span style={{fontSize:10, color:C.tx3, width:10, display:"inline-block"}}>{isExpanded ? "▼" : "▶"}</span>
                   <span style={{fontSize:11, fontWeight:600, color:C.tx}}>{s.sector}</span>
-                  <span style={{fontSize:8, color:C.tx3}}>{s.topTickers.join(" · ")}</span>
+                  <span style={{fontSize:10, color:C.tx3}}>{s.topTickers.join(" · ")}</span>
                 </div>
                 <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
-                  <span style={{fontSize:9, color:C.tx3}}>{s.count}</span>
+                  <span style={{fontSize:10, color:C.tx3}}>{s.count}</span>
                   <span style={{fontSize:10, fontWeight:700, color:moveColor,
                     fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif", minWidth:40, textAlign:"right"}}>
                     {s.avgMove > 0 ? "+" : ""}{s.avgMove.toFixed(1)}%
@@ -1311,7 +1311,7 @@ function SectorDarkPoolPanel({allItems, mktcapData, onJumpTo}){
             {isExpanded && (
               <div style={{marginTop:8, padding:"8px 10px", background:C.bg3+"40",
                 borderLeft:`2px solid ${C.amber}`, borderRadius:4}}>
-                <div style={{fontSize:9, color:C.tx3, marginBottom:6, letterSpacing:"0.05em"}}>
+                <div style={{fontSize:10, color:C.tx3, marginBottom:6, letterSpacing:"0.05em"}}>
                   All {s.tickers.length} tickers in {s.sector} · sorted by notional · click any to see chart
                 </div>
                 <FlowTable items={s.sortedTickers} showCat={true} mktcapData={mktcapData}/>
@@ -1352,17 +1352,17 @@ function NotablePrintsPanel({allItems, mktcapData, USUAL}){
       <div style={{display:"flex", justifyContent:"space-between", padding:"0 0 5px 0",
         borderBottom:`1px solid ${C.bdr2}`, marginBottom:2}}>
         <div style={{display:"flex", gap:6, alignItems:"center"}}>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, width:18, textAlign:"center"}}>#</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:50}}>Ticker</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, width:18, textAlign:"center"}}>#</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:50}}>Ticker</span>
         </div>
         <div style={{display:"flex", gap:10, alignItems:"center"}}>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Mkt Cap</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:56, textAlign:"right"}}>Print $</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:60, textAlign:"right"}}>Notional</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:38, textAlign:"right"}}>Date</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Last</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:48, textAlign:"right"}}>% Move</span>
-          <span style={{fontSize:9, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>% AvgVol</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Mkt Cap</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:56, textAlign:"right"}}>Print $</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:60, textAlign:"right"}}>Notional</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:38, textAlign:"right"}}>Date</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>Last</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:48, textAlign:"right"}}>% Move</span>
+          <span style={{fontSize:10, color:C.tx3, fontWeight:600, minWidth:52, textAlign:"right"}}>% AvgVol</span>
         </div>
       </div>
 
@@ -1492,7 +1492,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
             <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:11,color:C.amber,
               fontWeight:700,minWidth:68,display:"inline-block",textAlign:"right",cursor:"default"}}>
               {fP(item.bigPrint)}
-              {tip && <span style={{fontSize:9,color:C.amber,opacity:0.5,marginLeft:3,
+              {tip && <span style={{fontSize:10,color:C.amber,opacity:0.5,marginLeft:3,
                 verticalAlign:"middle",fontWeight:400}}>ⓘ</span>}
             </span>
             {bpHover && tip && (
@@ -1679,7 +1679,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
             <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
               <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4}}>
                 <div style={{fontSize:13, fontWeight:700, color:C.amber}}><UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />What's Happening Today</div>
-                <div style={{fontSize:9, color:C.tx3}}>{D.meta.dateRange || "Selected Period"}</div>
+                <div style={{fontSize:10, color:C.tx3}}>{D.meta.dateRange || "Selected Period"}</div>
               </div>
               <div style={{fontSize:10, color:C.tx3, marginBottom:10, fontStyle:"italic"}}>
                 A plain-English read on where institutional money is moving
@@ -1723,7 +1723,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                         <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4}}>
                           <span style={{fontWeight:700, fontSize:14, color:CAT_COLORS[s.cat]||C.tx,
                             fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif"}}>{s.t}</span>
-                          {av>=20 && <span style={{fontSize:8, fontWeight:700, color:C.bg, background:C.amber,
+                          {av>=20 && <span style={{fontSize:10, fontWeight:700, color:C.bg, background:C.amber,
                             borderRadius:4, padding:"1px 5px", letterSpacing:"0.04em"}}>SIZE</span>}
                         </div>
                         <div style={{fontSize:19, fontWeight:700, color:C.tx,
@@ -1745,7 +1745,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
               <div style={{background:C.bg2, border:`1px solid ${C.bdr}`, borderRadius:8, padding:"14px 18px"}}>
                 <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2}}>
                   <div style={{fontSize:13, fontWeight:700, color:C.tx}}><UIcon name="patterns" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Stocks ({notableStocks.length})</div>
-                  <div style={{fontSize:9, color:C.tx3, fontStyle:"italic"}}>
+                  <div style={{fontSize:10, color:C.tx3, fontStyle:"italic"}}>
                     bonds · treasuries · index ETFs filtered out
                   </div>
                 </div>
@@ -1754,8 +1754,8 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                 </div>
                 {/* Column header strip */}
                 <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"4px 0", marginBottom:4, borderBottom:`1px solid ${C.bdr}`}}>
-                  <div style={{fontSize:9, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>Stock</div>
-                  <div style={{display:"flex", gap:18, alignItems:"center", fontSize:9, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>
+                  <div style={{fontSize:10, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>Stock</div>
+                  <div style={{display:"flex", gap:18, alignItems:"center", fontSize:10, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase"}}>
                     <span>Big $ Amount</span>
                     <span style={{minWidth:54, textAlign:"right"}}>Since Print</span>
                   </div>
@@ -1806,7 +1806,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                           {/* Column header strip — matches PatternTickerRow grid columns */}
                           <div style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
                             gap:8, alignItems:"center", padding:"4px 6px",
-                            fontSize:8, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase",
+                            fontSize:10, color:C.tx3, letterSpacing:"0.08em", textTransform:"uppercase",
                             borderBottom:`1px solid ${C.bdr}`}}>
                             <span>Ticker</span>
                             <span>Cap</span>
@@ -1847,7 +1847,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
           disabled={mktcapLoading}
           style={{padding:"4px 12px",borderRadius:4,border:`1px solid ${C.bdr2}`,
             background:mktcapLoading?C.bg3:"transparent",color:mktcapLoading?C.tx3:C.cyan,
-            fontSize:9,fontWeight:600,cursor:mktcapLoading?"wait":"pointer",
+            fontSize:10,fontWeight:600,cursor:mktcapLoading?"wait":"pointer",
             fontFamily:"inherit",transition:"all 0.15s"}}>
           {mktcapLoading?"Fetching…":"Fetch Mkt Cap"}
         </button>
@@ -2382,7 +2382,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
     return (
       <span onClick={()=>toggleSort(key)}
-        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,textAlign:align,
+        style={{fontSize:10,color:active?C.blue:C.tx3,fontWeight:600,textAlign:align,
           cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>{label}{arrow}</span>
     );
   };
@@ -2428,7 +2428,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
         {/* Column headers */}
         <div style={{display:"grid",gridTemplateColumns:_RECORDS_GRID,columnGap:18,alignItems:"center",
           padding:"0 0 5px 0",borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-          <span style={{fontSize:9,color:C.tx3,fontWeight:600,textAlign:"center"}}>#</span>
+          <span style={{fontSize:10,color:C.tx3,fontWeight:600,textAlign:"center"}}>#</span>
           {gh("ticker","Ticker","left")}
           {gh("mktcap","Mkt Cap")}
           {gh("notional","Record")}
@@ -2449,7 +2449,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
             <span style={{display:"flex",gap:6,alignItems:"center",minWidth:0}}>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 fontWeight:700,fontSize:12,color:C.amber}}>{r.ticker}</span>
-              {band && <span style={{fontSize:8,fontWeight:700,color:bandColor,opacity:0.85,
+              {band && <span style={{fontSize:10,fontWeight:700,color:bandColor,opacity:0.85,
                 border:`1px solid ${bandColor}44`,borderRadius:3,padding:"0 4px"}}>{band}</span>}
             </span>
             <span style={{fontSize:10,color:C.tx3,textAlign:"right"}}>{mc>0?fmt(mc).replace("$",""):"—"}</span>
@@ -3314,7 +3314,7 @@ export default function DarkPool({embedded}){
             return (
               <div key={label} style={{background:C.bg,border:`1px solid ${C.bdr}`,
                 borderRadius:6,padding:"8px 14px"}}>
-                <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+                <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
                   textTransform:"uppercase",marginBottom:2}}>{label}</div>
                 <div style={{fontSize:20,fontWeight:800,color:c,
                   fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",lineHeight:1}}>{fP(item.last)}</div>
@@ -3327,7 +3327,7 @@ export default function DarkPool({embedded}){
           {/* Period card */}
           <div style={{background:C.bg,border:`1px solid ${C.bdr}`,borderRadius:6,
             padding:"8px 14px"}}>
-            <div style={{fontSize:9,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
+            <div style={{fontSize:10,color:C.tx3,fontWeight:700,letterSpacing:"0.05em",
               textTransform:"uppercase",marginBottom:2}}>PERIOD</div>
             <div style={{fontSize:20,fontWeight:800,color:C.amber,
               fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",lineHeight:1}}>{D.meta?.tradingDays??""} <span style={{fontSize:12}}>days</span></div>
@@ -3395,7 +3395,7 @@ export default function DarkPool({embedded}){
               <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
                 style={{ background:"transparent", border:"none", color:C.tx3, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}><UIcon name="x" size={12} /></button>
             )}
-            <span style={{ fontSize:9, color:C.tx3 }}>
+            <span style={{ fontSize:10, color:C.tx3 }}>
               {csvLoading ? "Loading..." : dateFrom && dateTo
                 ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
                 : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
@@ -3418,7 +3418,7 @@ export default function DarkPool({embedded}){
                   ].map(p => (
                     <button key={p.label} onClick={p.fn} style={{
                       padding:"4px 10px", borderRadius:4, border:`1px solid ${C.bdr}`,
-                      background:"transparent", color:C.tx2, fontSize:9, fontWeight:700,
+                      background:"transparent", color:C.tx2, fontSize:10, fontWeight:700,
                       cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
                     }}
                       onMouseEnter={e=>{e.target.style.background=C.bg3; e.target.style.color=C.tx;}}
@@ -3437,7 +3437,7 @@ export default function DarkPool({embedded}){
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
                   {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-                    <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:C.tx3, padding:2 }}>{d}</div>
+                    <div key={d} style={{ textAlign:"center", fontSize:10, fontWeight:700, color:C.tx3, padding:2 }}>{d}</div>
                   ))}
                 </div>
                 {(()=>{
@@ -3487,7 +3487,7 @@ export default function DarkPool({embedded}){
                     </div>
                   );
                 })()}
-                <div style={{ marginTop:8, fontSize:9, color:C.tx3, textAlign:"left", paddingLeft:12 }}>
+                <div style={{ marginTop:8, fontSize:10, color:C.tx3, textAlign:"left", paddingLeft:12 }}>
                   {calStart && !dateTo ? "Click end date" : "Click to start selection"}
                   {" · "}<span style={{ color:C.amber }}>●</span> trading day
                 </div>

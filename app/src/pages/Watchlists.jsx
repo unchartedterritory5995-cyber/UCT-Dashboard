@@ -1144,11 +1144,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         setHubSym(nextSym)   // always re-assert so this widget wins the color group
       }
     }
-    if (e.shiftKey && e.key === 'F' && selectedSym && flagged.includes(selectedSym)) {
-      removeFlagged(selectedSym)
-      setFlagToast('removed')
+    // ⛔ THIS USED TO BE GATED ON `flagged.includes(selectedSym)` AND CALL
+    // `removeFlagged`, so Shift+F could only ever REMOVE a flag — pressing it on
+    // an unflagged row while scanning, which is the whole point, did nothing.
+    // The row star has always advertised 'Add to Flagged (Shift+F)', and the
+    // `flagToast === 'added'` branch below was unreachable the day it was
+    // written: a rendered state with no writer. It TOGGLES now, the same verb
+    // ChartPane, GridChartCell, Breadth and the Theme Tracker already use.
+    // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
+    // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
+    // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
+    // a TOGGLE leaves the flag on whichever parity the release happens to catch.
+    // Reported 2026-08-29.
+    if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat && selectedSym) {
+      e.preventDefault()
+      const willFlag = !flagged.includes(selectedSym)
+      toggleFlag(selectedSym)
+      setFlagToast(willFlag ? 'added' : 'removed')
     }
-  }, [visibleSymsFlat, selectedSym, flagged, removeFlagged, setHubSym])
+  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)

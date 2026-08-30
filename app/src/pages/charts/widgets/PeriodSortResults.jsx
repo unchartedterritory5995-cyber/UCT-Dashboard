@@ -34,7 +34,7 @@ const GROUP_LABEL = { theme: 'Themes', sector: 'Sectors', industry: 'Industries'
 const GROUP_UNIT = { theme: 'theme', sector: 'sector', industry: 'industry' }
 
 export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null, symbolsFilter = null, titlePrefix = null, group = null }) {
-  const { groupSyms, setGroupSym } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace() || {}
   const widgetId = useId()
 
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
@@ -177,6 +177,14 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
         onExitPick={onExit}
         settingsOverride={settingsOverride}
         onSettingsPersist={onSettingsPersist}
+        // ⛔⛔ `activeRef` TRAVELS WITH `widgetKey` OR THE WIDGET NEVER LOSES THE KEYBOARD.
+        // Watchlists reads them as a PAIR: `isActiveWidget()` is `!activeRef || ...`,
+        // so passing the key alone leaves this widget permanently "active" — it answers
+        // every Shift+F and every arrow no matter which widget you are actually in — while
+        // `markActiveWidget()` (`if (activeRef && widgetKey)`) can never fire, so it cannot
+        // claim the lock either. With a scan widget open beside a watchlist, ONE Shift+F
+        // flagged in BOTH. WatchlistWidget and ThemesWidget always passed both. 2026-08-29.
+        activeRef={activeWatchlistRef}
         widgetKey={widgetId}
         ephemeralCols
         scanEmptyText={scanEmptyText}

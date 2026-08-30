@@ -1,0 +1,183 @@
+/* app/src/pages/formulas/FormulaReference.module.css
+   The formula reference. Renders inside `Layout`, so it inherits the app shell
+   and owns only its own rhythm. Tokens are the shipped ones — this page adds no
+   colour of its own. */
+
+.page {
+  padding: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.lede {
+  margin: 0 0 16px;
+  color: var(--text, #cfcabd);
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 68ch;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated, #1b1b1e);
+  border: 1px solid var(--border-accent, rgba(220, 187, 94, 0.28));
+  border-radius: var(--radius-md, 10px);
+  padding: 0 12px;
+  margin-bottom: 10px;
+}
+
+.search {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--text-bright, #e8e4da);
+  font-size: 14px;
+  /* The whole row is the target; 44px keeps it tappable on a phone. */
+  min-height: var(--tap-min, 44px);
+}
+
+.search::placeholder { color: var(--text-muted, #8a857a); opacity: 0.75; }
+
+.count {
+  margin: 0 0 22px;
+  color: var(--text-muted, #8a857a);
+  font-size: 11.5px;
+  letter-spacing: var(--ls-label, 0.4px);
+}
+
+.empty {
+  margin: 0 0 22px;
+  padding: 12px 14px;
+  background: var(--bg-elevated, #1b1b1e);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border-radius: 0 6px 6px 0;
+  color: var(--text, #cfcabd);
+  font-size: 12.5px;
+  line-height: 1.65;
+  max-width: 72ch;
+}
+
+.group { margin: 0 0 30px; }
+
+.groupTitle {
+  margin: 0 0 4px;
+  color: var(--text-heading, #f0ece2);
+  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.groupCount {
+  color: var(--text-muted, #8a857a);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.groupBlurb {
+  margin: 0 0 12px;
+  color: var(--text-muted, #8a857a);
+  font-size: 12px;
+  line-height: 1.55;
+  max-width: 68ch;
+}
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* Auto-fill rather than a fixed column count: 222 entries read as a dense
+     reference on a desktop and a single column on a phone, with no breakpoint
+     of this page's own. */
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 8px;
+}
+
+.entry,
+.gone {
+  background: var(--bg-surface, #131315);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-md, 10px);
+  padding: 10px 12px;
+}
+
+.gone {
+  border-left: 2px solid var(--text-muted, #8a857a);
+}
+
+.sig,
+.goneName {
+  display: block;
+  color: var(--ut-gold, #dcbb5e);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  /* A long signature scrolls inside its own card rather than widening the grid. */
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.goneName {
+  color: var(--text-muted, #8a857a);
+  text-decoration: line-through;
+}
+
+.says {
+  margin: 5px 0 0;
+  color: var(--text, #cfcabd);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.reach,
+.trait {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 5px 0 0;
+  color: var(--text-muted, #8a857a);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* The one trait that is a promise to the member rather than a property of the
+   maths: where our answer deliberately differs from the platform they copied a
+   script from. It is tinted so it cannot be skimmed past. */
+.trait[data-trait='vendorNote'] {
+  color: var(--text, #cfcabd);
+  background: var(--bg-elevated, #1b1b1e);
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  border-radius: 0 4px 4px 0;
+  padding: 7px 9px;
+}
+
+.footer {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #8a857a);
+}
+
+.footer a { color: var(--ut-gold, #dcbb5e); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .page { padding: 10px; }
+  .entries { grid-template-columns: 1fr; }
+}
+
+/* The substitute a refused name points at. Gold because it is the thing to act
+   on — a member who came for a name they cannot use leaves with one they can. */
+.instead {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted, #8a857a);
+}
+
+.instead code {
+  color: var(--ut-gold, #dcbb5e);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+}

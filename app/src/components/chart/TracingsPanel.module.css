@@ -1,0 +1,188 @@
+/* TracingsPanel — the Drawing Boards manager. Styled to MATCH the toolbar's
+   "customize drawing tools" menu (FavoriteDrawingsMenu): same --menu-* chrome,
+   7/8px rows, gold checkmark on the active row, gold-tint hover. */
+
+.panel {
+  width: 260px;
+  max-height: 68vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #14171c);
+  border: 1px solid var(--menu-border, #232932);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  color: var(--menu-text, #e8eaed);
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  padding: 6px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 8px;
+}
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Exact match to the favorite-tools menu's muted labels/icons: --menu-text at 0.45. */
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.6;
+}
+.close {
+  background: none;
+  border: none;
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.close:hover { opacity: 1; }
+
+.list {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* row — mirrors the menu row: flex, gap 8, padding 7/8, radius 6, gold-tint hover */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+}
+.row:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.1)); }
+.rowActive { background: rgba(201, 168, 76, 0.06); }
+
+/* pick = the checkmark + name (clicking activates the board) */
+.pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+}
+.check {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c9a84c;               /* gold — matches the menu's ✓ */
+}
+.name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 2px right pad so an italic placeholder's trailing glyph (e.g. the "2" in
+     "Board 2") isn't shaved by overflow:hidden. */
+  padding-right: 2px;
+  color: var(--menu-text, #e8eaed);
+}
+.namePlaceholder { color: var(--menu-text, #e8eaed); opacity: 0.6; font-style: italic; }
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  background: var(--menu-bg-2, #1b1f26);
+  border: 1px solid var(--menu-border, #232932);
+  border-radius: 5px;
+  color: var(--menu-text, #e8eaed);
+  font: inherit;
+  padding: 2px 6px;
+  outline: none;
+}
+.nameInput:focus { border-color: rgba(201, 168, 76, 0.6); }
+
+/* trailing controls grouped tight so the board name gets the width */
+.actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  padding-right: 2px;
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.6;
+}
+
+/* pencil (rename) + trash share the favorite-menu muted treatment */
+.edit,
+.del {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--menu-text, #e8eaed);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  display: inline-flex;
+}
+.edit:hover { opacity: 1; }
+.del:hover:not(:disabled) { opacity: 1; color: var(--color-danger, #e06666); }
+.del:disabled { opacity: 0.2; cursor: default; }
+
+/* inline delete confirm — a small ✓ (danger) + ✕ (cancel), no browser dialog */
+.confirmDel,
+.cancelDel {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 5px;
+  display: inline-flex;
+}
+.confirmDel { color: var(--color-danger, #e06666); }
+.confirmDel:hover { background: rgba(224, 102, 102, 0.14); }
+.cancelDel { color: var(--menu-text, #e8eaed); opacity: 0.6; }
+.cancelDel:hover { opacity: 1; }
+
+/* New board — a final menu-style row, not a heavy button */
+.newRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 8px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--menu-text, #e8eaed);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+.newRow:hover { background: var(--menu-accent-bg, rgba(201, 168, 76, 0.1)); }
+.newIcon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c9a84c;
+}

@@ -13,16 +13,9 @@ import BreadthViewSwitcher from './BreadthViewSwitcher'
 import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
 import QuickPresetSwitcher from './QuickPresetSwitcher'
 import { VIEW_CONFIG, optionsSchema } from './views/viewMetricConfig'
+import { VIEW_COMPONENTS } from './views/viewRegistry'
 import customizeStyles from './CustomizePanel.module.css'
 import signalStyles from './views/signals.module.css'
-import TreemapView from './views/TreemapView'
-import RingsView from './views/RingsView'
-import TugView from './views/TugView'
-import MetersView from './views/MetersView'
-import TimelineView from './views/TimelineView'
-import RadarView from './views/RadarView'
-import ScoreboardView from './views/ScoreboardView'
-import EqualizerView from './views/EqualizerView'
 import UIcon from '../../components/ui/UIcon'
 
 export default function BreadthViews({ rows, onDrill, live = null, liveStamp = null }) {
@@ -126,10 +119,17 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
 
   if (!currentRow) return null
 
-  const common = {
-    currentRow, prevRow, recentRows, metrics: visibleMetrics, normalize, onDrill: drill,
-    signalKey: signals.signalKey, notableKey: signals.notableKey, options: views.options,
-  }
+  const ActiveView = VIEW_COMPONENTS[views.viewStyle]
+  const activeKind = VIEW_CONFIG[views.viewStyle]?.kind ?? 'board'
+
+  const viewProps = activeKind === 'lens'
+    ? { rows: filledRows, currentRow, prevRow, rowIdx, onDrill: drill, options: views.options }
+    : {
+        currentRow, prevRow, recentRows, rows: filledRows, rowIdx,
+        metrics: visibleMetrics, normalize, onDrill: drill,
+        signalKey: signals.signalKey, notableKey: signals.notableKey,
+        options: views.options, pctileByKey, visibleKeys,
+      }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -194,18 +194,7 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
       />
 
       <div style={{ flex: 1, minHeight: 0 }}>
-        {views.viewStyle === 'treemap' && (
-          <TreemapView currentRow={currentRow} prevRow={prevRow} pctileByKey={pctileByKey}
-                       visibleKeys={visibleKeys} signalKey={signals.signalKey}
-                       notableKey={signals.notableKey} onDrill={drill} options={views.options} />
-        )}
-        {views.viewStyle === 'rings'      && <RingsView      {...common} />}
-        {views.viewStyle === 'tug'        && <TugView        {...common} />}
-        {views.viewStyle === 'meters'     && <MetersView     {...common} />}
-        {views.viewStyle === 'timeline'   && <TimelineView   {...common} />}
-        {views.viewStyle === 'radar'      && <RadarView      {...common} />}
-        {views.viewStyle === 'scoreboard' && <ScoreboardView {...common} />}
-        {views.viewStyle === 'equalizer'  && <EqualizerView  {...common} />}
+        {ActiveView && <ActiveView {...viewProps} />}
       </div>
     </div>
   )

@@ -27,7 +27,10 @@ import { translatePine } from '../engine/ast/pine'
 import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
-import { BUILDER_INPUT_SCOPE } from './builderInputs'
+import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { vendorNotesForTree } from '../engine/ast/parse'
+import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
+import { splitPaste, inspectLibrary } from './libraryIntake'
 import styles from './PineBox.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
@@ -47,9 +50,17 @@ plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, "Signal")`
  * raising and `evaluateFormula` is already the door that cannot throw.
  */
 export function inspectPine(source) {
-  const translated = translatePine(source)
+  // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
+  // runs `translatePine` twice — once declaring every bound input to find which
+  // ones the engine has to fold back into a window, then again declaring only the
+  // survivors — and annotates each output with `memberInputs` / `skippedInputs`.
+  // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
+  // refusals; the only difference is that a threshold or a multiplier reaches the
+  // formula as its own identifier instead of as somebody else's constant.
+  const translated = memberInputTranslation(translatePine, source)
   const outputs = translated.outputs.map((out) => ({
     ...out,
+    vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
     downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
@@ -99,9 +110,16 @@ export function inspectSource(source, dialect = 'auto') {
   const stamp = (r) => (r ? { ...r, source } : r)
 
   if (lang === 'pine' || lang === 'thinkscript') {
-    const t = lang === 'pine' ? translatePine(source) : translateThinkScript(source)
+    // ⛔ THE PINE LANE GOES THROUGH THE MEMBER-INPUT DOOR AND THINKSCRIPT DOES
+    // NOT, because `declareInputs` is `pine.js`'s option and thinkScript's own
+    // input form has not been given the same hand-back. Routing both through it
+    // would be a claim about a capability one of them does not have.
+    const t = lang === 'pine'
+      ? memberInputTranslation(translatePine, source)
+      : translateThinkScript(source)
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
+      vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
       refusal: stamp(out.refusal),
       downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
     }))
@@ -158,6 +176,26 @@ function Refusal({ refusal, testId }) {
       {/* ⛔ VERBATIM. The refusing door owns the sentence. */}
       <span className={styles.refusalText}>{refusal.message}</span>
       {refusal.excerpt && <pre className={styles.excerpt}>{refusal.excerpt}</pre>}
+      {/* ⭐⭐ THE OFFER, WHERE THE MEMBER IS ALREADY LOOKING. thinkorswim publishes
+          no default for some study parameters, and this engine REFUSES to assume
+          one — `displace` shifts every bar, and a guessed `price` draws a
+          plausible column that is wrong everywhere with no refusal anywhere. So
+          the conventional call is shown and the MEMBER applies it: typed into
+          their own script the value is visible in the read-back, which is the
+          whole difference between their choice and our silent guess. */}
+      {refusal.suggest && (
+        <div className={styles.suggest} data-testid="import-suggest">
+          <span className={styles.suggestLead}>
+            thinkorswim doesn’t publish these defaults, so this engine won’t assume
+            them. The conventional call is:
+          </span>
+          <code className={styles.suggestCall}>{refusal.suggest}</code>
+          <span className={styles.suggestWhy}>
+            Write the arguments into your own call and it translates — and because
+            they are in your script, you can see what was assumed.
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -205,9 +243,54 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     return report.outputs[chosen] || null
   }, [report, chosen])
 
+  // ⭐⭐ A NUMERIC COLUMN CAN BE CHARTED BUT NOT SCREENED ON, and this is where the
+  // member turns one into a screen. Measured: 41 corpus scripts translate, all 41
+  // save, and only 19 can be RUN as a screen — every refusal is the `yields` gate
+  // saying "this tree returns a number". Nothing here softens that gate; the member
+  // supplies the comparison that satisfies it, exactly as TradingView's Pine
+  // Screener has them pick an operator beside a plotted column.
+  //
+  // ⛔ AND IT IS OPTIONAL BY DESIGN. A number is a perfectly good column to chart,
+  // so the box does not demand a threshold to let the member proceed — leaving it
+  // blank hands back the column itself, unchanged.
+  const [screenOp, setScreenOp] = useState(COMPARISONS[0] || '>')
+  const [screenValue, setScreenValue] = useState('')
+
+  // ⭐⭐ A WHOLE FOLDER, THROUGH THE BOX THAT ALREADY EXISTS. A member arriving
+  // with years of scripts discovers the answer one paste at a time today, so they
+  // meet their third refusal before a chart has drawn. If the paste holds more than
+  // one script, this box answers the bigger question instead of the small one.
+  //
+  // ⛔ NO NEW TAB, AND THAT IS DELIBERATE. `ImportBox.thinkscript.test.js` records
+  // the ruling: ONE BOX, not a second paste surface. Pasting forty scripts is the
+  // same act as pasting one — the box simply notices which happened.
+  const library = useMemo(() => {
+    const split = splitPaste(text)
+    if (split.found < 2) return null
+    return { split, report: inspectLibrary(split.scripts) }
+  }, [text])
+
+  const numericColumn = !!(active && active.formula && !yieldsCondition(active.formula))
+  const condition = useMemo(() => {
+    if (!numericColumn || String(screenValue).trim() === '') return null
+    return conditionFrom(active.formula, screenOp, screenValue)
+  }, [numericColumn, active, screenOp, screenValue])
+
   const use = useCallback(() => {
-    if (active && active.formula) onPick?.(active.formula)
-  }, [active, onPick])
+    if (!active || !active.formula) return
+    // ⭐⭐ THE OBJECT FORM CARRIES THE AUTHOR'S KNOBS. `BuilderSheet` has branched
+    // on `{source, inputs}` since W1b.9 and nothing ever produced one — the only
+    // thing that did was a `vi.mock` in its own test, which is the "built, tested,
+    // green and reachable from nothing" shape this repo keeps paying for.
+    // ⛔ THE STRING FORM IS UNCHANGED FOR EVERY OTHER CALLER. `StarterLibrary` and
+    // a paste with no declarable input still hand back a bare string, byte for
+    // byte, so the sheet's older path is untouched rather than migrated.
+    const rows = active.memberInputs || []
+    // ⛔ THE COMPARISON WRAPS THE COLUMN, so the author's knobs still sit inside it
+    // and travel unchanged. A member who left the threshold blank gets the column.
+    const picked = condition && condition.ok ? condition.formula : active.formula
+    onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
+  }, [active, onPick, condition])
 
   const usable = report ? report.outputs.filter((o) => o.formula) : []
   const anyDialect = dialect !== undefined
@@ -314,13 +397,52 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </fieldset>
           )}
 
-          {active && active.inputsFolded && active.inputsFolded.length > 0 && (
+          {active && active.vendorNotes && active.vendorNotes.length > 0 && (
+            <ul className={styles.notes} data-testid="pine-vendor-notes">
+              {/* ⭐⭐ THE SENTENCE THE PRODUCT OWES SOMEBODY WHO PASTED A SCRIPT.
+                  Where our answer for a name deliberately differs from the
+                  platform they copied it from, they read it HERE — before they
+                  commit — rather than discovering it later by comparing two
+                  charts and filing a bug. The text is the manifest's own
+                  `vendorNote`; this component writes no sentence of its own, for
+                  the same reason it renders refusals verbatim.
+                  ⛔ IT IS NOT IN THE "lines a screen does not read" LIST. That
+                  list is about text we SKIPPED; this is about maths we RAN and
+                  ran differently. Collapsing the two would bury a numeric
+                  divergence inside a note about syntax. */}
+              {active.vendorNotes.map((v) => (
+                <li key={v.name} className={styles.note} data-vendor-note={v.name}>
+                  <span className={styles.noteWhere}>{v.name}</span>
+                  <span>{v.note}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {active && active.memberInputs && active.memberInputs.length > 0 && (
+            <p className={styles.folded} data-testid="pine-inputs-kept">
+              {/* ⭐⭐ THE HALF THAT USED NOT TO EXIST. These are the author's own
+                  controls, carried across as knobs the member can turn after
+                  saving — with the author's own minval/maxval as their bounds. */}
+              <UIcon name="sliders" size={12} /> Inputs you can change later:{' '}
+              {active.memberInputs.map((r) => `${r.label} = ${r.default}`).join(' · ')}
+            </p>
+          )}
+
+          {active && active.skippedInputs && active.skippedInputs.length > 0 && (
             <p className={styles.folded} data-testid="pine-inputs-folded">
               {/* ⭐ SAID OUT LOUD. A knob folded to its default silently would be a
                   formula that means something other than the script the member
-                  reads on TradingView. */}
-              Inputs are fixed at their defaults:{' '}
-              {active.inputsFolded.map((f) => `${f.title || f.call} = ${f.folded}`).join(' · ')}
+                  reads on TradingView.
+                  ⛔ AND IT NOW LISTS ONLY WHAT IS ACTUALLY FIXED. It used to print
+                  EVERY folded entry, which was true when nothing could be declared
+                  and became a false sentence the moment one could — a member would
+                  read "fixed at their defaults" about a control sitting live in
+                  their own settings. */}
+              Fixed at their defaults:{' '}
+              {active.skippedInputs.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
+              {active.skippedInputs.some((f) => /lands in a WINDOW/.test(f.reason || ''))
+                && ' — a length cannot be a member input in this engine, so it stays as written.'}
             </p>
           )}
 
@@ -345,6 +467,130 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {/* ⭐ THE DOOR OUT OF "I DO NOT KNOW WHAT I CAN WRITE", placed where the
+              member is actually stuck rather than in a menu they would have to
+              think to open. The reference is derived from the same manifest this
+              box translates against, so what it lists is exactly what a paste
+              here can resolve. */}
+          <p className={styles.refLink}>
+            <a href="/formulas/reference">See every name you can write →</a>
+          </p>
+
+          {/* ⭐⭐ THE LIBRARY MANIFEST. Four reaches, never one number: translating
+              is not computing, computing is not saveable, saveable is not
+              screenable, and on the committed corpora those differ by more than
+              half. One blended headline would be us computing a marketing claim
+              about a member's own work at the moment of maximum doubt. */}
+          {library && (
+            <div className={styles.manifest} data-testid="pine-library">
+              <span className={styles.manifestLead}>
+                {library.report.total} scripts in that paste
+                {library.split.how === 'version-marker'
+                  ? ' — split on each `//@version` line. A script without that header'
+                    + ' joins the one above it, so check this count against what you pasted.'
+                  : ''}
+              </span>
+              <div className={styles.manifestReaches}>
+                {[
+                  ['translate', library.report.translates],
+                  ['compute', library.report.computes],
+                  ['save', library.report.saves],
+                  ['screen as written', library.report.screensAsWritten],
+                ].map(([label, n]) => (
+                  <span key={label} className={styles.manifestReach}>
+                    <strong>{n}</strong> {label}
+                  </span>
+                ))}
+              </div>
+              {library.report.screensWithComparison > 0 && (
+                <span className={styles.manifestNote}>
+                  {library.report.screensWithComparison} more can screen once you say what
+                  you are looking for — pick one below and add a comparison.
+                </span>
+              )}
+              <ul className={styles.manifestRows}>
+                {library.report.rows.map((r, i) => (
+                  <li key={i} className={styles.manifestRow} data-ok={r.translates ? '1' : '0'}>
+                    <span className={styles.manifestName}>{r.name}</span>
+                    {r.translates
+                      ? <code className={styles.manifestFormula}>{r.formula}</code>
+                      : (
+                        <span className={styles.manifestWhy}>
+                          <span className={styles.manifestGuard}>{r.refusal?.guard}</span>
+                          {r.refusal?.message}
+                          {/* ⛔ WHAT CAME ACROSS ANYWAY. A script with six plots where
+                              one refuses is not a failure, and saying so is both
+                              wrong and discouraging. */}
+                          {r.partial.length > 0 && (
+                            <span className={styles.manifestPartial}>
+                              {r.partial.length} column{r.partial.length === 1 ? '' : 's'} from
+                              this script did translate
+                            </span>
+                          )}
+                        </span>
+                      )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {/* ⭐⭐ THE COLUMN IS A NUMBER — OFFER TO MAKE IT A SCREEN. This is the
+              single biggest measured gap in the paste path: 41 scripts translate
+              and save, only 19 can be scanned, and every refusal is the `yields`
+              gate. The gate is right; what was missing is the one thing the
+              member has to say. */}
+          {numericColumn && (
+            <div className={styles.toScreen} data-testid="pine-to-screen">
+              <span className={styles.toScreenLead}>
+                This column is a number, so it can be charted as it is. To SCREEN
+                with it, say what you are looking for:
+              </span>
+              <div className={styles.toScreenRow}>
+                <code className={styles.toScreenCol}>{active.formula}</code>
+                <select
+                  className={styles.toScreenOp}
+                  data-testid="pine-screen-op"
+                  aria-label="comparison"
+                  value={screenOp}
+                  disabled={disabled}
+                  onChange={(e) => setScreenOp(e.target.value)}
+                >
+                  {COMPARISONS.map((op) => (
+                    <option key={op} value={op}>{operatorLabel(op)}</option>
+                  ))}
+                </select>
+                <input
+                  className={styles.toScreenValue}
+                  data-testid="pine-screen-value"
+                  aria-label="threshold"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="value"
+                  value={screenValue}
+                  disabled={disabled}
+                  onChange={(e) => setScreenValue(e.target.value)}
+                />
+              </div>
+              {condition && condition.ok && (
+                <code className={styles.toScreenPreview} data-testid="pine-screen-preview">
+                  {condition.formula}
+                </code>
+              )}
+              {condition && !condition.ok && (
+                <span className={styles.toScreenWhy} data-testid="pine-screen-why">
+                  {condition.reason}
+                </span>
+              )}
+              {/* ⛔ SAY WHAT HAPPENS IF THEY LEAVE IT BLANK, rather than letting an
+                  empty box read as an unfinished step. */}
+              {!condition && (
+                <span className={styles.toScreenWhy}>
+                  Leave this blank to keep the column as it is — you can still chart it.
+                </span>
               )}
             </div>
           )}

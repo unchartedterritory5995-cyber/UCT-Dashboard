@@ -1,0 +1,147 @@
+/* ImageBox — the screenshot door. Its own module rather than a block inside
+   BuilderSheet.module.css for the reason PineBox states: that sheet is shared
+   with surfaces under concurrent edit, and a CSS module is the cheapest thing in
+   this repo to keep disjoint. Every colour is a token with a literal fallback,
+   so the box follows whatever theme it is dropped into. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+}
+
+.head {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The honesty line. Deliberately not muted into invisibility: it is the sentence
+   that stops a candidate being read as an answer. */
+.disclaimer {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text, rgba(255, 255, 255, 0.78));
+  border-left: 2px solid var(--border-accent, rgba(212, 175, 55, 0.6));
+  padding-left: 8px;
+}
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.file,
+.note {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md);
+}
+.note:focus { outline: none; border-color: var(--border-accent); }
+.note::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+
+.button {
+  min-height: var(--tap-min, 40px);
+  padding: 0 14px;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border-accent, rgba(212, 175, 55, 0.6));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+/* ⛔ A DISABLED BUTTON HAS TO LOOK DISABLED. The same expression that sets
+   `disabled` sets this class, so the look cannot drift from the gate. */
+.dimmed { opacity: 0.45; cursor: not-allowed; }
+
+.meta { font-size: 11px; color: var(--text-muted); }
+
+.answer { display: flex; flex-direction: column; gap: 8px; }
+
+.saw {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text, rgba(255, 255, 255, 0.78));
+}
+
+.candidate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md);
+  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+}
+
+.candidateHead { display: flex; gap: 8px; align-items: baseline; }
+
+.rank {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.confidence {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.sentence {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-heading, #fff);
+}
+
+.source {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.refusal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--loss-bg, rgba(220, 76, 70, 0.12));
+  border: 1px solid var(--loss-border, rgba(220, 76, 70, 0.4));
+  border-radius: var(--radius-md);
+}
+
+.rejected {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  border: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md);
+}

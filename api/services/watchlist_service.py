@@ -41,19 +41,39 @@ def get_watchlist(wl_id: str, user_id: str = None) -> dict | None:
         conn.close()
 
 
-def list_user_watchlists(user_id: str) -> list[dict]:
+def list_user_watchlists(user_id: str, include_items: bool = True) -> list[dict]:
+    """The user's lists. `include_items=False` returns metadata + item_count only.
+
+    ⚠️ `include_items` defaults to True so every existing caller is byte-identical.
+    Pass False ONLY from a surface that renders list NAMES and never reads `items`.
+
+    Why it exists: `GlobalAddPositionProvider` is mounted app-wide, so this endpoint
+    is on the app-shell path of EVERY page — and it was shipping every symbol of
+    every list to draw an "＋ Add to watchlist" menu of names. On the owner's account
+    that is 33 lists / 4,406 rows / 553 KB per page load (the prebuilt index lists —
+    Russell 2000 alone is 1,921 symbols — are owned by the admin user, so they come
+    back as "his" lists). Measured 2.5-7.6 s on prod 2026-08-29.
+
+    `item_count` is preserved in BOTH modes and stays derived from the same rows the
+    response describes — a slim row must never carry a count the full row wouldn't.
+    """
     conn = get_connection()
     try:
         rows = conn.execute(
             "SELECT * FROM watchlists WHERE user_id = ? AND (is_flagged_list = 0 OR is_flagged_list IS NULL) ORDER BY updated_at DESC",
             (user_id,),
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
-            wl["item_count"] = len(wl["items"])
-            results.append(wl)
+        results = [dict(r) for r in rows]
+        ids = [wl["id"] for wl in results]
+        if include_items:
+            items_by_list = _get_items_bulk(conn, ids)
+            for wl in results:
+                wl["items"] = items_by_list.get(wl["id"], [])
+                wl["item_count"] = len(wl["items"])
+        else:
+            counts = _get_item_counts_bulk(conn, ids)
+            for wl in results:
+                wl["item_count"] = counts.get(wl["id"], 0)
         return results
     finally:
         conn.close()
@@ -69,13 +89,13 @@ def list_public_watchlists(limit: int = 50) -> list[dict]:
             "ORDER BY updated_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
+        results = [dict(r) for r in rows]
+        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        names_by_user = _get_display_names_bulk(conn, [wl["user_id"] for wl in results])
+        for wl in results:
+            wl["items"] = items_by_list.get(wl["id"], [])
             wl["item_count"] = len(wl["items"])
-            wl["owner_name"] = _get_display_name(conn, wl["user_id"])
-            results.append(wl)
+            wl["owner_name"] = names_by_user.get(wl["user_id"], "Unknown")
         return results
     finally:
         conn.close()
@@ -89,13 +109,13 @@ def list_prebuilt_watchlists(limit: int = 50) -> list[dict]:
         rows = conn.execute(
             "SELECT * FROM watchlists WHERE is_prebuilt = 1 ORDER BY name ASC LIMIT ?", (limit,)
         ).fetchall()
-        results = []
-        for r in rows:
-            wl = dict(r)
-            wl["items"] = _get_items(conn, wl["id"])
+        results = [dict(r) for r in rows]
+        items_by_list = _get_items_bulk(conn, [wl["id"] for wl in results])
+        names_by_user = _get_display_names_bulk(conn, [wl["user_id"] for wl in results])
+        for wl in results:
+            wl["items"] = items_by_list.get(wl["id"], [])
             wl["item_count"] = len(wl["items"])
-            wl["owner_name"] = _get_display_name(conn, wl["user_id"])
-            results.append(wl)
+            wl["owner_name"] = names_by_user.get(wl["user_id"], "Unknown")
         return results
     finally:
         conn.close()
@@ -384,6 +404,90 @@ def _get_items(conn, wl_id: str) -> list[dict]:
         "SELECT * FROM watchlist_items WHERE watchlist_id = ? ORDER BY sort_order ASC, added_at DESC", (wl_id,)
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# Chunked so a caller with many lists can never build a statement past SQLite's
+# variable ceiling (SQLITE_MAX_VARIABLE_NUMBER — 999 on older builds).
+_ITEMS_CHUNK = 400
+
+
+def _get_items_bulk(conn, wl_ids: list[str]) -> dict[str, list[dict]]:
+    """Every list's items in ONE query per chunk, grouped by watchlist_id.
+
+    ⛔ The three list_* functions below called `_get_items` INSIDE their row loop —
+    a textbook N+1. auth.db lives on a Railway NETWORK volume, so each of those
+    round-trips paid real I/O latency rather than a local page read, and a member
+    with many lists turned one page load into thousands of them: `GET /api/watchlists`
+    measured 7.6-8.4 s on prod 2026-08-29, on the APP-SHELL path that every page
+    hits. Same rows, same order, one query.
+
+    Ordering is IDENTICAL to `_get_items` (sort_order ASC, added_at DESC) and is
+    applied by SQLite over the whole result, so each per-list slice comes back in
+    the order that function would have produced. A list with no items is absent
+    from the map — callers must default to [], exactly as an empty fetchall did.
+    """
+    out: dict[str, list[dict]] = {}
+    if not wl_ids:
+        return out
+    for i in range(0, len(wl_ids), _ITEMS_CHUNK):
+        chunk = wl_ids[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT * FROM watchlist_items WHERE watchlist_id IN ({placeholders}) "
+            "ORDER BY sort_order ASC, added_at DESC",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            d = dict(r)
+            out.setdefault(d["watchlist_id"], []).append(d)
+    return out
+
+
+def _get_item_counts_bulk(conn, wl_ids: list[str]) -> dict[str, int]:
+    """Row counts per list, without carrying the rows themselves.
+
+    Counted by SQLite over the same table + predicate `_get_items_bulk` reads, so a
+    slim response's `item_count` cannot disagree with the full response's
+    `len(items)` — the two are the same number by construction, not by convention.
+    """
+    out: dict[str, int] = {}
+    if not wl_ids:
+        return out
+    for i in range(0, len(wl_ids), _ITEMS_CHUNK):
+        chunk = wl_ids[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT watchlist_id, COUNT(*) AS n FROM watchlist_items "
+            f"WHERE watchlist_id IN ({placeholders}) GROUP BY watchlist_id",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            out[r["watchlist_id"]] = r["n"]
+    return out
+
+
+def _get_display_names_bulk(conn, user_ids: list[str]) -> dict[str, str]:
+    """Owner names for many lists in one query per chunk.
+
+    Same second-N+1 as `_get_items_bulk` addresses: the community/prebuilt lists
+    called `_get_display_name` per ROW. Resolution matches `_get_display_name`
+    exactly (display_name, else the email local-part); a missing user is absent
+    from the map and callers fall back to "Unknown", as that function returns.
+    """
+    out: dict[str, str] = {}
+    uniq = list({u for u in user_ids if u})
+    if not uniq:
+        return out
+    for i in range(0, len(uniq), _ITEMS_CHUNK):
+        chunk = uniq[i:i + _ITEMS_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, display_name, email FROM users WHERE id IN ({placeholders})",
+            tuple(chunk),
+        ).fetchall()
+        for r in rows:
+            out[r["id"]] = r["display_name"] or (r["email"] or "").split("@")[0]
+    return out
 
 
 def _get_display_name(conn, user_id: str) -> str:

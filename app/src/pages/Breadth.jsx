@@ -111,6 +111,12 @@ const G = {
 // pctColor / pairedUpColor / pairedDnColor / getMaStackTier moved to
 // breadth/heatmapMetrics.js (imported above) — shared with the /charts widget.
 
+// The Views tab reads windows the monitor never needs — a lens over 90 sessions
+// can only ever say "not in the last 90", never "last fired in March". Each tab
+// keeps its own window so switching tabs never moves the other one.
+export const VIEWS_DAY_CHOICES = [90, 180, 365]
+export const OTHER_DAY_CHOICES = [30, 60, 90]
+
 export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
   { key: 'breadth_score', label: 'Health', group: G.SCORE,
@@ -425,7 +431,12 @@ function DrillModal({ drill, latestDate, onClose }) {
       if (e.key === 'Escape') { onClose(); return }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, visibleOrder.length - 1)) }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)) }
-      if (e.shiftKey && e.key === 'F') {
+      // ⛔ `(e.key === 'F' || e.key === 'f')` AND `!e.repeat` ARE BOTH LOAD-BEARING.
+      // With CapsLock on, Shift+F yields the LOWERCASE 'f', so an 'F'-only test
+      // silently stops flagging. And a held chord auto-repeats ~30x/sec, which on
+      // a TOGGLE leaves the flag on whichever parity the release happens to catch.
+      // Reported 2026-08-29.
+      if (e.shiftKey && (e.key === 'F' || e.key === 'f') && !e.repeat) {
         setSelectedIdx(cur => {
           const sym = visibleOrder[cur]?.t
           if (sym) {
@@ -834,12 +845,15 @@ export default function Breadth() {
     catch { return 'breadth' }
   })
   const [days, setDays] = useState(90)
+  const [viewsDays, setViewsDays] = useState(90)
+  const isViewsTab = activeTab === 'heatmap'
+  const effectiveDays = isViewsTab ? viewsDays : days
 
   useEffect(() => {
     if (activeTab === 'analogues' && !isAdmin) setActiveTab('breadth')
   }, [activeTab, isAdmin])
   const { data, isLoading, error } = useSWR(
-    `/api/breadth-monitor?days=${days}`,
+    `/api/breadth-monitor?days=${effectiveDays}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000 }
   )
@@ -994,19 +1008,19 @@ export default function Breadth() {
             ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
             : isLoading ? 'Loading…' : 'No data'}
         </span>
+        <div className={styles.daysPills}>
+          {(isViewsTab ? VIEWS_DAY_CHOICES : OTHER_DAY_CHOICES).map(d => (
+            <button
+              key={d}
+              className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+              onClick={() => (isViewsTab ? setViewsDays(d) : setDays(d))}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
         {activeTab !== 'heatmap' && (
           <>
-            <div className={styles.daysPills}>
-              {[30, 60, 90].map(d => (
-                <button
-                  key={d}
-                  className={`${styles.daysPill} ${days === d ? styles.daysPillActive : ''}`}
-                  onClick={() => setDays(d)}
-                >
-                  {d}d
-                </button>
-              ))}
-            </div>
             {activeTab === 'breadth' && (
               <div className={customizeStyles.anchor}>
                 <button

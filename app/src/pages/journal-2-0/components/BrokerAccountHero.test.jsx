@@ -232,6 +232,35 @@ describe('extended-hours hero rows', () => {
     expect(screen.getByText('After-Hours')).toBeInTheDocument()
   })
 
+  it('REFUSES the split when the hero is composed from the brokers own marks', () => {
+    // Closed session + a sync covering that close ⇒ the hero mirrors the
+    // broker (useBrokerMarkPreference). The split's legs come from OUR
+    // vendor's day_close/ext_price, so applying them under a broker-marked
+    // headline puts two vendors in one line — and we do not model the
+    // broker's own after-hours at all (measured 2026-08-29: our ext prices
+    // gave -$30.71 where Robinhood showed +$2.28). Today stays whole.
+    const prices = {
+      AAPL: {
+        price: 112, ext_price: 112, ext_session: 'post_market',
+        day_close: 110, prev_close: 108,
+      },
+    }
+    render(
+      <BrokerAccountHero
+        account={brokerAccount}
+        aggregates={aggregates}
+        liveSummary={{ netLiq: 14632, today: 40, todayPct: 0.003 }}
+        positions={positions}
+        prices={prices}
+        preferBrokerMarks
+      />,
+    )
+    expect(screen.queryByText('After-Hours')).toBeNull()
+    // Today is the whole live-summary move, not the frozen +$20.00 leg.
+    expect(screen.getByText(/\+\$40\.00/)).toBeInTheDocument()
+    expect(screen.queryByText(/\+\$20\.00/)).toBeNull()
+  })
+
   it('pre-market: the single change line relabels to Overnight', () => {
     const prices = {
       AAPL: { price: 111, ext_price: 111, ext_session: 'pre_market', prev_close: 108 },

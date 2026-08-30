@@ -210,9 +210,9 @@ export default function EstimatesTab({ sym }) {
       {!!rc.length && (
         <section className={styles.card}>
           <div className={styles.ct}>Recent rating changes</div>
-          <div className={styles.rclist}>
+          <div className={styles.rclist} data-rc-list>
             {rc.map((r, i) => (
-              <div key={`${r.date}-${i}`} className={styles.rcrow}>
+              <div key={`${r.date}-${i}`} className={styles.rcrow} data-rc-row>
                 <span className={styles.rcdate}>{r.date}</span>
                 <span className={styles.rcfirm}>{r.firm}</span>
                 <span className={styles.rcgrade}>

@@ -292,11 +292,36 @@ const AWAITING_A_DECISION = {
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
     + 'the registry would make it true by construction and unable to fail.',
+  'app/src/components/chart/engine/ast/doorCoverage.js':
+    'MEASUREMENT INFRASTRUCTURE, same class as registrySizes.js above: its '
+    + 'consumer is a RAIL, not a route. It asks which declared engine functions '
+    + 'each importer can actually reach — the question that was being answered by '
+    + 'hand, one indicator at a time, and that no gate measured because the corpus '
+    + 'can only exercise the names 75 chosen scripts happen to use. '
+    + '⛔ DELIBERATELY NOT MOUNTED. Answering it runs three translators over every '
+    + 'declared function; that belongs in a test, not in a page load, and putting '
+    + 'it on the reference page would make a member wait for a number computed for '
+    + 'engineers. ⚠️ It is nonetheless a REAL candidate for a product surface — '
+    + '"which of your platforms can reach this" is a question a member evaluating '
+    + 'a switch would want answered — so this entry is a decision recorded, not a '
+    + 'file forgotten. Rail: doorCoverage.test.js.',
   'app/src/pages/EducationalVideos.jsx':
     'A 4-line re-export shim over the LIVE pages/desk/VideosSection. Its test is '
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
     + 'four admin-gating assertions with no counterpart in that page\'s own tests. '
     + 'Removing the shim is a test repoint + rename, not a deletion.',
+  'app/src/pages/LiveFlow.jsx':
+    'THE BULLFLOW PAGE, unrouted 2026-08-29. Bullflow is retired — "live flow is '
+    + 'from massive, bullflow is no more" (owner, 2026-07-27) — so this page sat '
+    + 'on a dead rail: Bullflow SSE → liveflow_worker → /api/live/alerts/recent → '
+    + 'here, versus the LIVE Massive WS → FlowDB → LiveFlowMassive.jsx. It was '
+    + 'never in the nav, but /live-flow still routed to it, so a stale bookmark '
+    + 'landed on "Connecting to stream…" forever behind a red SSE 403. That route '
+    + 'now redirects to /live-massive. ⛔ Kept rather than deleted for the same '
+    + 'reason as the three partner-owned entries below: the page, '
+    + 'liveflow_worker*.py and the /api/live/alerts/* routes are one flow-family '
+    + 'unit, and removing them is coordination with the partner, not a unilateral '
+    + 'deletion. A COUNTDOWN, not a parking space — delete this entry with the file.',
   'app/src/pages/OptionsFlow_admin.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',
   'app/src/pages/LiveFlow_admin.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',
   'app/src/LiveFlow_integration_guide.jsx': 'Partner-owned; verified zero-importer, awaiting ack.',

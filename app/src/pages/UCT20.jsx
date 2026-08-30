@@ -301,21 +301,22 @@ function MethodologySheet({ open, onClose }) {
 
         <h3 className={styles.methodH}>5 · The tracking portfolio</h3>
         <p className={styles.methodP}>
-          The performance tracker above the list is a simulated $50,000 portfolio that
+          The performance tracker below the list is a simulated $50,000 portfolio that
           simply follows the published list: equal-weight slots, buy at the market open
           when a name joins, sell at the open when it drops out. No stop-losses and no
           discretion — every fill is the real market price, so the record is exactly
-          what following the list would have produced. Tracking began June 22, 2026
-          after a data-integrity repair; earlier history could not be verified and is
-          deliberately excluded. Because it never exits early, a single name that
-          reverses hard before its next list rebuild can show a loss far outside any
-          stop-loss discipline — that is the cost of measuring "what following the raw
+          what following the list would have produced. Tracking restarted August 27,
+          2026 for a clean record alongside the risk-managed Book, with the measured
+          4% stop ceiling and repaired price data live from day one; earlier history
+          is retained but not published. Because it never exits early, a single name
+          that reverses hard before its next list rebuild can show a loss far outside
+          any stop-loss discipline — that is the cost of measuring "what following the raw
           list would have done," not a malfunction.
         </p>
 
         <h3 className={styles.methodH}>6 · The risk-managed Book</h3>
         <p className={styles.methodP}>
-          A second, separate simulation — the <strong>Book</strong>, shown above the
+          A second, separate simulation — the <strong>Book</strong>, shown below the
           list — trades the same names through the wire&rsquo;s actual published entries
           and stops: a researched risk ceiling of roughly 4% per position, sized from a
           fixed account-risk budget rather than an equal weight. It is the system this
@@ -528,10 +529,6 @@ export default function UCT20() {
           rebuild appears to have been missed. It will catch up on the next run.
         </div>
       )}
-      <TileCard title="UCT 20 Performance">
-        <UCT20Performance />
-        <UCT20Backtest />
-      </TileCard>
       <TileCard title="UCT 20 — Current Top Stocks">
         {!rows ? (
           <SkeletonTable rows={8} cols={3} />
@@ -618,8 +615,12 @@ export default function UCT20() {
         <p className={styles.tableFootnote}>
           Systematic momentum ranking for research and education — not investment advice
           or a recommendation to buy any security. "SINCE ADD" reflects the no-stops
-          tracking portfolio above, not the risk-managed Book — see "How it&rsquo;s built."
+          tracking portfolio below, not the risk-managed Book — see "How it&rsquo;s built."
         </p>
+      </TileCard>
+      <TileCard title="UCT 20 Performance">
+        <UCT20Performance />
+        <UCT20Backtest />
       </TileCard>
     </div>
     </PullToRefresh>

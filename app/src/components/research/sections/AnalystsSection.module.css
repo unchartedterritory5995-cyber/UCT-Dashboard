@@ -1,0 +1,44 @@
+/* app/src/components/research/sections/AnalystsSection.module.css
+   A few of the chart pop-up's "The Street" tab touches, borrowed for the
+   Calendar's Analysts panel: a two-column layout for Estimates + Ownership,
+   borderless one-line rating-change rows, and pill chips on the 13F
+   NEW/SOLD flags. Everything below is scoped under .streetSection via plain
+   attribute/element selectors, which CSS Modules never hashes — so none of
+   it reaches ResearchPage.module.css's classes on the standalone /research
+   page, which renders the same tabs without this wrapper. */
+.streetSection { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+/* Recent rating changes: tight, borderless, one line per change. */
+.streetSection [data-rc-list] { gap: 0; }
+.streetSection [data-rc-row] {
+  grid-template-columns: auto 1fr auto auto;
+  border-bottom: none;
+  padding: 2px 0;
+  font-size: 11.5px;
+}
+.streetSection [data-rc-row] > span:first-child::before {
+  content: '• ';
+  color: var(--text-muted);
+}
+
+/* 13F NEW/SOLD flags as pill chips instead of small colored text. The
+   !important pair only overrides OwnershipTab.jsx's inline style={{fontSize,
+   marginLeft}} — that inline style is what the standalone /research page
+   still renders unscoped, so it has to stay in place there. */
+.streetSection [data-holder-badge] {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  font-size: var(--text-xs, 10px) !important;
+  margin-left: 5px !important;
+}
+.streetSection [data-holder-badge="new"] { background: var(--gain-bg); color: var(--ut-green-bright); }
+.streetSection [data-holder-badge="sold"] { background: var(--loss-bg); color: var(--ut-red-bright); }

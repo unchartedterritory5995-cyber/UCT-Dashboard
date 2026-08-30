@@ -28,6 +28,7 @@ import { PINE_DEBOUNCE_MS, inspectSource } from './PineBox'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
+import { TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
 import { translateThinkScript } from '../engine/ast/thinkscript'
 import { translatePine } from '../engine/ast/pine'
 import { detectDialect } from '../engine/ast/dialect'
@@ -100,6 +101,10 @@ const EXPECTED = (() => {
   return { out, row: out.outputs[out.selected] }
 })()
 
+/** A study blocked on a default thinkorswim does not publish. */
+const BLOCKED_SCRIPT = `plot p = RSI() > 30;
+`
+
 beforeEach(() => {
   vi.useFakeTimers()
   stubFetch()
@@ -127,9 +132,23 @@ describe('🔴 the thinkScript door is REACHABLE from the builder', () => {
     expect(screen.queryByTestId('pine-box')).toBe(null)
     fireEvent.click(tab(/^import$/i))
     expect(screen.getByTestId('pine-box')).toBeTruthy()
-    // ⭐ ONE BOX, NOT A FIFTH TAB. A second paste tab would be a second write
-    // path into the same field.
-    expect(screen.queryAllByRole('tab')).toHaveLength(4)
+    // ⭐ ONE BOX, NOT A SECOND PASTE TAB. A second paste tab would be a second
+    // write path into the same field — thinkScript, Pine and PCF all arrive
+    // through THIS box, which detects the dialect rather than making a member
+    // declare it.
+    //
+    // ⚰️ THE ASSERTION WAS `toHaveLength(4)` AND IT IS NOW A NAMED ROSTER, because
+    // a bare count could not tell the two cases apart. The Screenshot tab added
+    // 2026-08-29 is a FIFTH tab and does NOT violate the ruling above: the ruling
+    // is about two ways to PASTE TEXT into one field, and an image is not text —
+    // it cannot share this box's textarea, cannot be dialect-detected, and
+    // reaches the engine through a different service entirely. What the ruling
+    // forbids is a `thinkScript` tab beside `Import`, and that is what this now
+    // asserts by NAME rather than by arithmetic.
+    const tabs = screen.queryAllByRole('tab').map((t) => t.textContent.trim().toLowerCase())
+    expect(tabs).toEqual(['library', 'conditions', 'import', 'screenshot', 'formula'])
+    expect(tabs.filter((t) => /pine|thinkscript|pcf|tc2000/.test(t)),
+      'a per-dialect paste tab is the thing this case forbids').toEqual([])
   })
 
   it('⛔ the box says WHICH dialect it read — detected, not requested', async () => {
@@ -339,5 +358,52 @@ describe('⭐ `ignored` is the ONE name — the two translators are normalised a
     expect(forced.ok).toBe(false)
     // …and the same text on `auto` works, so the override is what changed it.
     expect(inspectSource(TS_SCRIPT).ok).toBe(true)
+  })
+})
+
+describe('🔴 a documentation-blocked study OFFERS the conventional call', () => {
+  // ⛔⛔ THE RULING THIS RENDERS. thinkorswim publishes no default for several
+  // study parameters, and this engine REFUSES to assume one — `displace` shifts
+  // every bar, a guessed `price` draws a plausible column that is wrong on every
+  // bar with no refusal anywhere, and assuming them was PRICED at two corpus
+  // scripts before it was refused. So the conventional call is OFFERED and the
+  // member applies it: written into their own script the value is visible in the
+  // read-back, which is the entire difference between their choice and our guess
+  // (`closedTable.json::_functions_na`, one lane over).
+  //
+  // 🔴 AND IT IS A WIRE-CUT TEST, THROUGH THE SHEET. The registry can be perfect
+  // and the refusal can carry the suggestion, and a member still sees nothing if
+  // `Refusal` does not render it — "built, tested, green and unreachable" is this
+  // branch's own recorded failure, eight times over.
+
+  it('the fixture really is blocked on a missing default — non-vacuity', () => {
+    // Without this, every assertion below would pass for a script that translates
+    // fine and shows no refusal at all.
+    const out = translateThinkScript(BLOCKED_SCRIPT)
+    expect(out.refusal, 'the fixture must refuse').toBeTruthy()
+    expect(out.refusal.guard).toBe('thinkscript:arity')
+    expect(out.refusal.suggest).toBe(TS_DOC_BLOCKED.RSI.suggest)
+  })
+
+  it('⭐⭐ the member sees the conventional call, verbatim from the registry', async () => {
+    mount()
+    await flush()
+    await paste(BLOCKED_SCRIPT)
+    const offer = screen.getByTestId('import-suggest')
+    // ⛔ THE REGISTRY OWNS THE TEXT — not a string retyped here, which would go
+    // stale the day the suggestion is corrected and still pass.
+    expect(offer.textContent).toContain(TS_DOC_BLOCKED.RSI.suggest)
+    // ⭐ AND IT SAYS WHOSE DECISION IT IS. An offer a member reads as "the engine
+    // handled it" is the silent assumption wearing different clothes.
+    expect(offer.textContent).toMatch(/won.t assume|conventional/i)
+  })
+
+  it('⛔ a study that translates offers NOTHING — the offer is not decoration', async () => {
+    // ⚰️ THE CONTROL. A box that rendered this block unconditionally would satisfy
+    // the case above while telling every member their working script needs fixing.
+    mount()
+    await flush()
+    await paste(TS_SCRIPT)
+    expect(screen.queryByTestId('import-suggest')).toBe(null)
   })
 })

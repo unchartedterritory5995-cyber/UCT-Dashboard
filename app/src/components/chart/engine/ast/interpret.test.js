@@ -10,7 +10,7 @@ import {
   interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS, TF_RESAMPLABLE,
   MAX_RECURRENCE_STEPS,
 } from './interpret.js'
-import { computeVWAP, computeAVWAP } from '../../indicators.js'
+import { computeVWAP, computeAVWAP, AVWAP_MIN_INSTANT } from '../../indicators.js'
 import { DEFAULT_BUDGET } from './budget.js'
 
 /** The repo root, found by walking up — same helper `parse.test.js` uses, and it
@@ -1591,6 +1591,212 @@ describe("`avwap`'s window is ENFORCED, not merely declared", () => {
       else expect(got[i], String(i)).toBeCloseTo(w, 9)
     }
     expect(finite(got).length).toBeGreaterThan(0)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// `cumFrom` — THE ANCHORED RUNNING TOTAL, AND THE PROPERTY THAT MAKES IT LEGAL
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// ⛔⛔ THE CORPUS PINS THE TWO LANES AGAINST EACH OTHER; THESE PIN THE CLAIM
+// ITSELF. A digest agreeing bar-for-bar proves the lanes match — it does not
+// prove the column is a fact about the market rather than about the request,
+// because two lanes can be identically request-dependent. That is what the first
+// case measures, and it carries the CONTROL that makes it a measurement:
+// the same accumulation WITHOUT the anchor really does move when the window does.
+
+describe('`cumFrom` is a fact about the MARKET, not about the request', () => {
+  const cumFrom = (src, epoch, reach) => ({
+    type: 'call',
+    name: 'cumFrom',
+    args: [src, { type: 'num', value: epoch }, { type: 'num', value: reach }],
+  })
+  const VOLUME = { type: 'series', name: 'volume' }
+  const finite = (c) => [...c].filter((v) => Number.isFinite(v))
+
+  it('⛔⛔ THE SAME DATE READS THE SAME NUMBER OFF A SHORT FETCH AND A LONG ONE', () => {
+    // ⭐ THE WHOLE RULING, MEASURED. `_functions_excluded.obv` refuses the
+    // unbounded level because *"hand it 500 bars and 5,000 and the same date reads
+    // two different numbers"*. Anchoring is the answer, so this asks exactly that
+    // question: two fetches of the SAME tape, one starting 40 bars earlier, both
+    // containing the anchor — every shared bar must agree exactly.
+    const anchor = BARS[120].t
+    const reach = 400
+    const long = interpret(cumFrom(VOLUME, anchor, reach), BARS, {})
+    const short = interpret(cumFrom(VOLUME, anchor, reach), BARS.slice(40), {})
+    expect(finite(short).length).toBeGreaterThan(50)
+    for (let i = 40; i < BARS.length; i++) {
+      const a = long[i]
+      const b = short[i - 40]
+      if (!Number.isFinite(a) && !Number.isFinite(b)) continue
+      expect(a, `bar ${i} moved when the window moved`).toBe(b)
+    }
+
+    // ⛔ THE CONTROL, AND WITHOUT IT THIS CASE PROVES NOTHING. A running total
+    // seeded at the FIRST FETCHED BAR — what Pine's `cum` is, and what
+    // `_functions_excluded.cum` refuses — differs by exactly the volume of the
+    // 40 bars the short fetch never saw. If that difference were zero the fixture
+    // could not tell an anchored total from a fetch-anchored one.
+    const seededAtFetchStart = (bars) => {
+      let run = 0
+      return bars.map((b) => { run += b.v; return run })
+    }
+    const unanchoredLong = seededAtFetchStart(BARS)
+    const unanchoredShort = seededAtFetchStart(BARS.slice(40))
+    expect(unanchoredLong[BARS.length - 1],
+      'the unanchored total does not move on this fixture — the property above is '
+      + 'defending against nothing').not.toBe(unanchoredShort[BARS.length - 1 - 40])
+  })
+
+  it('⛔ an anchor BEFORE the first bar is NOT COMPUTABLE; exactly ON it is not', () => {
+    // Rule 1, and it is `avwap`'s verbatim: with the anchor before the series,
+    // "the first bar at or after it" is whichever bar the caller happened to
+    // fetch. ⭐ `>=` NOT `>`: a wider fetch can only add bars STRICTLY before an
+    // anchor equal to `BARS[0].t`, and this sum excludes those whatever the
+    // window is — so refusing it would withhold a well-defined column.
+    expect(finite(interpret(cumFrom(VOLUME, BARS[0].t - 1, 400), BARS, {}))).toHaveLength(0)
+    const onFirst = interpret(cumFrom(VOLUME, BARS[0].t, 400), BARS, {})
+    expect(onFirst[0], 'the anchor bar is the first term').toBe(BARS[0].v)
+    expect(onFirst[1]).toBe(BARS[0].v + BARS[1].v)
+    // …and one second later EXCLUDES bar 0, which is the control proving the
+    // boundary sits where it is claimed to.
+    expect(interpret(cumFrom(VOLUME, BARS[0].t + 1, 400), BARS, {})[0]).not.toBe(BARS[0].v)
+  })
+
+  it('⛔ a bar past the DECLARED REACH is not computable — and the reach is the argument', () => {
+    // Rule 2. ⭐ UNLIKE `avwap`'s, this ceiling is an ordinary `int`, so it is
+    // reachable on an ordinary fixture and the conformance corpus drives it too.
+    const anchor = BARS[10].t
+    const column = interpret(cumFrom(VOLUME, anchor, 25), BARS, {})
+    expect(Number.isFinite(column[9]), 'a bar BEFORE the anchor must not answer').toBe(false)
+    expect(Number.isFinite(column[10]), 'the anchor bar must answer').toBe(true)
+    expect(Number.isFinite(column[35]), 'the last bar INSIDE the reach must answer').toBe(true)
+    expect(Number.isFinite(column[36]), 'a bar PAST the reach must not answer').toBe(false)
+    expect(finite(column.slice(36))).toHaveLength(0)
+    // NON-VACUITY: a wider reach answers on the very bar the narrow one blanks,
+    // so the ceiling is the argument and not the end of the fixture.
+    expect(Number.isFinite(interpret(cumFrom(VOLUME, anchor, 400), BARS, {})[36])).toBe(true)
+  })
+
+  it('⛔ a HOLE in the source propagates and is STICKY — `nz` is the member\'s answer', () => {
+    // A total with an unknown term is unknown, and every later total contains
+    // that same unknown term. A lane that skipped the hole and resumed would emit
+    // a confident number meaning "the sum of the bars I could read".
+    const holed = {
+      type: 'call',
+      name: 'ln',
+      args: [{ type: 'op', name: '-', args: [{ type: 'num', value: 105 }, { type: 'series', name: 'close' }] }],
+    }
+    // ⭐⭐ THE FIXTURE MUST HOLE AND THEN RECOVER, OR IT CANNOT TELL STICKINESS
+    // FROM PLAIN PROPAGATION. This corpus's close crosses 105 three times, so
+    // `ln(105 - close)` is real for bars 0-171, a hole for 172-192, real again
+    // for 193-385 and a hole after. Anchored on bar 0, a NON-sticky total lights
+    // 193-385 back up. ⚠️ MEASURED: an earlier draft anchored at bar 289, where
+    // the source never recovers, and deleting the guard in either lane left this
+    // case AND the conformance digest green.
+    const anchor = BARS[0].t
+    const sticky = interpret(cumFrom(holed, anchor, 600), BARS, {})
+    const firstHole = [...sticky].findIndex((v) => !Number.isFinite(v))
+    expect(firstHole, 'the fixture never holes — this case has no subject')
+      .toBeGreaterThan(0)
+    // the source itself RECOVERS after the hole — the discriminator, asserted
+    // rather than assumed, so this cannot pass because the tail is simply dead.
+    const raw = interpret(holed, BARS, {})
+    expect(finite([...raw].slice(firstHole + 1)).length,
+      'the source never recovers, so a non-sticky total would look identical')
+      .toBeGreaterThan(0)
+    expect(finite(sticky.slice(firstHole)), 'the total resumed after a hole').toHaveLength(0)
+    // …and the same source under `nz` totals all the way, which is the control:
+    // the blank above is the hole propagating, not a lane that stopped adding.
+    const filled = { type: 'call', name: 'nz', args: [holed, { type: 'num', value: 0 }] }
+    expect(Number.isFinite(interpret(cumFrom(filled, anchor, 600), BARS, {})[BARS.length - 1]))
+      .toBe(true)
+  })
+
+  it('⭐ a bar with NO instant BLANKS the column rather than folding it in', () => {
+    // ⭐ A BAR-SIDE GUARD THAT REALLY FIRES: `undefined < anchor` is FALSE, so a
+    // bar with no `t` would silently be folded into the total as though it came
+    // after the anchor. ⚰️ ITS NEIGHBOUR — the `AVWAP_MIN_INSTANT` magnitude check
+    // — was DELETED here for "never changing an answer", and the case below is the
+    // one where it does.
+    const broken = BARS.map((b, i) => (i === 7 ? { ...b, t: undefined } : b))
+    const tree = cumFrom(VOLUME, BARS[0].t, 400)
+    expect(finite(interpret(tree, broken, {}))).toHaveLength(0)
+    // NON-VACUITY: the same tree over the same bars WITH the instant answers.
+    expect(finite(interpret(tree, BARS, {})).length).toBeGreaterThan(0)
+  })
+
+  it('⛔⛔ a MIXED-UNIT store BLANKS the column — the case that put the guard back', () => {
+    // ⚰️ THE ARGUMENT FOR DELETING THE BAR-SIDE MAGNITUDE CHECK WAS TRUE PER BAR AND
+    // FALSE OF AN ARRAY. A date-shaped `t` is NUMERICALLY BELOW the 1990 floor, so
+    // rule 1 (`anchor >= first`) PASSES; each date-shaped bar is then skipped one at
+    // a time as "before the anchor" while the epoch-shaped ones accumulate — a
+    // finite, plausible total MISSING TERMS, which is the outcome
+    // `_functions_cumulative` calls "a lie with a decimal point".
+    // ⭐ THE FIXTURE IS THE WHOLE POINT: every other fixture in this file carries ONE
+    // unit, which is why the mutation run that deleted the guard stayed green
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    const mixed = BARS.map((b, i) => (i < 3 ? { ...b, t: 20200101 + i } : b))
+    const mixedAnchor = BARS[3].t
+    expect(finite(interpret(cumFrom(VOLUME, mixedAnchor, 400), mixed, {}))).toHaveLength(0)
+    // NON-VACUITY, and it is what makes this DISCRIMINATE rather than merely pass:
+    // the array really is one an unguarded walker would have ANSWERED — some bars sit
+    // below the floor, and the rest are at or after the anchor, so without the guard
+    // those would accumulate into a total short by exactly the skipped terms.
+    expect(mixed.filter((b) => b.t < AVWAP_MIN_INSTANT)).toHaveLength(3)
+    expect(mixed.filter((b) => b.t >= mixedAnchor).length).toBeGreaterThan(0)
+    // …and the same tree over a UNIFORM store answers, so the blank above is about
+    // the mixed units and not about the tree.
+    expect(finite(interpret(cumFrom(VOLUME, mixedAnchor, 400), BARS, {})).length)
+      .toBeGreaterThan(0)
+  })
+
+  it('⛔ a DATE-SHAPED anchor refuses BY NAME, exactly as `avwap`\'s does', () => {
+    let caught = null
+    try { interpret(cumFrom(VOLUME, 20250101, 400), BARS, {}) } catch (e) { caught = e }
+    expect(caught, 'a date-shaped anchor did not refuse').toBeTruthy()
+    expect(caught.guard).toBe('resolve:window')
+    expect(caught.message).toMatch(/cumFrom/)
+    expect(caught.message).toMatch(/20250101/)
+    expect(caught.message).toMatch(/1970/)
+    // …and a short history stays a COLUMN, not a throw — the same asymmetry
+    // `avwap` records: a tree defect refuses by name, a per-symbol fact does not.
+    expect(finite(interpret(cumFrom(VOLUME, BARS[0].t - 1, 400), BARS, {}))).toHaveLength(0)
+  })
+
+  it('⭐⭐ THE REACH IS AN ARGUMENT BECAUSE A SESSION-WIDE ONE COULD NOT HOLD THE OBV', () => {
+    // ⛔⛔ THE MEASUREMENT THAT DECIDED THE DECLARATION, kept so nobody
+    // "simplifies" the reach back into `lookback: "session"`. The anchored
+    // on-balance volume is the quantity `_functions_excluded.obv` and
+    // `_functions_excluded.cum` both point at, and its source reads ONE bar back.
+    const obv = {
+      type: 'op',
+      name: '*',
+      args: [
+        { type: 'call', name: 'sign', args: [{ type: 'call', name: 'change', args: [{ type: 'series', name: 'close' }] }] },
+        VOLUME,
+      ],
+    }
+    expect(maxLookback(cumFrom(obv, BARS[10].t, 250))).toBe(251)
+    expect(finite(interpret(cumFrom(obv, BARS[10].t, 250), BARS, {})).length).toBeGreaterThan(0)
+    // …and a session-wide reach plus that ONE bar is over the cap. Derived from
+    // the manifest constant and the budget, never typed: if either moves, this
+    // sentence moves with it.
+    expect(SESSION_MAX_BARS + 1).toBeGreaterThan(DEFAULT_BUDGET.maxLookback)
+  })
+
+  it('⭐ it is the FIRST bar reader taking a `series`, and the dispatch is the manifest\'s', () => {
+    // ⛔ DERIVED, NOT TYPED. `BAR_READERS` is read off `closedTable.json`; this
+    // asserts the widened shape really is in the table rather than only in a
+    // comment, so a later narrowing lands here by name.
+    const withSeries = [...BAR_READERS].filter(
+      (n) => (TABLE.functions[n].args || []).some((k) => k !== 'int'))
+    expect(withSeries, 'no bar reader takes a series — the widened rule is untested')
+      .toContain('cumFrom')
+    // …and its series slot is a GENERIC source, never a bar field, which is the
+    // two-sources hazard the rule actually guards.
+    const roles = TABLE.functions.cumFrom.argRoles
+    expect(Object.keys(TABLE.series)).not.toContain(roles[0])
   })
 })
 

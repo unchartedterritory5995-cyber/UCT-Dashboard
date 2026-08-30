@@ -29,36 +29,64 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
 import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
+// The formula share link's route pattern. ⛔ DERIVED, never retyped: the Copy
+// button in `SharePanel` builds its URL from this same module. Before it existed
+// the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
+// every link a member sent resolved to the catch-all 404 below.
+import { SHARED_FORMULA_ROUTE } from './pages/formulas/formulaShareLink'
+
+// ─── Route chunk prefetch ────────────────────────────────────────────────────
+// React.lazy only begins downloading a page's chunk when that component first
+// RENDERS — and AuthGuard holds every protected route at a splash until BOTH
+// /api/auth/me and /api/maintenance answer. That put a ~1.2 s auth round-trip
+// strictly IN FRONT of a multi-hundred-KB page chunk on every cold load, two
+// independent fetches run one after the other. Measured on prod 2026-08-29:
+// auth/me 665→1879 ms, page chunks not requested until 1891 ms.
+//
+// `lazyPage` registers a route's importer alongside its lazy() so the boot
+// prefetch below can start the CURRENT route's chunk immediately, in parallel
+// with auth. Both uses share ONE importer, so the prefetch can never resolve a
+// different module than lazy() does.
+//
+// This is a best-effort accelerator, NOT a gate: a page left on plain lazy()
+// simply keeps today's behaviour (chunk starts after auth). Nothing breaks by
+// omission, so this list is free to lag behind the route table.
+const pageImporters = new Map()
+function lazyPage(path, importer) {
+  pageImporters.set(path, importer)
+  return lazy(importer)
+}
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
 const Login = lazy(() => import('./pages/Login'))
 const Signup = lazy(() => import('./pages/Signup'))
 const Subscribe = lazy(() => import('./pages/Subscribe'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const MorningWire = lazy(() => import('./pages/MorningWire'))
-const ResearchPage = lazy(() => import('./pages/research/ResearchPage'))
-const UCT20 = lazy(() => import('./pages/UCT20'))
-const Breadth = lazy(() => import('./pages/Breadth'))
+const Dashboard = lazyPage('/dashboard', () => import('./pages/Dashboard'))
+const MorningWire = lazyPage('/morning-wire', () => import('./pages/MorningWire'))
+const ResearchPage = lazyPage('/research', () => import('./pages/research/ResearchPage'))
+const UCT20 = lazyPage('/uct-20', () => import('./pages/UCT20'))
+const Breadth = lazyPage('/breadth', () => import('./pages/Breadth'))
 const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
-const Calendar = lazy(() => import('./pages/Calendar'))
-const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
-const Screener = lazy(() => import('./pages/Screener'))
+const Calendar = lazyPage('/calendar', () => import('./pages/Calendar'))
+const MyStocksHub = lazyPage('/calendar/mystocks', () => import('./pages/calendar/MyStocksHub'))
+const Screener = lazyPage('/screener', () => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
-const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
-const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
-const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
-const LiveFlow = lazy(() => import('./pages/LiveFlow'))
-const LiveFlowMassive = lazy(() => import('./pages/LiveFlowMassive'))
-const Traders = lazy(() => import('./pages/Traders'))
+const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
+const FormulaReference = lazy(() => import('./pages/formulas/FormulaReference'))
+const AiSearchPage = lazyPage('/ai-search', () => import('./pages/AiSearchPage'))
+const OptionsFlow = lazyPage('/options-flow', () => import('./pages/OptionsFlow'))
+const FlowScoreboard = lazyPage('/flow-scoreboard', () => import('./pages/FlowScoreboard'))
+const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlowMassive'))
+const Traders = lazyPage('/traders', () => import('./pages/Traders'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
-const DarkPool = lazy(() => import('./pages/DarkPool'))
-const PostMarket = lazy(() => import('./pages/PostMarket'))
-const ModelBook = lazy(() => import('./pages/ModelBook'))
-const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
-const Desk = lazy(() => import('./pages/desk/Desk'))
-const ArticleReader = lazy(() => import('./pages/desk/ArticleReader'))
+const DarkPool = lazyPage('/dark-pool', () => import('./pages/DarkPool'))
+const PostMarket = lazyPage('/post-market', () => import('./pages/PostMarket'))
+const ModelBook = lazyPage('/model-book', () => import('./pages/ModelBook'))
+const SetupLibrary = lazyPage('/setup-library', () => import('./pages/SetupLibrary'))
+const Desk = lazyPage('/desk', () => import('./pages/desk/Desk'))
+const ArticleReader = lazyPage('/desk/article', () => import('./pages/desk/ArticleReader'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 const TrackRecordPage = lazy(() => import('./pages/journal-2-0/TrackRecordPage'))
 // A2: the new nested-route shell (v5). Renders a header + 5-item primary nav +
@@ -85,7 +113,25 @@ const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/p
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
-const ChartsWorkspace = lazy(() => import('./pages/charts/ChartsWorkspace'))
+const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
+
+// Start the CURRENT route's chunk NOW — module scope, so it fires as soon as the
+// entry bundle parses rather than waiting on React to mount, AuthGuard to clear,
+// and the route to render. Longest registered prefix wins, so /calendar/mystocks
+// warms MyStocksHub rather than Calendar. Purely additive: the browser dedupes
+// this against lazy()'s own import, an unregistered path warms nothing, and a
+// failed prefetch is swallowed here so lazyWithRetry still owns the real load
+// (its stale-chunk reload must fire on the RENDER path, not on this warm).
+try {
+  const here = window.location.pathname
+  let best = null
+  for (const key of pageImporters.keys()) {
+    if (here === key || here.startsWith(key + '/')) {
+      if (!best || key.length > best.length) best = key
+    }
+  }
+  if (best) { const p = pageImporters.get(best)(); if (p && p.catch) p.catch(() => {}) }
+} catch { /* never let a prefetch break boot */ }
 const ChartRender = lazy(() => import('./pages/ChartRender'))
 const DiscordActivity = lazy(() => import('./pages/DiscordActivity'))
 const CatalystsRender = lazy(() => import('./pages/CatalystsRender'))
@@ -326,6 +372,16 @@ export default function App() {
                 Server side has its own kill switch (J2_TRACK_RECORD_ENABLED). */}
             <Route path={TRACK_RECORD_ROUTE} element={<TrackRecordPage />} />
 
+            {/* The far end of a FORMULA share link — the fourth of these, and
+                the one that was missing. Same posture on routing: OUTSIDE
+                AuthGuard and NOT behind PreLaunchGate, so a recipient reads what
+                they were sent instead of a bare login form. ⛔ DIFFERENT on
+                AUTH, deliberately: the server pair is `require_paid`
+                (`user_definitions.py:437`), unlike the screener's open share, so
+                the page renders the 401/403 as a membership sentence rather than
+                as a broken link. Rail: `pages/formulas/sharedFormula.route.test.jsx`. */}
+            <Route path={SHARED_FORMULA_ROUTE} element={<SharedFormula />} />
+
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart
                 for a ticker with entry/stop/target lines; /api/bars is public so
@@ -378,13 +434,36 @@ export default function App() {
                 <Route path="/calendar" element={<Calendar />} />
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
+                {/* ⭐⭐ THE VOCABULARY A MEMBER BUILDS WITH. Until this route
+                    existed the only complete list of names anywhere in the
+                    product was inside an ERROR message — `interpret.js` joins
+                    every key in scope when it refuses an unknown name, and that
+                    ~1,700-character dump in a red chip was the reference.
+                    ⛔ INSIDE `Layout` and inside `AuthGuard`, deliberately: it
+                    is a product surface, not a shared link, and making it public
+                    is a marketing decision rather than an engineering one.
+                    Rail: `pages/formulas/formulaReference.route.test.jsx`. */}
+                <Route path="/formulas/reference" element={<FormulaReference />} />
                 <Route path="/ai-search" element={<AiSearchPage />} />
                 {/* ?view=scoreboard forwards to /flow-scoreboard — see
                     OptionsFlowRoute above for why it cannot live in the page. */}
                 <Route path="/options-flow" element={<OptionsFlowRoute />} />
                 {/* Live Flow pages render inside the app shell (left nav) so users
                     can navigate back out — same as every other section. */}
-                <Route path="/live-flow" element={<LiveFlow />} />
+                {/* ⚰️ /live-flow is the BULLFLOW page, and Bullflow is retired
+                    ("live flow is from massive, bullflow is no more" — owner,
+                    2026-07-27). It is not in the nav (which correctly points at
+                    /live-massive), but the route still existed, so a stale
+                    bookmark landed on a page that showed "Connecting to
+                    stream…" forever behind a red SSE 403 — a broken door with
+                    a working one right next to it.
+
+                    Redirect rather than 404: the member wanted live flow, and
+                    live flow exists — it just moved rails. Same idiom as the
+                    /theme-tracker, /watchlists and /multi-chart redirects above.
+                    `LiveFlow.jsx` is kept (unrouted) as rollback backup; full
+                    removal is flow-family work to coordinate with the partner. */}
+                <Route path="/live-flow" element={<Navigate to="/live-massive" replace />} />
                 <Route path="/live-massive" element={<LiveFlowMassive />} />
                 {/* 🔴 RESTORED 2026-08-09. This route redirected to
                     /options-flow?view=scoreboard, which `ed608046` had already

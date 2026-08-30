@@ -361,11 +361,20 @@ export async function previewSharedDefinition(token) {
   try { body = await r.json() } catch { /* not JSON */ }
   if (r.ok) return { ok: true, shared: body }
   const d = body && body.detail
+  // ⭐ THE HTTP STATUS RIDES ALONG, and it is not decoration. `reason` is the
+  // SERVER'S OWN name for a refusal it chose to make (`revoked`, `gone`,
+  // `table-version`) and exists only on those; a 401/403 from the auth
+  // dependency carries no reason at all, so a caller that reads `reason` alone
+  // cannot tell "this link is dead" from "you are not signed in" — two answers
+  // that need opposite words on screen. The share-link PAGE is the reader that
+  // needs the difference; the builder's paste box ignores it, because a member
+  // standing inside the builder is already signed in and paid.
   if (d && typeof d === 'object' && typeof d.message === 'string') {
-    return { ok: false, reason: d.reason || null, error: d.message }
+    return { ok: false, status: r.status, reason: d.reason || null, error: d.message }
   }
   return {
     ok: false,
+    status: r.status,
     reason: null,
     error: typeof d === 'string' && d.trim()
       ? d.trim()

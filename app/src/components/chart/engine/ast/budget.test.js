@@ -704,3 +704,113 @@ describe('the `session` lookback and the lookback cap', () => {
     }
   })
 })
+
+describe('🔴 `budget:series` CANNOT FIRE TODAY, and that is declared rather than denied', () => {
+  // ⛔⛔ THIS IS AN INSTANCE OF `lesson_gate_that_cannot_fail` THAT IS BEING
+  // ADMITTED. `seriesRefs` counts DISTINCT names — deliberately, since 2026-08-09,
+  // because counting references produced a false refusal — and the closed table
+  // declares five series against a cap of 8. So the latch cannot trip.
+  //
+  // ⚰️ AND THE FILE SAID THE OPPOSITE, TWICE, IN BOTH LANES. A paragraph above
+  // `DEFAULT_BUDGET` asserted the guard "counts OCCURRENCES, not distinct names,
+  // and that is forced rather than stylistic" — the design that was REPLACED,
+  // sitting two screens above the function that replaced it. Each contradicted the
+  // other and both were read as authority.
+  //
+  // ⭐ NEITHER WAY OUT IS BETTER THAN THE LATCH, which is why this is recorded
+  // instead of fixed: counting occurrences again would refuse 73 of the 167 columns
+  // the corpora translate today, and a cap below five would refuse any formula that
+  // reads O, H, L, C and V. What matters is that nobody mistakes it for protection.
+
+  it('⛔ the cap is unreachable — derived from the table, never asserted from memory', () => {
+    const declared = Object.keys(TABLE.series).length
+    expect(declared, 'the closed table declares no series at all').toBeGreaterThan(0)
+    // ⭐ THE CONDITION, NOT THE CONCLUSION. The day the table declares more series
+    // than the cap allows, this fails and somebody re-reads the paragraph — rather
+    // than the paragraph quietly going stale the way the one it replaced did.
+    expect(declared,
+      `the closed table now declares ${declared} series against a cap of `
+      + `${DEFAULT_BUDGET.maxSeriesRefs} — \`budget:series\` may be LIVE now. Re-read `
+      + 'the note above `DEFAULT_BUDGET`: it says the guard cannot fire, and that '
+      + 'sentence has just become the stale one.')
+      .toBeLessThanOrEqual(DEFAULT_BUDGET.maxSeriesRefs)
+  })
+
+  it('⛔ …and no tree can reach it, because the counter is DISTINCT', () => {
+    // The other half: even a tree that mentions one series hundreds of times
+    // measures the number of DISTINCT columns it needs fetched.
+    const deep = 'close + close + close + close + close + close + close + close + close'
+    const ast = parseFormula(deep).ast
+    expect(seriesRefs(ast)).toBe(1)
+    const all = parseFormula('open + high + low + close + volume').ast
+    expect(seriesRefs(all)).toBe(Object.keys(TABLE.series).length)
+    expect(seriesRefs(all)).toBeLessThanOrEqual(DEFAULT_BUDGET.maxSeriesRefs)
+  })
+})
+
+describe('🔴 the clock is seeded LAZILY, and a tree that reads it is untouched', () => {
+  // ⛔⛔ MEASURED, NOT ARGUED. Across the 167 columns the committed corpora
+  // translate, exactly ZERO read any of the thirteen clock names — and every
+  // `interpret` call was computing all thirteen anyway. A/B over 30 of them at
+  // 5,000 bars: 454ms with the calendar maths, 54ms without. The clock was ~88% of
+  // this function's cost, spent on columns nobody asked for, on every repaint.
+  //
+  // ⚠️ THE FILE ALREADY KNEW. The paragraph above the seed reads "a lazy seed is
+  // the first thing to reach for if this shows in a profile". It showed.
+
+  const bars = Array.from({ length: 300 }, (_, i) => ({
+    t: Date.UTC(2024, 0, 1) / 1000 + i * 86400, o: 100, h: 101, l: 99, c: 100, v: 1000,
+  }))
+
+  it('⭐⭐ every declared clock name still computes when a tree reads it', () => {
+    // ⛔ THE LOAD-BEARING HALF. Skipping work is only safe if the work still
+    // happens whenever the answer could depend on it — and this asserts it for
+    // EVERY declared name, derived from the manifest, so a fourteenth entry is
+    // covered the day it lands.
+    for (const name of Object.keys(TABLE.clock || {})) {
+      const p = parseFormula(`${name} + 0`)
+      expect(p.ok, `${name} did not parse`).toBe(true)
+      // ⚠️ `tf` IS SUPPLIED, AND THE FIRST DRAFT OF THIS CASE DID NOT SUPPLY IT.
+      // `isintraday` and `isdaily` are NaN without one — correctly: with no
+      // timeframe the engine cannot know the bar kind, and NOT COMPUTABLE is the
+      // honest answer rather than a guess. The rail was demanding a finite value
+      // for a name that is legitimately unknowable on the fixture it was given.
+      const col = interpret(p.ast, bars, {}, undefined, undefined, { tf: 'D' })
+      expect(col.length, name).toBe(bars.length)
+      const finite = [...col].filter((v) => Number.isFinite(v)).length
+      expect(finite, `${name} produced no finite value — the lazy seed skipped a tree that READS it`)
+        .toBeGreaterThan(0)
+    }
+  })
+
+  it('⛔ a tree that does NOT read the clock still computes correctly', () => {
+    // ⚰️ The other direction: the skip must not change an answer. `close` over
+    // these bars is a constant 100, and it stays one.
+    const col = interpret(parseFormula('close + 1').ast, bars, {})
+    expect([...col].every((v) => v === 101)).toBe(true)
+  })
+
+  it('⛔ the corpora really do not read the clock — the premise is not folklore', () => {
+    // ⚠️ If a corpus script ever starts using a clock name this optimisation stops
+    // being free for it, which is fine — but the CLAIM above ("zero of 167") would
+    // be stale, and a stale measurement in a comment is what this repo keeps paying
+    // for. This fails when that day comes.
+    const CLOCK = new Set(Object.keys(TABLE.clock || {}))
+    const reads = (node) => {
+      const stack = [node]
+      while (stack.length) {
+        const n = stack.pop()
+        if (!n || typeof n !== 'object') continue
+        if (Array.isArray(n)) { stack.push(...n); continue }
+        if (n.type === 'series' && CLOCK.has(n.name)) return true
+        if (Array.isArray(n.args)) stack.push(...n.args)
+      }
+      return false
+    }
+    expect(CLOCK.size).toBeGreaterThan(5)
+    expect(reads(parseFormula('dayofweek == 2').ast), 'the detector cannot see a clock read')
+      .toBe(true)
+    expect(reads(parseFormula('sma(close, 20)').ast), 'the detector sees one that is not there')
+      .toBe(false)
+  })
+})

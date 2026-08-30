@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } fr
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import isModalOpen from '../../utils/modalOpen'
+import { matchOverlayTool } from './keyboardShortcuts'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -12,15 +13,10 @@ const POINT_COUNT = {
   priceRange: 2, dateRange: 2, position: 3,
 }
 
-// Alt+<letter> → drawing tool (keyboard arm). Keyed on KeyboardEvent.code so it is
-// layout-independent (and unaffected by the special characters Mac emits with Alt).
-const ALT_TOOL = {
-  KeyT: 'trendline', KeyH: 'horizontal', KeyJ: 'hray', KeyV: 'vertical',
-  KeyR: 'rect', KeyC: 'circle', KeyA: 'arrow', KeyF: 'fib', KeyE: 'fibext',
-  KeyW: 'avwap', KeyX: 'text', KeyP: 'position',
-}
-// Alt+Shift+<letter> → the power-user tools.
-const ALT_SHIFT_TOOL = { KeyP: 'priceRange', KeyD: 'dateRange', KeyE: 'eraser' }
+// ⛔ THE KEY→TOOL MAPS USED TO LIVE HERE, restating Alt chords that `SHORTCUTS`
+// already declared and adding two of their own — `Shift+F` → fibext and
+// `Shift+P` → pitchfork — which collided with the flag-ticker chord. They now
+// live beside the help sheet as `matchOverlayTool`, one authority for both.
 
 // How many bars past the last candle a drawing point may be placed/dragged (into
 // the empty right-pad — e.g. extending a trendline forward). Bounded so a stray
@@ -2437,32 +2433,15 @@ export default function ChartDrawingOverlay({
         }
         return
       }
-      // Alt+<letter> arms a drawing tool. Alt avoids the bare-letter conflict with
-      // type-to-search ticker entry on the charts workspace (bare 't' etc. are
-      // swallowed into the symbol box), so tools stay keyboard-reachable there.
-      // Keyed on e.code so it's layout-independent and survives Mac's Alt chars.
-      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && ALT_TOOL[e.code]) {
+      // Arm a drawing tool. Alt+<letter> is the documented chord; bare letters
+      // still work because a focused pane swallows ticker characters first.
+      // ⛔ A SHIFTED LETTER ARMS NOTHING — Shift+F flags the ticker. The gate is
+      // inside `matchOverlayTool`, which is also what the `?` sheet reads.
+      const tool = matchOverlayTool(e)
+      if (tool) {
         e.preventDefault()
-        setActiveTool(ALT_TOOL[e.code])
+        setActiveTool(tool)
         return
-      }
-      if (e.altKey && !e.ctrlKey && !e.metaKey && e.shiftKey && ALT_SHIFT_TOOL[e.code]) {
-        e.preventDefault()
-        setActiveTool(ALT_SHIFT_TOOL[e.code])
-        return
-      }
-      // Tool shortcuts
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-        switch (e.key.toLowerCase()) {
-          case 'v': setActiveTool('cursor'); break
-          case 't': setActiveTool('trendline'); break
-          case 'h': setActiveTool('horizontal'); break
-          case 'r': setActiveTool('rect'); break
-          case 'f': if (!e.shiftKey) { setActiveTool('fib'); e.preventDefault() } else { setActiveTool('fibext'); e.preventDefault() } break
-          case 'p': if (e.shiftKey) { setActiveTool('pitchfork'); e.preventDefault() } break
-          case 'x': setActiveTool('text'); break
-          case 'm': setActiveTool('measure'); break
-        }
       }
     }
     window.addEventListener('keydown', handler)

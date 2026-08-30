@@ -90,7 +90,12 @@ import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 // Importing it here would falsify a comment that is a claim about a run
 // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`), and `FN` is
 // defined in terms of it anyway, so there is still exactly one authority.
-import { FN } from './interpret.js'
+// ⭐ AND `MAX_SELF_LAG` FOR THE SAME REASON — it is the interpreter's OWN ceiling
+// on `self[k]`, so the convergence gate asks the engine rather than restating a
+// 4 that would drift the day the interpreter moves. A translated body that
+// looked back further would build a tree that translates and then refuses at
+// evaluation time, which is a refusal at the wrong door.
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -114,6 +119,23 @@ export class PineRefusal extends Error {
  *  AND `sentence.js`'s TABLES TOO. `pine.test.js` asserts that over the UNION of
  *  all five, in both directions — "no message equals another" misses the half
  *  that matters, which is "no message is a SUBSTRING of another". */
+/** How to say a code in English, for a sentence a member reads. ⚠️ THIS IS NOT A
+ *  SECOND AUTHORITY ON WHAT IS SERVABLE — it never decides anything; a code with
+ *  no entry falls back to the code itself, so a new servable timeframe appears in
+ *  the sentence the day it lands, named or not. */
+const TF_ENGLISH = Object.freeze({
+  1: 'one-minute', 5: 'five-minute', 15: 'fifteen-minute', 30: 'thirty-minute',
+  60: 'hourly', 240: 'four-hour', D: 'daily', W: 'weekly', M: 'monthly',
+})
+
+/** The servable timeframes, in English, DERIVED from the engine's own list. */
+function servableTimeframesText() {
+  const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c)
+  if (names.length === 0) return 'no higher timeframe'
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
 export const REFUSALS = Object.freeze({
   'pine:empty':
     'there is no Pine here to translate',
@@ -138,6 +160,16 @@ export const REFUSALS = Object.freeze({
   'pine:request':
     'this request could not be resolved to one symbol and one servable timeframe. '
     + 'The engine reads another symbol as `sym` (limited to the benchmark roster) '
+    // ⚰️ THE SERVABLE LIST WAS TYPED HERE AS "weekly and monthly" — a FOURTH copy of
+    // a vocabulary `TF_RESAMPLABLE` already owns, and the one a member reads. A
+    // prose copy goes stale the same way a map does, and more quietly: the
+    // sentence would keep naming two timeframes on the day the engine served
+    // four, and nothing anywhere would go red.
+    // ⚠️ THE LIST IS PROSE HERE AND RAILED ELSEWHERE, not interpolated: this table
+    // is built at module load and `TF_RESAMPLABLE` arrives through an import cycle,
+    // so calling a helper here left `REFUSALS` undefined for every importer. The
+    // drift this sentence could carry is caught by `pine.timeframe.test.js`, which
+    // fails if it stops naming every timeframe the engine can serve.
     + 'and another timeframe as `tf` (weekly and monthly from daily bars); what '
     + 'stops this one is that its arguments do not fold to those',
   'pine:drawing':
@@ -311,7 +343,29 @@ const MULTI_OUTPUT_CALLS = Object.freeze({
   plotbar: Object.freeze(['open', 'high', 'low', 'close']),
 })
 
-const PINE_TF_CODE = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M' })
+/** ⭐⭐ PINE'S SPELLINGS FOR A TIMEFRAME, MAPPED TO THIS ENGINE'S CODES — and
+ *  NOTHING ELSE. Which of those codes can actually be SERVED is
+ *  `interpret.js::TF_RESAMPLABLE`'s answer, asked below rather than restated here.
+ *
+ *  ⚰️ THIS MAP USED TO DO BOTH JOBS: it held `{W, 1W, M, 1M}` and a spelling it
+ *  did not list was refused, so it was a SECOND AUTHORITY on which timeframes this
+ *  engine serves — the defect this repo records more than any other. Nothing was
+ *  wrong with its answer on the day it was written, because the two sets happened
+ *  to coincide. The cost is all in the future tense: the day `TF_RESAMPLABLE`
+ *  grows, this door keeps refusing a timeframe the engine can serve, and the
+ *  refusal reads like a limit rather than a stale copy. That is precisely how the
+ *  thinkScript door came to refuse a self-lag the interpreter had held all along.
+ *
+ *  ⭐ SO THE SPELLINGS INCLUDE CODES THE ENGINE CANNOT SERVE TODAY (`D`, `60`,
+ *  `240`, …) ON PURPOSE. Recognising a spelling and serving it are two different
+ *  questions, and separating them is what lets the ONE authority answer the second
+ *  one. Today `D` is recognised and then refused by the engine's list, exactly as
+ *  before — same behaviour, derived reason. */
+const PINE_TF_SPELLING = Object.freeze({
+  '1': '1', '1M': 'M', '1W': 'W', '5': '5', '15': '15', '30': '30',
+  '60': '60', '1H': '60', '240': '240', '4H': '240',
+  D: 'D', '1D': 'D', W: 'W', M: 'M',
+})
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
  *
@@ -336,6 +390,20 @@ const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
 ])
+
+/** ⭐⭐ THE CALLS THAT BUILD A TICKER ID OUT OF A PREFIX AND A SYMBOL, in the two
+ *  spellings the corpora actually use: v5's `ticker.new(prefix, ticker, session,
+ *  adjustment)` and v3's `tickerid(prefix, ticker)`. In BOTH the symbol is the
+ *  SECOND positional argument, which is why one roster serves both.
+ *
+ *  ⛔ WHY THIS MATTERS MORE THAN IT LOOKS: `12-ichimoku-clouds` writes
+ *  `t = tickerid(syminfo.prefix, ticker)` and then `security(t, period, hl2)` —
+ *  this chart's own symbol at this chart's own timeframe, which is the IDENTITY.
+ *  The door already knew the bare `ticker` spelling and already followed bindings,
+ *  so the only thing between it and reading that script was seeing through one
+ *  call. A script was being refused for wrapping its own ticker in the function
+ *  Pine gives you for exactly that purpose. */
+const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
@@ -585,6 +653,27 @@ const DERIVED_SERIES = Object.freeze({
   ohlc4: ['open', 'high', 'low', 'close'],
   hlcc4: ['high', 'low', 'close', 'close'],
 })
+
+/** The mean of those fields as a canonical tree, or null when the table is
+ *  missing one of them.
+ *
+ *  ⭐⭐ EXPORTED, BECAUSE THINKORSWIM SPELLS THREE OF THESE THE SAME WAY AND MEANS
+ *  THE SAME ARITHMETIC. `HL2` sat in `thinkscript.js`'s "price series this engine
+ *  keeps no field for" list and refused, while this door expanded the identical
+ *  name — two answers to one question, which is this repo's most repeated defect
+ *  arriving between two lanes rather than inside one. thinkorswim's Constants
+ *  page defines `HL2` as `(high + low) / 2` exactly as Pine's reference does, so
+ *  the expansion is the same identity read from two manuals.
+ *  ⚠️ `hlcc4` IS PINE-ONLY and stays declared here regardless: this map is what
+ *  each dialect may ASK FOR, not what both happen to share. thinkScript asks for
+ *  the three it publishes. */
+export function derivedSeriesTree(name, table) {
+  if (!own(DERIVED_SERIES, name)) return null
+  const parts = DERIVED_SERIES[name]
+  if (parts.some((p) => !own((table && table.series) || {}, p))) return null
+  const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
+  return cOp('/', [sum, cNum(parts.length)])
+}
 
 /** Pine built-ins that are not a MEAN of price series but are still an exact
  *  expansion in this table's own vocabulary.
@@ -864,6 +953,31 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
 export const PINE_INEXPRESSIBLE = Object.freeze({
+  // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
+  // positions line up perfectly, which is what makes it dangerous. Pine's
+  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
+  // most recent time the condition was true, `2` is three occurrences ago, and it
+  // looks back as far as it needs to. This table's `valuewhen(condition, source,
+  // period)` takes a BAR WINDOW: the most recent bar within the last `period`
+  // bars where the condition held. A positional map builds cleanly and answers a
+  // different number on most bars — `ta.valuewhen(c, src, 2)` would become "within
+  // the last 2 bars" — which is the silent mistranslation this door exists
+  // against, and exactly the trade `barssince` below is refused for.
+  //
+  // ⚰️ IT REFUSED ALREADY, BUT FOR THE WRONG REASON. `valuewhen` declares two
+  // `series` slots and no measured Pine order, so it fell into the generic
+  // `pine:role-order` arm: *"this table states what kind each argument is and
+  // never what role it plays"*. That sentence is FALSE of this entry — the
+  // manifest declares `argRoles: [condition, source, period]` — and it sends a
+  // reader to declare a role order, which would produce exactly the wrong number.
+  // The refusal was right and its reason was not.
+  valuewhen: 'the value of a source when a condition was last true. This table declares '
+    + '`valuewhen(condition, source, period)` and it is NOT the same function: the '
+    + 'Pine call counts OCCURRENCES back, while `period` here is a BAR WINDOW. '
+    + 'The two line up positionally and answer different numbers, so mapping them would '
+    + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
+    + 'with the number of BARS you want searched — and note that an occurrence older '
+    + 'than the most recent one has no spelling here at all.',
   cum: 'a running total from the first bar. This engine\'s only accumulator '
     + 're-seeds a fixed number of bars back, so `cum` would silently become a '
     + 'rolling sum — and a true cumulative would change value with how many bars '
@@ -1139,6 +1253,42 @@ export function lexPine(src) {
  *  `maColour = not colourMA ? teal :` / `     risingMA ? green :` as a block. */
 const BLOCK_OPENERS = Object.freeze(new Set(['if', 'else', 'for', 'while', 'switch']))
 
+/** ⭐⭐ A LINE ENDING IN A BINARY OPERATOR IS NOT A STATEMENT — IT IS HALF OF ONE.
+ *
+ *  The indent rule above tells a block's BODY from a CONTINUATION, and it is right
+ *  about both. What it could not see is a continuation at the SAME indent, which is
+ *  how the ternary chain in a function body is published:
+ *
+ *      Mode(sw, src, len) =>
+ *            sw == "Hma"  ? HMA(src, len) :
+ *            sw == "Ehma" ? EHMA(src, len) :
+ *            sw == "Thma" ? THMA(src, len / 2) : na
+ *
+ *  All three lines sit at the same indent, so the splitter read them as THREE
+ *  statements and refused the first — `… ? HMA(src, len) :` — as an unreadable
+ *  shape, which is a refusal about a line the member never wrote.
+ *
+ *  ⛔ THIS IS NOT THE "DOES THE PREVIOUS LINE END IN AN OPERATOR" GUESS
+ *  `BLOCK_OPENERS` warns about, and the difference is which question it answers.
+ *  That guess was proposed for telling a BODY from a CONTINUATION, where it is
+ *  wrong: `maColour = not colourMA ? teal :` / `    risingMA ? green :` is a
+ *  continuation and `if cond` / `    x := 1` is a body, and both look alike to it.
+ *  `BLOCK_OPENERS` still answers that question and this never overrides it. This
+ *  answers a different one — may a statement END here — and there the answer is not
+ *  a guess at all: a dangling binary operator has no right operand, so Pine itself
+ *  rejects the line, and no statement can legally follow.
+ *
+ *  ⭐ DERIVED FROM `PINE_BINARY`, so an operator added to the grammar is covered
+ *  the day it lands. ⛔⛔ `=>` IS DELIBERATELY ABSENT: it is the one trailing token
+ *  that OPENS something rather than leaving something unfinished, and treating it
+ *  as dangling would swallow a function's entire body into its header. */
+const danglesIntoNextLine = (tok) => {
+  if (!tok) return false
+  if (tok.kind === 'punct' && (tok.value === '?' || tok.value === ':'
+    || tok.value === ',' || tok.value === '=' || tok.value === ':=')) return true
+  return (tok.kind === 'punct' || tok.kind === 'ident') && own(PINE_BINARY, tok.value)
+}
+
 /**
  * Tokens → a TREE of statements: `{header, body, sub}` at every level.
  *
@@ -1167,8 +1317,13 @@ function blockStatements(toks, indents, indent) {
     while (i < toks.length) {
       const tok = toks[i]
       const ln = indents[tok.line - 1] || 0
-      const firstOnLine = header.length > 0 && tok.line !== header[header.length - 1].line
-      if (firstOnLine && depth === 0 && (ln <= indent || opened)) break
+      const last = header[header.length - 1]
+      const firstOnLine = header.length > 0 && tok.line !== last.line
+      // ⛔ THE DANGLE TEST IS THE LAST CLAUSE, so it can only ever KEEP a
+      // statement open — it never opens one the indent rule had already closed
+      // for a reason of its own.
+      if (firstOnLine && depth === 0 && (ln <= indent || opened)
+        && !danglesIntoNextLine(last)) break
       header.push(tok)
       if (tok.kind === 'punct') {
         if (tok.value === '(' || tok.value === '[') depth += 1
@@ -1377,6 +1532,14 @@ function readsOwnPrevious(node, name) {
 
 /** A resolved `na(self) ? SEED : UPDATE` → `{seed, update}`, or null.
  *
+ *  ⭐⭐ EXPORTED FOR `thinkscript.js`, and it is language-neutral BY CONSTRUCTION:
+ *  it reads canonical nodes and `table.functions.accum.recurrence.binds`, and
+ *  nothing Pine-shaped. Both dialects spell the seeded self-reference the same
+ *  way once translated — Pine's `na(x[1]) ? … : …` and thinkScript's
+ *  `if IsNaN(x[1]) then … else …` are the same tree — so asking it twice from two
+ *  copies is how two translators come to disagree about one engine function. It
+ *  lives here only because Pine needed it first, exactly as `forgetsItsSeed` does.
+ *
  *  ⛔ THE SEED MUST NOT ITSELF READ `self`. A first-bar value defined in terms of
  *  the value it is seeding is not a seed, and the accumulator would carry that
  *  hole forward on every re-seed — so that shape falls through to the refusal
@@ -1384,16 +1547,133 @@ function readsOwnPrevious(node, name) {
  *  ⛔ AND THE UPDATE ARM MUST READ `self`. `na(x[1]) ? a : b` with a self-free
  *  `b` is a first-bar test, not a recurrence; folding it into an accumulator
  *  would answer with `b` forever and quietly lose the first bar. */
-function seedAndUpdateOf(body, table) {
+export { containsFreeSelfSeries }
+
+export function seedAndUpdateOf(body, table) {
+  return ternarySeedAndUpdate(body, table) || nzSeedAndUpdate(body, table)
+}
+
+/** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
+function ternarySeedAndUpdate(body, table) {
   if (!body || body.type !== 'op' || body.name !== '?:') return null
   const args = body.args || []
   if (args.length !== 3) return null
   const [test, seed, update] = args
   if (!test || test.type !== 'call' || test.name !== 'na') return null
-  if (!containsSelfSeries(test, table)) return null
-  if (containsSelfSeries(seed, table)) return null
-  if (!containsSelfSeries(update, table)) return null
+  if (!containsFreeSelfSeries(test, table)) return null
+  if (containsFreeSelfSeries(seed, table)) return null
+  if (!containsFreeSelfSeries(update, table)) return null
   return { seed, update }
+}
+
+/** ⭐⭐ THE SECOND SPELLING OF ONE FIRST-BAR VALUE: `nz(self…, SEED)` IN PLACE.
+ *
+ *  `na(x[1]) ? SEED : UPDATE` states the seed in an arm. `x = f(nz(x[1], SEED))`
+ *  states the SAME seed at the point of use, and it is what the DSP family is
+ *  actually published as — Ehlers writes
+ *  `it = … + 2*(1-a)*nz(it[1], s) - (1-a)*(1-a)*nz(it[2], s)`, and every 2-pole
+ *  filter in circulation is written that way because a ternary cannot supply an
+ *  initial value for TWO lags at once. Refusing it refused the whole family while
+ *  the engine held the node that computes it — `interpret.js` seeds `self[k]` for
+ *  every lag from the one seed, which is exactly what this spelling asks for.
+ *
+ *  ⛔ ONE SEED, OR NONE. Every `nz` wrapper in the body must state the SAME
+ *  first-bar value: `accum` has one seed slot, so `nz(x[1], a) + nz(x[2], b)`
+ *  with `a ≠ b` is a recurrence this node cannot express, and picking one of them
+ *  would answer a question nobody asked.
+ *  ⛔ AND EVERY FREE `self` MUST BE WRAPPED. `nz(x[1], s) + x[2]` is `na` on
+ *  every bar in Pine itself — the unwrapped read is unknown on the first bar and
+ *  NaN propagates forever — so translating it as if the seed covered both lags
+ *  would draw a line Pine never draws.
+ *  ⛔ AND THE WRAPPED THING MUST BE A BARE `self[k]`, not an expression
+ *  containing one. `nz(self + close, s)` means "this SUM, or `s` where it is
+ *  unknown", which is a NaN guard rather than an initial condition, and the
+ *  accumulator has nowhere to put it.
+ *
+ *  ⭐ WHY THE SUBSTITUTION IS EXACT, not an approximation on top of `accum`'s
+ *  own: inside the built body `self[k]` is never unknown — `interpret.js` fills
+ *  the whole lag history with the seed before the first step — so `nz(self[k], S)`
+ *  and `self[k]` are the same value at every step once `S` IS the seed. The
+ *  wrapper is removed because it has become a no-op, not because it was ignored. */
+function nzSeedAndUpdate(body, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return null
+  const bind = spec.recurrence.binds
+  const isSelfRead = (n) => !!n && (
+    (n.type === 'series' && n.name === bind)
+    || (n.type === 'offset' && n.args && n.args[0]
+        && n.args[0].type === 'series' && n.args[0].name === bind))
+
+  const wrappers = []
+  let unwrapped = false
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (isSelfRead(n)) { unwrapped = true; return }
+    if (n.type === 'call' && n.name === 'nz' && (n.args || []).length === 2
+        && isSelfRead(n.args[0])) {
+      if (containsFreeSelfSeries(n.args[1], table)) { unwrapped = true; return }
+      wrappers.push(n)
+      return
+    }
+    // ⭐ A NESTED RECURRENCE BINDS ITS OWN `self`, so its body slot is not this
+    // recurrence's business — the same rule `containsFreeSelfSeries` applies, read
+    // off the manifest rather than typed.
+    const inner = n.type === 'call' && table.functions[n.name]
+      && table.functions[n.name].recurrence
+    const args = n.args || []
+    args.forEach((a, i) => { if (!inner || i !== inner.body) walk(a) })
+  }
+  walk(body)
+  if (unwrapped || !wrappers.length) return null
+
+  const seed = wrappers[0].args[1]
+  // ⛔ IDENTITY BY THE READ-BACK, not by object reference: the two seeds in a
+  // 2-pole filter are two parses of the same source text and are never the same
+  // object. `printFormula` is this file's own faithful rendering of a tree — the
+  // one a member is shown — so two trees it prints alike are the same value.
+  const want = printFormula(seed)
+  for (const w of wrappers) if (printFormula(w.args[1]) !== want) return null
+
+  const seen = new Set(wrappers)
+  const substitute = (n) => {
+    if (!n || typeof n !== 'object') return n
+    if (seen.has(n)) return n.args[0]
+    if (!Array.isArray(n.args)) return n
+    const next = n.args.map(substitute)
+    return next.every((v, i) => v === n.args[i]) ? n : { ...n, args: next }
+  }
+  return { seed, update: substitute(body) }
+}
+
+/** Does this tree read a `self` that NOTHING HAS BOUND?
+ *
+ *  ⛔⛔ `containsSelfSeries` CANNOT ANSWER THIS AND THE DIFFERENCE IS A WRONG
+ *  COLUMN, not a refusal. An accumulator's body slot BINDS `self`, so a tree that
+ *  merely mentions another recurrence — `x = na(x[1]) ? 0 : someOtherAccumulator`
+ *  — reads no `self` of its own. Asking the undistinguishing question there
+ *  builds `accum(0, accum(…), 250)` whose outer body never mentions its own
+ *  state: a running value that does not run, drawn without complaint.
+ *  ⭐ THE BOUND SLOT IS READ OFF THE MANIFEST'S OWN `recurrence`, per call, so a
+ *  second recurrence function added to the table is handled the day it lands and
+ *  this file never types `accum`.
+ *  ⚠️ `forgetsItsSeed` DELIBERATELY STILL ASKS THE OTHER ONE. A nested
+ *  accumulator inside an update makes it answer NO, which over-refuses rather
+ *  than over-accepts — and its whole contract is that an unrecognised shape
+ *  answers NO. Changing it there is a separate decision with its own measurement. */
+function containsFreeSelfSeries(node, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return false
+  const bind = spec.recurrence.binds
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'series' && n.name === bind) return true
+    const args = n.args || []
+    const inner = n.type === 'call' && table.functions[n.name]
+      && table.functions[n.name].recurrence
+    if (inner) return args.some((a, i) => i !== inner.body && walk(a))
+    return args.some(walk)
+  }
+  return walk(node)
 }
 
 function containsSelfSeries(node, table) {
@@ -1453,6 +1733,31 @@ function containsSelfSeries(node, table) {
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
 export const SEED_RESIDUAL_TOLERANCE = 1e-6
 
+/** ⚰️⚰️ A TRANSIENT-GROWTH CEILING WAS WRITTEN BESIDE THE TOLERANCE ABOVE AND
+ *  THEN MEASURED AWAY. The worry was real in shape: a multi-lag form is a MATRIX
+ *  recurrence, and `A^n → 0` says nothing about `‖A^k‖` for `k < n`, so the seed's
+ *  influence can balloon before it decays. In doubles (~1e-16 relative) an
+ *  intermediate amplification of `M` would leave `M × 1e-16` of rounding error in
+ *  the answer, and past `M ≈ 1e10` the residual would be a number this loop cannot
+ *  actually compute. A `peak <= 1e6` clause guarded that.
+ *
+ *  ⛔ IT COULD NOT FIRE, AND A GATE THAT CANNOT FAIL READS AS PROTECTION. Two
+ *  searches over the region this rule actually admits — coefficient vectors of 2
+ *  to 5 lags, `warmup` 250 — asked for the largest peak reachable by a vector that
+ *  PASSES the residual test: 3,000,000 uniform random draws in [-2, 2] found a
+ *  maximum peak of 10.1, and a 400-restart hill-climb in [-4, 4] optimising
+ *  directly for peak subject to the residual reached 159.7. Six orders under the
+ *  ceiling, because the two quantities pull against each other: a big transient
+ *  needs slow decay, and slow decay is exactly what the residual refuses.
+ *
+ *  ⭐ SO THE MEASUREMENT IS THE JUSTIFICATION, AND IT IS STRONGER THAN THE GUARD
+ *  WAS. At a peak of ~160 the rounding error in the surviving seed is ~1e-14 —
+ *  eight orders under `SEED_RESIDUAL_TOLERANCE` — so the residual this loop
+ *  computes IS the residual the arithmetic has. ⚠️ WHAT WOULD REOPEN IT: the
+ *  region was searched at `warmup = 250` and `MAX_SELF_LAG = 4`. Both are read
+ *  from elsewhere, and a much larger lag ceiling widens the admitted set. Re-run
+ *  the search before raising `MAX_SELF_LAG`; do not re-add an unfireable clause. */
+
 export function forgetsItsSeed(node, table, warmup) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -1499,26 +1804,136 @@ export function forgetsItsSeed(node, table, warmup) {
     return null
   }
 
-  const contracts = (n) => {
-    const a = coefficient(n)
-    if (a === null || !Number.isFinite(a)) return false
-    return Math.abs(a) ** warmup <= SEED_RESIDUAL_TOLERANCE
+  /** The lag `k` this node reads — 0 for bare `self`, `k` for `self[k]` — or null
+   *  when it is not a bare read of the running value. ⛔ `(self + close)[1]` is
+   *  NOT a lag: it is a past value of an expression, which the step loop never
+   *  held (see `interpret.js`, which refuses exactly that). */
+  const selfLagOf = (n) => {
+    if (isSelf(n)) return 0
+    if (n && n.type === 'offset' && isSelf((n.args || [])[0])
+        && Number.isInteger(n.value) && n.value >= 0) return n.value
+    return null
   }
 
-  const ok = (n) => {
+  /** ⭐⭐ THE COEFFICIENT VECTOR `[a0, a1, … aL]` OF `Σ ak·self[k] + <self-free>`,
+   *  or null when the tree is not ONE linear form in the running value's history.
+   *
+   *  ⛔⛔ THIS IS THE PIECE AN ADVERSARY ALREADY PROVED UNSOUND IN ITS OBVIOUS
+   *  FORM, AND THE COUNTEREXAMPLE IS PINNED IN `pine.convergence.test.js`. Letting
+   *  a ternary's arms each produce a vector and asking each one separately is
+   *  sound for SCALARS — a product of numbers each under the threshold is under
+   *  the threshold — and FALSE for vectors: a switched linear system can diverge
+   *  while every arm contracts on its own. `close > open ? -1.7·self - 0.8·self[1]
+   *  + close : 0.2·self - 0.8·self[1] + close` has both arms passing at residuals
+   *  3.17e-12 and 5.84e-13 and reaches 2.157e+24 on a hundred-dollar stock.
+   *  So this function recognises NO switch of any kind — no `?:`, no `min`/`max`,
+   *  no `nz` — and `contracts` refuses to call it from under one. What is admitted
+   *  is exactly the unswitched case: `+ - * /` over `self[k]` and self-free terms,
+   *  which is a single linear time-invariant recurrence and nothing else. */
+  const coefficientVector = (n) => {
+    if (!n || typeof n !== 'object') return null
+    const lag = selfLagOf(n)
+    if (lag !== null) {
+      // ⛔ THE INTERPRETER'S CEILING, ASKED RATHER THAN RESTATED. Admitting a
+      // deeper lag here would translate a tree that then refuses at evaluation —
+      // a refusal at a door the member never typed at.
+      if (lag > MAX_SELF_LAG) return null
+      const v = new Array(lag + 1).fill(0)
+      v[lag] = 1
+      return v
+    }
+    if (!carries(n)) return [0]
+    const args = n.args || []
+    const combine = (a, b, sign) => {
+      if (a === null || b === null) return null
+      const out = new Array(Math.max(a.length, b.length)).fill(0)
+      for (let i = 0; i < out.length; i += 1) out[i] = (a[i] || 0) + sign * (b[i] || 0)
+      return out
+    }
+    if (n.type === 'op' && n.name === 'u-' && args.length === 1) {
+      const a = coefficientVector(args[0])
+      return a === null ? null : a.map((x) => -x)
+    }
+    if (n.type === 'op' && (n.name === '+' || n.name === '-') && args.length === 2) {
+      return combine(coefficientVector(args[0]), coefficientVector(args[1]),
+        n.name === '+' ? 1 : -1)
+    }
+    if (n.type === 'op' && n.name === '*' && args.length === 2) {
+      if (carries(args[0]) && carries(args[1])) return null
+      const carrier = carries(args[0]) ? args[0] : args[1]
+      const scale = carries(args[0]) ? args[1] : args[0]
+      const k = constantValueOf(scale)
+      const a = coefficientVector(carrier)
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k)) return null
+      return a.map((x) => x * k)
+    }
+    if (n.type === 'op' && n.name === '/' && args.length === 2) {
+      if (carries(args[1])) return null
+      const k = constantValueOf(args[1])
+      const a = coefficientVector(args[0])
+      if (a === null || typeof k !== 'number' || !Number.isFinite(k) || k === 0) return null
+      return a.map((x) => x / k)
+    }
+    return null
+  }
+
+  /** ⭐⭐ HOW MUCH OF THE SEED SURVIVES `warmup` STEPS — SIMULATED ON THE ENGINE'S
+   *  OWN LOOP rather than reasoned about.
+   *
+   *  The body is linear, so the seed's contribution obeys the SAME recurrence the
+   *  values do, driven by the initial condition `interpret.js` actually uses: the
+   *  whole lag history filled with the seed. So this walks the identical shift
+   *  register for the identical number of steps and reads the sensitivity off the
+   *  end. ⛔ NOT THE SPECTRAL RADIUS: `ρ(A) < 1` is an asymptotic statement, and
+   *  `accum` re-seeds at a FIXED distance — the question is what is left after
+   *  exactly `warmup` steps, and for a repeated root (every critically-damped
+   *  filter) the `n·ρⁿ` term makes those two answers differ by orders of
+   *  magnitude. ⭐ AND IT DEGENERATES TO THE SCALAR RULE EXACTLY: with `[a]` the
+   *  loop computes `aⁿ`, which is what the scalar path tests. */
+  const seedResidual = (coeffs) => {
+    const last = coeffs.length - 1
+    const history = new Array(last + 1).fill(1)
+    for (let step = 0; step < warmup; step += 1) {
+      let next = 0
+      for (let k = 0; k <= last; k += 1) next += coeffs[k] * history[k]
+      if (!Number.isFinite(next)) return Infinity
+      for (let k = last; k > 0; k -= 1) history[k] = history[k - 1]
+      history[0] = next
+    }
+    return Math.abs(history[0])
+  }
+
+  const contracts = (n, switched) => {
+    const a = coefficient(n)
+    if (a !== null) {
+      if (!Number.isFinite(a)) return false
+      return Math.abs(a) ** warmup <= SEED_RESIDUAL_TOLERANCE
+    }
+    // ⛔⛔ THE ONE PLACE THE VECTOR PATH IS REACHABLE, AND THE FLAG IS THE WHOLE
+    // GUARD. `switched` is set by every arm-taking parent below, so a multi-lag
+    // form under a `?:`, a `min`/`max` or an `nz` is still exactly as refused as
+    // it was — that is the counterexample's home and it stays shut.
+    if (switched) return false
+    const v = coefficientVector(n)
+    if (v === null) return false
+    const residual = seedResidual(v)
+    return Number.isFinite(residual) && residual <= SEED_RESIDUAL_TOLERANCE
+  }
+
+  const ok = (n, switched) => {
     if (!n || typeof n !== 'object') return true
     if (isSelf(n)) return true
     if (!carries(n)) return true
     const args = n.args || []
     if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
       const withSelf = args.filter(carries)
-      return withSelf.length === 1 && ok(withSelf[0])
+      return withSelf.length === 1 && ok(withSelf[0], true)
     }
-    if (n.type === 'call' && n.name === 'nz') return args.every(ok)
-    if (n.type === 'op' && n.name === '?:') return ok(args[1]) && ok(args[2])
-    return contracts(n)
+    if (n.type === 'call' && n.name === 'nz') return args.every((a) => ok(a, true))
+    if (n.type === 'op' && n.name === '?:') return ok(args[1], true) && ok(args[2], true)
+    return contracts(n, switched)
   }
-  return ok(node)
+  return ok(node, false)
 }
 
 function findTop(toks, pred) {
@@ -1869,6 +2284,20 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     return typeof node.value === 'number' && Number.isFinite(node.value) ? node.value : null
   }
 
+  // ⭐ A DECLARED PINE INPUT FOLDS TO ITS OWN DEFAULT, and this one line is what
+  // lets a window keep working while the same input becomes a member knob
+  // everywhere else. `resolveInput` in declare mode returns a `series` node
+  // carrying `inputDefault`; in an `int` slot `foldWindow` runs it through here
+  // and gets the literal back, so `sma(close, len)` still emits `sma(close, 14)`
+  // and `windowLiteral`'s rule is untouched. Anywhere else the node survives and
+  // prints as the identifier.
+  // ⛔ A PLAIN `series` HAS NO `inputDefault`, so no other caller of this
+  // exported function changes behaviour — `close` does not suddenly fold.
+  if (node.type === 'series' && typeof node.inputDefault === 'number'
+      && Number.isFinite(node.inputDefault)) {
+    return node.inputDefault
+  }
+
   if (node.type === 'op') {
     const args = node.args || []
     if (node.name === 'u-') {
@@ -1931,6 +2360,22 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
  *  which is measured to do exactly that today. A negative folds through `cNum` to
  *  `u-(num n)`, which is not a `num`, so it refuses at THIS door — again
  *  byte-identical to a written `-4`. */
+/** Every declared-input identifier inside a subtree.
+ *
+ *  ⛔ IT EXISTS FOR ONE HAZARD: an input used in a WINDOW *and* somewhere else.
+ *  `len = input.int(14)` under `sma(close, len) + len` would emit
+ *  `sma(close, 14) + len` — a knob that moves half of the formula and silently
+ *  leaves the other half at the author's default. A half-applied control is
+ *  worse than none, because nothing on screen says which half it reached. So the
+ *  names folded into an int slot are collected and the whole input is refused BY
+ *  NAME rather than partly honoured. */
+function declaredInputNames(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.type === 'series' && typeof node.inputName === 'string') out.add(node.inputName)
+  for (const a of (node.args || [])) declaredInputNames(a, out)
+  return out
+}
+
 function foldWindow(node) {
   const v = constantValueOf(node)
   return (v !== null && Number.isInteger(v) && v >= 0) ? cNum(v) : node
@@ -1964,9 +2409,60 @@ function fractionalWindowAdvice(node) {
   let text = null
   try { text = printFormula(node) } catch { text = null }
   const named = text ? `\`${text}\`` : 'that length'
+
+  // ⭐ THE TWO WHOLE NUMBERS EITHER SIDE, NAMED WITH THEIR VALUES. A member
+  // told only to "write `round(…)`" cannot see that the other choice exists,
+  // still less that it is the one this engine's own entries use.
+  const down = Math.floor(v)
+  const up = Math.round(v)
+  // ⛔ `floor` IS NOT DECLARED — `idiv` IS, and it is the only spelling of the
+  // downward choice a member can actually type. Deriving the roster rather than
+  // asserting it means this sentence stops offering `idiv` on the day the
+  // manifest stops declaring it, instead of advising a name that refuses.
+  //   AND ONLY ABOVE ZERO. `idiv` is declared as "rounded toward ZERO", which
+  //   equals `floor` for a positive value and NOT for a negative one. A window is
+  //   >= 1 by the `int` kind, so the two never diverge where this sentence is
+  //   reached — but offering a spelling whose semantics only coincide inside the
+  //   range you happen to be in is how the next reader inherits a false general
+  //   claim, so the bound is written down rather than relied upon.
+  const has = (k) => own(TABLE.functions || {}, k)
+  const downSpell = (has('idiv') && text && v > 0) ? `\`idiv(${text}, 1)\`` : null
+  const upSpell = has('round') && text ? `\`round(${text})\`` : null
+
+  let choice = ''
+  if (downSpell && upSpell && down !== up) {
+    choice = `. WHICH whole number is a real choice and the two are different `
+      + `indicators: ${downSpell} is ${down}, ${upSpell} is ${up}`
+    // ⚰⚰ THIS SENTENCE USED TO NAME `round` ALONE, AND THAT WAS A SECOND
+    // AUTHORITY OVER A VALUE THE MANIFEST ALREADY DECLARES. `closedTable.json::
+    // _functions_hull` states Hull's half-window as `floor(n / 2)` and both lanes
+    // implement it (`interpret.js` `Math.max(1, Math.floor(n / 2))`,
+    // `ast_interpret.py` `max(1, int(n) // 2)`). So a member hand-expanding a Hull
+    // average, following this advice, got `round(55 * 1/2)` = 28 where `hma(close,
+    // 55)` uses 27 — measured 0.636 apart over 140 bars on the same series, under
+    // the member's own title, with nothing on the chart announcing it.
+    // ⛔ THE FIX IS NOT TO SWAP ONE NAME FOR THE OTHER. The docblock above is
+    // right that no TradingView page states a rounding for `ta.sma`, so PICKING
+    // one here would be the same defect pointing the other way. What the sentence
+    // owes the member is both spellings, both values, and — where this engine
+    // HAS a declared convention for the shape they are writing — which way its
+    // own entry goes.
+    // ⛔ A HALF-INTEGER IS `v * 2` BEING WHOLE while `v` is not — which is
+    // exactly the shape `n / 2` produces for an odd `n`, and the only shape a
+    // hand-expanded Hull half-window can take.
+    if (Number.isInteger(v * 2) && has('hma')) {
+      choice += `. ⚠ If you are expanding a HULL average by hand, this engine's own `
+        + `\`hma\` declares the half-window as the DOWNWARD one (\`floor(n / 2)\`, `
+        + `\`closedTable.json::_functions_hull\`) — so \`hma(…)\` uses ${down} here, `
+        + `and \`hma\` is already declared, which spares you the expansion entirely`
+    }
+  } else if (upSpell) {
+    choice = `. Write ${upSpell} if that is the length you mean`
+  }
+
   return ` — ${named} reduces to ${v}, and Pine's \`/\` on two whole numbers keeps `
     + 'the fraction (their own docs: `5 / 2 = 2.5`), so this is not a whole number '
-    + `of bars. Write \`round(${text || '…'})\` if that is the length you mean`
+    + `of bars${choice}`
 }
 
 /** Is this tree the literal `na` this translator emits — `0 / 0`?
@@ -2197,6 +2693,28 @@ class Resolver {
     /** Argument bindings, one frame per user-function call in flight. */
     this.frames = []
     this.usedInputs = new Map()
+    /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
+     *  or null for the shipped default (fold everything, as before). */
+    this.declareInputs = null
+    /** ⭐⭐ THE MEMBER'S OWN VALUE FOR AN INPUT, by bound name — how a pasted
+     *  script's knob becomes a knob again.
+     *
+     *  ⛔ THE TREE STILL HOLDS A LITERAL, and that is not a compromise: it is what
+     *  keeps `maxLookback` a pure tree sum with no evaluation and what lets the
+     *  repaint linter decide statically. The knob does not live IN the tree; it
+     *  lives on the DOCUMENT, and moving it RE-TRANSLATES. A different length is a
+     *  different indicator and gets a different `astHash`, which is correct.
+     *
+     *  ⭐ TRADINGVIEW DRAWS THE SAME LINE ONE QUALIFIER LOOSER, and their docs say
+     *  so verbatim: *"length arguments require a 'simple int', 'input int', or
+     *  'const int' value; they cannot accept 'series int' values."* They forbid a
+     *  length that varies BAR TO BAR, exactly as we do — they permit one fixed
+     *  before the first bar. This is that permission, reached from the other side:
+     *  we fix it before translation instead of before execution. */
+    this.inputValues = null
+    /** Bound input names that reached an `int` slot on this run — collected so a
+     *  caller can refuse them rather than hand back a half-applied knob. */
+    this.windowBoundInputs = new Set()
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -2482,7 +3000,7 @@ class Resolver {
         this.recurrenceColumns.set(name, built)
         return built
       }
-      if (isSelfRef && containsSelfSeries(body, this.table)) {
+      if (isSelfRef && containsFreeSelfSeries(body, this.table)) {
         const parts = seedAndUpdateOf(body, this.table)
         if (!parts) {
           // ⛔ ONE SHAPE ONLY, AND SAYING SO IS THE POINT. `na(x[1]) ? SEED :
@@ -2878,15 +3396,12 @@ class Resolver {
 
     // Pine's own derived price series, expanded to their reference definitions.
     if (own(DERIVED_SERIES, name)) {
-      const parts = DERIVED_SERIES[name]
-      for (const p of parts) {
-        if (!own(this.table.series, p)) {
-          throw new PineRefusal('pine:builtin',
-            `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
-        }
+      const tree = derivedSeriesTree(name, this.table)
+      if (!tree) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
       }
-      const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
-      return cOp('/', [sum, cNum(parts.length)])
+      return tree
     }
 
     // A dotted or namespaced built-in.
@@ -3021,6 +3536,26 @@ class Resolver {
         `${REFUSALS['pine:arity']} — \`${name}\` was given ${arity} `
         + `argument${arity === 1 ? '' : 's'}`, locate(node.tok))
     }
+    // ⚰️ PINE'S NUMERIC CASTS WERE WRITTEN HERE AND TAKEN BACK OUT, AND THE
+    // MEASUREMENT IS WHY. `int(x)` truncates toward zero, which is exactly
+    // `idiv(x, 1)` — the manifest's own sentence for `idiv` reads "divided by,
+    // rounded toward zero", and both lanes implement it as `trunc(x / y)` — and
+    // `float(x)` is the identity in an engine with one numeric column type. So
+    // both are expressible in vocabulary this table already declares, `vwma`-style,
+    // and MEASURED they move `07-hull-suite` two walls deeper (`pine:function int`
+    // → `pine:window` at line 22, which names `hma` as the thing that would spare
+    // the member the expansion) and take `02-ict`'s four `pine:function` output
+    // refusals to the `pine:state` that is actually blocking them.
+    // ⛔ THE CORPUS SNAPSHOT IS WHAT STOPPED IT: `__fixtures__/pineCorpus.json`
+    // records 02's per-output refusals as `{state: 4, function: 4}`, so the change
+    // is a snapshot edit as well as a translator edit, and the snapshot was outside
+    // the lane that wrote this. It is recorded here rather than left half-shipped
+    // behind a dead flag: `if (false && …)` in a file this size is how an
+    // unreachable branch survives long enough to be mistaken for live code.
+    // ⛔⛔ AND `bool(x)` WOULD NOT HAVE COME WITH THEM. TradingView documents the
+    // cast for `na` and for bools; what `bool(<float>)` means for a `ta.pivothigh`
+    // result is NOT published, and the plausible reading (`not na(x)`) would be
+    // this translator INVENTING a meaning and drawing a column from it.
     // ⛔ `fixnan` STAYS REFUSED, AND NOT FOR WANT OF A TABLE ENTRY. It carries the
     // last known value FORWARD ACROSS BARS for an unbounded distance, so it is
     // state with no warm-up a member could state — `accum` bounds its window on
@@ -3238,8 +3773,52 @@ class Resolver {
    *  ⚰️ THIS SAID "and `sym` is not built". It is — and the shadowing case in
    *  `pine.security.test.js` asserts `tickerid = 'SPY'` translates AS SPY, so the
    *  comment contradicted the rail sitting directly beneath it. */
+  /** The SYMBOL argument of a ticker-constructing call, or null. ⚠️ It resolves the
+   *  argument NODE rather than a name, so the caller decides whether the thing
+   *  inside means "this chart" or "another instrument" — the same two questions
+   *  `securityAsNode` already asks, and neither is answered here. */
+  tickerCallArg(node) {
+    if (!node || node.type !== 'call' || !TICKER_CALLS.has(node.name)) return null
+    const args = node.args || []
+    // ⛔⛔ A NON-DEFAULT SESSION IS A DIFFERENT SERIES, AND DROPPING IT WOULD BE THE
+    // SILENT MISTRANSLATION THIS DOOR EXISTS AGAINST. `ticker.new` takes a session
+    // as its third argument, and `session.extended` asks for pre- and post-market
+    // prints. `sym` serves the REGULAR session, so folding an extended-hours
+    // request onto it answers a real, plausible, DIFFERENT number on every bar —
+    // the identical trade this door refuses for `barmerge.lookahead_on`.
+    // ⚠️ MEASURED, NOT HYPOTHETICAL: `26-spy-to-es` asks for
+    // `ticker.new('AMEX', 'SPY', session.extended)` and translated to
+    // `sym('SPY', close)` the moment this resolver learned to read the call. It is
+    // refused again here, deliberately, and that costs a corpus point.
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      const isSession = a.name === 'session' || (!a.name && i === 2)
+      if (!isSession) continue
+      const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+      if (spelled !== 'session.regular') return null
+    }
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (!a) continue
+      if (a.name === 'ticker' || a.name === 'symbol') return a.value
+      if (!a.name && i === 1) return a.value
+    }
+    return null
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
+    // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
+    // and `timeframeLiteralOf` have carried all along, applied to the other axis.
+    // A test that does NOT fold returns null and the request refuses: a symbol that
+    // could vary per bar is exactly what the `sym` node shape forbids.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.ownSymbolNameOf(taken, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) return this.ownSymbolNameOf(tick, depth + 1)
     if (node.type === 'name') {
       // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
       // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
@@ -3273,6 +3852,17 @@ class Resolver {
    */
   otherSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
+    // ⭐ THE SAME TWO SHAPES, ON THE OTHER SIDE OF THE QUESTION.
+    // `26-spy-to-es` writes `t = is_spy ? ticker.new('AMEX','SPY',…) :
+    // ticker.new('NASDAQ','QQQ',…)` with `is_spy` an `input.bool` defaulting true,
+    // so the test folds and ONE ticker is meant. Refusing it was refusing a script
+    // whose symbol is perfectly decidable at translation time.
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.otherSymbolNameOf(taken, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) return this.otherSymbolNameOf(tick, depth + 1)
     if (node.type === 'string') {
       const ticker = String(node.value).trim().toUpperCase()
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
@@ -3370,8 +3960,12 @@ class Resolver {
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
-      code = raw === null ? null : PINE_TF_CODE[String(raw).trim().toUpperCase()]
-      if (!code) return null
+      // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
+      // engine serve it? The second belongs to `TF_RESAMPLABLE` and is asked, not
+      // copied — so a timeframe the engine learns to resample reaches this door on
+      // the same day rather than a release later.
+      code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      if (!code || !TF_RESAMPLABLE.includes(code)) return null
     }
 
     // 3. `lookahead`, wherever it appears.
@@ -3684,6 +4278,12 @@ class Resolver {
         // `foldWindow` can only substitute an exact non-negative whole number, so
         // everything this line does NOT accept meets the identical check, with the
         // identical sentence and token, that it met before the fold existed.
+        // ⛔ RECORD WHICH DECLARED INPUTS GOT FOLDED INTO A WINDOW, BEFORE the
+        // fold erases them. An input that reaches an `int` slot cannot be a
+        // member knob (`interpret.js::windowLiteral` requires a literal), and if
+        // the same input is ALSO used elsewhere, honouring it there alone would
+        // move half the formula. The caller refuses the whole input by name.
+        for (const n of declaredInputNames(resolved)) this.windowBoundInputs.add(n)
         resolved = foldWindow(resolved)
         // ⛔ A WINDOW MUST BE A LITERAL, AND THAT IS THE REPAINT LINTER'S RULE
         // RATHER THAN THIS MODULE'S TASTE. `lint.js::resolveDeclaration` returns
@@ -3731,14 +4331,114 @@ class Resolver {
       throw new PineRefusal('pine:input-kind',
         `${REFUSALS['pine:input-kind']} — \`${name}\` states no default`, locate(node.tok))
     }
-    const resolved = this.resolve(defval)
+    // ⭐ THE MEMBER'S VALUE WINS OVER THE AUTHOR'S DEFAULT, and only ever a value
+    // the AUTHOR'S OWN BOUNDS admit — `minval`/`maxval` are read from the paste a
+    // few lines below and are not ours to widen. An out-of-range value is refused
+    // BY NAME rather than clamped: clamping would compute a different indicator
+    // under the member's own number, silently, which is the one thing this door
+    // exists to prevent.
+    let overrideNode = null
+    const overrideName = typeof node.boundName === 'string' ? node.boundName : null
+    if (overrideName && this.inputValues
+        && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
+      const wanted = Number(this.inputValues[overrideName])
+      if (!Number.isFinite(wanted)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given a value that is `
+          + 'not a number', locate(node.tok))
+      }
+      const readBound = (key) => {
+        const a = node.args.find((x) => x.name === key)
+        if (!a) return null
+        const v = this.resolve(a.value)
+        return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+      }
+      const lo = readBound('minval')
+      const hi = readBound('maxval')
+      if ((lo !== null && wanted < lo) || (hi !== null && wanted > hi)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given ${wanted}, and the `
+          + `script's own author bounded it to ${lo === null ? '-∞' : lo}..`
+          + `${hi === null ? '∞' : hi}`, locate(node.tok))
+      }
+      // ⚠⚠ `cNum`, NOT A HAND-BUILT OBJECT FED TO `resolve`. `this.resolve` takes a
+      // PINE PARSER node and RETURNS an engine node; handing it an engine node made
+      // the whole statement unreadable (`pine:statement`) rather than failing
+      // anywhere near here. The override already IS a number, so it skips the
+      // resolve entirely and emits the canonical node directly.
+      overrideNode = cNum(wanted)
+    }
+    const resolved = overrideNode || this.resolve(defval)
+    const boundName = typeof node.boundName === 'string' ? node.boundName : null
+    // ⭐ DECLARE MODE: hand back the IDENTIFIER instead of the literal.
+    // `translatePine(src, { declareInputs })` asks for this; the default path is
+    // byte-identical to what shipped before, so every existing caller and every
+    // committed corpus digest is untouched.
+    // ⛔ THE NODE STILL CARRIES ITS DEFAULT (`inputDefault`), which is what lets
+    // `foldWindow` reduce it back to a literal in an `int` slot. Emitting a bare
+    // identifier into a window would produce a formula this engine refuses.
+    const declared = boundName && this.declareInputs
+      && (this.declareInputs === 'all' || this.declareInputs.has(boundName))
+    // ⭐ THE BOUNDS ARE THE AUTHOR'S OWN, not ours. Passing `minval`/`maxval`
+    // through means the member's control stops where the script's author said it
+    // stops; inventing a range here would be a second authority over a number the
+    // paste already carries.
+    // `builderInputs.inputsFromFolded` has been able to turn a folded Pine input
+    // back into a MEMBER KNOB since W1b.9, and it refused every entry with the
+    // same sentence — "no bound name on the folded entry … TO UNBLOCK: the W3b
+    // hand-back, `usedInputs[]` gaining `name` (the Pine variable the input was
+    // assigned to)". This is that hand-back. A refusal that names its own
+    // unblocker is worth more than one that apologises, and this is the second
+    // time this month one has retired itself (see `hma`).
+    //
+    // ⛔ WITHOUT IT A PASTED SCRIPT'S KNOBS ARE WELDED SHUT. `length =
+    // input.int(14, "Length")` folds to the literal 14 so the tree stays
+    // statically decidable — right for the maths, wrong for the member, who gets
+    // somebody else's constant and no way to change it.
+    //
+    const bound = (key) => {
+      const arg = node.args.find((a) => a.name === key)
+      if (!arg) return null
+      const v = this.resolve(arg.value)
+      return v && v.type === 'num' && Number.isFinite(v.value) ? v.value : null
+    }
     this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
       call: name,
       title: title && title.type === 'string' ? title.value : null,
       folded: printFormula(resolved),
+      name: boundName,
+      min: bound('minval'),
+      max: bound('maxval'),
       line: node.tok.line,
       column: node.tok.column,
     })
+    if (declared) {
+      const v = constantValueOf(resolved)
+      if (v !== null) {
+        // ⛔⛔ THE METADATA IS NON-ENUMERABLE, AND THAT IS LOAD-BEARING RATHER
+        // THAN TIDY. `astHash` walks a node's OWN ENUMERABLE KEYS and
+        // `assertCanonical` refuses any node whose key set is not byte-equal to
+        // `CANONICAL_KEYS.series` (`{name, type}`) — so a plain
+        // `{type, name, inputName, inputDefault}` is not a legal tree, and
+        // `verifyRoundTrip` caught exactly that: "the translator wrote formula
+        // text it could not read back". Defining the two extras as
+        // non-enumerable keeps them readable HERE (`constantValueOf`,
+        // `declaredInputNames`) while `Object.keys`, `JSON.stringify`,
+        // `stableStringify` and every persisted copy see an ordinary `series`.
+        // ⭐ So the canonical grammar is not widened by one byte to add this
+        // feature — no node type, no key, no `astHash` movement, nothing to
+        // migrate.
+        const leaf = { type: 'series', name: boundName }
+        Object.defineProperty(leaf, 'inputName', { value: boundName, enumerable: false })
+        Object.defineProperty(leaf, 'inputDefault', { value: v, enumerable: false })
+        return leaf
+      }
+      // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
+      // `input.source(hl2)` folds to `(high + low) / 2` — a column, not a number
+      // — and a member input resolves to one finite value. Falling through to the
+      // folded expression is the honest answer, and `inputsFromFolded` already
+      // refuses that entry by name ("the fold printed an EXPRESSION").
+    }
     return resolved
   }
 }
@@ -4189,6 +4889,33 @@ const PINE_STATE_WARMUP = 250
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
 
+/** Stamp the identifier an `input.*(…)` call was bound to onto its own node.
+ *
+ *  ⭐ WHY THE NODE AND NOT A RESOLVER FIELD. `resolveInput` runs deep inside
+ *  expression resolution and has no idea what statement it is under, so the
+ *  obvious shortcut — set `this._bindingName` around each binding resolve — is
+ *  WRONG in a way that would ship: `x = sma(close, input.int(14))` would record
+ *  the input as bound to `x`, and `x` is a formula CONTAINING an input, not the
+ *  input itself. Declaring a knob named `x` there hands the member a control
+ *  that renames their own moving average.
+ *
+ *  ⛔ SO THE TEST IS STRUCTURAL AND NARROW: the binding's whole right-hand side
+ *  IS the input call. `len = input.int(14, "Length")` stamps; anything with the
+ *  call nested inside it does not, and `builderInputs.inputsFromFolded` then
+ *  refuses that entry by name ("no bound name on the folded entry") exactly as
+ *  it does today. The conservative direction is a missing knob, never a wrong one.
+ *
+ *  ⚠️ Mutates the parsed node in place, which is safe here because the node was
+ *  just built by `parseWholeExpression` for this binding and is reachable from
+ *  nowhere else yet. */
+const stampInputName = (node, name) => {
+  if (node && node.type === 'call' && typeof node.name === 'string'
+      && (node.name === 'input' || node.name.startsWith('input.'))) {
+    node.boundName = name
+  }
+  return node
+}
+
 /** The `if` / `else if` / `else` statements at `i`, re-joined into one chain.
  *  ⚠️ They arrive as SEPARATE statements at the same indent because that is how
  *  Pine is written; joining them here keeps `blockStatements` free of any
@@ -4495,7 +5222,9 @@ function foldStatements(stmts, ctx, env) {
         i = folded.next
         continue
       }
-      env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
+      env.set(nameTok.value, exprBinding(
+        stampInputName(parseWholeExpression(rhs), nameTok.value),
+        new Map(env), locate(nameTok)))
       i += 1
       continue
     }
@@ -4976,7 +5705,9 @@ export function translatePine(source, opts = {}) {
         continue
       }
       try {
-        env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
+        env.set(nameTok.value, exprBinding(
+        stampInputName(parseWholeExpression(rhs), nameTok.value),
+        new Map(env), locate(nameTok)))
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN
@@ -5059,6 +5790,17 @@ export function translatePine(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = new Resolver(env, table, declaredTypes, { finalBindings, mutated: reassigned })
+    // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
+    // shipped caller, every committed corpus digest and every saved definition
+    // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
+    // ⭐ `opts.inputValues` is `{ boundName: number }` — the member's knob positions.
+    if (opts.inputValues && typeof opts.inputValues === 'object') {
+      resolver.inputValues = opts.inputValues
+    }
+    if (opts.declareInputs) {
+      resolver.declareInputs = opts.declareInputs === 'all'
+        ? 'all' : new Set(opts.declareInputs)
+    }
     let row
     try {
       const cur = new Cursor(out.toks.slice(2))
@@ -5086,7 +5828,14 @@ export function translatePine(source, opts = {}) {
         column: out.tok.column,
         formula,
         ast,
-        inputsFolded: [...resolver.usedInputs.values()],
+        inputsFolded: [...resolver.usedInputs.values()].map((e) => (
+          // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
+          // by the reader. Whether an input reached an `int` slot is a fact about
+          // THIS resolution — the reader sees only the folded formula, where the
+          // literal has already replaced the identifier, so it is not recoverable
+          // downstream. A consumer that tried would be guessing.
+          e.name && resolver.windowBoundInputs.has(e.name)
+            ? { ...e, windowBound: true } : e)),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
         // moment `plotshape` becomes an output. `03-rsi-directional-momentum-
         // scanner` guards four of its signals behind `input.bool` toggles that
@@ -5415,6 +6164,12 @@ function refusalValue(guard, message, at) {
     index: at ? at.index : null,
     token: at ? at.token : null,
     excerpt: null,
+    // A CONVENTIONAL COMPLETION this door could offer, when it has one.
+    // Pine publishes its defaults, so this lane never sets it -- but the KEY
+    // is here because the refusal SHAPE is a contract every door shares and
+    // `ImportBox` reads it by name. A key present in one door and absent in
+    // another is the divergence that contract exists to prevent.
+    suggest: null,
   }
 }
 

@@ -100,6 +100,22 @@ MAX_BUFFER = 1000
 RECONNECT_MIN_SEC = 1.0
 RECONNECT_MAX_SEC = 30.0
 
+# A provider auth/plan rejection is not a transient network error: the same
+# request will keep failing until a HUMAN changes something upstream. It still
+# gets retried — the subscription can be renewed and we want the feed back
+# without a redeploy — but on a lazy cadence instead of the 30 s transient one.
+LIVEFLOW_AUTH_RETRY_SEC = float(os.environ.get("LIVEFLOW_AUTH_RETRY_SEC", "900"))
+_TERMINAL_AUTH_STATUSES = (401, 402, 403)
+
+
+class LiveflowAuthError(RuntimeError):
+    """Provider refused the credentials/plan (401/402/403).
+
+    Separate class so `run_forever` can pick the slow retry cadence WITHOUT
+    string-matching a log message — the status code is the fact, and the
+    classification lives at the one place that reads the response.
+    """
+
 # Read timeout (seconds) for the Bullflow SSE stream. Bullflow emits
 # `heartbeat` events every few seconds on a healthy stream, so 90s of total
 # silence means the connection is dead (NAT reset, LB swap, half-open TCP)
@@ -2147,6 +2163,10 @@ _status = {
     "total_alerts_vol_oi_gated": 0, # suppressed: volume not over OI (new-positioning gate)
     "total_alerts_gate_blocked": 0, # blocked by per-alert conviction gates
     "last_error": None,
+    # True while the provider is rejecting our credentials/plan (401/402/403).
+    # Distinct from a transient outage: /live-flow can say "subscription
+    # inactive" instead of a forever-spinning "Connecting to stream…".
+    "auth_blocked": False,
     "last_discord_error": None,
     "started_at": None,
     "reconnect_count": 0,
@@ -2914,11 +2934,20 @@ async def _consume_stream(client, discord_client):
     ) as response:
         if response.status_code != 200:
             body = await response.aread()
-            raise RuntimeError(
-                f"SSE handshake failed HTTP {response.status_code}: {body[:200]!r}"
-            )
+            msg = f"SSE handshake failed HTTP {response.status_code}: {body[:200]!r}"
+            # 401/402/403 are the provider saying "your credentials or plan do
+            # not permit this" — retrying in 30 seconds cannot change that. Left
+            # on the transient path it reconnects forever: observed on prod
+            # 2026-08-29 doing exactly that every 30 s ("API subscription
+            # inactive"), a log line and an outbound request per cycle, on the
+            # pod that serves members, with /live-flow stuck on "Connecting to
+            # stream…" instead of saying what is actually wrong.
+            if response.status_code in _TERMINAL_AUTH_STATUSES:
+                raise LiveflowAuthError(msg)
+            raise RuntimeError(msg)
         _status["connected"] = True
         _status["last_error"] = None
+        _status["auth_blocked"] = False
         _status["started_at"] = datetime.now(timezone.utc).isoformat()
         log.info("[liveflow] connected, awaiting events")
         async for line in response.aiter_lines():
@@ -3434,9 +3463,28 @@ async def run_forever():
                 log.info("[liveflow] worker cancelled, exiting")
                 _status["connected"] = False
                 raise
+            except LiveflowAuthError as e:
+                # Terminal until someone fixes the account upstream. Retry on the
+                # slow cadence so a renewed subscription still recovers on its
+                # own, and say so ONCE per attempt rather than every 30s forever.
+                _status["connected"] = False
+                _status["last_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+                _status["auth_blocked"] = True
+                _status["reconnect_count"] += 1
+                log.warning(
+                    "[liveflow] provider rejected our credentials/plan: %s — this "
+                    "cannot self-heal without an upstream change; retrying in %.0fs "
+                    "(set LIVEFLOW_AUTH_RETRY_SEC to tune)", e, LIVEFLOW_AUTH_RETRY_SEC)
+                if _STOP:
+                    break
+                await asyncio.sleep(LIVEFLOW_AUTH_RETRY_SEC)
+                # Do NOT touch `backoff`: a later transient failure should still
+                # start from the fast cadence.
+                continue
             except Exception as e:
                 _status["connected"] = False
                 _status["last_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+                _status["auth_blocked"] = False
                 _status["reconnect_count"] += 1
                 log.warning("[liveflow] connection error: %s (next attempt in %.1fs)",
                             e, backoff)

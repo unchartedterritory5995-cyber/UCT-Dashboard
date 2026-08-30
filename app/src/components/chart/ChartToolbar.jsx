@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { legendModeOf, nextLegendMode } from './legendMode'
@@ -9,13 +9,33 @@ import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
-import BuilderSheet from './builder/BuilderSheet'
+// ⛔⛔ LAZY, AND THE BUNDLE IS WHY. `BuilderSheet` pulls `PineBox`, which pulls
+// the Pine AND thinkScript translators — ~540KB of source between them, plus the
+// closed table. Imported statically here they landed in `ChartPane` (788KB / 250KB
+// gzip, the largest app chunk after echarts), and `ChartToolbar` renders on EVERY
+// `StockChart`: the dashboard, breadth, watchlists, the journal, model book. Every
+// one of those paid for a translator nobody on them had asked for.
+//
+// ⚰️ THIS IS THE SECOND TIME THIS EXACT SHAPE HAS BEEN PAID FOR HERE —
+// `OptionsFlow` statically imported `ChartPane` + `DarkPool` (868KB) and made its
+// OWN dynamic warm dead code. `ScreensManager` already lazy-loads this same sheet;
+// while THIS import stayed static its laziness bought nothing, because the chunk
+// was in the main graph regardless.
+//
+// ⚠️ THE MOUNT IS DEFERRED TOO, not just the import. A `lazy()` component still
+// fetches its chunk the moment it RENDERS, and this one rendered on every toolbar
+// (closed, returning null). `builderEverOpened` holds it back until a member
+// actually opens the builder, and keeps it mounted afterwards so a draft survives
+// close-and-reopen exactly as before.
+const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 import PatternToolbarButton from './PatternToolbarButton'
+import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
+import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import { toolbarFor } from '../../utils/dividerColor'
@@ -83,31 +103,45 @@ const _loadArr = (k) => { try { const a = JSON.parse(localStorage.getItem(k) || 
 const _saveArr = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)) } catch { /* ignore */ } }
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
+//
+// ⭐ THE CHORD IN A TOOLTIP IS DERIVED, NEVER TYPED.
+//
+// ⚰️ These labels used to spell their own chords, and they drifted: this list
+// advertised **"Fibonacci Extension (Shift+F)"** and **"Pitchfork (Shift+P)"**
+// long after Shift+F became the flag-the-ticker chord on every list surface, and
+// **"Position Tool (P)"** for a tool bare P has never armed. A tooltip is a
+// PROMISE about a keypress, so it now asks `chordForTool`, which reads the very
+// maps `matchOverlayTool` dispatches on. A click-only tool shows no chord.
+const chorded = (id, name) => {
+  const chord = chordForTool(id)
+  return chord ? `${name} (${chord})` : name
+}
+
 const TOOLS = [
   // Select/cursor button removed — you can hover-and-drag annotations with no tool
   // armed (the default), so a dedicated Select mode is redundant.
-  { id: 'trendline',  label: 'Trendline (T)' },
+  { id: 'trendline',  label: chorded('trendline', 'Trendline') },
   { id: 'extended',   label: 'Extended Line' },
-  { id: 'horizontal', label: 'Horizontal Line (H)' },
-  { id: 'hray',       label: 'Horizontal Ray' },
-  { id: 'vertical',   label: 'Vertical Line' },
+  { id: 'horizontal', label: chorded('horizontal', 'Horizontal Line') },
+  { id: 'hray',       label: chorded('hray', 'Horizontal Ray') },
+  { id: 'vertical',   label: chorded('vertical', 'Vertical Line') },
   'sep',
-  { id: 'rect',       label: 'Rectangle (R)' },
-  { id: 'circle',     label: 'Circle' },
-  { id: 'arrow',      label: 'Arrow' },
+  { id: 'rect',       label: chorded('rect', 'Rectangle') },
+  { id: 'circle',     label: chorded('circle', 'Circle') },
+  { id: 'arrow',      label: chorded('arrow', 'Arrow') },
   'sep',
-  { id: 'fib',        label: 'Fibonacci Retracement (F)' },
-  { id: 'fibext',     label: 'Fibonacci Extension (Shift+F)' },
-  { id: 'pitchfork',  label: 'Pitchfork (Shift+P)' },
+  { id: 'fib',        label: chorded('fib', 'Fibonacci Retracement') },
+  { id: 'fibext',     label: chorded('fibext', 'Fibonacci Extension') },
+  { id: 'pitchfork',  label: chorded('pitchfork', 'Pitchfork') },
   { id: 'channel',    label: 'Parallel Channel' },
   { id: 'cup',        label: 'Cup Curve — click the left rim, the bottom, then the right rim' },
-  { id: 'avwap',      label: 'Anchored VWAP' },
+  { id: 'avwap',      label: chorded('avwap', 'Anchored VWAP') },
   'sep',
-  { id: 'text',       label: 'Text Note (X)' },
-  { id: 'measure',    label: 'Measure (M)' },
+  { id: 'text',       label: chorded('text', 'Text Note') },
+  { id: 'measure',    label: chorded('measure', 'Measure') },
   { id: 'advance',    label: 'Advance % Label — click the setup candle, then the candle where the move tops' },
   'sep',
-  { id: 'position',   label: 'Position Tool (P)' },
+  { id: 'position',   label: chorded('position', 'Position Tool') },
 ]
 
 const WIDTHS = [1, 2, 3]
@@ -716,8 +750,8 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
             <span onClick={() => onToggleHidden(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
               <span style={{ width: 14, height: 14, color: '#c9a84c', flexShrink: 0, display: 'flex' }}>{visible ? ICONS.check : null}</span>
-              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
-              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.45, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
+              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
+              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
             </span>
             <span onClick={() => onToggleFavorite(t.id)} title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
               style={{ flexShrink: 0, color: fav ? '#c9a84c' : 'var(--menu-text-muted,#6b7280)', display: 'flex', cursor: 'pointer' }}>
@@ -935,6 +969,7 @@ function ChartToolbar({
   setMagnet = null,              // when provided, shows the magnet toggle
   toolFilter = null,             // when an array of tool ids, show ONLY those tools (e.g. ['cursor','measure'] for the index pane)
   hideSettingsButton = false,    // charts workspace has the new ChartSettingsModal — drop the legacy V1 gear + inline panel there
+  showTracings = false,          // charts workspace only: append the Drawing Boards button after the drawing tools
   // ⭐ The chart's own engine instances, forwarded to the alert popover so an
   // alert can name the INSTANCE it was armed from (Phase C Task 15). Default
   // `[]`, so every mount site that does not pass it behaves exactly as before:
@@ -998,6 +1033,13 @@ function ChartToolbar({
   // rendered as the panel's child would be unmounted by the very click that
   // opened it.
   const [builderOpen, setBuilderOpen] = useState(false)
+  // ⭐ ONE-WAY: once a member has opened the builder the sheet stays mounted, so
+  // its draft survives a close exactly as it did when the import was static.
+  const [builderEverOpened, setBuilderEverOpened] = useState(false)
+  const openBuilder = useCallback(() => {
+    setBuilderEverOpened(true)
+    setBuilderOpen(true)
+  }, [])
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1204,6 +1246,11 @@ function ChartToolbar({
             {ICONS[t.id]}
           </button>
         ))}
+        {/* Drawing Boards — at the END of the drawing tools, styled identically (it's
+            handed this toolbar's own scoped button classes). Charts workspace only. */}
+        {!toolFilter && showTracings && (
+          <BoardsToolButton btnClassName={styles.btn} activeClassName={styles.active} currentSym={currentSym} />
+        )}
         {/* ── Favorite Drawings: show/hide tools + pick favorites for the floating toolbar ── */}
         {!toolFilter && (
           <button
@@ -1448,7 +1495,7 @@ function ChartToolbar({
                 chartSettings={chartSettings}
                 onUpdateSettings={onUpdateSettings}
                 onOpenIndicatorLibrary={() => setLibraryOpen(true)}
-                onOpenFormulaBuilder={() => setBuilderOpen(true)}
+                onOpenFormulaBuilder={openBuilder}
                 volumePaneFixed={volumePaneFixed}
               />
 
@@ -1502,13 +1549,14 @@ function ChartToolbar({
                `e.stopPropagation()` — two open at once means one Escape closes the
                wrong one and the scroll lock is restored by whichever unmounts
                last. */
-            onCreateFormula={() => { setLibraryOpen(false); setBuilderOpen(true) }}
+            onCreateFormula={() => { setLibraryOpen(false); openBuilder() }}
           />
         )}
 
         {/* Mounted at toolbar level for the same reason the library is — see the
             comment above it and `builderOpen`'s declaration. */}
-        {canManageIndicators && (
+        {canManageIndicators && builderEverOpened && (
+          <Suspense fallback={null}>
           <BuilderSheet
             open={builderOpen}
             onClose={() => setBuilderOpen(false)}
@@ -1527,6 +1575,7 @@ function ChartToolbar({
             sym={currentSym}
             tf={tf}
           />
+          </Suspense>
         )}
 
         {/* Color picker */}

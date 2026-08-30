@@ -1436,9 +1436,53 @@ const MONTH_NAMES = ["January","February","March","April","May","June",
   "July","August","September","October","November","December"];
 const DOW_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 
+function _etNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+}
 function _etTodayMDY() {
-  const n = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const n = _etNow();
   return `${n.getMonth() + 1}/${n.getDate()}/${n.getFullYear()}`;
+}
+/** Could TODAY plausibly have live flow yet? Weekday, and past the 9:30 ET open.
+ *
+ *  Used only to decide whether to WAIT for the trading-day list before firing the
+ *  data effects. On a weekend or pre-open the market-closed fallback below is
+ *  about to move us off LIVE, and firing first means every request runs twice —
+ *  measured on prod 2026-08-29 (a Saturday): recent, worker-history, day-stats,
+ *  by-contract and flow/dates each fetched TWICE per load, the first wave asking
+ *  for a day with no data at all.
+ *
+ *  Deliberately a CHEAP LOCAL GUESS, not a truth: it costs no request, and being
+ *  wrong is harmless in both directions — a holiday still double-fetches (as it
+ *  does today), and a quiet session just waits for a list that is now cached
+ *  server-side. Holidays are not modelled on purpose; a wrong holiday table would
+ *  be worse than the double fetch it saves.
+ */
+export function _etCouldHaveLiveSessionYet(nowEt) {
+  const n = nowEt || _etNow();
+  const dow = n.getDay();                      // 0 Sun … 6 Sat
+  if (dow === 0 || dow === 6) return false;
+  return (n.getHours() * 60 + n.getMinutes()) >= (9 * 60 + 30);
+}
+
+/** Should the data effects fire yet?
+ *
+ *  Exported and pure so the decision can be tested without mounting a
+ *  4,800-line page — and so it is stated ONCE, rather than as an inline
+ *  expression that a later edit could quietly change in one branch.
+ *
+ *  Ready when ANY of:
+ *   - a date is already chosen (deep link, or the fallback already ran)
+ *   - today could plausibly have a live session (no fallback expected)
+ *   - the trading-day list came back, however it came back
+ *
+ *  ⛔ The third condition is `datesResolved`, NOT `latestDataDay !== null`. A
+ *  failed or empty response leaves the latter null forever, which would strand
+ *  the page blank after a single 500 — a worse failure than the double fetch
+ *  this exists to remove.
+ */
+export function _computeDateReady({ targetDate, couldHaveLiveSession, datesResolved }) {
+  return !!targetDate || !!couldHaveLiveSession || !!datesResolved;
 }
 function _mdyToDate(s) {
   if (!s) return null;
@@ -3139,14 +3183,39 @@ export default function LiveFlowMassive() {
   const _marketClosed = !!latestDataDay && latestDataDay !== _etTodayMDY();
   const [showClosedBanner, setShowClosedBanner] = useState(false);
   const _autoFellBackRef = useRef(false);
+  // Resolved = we have ASKED and got an answer, success or not. Distinct from
+  // `latestDataDay !== null`, which stays false forever if the request fails —
+  // gating the page on that would strand it on a blank screen after one 500.
+  const [datesResolved, setDatesResolved] = useState(false);
   useEffect(() => {
     let dead = false;
+    // Safety net: a hung request must never hold the page. Past this we proceed
+    // as if the list were unavailable, which is exactly today's behaviour.
+    const bail = setTimeout(() => { if (!dead) setDatesResolved(true); }, 2500);
     fetch("/api/flow/dates?source=stocks")
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!dead && d && Array.isArray(d.dates) && d.dates.length) setLatestDataDay(d.dates[d.dates.length - 1]); })
-      .catch(() => {});
-    return () => { dead = true; };
+      .catch(() => {})
+      .finally(() => { if (!dead) { clearTimeout(bail); setDatesResolved(true); } });
+    return () => { dead = true; clearTimeout(bail); };
   }, []);
+
+  // ⏸ Hold the data effects until we know which day we are actually showing.
+  //
+  // Without this, a weekend/pre-open load fires every fetch for LIVE (a day with
+  // no data), then the fallback below sets ?date=<last session> and fires them
+  // ALL AGAIN. Measured on prod 2026-08-29: recent, worker-history, day-stats,
+  // by-contract and flow/dates each ran twice per page load.
+  //
+  // It costs a normal session NOTHING: with a date already in the URL, or during
+  // a weekday session when no fallback is expected, this is true on first render.
+  // Only the case that was about to fetch twice waits — and only for a list that
+  // is now cached server-side (see flow_db.get_available_dates).
+  const dateReady = _computeDateReady({
+    targetDate,
+    couldHaveLiveSession: _etCouldHaveLiveSessionYet(),
+    datesResolved,
+  });
   useEffect(() => {
     if (_autoFellBackRef.current) return;
     if (!targetDate && _marketClosed) {
@@ -3636,6 +3705,10 @@ export default function LiveFlowMassive() {
 
   // Polling
   useEffect(() => {
+    // ⏸ Wait until we know which day we are showing (see `dateReady`) — firing
+    // now would run this entire fetch again the moment the market-closed
+    // fallback sets ?date=.
+    if (!dateReady) return;
     let cancelled = false;
     let timer;
     let abort;
@@ -3732,7 +3805,7 @@ export default function LiveFlowMassive() {
     // scopeKey: the historical ticker-scoped feed (symbol|lookbackDays) — re-fetch
     // when the searched ticker or window changes; "" in live mode so live search
     // (client-side substring) never triggers a refetch.
-  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey, printRangeKey]);
+  }, [sortBy, minGrade, dateReady, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey, printRangeKey]);
 
   // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
   // Prepends new prints the instant the server tailer sees them — NO /recent
@@ -3939,6 +4012,10 @@ export default function LiveFlowMassive() {
   // instead of silently missing lines. Soft, refreshed every 3 min, tracks the
   // currently-viewed date.
   useEffect(() => {
+    // ⏸ Wait until we know which day we are showing (see `dateReady`) — firing
+    // now would run this entire fetch again the moment the market-closed
+    // fallback sets ?date=.
+    if (!dateReady) return;
     let cancelled = false, timer;
     async function fetchGaps() {
       try {
@@ -3957,7 +4034,7 @@ export default function LiveFlowMassive() {
     }
     fetchGaps();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [targetDate]);
+  }, [dateReady, targetDate]);
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
@@ -4011,6 +4088,10 @@ export default function LiveFlowMassive() {
   // server-side too, so this is effectively cache-aligned. Re-triggers
   // when targetDate changes (switching between dates in historical view).
   useEffect(() => {
+    // ⏸ Wait until we know which day we are showing (see `dateReady`) — firing
+    // now would run this entire fetch again the moment the market-closed
+    // fallback sets ?date=.
+    if (!dateReady) return;
     let cancelled = false;
     let timer;
 
@@ -4039,7 +4120,7 @@ export default function LiveFlowMassive() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [targetDate, hideAlgo, stockEtfFilter]);
+  }, [dateReady, targetDate, hideAlgo, stockEtfFilter]);
 
   // Persist view mode.
   useEffect(() => { localStorage.setItem(LS_KEY_VIEWMODE, viewMode); }, [viewMode]);
@@ -4047,6 +4128,10 @@ export default function LiveFlowMassive() {
   // By-Contract rollup fetch — only polls while in contract mode. Respects the
   // date + Stocks/ETFs/All partition; backend caches 30s so we match cadence.
   useEffect(() => {
+    // ⏸ Wait until we know which day we are showing (see `dateReady`) — firing
+    // now would run this entire fetch again the moment the market-closed
+    // fallback sets ?date=.
+    if (!dateReady) return;
     if (viewMode !== "contract") return;
     let cancelled = false, timer;
     async function pull() {
@@ -4060,7 +4145,7 @@ export default function LiveFlowMassive() {
     }
     pull();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [viewMode, targetDate, stockEtfFilter, lookbackDays, minHits]);
+  }, [viewMode, dateReady, targetDate, stockEtfFilter, lookbackDays, minHits]);
 
   // Apply client-side filters: tier chips, ticker, contract, hideAlgo, search.
   // Tier filtering now happens here (was previously per-section); the

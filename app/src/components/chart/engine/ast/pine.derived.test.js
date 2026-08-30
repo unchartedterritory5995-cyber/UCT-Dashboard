@@ -7,7 +7,7 @@
 // to a neighbour that would parse, lint, save, scan and be wrong.
 
 import { describe, it, expect } from 'vitest'
-import { translatePine, PINE_INEXPRESSIBLE } from './pine.js'
+import { translatePine, PINE_INEXPRESSIBLE, treeYieldsBool } from './pine.js'
 import { parseFormula, astHash, TABLE } from './parse.js'
 import { interpret } from './interpret.js'
 import { lintRepaint } from './lint.js'
@@ -139,6 +139,14 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   pointwise math; no sign, no offset, no unit to get wrong.
     sma: 'ta.sma — same window mean', ema: 'ta.ema — same smoother',
     rma: 'ta.rma — Wilder, same', wma: 'ta.wma — same weighting',
+    // ⭐ VETTED AGAINST TRADINGVIEW'S OWN PUBLISHED SOURCE, not against the name.
+    // `ta.hma(_src, _length) => ta.wma(2 * ta.wma(_src, _length / 2) -
+    // ta.wma(_src, _length), math.round(math.sqrt(_length)))`. Three things had to
+    // match and all three do: ARGUMENT ORDER is (source, length) like ours;
+    // `_length / 2` is INT division in Pine, which is our `floor(n / 2)`; and
+    // `math.round` rounds half away from zero, which is our `round(sqrt(n))`
+    // written out as `floor(x + 0.5)` in the Python lane. No sign, no offset.
+    hma: 'ta.hma — same composition of wma, same two derived windows',
     stdev: 'ta.stdev — same population divisor', dev: 'ta.dev — Pine ta.dev IS mean-absolute',
     sum: 'ta.sum — same window sum', change: 'ta.change(src) 1-arg — the n-arg form is refused by arity',
     highest: 'ta.highest — a VALUE, so no offset convention to disagree about',
@@ -147,6 +155,23 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     stoch: 'ta.stoch — %K, shape-mapped', crossOver: 'ta.crossover — same event',
     crossUnder: 'ta.crossunder — same event',
     vwap: 'ta.vwap — session accumulator', avwap: 'ta.vwap(anchor) — shape-mapped',
+    // ⭐⭐ `ta.cumFrom` IS NOT A PINE NAME AT ALL, AND THAT IS WHY THE DOOR IS
+    //   SAFE RATHER THAN MERELY UNUSED. The hazard this list guards is a member
+    //   PASTING real Pine and getting our maths under their name; nobody can
+    //   paste `ta.cumFrom` because TradingView has no such function, so there is
+    //   no published definition to disagree with.
+    //   ⛔⛔ AND THE NAME PINE *DOES* HAVE FOR THIS IDEA — `ta.cum` — STAYS
+    //   REFUSED, which is the whole reason this entry is not spelled `cum`.
+    //   Pine's `cum` accumulates from the first bar of the CHART, so its level is
+    //   a fact about the fetch; ours accumulates from an instant the member typed.
+    //   Declaring it under the same spelling would have made `cum(...)` resolve to
+    //   our vocabulary in the very file this rail watches — measured on
+    //   `barssince`, which did exactly that on 2026-08-26. See
+    //   `closedTable.json::_functions_cumulative` for the ruling and
+    //   `_functions_excluded.cum` for what a translator may write instead.
+    cumFrom: 'ta.cumFrom is not a Pine builtin; the name Pine DOES have for this'
+      + ' idea, `ta.cum`, is a DIFFERENT quantity (chart-anchored, so'
+      + ' fetch-dependent) and stays refused by name',
     // — VETTED WITH AN INDEX SHIFT, which is the case this list's warning is about.
     //   Pine RETURNS a pivot at its CONFIRMATION bar, `rightbars` after the pivot;
     //   this table's `pivothigh` emits ON the pivot bar. Same values, different
@@ -479,5 +504,51 @@ var float anchor = close
 plot(close > anchor ? 1 : 0)
 `)
     expect(r.ok, JSON.stringify((r.outputs || []).map((o) => o.refusal))).toBe(true)
+  })
+})
+
+describe('🔴 `valuewhen` refuses for the reason that is actually true', () => {
+  // ⛔⛔ THE POSITIONS LINE UP PERFECTLY, WHICH IS WHAT MAKES IT DANGEROUS. Pine's
+  // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
+  // most recent time the condition held, `2` is three occurrences ago — and looks
+  // back as far as it needs to. This table's `valuewhen(condition, source, period)`
+  // takes a BAR WINDOW. A positional map builds cleanly and answers a different
+  // number on most bars, which is the one outcome this door exists to prevent.
+  //
+  // ⚰️ IT REFUSED ALREADY, AND ITS REASON WAS FALSE. `valuewhen` declares two
+  // `series` slots and no measured Pine order, so it fell into the generic
+  // `pine:role-order` arm — "this table states what kind each argument is and never
+  // what role it plays". The manifest declares `argRoles: [condition, source,
+  // period]` for this very entry, so that sentence was untrue of it, and it sent a
+  // reader to supply a role order that would have produced the wrong number.
+
+  it('⭐⭐ the sentence names OCCURRENCES vs a WINDOW, and what to write instead', () => {
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 0))\n')
+    expect(out.ok).toBe(false)
+    const m = out.refusal.message
+    expect(m).toMatch(/OCCURRENCES/)
+    expect(m).toMatch(/BAR WINDOW/i)
+    // ⛔ THE REMEDY, because a refusal that only says no is a wall.
+    expect(m).toMatch(/valuewhen\(condition, source, n\)/)
+  })
+
+  it('⛔ …and it no longer claims the table states no roles — it does', () => {
+    // ⚰️ THE EXACT FALSE SENTENCE THIS REPLACED. Asserting its ABSENCE is what
+    // stops the generic arm quietly reclaiming this entry later.
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.valuewhen(close > open, close, 2))\n')
+    expect(out.refusal.guard).not.toBe('pine:role-order')
+    expect(out.refusal.message).not.toMatch(/never what role it plays/)
+    expect(TABLE.functions.valuewhen.argRoles,
+      'the manifest must still declare the roles this refusal used to deny')
+      .toEqual(['condition', 'source', 'period'])
+  })
+
+  it('⛔ the NATIVE form still works — the refusal is about Pine, not the function', () => {
+    // ⭐ THE HALF THAT KEEPS THIS HONEST. `valuewhen` is declared, computed and
+    // correct; a member can write it directly with the window they mean. If this
+    // ever fails, the roster entry has quietly become a capability removal.
+    const p = parseFormula('valuewhen(close > open, close, 20)')
+    expect(p.ok, JSON.stringify(p)).toBe(true)
+    expect(treeYieldsBool(p.ast)).toBe(false)
   })
 })

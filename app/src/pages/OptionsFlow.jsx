@@ -1,8 +1,6 @@
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment, lazy, Suspense } from "react";
 import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine } from "recharts";
-import ChartPane from "../components/chart/pane/ChartPane";
 import TickerPopup from "../components/TickerPopup";
-import DarkPool from "./DarkPool";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
@@ -28,6 +26,42 @@ import { loadFlow, processFlow, mergeToday, getLoadedKey, getLoadedMeta, setLoad
 // A clobber that drops these call sites also drops this import -> CI fails.
 import { flowBaseFor, gexPayloadDte, gexDteLabel, applyStillOpenOverlay, capNoticeFor } from "./optionsFlow/flowViewPolicy";
 import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @media ≤640 only
+
+// ─── Deferred heavy surfaces ─────────────────────────────────────────────────
+// ⛔ These two were STATIC imports until 2026-08-29, which put ~849 KB of JS
+// (ChartPane 747 KB + DarkPool 102 KB) on the critical path of EVERY Options
+// Flow load — the page could not paint until both finished downloading, even
+// though neither renders unless the user opens a contract/GEX chart or the Dark
+// Pool tab. Measured on prod: page chunks occupied 1890→4750 ms of a cold load.
+//
+// `fetchContractHistory` ALREADY warms the ChartPane chunk on contract-select
+// (see the import() there) — the static import is what made that warm dead
+// code, because the chunk was always resolved before the page ever rendered.
+// Lazy + that existing warm is the design the warm was written for.
+//
+// The shims keep the ChartPane / DarkPool NAMES bound, so every call site below
+// is untouched and each carries its own Suspense boundary — a chunk fetch can
+// never blank the page around it, only the box it renders into.
+const ChartPaneLazy = lazy(() => import("../components/chart/pane/ChartPane"));
+const DarkPoolLazy = lazy(() => import("./DarkPool"));
+
+// Fills the parent's box while the chunk lands. Every ChartPane call site sits
+// in a parent with an explicit height, so a plain filler holds the layout.
+function ChartPane(props) {
+  return (
+    <Suspense fallback={<div style={{ width: "100%", height: "100%" }} />}>
+      <ChartPaneLazy {...props} />
+    </Suspense>
+  );
+}
+
+function DarkPool(props) {
+  return (
+    <Suspense fallback={<div style={{ width: "100%", minHeight: 200 }} />}>
+      <DarkPoolLazy {...props} />
+    </Suspense>
+  );
+}
 
 // ─── Dark Pool overlay helpers ───────────────────────────────────────────────
 // Mirror of the logic in DarkPool.jsx so the chart modal can fetch + filter
@@ -195,14 +229,14 @@ function fK(n) {
 }
 function tc(t) { return t === "SWP" ? P.sw : P.bk; }
 function premC(n) {
-  if (n >= 5e6) return "#3cb868";   // $5M+ = bright green
+  if (n >= 5e6) return "#2faf68";   // $5M+ = bright green
   if (n >= 1e6) return "#66ff99";   // $1M+ = green
   if (n >= 500e3) return "#ffab00"; // $500K+ = gold
   if (n >= 100e3) return "#f0f4f8"; // $100K+ = white
   return "#4a5c73";                 // under $100K = dim
 }
 
-const GRADE_COLORS = { "A+":"#c9a84c", "A":"#ffab00", "B+":"#3cb868", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
+const GRADE_COLORS = { "A+":"#dcbb5e", "A":"#ffab00", "B+":"#2faf68", "B":"#6ba3be", "C":"#78909c", "D":"#4a5c73" };
 
 // ─── UI Components ─────────────────────────────────────────────────────────────
 const TIPS = {
@@ -221,7 +255,7 @@ function Tag({ c, children }) {
   return (
     <span title={tip} style={{
       display:"inline-block", padding:"2px 7px", borderRadius:3,
-      fontSize:9, fontWeight:700, letterSpacing:0.4, whiteSpace:"nowrap",
+      fontSize:10, fontWeight:700, letterSpacing:0.4, whiteSpace:"nowrap",
       color:c, backgroundColor:c+"15", border:"1px solid "+c+"30",
       cursor: tip ? "help" : "default"
     }}>{children}</span>
@@ -281,7 +315,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {cols.map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:10, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -335,7 +369,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
             const _pk = _peakOI.toLocaleString();
             if (_retention >= 0.90 && _nowOI >= _peakOI) { posLabel = "BUILDING"; posColor = P.bu; posTitle = "At/near peak OI ("+_pk+") — still on"; }
             else if (_retention >= 0.90) { posLabel = "HELD"; posColor = "#5b9bd5"; posTitle = _carried+"% of peak OI ("+_pk+") still open — held"; }
-            else if (_retention >= 0.50) { posLabel = "TRIMMED"; posColor = "#c9a84c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — partial exit"; }
+            else if (_retention >= 0.50) { posLabel = "TRIMMED"; posColor = "#dcbb5e"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — partial exit"; }
             else if (_retention >= 0.15) { posLabel = "REDUCED"; posColor = "#e06c3c"; posTitle = _carried+"% of peak OI ("+_pk+") carried over — mostly closed"; }
             else { posLabel = "CLOSED"; posColor = P.be; posTitle = "Down to ~"+_carried+"% of peak OI ("+_pk+") — closed"; }
           }
@@ -343,7 +377,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
             <Fragment key={i}>
             <tr onClick={()=>{ if(onRowClick) onRowClick(r); setExpandedKey(isExpanded ? null : rowKey); }} style={{ borderBottom:"1px solid "+P.bd+"10", background:isExpanded?(P.ac+"12"):(r.Si==="AA"||r.Si==="BB")?(P.ac+"08"):"transparent", textAlign:"center", cursor:"pointer", opacity:isStale?0.55:1 }} title={isStale?"Live OI is below snapshot OI — net closing activity":undefined}>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.S}</td>
-              <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.Dt}</td>
+              <td style={{ padding:"5px 4px", color:P.dm, fontSize:10 }}>{r.Dt}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>{r.E}</td>
               <td style={{ padding:"5px 4px", fontWeight:800, color:P.wh }}>${r.K}</td>
               <td style={{ padding:"5px 4px" }}><Tag c={r.CP==="C"?P.bu:P.be}>{r.CP}</Tag></td>
@@ -363,7 +397,7 @@ function TT({ rows, priceFn, onRowClick, panelFn, fadeOnStale }) {
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px" }} title={posTitle}>
                 {posLabel
-                  ? <span style={{ fontSize:8, fontWeight:800, padding:"2px 6px", borderRadius:4, background:posColor+"22", color:posColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{posLabel}</span>
+                  ? <span style={{ fontSize:10, fontWeight:800, padding:"2px 6px", borderRadius:4, background:posColor+"22", color:posColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{posLabel}</span>
                   : <span style={{ color:P.mt }}>—</span>}
               </td>}
               <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
@@ -390,7 +424,7 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
       <thead>
         <tr style={{ borderBottom:"1px solid "+P.bd }}>
           {cols.map(h => (
-            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:9, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
+            <th key={h} style={{ padding:"5px 4px", textAlign:"center", color:P.mt, fontSize:10, fontWeight:600, cursor:h==="ΔOI"?"help":"default" }} title={h==="ΔOI"?"Change in OI from CSV snapshot to live — shows if positions are growing or closing.":h==="Live OI"?"Current open interest fetched from broker":undefined}>{h}</th>
           ))}
         </tr>
       </thead>
@@ -417,8 +451,8 @@ function CT({ rows, priceFn, onRowClick, panelFn }) {
               <td style={{ padding:"5px 4px", color:P.dm }}>{csvOI>0?csvOI.toLocaleString():"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:curOI>0?P.wh:csvOI>0?"#665d3a":P.dm }} title={curOI>0?undefined:csvOI>0?"BBS snapshot (live unavailable)":undefined}>{curOI>0?curOI.toLocaleString():csvOI>0?csvOI.toLocaleString():"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
-              {priceFn && <td style={{ padding:"5px 4px", fontSize:9, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontSize:10, color:P.dm }}>{px&&px.delta?px.delta.toFixed(2):"—"}</td>}
+              {priceFn && <td style={{ padding:"5px 4px", fontSize:10, color:px&&px.theta<0?P.be:P.dm }}>{px&&px.theta?px.theta.toFixed(2):"—"}</td>}
               <td style={{ padding:"5px 4px", fontWeight:700, color:P.ac }}>{entry>0?"$"+entry.toFixed(2):"—"}</td>
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>}
               {priceFn && <td style={{ padding:"5px 4px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>}
@@ -450,7 +484,7 @@ function NC({ data, fill, dir, onBarClick }) {
         <BarChart data={cd} layout="vertical" margin={{ top:0, right:8, left:5, bottom:0 }}
           onClick={onBarClick ? (e) => { if (e && e.activePayload && e.activePayload[0]) { onBarClick(e.activePayload[0].payload); } } : undefined}>
           <CartesianGrid strokeDasharray="3 3" stroke={P.bd} horizontal={false} />
-          <XAxis type="number" tick={{ fill:P.mt, fontSize:8 }} tickFormatter={v => fmt(Math.abs(v))} />
+          <XAxis type="number" tick={{ fill:P.mt, fontSize:10 }} tickFormatter={v => fmt(Math.abs(v))} />
           <YAxis dataKey="s" type="category" tick={{ fill:P.tx, fontSize:11, fontWeight:700 }} width={60} interval={0} tickLine={false} axisLine={false} />
 
           <Bar dataKey="v" fill={fill} radius={neg?[4,0,0,4]:[0,4,4,0]} barSize={14} cursor={onBarClick?"pointer":"default"} />
@@ -2684,14 +2718,14 @@ export default function OptionsFlowDashboard() {
                     <button onClick={() => setShowDarkPool(v => !v)}
                       title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
                       style={{ padding:"2px 8px", borderRadius:3,
-                        border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
-                        background:showDarkPool?"#c9a84c22":"transparent",
-                        color:showDarkPool?"#c9a84c":P.dm,
-                        fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                        border:"1px solid "+(showDarkPool?"#dcbb5e":P.bd+"80"),
+                        background:showDarkPool?"#dcbb5e22":"transparent",
+                        color:showDarkPool?"#dcbb5e":P.dm,
+                        fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
                         display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ width:6, height:6, borderRadius:"50%",
-                        background:showDarkPool?"#c9a84c":"transparent",
-                        border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
+                        background:showDarkPool?"#dcbb5e":"transparent",
+                        border:"1px solid "+(showDarkPool?"#dcbb5e":P.dm), display:"inline-block" }} />
                       Dark Pools
                     </button>
                   ),
@@ -2710,30 +2744,30 @@ export default function OptionsFlowDashboard() {
             </div>
           </div>
           <div style={{ padding:"12px 14px", display:"flex", flexDirection:"column", height:320 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6, flexShrink:0 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:6, flexShrink:0 }}>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#ff6d00", display:"inline-block", flexShrink:0 }}>{""}</span> Vol</span>
               <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:2, background:"#6ba3be", display:"inline-block", flexShrink:0 }}>{""}</span> OI</span>
-              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#c9a84c", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
+              <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}><span style={{ width:14, height:3, borderRadius:2, background:"#dcbb5e", display:"inline-block", flexShrink:0 }}>{""}</span> Contract Price</span>
             </div>
             <div style={{ width:"100%", flex:1, minHeight:0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trimmed} margin={{ top:4, right:4, left:-8, bottom:0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1a2540" />
-                  <XAxis dataKey="day" tick={{ fontSize:9, fill:"#7b8fa3" }}
+                  <XAxis dataKey="day" tick={{ fontSize:10, fill:"#7b8fa3" }}
                     interval={trimmed.length>15?"preserveStartEnd":trimmed.length>10?1:0}
                     angle={-45} textAnchor="end" height={32}
                     tickFormatter={v=>v==="Now"?"Now":v.split("/").slice(0,2).join("/")} />
-                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:9, fill:"#c9a84c" }}
+                  <YAxis yAxisId="price" orientation="left" tick={{ fontSize:10, fill:"#dcbb5e" }}
                     tickFormatter={v=>"$"+v.toFixed(1)} width={36} domain={[dm=>Math.max(0,dm*0.8),dm=>dm*1.1]} />
-                  <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:9, fill:"#7b8fa3" }}
+                  <YAxis yAxisId="voloi" orientation="right" tick={{ fontSize:10, fill:"#7b8fa3" }}
                     tickFormatter={v=>fK(v)} width={42} />
-                  <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:9, padding:"6px 10px" }}
+                  <Tooltip contentStyle={{ background:P.cd, border:"1px solid "+P.bl+"", borderRadius:6, fontSize:10, padding:"6px 10px" }}
                     formatter={(val,name)=>{ if(name==="price") return ["$"+val.toFixed(2),"Price"]; if(name==="vol") return [fK(val),"Volume"]; return [val.toLocaleString(),"OI"]; }}
                     labelFormatter={v=>v==="Now"?"Live":v.split("/").slice(0,2).join("/")} />
                   <Bar yAxisId="voloi" dataKey="vol" fill="#ff6d00" opacity={0.8} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
                   <Bar yAxisId="voloi" dataKey="oi" fill="#6ba3be" opacity={0.7} radius={[1,1,0,0]} barSize={trimmed.length>15?4:6} />
-                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#c9a84c" strokeWidth={2} strokeOpacity={0.5}
-                    dot={{ r:4, fill:"#c9a84c", stroke:"#1a1c17", strokeWidth:1.5 }} connectNulls />
+                  <Line yAxisId="price" dataKey="price" type="monotone" stroke="#dcbb5e" strokeWidth={2} strokeOpacity={0.5}
+                    dot={{ r:4, fill:"#dcbb5e", stroke:"#17181b", strokeWidth:1.5 }} connectNulls />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -2752,7 +2786,7 @@ export default function OptionsFlowDashboard() {
               padding:"8px 16px", borderTop:"1px solid "+P.bd, background:col+"08" }}>
               <span style={{ fontSize:11, fontWeight:900, color:col }}>{label}</span>
               <span style={{ fontSize:13, fontWeight:800, color:col }}>{delta>0?"+":""}{Math.abs(delta).toLocaleString()} OI</span>
-              <span style={{ fontSize:8, color:P.dm }}>{curOI>0?"live data":"csv data"}</span>
+              <span style={{ fontSize:10, color:P.dm }}>{curOI>0?"live data":"csv data"}</span>
             </div>
           );
         })()}
@@ -2769,29 +2803,29 @@ export default function OptionsFlowDashboard() {
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase" }}>
+                <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase" }}>
                   Flow for {sym} ${K}{cp} {exp}
                 </div>
                 <div style={{ display:"flex", gap:6, alignItems:"center" }}>
                   {clusterInfo && <Tag c={GRADE_COLORS[clusterInfo.grade]||P.mt}>{clusterInfo.grade}</Tag>}
-                  {clusterInfo && clusterInfo.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
-                  {clusterInfo && !clusterInfo.clean && <span style={{ fontSize:7, color:P.be, fontWeight:700 }}>MIXED</span>}
-                  <span style={{ fontSize:9, color:P.dm }}>{strikeTrades.length} trade{strikeTrades.length>1?"s":""}</span>
+                  {clusterInfo && clusterInfo.clean && <span style={{ fontSize:10, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                  {clusterInfo && !clusterInfo.clean && <span style={{ fontSize:10, color:P.be, fontWeight:700 }}>MIXED</span>}
+                  <span style={{ fontSize:10, color:P.dm }}>{strikeTrades.length} trade{strikeTrades.length>1?"s":""}</span>
                 </div>
               </div>
               <div style={{ maxHeight:180, overflowY:"auto" }}>
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd, position:"sticky", top:0, background:P.cd }}>
                     {["Day","Time","Type","Side","Color","Vol","OI","Premium","Price"].map(h=>(
-                      <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                      <th key={h} style={{ padding:"3px 6px", textAlign:h==="Premium"||h==="Price"||h==="Vol"||h==="OI"?"right":"left", color:P.mt, fontSize:10, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
                     {strikeTrades.map((tr,i)=>(
                       <tr key={i} style={{ borderBottom:"1px solid "+P.bd+"10",
                         background:(tr.Si==="AA"||tr.Si==="BB")?(P.ac+"06"):"transparent" }}>
-                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.Dt||"—"}</td>
-                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:8 }}>{tr.time||"—"}</td>
+                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:10 }}>{tr.Dt||"—"}</td>
+                        <td style={{ padding:"3px 6px", color:P.dm, fontSize:10 }}>{tr.time||"—"}</td>
                         <td style={{ padding:"3px 6px" }}><Tag c={tc(tr.Ty)}>{tr.Ty}</Tag></td>
                         <td style={{ padding:"3px 6px" }}>{tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:tr.Si==="B"?<Tag c={P.sw}>BID</Tag>:<Tag c={P.mt}>A</Tag>}</td>
                         <td style={{ padding:"3px 6px" }}><Tag c={tr.Co==="YELLOW"?P.ye:tr.Co==="MAGENTA"?P.ma:P.uc}>{tr.Co}</Tag></td>
@@ -2818,7 +2852,7 @@ export default function OptionsFlowDashboard() {
           if (otherClusters.length===0 && otherTrades.length===0) return null;
           return (
             <div style={{ borderTop:"1px solid "+P.bd, padding:"10px 16px" }}>
-              <div style={{ fontSize:9, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1.5, textTransform:"uppercase", marginBottom:8 }}>
                 Other Flow for {sym}
               </div>
               {otherClusters.length>0 && (
@@ -2838,9 +2872,9 @@ export default function OptionsFlowDashboard() {
                         </div>
                         <div style={{ fontSize:10, fontWeight:700, color:P.wh }}>{cl.E}</div>
                         <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:3 }}>
-                          <span style={{ fontSize:9, fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm }}>{cl.H}x</span>
-                          <span style={{ fontSize:9, fontWeight:700, color:premC(cl.P) }}>{fmt(cl.P)}</span>
-                          {cl.clean && <span style={{ fontSize:7, color:P.bu, fontWeight:700 }}>CLEAN</span>}
+                          <span style={{ fontSize:10, fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm }}>{cl.H}x</span>
+                          <span style={{ fontSize:10, fontWeight:700, color:premC(cl.P) }}>{fmt(cl.P)}</span>
+                          {cl.clean && <span style={{ fontSize:10, color:P.bu, fontWeight:700 }}>CLEAN</span>}
                         </div>
                       </div>
                     );
@@ -2848,10 +2882,10 @@ export default function OptionsFlowDashboard() {
                 </div>
               )}
               {otherTrades.length>0 && (
-                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {["Exp","Strike","C/P","Type","Side","Color","Vol","Premium"].map(h=>(
-                      <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                      <th key={h} style={{ padding:"3px 6px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600 }}>{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
@@ -2909,7 +2943,7 @@ export default function OptionsFlowDashboard() {
         ))}
       </div>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Loading flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -2936,7 +2970,7 @@ export default function OptionsFlowDashboard() {
           ))}
         </div>
         <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-        <div style={{color:"#e74c3c",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
+        <div style={{color:"#df4646",fontSize:14,fontWeight:700,marginBottom:8}}>Failed to load {dataMode==="index"?"index":"flow"} data</div>
         <div style={{color:"#7b8fa3",fontSize:12,marginBottom:16}}>{csvError}</div>
         <div style={{color:"#4a5c73",fontSize:11}}>No flow data in database. Upload CSV via the admin page to get started.</div>
         <button onClick={()=>window.location.reload()} style={{marginTop:16,background:"#1a2540",color:"#c8d6e5",border:"1px solid "+P.bl+"",borderRadius:6,padding:"8px 20px",fontSize:12,cursor:"pointer"}}>Retry</button>
@@ -2946,7 +2980,7 @@ export default function OptionsFlowDashboard() {
   if ((!D || !FD) && dataMode !== "gex" && dataMode !== "darkpool") return (
     <div style={{background:"#06090f",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono',monospace"}}>
       <div style={{textAlign:"center"}}>
-        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #3cb868",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{width:40,height:40,border:"3px solid #1a2540",borderTop:"3px solid #2faf68",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
         <div style={{color:"#7b8fa3",fontSize:13}}>Processing flow data...</div>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       </div>
@@ -3377,7 +3411,7 @@ export default function OptionsFlowDashboard() {
             {[["stocks","Stocks"],["index","Indexes / ETF's"],["liveflow","Live Flow"],["darkpool","Dark Pool"],["gex","GEX"]].map(([m,label])=>{
               // Live Flow navigates to a separate page; other modes switch dataMode in place.
               const isLive = m === "liveflow";
-              const accent = m==="gex" ? "#c9a84c" : m==="darkpool" ? "#6ba3be" : isLive ? "#3cb868" : null;
+              const accent = m==="gex" ? "#dcbb5e" : m==="darkpool" ? "#6ba3be" : isLive ? "#2faf68" : null;
               const hasAccent = accent !== null;
               return (
                 <button key={m} onClick={()=>{
@@ -3463,7 +3497,7 @@ export default function OptionsFlowDashboard() {
                 <button onClick={()=>{ setDateFrom(""); setDateTo(""); setDateFilter("Last1"); setShowCal(false); setCalStart(null); }}
                   style={{ background:"transparent", border:"none", color:P.dm, cursor:"pointer", fontSize:12, fontFamily:"inherit", padding:"2px 4px" }}>✕</button>
               )}
-              <span style={{ fontSize:9, color:P.dm }}>
+              <span style={{ fontSize:10, color:P.dm }}>
                 {csvLoading ? "Loading..." : dateFrom && dateTo
                   ? (() => { const n = availableDates.filter(d => { const iso = mdyToIso(d); return iso >= dateFrom && iso <= dateTo; }).length; return n + " trading day" + (n!==1?"s":""); })()
                   : (() => { const n = dateFilter.startsWith("Last") ? Math.min(parseInt(dateFilter.replace("Last",""))||1, availableDates.length) : availableDates.length; return n + " trading day" + (n!==1?"s":""); })()}
@@ -3485,7 +3519,7 @@ export default function OptionsFlowDashboard() {
                     ].map(p => (
                       <button key={p.label} onClick={p.fn} style={{
                         padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd,
-                        background:"transparent", color:P.mt, fontSize:9, fontWeight:700,
+                        background:"transparent", color:P.mt, fontSize:10, fontWeight:700,
                         cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s"
                       }}
                         onMouseEnter={e=>{e.target.style.background=P.al; e.target.style.color=P.wh;}}
@@ -3504,7 +3538,7 @@ export default function OptionsFlowDashboard() {
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, marginBottom:4 }}>
                     {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-                      <div key={d} style={{ textAlign:"center", fontSize:8, fontWeight:700, color:P.dm, padding:2 }}>{d}</div>
+                      <div key={d} style={{ textAlign:"center", fontSize:10, fontWeight:700, color:P.dm, padding:2 }}>{d}</div>
                     ))}
                   </div>
                   {(()=>{
@@ -3554,7 +3588,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     );
                   })()}
-                  <div style={{ marginTop:8, fontSize:9, color:P.dm, textAlign:"left", paddingLeft:12 }}>
+                  <div style={{ marginTop:8, fontSize:10, color:P.dm, textAlign:"left", paddingLeft:12 }}>
                     {calStart && !dateTo ? "Click end date" : "Click to start selection"}
                     {" · "}<span style={{ color:P.ac }}>●</span> trading day
                   </div>
@@ -3578,7 +3612,7 @@ export default function OptionsFlowDashboard() {
           return (
             <div style={{ display:"flex", justifyContent:"center", marginTop:-4, marginBottom:10 }}>
               <span title={notice.title}
-                    style={{ fontSize:9, color:P.dm, letterSpacing:0.3, cursor:"help",
+                    style={{ fontSize:10, color:P.dm, letterSpacing:0.3, cursor:"help",
                              borderBottom:"1px dotted "+P.bd, paddingBottom:1 }}>
                 showing {notice.text} · 1d is uncapped
               </span>
@@ -3607,9 +3641,9 @@ export default function OptionsFlowDashboard() {
           <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
             <Card>
               <div style={{ display:"flex", gap:14, alignItems:"center" }}>
-                <div style={{ width:3, background:"#c9a84c", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
+                <div style={{ width:3, background:"#dcbb5e", borderRadius:2, alignSelf:"stretch", flexShrink:0 }} />
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:"#c9a84c", marginBottom:5 }}>Gamma Exposure (GEX)</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#dcbb5e", marginBottom:5 }}>Gamma Exposure (GEX)</div>
                   <div style={{ fontSize:11, color:P.dm, lineHeight:1.7 }}>Shows where big options activity creates price levels. Ceiling = price struggles above. Floor = price bounces here. Danger line = below this, drops get faster.</div>
                 </div>
               </div>
@@ -3624,14 +3658,14 @@ export default function OptionsFlowDashboard() {
                   placeholder="Enter ticker (SPY, NVDA, etc)"
                   style={{ flex:1, padding:"8px 14px", borderRadius:6, fontSize:12, fontWeight:600, background:P.al, border:"1px solid "+P.bl, color:P.wh, fontFamily:"inherit", outline:"none", letterSpacing:1 }} />
                 <button onClick={()=>setGexTicker(gexInput.trim())}
-                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#c9a84c", color:P.bg }}>
+                  style={{ padding:"8px 18px", borderRadius:6, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", background:"#dcbb5e", color:P.bg }}>
                   Load
                 </button>
               </div>
               <div style={{ display:"flex", gap:4 }}>
                 {quickTickers.map(t=>(
                   <button key={t} onClick={()=>{ setGexInput(t); setGexTicker(t); }}
-                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#c9a84c22"):P.al, color:gexTicker===t?"#c9a84c":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                    style={{ padding:"6px 12px", borderRadius:4, border:"1px solid "+P.bl, background:gexTicker===t?("#dcbb5e22"):P.al, color:gexTicker===t?"#dcbb5e":P.mt, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                     {t}
                   </button>
                 ))}
@@ -3654,7 +3688,7 @@ export default function OptionsFlowDashboard() {
                   <button key={label} onClick={()=>setGexAdjusted(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
                     fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:gexAdjusted===v?(v?"#c9a84c":P.cd):"transparent",
+                    background:gexAdjusted===v?(v?"#dcbb5e":P.cd):"transparent",
                     color:gexAdjusted===v?(v?P.bg:P.wh):P.mt
                   }}>{label}</button>
                 ))}
@@ -3686,7 +3720,7 @@ export default function OptionsFlowDashboard() {
                   const withDp = gexData.contractsWithDp || 0;
                   const total = withDp + (gexData.contractsWithoutDp || 0);
                   const lowCov = cov < 0.30 || days === 0;
-                  const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#c9a84c");
+                  const bandC = lowCov ? P.be : (cov >= 0.6 && conf >= 0.5 ? P.bu : "#dcbb5e");
                   return (
                     <div style={{ background:bandC+"14", border:"1px solid "+bandC+"55", borderRadius:8, padding:"9px 14px", display:"flex", gap:16, alignItems:"center", flexWrap:"wrap", fontSize:11 }}>
                       <span style={{ fontWeight:800, color:bandC, letterSpacing:0.5 }}>⚡ TRADE-AWARE</span>
@@ -3700,31 +3734,31 @@ export default function OptionsFlowDashboard() {
                 {/* Key Level Cards */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:8 }}>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+P.wh }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Spot</div>
+                    <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Spot</div>
                     <div style={{ fontSize:18, fontWeight:900, color:P.wh }}>${gexData.spot?.toFixed(2)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{gexData.ticker}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.zeroGamma ? gexLevelHex((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role)||"danger") : P.ac) }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexData.zeroGamma ? gexLevelName((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role),"Danger Line") : "Danger Line"}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexData.zeroGamma ? gexLevelName((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role),"Danger Line") : "Danger Line"}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.zeroGamma ? gexLevelHex((gexData.levels&&gexData.levels.zero_gamma&&gexData.levels.zero_gamma.role)||"danger") : P.ac }}>{gexData.zeroGamma ? "$"+gexData.zeroGamma.toFixed(2) : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>
                       {gexData.zeroGamma && gexData.spot ? Math.abs((gexData.spot - gexData.zeroGamma)/gexData.zeroGamma*100).toFixed(2)+"% "+(gexData.spot>=gexData.zeroGamma?"above":"below") : ""}
                     </div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.callWall ? gexLevelHex((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role)||"resistance") : P.be) }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role),"Ceiling")}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role),"Ceiling")}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.callWall ? gexLevelHex((gexData.levels&&gexData.levels.call_wall&&gexData.levels.call_wall.role)||"resistance") : P.wh }}>{gexData.callWall ? "$"+gexData.callWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{gexData.callWall ? fmtGex(gexData.callWall.gex) : ""}</div>
                   </div>
                   <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid "+(gexData.putWall ? gexLevelHex((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role)||"support") : P.bu) }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role),"Floor")}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>{gexLevelName((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role),"Floor")}</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.putWall ? gexLevelHex((gexData.levels&&gexData.levels.put_wall&&gexData.levels.put_wall.role)||"support") : P.wh }}>{gexData.putWall ? "$"+gexData.putWall.strike : "—"}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{gexData.putWall ? fmtGex(gexData.putWall.gex) : ""}</div>
                   </div>
-                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #c9a84c" }}>
-                    <div style={{ fontSize:9, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
+                  <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:14, borderLeft:"3px solid #dcbb5e" }}>
+                    <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
-                    <div style={{ fontSize:9, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? "⚠️ Below danger line" : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
                   </div>
                 </div>
 
@@ -3761,9 +3795,9 @@ export default function OptionsFlowDashboard() {
                     {showGexChart ? "✕ Hide Chart" : "📈 Chart with Levels"}
                   </button>
                   <button onClick={()=>setShowGexSummary(!showGexSummary)} style={{
-                    padding:"10px 28px", borderRadius:6, border:"1px solid #c9a84c", cursor:"pointer",
+                    padding:"10px 28px", borderRadius:6, border:"1px solid #dcbb5e", cursor:"pointer",
                     fontSize:12, fontWeight:700, fontFamily:"inherit", letterSpacing:0.5,
-                    background:showGexSummary?"#c9a84c22":"transparent", color:"#c9a84c"
+                    background:showGexSummary?"#dcbb5e22":"transparent", color:"#dcbb5e"
                   }}>
                     {showGexSummary ? "✕ Hide Summary" : "🔮 Generate Summary"}
                   </button>
@@ -3779,7 +3813,7 @@ export default function OptionsFlowDashboard() {
                           <button key={val} onClick={()=>setGexChartTf(val)}
                             style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+(gexChartTf===val?P.ac:P.bd+"80"),
                               background:gexChartTf===val?P.ac+"22":"transparent", color:gexChartTf===val?P.ac:P.dm,
-                              fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                              fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                             {label}
                           </button>
                         ))}
@@ -4013,12 +4047,12 @@ export default function OptionsFlowDashboard() {
                       const pwMagnetHere = !pwBelowSpot;
                       cwEntry.label = fmtGex(cwGex+pwGex) + " ceiling + floor" + (pwMagnetHere ? " · resistance" : "");
                       cwEntry.tag = !cwAboveSpot ? "support ↑" : pwMagnetHere ? "resistance" : "ceiling + floor";
-                      cwEntry.tagBg = pwMagnetHere ? "#c9a84c22" : "#00BCD422";
-                      cwEntry.tagColor = pwMagnetHere ? "#c9a84c" : "#00BCD4";
+                      cwEntry.tagBg = pwMagnetHere ? "#dcbb5e22" : "#00BCD422";
+                      cwEntry.tagColor = pwMagnetHere ? "#dcbb5e" : "#00BCD4";
                       if (pwMagnetHere && !cwEntry.showMagnet) cwEntry.magnetColor = P.bu;
                       cwEntry.showMagnet = pwMagnetHere;
                       cwEntry.isPW = true;
-                      cwEntry.border = "1px solid #c9a84c";
+                      cwEntry.border = "1px solid #dcbb5e";
                       cwEntry.fillPct = 95;
                     }
                   } else if (!allLevels.find(l => l.strike === pwStrike)) {
@@ -4240,7 +4274,7 @@ export default function OptionsFlowDashboard() {
                   return (
                   <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                      <span style={{ fontSize:13, fontWeight:700, color:"#c9a84c", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
+                      <span style={{ fontSize:13, fontWeight:700, color:"#dcbb5e", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDteLabel(gexPayloadDte(gexData, gexDte))}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
                     </div>
                     {gexData.adjusted && (()=>{
@@ -4342,7 +4376,7 @@ export default function OptionsFlowDashboard() {
 
                       return parts.length > 0 ? (
                         <div style={{ background:P.al, borderRadius:6, padding:"10px 14px", marginBottom:10, lineHeight:1.6 }}>
-                          <div style={{ fontSize:10, fontWeight:700, color:"#c9a84c", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
+                          <div style={{ fontSize:10, fontWeight:700, color:"#dcbb5e", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Quick Read</div>
                           <div style={{ fontSize:12, color:P.wh }}>{parts.join(" ")}</div>
                         </div>
                       ) : null;
@@ -4352,13 +4386,13 @@ export default function OptionsFlowDashboard() {
                       <div style={{ display:"flex", gap:6 }}>
                         {[["Spot","$"+sp.toFixed(0),P.wh],[gexLevelName((_clsL.zero_gamma&&_clsL.zero_gamma.role),"Danger Line"),"$"+(zg?zg.toFixed(0):"—"),gexLevelHex((_clsL.zero_gamma&&_clsL.zero_gamma.role)||"danger")],["GEX",fmtGex(tg),tg>0?P.bu:P.be]].map(([l,v,c])=>(
                           <div key={l} style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
-                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>{l}</div>
+                            <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase" }}>{l}</div>
                             <div style={{ fontSize:16, fontWeight:800, color:c }}>{v}</div>
                           </div>
                         ))}
                         {nd != null && (
                           <div style={{ background:P.al, borderRadius:6, padding:"8px 12px", textAlign:"center", minWidth:90 }}>
-                            <div style={{ fontSize:9, color:P.dm, textTransform:"uppercase" }}>Net Delta</div>
+                            <div style={{ fontSize:10, color:P.dm, textTransform:"uppercase" }}>Net Delta</div>
                             <div style={{ fontSize:16, fontWeight:800, color:nd>0?P.bu:nd<0?P.be:P.dm }}>
                               {nd > 0 ? "+" : ""}{Math.abs(nd) > 999999 ? (nd/1e6).toFixed(1)+"M" : Math.abs(nd) > 999 ? (nd/1e3).toFixed(0)+"K" : nd.toFixed(0)}
                               {ndChange !== null && <span style={{ fontSize:11, marginLeft:3, color:ndImproving?P.bu:P.be }}>{ndImproving?"▲":"▼"}</span>}
@@ -4383,12 +4417,12 @@ export default function OptionsFlowDashboard() {
                       </div>
                       <div style={{ position:"relative", padding:"0 4px" }}>
                         <div style={{ position:"relative", height:20, borderRadius:10, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
-                          {zg&&<div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(zg)+"%",background:P.ac,opacity:0.6,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${zg.toFixed(0)}</span></div>}
-                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(pwStrike)+"%",background:P.be,opacity:0.4,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${pwStrike}</span></div>
-                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(cwStrike)+"%",background:P.bu,opacity:0.5,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:8,color:P.dm,whiteSpace:"nowrap" }}>${cwStrike}</span></div>
-                          <div style={{ position:"absolute",top:-2,width:4,height:24,left:gPct(sp)+"%",background:"#00BCD4",borderRadius:2,zIndex:3 }}><span style={{ position:"absolute",top:-14,transform:"translateX(-50%)",fontSize:9,fontWeight:700,color:"#00BCD4",whiteSpace:"nowrap" }}>${sp.toFixed(0)}</span></div>
+                          {zg&&<div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(zg)+"%",background:P.ac,opacity:0.6,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${zg.toFixed(0)}</span></div>}
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(pwStrike)+"%",background:P.be,opacity:0.4,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${pwStrike}</span></div>
+                          <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(cwStrike)+"%",background:P.bu,opacity:0.5,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${cwStrike}</span></div>
+                          <div style={{ position:"absolute",top:-2,width:4,height:24,left:gPct(sp)+"%",background:"#00BCD4",borderRadius:2,zIndex:3 }}><span style={{ position:"absolute",top:-14,transform:"translateX(-50%)",fontSize:10,fontWeight:700,color:"#00BCD4",whiteSpace:"nowrap" }}>${sp.toFixed(0)}</span></div>
                         </div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, marginTop:14 }}><span style={{ color:P.be }}>Danger</span><span style={{ color:P.bu }}>Safe</span></div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, marginTop:14 }}><span style={{ color:P.be }}>Danger</span><span style={{ color:P.bu }}>Safe</span></div>
                       </div>
                     </div>
                     <div style={{ background:P.al, borderRadius:6, padding:"10px 12px", marginBottom:10 }}>
@@ -4424,7 +4458,7 @@ export default function OptionsFlowDashboard() {
                       </div>
                     ))}
                     <div style={{ height:1, background:P.bd, margin:"8px 0" }} />
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#555" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#555" }}>
                       <span>Safety net breaks: ${zg?zg.toFixed(0):"—"}{zgDist?" ("+Math.abs(zgDist)+"% "+(parseFloat(zgDist)>=0?"above":"below")+")":""}</span>
                       <span>{gexData.fetchedAt ? "Fetched: "+gexData.fetchedAt+" ET" : ""}</span>
                       <span>UCT Intelligence</span>
@@ -4469,13 +4503,13 @@ export default function OptionsFlowDashboard() {
               }) : (
                 <div style={{ display:"flex", alignItems:"center", gap:8, width:"100%" }}>
                   <span style={{ fontSize:10, color:P.dm }}>Market data loads automatically</span>
-                  <button onClick={fetchMarketData} style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.ac, fontSize:9, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                  <button onClick={fetchMarketData} style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.ac, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
                     Load Now
                   </button>
                 </div>
               )}
               {marketIndices && (
-                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:9, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
+                <button className="of-refresh" onClick={fetchMarketData} title="Refresh" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", padding:"2px 8px", borderRadius:3, border:"1px solid "+P.bl, background:"transparent", color:P.dm, fontSize:10, cursor:"pointer", fontFamily:"inherit" }}>↻</button>
               )}
             </div>
             {/* AI Narrative */}
@@ -4499,10 +4533,10 @@ export default function OptionsFlowDashboard() {
           <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#c9a84c":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #c9a84c55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
               fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
-              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#c9a84c33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
-              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#c9a84c":t==="Leaders"?"#6ba3be":P.mt)
+              background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
+              color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
             }}>{t}</button>
           ))}
           </div>
@@ -4525,7 +4559,7 @@ export default function OptionsFlowDashboard() {
         {/* Global Cap Filter */}
         {FD && (()=>{
           const caps = ["All","Mega","Large","Mid-Small"];
-          const capColors = { Mega:"#c9a84c", Large:"#6ba3be", "Mid-Small":"#a8a290", All:P.wh };
+          const capColors = { Mega:"#dcbb5e", Large:"#6ba3be", "Mid-Small":"#f0efea", All:P.wh };
           const capDescriptions = {
             Mega:  "$500B+ · SPY-weight movers",
             Large: "$10B–$500B · institutional conviction plays",
@@ -4566,7 +4600,7 @@ export default function OptionsFlowDashboard() {
                       display:"flex", alignItems:"center", gap:6
                     }}>
                       <span>{c}</span>
-                      <span style={{ fontSize:9, fontWeight:600, opacity:0.75 }}>
+                      <span style={{ fontSize:10, fontWeight:600, opacity:0.75 }}>
                         {count} · ${(prem/1e6).toFixed(0)}M
                       </span>
                     </button>
@@ -4754,11 +4788,11 @@ export default function OptionsFlowDashboard() {
                           {/* The big Bull Flow % — the anchor */}
                           <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginTop:4 }}>
                             <div style={{ fontSize:32, fontWeight:900, color:netC, fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{bullPct}%</div>
-                            <div style={{ fontSize:7, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
+                            <div style={{ fontSize:10, fontWeight:600, color:P.dm, letterSpacing:1, textTransform:"uppercase", marginTop:4 }}>Bull Flow</div>
                           </div>
                           {/* Recheck toggle: subtle, sits below the 65% as a "what if" tool */}
                           <div className="of-chiprow-wrap" style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, marginTop:4 }}>
-                            <span style={{ fontSize:9, color:P.dm, fontStyle:"italic" }}>recheck without:</span>
+                            <span style={{ fontSize:10, color:P.dm, fontStyle:"italic" }}>recheck without:</span>
                             {[
                               { val:0, lbl:"none" },
                               { val:1, lbl:"top 1" },
@@ -4769,7 +4803,7 @@ export default function OptionsFlowDashboard() {
                                 <button key={opt.val} onClick={()=>setFlowExcludeTop(opt.val)}
                                   style={{ padding:"1px 6px", borderRadius:3, border:"1px solid "+(active?P.ac:P.bd),
                                     background:active?P.ac+"22":"transparent",
-                                    color:active?P.ac:P.mt, fontSize:9, fontWeight:700, fontFamily:"inherit",
+                                    color:active?P.ac:P.mt, fontSize:10, fontWeight:700, fontFamily:"inherit",
                                     cursor:"pointer", letterSpacing:0.3 }}>
                                   {opt.lbl}
                                 </button>
@@ -4777,7 +4811,7 @@ export default function OptionsFlowDashboard() {
                             })}
                           </div>
                           {excludedSyms.size > 0 && (
-                            <div style={{ fontSize:8, color:P.ac, textAlign:"center", maxWidth:"100%", lineHeight:1.4 }}>
+                            <div style={{ fontSize:10, color:P.ac, textAlign:"center", maxWidth:"100%", lineHeight:1.4 }}>
                               now excluding: {[...excludedSyms].join(", ")}
                             </div>
                           )}
@@ -4829,8 +4863,8 @@ export default function OptionsFlowDashboard() {
                                   {/* Header: label + intensity dot */}
                                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                                     <div>
-                                      <div style={{ fontSize:8, color:P.dm, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{tf.label}</div>
-                                      <div style={{ fontSize:7, color:P.dm }}>{tf.sub}</div>
+                                      <div style={{ fontSize:10, color:P.dm, fontWeight:600, letterSpacing:1, textTransform:"uppercase" }}>{tf.label}</div>
+                                      <div style={{ fontSize:10, color:P.dm }}>{tf.sub}</div>
                                     </div>
                                     {tfTotal > 0 && <div title={`Intensity: ${intensity}`} style={{ width:8, height:8, borderRadius:4, background:intC, boxShadow:intGlow, marginTop:4, flexShrink:0 }}/>}
                                   </div>
@@ -4848,14 +4882,14 @@ export default function OptionsFlowDashboard() {
                                       <div style={{ width:`${100-bullPct}%`, background:P.be }}/>
                                     </div>
                                     {/* Premium breakdown */}
-                                    <div style={{ fontSize:9, color:P.dm }}>
+                                    <div style={{ fontSize:10, color:P.dm }}>
                                       <span style={{ color:P.bu, fontWeight:600 }}>{fmt(tfBull)}</span>
                                       {" bull · "}
                                       <span style={{ color:P.be, fontWeight:600 }}>{fmt(tfBear)}</span>
                                       {" bear"}
                                     </div>
                                     {/* Breadth + aggression */}
-                                    <div style={{ fontSize:9, color:P.dm, lineHeight:1.5 }}>
+                                    <div style={{ fontSize:10, color:P.dm, lineHeight:1.5 }}>
                                       <div>{tfTrades.length} trades · {tfTickers.size} tickers</div>
                                       <div>{askPct}% ASK · {sweepCount} sweeps</div>
                                     </div>
@@ -4864,7 +4898,7 @@ export default function OptionsFlowDashboard() {
                                     {/* Top 3 contracts */}
                                     <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                                       {top3.map((c, i) => (
-                                        <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", fontSize:9, gap:6 }}>
+                                        <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", fontSize:10, gap:6 }}>
                                           <div style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                                             <span style={{ color:c.cp==="C"?P.bu:P.be, fontWeight:700 }}>{c.sym}</span>
                                             <span style={{ color:P.dm }}> {c.cp} ${c.K} {c.exp}</span>
@@ -4924,7 +4958,7 @@ export default function OptionsFlowDashboard() {
                           </div>
                           <div style={{ fontSize:12, fontWeight:800, color:P.ac }}>{fmt(total)}</div>
                           {FD.sectorTickerMode && total > 0 && (
-                            <div style={{ display:"flex", gap:8, fontSize:9, marginTop:3 }}>
+                            <div style={{ display:"flex", gap:8, fontSize:10, marginTop:3 }}>
                               <span style={{ color:P.bu, fontWeight:700 }}>B {fmt(s.bull)}</span>
                               <span style={{ color:P.be, fontWeight:700 }}>R {fmt(s.bear)}</span>
                             </div>
@@ -4932,7 +4966,7 @@ export default function OptionsFlowDashboard() {
                           <div style={{ width:"100%", height:3, background:P.be, borderRadius:2, marginTop:4 }}>
                             <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                           </div>
-                          <div style={{ fontSize:8, color:P.dm, marginTop:2 }}>{s.count} trades</div>
+                          <div style={{ fontSize:10, color:P.dm, marginTop:2 }}>{s.count} trades</div>
                         </div>
                         {/* Ticker mode dropdown */}
                         {FD.sectorTickerMode && selectedItem&&selectedItem._secKey===hk && (()=>{
@@ -4952,19 +4986,19 @@ export default function OptionsFlowDashboard() {
                               </div>
                               {clusters.length>0 && (
                                 <>
-                                <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
                                 {clusters.map((cl,ci)=>{
                                   const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
                                   return (
                                     <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
                                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                                         <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
-                                        <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                        <span style={{ color:P.wh, fontSize:10 }}>{cl.E}</span>
                                         <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
                                       </div>
                                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                        <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
-                                        <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                        <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:10 }}>{cl.H}x</span>
+                                        <span style={{ fontWeight:700, color:clC, fontSize:10 }}>{fmt(cl.P)}</span>
                                       </div>
                                     </div>
                                   );
@@ -4973,18 +5007,18 @@ export default function OptionsFlowDashboard() {
                               )}
                               {topTrades.length>0 && (
                                 <>
-                                <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:clusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:clusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
                                 {topTrades.map((tr,ti)=>{
                                   const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
                                   return (
                                   <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
                                     <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                                      <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
-                                      <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                      <span style={{ fontWeight:800, color:P.wh, fontSize:10 }}>${tr.K}{tr.CP}</span>
+                                      <span style={{ color:P.dm, fontSize:10 }}>{tr.E}</span>
                                       <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
                                       {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
                                     </div>
-                                    <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                    <span style={{ fontWeight:700, color:trDirC, fontSize:10 }}>{fmt(tr.P)}</span>
                                   </div>
                                   );
                                 })}
@@ -4992,7 +5026,7 @@ export default function OptionsFlowDashboard() {
                               )}
                               <div style={{ marginTop:8, textAlign:"center" }}>
                                 <button onClick={e=>{e.stopPropagation(); setSearch(s.name); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
-                                  style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                  style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                   View Full {s.name} Flow →
                                 </button>
                               </div>
@@ -5052,35 +5086,35 @@ export default function OptionsFlowDashboard() {
                                         title={`Back to ${s.name} top tickers`}
                                         style={{ background:"none", border:"none", color:P.dm, fontSize:11, cursor:"pointer", padding:0, fontWeight:700 }}>← Back</button>
                                       <span style={{ fontWeight:800, color:P.ac, fontSize:13, flex:1, textAlign:"center" }}>
-                                        {tk.s} <span style={{ fontSize:9, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
+                                        {tk.s} <span style={{ fontSize:10, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
                                       </span>
                                       <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
                                         title={`Open ${tk.s} chart in TradingView`}
-                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
+                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
                                         📈 Chart
                                       </button>
                                     </div>
                                     {/* Bull/Bear summary */}
-                                    <div style={{ display:"flex", gap:10, fontSize:9, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
+                                    <div style={{ display:"flex", gap:10, fontSize:10, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
                                       <span style={{ color:P.bu, fontWeight:700 }}>BULL {fmt(tk.b||0)}</span>
                                       <span style={{ color:P.be, fontWeight:700 }}>BEAR {fmt(tk.r||0)}</span>
                                       <span style={{ color:P.dm, marginLeft:"auto" }}>{tk.n||0} trades</span>
                                     </div>
                                     {tkClusters.length>0 && (
                                       <>
-                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                        <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
                                         {tkClusters.map((cl,ci)=>{
                                           const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
                                           return (
                                             <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
                                               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                                                 <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
-                                                <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                                <span style={{ color:P.wh, fontSize:10 }}>{cl.E}</span>
                                                 <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
                                               </div>
                                               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
-                                                <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:10 }}>{cl.H}x</span>
+                                                <span style={{ fontWeight:700, color:clC, fontSize:10 }}>{fmt(cl.P)}</span>
                                               </div>
                                             </div>
                                           );
@@ -5089,18 +5123,18 @@ export default function OptionsFlowDashboard() {
                                     )}
                                     {tkTopTrades.length>0 && (
                                       <>
-                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                        <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
                                         {tkTopTrades.map((tr,ti)=>{
                                           const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
                                           return (
                                             <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
                                               <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                                                <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
-                                                <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                                <span style={{ fontWeight:800, color:P.wh, fontSize:10 }}>${tr.K}{tr.CP}</span>
+                                                <span style={{ color:P.dm, fontSize:10 }}>{tr.E}</span>
                                                 <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
                                                 {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
                                               </div>
-                                              <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                              <span style={{ fontWeight:700, color:trDirC, fontSize:10 }}>{fmt(tr.P)}</span>
                                             </div>
                                           );
                                         })}
@@ -5108,7 +5142,7 @@ export default function OptionsFlowDashboard() {
                                     )}
                                     <div style={{ marginTop:8, textAlign:"center" }}>
                                       <button onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
-                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                         View Full {tk.s} Flow →
                                       </button>
                                     </div>
@@ -5142,14 +5176,14 @@ export default function OptionsFlowDashboard() {
                             <span style={{ width:8, height:8, borderRadius:2, background:dirC, display:"inline-block" }} title={isBull?"Bullish":"Bearish"} />
                           </div>
                           <div style={{ fontSize:12, fontWeight:800, color:P.ac }}>{fmt(total)}</div>
-                          <div style={{ display:"flex", gap:8, fontSize:9, marginTop:3 }}>
+                          <div style={{ display:"flex", gap:8, fontSize:10, marginTop:3 }}>
                             <span style={{ color:P.bu, fontWeight:700 }}>B {fmt(th.bull)}</span>
                             <span style={{ color:P.be, fontWeight:700 }}>R {fmt(th.bear)}</span>
                           </div>
                           <div style={{ width:"100%", height:3, background:P.be, borderRadius:2, marginTop:4 }}>
                             <div style={{ width:bullPct+"%", height:"100%", background:P.bu, borderRadius:2 }} />
                           </div>
-                          <div style={{ fontSize:8, color:P.dm, marginTop:2 }}>{th.count} trades · {Object.keys(th.tickers).length} tickers</div>
+                          <div style={{ fontSize:10, color:P.dm, marginTop:2 }}>{th.count} trades · {Object.keys(th.tickers).length} tickers</div>
                         </div>
                         {/* Theme ticker dropdown — with inline drill-down on click */}
                         {selectedItem&&selectedItem._secKey===hk && th.topTickers && th.topTickers.length > 0 && (
@@ -5180,9 +5214,9 @@ export default function OptionsFlowDashboard() {
                                         <span style={{ fontWeight:800, color:P.wh }}>{tk.s}</span>
                                       </div>
                                       <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                        <span style={{ fontSize:9, color:P.bu, fontWeight:700 }}>{fmt(tk.bull)}</span>
-                                        <span style={{ fontSize:9, color:P.be, fontWeight:700 }}>{fmt(tk.bear)}</span>
-                                        <span style={{ fontWeight:700, color:P.ac, fontSize:9 }}>{fmt(tkTotal)}</span>
+                                        <span style={{ fontSize:10, color:P.bu, fontWeight:700 }}>{fmt(tk.bull)}</span>
+                                        <span style={{ fontSize:10, color:P.be, fontWeight:700 }}>{fmt(tk.bear)}</span>
+                                        <span style={{ fontWeight:700, color:P.ac, fontSize:10 }}>{fmt(tkTotal)}</span>
                                       </div>
                                     </div>
                                   );
@@ -5209,34 +5243,34 @@ export default function OptionsFlowDashboard() {
                                         title={`Back to ${th.name} tickers`}
                                         style={{ background:"none", border:"none", color:P.dm, fontSize:11, cursor:"pointer", padding:0, fontWeight:700 }}>← Back</button>
                                       <span style={{ fontWeight:800, color:P.ac, fontSize:13, flex:1, textAlign:"center" }}>
-                                        {tk.s} <span style={{ fontSize:9, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
+                                        {tk.s} <span style={{ fontSize:10, color:tkBull?P.bu:P.be, marginLeft:4 }}>{tkBull?"BULL":"BEAR"}</span>
                                       </span>
                                       <button onClick={e=>{e.stopPropagation(); setChartModal({sym:tk.s}); setChartInterval("D");}}
                                         title={`Open ${tk.s} chart in TradingView`}
-                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
+                                        style={{ background:P.bg, border:"1px solid "+P.bl, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", padding:"2px 8px", borderRadius:3, fontFamily:"inherit" }}>
                                         📈 Chart
                                       </button>
                                     </div>
-                                    <div style={{ display:"flex", gap:10, fontSize:9, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
+                                    <div style={{ display:"flex", gap:10, fontSize:10, marginBottom:8, paddingBottom:6, borderBottom:"1px solid "+P.bd+"20" }}>
                                       <span style={{ color:P.bu, fontWeight:700 }}>BULL {fmt(tk.b||0)}</span>
                                       <span style={{ color:P.be, fontWeight:700 }}>BEAR {fmt(tk.r||0)}</span>
                                       <span style={{ color:P.dm, marginLeft:"auto" }}>{tk.n||0} trades</span>
                                     </div>
                                     {tkClusters.length>0 && (
                                       <>
-                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
+                                        <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, textTransform:"uppercase" }}>Consistency (2+ hits)</div>
                                         {tkClusters.map((cl,ci)=>{
                                           const clC = cl.D==="BULL"?P.bu:cl.D==="BEAR"?P.be:P.dm;
                                           return (
                                             <div key={ci} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0", borderBottom:"1px solid "+P.bd+"20" }}>
                                               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                                                 <span style={{ fontWeight:800, color:clC }}>${cl.K}{cl.CP}</span>
-                                                <span style={{ color:P.wh, fontSize:9 }}>{cl.E}</span>
+                                                <span style={{ color:P.wh, fontSize:10 }}>{cl.E}</span>
                                                 <Tag c={GRADE_COLORS[cl.grade]||P.mt}>{cl.grade}</Tag>
                                               </div>
                                               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:9 }}>{cl.H}x</span>
-                                                <span style={{ fontWeight:700, color:clC, fontSize:9 }}>{fmt(cl.P)}</span>
+                                                <span style={{ fontWeight:800, color:cl.H>=5?P.ac:cl.H>=3?P.ye:P.dm, fontSize:10 }}>{cl.H}x</span>
+                                                <span style={{ fontWeight:700, color:clC, fontSize:10 }}>{fmt(cl.P)}</span>
                                               </div>
                                             </div>
                                           );
@@ -5245,18 +5279,18 @@ export default function OptionsFlowDashboard() {
                                     )}
                                     {tkTopTrades.length>0 && (
                                       <>
-                                        <div style={{ fontSize:8, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
+                                        <div style={{ fontSize:10, fontWeight:700, color:P.mt, letterSpacing:1, marginBottom:4, marginTop:tkClusters.length>0?8:0, textTransform:"uppercase" }}>Top Trades</div>
                                         {tkTopTrades.map((tr,ti)=>{
                                           const trDirC = tr.D==="BULL"?P.bu:tr.D==="BEAR"?P.be:P.dm;
                                           return (
                                             <div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0", borderBottom:"1px solid "+P.bd+"12" }}>
                                               <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                                                <span style={{ fontWeight:800, color:P.wh, fontSize:9 }}>${tr.K}{tr.CP}</span>
-                                                <span style={{ color:P.dm, fontSize:8 }}>{tr.E}</span>
+                                                <span style={{ fontWeight:800, color:P.wh, fontSize:10 }}>${tr.K}{tr.CP}</span>
+                                                <span style={{ color:P.dm, fontSize:10 }}>{tr.E}</span>
                                                 <Tag c={tc(tr.Ty)}>{tr.Ty}</Tag>
                                                 {tr.Si==="AA"?<Tag c={P.ac}>AA</Tag>:tr.Si==="BB"?<Tag c={P.be}>BB</Tag>:null}
                                               </div>
-                                              <span style={{ fontWeight:700, color:trDirC, fontSize:9 }}>{fmt(tr.P)}</span>
+                                              <span style={{ fontWeight:700, color:trDirC, fontSize:10 }}>{fmt(tr.P)}</span>
                                             </div>
                                           );
                                         })}
@@ -5264,7 +5298,7 @@ export default function OptionsFlowDashboard() {
                                     )}
                                     <div style={{ marginTop:8, textAlign:"center" }}>
                                       <button onClick={e=>{e.stopPropagation(); setSearch(tk.s); setSelectedTicker(tk); setTab("Search"); setSelectedItem(null);}}
-                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                        style={{ padding:"4px 14px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                         View Full {tk.s} Flow →
                                       </button>
                                     </div>
@@ -5495,7 +5529,7 @@ export default function OptionsFlowDashboard() {
                         {["Both","Calls","Puts","Unusual","Standout"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
                             padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            fontSize:10, fontWeight:700, fontFamily:"inherit",
                             background:top5Filter===f?(f==="Unusual"?"#ff980022":P.ac+"22"):"transparent",
                             color:top5Filter===f?(f==="Unusual"?"#ff9800":P.ac):P.dm
                           }}>{f}</button>
@@ -5503,10 +5537,10 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <span style={{ fontSize:9, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":top5Filter==="Standout"?"Single-strike sweeps · ignores ticker balance":"Ranked by net premium · sweep required"}</span>
+                      <span style={{ fontSize:10, color:P.dm }}>{top5Filter==="Unusual"?"Cap-weighted · sweep required":top5Filter==="Standout"?"Single-strike sweeps · ignores ticker balance":"Ranked by net premium · sweep required"}</span>
                       <button onClick={()=>fetchPrices(allContracts)} disabled={fetchLoading}
                         style={{ padding:"3px 10px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                          fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
+                          fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                         {fetchLoading?"Fetching…":"⚡ Fetch Live P/L"}
                       </button>
                     </div>
@@ -5521,11 +5555,11 @@ export default function OptionsFlowDashboard() {
                       the columns stay aligned. No inline style is touched. */}
                   <div className="of-picks" style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     {/* Column headers — shown once above the picks list */}
-                    <div className="of-pickrow" style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 12px", fontSize:7, color:P.dm, letterSpacing:0.5, fontWeight:700 }}>
+                    <div className="of-pickrow" style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 12px", fontSize:10, color:P.dm, letterSpacing:0.5, fontWeight:700 }}>
                       <span style={{ width:16, flexShrink:0 }} />
                       <span style={{ width:50, flexShrink:0 }} />
                       {/* Spacer matching dir Tag width so columns align */}
-                      {(top5Filter==="Both" || top5Filter==="Unusual") && <span style={{ display:"inline-block", padding:"2px 7px", fontSize:9, visibility:"hidden", whiteSpace:"nowrap" }}>BULL</span>}
+                      {(top5Filter==="Both" || top5Filter==="Unusual") && <span style={{ display:"inline-block", padding:"2px 7px", fontSize:10, visibility:"hidden", whiteSpace:"nowrap" }}>BULL</span>}
                       <div title="Net premium = |bull premium − bear premium|. % below = conviction (purity of one-sided flow)." style={{ width:70, textAlign:"right", flexShrink:0, cursor:"help" }}>NET</div>
                       <div style={{ width:1, flexShrink:0 }} />
                       <div style={{ width:150, textAlign:"center", flexShrink:0 }}>TOP CONTRACT</div>
@@ -5637,10 +5671,10 @@ export default function OptionsFlowDashboard() {
                           {(top5Filter==="Both" || top5Filter==="Unusual") && <Tag c={dirC}>{p.dir}</Tag>}
                           <div style={{ width:70, textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:dirC }}>{fmt(p.net)}</div>
-                            <div style={{ fontSize:8, color:P.dm }}>{Math.round(p.purity)}%</div>
+                            <div style={{ fontSize:10, color:P.dm }}>{Math.round(p.purity)}%</div>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ fontSize:9, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
+                          <div style={{ fontSize:10, color:P.mt, width:150, flexShrink:0, textAlign:"center" }}>
                             {tc && (()=>{
                               // Moneyness: prefer live spot from price fetch, fall back to last-trade spot
                               const spotForMoney = (liveOIPx && liveOIPx.spot) || tc.spot || 0;
@@ -5659,9 +5693,9 @@ export default function OptionsFlowDashboard() {
                                 <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
                                 <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                                 <span style={{ color:p.topCDisplayHits>=10?P.ac:p.topCDisplayHits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{p.topCDisplayHits}x</span>
-                                <div style={{ fontSize:8, color:P.ye, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                                <div style={{ fontSize:10, color:P.ye, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                                   <span>{fmt(p.topCDisplayPrem)}</span>
-                                  {mny && <span style={{ fontSize:7, fontWeight:700, color:mny.color, padding:"0 4px", borderRadius:2, background:mny.color+"18", letterSpacing:0.3 }}>{mny.label}{mny.pct?" "+mny.pct:""}</span>}
+                                  {mny && <span style={{ fontSize:10, fontWeight:700, color:mny.color, padding:"0 4px", borderRadius:2, background:mny.color+"18", letterSpacing:0.3 }}>{mny.label}{mny.pct?" "+mny.pct:""}</span>}
                                 </div>
                               </div>);
                             })()}
@@ -5671,7 +5705,7 @@ export default function OptionsFlowDashboard() {
                             <span style={{ fontSize:12, fontWeight:900, color:gradeC, padding:"2px 8px", borderRadius:4, background:gradeC+"18", border:"1px solid "+gradeC+"44", flexShrink:0 }}>{grade}</span>
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ fontSize:9, width:130, flexShrink:0 }}>
+                          <div style={{ fontSize:10, width:130, flexShrink:0 }}>
                             {entry>0 ? (<span>
                               <span style={{ color:P.dm }}>${entry.toFixed(2)}</span>
                               {pnl!==null ? (<span>
@@ -5682,7 +5716,7 @@ export default function OptionsFlowDashboard() {
                             </span>) : <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:80, flexShrink:0, fontSize:8, textAlign:"center" }}>
+                          <div style={{ width:80, flexShrink:0, fontSize:10, textAlign:"center" }}>
                             {(()=>{
                               // Option 3: each state surfaces the info that matters for it.
                               //   ADDING / GROWING → show absolute new-contracts (+N), real positioning grew
@@ -5717,18 +5751,18 @@ export default function OptionsFlowDashboard() {
                             })()}
                           </div>
                           <div style={{ height:16, width:1, background:P.bd, flexShrink:0 }}/>
-                          <div style={{ width:140, flexShrink:0, fontSize:9, color:P.ac, fontWeight:600, textAlign:"center" }}>
+                          <div style={{ width:140, flexShrink:0, fontSize:10, color:P.ac, fontWeight:600, textAlign:"center" }}>
                             {posNote || <span style={{ color:P.dm+"55" }}>—</span>}
                           </div>
                           <div style={{ flex:1, fontSize:10, color:P.dm, lineHeight:1.5, paddingLeft:12 }}>
                             {topNotes.map((n,ni)=><div key={ni} style={{ color:P.mt }}>{n}</div>)}
                           </div>
-                          <span style={{ fontSize:9, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
+                          <span style={{ fontSize:10, color:P.dm+"66", flexShrink:0 }}>{top5Detail===p.sym?"▲":"▼"}</span>
                         </div>
                         {/* Expandable trade detail */}
                         {top5Detail===p.sym && top5Filter==="Standout" && p._moreStrikes && p._moreStrikes.length>0 && (
                           <div style={{ background:P.bg, border:"1px solid "+P.bd, borderRadius:6, padding:10, marginTop:2, marginLeft:24 }}>
-                            <div style={{ fontSize:9, fontWeight:700, color:P.ac, marginBottom:6 }}>OTHER STANDOUT STRIKES ON {p.sym} ({p._moreStrikes.length})</div>
+                            <div style={{ fontSize:10, fontWeight:700, color:P.ac, marginBottom:6 }}>OTHER STANDOUT STRIKES ON {p.sym} ({p._moreStrikes.length})</div>
                             {p._moreStrikes.map((m,mi)=>{
                               const mdC = m.dir==="BULL"?P.bu:P.be;
                               const mgrade = m.purity>=95&&m.hasBoth&&m.confirmed>=3?"A+":m.purity>=85&&m.hasBoth?"A":m.purity>=75&&m.confirmed>=2?"B+":"B";
@@ -5740,7 +5774,7 @@ export default function OptionsFlowDashboard() {
                                   <span style={{ fontSize:10, fontWeight:800, color:m.topC.cp==="C"?P.bu:P.be }}>{m.topC.cp}</span>
                                   <span style={{ fontSize:10, fontWeight:700, color:P.wh }}>${m.topC.K}</span>
                                   <span style={{ fontSize:10, color:P.ac }}>{m.topC.exp}</span>
-                                  <span style={{ fontSize:9, color:P.dm }}>{m.topCDisplayHits}x</span>
+                                  <span style={{ fontSize:10, color:P.dm }}>{m.topCDisplayHits}x</span>
                                   <span style={{ fontSize:11, fontWeight:900, color:mdC, marginLeft:"auto" }}>{fmt(m.net)}</span>
                                   <span style={{ fontSize:10, fontWeight:900, color:mgC, padding:"1px 6px", borderRadius:3, background:mgC+"18", border:"1px solid "+mgC+"44" }}>{mgrade}</span>
                                 </div>
@@ -5756,15 +5790,15 @@ export default function OptionsFlowDashboard() {
                               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                                 <button onClick={e=>{e.stopPropagation(); setChartModal({sym:p.sym}); setChartInterval("D");}}
                                   title={`Open ${p.sym} chart`}
-                                  style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+                                  style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.bl, background:P.cd, color:P.ac, fontSize:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
                                   📈 Chart
                                 </button>
-                                <div style={{ fontSize:9, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
+                                <div style={{ fontSize:10, fontWeight:700, color:P.ac }}>TOP {trades.length} TRADES BY PREMIUM</div>
                               </div>
-                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:9 }}>
+                              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                                 <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                                   {["Date","Time","Type","Side","C/P","Strike","Exp","DTE","Vol","OI","Premium","Color"].map(h=>(
-                                    <th key={h} style={{ padding:"3px 6px", textAlign:"center", color:P.dm, fontSize:8, fontWeight:600 }}>{h}</th>
+                                    <th key={h} style={{ padding:"3px 6px", textAlign:"center", color:P.dm, fontSize:10, fontWeight:600 }}>{h}</th>
                                   ))}
                                 </tr></thead>
                                 <tbody>
@@ -6074,8 +6108,8 @@ export default function OptionsFlowDashboard() {
                   style={{ padding:"6px 5px", fontWeight:900, color:P.wh, fontSize:13 }}>
                   {tk.sym}
 
-                  {tk.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
-                  {tk.isNew && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
+                  {tk.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff9800"+"22", color:"#ff9800" }}>ER</span>}
+                  {tk.isNew && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:P.ac+"22", color:P.ac }}>NEW</span>}
                 </ChartHoldCell>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu }}>{fmt(tk.bull)}</td>
                 <td style={{ padding:"6px 5px", fontWeight:800, color:P.be }}>{fmt(tk.bear)}</td>
@@ -6086,20 +6120,20 @@ export default function OptionsFlowDashboard() {
                 </td>
                 <td style={{ padding:"6px 5px", fontWeight:800, fontSize:10, color:pctColor }}>{displayPct}%</td>
                 <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, fontSize:12 }}>{fmt(Math.abs(net))}</td>
-                <td style={{ padding:"6px 5px", fontSize:9 }}>
+                <td style={{ padding:"6px 5px", fontSize:10 }}>
                   {tc_ && (<span>
                     <span style={{ color:tcC, fontWeight:800 }}>{tc_.cp==="C"?"C":"P"}</span>
-                    {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                    {tcSide==="bid" && <span style={{ fontSize:10, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
                     <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc_.K}</span>
                     <span style={{ color:P.ac, marginLeft:3 }}>{tc_.exp}</span>
                     <span style={{ color:(tc_.displayHits||tc_.hits)>=10?P.ac:(tc_.displayHits||tc_.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc_.displayHits||tc_.hits}x</span>
-                    {(tc_.displayPrem||tc_.prem)>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc_.displayPrem||tc_.prem)}</span>}
+                    {(tc_.displayPrem||tc_.prem)>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:10 }}>{fmt(tc_.displayPrem||tc_.prem)}</span>}
                     {/* ΔOI badge — shows position growth/decay since the trade
                         window. Only renders when Live OI has been fetched
                         (getPrice returns a valid oi). Positive = position
                         building, negative = profit-taking / closing. */}
                     {(()=>{ const d = computeDeltaOI(tc_); return d !== null ? (
-                      <span style={{ color:deltaColor(d), fontSize:8, marginLeft:4, fontWeight:700, padding:"1px 4px", borderRadius:3, background:deltaColor(d)+"15", border:"1px solid "+deltaColor(d)+"33" }}
+                      <span style={{ color:deltaColor(d), fontSize:10, marginLeft:4, fontWeight:700, padding:"1px 4px", borderRadius:3, background:deltaColor(d)+"15", border:"1px solid "+deltaColor(d)+"33" }}
                             title={d > 0 ? "Open interest grew by " + d.toLocaleString() + " contracts since these trades — position is being built" : d < 0 ? "Open interest fell by " + Math.abs(d).toLocaleString() + " contracts — position is being closed (profit-taking or fading)" : "Open interest unchanged"}>
                         ΔOI {fmtDelta(d)}
                       </span>
@@ -6109,29 +6143,29 @@ export default function OptionsFlowDashboard() {
               </tr>
               {isExp && tk.topContracts.length > 0 && (
                 <tr><td colSpan={7} style={{ padding:"4px 20px 8px", background:"#060e1e" }}>
-                  <div style={{ fontSize:8, color:P.dm, fontWeight:700, marginBottom:4, letterSpacing:1 }}>TOP {Math.min(3,tk.topContracts.length)} CONTRACTS</div>
+                  <div style={{ fontSize:10, color:P.dm, fontWeight:700, marginBottom:4, letterSpacing:1 }}>TOP {Math.min(3,tk.topContracts.length)} CONTRACTS</div>
                   <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                     {tk.topContracts.map((c,i) => {
                       const cSide = c.askPrem >= c.bidPrem ? "ask" : "bid";
                       const cC = c.cp==="C" ? (cSide==="ask"?P.bu:"#ff9800") : (cSide==="ask"?P.be:"#29b6f6");
                       const cDelta = computeDeltaOI(c);
                       return (
-                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:9, textAlign:"center", cursor:"pointer" }}
+                        <div key={i} style={{ padding:"4px 10px", borderRadius:4, background:P.al, border:"1px solid "+P.bd, fontSize:10, textAlign:"center", cursor:"pointer" }}
                           title={c.dates && c.dates.size > 0 ? "Flow dates: " + [...c.dates].join(", ") : ""}
                           onClick={e=>{ e.stopPropagation(); setTab("Search"); setSearch(tk.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===tk.sym)||null); setSearchDte("All"); }}>
                           <span style={{ color:cC, fontWeight:800 }}>{c.cp==="C"?"C":"P"}</span>
-                          {cSide==="bid" && <span style={{ fontSize:6, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
+                          {cSide==="bid" && <span style={{ fontSize:10, color:cC, fontWeight:700, marginLeft:2 }}>BB</span>}
                           <span style={{ color:P.wh, fontWeight:700, marginLeft:4 }}>${c.K}</span>
                           <span style={{ color:P.ac, marginLeft:4 }}>{c.exp}</span>
                           <span style={{ color:(c.displayHits||c.hits)>=10?P.ac:(c.displayHits||c.hits)>=5?P.ye:P.dm, fontWeight:800, marginLeft:6 }}>{c.displayHits||c.hits}x</span>
                           <span style={{ color:premC(c.displayPrem||c.prem), fontWeight:700, marginLeft:6 }}>{fmt(c.displayPrem||c.prem)}</span>
-                          {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:8 }}>{c.volOI.toFixed(1)}x V/OI</span>}
+                          {c.volOI>=3 && <span style={{ color:P.ye, marginLeft:4, fontSize:10 }}>{c.volOI.toFixed(1)}x V/OI</span>}
                           {/* ΔOI badge — same logic as the inline column above,
                               but only renders when Live OI is cached. Subtle
                               styling here since chip is already information-
                               dense; user can hover for the explanatory tooltip. */}
                           {cDelta !== null && (
-                            <span style={{ color:deltaColor(cDelta), fontSize:8, marginLeft:6, fontWeight:700 }}
+                            <span style={{ color:deltaColor(cDelta), fontSize:10, marginLeft:6, fontWeight:700 }}
                                   title={cDelta > 0 ? "OI grew by " + cDelta.toLocaleString() + " — position building" : cDelta < 0 ? "OI fell by " + Math.abs(cDelta).toLocaleString() + " — position fading" : "OI unchanged"}>
                               ΔOI {fmtDelta(cDelta)}
                             </span>
@@ -6147,7 +6181,7 @@ export default function OptionsFlowDashboard() {
           };
           const sortHdr = (label, key, extraStyle) => (
             <th key={label} onClick={()=>setConvictionSort(key)} style={{
-              padding:"4px 5px", textAlign:"left", color:cSort===key?"#c9a84c":P.mt, fontSize:8, fontWeight:700,
+              padding:"4px 5px", textAlign:"left", color:cSort===key?"#dcbb5e":P.mt, fontSize:10, fontWeight:700,
               cursor:"pointer", userSelect:"none", transition:"color 0.15s", ...extraStyle
             }}>{label}{cSort===key?" ▼":""}</th>
           );
@@ -6158,13 +6192,13 @@ export default function OptionsFlowDashboard() {
                 {/* DTE */}
                 {[{k:"All",l:"All",c:filtered.length},{k:"ST",l:"0–59d",c:stN},{k:"LT",l:"60–179d",c:ltN},{k:"LEAPS",l:"180+d",c:leN}].map(d=>{
                   const active=convDte===d.k;
-                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#c9a84c":P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?"#c9a84c22":"transparent", color:active?"#c9a84c":P.mt }}>{d.l} <span style={{ fontSize:7, opacity:0.7 }}>{d.c}</span></button>;
+                  return <button key={d.k} onClick={()=>setConvictionDte(d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?"#dcbb5e":P.bd), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:active?"#dcbb5e22":"transparent", color:active?"#dcbb5e":P.mt }}>{d.l} <span style={{ fontSize:10, opacity:0.7 }}>{d.c}</span></button>;
                 })}
                 <span style={{ width:1, height:16, background:P.bd }}/>
                 {/* Activity */}
                 {[{k:"new",l:"🆕 New"},{k:"uoa",l:"UOA"}].map(d=>{
                   const active=cAct===d.k;
-                  return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
+                  return <button key={d.k} onClick={()=>setConvictionActivity(cAct===d.k?"All":d.k)} style={{ padding:"4px 10px", borderRadius:16, border:"1.5px solid "+(active?P.ye:P.bd), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:active?P.ye+"22":"transparent", color:active?P.ye:P.mt }}>{d.l}</button>;
                 })}
               </div>
               {/* Flow Pulse — bull/bear bar + narrative summary */}
@@ -6295,7 +6329,7 @@ export default function OptionsFlowDashboard() {
                             padding:"4px 12px", borderRadius:6,
                             border: "1px solid " + (fetchLoading ? P.bd : P.sw),
                             cursor: fetchLoading || !_lbContracts.length ? "not-allowed" : "pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            fontSize:10, fontWeight:700, fontFamily:"inherit",
                             background: fetchLoading ? P.bd : P.sw + "22",
                             color: fetchLoading ? P.dm : P.sw,
                             letterSpacing: 0.5,
@@ -6322,7 +6356,7 @@ export default function OptionsFlowDashboard() {
                           title="Rank by STILL-OPEN flow — pulls the latest OI snapshot for every contract on the board (one click) and shows only premium still on the book. The conviction view: who opened flow and is still holding it."
                           style={{ padding:"4px 12px", borderRadius:6,
                             border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
-                            cursor:(fetchLoading || !_lbAllContracts.length)?"not-allowed":"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            cursor:(fetchLoading || !_lbAllContracts.length)?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                             background:lbStillOpenOnly?P.bu+"22":"transparent",
                             color:lbStillOpenOnly?P.bu:P.mt,
                             letterSpacing:0.5, opacity:(fetchLoading || !_lbAllContracts.length)?0.6:1 }}>
@@ -6333,20 +6367,20 @@ export default function OptionsFlowDashboard() {
                             "this position closed out" from "we never priced it". */}
                         {lbStillOpenOnly && (
                           _lbOpenApplied ? (
-                            <div style={{ fontSize:9, color:P.dm }}
+                            <div style={{ fontSize:10, color:P.dm }}
                                  title="Still-open premium can only be confirmed for contracts with live OI. Tickers without it are excluded from this ranking rather than ranked on raw premium.">
                               {_lbOpenCoverage.priced}/{_lbOpenCoverage.total} tickers have live OI
                             </div>
                           ) : fetchLoading ? (
-                            <div style={{ fontSize:9, color:P.dm }}>fetching live OI…</div>
+                            <div style={{ fontSize:10, color:P.dm }}>fetching live OI…</div>
                           ) : (
-                            <div style={{ fontSize:9, color:P.ye, fontWeight:700 }}
+                            <div style={{ fontSize:10, color:P.ye, fontWeight:700 }}
                                  title="No contract on this board has live OI yet, so still-open premium cannot be computed. Showing raw premium instead of an empty board.">
                               ⚠ no live OI for these tickers — showing raw
                             </div>
                           )
                         )}
-                        <div style={{ fontSize: 9, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
+                        <div style={{ fontSize: 10, color: P.dm }}>Top {tb.length} bull · Top {tbr.length} bear</div>
                       </div>
                     </div>
                     {/* Bull/bear ratio bar with premiums */}
@@ -6398,17 +6432,17 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ TOP BULLISH</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{bulls.length} tickers</span>
+                    <span style={{ fontSize:10, color:P.dm }}>{bulls.length} tickers</span>
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600, width:80 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
                       <th style={{ padding:"4px 5px", width:60 }}/>
                       {sortHdr("Bull%","bullpct")}
                       {sortHdr("Net","net")}
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600 }}>Top Contract</th>
                       
                       
                       
@@ -6416,22 +6450,22 @@ export default function OptionsFlowDashboard() {
                     </tr></thead>
                     <tbody>{bulls.slice(0,25).map((tk,i)=>renderRow(tk,i,"bull"))}</tbody>
                   </table>
-                  {bulls.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bulls.length}</button></div>}
+                  {bulls.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:10, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bulls.length}</button></div>}
                 </Card>
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ TOP BEARISH</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{bears.length} tickers</span>
+                    <span style={{ fontSize:10, color:P.dm }}>{bears.length} tickers</span>
                   </div>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600, width:80 }}>Ticker</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600, width:80 }}>Ticker</th>
                       {sortHdr("Bull","bull")}
                       {sortHdr("Bear","bear")}
                       <th style={{ padding:"4px 5px", width:60 }}/>
                       {sortHdr("Bear%","bullpct")}
                       {sortHdr("Net","net")}
-                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
+                      <th style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600 }}>Top Contract</th>
                       
                       
                       
@@ -6439,7 +6473,7 @@ export default function OptionsFlowDashboard() {
                     </tr></thead>
                     <tbody>{bears.slice(0,25).map((tk,i)=>renderRow(tk,i,"bear"))}</tbody>
                   </table>
-                  {bears.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:9, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bears.length}</button></div>}
+                  {bears.length>25 && <div style={{ textAlign:"center", marginTop:6 }}><button onClick={()=>{}} style={{ fontSize:10, color:P.dm, background:"transparent", border:"1px solid "+P.bd, borderRadius:4, padding:"3px 12px", cursor:"pointer", fontFamily:"inherit" }}>Show all {bears.length}</button></div>}
                 </Card>
               </div>
             </div>
@@ -6614,7 +6648,7 @@ export default function OptionsFlowDashboard() {
                       fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                     {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
                   </button>
-                  {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                  {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
                 </div>
               </div>
             </Card>
@@ -6657,7 +6691,7 @@ export default function OptionsFlowDashboard() {
                         <th key={h} onClick={onClick}
                           style={{ padding:"5px 5px", textAlign:"left",
                             color: isActive ? P.ac : P.mt,
-                            fontSize:9, fontWeight:600,
+                            fontSize:10, fontWeight:600,
                             cursor: isSortable ? "pointer" : (h==="Peak" ? "help" : "default"),
                             userSelect:"none" }}
                           title={h==="Peak" ? "Highest % gain from entry at any point — the best exit you could have had." : (isSortable ? `Sort by ${h}` : undefined)}>
@@ -6673,7 +6707,7 @@ export default function OptionsFlowDashboard() {
                     const pnl = r._pnl;
                     const pnlC = pnl > 0 ? P.bu : pnl < 0 ? P.be : P.dm;
                     const dirC = r.dir==="BULL" ? P.bu : P.be;
-                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#c9a84c";
+                    const dteBandC = r.dteBand==="ST"?"#ff6d00":r.dteBand==="LT"?"#6ba3be":"#dcbb5e";
                     const peakPnl = r._peakPnl;
                     const peakRetrace = r._peakRetrace;
                     const _isExit = r._isExit;
@@ -6685,7 +6719,7 @@ export default function OptionsFlowDashboard() {
                         onMouseLeave={e=>e.currentTarget.style.background=r._rank<=3?(P.ac+"06"):"transparent"}>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:r._rank<=3?P.ac:P.dm, fontSize:12 }}>{r._rank}</td>
                         <ChartHoldCell sym={r.sym} onOpen={setChartSym}
-                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622", color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
+                          style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{r.sym}{r.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00", verticalAlign:"super" }}>ER</span>}{_isExit && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, background:"#df464633", color:"#df4646", verticalAlign:"super" }}>EXIT</span>}{(r.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"0px 4px", borderRadius:2, verticalAlign:"super", background:p.type==="IV_SURGE"?"#dcbb5e22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#2faf6822":"#29b6f622", color:p.type==="IV_SURGE"?"#dcbb5e":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#2faf68":"#29b6f6" }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>)}</ChartHoldCell>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{r.exp}</td>
                         <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${r.K}</td>
                         <td style={{ padding:"5px 5px" }}><Tag c={r.cp==="C"?P.bu:P.be}>{r.cp}</Tag></td>
@@ -6698,8 +6732,8 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 5px", fontWeight:700, color:now>0?P.wh:P.mt }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                         <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPnl>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
-                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
-                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:8, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:10, color:P.dm, fontWeight:600 }}>{r.cap}</span></td>
+                        <td style={{ padding:"5px 5px" }}><span style={{ fontSize:10, fontWeight:700, color:dteBandC, background:dteBandC+"15", padding:"1px 5px", borderRadius:3 }}>{r.dteBand} {r.DTE}d</span></td>
                       </tr>
                     );
                   })}
@@ -6804,7 +6838,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ fontSize:18, fontWeight:900, color:totalBull>=totalBear?P.bu:P.be }}>{fmt(Math.abs(totalBull-totalBear))}</div>
                 </div>
                 <div style={{ flex:1 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:P.dm, marginBottom:2 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:P.dm, marginBottom:2 }}>
                     <span style={{ color:P.bu }}>Bull {fmt(totalBull)}</span>
                     <span style={{ fontSize:16, fontWeight:800, color:bullPct>=50?P.bu:P.be }}>{bullPct}%</span>
                     <span style={{ color:P.be }}>Bear {fmt(totalBear)}</span>
@@ -6823,7 +6857,7 @@ export default function OptionsFlowDashboard() {
                 const sortHdrL = (label, col, align) => {
                   const active = leaderSort.col === col;
                   const arrow = active ? (leaderSort.dir === "asc" ? " ▲" : " ▼") : "";
-                  return <th style={{ padding:"5px 14px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:9, fontWeight:600, cursor:"pointer", userSelect:"none" }}
+                  return <th style={{ padding:"5px 14px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:10, fontWeight:600, cursor:"pointer", userSelect:"none" }}
                     onClick={()=>setLeaderSort(prev=>({col, dir:prev.col===col&&prev.dir==="asc"?"desc":"asc"}))}>{label}{arrow}</th>;
                 };
                 return (
@@ -6832,13 +6866,13 @@ export default function OptionsFlowDashboard() {
                     {sortHdrL("Ticker","sym","left")}
                     {sortHdrL("Bull","bull")}
                     {sortHdrL("Bear","bear")}
-                    <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:9, fontWeight:600 }}>Split</th>
+                    <th style={{ padding:"4px 12px", width:100, textAlign:"center", color:P.mt, fontSize:10, fontWeight:600 }}>Split</th>
                     {sortHdrL("Net","net")}
                     {sortHdrL("YTD%","ytd")}
                     {sortHdrL("Off High","off52")}
                     {sortHdrL("Trend","trend")}
                     {sortHdrL("ΔOI","oi")}
-                    <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>Top Contract</th>
+                    <th style={{ padding:"5px 14px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600 }}>Top Contract</th>
                   </tr></thead>
                   <tbody>
                   {leaderData.map((d,i) => {
@@ -6852,7 +6886,7 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"8px 14px", fontWeight:900, color:P.wh, fontSize:13 }}>
                           {d.sym}
                           
-                          {d.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
+                          {d.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                         </td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.bu, textAlign:"center" }}>{d.found&&d.bull>0?fmt(d.bull):"—"}</td>
                         <td style={{ padding:"8px 14px", fontWeight:800, color:P.be, textAlign:"center" }}>{d.found&&d.bear>0?fmt(d.bear):"—"}</td>
@@ -6911,17 +6945,17 @@ export default function OptionsFlowDashboard() {
                   onMouseLeave={e=>e.currentTarget.querySelector('[data-tip]').style.display='none'}>
                   <span style={{ fontSize:14, color:P.dm, cursor:"help", userSelect:"none" }}>ⓘ</span>
                   <div data-tip="1" style={{ display:"none", position:"absolute", right:0, top:"100%", marginTop:8, width:320, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:12, zIndex:30, boxShadow:"0 8px 24px rgba(0,0,0,0.5)" }}>
-                    <div style={{ fontSize:9, fontWeight:800, color:P.ac, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Available Themes</div>
+                    <div style={{ fontSize:10, fontWeight:800, color:P.ac, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Available Themes</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:10 }}>
                       {Object.keys(THEMES_DEF).map(t=>(
                         <button key={t} onClick={()=>{ setSearch(t); setSelectedTicker(null); setSearchGroup({type:"theme",name:t,tickers:THEMES_DEF[t]}); }}
-                          style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.wh, fontSize:9, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                          {t} <span style={{ color:P.dm, fontSize:7 }}>{THEMES_DEF[t].length}</span>
+                          style={{ padding:"3px 8px", borderRadius:4, border:"1px solid "+P.bl, background:P.al, color:P.wh, fontSize:10, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                          {t} <span style={{ color:P.dm, fontSize:10 }}>{THEMES_DEF[t].length}</span>
                         </button>
                       ))}
                     </div>
-                    <div style={{ fontSize:9, fontWeight:800, color:"#6ba3be", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Sectors</div>
-                    <div style={{ fontSize:8, color:P.dm, lineHeight:1.6 }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:"#6ba3be", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Sectors</div>
+                    <div style={{ fontSize:10, color:P.dm, lineHeight:1.6 }}>
                       Also searchable: Information Technology, Financials, Energy, Consumer Discretionary, Healthcare, Industrials, and more from the flow data.
                     </div>
                   </div>
@@ -6947,7 +6981,7 @@ export default function OptionsFlowDashboard() {
                 return (
                   <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:20, background:P.cd, border:"1px solid "+P.bl, borderRadius:8, marginTop:4, padding:8, maxHeight:300, overflowY:"auto" }}>
                     {tickerMatches.length > 0 && (<>
-                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Tickers</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Tickers</div>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
                         {tickerMatches.map(s=>(
                           <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(D.TICKER_DB.find(t=>t.s===s)||null); setSearchGroup(null); }}
@@ -6958,25 +6992,25 @@ export default function OptionsFlowDashboard() {
                       </div>
                     </>)}
                     {themeMatches.length > 0 && (<>
-                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Themes</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Themes</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:8 }}>
                         {themeMatches.map(t=>(
                           <button key={t} onClick={()=>{ setSearch(t); setSelectedTicker(null); setSearchGroup({type:"theme",name:t,tickers:THEMES_DEF[t]}); }}
                             style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:P.ac, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
-                            📁 {t} <span style={{ color:P.dm, fontWeight:400, fontSize:9 }}>({THEMES_DEF[t].length} tickers)</span>
+                            📁 {t} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({THEMES_DEF[t].length} tickers)</span>
                           </button>
                         ))}
                       </div>
                     </>)}
                     {sectorMatches.length > 0 && (<>
-                      <div style={{ fontSize:8, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Sectors</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.dm, textTransform:"uppercase", letterSpacing:1, padding:"4px 6px" }}>Sectors</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
                         {sectorMatches.map(s=>{
                           const sectorTickers = D.TICKER_DB.filter(t=>t.sector===s).map(t=>t.s);
                           return (
                             <button key={s} onClick={()=>{ setSearch(s); setSelectedTicker(null); setSearchGroup({type:"sector",name:s,tickers:sectorTickers}); }}
                               style={{ padding:"6px 10px", borderRadius:4, border:"none", background:P.al, color:"#6ba3be", fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
-                              🏢 {s} <span style={{ color:P.dm, fontWeight:400, fontSize:9 }}>({sectorTickers.length} tickers)</span>
+                              🏢 {s} <span style={{ color:P.dm, fontWeight:400, fontSize:10 }}>({sectorTickers.length} tickers)</span>
                             </button>
                           );
                         })}
@@ -7023,18 +7057,18 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:10, fontWeight:800, color:searchGroup.type==="theme"?P.ac:"#6ba3be", textTransform:"uppercase", letterSpacing:1 }}>
                         {searchGroup.type==="theme"?"📁":"🏢"} {searchGroup.name}
                       </span>
-                      <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{rows.length} tickers with flow · {searchGroup.tickers.length} in group</span>
+                      <span style={{ fontSize:10, color:P.dm, marginLeft:8 }}>{rows.length} tickers with flow · {searchGroup.tickers.length} in group</span>
                     </div>
                     <button onClick={()=>{ setSearchGroup(null); setSearch(""); }}
-                      style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:9, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}>✕ Clear</button>
+                      style={{ background:"none", border:"1px solid "+P.bl, borderRadius:4, color:P.dm, fontSize:10, padding:"3px 8px", cursor:"pointer", fontFamily:"inherit" }}>✕ Clear</button>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:12 }}>
                     <div>
-                      <div style={{ fontSize:8, color:P.dm, fontWeight:600 }}>Group Net Flow</div>
+                      <div style={{ fontSize:10, color:P.dm, fontWeight:600 }}>Group Net Flow</div>
                       <div style={{ fontSize:16, fontWeight:900, color:isBullGroup?P.bu:P.be }}>{fmt(Math.abs(totalNet))}</div>
                     </div>
                     <div style={{ flex:1 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:8, color:P.dm, marginBottom:2 }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:P.dm, marginBottom:2 }}>
                         <span style={{ color:P.bu }}>Bull {fmt(totalBull)}</span>
                         <span style={{ color:P.bu, fontSize:12, fontWeight:800 }}>{bullPct}%</span>
                         <span style={{ color:P.be }}>Bear {fmt(totalBear)}</span>
@@ -7050,7 +7084,7 @@ export default function OptionsFlowDashboard() {
                     const gsHdr = (label, col, align) => {
                       const active = gsCol===col;
                       const arrow = active ? (gsDir==="asc"?" ▲":" ▼") : "";
-                      return <th style={{ padding:"4px 8px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:8, fontWeight:600, cursor:"pointer", userSelect:"none" }}
+                      return <th style={{ padding:"4px 8px", textAlign:align||"center", color:active?P.ac:P.mt, fontSize:10, fontWeight:600, cursor:"pointer", userSelect:"none" }}
                         onClick={()=>setGS(col)}>{label}{arrow}</th>;
                     };
                     const m = gsDir==="asc"?1:-1;
@@ -7069,12 +7103,12 @@ export default function OptionsFlowDashboard() {
                     </colgroup>
                     <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                       {gsHdr("Ticker","sym","center")}
-                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Bet</th>
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:10, fontWeight:600 }}>Bet</th>
                       {gsHdr("Bull","bull")}
                       {gsHdr("Bear","bear")}
-                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Split</th>
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:10, fontWeight:600 }}>Split</th>
                       {gsHdr("Net","net")}
-                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:8, fontWeight:600 }}>Top Contract</th>
+                      <th style={{ padding:"4px 5px", textAlign:"center", color:P.mt, fontSize:10, fontWeight:600 }}>Top Contract</th>
                     </tr></thead>
                     <tbody>
                     {sorted.map((r,i) => {
@@ -7091,7 +7125,7 @@ export default function OptionsFlowDashboard() {
                           onClick={()=>{ setSearch(r.sym); setSelectedTicker(D.TICKER_DB.find(t=>t.s===r.sym)||null); setSearchGroup(null); }}>
                           <td style={{ padding:"6px 5px", textAlign:"center" }}>
                             <span style={{ fontWeight:900, color:P.wh, fontSize:12 }}>{r.sym}</span>
-                            {r.er && <span style={{ fontSize:6, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
+                            {r.er && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#ff980022", color:"#ff9800" }}>ER</span>}
                           </td>
                           <td style={{ padding:"6px 5px", textAlign:"center" }}><Tag c={dirC}>{r.dir}</Tag></td>
                           <td style={{ padding:"6px 5px", fontWeight:800, color:P.bu, textAlign:"center" }}>{r.bull>0?fmt(r.bull):"—"}</td>
@@ -7102,14 +7136,14 @@ export default function OptionsFlowDashboard() {
                             </div>
                           </td>
                           <td style={{ padding:"6px 5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(Math.abs(net))}</td>
-                          <td style={{ padding:"6px 5px", fontSize:9, textAlign:"center" }}>
+                          <td style={{ padding:"6px 5px", fontSize:10, textAlign:"center" }}>
                             {tc && (<span>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
-                              {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                              {tcSide==="bid" && <span style={{ fontSize:10, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
                               <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                               <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
-                              {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
+                              {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:10 }}>{fmt(tc.prem)}</span>}
                             </span>)}
                           </td>
                         </tr>
@@ -7123,10 +7157,10 @@ export default function OptionsFlowDashboard() {
             })()}
             {/* Batch Search */}
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#c9a84c":"#c9a84c55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#c9a84c22":"transparent", color:batchMode?"#c9a84c":"#c9a84c" }}>
+              <button onClick={()=>setBatchMode(!batchMode)} style={{ padding:"5px 14px", borderRadius:16, border:"1.5px solid "+(batchMode?"#dcbb5e":"#dcbb5e55"), cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:batchMode?"#dcbb5e22":"transparent", color:batchMode?"#dcbb5e":"#dcbb5e" }}>
                 📋 Batch Search
               </button>
-              {batchMode && <span style={{ fontSize:9, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
+              {batchMode && <span style={{ fontSize:10, color:P.dm }}>Paste tickers or upload a CSV watchlist to scan flow</span>}
             </div>
             {batchMode && (
               <Card>
@@ -7165,7 +7199,7 @@ export default function OptionsFlowDashboard() {
                     }} style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:P.ac, color:P.bg }}>
                       Scan Flow
                     </button>
-                    <label style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt, textAlign:"center" }}>
+                    <label style={{ padding:"6px 12px", borderRadius:6, border:"1px solid "+P.bd, cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit", background:"transparent", color:P.mt, textAlign:"center" }}>
                       Upload CSV
                       <input type="file" accept=".csv,.txt" style={{ display:"none" }} onChange={e=>{
                         const file = e.target.files[0]; if(!file) return;
@@ -7254,9 +7288,9 @@ export default function OptionsFlowDashboard() {
                             <span style={{ fontWeight:900, color:P.wh, fontSize:13, minWidth:50 }}>{r.sym}</span>
                             <span style={{ fontWeight:800, color:dirC, fontSize:11 }}>{fmt(Math.abs(r.net))}</span>
                             <span style={{ fontWeight:800, color:r.bullPct>=80?P.bu:r.bullPct<=20?P.be:P.dm, fontSize:10 }}>{r.dir==="BULL"?r.bullPct:(100-r.bullPct)}%</span>
-                            {tc && <span style={{ fontSize:9 }}>
+                            {tc && <span style={{ fontSize:10 }}>
                               <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
-                              {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 3px", borderRadius:3, background:tcC+"22" }}>BB</span>}
+                              {tcSide==="bid" && <span style={{ fontSize:10, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 3px", borderRadius:3, background:tcC+"22" }}>BB</span>}
                               <span style={{ color:P.wh, marginLeft:3 }}>${tc.K}</span>
                               <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                               <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:3 }}>{tc.hits}x</span>
@@ -7267,7 +7301,7 @@ export default function OptionsFlowDashboard() {
                               if (now <= 0) return null;
                               const entry = tc.entry || 0;
                               const pnl = now > 0 && entry > 0 ? (now-entry)/entry*100 : 0;
-                              return <span style={{ marginLeft:"auto", fontSize:9 }}>
+                              return <span style={{ marginLeft:"auto", fontSize:10 }}>
                                 {entry > 0 && <span style={{ color:P.dm }}>${entry.toFixed(2)} → </span>}
                                 <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span>
                                 {entry > 0 && <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800, marginLeft:4 }}>{pnl>=0?"+":""}{pnl.toFixed(1)}%</span>}
@@ -7279,7 +7313,7 @@ export default function OptionsFlowDashboard() {
                       return (
                         <div style={{ marginBottom:12, padding:"10px 12px", borderRadius:8, background:P.al, border:"1px solid "+P.bd }}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                            <div style={{ fontSize:11, fontWeight:800, color:"#c9a84c", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
+                            <div style={{ fontSize:11, fontWeight:800, color:"#dcbb5e", letterSpacing:0.5 }}>⚡ TOP IDEAS FROM YOUR WATCHLIST</div>
                             <button onClick={()=>{
                               const allContracts = [];
                               [...topBull,...topBear].forEach(r => {
@@ -7288,17 +7322,17 @@ export default function OptionsFlowDashboard() {
                               if(allContracts.length) fetchPrices(allContracts);
                             }} disabled={fetchLoading}
                               style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                                fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                                fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
                               {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
                             </button>
                           </div>
                           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                             {topBull.length > 0 && <div>
-                              <div style={{ fontSize:9, fontWeight:800, color:P.bu, letterSpacing:1, marginBottom:4 }}>▲ BULL ({topBull.length})</div>
+                              <div style={{ fontSize:10, fontWeight:800, color:P.bu, letterSpacing:1, marginBottom:4 }}>▲ BULL ({topBull.length})</div>
                               {topBull.map((r,i)=>renderIdea(r,i,"bull"))}
                             </div>}
                             {topBear.length > 0 && <div>
-                              <div style={{ fontSize:9, fontWeight:800, color:P.be, letterSpacing:1, marginBottom:4 }}>▼ BEAR ({topBear.length})</div>
+                              <div style={{ fontSize:10, fontWeight:800, color:P.be, letterSpacing:1, marginBottom:4 }}>▼ BEAR ({topBear.length})</div>
                               {topBear.map((r,i)=>renderIdea(r,i,"bear"))}
                             </div>}
                           </div>
@@ -7317,7 +7351,7 @@ export default function OptionsFlowDashboard() {
                         }} disabled={fetchLoading}
                           title="Fetch live OI and P/L for every Top Contract in this batch."
                           style={{ padding:"5px 12px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
-                            fontSize:9, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
+                            fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.ac, color:fetchLoading?P.dm:P.bg }}>
                           {fetchLoading?"Fetching…":"⚡ Fetch Live OI & P/L (all rows)"}
                         </button>
                       </div>
@@ -7336,7 +7370,7 @@ export default function OptionsFlowDashboard() {
                             if(batchSort===sk) setBatchSortDir(d=>d==="desc"?"asc":"desc");
                             else { setBatchSort(sk); setBatchSortDir(sk==="ticker"?"asc":"desc"); }
                           }:undefined}
-                            style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:9, fontWeight:active?800:600,
+                            style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:10, fontWeight:active?800:600,
                               cursor:sortable?"pointer":"default", userSelect:"none" }}
                             title={h==="Live OI"?"Current OI from Schwab vs the max OI seen in the flow window. Green=position growing, red=fading. Click ⚡ Fetch above to populate.":h==="P/L%"?"Median entry from flow trades → current mark. Click ⚡ Fetch above to populate.":undefined}>
                             {h}{arrow}
@@ -7357,7 +7391,7 @@ export default function OptionsFlowDashboard() {
                           if (!r.found) return (
                             <tr key={r.sym} style={{ borderBottom:"1px solid "+P.bd+"10", opacity:0.4 }}>
                               <td style={{ padding:"5px", fontWeight:800, color:P.wh, textAlign:"center" }}>{r.sym}</td>
-                              <td colSpan={8} style={{ padding:"5px", color:P.dm, fontSize:9 }}>No flow found</td>
+                              <td colSpan={8} style={{ padding:"5px", color:P.dm, fontSize:10 }}>No flow found</td>
                             </tr>
                           );
                           const dirC = r.dir==="BULL"?P.bu:P.be;
@@ -7411,24 +7445,24 @@ export default function OptionsFlowDashboard() {
                                 </div>
                               </td>
                               <td style={{ padding:"5px", fontWeight:900, color:dirC, textAlign:"center" }}>{fmt(Math.abs(r.net))}</td>
-                              <td style={{ padding:"5px", fontSize:9, textAlign:"center" }}>
+                              <td style={{ padding:"5px", fontSize:10, textAlign:"center" }}>
                                 {tc && (<span>
                                   <span style={{ color:tcC, fontWeight:800 }}>{tc.cp==="C"?"C":"P"}</span>
-                                  {tcSide==="bid" && <span style={{ fontSize:7, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
+                                  {tcSide==="bid" && <span style={{ fontSize:10, color:tcC, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:3, background:tcC+"22", border:"1px solid "+tcC+"44" }}>BB</span>}
                                   <span style={{ color:P.wh, fontWeight:700, marginLeft:3 }}>${tc.K}</span>
                                   <span style={{ color:P.ac, marginLeft:3 }}>{tc.exp}</span>
                                   <span style={{ color:tc.hits>=10?P.ac:tc.hits>=5?P.ye:P.dm, fontWeight:800, marginLeft:4 }}>{tc.hits}x</span>
-                                  {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:8 }}>{fmt(tc.prem)}</span>}
+                                  {tc.prem>=1e6 && <span style={{ color:P.ye, marginLeft:3, fontSize:10 }}>{fmt(tc.prem)}</span>}
                                 </span>)}
                               </td>
                               {/* Live OI cell — current OI with delta vs flow-window max. */}
-                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
+                              <td style={{ padding:"5px", textAlign:"center", fontSize:10, fontFamily:"ui-monospace,monospace" }}
                                   onClick={e=>e.stopPropagation()}>
                                 {liveOI > 0 ? (
                                   <span>
                                     <span style={{ color:P.wh, fontWeight:700 }}>{liveOI.toLocaleString()}</span>
                                     {oiDelta !== null && (
-                                      <span style={{ color:deltaColor(oiDelta), fontWeight:800, marginLeft:4, fontSize:8 }}
+                                      <span style={{ color:deltaColor(oiDelta), fontWeight:800, marginLeft:4, fontSize:10 }}
                                             title={`Was ${baseOI.toLocaleString()} during flow window`}>
                                         {fmtDeltaOI(oiDelta)}
                                       </span>
@@ -7439,7 +7473,7 @@ export default function OptionsFlowDashboard() {
                                 )}
                               </td>
                               {/* P/L% cell — median entry from flow trades vs current mark. */}
-                              <td style={{ padding:"5px", textAlign:"center", fontSize:9, fontFamily:"ui-monospace,monospace" }}
+                              <td style={{ padding:"5px", textAlign:"center", fontSize:10, fontFamily:"ui-monospace,monospace" }}
                                   onClick={e=>e.stopPropagation()}>
                                 {pnl !== null ? (
                                   <span style={{ color:pnl>0?P.bu:pnl<0?P.be:P.dm, fontWeight:800 }}
@@ -7474,7 +7508,7 @@ export default function OptionsFlowDashboard() {
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                             <span style={{ fontSize:20, fontWeight:900, color:P.wh }}>{d.sym}</span>
-                            <span style={{ fontSize:8, color:P.dm }}>{capBand(d.mktcap)}</span>
+                            <span style={{ fontSize:10, color:P.dm }}>{capBand(d.mktcap)}</span>
                             <Tag c={dirC}>{d.dir}</Tag>
                             <span style={{ fontWeight:800, color:dirC, fontSize:14 }}>{fmt(Math.abs(d.net))}</span>
                             <span style={{ fontWeight:800, color:d.bullPct>=80?P.bu:d.bullPct<=20?P.be:P.dm, fontSize:11 }}>{d.bullPct}% bull</span>
@@ -7506,7 +7540,7 @@ export default function OptionsFlowDashboard() {
                         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
                           <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                             {["C/P","Strike","Exp","DTE","Hits","Vol","OI","Vol/OI","Entry","Now","P&L","Premium","Side"].map(h=>(
-                              <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:9, fontWeight:600 }}>{h}</th>
+                              <th key={h} style={{ padding:"4px 5px", textAlign:"left", color:P.mt, fontSize:10, fontWeight:600 }}>{h}</th>
                             ))}
                           </tr></thead>
                           <tbody>
@@ -7533,7 +7567,7 @@ export default function OptionsFlowDashboard() {
                                   <td style={{ padding:"4px 5px", fontWeight:700, color:now>0?P.wh:P.dm }}>{now>0?"$"+now.toFixed(2):"—"}</td>
                                   <td style={{ padding:"4px 5px", fontWeight:700, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                                   <td style={{ padding:"4px 5px", fontWeight:700, color:premC(c.prem) }}>{fmt(c.prem)}</td>
-                                  <td style={{ padding:"4px 5px", fontSize:9, color:sideC, fontWeight:700 }}>{cSide}</td>
+                                  <td style={{ padding:"4px 5px", fontSize:10, color:sideC, fontWeight:700 }}>{cSide}</td>
                                 </tr>
                               );
                             })}
@@ -7902,7 +7936,7 @@ export default function OptionsFlowDashboard() {
                           display:"flex", alignItems:"center", gap:5, transition:"all 0.15s"
                         }}>
                           <span>{d.label}</span>
-                          <span style={{ fontSize:8, opacity:0.7 }}>{d.count}</span>
+                          <span style={{ fontSize:10, opacity:0.7 }}>{d.count}</span>
                         </button>
                       );
                     })}
@@ -7943,11 +7977,11 @@ export default function OptionsFlowDashboard() {
                         {(fetchLoading && oiConfirmedOnly && !stillOpenComputable) ? "Still open \u00b7 fetching\u2026" : "Still open (all)"}
                       </button>
                       {oiConfirmError && (
-                        <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
+                        <span style={{ fontSize:10, color:P.be }} title={oiConfirmError}>err</span>
                       )}
                     </div>
                   </div>
-                  <div style={{ fontSize:9, color:P.mt, opacity:0.8, marginBottom:6 }}>
+                  <div style={{ fontSize:10, color:P.mt, opacity:0.8, marginBottom:6 }}>
                     Premiums reflect flow that <b>traded</b> in this range. For positions still open regardless of when they opened, switch to <b>Still open (all)</b>.
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
@@ -7996,7 +8030,7 @@ export default function OptionsFlowDashboard() {
                           ? (rangeTxt || `${activeDays} active`)
                           : `${rangeTxt} · ${activeDays} active day${activeDays!==1?"s":""}`;
                         return (
-                          <div style={{ fontSize:9, color:P.ac, marginTop:3, fontWeight:700 }}
+                          <div style={{ fontSize:10, color:P.ac, marginTop:3, fontWeight:700 }}
                                title={`Selected window${rangeTxt?` (${rangeTxt})`:""}: ${tk.s} printed directional flow on ${activeDays} of its ${winDays} trading day${winDays!==1?"s":""}. "Still open (all)" can also include positions opened before this window.`}>
                             {label}
                           </div>
@@ -8005,7 +8039,7 @@ export default function OptionsFlowDashboard() {
                       {/* Still-open net direction — shows if the net read
                           flips once you account for closures. */}
                       {stillOpenComputable && (
-                        <div style={{ fontSize:9, color:P.dm, marginTop:6, paddingTop:6, borderTop:"1px dashed "+P.bd }}>
+                        <div style={{ fontSize:10, color:P.dm, marginTop:6, paddingTop:6, borderTop:"1px dashed "+P.bd }}>
                           Still open:{" "}
                           <span style={{ color:dirOpen==="BULL"?P.bu:dirOpen==="BEAR"?P.be:P.dm, fontWeight:700 }}>
                             {dirOpen}
@@ -8027,7 +8061,7 @@ export default function OptionsFlowDashboard() {
                           the raw baseline instead. Lets the user compare at a
                           glance without toggling back and forth. */}
                       {oiConfirmMeta && (
-                        <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                        <div style={{ fontSize:10, color:P.dm, marginTop:6 }}>
                           {oiConfirmedOnly ? (
                             <>Raw: <span style={{ color:P.bu, fontWeight:700 }}>{fmt(ccB)}</span></>
                           ) : (
@@ -8036,7 +8070,7 @@ export default function OptionsFlowDashboard() {
                           )}
                         </div>
                       )}
-                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
                           <>
@@ -8058,7 +8092,7 @@ export default function OptionsFlowDashboard() {
                         <div style={{ width:(total>0?(ccRDisplay/total*100):0)+"%", height:"100%", background:P.be, borderRadius:2 }} />
                       </div>
                       {oiConfirmMeta && (
-                        <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                        <div style={{ fontSize:10, color:P.dm, marginTop:6 }}>
                           {oiConfirmedOnly ? (
                             <>Raw: <span style={{ color:P.be, fontWeight:700 }}>{fmt(ccR)}</span></>
                           ) : (
@@ -8067,7 +8101,7 @@ export default function OptionsFlowDashboard() {
                           )}
                         </div>
                       )}
-                      <div style={{ fontSize:9, color:P.dm, marginTop:6 }}>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:6 }}>
                         Still open:{" "}
                         {stillOpenComputable ? (
                           <>
@@ -8089,13 +8123,13 @@ export default function OptionsFlowDashboard() {
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                       {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
                     </button>
-                    <span style={{ fontSize:9, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
-                    {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                    <span style={{ fontSize:10, color:P.dm }}>Updates Now, P&L, OI, ΔOI, Greeks across both tables</span>
+                    {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
                     {/* C/P filter for the Top-Trades table — isolate the active
                         calls vs puts (green Calls / red Puts). Table-only; the
                         Net Direction / Bull / Bear cards above stay unfiltered. */}
                     <div style={{ marginLeft:"auto", display:"flex", gap:4, alignItems:"center" }}>
-                      <span style={{ fontSize:9, color:P.dm, marginRight:2 }}>Show</span>
+                      <span style={{ fontSize:10, color:P.dm, marginRight:2 }}>Show</span>
                       {[{k:"All",l:"All",c:P.ac},{k:"C",l:"Calls",c:P.bu},{k:"P",l:"Puts",c:P.be}].map(o => {
                         const on = searchCP===o.k;
                         return (
@@ -8165,7 +8199,7 @@ export default function OptionsFlowDashboard() {
                     fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                   {fetchLoading?"Fetching…":"⚡ Fetch Live OI"}
                 </button>
-                {status && <span style={{ fontSize:9, color:P.dm }}>{status}</span>}
+                {status && <span style={{ fontSize:10, color:P.dm }}>{status}</span>}
               </div>
             </div>
             {(() => {
@@ -8214,8 +8248,8 @@ export default function OptionsFlowDashboard() {
                 if (peakOI <= 0) { oiState = "—"; oiStateColor = P.mt; }
                 else if (retention < 0.15) { oiState = "CLOSED"; oiStateColor = P.be; }
                 else if (retention < 0.50) { oiState = "REDUCED"; oiStateColor = "#e06c3c"; }
-                else if (retention < 0.90) { oiState = "TRIMMED"; oiStateColor = "#c9a84c"; }
-                else if (isNewOI) { oiState = "NEW"; oiStateColor = "#3cb868"; }
+                else if (retention < 0.90) { oiState = "TRIMMED"; oiStateColor = "#dcbb5e"; }
+                else if (isNewOI) { oiState = "NEW"; oiStateColor = "#2faf68"; }
                 else if (nowOI >= peakOI) { oiState = "BUILDING"; oiStateColor = P.bu; }
                 else { oiState = "HELD"; oiStateColor = "#5b9bd5"; }
                 return { ...r, curOI, dOI: bestDOI, displayLastOI: bestLastOI, pctDOI, isNewOI, peakOI, nowOI, carriedPct, retention, oiState, oiStateColor };
@@ -8275,7 +8309,7 @@ export default function OptionsFlowDashboard() {
                   <tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {cols.map(c=>(
                       <th key={c.key} onClick={()=>c.key!=="cp"&&c.key!=="flow"&&toggleSort(c.key)}
-                        style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:oiSort.col2===c.key?P.ye:P.mt, fontSize:9, fontWeight:600,
+                        style={{ padding:"5px 4px", textAlign:c.key==="flow"?"center":"left", color:oiSort.col===c.key?P.ac:oiSort.col2===c.key?P.ye:P.mt, fontSize:10, fontWeight:600,
                           cursor:c.key!=="cp"&&c.key!=="flow"?"pointer":"default", userSelect:"none" }}
                         title={c.key==="doi"?"OI change from first day seen to last day in CSV":c.key==="firstOI"?"OI on first day this contract appeared":c.key==="lastOI"?"OI on most recent day":undefined}>
                         {c.label}{sortIcon(c.key)}
@@ -8303,18 +8337,18 @@ export default function OptionsFlowDashboard() {
                         <td style={{ padding:"5px 4px", fontWeight:700, color:r.trades>=5?P.ac:r.trades>=3?P.ye:P.dm }}>{r.trades}x</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.V.toLocaleString()}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.firstOI>0?r.firstOI.toLocaleString():"—"}</td>
-                        <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:7, color:P.ac, marginLeft:2 }}>live</span>}</td>
+                        <td style={{ padding:"5px 4px", color:P.wh, fontWeight:700 }}>{(r.displayLastOI||r.lastOI)>0?(r.displayLastOI||r.lastOI).toLocaleString():"—"}{r.curOI>0&&<span style={{ fontSize:10, color:P.ac, marginLeft:2 }}>live</span>}</td>
                         <td style={{ padding:"5px 4px", fontWeight:800, color:dOIC }}>{dOI!==0?(dOI>0?"+":"")+dOI.toLocaleString():"—"}</td>
                         <td style={{ padding:"5px 4px" }}
                           title={r.peakOI>0?"First seen "+(r.firstOI||0).toLocaleString()+" · peak "+r.peakOI.toLocaleString()+" · now "+(r.nowOI||0).toLocaleString()+" = "+r.carriedPct+"% carried over ("+(100-r.carriedPct)+"% closed from peak). Peak = max OI on flow days + live, so it can understate if flow missed the true peak day.":undefined}>
                           {r.oiState && r.oiState!=="—" ? (
                             <span style={{ display:"inline-flex", alignItems:"center", gap:4 }}>
-                              <span style={{ fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:3, background:r.oiStateColor+"22", color:r.oiStateColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{r.oiState}</span>
-                              {(r.oiState==="TRIMMED"||r.oiState==="REDUCED"||r.oiState==="CLOSED") && <span style={{ fontSize:9, color:r.oiStateColor, fontWeight:700 }}>{r.carriedPct}%</span>}
+                              <span style={{ fontSize:10, fontWeight:800, padding:"1px 5px", borderRadius:3, background:r.oiStateColor+"22", color:r.oiStateColor, letterSpacing:0.3, whiteSpace:"nowrap" }}>{r.oiState}</span>
+                              {(r.oiState==="TRIMMED"||r.oiState==="REDUCED"||r.oiState==="CLOSED") && <span style={{ fontSize:10, color:r.oiStateColor, fontWeight:700 }}>{r.carriedPct}%</span>}
                             </span>
                           ) : <span style={{ color:P.mt }}>—</span>}
                         </td>
-                        <td style={{ padding:"5px 4px", color:P.dm, fontSize:9 }}>{r.firstDate||"—"}</td>
+                        <td style={{ padding:"5px 4px", color:P.dm, fontSize:10 }}>{r.firstDate||"—"}</td>
                         <td style={{ padding:"5px 4px", color:P.dm }}>{r.DTE}d</td>
                       </tr>
                     );
@@ -8418,7 +8452,7 @@ export default function OptionsFlowDashboard() {
                     {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
                 )}
-                <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{filteredActive.length} active contracts</span>
+                <span style={{ fontSize:10, color:P.dm, marginLeft:8 }}>{filteredActive.length} active contracts</span>
               </div>
             </Card>
             {cappedActive.length > 0 ? (
@@ -8452,7 +8486,7 @@ export default function OptionsFlowDashboard() {
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                       {fetchLoading?"Fetching…":"⚡ Fetch Live Prices"}
                     </button>
-                    {status && <span style={{ fontSize:9, color:P.dm, marginLeft:8 }}>{status}</span>}
+                    {status && <span style={{ fontSize:10, color:P.dm, marginLeft:8 }}>{status}</span>}
                   </div>
                 </div>
                 <table style={{ width:"90%", margin:"0 auto", borderCollapse:"collapse", fontSize:10, tableLayout:"fixed" }}>
@@ -8473,7 +8507,7 @@ export default function OptionsFlowDashboard() {
                   <thead><tr style={{ borderBottom:"1px solid "+P.bd }}>
                     {[{label:"Ticker",key:"ticker"},{label:"Exp",key:"exp"},{label:"Strike",key:"strike"},{label:"C/P",key:""},{label:"Live OI",key:"oi"},{label:"Grade",key:"grade"},{label:"Entry",key:"entry"},{label:"Now",key:"now"},{label:"P&L",key:"pnl"},{label:"Peak",key:"peak"},{label:"Trend",key:""},{label:"Added",key:"added"}].map(h=>(
                       <th key={h.label} onClick={()=>h.key&&trkToggle(h.key)}
-                        style={{ padding:"5px 5px", textAlign:"center", color:h.key?trkColor(h.key):P.mt, fontSize:9, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
+                        style={{ padding:"5px 5px", textAlign:"center", color:h.key?trkColor(h.key):P.mt, fontSize:10, fontWeight:600, cursor:h.key?"pointer":"default", userSelect:"none" }}
                         title={h.label==="Peak"?"Highest % gain from entry":undefined}>{h.label}{h.key?trkIcon(h.key):""}</th>
                     ))}
                   </tr></thead>
@@ -8517,12 +8551,12 @@ export default function OptionsFlowDashboard() {
                       const isExit = oiDropPct >= 30 && peakOI >= 100;
                       return (
                         <Fragment key={p.id||i}>
-                        {showSep && <tr><td colSpan={12} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:8, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
+                        {showSep && <tr><td colSpan={12} style={{ padding:"6px 0", textAlign:"center" }}><div style={{ display:"flex", alignItems:"center", gap:8 }}><div style={{ flex:1, height:1, background:P.be+"40" }}/><span style={{ fontSize:10, fontWeight:700, color:P.be, letterSpacing:1 }}>▼ BOTTOM {cappedActive.length - activeResult.split}</span><div style={{ flex:1, height:1, background:P.be+"40" }}/></div></td></tr>}
                         <tr onClick={()=>{ fetchContractHistory(p.sym,p.cp,p.strike,p.exp); setSelectedItem({sym:p.sym,cp:p.cp,K:p.strike,exp:p.exp}); }}
                           style={{ borderBottom:"1px solid "+P.bd+"10", textAlign:"center", cursor:"pointer" }}
                           onMouseEnter={e=>e.currentTarget.style.background=P.ac+"08"}
                           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:7, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c", verticalAlign:"super" }}>EXIT</span>}</td>
+                          <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>{p.sym}{isExit && <span style={{ fontSize:10, fontWeight:800, marginLeft:3, padding:"1px 4px", borderRadius:2, background:"#df464633", color:"#df4646", verticalAlign:"super" }}>EXIT</span>}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:P.wh }}>{p.exp}</td>
                           <td style={{ padding:"5px 5px", fontWeight:800, color:P.wh }}>${p.strike}</td>
                           <td style={{ padding:"5px 5px" }}><Tag c={p.cp==="C"?P.bu:P.be}>{p.cp}</Tag></td>
@@ -8533,7 +8567,7 @@ export default function OptionsFlowDashboard() {
                           <td style={{ padding:"5px 5px", fontWeight:800, color:pnlC }}>{now>0?(pnl>=0?"+":"")+pnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontWeight:700, color:peakPnl>0?(peakRetrace?"#FFB300":P.bu):P.dm, fontSize:peakRetrace?9:10 }}>{peakPrice>0?"↑"+(peakPnl>=0?"+":"")+peakPnl.toFixed(1)+"%":"—"}</td>
                           <td style={{ padding:"5px 5px", fontSize:14, fontWeight:800, color:trendC }}>{trend}</td>
-                          <td style={{ padding:"5px 5px", color:P.dm, fontSize:9 }}>{p.dateSaved||"—"}</td>
+                          <td style={{ padding:"5px 5px", color:P.dm, fontSize:10 }}>{p.dateSaved||"—"}</td>
                         </tr>
                         </Fragment>
                       );
@@ -8552,7 +8586,7 @@ export default function OptionsFlowDashboard() {
         {/* Watchlist */}
         {tab==="Watchlist" && (() => {
           const TIERS = ["FULL","HALF","PAPER MAX","PAPER","WATCH","POST-ER","DQ"];
-          const tierC = (t) => t==="FULL"?"#3cb868":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#c9a84c":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
+          const tierC = (t) => t==="FULL"?"#2faf68":t==="HALF"?"#ff9800":t==="PAPER MAX"?"#dcbb5e":t==="PAPER"?"#29b6f6":t==="WATCH"?"#78909c":t==="POST-ER"?"#ff6d00":"#616161";
           const scoreC = (s) => s>=9?P.bu:s>=7?"#ff9800":s>=5?P.ye:P.be;
 
           const REMOVE_REASONS = ["Dirty flow","Arb/Hedge","Deep ITM/OTM","Low conviction","Already moved","Bad R/R","Mega cap noise","Other"];
@@ -8600,19 +8634,19 @@ export default function OptionsFlowDashboard() {
                 <div style={{ width:120, flexShrink:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                     <span style={{ fontSize:14, fontWeight:900, color:P.wh }}>{item.sym}</span>
-                    {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
-                    {item.er && <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00" }}>ER</span>}
+                    {item.cap && item.cap!=="Unknown" && <span style={{ fontSize:10, fontWeight:700, color:P.dm, background:P.al, padding:"1px 4px", borderRadius:2 }}>{item.cap}</span>}
+                    {item.er && <span style={{ fontSize:10, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#ff6d0033", color:"#ff6d00" }}>ER</span>}
                     {(()=>{ const _pick = topFlowPicks.active.find(p=>p.sym===item.sym&&p.cp===item.cp&&parseFloat(p.strike)===parseFloat(item.strike)&&p.exp===item.exp);
                       const _oiH = _pick ? (_pick.history||[]).filter(h=>(h.oi||0)>0) : [];
                       const _curOI = _oiH.length>0 ? _oiH[_oiH.length-1].oi : 0;
                       const _peakOI = _oiH.length>0 ? Math.max(..._oiH.map(h=>h.oi)) : 0;
                       const _isExit = _peakOI>=100 && _curOI>0 && (_peakOI-_curOI)/_peakOI*100>=30;
-                      return _isExit ? <span style={{ fontSize:7, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#e74c3c33", color:"#e74c3c" }}>EXIT</span> : null;
+                      return _isExit ? <span style={{ fontSize:10, fontWeight:800, padding:"1px 4px", borderRadius:2, background:"#df464633", color:"#df4646" }}>EXIT</span> : null;
                     })()}
                     {(()=>{ const conv = FD?.CONV?.find(c=>c.sym===item.sym&&c.cp===item.cp&&String(c.K)===String(item.strike)&&c.exp===item.exp);
-                      return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:6, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
-                        background:p.type==="IV_SURGE"?"#c9a84c22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#3cb86822":"#29b6f622",
-                        color:p.type==="IV_SURGE"?"#c9a84c":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#3cb868":"#29b6f6"
+                      return (conv?.patterns||[]).map((p,pi)=><span key={pi} style={{ fontSize:10, fontWeight:800, marginLeft:2, padding:"1px 4px", borderRadius:2,
+                        background:p.type==="IV_SURGE"?"#dcbb5e22":p.type==="SIDE_FLIP"?"#ff980022":p.type==="HEAVY"?"#2faf6822":"#29b6f622",
+                        color:p.type==="IV_SURGE"?"#dcbb5e":p.type==="SIDE_FLIP"?"#ff9800":p.type==="HEAVY"?"#2faf68":"#29b6f6"
                       }}>{p.type==="IV_SURGE"?"IV↑":p.type==="SIDE_FLIP"?"FLIP":p.type==="HEAVY"?"HEAVY":"PX↑"}</span>);
                     })()}
                   </div>
@@ -8626,7 +8660,7 @@ export default function OptionsFlowDashboard() {
                       <span style={{ fontSize:12, fontWeight:800, color:scoreC(item.score) }}>{Math.round(item.score*10)}%</span>
                     )}
                     {item.convScore > 0 && (
-                      <span style={{ fontSize:9, color:item.isExit?P.be:P.dm, marginLeft:4, fontWeight:600, cursor:"help" }}
+                      <span style={{ fontSize:10, color:item.isExit?P.be:P.dm, marginLeft:4, fontWeight:600, cursor:"help" }}
                         title={item.isExit
                           ? `Raw clustering score: ${Math.round(item.convScore).toLocaleString()} → ${Math.round(item.rankScore).toLocaleString()} (EXIT penalty ×0.4 applied). This is what the dedup uses for ranking — higher = beats other contracts on this ticker.`
                           : `Raw clustering score (used for dedup ranking): ${Math.round(item.convScore).toLocaleString()}. Combines grade base + hits×20 + premium/5000 + V/OI bonus + single-sweep & ticker-heat bonuses.`}>
@@ -8646,9 +8680,9 @@ export default function OptionsFlowDashboard() {
                 {/* Strike/Exp */}
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, fontWeight:700, color:item.cp==="C"?P.bu:P.be }}>
-                    {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:8, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
+                    {item.cp==="C"?"CALL":"PUT"} ${item.strike} {item.exp}{item.side&&<span style={{ fontSize:10, fontWeight:800, marginLeft:5, padding:"1px 5px", borderRadius:3, background:item.side==="AA"?P.ac+"22":item.side==="BB"?P.be+"22":P.mt+"22", color:item.side==="AA"?P.ac:item.side==="BB"?P.be:P.mt }}>{item.side}</span>}
                   </div>
-                  <div style={{ display:"flex", gap:8, marginTop:3, fontSize:9 }}>
+                  <div style={{ display:"flex", gap:8, marginTop:3, fontSize:10 }}>
                     {item.volume>0 && <span style={{ color:P.dm }}>Vol: <span style={{ color:P.wh, fontWeight:700 }}>{item.volume.toLocaleString()}</span></span>}
                     {item.oi>0 && <span style={{ color:P.dm }}>OI: <span style={{ color:P.wh, fontWeight:700 }}>{item.oi.toLocaleString()}</span></span>}
                     {item.volOI>0 && <span style={{ color:item.volOI>=3?P.bu:item.volOI>=1?P.ye:P.dm, fontWeight:700 }}>{item.volOI.toFixed(1)}x</span>}
@@ -8664,9 +8698,9 @@ export default function OptionsFlowDashboard() {
                   ) : null}
                   {isEditing && (item.actionLog||[]).length>0 && (
                     <div style={{ marginTop:4, padding:"4px 6px", background:P.al, borderRadius:4, maxHeight:80, overflowY:"auto" }}>
-                      <div style={{ fontSize:8, fontWeight:700, color:P.mt, marginBottom:2 }}>ACTION LOG</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:P.mt, marginBottom:2 }}>ACTION LOG</div>
                       {(item.actionLog||[]).slice(-5).reverse().map((a,ai)=>(
-                        <div key={ai} style={{ fontSize:8, color:P.dm, lineHeight:1.5 }}>
+                        <div key={ai} style={{ fontSize:10, color:P.dm, lineHeight:1.5 }}>
                           {a.action==="tier_change" && <span><span style={{ color:P.ye }}>TIER</span> {a.from} → <span style={{ fontWeight:700, color:P.wh }}>{a.to}</span></span>}
                           {a.action==="score_override" && <span><span style={{ color:P.ac }}>SCORE</span> {Math.round(a.from*10)}% → <span style={{ fontWeight:700, color:P.wh }}>{Math.round(a.to*10)}%</span></span>}
                           {a.action==="notes_added" && <span style={{ color:P.dm }}>Notes added</span>}
@@ -8683,7 +8717,7 @@ export default function OptionsFlowDashboard() {
                   <span style={{ fontSize:11 }}><span style={{ color:item.hits>=10?P.ac:item.hits>=5?P.ye:P.dm, fontWeight:700 }}>{item.hits}x</span> · <span style={{ color:premC(item.prem), fontWeight:800 }}>{fmt(item.prem)}</span></span>
                   {isEditing && !isRemoving && (
                     <button onClick={e=>{e.stopPropagation(); setWlRemoving(key); setWlRemoveReason("");}}
-                      style={{ fontSize:8, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
+                      style={{ fontSize:10, color:P.be, background:"transparent", border:"1px solid "+P.be+"40", borderRadius:3, padding:"1px 6px", cursor:"pointer", fontFamily:"inherit", fontWeight:700, marginTop:2 }}>✕ Remove</button>
                   )}
                 </div>
                 {/* P&L Column */}
@@ -8705,7 +8739,7 @@ export default function OptionsFlowDashboard() {
                   return (
                     <div style={{ borderLeft:"1px solid "+P.bd, paddingLeft:10, minWidth:75, textAlign:"right" }}>
                       <div style={{ fontSize:13, fontWeight:900, color:pnlC }}><span style={{ fontSize:11 }}>{arrow}</span> {pnl>=0?"+":""}{pnl.toFixed(1)}%</div>
-                      <div style={{ fontSize:9, color:P.dm, marginTop:2 }}>${entry.toFixed(2)} → <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span></div>
+                      <div style={{ fontSize:10, color:P.dm, marginTop:2 }}>${entry.toFixed(2)} → <span style={{ color:P.wh, fontWeight:700 }}>${now.toFixed(2)}</span></div>
                     </div>
                   );
                 })()}
@@ -8718,7 +8752,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:6 }}>
                     {REMOVE_REASONS.map(r=>(
                       <button key={r} onClick={()=>confirmRemove(r)}
-                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:9, fontWeight:600, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}
+                        style={{ padding:"3px 10px", borderRadius:4, border:"1px solid "+P.be+"30", background:P.al, color:P.dm, fontSize:10, fontWeight:600, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}
                         onMouseEnter={e=>{e.currentTarget.style.background=P.be+"22";e.currentTarget.style.color=P.be;}}
                         onMouseLeave={e=>{e.currentTarget.style.background=P.al;e.currentTarget.style.color=P.dm;}}>{r}</button>
                     ))}
@@ -8729,7 +8763,7 @@ export default function OptionsFlowDashboard() {
                       placeholder="Or type a custom reason..."
                       style={{ flex:1, background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}/>
                     <button onClick={()=>{setWlRemoving(null); setWlRemoveReason("");}}
-                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:9, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>Cancel</button>
+                      style={{ padding:"4px 10px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>Cancel</button>
                   </div>
                 </div>
               )}
@@ -8762,7 +8796,7 @@ export default function OptionsFlowDashboard() {
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #c9a84c60", background:"transparent", color:"#c9a84c", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #dcbb5e60", background:"transparent", color:"#dcbb5e", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
@@ -8775,11 +8809,11 @@ export default function OptionsFlowDashboard() {
                   {isAdmin && (
                     <div style={{ display:"flex", alignItems:"center", gap:2 }}>
                       <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
-                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:9, padding:"5px 6px", fontFamily:"inherit" }}>
+                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:10, padding:"5px 6px", fontFamily:"inherit" }}>
                         {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                       </select>
                       <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
-                        style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:9, padding:"5px 4px", fontFamily:"inherit" }}>
+                        style={{ background:P.al, border:"1px solid #5865F222", color:P.wh, fontSize:10, padding:"5px 4px", fontFamily:"inherit" }}>
                         {[5,10,15,20,25].map(n=><option key={n} value={n}>Top {n}</option>)}
                         <option value={99}>All</option>
                       </select>
@@ -8914,7 +8948,7 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{capBullIdx.length} tickers</span>
+                    <span style={{ fontSize:10, color:P.dm }}>{capBullIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     {filtBull.length>0 ? capBullIdx.map(i=>renderItem(filtBull[i], wlBull.indexOf(filtBull[i]),"bull")) : (
@@ -8935,7 +8969,7 @@ export default function OptionsFlowDashboard() {
                 <Card>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                    <span style={{ fontSize:9, color:P.dm }}>{capBearIdx.length} tickers</span>
+                    <span style={{ fontSize:10, color:P.dm }}>{capBearIdx.length} tickers</span>
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     {filtBear.length>0 ? capBearIdx.map(i=>renderItem(filtBear[i], wlBear.indexOf(filtBear[i]),"bear")) : (
@@ -8959,7 +8993,7 @@ export default function OptionsFlowDashboard() {
                   <Card>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <div style={{ fontSize:11, fontWeight:800, color:P.bu, letterSpacing:1 }}>▲ BULL WATCHLIST</div>
-                      <span style={{ fontSize:9, color:P.dm }}>{filtBull.length} tickers</span>
+                      <span style={{ fontSize:10, color:P.dm }}>{filtBull.length} tickers</span>
                     </div>
                     {renderCol(left, filtBull, wlBull, "bull")}
                   </Card>
@@ -8983,7 +9017,7 @@ export default function OptionsFlowDashboard() {
                   <Card>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>▼ BEAR WATCHLIST</div>
-                      <span style={{ fontSize:9, color:P.dm }}>{filtBear.length} tickers</span>
+                      <span style={{ fontSize:10, color:P.dm }}>{filtBear.length} tickers</span>
                     </div>
                     {renderCol(left, filtBear, wlBear, "bear")}
                   </Card>
@@ -9047,18 +9081,18 @@ export default function OptionsFlowDashboard() {
                   <button onClick={()=>addFromSugg(c,side)}
                     style={{ padding:"2px 8px", borderRadius:3, border:"none", background:side==="bull"?P.bu+"22":P.be+"22", color:side==="bull"?P.bu:P.be, fontSize:10, fontWeight:800, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>+</button>
                   <span style={{ fontSize:12, fontWeight:800, color:P.wh, minWidth:50 }}>{c.sym}</span>
-                  {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:7, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
+                  {c._cap && c._cap!=="Unknown" && <span style={{ fontSize:10, fontWeight:700, color:P.dm, background:P.cd, padding:"1px 4px", borderRadius:2 }}>{c._cap}</span>}
                   <span style={{ fontSize:10, fontWeight:800, color:c._score>=7?P.bu:c._score>=5?"#ff9800":P.ye }}>{Math.round(c._score*10)}%</span>
                   {(c.score||0) > 0 && (
-                    <span style={{ fontSize:8, color:P.dm, fontWeight:600, cursor:"help" }}
+                    <span style={{ fontSize:10, color:P.dm, fontWeight:600, cursor:"help" }}
                       title={`Raw clustering score (dedup ranker): ${Math.round(c.score).toLocaleString()}. Compare to watchlist items' raw scores to see why this didn't make the top-20.`}>
                       [{Math.round(c.score).toLocaleString()}]
                     </span>
                   )}
                   <span style={{ fontSize:10, color:c.cp==="C"?P.bu:P.be }}>{c.cp==="C"?"C":"P"} ${c.K||c.strike} {c.exp}</span>
                   <Tag c={GRADE_COLORS[c.grade]||P.mt}>{c.grade}</Tag>
-                  <span style={{ fontSize:9, color:P.dm }}>{c.hits}x · {fmt(c.prem)}</span>
-                  <span style={{ fontSize:9, color:P.dm, marginLeft:"auto" }}>{c.side}</span>
+                  <span style={{ fontSize:10, color:P.dm }}>{c.hits}x · {fmt(c.prem)}</span>
+                  <span style={{ fontSize:10, color:P.dm, marginLeft:"auto" }}>{c.side}</span>
                 </div>
               );
 
@@ -9089,15 +9123,15 @@ export default function OptionsFlowDashboard() {
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                   <div style={{ fontSize:11, fontWeight:800, color:P.be, letterSpacing:1 }}>✕ REMOVED ({wlRemoved.length})</div>
-                  <span style={{ fontSize:9, color:P.dm }}>Saved with watchlist for pattern analysis</span>
+                  <span style={{ fontSize:10, color:P.dm }}>Saved with watchlist for pattern analysis</span>
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   {wlRemoved.map((r,i)=>(
                     <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"5px 14px", background:P.al, borderRadius:4, opacity:0.7 }}>
                       <span style={{ fontSize:11, fontWeight:800, color:P.dm, minWidth:50 }}>{r.sym}</span>
-                      <span style={{ fontSize:9, color:r.cp==="C"?P.bu:P.be }}>{r.cp==="C"?"C":"P"} ${r.strike} {r.exp}</span>
-                      <span style={{ fontSize:9, fontWeight:700, color:P.be, background:P.be+"15", padding:"1px 6px", borderRadius:3 }}>{r.removeReason}</span>
-                      <span style={{ fontSize:8, color:P.dm, marginLeft:"auto" }}>{r.grade} · {r.hits}x · {fmt(r.prem)}</span>
+                      <span style={{ fontSize:10, color:r.cp==="C"?P.bu:P.be }}>{r.cp==="C"?"C":"P"} ${r.strike} {r.exp}</span>
+                      <span style={{ fontSize:10, fontWeight:700, color:P.be, background:P.be+"15", padding:"1px 6px", borderRadius:3 }}>{r.removeReason}</span>
+                      <span style={{ fontSize:10, color:P.dm, marginLeft:"auto" }}>{r.grade} · {r.hits}x · {fmt(r.prem)}</span>
                     </div>
                   ))}
                 </div>
@@ -9108,7 +9142,7 @@ export default function OptionsFlowDashboard() {
         })()}
 
         <div style={{ marginTop:16, padding:"10px 0", borderTop:"1px solid "+P.bd, display:"flex", justifyContent:"space-between" }}>
-          <span style={{ fontSize:9, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
+          <span style={{ fontSize:10, color:P.mt }}>Options Flow Dashboard · {D.dateRange}</span>
         </div>
         </>)}
 

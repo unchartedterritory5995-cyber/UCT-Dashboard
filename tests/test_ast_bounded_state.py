@@ -832,56 +832,92 @@ def test_the_answer_RESUMES_the_bar_after_the_hole_closes():
 # 3. ⭐ RAILS WHOSE SUBJECT IS THE SHARED MANIFEST
 # ═══════════════════════════════════════════════════════════════════════════ #
 
-def test_an_entry_READS_THE_BARS_exactly_when_it_declares_no_series_argument():
-    """⭐⭐ THE INVARIANT BEHIND `reads: "bars"`, DERIVED FROM THE MANIFEST RATHER
-    THAN FROM THE NAMES THAT HAVE IT TODAY.
+def _bar_reader_offenders(functions, fields):
+    """The two things a `reads: "bars"` declaration must never be, BY NAME.
 
-    `_functions_bar_readers` argues the rule out loud: `_bind_shipped` fabricates
-    `t` as a bar INDEX precisely because it packs bars out of argument COLUMNS, so
-    an entry with no columns to pack is handed the real bars instead. Both halves
-    bite. An entry with a series argument that ALSO read the bars would have two
-    sources for one series; an entry with NO series argument that did NOT read
-    them is a function of its integers alone — a constant column.
+    ⚰️⚰️ THIS WAS A BICONDITIONAL — *"an entry READS THE BARS exactly when it
+    declares no series argument"* — AND THE FORWARD HALF WAS AN OVER-CLAIM. Its
+    stated reason was that *"an entry with a series argument that ALSO read the
+    bars would have two sources for one series"*, and that is true only when the
+    series slot NAMES A BAR FIELD: `atr(high, low, close, 14)` reading the bars
+    would silently ignore `atr(high, low, sma(close, 3), 14)`, which
+    `_functions_indicators` designs for on purpose. It is NOT true of a slot that
+    names something the bars do not carry. `cumFrom(source, anchorEpoch, maxBars)`
+    takes an arbitrary SUMMAND and uses the bars for `t` alone, so nothing is
+    sourced twice — and the biconditional reported it as a violation.
 
-    ⛔ A SWEEP, NOT A LIST. A fourth bar reader lands covered on the day it lands,
-    in both lanes, with no edit here.
+    ⭐ SO THE RULE IS THE HAZARD, STATED EXACTLY, AND IT IS STILL DERIVED FROM
+    THE MANIFEST: a bar reader may not declare a series slot whose ROLE names a
+    BAR FIELD (that is the two-sources defect), and an entry with NO series
+    argument must read the bars (otherwise it is a function of its integers
+    alone — a constant column). The bar-field set is `TABLE["series"]`'s own
+    keys, so a sixth field is covered the day it is declared.
+
+    ⛔ A SWEEP, NOT A LIST, in both directions and both lanes.
     """
-    wrong = []
-    for name, spec in ast_table.TABLE["functions"].items():
+    out = []
+    for name, spec in functions.items():
         reads_bars = spec.get("reads") == "bars"
-        has_series = any(k != "int" for k in spec["args"])
-        if reads_bars and has_series:
-            wrong.append(f"{name}: reads the bars AND declares a series argument")
-        if not reads_bars and not has_series:
-            wrong.append(f"{name}: declares no series argument and does not read the bars")
-    assert not wrong, wrong
+        roles = list(spec.get("argRoles") or ())
+        series_slots = [i for i, k in enumerate(spec["args"]) if k != "int"]
+        if not reads_bars and not series_slots:
+            out.append(f"{name}:neither")
+        if reads_bars:
+            for i in series_slots:
+                role = roles[i] if i < len(roles) else None
+                if role in fields:
+                    out.append(f"{name}:two-sources:{role}")
+    return out
+
+
+def test_a_bar_reader_never_ALSO_names_a_bar_field_and_an_argumentless_entry_reads_them():
+    """⭐⭐ THE INVARIANT BEHIND `reads: "bars"`, DERIVED FROM THE MANIFEST RATHER
+    THAN FROM THE NAMES THAT HAVE IT TODAY. See `_bar_reader_offenders` for the
+    ruling and for the half that was corrected.
+    """
+    fields = set(ast_table.TABLE["series"])
+    assert fields, "the manifest declares no bar fields — this rail has no subject"
+    assert _bar_reader_offenders(ast_table.TABLE["functions"], fields) == []
     declared = set(ast_table.bar_readers())
-    assert declared == {n for n, s in ast_table.TABLE["functions"].items()
-                        if not any(k != "int" for k in s["args"])}
+    # ⭐ EVERY ARGUMENTLESS ENTRY IS STILL A BAR READER — the half that survives,
+    # asserted as a SUBSET relation now rather than an equality, because the
+    # equality was the over-claim: `cumFrom` reads the bars AND takes a series.
+    assert {n for n, s in ast_table.TABLE["functions"].items()
+            if not any(k != "int" for k in s["args"])} <= declared
     assert len(declared) >= 3, sorted(declared)
+    # ⚠️ AND THE CORRECTION IS NON-VACUOUS: at least one bar reader really does
+    # take a series, or the sentence above is describing a table it does not have.
+    with_series = sorted(n for n in declared
+                         if any(k != "int" for k in ast_table.TABLE["functions"][n]["args"]))
+    assert with_series, (
+        "no bar reader takes a series argument, so the widened rule is untested — "
+        "restore the biconditional rather than leaving a rule nothing exercises")
 
 
 def test_the_bar_reader_invariant_CATCHES_a_planted_violation_of_either_half():
     """⛔ THE NON-VACUITY CONTROL FOR THE SWEEP ABOVE. A rule that holds over
-    fifty-seven entries proves nothing unless breaking it is visible, and BOTH
-    halves have to be — the sweep above is two rules wearing one assertion."""
-    def offenders(functions):
-        out = []
-        for name, spec in functions.items():
-            reads_bars = spec.get("reads") == "bars"
-            has_series = any(k != "int" for k in spec["args"])
-            if reads_bars and has_series:
-                out.append(f"{name}:both")
-            if not reads_bars and not has_series:
-                out.append(f"{name}:neither")
-        return out
+    every entry proves nothing unless breaking it is visible, and BOTH halves
+    have to be — the sweep above is two rules wearing one assertion.
 
+    ⭐ AND A THIRD PLANT IS THE POINT OF THE CORRECTION: a bar reader taking a
+    GENERIC series must stay legal, or the widened rule has quietly become the
+    biconditional again.
+    """
+    fields = set(ast_table.TABLE["series"])
     real = dict(ast_table.TABLE["functions"])
-    assert offenders(real) == []
-    both = dict(real, zz_both={"args": ["series", "int"], "reads": "bars"})
-    assert "zz_both:both" in offenders(both)
-    neither = dict(real, zz_neither={"args": ["int"]})
-    assert "zz_neither:neither" in offenders(neither)
+    assert _bar_reader_offenders(real, fields) == []
+    field = sorted(fields)[0]
+    two_sources = dict(real, zz_both={
+        "args": ["series", "int"], "argRoles": [field, "period"], "reads": "bars"})
+    assert f"zz_both:two-sources:{field}" in _bar_reader_offenders(two_sources, fields)
+    neither = dict(real, zz_neither={"args": ["int"], "argRoles": ["period"]})
+    assert "zz_neither:neither" in _bar_reader_offenders(neither, fields)
+    # ⭐ THE LEGAL SHAPE STAYS LEGAL — `cumFrom`'s shape, planted under another
+    # name so this control fails if the rule narrows back.
+    generic = dict(real, zz_generic={
+        "args": ["series", "int"], "argRoles": ["source", "period"], "reads": "bars"})
+    assert [o for o in _bar_reader_offenders(generic, fields)
+            if o.startswith("zz_generic")] == []
 
 
 def bounded_state_names():

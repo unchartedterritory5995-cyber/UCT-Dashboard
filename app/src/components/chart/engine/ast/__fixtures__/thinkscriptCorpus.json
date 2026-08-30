@@ -22,7 +22,7 @@
     "refusal": {
       "guard": "thinkscript:state",
       "line": 11,
-      "column": 21,
+      "column": 5,
       "token": "ST"
     },
     "downstream": null
@@ -137,10 +137,10 @@
       "RSI_Threshold=25"
     ],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 11,
       "column": 22,
       "token": "BollingerBands"
@@ -256,10 +256,10 @@
     ],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 8,
       "column": 15,
       "token": "SimpleMovingAvg"
@@ -316,8 +316,8 @@
     },
     "refusal": {
       "guard": "thinkscript:state",
-      "line": 19,
-      "column": 32,
+      "line": 18,
+      "column": 5,
       "token": "Go"
     },
     "downstream": null
@@ -430,10 +430,10 @@
     "ignoredLines": [],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 1,
       "column": 1,
       "token": "RSI"
@@ -459,8 +459,8 @@
     "refusal": {
       "guard": "thinkscript:state",
       "line": 9,
-      "column": 33,
-      "token": "x"
+      "column": 31,
+      "token": "+"
     },
     "downstream": null
   },
@@ -496,10 +496,10 @@
     ],
     "folded": [],
     "perOutputRefusals": {
-      "thinkscript:study-ref": 1
+      "thinkscript:arity": 1
     },
     "refusal": {
-      "guard": "thinkscript:study-ref",
+      "guard": "thinkscript:arity",
       "line": 4,
       "column": 31,
       "token": "MovAvgExponential"
@@ -661,8 +661,7 @@
     ],
     "perOutputRefusals": {
       "thinkscript:time": 1,
-      "thinkscript:account": 1,
-      "thinkscript:state": 1
+      "thinkscript:account": 2
     },
     "refusal": {
       "guard": "thinkscript:account",
@@ -682,6 +681,7 @@
   "_guardsFired": [
     "thinkscript:account",
     "thinkscript:aggregation",
+    "thinkscript:arity",
     "thinkscript:block",
     "thinkscript:fold",
     "thinkscript:state",

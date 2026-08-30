@@ -143,7 +143,7 @@
   border: 1px solid var(--menu-border, #26262a);
   border-radius: 10px;
   box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
-  font-family: var(--font-sans);
+  font-family: 'Instrument Sans', sans-serif;
   color: var(--menu-text, #e6e6e8);
   overflow: hidden;
   animation: liPanelIn 110ms ease-out;
@@ -208,9 +208,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  /* Readable grey (was too dim) — derived from the menu text so it reads on black. */
+  /* Muted grey matched to the drawing-tools + Drawing Boards menus: --menu-text @ 0.45. */
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.62;
+  opacity: 0.6;
 }
 .rowFactor {
   flex-shrink: 0;
@@ -233,7 +233,7 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--menu-text, #e6e6e8);
-  opacity: 0.55;
+  opacity: 0.6;
 }
 .rowBest {
   flex-shrink: 0;

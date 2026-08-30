@@ -65,4 +65,21 @@ describe('BreadthViewsCustomizePanel', () => {
     fireEvent.change(screen.getByLabelText('Max spokes'), { target: { value: '8' } })
     expect(props.onSetOption).toHaveBeenCalledWith('maxSpokes', 8)
   })
+
+  it('renders no metric checklist when the view has no eligible metrics', () => {
+    const { queryByText, getByLabelText, container } = render(
+      <BreadthViewsCustomizePanel
+        viewLabel="Regime Clock" metrics={[]} visibleKeys={new Set()}
+        optionsSchema={[{ name: 'rocWindow', label: 'Momentum window', type: 'select', default: 20,
+                          choices: [{ value: 10, label: '10 days' }, { value: 20, label: '20 days' }] }]}
+        options={{ rocWindow: 20 }} activePreset="Custom" presetNames={['Default', 'Custom']} isDefaultActive={false}
+        onToggleVisible={() => {}} onSetOption={() => {}} onSavePreset={() => {}}
+        onRenamePreset={() => {}} onDeletePreset={() => {}} onSwitchPreset={() => {}}
+        onResetActive={() => {}} onClose={() => {}} />
+    )
+    expect(container.querySelectorAll('input[type="checkbox"]').length).toBe(0)
+    expect(queryByText(/of 0 visible/)).toBeNull()
+    expect(getByLabelText('Momentum window')).toBeTruthy()  // options still shown
+    expect(queryByText('Regime Clock options')).toBeTruthy()  // view-options label in footer
+  })
 })

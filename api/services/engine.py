@@ -2711,6 +2711,58 @@ def get_candidates() -> dict:
     return copy.deepcopy(_EMPTY_CANDIDATES)
 
 
+def candidate_rows(*buckets: str) -> list[dict]:
+    """Every scanner candidate row, flat. THE one place that knows the envelope.
+
+    ⛔⛔ `get_candidates()` RETURNS THE ENVELOPE, NOT THE BUCKETS —
+    `{generated_at, market_date, counts, candidates: {pullback_ma: [...]}}` —
+    and rows key on `ticker`. FOUR readers each re-derived that shape by hand
+    and THREE of them got it wrong, every one failing to a confident-looking
+    empty list rather than an error:
+
+      * `ai_search._ctx_candidates`  — read the top level ⇒ "" on every call
+      * `bars_prewarm` L446          — read the top level ⇒ warmed 0 tickers
+      * `bars_seeder`  L123          — read the top level ⇒ warmed 0 tickers,
+                                        AND asked for `gappers`, a bucket that
+                                        has never existed (`gapper_news`)
+      * `voice_market_tools.get_scanner_candidates` — the one that was right
+
+    ⛔ THAT IS THE WHOLE REASON THIS FUNCTION EXISTS, and it is not a style
+    preference: an empty candidate list is the SAME OBSERVATION as a quiet
+    market, so every one of those bugs was survivable for months. A reader that
+    cannot tell "no candidates" from "wrong key" will not report the difference,
+    so the shape has to stop being something a reader knows
+    (`lesson_a_second_authority_over_one_value` — derive, never restate).
+
+    ⚠️ THE BUCKET NAMES ARE READ OFF THE PAYLOAD, NOT TYPED. Passing no
+    `buckets` returns every bucket the scan actually wrote, so a fourth setup
+    added to `scanner_candidates.py` is included here the day it ships and
+    nobody has to remember this file. Name buckets explicitly ONLY when the
+    caller genuinely wants a subset.
+    """
+    payload = get_candidates() or {}
+    groups = payload.get("candidates")
+    if not isinstance(groups, dict):
+        return []
+    wanted = buckets or tuple(groups.keys())
+    rows: list[dict] = []
+    for name in wanted:
+        for row in (groups.get(name) or []):
+            if isinstance(row, dict):
+                rows.append(row)
+    return rows
+
+
+def candidate_tickers(*buckets: str) -> list[str]:
+    """`candidate_rows` reduced to de-duplicated upper-case symbols, order kept."""
+    seen: dict[str, None] = {}
+    for row in candidate_rows(*buckets):
+        sym = (row.get("ticker") or row.get("sym") or "").strip().upper()
+        if sym:
+            seen.setdefault(sym, None)
+    return list(seen)
+
+
 # ─── UCT 20 Portfolio ──────────────────────────────────────────────────────────
 
 def get_uct20_portfolio_data() -> dict:

@@ -234,6 +234,65 @@ export function barReadersOf(table) {
  *  same shape, one task earlier: `interpret.js::ownLookback`. */
 export const BAR_READERS = Object.freeze(barReadersOf(TABLE))
 
+/** The declaration that says our answer for a name deliberately differs from the
+ *  platform a member copied it from. `closedTable.json::_functions_vendor_note`
+ *  argues it. */
+export const VENDOR_NOTE = 'vendorNote'
+
+/** name → the member-readable sentence, for every entry that carries one.
+ *
+ *  ⛔ DERIVED, NEVER LISTED, for the same reason `barReadersOf` is: today exactly
+ *  ONE entry declares a note, and a reader written as `name === 'atr'` would be
+ *  indistinguishable from this one until the day a second entry needs it — at
+ *  which point the difference is a member NOT being told about a divergence we
+ *  had already measured. That is the failure this whole mechanism exists to
+ *  prevent, so it must not be reintroduced by the reader.
+ *
+ *  ⚠️ EXPORTED AS A FUNCTION OVER A TABLE ARGUMENT so its derivation can be
+ *  RAILED. `TABLE` is frozen at import, so a test that only sees the constant
+ *  cannot plant a second note and prove the walk finds it — and a derivation
+ *  nobody can plant against is a hand-list that happens to be right today
+ *  (`parse.js::barReadersOf` records the mutation sweep that proved exactly
+ *  that). */
+export function vendorNotesOf(table) {
+  const out = {}
+  for (const [name, spec] of Object.entries((table && table.functions) || {})) {
+    if (spec && typeof spec[VENDOR_NOTE] === 'string' && spec[VENDOR_NOTE].trim()) {
+      out[name] = spec[VENDOR_NOTE]
+    }
+  }
+  return out
+}
+
+export const VENDOR_NOTES = Object.freeze(vendorNotesOf(TABLE))
+
+/** Every vendor note reachable from a tree, in the order a member reads them.
+ *
+ *  ⭐ THE TREE, NOT THE SOURCE TEXT. A member pastes `ta.atr(14)` and we run
+ *  `atr(high, low, close, 14)`; a note keyed off what they TYPED would miss every
+ *  name the translator expanded, renamed or composed — which is most of them.
+ *  Walking the tree we are actually going to evaluate asks the only question that
+ *  matters: does the thing that will run differ from what they saw?
+ *
+ *  ⛔ AND IT IS DEDUPED BY NAME. A script using `atr` three times has one
+ *  divergence, not three; repeating the sentence would read as three problems. */
+export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
+  const seen = []
+  const stack = [ast]
+  const taken = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (node.type === 'call' && typeof node.name === 'string'
+        && Object.prototype.hasOwnProperty.call(notes, node.name) && !taken.has(node.name)) {
+      taken.add(node.name)
+      seen.push({ name: node.name, note: notes[node.name] })
+    }
+    for (const a of (node.args || [])) stack.push(a)
+  }
+  return seen.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+}
+
 /** The declaration that says an entry's OTHER `int` arguments must fit inside
  *  the one its `lookback` names. `closedTable.json::_functions_domain` argues it;
  *  this is the key both lanes match on, and its VALUE names which of the entry's

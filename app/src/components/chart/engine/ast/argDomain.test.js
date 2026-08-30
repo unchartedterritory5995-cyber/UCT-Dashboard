@@ -136,12 +136,33 @@ describe('the argument domain is READ OFF THE MANIFEST', () => {
     // inferred from "an entry with two periods" would be an over-refusal.
     const unaccounted = []
     const byForward = []
+    const byRole = []
     for (const [name, spec] of Object.entries(TABLE.functions).sort()) {
       const m = LOOKBACK_RE.exec(String(spec.lookback))
       if (!m) continue
       const ceiling = Number(m[2])
+      const roles = spec.argRoles || []
+      // ⛔⛔ AN `int` IS NOT AUTOMATICALLY A PERIOD, AND THE MANIFEST ALREADY
+      // SAYS WHICH IS WHICH. X41 is a WINDOW that can reach past the declared
+      // one; an ANCHOR is an instant and reaches nowhere by itself. Reading the
+      // declared ROLE is what tells them apart, and it is the same declaration
+      // `_functions_arg_roles` already makes for the translators (*"`period`-
+      // suffixed roles mark the `int` slots"*) -- so this is a read, not a
+      // second rule. ⚠️ THE EXEMPTION IS NOT OPEN-ENDED: an `int` slot's role
+      // must be period-suffixed or one of the declared non-window roles, and
+      // `tests/test_ast_indicators.py` is the rail that refuses a third kind --
+      // so a slot excused here is one that file has already vouched for.
+      // ⚠️ `cumFrom(source, anchorEpoch, maxBars)` is what forced the question:
+      // its reach IS its lookback and its anchor is an instant, so before this
+      // read it was reported as a live X41 for carrying a second `int`.
       const others = spec.args.map((k, i) => (k === 'int' ? i : -1))
         .filter((i) => i >= 0 && i !== ceiling)
+        .filter((i) => {
+          const role = String(roles[i] || '')
+          if (role.toLowerCase().endsWith('period')) return true
+          byRole.push(`${name} arg ${i} (${role || 'no role'})`)
+          return false
+        })
       if (!others.length || ARG_DOMAINS[name] !== undefined) continue
       const fm = spec.forward ? LOOKBACK_RE.exec(String(spec.forward)) : null
       if (fm && others.every((i) => i === Number(fm[2]))) { byForward.push(name); continue }
@@ -154,6 +175,10 @@ describe('the argument domain is READ OFF THE MANIFEST', () => {
     expect(byForward.length,
       'no entry is excused by its `forward` reach any more — the discriminator this '
       + 'census rests on is gone, so it now proves nothing').toBeGreaterThan(0)
+    expect(byRole.join(' | '),
+      'no `int` slot is excused for being a non-window role any more — the second '
+      + 'discriminator this census rests on is gone, so an anchor would be reported '
+      + 'as a live X41 again').not.toBe('')
   })
 })
 

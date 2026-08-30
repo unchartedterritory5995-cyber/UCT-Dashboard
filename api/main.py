@@ -720,6 +720,18 @@ def _warm_hot_tier_now() -> None:
         pass
 
 
+# ⏱ The warm cycle's interval and its wall-clock budget, together, because the
+# budget is DERIVED from the interval — a cycle must never occupy more than a
+# third of the gap before its own next run. Measured on prod 2026-08-29 this job
+# averaged 15.9s and peaked at 95s against a 60s interval, overrunning itself
+# (APScheduler logged `Execution of job "_discord_chart_hot_warm" skipped`) and
+# holding a thread on the member-serving pod for a quarter of every minute.
+# Writing the two as one expression is what stops a future interval change from
+# silently restoring the overrun.
+DISCORD_CHART_WARM_INTERVAL_S = int(os.environ.get("DISCORD_CHART_WARM_INTERVAL_S", "60"))
+DISCORD_CHART_WARM_BUDGET_S = DISCORD_CHART_WARM_INTERVAL_S / 3.0
+
+
 def _discord_chart_hot_warm() -> None:
     """Re-render the charts members keep asking for, just before their cache
     entry expires. A chart costs ~2.4 s of a shared Chromium and the same
@@ -760,7 +772,8 @@ def _discord_chart_hot_warm() -> None:
             log.info("[discord-chart] roster seeded %d chart(s) from %d name(s)", seeded, len(roster))
         _, limit = di.roster_budget()
         di.warm_hot_charts(bars_fn=rt.fetch_bars, render_fn=rt.render_chart_png,
-                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit)
+                           house_fn=house.render_house_chart, quote_fn=rt.fetch_ext_quote, limit=limit,
+                           deadline_s=DISCORD_CHART_WARM_BUDGET_S)
     except Exception:
         log.exception("[discord-chart] hot warm cycle failed")
 
@@ -2306,6 +2319,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
+    # ⚡ Carry the warm cache across the deploy — FIRST, before anything slow and
+    # long before uvicorn binds, so the pod is already warm the instant it takes
+    # traffic instead of ~3.5 min later. Each entry comes back with the life it
+    # had LEFT (absolute expiry), so this accelerates the boot without extending
+    # any value's lifetime. Reading the volume is a few ms.
+    #
+    # ⛔ Why not hold traffic back until warm instead: tried 2026-07-26, ~3 min
+    # outage — Railway does not keep the old pod serving during a healthcheck
+    # (see api/services/readiness.py). The pod cannot be withheld, so the warm
+    # has to be unnecessary rather than awaited.
+    try:
+        from api.services import cache_snapshot
+        from api.services.cache import cache as _shared_cache
+        if cache_snapshot.enabled():
+            _cs = cache_snapshot.restore(_shared_cache)
+            print(f"[startup] cache snapshot restored: {_cs['restored']}/{_cs['found']} "
+                  f"entries (age {_cs['age_seconds']}s)")
+        else:
+            print("[startup] cache snapshot DISABLED (CACHE_SNAPSHOT_ENABLED=0)")
+    except Exception as e:
+        # A cold boot is the pre-existing behaviour and is always survivable;
+        # a failed boot is not. This can never be fatal.
+        print(f"[startup] cache snapshot restore failed (non-fatal, booting cold): {e}")
+
     try:
         _init_auth_db()
     except Exception as e:
@@ -2638,9 +2675,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
 
-    # Readiness gates -- /api/ready (railway.json healthcheckPath) stays 503
-    # until each of these warmers finishes, so Railway keeps serving from the
-    # OLD warm pod instead of cutting traffic to a cold one. Each gate is
+    # Readiness gates -- /api/ready stays 503 until each of these warmers
+    # finishes. ⛔ That is OBSERVABILITY, not routing: `healthcheckPath` is
+    # `/api/health` and must stay there (pointing it here caused a ~3 min
+    # outage on 2026-07-26 -- see the /api/ready docstring below). Each gate is
     # registered immediately before its warmer starts and released in the
     # `except` if the warmer could not even be scheduled, so a scheduling
     # failure can never hold a deploy hostage.
@@ -2851,24 +2889,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] massive_curated_stream start failed: %s", e)
 
-    # Live Flow worker -- RE-ENABLED 2026-06-17 with thread isolation (Option 2).
-    # Previously disabled because the in-process SSE consumer was starving
-    # FastAPI's main event loop (Cloudflare 524s, 19s CSV loads). The fix:
-    # run liveflow_worker.run_forever() inside a dedicated daemon thread with
-    # its own asyncio loop, so httpx SSE reads (timeout=None) can never block
-    # request-handling. See api/liveflow_worker_threaded.py.
-    # If perf regresses (CSV fetch >5s on /options-flow), wrap this block in
-    # `if False:` to disable and ping the dev channel.
-    try:
-        from api import liveflow_worker_threaded
-        liveflow_worker_threaded.start()
-        logging.getLogger(__name__).info(
-            "[startup] liveflow_worker started in isolated thread"
-        )
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            "[startup] failed to start liveflow_worker thread: %s", e
-        )
+    # ⚰️ Live Flow (Bullflow) worker — RETIRED 2026-08-29. DO NOT RE-ENABLE.
+    #
+    # Bullflow is no longer used: "live flow is from massive, bullflow is no
+    # more" (owner, 2026-07-27). The live page is served by an entirely
+    # different rail —
+    #     DEAD:  Bullflow SSE → liveflow_worker → /api/live/alerts/recent → LiveFlow.jsx
+    #     LIVE:  Massive WS  → massive_ws_worker → FlowDB → /api/live/massive/recent
+    #                                                     → LiveFlowMassive.jsx
+    # — which is why disabling this is safe: nothing a member looks at touches it.
+    #
+    # Left running, it dialled a dead endpoint forever on the pod that serves
+    # every member, logging `403 API subscription inactive` every 30 s. That is
+    # not a lapsed account to renew; it is a retired integration with nobody on
+    # the other end. Both prior reads of it (including mine, twice) mistook the
+    # symptom for a billing problem, so the reason is written here rather than
+    # left to be re-derived from the log line.
+    #
+    # ⛔ NOT gated on `BULLFLOW_API_KEY` being unset. That works — `run_forever`
+    # early-returns without a key — but it makes a retired integration's silence
+    # depend on a Railway variable staying absent, and a variable that must stay
+    # unset is not a decision anyone can see in the code.
+    #
+    # `api/liveflow_worker*.py` are KEPT as rollback backup (the trades.py
+    # retirement idiom: stop calling it, delete later). Full removal of the
+    # module + the `/api/live/alerts/*` routes is flow-family work to coordinate
+    # with the partner, not a unilateral deletion.
+    logging.getLogger(__name__).info(
+        "[startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; "
+        "live flow is served by the Massive rail"
+    )
 
     # SQLite integrity: near-instant smoke probe at boot + a rare, DEFERRED full scan.
     #
@@ -4000,6 +4050,17 @@ async def lifespan(app: FastAPI):
         from apscheduler.triggers.interval import IntervalTrigger
         from api.services.auth_service import cleanup_expired_sessions, cleanup_expired_tokens, record_mrr_snapshot
         _scheduler = BackgroundScheduler(timezone=ZoneInfo("America/New_York"))
+        # ⚡ Instrument BEFORE any add_job — the jobs registered first are the
+        # heavy startup ones, i.e. exactly the ones worth measuring. Wrapping
+        # add_job once covers all 135 (and the 136th) rather than a roster that
+        # would omit whichever job is added next. Prod 2026-08-29: RSS jumped
+        # 1497.5 -> 6134 MB between two samples and the logs could only narrow it
+        # to a cluster; this names it.
+        try:
+            from api.services import memory_probe as _memprobe
+            _memprobe.instrument_scheduler(_scheduler)
+        except Exception as e:
+            print(f"[startup] scheduler memory instrumentation failed (non-fatal): {e}")
 
         # -- Compass automation master switch ------------------------------
         # Pauses ALL automated (scheduled) Compass + voice LLM interactions
@@ -4241,10 +4302,14 @@ async def lifespan(app: FastAPI):
             from api.darkpool_flatfile_ingest import scheduled_run as _dp_ff_run
             _scheduler.add_job(
                 _dp_ff_run,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=11, minute=45, timezone=_ET),
+                # Mon-SAT (2026-08-29): Friday's T+1 flat file publishes on
+                # Saturday (verified 2026-08-29), so Saturday backfills Friday
+                # instead of waiting for Monday. Monday's run is the backstop if
+                # the file publishes after 11:45 ET.
+                trigger=CronTrigger(day_of_week="mon-sat", hour=11, minute=45, timezone=_ET),
                 id="darkpool_flatfile_ingest", max_instances=1, replace_existing=True,
                 misfire_grace_time=7200)
-            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (weekdays 11:45 ET, gated)")
+            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)")
         except Exception as _e_dpff:
             print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
 
@@ -4940,10 +5005,12 @@ async def lifespan(app: FastAPI):
             # passes and warmed nothing that lasted. `due()` keeps the cost
             # down - it only returns entries past 70% of their TTL, so a
             # quiet-hours cycle usually renders nothing at all.
-            _scheduler.add_job(_discord_chart_hot_warm, "interval", minutes=1,
+            _scheduler.add_job(_discord_chart_hot_warm, "interval",
+                               seconds=DISCORD_CHART_WARM_INTERVAL_S,
                                id="discord_chart_hot_warm", max_instances=1,
                                coalesce=True, misfire_grace_time=60)
-            print("[startup] discord-chart hot-warm scheduled (every 60s)")
+            print(f"[startup] discord-chart hot-warm scheduled (every "
+                  f"{DISCORD_CHART_WARM_INTERVAL_S}s, {DISCORD_CHART_WARM_BUDGET_S:.0f}s cycle budget)")
         except Exception as e:
             print(f"[scheduler] discord-chart hot-warm registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
@@ -5987,6 +6054,78 @@ async def lifespan(app: FastAPI):
             )
             print("[startup] Theme engine scheduled -- orphans Mon-Fri 11 PM ET; improve Sat 10 AM ET")
 
+        # ⚡ Periodic cache snapshot. The shutdown hook is the PRIMARY writer (a
+        # graceful deploy is when this matters most), but it only runs on a clean
+        # SIGTERM — an OOM kill, a crash, or a hard pod eviction skips it entirely
+        # and would leave the next boot restoring a snapshot hours stale. A cheap
+        # periodic write bounds that staleness to one interval no matter how the
+        # pod dies. Restore drops anything past its deadline, so an old snapshot
+        # is never wrong, only less useful.
+        try:
+            # Local import: the module-level name does not exist here (the other
+            # IntervalTrigger imports in this file are function-scoped), and a
+            # NameError inside this try would be swallowed as "registration
+            # failed" — the job would silently never run.
+            from apscheduler.triggers.interval import IntervalTrigger
+
+            def _cache_snapshot_job():
+                from api.services import cache_snapshot as _cs_mod
+                from api.services.cache import cache as _c
+                if _cs_mod.enabled():
+                    _cs_mod.save(_c)
+
+            _scheduler.add_job(
+                _cache_snapshot_job,
+                trigger=IntervalTrigger(minutes=3),
+                id="cache_snapshot_save",
+                max_instances=1,
+                replace_existing=True,
+                coalesce=True,
+            )
+            print("[startup] cache snapshot scheduled -- every 3 min + on shutdown")
+        except Exception as e:
+            print(f"[startup] cache snapshot job registration failed (non-fatal): {e}")
+
+        # ⚡ PERIODIC malloc_trim — the fix for a MEASURED cause, not a guess.
+        #
+        # `/api/health/memory?trim=1` on prod 2026-08-29, on an 8-minute-old pod:
+        # RSS 1490.0 -> 1276.6 MB, **213.4 MB released in one call**, glibc
+        # returned 1. So the pod's RSS growth is allocator-held FREE memory —
+        # glibc keeps per-arena free lists and this process runs ~64 threads,
+        # which is the textbook setup for it. It is NOT a leak: the memory is
+        # already freed, just never handed back to the OS.
+        #
+        # That also rules the two rival explanations out with evidence rather
+        # than argument: the caches hold ~3 MB (0.17% of RSS) and +481 MB of
+        # growth came with only +11% GC-tracked objects.
+        #
+        # ⛔ This does NOT replace MALLOC_ARENA_MAX, it is the half that needs no
+        # environment change and no redeploy to take effect. Capping arenas
+        # prevents the fragmentation; trimming returns it. If the elapsed_ms
+        # logged below ever climbs into the hundreds, this is the wrong shape and
+        # the env cap is the answer — that is why the duration is logged, not
+        # just the megabytes.
+        try:
+            def _malloc_trim_job():
+                from api.services import memory_probe as _mp
+                r = _mp.malloc_trim()
+                if r.get("available") and (r.get("released_mb") or 0) >= 1:
+                    logging.getLogger(__name__).info(
+                        "[mem-trim] released %.1f MB (%.1f -> %.1f MB) in %.1f ms",
+                        r["released_mb"], r["rss_mb_before"], r["rss_mb_after"],
+                        r.get("elapsed_ms", -1))
+
+            from apscheduler.triggers.interval import IntervalTrigger as _TrimInterval
+            _scheduler.add_job(
+                _malloc_trim_job,
+                trigger=_TrimInterval(minutes=int(os.environ.get("MALLOC_TRIM_MINUTES", "10"))),
+                id="malloc_trim", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] malloc_trim scheduled -- every "
+                  f"{os.environ.get('MALLOC_TRIM_MINUTES', '10')} min")
+        except Exception as e:
+            print(f"[startup] malloc_trim job registration failed (non-fatal): {e}")
+
         _scheduler.start()
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         print("[startup] Session cleanup scheduled -- daily at 3:00 AM ET")
@@ -6173,6 +6312,22 @@ async def lifespan(app: FastAPI):
         print(f"[shutdown] Bullflow worker stop failed (non-fatal): {e}")
     if _scheduler is not None:
         _scheduler.shutdown(wait=False)
+
+    # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
+    # Deliberately after the scheduler stops (no job can be mutating the cache
+    # underneath us) and inside the 30s drainingSeconds window. A deploy is
+    # exactly the moment this matters, and it is the one moment a periodic timer
+    # is guaranteed to miss.
+    try:
+        from api.services import cache_snapshot
+        from api.services.cache import cache as _shared_cache
+        if cache_snapshot.enabled():
+            _cs = cache_snapshot.save(_shared_cache)
+            print(f"[shutdown] cache snapshot saved: {_cs['written']} entries, "
+                  f"{_cs['bytes'] / 1024:.0f} KB")
+    except Exception as e:
+        print(f"[shutdown] cache snapshot save failed (non-fatal): {e}")
+
     stop_snapshot_scheduler()
     try:
         from api.services import nhnl_live
@@ -6289,11 +6444,29 @@ def health():
 
 @app.get("/api/ready")
 def ready():
-    """Readiness probe -- railway.json `healthcheckPath` points here.
+    """Readiness probe -- OBSERVABILITY ONLY. ⛔ NOTHING GATES A DEPLOY ON THIS.
 
-    Returns 503 until every warm gate has finished, so Railway holds live
-    traffic on the OLD (already warm) pod instead of cutting over to a cold
-    one. See api/services/readiness.py for the full why.
+    ⚰️ This docstring used to read "railway.json `healthcheckPath` points here",
+    and it was FALSE for over a month. `healthcheckPath` is `/api/health`, on
+    purpose. Pointing it here WAS tried in production on 2026-07-26 (deploy
+    650865d5) and caused a ~3 MINUTE OUTAGE: Railway does NOT keep the old pod
+    serving while the new one healthchecks -- the old pod is already gone, so a
+    503-until-warm probe does not hold traffic on the warm pod, it takes the
+    site DOWN until the gate releases (`Attempt #1..#8 failed with service
+    unavailable`, uctintelligence.com 502 for ~3 min). Slow-but-serving beats
+    hard-down. `tests/api/test_ready_endpoint.py::
+    test_railway_healthcheck_must_not_gate_on_readiness` is the standing guard.
+
+    ⭐ Why the correction matters more than the value: FOUR places in this repo
+    asserted the wiring existed (here, `api/services/readiness.py`,
+    `api/worker_main.py`, `api/flow_worker_main.py`). Four copies of one claim
+    read as corroboration, so the single config line that falsifies them went
+    unopened -- and the sentence is an active trap, because acting on it
+    reproduces the outage. A comment naming a mechanism is a claim about a run.
+
+    Returns 503 until every warm gate has finished, which is genuinely useful
+    for "is this pod warm yet" -- read it by hand, or from a monitor that does
+    not control routing. See api/services/readiness.py for the full why.
 
     This is deliberately SEPARATE from /api/health (liveness): that route is
     polled by worker_main's down-alert monitor, which posts a red "site down"
@@ -6336,6 +6509,33 @@ def health_threads(_admin: dict = Depends(require_admin)):
     the count crosses THREAD_BURST_LOG_THRESHOLD, so unattended bursts
     self-document in the Railway logs."""
     return _thread_groups()
+
+
+@app.get("/api/health/memory")
+def health_memory(deep: bool = False, trim: bool = False, _admin: dict = Depends(require_admin)):
+    """Live memory attribution — names WHAT is holding the pod's RSS.
+
+    ADMIN ONLY, same reasoning as `/api/health/threads` above (it enumerates
+    internal module paths). The thread histogram exists because "58->931 threads"
+    was unattributable from a total; this is the same tool for bytes: RSS climbs
+    ~2.2 MB/s on this pod (1201 MB at 105s, 1661 MB at 318s, 11,665 MB observed
+    on a long-lived one) and nothing said what was holding it.
+
+    `?deep=1` adds a GC type histogram and per-cache byte estimates. Those walk
+    every tracked object, which on a multi-GB process costs real time AND
+    allocates while it runs — so they are opt-in, never on a timer. Byte figures
+    are sampled estimates and say so in the payload."""
+    from api.services import memory_probe
+    snap = memory_probe.snapshot(deep=deep)
+    if trim:
+        # `?trim=1` runs glibc malloc_trim(0) and reports RSS either side — the
+        # one call that separates "allocator is hoarding freed pages" from "a C
+        # extension is genuinely holding this". Admin-only, on demand, never on a
+        # timer. It releases only already-freed memory, so it is a hint to the
+        # allocator rather than a change to application state — which is why it
+        # rides this GET instead of needing a mutating route of its own.
+        snap["malloc_trim"] = memory_probe.malloc_trim()
+    return snap
 
 
 @app.get("/api/health/thread-stacks")
@@ -6593,6 +6793,8 @@ app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
 app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
+from api.routers import indicator_vision as indicator_vision_router  # noqa: E402
+app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
