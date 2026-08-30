@@ -132,6 +132,35 @@ describe('the countdown', () => {
     expect(screen.getByText('Opens in 2d 17h')).toBeInTheDocument()
     expect(screen.queryByText('Closes in 3h 02m')).toBeNull()
   })
+
+  // 🔴 THE HOLIDAY FIX, AT THE PIXEL. `useNextBoundary` returns a null label
+  // whenever the answer is not verifiable — the market calendar still in
+  // flight, its endpoint down, or the boundary walked past the horizon the
+  // NYSE closure table can speak for. Zone A must draw NOTHING then, not an
+  // empty element and certainly not a stale string: on Thanksgiving the old
+  // countdown said "Opens in 16h 16m", to the minute, about an open that
+  // would not happen. The pill beside it still names the session.
+  test('draws no countdown at all when the boundary cannot be verified', () => {
+    h.boundary = { kind: null, ms: null, label: null, verified: false }
+    mount()
+    expect(screen.queryByText(/Opens in/)).toBeNull()
+    expect(screen.queryByText(/Closes in/)).toBeNull()
+    // The session pill — the load-bearing half — is still on screen…
+    const pill = screen.getByText('Open')
+    expect(pill).toBeInTheDocument()
+    // …and NO EMPTY ELEMENT is left standing beside it. ⛔ Asserted on the
+    // DOM, not on a class name: vitest does not process CSS modules here, so
+    // `styles.countdown` is undefined and a `querySelector` on it would be a
+    // check that can never fail (`lesson_gate_that_cannot_fail`).
+    expect(pill.parentElement.children).toHaveLength(1)
+  })
+
+  test('CONTROL: that row really does carry two children when the countdown IS verified', () => {
+    // Without this, the emptiness assertion above passes for a row that never
+    // renders a countdown under any input.
+    mount()
+    expect(screen.getByText('Open').parentElement.children).toHaveLength(2)
+  })
 })
 
 // ─── S1 · the one-line exposure note ────────────────────────────────────────

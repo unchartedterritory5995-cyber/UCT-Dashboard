@@ -115,8 +115,18 @@ export default function ZoneRead({ showQuote = true }) {
           <span className={`${styles.pill} ${styles[session.toLowerCase()]}`}>
             {LABEL[session]}
           </span>
-          {/* Countdown to the next bell — spec, Zone A. */}
-          <span className={styles.countdown}>{boundary.label}</span>
+          {/* Countdown to the next bell — spec, Zone A.
+              ⛔ ONLY WHEN IT IS VERIFIABLE. `useNextBoundary` returns a null
+              label while the market calendar is unknown (in flight, endpoint
+              down, or the boundary walked past the horizon the closure table
+              is authoritative about). It used to know weekends and clock hours
+              and nothing else, so on Thanksgiving this said "Opens in 16h 16m"
+              — to the minute, on the paid home, about an open that would not
+              happen. The pill beside it still names the session, which is the
+              load-bearing half: a missing countdown is not wrong. */}
+          {boundary.label && (
+            <span className={styles.countdown}>{boundary.label}</span>
+          )}
         </div>
         {score != null && (
           <span className={styles.exposure}>
