@@ -21,21 +21,63 @@
 
    120 + 440 + 300 + 90 + 3 gaps ≈ 990px, against a 1050px viewport.
 
+   ⭐ EACH ZONE HEIGHT IS WRITTEN EXACTLY ONCE, as a custom property, and every
+   other height here is DERIVED from those three by calc(). `--zone-stack` is
+   never a typed sum: change 440 to 400 and the cockpit row, the rail cap and
+   the collapse arithmetic all follow. (A second authority over one value is
+   this repo's most repeated defect; a hand-summed 860px would be one.)
+
    ⛔ ONLY 640 AND 1024 ARE CANONICAL (CLAUDE.md, Responsive/Mobile System).
    This file previously carried 1440 / 1100 / 768 blocks; the rewrite deletes
    them rather than porting them, so no non-canonical literal survives here. */
-.cockpit { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: var(--space-md); }
-.main { display: grid; grid-template-rows: 120px 440px 300px; gap: var(--space-md); min-width: 0; }
+.cockpit {
+  --zone-a: 120px;
+  --zone-b: 440px;
+  --zone-c: 300px;
+  /* A + B + C plus the two gaps BETWEEN them — the height .main occupies. */
+  --zone-stack: calc(var(--zone-a) + var(--zone-b) + var(--zone-c) + 2 * var(--space-md));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  /* 🔴 THE ROW IS EXPLICIT, AND THAT IS THE POINT. It used to be implicit and
+     auto-sized, so it resolved to max(.main, .rail) — which meant .rail had a
+     240px WIDTH and no height bound at all, and `.rail > * { max-height: 100% }`
+     computed to `none` against an indefinite parent. On a heavy gap day
+     MoversSidebar simply grew the cockpit past the A+B+C budget. That is
+     defect #1's exact shape — "no track to resolve against" — reintroduced by
+     the change that fixed it. A definite row is what makes the rail's cap real. */
+  grid-template-rows: var(--zone-stack);
+  gap: var(--space-md);
+}
+.main { display: grid; grid-template-rows: var(--zone-a) var(--zone-b) var(--zone-c); gap: var(--space-md); min-width: 0; }
+
+/* ⛔ EXPLICIT TRACKS, NOT AUTO-PLACEMENT. Without these, hiding any zone slides
+   the ones below it up into the wrong-size track. */
+.zoneA { grid-row: 1; }
+.zoneB { grid-row: 2; }
+.zoneC { grid-row: 3; }
+
 .zoneA, .zoneB, .zoneC, .rail { min-height: 0; overflow: hidden; }
 .zoneB > *, .zoneC > *, .rail > * { max-height: 100%; overflow-y: auto; }
 .zoneD { margin-top: var(--space-md); }
 
-/* ⛔ AN EMPTY LABELLED FRAME IS THE DEFECT THIS PAGE EXISTS TO REMOVE.
-   TheWeek returns null when all three of its panels are empty (a genuinely
-   quiet weekend, or a desk outage) — see TheWeek.jsx. Without this rule the
-   zone would still hold a 440px void where the hero used to be, which is the
-   849px dead column in a different costume. */
-.zoneB:empty { display: none; }
+/* 🔴 AN EMPTY ZONE B COLLAPSES ITS TRACK — IT DOES NOT MERELY HIDE ITS ITEM.
+   TheWeek returns null when all three panels are empty (a quiet weekend, or a
+   desk outage); `.zoneB` is then genuinely `:empty`.
+
+   ⚰️ THIS RULE USED TO BE `.zoneB:empty { display: none }`, WHICH DID NOT DO
+   WHAT ITS COMMENT CLAIMED. `.main` declares three FIXED explicit tracks, and
+   removing an item does not remove a track: Zone C auto-placed into the 440px
+   track and the 300px track sat empty at the bottom. Same total height, Zone C
+   in the wrong-size box, and a 300px void — the 849px dead column in a
+   different costume, which is precisely what it was written to prevent.
+
+   ⭐ SETTING `--zone-b: 0px` IS THE WHOLE FIX, because everything downstream is
+   derived from it: `.main`'s middle track (custom properties inherit), and
+   `--zone-stack`, which resolves `var(--zone-b)` at computed-value time and so
+   shrinks the cockpit row — and the rail's cap with it — by the same 440px.
+   ⚠️ One `var(--space-md)` gap around the zero track remains; that is real and
+   deliberate, not an oversight. */
+.cockpit:has(.zoneB:empty) { --zone-b: 0px; }
 
 /* Gold-edge emphasis on the hero zone — element selector so TileCard's hashed
    classes stay untouched. */
@@ -62,7 +104,7 @@
    heights become content-sized — a 440px hero in a single narrow column is a
    scroll-in-a-scroll, not a budget. */
 @media (max-width: 1024px) {
-  .cockpit { grid-template-columns: 1fr; }
+  .cockpit { grid-template-columns: 1fr; grid-template-rows: auto auto; }
   .main { grid-template-rows: auto auto auto; }
   .zoneA, .zoneB, .zoneC, .rail { overflow: visible; }
   .zoneB > *, .zoneC > *, .rail > * { max-height: none; overflow-y: visible; }

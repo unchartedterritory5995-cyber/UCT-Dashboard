@@ -148,3 +148,73 @@ test('CONTROL: a mount split across lines is caught too — the old regex missed
   expect(directChildTags(planted, 'desktopOnly').tags.filter(isComponent))
     .toEqual(['DeskVideoRail'])
 })
+
+// ─── THE HEIGHT BUDGET, AS A SOURCE RAIL ────────────────────────────────────
+//
+// ⛔ jsdom COMPUTES NO LAYOUT, so none of this can measure pixels — the pixel
+// rail is tools/mobile_audit.py. What it CAN measure is the two structural
+// properties the budget depends on, both of which were real defects:
+//
+//   I1  `.rail` had a 240px WIDTH and no height bound. `.cockpit`'s row was
+//       implicit and auto-sized, so it resolved to max(.main, .rail) and
+//       `.rail > * { max-height: 100% }` computed to `none` against an
+//       indefinite parent — the "no track to resolve against" shape, in the
+//       change that fixed it. An EXPLICIT cockpit row is the fix.
+//   I2  `.zoneB:empty { display: none }` did not do what its comment claimed:
+//       `.main`'s three FIXED tracks survive the item, so Zone C auto-placed
+//       into the 440px track and a 300px void sat at the bottom.
+//
+// And one property that keeps the numbers honest: each zone height is WRITTEN
+// ONCE and everything else derives from it by calc().
+// ⛔ COMMENTS STRIPPED BEFORE MATCHING. The header below deliberately QUOTES the
+// old `.zoneB:empty { display: none }` rule in its ⚰️ note, and the first draft
+// of this rail matched that prose and reported the deleted rule as still live —
+// `lesson_probe_names_must_be_derived_not_typed`, in miniature.
+const cssRaw = readFileSync(join(here, 'Dashboard.module.css'), 'utf8')
+const css = cssRaw.replace(/\/\*[\s\S]*?\*\//g, '')
+
+test('each zone height is declared exactly once, as a custom property', () => {
+  for (const [name, px] of [['--zone-a', '120px'], ['--zone-b', '440px'], ['--zone-c', '300px']]) {
+    const decls = [...css.matchAll(new RegExp(`${name}\s*:\s*([^;]+);`, 'g'))].map(m => m[1].trim())
+    // The property may be REDECLARED to collapse a zone (see the :has rule),
+    // but the real height literal must appear exactly once.
+    expect(decls.filter(v => v === px),
+      `${name} is not declared exactly once as ${px} — a second copy is a second `
+      + 'authority over the budget').toHaveLength(1)
+  }
+})
+
+test('the cockpit row is DERIVED from the zone heights, never a typed sum', () => {
+  const m = css.match(/--zone-stack:\s*([^;]+);/)
+  expect(m, '--zone-stack is gone; the cockpit row has no derived height').toBeTruthy()
+  const expr = m[1]
+  for (const name of ['--zone-a', '--zone-b', '--zone-c']) {
+    expect(expr, `--zone-stack does not read ${name}`).toContain(name)
+  }
+  // A hand-summed 860px would not track a change to any zone.
+  expect(expr, 'a literal pixel sum crept into --zone-stack').not.toMatch(/\d{3,}px/)
+})
+
+test('I1: the cockpit declares an EXPLICIT row, so the rail has a height to resolve against', () => {
+  const cockpit = css.split('.cockpit {')[1]?.split('}')[0] ?? ''
+  expect(cockpit, '.cockpit no longer declares an explicit row, so its single row '
+    + 'is auto-sized to max(.main, .rail) again and the rail is unbounded')
+    .toContain('grid-template-rows: var(--zone-stack)')
+  // …and the rail is still capped against it.
+  expect(css).toMatch(/\.zoneB > \*, \.zoneC > \*, \.rail > \* \{[^}]*max-height: 100%/)
+})
+
+test('I2: an empty Zone B COLLAPSES ITS TRACK — and the false display:none rule is gone', () => {
+  expect(css, 'the old `.zoneB:empty { display: none }` is back — it hides the item '
+    + 'and leaves the 440px track standing, which is the defect it claimed to fix')
+    .not.toMatch(/\.zoneB:empty\s*\{\s*display:\s*none/)
+  const has = css.match(/\.cockpit:has\(\.zoneB:empty\)\s*\{([^}]*)\}/)
+  expect(has, 'nothing collapses the Zone B track when the hero renders null').toBeTruthy()
+  expect(has[1]).toContain('--zone-b')
+})
+
+test('each zone owns an explicit grid row, so hiding one never shifts the others', () => {
+  for (const [cls, row] of [['zoneA', 1], ['zoneB', 2], ['zoneC', 3]]) {
+    expect(css).toMatch(new RegExp(`\.${cls} \{ grid-row: ${row}; \}`))
+  }
+})
