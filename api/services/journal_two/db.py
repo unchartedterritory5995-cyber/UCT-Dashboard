@@ -870,6 +870,14 @@ _PHASE_2_ALTERS = [
     # via holdings-as-truth, so open option strategies can show Current + P&L
     # like equity positions (no tick-live option quote feed).
     "ALTER TABLE j2_option_strategies ADD COLUMN broker_current_value REAL",
+    # The broker's PRIOR-session option mark. Stored as EVIDENCE, not yet
+    # consumed: on 2026-08-29 our feed said the SNAP LEAP fell 675->665 while
+    # the broker's marks said it rose 655->665, and one Saturday cannot decide
+    # a $20 swing. The current mark's session is DERIVED from
+    # broker_mark_synced_at — no second time authority. See
+    # option_reconstruct._roll_option_marks.
+    "ALTER TABLE j2_option_strategies ADD COLUMN broker_current_value_prev REAL",
+    "ALTER TABLE j2_option_strategies ADD COLUMN broker_current_value_prev_session TEXT",
     "ALTER TABLE j2_option_strategies ADD COLUMN broker_mark_synced_at TEXT",
     # Partial unique indexes — SQLite supports WHERE clauses on CREATE INDEX
     # so NULL external_ids (the entire legacy population) don't collide.
