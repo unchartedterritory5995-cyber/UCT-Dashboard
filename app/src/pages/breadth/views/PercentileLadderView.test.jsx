@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import PercentileLadderView, { markerX } from './PercentileLadderView'
 import MetersView from './MetersView'
-import { ALL_METRICS_HIDDEN } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, PALETTES } from './breadthViewShared'
 
 const mk = (key) => ({ key, label: key, group: 'G', polarity: 'bull',
                        getFmt: r => String(r[key]), getTier: () => 'g2' })
@@ -133,6 +133,71 @@ describe('PercentileLadderView', () => {
       // Pile the same span up against its floor and the median follows it down.
       const skewed = [100, ...Array.from({ length: 23 }, () => 0)]
       expect(midX(draw(skewed).container)).toBeLessThan(10)
+    })
+  })
+
+  /**
+   * 🔴 THE SHAPES READ AS SHAPES, BUT ONLY IF YOU LEANED IN.
+   *
+   * A pale tier at 22% opacity with a 1.1px outline of the SAME tone, on a
+   * near-black ground, is one dim mass — there is no edge for the eye to catch,
+   * so "where does today sit in this shape" needs study rather than a glance.
+   * The fix is figure and ground: the fill stays the palest tier (it is a mass,
+   * and it must never compete with today's marker) and the OUTLINE moves to the
+   * tier above it at full weight, because the edge is where the shape's
+   * information actually lives.
+   *
+   * ⛔ BOTH TONES STILL COME FROM `colors.tier`, so mono — which has no green
+   * and no red — is unaffected. That is what the palette loop below pins.
+   */
+  describe('the distribution is legible, not merely present', () => {
+    const drawIn = (palette) => render(<PercentileLadderView rows={rows} rowIdx={0}
+      currentRow={rows[0]} metrics={metrics} onDrill={() => {}} options={{ palette }} />)
+
+    it('separates the outline from its own fill, in every palette', () => {
+      for (const palette of ['classic', 'colorblind', 'mono', 'ocean']) {
+        const { container, unmount } = drawIn(palette)
+        const shape = container.querySelector('[data-testid="ladder-shape-a"]')
+        const outline = shape.nextElementSibling
+        expect(outline.tagName.toLowerCase()).toBe('polyline')
+        expect(shape.getAttribute('fill')).toBe(PALETTES[palette].tier.g1)
+        expect(outline.getAttribute('stroke')).toBe(PALETTES[palette].tier.g2)
+        // The whole point: they are not the same tone any more.
+        expect(outline.getAttribute('stroke')).not.toBe(shape.getAttribute('fill'))
+        // …and the mass itself is no longer at the 0.22 it shipped at.
+        expect(Number(shape.getAttribute('opacity'))).toBeGreaterThan(0.3)
+        unmount()
+      }
+    })
+
+    it('spends most of the row box on the shape', () => {
+      // Derived from the svg's OWN viewBox rather than a typed 34: a test that
+      // retypes the geometry it checks passes on a view whose box has changed.
+      const { container } = drawIn('classic')
+      const box = Number(container.querySelector('[data-testid="ladder-shape-a"]')
+        .closest('svg').getAttribute('viewBox').split(/\s+/)[3])
+      const ys = container.querySelector('[data-testid="ladder-shape-a"]')
+        .getAttribute('points').trim().split(/\s+/).map(p => Number(p.split(',')[1]))
+      const amplitude = Math.max(...ys) - Math.min(...ys)
+      expect(amplitude / box).toBeGreaterThan(0.75)
+    })
+
+    /**
+     * 🔴 AND THE ROWS TAKE THE HEIGHT THEY ARE OFFERED. The view is
+     * `height: 100%` of the box the container hands it and always was — but
+     * every row was a fixed 34px svg, so ten metrics drew ~420px of ink into a
+     * ~600px panel and stopped. jsdom has no layout, so the rail is on the
+     * declaration: the row asked to flex, and the svg no longer names a height.
+     */
+    it('flexes its rows and lets the svg fill one', () => {
+      const { container } = drawIn('classic')
+      const svg = container.querySelector('[data-testid="ladder-shape-a"]').closest('svg')
+      expect(svg.getAttribute('height')).toBe('100%')
+      const row = svg.parentElement           // the metric row; the svg is a direct child
+      expect(Number(row.style.flexGrow)).toBe(1)
+      expect(Number.parseFloat(row.style.flexBasis)).toBe(0)
+      expect(Number.parseFloat(row.style.maxHeight))
+        .toBeGreaterThan(Number.parseFloat(row.style.minHeight))
     })
   })
 

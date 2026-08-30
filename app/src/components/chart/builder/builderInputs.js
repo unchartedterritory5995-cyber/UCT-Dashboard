@@ -246,7 +246,7 @@ export function formulaNameRoles(ast) {
  *  of this paragraph would drift, and a member would get a different explanation
  *  depending on which door noticed — for one fact about one input. */
 function windowRefusal(key, entry) {
-      return `\`${key}\` lands in a WINDOW, and this engine cannot take a window from an `
+      return { window: true, reason: `\`${key}\` lands in a WINDOW, and this engine cannot take a window from an `
         + 'input: `interpret.js::windowLiteral` refuses any window argument that is not a '
         + 'whole-number literal (`resolve:window`), because `maxLookback(ast)` is handed no '
         + 'bars and no inputs and the repaint linter is a tree sum over it. Measured: '
@@ -255,7 +255,7 @@ function windowRefusal(key, entry) {
         + '— it is the KNOB that cannot exist. TO UNBLOCK: '
         + '`closedTable.json::_no_offset_reopened_by` names who may re-open static '
         + 'decidability — the repaint-claim owner and the manifest owner, together. No later '
-        + 'task may grant it alone.'
+        + 'task may grant it alone.' }
 }
 
 /** Why this candidate key cannot be a member input of THIS formula, or `null`.
@@ -263,11 +263,11 @@ function windowRefusal(key, entry) {
  *  candidates there are. */
 function positionVerdict(source, candidates) {
   if (typeof source !== 'string' || source.trim() === '') {
-    return (key) => `\`${key}\` cannot be admitted without the formula this translation `
+    return (key) => ({ reason: `\`${key}\` cannot be admitted without the formula this translation `
       + 'printed: whether a Pine input can become a member input is a fact about the '
       + 'POSITION it lands in, not about its call — `input.int` is a window in one script '
       + 'and a threshold in the next. TO UNBLOCK: call `inputsFromFolded(folded, formula)` '
-      + 'with the same translation\'s `outputs[i].formula`.'
+      + 'with the same translation\'s `outputs[i].formula`.' })
   }
   // ⭐ THE CANDIDATES GO IN AS THE SCOPE. `readFormulaSource`'s docblock warns
   // that ABSENT IS NOT EMPTY for the native reader: without the scope a `let`
@@ -279,10 +279,10 @@ function positionVerdict(source, candidates) {
   if (!result || !result.ok || !result.ast) {
     const guard = (result && result.guard) || 'parser'
     const why = (result && result.error) || 'it could not be read'
-    return (key) => `\`${key}\` cannot be admitted: the formula this translation printed does `
+    return (key) => ({ reason: `\`${key}\` cannot be admitted: the formula this translation printed does `
       + `not read back here (\`${guard}\`: ${why}), so nothing can be said about where this `
       + 'input lands. TO UNBLOCK: a formula the sheet\'s own reader accepts — the same door '
-      + '`FormulaField` puts every keystroke through.'
+      + '`FormulaField` puts every keystroke through.' })
   }
   const { read: namesRead, literalOnly } = formulaNameRoles(result.ast)
   return (key, entry) => {
@@ -301,13 +301,13 @@ function positionVerdict(source, candidates) {
       return windowRefusal(key, entry)
     }
     if (!namesRead.has(key)) {
-      return `the formula never reads \`${key}\` — this translation folded it to its default `
+      return { reason: `the formula never reads \`${key}\` — this translation folded it to its default `
         + `(\`${entry.folded}\`), so declaring it would hand the member a knob that changes `
         + 'nothing. ⚰️ THIS SENTENCE NAMED ITS OWN UNBLOCKER — the W3b hand-back that '
         + 'prints the bound identifier where the literal is now — AND THAT HAND-BACK NOW '
         + 'SHIPS, as the `declareInputs` option on `translatePine`. So reaching this line '
         + 'today means the caller did NOT ask for it: use `pineMemberInputs`, which runs '
-        + 'both passes and hands back the bound formula together with its rows.'
+        + 'both passes and hands back the bound formula together with its rows.' }
     }
     return null
   }
@@ -415,7 +415,17 @@ export function inputsFromFolded(folded, source) {
   for (const d of decided) {
     if (!d.row) { skipped.push({ ...d.entry, reason: d.reason }); continue }
     const why = verdict(d.row.key, d.entry)
-    if (why) { skipped.push({ ...d.entry, reason: why }); continue }
+    // ⛔⛔ THE FLAG IS THE ANSWER, NOT THE SENTENCE. A window refusal is reached by
+    // TWO paths — `pine.js` stamped `windowBound` on the entry, or THIS formula's
+    // own `literalOnly` walk found the name in an `int` slot — and only the first
+    // arrives already flagged. So a reader asking "is this one a LENGTH?" had to
+    // match the PROSE (`/lands in a WINDOW/`, in `PineBox.jsx`): a second authority
+    // over a fact this function already knows, and a silent miss the day the
+    // sentence is reworded. The knowing side stamps its answer.
+    if (why) {
+      skipped.push({ ...d.entry, ...(why.window ? { windowBound: true } : {}), reason: why.reason })
+      continue
+    }
     inputs.push(d.row)
   }
   return { inputs, skipped }
