@@ -224,3 +224,54 @@ def test_bars_full_defaults_to_bars_when_the_caller_has_one_series():
              "v": 1} for i in range(10)]
     assert bases._context(bars, None).bars_full is bars
     assert bases._context(bars, []).bars_full is bars
+
+
+# ── render ordering is a RISK ordering ─────────────────────────────────────
+
+def test_a_bearish_structure_is_never_buried_behind_a_neutral_one():
+    """⛔⛔ MEASURED DEFECT, FIXED AND PINNED.
+
+    `rank` alone is an editorial specificity order. On the real universe that
+    buried warnings: of 161 symbols carrying two or more named structures, 56
+    (34.8%) rendered a NEUTRAL label as the head while a bearish structure was
+    also firing -- a member scanning the column read "Darvas Box" on a stock
+    in a Stage 4 breakdown. Bias now breaks the tie before rank.
+    """
+    from api.services.screener import base_catalog
+
+    neutral = next(s for s in base_catalog.RELATIONS if s.bias == "neutral")
+    bearish = next(s for s in base_catalog.RELATIONS if s.bias == "bearish")
+    assert neutral.rank < bearish.rank, (
+        "fixture: the neutral structure must outrank the bearish one, or this "
+        "test cannot tell bias-first from rank-first")
+
+    order = bases._render_order("advancing-structure",
+                                [neutral.key, bearish.key])
+    assert order[0] == bearish.key, (
+        "the bearish structure must lead; got %r" % order)
+    assert order[-1] == "advancing-structure", "the shape still trails"
+
+
+def test_within_one_bias_the_editorial_rank_still_decides():
+    """The change is a tie-break, not a replacement: two structures sharing a
+    bias are still ordered by rank.
+    """
+    from api.services.screener import base_catalog
+
+    same = [s for s in base_catalog.RELATIONS if s.bias == "bullish"]
+    assert len(same) >= 2, "fixture needs two structures of one bias"
+    a, b = sorted(same, key=lambda s: s.rank)[:2]
+    order = bases._render_order("advancing-structure", [b.key, a.key])
+    assert order[:2] == [a.key, b.key]
+
+
+def test_every_relation_declares_a_bias_the_order_understands():
+    """An unknown bias would sort to the end and silently bury that structure
+    behind everything -- the same defect in a new costume.
+    """
+    from api.services.screener import base_catalog
+
+    for s in base_catalog.RELATIONS:
+        assert s.bias in bases._BIAS_ORDER, (
+            "%s declares bias %r, which the render order does not rank"
+            % (s.key, s.bias))

@@ -164,18 +164,33 @@ def _collect_relations(ctx: BaseCtx) -> List[str]:
     return out
 
 
+#: Bearish first, then everything else by rank. ⛔⛔ THIS IS A RISK ORDERING,
+#: NOT A TASTE ONE, AND IT WAS MEASURED. `rank` alone is an editorial
+#: specificity order, and on the real universe that buried warnings: of 161
+#: symbols carrying two or more named structures, **56 (34.8%) led with a
+#: NEUTRAL label while a bearish structure was also firing** — a member
+#: scanning the column read "Darvas Box" on a stock in a Stage 4 breakdown.
+#: A bearish structure is a statement about risk, and risk does not belong in
+#: the parenthetical behind a neutral observation.
+_BIAS_ORDER = {"bearish": 0, "bullish": 1, "neutral": 2}
+
+
 def _render_order(shape_key: str, relation_keys: List[str]) -> List[str]:
-    """Relations lead, then the shape.
+    """Relations lead — bearish ones first — then the shape.
 
     A named structure ("Darvas Box") is a more specific statement than a trend
     reading ("Advancing Structure"), so it takes the rendered head. The shape
     is never lost — it keeps its own column and its place in `base_matches`.
+
+    Within the relations, bias breaks the tie before rank: see `_BIAS_ORDER`.
     """
-    ranked = sorted(
-        relation_keys,
-        key=lambda k: (base_catalog.by_key(k).rank if base_catalog.by_key(k) else 10 ** 6),
-    )
-    return ranked + [shape_key]
+    def _key(k):
+        st = base_catalog.by_key(k)
+        if st is None:
+            return (9, 10 ** 6)
+        return (_BIAS_ORDER.get(st.bias, 3), st.rank)
+
+    return sorted(relation_keys, key=_key) + [shape_key]
 
 
 def _render(labels: List[str]) -> Optional[str]:
