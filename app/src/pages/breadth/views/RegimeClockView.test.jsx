@@ -134,3 +134,51 @@ describe('RegimeClockView', () => {
     expect(text).not.toContain('pct_above_50sma')
   })
 })
+
+/**
+ * 🔴 EVERY DOT ON THIS LENS WAS AN ELLIPSE.
+ *
+ * The plot is `preserveAspectRatio="none"` over a 100×100 viewBox — deliberately,
+ * so the trail fills whatever shape the pane is — which means one viewBox unit is
+ * 2.5× wider than it is tall on a full-width panel (1438×580, measured in
+ * Chromium). An `<circle r>` in those units renders as a flat oval, including
+ * today's mark, the one thing on the lens a reader looks for.
+ *
+ * ⛔ THIS IS THE THIRD LANE OF ONE FIX, and the last one open: the quadrant
+ * NAMES were moved out of the svg for the same reason (see the header of the
+ * view), and the Rotation lens's trace head already uses this construction. A
+ * zero-length round-capped stroke with `vector-effect="non-scaling-stroke"` is
+ * measured AFTER the transform, so it is round in device pixels whatever the box
+ * does. (`lesson_rail_the_mirror_not_just_the_lane`.)
+ *
+ * The rail is about the CONSTRUCTION rather than a rendered width because jsdom
+ * has no layout — but the construction is exactly what the geometry turns on.
+ */
+describe('the trail marks are round at any panel shape', () => {
+  const rows = mkRows(Array.from({ length: 40 }, (_, i) => 30 + (i % 11)))
+  const draw = () => render(<RegimeClockView rows={rows} rowIdx={0}
+    onSeek={() => {}} canSeek={() => true} options={{ rocWindow: 20, trail: 10 }} />).container
+
+  it('draws no radius-in-viewBox-units mark inside the stretched plot', () => {
+    const svg = draw().querySelector('svg')
+    expect(svg.getAttribute('preserveAspectRatio'),
+      'if the box no longer stretches, re-read this rail before trusting it').toBe('none')
+    expect([...svg.querySelectorAll('circle')].length,
+      'a <circle> in a non-uniformly scaled viewBox is an ellipse on screen').toBe(0)
+  })
+
+  it('gives every mark and every hit target a non-scaling stroke', () => {
+    const container = draw()
+    const marks = [...container.querySelectorAll('[data-testid^="clock-mark-"]')]
+    const hits = [...container.querySelectorAll('[data-testid^="clock-dot-"]')]
+    expect(marks.length, 'no marks drawn — this rail proves nothing').toBeGreaterThan(1)
+    expect(hits.length, 'no hit targets drawn').toBe(marks.length)
+    for (const el of [...marks, ...hits]) {
+      expect(el.getAttribute('vector-effect'),
+        `${el.getAttribute('data-testid')}: scales with the box, so it is an oval`)
+        .toBe('non-scaling-stroke')
+      expect(el.getAttribute('stroke-linecap'),
+        `${el.getAttribute('data-testid')}: a butt cap draws a bar, not a dot`).toBe('round')
+    }
+  })
+})

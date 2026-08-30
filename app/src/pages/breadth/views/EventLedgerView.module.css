@@ -29,3 +29,23 @@
   }
   .note { display: none; }
 }
+
+/**
+ * 🔴 AND A COMPARE PANE IS THE SAME PROBLEM AT A DIFFERENT WIDTH. Measured in
+ * Chromium at 744x316 (a 1512-wide desktop's pane): the five tracks resolve to
+ * 7 / 144 / 166 / 58 / 265, and "Last fired 2026-08-16 · 12 sessions ago" needs
+ * ~190px at 10px, so the STATUS — the row's whole answer — wrapped to two lines
+ * inside a 26px row and had its second line clipped. The note was 265px wide
+ * while the sentence it sat beside was cut in half.
+ *
+ * ⛔ SAME RULING AS THE PHONE RULE ABOVE, FOR THE SAME REASON: the note is the
+ * threshold's WORDING and the chip is its PROVENANCE, so the note is the one
+ * that goes. It stays on the row's `title` either way. This is a viewport-blind
+ * BOX rule, so it rides `[data-compare-pane]` (set by `CompareGrid.jsx`) rather
+ * than a media query — a pane is narrow at any viewport width.
+ */
+[data-compare-pane] .row {
+  grid-template-columns: 7px minmax(88px, 1.4fr) minmax(150px, 1.6fr) 54px;
+}
+
+[data-compare-pane] .note { display: none; }

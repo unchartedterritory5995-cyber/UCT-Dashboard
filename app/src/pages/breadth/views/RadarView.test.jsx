@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import RadarView from './RadarView'
 
 const metrics = [
@@ -85,5 +85,104 @@ describe('RadarView spoke cap', () => {
     const readings = axisLabels(container)
       .map(t => [...t.querySelectorAll('tspan')].at(-1).textContent)
     expect(readings).toEqual(['v-m0', 'v-m1', 'v-m2', 'v-m3'])
+  })
+})
+
+/**
+ * ⭐ THE DRAWING SPACE IS THE BOX, AND THAT IS WHAT KEEPS THE TYPE STILL.
+ *
+ * 🔴 On a fixed `700×350` viewBox every `<text>` in this view scaled with the
+ * panel: measured in Chromium, one caption's box was 40.5px tall across a
+ * full-width panel and 12.0px in a 710×245 compare pane — for the SAME
+ * `fontSize` declaration. Large enough to out-shout the tab's own headline at
+ * one size, too small to read at the other.
+ *
+ * ⛔ SO THE PROPERTY UNDER TEST IS THE VIEWBOX FOLLOWING THE MEASURED BOX, not
+ * a font size — a `fontSize` assertion would pass unchanged on the broken
+ * version, because the declaration was never what moved. jsdom has no layout
+ * and no `ResizeObserver`, so the observer is stood up here and fed two
+ * different boxes: if one user unit is one device pixel, `fontSize={11}` is
+ * 11px at every panel size by construction, and if it is not, no amount of
+ * declaring will make it so.
+ */
+describe('RadarView draws in pixels, not in viewBox units', () => {
+  const original = globalThis.ResizeObserver
+  afterEach(() => { globalThis.ResizeObserver = original })
+
+  const atBox = (w, h) => {
+    let fire = null
+    globalThis.ResizeObserver = class {
+      constructor(cb) { fire = (rect) => act(() => cb([{ contentRect: rect }])) }
+      observe() {}
+      disconnect() {}
+    }
+    const { container } = render(
+      <RadarView currentRow={currentRow} metrics={bigMetrics.slice(0, 6)} normalize={normalize}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{}} />)
+    fire({ width: w, height: h })
+    const svg = container.querySelector('svg')
+    const [, , vbW, vbH] = svg.getAttribute('viewBox').split(/\s+/).map(Number)
+    const declared = Number(container.querySelector('[data-radar-axis]').getAttribute('font-size'))
+    // `xMidYMid meet` scales by the SMALLER of the two ratios, so this is what a
+    // caption actually measures on screen.
+    return { viewBox: `${vbW} ${vbH}`, declared, drawnPx: declared * Math.min(w / vbW, h / vbH) }
+  }
+
+  it('sizes its viewBox to the box it was measured at', () => {
+    expect(atBox(1464, 645).viewBox).toBe('1464 645')
+    expect(atBox(672, 189).viewBox).toBe('672 189')
+  })
+
+  /**
+   * ⛔ THE ASSERTION IS THE PRODUCT, NOT EITHER HALF. A caption's screen size is
+   * `font-size × viewBox scale`, and it was the SCALE that moved: the declared
+   * `9` was constant the whole time the rendered caption ran from 5px to 17px.
+   * Asserting the declaration would have passed on the defect; asserting the
+   * product fails on it, and also fails on the other way to get this wrong —
+   * "fixing" the scale by making the declaration a function of the box.
+   */
+  it('draws a caption the same size at a full panel and at a quarter pane', () => {
+    const wide = atBox(1464, 645)
+    const small = atBox(672, 189)
+    expect(small.drawnPx).toBeCloseTo(wide.drawnPx, 6)
+    expect(wide.drawnPx).toBeGreaterThan(9)   // …and legible at both, not merely equal
+  })
+})
+
+/**
+ * ⭐ AND THE SHAPE ANSWERS "WHICH WAY IS IT MOVING?" — the question Meters
+ * already answers with its ghost marker off the same `prevRow`. A radar that
+ * could not was the odd board out.
+ *
+ * ⛔ IT IS DRAWN ONLY WHEN IT SAYS SOMETHING: an identical outline under the
+ * live polygon is two lines claiming to be one reading.
+ */
+describe('RadarView prior-session ghost', () => {
+  const three = bigMetrics.slice(0, 5)
+  const now = { date: '2026-06-01' }
+  const before = { date: '2026-05-27' }
+
+  it('draws the prior shape when it differs from today', () => {
+    const { container } = render(
+      <RadarView currentRow={now} prevRow={before} metrics={three}
+                 normalize={(m, row) => (row === before ? 20 : 70)}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{}} />)
+    expect(container.querySelector('[data-testid="radar-ghost"]')).toBeTruthy()
+    expect(screen.getByTestId('radar-basis').textContent).toMatch(/three sessions back/)
+  })
+
+  it('draws nothing when the board has not moved', () => {
+    const { container } = render(
+      <RadarView currentRow={now} prevRow={before} metrics={three} normalize={() => 55}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{}} />)
+    expect(container.querySelector('[data-testid="radar-ghost"]')).toBeNull()
+    expect(screen.getByTestId('radar-basis').textContent).not.toMatch(/three sessions back/)
+  })
+
+  it('draws nothing when there is no prior session at all', () => {
+    const { container } = render(
+      <RadarView currentRow={now} metrics={three} normalize={() => 55}
+                 onDrill={() => {}} signalKey={null} notableKey={null} options={{}} />)
+    expect(container.querySelector('[data-testid="radar-ghost"]')).toBeNull()
   })
 })

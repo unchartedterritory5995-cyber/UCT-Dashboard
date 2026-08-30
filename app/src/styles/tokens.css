@@ -97,6 +97,7 @@
   --color-warning: var(--warn);
   --color-success: var(--gain);
   --bg-base: var(--bg);
+
   --info: #5ea8f7;
   --info-bg: #5ea8f712;
   --info-border: #5ea8f730;

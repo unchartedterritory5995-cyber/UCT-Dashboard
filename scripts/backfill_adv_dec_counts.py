@@ -29,10 +29,32 @@ Measured 2026-08-30 against the stored `adv_decline` series:
     a bars.db recompute (breadth_history_recon) 0 / 96 sessions exact
 
 — which is why this script reads the frames rather than driving the recon.
-The recon reconstructs the collector's METHOD faithfully but not its INPUTS
-(yfinance auto-adjusted closes vs split-only bars.db, and 78-99.7% bars
-coverage of the collector's universe). `POST .../history/adv-dec-validate`
-re-measures that on the pod at any time.
+The recon reconstructs the collector's METHOD faithfully but not its
+POPULATION: bars.db cannot price 0.3-22% of each session's point-in-time
+universe, and the missing names are distributed like the day, so every count
+comes back scaled by that session's coverage. Measured per name, that accounts
+for the whole gap; the dividend basis everyone reaches for first contributes
+5 sign flips in 114 sessions. `POST .../history/adv-dec-validate` re-measures
+it on the pod at any time.
+
+A DATE'S OWN FRAME IS NOT ALWAYS THE SOURCE ITS ROW CAME FROM
+-------------------------------------------------------------
+`--backfill --since <date>` in the collector recomputes EVERY past session from
+ONE frame — the one downloaded on the day the backfill ran — and re-pushes it.
+A row written that way was measured over that later day's universe and on that
+later day's adjusted prices, so its own day's cached frame no longer reproduces
+it and the gate correctly refuses. Measured: 2026-03-16..03-20 are exactly that,
+and all five reproduce to the unit from the 2026-03-22 frame (see `--survey`).
+
+⛔ THE DISCIPLINE THAT KEEPS THE GATE HONEST. The gate is strong because a wrong
+pair would have to be wrong by the same amount in advancers AND decliners at
+once. SEARCHING over candidate frames until one matches weakens exactly that —
+neighbouring frames' nets sit within a few units of each other, so over twenty
+candidates a spurious single-date match is likely, not rare. So: `--survey`
+REPORTS which frames reproduce which dates and applies nothing, and `--apply`
+with `--restated-from` requires you to name ONE source frame by hand. Trust it
+when one frame reproduces a RUN of consecutive dates — that is a mechanism.
+Do not trust one frame matching one date.
 
 THE GATE
 --------
@@ -58,11 +80,22 @@ USAGE
     # 2. write it
     python scripts/backfill_adv_dec_counts.py --apply
 
+    # 3. ask WHERE the refused rows actually came from (writes nothing, ever)
+    python scripts/backfill_adv_dec_counts.py --survey
+
+    # 4. having read the survey and seen ONE frame explain a RUN of dates:
+    python scripts/backfill_adv_dec_counts.py --apply \
+        --restated-from 2026-03-22 \
+        --restated-dates 2026-03-16,2026-03-17,2026-03-18,2026-03-19,2026-03-20
+
     set PUSH_SECRET=...        (or pass --secret)
     --base-url  https://uctintelligence.com   (default)
     --cache-dir <uct-intelligence>/data/massive_cache
     --since / --until  YYYY-MM-DD bounds
     --batch     dates per request (default 40)
+    --survey-window  how many calendar days of later frames to scan (default 21)
+    --survey-dates   extra dates to survey that have no usable own frame
+                     (e.g. 2026-07-10, whose frame was never written)
 """
 from __future__ import annotations
 
@@ -127,6 +160,73 @@ def counts_from_frame(path: str, expect_date: str):
     return adv, dec, universe
 
 
+def counts_from_slice(path: str, target_date: str):
+    """`(advancing, declining, universe)` for `target_date` read out of a LATER
+    frame, by slicing it the way `breadth_collector.backfill()` does.
+
+    That function is the reason this exists: it computes every past session from
+    ONE frame (`closes.loc[:date_str]`, then `adv_decline_parts`) and re-pushes
+    it, so a restated row's numbers live in the frame downloaded on the day the
+    backfill ran, not in the target date's own frame.
+
+    Returns None when the frame holds no row for that date (or only one row up
+    to it, so there is no prior close to change against). It does NOT refuse a
+    frame that IS the target's own — sliced at its own last row it is exactly
+    `counts_from_frame`, which is a useful equivalence, not a bug. Choosing
+    which frames to offer is the caller's job; `survey` skips `src <= target`.
+    """
+    import pandas as pd
+
+    df = pd.read_pickle(path)
+    cl = df["Close"]
+    cl = cl.loc[:, ~cl.columns.duplicated()]
+    sl = cl.loc[:target_date]
+    if len(sl) < 2:
+        return None
+    last = sl.index[-1]
+    last_iso = last.strftime("%Y-%m-%d") if hasattr(last, "strftime") else str(last)[:10]
+    if last_iso != target_date:
+        return None
+    chg = sl.pct_change().iloc[-1]
+    valid = chg.notna()
+    adv = int((chg[valid] > 0).sum())
+    dec = int((chg[valid] < 0).sum())
+    universe = int(sl.iloc[-1].notna().sum())
+    return adv, dec, universe
+
+
+def survey(cache_dir: str, targets: dict, window_days: int = 21) -> dict:
+    """For each `{date: stored_adv_decline}`, which later frames reproduce it?
+
+    Read-only and local: it opens pickles and posts nothing. The output is
+    evidence for a human, not an instruction to a machine — see THE DISCIPLINE
+    in the module docstring for why this never feeds `--apply` automatically.
+    """
+    import datetime as _dt
+
+    out = {}
+    for d in sorted(targets):
+        stored = targets[d]
+        hi = (_dt.date.fromisoformat(d) + _dt.timedelta(days=window_days)).isoformat()
+        hits, tried = [], 0
+        for src, path in _frames(cache_dir, d, hi):
+            if src <= d:
+                continue
+            try:
+                got = counts_from_slice(path, d)
+            except Exception:
+                continue
+            if got is None:
+                continue
+            tried += 1
+            adv, dec, uni = got
+            if stored is not None and (adv - dec) == stored:
+                hits.append({"source": src, "advancing": adv, "declining": dec,
+                             "universe": uni})
+        out[d] = {"stored_adv_decline": stored, "frames_tried": tried, "hits": hits}
+    return out
+
+
 def _post(base_url: str, path: str, secret: str, body: dict, params: str = ""):
     url = base_url.rstrip("/") + path + (("?" + params) if params else "")
     data = json.dumps(body).encode()
@@ -161,7 +261,31 @@ def main(argv=None) -> int:
     ap.add_argument("--apply", action="store_true",
                     help="actually write (default is a dry run that writes nothing)")
     ap.add_argument("--json-out", default=None, help="write the full report here")
+    ap.add_argument("--restated-from", default=None, metavar="YYYY-MM-DD",
+                    help="source --restated-dates by SLICING this cached frame, the way "
+                         "the collector's --backfill did. Requires --restated-dates.")
+    ap.add_argument("--restated-dates", default=None,
+                    help="comma-separated dates to take from --restated-from")
+    ap.add_argument("--survey", action="store_true",
+                    help="report which later frames reproduce each refused row's stored "
+                         "adv_decline. Forces a dry run; writes nothing.")
+    ap.add_argument("--survey-window", type=int, default=21,
+                    help="calendar days of later frames to scan (default 21)")
+    ap.add_argument("--survey-dates", default=None,
+                    help="extra dates to survey that have no usable own frame")
     a = ap.parse_args(argv)
+
+    if bool(a.restated_from) != bool(a.restated_dates):
+        print("--restated-from and --restated-dates must be given together",
+              file=sys.stderr)
+        return 2
+    if a.survey and a.apply:
+        # A survey is an argument for a decision, not the decision. Applying in
+        # the same breath is how a search over candidate frames turns into a
+        # write nobody chose.
+        print("--survey never writes; drop --apply, read it, then re-run with "
+              "--apply --restated-from", file=sys.stderr)
+        return 2
 
     if not a.secret:
         print("PUSH_SECRET is required (env PUSH_SECRET or --secret)", file=sys.stderr)
@@ -194,6 +318,37 @@ def main(argv=None) -> int:
         print(f"  [{i}/{len(frames)}] {d}  adv={adv:>5}  dec={dec:>5}  "
               f"net={adv - dec:>6}  universe={uni}")
 
+    # Dates whose row was written by a LATER frame (a collector `--backfill`
+    # restatement). Named by hand, sourced by slicing, gated server-side like
+    # everything else — the source frame overrides that date's own frame.
+    restated = sorted({d.strip() for d in (a.restated_dates or "").split(",") if d.strip()})
+    if restated:
+        src_path = os.path.join(a.cache_dir, f"breadth_ohlcv_{a.restated_from}.pkl")
+        if not os.path.exists(src_path):
+            print(f"no cached frame for --restated-from {a.restated_from}", file=sys.stderr)
+            return 2
+        print(f"\nre-sourcing {len(restated)} date(s) from the {a.restated_from} frame:")
+        for d in restated:
+            got = counts_from_slice(src_path, d)
+            if got is None:
+                print(f"  {d}: that frame has no row for this date — skipped")
+                skipped.append({"date": d, "reason": f"no {d} row in the "
+                                                     f"{a.restated_from} frame"})
+                continue
+            adv, dec, uni = got
+            pairs[d] = [adv, dec]
+            print(f"  {d}  adv={adv:>5}  dec={dec:>5}  net={adv - dec:>6}  universe={uni}")
+
+    # A `[0, 0]` probe is a pair the gate can only refuse, and a refusal reports
+    # the row's stored `adv_decline`. That is how a date with no usable frame of
+    # its own gets surveyed without inventing a number for it.
+    probe_only = set()
+    if a.survey:
+        for d in {x.strip() for x in (a.survey_dates or "").split(",") if x.strip()}:
+            if d not in pairs:
+                pairs[d] = [0, 0]
+                probe_only.add(d)
+
     before = _get(a.base_url, "/api/breadth-monitor/history/adv-dec-coverage")
     print(f"\nZweig coverage before: {before['covered']} of {before['sessions']} "
           f"sessions (needs {before['needs']})")
@@ -205,9 +360,11 @@ def main(argv=None) -> int:
     dates = sorted(pairs)
     for s in range(0, len(dates), max(1, a.batch)):
         chunk = {d: pairs[d] for d in dates[s:s + a.batch]}
+        src = "collector_cache_restated" if (restated and set(chunk) & set(restated)) \
+            else "collector_cache"
         rep = _post(a.base_url, "/api/breadth-monitor/history/adv-dec-apply",
-                    a.secret, {"rows": chunk, "source": "collector_cache"},
-                    params=("dry_run=false" if a.apply else "dry_run=true"))
+                    a.secret, {"rows": chunk, "source": src},
+                    params=("dry_run=false" if (a.apply and not a.survey) else "dry_run=true"))
         for k in merged:
             merged[k].extend(rep.get(k) or [])
 
@@ -231,21 +388,51 @@ def main(argv=None) -> int:
     if merged["write_failed"]:
         print(f"  ⚠ write failures      {merged['write_failed']}")
     for r in merged["refused_identity"][:10]:
+        note = "  [probe]" if r["date"] in probe_only else ""
         print(f"    refused {r['date']}: net {r['net']} vs stored "
-              f"adv_decline {r['stored_adv_decline']} (off by {r['diff']})")
+              f"adv_decline {r['stored_adv_decline']} (off by {r['diff']}){note}")
     if len(merged["refused_identity"]) > 10:
         print(f"    … and {len(merged['refused_identity']) - 10} more")
+
+    survey_out = None
+    if a.survey:
+        targets = {r["date"]: r["stored_adv_decline"]
+                   for r in merged["refused_identity"]}
+        print(f"\nSURVEY — which LATER frame reproduces each refused row "
+              f"(scanning {a.survey_window} calendar days ahead)")
+        survey_out = survey(a.cache_dir, targets, a.survey_window)
+        by_source = {}
+        for d in sorted(survey_out):
+            e = survey_out[d]
+            if not e["hits"]:
+                print(f"  {d}: stored {e['stored_adv_decline']} — NO frame of the "
+                      f"{e['frames_tried']} scanned reproduces it")
+                continue
+            names = ", ".join(h["source"] for h in e["hits"])
+            print(f"  {d}: stored {e['stored_adv_decline']} — reproduced by {names}")
+            for h in e["hits"]:
+                by_source.setdefault(h["source"], []).append(d)
+        for src_date, ds in sorted(by_source.items(), key=lambda kv: -len(kv[1])):
+            verdict = ("a RUN — this is a mechanism" if len(ds) > 1
+                       else "ONE date only — not enough; a single match is "
+                            "expected by chance across many frames")
+            print(f"\n  the {src_date} frame reproduces {len(ds)} date(s): {verdict}")
+            if len(ds) > 1:
+                print(f"    python scripts/backfill_adv_dec_counts.py --apply \\\n"
+                      f"        --restated-from {src_date} \\\n"
+                      f"        --restated-dates {','.join(sorted(ds))}")
 
     print(f"\nZweig coverage after:  {after['covered']} of {after['sessions']} "
           f"sessions (needs {after['needs']})  ->  "
           + ("EVALUATES" if after["zweig_ok"] else "still refuses"))
-    if not a.apply:
+    if not a.apply or a.survey:
         print("(coverage is unchanged because nothing was written — "
               "re-run with --apply)")
 
     if a.json_out:
         with open(a.json_out, "w") as f:
             json.dump({"skipped_frames": skipped, "report": merged,
+                       "survey": survey_out,
                        "coverage_before": before, "coverage_after": after}, f, indent=1)
         print(f"\nfull report -> {a.json_out}")
     return 0

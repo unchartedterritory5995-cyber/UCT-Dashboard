@@ -745,6 +745,9 @@ function ChartPane({
             liveUpdates: false,
             watermark: sym,
             watermarkName: breadthRec.name,
+            // UCT pseudo-ticker — its watermark logo is the UCT compass brand mark,
+            // not a (wrong) company-logo lookup on the synthetic symbol.
+            watermarkBrandMark: true,
             // Breadth indicators have no volume — the synthetic bars carry vol=0, which
             // otherwise paints a flat line pinned at 0 (plus a "0" axis tag and a
             // "$ Vol $0" legend) in the volume pane. Render the volume pane EMPTY: it
@@ -759,6 +762,7 @@ function ChartPane({
             watermark: themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
+            watermarkBrandMark: true,   // UCT compass mark, not a company-logo lookup
           } : {})}
           {...(!themeIdx.isIndex && isDelisted ? {
             // DELISTED (never a theme index): freeze live updates + curated watermark

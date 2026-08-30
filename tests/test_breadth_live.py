@@ -143,11 +143,16 @@ def count_stage(closes, stage):
     return int(mask[valid].sum())
 
 
-def adv_decline_count(closes):
+def adv_decline_parts(closes):
     chg = closes.pct_change().iloc[-1]
     valid = chg.notna()
     adv = int((chg[valid] > 0).sum())
     dec = int((chg[valid] < 0).sum())
+    return adv, dec
+
+
+def adv_decline_count(closes):
+    adv, dec = adv_decline_parts(closes)
     return adv - dec
 
 
@@ -250,7 +255,12 @@ def _reference(cdf, vdf):
         "new_52w_lows":  count_nd_lows(cdf, 252),
         "new_20d_highs": count_nd_highs(cdf, 20),
         "new_20d_lows":  count_nd_lows(cdf, 20),
-        "new_ath":       count_nd_highs(cdf, min(252, len(cdf) - 1)),
+        # `new_ath` deliberately excluded: `count_nd_highs(cdf, min(252,
+        # len(cdf)-1))` is the pre-2026-08-06 collector formula the live path
+        # is NOT trying to reproduce any more (that formula was never an
+        # all-time high — see `tests/test_breadth_new_ath_definition.py`). The
+        # live path now publishes `None` for this key on purpose; asserting
+        # equality here would fail the fix, not catch a regression.
         "near_52w_high": count_near_52w_high(cdf, pct=0.05),
         "hvc_52w":       count_52w_vol_highs(vdf, cdf),
         "stage2_count":  count_stage(cdf, 2),
@@ -342,6 +352,21 @@ def test_a_name_at_a_new_high_is_counted_and_one_a_hair_below_is_not():
     live = bl.compute_metrics(levels, prices, vols)
     assert live["new_52w_highs"] == count_nd_highs(cdf, 252)
     assert live["new_52w_highs"] >= 1
+
+
+def test_new_ath_publishes_nothing_on_every_frame_length():
+    """2026-08-30 fix — full detail + the mutation check in
+    `tests/test_breadth_new_ath_definition.py`. Pinned here too because this
+    file is the one asserting "the live path must reproduce the collector
+    EXACTLY," and `new_ath` is the one published key where that is no longer
+    the goal: the collector's real answer needs full per-ticker history this
+    module never loads, so it must say nothing rather than something wrong."""
+    for seed in (1, 21, 61):
+        cdf, vdf = _frame(seed=seed)
+        levels, prices, vols = _split(cdf, vdf)
+        live = bl.compute_metrics(levels, prices, vols)
+        assert live["new_ath"] is None
+        assert live["new_ath"] != live["new_52w_highs"]
 
 
 # ── Exact boundaries ─────────────────────────────────────────────────────────
@@ -665,7 +690,14 @@ def test_every_published_metric_carries_an_accuracy_grade():
 MIRRORED = (
     "pct_above_sma", "pct_above_ema", "count_period_return", "count_nd_highs",
     "count_nd_lows", "count_near_52w_high", "count_52w_vol_highs", "count_stage",
-    "adv_decline_count", "up_volume_ratio", "mcclellan_oscillator",
+    # `adv_decline_count` became a two-line delegate on 2026-08-29
+    # (uct-intelligence `0c13eb9` "stop discarding advancing/declining counts"),
+    # and this rail went red the moment it did — correctly, and unnoticed. Mirror
+    # BOTH halves: pinning only the delegate would leave the arithmetic that
+    # actually produces the counts unpinned, which is the half `compute_metrics`
+    # reproduces.
+    "adv_decline_parts", "adv_decline_count",
+    "up_volume_ratio", "mcclellan_oscillator",
 )
 
 
@@ -971,6 +1003,31 @@ def test_live_drill_refuses_a_metric_that_is_not_live_measured():
     out = bl.live_drill("atr_ext_7")
     assert out["ok"] is False and out["items"] == []
     assert "carried" in (out["reason"] or "").lower()
+
+
+def test_live_drill_refuses_new_ath_by_name_instead_of_an_empty_modal():
+    """`new_ath` stays in DRILLABLE (the Monitor's column keeps its
+    `drillKey`), but `compute_metrics` never calls `_keep` for it (2026-08-30
+    fix), so a click must not read as "zero names at an all-time high" — a
+    claim nobody made. The reason must NOT be the generic carried-field
+    sentence: `new_ath` isn't carried from a prior session, it simply isn't
+    computed here."""
+    cdf, vdf = _frame(seed=31, n_tickers=30, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    assert "new_ath" not in members          # the mechanism the refusal relies on
+
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    out = bl.live_drill("new_ath_list")      # the drillKey Breadth.jsx declares
+    assert out["ok"] is False
+    assert out["items"] == []
+    reason = (out["reason"] or "").lower()
+    assert "carried" not in reason, f"reason claims new_ath is carried, which is false: {reason!r}"
+    assert "ath" in reason and "not" in reason
 
 
 def test_a_zero_average_volume_yields_no_ratio_rather_than_infinity():

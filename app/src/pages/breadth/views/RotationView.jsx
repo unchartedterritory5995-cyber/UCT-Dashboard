@@ -180,8 +180,11 @@ export default function RotationView({
                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.sub}
               </span>
-              <span data-testid={`rotation-value-${p.key}`}
-                    style={{ font: '800 22px \'Instrument Sans\', sans-serif', color: '#e8e8ea',
+              {/* ⛔ THE SIZE LIVES IN THE STYLESHEET, not here: it is the one
+                  number on this panel that has to be smaller in a compare pane,
+                  and an inline `font` would beat the pane rule. */}
+              <span data-testid={`rotation-value-${p.key}`} className={styles.value}
+                    style={{ color: '#e8e8ea',
                              letterSpacing: '-0.4px', lineHeight: 1, marginLeft: 'auto',
                              fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                 {usable ? fmt(now) : '—'}
@@ -195,8 +198,11 @@ export default function RotationView({
               )}
             </div>
 
-            {/* The trace band — the ONLY thing on the panel that flexes. */}
-            <div style={{ flex: '1 1 auto', minHeight: 18, display: 'flex', alignItems: 'stretch',
+            {/* The trace band — the ONLY thing on the panel that flexes. Its
+                FLOOR is in the stylesheet for the same reason the value's size
+                is: it is what a squeezed pane has to give up first. */}
+            <div className={styles.trace}
+                 style={{ flex: '1 1 auto', display: 'flex', alignItems: 'stretch',
                           gap: 6, margin: '3px 0 2px', minWidth: 0 }}>
               {/* The trace's own scale, and after `traceDomain` these are the
                   DRAWN bounds rather than the window's extremes — the two
