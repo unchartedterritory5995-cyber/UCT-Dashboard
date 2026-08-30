@@ -23,6 +23,7 @@ import {
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 } from './breadth/heatmapMetrics'
 import BreadthViews from './breadth/BreadthViews'
+import UnmountReporter from './breadth/UnmountReporter'
 import useBreadthUrlState from './breadth/useBreadthUrlState'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
@@ -887,23 +888,34 @@ export default function Breadth() {
    * is SPENT and the next mount is handed nothing — the child's own state,
    * restored from the preference blob it just flushed, is the authority.
    *
-   * The spend is on LEAVING a mounted Views tab, not on the first report back:
-   * an out-of-window `?date=` legitimately keeps retrying while the tab is up
+   * The spend is on LEAVING a mount, not on the first report back: an
+   * out-of-window `?date=` legitimately keeps retrying while the tab is up
    * (widen the window with the day pills and the link lands), and clearing on
    * the first `onUrlChange` would kill that inside the very mount it serves.
    *
-   * ⛔ AND IT RECONCILES DURING RENDER, not in an effect — React's documented
-   * "adjusting state when props change", the same shape `BreadthViews` uses for
-   * its cursor clamp. An effect here would trip `react-hooks/set-state-in-effect`
-   * for the same reason the `?date=` seek did, and it would also let one frame
-   * commit with the link still live. `pending` also means a link is still
-   * waiting for a Views tab that has not been opened yet, so `?date=` on a page
-   * that lands on Monitor still applies when the reader walks over.
+   * 🔴 AND "LEAVING" IS THE CHILD'S OWN LIFECYCLE, NOT A TAB COMPARISON.
+   *
+   * This was `if (!isViewsTab && urlVisit === 'open') setUrlVisit('spent')` — a
+   * proxy that could only ever catch the unmount reason someone had thought of.
+   * `BreadthViews` is ALSO gated on `rows.length > 0`, and `rows` empties on an
+   * ordinary window change: the day pill moves `effectiveDays`, the SWR key
+   * changes, and `data` is `undefined` until the new window resolves. With no
+   * live row to carry (outside RTH, or once the 4:15 collector has written the
+   * day) `rows` is empty for that stretch, the child unmounts and remounts, the
+   * tab never changed — so the link was still live and the whole persisted
+   * reversion came back, on a SUCCESSFUL fetch. `keepPreviousData` below removes
+   * that trigger; `UnmountReporter` removes the assumption, which is the fix.
+   *
+   * `setUrlSpent` is called from an effect cleanup inside the mounted subtree,
+   * so this is a plain state update from a committed child, not the
+   * "adjusting state during render" shape the rest of this wave uses.
    */
-  const [urlVisit, setUrlVisit] = useState('pending')   // pending → open → spent
-  if (isViewsTab && urlVisit === 'pending') setUrlVisit('open')
-  if (!isViewsTab && urlVisit === 'open') setUrlVisit('spent')
-  const viewsUrlState = urlVisit === 'spent' ? null : urlInitial
+  const [urlSpent, setUrlSpent] = useState(false)
+  const spendLink = useCallback(() => setUrlSpent(true), [])
+  // Only ever undoes a report StrictMode's dev-mode double-invoke made about a
+  // mount that never actually ended — see the header of `UnmountReporter.jsx`.
+  const unspendLink = useCallback(() => setUrlSpent(false), [])
+  const viewsUrlState = urlSpent ? null : urlInitial
 
   // What BreadthViews last reported about itself; composed with `days` here so
   // the query is written from ONE place.
@@ -919,10 +931,21 @@ export default function Breadth() {
   useEffect(() => {
     if (activeTab === 'analogues' && !isAdmin) setActiveTab('breadth')
   }, [activeTab, isAdmin])
+  /**
+   * ⭐ `keepPreviousData` — the window pills change this key, and without it
+   * `data` is `undefined` for the whole of an ordinary first-of-session fetch.
+   * Every tab that reads `rows` blanked and rebuilt on each widen, and on the
+   * Views tab the blank UNMOUNTED `BreadthViews` (see the link-spend block
+   * above). Holding the previous window until the new one lands is both the
+   * honest thing on screen — the rows shown are real rows, just the narrower
+   * set, and the counts beside them describe exactly what is drawn — and the
+   * removal of that unmount trigger. COT and Data Charts return before `rows`
+   * is read at all, so they cannot see this either way.
+   */
   const { data, isLoading, error } = useSWR(
     `/api/breadth-monitor?days=${effectiveDays}`,
     fetcher,
-    { refreshInterval: 5 * 60 * 1000 }
+    { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
   const [collapsedCols, setCollapsedCols] = useState(() => {
     try {
@@ -1140,9 +1163,14 @@ export default function Breadth() {
       )}
 
 
+      {/* ⛔ THE REPORTER WRAPS THE CHILD RATHER THAN SITTING BESIDE IT: its
+          cleanup has to be the child's own unmount, for every reason the child
+          can leave — not a second copy of the conditions above it. */}
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock}
-                      urlState={viewsUrlState} onUrlChange={setViewsUrl} />
+        <UnmountReporter onUnmount={spendLink} onReattached={unspendLink}>
+          <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock}
+                        urlState={viewsUrlState} onUrlChange={setViewsUrl} />
+        </UnmountReporter>
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

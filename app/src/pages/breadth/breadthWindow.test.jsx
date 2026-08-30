@@ -1,4 +1,9 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi } from 'vitest'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
 import { render as rtlRender, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -82,5 +87,66 @@ describe('the Views tab actually renders its own pills', () => {
     // Back on the monitor, its own pills are the shallow set again.
     expect([...container.querySelectorAll('button')].map(b => b.textContent)
       .filter(t => /^\d+d$/.test(t))).toEqual(OTHER_DAY_CHOICES.map(d => `${d}d`))
+  })
+})
+
+/**
+ * 🔴 A WINDOW CHANGE BLANKED THE WHOLE PAGE, AND ON THE VIEWS TAB IT UNMOUNTED
+ * THE VIEWS.
+ *
+ * Every pill above changes the page's SWR key, and without `keepPreviousData`
+ * `data` is `undefined` for the whole of the new (successful) fetch — so `rows`
+ * empties, the monitor table and the Daily hero blank and rebuild, and
+ * `BreadthViews`, which is gated on `rows.length > 0`, unmounts and remounts.
+ * That remount is what resurrected a spent `?view=` link
+ * (`breadthUrlRoute.test.jsx` holds that half).
+ *
+ * ⛔ THE MOCK ABOVE CANNOT SEE THIS OPTION — it answers every key itself, so no
+ * render test in this file can tell the flag from its absence. The option is
+ * therefore read out of the file by AST, off the `useSWR` call that actually
+ * loads the window, rather than grepped: `useSWR` appears in this page more than
+ * once and a grep for the flag name would match a comment.
+ */
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+
+describe('the page holds the previous window while the next one loads', () => {
+  const optionsOfBreadthMonitorSWR = () => {
+    const src = fs.readFileSync(path.join(HERE, '..', 'Breadth.jsx'), 'utf8').replace(/\r\n/g, '\n')
+    const tree = Parser.extend(jsx()).parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
+    let found = null
+    const walk = (n) => {
+      if (!n || typeof n.type !== 'string') return
+      if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'useSWR') {
+        const key = src.slice(n.arguments[0].start, n.arguments[0].end)
+        if (key.includes('/api/breadth-monitor')) found = n
+      }
+      for (const k of Object.keys(n)) {
+        const v = n[k]
+        if (Array.isArray(v)) v.forEach(c => c && typeof c.type === 'string' && walk(c))
+        else if (v && typeof v.type === 'string') walk(v)
+      }
+    }
+    walk(tree)
+    if (!found) throw new Error('Breadth.jsx no longer calls useSWR on /api/breadth-monitor — this rail cannot read the contract')
+    const opts = found.arguments[2]
+    if (!opts || opts.type !== 'ObjectExpression') {
+      throw new Error('that useSWR call has no options object literal — re-read it before trusting this rail')
+    }
+    return Object.fromEntries(opts.properties.map(p => [
+      p.key.name ?? p.key.value, src.slice(p.value.start, p.value.end),
+    ]))
+  }
+
+  it('asks SWR to keep the previous window until the next resolves', () => {
+    expect(optionsOfBreadthMonitorSWR().keepPreviousData).toBe('true')
+  })
+
+  it('CONTROL: the probe reads the real options object, not an empty one', () => {
+    // Without this, a rail that silently found nothing would report the flag as
+    // `undefined` and could never distinguish that from the flag being removed.
+    // ⛔ It asserts a SIBLING the real check is not looking at, and nothing about
+    // the option under test — a control that also goes red on the mutation is
+    // not a control.
+    expect(optionsOfBreadthMonitorSWR().refreshInterval).toBeTruthy()
   })
 })

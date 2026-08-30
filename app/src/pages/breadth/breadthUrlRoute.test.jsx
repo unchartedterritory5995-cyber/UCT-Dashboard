@@ -40,8 +40,20 @@ const ROWS = Array.from({ length: 40 }, (_, i) => {
     mcclellan_osc: 10, vix: 16, sp500_close: 5000 + i, advancing: 3000, declining: 1500,
   }
 })
+/**
+ * ⭐ THE MOCK CAN NOW BLANK ONE KEY, AND THAT IS THE POINT.
+ *
+ * A mock that always answers with rows makes `rows.length === 0` unreachable —
+ * so the whole "the child unmounted without a tab change" family of bugs was
+ * invisible to this file. `swrBlanks` reproduces the ordinary case: a window
+ * pill changes the SWR key, and until that (successful) fetch resolves `data`
+ * is `undefined`. Every other key answers exactly as before.
+ */
+const swrBlanks = vi.hoisted(() => new Set())
 vi.mock('swr', () => ({
-  default: () => ({ data: { rows: ROWS, days: 90 }, isLoading: false, error: null, mutate: () => {} }),
+  default: (key) => (swrBlanks.has(String(key))
+    ? { data: undefined, isLoading: true, error: null, mutate: () => {} }
+    : { data: { rows: ROWS, days: 90 }, isLoading: false, error: null, mutate: () => {} }),
 }))
 
 import Breadth from '../Breadth'
@@ -61,7 +73,9 @@ const activeDayPill = () => screen.getAllByRole('button')
   .filter(b => /^\d+d$/.test(b.textContent))
   .find(b => b.className.includes('daysPillActive'))?.textContent
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => { localStorage.clear(); swrBlanks.clear() })
+
+const dayPill = (label) => screen.getAllByRole('button').find(b => b.textContent === label)
 
 describe('a link carrying Views state opens the Views tab', () => {
   it('?view=clock lands on Views, showing the Regime Clock', () => {
@@ -185,6 +199,77 @@ describe('the link is spent after the first visit to the Views tab', () => {
     fireEvent.click(tab('Monitor'))
     fireEvent.click(tab('Views'))
     expect(activeStyle()).toBe('Regime Clock')   // nothing was changed, nothing moved
+  })
+})
+
+/**
+ * 🔴 THE SPEND WAS INFERRED FROM THE TAB, AND THE CHILD LEAVES FOR OTHER REASONS.
+ *
+ * `BreadthViews` is gated on `rows.length > 0 && activeTab === 'heatmap'`. Wave C
+ * marked the link spent when a mounted Views tab was LEFT — a proxy that catches
+ * only the unmount reason it was written for. Click a day pill to a window this
+ * session has not fetched and `data` is `undefined` until it resolves; with no
+ * live row to carry (outside RTH, or once the 4:15 collector has written the
+ * day) `rows` is empty for that stretch. The child unmounts and remounts, the
+ * tab never changed — so the original link was handed to the new mount and the
+ * reader's style was reverted AND persisted, on a perfectly successful fetch.
+ *
+ * ⛔ THE TESTS ABOVE CANNOT SEE THIS: they only cross the unmount boundary by
+ * switching tabs, which the old proxy handled. This one drives `rows.length` to
+ * 0 without touching the tabs, which is the transition the old fixture made
+ * impossible.
+ */
+describe('the link is spent by the child leaving, not by the tab changing', () => {
+  const switcher = () => within(screen.getByRole('group', { name: 'Visualization style' }))
+  const activeStyle = () => switcher().getAllByRole('button')
+    .find(b => b.getAttribute('aria-pressed') === 'true')?.textContent
+
+  // The window this session has not loaded yet. Widening to it empties `rows`
+  // until it resolves; coming back to 90 is a window already in cache.
+  const widenToLoadingWindow = () => {
+    swrBlanks.add('/api/breadth-monitor?days=180')
+    fireEvent.click(dayPill('180d'))
+  }
+
+  it('a window change that empties rows does not resurrect the link', () => {
+    at('?view=clock')
+    expect(activeStyle()).toBe('Regime Clock')
+    fireEvent.click(switcher().getByRole('button', { name: 'Radar' }))
+    expect(activeStyle()).toBe('Radar')
+
+    widenToLoadingWindow()
+    // Non-vacuity: the child really did go away, and no tab was touched.
+    expect(screen.queryByTestId('scrubber'),
+           'rows never emptied — this fixture cannot see the bug').toBeNull()
+    expect(tab('Views').className).toMatch(/tabActive/)
+
+    fireEvent.click(dayPill('90d'))               // a cached window: rows return
+    expect(screen.getByTestId('scrubber')).toBeTruthy()
+    expect(activeStyle()).toBe('Radar')
+  })
+
+  it('and does not write the reverted style back into the stored preference', () => {
+    // The half that follows the user home: `useBreadthViews` flushes to
+    // localStorage on unmount and to the server preference once hydrated, so a
+    // reversion here outlives the visit and every later one carrying no query.
+    at('?view=clock')
+    fireEvent.click(switcher().getByRole('button', { name: 'Radar' }))
+    widenToLoadingWindow()
+    fireEvent.click(dayPill('90d'))
+    fireEvent.click(tab('Monitor'))               // flush-on-unmount, after the remount
+
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)).viewStyle).toBe('radar')
+  })
+
+  it('CONTROL: the link still lands on a first mount that follows an empty window', () => {
+    // The spend must not be so eager that a link opened while the page has no
+    // rows yet never applies. Nothing has mounted, so nothing has been left.
+    swrBlanks.add('/api/breadth-monitor?days=90')
+    at('?view=clock')
+    expect(screen.queryByTestId('scrubber')).toBeNull()
+    swrBlanks.delete('/api/breadth-monitor?days=90')
+    fireEvent.click(dayPill('180d'))
+    expect(activeStyle()).toBe('Regime Clock')
   })
 })
 
