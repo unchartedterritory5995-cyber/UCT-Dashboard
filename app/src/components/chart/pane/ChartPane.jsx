@@ -602,6 +602,10 @@ function ChartPane({
 
   useImperativeHandle(ref, () => ({
     openSettings,
+    // Apply a whole settings blob to THIS chart — same path the settings modal's
+    // onChange uses. Lets the right-click "Chart template" menu drop a saved
+    // template straight onto the chart without opening the modal.
+    applySettings: updateChartSettings,
     focus: () => focusableRef.current?.focus({ preventScroll: true }),
     changeSymbol: handleSymbolChange,
     // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
@@ -610,7 +614,7 @@ function ChartPane({
     // The visible time-range at this instant (null before the first report) —
     // the journal-capture read-out.
     getViewState: () => ({ range: viewRangeRef.current }),
-  }), [openSettings, handleSymbolChange])
+  }), [openSettings, updateChartSettings, handleSymbolChange])
 
   return (
     <div ref={paneRef} className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>

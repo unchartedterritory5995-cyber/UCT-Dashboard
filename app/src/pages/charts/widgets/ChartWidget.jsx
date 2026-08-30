@@ -4,6 +4,7 @@ import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurf
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
+import usePreferences from '../../../hooks/usePreferences'
 import AiSearchWidget from './AiSearchWidget'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
@@ -281,8 +282,25 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxMenu, setCtxMenu] = useState(null)   // {x,y,price,bar,currentPrice,resetView,openSettings}
   const [ctxToast, setCtxToast] = useState(null)
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
+  const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
-  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null) }, [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
+
+  // Saved chart-settings templates (the same `chart_templates` pref the settings
+  // modal writes) — listed in the right-click "Chart template" flyout so a saved
+  // look can be applied to this chart in one click.
+  const { prefs: uctPrefs } = usePreferences()
+  const chartTemplates = useMemo(() => {
+    const raw = uctPrefs?.chart_templates
+    try {
+      const a = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(a) ? a : []
+    } catch { return [] }
+  }, [uctPrefs])
+  const applyChartTemplate = useCallback((t) => {
+    if (t?.settings) paneRef.current?.applySettings?.(JSON.parse(JSON.stringify({ ...t.settings, preset: 'custom' })))
+    closeCtx()
+  }, [closeCtx])
 
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
@@ -543,6 +561,40 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
+                <div className={styles.chartCtxSubWrap}>
+                  <button
+                    type="button"
+                    className={`${styles.chartCtxItem} ${tplFlyout ? styles.chartCtxItemOpen : ''}`}
+                    aria-haspopup="true"
+                    aria-expanded={tplFlyout}
+                    onClick={() => setTplFlyout(v => !v)}
+                  >
+                    <UIcon name="copy" size={14} className={styles.chartCtxIcon} />Chart template
+                    <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
+                  </button>
+                  {tplFlyout && (
+                    <div className={styles.chartCtxFlyout} role="menu">
+                      {chartTemplates.length === 0 ? (
+                        <div className={styles.chartCtxFlyoutEmpty}>
+                          No saved templates yet. Save one from Chart settings → Templates.
+                        </div>
+                      ) : (
+                        chartTemplates.map(t => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={styles.chartCtxItem}
+                            title={`Apply "${t.name || 'Untitled'}" to this chart`}
+                            onClick={() => applyChartTemplate(t)}
+                          >
+                            <UIcon name="sliders" size={14} className={styles.chartCtxIcon} />
+                            <span className={styles.chartCtxTplName}>{t.name || 'Untitled'}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
