@@ -81,6 +81,25 @@ describe('the group labels cost no height while the rail is collapsed', () => {
       .toMatch(/display:\s*block/)
   })
 
+  test('the touch/tablet block re-hides them, or specificity re-adds the 106px', () => {
+    // 🔴 THE THIRD CHANGE THE FIX NEEDED, AND THE ONE THAT WAS NOT RAILED.
+    // `@media (hover: none), (max-width: 900px)` already carried a bare
+    // `.groupLabel { display: none }` at (0,1,0). The hover rule above is
+    // (0,3,0) — two classes plus `:hover`, a pseudo-CLASS — and specificity
+    // beats source order, so it wins INSIDE that media block too: a touch
+    // device that fires :hover re-adds the ~106px the block exists to avoid.
+    // Deleting the hover selector from that block left all five other
+    // assertions in this file green, which is exactly why it needs its own.
+    const i = css.indexOf('@media (hover: none)')
+    expect(i, 'the touch/tablet lock block is gone').toBeGreaterThan(-1)
+    const tablet = css.slice(i).split('\n}')[0]
+    expect(tablet,
+      'the tablet block hides `.groupLabel` but not `.nav:hover .groupLabel`, '
+      + 'which outranks it — a touch device that fires :hover gets the invisible '
+      + 'height back')
+      .toMatch(/\.nav:hover\s+\.groupLabel[^{]*\{[^}]*display:\s*none|\.nav:hover\s+\.groupLabel\s*\{\s*display:\s*none/)
+  })
+
   test('CONTROL: .label keeps the opacity recipe, which is correct FOR IT', () => {
     // The point of the fix is not "opacity is bad" — it is that the recipe's
     // cost depends on the box. `.label` is inline inside a sized row.

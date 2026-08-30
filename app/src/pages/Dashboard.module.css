@@ -116,6 +116,14 @@
   .main { grid-template-rows: auto auto auto; }
   .zoneA, .zoneB, .zoneC, .rail { overflow: visible; }
   .zoneB > *, .zoneC > *, .rail > * { max-height: none; overflow-y: visible; }
+  /* 🔴 ZONE D IS EXEMPT HERE, AND THE EXEMPTION IS LOAD-BEARING. Below 1024 the
+     door grid drops to `repeat(4, …)`, so eight doors become TWO rows — roughly
+     114px with the gap, against a 90px cap. `ZoneDoors.module.css` used to
+     carry exactly this override (`max-height: none`) and it was deleted when
+     the cap moved onto `.zoneD`, which clipped the bottom row of four doors in
+     half with `overflow: hidden` and no scroll. 820px is the audit harness's
+     own tablet viewport. Rail: Dashboard.zones.test.jsx. */
+  .zoneD { max-height: none; overflow: visible; }
 }
 
 /* ── Mobile: swap to accordion layout ─────────────────────────────────────── */

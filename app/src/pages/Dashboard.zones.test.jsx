@@ -255,6 +255,21 @@ test('ALL FOUR zones are inside the height invariant — Zone D included', () =>
     .toMatch(/overflow:\s*hidden/)
 })
 
+test('…but Zone D is EXEMPT from that cap below 1024, or its second row is clipped', () => {
+  // 🔴 THE REGRESSION THIS EXISTS TO STOP. `ZoneDoors.module.css` carried
+  // `max-height: none` inside its own ≤1024 block; moving the cap onto `.zoneD`
+  // deleted that exemption, and at tablet width the grid is `repeat(4, …)` — so
+  // eight doors are TWO rows (~114px with the gap) inside a 90px clip, cutting
+  // the bottom four in half with no scroll. 820px is the audit harness's own
+  // tablet viewport, so this shipped clipped on a width we actively measure.
+  const tablet = css.split('@media (max-width: 1024px)')[1]?.split('\n}')[0] ?? ''
+  expect(tablet, 'the ≤1024 block is gone').not.toBe('')
+  expect(tablet, '.zoneD keeps its 90px cap below 1024, where the doors need two '
+    + 'rows — the bottom row is clipped with no way to reach it')
+    .toMatch(/\.zoneD\s*\{[^}]*max-height:\s*none/)
+  expect(tablet, '.zoneD still clips below 1024').toMatch(/\.zoneD\s*\{[^}]*overflow:\s*visible/)
+})
+
 test('and Zone D height is not restated in ZoneDoors.module.css', () => {
   // The copy that made it a second authority over one number.
   const doors = readFileSync(join(here, 'dashboard', 'ZoneDoors.module.css'), 'utf8')

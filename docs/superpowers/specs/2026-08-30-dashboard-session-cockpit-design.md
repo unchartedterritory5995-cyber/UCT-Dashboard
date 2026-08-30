@@ -453,3 +453,39 @@ sections still describe them as though they exist.
   The weekend path IS fixed (`TheWeek` returns null and
   `.desktopOnly:has(.zoneB:empty)` collapses the track); it is the weekday
   catalyst gap that still shows a mostly-empty frame.
+
+- **`?ensure=` widget seeding is still clobbered for a brand-new user.**
+  `/theme-tracker` and `/watchlists` redirect to `/charts?ensure=<type>` because
+  those surfaces exist ONLY as widgets there. `ChartsWorkspace.jsx`'s seeding
+  effect gates on `prefsLoading`; the wholesale default-layout effect (~`:1778`)
+  gates on `prefsLoading || templatesLoading` and calls `setLayout(d.layout)`
+  outright, so on a first visit the seed is overwritten.
+
+  ⛔ **A `|| templatesLoading` gate was tried on the seeding effect and
+  REVERTED — it is a behavioural no-op.** Disproved by experiment with
+  `?ensure=news` (a real registry type deliberately absent from
+  `UCT_DEFAULT_LAYOUT`, so unlike the shipped `?ensure=themes` test it can
+  actually discriminate):
+
+  ```
+  BRAND NEW      / ensure=news  ->  seed GONE
+  LATE TEMPLATES / ensure=news  ->  seed GONE
+  ```
+
+  Byte-identical with the clause removed. Waiting for templates makes BOTH
+  effects fire on the SAME commit, where the **later** one wins — so "the
+  seeding effect sits above the default-layout effect it races" is backwards:
+  being above means being clobbered by it.
+
+  ⭐ **THE REAL FIX is in the default-layout effect, not the seed:** it must not
+  overwrite a layout an `?ensure=` has already seeded (e.g. skip the wholesale
+  apply when `ensureWidgetAppliedRef.current` has added a widget this mount, or
+  merge the seeded widget into the default layout rather than replacing it).
+
+  **Why it was not taken:** a race-condition change inside an 1,800-line
+  component, on the last commit before a merge decision, for a widget-seed edge
+  case. Today the seed survives only because `UCT_DEFAULT_LAYOUT` happens to
+  contain both widget types the live doors ask for — `ChartsWorkspace.jsx:~1758`
+  explicitly anticipates a DB template named "chart", and the day one is added
+  it wins and `/theme-tracker` lands on a workspace with no themes again, which
+  is the exact defect Task 6 set out to fix.
