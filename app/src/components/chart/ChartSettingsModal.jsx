@@ -838,20 +838,24 @@ export default function ChartSettingsModal({
                 ><span className={styles.toggleKnob} /></button>
               </div>
               {watermark.visible !== false && (<>
-                <div className={styles.field}>
+                <div className={`${styles.field} ${styles.fieldCol}`}>
                   <span className={styles.fieldLabel}>Fields</span>
                   <div className={styles.chipRow}>
-                    {/* All fields default ON. `interval` appends ", <timeframe>" to
-                        the ticker line, e.g. "ARM, 1D". */}
-                    {[['ticker', 'Ticker'], ['interval', 'Interval'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`${styles.chip} ${wmLines[key] !== false ? styles.chipOn : ''}`}
-                        onClick={() => setWmLine(key, wmLines[key] === false)}
-                        aria-pressed={wmLines[key] !== false}
-                      >{label}</button>
-                    ))}
+                    {/* `logo` (default OFF) prefixes the ticker line with the company
+                        logo; `interval` (default ON) appends ", <timeframe>" to it,
+                        e.g. "ARM, 1D". The `true` 3rd element marks a default-OFF field. */}
+                    {[['logo', 'Logo', true], ['ticker', 'Ticker'], ['interval', 'Interval'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label, defOff]) => {
+                      const on = defOff ? !!wmLines[key] : wmLines[key] !== false
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className={`${styles.chip} ${on ? styles.chipOn : ''}`}
+                          onClick={() => setWmLine(key, defOff ? !wmLines[key] : wmLines[key] === false)}
+                          aria-pressed={on}
+                        >{label}</button>
+                      )
+                    })}
                   </div>
                 </div>
                 <div className={styles.field}>

@@ -2382,6 +2382,9 @@ export default function StockChart({
   // Explicit "adjust watermark" mode: the dragged spot is held here (pending)
   // until the user hits Confirm — so a hover-drag can't silently move the mark.
   const [wmPending, setWmPending] = useState(null)
+  // Company logo image for the watermark's optional "Logo" field (loaded async,
+  // same-origin so it never taints the canvas). null when the field is off/absent.
+  const [wmLogo, setWmLogo] = useState(null)
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
@@ -2453,6 +2456,26 @@ export default function StockChart({
       })
     } catch { /* noop */ }
   }, [chartReady, watermarkAdjusting, wmPending, watermarkX, watermarkY, cs.watermark?.align, cs.watermark.x, cs.watermark.y, centerWatermarkOnPlot])
+  // Load the company logo when the watermark's "Logo" field is on (default off).
+  // Same-origin PNG proxy (/api/ticker-logo) → drawing it can't taint the canvas.
+  const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true
+  useEffect(() => {
+    const s = watermark ?? sym
+    if (!wmLogoEnabled || !s) { setWmLogo(null); return undefined }
+    let cancelled = false
+    const img = new Image()
+    // A cold/absent logo returns a 1×1 transparent PNG (loads "ok") — treat
+    // naturalWidth ≤ 2 as no logo, so the badge shows just the circle (like TSLA).
+    img.onload = () => { if (!cancelled) setWmLogo(img.naturalWidth > 2 ? img : null) }
+    img.onerror = () => { if (!cancelled) setWmLogo(null) }
+    img.src = `/api/ticker-logo/${encodeURIComponent(s)}`
+    return () => { cancelled = true }
+  }, [sym, watermark, wmLogoEnabled])
+  // Push the badge state to the primitive (redraws; block re-lays-out to include it).
+  // logoEnabled draws the circle even before/without an image, so no layout shift.
+  useEffect(() => {
+    try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo }) } catch { /* noop */ }
+  }, [wmLogo, wmLogoEnabled])
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
