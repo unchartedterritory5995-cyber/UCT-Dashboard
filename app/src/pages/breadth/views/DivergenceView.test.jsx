@@ -55,6 +55,29 @@ describe('DivergenceView', () => {
   it('refuses a window too short to z-score', () => {
     const { getByTestId } = render(<DivergenceView rows={rows.slice(0, 4)} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ price: 'sp500_close', participation: 'pct_above_50sma', minGap: 5 }} />)
-    expect(getByTestId('divergence-insufficient').textContent).toMatch(/needs 20 sessions/i)
+    expect(getByTestId('divergence-refusal').textContent).toMatch(/needs 20 sessions/i)
+  })
+
+  // 4 rows vs 40 passes for `>= 20`, `> 20`, `>= 15` and half a dozen other
+  // thresholds. The pair that pins MIN_SESSIONS is 19 and 20.
+  describe('the MIN_SESSIONS boundary itself', () => {
+    const opts = { price: 'sp500_close', participation: 'pct_above_50sma', minGap: 5 }
+    // Scoped to each render's OWN container: two renders share one document, so
+    // a bare queryByTestId finds the first render's refusal still standing.
+    const at = (n, rowIdx = 0) => render(<DivergenceView rows={rows.slice(0, n)} rowIdx={rowIdx}
+      currentRow={rows[rowIdx]} onDrill={() => {}} options={opts} />).container
+    const has = (c, id) => !!c.querySelector(`[data-testid="${id}"]`)
+
+    it('refuses at 19 sessions and draws at 20', () => {
+      expect(has(at(19), 'divergence-refusal')).toBe(true)
+      const ok = at(20)
+      expect(has(ok, 'divergence-refusal')).toBe(false)
+      expect(has(ok, 'divergence-verdict')).toBe(true)
+    })
+
+    it('counts the window FROM THE CURSOR, so scrubbing can cross the boundary', () => {
+      // 20 rows loaded, cursor one session back → 19 readable → refusal.
+      expect(has(at(20, 1), 'divergence-refusal')).toBe(true)
+    })
   })
 })

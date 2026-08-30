@@ -348,3 +348,55 @@ def fast_lane_desk_readiness(question: str | None = None) -> dict:
     missing = [p for p in _DESK_CANARY_EXPECT if p not in sources]
     return {"warm": not missing and err is None, "sources": sources,
             "missing": missing, "question": q, "error": err}
+
+
+def run_grounding_audit(*, rungs: list[int] | None = None,
+                        question_ids: list[str] | None = None) -> dict:
+    """Does the RIGHT desk data reach the prompt? No provider call, no judge.
+
+    The first honest fast-lane run scored 13/30 with ELEVEN gate misses, and
+    several of those answers scored 4/4/4/4 from the judge — a fluent answer
+    built without the desk pack the question needed. That is a RETRIEVAL
+    failure wearing an answer-quality costume, and paying for 90 Perplexity
+    calls plus 90 judge calls to discover which packs fire is absurd when
+    `_grounded_system` alone answers it in seconds for nothing.
+
+    Reports per question: which packs fired, and which required tool groups
+    NOTHING fired for — by name, because "11 gate misses" is not a next step
+    and "S1-06 is missing get_options_flow" is.
+    """
+    from api.services.compass_eval import checks
+    from api.routers import ai_search as router
+
+    questions = load_golden_set()
+    if rungs:
+        questions = [q for q in questions if int(q["rung"]) in set(rungs)]
+    if question_ids:
+        wanted = set(question_ids)
+        questions = [q for q in questions if q["id"] in wanted]
+
+    rows: list[dict] = []
+    for q in questions:
+        try:
+            _system, _salt, meta = router._grounded_system(q["question"])
+            packs = list(meta.get("grounding_sources") or [])
+            err = None
+        except Exception as e:
+            packs, meta, err = [], {}, f"{type(e).__name__}: {e}"
+        # The fast lane ALWAYS makes a web call, so the web leg is present by
+        # construction. Omitting it made five questions read as missing a
+        # `web_search` the lane cannot fail to have — the cold-desk trap one
+        # level down: an audit reporting a miss that is impossible.
+        capture = _fast_lane_capture(meta, {"citations": ["<web leg>"]})
+        mech = checks.run_mechanical_checks(
+            {"answer": "", "fired_tools": capture, "question": q})
+        rows.append({
+            "id": q["id"], "rung": int(q["rung"]),
+            "fired_packs": packs,
+            "fired_tools": sorted({c["name"] for c in capture}),
+            "missing_groups": mech.get("missing_tool_groups") or [],
+            "covered": bool(mech.get("tool_gate_pass")),
+            "error": err,
+        })
+    return {"rows": rows, "total": len(rows),
+            "covered": sum(1 for r in rows if r["covered"])}

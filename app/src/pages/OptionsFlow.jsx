@@ -3,7 +3,7 @@ import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tool
 import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
@@ -862,6 +862,10 @@ export default function OptionsFlowDashboard() {
   // through it costs ONE download + ONE parse + ONE processFlowData, where the
   // delta-merge path cost a second of each for the identical rows.
   const [baseNonce, setBaseNonce] = useState(0);
+  // Spent once per mount: see shouldSkipStaleParse. A second stale answer is
+  // parsed rather than skipped, so a version that never catches up cannot
+  // leave the page empty forever.
+  const _staleParseSkipped = useRef(false);
   // dataVersion in effect at the moment the current base rows were fetched.
   const _baseFetchedVer = useRef(null);
   // csvFile the base effect last ran for, + whether we currently hold rows.
@@ -1337,6 +1341,24 @@ export default function OptionsFlowDashboard() {
             throw new Error("File appears empty or invalid (no CSV data found).");
           }
           (async () => {
+            // ⛔ DECIDE BEFORE PARSING. These bytes may be an older version's
+            // (the URL is version-stable so Cloudflare can cache it). That is
+            // already handled downstream — planDelta answers `refetch-base` —
+            // but only AFTER a full parse and a full processFlowData have been
+            // spent on rows that are about to be replaced. Measured on prod:
+            // 2,298ms + 3,972ms of the member's CPU, thrown away. The header
+            // told us at byte zero.
+            if (shouldSkipStaleParse({
+                  servedVer,
+                  currentVer: dataVersionRef.current,
+                  alreadySkipped: _staleParseSkipped.current,
+                })) {
+              _staleParseSkipped.current = true;
+              console.log(`[perf] stale copy (v${servedVer} vs v${dataVersionRef.current}) `
+                + `— skipping parse + aggregate, refetching`);
+              setBaseNonce(n => n + 1);   // versioned refetch; bypasses the edge copy
+              return;
+            }
             const t1 = performance.now();
             // Parse happens in the WORKER and the rows stay there.
             const res = await loadFlow(text, { dateFilter, dateFrom, dateTo }, erSoonArr, snapshotKey(csvFile));

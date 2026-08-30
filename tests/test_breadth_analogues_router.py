@@ -59,10 +59,11 @@ def _mk_snapshots_newest_first(n=50):
 
 
 def _reset_cache():
+    # The module's own clear, not a hand-written poke at its internals: the
+    # cache is one entry PER top_n now, so writing sentinel keys into it would
+    # leave every real entry in place and silently stop isolating these tests.
     from api.services import breadth_analogues as ba
-    ba._cache["ts"] = 0
-    ba._cache["data"] = None
-    ba._cache["top_n"] = None
+    ba.invalidate_cache()
 
 
 def test_a_different_top_n_is_a_cache_miss_not_a_stale_smaller_result(monkeypatch):
@@ -106,5 +107,58 @@ def test_b_the_same_top_n_within_the_ttl_is_served_from_cache(monkeypatch):
 
         second = ba.find_analogues(top_n=3)
         assert second == first, "a repeated request within the TTL must be served from cache, not recomputed"
+    finally:
+        _reset_cache()
+
+
+def test_c_alternating_top_n_callers_do_not_evict_each_other(monkeypatch):
+    """Case C: the single-slot cache held ONE (data, top_n) pair, so two callers
+    alternating between 5 and 10 matches recomputed the full similarity pass on
+    every request — the six-hour TTL never once did its job.
+
+    Same mutate-the-source trick as case B, but applied to the FIRST top_n after
+    a second one has been asked for: if 2's entry had been evicted by 4, the
+    third call would recompute against the too-small history and come back
+    empty, which cannot equal the first result by accident."""
+    from api.services import breadth_analogues as ba
+
+    _reset_cache()
+    try:
+        monkeypatch.setattr(ba, "_get_all_snapshots", lambda lookback_days=500: _mk_snapshots_newest_first())
+        small = ba.find_analogues(top_n=2)
+        big = ba.find_analogues(top_n=4)
+        assert [a["date"] for a in small["analogues"]] == ["D044", "D034"]
+        assert len(big["analogues"]) == 4
+
+        monkeypatch.setattr(ba, "_get_all_snapshots", lambda lookback_days=500: _mk_snapshots_newest_first(n=5))
+
+        assert ba.find_analogues(top_n=2) == small, (
+            "asking for 4 matches evicted the cached 2-match answer"
+        )
+        assert ba.find_analogues(top_n=4) == big
+        # …and a top_n nobody has asked for is still a MISS, not a near-enough hit.
+        assert ba.find_analogues(top_n=3)["analogues"] == []
+    finally:
+        _reset_cache()
+
+
+def test_invalidate_clears_every_top_n_not_just_the_last_written(monkeypatch):
+    """A breadth push makes yesterday's deck stale at EVERY match count."""
+    from api.services import breadth_analogues as ba
+
+    _reset_cache()
+    try:
+        monkeypatch.setattr(ba, "_get_all_snapshots", lambda lookback_days=500: _mk_snapshots_newest_first())
+        ba.find_analogues(top_n=2)
+        ba.find_analogues(top_n=4)
+        assert len(ba._cache) == 2, "the fixture did not populate two entries — nothing to clear"
+
+        ba.invalidate_cache()
+        assert ba._cache == {}
+
+        # Behavioural proof the entries are really gone: a fresh call now sees
+        # the mutated (too-small) source instead of the pre-invalidate answer.
+        monkeypatch.setattr(ba, "_get_all_snapshots", lambda lookback_days=500: _mk_snapshots_newest_first(n=5))
+        assert ba.find_analogues(top_n=2)["analogues"] == []
     finally:
         _reset_cache()

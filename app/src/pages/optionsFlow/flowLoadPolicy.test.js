@@ -10,6 +10,7 @@ import {
   clearSnapshots,
   snapshotKey,
   shouldRefetchRange,
+  shouldSkipStaleParse,
 } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
@@ -301,5 +302,55 @@ describe('shouldRefetchRange — a capped superset is not a superset', () => {
     expect(shouldRefetchRange(1, 1)).toBe(false)
     expect(shouldRefetchRange(0, 0)).toBe(false)
     expect(shouldRefetchRange(20, 20)).toBe(false)
+  })
+})
+
+describe('shouldSkipStaleParse — do not spend a parse on bytes we know are stale', () => {
+  const V = (o) => shouldSkipStaleParse({ alreadySkipped: false, ...o })
+
+  it('skips when the served version is not the current one', () => {
+    // The whole point: this is knowable from a response header, before a
+    // single row is built. Measured cost of NOT knowing it: 2,298ms of parse
+    // plus 3,972ms of processFlowData, on rows about to be replaced.
+    expect(V({ servedVer: '39800511', currentVer: '39800815' })).toBe(true)
+  })
+
+  it('parses normally when the bytes are current', () => {
+    expect(V({ servedVer: '39800815', currentVer: '39800815' })).toBe(false)
+    // and tolerates the number/string mix the header round-trip produces
+    expect(V({ servedVer: 39800815, currentVer: '39800815' })).toBe(false)
+  })
+
+  it('⛔ NEVER skips twice — a stale answer twice must still render', () => {
+    // If the corrective refetch ALSO comes back stale, parsing it is strictly
+    // better than an empty page. Without this the page would refetch forever
+    // and never draw anything, which is far worse than the staleness it is
+    // trying to avoid.
+    expect(shouldSkipStaleParse({
+      servedVer: '1', currentVer: '2', alreadySkipped: true,
+    })).toBe(false)
+  })
+
+  it('parses whenever it cannot be SURE', () => {
+    // An absent header or an unknown current version is not evidence of
+    // staleness. Guessing here is how the 2026-07-27 bug showed Friday's tape
+    // on Monday night — the safe answer is always "use what you have".
+    expect(V({ servedVer: null, currentVer: '2' })).toBe(false)
+    expect(V({ servedVer: '1', currentVer: null })).toBe(false)
+    expect(V({ servedVer: undefined, currentVer: undefined })).toBe(false)
+  })
+
+  it('the skip terminates: at most one per mount, whatever the server does', () => {
+    // Property check rather than an example — simulate a server that is stale
+    // forever and assert we stop skipping.
+    let skipped = false
+    let skips = 0
+    for (let i = 0; i < 25; i++) {
+      if (shouldSkipStaleParse({ servedVer: 'old', currentVer: 'new', alreadySkipped: skipped })) {
+        skips++
+        skipped = true
+      }
+    }
+    expect(skips).toBe(1)
   })
 })

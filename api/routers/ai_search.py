@@ -606,6 +606,39 @@ def _billing_units(mode: str) -> int:
     return 2 if mode in ("reasoning", "agent") else 1
 
 
+def _agent_pinned(client_mode) -> bool:
+    """The member explicitly chose the agent lane in the UI pill."""
+    return (client_mode or "").strip().lower() == "agent"
+
+
+def _agent_autoroute_enabled() -> bool:
+    """OFF by default. The agent lane bills 2 units against a $15/day cap
+    surface and is slower than one Perplexity shot — arming it is a spend
+    decision, so it is a Railway var, not a code default."""
+    return os.environ.get("AI_SEARCH_AGENT_AUTOROUTE", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _wants_agent(query: str, client_mode) -> bool:
+    """Should an UNPINNED ask go to the tool-calling lane?
+
+    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
+    only lane that can iterate and call the desk's 16 tools is hidden behind a
+    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
+    with the gap concentrated in rung 3: "give me the desk's call".
+
+    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
+    a request for the desk's call. A second regex meaning the same thing is this
+    repo's most repeated defect. Everything else stays on one fast shot, which
+    answers it well and costs half as much.
+    """
+    if client_mode in ("fast", "reasoning"):
+        return False                      # a stated choice is never overridden
+    if not _agent_autoroute_enabled():
+        return False
+    return bool(_VERDICT_RE.search(query or ""))
+
+
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
 # tickers named in the question) into the system prompt, so answers carry data
 # Perplexity can't see. Every piece is a cached internal read (regime 15-min,
@@ -933,7 +966,10 @@ def _ctx_flow_ticker(sym: str) -> str:
 _FLOW_RE = re.compile(
     r"\b(options? flow|sweeps?|unusual (options|activity)|whales?"
     r"|call buying|put buying|smart money|big (?:options? )?prints?|options? premium"
-    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b(?=\s+(?:on|for|in|say|said|look|is|was|today|right)))",
+    # `tape|show` added 2026-08-29: "what's the flow TAPE showing on SPY" is
+    # how a member asks for this, and it loaded no flow pack at all.
+    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b"
+    r"(?=\s+(?:on|for|in|say|said|look|is|was|today|right|tape|show)))",
     re.I)
 
 
@@ -1337,9 +1373,14 @@ _VERDICT_RE = re.compile(
     r"\b(trade (?:setup|opportunit(?:y|ies)|idea)|find (?:me )?a (?:good )?(?:trade|setup|entry)"
     r"|should i (?:buy|enter|take|get in)|worth (?:a )?(?:trade|buy(?:ing)?|swing|entry)"
     r"|how would you trade|entry and stop|is (?:it|this) a buy"
-    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade))\b", re.I)
+    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade)"
+    # 2026-08-29: the gate for "give me the desk's call" did not contain the
+    # word `verdict`, nor "best setup" — the two phrasings the exam actually used.
+    r"|verdict|desk read|best setup|where'?s the entry)\b", re.I)
 _LEVELS_RE = re.compile(
-    r"\b(support|resistance|key levels?|price levels?|levels? to watch|dark ?pool"
+    # bare `levels?` 2026-08-29: "what levels matter" reached the model with no
+    # dark-pool/gamma pack, because the gate only knew three fixed phrasings.
+    r"\b(support|resistance|levels?|dark ?pool"
     r"|gamma\b|gex\b|call wall|put wall|zero[- ]gamma|max pain)\b", re.I)
 
 # COT / futures positioning — a market-level ask resolved from the query's own
@@ -1418,13 +1459,26 @@ def _ctx_movers() -> str:
 def _ctx_breadth() -> str:
     from api.services.engine import get_breadth
     b = get_breadth() or {}
-    if not b:
-        return ""
-    return (
-        f"Breadth (UCT): score {b.get('breadth_score')}, phase {b.get('market_phase')}, "
-        f"adv/dec {b.get('advancing')}/{b.get('declining')}, "
-        f"52wk NH/NL {b.get('new_highs')}/{b.get('new_lows')}"
-    )
+    # ⛔ `if not b` asked whether the dict was EMPTY; the invariant is whether it
+    # holds usable VALUES. A payload of Nones sailed straight through and put
+    # "score None, phase , adv/dec None/None" in front of the model — worse than
+    # silence, because silence lets it say it has no breadth while "score None"
+    # reads as a feed to interpret, and it filled the gap (measured 2026-08-29:
+    # that question scored c1 g2 o2 s1 with a safety break).
+    # ⛔ Test `is None`, never falsiness: ZERO advancing issues is a real and
+    # dramatic reading, not a missing one.
+    bits: list[str] = []
+    if b.get("breadth_score") is not None:
+        bits.append(f"score {b['breadth_score']}")
+    if b.get("market_phase"):          # a string field: "" is not a phase
+        bits.append(f"phase {b['market_phase']}")
+    adv, dec = b.get("advancing"), b.get("declining")
+    if adv is not None and dec is not None:
+        bits.append(f"adv/dec {adv}/{dec}")
+    nh, nl = b.get("new_highs"), b.get("new_lows")
+    if nh is not None and nl is not None:
+        bits.append(f"52wk NH/NL {nh}/{nl}")
+    return "Breadth (UCT): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_earnings() -> str:
@@ -2366,11 +2420,13 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         # zero accounts → decline, fall through to the normal public stream.
-    # ── Agent lane (client-pinned only, never auto-routed): the one-brain tool
-    # loop. Falls back to auto routing when the lane is over its dollar cap or
-    # the synthesis client is down — the ask always answers.
+    # ── Agent lane: the one-brain tool loop. Pinned by the UI pill, OR
+    # auto-routed for a request for the desk's CALL when
+    # AI_SEARCH_AGENT_AUTOROUTE is armed (default off — see _wants_agent).
+    # Falls back to auto routing when the lane is over its dollar cap or the
+    # synthesis client is down — the ask always answers.
     agent_mode = False
-    if (body.mode or "").strip().lower() == "agent":
+    if _agent_pinned(body.mode) or _wants_agent(body.query, body.mode):
         try:
             from api.services import ai_search_agent
             agent_mode = ai_search_agent.available()

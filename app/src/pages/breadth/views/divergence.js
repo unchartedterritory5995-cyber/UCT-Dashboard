@@ -9,6 +9,19 @@
 // telling the same story with different units.
 export const MIN_Z_GAP = 1.0
 
+/**
+ * Fewest sessions this math will run on at all. Below it a standard deviation
+ * is noise, so BOTH consumers refuse: `DivergenceView` renders a window-depth
+ * refusal, and `theRead.js` omits its divergence clause entirely.
+ *
+ * ⛔ IT LIVES HERE, NOT IN THE VIEW. It was `const MIN_SESSIONS = 20` inside
+ * `DivergenceView.jsx`, which is fine while one caller reads it — and the
+ * moment a second one needed the same boundary, a hand-typed copy would have
+ * let The Read claim "price and breadth are in step" over a window the lens
+ * itself refuses to score.
+ */
+export const MIN_SESSIONS = 20
+
 export function zscore(values) {
   const nums = values.filter(v => v != null && !isNaN(Number(v))).map(Number)
   if (nums.length < 2) return values.map(() => null)

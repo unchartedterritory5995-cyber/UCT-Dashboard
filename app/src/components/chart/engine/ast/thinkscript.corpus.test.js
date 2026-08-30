@@ -289,8 +289,8 @@ describe('the whole corpus, in one number', () => {
     // ⚠️ `TS_HARD_GUARDS` STILL LISTS `thinkscript:symbol`, and it should: a
     // symbol that does NOT fold to a ticker still blocks the whole script. The
     // mechanism self-corrected — 08 simply stopped firing the guard.
-    expect(translating, 'scripts that translate').toBe(9)
-    expect(columns, 'columns this engine computes').toBe(33)
+    expect(translating, 'scripts that translate').toBe(10)
+    expect(columns, 'columns this engine computes').toBe(34)
 
     // …and the fixture's own roll-ups agree with its per-file entries, which is
     // the different failure: a hand-edited snapshot.
@@ -386,7 +386,7 @@ describe('the whole corpus, in one number', () => {
     // expansion, lookback 15, non-repainting.
     const saveable = FILES.filter((f) => entry(f).downstream && entry(f).downstream.ok)
     const translating = FILES.filter((f) => entry(f).translates)
-    expect(saveable.length).toBe(9)
+    expect(saveable.length).toBe(10)
     expect(SNAPSHOT._saveable).toBe(saveable.length)
     // ⛔ NAMES, so a script that translates-but-cannot-save is reported as
     // itself rather than as an arithmetic disagreement between two counts.
@@ -424,7 +424,15 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
   // missing translation rather than a refusal by design.
   const DESIGN = ['06-vwap-rejection.ts',
     '09-above-average-price-volume.ts', '15-scan-premarket-gap-up.ts',
-    '18-fold-up-down-points-ratio.ts', '21-strategy-ma-crossover-addorder.ts',
+    // ⚰️ `18-fold-up-down-points-ratio` LEFT THIS CLASS on 2026-08-29 and the
+    // reason is worth keeping, because a DESIGN entry leaving is exactly the move
+    // this file warns is worth re-checking: "The other DESIGN entries are worth the
+    // same question before anyone quotes 9 either." Its two folds are
+    // `fold i = 0 to 8 with p do p + GetValue(<expr>, i)`, which IS `sum(<expr>, 8)`
+    // — a rolling reduction the table has declared since v1. No grammar moved; the
+    // DOOR learned to recognise one shape. `thinkscript:fold` is unchanged and still
+    // refuses every fold that is not a rolling sum.
+    '21-strategy-ma-crossover-addorder.ts',
     '22-average-daily-range-zones.ts', '23-previous-day-high-low-mean.ts',
     '24-position-capital-efficiency.ts']
   const DOCS = ['05-bollinger-rsi-buy-arrow.ts', '07-ttm-squeeze-watchlist.ts',
@@ -444,22 +452,31 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
       // relative-strength computation the script is NAMED for.
       '08-relative-strength-zscore-vs-spy.ts', '11-money-flow-index-mobile.ts',
       '12-scan-volume-2x-avg-price-up-5pct.ts', '13-scan-52-week-high.ts',
-      '14-scan-inside-bar.ts', '20-roc-stdev-lower-switch.ts'])
+      '14-scan-inside-bar.ts',
+      // ⭐ THE FOLD RECOGNISER'S ONE SCRIPT. Its ratio of up-points to down-points
+      // over eight bars reads back as
+      // `sum(close > close[1] ? close - close[1] : 0, 8) / abs(sum(...))` — the
+      // subject of the script, not its chrome, which is the distinction the note
+      // above enforces.
+      '18-fold-up-down-points-ratio.ts',
+      '20-roc-stdev-lower-switch.ts'])
     // ⛔ A SCRIPT THAT TRANSLATES ITS CHROME AND REFUSES ITS SUBJECT IS NOT A GAIN.
     for (const f of translating) {
       expect(entry(f).perOutputRefusals, `${f} offers a refused column`).toEqual({})
     }
   })
 
-  it('⛔ the four classes are TOTAL and DISJOINT — 9 + 8 + 4 + 3 = 24', () => {
+  it('⛔ the four classes are TOTAL and DISJOINT — 10 + 7 + 4 + 3 = 24', () => {
     const all = [...translating, ...DESIGN, ...DOCS, ...RULED]
     expect(new Set(all).size, 'a script is in two classes').toBe(all.length)
     expect([...all].sort(), 'a script is in no class').toEqual([...FILES].sort())
     // ⭐ 9 + 8, WAS 8 + 9: one script moved BETWEEN classes rather than the total
     // changing, which is exactly what a total-and-disjoint partition is for — a
     // count alone would have shown 24 either way.
-    expect(translating.length).toBe(9)
-    expect(DESIGN.length).toBe(8)
+    // ⭐ 10 + 7, WAS 9 + 8: one script moved BETWEEN classes again, and the total
+    // is unchanged — which is what a total-and-disjoint partition is for.
+    expect(translating.length).toBe(10)
+    expect(DESIGN.length).toBe(7)
     expect(DOCS.length).toBe(4)
     expect(RULED.length).toBe(3)
   })
@@ -513,8 +530,8 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
     // DESIGN entries are worth the same question before anyone quotes 9 either.
     const ceilingNoDocs = translating.length
     const ceilingIfVendorPublishes = translating.length + DOCS.length
-    expect(ceilingNoDocs).toBe(9)
-    expect(ceilingIfVendorPublishes).toBe(13)
+    expect(ceilingNoDocs).toBe(10)
+    expect(ceilingIfVendorPublishes).toBe(14)
     // ⚠️ THE BRIEF'S ARITHMETIC WAS `24 − DESIGN = 15`, AND IT NOW READS 16 —
     // which is the same fact as the line above, seen from the other side: one
     // script left DESIGN, so the number the brief would compute today is larger.
@@ -524,7 +541,11 @@ describe('⛔⛔ A4`s HONEST CEILING — derived from the corpus, not from the s
     // in shape: everything not refused BY DESIGN is either translating, waiting
     // on a vendor document, or a refusal this door is RIGHT to make. That
     // partition still closes exactly.
-    expect(24 - DESIGN.length).toBe(16)
-    expect(ceilingIfVendorPublishes + RULED.length).toBe(16)
+    // ⭐ 16 → 17 ON 2026-08-29, and BOTH SIDES MOVED TOGETHER, which is the whole
+    // point of deriving them from `DESIGN.length` rather than typing them: the fold
+    // recogniser took one script out of DESIGN, so the brief's arithmetic and the
+    // partition's arithmetic changed by exactly one each and still agree.
+    expect(24 - DESIGN.length).toBe(17)
+    expect(ceilingIfVendorPublishes + RULED.length).toBe(17)
   })
 })

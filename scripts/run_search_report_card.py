@@ -40,6 +40,9 @@ parser.add_argument("--lane", default="agent", choices=("agent", "fast"),
                     help="which lane to grade. 'fast' is the Perplexity path "
                          "49 of 50 real member asks take; 'agent' is the "
                          "tool-calling lane that gets 1 in 50.")
+parser.add_argument("--grounding-audit", action="store_true",
+                    help="RETRIEVAL only: which desk packs reach the prompt for "
+                         "each question. No provider call, no judge, no spend.")
 parser.add_argument("--allow-cold-desk", action="store_true",
                     help="run the fast lane even when the desk packs are cold. "
                          "The result is NOT a baseline — a cold desk makes a "
@@ -86,6 +89,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from api.services.ai_search_eval import golden_set as gs          # noqa: E402
 from api.services.ai_search_eval.runner import (                  # noqa: E402
     fast_lane_desk_readiness,
+    run_grounding_audit,
     run_exam,
     run_exam_repeated,
 )
@@ -98,6 +102,20 @@ print(f"AI-Search {args.lane.upper()}-lane report card — {sum(counts.values())
       f"questions {dict(sorted(counts.items()))}")
 print(f"baseline: {gs.BASELINE_LABEL}")
 print(f"sandbox:  {_sandbox}")
+
+if args.grounding_audit:
+    _aud = run_grounding_audit(rungs=rungs, question_ids=qids)
+    print()
+    for r in _aud["rows"]:
+        mark = "OK  " if r["covered"] else "MISS"
+        miss = ("  needs " + " AND ".join("|".join(g) for g in r["missing_groups"])
+                if r["missing_groups"] else "")
+        print(f"  {mark} {r['id']:<28} R{r['rung']} "
+              f"packs={','.join(r['fired_packs']) or 'none'}{miss}"
+              + (f"  ERROR {r['error']}" if r.get("error") else ""))
+    print()
+    print(f"desk grounding covers {_aud['covered']}/{_aud['total']} questions")
+    sys.exit(0)
 
 # ── fast-lane pre-flight: is the desk warm enough to grade this lane? ──
 if args.lane == "fast" and not args.offline:

@@ -248,3 +248,40 @@ export function processedKey(dateFilter, dateFrom, dateTo) {
 export function shouldRefetchRange(days, fetchDays) {
   return days !== fetchDays
 }
+
+/**
+ * Should we throw these bytes away WITHOUT parsing them?
+ *
+ * ── The waste this removes, measured on prod 2026-08-29 ────────────────────
+ * `/api/flow/data` is a version-STABLE URL so Cloudflare can cache it, so the
+ * bytes that come back may be an older version's. That is already handled: the
+ * `X-Flow-Version` mismatch marks the base stale and `planDelta` answers
+ * `refetch-base`, which on the days=1 default view re-downloads the SAME 14 MB
+ * file. Correct, but the browser first spends a full parse and a full
+ * `processFlowData` on the stale copy — work whose only consumer is a dataset
+ * that is about to be replaced:
+ *
+ *     CSV parsed:              2,298 ms   <- on bytes we already know are stale
+ *     processFlowData:         3,972 ms   <- on the same doomed rows
+ *     Downloaded: 14,324 KB               <- the corrective refetch
+ *     CSV parsed:              4,674 ms
+ *     processFlowData:         6,014 ms
+ *
+ * The staleness is knowable from a RESPONSE HEADER, before a single row is
+ * built. Deciding here instead of after the parse skips ~6 s of the member's
+ * CPU on any load that lands on a stale edge copy.
+ *
+ * ⛔ IT MUST FIRE AT MOST ONCE. If the corrective refetch ALSO comes back
+ * stale, parsing it is strictly better than an empty page — a version that
+ * never catches up would otherwise loop forever, refetching and never
+ * rendering. Staleness is a reason to prefer fresher bytes, never a reason to
+ * show nothing.
+ *
+ * Returns false whenever it cannot be SURE: an absent header, an unknown
+ * current version, or a skip already spent all mean "parse what you have".
+ */
+export function shouldSkipStaleParse({ servedVer, currentVer, alreadySkipped }) {
+  if (alreadySkipped) return false
+  if (servedVer == null || currentVer == null) return false
+  return String(servedVer) !== String(currentVer)
+}

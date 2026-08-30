@@ -23,8 +23,8 @@ describe('ScoreAttributionView', () => {
               components: [{ key: 'vix', label: 'VIX (inverted)', weight: 10, points: 4, max_points: 10, present: true, value: 24 }] },
     }
     const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
-    expect(getByTestId('component-vix').textContent).toMatch(/10 \/ 10/)
-    expect(getByTestId('delta-vix').textContent).toMatch(/\+6/)
+    expect(getByTestId('attribution-component-vix').textContent).toMatch(/10 \/ 10/)
+    expect(getByTestId('attribution-delta-vix').textContent).toMatch(/\+6/)
   })
 
   it('marks an absent component as dropped from the ratio, not as zero', () => {
@@ -36,13 +36,30 @@ describe('ScoreAttributionView', () => {
       prev: null,
     }
     const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
-    expect(getByTestId('component-cboe_putcall').textContent).toMatch(/not reported/i)
+    expect(getByTestId('attribution-component-cboe_putcall').textContent).toMatch(/not reported/i)
   })
 
   it('says so when the session was never recorded', () => {
-    mockData.current = { ok: false, date: '2026-08-28', reason: 'no stored session for that date' }
+    mockData.current = { ok: false, date: '2026-08-28', provisional: false,
+                         reason: 'no stored session for that date' }
     const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
-    expect(getByTestId('attribution-unavailable').textContent).toMatch(/no stored session/i)
+    expect(getByTestId('attribution-refusal').textContent).toMatch(/no stored session/i)
+  })
+
+  // 🔴 A LIVE ROW IS NOT A MISSING ONE. The cursor sits on the provisional row
+  // for most of every trading day, and the server used to answer both cases
+  // with "no stored session for that date" — telling a member today had never
+  // been recorded. The server distinguishes them now; this is the wire.
+  it('passes the provisional reason through instead of calling today missing', () => {
+    mockData.current = {
+      ok: false, date: '2026-08-29', provisional: true, latest_stored: '2026-08-28',
+      reason: 'this session is still provisional — the 4:15 PM collector has not '
+              + 'written it yet (latest stored session is 2026-08-28)',
+    }
+    const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
+    const text = getByTestId('attribution-refusal').textContent
+    expect(text).toMatch(/provisional/i)
+    expect(text).not.toMatch(/no stored session/i)
   })
 
   // 🔴 THE SHAPE THAT TOOK THE WHOLE ROUTE DOWN. A 401 from `require_paid` on an
@@ -56,7 +73,7 @@ describe('ScoreAttributionView', () => {
     let out
     expect(() => { out = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />) })
       .not.toThrow()
-    expect(out.getByTestId('attribution-unavailable').textContent).toMatch(/subscription inactive/i)
+    expect(out.getByTestId('attribution-refusal').textContent).toMatch(/subscription inactive/i)
   })
 
   it('refuses a body whose components are not an array at all', () => {
@@ -64,7 +81,7 @@ describe('ScoreAttributionView', () => {
     // server happens to send — `ok: true` is not a promise of a components list.
     mockData.current = { ok: true, date: '2026-08-28', total: 80, components: null }
     const { getByTestId } = render(<ScoreAttributionView rows={[row]} rowIdx={0} currentRow={row} options={{}} />)
-    expect(getByTestId('attribution-unavailable')).toBeTruthy()
+    expect(getByTestId('attribution-refusal')).toBeTruthy()
   })
 
   it('asks for the window the page actually loaded, not a fourth one', () => {

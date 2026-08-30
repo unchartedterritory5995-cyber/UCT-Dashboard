@@ -182,6 +182,22 @@ export function optionDefaults(style) {
   return out
 }
 
+/**
+ * The human label a style's Customize panel shows for one option value —
+ * "% above 50 SMA" for `pct_above_50sma`, "20 days" for `fwd_20d`.
+ *
+ * ⛔ THE SCHEMA IS THE ONE AUTHOR. Views were re-typing these as local maps
+ * (`levelLabel` in the Regime Clock, `HORIZON_LABEL` in the Analogue Deck), and
+ * The Read needs the same words: a lens that renamed a choice in the panel
+ * would have gone on printing the old name in the paragraph beside it. Falls
+ * back to the raw value rather than an empty string, so an unknown value is
+ * visible instead of blank.
+ */
+export function optionLabel(style, name, value) {
+  const opt = optionsSchema(style).find(o => o.name === name)
+  return opt?.choices?.find(c => c.value === value)?.label ?? String(value)
+}
+
 // Grouped style list for the switcher, in STYLES order. The switcher renders
 // what this returns and owns no list of its own.
 export function viewsByKind() {

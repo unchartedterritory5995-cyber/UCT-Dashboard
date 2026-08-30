@@ -21,20 +21,20 @@ describe('RotationView', () => {
   it('calls a rising equal-weight ratio broadening', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
+    expect(getByTestId('rotation-verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
   })
 
   it('calls a falling ratio narrowing', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-iwm_qqq_ratio').textContent).toMatch(/narrowing/i)
+    expect(getByTestId('rotation-verdict-iwm_qqq_ratio').textContent).toMatch(/narrowing/i)
   })
 
   it('marks a series absent rather than drawing it as zero', () => {
     const noVxn = rows.map(r => ({ ...r, vxn: null }))
     const { getByTestId } = render(<RotationView rows={noVxn} rowIdx={0} currentRow={noVxn[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-vol_spread').textContent).toMatch(/not reported/i)
+    expect(getByTestId('rotation-verdict-vol_spread').textContent).toMatch(/not reported/i)
   })
 
   // 🔴 THE COLOUR MUST NOT CONTRADICT THE SENTENCE UNDER IT. `vol_spread`
@@ -46,18 +46,18 @@ describe('RotationView', () => {
     const widening = rows.map((r, i) => ({ ...r, vix: 16, vxn: 26 - i * 0.2 }))
     const { getByTestId, container } = render(<RotationView rows={widening} rowIdx={0}
       currentRow={widening[0]} onDrill={() => {}} options={{ lookback: 20, palette: 'classic' }} />)
-    expect(getByTestId('delta-vol_spread').textContent).toMatch(/^\+/)      // it rose
-    expect(getByTestId('verdict-vol_spread').textContent).toMatch(/narrowing/i)
-    expect(getByTestId('delta-vol_spread').style.color).toBe(BEAR)
-    expect(container.querySelector('[data-testid="spark-vol_spread"]').getAttribute('stroke'))
+    expect(getByTestId('rotation-delta-vol_spread').textContent).toMatch(/^\+/)      // it rose
+    expect(getByTestId('rotation-verdict-vol_spread').textContent).toMatch(/narrowing/i)
+    expect(getByTestId('rotation-delta-vol_spread').style.color).toBe(BEAR)
+    expect(container.querySelector('[data-testid="rotation-spark-vol_spread"]').getAttribute('stroke'))
       .toBe(PALETTES.classic.bear)
   })
 
   it('still draws a rising equal-weight ratio bullish — the flag is per panel', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20, palette: 'classic' }} />)
-    expect(getByTestId('verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
-    expect(getByTestId('delta-rsp_spy_ratio').style.color).toBe(BULL)
+    expect(getByTestId('rotation-verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').style.color).toBe(BULL)
   })
 
   // 🔴 "/60d" OVER 12 SESSIONS IS A CLAIM ABOUT HISTORY THE LENS NEVER READ.
@@ -65,10 +65,54 @@ describe('RotationView', () => {
     const short = rows.slice(0, 12)
     const { getByTestId } = render(<RotationView rows={short} rowIdx={0} currentRow={short[0]}
       onDrill={() => {}} options={{ lookback: 60 }} />)
-    expect(getByTestId('delta-rsp_spy_ratio').textContent).toMatch(/\/ 11d$/)
-    expect(getByTestId('delta-rsp_spy_ratio').textContent).not.toMatch(/60d/)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').textContent).toMatch(/\/ 11d$/)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').textContent).not.toMatch(/60d/)
     expect(getByTestId('rotation-basis').textContent)
       .toMatch(/12 sessions · since 2026-08-29 · shorter than the 60-day setting/)
+  })
+
+  /**
+   * ⭐ THE PANEL NOW DRAWS THE REFERENCE IT MEASURES FROM.
+   *
+   * A sparkline plus a delta asks the reader to take the delta on trust. The
+   * dashed line sits at the reading `measured` sessions back and the panel names
+   * that reading in words, so the number beside the trace is checkable off the
+   * trace — the same "show the basis" discipline every other lens follows.
+   *
+   * ⛔ AND THE THREE NUMBERS MUST CLOSE. Reading / reference / delta are three
+   * renderings of one subtraction; a rail that only checked they exist would
+   * stay green while the reference named a different session than the delta was
+   * taken from — which is exactly the drift the `measured` ruling exists for.
+   */
+  it('draws and names the reference the delta is measured from, and the three close', () => {
+    const { getByTestId, container } = render(<RotationView rows={rows} rowIdx={0}
+      currentRow={rows[0]} onDrill={() => {}} options={{ lookback: 20 }} />)
+
+    // rows are newest-first with dates 2026-08-40 … 2026-08-01, so 20 sessions
+    // back from the newest is 2026-08-20.
+    const ref = getByTestId('rotation-reference-rsp_spy_ratio').textContent
+    expect(ref).toMatch(/on 2026-08-20$/)
+    expect(container.querySelector('[data-testid="rotation-baseline-rsp_spy_ratio"]')).toBeTruthy()
+
+    const num = (s) => Number(String(s).match(/-?\d+\.\d+/)[0])
+    const value = num(getByTestId('rotation-value-rsp_spy_ratio').textContent)
+    const reference = num(ref)
+    const delta = num(getByTestId('rotation-delta-rsp_spy_ratio').textContent)
+    expect(value - reference).toBeCloseTo(delta, 3)
+    expect(reference).not.toBeCloseTo(value, 3)   // the fixture actually moved
+  })
+
+  it('gives the trace a scale the reading can be placed on', () => {
+    const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
+      onDrill={() => {}} options={{ lookback: 20 }} />)
+    const bounds = [...getByTestId('rotation-range-rsp_spy_ratio').querySelectorAll('span')]
+      .map(s => Number(s.textContent))
+    expect(bounds).toHaveLength(2)
+    const value = Number(getByTestId('rotation-value-rsp_spy_ratio').textContent)
+    const [max, min] = bounds
+    expect(max).toBeGreaterThan(min)              // a real range, not a repeat
+    expect(value).toBeLessThanOrEqual(max)
+    expect(value).toBeGreaterThanOrEqual(min)
   })
 
   it('carries the basis line every sibling lens carries', () => {

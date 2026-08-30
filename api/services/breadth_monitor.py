@@ -193,10 +193,45 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
     return _score_breakdown(row)[0]
 
 
+def _no_row(date: str, hist: list) -> dict:
+    """Why there is no attribution for `date` — MISSING and PROVISIONAL are not
+    the same fact, and the reader acts on them differently.
+
+    🔴 Both used to answer *"no stored session for that date"*. But the Views
+    tab renders a LIVE row: `/live` computes today's breadth intraday and hands
+    it to the page as a row with today's date, and the Score Attribution lens
+    asks this endpoint about whatever date the cursor is on. Every time it was
+    opened on the live row — the default cursor position for most of a trading
+    day — a member read that today's session had never been recorded. It had
+    not been recorded YET; the 4:15 collector writes it after the close.
+
+    The distinction is the one `/live` already makes with `superseded`: the
+    collector's newest stored date is the boundary. A date past it is a session
+    the collector has not reached, which is exactly the provisional row the page
+    is showing. A date at or before it that is still absent is genuinely
+    missing — a holiday, a gap, a typo.
+
+    Same shape as `session_path` either way: `ok: False`, never an error, plus
+    a `provisional` flag so a caller can branch on the fact rather than parse
+    the sentence.
+    """
+    newest = hist[0].get("date") if hist else None
+    provisional = bool(newest and date > newest)
+    reason = (
+        "this session is still provisional — the 4:15 PM collector has not "
+        f"written it yet (latest stored session is {newest})"
+        if provisional else "no stored session for that date"
+    )
+    return {"ok": False, "date": date, "provisional": provisional,
+            "reason": reason, "latest_stored": newest}
+
+
 def score_components(date: str, days: int = 90) -> dict:
     """The score attribution for `date`, plus the prior session's, so a caller
-    can draw the delta in one request. An unrecorded date answers ok:false —
-    absence is not an error, same as `session_path`.
+    can draw the delta in one request. A date with no row answers ok:false —
+    absence is not an error, same as `session_path` — and `_no_row` says WHICH
+    kind of absence it is: a session the collector has not written yet
+    (`provisional: True`) is not a missing one.
 
     `days` is the window the CLIENT already loaded, not a window of this
     function's own choosing. `get_history` caches five minutes PER `days` value
@@ -211,7 +246,7 @@ def score_components(date: str, days: int = 90) -> dict:
     hist = get_history(days)
     idx = next((i for i, r in enumerate(hist) if r.get("date") == date), None)
     if idx is None:
-        return {"ok": False, "date": date, "reason": "no stored session for that date"}
+        return _no_row(date, hist)
 
     total, components = _score_breakdown(hist[idx])
     prev = None
