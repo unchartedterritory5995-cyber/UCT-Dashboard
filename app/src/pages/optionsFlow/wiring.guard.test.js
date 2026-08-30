@@ -192,3 +192,68 @@ describe('compute layer stays worker-safe', () => {
       'THEME_LOOKUP is no longer populated inside flowCompute — the worker will see it EMPTY').toBe(true)
   })
 })
+
+describe('prehydration wiring — the server-computed first paint', () => {
+  // A module can be perfect, fully tested, and called by nobody. That has
+  // happened in this repo often enough to have its own lesson, so the wire
+  // itself gets an assertion, not just the module behind it.
+  it('still asks the server for the precomputed dataset', () => {
+    expect(CODE.includes('./optionsFlow/flowPrehydrate'),
+      'flowPrehydrate import is gone — the page is back to waiting on its own '
+      + 'processFlowData (measured 1,617-3,433ms) before it shows anything' + FIX).toBe(true)
+    expect(CODE.includes('fetchPrehydrate('),
+      'fetchPrehydrate is imported but never called — prehydration is dead code' + FIX).toBe(true)
+  })
+
+  it('still guards it so it can only ever fill an EMPTY screen', () => {
+    // ⛔ THE LOAD-BEARING GUARD. The client computation is the authority; the
+    // aggregate is an accelerator. Without _processedOnce on BOTH sides of the
+    // await, a slow aggregate can resolve after the real result and overwrite
+    // it — the page would silently show numbers for a different moment, which
+    // is far worse than the slowness this replaces.
+    const at = CODE.indexOf('fetchPrehydrate(')
+    expect(at, 'fetchPrehydrate call not found' + FIX).toBeGreaterThan(-1)
+    const region = CODE.slice(Math.max(0, at - 200), at + 400)
+    const guards = region.match(/_processedOnce\.current/g) || []
+    expect(guards.length,
+      'the _processedOnce guard around fetchPrehydrate was weakened — a late '
+      + 'aggregate can now overwrite the authoritative client result' + FIX)
+      .toBeGreaterThanOrEqual(2)
+  })
+
+  it('control: these checks read CODE, not prose', () => {
+    // Non-vacuity. If comment-stripping ever stopped working, every assertion
+    // above could be satisfied by a mention in a comment and this whole
+    // describe would be theatre.
+    expect(CODE.includes('PREHYDRATE: render the numbers')).toBe(false)
+    expect(SRC.includes('PREHYDRATE: render the numbers')).toBe(true)
+  })
+})
+
+describe('stale-copy skip — the ORDER is the optimisation', () => {
+  it('decides before the parse, not after', () => {
+    // ⛔ THIS ASSERTION IS ABOUT SEQUENCE, and sequence is the entire value.
+    // Deciding staleness AFTER loadFlow is what the code did for months: the
+    // mismatch was detected, handled correctly, and cost a full parse plus a
+    // full processFlowData on rows that were immediately replaced. Moving the
+    // check below the parse would leave every test green and quietly restore
+    // ~6s of wasted CPU per stale load.
+    const decide = CODE.indexOf('shouldSkipStaleParse({')
+    const parse = CODE.indexOf('await loadFlow(')
+    expect(decide, 'shouldSkipStaleParse is not called' + FIX).toBeGreaterThan(-1)
+    expect(parse, 'loadFlow call not found' + FIX).toBeGreaterThan(-1)
+    expect(decide,
+      'the staleness check moved BELOW the parse — it still works, but it no '
+      + 'longer saves anything, which is the only reason it exists' + FIX)
+      .toBeLessThan(parse)
+  })
+
+  it('still bumps the nonce, or the skip drops the load on the floor', () => {
+    // Skipping the parse without triggering the corrective refetch would leave
+    // the page with no rows and nothing on the way.
+    const at = CODE.indexOf('shouldSkipStaleParse({')
+    const region = CODE.slice(at, at + 700)
+    expect(/setBaseNonce\(/.test(region),
+      'the stale skip does not trigger a refetch — the page would sit empty' + FIX).toBe(true)
+  })
+})

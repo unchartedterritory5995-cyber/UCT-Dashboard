@@ -292,6 +292,36 @@ async def admin_reset_partner_auth_broken(
     return result
 
 
+@router.post("/admin/redate-equity-snapshots")
+async def admin_redate_equity_snapshots(
+    request: Request, dry_run: bool = True,
+) -> dict[str, Any]:
+    """Re-date equity snapshots from SYNC day to the SESSION they belong to.
+
+    The balance sync runs ~03:40 ET, before the open, so a snapshot stamped
+    with the sync's own date carried the PREVIOUS session's close: Friday's
+    close was filed under Saturday, Thursday's appeared twice, and weekends had
+    points at all. `timeutil.session_day_et` fixed the writer; this repairs the
+    rows already on disk, deriving each row's true session from the `synced_at`
+    it already carries.
+
+    DRY RUN BY DEFAULT (`dry_run=1`) — reports counts + example moves and
+    writes nothing. `dry_run=0` writes a full JSON backup of every row it will
+    touch into DATA_DIR first, then applies in one transaction. Idempotent.
+
+    Gated by the PUSH_SECRET bearer (mirrors the other admin repair routes).
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import snapshot_redate
+    if dry_run:
+        return snapshot_redate.plan()
+    return snapshot_redate.run(dry_run=False)
+
+
 @router.get("/admin/fidelity-audit")
 async def admin_fidelity_audit(user_id: str, raw: bool = False,
                                user: dict = Depends(require_admin)) -> dict[str, Any]:

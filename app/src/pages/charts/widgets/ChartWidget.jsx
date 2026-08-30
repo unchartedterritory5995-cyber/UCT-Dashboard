@@ -4,6 +4,7 @@ import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurf
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { useWorkspace } from '../WorkspaceContext'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
+import usePreferences from '../../../hooks/usePreferences'
 import AiSearchWidget from './AiSearchWidget'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
@@ -281,8 +282,39 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [ctxMenu, setCtxMenu] = useState(null)   // {x,y,price,bar,currentPrice,resetView,openSettings}
   const [ctxToast, setCtxToast] = useState(null)
   const [ctxSub, setCtxSub] = useState(null)     // 'add' when the Add-widget submenu is open
+  const [tplFlyout, setTplFlyout] = useState(false)  // "Chart template" side flyout open
+  const [wmAdjusting, setWmAdjusting] = useState(false)  // watermark "adjust position" mode active
   const [tempAi, setTempAi] = useState(null)     // {query,x,y} — transient AI popup when no AI widget exists
-  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null) }, [])
+  const closeCtx = useCallback(() => { setCtxMenu(null); setCtxSub(null); setTplFlyout(false) }, [])
+
+  // Saved chart-settings templates (the same `chart_templates` pref the settings
+  // modal writes) — listed in the right-click "Chart template" flyout so a saved
+  // look can be applied to this chart in one click.
+  const { prefs: uctPrefs } = usePreferences()
+  const chartTemplates = useMemo(() => {
+    const raw = uctPrefs?.chart_templates
+    try {
+      const a = typeof raw === 'string' ? JSON.parse(raw) : raw
+      return Array.isArray(a) ? a : []
+    } catch { return [] }
+  }, [uctPrefs])
+  const applyChartTemplate = useCallback((t) => {
+    if (t?.settings) paneRef.current?.applySettings?.(JSON.parse(JSON.stringify({ ...t.settings, preset: 'custom' })))
+    closeCtx()
+  }, [closeCtx])
+
+  // ── Adjustable watermark (per-chart position, opts.watermarkPos) ────────────
+  // Position is per-widget: a new chart widget / new layout has no opts.watermarkPos
+  // so its watermark starts centered. Persisted via onOptsChange like tf.
+  const wmPos = opts?.watermarkPos ?? null
+  const startWatermarkAdjust = useCallback(() => { setWmAdjusting(true); closeCtx() }, [closeCtx])
+  const endWatermarkAdjust = useCallback((pos) => {
+    if (pos) onOptsChange?.({ ...(opts || {}), watermarkPos: { x: pos.x, y: pos.y } })
+    setWmAdjusting(false)
+  }, [opts, onOptsChange])
+  const resetWatermark = useCallback(() => {
+    onOptsChange?.({ ...(opts || {}), watermarkPos: null })
+  }, [opts, onOptsChange])
 
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
@@ -292,7 +324,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     setCtxMenu({ x: Math.max(6, x), y: Math.max(6, y), rawX: p.clientX, rawY: p.clientY,
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
-      clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings })
+      clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
+      onWatermark: p.onWatermark })
   }, [])
 
   useEffect(() => {
@@ -403,11 +436,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         onApplyThemeAll={applyThemeToAllCharts}
         onApplyThemeAllWidgets={applyThemeToAllWidgets}
         onActivate={markActive}
+        onAdjustWatermark={startWatermarkAdjust}
+        onResetWatermark={resetWatermark}
+        watermarkCustomized={!!wmPos}
         stockChartProps={{
           onCrosshairMove: reportCrosshair,
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,
           onBarContextMenu: handleBarContextMenu,
+          // Adjustable watermark: per-chart position + explicit adjust mode.
+          // lockWatermark stays the pane's default (true); StockChart unlocks the
+          // drag itself while watermarkAdjusting is set.
+          watermarkX: wmPos?.x ?? null,
+          watermarkY: wmPos?.y ?? null,
+          watermarkAdjusting: wmAdjusting,
+          onWatermarkAdjustEnd: endWatermarkAdjust,
           // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
           // `stockChartProps` onto `StockChart`, which forwards it to
           // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
@@ -540,9 +583,49 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
                   <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
                 </button>
+                {/* Location-aware: only when the right-click landed on the watermark. */}
+                {ctxMenu.onWatermark && (
+                  <button type="button" className={styles.chartCtxItem} onClick={startWatermarkAdjust}>
+                    <UIcon name="pin" size={14} className={styles.chartCtxIcon} />Adjust watermark
+                  </button>
+                )}
                 <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
+                <div className={styles.chartCtxSubWrap}>
+                  <button
+                    type="button"
+                    className={`${styles.chartCtxItem} ${tplFlyout ? styles.chartCtxItemOpen : ''}`}
+                    aria-haspopup="true"
+                    aria-expanded={tplFlyout}
+                    onClick={() => setTplFlyout(v => !v)}
+                  >
+                    <UIcon name="copy" size={14} className={styles.chartCtxIcon} />Chart template
+                    <span className={styles.chartCtxCaret} aria-hidden="true">▸</span>
+                  </button>
+                  {tplFlyout && (
+                    <div className={styles.chartCtxFlyout} role="menu">
+                      {chartTemplates.length === 0 ? (
+                        <div className={styles.chartCtxFlyoutEmpty}>
+                          No saved templates yet. Save one from Chart settings → Templates.
+                        </div>
+                      ) : (
+                        chartTemplates.map(t => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={styles.chartCtxItem}
+                            title={`Apply "${t.name || 'Untitled'}" to this chart`}
+                            onClick={() => applyChartTemplate(t)}
+                          >
+                            <UIcon name="sliders" size={14} className={styles.chartCtxIcon} />
+                            <span className={styles.chartCtxTplName}>{t.name || 'Untitled'}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>

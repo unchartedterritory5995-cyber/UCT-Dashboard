@@ -37,6 +37,7 @@ import gzip
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -77,16 +78,34 @@ def available() -> bool:
     return enabled() and os.path.exists(bundle_path()) and shutil.which(node_bin()) is not None
 
 
-def build(csv_text: str) -> dict | None:
+# The page's date selections are a CLOSED set, and this is the only place a
+# caller-supplied string reaches an argv. An allowlist keeps it that way and
+# bounds the cache: "All" plus LastN for a single- or double-digit N.
+_DATE_FILTER_RE = re.compile(r"^(All|Last\d{1,2})$")
+
+
+def valid_date_filter(v: str | None) -> str | None:
+    """The filter to use, or None for 'the whole CSV'. Never raises."""
+    if not v:
+        return None
+    v = v.strip()
+    return v if _DATE_FILTER_RE.match(v) else None
+
+
+def build(csv_text: str, date_filter: str | None = None) -> dict | None:
     """Run the bundle over a CSV. Returns {json_bytes, stats} or None. Never raises."""
     if not available():
         log.debug("[flow-agg] unavailable (enabled=%s bundle=%s node=%s)",
                   enabled(), os.path.exists(bundle_path()), shutil.which(node_bin()))
         return None
+    df = valid_date_filter(date_filter)
+    argv = [node_bin(), bundle_path(), "aggregate"]
+    if df:
+        argv.append(f"--date-filter={df}")
     t0 = time.monotonic()
     try:
         proc = subprocess.run(
-            [node_bin(), bundle_path(), "aggregate"],
+            argv,
             input=csv_text.encode("utf-8"),
             capture_output=True,
             timeout=BUILD_TIMEOUT_S,
@@ -121,7 +140,8 @@ def build(csv_text: str) -> dict | None:
     return {"json_bytes": raw, "stats": stats}
 
 
-def get_cached_or_build(key: tuple, version, csv_provider) -> tuple | None:
+def get_cached_or_build(key: tuple, version, csv_provider,
+                        date_filter: str | None = None) -> tuple | None:
     """(version, gzipped_json) for `key`, computed at most once per version.
 
     Mirrors `flow_router._get_cached_or_build` deliberately — single-flight with
@@ -156,7 +176,7 @@ def get_cached_or_build(key: tuple, version, csv_provider) -> tuple | None:
         csv_text = csv_provider()
         if not csv_text:
             return None
-        built = build(csv_text)
+        built = build(csv_text, date_filter)
         if not built:
             return None
         gz = gzip.compress(built["json_bytes"], compresslevel=6)

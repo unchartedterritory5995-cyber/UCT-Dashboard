@@ -167,6 +167,12 @@ export default function ChartSettingsModal({
   onApplyThemeAll = null,
   // Optional: apply the theme to EVERY widget in the layout (chart or not).
   onApplyThemeAllWidgets = null,
+  // Optional (Charts workspace): the adjustable-watermark shortcuts. "Move
+  // watermark" enters the same drag+confirm mode as the right-click item;
+  // "Reset to center" clears this chart's saved position. Absent elsewhere.
+  onAdjustWatermark = null,
+  onResetWatermark = null,
+  watermarkCustomized = false,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
@@ -507,6 +513,7 @@ export default function ChartSettingsModal({
   const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
+  const setWmAlign = (v) => setSetting({ watermark: { ...watermark, align: v } })
   const setWmSize = (v) => setSetting({ watermark: { ...watermark, sizeScale: v } })
   const setWmWeight = (v) => setSetting({ watermark: { ...watermark, weight: v } })
   const wmLines = watermark.lines || {}
@@ -834,7 +841,9 @@ export default function ChartSettingsModal({
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Fields</span>
                   <div className={styles.chipRow}>
-                    {[['ticker', 'Ticker'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label]) => (
+                    {/* All fields default ON. `interval` appends ", <timeframe>" to
+                        the ticker line, e.g. "ARM, 1D". */}
+                    {[['ticker', 'Ticker'], ['interval', 'Interval'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label]) => (
                       <button
                         key={key}
                         type="button"
@@ -842,6 +851,26 @@ export default function ChartSettingsModal({
                         onClick={() => setWmLine(key, wmLines[key] === false)}
                         aria-pressed={wmLines[key] !== false}
                       >{label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Alignment</span>
+                  <div className={styles.seg} role="tablist">
+                    {[['left', 'Left'], ['center', 'Center'], ['right', 'Right']].map(([val, label]) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={(watermark.align || 'center') === val}
+                        aria-label={label} title={label}
+                        className={`${styles.segBtn} ${(watermark.align || 'center') === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setWmAlign(val)}
+                      >
+                        <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ display: 'block' }}>
+                          {val === 'left' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="2" y1="6" x2="10" y2="6" /><line x1="2" y1="9" x2="12" y2="9" /></>)}
+                          {val === 'center' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="4" y1="6" x2="12" y2="6" /><line x1="3" y1="9" x2="13" y2="9" /></>)}
+                          {val === 'right' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="6" y1="6" x2="14" y2="6" /><line x1="4" y1="9" x2="14" y2="9" /></>)}
+                        </svg>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -871,6 +900,19 @@ export default function ChartSettingsModal({
                   <span className={styles.fieldLabel}>Color &amp; opacity</span>
                   {colorSwatch('watermark', 'Watermark', watermark.color || '#a8a290')}
                 </div>
+                {/* Per-chart position (charts workspace only) — a shortcut to the
+                    same drag+confirm the right-click "Adjust watermark" opens. */}
+                {onAdjustWatermark && (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Position</span>
+                    <div className={styles.seg}>
+                      <button type="button" className={styles.segBtn} onClick={() => onAdjustWatermark()}>Move watermark</button>
+                      {watermarkCustomized && (
+                        <button type="button" className={styles.segBtn} onClick={() => onResetWatermark?.()}>Reset to center</button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </>)}
             </div>
           </section>

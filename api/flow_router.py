@@ -788,11 +788,21 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
     if source not in ("stocks", "indexes"):
         source = "stocks"
     days = _parse_query_days(request)
+    # The page renders a DATE SELECTION, not the whole fetch window (it opens on
+    # 'Last1'). Aggregating the window and letting the page filter is not an
+    # option -- what comes back is an aggregate, not rows -- so the selection has
+    # to be applied here or the prehydrated numbers describe a different set than
+    # the page then shows. Unrecognised values fall back to the whole CSV rather
+    # than erroring, and the allowlist is what keeps this out of argv.
+    date_filter = flow_aggregate.valid_date_filter(
+        request.query_params.get("date_filter"))
     version = _current_version()
-    key = (source, days)
+    key = (source, days, date_filter)
 
     built = flow_aggregate.get_cached_or_build(
-        key, version, lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8")
+        key, version,
+        lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+        date_filter,
     )
     if not built:
         return JSONResponse({"error": "aggregate build failed"}, status_code=503)
