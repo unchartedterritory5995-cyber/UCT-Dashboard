@@ -184,7 +184,7 @@ def stalest(tickers, n: int | None = None) -> list:
     return ordered[:n] if n else ordered
 
 
-def read_analyst_fields(targets, failures=None) -> dict:
+def read_analyst_fields(targets, failures=None, now=None) -> dict:
     """``{TICKER: {five snapshot columns}}`` for rows fetched within the
     last 8 days. A stale or never-fetched ticker is simply ABSENT from the
     result (never a confident-but-wrong value) — ``build_row``'s merge loop
@@ -195,11 +195,19 @@ def read_analyst_fields(targets, failures=None) -> dict:
     — the store owns its own column name, the snapshot owns its.
     ``pt_upside_pct`` is NOT emitted; that derivation belongs to the
     builder (Task 10), which has the price this needs.
+
+    ⛔ `now` EXISTS BECAUSE THIS MODULE HAD A HALF-FAKED CLOCK SEAM.
+    `run_pass(now=...)` is injectable and this read was not, so a test could
+    fake the write clock and not the read clock — and one did. Its fixture
+    seeded rows at a hardcoded date, they fell outside this 8-day window
+    exactly 8 days later, and the read-back began failing with a KeyError that
+    looked like a product bug. Both halves of one clock concept are now
+    injectable; production passes nothing and gets `time.time()` as before.
     """
     targets = [str(t).upper() for t in (targets or []) if t]
     if not targets:
         return {}
-    cutoff = time.time() - _FRESHNESS_SECONDS
+    cutoff = (now if now is not None else time.time()) - _FRESHNESS_SECONDS
     try:
         rows: dict = {}
         with contextlib.closing(connect()) as conn:
