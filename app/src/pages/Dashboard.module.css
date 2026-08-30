@@ -25,7 +25,10 @@
   align-items: start;
 }
 
+/* min-height keeps the hero from leaving an 849px dead column beside the
+   1,070px rail when the catalyst set is thin or the session is closed. */
 .hero {
+  min-height: 420px;
   max-height: 680px;
   overflow-y: auto;
   border-radius: var(--radius-xl, 14px);
@@ -51,12 +54,17 @@
   border-radius: var(--radius-xl, 14px);
 }
 
+/* ⛔ max-height is load-bearing. Without it, align-items:stretch matches
+   every tile to the tallest sibling (UCT 20's 20 rows) and a two-line
+   exposure reading gets 908px. Tiles scroll inside the row instead. */
 .rowC {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-md);
   align-items: stretch;
+  max-height: 340px;
 }
+.rowC > * { min-height: 0; }
 
 .rowD {
   display: grid;
