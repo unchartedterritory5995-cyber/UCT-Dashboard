@@ -286,3 +286,45 @@ def test_an_unknown_pack_is_dropped_rather_than_invented():
     cap = runner._fast_lane_capture(
         {"grounding_sources": ["some_new_pack"], "ctx_block": "x"}, {})
     assert cap == []
+
+
+# ── 7. grounding-only: measure RETRIEVAL without paying for answers ─────────
+def test_grounding_only_makes_no_provider_or_judge_call(monkeypatch):
+    """The 11 gate misses in the first honest fast-lane run were a retrieval
+    question, not an answer question — and answering 30 questions 3x to learn
+    which PACKS fire is absurd. This mode runs _grounded_system alone: free,
+    seconds, and it isolates the half that was actually broken."""
+    def _boom(*a, **k):
+        raise AssertionError("grounding-only must not call the provider or judge")
+    monkeypatch.setattr(ai, "fast_lane_answer", _boom)
+    monkeypatch.setattr(runner, "_judge_client", _boom)
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "quote"],
+                                    "ctx_block": "x"}))
+    out = runner.run_grounding_audit(question_ids=["S1-01-quote-nvda"])
+    assert out["rows"][0]["fired_packs"] == ["regime", "quote"]
+
+
+def test_grounding_only_names_the_missing_tool_groups(monkeypatch):
+    """Names, not a count: 'S1-06 is missing get_options_flow' is a next step;
+    '11 gate misses' is not."""
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime"], "ctx_block": ""}))
+    out = runner.run_grounding_audit(question_ids=["S1-06-flow"])
+    row = out["rows"][0]
+    assert row["covered"] is False
+    assert ["get_options_flow"] in row["missing_groups"], row
+
+
+def test_grounding_only_reports_coverage_when_the_pack_fires(monkeypatch):
+    """CONTROL — the audit must be able to say COVERED, or it is a gate that
+    can only fail."""
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "flow"],
+                                    "ctx_block": "x"}))
+    out = runner.run_grounding_audit(question_ids=["S1-06-flow"])
+    assert out["rows"][0]["covered"] is True
+    assert out["covered"] == 1 and out["total"] == 1

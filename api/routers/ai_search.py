@@ -933,7 +933,10 @@ def _ctx_flow_ticker(sym: str) -> str:
 _FLOW_RE = re.compile(
     r"\b(options? flow|sweeps?|unusual (options|activity)|whales?"
     r"|call buying|put buying|smart money|big (?:options? )?prints?|options? premium"
-    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b(?=\s+(?:on|for|in|say|said|look|is|was|today|right)))",
+    # `tape|show` added 2026-08-29: "what's the flow TAPE showing on SPY" is
+    # how a member asks for this, and it loaded no flow pack at all.
+    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b"
+    r"(?=\s+(?:on|for|in|say|said|look|is|was|today|right|tape|show)))",
     re.I)
 
 
@@ -1337,9 +1340,14 @@ _VERDICT_RE = re.compile(
     r"\b(trade (?:setup|opportunit(?:y|ies)|idea)|find (?:me )?a (?:good )?(?:trade|setup|entry)"
     r"|should i (?:buy|enter|take|get in)|worth (?:a )?(?:trade|buy(?:ing)?|swing|entry)"
     r"|how would you trade|entry and stop|is (?:it|this) a buy"
-    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade))\b", re.I)
+    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade)"
+    # 2026-08-29: the gate for "give me the desk's call" did not contain the
+    # word `verdict`, nor "best setup" — the two phrasings the exam actually used.
+    r"|verdict|desk read|best setup|where'?s the entry)\b", re.I)
 _LEVELS_RE = re.compile(
-    r"\b(support|resistance|key levels?|price levels?|levels? to watch|dark ?pool"
+    # bare `levels?` 2026-08-29: "what levels matter" reached the model with no
+    # dark-pool/gamma pack, because the gate only knew three fixed phrasings.
+    r"\b(support|resistance|levels?|dark ?pool"
     r"|gamma\b|gex\b|call wall|put wall|zero[- ]gamma|max pain)\b", re.I)
 
 # COT / futures positioning — a market-level ask resolved from the query's own
