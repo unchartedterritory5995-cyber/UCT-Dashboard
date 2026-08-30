@@ -43,6 +43,18 @@ _TIMEOUTS = {
 
 # Curated finance domain pack — locks the LLM to high-quality finance
 # journalism + official sources, kills SEO spam and stale forum content.
+def _domain_filter_enabled() -> bool:
+    """OFF by default since 2026-08-29. Perplexity treats search_domain_filter as
+    a HARD ALLOWLIST, so shipping the list below on every query cut the desk down
+    to 18 sites — four of them (Bloomberg/WSJ/FT/Barron's) hard paywalls that
+    return crawler stubs — with no IR pages, no SEC full text, no transcripts and
+    no independent analysts. That is the measured reason raw Perplexity answered
+    better than our wrapper around Perplexity. The list and its plumbing stay so
+    restoring it is a Railway var, not a deploy."""
+    return os.environ.get("AI_SEARCH_DOMAIN_FILTER", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
 _FINANCE_DOMAINS = [
     "bloomberg.com", "reuters.com", "wsj.com", "ft.com",
     "barrons.com", "marketwatch.com", "cnbc.com", "investors.com",
@@ -291,7 +303,7 @@ def web_search(
     timeout = _TIMEOUTS[resolved_mode]
     ttl = _CACHE_TTL[resolved_mode]
 
-    if domains is None and domain_pack == "finance":
+    if domains is None and domain_pack == "finance" and _domain_filter_enabled():
         domains = _FINANCE_DOMAINS
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
@@ -481,7 +493,7 @@ async def stream_search(
     timeout = _TIMEOUTS[resolved_mode]
     ttl = _CACHE_TTL[resolved_mode]
 
-    if domains is None and domain_pack == "finance":
+    if domains is None and domain_pack == "finance" and _domain_filter_enabled():
         domains = _FINANCE_DOMAINS
     recency_filter = recency if recency in _RECENCY_VALUES else None
 
