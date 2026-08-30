@@ -147,13 +147,25 @@ describe('paste a real screener script and get a working scan', () => {
     expect(screen.getByText(down.readback)).toBeTruthy()
   })
 
-  it('the folded inputs are named out loud, never applied silently', async () => {
+  it("the author's lengths arrive as FIELDS, seeded with their own numbers", async () => {
+    // ⚰️ THIS READ `pine-inputs-folded` AND THE SENTENCE *"Fixed at their
+    // defaults"*. Both lengths here land in `int` slots, so neither could be a
+    // declared knob — true, and the wrong thing to leave a member with, since
+    // `translatePine` has taken an `inputValues` override since the knob work and
+    // nothing in the product ever passed one.
     mount()
     await flush()
     await paste(SCREEN_SCRIPT)
-    const folded = screen.getByTestId('pine-inputs-folded').textContent
-    expect(folded).toContain('RSI Length = 14')
-    expect(folded).toContain('Trend Length = 200')
+    const rsi = screen.getByTestId('pine-length-rsiLen')
+    const ma = screen.getByTestId('pine-length-maLen')
+    expect(rsi.placeholder).toBe('14')
+    expect(ma.placeholder).toBe('200')
+    // ⛔ THE AUTHOR'S OWN BOUND RIDES ALONG. `rsiLen` declares `minval=1` and
+    // `maLen` declares none, so the two fields must not claim the same limits.
+    expect(rsi).toHaveAttribute('min', '1')
+    expect(ma).not.toHaveAttribute('min')
+    // ⭐ AND NOTHING IS STILL BEING CALLED FIXED.
+    expect(screen.queryByTestId('pine-inputs-folded')).toBeNull()
   })
 
   it('"Use this formula" puts it in the box the member already types in', async () => {

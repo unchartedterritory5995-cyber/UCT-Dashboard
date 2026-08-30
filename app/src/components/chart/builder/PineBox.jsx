@@ -49,7 +49,7 @@ plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, "Signal")`
  * PURE, and it never throws — `translatePine` returns a refusal rather than
  * raising and `evaluateFormula` is already the door that cannot throw.
  */
-export function inspectPine(source) {
+export function inspectPine(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
   // ones the engine has to fold back into a window, then again declaring only the
@@ -57,7 +57,7 @@ export function inspectPine(source) {
   // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
   // refusals; the only difference is that a threshold or a multiplier reaches the
   // formula as its own identifier instead of as somebody else's constant.
-  const translated = memberInputTranslation(translatePine, source)
+  const translated = memberInputTranslation(translatePine, source, opts || {})
   const outputs = translated.outputs.map((out) => ({
     ...out,
     vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
@@ -99,7 +99,7 @@ export function inspectPine(source) {
  * @param {'auto'|'pine'|'thinkscript'|'pcf'|'formula'} [dialect]
  * @returns {{ok, dialect, version, outputs, selected, refusal, ignored, folded}}
  */
-export function inspectSource(source, dialect = 'auto') {
+export function inspectSource(source, dialect = 'auto', opts = undefined) {
   const chosen = dialect === 'auto' ? detectDialect(source) : dialect
   /* istanbul ignore next — `DIALECTS` is the closed set; a caller typo is a bug */
   const lang = DIALECTS.includes(chosen) ? chosen : 'formula'
@@ -114,8 +114,13 @@ export function inspectSource(source, dialect = 'auto') {
     // NOT, because `declareInputs` is `pine.js`'s option and thinkScript's own
     // input form has not been given the same hand-back. Routing both through it
     // would be a claim about a capability one of them does not have.
+    // ⛔ THE OPTIONS REACH THE PINE LANE ONLY, and that is not an oversight to
+    // tidy up later: `inputValues` is `pine.js`'s option and `translateThinkScript`
+    // has no equivalent. Passing it to both would be a claim about a capability one
+    // of them does not have — the same reasoning that keeps thinkScript off the
+    // member-input door two lines below.
     const t = lang === 'pine'
-      ? memberInputTranslation(translatePine, source)
+      ? memberInputTranslation(translatePine, source, opts || {})
       : translateThinkScript(source)
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
@@ -217,9 +222,47 @@ const DIALECT_LABEL = Object.freeze({
  *        keeps the Pine-only behaviour `PineBox` shipped with; anything else
  *        routes through `inspectSource`.
  */
+/** ⭐⭐ THE AUTHOR'S LENGTHS, PER OUTPUT — the rows this box turns into fields.
+ *
+ *  ⛔ IT READS THE FLAG, NOT THE SENTENCE. `builderInputs.js` stamps
+ *  `windowBound` on every skipped row whose refusal is the window one, by EITHER
+ *  of the two paths that reach it. This used to match `/lands in a WINDOW/`
+ *  against the prose, which is a second authority over a fact the door already
+ *  knows and would have started silently rendering nothing the day somebody
+ *  reworded a refusal.
+ *
+ *  ⚠️ AND ONLY THE NUMERIC ONES. `folded` is what the translator PRINTED, so a
+ *  source input reads `close` and a bool reads `1` — neither is a length, and a
+ *  number field seeded with `close` would be a control that cannot be used. */
+function windowKnobsOf(output) {
+  return (output?.skippedInputs || []).filter(
+    (k) => k.windowBound === true && k.name && Number.isFinite(Number(k.folded)))
+}
+
+/** The member's typed text → the `inputValues` map `translatePine` takes.
+ *
+ *  ⛔⛔ A BLANK FIELD SENDS NOTHING, AND `Number('')` IS `0`. Blank means "leave
+ *  the author's default alone"; passing `0` for it would silently substitute a
+ *  zero-bar window for the length the member is looking at, and this engine's
+ *  whole reason for existing is not to answer a plausible different number.
+ *
+ *  ⚠️ A NON-NUMERIC ENTRY IS PASSED THROUGH AS TYPED rather than dropped. The
+ *  translator refuses a non-number by name (`pine:input-kind`), and that refusal
+ *  is what the member needs to see — dropping it here would silently fall back to
+ *  the author's default and show a formula that is not the one they asked for. */
+function memberLengths(lengths) {
+  const out = {}
+  for (const [name, raw] of Object.entries(lengths || {})) {
+    if (typeof raw !== 'string' || raw.trim() === '') continue
+    const n = Number(raw)
+    out[name] = Number.isFinite(n) ? n : raw
+  }
+  return out
+}
+
 function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const inspect = useCallback(
-    (s) => (dialect === undefined ? inspectPine(s) : inspectSource(s, dialect)),
+    (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
   )
   const [text, setText] = useState(initialSource)
@@ -228,15 +271,60 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const [showNotes, setShowNotes] = useState(false)
   const areaRef = useRef(null)
 
+  // ⭐⭐ THE MEMBER'S OWN LENGTHS. `translatePine`'s `inputValues` has shipped,
+  // tested and green since the knob work — and until now its only caller was its
+  // own test file. Measured: 21 of the 43 corpus scripts that translate lose at
+  // least one length to the window ceiling, and only 2 of the 43 blocked knobs
+  // declare a `maxval`, so "read the author's bounds" would have unlocked almost
+  // nothing. What a member actually wants is to set the length THEY trade, at the
+  // moment they are looking at the script. This is that door.
+  //
+  // ⛔ THE TREE STILL HOLDS A LITERAL. Nothing about static decidability moved:
+  // the value is fixed BEFORE translation, so `maxLookback` is still a pure tree
+  // sum over `num` nodes and the repaint linter still decides statically. A
+  // different length is a different indicator and gets a different `astHash`,
+  // which is correct rather than a workaround.
+  const [lengths, setLengths] = useState({})
+
+  // ⛔⛔ THE ROSTER IS THE PRISTINE TRANSLATION'S, AND THAT IS WHY IT IS STATE.
+  // Once a member sets a length, the re-translation reports `folded` as THEIR
+  // value — so reading the roster off the live report would lose the author's
+  // default the moment it is overridden, and the field could no longer say what
+  // it is departing from. It is refreshed only on a pass with no overrides.
+  //
+  // ⚠️ PER OUTPUT, matching the "Fixed at their defaults" line beside it. A
+  // script can plot two columns off different inputs.
+  const [authorKnobs, setAuthorKnobs] = useState(
+    () => (initialSource && report ? (report.outputs || []).map(windowKnobsOf) : []))
+
+  // ⛔ A NEW PASTE FORGETS THE OLD LENGTHS, and this ref is how the effect can
+  // tell "the member typed in the script" from "the member turned a knob".
+  // `translatePine` ignores a name that is not an input of the script it was
+  // handed, so a stale knob is usually inert — but `len` is the commonest
+  // identifier in the corpus, and carrying one paste's `len` into the next would
+  // silently compute a length the member never chose for it.
+  const lastTextRef = useRef(initialSource)
+
   useEffect(() => {
-    if (text.trim() === '') { setReport(null); setChosen(null); return undefined }
+    if (text.trim() === '') {
+      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
+    }
     const id = setTimeout(() => {
-      const next = inspect(text)
+      const values = memberLengths(lengths)
+      const overridden = Object.keys(values).length > 0
+      const next = inspect(text, overridden ? { inputValues: values } : undefined)
+      const isNewText = lastTextRef.current !== text
+      lastTextRef.current = text
       setReport(next)
-      setChosen(next.selected >= 0 ? next.selected : null)
+      // ⛔ A LENGTH CHANGE MUST NOT MOVE THE MEMBER'S PICK. Re-selecting
+      // `next.selected` on every pass would snap a two-plot script back to the
+      // first column each time a field is touched.
+      setChosen((prev) => ((isNewText || prev == null)
+        ? (next.selected >= 0 ? next.selected : null) : prev))
+      if (!overridden) setAuthorKnobs((next.outputs || []).map(windowKnobsOf))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
-  }, [text, inspect])
+  }, [text, lengths, inspect])
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
@@ -269,6 +357,19 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     if (split.found < 2) return null
     return { split, report: inspectLibrary(split.scripts) }
   }, [text])
+
+  // ⭐ THE FIELDS THE MEMBER SEES, and the ONE place `chosen` selects them.
+  const lengthKnobs = useMemo(
+    () => (chosen == null ? [] : (authorKnobs[chosen] || [])), [authorKnobs, chosen])
+
+  // ⛔ EVERYTHING ELSE THAT STAYED FOLDED, WITHOUT THE LENGTHS. The sentence
+  // below says "fixed at their defaults", which stopped being true of a length the
+  // moment there was a field for it — and a member reading that about a control
+  // sitting live two lines above would be reading a false sentence about the
+  // screen in front of them. Same shape as the note this line already carries: it
+  // once printed EVERY folded entry and became false the day one could be a knob.
+  const plainSkipped = useMemo(
+    () => (active?.skippedInputs || []).filter((k) => k.windowBound !== true), [active])
 
   const numericColumn = !!(active && active.formula && !yieldsCondition(active.formula))
   const condition = useMemo(() => {
@@ -336,7 +437,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
         aria-label={anyDialect ? 'Script or formula' : 'Pine script'}
         disabled={disabled}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { setText(e.target.value); setLengths({}) }}
       />
 
       {report && (
@@ -429,7 +530,61 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </p>
           )}
 
-          {active && active.skippedInputs && active.skippedInputs.length > 0 && (
+          {/* ⭐⭐ THE LENGTHS, AS FIELDS — the half of a pasted script that used to
+              arrive as somebody else's constant with no way to change it.
+              ⛔ RENDERED FROM `authorKnobs`, NOT FROM `active`. An out-of-range
+              value refuses the whole translation, so `active` is null exactly
+              when the member most needs the field they must correct — reading
+              the live report here would make the control vanish at the moment it
+              is wanted, leaving a refusal and nothing to act on. */}
+          {lengthKnobs.length > 0 && (
+            <div className={styles.lengths} data-testid="pine-lengths">
+              <p className={styles.folded}>
+                <UIcon name="sliders" size={12} /> Lengths — set them here, before you save
+              </p>
+              <div className={styles.lengthRow}>
+                {lengthKnobs.map((k) => (
+                  <label key={k.name} className={styles.lengthField}>
+                    <span className={styles.lengthLabel}>{k.title || k.name}</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      className={styles.lengthInput}
+                      data-testid={`pine-length-${k.name}`}
+                      aria-label={`${k.title || k.name} length`}
+                      value={lengths[k.name] ?? ''}
+                      placeholder={String(k.folded)}
+                      min={Number.isFinite(k.min) ? k.min : undefined}
+                      max={Number.isFinite(k.max) ? k.max : undefined}
+                      disabled={disabled}
+                      onChange={(e) => setLengths(
+                        (p) => ({ ...p, [k.name]: e.target.value }))}
+                    />
+                    {/* ⛔ THE AUTHOR'S NUMBER STAYS ON SCREEN once it has been
+                        departed from. A field showing 21 with no trace of the 14
+                        it replaced cannot be checked against the script the
+                        member is reading on TradingView. */}
+                    {(lengths[k.name] ?? '') !== '' && String(k.folded) !== lengths[k.name] && (
+                      <span className={styles.lengthWas} data-testid={`pine-length-was-${k.name}`}>
+                        was {k.folded}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <p className={styles.folded}>
+                {/* ⛔ THE MECHANISM, NOT AN APOLOGY. A length is fixed before the
+                    formula is translated — that is what keeps the window a literal
+                    and the repaint verdict decidable — so it is a choice made HERE
+                    rather than a knob turned later. Saying so is what stops a
+                    member hunting for a gear that will not exist. */}
+                A length is baked into the formula this engine saves, so it is chosen here
+                {' '}rather than turned afterwards. Leave a field blank to keep the author’s.
+              </p>
+            </div>
+          )}
+
+          {active && plainSkipped.length > 0 && (
             <p className={styles.folded} data-testid="pine-inputs-folded">
               {/* ⭐ SAID OUT LOUD. A knob folded to its default silently would be a
                   formula that means something other than the script the member
@@ -440,9 +595,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                   read "fixed at their defaults" about a control sitting live in
                   their own settings. */}
               Fixed at their defaults:{' '}
-              {active.skippedInputs.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
-              {active.skippedInputs.some((f) => /lands in a WINDOW/.test(f.reason || ''))
-                && ' — a length cannot be a member input in this engine, so it stays as written.'}
+              {plainSkipped.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
             </p>
           )}
 

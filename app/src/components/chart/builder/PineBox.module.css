@@ -346,3 +346,29 @@
 }
 
 .manifestPartial { display: block; margin-top: 3px; color: var(--color-success, #4ade80); }
+
+/* ⭐ THE LENGTHS A PASTED SCRIPT BROUGHT WITH IT, as fields. A length is fixed
+   before translation (that is what keeps the window a literal), so this is a
+   choice made at import rather than a gear turned afterwards. */
+.lengths { display: flex; flex-direction: column; gap: 6px; }
+
+.lengthRow { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+
+.lengthField { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+
+.lengthLabel { color: var(--text-dim); }
+
+.lengthInput {
+  width: 72px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text);
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 4px;
+}
+
+.lengthInput:focus-visible { outline: 1px solid var(--gold, #c9a84c); outline-offset: 1px; }
+
+.lengthWas { color: var(--text-muted); font-variant-numeric: tabular-nums; }
