@@ -271,6 +271,16 @@ def _run(user_id, broker_account, raw_positions, raw_option_holdings,
              drift_dollar, drift_pct, consecutive,
              json.dumps(detail) if not ok else None),
         )
+        # Append the point to the SERIES as well. The row above is a verdict
+        # (latest state, threshold alerting); this is the shape over time, and
+        # only the shape can show a bias that never trips a threshold.
+        conn.execute(
+            "INSERT INTO j2_broker_drift_series "
+            "(user_id, broker_account_id, checked_at, drift_dollar, drift_pct, ok) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, broker_account_id, _now_iso(), drift_dollar, drift_pct,
+             1 if ok else 0),
+        )
         conn.commit()
 
         # ── alerting ─────────────────────────────────────────────────────
@@ -321,3 +331,41 @@ def latest_verdicts(user_id: str, conn=None) -> dict[str, dict[str, Any]]:
     finally:
         if owned:
             conn.close()
+
+
+def drift_series(broker_account_id: str, days: int = 30, conn=None) -> dict:
+    """The drift history for one account, plus the statistics that reveal BIAS.
+
+    A threshold check answers "is it broken right now." It cannot answer "has it
+    been quietly 0.2% off for a month," which is what the 2026-08-29 gap
+    actually was: $19.96 every day, under every tolerance, invisible until two
+    screens were compared by hand.
+
+    `mean` is the number to read. Noise averages toward zero; a mean that
+    stays put is a systematic offset, and its SIGN says which side is high.
+    `spread` (max − min) separates a steady bias from a jittery one.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT checked_at, drift_dollar, drift_pct, ok "
+            "FROM j2_broker_drift_series WHERE broker_account_id = ? "
+            "AND checked_at >= datetime('now', ?) ORDER BY checked_at",
+            (broker_account_id, f"-{int(days)} days"),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    vals = [r["drift_dollar"] for r in rows if r["drift_dollar"] is not None]
+    stats = {"n": len(vals), "mean": None, "min": None, "max": None, "spread": None}
+    if vals:
+        stats.update({
+            "mean": round(sum(vals) / len(vals), 2),
+            "min": round(min(vals), 2),
+            "max": round(max(vals), 2),
+            "spread": round(max(vals) - min(vals), 2),
+        })
+    return {"brokerAccountId": broker_account_id, "days": days, **stats,
+            "points": [{"at": r["checked_at"], "dollar": r["drift_dollar"],
+                        "pct": r["drift_pct"], "ok": bool(r["ok"])} for r in rows]}
