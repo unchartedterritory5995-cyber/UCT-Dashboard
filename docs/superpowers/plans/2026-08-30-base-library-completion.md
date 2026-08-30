@@ -102,6 +102,38 @@ The highest value-to-effort item on this plan, and none of it is new detection.
       reported, not assumed improved.
 - [ ] **D4** Commit.
 
+## ⚠️ MEASURED CONSTRAINT ON WAVE E — the ledger does not scale linearly
+
+`tools/run_lift_ledger.py` re-runs the FULL historical scan once per null
+trial. Measured 2026-08-30: Stage 2 Breakout at 373 tickers x 39,310 anchors
+with 12 null trials took **46 minutes for ONE structure**. Twenty-eight more
+structures at that setting is a multi-hour job, and Wave E cannot treat the
+ledger as a cheap post-step.
+
+The working shape, and it is already what Darvas got:
+  - **screen at 5 null trials**, which is enough to refuse a structure whose
+    interval is nowhere near its null (three of the first four were refused at
+    that setting and none was close);
+  - **escalate to 30 trials only for a structure that PASSES the screen**,
+    where the null's upper tail is what the verdict actually turns on.
+⛔ Do NOT lower the trial count to make a borderline structure pass — fewer
+trials means a lower null maximum, which makes the gate EASIER. The escalation
+runs in one direction only.
+
+**The escalation is now parallel, and exactly so.** `null_lifts` seeds trial k
+with `NULL_SEED + k`, so a 30-trial null is precisely three 10-trial chunks at
+seed offsets 0/10/20. `--nulls-out` writes one chunk, `--nulls-in` recombines
+them, and `tests/.../test_null_chunks.py` PROVES the equivalence on a cheap
+fixture rather than asserting it — with a control that fails if the fixture
+could not tell a correct recombination from a wrong one (both tests go red when
+`+ k` is dropped from the seed).
+⛔⛔ The recombiner REFUSES overlapping or gapped seed ranges. An overlap would
+count one trial twice, which shrinks the spread and LOWERS the null maximum —
+and since the maximum is the bar the CI's lower bound must clear, the error's
+direction is to PUBLISH a structure that should have been refused. That is the
+one failure mode this optimisation could have introduced, so it is the one
+guarded first.
+
 ## Wave E — complete the structure vocabulary (28 remaining)
 
 Each structure ships only when it has: sourced criteria with provenance, a

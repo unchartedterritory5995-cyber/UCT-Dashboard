@@ -78,6 +78,16 @@ Z = 1.959964
 #: each trial re-runs the detector over the whole sample.
 NULL_TRIALS = 12
 
+#: Base seed for the null. Trial k uses `NULL_SEED + k`, so a run of N trials
+#: consumes seeds [NULL_SEED, NULL_SEED+N). That arithmetic is the reason the
+#: expensive 30-trial escalation can be split across processes and recombined
+#: EXACTLY: three 10-trial chunks at offsets 0/10/20 draw the same 30 seeds a
+#: single sequential run would. ⛔ It is also the trap — two chunks given
+#: overlapping seed ranges would count one trial twice and UNDERSTATE the null
+#: maximum, which is the direction that wrongly PUBLISHES. Any caller that
+#: recombines chunks must assert the ranges are disjoint and contiguous.
+NULL_SEED = 20260830
+
 #: Resamples for the cluster bootstrap CI. origin: uct.
 BOOTSTRAP_TRIALS = 400
 
@@ -127,6 +137,11 @@ def _wilson_se(p: float, n: int) -> float:
     return math.sqrt(p * (1 - p) / n) if n > 0 else float("inf")
 
 
+#: Module-level tally of anchors where the detector RAISED. Reset by
+#: `measure`; read by it to refuse a run that is mostly exceptions.
+_SCAN_ERRORS = [0]
+
+
 def scan_series(detect: Callable, bars: List[dict], *, step: int = HORIZON_BARS,
                 window: int = 400, min_history: int = 260,
                 horizon: int = HORIZON_BARS) -> List[tuple]:
@@ -146,6 +161,13 @@ def scan_series(detect: Callable, bars: List[dict], *, step: int = HORIZON_BARS,
         try:
             fired = bool(detect(bars[lo:i + 1]))
         except Exception:
+            # ⛔ COUNTED, NOT MERELY SKIPPED. A detector that raises on EVERY
+            # anchor produced an identical result to one that simply never
+            # fired — n=0 — and that is how a broken adapter shipped a
+            # confident "no detections" for a structure the live coverage
+            # check found on 21 symbols. `errors` makes the two
+            # distinguishable, and `measure` refuses when they dominate.
+            _SCAN_ERRORS[0] += 1
             continue
         out.append((_year_of(bars[i].get("t")), fired, res))
     return out
@@ -183,6 +205,7 @@ def measure(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
     Resampling TICKERS with replacement carries that correlation instead of
     assuming it away.
     """
+    _SCAN_ERRORS[0] = 0
     rows_by_ticker: Dict[str, List[tuple]] = {}
     for sym, bars in bars_by_ticker.items():
         r = scan_series(detect, bars, **kw)
@@ -190,8 +213,17 @@ def measure(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
             rows_by_ticker[sym] = r
 
     flat = [row for rows in rows_by_ticker.values() for row in rows]
+    errors = _SCAN_ERRORS[0]
     t = _tally(flat)
+    t["scan_errors"] = errors
     n, free_n = t["n"], t["free_n"]
+    # ⛔ A RUN THAT IS MOSTLY EXCEPTIONS IS NOT A MEASUREMENT. Without this a
+    # broken adapter reports n=0 and reads as "the structure never fired".
+    if errors and errors > len(flat):
+        return {**t, "rate": None, "baseline": None, "lift": None,
+                "ci_low": None, "ci_high": None, "anchors": len(flat),
+                "ci_method": None, "naive_ci": None,
+                "refused": f"the detector raised on {errors} anchors"}
     if n == 0 or free_n == 0:
         return {**t, "rate": None, "baseline": None, "lift": None,
                 "ci_low": None, "ci_high": None, "anchors": len(flat),
@@ -204,7 +236,21 @@ def measure(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
     naive_se = math.sqrt(_wilson_se(p_c, n) ** 2 + _wilson_se(p_b, free_n) ** 2)
     naive = (lift - Z * naive_se, lift + Z * naive_se)
 
-    lo, hi = _cluster_bootstrap_ci(rows_by_ticker, bootstrap, seed)
+    # ⚡ `bootstrap=0` SKIPS THE CI ENTIRELY. The null trials read only the
+    # POINT estimate, so a 400-draw cluster interval per trial is work nothing
+    # looks at.
+    #
+    # ⚠️ AND IT IS A SMALL WIN, NOT THE BIG ONE. I wrote "a large share of the
+    # runtime" here before measuring, then measured: 23.5s with the bootstrap
+    # vs 20.7s without, over 1,985 anchors — **12% of a pass**, roughly 5-6
+    # minutes off a 46-minute structure. Worth keeping because it is free, but
+    # the dominant cost is the DETECTOR SCAN itself, so the real lever on Wave
+    # E's runtime is the null TRIAL COUNT (screen at 5, escalate to 30 only on
+    # a pass), not this.
+    if bootstrap <= 0:
+        lo = hi = None
+    else:
+        lo, hi = _cluster_bootstrap_ci(rows_by_ticker, bootstrap, seed)
     return {**t, "rate": p_c, "baseline": p_b, "lift": lift,
             "ci_low": lo, "ci_high": hi, "anchors": len(flat),
             "ci_method": "cluster-bootstrap", "naive_ci": naive,
@@ -295,7 +341,7 @@ def shuffle_returns(bars: List[dict], rng: random.Random,
 
 
 def null_lifts(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
-               trials: int = NULL_TRIALS, seed: int = 20260830, **kw) -> List[float]:
+               trials: int = NULL_TRIALS, seed: int = NULL_SEED, **kw) -> List[float]:
     """The lift this detector produces on data where it CANNOT be right."""
     out = []
     for k in range(trials):
@@ -305,7 +351,7 @@ def null_lifts(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
             s = shuffle_returns(bars, rng)
             if s:
                 shuffled[sym] = s
-        r = measure(detect, shuffled, **kw)
+        r = measure(detect, shuffled, bootstrap=0, **kw)
         if r["lift"] is not None:
             out.append(r["lift"])
     return out

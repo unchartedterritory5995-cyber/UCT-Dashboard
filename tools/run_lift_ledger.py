@@ -40,6 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from api.services import bars_sqlite                                # noqa: E402
 from api.services.screener import base_catalog as bc                # noqa: E402
 from api.services.screener import lift_ledger as ll                 # noqa: E402
+from api.services.screener import bases                            # noqa: E402
 from api.services.screener import technicals                        # noqa: E402
 
 #: Per-structure scan window. A structure may only be measured over a window
@@ -51,6 +52,10 @@ WINDOWS = {
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,
+    # The 30-week MA needs ~150 sessions before it exists at all, plus swing
+    # history behind it for the breakout/breakdown level.
+    "stage-2-breakout":    400,
+    "stage-4-breakdown":   400,
 }
 DEFAULT_WINDOW = 400
 
@@ -76,12 +81,80 @@ def load_universe(sample: int, seed: int = 7) -> dict:
     return out
 
 
+def write_null_chunk(path: str, key: str, seed: int, trials: int,
+                     lifts: list) -> None:
+    payload = {"key": key, "seed": seed, "trials": trials, "lifts": lifts}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2)
+        fh.write(chr(10))
+
+
+def load_null_chunks(paths: str, key: str) -> list:
+    """Recombine null chunks, refusing any set that is not a clean partition.
+
+    ⛔⛔ THE CHECK IS THE POINT, NOT THE CONCATENATION. `null_lifts` seeds trial
+    k with `NULL_SEED + k`, so chunks recombine EXACTLY only when their seed
+    ranges are disjoint and contiguous. Overlapping ranges would silently count
+    one trial twice, which shrinks the effective spread and LOWERS the null
+    maximum -- and the null maximum is the bar the CI's lower bound has to
+    clear, so the error's direction is to PUBLISH something that should have
+    been refused. A gap is the mirror defect: fewer distinct draws than the
+    header claims. Both refuse here rather than average out.
+    """
+    chunks = []
+    for path in [p.strip() for p in paths.split(",") if p.strip()]:
+        with open(path, encoding="utf-8") as fh:
+            c = json.load(fh)
+        if c.get("key") != key:
+            raise SystemExit(
+                f"chunk {path} is for {c.get('key')!r}, not {key!r}")
+        if len(c.get("lifts") or []) != c.get("trials"):
+            # A trial whose measure() returned no lift is dropped by null_lifts,
+            # so a short chunk is a real event -- but it breaks the seed
+            # arithmetic, so it must be visible rather than quietly recombined.
+            raise SystemExit(
+                f"chunk {path}: {len(c.get('lifts') or [])} lifts for "
+                f"{c.get('trials')} trials -- a dropped trial breaks the "
+                f"seed partition; re-run this chunk")
+        chunks.append((int(c["seed"]), int(c["trials"]), list(c["lifts"]), path))
+
+    chunks.sort()
+    for i, (seed, trials, _, path) in enumerate(chunks):
+        if i == 0:
+            continue
+        prev_seed, prev_trials, _, prev_path = chunks[i - 1]
+        expected = prev_seed + prev_trials
+        if seed < expected:
+            raise SystemExit(
+                f"chunks {prev_path} and {path} OVERLAP at seed {seed} "
+                f"(previous chunk ends at {expected}) -- recombining them "
+                f"would count a trial twice and understate the null maximum")
+        if seed > expected:
+            raise SystemExit(
+                f"chunks {prev_path} and {path} leave a GAP: seeds "
+                f"[{expected}, {seed}) were never run")
+
+    out = []
+    for _, _, lifts, _ in chunks:
+        out.extend(lifts)
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sample", type=int, default=400)
     ap.add_argument("--null-trials", type=int, default=ll.NULL_TRIALS)
     ap.add_argument("--bootstrap", type=int, default=ll.BOOTSTRAP_TRIALS)
     ap.add_argument("--only", default=None)
+    ap.add_argument("--null-seed", type=int, default=ll.NULL_SEED)
+    ap.add_argument("--nulls-out", default=None, help=(
+        "Compute ONLY this structure's null trials and write them to PATH as a "
+        "chunk. Use with --only, --null-seed and --null-trials to split the "
+        "expensive 30-trial escalation across processes."))
+    ap.add_argument("--nulls-in", default=None, help=(
+        "Comma-separated chunk files written by --nulls-out. Their trials are "
+        "used INSTEAD of computing nulls, after the seed ranges are checked "
+        "disjoint and contiguous."))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--out", default=ll.LEDGER_PATH)
     args = ap.parse_args()
@@ -97,13 +170,38 @@ def main() -> int:
             continue
         window = WINDOWS.get(s.key, DEFAULT_WINDOW)
         usable = {k: v for k, v in bars_by.items() if len(v) >= window + 25}
-        det = (lambda st: (lambda w: bool(
-            st.detect(SimpleNamespace(bars=w, bars_full=w)))))(s)
+        # ⛔ A REAL CONTEXT, NOT A STUB. This used
+        # `SimpleNamespace(bars=w, bars_full=w)`, which has no `swings` — so
+        # every structure reading `ctx.swings` raised AttributeError, the bare
+        # `except` in `scan_series` swallowed it, and the run reported n=0 as
+        # though the structure simply never fired. Stage 2 Breakout measured
+        # 0 detections across 20,566 anchors while the live coverage check
+        # found it on 21 of 3,541 tickers; those cannot both be true, and that
+        # contradiction is the only reason the bug was caught.
+        det = (lambda st: (lambda w: bool(st.detect(bases._context(w, w)))))(s)
         kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS)
 
         t0 = time.time()
+
+        if args.nulls_out:
+            lifts = ll.null_lifts(det, usable, trials=args.null_trials,
+                                  seed=args.null_seed, **kw)
+            write_null_chunk(args.nulls_out, s.key, args.null_seed,
+                             args.null_trials, lifts)
+            print(f"=== {s.label} ({s.key}) NULL CHUNK ===")
+            print(f"  seeds [{args.null_seed}, "
+                  f"{args.null_seed + args.null_trials})  "
+                  f"n={len(lifts)}  max {max(lifts) * 100:+.2f}pp  "
+                  f"({time.time() - t0:.0f}s)")
+            print(f"  wrote {args.nulls_out}")
+            continue
+
         obs = ll.measure(det, usable, bootstrap=args.bootstrap, **kw)
-        nulls = ll.null_lifts(det, usable, trials=args.null_trials, **kw)
+        if args.nulls_in:
+            nulls = load_null_chunks(args.nulls_in, s.key)
+        else:
+            nulls = ll.null_lifts(det, usable, trials=args.null_trials,
+                                  seed=args.null_seed, **kw)
         verdict = ll.adjudicate(obs, nulls)
 
         print(f"=== {s.label} ({s.key}) ===")
@@ -120,7 +218,16 @@ def main() -> int:
             print(f"    refused: {r}")
         print()
 
-        row = {"published": bool(verdict["published"])}
+        # ⛔ THE SAMPLE IS A PROPERTY OF THE ROW, NOT THE FILE. A `--only` run
+        # re-measures ONE structure and used to rewrite the header's single
+        # `sample` line for the whole artifact -- so after re-running Stage 4 on
+        # 112 tickers the header claimed 112 while five rows had been measured
+        # on 374, and the `limitations` note still said 374. One field
+        # describing rows it did not measure is the second-authority defect in
+        # its quietest form: nothing disagrees loudly, the header is just wrong
+        # about most of the file.
+        row = {"published": bool(verdict["published"]),
+               "sample_tickers": len(usable)}
         if obs["lift"] is not None:
             row.update({
                 "lift": round(obs["lift"], 4),
@@ -142,6 +249,15 @@ def main() -> int:
             row["note"] = prior["note"]
         structures[s.key] = row
 
+    if args.nulls_out:
+        # ⛔ A NULLS-ONLY RUN MUST NOT TOUCH THE ARTIFACT. Without this the
+        # chunk runs fell through to the write below -- and because chunks are
+        # meant to run CONCURRENTLY, three processes rewrote one JSON file at
+        # once. Nothing was corrupted this time (each wrote the same unchanged
+        # `structures`), which is the whole problem: a race that happens to be
+        # harmless today is indistinguishable from one that is not.
+        return 0
+
     if args.dry_run:
         print("--dry-run: artifact not written")
         return 0
@@ -149,8 +265,11 @@ def main() -> int:
     data = dict(existing)
     data["structures"] = structures
     data["measured_at"] = time.strftime("%Y-%m-%d")
-    data["sample"] = (f"{len(bars_by)} tickers x up to 3,000 daily bars, drawn "
-                      f"seeded-random from the screener universe.")
+    data["sample"] = (
+        "Seeded-random draw from the screener universe, up to 3,000 daily bars "
+        "per ticker. The size differs per structure and per run, so it is "
+        "recorded on each row as `sample_tickers` rather than claimed once "
+        "here; a row's window is `tools/run_lift_ledger.py::WINDOWS[key]`.")
     with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

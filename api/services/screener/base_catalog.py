@@ -814,6 +814,223 @@ POWER_PLAY = Structure(
 )
 
 
+
+# ── Weinstein stage structures ─────────────────────────────────────────────
+# ⚠️⚠️ THE VOLUME RULE IS ASYMMETRIC BY DESIGN, AND THIS IS THE SINGLE MOST
+# MIS-IMPLEMENTED FACT IN THE METHOD. A Stage 2 BREAKOUT without volume
+# expansion is disqualified; a Stage 4 BREAKDOWN without it is not --
+# "Volume is not the key to this stage because it can be heavy or light as
+# price drops" and "This is not necessary on the short side." A screener that
+# applies one symmetric volume filter to both is not implementing Weinstein.
+
+_WEINSTEIN = "weinstein_secrets"   # "Secrets for Profiting in Bull and Bear Markets"
+
+MA_WEEKS = 30            # sourced
+BREAKOUT_VOL_MULT = 2.0  # sourced (form A) -- see the conflict recorded below
+VOL_AVG_WEEKS = 4        # sourced -- "the average for the previous month"
+
+
+def _iso_week_key(t):
+    import datetime as _dt
+    v = int(t)
+    if 10_000_000 <= v <= 99_999_999:
+        d = _dt.date(v // 10000, (v // 100) % 100, v % 100)
+    else:
+        d = _dt.date.fromtimestamp(v)
+    return d.isocalendar()[:2]
+
+
+def _weekly_closes(bars) -> list:
+    """The last close of each ISO week, oldest first.
+
+    ⚠️ CLOSES ONLY -- this is NOT a bar resample and does not pretend to be.
+    `bars_fetch._resample_weekly_iso` owns what a weekly CANDLE is, and the
+    stable-Friday-key rationale that goes with it; this computes the input to a
+    moving average, so it is not a second authority on resampling.
+
+    ⛔ Weinstein's average is explicitly built on WEEKLY CLOSES, not a 150-day
+    average: "Based on Friday night closes only (not traditional 50-day or
+    150-day MAs)." The two are routinely treated as interchangeable and the
+    source says plainly that they are not.
+    """
+    seen = {}
+    for b in bars:
+        c = b.get("c") or 0
+        if c > 0:
+            seen[_iso_week_key(b["t"])] = c
+    return [seen[k] for k in sorted(seen)]
+
+
+def _weekly_volumes(bars) -> list:
+    """Summed volume per ISO week, oldest first."""
+    agg = {}
+    for b in bars:
+        k = _iso_week_key(b["t"])
+        agg[k] = agg.get(k, 0) + (b.get("v") or 0)
+    return [agg[k] for k in sorted(agg)]
+
+
+def _ma_state(bars):
+    """(latest 30-week MA, previous 30-week MA, latest weekly close) or None."""
+    wc = _weekly_closes(bars)
+    if len(wc) < MA_WEEKS + 1:
+        return None
+    cur = sum(wc[-MA_WEEKS:]) / MA_WEEKS
+    prev = sum(wc[-MA_WEEKS - 1:-1]) / MA_WEEKS
+    return cur, prev, wc[-1]
+
+
+def _detect_stage2_breakout(ctx) -> bool:
+    """Above a non-declining 30-week MA, clearing the last swing high, on a
+    week of expanded volume."""
+    st = _ma_state(ctx.bars)
+    if st is None:
+        return False
+    ma, ma_prev, close = st
+    if close <= ma:
+        return False
+    # ⛔ "must NOT be declining" -- flat qualifies. The book's BUY test and its
+    # Stage 2 NARRATIVE disagree (the narrative says "rising") and both are
+    # published by the same author. The buy test is what is implemented here;
+    # the conflict is recorded as a criterion rather than silently resolved.
+    if ma < ma_prev:
+        return False
+
+    highs = [sw for sw in ctx.swings if sw["type"] == "high"]
+    if not highs or close <= highs[-1]["price"]:
+        return False
+
+    wv = _weekly_volumes(ctx.bars)
+    if len(wv) < VOL_AVG_WEEKS + 1:
+        return False
+    base = sum(wv[-VOL_AVG_WEEKS - 1:-1]) / VOL_AVG_WEEKS
+    return base > 0 and wv[-1] >= BREAKOUT_VOL_MULT * base
+
+
+def _detect_stage4_breakdown(ctx) -> bool:
+    """Below a DECLINING 30-week MA, breaking the last swing low.
+
+    ⛔ NO VOLUME FILTER, AND THAT IS NOT AN OMISSION -- see the block comment.
+    """
+    st = _ma_state(ctx.bars)
+    if st is None:
+        return False
+    ma, ma_prev, close = st
+    if close >= ma or ma >= ma_prev:
+        return False
+    lows = [sw for sw in ctx.swings if sw["type"] == "low"]
+    return bool(lows) and close < lows[-1]["price"]
+
+
+STAGE2_BREAKOUT = Structure(
+    key="stage-2-breakout", label="Stage 2 Breakout", axis="relation",
+    family="Stage / Trend", bias="bullish", rank=50, min_bars=260,
+    desc=("Price has cleared its last swing high while holding above a 30-week "
+          "average that is not declining, on a week of expanded volume."),
+    criteria=(
+        Criterion(
+            condition="Moving average period and type",
+            value="30-week simple, on weekly closes",
+            quote="Draw a 30-week (150-day) simple moving average on charts.",
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition=("Built on WEEKLY CLOSES, not a 150-day average -- the two "
+                       "are routinely treated as interchangeable and are not"),
+            value="friday-closes",
+            quote=("Based on Friday night closes only (not traditional 50-day "
+                   "or 150-day MAs)."),
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition="Price above the MA, and the MA not declining",
+            value="close > ma and ma >= prior_ma",
+            quote=("they must move above their 30-week MA, and the 30-week MA "
+                   "must not be declining."),
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition=("CONFLICT RECORDED, NOT RESOLVED: the BUY test says "
+                       "'must not be declining' (flat qualifies) while the "
+                       "Stage 2 NARRATIVE says 'rising'. Same author, both "
+                       "published. We implement the buy test, the more literal."),
+            value="not-declining", origin="uct", confidence="high"),
+        Criterion(
+            condition="Breakout volume, one-week spike form",
+            value="2x the previous month's average",
+            quote=("He wants to see a weekly volume spike that is at least "
+                   "twice the average for the previous month"),
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition=("CONFLICT RECORDED: the volume multiple is published in "
+                       "at least four incompatible forms -- 2x the prior four "
+                       "weeks, a 3-4 week build-up at 2x then a further rise, "
+                       "3x daily average, and the author's own later interview "
+                       "figure of 3x 'normal' with no window defined. We "
+                       "implement the one-week spike; the rest are NOT averaged."),
+            value="form-a-only", origin="uct", confidence="high"),
+        Criterion(
+            condition="Minimum weeks spent under the resistance",
+            value=None,
+            quote=("The longer the time spent below the resistance, the more "
+                   "significant is the eventual breakout"),
+            source_id=_WEINSTEIN, confidence="med",
+            missing=("Stated as monotone, never as a threshold -- no minimum "
+                     "number of weeks is published.")),
+        Criterion(
+            condition="How far above the breakout counts as chasing",
+            value=None,
+            quote="Don't chase a stock that you've missed",
+            source_id=_WEINSTEIN, confidence="high",
+            missing="No percentage extension is published."),
+    ),
+    detect=_detect_stage2_breakout,
+    #: 21 of 3,541 (0.59%) -- `thin`, and correct. A FRESH Stage 2
+    #: breakout is a single-week event: the volume spike, the swing-high
+    #: clearance and the non-declining MA have to coincide on the one
+    #: week being read. Compare Stage 4 below at 7.94%, which is a STATE
+    #: rather than an event and is correspondingly common.
+    coverage_pct=0.59,
+)
+
+STAGE4_BREAKDOWN = Structure(
+    key="stage-4-breakdown", label="Stage 4 Breakdown", axis="relation",
+    family="Stage / Trend", bias="bearish", rank=60, min_bars=260,
+    desc=("Price has broken its last swing low and sits beneath a 30-week "
+          "average that is itself declining."),
+    criteria=(
+        Criterion(
+            condition="Price below a declining 30-week MA",
+            value="close < ma and ma < prior_ma",
+            quote=("The stock breaks down below Stage 3 trading range and below "
+                   "the 30-week moving average in Stage 4, and continues to "
+                   "decline mostly below the 30 week moving average."),
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition=("VOLUME IS NOT REQUIRED -- the asymmetry most "
+                       "implementations get wrong. A Stage 2 breakout without "
+                       "volume expansion is disqualified; this is not."),
+            value="no-volume-gate",
+            quote=("Volume is not the key to this stage because it can be "
+                   "heavy or light as price drops."),
+            source_id=_WEINSTEIN, confidence="high"),
+        Criterion(
+            condition="Head-and-shoulders top reliability",
+            value=None,
+            quote="confirmed in around two-thirds of cases",
+            source_id=_WEINSTEIN, confidence="med",
+            missing=("The only quasi-statistic in Weinstein's material, and it "
+                     "ships with no sample size, no period and no base rate. "
+                     "Two-thirds of what population, over what years, against "
+                     "what unconditional decline rate -- none is given. Not "
+                     "usable as an expectancy.")),
+    ),
+    detect=_detect_stage4_breakdown,
+    #: 281 of 3,541 (7.94%). Higher than Stage 2 by design, not by
+    #: accident: this is a STATE (below a declining average, under the
+    #: last swing low) where Stage 2 is an EVENT, and it carries no
+    #: volume gate because the source explicitly refuses one.
+    coverage_pct=7.94,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -861,7 +1078,8 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY]
+RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY,
+             STAGE2_BREAKOUT, STAGE4_BREAKDOWN]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

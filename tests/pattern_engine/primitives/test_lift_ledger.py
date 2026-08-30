@@ -476,3 +476,115 @@ def test_the_evidence_states_its_own_vintage_and_metric():
     assert basis.get("measured_at"), "evidence ships with no date"
     assert basis.get("metric"), "evidence ships with no metric"
     assert "stale" in basis, "the surface cannot tell whether the number is stale"
+
+
+def test_a_detector_that_always_raises_is_not_reported_as_never_firing():
+    """⛔⛔ THE BUG THIS EXISTS TO PREVENT, AND IT SHIPPED ONCE.
+
+    `scan_series` swallows a raising detector so one bad structure cannot kill
+    a whole run. But swallowing every anchor produced n=0 — IDENTICAL to a
+    structure that simply never fired — and that is exactly what happened: the
+    ledger runner passed a stub context with no `swings`, every call raised,
+    and Stage 2 Breakout was written to the artifact as "no detections" while
+    the live coverage check found it on 21 of 3,541 symbols. The contradiction
+    between those two numbers is the only reason it was caught.
+    """
+    bars = _series([100.0 + (i % 7) for i in range(500)])
+
+    def boom(window):
+        raise AttributeError("no swings on this context")
+
+    r = ll.measure(boom, {"A": bars, "B": bars})
+    assert r["lift"] is None
+    assert r.get("refused"), "an all-raising run must say so, not report n=0"
+    assert "raised on" in r["refused"]
+
+
+def test_a_working_detector_reports_no_scan_errors():
+    """Non-vacuity: the error path must not fire on healthy detectors."""
+    bars = _series([100.0 + (i % 7) for i in range(500)])
+    r = ll.measure(lambda w: False, {"A": bars})
+    assert r.get("scan_errors") == 0
+    assert not r.get("refused")
+
+
+def test_the_null_skips_the_interval_it_never_reads():
+    """⚡ The null trials read only the POINT lift, so computing a 400-draw
+    cluster CI for each was pure waste — a large share of a 46-minute run, and
+    the reason 28 more structures looked like a 21-hour job.
+
+    ⛔ The OBSERVED measurement must keep its interval. This pins that
+    `bootstrap=0` drops the CI and nothing else: the lift, n and baseline are
+    identical either way.
+    """
+    bars = _series(_noise_prices(600))
+    full = ll.measure(lambda w: len(w) % 3 == 0, {"A": bars, "B": bars},
+                      bootstrap=50)
+    cheap = ll.measure(lambda w: len(w) % 3 == 0, {"A": bars, "B": bars},
+                       bootstrap=0)
+    assert cheap["ci_low"] is None and cheap["ci_high"] is None
+    assert full["ci_low"] is not None
+    assert cheap["lift"] == full["lift"]
+    assert cheap["n"] == full["n"] and cheap["baseline"] == full["baseline"]
+
+
+def _noise_prices(n, seed=13):
+    out, p = [], 100.0
+    x = seed
+    for _ in range(n):
+        x = (1103515245 * x + 12345) % (2 ** 31)
+        p *= 1.0 + ((x / (2 ** 31)) - 0.5) * 0.05
+        out.append(p)
+    return out
+
+
+ESCALATED_NULL_TRIALS = 30
+
+
+def test_a_PUBLISHED_row_was_held_to_the_escalated_null():
+    """⛔⛔ THE ESCALATION RULE, ENFORCED RATHER THAN DOCUMENTED.
+
+    The publish gate compares the lift's CI lower bound to the MAXIMUM of the
+    null trials. That maximum can only grow with more draws, so a small trial
+    count is a strictly EASIER gate -- which means trial count is a dial that
+    could be turned toward a desired result, and nothing but a rail stops it.
+
+    This is not hypothetical. stage-4-breakdown cleared a 5-trial screen at
+    +8.35pp with a CI lower bound of +5.45pp against a null max of +2.82pp, and
+    was written to the artifact as published. Re-run at 30 trials the null max
+    reached +5.54pp and the same structure was refused -- by 9 basis points.
+    Had the screen's verdict been allowed to stand, the ledger would carry two
+    published numbers held to nulls of very different strength.
+
+    A REFUSAL at a low trial count needs no such rail: more trials can only
+    raise the bar it already failed.
+    """
+    entries = (ll.load().get("structures") or {})
+    published = {k: e for k, e in entries.items() if e.get("published")}
+    assert published, "no published rows -- this rail would pass vacuously"
+    for key, e in published.items():
+        assert e.get("null_trials", 0) >= ESCALATED_NULL_TRIALS, (
+            f"{key} is PUBLISHED on only {e.get('null_trials')} null trials; "
+            f"the gate compares against the null's maximum, so fewer trials "
+            f"is a weaker test. Re-run it at {ESCALATED_NULL_TRIALS}.")
+
+
+def test_every_row_states_the_sample_it_was_measured_on():
+    """A lift with no sample size beside it cannot be weighed.
+
+    The header used to carry ONE `sample` line that the runner rewrote on every
+    run -- so a `--only` re-measure of one structure left the header describing
+    a sample five other rows were never drawn from. The size is a property of
+    the row. Where an early run did not record it, the row says so explicitly
+    rather than inheriting a number from a different measurement.
+    """
+    entries = (ll.load().get("structures") or {})
+    assert entries, "no rows -- this rail would pass vacuously"
+    for key, e in entries.items():
+        assert "sample_tickers" in e, f"{key} does not state its sample"
+        if e["sample_tickers"] is None:
+            assert e.get("sample_tickers_missing"), (
+                f"{key} has a null sample with no reason -- an absent number "
+                f"must say why it is absent, not merely be blank")
+        else:
+            assert e["sample_tickers"] > 0, f"{key} claims a zero sample"
