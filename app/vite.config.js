@@ -233,6 +233,31 @@ export default defineConfig({
     //
     // A percentage (not a literal) so a 4-core CI box scales down with it.
     maxWorkers: '50%',
+
+    // Vitest's default testTimeout is 5000ms, and on THIS suite that measures
+    // the scheduler as much as the code — the same finding as the pool sizing
+    // above, one layer further out.
+    //
+    // Measured 2026-08-30, chasing an intermittent red that had survived two
+    // sessions. `BuilderSheet.plots > four rows + the scan radio…` costs
+    // 1,926 / 2,313 / 2,499 ms across three clean runs — perfectly healthy,
+    // and roughly 2x under the default ceiling. But the SUITE's own wall speed
+    // varies ~2x with cache state: 191-226s on a warm run, 377s immediately
+    // after `npm run build` invalidates the transform cache. On that slow run
+    // the test reached 5,247ms and was killed. It was never slow; it simply
+    // had 2x headroom against a 2x variance.
+    //
+    // ⛔ AND IT IS NOT ONE TEST. In a clean run 115 tests report >=2,000ms and
+    // 73 report >=3,333ms — every one of them tips if the run goes 1.5-2.5x
+    // slow. That is a systemic margin, so the fix belongs here rather than as
+    // a per-test override that leaves 114 siblings exposed.
+    //
+    // ⚠️ NOT a licence for slow tests. A genuinely hung test still fails; it
+    // just takes 15s to say so, and only FAILING tests ever pay that. If a
+    // test legitimately needs more than a couple of seconds, the question is
+    // still what it is doing — this only stops a healthy 2.3s test from being
+    // killed because the machine was busy.
+    testTimeout: 15000,
     server: {
       deps: {
         // Alias the broken @picovoice/porcupine-web package to our test stub

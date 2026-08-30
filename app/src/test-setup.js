@@ -1,25 +1,27 @@
 import '@testing-library/jest-dom'
-import { configure } from '@testing-library/dom'
+import { configure } from '@testing-library/react'
+
+// ⛔ Testing Library's `waitFor`/`findBy` ceiling is SEPARATE from vitest's
+// `testTimeout` and is NOT raised by it. It defaults to 1000ms, and on this
+// suite that was the single largest source of intermittent red.
+//
+// Measured 2026-08-30, hunting a flake that had survived two sessions and
+// could never be identified — because THERE IS NO SINGLE FLAKY TEST. The
+// suite's wall speed varies ~2x with cache state (191-226s warm, 377s right
+// after `npm run build` invalidates the transform cache), and on a slow run
+// whichever `waitFor` is unluckiest blows its 1000ms budget. Three
+// consecutive reproductions killed three DIFFERENT, unrelated tests:
+//   BuilderSheet.plots  (a vitest testTimeout kill, fixed in vite.config.js)
+//   ImportWizard        ("Unable to find /1 note/i")
+//   ArticlesSection     ("Unable to find …March 31, 2026")
+// A population, not a defect — which is why re-running always looked green
+// and why every attempt to pin "the" flaky test failed.
+//
+// ⚠️ NOT a licence for slow assertions. An element that never appears still
+// fails; it just takes 5s to say so, and only FAILING waits ever pay that.
+configure({ asyncUtilTimeout: 5000 })
 import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
-
-// ── waitFor / findBy budget under a PARALLEL suite ────────────────────────
-// testing-library's async utilities default to 1000ms, a figure that assumes
-// an otherwise-idle machine. This suite deliberately runs 12 forks at once
-// (see the pool cap in vite.config.js, which was measured: cumulative test
-// time TRIPLES at the default worker count while wall time barely moves).
-// A starved worker makes 1000ms far too tight — ArticlesSection's search box
-// debounces 250ms, so its `waitFor` had only 4x the debounce to also schedule
-// a fork, run a timer, re-render and paint. It failed a full-suite run and
-// passed alone, which is the signature of a budget, not a bug.
-//
-// vite.config.js already applied this reasoning to `testTimeout` by capping
-// the pool; the async-utility budget was simply never revisited alongside it.
-//
-// ⚠️ Kept BELOW vitest's 5000ms testTimeout on purpose. A genuinely broken
-// wait then still fails as a waitFor error naming the element it wanted,
-// rather than as an opaque "Test timed out in 5000ms" with no subject.
-configure({ asyncUtilTimeout: 4000 })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers

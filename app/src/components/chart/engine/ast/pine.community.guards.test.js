@@ -92,7 +92,13 @@ const REFUSES = Object.freeze({
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and
   // the third is honest: line 40 reads another symbol built by `ticker.new(…)`.
   '26-spy-to-es-qqq-to-nq.pine': ['pine:request', 40, 'request.security'],
-  '27-support-resistance-channels.pine': ['pine:function', 37, 'bool'],
+  // ⚰️ `27-support-resistance-channels` LEFT THIS TABLE on 2026-08-30. It refused
+  // `pine:function` @37 on `bool`, and `pine.js` stated in-file that the cast was
+  // unpublished. It is published — TradingView's v6 migration guide says `na`, `0`
+  // and `0.0` cast FALSE and anything else TRUE — so `bool(x)` folds to `x != 0`,
+  // which this engine's NaN-comparison rule makes an exact identity rather than an
+  // approximation. A refusal resting on a claim about a vendor is only as good as
+  // the claim.
   '29-zigzag-plus-plus.pine': ['pine:module', 16, 'import'],
   '30-pivot-points-high-low-mtf.pine': ['pine:no-output', null, null],
 })

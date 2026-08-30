@@ -141,3 +141,33 @@ class TestTheDigestActuallyRuns:
         monkeypatch.setattr(mc, "bias_scan", lambda *a, **k: (_ for _ in ()).throw(
             RuntimeError("db gone")))
         assert "error" in mc.run_bias_digest()
+
+
+class TestBasisRidesTheSameChannel:
+    def test_a_basis_divergence_reaches_the_daily_digest(self, env):
+        """Recorded by the mirror check at sync time (the only place the payload
+        exists); surfaced here so it is not a number sitting in a JSON column
+        that nobody reads."""
+        import json
+        conn = auth_db.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO j2_broker_accounts (id, user_id, snaptrade_account_id, "
+                "brokerage_name, account_number_masked, j2_account_id, status, "
+                "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                ("bk9", "u1", "s9", "Schwab", "..783", "acct-x", "active", "x", "x"))
+            conn.execute(
+                "INSERT INTO j2_broker_mirror_checks (user_id, broker_account_id, "
+                "checked_at, ok, drift_dollar, drift_pct, consecutive_drifts, detail_json) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                ("u1", "bk9", "2026-08-30T07:40:00+00:00", 1, 0.0, 0.0, 0,
+                 json.dumps({"positions": [], "options": [],
+                             "basis": ["AAPL Long: journal cost 100.0000 vs "
+                                       "broker 118.4200 (-15.56%)"]})))
+            conn.commit()
+        finally:
+            conn.close()
+        text = mc.bias_digest_text(mc.bias_scan(days=3650))
+        assert "AAPL" in text and "118.42" in text
+        assert "Schwab" in text, "name the account, not just the symbol"
+        assert "not an alarm" in text, "it must read as an observation, not a page"

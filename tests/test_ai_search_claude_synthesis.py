@@ -205,3 +205,71 @@ def test_the_cached_prefix_stays_above_the_model_minimum():
         f"_WIDGET_SYSTEM is {len(ai._WIDGET_SYSTEM)} chars — at the MEASURED "
         "2.82 chars/token that is under Sonnet 5's 1024-token cache minimum, "
         "where caching silently stops (cache_creation_input_tokens: 0, no error)")
+
+
+# ── cost: bounded and visible ──────────────────────────────────────────────
+def test_the_synthesis_call_is_recorded_against_its_own_surface(monkeypatch):
+    """It called Anthropic directly and recorded NOTHING — invisible to
+    /admin/stats.spend_today_usd and bound by no cap. Uses
+    `record_from_response`, which reads the prompt-cache token fields; a guard
+    taught nothing about them MIS-BILLS, because a cached prefix arrives as
+    cache_read_input_tokens (0.1x) / cache_creation_input_tokens (1.25x), never
+    as input_tokens."""
+    from api.services import narrative_cost_guard as guard
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+    _stub_claude(monkeypatch)
+    seen = {}
+    monkeypatch.setattr(guard, "record_from_response",
+                        lambda surface, model, response: seen.update(
+                            {"surface": surface, "model": model, "resp": response}) or 0.01)
+    monkeypatch.setattr(guard, "over_budget", lambda *a, **k: False)
+    ai._claude_synthesis("q", "ctx", _WEB, None)
+    assert seen.get("surface") == "ai_search_synth", seen
+    assert seen.get("resp") is not None, "the raw response must reach the guard"
+
+
+def test_over_budget_skips_claude_and_leaves_the_web_answer(monkeypatch):
+    """A cap that only logs is not a cap. Over budget, Claude is never called
+    and the member still gets the Perplexity answer — degrade, never fail."""
+    from api.services import narrative_cost_guard as guard
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+
+    # ⛔ A raising client would make this pass for the WRONG reason — the broad
+    # except returns None either way. Use a WORKING client and prove it was
+    # never reached.
+    calls = []
+    _stub_claude(monkeypatch)
+    import api.services.engine as engine
+    real = engine._get_anthropic_client
+    monkeypatch.setattr(engine, "_get_anthropic_client",
+                        lambda: calls.append(1) or real())
+    monkeypatch.setattr(guard, "over_budget", lambda *a, **k: True)
+    assert ai._claude_synthesis("q", "ctx", _WEB, None) is None
+    assert calls == [], "Claude was called despite being over budget"
+
+
+def test_under_budget_still_synthesises(monkeypatch):
+    """CONTROL — proves the cap can say yes, or it is a gate that only fails."""
+    from api.services import narrative_cost_guard as guard
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+    _stub_claude(monkeypatch)
+    monkeypatch.setattr(guard, "over_budget", lambda *a, **k: False)
+    monkeypatch.setattr(guard, "record_from_response", lambda *a, **k: 0.01)
+    out = ai._claude_synthesis("q", "ctx", _WEB, None)
+    assert out and out["answer"] == "Claude's grounded read [1][2]."
+
+
+def test_a_ledger_failure_never_costs_the_member_the_answer(monkeypatch):
+    """CONTROL — accounting is bookkeeping. If the ledger throws, the answer
+    Claude already produced still ships."""
+    from api.services import narrative_cost_guard as guard
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+    _stub_claude(monkeypatch)
+    monkeypatch.setattr(guard, "over_budget", lambda *a, **k: False)
+
+    def _boom(*a, **k):
+        raise RuntimeError("ledger down")
+
+    monkeypatch.setattr(guard, "record_from_response", _boom)
+    out = ai._claude_synthesis("q", "ctx", _WEB, None)
+    assert out and out["answer"] == "Claude's grounded read [1][2]."
