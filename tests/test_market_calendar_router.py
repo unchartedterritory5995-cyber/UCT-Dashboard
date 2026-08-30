@@ -257,7 +257,7 @@ def test_the_milestones_are_reachable_by_the_classifier():
         assert mc._classify(day) == ("expiring", days)
 
 
-def test_expired_pages_but_is_DAY_STAMPED_rather_than_every_30_minutes(monkeypatch):
+def test_expired_uses_a_DISTINCT_key_per_day_which_is_not_a_rate_limit(monkeypatch):
     import api.routers.market_calendar as mc
 
     seen = _emissions(monkeypatch)

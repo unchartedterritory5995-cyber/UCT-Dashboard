@@ -125,10 +125,21 @@ def _announce(status: str, days_remaining: int | None, today: date) -> None:
     separately and the per-key cooldown does not swallow the next one. Every
     other expiring day still lands in the feed as a `warning`.
 
-    ⚠️ HONEST LIMIT: `_discord_last` is in-memory too, so a redeploy on a
-    milestone day can re-page. That is bounded to a handful of messages on
-    seven days across six months — a real notice period at a cost worth paying,
-    not the daily flood a blanket critical would produce.
+    ⚠️ HONEST LIMIT — MEASURED, AND WORSE THAN THIS DOCSTRING FIRST CLAIMED.
+    `chart_health_alerts._DISCORD_COOLDOWN_SEC` is 30 minutes **per key**, and
+    a milestone key is constant for its whole day, so a milestone day pages
+    roughly 48 times, not "a handful": ~336 across the seven milestones, and
+    ~48/day indefinitely once `expired`. Day-stamping buys DISTINCTNESS in the
+    feed, never a lower rate — the earlier sentence here claimed a rate
+    reduction the code does not produce, which is the exact defect class this
+    alert exists to catch, written into the alert itself.
+
+    Left as-is deliberately: `_COVERS_THROUGH` is 2027-12-31, so the first
+    milestone is ~2027-07-04 and nothing here can fire for ~10 months. The fix
+    is to thread a longer `cooldown=` through `emit` for these keys. Until then
+    the blast radius is the owner's Discord channel — which is shared with
+    signups, theme-engine and chart-health alerts, so a muted channel is the
+    real cost, not member impact.
 
     Called from the request path rather than at import so a cold module cannot
     emit before the app is up; `emit` is in-memory and throttled per key, so
@@ -145,8 +156,10 @@ def _announce(status: str, days_remaining: int | None, today: date) -> None:
         key = f"market_calendar_expiring_{days_remaining}d" if milestone else "market_calendar_stale"
         severity = "critical" if milestone else "warning"
     else:
-        # expired / unknown — the countdown is already gone for everyone. Day-
-        # stamped so it re-pages once a day rather than every 30 minutes.
+        # expired / unknown — the countdown is already gone for everyone.
+        # Day-stamped so each day is a DISTINCT entry in the feed. NOT a rate
+        # limit: the 30-min cooldown is per key and this key is constant all
+        # day, so it still pages ~48x/day. See the HONEST LIMIT above.
         key = f"market_calendar_{status}_{today.isoformat()}"
         severity = "critical"
 
