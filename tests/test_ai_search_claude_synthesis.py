@@ -125,3 +125,29 @@ def test_the_fast_lane_is_untouched_when_disarmed(monkeypatch):
     monkeypatch.setattr(ai.perplexity_search, "web_search", lambda *a, **k: dict(_WEB))
     out = ai.fast_lane_answer("why is NVDA up?", "ctx", "salt")
     assert out["answer"] == _WEB["answer"]
+
+
+def test_the_synthesis_prompt_demands_a_marker_beside_every_web_figure(monkeypatch):
+    """Measured cause of the rung-2 regression: Claude preserved citations but
+    2.5x less densely than sonar-pro (17 markers in 2031 chars vs 42 in 3938),
+    so figures fell outside any marker's reach and read as unsourced. The rule
+    is now explicit — adjacent, same sentence, same numbering — and a desk figure
+    is told to carry a desk attribution instead."""
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+    seen = _stub_claude(monkeypatch)
+    ai._claude_synthesis("why is NVDA up?", "UCT DESK CONTEXT: NVDA last $217.55",
+                         _WEB, None)
+    sys_txt = (seen.get("system") or "").lower()
+    assert "immediately after" in sys_txt, sys_txt[-400:]
+    assert "uct desk data" in sys_txt
+    assert "leave it out" in sys_txt
+
+
+def test_the_desk_preference_survives_the_citation_rule(monkeypatch):
+    """CONTROL — the citation rule must not crowd out the instruction that makes
+    having both sources worth anything."""
+    monkeypatch.setenv("AI_SEARCH_CLAUDE_SYNTH", "1")
+    seen = _stub_claude(monkeypatch)
+    ai._claude_synthesis("q", "ctx", _WEB, None)
+    sys_txt = (seen.get("system") or "").lower()
+    assert "prefer a desk figure" in sys_txt and "disagree" in sys_txt
