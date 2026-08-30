@@ -140,9 +140,11 @@ def test_the_flag_reads_the_UNCAPPED_id_set(monkeypatch, tmp_path):
     from api.services.pattern_engine import memory
     from api.services.screener import pattern_join as pj
 
-    loud = ["bull_flag", "bear_flag", "cup_handle", "double_top", "double_bottom",
-            "head_shoulders", "pennant", "channel", "rectangle", "nr7",
-            "doji"]
+    # ⛔ SIZED FROM THE CAP, NOT TYPED. This was an 11-name literal list, which
+    # stopped overflowing the moment the cap was raised 10 -> 20 on
+    # measurement. The fixture's job is to EXCEED the display cap so the flag
+    # can be shown reading past it; that job is defined by the constant.
+    loud = [f"loud_{i}" for i in range(pj._MAX_IDS + 3)]
     assert len(loud) > pj._MAX_IDS, "the fixture must overflow the display cap"
     for i, pid in enumerate(loud):
         memory.store_detection(_detection(
@@ -151,7 +153,8 @@ def test_the_flag_reads_the_UNCAPPED_id_set(monkeypatch, tmp_path):
         id="dv", sym="AAPL", pattern_id="vcp", confidence=51.0))
 
     row = pj.read_pattern_fields(["AAPL"])["AAPL"]
-    ids = row["pattern_engine_ids"].split(",")
+    # the column is delimiter-wrapped, so the split has empty ends
+    ids = [k for k in row["pattern_engine_ids"].split(",") if k]
     assert len(ids) == pj._MAX_IDS
     assert "vcp" not in ids, "fixture no longer exercises the cap"
     assert row["pattern_engine_vcp"] == 1

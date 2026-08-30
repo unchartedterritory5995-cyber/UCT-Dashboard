@@ -138,7 +138,23 @@ import time
 
 _ACTIVE_STATUSES = ("forming", "ready", "triggered")
 _WINDOW_SECS = 7 * 24 * 3600
-_MAX_IDS = 10
+#: ⭐ RAISED 10 -> 20, MEASURED. With the eight near-universal detectors gone
+#: (see UNINFORMATIVE_SHARE) the id counts collapse: median 6, p90 10, p99 13,
+#: MAX 17 across 2,890 covered symbols. At the old cap of 10, 202 symbols
+#: (7.0%) were still truncated; at 20 it is ZERO, with three ids of headroom
+#: over the observed maximum. The cap stays — an unbounded TEXT list in a
+#: nightly column is not something to leave open-ended — but it no longer cuts.
+_MAX_IDS = 20
+
+#: ⛔ DELIMITER-WRAPPED, AND THIS ONE IS A CORRECTNESS FIX, NOT TIDINESS.
+#: Detector ids collide as substrings: `head_shoulders` is inside
+#: `inverse_head_shoulders`, and `cup_handle` is inside BOTH `cup_handle_uct`
+#: and `inverse_cup_handle`. `contains` compiles to `LIKE %v%` in `query.py`,
+#: so a member screening for a head-and-shoulders would silently also match
+#: every inverse one — the opposite pattern. Wrapping every id in the
+#: separator makes the test exact, exactly as `candle_matches` and
+#: `base_matches` already do.
+MATCH_SEP = ","
 
 #: ⛔⛔ A DETECTOR THAT FIRES ON NEARLY EVERY SYMBOL CARRIES NO INFORMATION, and
 #: ranking it last was not enough — it still occupied a slot in a 10-wide list.
@@ -350,7 +366,8 @@ def read_pattern_fields(targets, failures=None) -> dict:
         # that is what this removes.
         shown = [pid for pid in seen
                  if pid_symbols.get(pid, 0) < uninformative_floor]
-        row["pattern_engine_ids"] = ",".join(shown[:_MAX_IDS])
+        row["pattern_engine_ids"] = (MATCH_SEP + MATCH_SEP.join(shown[:_MAX_IDS])
+                                     + MATCH_SEP) if shown else None
         row["pattern_engine_conf"] = max(d["confidence"] for d in dets)
 
         # Per-pattern flags, from the UNCAPPED id set (`seen_set`, never

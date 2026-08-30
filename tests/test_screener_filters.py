@@ -1101,3 +1101,45 @@ def test_no_filter_family_is_entirely_invisible():
     # reason and rails nothing.
     probe = {"ghost": {"col_that_no_view_shows"}}
     assert [fam for fam, cols in probe.items() if not (cols & shown)] == ["ghost"]
+
+
+def test_the_list_option_helper_actually_returns_options(tmp_path, monkeypatch):
+    """⛔ THE RAIL THAT WOULD HAVE CAUGHT A SILENT SQL FAILURE.
+
+    `_distinct_list_options` ends in a bare `except: return [{"label": "Any"}]`,
+    so a broken query does not raise — it renders as a control with no options,
+    which looks like "no data" and is indistinguishable from a shipped filter
+    that matches nothing. That is exactly what happened: the first draft's
+    `!= ''` clause terminated its own f-string, produced a SQL syntax error,
+    and returned an empty list against a column holding 2,889 populated rows.
+
+    So the helper is pinned against a populated column, and the assertion is
+    that it returns MORE than the bare "Any" — a vacuous pass is the failure
+    mode here.
+    """
+    import sqlite3
+    from api.services.screener import filters, snapshot_db
+
+    db = tmp_path / "s.db"
+    monkeypatch.setenv("SCREENER_DB_PATH", str(db))
+    import importlib
+    importlib.reload(snapshot_db)
+    snapshot_db.init_db()
+    con = sqlite3.connect(str(db))
+    con.execute(
+        "INSERT INTO screener_rows (ticker, snapshot_date, pattern_engine_ids) "
+        "VALUES (?,?,?)", ("AAA", "2026-08-30", ",head_shoulders,cup_handle,"))
+    con.execute(
+        "INSERT INTO screener_rows (ticker, snapshot_date, pattern_engine_ids) "
+        "VALUES (?,?,?)", ("BBB", "2026-08-30", ",inverse_head_shoulders,"))
+    con.commit()
+    con.close()
+
+    opts = filters._distinct_list_options("pattern_engine_ids")
+    values = {o.get("value") for o in opts if o.get("value")}
+    assert len(opts) > 1, "the helper returned no options against populated data"
+    assert values == {",head_shoulders,", ",cup_handle,",
+                      ",inverse_head_shoulders,"}
+    # ⛔ and the wrapping keeps the two colliding ids apart
+    assert ",head_shoulders," not in ",inverse_head_shoulders,"
+    importlib.reload(snapshot_db)

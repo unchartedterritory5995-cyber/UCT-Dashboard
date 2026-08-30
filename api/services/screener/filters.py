@@ -28,12 +28,20 @@ def _range(key, label, category, column, presets, unit=None):
                  "unit": unit, "options_column": None}
 
 
-def _enum(key, label, category, column, presets, options_column=None):
+def _enum(key, label, category, column, presets, options_column=None,
+          options_list_column=None):
     """``options_column`` names the snapshot column whose DISTINCT values become
-    this filter's preset list at ``meta()`` time — see ``_distinct_options``."""
+    this filter's preset list at ``meta()`` time — see ``_distinct_options``.
+
+    ``options_list_column`` is the same idea for a DELIMITER-WRAPPED LIST
+    column, where the distinct values are the individual tokens rather than the
+    whole cell. Both markers ride on the FILTER, never in ``meta()``'s body —
+    the second-authority trap ``_distinct_options`` records.
+    """
     return key, {"label": label, "category": category, "type": "enum",
                  "column": column, "presets": presets, "allow_custom": False,
-                 "unit": None, "options_column": options_column}
+                 "unit": None, "options_column": options_column,
+                 "options_list_column": options_list_column}
 
 
 def _open_range(key, label, category, column, unit=None, factual=()):
@@ -620,6 +628,15 @@ FILTERS = dict([
     # the moment Stage B's manifest lands. `pattern_engine_ids` (comma-joined
     # TEXT list) deliberately has NO control here — the `patterns` precedent:
     # a list column is a display surface, not a scalar.
+    # ⭐ ALL 78 FIRING DETECTORS BECOME SCREENABLE WITH NO NEW COLUMN. The
+    # comment below used to say a list column "deliberately has NO control" —
+    # true while it was an unwrapped, heavily-truncated blob, and false now:
+    # D1 dropped the eight near-universal ids and raised the cap, so the column
+    # truncates 0% of symbols, and wrapping made `contains` an exact-token
+    # test. `candle_matches` and `base_matches` are the same idiom.
+    _enum("pattern_engine_id", "Pattern Engine Detection", "pattern",
+          "pattern_engine_ids", [{"label": "Any"}],
+          options_list_column="pattern_engine_ids"),
     _open_range("pattern_engine_conf", "Pattern Engine Confidence", "pattern",
                 "pattern_engine_conf"),
     # Reader-encoded direction (ruling D4): +1 bullish · -1 bearish · 0 neutral.
@@ -1047,6 +1064,52 @@ def _my_scans_entry(user_id):
 
 
 
+
+def _distinct_list_options(column):
+    """``[{Any}, …]`` from the distinct TOKENS a delimiter-wrapped list column
+    holds — the list analogue of ``_distinct_options``.
+
+    ⭐ DERIVED FROM THE DATA, NOT FROM THE DETECTOR REGISTRY. Importing the
+    registry here would pull the whole detector package into `filters`, which
+    every screener request touches, for a list that the snapshot already
+    contains. Reading the column also has the better property: it offers only
+    detections that actually OCCUR, so a member is never shown a filter that
+    matches nothing.
+
+    ⛔ Values are emitted WRAPPED (`,key,`). `contains` compiles to `LIKE %v%`,
+    and these ids collide as substrings — `head_shoulders` sits inside
+    `inverse_head_shoulders` — so a bare token would screen for a pattern and
+    silently return its opposite too.
+    """
+    from api.services.screener import snapshot_db
+    if column not in snapshot_db.COLUMNS:
+        return [{"label": "Any"}]
+    seen = set()
+    try:
+        with snapshot_db.connect() as conn:
+            # ⛔ NO `!= ''` CLAUSE. The obvious version needs a quoted empty
+            # string inside an f-string and the escaping is a trap — the first
+            # draft of this line terminated the string early, produced a SQL
+            # syntax error, and the bare `except` below turned it into an empty
+            # option list: a shipped control that silently matches nothing.
+            # The Python loop already skips empty tokens, so the clause bought
+            # nothing and cost that.
+            for (blob,) in conn.execute(
+                    f'SELECT "{column}" FROM screener_rows '
+                    f'WHERE "{column}" IS NOT NULL'):
+                for tok in str(blob).split(","):
+                    tok = tok.strip()
+                    if tok:
+                        seen.add(tok)
+    except Exception:
+        return [{"label": "Any"}]
+    out = [{"label": "Any"}]
+    for tok in sorted(seen):
+        out.append({"label": tok.replace("_", " ").title(),
+                    "op": "contains", "value": f",{tok},"})
+    return out
+
+
 def _structure_evidence() -> dict:
     """Measured lift per structure key, for the structures that earned one.
 
@@ -1130,8 +1193,12 @@ def meta(user_id=None) -> dict:
     bands = dist.get("columns") or {}
     out_filters = []
     for key, f in FILTERS.items():
-        presets = (_distinct_options(f["options_column"])
-                   if f.get("options_column") else f["presets"])
+        if f.get("options_column"):
+            presets = _distinct_options(f["options_column"])
+        elif f.get("options_list_column"):
+            presets = _distinct_list_options(f["options_list_column"])
+        else:
+            presets = f["presets"]
         entry = {"key": key, "label": f["label"],
                  "category": f["category"], "type": f["type"],
                  "presets": presets, "allow_custom": f["allow_custom"],

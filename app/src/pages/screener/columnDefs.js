@@ -371,7 +371,12 @@ export const COLUMN_DEFS = {
   // classified-only denominator. A blank cell is an em dash, never a zero —
   // NULL here means "no active detection / no qualifying print / not in the
   // aggregate", three facts a fabricated 0 would silently overwrite.
-  pattern_engine_ids: { label: 'Engine Pat', fmt: v => v ? v.split(',')[0] : '—',
+  // ⚠️ The value is DELIMITER-WRAPPED (`,a,b,`), so a bare split yields an
+  // empty first element. Detector ids collide as substrings
+  // (`head_shoulders` inside `inverse_head_shoulders`), which is why the
+  // column is wrapped and why the filter's `contains` is exact.
+  pattern_engine_ids: { label: 'Engine Pat',
+    fmt: v => { const k = String(v || '').split(',').filter(Boolean); return k.length ? k[0] : '—' },
     desc: 'Active pattern-engine detections (daily timeframe, 7-day window) from the 85-detector engine — a different instrument from the always-on patterns heuristic column, though five pattern names exist in both vocabularies. ⚠️ Capped at 10 ids and ordered MOST DISTINCTIVE FIRST, because the median symbol carries about 14: a detector that fires on nearly every stock tells you nothing and is ranked last. The cap still truncates, so this column is "the most distinctive detections", not the complete set — the per-pattern flag columns are the complete answer.' },
   pattern_engine_conf: { label: 'Eng Conf', fmt: num(0),
     desc: 'Confidence of the best active pattern-engine detection, on the engine’s own 0-100 scale. ⚠️ It is a RAW detector confidence, not measured evidence: the engine’s precision was measured at 15.7%. For whether a named structure actually beat the market’s base rate, see the measured lift on the Base Structure filter. Blank = no active detection.' },
