@@ -199,3 +199,35 @@ def test_a_negative_lift_whose_ci_excludes_zero_is_still_refused():
     out = ll.adjudicate(res, nulls=[0.0])
     assert out["published"] is False
     assert any("random-data null" in r for r in out["reasons"])
+
+
+def test_a_wide_interval_on_a_thin_sample_cannot_clear_the_null():
+    """⛔ THE REAL RUN CAUGHT THIS, THE UNIT TESTS DID NOT.
+
+    Measured 2026-08-30, first live run: the Power Play produced +32.97pp lift
+    on n=13 with a 95% CI of [+6.52, +59.43], while its OWN random-data null
+    reached +13.80pp across 5 trials. Comparing the POINT ESTIMATE to the null
+    published it. Comparing the CI's LOWER BOUND refuses it — correctly, since
+    the result is entirely consistent with the detector's mechanical drag on
+    data where it cannot be right.
+
+    This is also what makes gate 3 ("n is derived, never typed") actually bite:
+    a thin sample widens the interval, the lower bound sinks under the null,
+    and the structure is refused without anyone picking an `n >= 30`.
+    """
+    thin = {"lift": 0.3297, "ci_low": 0.0652, "ci_high": 0.5943, "n": 13,
+            "rate": 0.6154, "baseline": 0.2857, "years": ["2021"]}
+    out = ll.adjudicate(thin, nulls=[-0.0254, 0.1380, 0.001, -0.01, 0.004])
+    assert out["published"] is False
+    assert any("CI lower bound" in r for r in out["reasons"])
+
+
+def test_a_well_powered_lift_still_clears_the_same_null():
+    """The control: the tightening must not refuse everything. Darvas's real
+    numbers — +7.65pp on n=2,625, CI [+5.78, +9.53], null max +2.31pp.
+    """
+    strong = {"lift": 0.0765, "ci_low": 0.0578, "ci_high": 0.0953, "n": 2625,
+              "rate": 0.3467, "baseline": 0.2701, "years": ["2014", "2015"]}
+    out = ll.adjudicate(strong, nulls=[-0.0057, 0.0231, 0.010, 0.0, 0.008])
+    assert out["published"] is True
+    assert out["lift"] == 0.0765

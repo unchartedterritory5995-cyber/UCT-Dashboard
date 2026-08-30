@@ -30,6 +30,20 @@ observations share a forward window. Overlapping windows inflate n and shrink
 the CI without adding information — the fastest way to manufacture a
 significant result from noise.
 
+🔴 TWO KNOWN LIMITATIONS OF THIS METHOD, STATED RATHER THAN DISCOVERED LATER.
+Both make the published interval OPTIMISTICALLY NARROW, so a structure that
+clears the gates today might not clear a stricter version:
+
+  1. **Observations are treated as independent and they are not.** Detections
+     cluster by ticker — one name in a long consolidation contributes several
+     anchors that share a regime. The correct treatment is a cluster-robust
+     standard error by ticker, which would WIDEN every CI. Until that lands,
+     read a published lift as an upper bound on confidence, not a settled one.
+  2. **The null destroys volatility clustering along with the order.** A
+     detector that selects a low-volatility regime will therefore show lift the
+     null cannot reproduce, and some of that lift may be a volatility effect
+     rather than a structural edge. A block-bootstrap null would separate them.
+
 ⚠️ THE NULL IS THE PART MOST IMPLEMENTATIONS SKIP. Osler found average
 simulated profits negative ~80% of the time on data where the pattern is
 meaningless by construction; without that control a purely mechanical drag
@@ -231,10 +245,22 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
 
     if nulls:
         worst = max(nulls)
-        if lift <= worst:
+        # ⛔⛔ COMPARE THE CI's LOWER BOUND TO THE NULL, NOT THE POINT ESTIMATE.
+        # Measured 2026-08-30 on the first real run: the Power Play produced a
+        # +32.97pp lift on n=13 with a CI of [+6.52, +59.43], while its own null
+        # reached +13.80pp on 5 trials. The point estimate cleared the null
+        # easily and the structure "published" — but the pessimistic end of its
+        # own interval sat BELOW the null, i.e. the result was entirely
+        # consistent with the detector's mechanical drag on random data.
+        # Comparing the lower bound asks the right question: does even the
+        # unfavourable reading of our estimate beat noise? Darvas passes it
+        # (+5.78 vs +2.31); the Power Play does not, and should not.
+        floor = result["ci_low"]
+        if floor <= worst:
             reasons.append(
-                f"lift {lift:+.4f} does not exceed the random-data null "
-                f"(max of {len(nulls)} trials = {worst:+.4f})")
+                f"the lift's CI lower bound {floor:+.4f} does not exceed the "
+                f"random-data null (max of {len(nulls)} trials = {worst:+.4f})"
+                f" at n={result['n']}")
     else:
         reasons.append("no random-data null could be computed")
 
