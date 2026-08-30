@@ -22,6 +22,12 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 const h = vi.hoisted(() => ({
   positions: null, options: null, prices: {}, broker: null, accounts: null,
   perf: null, settings: null, settingsError: undefined,
+  // ⭐ SWR's OWN `isLoading`, made settable. It is the ONLY thing that tells
+  // "in flight" apart from "failed" here, because this tile's fetcher resolves
+  // a non-ok answer to `null` — so both land on `data === undefined`. Pinning
+  // it to `false` for every key (as this mock used to) makes the first-render
+  // window structurally unreachable from a test.
+  acctLoading: false, settingsLoading: false,
 }))
 
 // ⚠️ ORDER MATTERS: `/api/j2/accounts/{id}/settings` contains BOTH substrings,
@@ -30,10 +36,10 @@ const h = vi.hoisted(() => ({
 vi.mock('swr', () => ({
   default: (key) => {
     const k = String(key)
-    if (k.includes('/settings')) return { data: h.settings, error: h.settingsError, isLoading: false, mutate: () => {} }
+    if (k.includes('/settings')) return { data: h.settings, error: h.settingsError, isLoading: h.settingsLoading, mutate: () => {} }
     if (k.includes('/broker/performance')) return { data: h.perf, isLoading: false }
     if (k.includes('/broker')) return { data: h.broker, isLoading: false }
-    if (k.includes('/accounts')) return { data: h.accounts, isLoading: false }
+    if (k.includes('/accounts')) return { data: h.accounts, isLoading: h.acctLoading }
     if (k.includes('/positions')) return { data: h.positions, isLoading: false }
     if (k.includes('/options')) return { data: h.options, isLoading: false }
     return { data: undefined, isLoading: false, mutate: () => {} }
@@ -62,6 +68,7 @@ beforeEach(() => {
   // A $100,000 book risking 1% per trade ⇒ 1R = $1,000.
   h.settings = { accountSize: 100_000, maxRiskPerTradePct: 1 }
   h.settingsError = undefined
+  h.acctLoading = false; h.settingsLoading = false
   localStorage.clear()
 })
 afterEach(cleanup)
@@ -543,5 +550,92 @@ describe('every reason R is missing gets its OWN sentence', () => {
     const texts = Object.values(R_REASON_COPY).map((r) => r.text)
     expect(new Set(texts).size).toBe(texts.length)
     expect(texts.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+// ─── 🔴 A REFUSAL SENTENCE IS ONLY SHOWN WHEN IT IS TRUE ────────────────────
+//
+// Zone C's risk line names WHY R is missing, and four of its five sentences
+// accuse something: an outage, a mode the member chose, a setting they never
+// filled in. `acctData`/`settings` are `undefined` while the request is in
+// FLIGHT as well as when it FAILED — this tile's fetcher resolves a non-ok
+// answer to `null`, and `useJ2Settings`'s throws — so for the first few
+// hundred ms of every load the tile announced an outage that had not happened,
+// then silently corrected itself. Fail-closed and self-healing, and still
+// wrong: a member who is told the system is broken and then watches it fix
+// itself learns to discount the sentence the next time it is true.
+describe('loading is not a refusal', () => {
+  test('an accounts roster still IN FLIGHT does not claim the accounts are unavailable', () => {
+    h.accounts = undefined          // not landed yet…
+    h.acctLoading = true            // …because the request is still going
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.queryByText('R n/a — accounts unavailable'),
+      'the tile reported an outage while the request was still in flight')
+      .toBeNull()
+    // It says the one thing that IS true: there is no R yet, and no cause named.
+    const hint = screen.getByText('R n/a')
+    expect(hint.getAttribute('title')).toMatch(/still loading/i)
+    // The dollar figure needs no roster and must survive.
+    expect(screen.getByText('$500.00')).toBeInTheDocument()
+  })
+
+  test('CONTROL: a roster that has actually FAILED still says so', () => {
+    // Without this, the assertion above is satisfied by deleting the outage
+    // sentence — turning a real failure into a permanent, causeless "R n/a".
+    h.accounts = undefined          // the fetcher swallowed a non-ok answer
+    h.acctLoading = false           // and it is no longer in flight
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — accounts unavailable')).toBeInTheDocument()
+  })
+
+  test('settings still IN FLIGHT do not claim a settings outage', () => {
+    // ⚠️ THE COMMONER HALF. A member whose account id is already in
+    // localStorage — almost everyone — reaches this branch, not the accounts
+    // one, so "R n/a — settings unavailable" is what Zone C actually flashed.
+    h.settings = undefined
+    h.settingsError = undefined
+    h.settingsLoading = true
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.queryByText('R n/a — settings unavailable'),
+      'the tile called an in-flight settings fetch an outage').toBeNull()
+    expect(screen.getByText('R n/a')).toBeInTheDocument()
+  })
+
+  test('CONTROL: settings that have actually FAILED still say so', () => {
+    h.settings = undefined
+    h.settingsError = new Error('500')
+    h.settingsLoading = false
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('R n/a — settings unavailable')).toBeInTheDocument()
+  })
+
+  test('CONTROL: nothing in flight, everything present — R itself renders', () => {
+    // The end of the sequence. Without it, every assertion above passes for a
+    // tile that shows "R n/a" forever and never resolves to a number.
+    h.positions = { positions: [REAL_STOP] }
+    h.prices = { NVDA: { price: 110, change_pct: 10 } }
+    renderWithProviders(<JournalSnapshotTile />)
+    expect(screen.getByText('0.50R')).toBeInTheDocument()
+    expect(screen.queryByText(/R n\/a/)).toBeNull()
+  })
+
+  test('the loading sentence names no cause — it is not a sixth accusation', () => {
+    // The four refusals each blame something. This one must not, or it becomes
+    // a fifth wrong answer rather than the absence of one.
+    expect(R_REASON_COPY.loading.text).toBe('R n/a')
+    for (const key of ['across-accounts', 'book-unknown', 'all-accounts',
+                       'accounts-unavailable', 'settings-unavailable', 'unset']) {
+      expect(R_REASON_COPY[key].text,
+        `${key} must stay distinguishable from the loading state`)
+        .not.toBe(R_REASON_COPY.loading.text)
+    }
   })
 })
