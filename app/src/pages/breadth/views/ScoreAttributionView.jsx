@@ -15,6 +15,10 @@ import { resolveViewColors } from './breadthViewShared'
 // reports it as an error instead. See `utils/jsonFetcher.test.js`.
 import jsonFetcher from '../../../utils/jsonFetcher'
 import SeekDate from './SeekDate'
+// ⭐ ONE AUTHOR FOR THE KEY — The Read reads this endpoint's answer out of the
+// SWR cache without fetching it, and a cache read only works on a
+// byte-identical key. See `breadthEndpoints.js`.
+import { attributionKey } from './breadthEndpoints'
 
 export default function ScoreAttributionView({
   rows = [], currentRow, onSeek, canSeek, options = {},
@@ -26,11 +30,7 @@ export default function ScoreAttributionView({
   // paid a cold ~415-row fetch plus a full derivation pass every 5 minutes on a
   // single-process pod. `rows` IS the loaded window and `currentRow` came out of
   // it, so this can never ask for less history than it needs.
-  const days = Math.min(3650, Math.max(1, rows.length || 90))
-  const { data, isLoading, error } = useSWR(
-    date ? `/api/breadth-monitor/score-components/${date}?days=${days}` : null,
-    jsonFetcher,
-  )
+  const { data, isLoading, error } = useSWR(attributionKey(date, rows.length), jsonFetcher)
 
   if (isLoading) {
     return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#64748b' }}>Loading attribution…</div>

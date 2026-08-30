@@ -6,13 +6,13 @@
 import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
-import { zscore, divergenceRuns } from './divergence'
-
 // Both series are z-scored against the loaded window, so the refusal below is a
 // window-DEPTH refusal — exactly the Regime Clock's, and it now carries the
-// same "here is what to do about it" hint. Fewer than this and the standard
-// deviation is noise; the boundary itself is pinned in the test file.
-const MIN_SESSIONS = 20
+// same "here is what to do about it" hint. Fewer than `MIN_SESSIONS` and the
+// standard deviation is noise; the boundary lives beside the math it bounds
+// (`divergence.js`) because The Read refuses on the same number, and the
+// boundary itself is pinned in the test file.
+import { zscore, divergenceRuns, MIN_SESSIONS } from './divergence'
 
 const PRICE_LABEL = { sp500_close: 'S&P 500', qqq_close: 'QQQ' }
 const PART_LABEL = {

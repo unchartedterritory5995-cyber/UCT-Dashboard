@@ -3,9 +3,11 @@
  * loaded window: a 10-bin histogram, today's marker, and the percentile rank.
  * A metric with too few readings says so rather than ranking against noise.
  */
-import { ALL_METRICS_HIDDEN, metricValue, percentileRank, resolveViewColors } from './breadthViewShared'
+import {
+  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, metricValue, percentileRank,
+  resolveViewColors,
+} from './breadthViewShared'
 
-const MIN_READINGS = 20
 const BINS = 10
 // The marker's own width, and the viewBox it must stay inside.
 const MARKER_W = 1.4

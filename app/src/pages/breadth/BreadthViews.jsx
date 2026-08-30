@@ -11,6 +11,7 @@ import { drillTarget } from './liveDrill'
 import { normalizeMetric, pickSignals, SEEK_OUT_OF_WINDOW } from './views/breadthViewShared'
 import { buildDateIndex, resolveSeekIndex } from './views/seek'
 import BreadthSignalStrip from './views/BreadthSignalStrip'
+import TheReadStrip from './views/TheReadStrip'
 import BreadthScrubber from './BreadthScrubber'
 import CompareGrid from './CompareGrid'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
@@ -290,6 +291,17 @@ export default function BreadthViews({
   )
 
   const visibleMetrics = metricsFor(views.viewStyle)
+
+  // The metric set The Read's percentile clause ranks: the Percentile Ladder's
+  // OWN visible set, whichever style is on screen. The Read is style-independent
+  // — it reads the instruments, not the one that happens to be showing — and the
+  // ladder is the lens that owns "where does this sit in its own history", so
+  // its preset is the single authority for which metrics get ranked. (No live
+  // `drillKey` stripping: The Read never drills.)
+  const ladderMetrics = useMemo(
+    () => ALL_METRICS.filter(m => visibleKeysFor('ladder').has(m.key)),
+    [ALL_METRICS, visibleKeysFor],
+  )
   const normalize = useMemo(
     () => (metric, row) => normalizeMetric(metric, row, pctileByKey),
     [pctileByKey],
@@ -452,6 +464,14 @@ export default function BreadthViews({
         notableMetric={notableMetric} notableReason={signals.notableReason}
         currentRow={currentRow} onDrill={drill}
       />
+
+      {/* ⭐ ALWAYS VISIBLE, AND STYLE-INDEPENDENT — it reads the instruments,
+          so it says the same thing whichever one is on screen, in Single and in
+          Compare alike. It is handed `optionsFor` rather than a bag of resolved
+          options so a clause reads its lens's CONFIGURED series and window, and
+          it fetches nothing (see the header of `TheReadStrip.jsx`). */}
+      <TheReadStrip rows={filledRows} rowIdx={rowIdx}
+                    optionsFor={optionsFor} ladderMetrics={ladderMetrics} />
 
       {/* ONE scrubber and ONE date header, both above — the grid below shares
           them. Four panes, four styles, one cursor. */}

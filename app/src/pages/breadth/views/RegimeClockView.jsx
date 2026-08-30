@@ -4,27 +4,24 @@
  * where we are; momentum says which way we are going. No snapshot view can
  * show both, which is the whole reason this lens exists.
  */
-import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
+import { resolveViewColors, WIDEN_WINDOW_HINT, quadrantOf } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
-import { optionsSchema } from './viewMetricConfig'
+import { optionLabel } from './viewMetricConfig'
 
 // The option schema already carries the human label the Customize panel shows
 // ("% above 50 SMA"). The refusal below printed the raw field key at the reader
 // instead — two names for one series, and the one shown was the internal one.
-const levelLabel = (value) =>
-  optionsSchema('clock').find(o => o.name === 'level')?.choices
-    ?.find(c => c.value === value)?.label ?? value
+// The lookup itself now lives in the registry (`optionLabel`) because The Read
+// names the same series and must name it the same way.
+const levelLabel = (value) => optionLabel('clock', 'level', value)
 
-// Both axes are closed on the UPPER side: level 50 counts as broad, momentum 0
-// counts as improving. Neither boundary is arbitrary — 50 is the midpoint of a
-// participation percentage and 0 is the sign change of a difference — but they
-// ARE decisions, so `RegimeClockView.test.jsx` pins both rather than leaving a
-// reader to infer them from `>=`.
-export function quadrantOf(level, momentum) {
-  if (level >= 50) return momentum >= 0 ? 'Expansion' : 'Distribution'
-  return momentum >= 0 ? 'Recovery' : 'Contraction'
-}
+// ⭐ `quadrantOf` MOVED TO `breadthViewShared.js` and is re-exported here, so
+// every existing importer (and this lens's own test) is unchanged while there
+// stays exactly ONE implementation. The Read names the regime too, and a second
+// copy of the `>= 50` / `>= 0` boundaries is how the strip and the plot beneath
+// it would come to disagree about which quadrant today is in.
+export { quadrantOf }
 
 const QUADRANT_NOTE = {
   Expansion:    'Broad and still broadening',

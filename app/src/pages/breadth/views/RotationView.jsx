@@ -4,32 +4,11 @@
  * nowhere else on this tab.
  */
 import { resolveViewColors } from './breadthViewShared'
-
-/**
- * ⛔ `risingIsBull` IS DECLARED PER PANEL, NEVER INFERRED FROM THE RAW SIGN.
- *
- * A uniform `delta >= 0 ? bull : bear` is only right where rising IS the good
- * direction, and the third panel inverts: for `vol_spread`, rising means
- * "Narrowing — tech vol bid over the broad market". So a rising VXN−VIX drew a
- * GREEN number and a GREEN sparkline directly above a sentence reading
- * *Narrowing*. Each panel already states what rising means in its own `up`
- * copy; the colour is now driven from that same declaration, so it cannot
- * contradict the sentence beneath it.
- */
-const PANELS = [
-  { key: 'rsp_spy_ratio', label: 'Equal vs Cap', sub: 'RSP / SPY', risingIsBull: true,
-    up: 'Broadening — the average stock is gaining on the index',
-    down: 'Narrowing — the index is carried by its largest names',
-    read: r => r.rsp_spy_ratio },
-  { key: 'iwm_qqq_ratio', label: 'Small vs Large', sub: 'IWM / QQQ', risingIsBull: true,
-    up: 'Broadening — small caps leading',
-    down: 'Narrowing — large caps leading',
-    read: r => r.iwm_qqq_ratio },
-  { key: 'vol_spread', label: 'Vol Spread', sub: 'VXN − VIX', risingIsBull: false,
-    up: 'Narrowing — tech vol bid over the broad market',
-    down: 'Broadening — tech vol easing toward the market',
-    read: r => (r.vxn == null || r.vix == null ? null : Number(r.vxn) - Number(r.vix)) },
-]
+// ⭐ The panel table MOVED to `rotation.js` (framework-free) — The Read quotes a
+// panel's own `up`/`down` sentence, and a second copy of that copy is how the
+// strip and the card beneath it would end up naming opposite directions. The
+// `risingIsBull` ruling and the `measured` ruling both live there now.
+import { ROTATION_PANELS as PANELS, rotationMeasured } from './rotation'
 
 const pointIndex = (e) => {
   const el = e.target?.closest?.('[data-seek-idx]')
@@ -54,12 +33,9 @@ export default function RotationView({
   const colW = 100 / Math.max(1, ascRows.length - 1)
   const reachable = ascRows.map(r => (canSeek ? !!canSeek(r.date) : false))
 
-  // ⛔ THE SPAN MEASURED IS THE SPAN PRINTED. `series[Math.min(lookback, len-1)]`
-  // silently compared against the OLDEST available row and still printed
-  // "/60d" — implying history this lens never read, which is precisely what the
-  // spec's basis rule forbids. `measured` is the number of sessions the change
-  // actually covers, and it is what both the label and the footer state.
-  const measured = Math.min(lookback, win.length - 1)
+  // THE SPAN MEASURED IS THE SPAN PRINTED — the rule, and its reason, live in
+  // `rotation.js` beside the table this lens draws from.
+  const measured = rotationMeasured(lookback, win.length)
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '12px 18px' }}>

@@ -4,32 +4,31 @@
  * are the server's (`breadth_analogues.py`); this view ranks and reads them.
  */
 import useSWR from 'swr'
-import { resolveViewColors } from './breadthViewShared'
+import { resolveViewColors, medianOf } from './breadthViewShared'
 import SeekDate from './SeekDate'
+// ⭐ ONE AUTHOR FOR THE KEY. The Read reads this endpoint's answer OUT OF THE
+// SWR CACHE without fetching it, which only works if it asks for the exact
+// string this view stored under. A hand-typed copy there would miss the cache
+// every time and the clause would simply never appear — a silent, invisible
+// failure. See `breadthEndpoints.js`.
+import { analoguesKey } from './breadthEndpoints'
 // ⛔ NOT an inline `fetch(url).then(r => r.json())`. A 402/401 answers JSON too,
 // and its `{detail}` body is truthy — so `data?.analogues ?? []` would render a
 // paywall as "no historical session resembles today", which is a different
 // sentence and the wrong one. `jsonFetcher` throws so SWR reports the status.
 import jsonFetcher from '../../../utils/jsonFetcher'
 
-const HORIZON_LABEL = { fwd_5d: '5 days', fwd_10d: '10 days', fwd_20d: '20 days', fwd_60d: '60 days' }
+// ⛔ WAS A LOCAL `{ fwd_20d: '20 days', … }` MAP — a second copy of the option
+// schema's own choice labels, in a file that renders beside the panel that
+// shows them. The registry is the author; The Read prints the same words.
+import { optionLabel } from './viewMetricConfig'
+const horizonLabel = (h) => optionLabel('analogues', 'horizon', h)
 
-/**
- * Middle value of a list — the AVERAGE of the two middle values on an even
- * length, not the upper one.
- *
- * ⛔ `sorted[Math.floor(n / 2)]` is the upper-middle element, so with the
- * default `matches: 5` and one match short of its horizon the deck reported the
- * median of four returns as the THIRD-smallest. On `[-4, -1, +1, +5]` that
- * prints "median +1.0%" for a set whose middle is 0.0% — the summary line most
- * likely to be read on its own, biased upward by construction.
- */
-export function medianOf(values) {
-  if (!values.length) return null
-  const s = [...values].sort((a, b) => a - b)
-  const mid = Math.floor(s.length / 2)
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
-}
+// ⭐ `medianOf` MOVED TO `breadthViewShared.js` and is re-exported here — one
+// implementation, every existing importer unchanged. The Read quotes the same
+// median this deck prints, and the even-length bug the helper's comment records
+// is exactly the kind that would be reintroduced by a second copy.
+export { medianOf }
 
 /**
  * ⛔ THIS LENS DELIBERATELY IGNORES `rowIdx` / `currentRow`, ALONE AMONG ITS
@@ -67,7 +66,7 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
   // `revalidateOnFocus: true`, its visibilitychange listener and its 60s
   // `useMarketOpen` timer would all be cost for data that moves at most daily.
   const { data, isLoading, error } = useSWR(
-    `/api/breadth-monitor/analogues?top_n=${topN}`, jsonFetcher,
+    analoguesKey(topN), jsonFetcher,
     { refreshInterval: 6 * 60 * 60 * 1000 },
   )
 
@@ -94,8 +93,8 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
       <div data-testid="analogues-summary"
            style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: '#e8e8ea', marginBottom: 4 }}>
         {withReturn.length
-          ? `${higher} of ${withReturn.length} higher ${HORIZON_LABEL[horizon]} later`
-          : `No match has ${HORIZON_LABEL[horizon]} of history after it yet`}
+          ? `${higher} of ${withReturn.length} higher ${horizonLabel(horizon)} later`
+          : `No match has ${horizonLabel(horizon)} of history after it yet`}
         {median != null && (
           <span style={{ marginLeft: 8, font: '700 12px \'Instrument Sans\', sans-serif',
                          color: median >= 0 ? colors.bull : colors.bear }}>
@@ -128,8 +127,8 @@ export default function AnalogueDeckView({ onSeek, canSeek, options = {} }) {
                 {fwd == null ? 'Not yet' : `${fwd >= 0 ? '+' : ''}${Number(fwd).toFixed(1)}%`}
               </div>
               <div style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569' }}>
-                {fwd == null ? `less than ${HORIZON_LABEL[horizon]} of history after it`
-                             : `SPY, ${HORIZON_LABEL[horizon]} later`}
+                {fwd == null ? `less than ${horizonLabel(horizon)} of history after it`
+                             : `SPY, ${horizonLabel(horizon)} later`}
               </div>
             </div>
           )

@@ -61,6 +61,50 @@ export function percentileRank(sorted, v) {
   return Math.round(sorted.filter(x => x <= v).length / sorted.length * 100)
 }
 
+/**
+ * Fewest readings before a metric may be ranked against its own history. The
+ * Percentile Ladder refuses below it ("Needs 20 readings to rank — has 8") and
+ * `theRead.js` omits its percentile clause for the same reason, off the same
+ * number — a hand-typed second copy is how the paragraph would come to claim a
+ * percentile the lens beside it refuses to draw.
+ */
+export const LADDER_MIN_READINGS = 20
+
+/**
+ * Middle value of a list — the AVERAGE of the two middle values on an even
+ * length, not the upper one.
+ *
+ * ⛔ `sorted[Math.floor(n / 2)]` is the upper-middle element, so with the
+ * Analogue Deck's default `matches: 5` and one match short of its horizon the
+ * deck reported the median of four returns as the THIRD-smallest. On
+ * `[-4, -1, +1, +5]` that prints "median +1.0%" for a set whose middle is 0.0%
+ * — the summary line most likely to be read on its own, biased upward by
+ * construction. It sits here rather than in `AnalogueDeckView.jsx` because The
+ * Read quotes the same median, and re-deriving it is how the two would drift.
+ */
+export function medianOf(values) {
+  if (!values.length) return null
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+/**
+ * The Regime Clock's four quadrants: participation LEVEL against its rate of
+ * change. Both axes are closed on the UPPER side — level 50 counts as broad,
+ * momentum 0 counts as improving. Neither boundary is arbitrary (50 is the
+ * midpoint of a participation percentage, 0 is the sign change of a difference)
+ * but they ARE decisions, so `RegimeClockView.test.jsx` pins both rather than
+ * leaving a reader to infer them from `>=`.
+ *
+ * It lives here, beside the other framework-free helpers, because The Read
+ * names the regime too and must name the one the Clock is drawing.
+ */
+export function quadrantOf(level, momentum) {
+  if (level >= 50) return momentum >= 0 ? 'Expansion' : 'Distribution'
+  return momentum >= 0 ? 'Recovery' : 'Contraction'
+}
+
 // Keys whose raw value is already on a 0..100 scale.
 const NATIVE_PCT = (k) => k.startsWith('pct_above_') || k === 'cnn_fear_greed'
 
