@@ -89,6 +89,25 @@ describe('the daily-base assumption in TF_BASE_BARS', () => {
       .toBeGreaterThan(1000)
   })
 
+  it('⛔⛔ …and `tf` IS NOT SPECIAL — an ordinary window behaves identically', () => {
+    // ⭐⭐ THE LOAD-BEARING ASSERTION OF THE 2026-08-30 RULING. The decision not to
+    // make `maxLookback` base-aware rests on this equivalence: a blank column is
+    // already this engine's deliberate outcome for ANY under-warmed indicator, so
+    // the `tf` under-claim produces the outcome the product already has rather
+    // than a new one. `pool.js`'s pane-existence test (trap #4) drops a series
+    // whose column holds no finite value, and it does not ask why it is empty.
+    //
+    // ⛔ IF THIS EVER FAILS, THE RULING IS VOID. That is the point of asserting an
+    // equivalence rather than restating the argument in prose: the reasoning has a
+    // failure mode, and this is it.
+    const short = bars(1, 78, 300).slice(0, 40)
+    const plainAst = parseFormula('sma(close, 500)').ast
+    expect(maxLookback(plainAst)).toBe(500)
+    expect(finite(interpret(plainAst, short, {}, undefined, undefined, { tf: '5' }))).toBe(0)
+    // …the same nothing the higher-timeframe tree produces on the same bars.
+    expect(finite(interpret(AST(), short, {}, undefined, undefined, { tf: '5' }))).toBe(0)
+  })
+
   it('⭐⭐ ON A DAILY BASE THE ASSUMPTION HOLDS, which is why the scan lane is unaffected', () => {
     // ⛔ THE NON-VACUITY HALF. Without this the file would read as "the span table
     // is simply wrong"; it is exactly right where it is used in anger. The scan
