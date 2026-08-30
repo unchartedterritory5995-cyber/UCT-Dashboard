@@ -1651,7 +1651,32 @@ def _ctx_sector() -> str:
 # (regex, provider name) — resolved via getattr at call time so tests can patch.
 # Each anchored to market-LEVEL phrasing so single-stock questions naming a
 # collision ticker (AMC, BMO, NOW…) don't pull an unrelated market feed.
+_MACRO_CAL_RE = re.compile(
+    r"\b(economic calendar|econ calendar|cpi\b|ppi\b|pce\b|fomc|jobs report"
+    r"|nonfarm|payrolls|nfp\b|jobless claims|gdp\b|retail sales"
+    r"|rate (?:decision|cut|hike)|fed (?:meeting|decision|decides?)"
+    r"|when does the fed|inflation (?:print|report|data))\b", re.I)
+
+
+def _ctx_macro() -> str:
+    """This week's US econ calendar — the desk's own feed.
+
+    The fast lane had NO macro pack, so "when is the next CPI print" reached the
+    model with `regime` grounding and nothing else. Returns "" when the feed is
+    empty, which the assembler declares as a DESK GAP — the honest answer.
+    """
+    try:
+        from api.services import voice_tool_impls
+        items = voice_tool_impls._economic_calendar()[:6]
+    except Exception:
+        return ""
+    segs = [f"{it['date']} {it.get('time', '')} {it['title']}".strip()
+            for it in items if it.get("title")]
+    return "US econ calendar (UCT desk): " + " | ".join(segs) if segs else ""
+
+
 _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
+    (_MACRO_CAL_RE, "_ctx_macro"),
     (re.compile(r"\b(movers?|gainers?|losers?|ripping|what'?s moving|gapp(?:ing|ers?)|gaps? (?:up|down)|biggest (moves?|movers?|gainers?|losers?))\b", re.I), "_ctx_movers"),
     (re.compile(r"\b(advance[- ]decline|advancers?|decliners?|market breadth|breadth|market internals|internals|new (highs?|lows?)|market (health|conditions?)|net exposure|market exposure)\b", re.I), "_ctx_breadth"),
     (re.compile(r"\b(earnings (today|tonight|this week)|who(?:'?s| is| are)? reporting|who reports?|reporting (today|tonight|this week)|(?:reporting|earnings)\s+(?:bmo|amc)|\b(?:bmo|amc)\b(?=[^a-z]*\b(?:earnings|reports?|reporters?|tonight|today)\b))", re.I), "_ctx_earnings"),

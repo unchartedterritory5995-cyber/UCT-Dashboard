@@ -102,3 +102,81 @@ def test_the_endpoint_probe_is_not_vacuous():
     import io
     src = io.open(ai.__file__, encoding="utf-8").read()
     assert "ai_search_agent.available()" in src
+
+
+# ── the exam must be able to SEE the routing decision ──────────────────────
+def test_the_auto_lane_sends_a_desk_call_ask_to_the_agent(monkeypatch):
+    """⛔ My first A/B of this flag was VACUOUS: run_exam(lane="fast") calls
+    fast_lane_answer DIRECTLY, so it never consults _wants_agent and both arms
+    measured the same code path. Identical scores, identical grounding lines —
+    a fixture that cannot distinguish. lane="auto" mirrors the endpoint."""
+    from api.services.ai_search_eval import runner
+    from api.services.compass_eval import judge, store
+    import api.services.ai_search_agent as agent
+
+    monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "1")
+    monkeypatch.setattr(store, "init_db", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_run", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "_judge_client", lambda: object())
+    monkeypatch.setattr(judge, "judge_answer", lambda *a, **k: {
+        "correctness": 4, "grounding": 4, "opinion": 4, "safety": 4, "rationale": "ok"})
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "quote", "verdict"],
+                                    "ctx_block": "NVDA last 178.20"}))
+    monkeypatch.setattr(agent, "available", lambda: True)
+
+    used = {"agent": False, "fast": False}
+
+    def _agent(query, system, hist, x, capture=None):
+        used["agent"] = True
+        if capture is not None:
+            capture.append({"name": "grade_ticker", "args": {}, "result": "GO"})
+        return {"answer": "desk verdict: GO", "tools_used": ["grade_ticker"]}
+
+    def _fast(*a, **k):
+        used["fast"] = True
+        return {"answer": "one shot", "citations": []}
+
+    monkeypatch.setattr(agent, "run_agent", _agent)
+    monkeypatch.setattr(ai, "fast_lane_answer", _fast)
+
+    runner.run_exam(lane="auto", question_ids=["S3-01-verdict-direct"])
+    assert used["agent"] is True and used["fast"] is False, used
+
+
+def test_the_auto_lane_keeps_a_plain_ask_on_one_shot(monkeypatch):
+    """CONTROL — the discriminating half. If everything routed to the agent the
+    A/B would be vacuous in the other direction."""
+    from api.services.ai_search_eval import runner
+    from api.services.compass_eval import judge, store
+    import api.services.ai_search_agent as agent
+
+    monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "1")
+    monkeypatch.setattr(store, "init_db", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_run", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "_judge_client", lambda: object())
+    monkeypatch.setattr(judge, "judge_answer", lambda *a, **k: {
+        "correctness": 4, "grounding": 4, "opinion": 4, "safety": 4, "rationale": "ok"})
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "movers"], "ctx_block": "x"}))
+    monkeypatch.setattr(agent, "available", lambda: True)
+
+    used = {"agent": False, "fast": False}
+
+    def _agent(*a, **k):
+        used["agent"] = True
+        return {"answer": "x", "tools_used": []}
+
+    def _fast(*a, **k):
+        used["fast"] = True
+        return {"answer": "one shot", "citations": []}
+
+    monkeypatch.setattr(agent, "run_agent", _agent)
+    monkeypatch.setattr(ai, "fast_lane_answer", _fast)
+
+    runner.run_exam(lane="auto", question_ids=["S1-02-movers"])
+    assert used["fast"] is True and used["agent"] is False, used
