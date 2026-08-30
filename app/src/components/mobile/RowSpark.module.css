@@ -1,0 +1,18 @@
+/* Phone-only by layout contract: the spark exists for finger-scanning a list
+ * (the Deepvue loop); desktop rows keep their dense column look untouched.
+ * The component also skips its data read off-phone — this rule is the
+ * belt-and-braces layout guarantee. */
+.spark { display: none; }
+
+@media (max-width: 640px) {
+  .spark {
+    display: block;
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding-left: 6px;
+    opacity: 0.9;
+  }
+}
+
+.up { stroke: var(--gain); }
+.down { stroke: var(--loss); }

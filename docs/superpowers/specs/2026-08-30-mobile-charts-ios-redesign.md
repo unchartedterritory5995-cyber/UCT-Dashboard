@@ -155,13 +155,26 @@ charts):
   keeps its tab strip), and removal moves to a trash button in the page
   header. The accidental-remove ✕ is off the phone.
 
-## Deliberately deferred (Phase 4+)
+## Phase 4 — Deepvue sparklines, herd-free (same branch, 2026-08-30)
+
+Phone watchlist rows carry a mini price path beside the ticker
+(`components/mobile/RowSpark.jsx`, mounted in the shared WatchRow `sym` cell).
+⛔ **Zero network by construction** — rows can number in the hundreds
+(thousands in scan mode) and this repo has been burned by per-row fetch herds,
+so the spark reads ONLY the local bars store (`idbGet(sym,'D')`, seeded by the
+Universe Bars Pack and every chart view) and renders nothing for a symbol the
+store doesn't hold; there is no `/api/bars` fallback. Desktop mounts read
+nothing at all (useIsPhone gates the read; the CSS module hides the node
+above 640px as the layout guarantee). Results memo in a module Map so
+virtualized scan scrolling re-serves from memory. Rail:
+`RowSpark.test.jsx` — pins the no-fetch-fallback and desktop-reads-nothing
+directions plus the pure `sparkPath` geometry.
+
+## Deliberately deferred (Phase 5+)
 
 - **Touch drawing pass** — restyle ChartToolbar for touch (left rail, 44px),
   test pointer-based drawing end-to-end on iOS Safari. (The toolbar now starts
   collapsed on phone; its chevron expands it.)
-- **Deepvue-style watchlist mini-charts** — sparkline per row on the phone
-  watchlist page.
 - **Price + interval in the top app bar** (reclaim MobileNav's title row on
   /charts), long-press crosshair inspect card, per-widget mobile headers.
 - **Tablet (641–1024px portrait)** still renders the RGL workspace.
