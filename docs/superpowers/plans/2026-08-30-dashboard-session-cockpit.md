@@ -649,10 +649,10 @@ discoverable path. That tile becomes a door in Phase 3."
 - Test: `app/src/components/MoversSidebar.test.jsx` (extend)
 
 **Interfaces:**
-- Consumes: `useTapeFeed` from `app/src/hooks/useTapeFeed.js`.
+- Consumes: `useTweetFeed` from `app/src/hooks/useTweetFeed.js` (⛔ NOT `useTapeFeed` — that hook was DELETED and its `/api/tweets/tape` route now serves nobody; the live tile is `components/tiles/TapeFeed.jsx` reading `/api/tweets/feed`).
 - Produces: an "ON THE TAPE" section inside `MoversSidebar`.
 
-**Context:** `MoversSidebar` today renders exactly two `MoverSection`s, `RIPPING` and `DRILLING`. CLAUDE.md's claim that it already has an "ON THE TAPE" section is **stale — it does not**. `TapeFeed` has no route of its own, so this is its rehoming. `useTapeFeed` already exists.
+**Context:** `MoversSidebar` today renders exactly two `MoverSection`s, `RIPPING` and `DRILLING`. CLAUDE.md's claim that it already has an "ON THE TAPE" section is **stale — it does not**. `TapeFeed` has no route of its own, so this is its rehoming. ⚠️ `useTapeFeed.js` still exists in this worktree but CLAUDE.md records it as deleted on master (this branch is behind) — use `useTweetFeed` regardless: it is what the live `TapeFeed` tile reads.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -678,7 +678,7 @@ Expected: FAIL — text not found.
 In `app/src/components/MoversSidebar.jsx`, import the hook and render the section after `DRILLING`:
 
 ```jsx
-import useTapeFeed from '../hooks/useTapeFeed'
+import useTweetFeed from '../hooks/useTweetFeed'
 ```
 
 ```jsx
@@ -686,11 +686,11 @@ import useTapeFeed from '../hooks/useTapeFeed'
                 {/* TapeFeed has no route of its own; the rail is its home. */}
                 <div className={styles.tapeSection}>
                   <span className={styles.tapeLabel}>ON THE TAPE</span>
-                  <TapeList items={tape ?? []} />
+                  <TapeList items={tweets ?? []} />
                 </div>
 ```
 
-with `const { tape } = useTapeFeed()` in the component body, and a small `TapeList` that maps items to rows using the existing row styles.
+with `const { tweets } = useTweetFeed()` in the component body, and a small `TapeList` that maps items to rows using the existing row styles.
 
 - [ ] **Step 4: Add the styles**
 
