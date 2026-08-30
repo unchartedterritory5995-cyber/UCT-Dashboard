@@ -4,13 +4,16 @@ import useSWR from 'swr'
 import { useAuth } from '../context/AuthContext'
 import AlertBell from './AlertBell'
 import UIcon from './ui/UIcon'
+import { NAV_GROUPS } from './navGroups'
 import styles from './NavBar.module.css'
 import uctLogo from './intro/assets/compass-mark.png'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
-const NAV_ITEMS = [
+// Exported so navGroups.test.js can verify every entry maps into exactly one
+// NAV_GROUPS bucket, without restating this list a second time in the test.
+export const NAV_ITEMS = [
   { to: '/dashboard',    label: 'Dashboard',    icon: 'dashboard' },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
@@ -34,6 +37,26 @@ const WEBSITE_URL = 'https://whop.com/uncharted/uncharted'
 
 // Keep in sync with FREE_PAGES in AuthGuard.jsx + MoreSheet.jsx.
 const FREE_PAGES = ['/morning-wire']
+
+// Bucket NAV_ITEMS under the shared taxonomy's groups (./navGroups.js) —
+// MobileTabBar's bottom tab bar groups the same routes, so the two surfaces
+// derive from one authority instead of drifting the way desktop's flat
+// 16-icon rail had from mobile's four labeled tabs. Each item keeps its
+// original relative order WITHIN its group; an item whose `to` isn't listed
+// in any group's `routes` falls into a headingless trailing bucket rather
+// than silently vanishing.
+const GROUPED_NAV_ITEMS = (() => {
+  const byKey = new Map(NAV_GROUPS.map((g) => [g.key, { ...g, items: [] }]))
+  const orphans = []
+  for (const item of NAV_ITEMS) {
+    const group = NAV_GROUPS.find((g) => g.routes.includes(item.to))
+    if (group) byKey.get(group.key).items.push(item)
+    else orphans.push(item)
+  }
+  const groups = NAV_GROUPS.map((g) => byKey.get(g.key))
+  if (orphans.length) groups.push({ key: '_ungrouped', label: null, items: orphans })
+  return groups
+})()
 
 export default function NavBar() {
   const { user, isPaid } = useAuth()
@@ -67,6 +90,55 @@ export default function NavBar() {
   // during market hours); its aliveness shows inside /community via The Tape.
   const floorUnread = (communityUnread?.total || 0) + (communityStatus?.mentions_unseen || 0)
 
+  // One item's row — pulled out of the group loop below so grouping doesn't
+  // duplicate the locked/badge logic per group.
+  function renderItem(item) {
+    // Dark launch: hide The Floor entirely until COMMUNITY_ENABLED is on.
+    if (item.to === '/community' && !communityStatus?.enabled) return null
+    // Show paid tools instead of hiding them — a free user can't want what
+    // they can't see. Locked rows are dimmed with a gold lock and route to
+    // the upgrade page rather than the tool.
+    const locked = !showAll && !FREE_PAGES.includes(item.to)
+    if (locked) {
+      return (
+        <Link
+          key={item.to}
+          to="/subscribe"
+          className={`${styles.item} ${styles.locked}`}
+          aria-label={`${item.label} — unlock with Pro`}
+        >
+          <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+          <span className={styles.label}>{item.label}</span>
+          <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+        </Link>
+      )
+    }
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        className={({ isActive }) =>
+          [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
+        }
+        aria-label={item.label}
+      >
+        <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+        <span className={styles.label}>{item.label}</span>
+        {item.to === '/journal' && compassUnread > 0 && (
+          <span className={styles.compassBadge}
+                title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
+            {compassUnread > 9 ? '9+' : compassUnread}
+          </span>
+        )}
+        {item.to === '/community' && floorUnread > 0 && (
+          <span className={styles.compassBadge} title={`${floorUnread} unread`}>
+            {floorUnread > 9 ? '9+' : floorUnread}
+          </span>
+        )}
+      </NavLink>
+    )
+  }
+
   return (
     <nav data-testid="nav-sidebar" className={styles.nav}>
       <Link
@@ -83,52 +155,12 @@ export default function NavBar() {
       </Link>
 
       <div className={styles.mainItems}>
-        {NAV_ITEMS.map(item => {
-          // Dark launch: hide The Floor entirely until COMMUNITY_ENABLED is on.
-          if (item.to === '/community' && !communityStatus?.enabled) return null
-          // Show paid tools instead of hiding them — a free user can't want what
-          // they can't see. Locked rows are dimmed with a gold lock and route to
-          // the upgrade page rather than the tool.
-          const locked = !showAll && !FREE_PAGES.includes(item.to)
-          if (locked) {
-            return (
-              <Link
-                key={item.to}
-                to="/subscribe"
-                className={`${styles.item} ${styles.locked}`}
-                aria-label={`${item.label} — unlock with Pro`}
-              >
-                <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
-                <span className={styles.label}>{item.label}</span>
-                <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
-              </Link>
-            )
-          }
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ')
-              }
-              aria-label={item.label}
-            >
-              <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
-              <span className={styles.label}>{item.label}</span>
-              {item.to === '/journal' && compassUnread > 0 && (
-                <span className={styles.compassBadge}
-                      title={`${compassUnread} Compass insight${compassUnread === 1 ? '' : 's'} waiting`}>
-                  {compassUnread > 9 ? '9+' : compassUnread}
-                </span>
-              )}
-              {item.to === '/community' && floorUnread > 0 && (
-                <span className={styles.compassBadge} title={`${floorUnread} unread`}>
-                  {floorUnread > 9 ? '9+' : floorUnread}
-                </span>
-              )}
-            </NavLink>
-          )
-        })}
+        {GROUPED_NAV_ITEMS.map((group) => (
+          <div key={group.key} className={styles.navGroup}>
+            {group.label && <div className={styles.groupLabel}>{group.label}</div>}
+            {group.items.map(renderItem)}
+          </div>
+        ))}
       </div>
       <div className={styles.bottomItems}>
         <div className={styles.alertSlot}>

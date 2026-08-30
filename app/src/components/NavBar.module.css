@@ -125,6 +125,37 @@
   width: 100%;
   flex: 1;
 }
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+/* Group heading (Home / Markets / Charts / Journal) — the four-group
+   taxonomy MobileTabBar's bottom tab bar already used, now shared via
+   navGroups.js. Same opacity/hover-delay recipe as .label: invisible while
+   the rail is collapsed to 60px (no room for text), fades in with the other
+   labels on the deliberate-hover expand to 200px. */
+.groupLabel {
+  width: 100%;
+  padding: 14px 18px 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.navGroup:first-child .groupLabel {
+  padding-top: 4px;
+}
+.nav:hover .groupLabel {
+  opacity: 1;
+  transition-delay: 0.12s;   /* match the width enter-delay so labels don't flash on a filtered flick */
+}
 .bottomItems {
   display: flex;
   flex-direction: column;
@@ -168,6 +199,9 @@
     align-items: center;
   }
   .label {
+    display: none;
+  }
+  .groupLabel {
     display: none;
   }
   .brandName {
