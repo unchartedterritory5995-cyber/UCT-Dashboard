@@ -99,7 +99,7 @@ The fix is to delete the guard — `/api/auth/track` already requires auth via
 nothing. Phase 0 is therefore a **one-line change plus a rail**, and it
 unlocks the usage evidence the whole redesign wants.
 
-### The four defects
+### The defects
 
 1. **Sector Rotation void — 2,714 px, 47% of the page.**
    The tile measures 3,081 px; its body 3,037 px; its content is a 323 px
@@ -119,9 +119,35 @@ unlocks the usage evidence the whole redesign wants.
    `.rowC` uses `align-items: stretch` with no `max-height`, so all four
    tiles inherit the tallest sibling's height (UCT 20's 20 rows).
 
-4. **AI Search orb overlaps content at every width.**
-   Fixed and horizontally centred over the content column: it covers the
-   IWM index box at 2133 px and the "Quote of the Day" heading at 1277 px.
+4. ~~**AI Search orb overlaps content at every width.**~~
+   **STRUCK 2026-08-30 — this defect does not exist.** The original claim
+   was that the orb is fixed and horizontally centred over the content
+   column, because it was seen covering the IWM index box at 2133 px and the
+   "Quote of the Day" heading at 1277 px.
+
+   There is no centring rule anywhere in the voice components.
+   `FloatingOrb.module.css` is, and always was, anchored bottom-right
+   (`right: 18px; bottom: 18px`). Measured on live production while logged
+   in:
+
+   ```
+   localStorage['voice.orb.position'] = {"x":786.86,"y":26.88}
+   orb getBoundingClientRect()        = {x:787, y:27}
+   computed: position:relative, offsets 0, transform:none
+   ```
+
+   The orb is placed by a **persisted user drag position**. What was observed
+   was the author's own dragged orb, reproduced at both widths because the
+   saved coordinate happens to sit over different content as the layout
+   reflows. A screenshot showed the symptom; nobody read the CSS.
+
+   The attempted fix was reverted (`092fdd3f5`). Phase 1 therefore repairs
+   **three** defects, not four.
+
+   Left as an unverified follow-up, not part of this design: the persisted
+   position may not be clamped to the viewport, so an orb dragged far right
+   on a wide screen could land off-canvas on a narrow one with no reset
+   affordance.
 
 ### Non-canonical breakpoints
 
@@ -356,7 +382,7 @@ Each phase ships independently and is separately revertible.
 | # | Phase | Scope | Est. |
 |---|---|---|---|
 | 0 | **Instrument** | Wire the existing, unreachable `log_page_view()` to a route-change caller. Runs in parallel; blocks nothing. | ~1 h |
-| 1 | **Repair** | The 4 defects + height-budget rail. Nothing moves. | ~1 d |
+| 1 | **Repair** | The 3 real defects + height-budget rail. Nothing moves. | ~1 d |
 | 2 | **Rehome** | The 3 orphans. Prerequisite for Phase 3. | ~1 d |
 | 3 | **Restructure** | Zones A–D, session states, signpost endpoint. | ~3 d |
 | 4 | **Nav** | Desktop rail adopts `MobileTabBar`'s four groups. | ~1 d |
