@@ -49,9 +49,11 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
   const [sheet, setSheet] = useState(null)
   const closeSheet = useCallback(() => setSheet(null), [])
-  // A non-chart widget opened as a full-screen page (by id, so a layout change
-  // can never re-point it at a different widget).
-  const [screenWidgetId, setScreenWidgetId] = useState(null)
+  // A non-chart widget opened as a full-screen page. Stored WITH the chart's
+  // symbol at open time ({id, symAtOpen}) so the tap-to-chart loop below can
+  // tell "this page retargeted the chart" from "nothing happened". Keyed by id,
+  // so a layout change can never re-point the page at a different widget.
+  const [screen, setScreen] = useState(null)
   // The toolbar's ★ tapped with no watchlist widget in the layout: one is
   // added, and this flag opens it the moment it lands in `widgets` (the add is
   // async through the layout save path, so the id isn't knowable at tap time).
@@ -74,10 +76,26 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   const chartIdx = chartWidgetIndex(widgets)
   const chartWidget = chartIdx >= 0 ? widgets[chartIdx] : null
   const otherWidgets = useMemo(() => (widgets || []).filter((w) => w.type !== 'chart'), [widgets])
-  const screenWidget = screenWidgetId ? (widgets || []).find((w) => w.id === screenWidgetId) : null
+  const screenWidget = screen ? (widgets || []).find((w) => w.id === screen.id) : null
 
   const color = chartWidget?.color || 'A'
   const sym = groupSyms[color] || 'SPY'
+
+  // Every page-open records the chart's symbol at that moment.
+  const openWidgetScreen = useCallback((id) => {
+    setScreen({ id, symAtOpen: groupSyms[chartWidget?.color || 'A'] || 'SPY' })
+  }, [groupSyms, chartWidget?.color])
+
+  // ⭐ THE TAP-TO-CHART LOOP (TradingView's watchlist behavior). A page that
+  // shares the chart's color group retargets the chart when a row is tapped —
+  // so the moment the chart's symbol moves while a page is open, return to the
+  // chart to show it. A page on a DIFFERENT color group never moves the
+  // chart's symbol, so it stays open — correct by construction, no widget-type
+  // list to maintain. (Render-time state adjustment, same pattern as the
+  // pending-watchlist open below.)
+  if (screen && sym !== screen.symAtOpen) {
+    setScreen(null)
+  }
   const tf = chartWidget?.opts?.tf || 'D'
   const opts = chartWidget?.opts || null
 
@@ -115,16 +133,16 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   // soon as it hydrates into `widgets`.
   const watchlistWidget = useMemo(() => (widgets || []).find((w) => w.type === 'watchlist'), [widgets])
   const handleOpenWatchlist = useCallback(() => {
-    if (watchlistWidget) { setScreenWidgetId(watchlistWidget.id); return }
+    if (watchlistWidget) { openWidgetScreen(watchlistWidget.id); return }
     setPendingWatchlistOpen(true)
     onAddWidget('watchlist')
-  }, [watchlistWidget, onAddWidget])
+  }, [watchlistWidget, onAddWidget, openWidgetScreen])
   // Render-time state adjustment (the you-might-not-need-an-effect pattern):
   // the moment the added watchlist hydrates into `widgets`, consume the pending
   // flag and open it — React re-renders before committing, no effect pass.
   if (pendingWatchlistOpen && watchlistWidget) {
     setPendingWatchlistOpen(false)
-    setScreenWidgetId(watchlistWidget.id)
+    setScreen({ id: watchlistWidget.id, symAtOpen: sym })
   }
 
   const stockChartProps = useMemo(() => ({
@@ -159,21 +177,34 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
             </div>
 
             {/* Full-screen widget page — rendered OVER the chart so the chart
-                never unmounts (returning from the watchlist is instant). */}
+                never unmounts (returning from the watchlist is instant).
+                `merged` = WidgetHost's header-less contract: the desktop
+                drag/close bar (with its accidental-remove ✕) stays off the
+                phone; a multi-tab slot still gets its tab strip. Removal moves
+                to the trash button in this header. */}
             {screenWidget && (
               <div className={styles.widgetScreen}>
                 <div className={styles.screenHeader}>
-                  <button type="button" className={styles.screenBack} onClick={() => setScreenWidgetId(null)}>
+                  <button type="button" className={styles.screenBack} onClick={() => setScreen(null)}>
                     <UIcon name="chevronRight" size={15} gold={false} style={{ transform: 'rotate(180deg)' }} />
                     Chart
                   </button>
                   <span className={styles.screenTitle}>{MENU_LABEL[screenWidget.type] || screenWidget.type}</span>
+                  <button
+                    type="button"
+                    className={styles.screenAction}
+                    aria-label={`Remove ${MENU_LABEL[screenWidget.type] || screenWidget.type} from layout`}
+                    onClick={() => { onRemove(screenWidget.id); setScreen(null) }}
+                  >
+                    <UIcon name="trash" size={16} gold={false} />
+                  </button>
                 </div>
                 <div className={styles.screenBody}>
                   <WidgetHost
                     key={screenWidget.id}
                     widget={screenWidget}
-                    onRemove={() => { onRemove(screenWidget.id); setScreenWidgetId(null) }}
+                    merged
+                    onRemove={() => { onRemove(screenWidget.id); setScreen(null) }}
                     onColorChange={(c) => onColorChange(screenWidget.id, c)}
                     onOptsChange={(o) => onOptsChange(screenWidget.id, o)}
                   />
@@ -230,7 +261,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onClose={closeSheet}
         sym={sym}
         widgets={otherWidgets}
-        onOpenWidget={setScreenWidgetId}
+        onOpenWidget={openWidgetScreen}
         onAddWidget={(t) => { onAddWidget(t) }}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}

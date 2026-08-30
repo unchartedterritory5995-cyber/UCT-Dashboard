@@ -80,13 +80,15 @@ function renderApp(widgets, handlers = makeHandlers(), ctx = {}) {
     setGroupSym: vi.fn(),
     ...ctx,
   }
-  const ui = (w) => (
-    <WorkspaceContext.Provider value={value}>
+  const ui = (w, syms) => (
+    <WorkspaceContext.Provider value={syms ? { ...value, groupSyms: { ...value.groupSyms, ...syms } } : value}>
       <MobileChartsApp widgets={w} {...handlers} />
     </WorkspaceContext.Provider>
   )
   const utils = render(ui(widgets))
-  return { ...utils, rerenderWith: (w) => utils.rerender(ui(w)), handlers, value }
+  // rerenderWith(widgets, symsPatch?) — symsPatch simulates a color-group
+  // publish (a watchlist row tap, a voice retarget) landing from the provider.
+  return { ...utils, rerenderWith: (w, syms) => utils.rerender(ui(w, syms)), handlers, value }
 }
 
 beforeEach(() => {
@@ -202,6 +204,49 @@ describe('the ★ watchlist button — the scan→tap→chart loop, one tap away
     // The layout save round-trips and the new widget lands.
     rerenderWith([...noWatch, { id: 'w-new-watch', type: 'watchlist', color: 'A', opts: {} }])
     expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+  })
+})
+
+describe('the tap-to-chart loop — a page that retargets the chart hands you back to it', () => {
+  test('watchlist row tap (group A publish) closes the page and the chart shows the pick', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: 'Watchlist' }))
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+
+    // The watchlist widget shares the chart's group (A): a row tap publishes a
+    // new symbol there. Simulated as the provider value updating.
+    rerenderWith(HYDRATED, { A: 'AAPL' })
+    expect(screen.queryByTestId('widget-body-watchlist')).toBeNull()
+    expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-sym', 'AAPL')
+  })
+
+  test('a page on a DIFFERENT color group stays open — it cannot have moved the chart', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    // Themes is on group B (see HYDRATED); open it via the More sheet.
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /^open theme tracker/i }))
+    expect(screen.getByTestId('widget-body-themes')).toBeInTheDocument()
+
+    // Its group publishes — the CHART's group (A) is untouched, so no bounce.
+    rerenderWith(HYDRATED, { B: 'XLE' })
+    expect(screen.getByTestId('widget-body-themes')).toBeInTheDocument()
+  })
+
+  test('the page header’s trash removes the widget from the layout and returns to the chart', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith, handlers } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: 'Watchlist' }))
+    await user.click(screen.getByRole('button', { name: /remove watchlist from layout/i }))
+    expect(handlers.onRemove).toHaveBeenCalledWith('w-watch')
+    expect(screen.queryByTestId('widget-body-watchlist')).toBeNull()
   })
 })
 

@@ -141,7 +141,21 @@ charts):
   above" / "Alert below" as the commit buttons, riding the same `createAlert`
   (bell + email + Discord delivery) the desktop right-click uses.
 
-## Deliberately deferred (Phase 3+)
+## Phase 3 — the loop, closed (same branch, 2026-08-30)
+
+- **Tap-to-chart** — a full-screen page that RETARGETS the chart (a watchlist
+  row tap publishing into the chart's color group) hands the member straight
+  back to the chart showing the pick, TradingView-watchlist style. Implemented
+  as a render-time comparison of the chart symbol against the symbol captured
+  at page-open (`screen.symAtOpen`); a page on a different color group can
+  never move the chart's symbol, so it stays open — correct by construction,
+  no widget-type allowlist to maintain.
+- **Chromeless widget pages** — the phone page now mounts `WidgetHost` with
+  its existing `merged` contract (no desktop drag/close bar; a multi-tab slot
+  keeps its tab strip), and removal moves to a trash button in the page
+  header. The accidental-remove ✕ is off the phone.
+
+## Deliberately deferred (Phase 4+)
 
 - **Touch drawing pass** — restyle ChartToolbar for touch (left rail, 44px),
   test pointer-based drawing end-to-end on iOS Safari. (The toolbar now starts

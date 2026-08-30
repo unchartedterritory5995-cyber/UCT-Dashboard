@@ -224,14 +224,31 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  /* balance the back button so the title centers optically */
-  margin-right: 64px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* Right-side header action (remove-from-layout). Same seat size as the back
+   button so the centered title stays optically balanced. */
+.screenAction {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.screenAction:active { background: var(--bg-hover); }
 
 .screenBody {
   flex: 1 1 auto;
