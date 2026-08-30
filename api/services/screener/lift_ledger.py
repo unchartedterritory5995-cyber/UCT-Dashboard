@@ -357,3 +357,65 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
             "ci_low": result["ci_low"], "ci_high": result["ci_high"],
             "rate": result["rate"], "baseline": result["baseline"],
             "years": result["years"]}
+
+
+# ── the artifact ───────────────────────────────────────────────────────────
+# ⛔ A MEASUREMENT NOBODY CAN READ IS NOT A MEASUREMENT. `lesson_built_tested_
+# green_and_unreachable` is the repo's own name for this: a module that
+# computes the right answer and is wired to no surface has shipped nothing.
+# The ledger's results are therefore PERSISTED as a dated artifact and read
+# back by `base_catalog.meta()`, so the number a member sees and the number the
+# harness produced are the same object.
+#
+# ⛔ THE LEDGER IS THE ONLY AUTHORITY ON LIFT. `Structure` deliberately has no
+# `lift` field — copying the number onto the catalog entry would put a second
+# authority on one value, which is this repo's most repeated defect. The
+# catalog says what a structure IS; the ledger says what it has been measured
+# to do, and it may say "nothing yet".
+
+import json
+import os
+
+LEDGER_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))),
+    "docs", "base_lift_ledger.json")
+
+_CACHE: Optional[dict] = None
+
+
+def load(path: str = None) -> dict:
+    """The measured ledger, or an empty one. Never raises.
+
+    A missing or malformed artifact reads as "nothing has been measured" —
+    which is the honest state, and the one every consumer already handles.
+    """
+    global _CACHE
+    if _CACHE is not None and path is None:
+        return _CACHE
+    p = path or LEDGER_PATH
+    try:
+        with open(p, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            data = {}
+    except Exception:
+        data = {}
+    if path is None:
+        _CACHE = data
+    return data
+
+
+def for_structure(key: str, path: str = None) -> Optional[dict]:
+    """The published entry for `key`, or None.
+
+    ⛔ Returns None for BOTH "never measured" and "measured and refused". That
+    is deliberate: to a member the two produce the same honest statement — we
+    have no number for this — and collapsing them here stops a caller from
+    rendering a refusal as a weak positive. The reason is still readable in the
+    artifact for anyone auditing it.
+    """
+    entry = (load(path).get("structures") or {}).get(key)
+    if not entry or not entry.get("published"):
+        return None
+    return entry

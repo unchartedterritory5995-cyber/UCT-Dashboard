@@ -326,3 +326,59 @@ def test_a_single_ticker_cannot_produce_a_finite_cluster_interval():
     lo, hi = ll._cluster_bootstrap_ci({"ONLY": [("2021", True, True)] * 50},
                                       trials=400, seed=1)
     assert lo == float("-inf") and hi == float("inf")
+
+
+# ── the artifact must exist and cover every structure ──────────────────────
+
+def test_the_ledger_artifact_names_EVERY_relation():
+    """⛔ AN UNMEASURED STRUCTURE MUST BE VISIBLE, NOT SILENT.
+
+    `lesson_built_tested_green_and_unreachable` is the repo's own name for a
+    module that computes the right answer and reaches no surface. A ledger that
+    simply omits the structures nobody got round to measuring is the same
+    defect wearing a data shape: absence reads as "fine" instead of "unknown".
+    So every relation gets a row — published with its numbers, or refused with
+    the reason it was refused.
+    """
+    from api.services.screener import base_catalog as bc
+
+    data = ll.load()
+    assert data, "the ledger artifact is missing or unreadable"
+    entries = data.get("structures") or {}
+    missing = [s.key for s in bc.RELATIONS if s.key not in entries]
+    assert not missing, f"structures with no ledger row at all: {missing}"
+
+    for s in bc.RELATIONS:
+        e = entries[s.key]
+        assert "published" in e, f"{s.key}: no verdict"
+        if e["published"]:
+            for f in ("lift", "ci_low", "ci_high", "n", "null_max"):
+                assert f in e, f"{s.key} published without {f}"
+        else:
+            assert e.get("reasons"), f"{s.key} refused with no reason"
+
+
+def test_the_artifact_records_its_own_method_and_date():
+    """A number with no method beside it cannot be re-derived or challenged."""
+    data = ll.load()
+    for field in ("measured_at", "method", "sample", "baseline_metric"):
+        assert data.get(field), f"the ledger does not record {field}"
+
+
+def test_meta_never_reports_a_lift_the_ledger_refused():
+    """⛔ THE CATALOG MAY NOT DISAGREE WITH THE HARNESS. `Structure` has no lift
+    field; `meta()` reads the ledger. A refused structure must surface None,
+    never a weak positive.
+    """
+    from api.services.screener import base_catalog as bc
+
+    entries = (ll.load().get("structures") or {})
+    m = bc.meta()
+    for key, e in entries.items():
+        if key not in m:
+            continue
+        if not e.get("published"):
+            assert m[key]["lift_pp"] is None, (
+                f"{key} was refused but meta() reports {m[key]['lift_pp']}")
+        else:
+            assert m[key]["lift_pp"] is not None, f"{key} published but meta() hides it"

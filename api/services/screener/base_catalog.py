@@ -865,9 +865,21 @@ def by_key(key):
 
 
 def meta() -> dict:
-    """What the frontend and the filter registry read. Nobody restates a key."""
-    return {
-        s.key: {
+    """What the frontend and the filter registry read. Nobody restates a key.
+
+    ⛔ `lift` IS READ FROM THE LEDGER, NEVER STORED ON THE STRUCTURE. `Structure`
+    has no lift field on purpose: copying the number here would put a second
+    authority on one value, and the catalog would then be able to disagree with
+    the harness that measured it. `None` means we have no number — covering
+    both "never measured" and "measured and refused", which say the same honest
+    thing to a member.
+    """
+    from api.services.screener import lift_ledger
+
+    out = {}
+    for s in ALL_STRUCTURES:
+        entry = lift_ledger.for_structure(s.key)
+        out[s.key] = {
             "label": s.label,
             "desc": s.desc,
             "axis": s.axis,
@@ -875,9 +887,13 @@ def meta() -> dict:
             "bias": s.bias,
             "needs_intraday": s.needs_intraday,
             "coverage_pct": s.coverage_pct,
+            "lift_pp": round(entry["lift"] * 100, 2) if entry else None,
+            "lift_ci_pp": ([round(entry["ci_low"] * 100, 2),
+                            round(entry["ci_high"] * 100, 2)]
+                           if entry else None),
+            "lift_n": entry.get("n") if entry else None,
         }
-        for s in ALL_STRUCTURES
-    }
+    return out
 
 
 def match_value(key: str) -> str:
