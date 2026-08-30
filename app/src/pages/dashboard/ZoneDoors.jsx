@@ -24,35 +24,44 @@
 // leaving the doors as plain links. `jsonFetcher` throws instead; `data`
 // simply stays undefined and every door below already renders label-only.
 //
-// ── CLIENT-FILLED DOORS: journal, desk, community ───────────────────────────
+// ── CLIENT-FILLED DOORS: journal, community ─────────────────────────────────
 //
-// The backend deliberately leaves these three permanently `null` — see
-// dashboard_signposts.py's docstring: `journal` and `community` are
-// PER-USER, and the endpoint's payload sits behind ONE global 60s cache key
-// shared by every logged-in member, so writing one member's count into it
-// would leak that count to the next 60 seconds' worth of everyone else's
-// requests. `desk` stays null there too (no existing service wraps the
-// listing in a TTLCache, so reading it on that request path would be new
-// uncached work). That refusal is correct and stays untouched here.
+// The backend deliberately leaves these two permanently `null` — see
+// dashboard_signposts.py's docstring: both are PER-USER, and the endpoint's
+// payload sits behind ONE global 60s cache key shared by every logged-in
+// member, so writing one member's count into it would leak that count to the
+// next 60 seconds' worth of everyone else's requests. That refusal is correct
+// and stays untouched here.
+//
+// ⚰️ `desk` USED TO BE A THIRD ONE AND HAS MOVED SERVER-SIDE. It never
+// belonged beside these two: its refusal was about CACHE SHAPE (no TTLCache on
+// `desk_store.list_posts`), not about per-user data — the number is identical
+// for everybody, and the signposts endpoint already owns a 60s cache. The
+// client stand-in was broken in two ways at once: blank Monday–Friday (it
+// borrowed `TheWeek`'s key and that hero mounts only at the weekend), and
+// structurally "0" whenever it did render, because `published_at` is a unix
+// EPOCH INT and `Date.parse` of an integer is NaN. The server computes it now,
+// seven days a week.
 //
 // What CAN happen on the client: `/dashboard` already mounts other tiles that
 // fetch exactly this data for their own purposes —
 //   • journal    — JournalSnapshotTile (Zone C), ALWAYS mounted, polls
 //                  `/api/j2/positions` + `/api/j2/options?status=open` every 15s.
-//   • desk       — TheWeek (Zone B's WEEKEND-only hero), polls
-//                  `/api/desk/articles?limit=12`.
 //   • community  — NavBar (global layout, every page), polls
 //                  `/api/community/status` + `/api/community/unread`.
 // SWR keys ARE the cache: re-using the exact same key string (and the exact
 // same fetcher CONTRACT — see `nullOnErrorFetcher` below) means a second
 // subscriber reads what the first already fetched, at zero extra requests.
 // `READ_ONLY` goes one step further than a bare re-subscribe: it makes this
-// component's own hook incapable of EVER independently firing a request, so
-// the guarantee holds even when the "someone else already fetches this" co-
-// mount assumption doesn't — which is exactly `desk`'s case on a weekday,
-// when TheWeek isn't mounted at all and nothing else holds that key. On a
-// weekday `deskValue` below is honestly `null`, not a fetch this file makes
-// itself.
+// component's own hook incapable of independently firing a request, so the
+// guarantee holds even when the "someone else already fetches this" co-mount
+// assumption doesn't.
+//
+// ⛔ THAT SENTENCE WAS FALSE UNTIL `isPaused` WAS ADDED, and it was asserted
+// in three places while being false. The four `revalidateOn*` flags gate only
+// SWR's automatic triggers; the Dashboard's own pull-to-refresh calls `mutate`
+// explicitly, which reaches the revalidator past all four. See `READ_ONLY`
+// below for the mechanism and `ZoneDoors.mutate.test.jsx` for the measurement.
 //
 // ⛔ journal is PER-USER DATA. Its value lives ONLY in this browser's
 // client-side SWR cache (in-memory, this tab) — never written to
@@ -60,16 +69,14 @@
 // store. Nothing added here changes that.
 //
 // ⛔ SERVER WINS. If the backend ever starts answering non-null for one of
-// these three, that answer must never be silently clobbered by a client
-// guess — see the `value` computation in the render loop below and
-// `ZoneDoors.clientFill.test.jsx`'s "server wins" case.
+// these two, that answer must never be silently clobbered by a client guess —
+// see the `value` computation in the render loop below and
+// `ZoneDoors.clientFill.test.jsx`'s "server wins" case. `desk` moving
+// server-side is that rule working as intended rather than an exception to it.
 //
-// ⭐ Three of the eight cards (`desk`, `journal`, `community`) are permanently
-// `null` from the SERVER — see the backend's own docstring for why. A card
-// with a null value renders as a plain link with no number: a normal state,
-// not an error. That is still true for the doors above that stay client-null
-// too (e.g. `desk` on a weekday, `journal`/`community` for a signed-out edge
-// case, or simply before the co-mounted tile's own first fetch resolves).
+// ⭐ A card with a null value renders as a plain link with no number: a normal
+// state, not an error — for `journal`/`community` in a signed-out edge case,
+// or simply before the co-mounted tile's own first fetch resolves.
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
@@ -90,25 +97,34 @@ const nullOnErrorFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
 // A SWR call under these options is a PURE cache reader: it never fetches on
-// its own — no fetch-on-mount, no stale-revalidate, no focus/reconnect
-// revalidate — and, since none of the four keys here is `refreshInterval`,
-// it is not a polling site either (`pollingSites.rail.test.js` only counts
-// that one key on a bare `useSWR`'s third argument). It only ever shows
-// whatever some OTHER already-mounted hook on the exact same key already put
-// in the shared SWR cache.
+// its own. It only ever shows whatever some OTHER already-mounted hook on the
+// exact same key already put in the shared SWR cache. Since no key here sets
+// `refreshInterval`, it is not a polling site either
+// (`pollingSites.rail.test.js` only counts that one key on a bare `useSWR`'s
+// third argument).
+//
+// 🔴 `isPaused` IS THE ONE THAT MAKES THAT SENTENCE TRUE, and the four flags
+// above it are not enough — this comment used to claim they were. Those four
+// gate SWR's AUTOMATIC triggers only. An explicit `mutate` calls the hook's
+// `revalidate` directly, and that function consults none of them; it
+// short-circuits on `!key || !fetcher || unmounted || isPaused()`
+// (`node_modules/swr/dist/index/index.mjs`). `Dashboard.jsx`'s `handleRefresh`
+// is exactly such a call — `mutate(() => true, undefined, {revalidate: true})`,
+// wired to `<PullToRefresh>` — so a pull-to-refresh made these reads fetch on
+// their own. Measured with a fetch spy, not reasoned:
+// `ZoneDoors.mutate.test.jsx`.
+//
+// ⛔ `isPaused` DOES NOT BLOCK CACHE READS OR RE-RENDERS. Verified in the
+// installed SWR 2.4.0: it gates starting a revalidation and handling its
+// error, nothing else. The doors still fill the instant a co-subscriber's own
+// fetch lands, which is the entire mechanism here.
 const READ_ONLY = {
   revalidateOnMount: false,
   revalidateIfStale: false,
   revalidateOnFocus: false,
   revalidateOnReconnect: false,
+  isPaused: () => true,
 }
-
-// "New" reads as recency, not archive size — the endpoint returns up to 12
-// articles regardless of age, so counting the array length would answer a
-// different question ("how many did we fetch") under a label that promises
-// "how many are new". 48h is a deliberately loose window for a desk that
-// publishes at most a few times a day.
-const DESK_NEW_WINDOW_MS = 48 * 60 * 60 * 1000
 
 export default function ZoneDoors() {
   const { data } = useMobileSWR('/api/dashboard/signposts', jsonFetcher, {
@@ -147,18 +163,6 @@ export default function ZoneDoors() {
       + (optKnown ? (optData.strategies?.length ?? 0) : 0)
     : null
 
-  // desk "New" — same key + fetcher as TheWeek.jsx (Zone B's WEEKEND-only
-  // hero). See the header note above: on a weekday nothing else on the page
-  // holds this key, and `READ_ONLY` is what keeps that case honestly `null`
-  // instead of this component firing its own fetch.
-  const { data: deskData } = useSWR('/api/desk/articles?limit=12', jsonFetcher, READ_ONLY)
-  const deskValue = deskData?.articles
-    ? deskData.articles.filter((a) => {
-        const t = a?.published_at ? Date.parse(a.published_at) : NaN
-        return Number.isFinite(t) && Date.now() - t <= DESK_NEW_WINDOW_MS
-      }).length
-    : null
-
   // community "Unread" — the SAME formula as NavBar's own `floorUnread` nav
   // badge (forum-board unread + unseen @-mentions). `mentions_unseen` rides
   // along on the `/status` call above (already fetched for the dark-launch
@@ -175,7 +179,7 @@ export default function ZoneDoors() {
     ? (communityUnread.total || 0) + (communityStatus.mentions_unseen || 0)
     : null
 
-  const CLIENT_FILL = { journal: journalValue, desk: deskValue, community: communityValue }
+  const CLIENT_FILL = { journal: journalValue, community: communityValue }
 
   return (
     <nav className={styles.doors} aria-label="Sections">
@@ -183,10 +187,11 @@ export default function ZoneDoors() {
         const card = data?.[d.key]
         // ⛔ SERVER WINS. A client fill applies ONLY when the server's own
         // slot for this key is null — it must never silently override a real
-        // server answer. Today the server always answers null for
-        // journal/desk/community (see the module docstring), so this branch
-        // is dormant, not dead: if that ever changes, the server's value
-        // still wins. See ZoneDoors.clientFill.test.jsx.
+        // server answer. `desk` is the live proof this is not dead code: it
+        // used to be client-filled and now comes from the server, and the
+        // switchover needed no change here. journal/community stay null
+        // server-side by design (see the module docstring).
+        // See ZoneDoors.clientFill.test.jsx.
         const value = card?.value != null ? card.value : (CLIENT_FILL[d.key] ?? null)
         return (
           <Link key={d.key} to={d.to} className={styles.door}>

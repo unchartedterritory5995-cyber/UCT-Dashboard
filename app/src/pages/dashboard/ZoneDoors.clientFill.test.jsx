@@ -90,19 +90,35 @@ describe('ZoneDoors — client-filled journal/desk/community', () => {
     expect(doorValue('Journal')).toBe('1')
   })
 
-  test('desk: counts only articles published inside the 48h window, not the whole fetched array', () => {
-    const now = Date.now()
-    const recent = new Date(now - 2 * 60 * 60 * 1000).toISOString()   // 2h ago
-    const stale = new Date(now - 100 * 60 * 60 * 1000).toISOString()  // 100h ago
-    mount({
-      '/api/desk/articles?limit=12': {
-        articles: [{ slug: 'a', published_at: recent }, { slug: 'b', published_at: stale }],
-      },
-    })
-    expect(doorValue('The Desk')).toBe('1')
+  // ⚰️ THE DESK DOOR IS NO LONGER CLIENT-FILLED — it comes from
+  // `dashboard_signposts.py`. The two cases that used to live here were a
+  // 48h-window count and a "weekday, not fetched" blank, and BOTH described a
+  // mechanism that could not work in production:
+  //   • blank Mon–Fri, because the key was borrowed from `TheWeek`, which
+  //     mounts only at the weekend;
+  //   • structurally "0" whenever it DID render, because
+  //     `substack_posts.published_at` is a unix EPOCH INT and the filter used
+  //     `Date.parse(a.published_at)` — `NaN` for an integer, so every article
+  //     failed `Number.isFinite`.
+  // ⛔ AND THE OLD TEST COULD NOT SEE EITHER ONE, because its fixture built
+  // ISO strings (`new Date(...).toISOString()`) that the real endpoint never
+  // sends. A fixture that does not match the wire measures your own spelling
+  // (`lesson_a_corpus_is_blind_beside_what_it_measures`).
+  test('desk: the value comes from the SERVER now, and the client adds nothing', () => {
+    mockData = { desk: { label: 'New', value: 3, tone: 'neutral' } }
+    // Even with the old client-side source sitting in the cache, unfiltered.
+    mount({ '/api/desk/articles?limit=12': { articles: [{ slug: 'a' }, { slug: 'b' }] } })
+    expect(doorValue('The Desk')).toBe('3')
   })
 
-  test('desk: not fetched (the weekday case — TheWeek is not mounted) stays a plain link', () => {
+  test('desk: a server ZERO renders "0" — a real answer, not a blank', () => {
+    mockData = { desk: { label: 'New', value: 0, tone: 'neutral' } }
+    mount({})
+    expect(doorValue('The Desk')).toBe('0')
+  })
+
+  test('desk: the server answering null still leaves a plain link', () => {
+    mockData = { desk: { label: 'New', value: null, tone: 'neutral' } }
     mount({})
     const link = screen.getByRole('link', { name: 'The Desk' })
     expect(link.textContent).toBe('The Desk')

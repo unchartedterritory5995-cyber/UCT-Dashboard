@@ -54,12 +54,16 @@ const mount = () => render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
 const READ_ONLY_KEYS = [
   '/api/j2/positions',
   '/api/j2/options?status=open',
-  '/api/desk/articles?limit=12',
   '/api/community/unread',
 ]
+// ⚰️ `/api/desk/articles?limit=12` LEFT THIS LIST when the desk count moved
+// server-side (dashboard_signposts.py). Its refusal there was about cache
+// shape, not per-user data — and the client stand-in was blank Mon–Fri and
+// structurally "0" the rest of the time. A key that is no longer read must
+// leave the roster, or the next reader trusts a list that describes nothing.
 
 describe('ZoneDoors — the client-fill reads never independently fetch', () => {
-  test('all four client-fill keys are called with the full READ_ONLY config', () => {
+  test('every client-fill key is called with the full READ_ONLY config', () => {
     mount()
     for (const key of READ_ONLY_KEYS) {
       const call = calls.find((c) => c.key === key)
@@ -68,6 +72,13 @@ describe('ZoneDoors — the client-fill reads never independently fetch', () => 
       expect(call.options?.revalidateIfStale, `${key}: revalidateIfStale must be false`).toBe(false)
       expect(call.options?.revalidateOnFocus, `${key}: revalidateOnFocus must be false`).toBe(false)
       expect(call.options?.revalidateOnReconnect, `${key}: revalidateOnReconnect must be false`).toBe(false)
+      // 🔴 THE ONE THAT ACTUALLY MAKES "never fetches on its own" TRUE.
+      // The four flags above gate SWR's AUTOMATIC triggers only; an explicit
+      // `mutate` — which is exactly what Dashboard's pull-to-refresh does —
+      // reaches the revalidator past all of them, and only `isPaused` stops it
+      // (`ZoneDoors.mutate.test.jsx` measures that with a fetch spy).
+      expect(typeof call.options?.isPaused, `${key}: isPaused must be supplied`).toBe('function')
+      expect(call.options.isPaused(), `${key}: isPaused must return true`).toBe(true)
       // Also not a NEW polling site — pollingSites.rail.test.js only counts
       // a literal `refreshInterval` key on a bare useSWR's third argument.
       expect(call.options).not.toHaveProperty('refreshInterval')
@@ -84,5 +95,41 @@ describe('ZoneDoors — the client-fill reads never independently fetch', () => 
     const call = calls.find((c) => c.key === '/api/community/status')
     expect(call).toBeTruthy()
     expect(call.options?.revalidateOnMount).not.toBe(false)
+  })
+
+  // ─── the dark-launch key gate ───────────────────────────────────
+  //
+  // ⛔ EVERY OTHER CASE IN THIS FILE RUNS WITH `enabled: true`, so the gate
+  // that stops `/api/community/unread` being keyed at all was covered by
+  // nothing. It is load-bearing twice over: `/community/*` endpoints 503 the
+  // moment COMMUNITY_ENABLED is rolled back, and a NULL key is the only thing
+  // that keeps an explicit `mutate` from reaching this read — `isPaused`
+  // guards the fetch, but a live key would still put a dead endpoint on the
+  // revalidation list.
+  test('a rolled-back dark launch leaves the unread key NULL, not merely unrendered', () => {
+    dataByKey = { '/api/community/status': { enabled: false } }
+    mount()
+    const call = calls.find((c) => c.fetcher && c.key === '/api/community/unread')
+    expect(call, 'the unread key was still subscribed with the flag off').toBeFalsy()
+    const nulled = calls.filter((c) => c.key === null)
+    expect(nulled.length, 'the gated call must pass a null key, not be absent')
+      .toBeGreaterThan(0)
+  })
+
+  test('CONTROL: with the flag ON the same call really does carry the key', () => {
+    // Without this, the assertion above passes for a component that never
+    // reads `/api/community/unread` under any flag.
+    dataByKey = { '/api/community/status': { enabled: true } }
+    mount()
+    expect(calls.some((c) => c.key === '/api/community/unread')).toBe(true)
+  })
+
+  test('the status payload having not arrived yet is treated as OFF, not ON', () => {
+    // `undefined` is not `{enabled: true}`. Optimistically keying a dark-launch
+    // endpoint before its own flag has answered is how a rolled-back feature
+    // still gets hit on every cold load.
+    dataByKey = {}
+    mount()
+    expect(calls.some((c) => c.key === '/api/community/unread')).toBe(false)
   })
 })
