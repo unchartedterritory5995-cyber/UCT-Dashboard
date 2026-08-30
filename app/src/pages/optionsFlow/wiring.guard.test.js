@@ -205,20 +205,43 @@ describe('prehydration wiring — the server-computed first paint', () => {
       'fetchPrehydrate is imported but never called — prehydration is dead code' + FIX).toBe(true)
   })
 
-  it('still guards it so it can only ever fill an EMPTY screen', () => {
-    // ⛔ THE LOAD-BEARING GUARD. The client computation is the authority; the
-    // aggregate is an accelerator. Without _processedOnce on BOTH sides of the
-    // await, a slow aggregate can resolve after the real result and overwrite
-    // it — the page would silently show numbers for a different moment, which
-    // is far worse than the slowness this replaces.
+  it('still guards it so it can only ever fill a view the client has not published', () => {
+    // ⛔ THE LOAD-BEARING GUARD. The client's own aggregate is the authority
+    // for the view it has published; prehydration may only fill one it has
+    // NOT. The key is per-VIEW (feed + range + date selection) rather than a
+    // once-ever flag, which is what lets a 1d -> 5d switch prehydrate too —
+    // but it must appear on BOTH sides of the await, or a slow aggregate can
+    // still resolve after the real result and overwrite it.
     const at = CODE.indexOf('fetchPrehydrate(')
     expect(at, 'fetchPrehydrate call not found' + FIX).toBeGreaterThan(-1)
-    const region = CODE.slice(Math.max(0, at - 200), at + 400)
-    const guards = region.match(/_processedOnce\.current/g) || []
+    const region = CODE.slice(Math.max(0, at - 400), at + 500)
+    const guards = region.match(/_processedViewKey\.current/g) || []
     expect(guards.length,
-      'the _processedOnce guard around fetchPrehydrate was weakened — a late '
+      'the per-view guard around fetchPrehydrate was weakened — a late '
       + 'aggregate can now overwrite the authoritative client result' + FIX)
       .toBeGreaterThanOrEqual(2)
+    // ...and the client aggregate must actually STAMP the view it published,
+    // or the guard above compares against something nothing ever sets.
+    // ⛔ `=(?!=)` — an ASSIGNMENT, not a comparison. Written as `\s*=` this
+    // matched the `===` in the guard three lines up, so the check was satisfied
+    // by the very code it was meant to be independent of. Mutation testing
+    // caught it: deleting the stamp left this green.
+    expect(/_processedViewKey\.current\s*=(?!=)/.test(CODE),
+      'nothing records which view the client aggregate published — the '
+      + 'prehydration guard would then never fire' + FIX).toBe(true)
+  })
+
+  it('still runs the first aggregate ONCE, gated on something being painted', () => {
+    // /api/calendar landed at 8,005ms on a measured load while the tape landed
+    // at 31ms; erSoonArr is an effect dependency, so without this the first
+    // aggregate runs twice over 107,346 rows to change one badge.
+    expect(CODE.includes('firstPassWaitMs({'),
+      'firstPassWaitMs is gone — the first aggregate runs twice again' + FIX).toBe(true)
+    const at = CODE.indexOf('firstPassWaitMs({')
+    const region = CODE.slice(at, at + 320)
+    expect(/alreadyPainted:\s*_prehydrated\.current/.test(region),
+      'the wait is no longer gated on something being painted — an EMPTY '
+      + 'screen would now sit on a spinner waiting for a cosmetic badge' + FIX).toBe(true)
   })
 
   it('control: these checks read CODE, not prose', () => {

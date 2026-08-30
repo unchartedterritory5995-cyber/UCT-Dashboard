@@ -4,8 +4,8 @@
  * A metric with too few readings says so rather than ranking against noise.
  */
 import {
-  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, medianOf, metricValue, percentileRank,
-  resolveViewColors,
+  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, fillsRow, medianOf, metricValue,
+  percentileRank, resolveViewColors,
 } from './breadthViewShared'
 
 /**
@@ -29,11 +29,30 @@ const BINS = 24
 // The marker's own width, and the viewBox it must stay inside.
 const MARKER_W = 1.4
 const TRACK_W = 100
-// The row's own box: the distribution fills TOP..FLOOR, the marker overhangs it
-// slightly so a reading is legible against a slice that reaches the ceiling.
+/**
+ * The row's own box: the distribution fills TOP..FLOOR, the marker overhangs it
+ * slightly so a reading is legible against a slice that reaches the ceiling.
+ *
+ * ⭐ TOP/FLOOR WIDENED 4/28 → 3/30. The shapes read as shapes after the last
+ * pass but they read QUIETLY: 24 of 34 viewBox units of amplitude, drawn at
+ * 22% opacity, on a near-black ground. Amplitude and contrast are the two ways
+ * to answer "where does today sit in this shape" at a glance, and this is the
+ * first — 27 of 34 units, ~12% more travel between an empty slice and the modal
+ * one, at no cost to the marker's own clearance.
+ */
 const ROW_H = 34
-const TOP = 4
-const FLOOR = 28
+const TOP = 3
+const FLOOR = 30
+/**
+ * 🔴 THE ROW HEIGHT IS A FLOOR AND A CEILING, NOT A HEIGHT. This view is
+ * `height: 100%` of the box the container hands it and always was — but every
+ * row was a fixed 34px svg, so the ink stopped at ten times 42px and left the
+ * rest of the offered height black. The parent was never the problem; the
+ * content declined the height. Rows flex now, between what a quarter-size
+ * compare pane can show and what stops ten metrics becoming ten slabs.
+ */
+const ROW_MIN_H = ROW_H
+const ROW_MAX_H = 62
 
 /**
  * 🔴 THE 100th-PERCENTILE MARKER USED TO DRAW NOTHING AT ALL.
@@ -130,16 +149,18 @@ export default function PercentileLadderView({
   const basis = `${win.length} sessions · since ${win[win.length - 1].date}`
 
   return (
-    <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>
+    <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
+                  display: 'flex', flexDirection: 'column' }}>
       <div data-testid="ladder-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
-                    letterSpacing: '.4px', marginBottom: 6 }}>{basis}</div>
+                    letterSpacing: '.4px', marginBottom: 6, flex: '0 0 auto' }}>{basis}</div>
 
       {/* One legend for ten identical rows, rather than a caption on each: the
           track runs low → high, the dashed mark is the window's median, and the
           right-hand pair is today's reading and its rank. */}
       <div data-testid="ladder-legend"
            style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4,
+                    flex: '0 0 auto',
                     font: '700 8px \'Instrument Sans\', sans-serif', letterSpacing: '.6px',
                     textTransform: 'uppercase', color: '#475569' }}>
         <div style={{ width: 104, flex: '0 0 104px' }} />
@@ -151,8 +172,15 @@ export default function PercentileLadderView({
         <div style={{ width: 78, flex: '0 0 78px', textAlign: 'left' }}>today · %ile</div>
       </div>
 
+      {/* The rows take the rest of the box and share it. `overflow: auto` is the
+          honest answer for a board of thirty metrics in a quarter-size pane:
+          the rows stop shrinking at ROW_MIN_H and the list scrolls, rather than
+          the shapes collapsing into hairlines. */}
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto',
+                    display: 'flex', flexDirection: 'column', gap: 8 }}>
       {ordered.map(({ m, ok, pct, hist, bandLast, peak, min, mid, span, have }) => (
-        <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10,
+                                  ...fillsRow(ROW_MIN_H, ROW_MAX_H) }}>
           <div style={{ width: 104, flex: '0 0 104px', textAlign: 'right',
                         font: '700 9px \'Instrument Sans\', sans-serif', letterSpacing: '.4px',
                         textTransform: 'uppercase', color: '#94a3b8',
@@ -166,8 +194,8 @@ export default function PercentileLadderView({
 
           {ok ? (
             <>
-              <svg width="100%" height={ROW_H} viewBox={`0 0 100 ${ROW_H}`} preserveAspectRatio="none"
-                   style={{ flex: 1, minWidth: 0 }} role="img"
+              <svg width="100%" height="100%" viewBox={`0 0 100 ${ROW_H}`} preserveAspectRatio="none"
+                   style={{ flex: 1, minWidth: 0, alignSelf: 'stretch', display: 'block' }} role="img"
                    aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${win.length} sessions`}
                    onClick={(e) => {
                      const d = bandDate(e)
@@ -182,14 +210,22 @@ export default function PercentileLadderView({
                   const binW = 100 / BINS
                   const y = (c) => FLOOR - (c / peak) * (FLOOR - TOP)
                   const verts = hist.map((c, i) => `${(i * binW + binW / 2).toFixed(2)},${y(c).toFixed(2)}`)
+                  // ⭐ FIGURE AND GROUND, RATHER THAN ONE DIM TONE. The
+                  // silhouette stays the palette's palest tier so it reads as a
+                  // mass and never competes with the marker, but at 0.34 rather
+                  // than 0.22 it is legible against the panel; the outline is
+                  // the tier ABOVE it at full weight, so the edge — which is
+                  // where the shape's information actually is — is the part the
+                  // eye lands on. Both still come from `colors.tier`, so mono
+                  // (no green, no red) is unaffected.
                   return (
                     <>
                       <polygon data-testid={`ladder-shape-${m.key}`}
                                points={`0,${FLOOR} ${verts.join(' ')} 100,${FLOOR}`}
-                               fill={colors.tier.g1} opacity={0.22} />
-                      <polyline points={verts.join(' ')} fill="none" stroke={colors.tier.g1}
-                                strokeWidth="1.1" strokeLinejoin="round"
-                                vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity * 0.8} />
+                               fill={colors.tier.g1} opacity={colors.fillOpacity * 0.34} />
+                      <polyline points={verts.join(' ')} fill="none" stroke={colors.tier.g2}
+                                strokeWidth="1.5" strokeLinejoin="round"
+                                vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity} />
                     </>
                   )
                 })()}
@@ -252,6 +288,7 @@ export default function PercentileLadderView({
           )}
         </div>
       ))}
+      </div>
     </div>
   )
 }

@@ -5,37 +5,88 @@
    a hardcoded green/red. */
 
 .strip {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 7px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 13px;
+  padding: 8px 14px 9px;
   margin: 0 4px 6px;
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.025);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* A rule, not a word floating beside a paragraph: the strip has two jobs on one
+   line (say what this is, then say it) and the hairline is where one ends. */
 .kicker {
-  flex: none;
+  align-self: stretch;
+  padding: 3px 13px 0 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
   font: 800 9px 'Instrument Sans', sans-serif;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
+/**
+ * 🔴 A MEASURE, BECAUSE THIS IS THE ONE THING ON THE TAB MEANT TO BE READ.
+ *
+ * It shipped as a single line of 11.5px type across the full ~1300px page —
+ * roughly 210 characters, about twice the width at which the eye reliably finds
+ * the start of the next line, and the hardest possible setting for the only
+ * prose on a page of instruments.
+ *
+ * The clauses are independent sentences, so they are laid out as BLOCKS in an
+ * auto-filling grid rather than as one reflowing paragraph: each one starts on
+ * its own line, and the COLUMN COUNT is what holds the measure. The 26rem
+ * minimum decides how many columns fit; `1fr` then shares the width between
+ * exactly that many, so the line length lands between roughly 70 and 100
+ * characters at every width this tab is used at — three columns on a desktop,
+ * two on a narrow window, one full-width column on a phone — with no ragged
+ * band of dead space on the right.
+ *
+ * ⛔ NOT a `column-count`, and not a max track size. A fixed count gives the
+ * opposite of a measure (two columns of 105 characters on a wide screen, one of
+ * 210 on a narrow one), and capping the track instead of the count leaves the
+ * strip's right third empty at desktop widths.
+ *
+ * Reading order is row-first, which is the right order here — these are five
+ * independent readings, not one argument flowing down a newspaper column.
+ */
 .body {
-  font: 500 11.5px 'Instrument Sans', sans-serif;
-  line-height: 1.55;
-  color: var(--text-bright);
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  gap: 5px 30px;
+  justify-content: start;
+  font: 450 11.5px 'Instrument Sans', sans-serif;
+  line-height: 1.6;
+  color: var(--text-muted);
   min-width: 0;
 }
 
 /* One clause per sentence, so a reader can see where each claim ends — and so
    a screenshot of the strip can be checked clause by clause against the lens
    that produced it. */
-.clause + .clause { margin-left: 5px; }
+.clause {
+  display: block;
+  min-width: 0;
+}
+
+/* ⭐ THE FIGURES CARRY MORE WEIGHT THAN THE CONNECTIVE PROSE, so the strip can
+   be skimmed for values and read for sense — two ways into one sentence. The
+   split is done in `TheReadStrip.jsx` and is text-preserving by construction;
+   nothing here or there may reword the clause. Tabular figures keep a column of
+   numbers from shivering as the cursor moves. */
+.num {
+  font-weight: 700;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
 
 .refusal {
+  grid-column: 2;
   font: 500 11.5px 'Instrument Sans', sans-serif;
   color: var(--text-muted);
 }

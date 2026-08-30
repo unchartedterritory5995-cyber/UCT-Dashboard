@@ -425,3 +425,50 @@ def test_cost_guard_honors_override():
     import api.services.narrative_cost_guard as guard
     assert guard.record("test_surface_override", "sonar-pro", 10, 10,
                         cost_usd=0.0123) == 0.0123
+
+
+# ── a slow upstream call must not be a dead ask (2026-08-29) ───────────────
+def test_the_fast_timeout_allows_for_the_raised_answer_budget():
+    """max_tokens went 700 -> 1800 on 2026-08-29, so an answer takes longer to
+    GENERATE. The 18s ceiling was sized for the old stub budget and started
+    killing one question in every exam run — for a member, a dead ask."""
+    assert pplx._TIMEOUTS["fast"] >= 30, pplx._TIMEOUTS
+
+
+def test_a_timeout_retries_once_then_succeeds(monkeypatch):
+    """One slow call should not cost the whole answer."""
+    calls = {"n": 0}
+
+    def _flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise requests.Timeout("too slow")
+        return _FakeResp(200, {"choices": [{"message": {"content": "ok"}}],
+                               "citations": []})
+
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    monkeypatch.setattr(pplx.time, "sleep", lambda s: None)
+    monkeypatch.setattr(pplx.requests, "post", _flaky)
+    pplx._SEARCH_CACHE.clear()
+    out = pplx.web_search("nvda", cache_salt="t-timeout-1")
+    assert out.get("answer") == "ok"
+    assert calls["n"] == 2, calls
+
+
+def test_two_timeouts_still_surface_an_honest_error(monkeypatch):
+    """CONTROL — the retry is BOUNDED. An unbounded retry on a blocking call is
+    the threadpool-exhaustion surface behind the 524 outage."""
+    calls = {"n": 0}
+
+    def _dead(*a, **k):
+        calls["n"] += 1
+        raise requests.Timeout("too slow")
+
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    monkeypatch.setattr(pplx.time, "sleep", lambda s: None)
+    monkeypatch.setattr(pplx.requests, "post", _dead)
+    pplx._SEARCH_CACHE.clear()
+    out = pplx.web_search("nvda", cache_salt="t-timeout-2")
+    assert not out.get("answer")
+    assert "timeout" in (out.get("error") or "").lower()
+    assert calls["n"] == 2, calls

@@ -702,6 +702,24 @@ def _start_recent_cache_warmer():
                                 _fr._get_cached_or_build("stocks", _d)
                             except Exception:
                                 log.exception("[recent-warmer] flow/data warm failed: days=%s", _d)
+                            # (5b) …and the PROCESSED aggregate for that range.
+                            # Options Flow paints from /api/flow/aggregate, and a
+                            # cold entry takes ~3 s to build — longer than the
+                            # browser's own pass, so the FIRST visitor after a
+                            # restart loses the race and gets none of the speedup
+                            # while paying for the build. Warming it here means
+                            # only the warmer ever eats a cold one.
+                            #
+                            # ⛔ Through the ROUTER's own builder, so the key can
+                            # never drift from the key the endpoint reads — a
+                            # warmer that fills a different entry warms nothing
+                            # and looks identical to one that works.
+                            # `Last{d}` mirrors the range chip: OptionsFlow.jsx
+                            # builds `days === 0 ? "All" : "Last" + days`.
+                            try:
+                                _fr.build_aggregate("stocks", _d, f"Last{_d}")
+                            except Exception:
+                                log.exception("[recent-warmer] flow/aggregate warm failed: days=%s", _d)
                         last_flow_data_warm = time.time()
                     except Exception:
                         log.exception("[recent-warmer] flow/data warm import failed")
