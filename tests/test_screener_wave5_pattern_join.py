@@ -271,3 +271,43 @@ def test_the_exclusion_refuses_to_act_on_a_population_too_small_to_measure():
     floor = (pj.UNINFORMATIVE_SHARE * tiny
              if tiny >= pj.MIN_POPULATION_FOR_EXCLUSION else float("inf"))
     assert floor == float("inf"), "a tiny population must exclude nothing"
+
+
+def test_the_engines_CANDLESTICK_detectors_never_reach_a_screener_column(
+        monkeypatch, tmp_path):
+    """⛔⛔ THE CANDLE/ENGINE BOUNDARY. The owner ruled the 18
+    `detectors/candlestick/*` stay because the chart overlay consumes them and
+    the candle library does not serve that endpoint. That ruling is only SAFE
+    if the boundary is enforced — and it was not.
+
+    Measured over the 7-day active window: 16 candlestick ids were reaching
+    `pattern_engine_ids` on 1,987 of 2,890 symbols (68.8%), so the screener
+    carried TWO authorities on "what candle is this" — `candle_matches`, which
+    names 62 structures at 100% coverage with sourced precedence, and this,
+    which named 16 at 68.8% with none. A member could screen both and get
+    different answers about the same bar.
+
+    THE CANDLE LIBRARY OWNS SCREENER COLUMNS. THE ENGINE OWNS THE CHART
+    OVERLAY. NEITHER CROSSES.
+    """
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    assert "candlestick" in pj._SCREENER_EXCLUDED_CATEGORIES
+
+    memory.store_detection(_detection(
+        id="c1", sym="BND", pattern_id="hammer", category="candlestick"))
+    memory.store_detection(_detection(
+        id="s1", sym="BND", pattern_id="cup_handle", category="classical"))
+
+    out = pj.read_pattern_fields(["BND"])
+    ids = [k for k in (out["BND"]["pattern_engine_ids"] or "").split(",") if k]
+
+    assert "hammer" not in ids, (
+        "a candlestick detector reached a screener column — the candle library "
+        "already owns that fact at 100% coverage")
+    # ⛔ NON-VACUOUS: the read is not simply returning nothing.
+    assert "cup_handle" in ids, (
+        "the exclusion swallowed a NON-candlestick detection too — the probe "
+        "would then pass by seeing nothing at all")

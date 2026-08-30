@@ -137,6 +137,27 @@ import json
 import time
 
 _ACTIVE_STATUSES = ("forming", "ready", "triggered")
+
+#: ⛔⛔ THE CANDLE/ENGINE BOUNDARY, ENFORCED HERE BECAUSE THIS IS WHERE IT IS
+#: CROSSED. The owner ruled 2026-08-30 that the 18 `detectors/candlestick/*`
+#: stay, on the grounds that the chart overlay `GET /api/patterns/{sym}`
+#: consumes them and the candle library does not serve that endpoint. That
+#: ruling is sound — and it is only SAFE if the boundary is actually enforced,
+#: which it was not.
+#:
+#: Measured over the 7-day active window: SIXTEEN candlestick detector ids were
+#: reaching `pattern_engine_ids`, on 1,987 of 2,890 covered symbols (68.8%),
+#: from 3,285 detections. So the screener carried TWO authorities on "what
+#: candle is this" — `candle_matches`, which names 62 structures at 100%
+#: coverage with sourced precedence rules, and this, which names 16 at 68.8%
+#: with none. A member could screen both and get different answers about the
+#: same bar.
+#:
+#: The split is therefore: THE CANDLE LIBRARY OWNS SCREENER COLUMNS, THE ENGINE
+#: OWNS THE CHART OVERLAY, AND NEITHER CROSSES. Excluded by the store's own
+#: `category` column rather than by a typed id list, so a candlestick detector
+#: added tomorrow is excluded the day it ships.
+_SCREENER_EXCLUDED_CATEGORIES = ("candlestick",)
 _WINDOW_SECS = 7 * 24 * 3600
 #: ⭐ RAISED 10 -> 20, MEASURED. With the eight near-universal detectors gone
 #: (see UNINFORMATIVE_SHARE) the id counts collapse: median 6, p90 10, p99 13,
@@ -242,15 +263,19 @@ def read_pattern_fields(targets, failures=None) -> dict:
 
         cutoff = int(time.time()) - _WINDOW_SECS
         placeholders = ",".join("?" * len(_ACTIVE_STATUSES))
+        cat_ph = ",".join("?" * len(_SCREENER_EXCLUDED_CATEGORIES))
         sql = f"""
             SELECT sym, pattern_id, direction, confidence, levels_json, detected_at
             FROM pattern_detections
             WHERE tf = 'D'
               AND status IN ({placeholders})
               AND detected_at >= ?
+              AND (category IS NULL OR category NOT IN ({cat_ph}))
         """
         with contextlib.closing(pattern_db.get_connection()) as conn:
-            rows = conn.execute(sql, (*_ACTIVE_STATUSES, cutoff)).fetchall()
+            rows = conn.execute(
+                sql, (*_ACTIVE_STATUSES, cutoff,
+                      *_SCREENER_EXCLUDED_CATEGORIES)).fetchall()
     except Exception as e:
         _note(failures, "pattern_join", e)
         return {}

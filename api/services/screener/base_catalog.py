@@ -98,7 +98,14 @@ class Structure:
     desc: str
     criteria: tuple = ()
     detect: Optional[Callable] = None
-    needs_intraday: bool = False
+    # ⚰️ `needs_intraday` REMOVED 2026-08-30. It was declared here, surfaced in
+    # `meta()` as a member-facing constant `false`, SET BY NOTHING and READ BY
+    # NOTHING — a capability the payload asserted and no code checked. The
+    # intraday decomposition it was meant to serve (spec §6.1: name the
+    # structure and the entry level from daily bars, hold the TRIGGER at
+    # `forming` for the 93% of symbols we cannot see intraday) belongs with the
+    # gap & catalyst family, and returns WITH its consumer and its rail. A
+    # field nothing sets is a claim nobody checks.
     #: Real-universe hit-rate, measured at authoring time. `None` means the
     #: structure has not been measured yet — which is itself a finding
     #: (`cup_handle_uct` shipped green and fires on 2 of 2,890 symbols).
@@ -885,7 +892,6 @@ def meta() -> dict:
             "axis": s.axis,
             "family": s.family,
             "bias": s.bias,
-            "needs_intraday": s.needs_intraday,
             "coverage_pct": s.coverage_pct,
             "lift_pp": round(entry["lift"] * 100, 2) if entry else None,
             "lift_ci_pp": ([round(entry["ci_low"] * 100, 2),
