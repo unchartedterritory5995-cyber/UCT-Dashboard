@@ -23,6 +23,7 @@ import {
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 } from './breadth/heatmapMetrics'
 import BreadthViews from './breadth/BreadthViews'
+import useBreadthUrlState from './breadth/useBreadthUrlState'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -839,15 +840,40 @@ function BreadthTabs({ active, onChange, isAdmin }) {
 export default function Breadth() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+
+  // ── the shareable link (spec §5) ───────────────────────────────────────────
+  //
+  // The PAGE owns the router, because `days` is the page's state and
+  // `view`/`date`/`compare` are the Views tab's — one writer per key, merged
+  // through `mergeParams`, exactly the split `useEarningsModalRoute` uses for
+  // `?week`/`?d` beside `?earnings`.
+  const url = useBreadthUrlState({ dayChoices: VIEWS_DAY_CHOICES })
+  const urlInitial = url.initial
+
   // Phones land on the readable Overview; desktop/tablet keep the Monitor.
+  // ⭐ A LINK CARRYING VIEWS STATE OPENS THE VIEWS TAB — otherwise the Discord
+  // bot's `?view=clock` lands a phone on Daily and the read it linked to is two
+  // taps away, which is the same as not linking to it.
   const [activeTab, setActiveTab] = useState(() => {
+    if (urlInitial.view || urlInitial.compare) return 'heatmap'
     try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
     catch { return 'breadth' }
   })
   const [days, setDays] = useState(90)
-  const [viewsDays, setViewsDays] = useState(90)
+  const [viewsDays, setViewsDays] = useState(urlInitial.days ?? 90)
   const isViewsTab = activeTab === 'heatmap'
   const effectiveDays = isViewsTab ? viewsDays : days
+
+  // What BreadthViews last reported about itself; composed with `days` here so
+  // the query is written from ONE place.
+  const [viewsUrl, setViewsUrl] = useState(null)
+  useEffect(() => {
+    // Only the Views tab owns these params. On any other tab the query is left
+    // exactly as it was rather than being scrubbed — a tab switch is not a
+    // statement about the link.
+    if (!isViewsTab) return
+    url.write({ ...(viewsUrl ?? {}), days: viewsDays })
+  }, [isViewsTab, viewsUrl, viewsDays, url])
 
   useEffect(() => {
     if (activeTab === 'analogues' && !isAdmin) setActiveTab('breadth')
@@ -1074,7 +1100,8 @@ export default function Breadth() {
 
 
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock} />
+        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock}
+                      urlState={urlInitial} onUrlChange={setViewsUrl} />
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

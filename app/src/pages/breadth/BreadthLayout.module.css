@@ -1,0 +1,42 @@
+/* Single | Compare — deliberately the switcher's own button shape, because it
+   sits beside it and selects the same class of thing (what you are looking at). */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #0b0f14;
+}
+
+.btn {
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font: 700 10px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.btn:hover { color: #e8e8ea; }
+.btnActive {
+  background: #0e131a;
+  border-color: #c9a84c;
+  color: #e8e8ea;
+}
+
+.note {
+  font: 600 10px 'Instrument Sans', sans-serif;
+  color: #64748b;
+}
+
+/* The refused `?date=` — legible, muted, and carrying the reason. */
+.refusal {
+  font: 600 10px 'Instrument Sans', sans-serif;
+  color: #94a3b8;
+  border-bottom: 1px dotted rgba(148, 163, 184, 0.5);
+}

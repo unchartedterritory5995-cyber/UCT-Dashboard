@@ -10,19 +10,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   STYLES, VIEW_CONFIG, resolveDefaultVisible, optionDefaults,
 } from './views/viewMetricConfig'
+import { DEFAULT_LAYOUT, LAYOUTS, defaultQuad, normalizeQuad, pickIntoQuad } from './compareQuad'
 import usePreferences from '../../hooks/usePreferences'
 
 export const STORAGE_KEY = 'uct.breadth.views.v2'
 export const V1_KEY = 'uct.breadth.views.v1'
 export const DEFAULT_PRESET = 'Default'
 export const DEFAULT_STYLE = 'treemap'
+// Re-exported from `compareQuad.js`, which owns them.
+export { DEFAULT_LAYOUT, LAYOUTS }
 export const NAME_MAX = 40
 export const PREF_KEY = 'breadth_views_config'
 export { STYLES }
 
 const isStyle = (s) => STYLES.includes(s)
+const isLayout = (l) => LAYOUTS.includes(l)
 const emptyByView = () => Object.fromEntries(STYLES.map(s => [s, { activePreset: DEFAULT_PRESET, presets: {} }]))
-const emptyState = () => ({ viewStyle: DEFAULT_STYLE, byView: emptyByView() })
+const emptyState = () => ({
+  viewStyle: DEFAULT_STYLE, byView: emptyByView(),
+  // Compare mode rides in the SAME preference blob as everything else on this
+  // tab (spec §3: "persists alongside the existing view preferences"), so it
+  // survives a reload and follows the account, with no second store to keep in
+  // step. `compare` is always a legal quad — `compareQuad.js` owns that rule.
+  layout: DEFAULT_LAYOUT, compare: defaultQuad(),
+})
 
 export function validatePresetName(name, existingNames) {
   const trimmed = (name ?? '').trim()
@@ -77,11 +88,18 @@ function migrateV1() {
         byView[vs].presets[name] = { hidden, options: {} }
       }
     }
-    return { viewStyle, byView }
+    // v1 predates compare mode entirely; a migrated blob gets the fresh-install
+    // layout rather than an `undefined` that would reach the grid.
+    return { viewStyle, byView, layout: DEFAULT_LAYOUT, compare: defaultQuad() }
   } catch {
     return null
   }
 }
+
+/** A stored blob predates compare mode, so both keys are optional and both
+ *  fall back to the same values a fresh install gets. */
+const sanitizeLayout = (v) => (isLayout(v) ? v : DEFAULT_LAYOUT)
+const sanitizeQuad = (v) => normalizeQuad(v) ?? defaultQuad()
 
 function loadFromStorage() {
   try {
@@ -89,7 +107,10 @@ function loadFromStorage() {
     if (raw) {
       const parsed = JSON.parse(raw)
       const viewStyle = isStyle(parsed?.viewStyle) ? parsed.viewStyle : DEFAULT_STYLE
-      return { viewStyle, byView: sanitizeByView(parsed?.byView) }
+      return {
+        viewStyle, byView: sanitizeByView(parsed?.byView),
+        layout: sanitizeLayout(parsed?.layout), compare: sanitizeQuad(parsed?.compare),
+      }
     }
     const migrated = migrateV1()
     if (migrated) return migrated
@@ -97,6 +118,25 @@ function loadFromStorage() {
   } catch {
     return emptyState()
   }
+}
+
+/**
+ * ⭐ THE URL WINS OVER STORED PREFERENCES (spec §5) — and that has to be
+ * enforced HERE, not in an effect at the call site.
+ *
+ * The server blob arrives asynchronously and `setState`s the whole thing, so a
+ * "apply the URL once on mount" effect in the container would be silently
+ * stomped a tick later by hydration. Overrides are therefore applied to BOTH
+ * the initial state and the hydrated state, from one function, so there is no
+ * moment at which the stored preference is on screen and the link's is not.
+ */
+function applyUrlOverrides(state, o) {
+  if (!o) return state
+  const next = { ...state }
+  if (isStyle(o.viewStyle)) next.viewStyle = o.viewStyle
+  if (Array.isArray(o.compareQuad)) next.compare = sanitizeQuad(o.compareQuad)
+  if (isLayout(o.layout)) next.layout = o.layout
+  return next
 }
 
 function serializeState(state) {
@@ -113,15 +153,22 @@ function serializeState(state) {
     }
     byView[s] = { activePreset: v.activePreset, presets }
   }
-  return { viewStyle: state.viewStyle, byView }
+  return {
+    viewStyle: state.viewStyle, byView,
+    layout: sanitizeLayout(state.layout), compare: sanitizeQuad(state.compare),
+  }
 }
 
 function writeToStorage(state) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state))) } catch { /* best-effort */ }
 }
 
-export default function useBreadthViews(allMetrics = [], usePrefs = usePreferences) {
-  const [state, setState] = useState(() => loadFromStorage())
+export default function useBreadthViews(allMetrics = [], usePrefs = usePreferences, urlOverrides = null) {
+  // Captured on the first render and never re-read: the URL is an ENTRY
+  // condition, not a live input, so a later write-back cannot re-apply itself
+  // over a choice the user has since made.
+  const overridesRef = useRef(urlOverrides)
+  const [state, setState] = useState(() => applyUrlOverrides(loadFromStorage(), overridesRef.current))
   const { prefs, setPref, loading } = usePrefs()
 
   const stateRef = useRef(state)
@@ -153,7 +200,10 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     const remote = prefs?.[PREF_KEY]
     if (remote && typeof remote === 'object' && remote.byView) {
       const viewStyle = isStyle(remote.viewStyle) ? remote.viewStyle : DEFAULT_STYLE
-      setState({ viewStyle, byView: sanitizeByView(remote.byView) })
+      setState(applyUrlOverrides({
+        viewStyle, byView: sanitizeByView(remote.byView),
+        layout: sanitizeLayout(remote.layout), compare: sanitizeQuad(remote.compare),
+      }, overridesRef.current))
     } else {
       const serial = serializeState(stateRef.current)
       const hasCustom = STYLES.some(s => Object.keys(serial.byView[s].presets).length > 0)
@@ -166,25 +216,40 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
   const activePreset = view.activePreset
   const isDefaultActive = activePreset === DEFAULT_PRESET
 
-  const defaultVisible = useMemo(() => resolveDefaultVisible(viewStyle, allMetrics), [viewStyle, allMetrics])
-
-  // Resolve the active preset's visible set. Migrated presets carry `hidden`
-  // (eligible minus hidden); materialized presets carry an explicit `visible`.
-  const visibleKeys = useMemo(() => {
-    if (isDefaultActive) return defaultVisible
-    const preset = view.presets[activePreset]
-    if (!preset) return defaultVisible
-    const eligible = new Set(VIEW_CONFIG[viewStyle].eligibleKeys(allMetrics).map(m => m.key))
+  /**
+   * ⭐ PER-STYLE, NOT PER-ACTIVE-STYLE — this is what makes compare mode nearly
+   * free. Resolving "what is visible / what are the options for style X" used
+   * to be two memos hardwired to `state.viewStyle`; a 2×2 grid needs the same
+   * answer for four styles at once, and the spec's ruling is that a pane shows
+   * "Radar's options, wherever it sits". So the resolvers take the style, and
+   * the ACTIVE style's values are just `resolveX(viewStyle)` — one
+   * implementation, so a pane and the single view can never disagree about what
+   * a style's preset says.
+   *
+   * Migrated presets carry `hidden` (eligible minus hidden); materialized ones
+   * carry an explicit `visible`.
+   */
+  const visibleKeysFor = useCallback((style) => {
+    if (!isStyle(style)) return new Set()
+    const v = state.byView[style] ?? { activePreset: DEFAULT_PRESET, presets: {} }
+    const preset = v.activePreset === DEFAULT_PRESET ? null : v.presets[v.activePreset]
+    if (!preset) return resolveDefaultVisible(style, allMetrics)
+    const eligible = new Set(VIEW_CONFIG[style].eligibleKeys(allMetrics).map(m => m.key))
     if (preset.visible) return new Set(preset.visible.filter(k => eligible.has(k)))
     const hidden = new Set(preset.hidden ?? [])
     return new Set([...eligible].filter(k => !hidden.has(k)))
-  }, [isDefaultActive, view, activePreset, viewStyle, allMetrics, defaultVisible])
+  }, [state.byView, allMetrics])
 
-  const options = useMemo(() => {
-    const base = optionDefaults(viewStyle)
-    if (isDefaultActive) return base
-    return { ...base, ...(view.presets[activePreset]?.options ?? {}) }
-  }, [viewStyle, isDefaultActive, view, activePreset])
+  const optionsFor = useCallback((style) => {
+    if (!isStyle(style)) return {}
+    const v = state.byView[style] ?? { activePreset: DEFAULT_PRESET, presets: {} }
+    const base = optionDefaults(style)
+    if (v.activePreset === DEFAULT_PRESET) return base
+    return { ...base, ...(v.presets[v.activePreset]?.options ?? {}) }
+  }, [state.byView])
+
+  const visibleKeys = useMemo(() => visibleKeysFor(viewStyle), [visibleKeysFor, viewStyle])
+  const options = useMemo(() => optionsFor(viewStyle), [optionsFor, viewStyle])
 
   const presetNames = useMemo(
     () => [DEFAULT_PRESET, ...Object.keys(view.presets).sort((a, b) => a.localeCompare(b))],
@@ -205,6 +270,20 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
   const setViewStyle = useCallback((style) => {
     if (!isStyle(style)) return
     setState(prev => ({ ...prev, viewStyle: style }))
+  }, [])
+
+  const setLayout = useCallback((next) => {
+    if (!isLayout(next)) return
+    setState(prev => (prev.layout === next ? prev : { ...prev, layout: next }))
+  }, [])
+
+  // The pick goes through `pickIntoQuad`, so "already showing elsewhere" is a
+  // SWAP rather than a duplicate — see the ruling at the top of compareQuad.js.
+  const setComparePane = useCallback((i, style) => {
+    setState(prev => {
+      const next = pickIntoQuad(prev.compare, i, style)
+      return next === prev.compare ? prev : { ...prev, compare: next }
+    })
   }, [])
 
   // Resolve a preset's current visible array (used when an edit materializes a
@@ -316,5 +395,8 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     viewStyle, activePreset, isDefaultActive, visibleKeys, options, presetNames,
     eligibleMetrics, setViewStyle, toggleVisible, setOption, savePreset,
     renamePreset, deletePreset, switchPreset, resetActive,
+    // compare mode (spec §3)
+    layout: state.layout, compareQuad: state.compare, setLayout, setComparePane,
+    visibleKeysFor, optionsFor,
   }
 }

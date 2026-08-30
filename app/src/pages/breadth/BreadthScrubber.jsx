@@ -84,8 +84,16 @@ export default function BreadthScrubber({
       <span className={styles.date} data-testid="scrubber-date">
         {row?.date}{row?._live ? ' · live' : ''}
       </span>
+      {/* 🔴 CLAMPED, because the window can shrink under the cursor. Scrub deep
+          into a 365-day window, press the 90d pill, and `rowIdx` is briefly
+          larger than the new window — this printed "-5 of 5", a position that
+          cannot exist. The slider above already clamped (`Math.max(0, …)`); the
+          text did not, so the slider looked right while the readout did not.
+          ⛔ This is only HALF the fix: `BreadthViews` clamps `rowIdx` itself on
+          a window change. Clamping only here would hide an out-of-bounds cursor
+          instead of correcting it. */}
       <span className={styles.position} data-testid="scrubber-position">
-        {last - rowIdx + 1} of {rows.length}
+        {Math.max(1, Math.min(rows.length, last - rowIdx + 1))} of {rows.length}
       </span>
 
       <select className={styles.speed} data-testid="scrubber-speed" value={speed}

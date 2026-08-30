@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render as rtlRender, screen, fireEvent, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+
+// The page reads and writes `?view/date/days/compare` through React Router's
+// `useSearchParams` (spec §5), so it needs a router in the tree. MemoryRouter
+// keeps the shell hermetic — no real URL is touched.
+const render = (ui) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>)
 
 // ── the page's outside world, stubbed at the door ───────────────────────────
 // Everything here is a dependency of the SHELL, not of the pills. The pill

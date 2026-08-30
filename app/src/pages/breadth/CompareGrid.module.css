@@ -1,0 +1,62 @@
+/* 2×2 on desktop; one column on a phone, where four side-by-side panes would
+   be four unreadable ones. The grid fills whatever height the container's flex
+   child gives it — `min-height: 0` on both axes is what stops a pane's own
+   scroller from pushing the grid past the viewport. */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+  padding: 0 4px 4px;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #0b0f14;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pick {
+  height: 22px;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0e131a;
+  color: #cbd5e1;
+  font: 700 10px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.3px;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.pick:hover { border-color: #c9a84c; color: #e8e8ea; }
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(220px, auto);
+    height: auto;
+    overflow-y: auto;
+  }
+}

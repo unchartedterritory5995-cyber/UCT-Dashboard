@@ -30,6 +30,13 @@ vi.mock('./useBreadthViews', () => ({
     deletePreset: vi.fn(),
     setVisibleKeys: vi.fn(),
     setOptions: vi.fn(),
+    // Compare mode (Wave B) — the container reads these on every render.
+    // `visibleKeysFor`/`optionsFor` are the per-STYLE resolvers that replaced
+    // the active-style-only `visibleKeys`/`options` memos; this stub only ever
+    // renders one style, so it answers the same set for any of them.
+    layout: 'single', compareQuad: [], setLayout: vi.fn(), setComparePane: vi.fn(),
+    visibleKeysFor: () => new Set(['pct_above_50sma', 'up_4pct_today']),
+    optionsFor: () => ({}),
     resetPreset: vi.fn(),
   }),
 }))
