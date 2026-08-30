@@ -682,6 +682,10 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
               here can resolve. */}
           <p className={styles.refLink}>
             <a href="/formulas/reference">See every name you can write →</a>
+            {/* ⭐ THE OTHER HALF OF "what can I build with": the names this
+                engine holds, and the formulas other members have already
+                published out of them. */}
+            <a href="/formulas/library">Browse what other members published →</a>
           </p>
 
           {/* ⭐⭐ THE LIBRARY MANIFEST. Four reaches, never one number: translating

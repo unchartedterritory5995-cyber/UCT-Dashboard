@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import ImpliedVsRealized, {
   SIZE, VIEWBOX, pairQuarters, coldStartState, impliedVerdict, pairGeometry,
 } from './ImpliedVsRealized'
@@ -385,5 +385,149 @@ describe('recordedCount (P2 ruling: n counts STORED snapshots only)', () => {
                               live={{ pct: 6.8 }} historySince="2026-08" recordedCount={0} />)
     expect(screen.getByTestId('rk-ivr-cold').textContent).toBe(
       'Implied tracking since 2026-08 · 0/8 recorded')
+  })
+})
+
+// ── the viewBox tracks the CONTAINER, not a constant ─────────────────────────
+//
+// WHY THIS SUITE NEEDS AN EXPLICIT RAIL: jsdom ships no ResizeObserver, so
+// `useMeasuredWidth` short-circuits to the fallback and every OTHER test in
+// this file renders the old 320-unit box. That is deliberate (it keeps the
+// pairGeometry unit tests meaningful), but it also means the whole reason this
+// component was changed — filling its container instead of drawing 320px
+// centred inside a ~604px canvas — is invisible to a green run. This block
+// installs a stub so the measured path is actually executed, and asserts BOTH
+// directions so it cannot pass against a component that ignores the measurement.
+describe('viewBox tracks the measured container width', () => {
+  const WARM = { quarters: QUARTERS, impliedHistory: IMPLIED, live: LIVE, historySince: '2025-02-05' }
+
+  const roCallbacks = []
+
+  function withMeasuredWidth(px, fn) {
+    const realRO = globalThis.ResizeObserver
+    const proto = Object.getPrototypeOf(document.createElement('div'))
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'clientWidth')
+    // Captures the callback so a test can SIMULATE a resize. jsdom has no
+    // layout, and a real browser cannot help here either: a backgrounded tab
+    // suspends the rendering lifecycle, so ResizeObserver never fires there
+    // (verified live — 0 rAF frames, 0 RO callbacks). This stub is the only
+    // place the resize-tracking wire can actually be exercised.
+    roCallbacks.length = 0
+    globalThis.ResizeObserver = class {
+      // Registers on observe(), NOT in the constructor: a stub that collects
+      // the callback at construction stays green when `ro.observe(node)` is
+      // deleted, which is the exact wire these tests exist to protect.
+      constructor(cb) { this._cb = cb }
+      observe() { roCallbacks.push(this._cb) }
+      disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
+    }
+    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => px })
+    try {
+      return fn()
+    } finally {
+      if (realClientWidth) Object.defineProperty(proto, 'clientWidth', realClientWidth)
+      else delete proto.clientWidth
+      if (realRO) globalThis.ResizeObserver = realRO
+      else delete globalThis.ResizeObserver
+    }
+  }
+
+  const viewBoxOf = (container) =>
+    container.querySelector('[data-testid="rk-ivr"]')?.getAttribute('viewBox')
+
+  it('cuts the box to the wrapper width once it can be measured', () => {
+    const { container } = withMeasuredWidth(604, () =>
+      render(<ImpliedVsRealized {...WARM} />))
+    expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+  })
+
+  it('is a DIFFERENT box at a different width — the measurement is read, not ignored', () => {
+    const { container } = withMeasuredWidth(880, () =>
+      render(<ImpliedVsRealized {...WARM} />))
+    expect(viewBoxOf(container)).toBe(`0 0 880 ${VIEWBOX.height}`)
+  })
+
+  it('measures after mounting EMPTY first — the real SWR arrival order', () => {
+    // ⛔ THE RAIL THAT MATTERS. Every other test here renders with the payload
+    // already present, so the wrapper div exists on the first pass and a
+    // `useRef` + `useEffect(..., [ref])` measures it by luck. In the real modal
+    // SWR has not resolved on first render, `hasAnything` is false, and the
+    // component returns <EmptyState/> — no wrapper to measure. A stable useRef
+    // object never re-triggers the effect when the div appears later, so the
+    // chart stayed pinned at the 320 fallback FOREVER while this whole suite
+    // stayed green. Measured live in a browser: viewBox "0 0 320 140" inside a
+    // 714px box, ink covering 36% of the width. A callback ref is what fixes
+    // it, and this ordering is what proves the fix.
+    const { container } = withMeasuredWidth(604, () => {
+      const r = render(<ImpliedVsRealized quarters={[]} impliedHistory={[]} live={null} />)
+      // Precondition: the first render really is the empty state, so this test
+      // cannot pass by accidentally rendering a chart from the start.
+      expect(r.container.querySelector('[data-testid="rk-ivr"]')).toBeNull()
+      r.rerender(<ImpliedVsRealized {...WARM} />)
+      return r
+    })
+    expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+  })
+
+  it('falls back to VIEWBOX.width when the element measures 0 (detached/hidden)', () => {
+    // A 0-wide viewBox divides the slot by zero and puts every bar at x=NaN.
+    const { container } = withMeasuredWidth(0, () =>
+      render(<ImpliedVsRealized {...WARM} />))
+    expect(viewBoxOf(container)).toBe(`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`)
+  })
+
+  it('re-cuts the box when the container later RESIZES', () => {
+    // The synchronous read on mount is what fixes the modal; this asserts the
+    // OTHER half — that the observer callback actually re-reads and re-renders,
+    // rather than being an observer wired to nothing.
+    let width = 604
+    const proto = Object.getPrototypeOf(document.createElement('div'))
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'clientWidth')
+    const realRO = globalThis.ResizeObserver
+    roCallbacks.length = 0
+    globalThis.ResizeObserver = class {
+      // Registers on observe(), NOT in the constructor: a stub that collects
+      // the callback at construction stays green when `ro.observe(node)` is
+      // deleted, which is the exact wire these tests exist to protect.
+      constructor(cb) { this._cb = cb }
+      observe() { roCallbacks.push(this._cb) }
+      disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
+    }
+    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => width })
+    try {
+      const { container } = render(<ImpliedVsRealized {...WARM} />)
+      expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+      width = 880
+      act(() => { roCallbacks.forEach((cb) => cb()) })
+      expect(viewBoxOf(container)).toBe(`0 0 880 ${VIEWBOX.height}`)
+    } finally {
+      if (realClientWidth) Object.defineProperty(proto, 'clientWidth', realClientWidth)
+      else delete proto.clientWidth
+      if (realRO) globalThis.ResizeObserver = realRO
+      else delete globalThis.ResizeObserver
+    }
+  })
+
+  it('bars get WIDER in a wider box — the point of the change', () => {
+    // pairGeometry is pure, so this is the honest way to assert the visual
+    // outcome: the same pairs, two box widths, and the bar must grow.
+    const pairs = pairQuarters(QUARTERS, IMPLIED, LIVE)
+    const narrow = pairGeometry(pairs, { width: 320, height: VIEWBOX.height })
+    const wide = pairGeometry(pairs, { width: 604, height: VIEWBOX.height })
+    const barOf = (geo) => geo.cols.find((c) => c.realized)?.realized.w
+    expect(barOf(wide)).toBeGreaterThan(barOf(narrow))
+    // ...and it must still be capped, not scale without limit.
+    expect(barOf(pairGeometry(pairs, { width: 4000, height: VIEWBOX.height })))
+      .toBe(barOf(wide))
+  })
+
+  it('the whole box is used: the last column stays inside it', () => {
+    const pairs = pairQuarters(QUARTERS, IMPLIED, LIVE)
+    const geo = pairGeometry(pairs, { width: 604, height: VIEWBOX.height })
+    const last = geo.cols[geo.cols.length - 1]
+    // Centre of the final slot sits in the last sixth of the box — i.e. the
+    // columns spread across the full width instead of bunching at 320.
+    expect(last.cx).toBeGreaterThan(604 * 0.8)
+    expect(last.cx).toBeLessThan(604)
   })
 })

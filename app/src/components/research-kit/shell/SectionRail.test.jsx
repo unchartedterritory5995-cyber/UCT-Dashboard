@@ -150,4 +150,36 @@ describe('SectionRail', () => {
     expect(tabs[0]).toHaveAttribute('tabindex', '0')
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
   })
+
+  // ── density is OPT-IN ──────────────────────────────────────────────────────
+  //
+  // The row-tightening exists for EarningsResearchModal's 12-section rail. This
+  // module is shared with ResearchPage and CatalystFlow, so the DEFAULT is the
+  // thing worth pinning: an unscoped rule here re-spaces two pages nobody
+  // looked at. `data-rk-dense` is the attribute the CSS selects on, so asserting
+  // it is asserting the real switch, not a proxy for it.
+  it('is NOT dense by default — the other rail consumers keep their geometry', () => {
+    const { container } = render(
+      <SectionRail sections={SECTIONS} active="a" onSelect={() => {}} />,
+    )
+    const nav = container.querySelector('nav')
+    expect(nav).toBeTruthy()
+    expect(nav.hasAttribute('data-rk-dense')).toBe(false)
+  })
+
+  it('reports density only when the caller asks for it', () => {
+    const { container } = render(
+      <SectionRail sections={SECTIONS} active="a" onSelect={() => {}} dense />,
+    )
+    expect(container.querySelector('nav').hasAttribute('data-rk-dense')).toBe(true)
+  })
+
+  it('dense={false} is the same as omitting it (no empty attribute)', () => {
+    // `data-rk-dense={false}` would render as the string "false", which IS
+    // present to an attribute selector — the density would be permanently on.
+    const { container } = render(
+      <SectionRail sections={SECTIONS} active="a" onSelect={() => {}} dense={false} />,
+    )
+    expect(container.querySelector('nav').hasAttribute('data-rk-dense')).toBe(false)
+  })
 })
