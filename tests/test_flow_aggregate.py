@@ -476,3 +476,25 @@ def test_the_health_route_is_registered_and_open():
     body = fa.health(current_version=1)
     assert set(body) >= {"enabled", "available", "warm", "reason", "entries"}
     assert "json_bytes" not in body and "D" not in body
+
+
+def test_member_traffic_is_counted_apart_from_the_warmers_own_calls(monkeypatch):
+    """⛔ THE WARMER USES THE SAME BUILDER, so one tally cannot answer "are
+    members reaching the fast path?" — the warmer alone keeps it non-zero
+    forever, even if every browser stopped asking. That is a signal which
+    cannot distinguish the thing measured from the thing measuring it.
+    """
+    from api import flow_router as fr
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+        "json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (1, gzip.compress(b"csv")))
+    before = fa._STATS["endpoint_requests"]
+
+    # What the WARMER does — must not look like member traffic.
+    fr.build_aggregate("stocks", 1, "Last1", 7)
+    fr.build_aggregate("stocks", 5, "Last5", 7)
+    assert fa._STATS["endpoint_requests"] == before, (
+        "the warmer's own calls are being counted as members reaching the "
+        "endpoint — the 'is anyone served?' signal is then always positive")
+    assert fa._STATS["requests"] >= before + 2, "the cache-level tally still moves"
