@@ -1852,9 +1852,32 @@ def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | Non
                 msgs.append({"role": "user", "content": q})
                 msgs.append({"role": "assistant", "content": a})
         msgs.append({"role": "user", "content": query})
+        # Prompt caching. `_WIDGET_SYSTEM` is byte-identical on EVERY request
+        # (intro + safety blocks + formatting) and measured 1299 tokens, above
+        # Sonnet 5's 1024 minimum. Caching is a PREFIX match, so the breakpoint
+        # goes at the end of the stable text and every volatile thing — the desk
+        # quote, the playbook, the web findings — must sit AFTER it, or each
+        # request writes a fresh entry and reads nothing back.
+        #
+        # ⚠️ HONEST ECONOMICS: a 5-minute write bills 1.25x and a read 0.1x, so
+        # break-even is TWO requests sharing the prefix. At the logged ~1.7
+        # asks/day nearly every call is a cold write and this costs ~$0.03/MONTH
+        # more; at bursty member volume the reads dominate and it saves ~$70/mo
+        # at 30k asks. Kept because the structure is right and the downside is
+        # noise. ⛔ Do NOT "fix" this with ttl:"1h" — that doubles the write to
+        # 2x and only pays off for 5-60 minute gaps; ours are hours or seconds.
+        full = (system or "")
+        if full.startswith(_WIDGET_SYSTEM):
+            sys_param: object = [
+                {"type": "text", "text": _WIDGET_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": full[len(_WIDGET_SYSTEM):] + block},
+            ]
+        else:
+            sys_param = full + block      # unexpected shape → answer uncached
         resp = client.with_options(timeout=30).messages.create(
             model=model, max_tokens=_ANSWER_MAX_TOKENS,
-            system=(system or "") + block, messages=msgs)
+            system=sys_param, messages=msgs)
         text = "".join(
             b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
         ).strip()
@@ -1862,6 +1885,13 @@ def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | Non
             return None
         out = dict(web)
         out.update({"answer": text, "model": model, "synth": "claude"})
+        # Surfaced so a silent cache miss is observable rather than invisible:
+        # zero reads across repeated asks means an invalidator crept into the
+        # prefix.
+        u = getattr(resp, "usage", None)
+        if u is not None:
+            out["cache_read_tokens"] = getattr(u, "cache_read_input_tokens", None)
+            out["cache_write_tokens"] = getattr(u, "cache_creation_input_tokens", None)
         return out
     except Exception:
         return None
