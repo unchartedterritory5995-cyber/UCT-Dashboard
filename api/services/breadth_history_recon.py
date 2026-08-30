@@ -1,11 +1,46 @@
 """Historical breadth reconstruction — recompute past breadth values from stored bars.
 
 The breadth collector only began storing daily snapshots on 2026-01-02, but our daily
-stock bars go back decades. The breadth value at any past day's CLOSE is a deterministic
-recomputation from those bars via the EXACT live method (`breadth_live._metrics_at_close`
-= build levels from prior sessions, fold in the day's close, `compute_metrics`). This
-module wraps that so we can (Phase 0) VALIDATE it against days we actually collected, then
-(Phase 1+) backfill years of accurate close-basis history.
+stock bars go back decades. This module recomputes a past day's CLOSE-basis breadth from
+those bars through the EXACT live METHOD (`breadth_live._metrics_at_close` = build levels
+from prior sessions, fold in the day's close, `compute_metrics`), so we can (Phase 0)
+VALIDATE it against days we actually collected, then (Phase 1+) backfill years of
+close-basis history.
+
+🔴 IT REPRODUCES THE METHOD. IT CANNOT REPRODUCE THE COLLECTOR'S ANSWER, and this
+docstring asserted the opposite ("a deterministic recomputation … via the EXACT live
+method") for the life of the file. The recompute is deterministic; it is not the same
+measurement, because it is not taken over the same POPULATION.
+
+MEASURED 2026-08-30, per name, over all 114 usable collector frames (2026-03-16..08-28),
+diffing the recompute against the collector's own cached frame on that frame's own
+point-in-time universe:
+
+    disagreeing names, by kind          count      net effect on adv−dec
+    --------------------------------    ------     ---------------------
+    priced by the collector, absent      32,202     the whole gap
+      from bars.db that session
+    priced by bars.db, absent from          325     small
+      the collector's frame
+    ex-dividend sign flip                     5     ~nil (2,190 ex-div
+                                                    names were comparable)
+    exactly-flat boundary                   120     ~nil
+    genuine value disagreement              801     concentrated on ONE
+                                                    session (2026-03-18)
+
+Subtract the two coverage terms and the recompute lands on the collector's number
+EXACTLY on 64 of 114 sessions (median residual 0, p90 2). The dividend-adjustment
+hypothesis is FALSIFIED as a material cause: five sign flips in 114 sessions.
+
+⛔ SO THE ERROR IS NOT NOISE AND DOES NOT SHRINK WITH CARE — it is a scale factor.
+bars.db priced 0.3%–22% fewer names than the collector's universe on a normal session,
+and the names it is missing are distributed like the day, not like a coin. So a
+count metric comes back as `collector_value × coverage`: on 61 sessions with ≥99%
+bars coverage the median |diff| on `adv_decline` is still 6, it is never 0, and it
+points TOWARD ZERO relative to the day's own net on 43 of those 61. A recompute of a
+strong day will always understate it. Treat every count this module produces as
+"the collector's count, scaled by that session's bars coverage"; the `pct_above_*`
+family is coverage-invariant by construction and is the part that survives.
 
 Phase 0 only: recompute + validation. No writes to any chart store yet.
 
@@ -198,6 +233,21 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
     return out
 
 
+# Metrics this sweep must NEVER write into `breadth_daily_ohlc`, whatever
+# `compute_metrics` hands back.
+#
+# `new_ath` is an ALL-TIME-high count. This sweep only ever holds `window`
+# sessions (320 by default), so anything it computed under that name would be a
+# ~15-month high FILED AS an all-time high — and `write_bulk` is a write to
+# stored history, so every row it touched would carry the wrong definition
+# permanently, mixed in beside rows that carry the real one.
+#
+# Today `compute_metrics` publishes `new_ath: None` and the `fv is None` skip
+# below already drops it. That is INCIDENTAL: give the key a number again and
+# the sweep starts writing it silently. This set is the standing refusal.
+# Rail: tests/test_breadth_recon_never_writes_new_ath.py
+_NEVER_SWEEP_STORE = frozenset({"new_ath"})
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
@@ -244,7 +294,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         if ds < from_date:      # warmup only — seed the buffer, don't store
             continue
         for metric, val in full.items():
-            if metric == "date":
+            if metric == "date" or metric in _NEVER_SWEEP_STORE:
                 continue
             fv = _f(val)
             if fv is None:
@@ -662,15 +712,27 @@ def validate_recent(days: int = 10) -> dict:
 #     (uct-intelligence data/massive_cache/
 #      breadth_ohlcv_<date>.pkl)
 #
-# The recon is a faithful reconstruction of the METHOD, not of the collector's
-# INPUTS: the collector reads yfinance `auto_adjust=True` while bars.db is
-# split-only, and bars.db's coverage of the collector's universe ran 78-99.7%
-# over the window. That is why `breadth_live._ACCURACY` already grades
-# `adv_decline` "tight" (abs 3 / rel 3%) rather than "exact". Tight is fine for
-# a live read shown beside a stored number; it is NOT fine for MANUFACTURING
-# the two numbers a stored row will be read as having measured — a row whose
-# `advancing - declining` disagrees with its own `adv_decline` is a row that
-# says two different things about one session.
+# WHY, measured per name rather than guessed (2026-08-30 — see the module
+# docstring for the full table): it is COVERAGE, essentially alone. bars.db
+# cannot price 0.3-22% of the collector's point-in-time universe on a given
+# session, those names are distributed like the day rather than like a coin, and
+# a count therefore comes back scaled by the coverage fraction. Add the missing
+# names back and the recompute is EXACT on 64 of 114 sessions (median residual
+# 0). The basis difference everyone reaches for first — the collector reads
+# yfinance `auto_adjust=True` while bars.db is split-only — moves this number by
+# almost nothing: 5 ex-dividend sign flips in 114 sessions across 2,190
+# comparable ex-dividend names. It matters enormously for the LONG-lookback
+# metrics (see `breadth_dividends`); it does not matter for a one-day change.
+#
+# ⛔ 0/61 at >=99% coverage is the sentence that decides this. The residual
+# error is proportional, not additive, so it does not shrink with a better
+# bars.db unless coverage reaches 100% — and `adv_decline` is an exact integer
+# identity, which has no tolerance to spend. That is why `breadth_live._ACCURACY`
+# grades `adv_decline` "tight" (abs 3 / rel 3%) rather than "exact". Tight is
+# fine for a live read shown beside a stored number; it is NOT fine for
+# MANUFACTURING the two numbers a stored row will be read as having measured —
+# a row whose `advancing - declining` disagrees with its own `adv_decline` is a
+# row that says two different things about one session.
 #
 # So `backfill_adv_dec_from_recon` exists, runs the same gate, and — on today's
 # data — writes NOTHING. That is the honest outcome, not a bug: run
@@ -988,10 +1050,16 @@ def validate_adv_dec_recon(days: int = 20, limit: int = 0) -> dict:
         "median_universe_coverage": covs[len(covs) // 2] if covs else None,
         "min_universe_coverage": covs[0] if covs else None,
         "per_day": per_day,
-        "note": ("The recon reconstructs the METHOD, not the collector's INPUTS "
-                 "(yfinance auto-adjusted closes vs split-only bars.db, and partial "
-                 "bars coverage of the collector's universe). Anything but "
-                 "verdict=pass means this source must not write."),
+        "note": ("The recon reconstructs the METHOD, not the collector's POPULATION: "
+                 "bars.db cannot price 0.3-22% of each session's point-in-time "
+                 "universe, and the missing names are distributed like the day, so "
+                 "every count comes back scaled by `coverage` (reported per day "
+                 "above). Measured per name, that accounts for the whole gap; "
+                 "dividend basis contributes ~nothing to a one-day change (5 "
+                 "ex-dividend sign flips in 114 sessions). The error is therefore "
+                 "proportional, not additive, and `adv_decline` is an exact "
+                 "identity with no tolerance to spend. Anything but verdict=pass "
+                 "means this source must not write."),
     }
 
 

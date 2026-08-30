@@ -447,10 +447,23 @@ export default function App() {
                 <Route path="/formulas/reference" element={<FormulaReference />} />
                 {/* ⭐⭐ THE LIBRARY. Inside `Layout` and `AuthGuard` like the
                     reference page, and for the same reason: it is a product
-                    surface rather than a shared link. ⚠️ Whether it should be
-                    readable BEFORE signup is a real question — it is the best
-                    shop window this product has — and it is a paywall decision,
-                    not one to make by where a `<Route>` is nested.
+                    surface rather than a shared link.
+                    ⛔⛔ IT STAYS BEHIND THE PAYWALL, AND THAT IS A RULING RATHER
+                    THAN AN UNANSWERED QUESTION (2026-08-30). It was left open as
+                    "the best shop window this product has", which is true and is
+                    not the deciding fact. Members publish under the sentence
+                    `SharePanel` actually shows them — "any member can find and
+                    install it" — and widening that audience to the open web
+                    afterwards is the same retroactive consent the whole feature
+                    was built to refuse: a link is not a publication, and a
+                    members' library is not a public one. A public shop window is
+                    a THIRD opt-in ("show this outside the members' area"), never
+                    a re-reading of the second.
+                    ⭐ AND THE DIRECTION IS THE REVERSIBLE ONE. Opening this later
+                    is a decision somebody can make; un-publishing a member's
+                    formula from the open web after it has been indexed is not.
+                    Rail: `formulaLibrary.route.test.jsx` asserts the route is not
+                    in `FREE_PAGES` and is not registered outside `AuthGuard`.
                     ⛔ THE PATH IS DERIVED, never retyped: `formulaShareLink.js`
                     records what happened the last time a formula path was
                     hand-typed on one side and registered on neither.

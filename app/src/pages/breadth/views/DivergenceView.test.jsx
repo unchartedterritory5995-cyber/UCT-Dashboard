@@ -52,6 +52,29 @@ describe('DivergenceView', () => {
     expect(verdictIn(breadthLeads).style.color).toBe(BULL)
   })
 
+  /**
+   * 🔴 THE HEADLINE DENIED WHAT THE CHART WAS DRAWING. It reports the run
+   * ending TODAY, and said "no sustained divergence" full stop — above a plot
+   * carrying two large shaded blocks captioned "shaded where the gap held ≥5
+   * sessions". Seen on screen (Chromium, 1500×686) it reads as a contradiction,
+   * because the sentence never said which of the two spans it was about.
+   */
+  it('names the runs it is not talking about when none is active', () => {
+    // Diverges hard for the first half of the window, then converges, so the
+    // last session is in step while the window plainly holds a shaded run.
+    const healed = rows.map((r, i) => ({
+      ...r,
+      pct_above_50sma: i < 20 ? 20 + (40 - i) : 20 + i,
+      sp500_close: 5000 + (40 - i) * 10,
+    }))
+    const { getByTestId } = render(<DivergenceView rows={healed} rowIdx={0} currentRow={healed[0]}
+      onDrill={() => {}} options={{ price: 'sp500_close', participation: 'pct_above_50sma', minGap: 5 }} />)
+    const said = getByTestId('divergence-verdict').textContent
+    expect(said).toMatch(/in step/i)
+    expect(said, 'the headline is silent about the runs the plot shades')
+      .toMatch(/\d+ earlier in this window/)
+  })
+
   it('refuses a window too short to z-score', () => {
     const { getByTestId } = render(<DivergenceView rows={rows.slice(0, 4)} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ price: 'sp500_close', participation: 'pct_above_50sma', minGap: 5 }} />)

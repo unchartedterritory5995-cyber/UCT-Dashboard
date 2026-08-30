@@ -402,6 +402,33 @@ async def admin_broker_coverage(request: Request) -> dict[str, Any]:
     return _bc.report()
 
 
+@router.get("/admin/ledger-conservation")
+async def admin_ledger_conservation(request: Request) -> dict[str, Any]:
+    """Does cash conserve across each account's activity ledger?
+
+    5,760 closed broker trades are reconstructed by FIFO over that ledger and
+    nothing checked the ledger itself — SnapTrade reports a cost basis only for
+    OPEN holdings, so a closed trade has no broker-side referent. Cash
+    conservation needs none: between two cash observations the activities must
+    sum to the change, and `Δcash == Σ(amount − fee)` was calibrated against the
+    owner's live account before it was coded.
+
+    Read `spanResidual` first. A fresh window is legitimately short an activity
+    that lands tomorrow, so only windows past the settlement grace are graded,
+    and a midnight-stamped broker's per-window detail is untrustworthy while its
+    span is not (`perWindowTrustworthy`).
+
+    Gated by the PUSH_SECRET bearer, like the other admin instruments.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import ledger_conservation as _lc
+    return _lc.scan()
+
+
 @router.get("/admin/fidelity-audit")
 async def admin_fidelity_audit(user_id: str, raw: bool = False,
                                user: dict = Depends(require_admin)) -> dict[str, Any]:

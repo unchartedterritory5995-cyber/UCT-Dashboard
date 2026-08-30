@@ -394,9 +394,9 @@ describe('per-style options follow the style into whatever pane it sits in', () 
     render(<BreadthViews rows={rows} onDrill={() => {}} />)
     const metersPane = panes()[0]
     expect(metersPane.getAttribute('data-pane-style')).toBe('meters')
-    const markers = metersPane.querySelectorAll('[data-testid^="marker-"]')
+    const markers = metersPane.querySelectorAll('[data-testid^="meters-marker-"]')
     expect([...markers].map(m => m.getAttribute('data-testid')).sort())
-      .toEqual(['marker-breadth_score', 'marker-vix'])
+      .toEqual(['meters-marker-breadth_score', 'meters-marker-vix'])
   })
 })
 

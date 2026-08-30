@@ -67,8 +67,32 @@ const METERS_OPTIONS = [
   { name: 'sort', label: 'Sort', type: 'select', default: 'group',
     choices: [{ value: 'group', label: 'Group order' }, { value: 'value', label: 'Value' }] },
 ]
+/**
+ * ⛔ THE DEFAULT IS 10, NOT 20, AND THAT IS THE VIEW'S WHOLE DISTINCTION —
+ * MEASURED IN CHROMIUM, NOT ASSERTED. It changed from 20 as a side effect of a
+ * design pass, so here is the arithmetic that says it should stay changed.
+ *
+ * The Timeline prints the READING in every cell (see its header), and the number
+ * of columns is the only thing that decides whether that reading fits. Counting
+ * cells whose text overflows its own box, over the ten default metrics:
+ *
+ *   window   full panel (1500×686)   compare pane (746×318)   pane (710×245)
+ *   10       0 of 100 clipped        0 of 100                 0 of 100
+ *   20       0 of 200                60 of 200 + 0 dates      71 of 200 + 20 dates
+ *   30       0 of 300                119 of 300 + 30 dates    120 of 300 + 30 dates
+ *
+ * ⭐ SO 20 IS NOT WRONG AT FULL WIDTH — it is wrong in a COMPARE PANE, where it
+ * silently cuts three readings in ten and every date header at laptop size. A
+ * default that breaks the view's one promise in a first-class layout of this tab
+ * is not a default, and the reader who wants a fortnight at full width can pick
+ * it here. Nothing at 10 is clipped at any size this tab renders.
+ *
+ * And the long window is already answered: the Heat Ribbon draws the WHOLE
+ * loaded set — up to 365 sessions against this view's ceiling of 30 — as a
+ * shape, which is the thing a 17px-wide column can honestly be.
+ */
 const TIMELINE_OPTIONS = [
-  { name: 'windowDays', label: 'Window', type: 'select', default: 20,
+  { name: 'windowDays', label: 'Window', type: 'select', default: 10,
     choices: [10, 20, 30].map(v => ({ value: v, label: `${v} days` })) },
 ]
 const RIBBON_OPTIONS = [

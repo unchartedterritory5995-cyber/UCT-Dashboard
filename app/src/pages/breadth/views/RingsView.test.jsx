@@ -24,3 +24,73 @@ describe('RingsView', () => {
     expect(onDrill).toHaveBeenCalledWith(metrics[1])
   })
 })
+
+/**
+ * 🔴 THE ARC WAS UNDECODABLE. It is `normalize` — a rank on the board-wide 0–100
+ * scale — while the number inside it is the raw reading, so "342" in a nearly
+ * full ring read as though 342 were a percentage of something. Both halves of
+ * the fix are asserted: the rank is PRINTED, and the basis line says what the
+ * arc measures.
+ */
+describe('RingsView says what its arc means', () => {
+  it('prints the rank the arc encodes, beside the reading it does not', () => {
+    const { getByTestId, getByText } = render(
+      <RingsView currentRow={row} rows={[{}, {}, {}]} metrics={metrics}
+                 normalize={() => 62} onDrill={() => {}} />)
+    expect(getByTestId('rings-rank-up_4pct_today').textContent).toBe('62/100')
+    expect(getByText('383')).toBeInTheDocument()   // …and the reading is still the reading
+  })
+
+  it('states the scale in its basis line, with the window it ranked against', () => {
+    const { getByTestId } = render(
+      <RingsView currentRow={row} rows={Array.from({ length: 90 }, () => ({}))}
+                 metrics={metrics} normalize={() => 62} onDrill={() => {}} />)
+    const basis = getByTestId('rings-basis').textContent
+    expect(basis).toContain('90 sessions')
+    expect(basis).toMatch(/rank 0.100/i)
+  })
+
+  it('draws no rank when the metric cannot be ranked, rather than an implied zero', () => {
+    const { container } = render(
+      <RingsView currentRow={row} rows={[]} metrics={metrics}
+                 normalize={() => null} onDrill={() => {}} />)
+    expect(container.querySelector('[data-testid^="rings-rank-"]')).toBeNull()
+  })
+})
+
+/**
+ * 🔴 THE BOARD SAT 57px TALLER THAN THE PANEL IT WAS GIVEN, and the third row of
+ * rings was cut in half by a scrollbar (measured in Chromium at 1500×686).
+ *
+ * ⛔ THE CAUSE WAS `min-height: auto`, WHICH IS WHY THIS RAIL ASKS FOR THE
+ * DECLARATION AND NOT FOR A HEIGHT. Every gauge is an `<svg>` with a 1:1
+ * viewBox, so its max-content height is its own WIDTH; that reached the grid
+ * through a flex item's automatic minimum — a FLOOR — and a floor taller than
+ * the box cannot be shrunk into it. jsdom has no layout, so the height is not
+ * observable here; the two longhands that switch the floor off are, and they
+ * round-trip through jsdom's CSSOM precisely because they are longhands
+ * (see `fillsRow` — the `flex` shorthand does not).
+ */
+describe('the rings grid takes the room it is offered', () => {
+  const gridOf = (c) => [...c.querySelectorAll('div')].find(d => d.style.display === 'grid')
+
+  it('declares the two longhands that let it be sized by its container', () => {
+    const { container } = render(<RingsView currentRow={row} prevRow={null} metrics={metrics}
+                                            normalize={() => 60} onDrill={() => {}} />)
+    const grid = gridOf(container)
+    expect(grid, 'no grid rendered — this rail proves nothing').toBeTruthy()
+    expect(grid.style.minHeight, 'the automatic minimum is back: an svg cell can '
+      + 'floor this grid above its own panel').toBe('0px')
+    expect(grid.style.flexBasis, 'an `auto` basis sizes the grid from its content, '
+      + 'not from the room').toBe('0px')
+    expect(grid.style.flexGrow).toBe('1')
+  })
+
+  // …and the ceiling it is allowed to stop growing at is still declared, so this
+  // pair cannot pass on a grid that simply fills everything forever.
+  it('still caps how tall a row of rings may grow', () => {
+    const { container } = render(<RingsView currentRow={row} prevRow={null} metrics={metrics}
+                                            normalize={() => 60} onDrill={() => {}} />)
+    expect(gridOf(container).style.maxHeight).toMatch(/^\d+px$/)
+  })
+})

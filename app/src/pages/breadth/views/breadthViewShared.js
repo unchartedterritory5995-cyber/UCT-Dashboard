@@ -193,6 +193,48 @@ export const fillsRow = (min, max) => ({
 })
 
 /**
+ * ⭐ ONE SENTENCE FOR THE 0–100 SCALE FIVE BOARDS DRAW AGAINST, AND ONE TICK SET.
+ *
+ * 🔴 Rings drew an arc at 70% beside the number 342 and said nothing about what
+ * the arc measured, so it read as though 342 were a percentage of something.
+ * Radar drew a polygon against unlabelled rings. Levels drew full-height bars
+ * against no axis at all. All three — and Meters, and the Tug's posture bar —
+ * encode exactly ONE thing: `normalizeMetric`, "where does this reading sit on a
+ * scale every metric shares". A shape drawn against nothing is not a reading.
+ *
+ * ⛔ SO THE SENTENCE HAS ONE AUTHOR, beside `normalizeMetric` itself. Five
+ * hand-typed copies is how four boards come to describe a scale the fifth
+ * stopped drawing — and the ticks are here for the same reason: an axis printed
+ * 0/25/50/75/100 in one view and 0/30/50/70/100 in the next teaches the reader
+ * that the tab's scales are per-view guesses.
+ */
+export const NORM_TICKS = [0, 25, 50, 75, 100]
+export const NORM_SCALE_NOTE =
+  'rank 0–100 — each metric against its own history in the loaded window, or its native %'
+export const normBasis = (sessions) =>
+  (sessions ? `${sessions} sessions · ` : '') + NORM_SCALE_NOTE
+
+/**
+ * ⭐ INK THAT SURVIVES ITS OWN BACKGROUND — chrome, derived, never a palette choice.
+ *
+ * The Timeline prints a reading INSIDE a tier-coloured cell, and the tier
+ * colours run from `#86efac` (pale mint) to `#370606`-dark: one fixed text
+ * colour is unreadable on half of them, in every palette. So the ink is derived
+ * from the fill it sits on rather than picked — which is also why it is not a
+ * palette value: it is not saying anything, it is staying legible.
+ *
+ * ⛔ NOT `#fff` / `#000`: pure white on a mid-green vibrates and pure black on a
+ * dark tier disappears. Two near-neutrals off this tab's own ground.
+ */
+export function inkOn(hex) {
+  const h = typeof hex === 'string' && hex.length >= 7 ? hex : '#000000'
+  const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16)
+  if ([r, g, b].some(Number.isNaN)) return '#eef2f7'
+  // Rec. 601 luma — good enough for a two-way pick, and cheap per cell.
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#0a0f1a' : '#eef2f7'
+}
+
+/**
  * ⭐ ONE GRAMMAR FOR "THIS MARK OPENS THE NAMES BEHIND IT".
  *
  * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH. Ten hand-written

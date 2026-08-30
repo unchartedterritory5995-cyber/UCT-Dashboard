@@ -76,6 +76,15 @@ function definedNames() {
     add(s, /['"`](--[a-zA-Z0-9_-]+)['"`]\s*:/g)
     add(s, /setProperty\(\s*['"`](--[a-zA-Z0-9_-]+)/g)
     add(s, /['"`](--[a-zA-Z0-9_-]+)['"`]\s*,/g)
+    // ⛔ BRACKET ASSIGNMENT — `vars['--wl-text'] = chrome.text`. This is how
+    // the watchlist/widget theming families are actually defined, and the
+    // three patterns above all miss it (no `:`, no `,`, no setProperty).
+    // Without it this rail FALSELY reports --wl-text and its siblings as
+    // undefined the moment anyone drops their fallback. Proven by probe:
+    // rewriting one `var(--wl-text, …)` to a bare `var(--wl-text)` made
+    // this suite red against a variable that is defined. A guard that
+    // cries wolf gets muted, and then the real ones ship.
+    add(s, /\[\s*['"`](--[a-zA-Z0-9_-]+)['"`]\s*\]\s*=/g)
   }
   return defined
 }

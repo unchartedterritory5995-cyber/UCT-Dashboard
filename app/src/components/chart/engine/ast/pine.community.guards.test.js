@@ -70,7 +70,14 @@ const REFUSES = Object.freeze({
   // it now continues onto the next — and the script reaches its REAL first wall,
   // named, at a token that is on the screen: `int(length * lengthMult)`, a numeric
   // TYPE CAST this door reads as an unknown function.
-  '07-hull-suite.pine': ['pine:function', 35, 'int'],
+  // ⭐⭐ MOVED TWO WALLS DEEPER on 2026-08-30, from a DEAD END to an OFFER.
+  // `int(length * lengthMult)` folds to `int(55)`, and `int` is now taken where its
+  // argument already reduces to a whole number — where truncation, rounding and
+  // floor are the same number, so no unpublished vendor rule is needed. What it
+  // reaches is the sentence that actually helps: a hand-expanded Hull hands `wma` a
+  // half-window of 27.5, and the door hands back `hma(close, 55)`, which this table
+  // declares and which spares the expansion entirely.
+  '07-hull-suite.pine': ['pine:window', 22, '_length'],
   '09-obv-oscillator-lazybear.pine': ['pine:function', 9, 'cum'],
   // 🪦 `10-ehlers-instantaneous-trend-lazybear.pine` USED TO SIT HERE at
   // `pine:state` @13 `it`, and the comment beside it said the accumulator "holds
@@ -92,7 +99,13 @@ const REFUSES = Object.freeze({
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and
   // the third is honest: line 40 reads another symbol built by `ticker.new(…)`.
   '26-spy-to-es-qqq-to-nq.pine': ['pine:request', 40, 'request.security'],
-  '27-support-resistance-channels.pine': ['pine:function', 37, 'bool'],
+  // ⚰️ `27-support-resistance-channels` LEFT THIS TABLE on 2026-08-30. It refused
+  // `pine:function` @37 on `bool`, and `pine.js` stated in-file that the cast was
+  // unpublished. It is published — TradingView's v6 migration guide says `na`, `0`
+  // and `0.0` cast FALSE and anything else TRUE — so `bool(x)` folds to `x != 0`,
+  // which this engine's NaN-comparison rule makes an exact identity rather than an
+  // approximation. A refusal resting on a claim about a vendor is only as good as
+  // the claim.
   '29-zigzag-plus-plus.pine': ['pine:module', 16, 'import'],
   '30-pivot-points-high-low-mtf.pine': ['pine:no-output', null, null],
 })

@@ -142,7 +142,61 @@ export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
 /** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
  *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
- *  would let a tree claim it needs fewer bars than it reads. */
+ *  would let a tree claim it needs fewer bars than it reads.
+ *
+ *  ⛔⛔ AND THESE NUMBERS ARE ONLY RIGHT ON A **DAILY** BASE, WHICH THIS COMMENT
+ *  DID NOT SAY. Five bars to a week is true when one bar is one day. `maxLookback`
+ *  takes no base parameter and cannot ask, so on an intraday chart it under-claims
+ *  by the number of bars in a session. MEASURED, `tf(sma(close, 4), 'W')`:
+ *
+ *      base | bars per week | claim | actually spans | under-claim
+ *        D  |             5 |    25 |             25 |   1x
+ *       60  |            35 |    25 |            175 |   7x
+ *        5  |           390 |    25 |           1950 |  78x
+ *        1  |          1950 |    25 |           9750 | 390x
+ *
+ *  Handed exactly the 25 five-minute bars it asks for, the column is 0 finite of
+ *  25 — so this is the "too SMALL" direction the line above warns about, live.
+ *
+ *  ⭐⭐ RULED 2026-08-30: THE CLAIM STAYS AS IT IS. This was carried as an open
+ *  decision for a day and is now closed, with reasons, so it is not re-litigated:
+ *
+ *   1. MAKING IT BASE-AWARE AND ENFORCING IT WOULD REMOVE WORKING CHARTS.
+ *      Measured: 45 sessions of five-minute bars compute a CORRECT `tf('W')`
+ *      column. Enforcing the true 1,950-bar reach against the 960-bar cap would
+ *      refuse that at the save door — trading charts that work for a number no
+ *      member ever reads.
+ *   2. A BASE-RELATIVE CAP CANNOT BE APPLIED WHERE THE DECISION IS MADE. The save
+ *      door has no base and cannot have one: a definition is PERSISTED and
+ *      recomputed later, so a base folded in at save time is replayed against a
+ *      different one. At compute time it would convert a blank column into a
+ *      thrown one, and `binder.js` deliberately swallows a throwing indicator so
+ *      it cannot take the paint down — absent is worse than blank.
+ *   3. THE LOW CLAIM PRODUCES NO WRONG NUMBER, only a blank column — and a blank
+ *      column is ALREADY this engine's documented, deliberate outcome for any
+ *      under-warmed indicator. `pool.js`'s pane-existence test (trap #4) drops a
+ *      series whose column has no finite value, so `sma(close, 5000)` on 200 bars
+ *      behaves identically. `tf` is not special here, and the pin test asserts
+ *      that equivalence rather than asserting it in prose.
+ *
+ *  ⛔ WHAT THE INVESTIGATION ACTUALLY EXPOSED IS A DIFFERENT, GENERAL DEFECT, and
+ *  it is NOT this one. ⚰️ THIS SAID "silently absent — no line, no pane, no
+ *  sentence", AND THAT WAS WORSE THAN THE TRUTH: `readout.legendChips` walks the
+ *  INSTANCE list rather than the bindings, so such an indicator DOES keep a legend
+ *  chip carrying its name. It was AMBIGUOUS, not absent — measured, its chip was
+ *  byte-identical to any indicator's when the cursor is off the chart, which is
+ *  the far commoner cause of a null value. The correction matters because the fix
+ *  for "invisible" is a new surface and the fix for "ambiguous" is one attribute,
+ *  and only one of those is proportionate.
+ *  ✅ FIXED SEPARATELY, as it deserved: the chip now carries `data-computed` and
+ *  a sentence naming the two things a member can do about it
+ *  (`IndicatorChip.empty.test.jsx`). Folding that into a budget-cap edit under a
+ *  `tf` heading would have buried a general defect inside an unrelated one.
+ *
+ *  ⚠️ THE FAILURE IS A BLANK COLUMN, NOT A WRONG NUMBER — the chart hands over
+ *  every bar it holds regardless of the claim, so a tree that fits still computes
+ *  correctly. What the low claim buys is a budget gate that is too permissive on
+ *  intraday, and a member whose weekly window silently draws nothing. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
 
 /** Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.

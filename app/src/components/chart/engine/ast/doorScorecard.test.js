@@ -72,6 +72,32 @@ const RULED = {
   '17-compoundvalue-vs-manual-fibonacci.ts':
     'x[1] + x[2] is Fibonacci: it grows without bound and genuinely never forgets '
     + 'its seed, so the bounded accumulator refuses it correctly',
+
+  // ⭐⭐ FIVE ADDED 2026-08-30, after every OPEN script was adjudicated. ⛔ THE BAR
+  // WAS NOT "hard" — it was "refuses on a principle no amount of data or code can
+  // retire". Four further candidates were REJECTED from this table in the same
+  // review and left OPEN, because being difficult is not being ruled; they are
+  // recorded in the OFFERED note below.
+  '14-bollinger-bands-fixed-timeframe.pine':
+    'its band length is derived from the chart\'s own resolution (`interval`), so the '
+    + 'window can never be a whole-number literal and `maxLookback` could not stay a '
+    + 'pure tree sum — the invariant every other decision here rests on',
+  '23-previous-day-high-low-mean.ts':
+    'every plot is HighestAll(…) over the whole chart plus a c[-1] read of a bar that '
+    + 'has not happened, so its answer changes with how many bars were fetched — no '
+    + 'data pipeline can retire that, and a forward read has no node by construction',
+  '21-volume-profile-plus.pine':
+    'its one output is an alertcondition on a POC assigned only under '
+    + '`barstate.islast` — a bar whose identity depends on how many bars were fetched '
+    + '— computed from runtime-sized array bins filled by nested loops',
+  '22-daily-weekly-monthly-highs-lows.pine':
+    'every one of its six plots is `array.get` on a 3-slot `var` array latched inside '
+    + 'if-blocks, so the array IS the output — and the collection node type that would '
+    + 'hold it was designed, judged and refused at a MEASURED delta of zero scripts',
+  '04-superguppy-supertrend-screener.pine':
+    'it screens twenty BINANCE crypto pairs — instruments this product carries no bars '
+    + 'for — so no symbol in it is nameable and no column it offers could ever answer. '
+    + 'Carrying those instruments would change this; nothing in the engine would',
 }
 
 /** ⭐ REFUSED, WITH THE FIX WRITTEN OUT. thinkorswim publishes no default for these
@@ -83,6 +109,41 @@ const OFFERED = {
   '09-above-average-price-volume.ts': 'SimpleMovingAvg defaults are unpublished',
   '16-scan-rsi-crosses-30-70.ts': 'RSI length and price are unpublished',
   '19-consecutive-bars-above-ema-count.ts': 'MovAvgExponential defaults are unpublished',
+  // ⭐⭐ EARNED IT ON 2026-08-30 RATHER THAN BEING FILED HERE. This was one of the
+  // four candidates REFUSED from this table the same week, because it emitted no
+  // advice at all — it died two walls earlier, on `pine:function` naming the whole
+  // vocabulary. Two changes made the claim true instead of plausible: `int(x)` now
+  // folds where its argument is already whole, and `pine:window` now carries its
+  // advice as a copyable `suggest`. The rail below checks that; the label is not
+  // takeable by description.
+  // ⭐⭐ TWO MORE EARNED IT on 2026-08-30, and both hand back a rewrite VERIFIED to
+  // translate before the offer was written — `pine.requestOffer.test.js` applies
+  // each one to the real published script and asserts it comes back `ok`.
+  '23-higher-timeframe-ema.pine': 'it asks for a literal daily rung and this engine '
+    + 'resamples only weekly and monthly from the daily bars it holds — the door hands '
+    + 'back `timeframe.period`, and SAYS that it is not the same request',
+  '26-spy-to-es-qqq-to-nq.pine': 'it asks for the ETF\'s EXTENDED session and this engine '
+    + 'serves the regular one — the door hands back `session.regular` rather than '
+    + 'answering a real but different number on every bar',
+  // ⛔ `01-supertrend-mobius` WAS CONSIDERED AND LEFT OPEN. Its refusal already
+  // names `CompoundValue(length, thisExpression, startingValue)` in prose, which is
+  // genuinely useful — but the thinkScript `Resolver` does not hold the source text,
+  // so it cannot hand back the member's OWN expression, only a template with
+  // placeholders. OFFERED is now a checked claim meaning "the exact text that
+  // works"; a template is not that. Filing it here would be the very thing the
+  // rail below exists to stop.
+  '07-hull-suite.pine': 'a hand-expanded Hull hands `wma` a half-window of 27.5 and '
+    + 'TradingView publishes no rounding for it — the door hands back `hma`, which '
+    + 'this table already declares and which spares the expansion entirely',
+  // ⛔⛔ FOUR CANDIDATES WERE REJECTED FROM THIS TABLE ON 2026-08-30, and the
+  // reason is the definition at the top of this file: OFFERED means *"the door
+  // hands back the exact text that works, so it is one member edit away"*.
+  // `23-higher-timeframe-ema`, `26-spy-to-es-qqq-to-nq`, `07-hull-suite` and
+  // `01-supertrend-mobius` each have a plausible rewrite a reviewer could describe
+  // — and MEASURED, not one of them emits a `suggest`. Filing them here would have
+  // moved the OPEN count by four on the strength of a sentence in a review rather
+  // than a sentence a member can read. They stay OPEN until the door speaks; the
+  // work is to make it speak, not to relabel the silence.
 }
 
 function scriptDoor(name, d, ext, translate) {
@@ -146,6 +207,36 @@ describe('the measurement is real before any number is read off it', () => {
     expect(contradicted).toEqual([])
   })
 
+  it('⛔⛔ every OFFERED script actually OFFERS something — the label is a claim', () => {
+    // ⚰️ NOTHING CHECKED THIS UNTIL 2026-08-30, AND THE TABLE IS THE ONE PLACE A
+    // SCRIPT CAN LEAVE THE OPEN COUNT WITHOUT ANY TRANSLATOR CHANGING. `RULED` is
+    // held honest by review of a written reason; `OFFERED` makes a claim about
+    // BEHAVIOUR — "the door hands back the exact text that works" — and behaviour
+    // is checkable. Four candidates were proposed for this table in a review where
+    // none of them emitted a single character of advice; without this test they
+    // would have moved the number by four on nobody's authority.
+    const offers = []
+    for (const [d, dir, ext, translate] of [
+      ['Pine', 'tests/fixtures/pine', '.pine', translatePine],
+      ['Pine (community)', 'tests/fixtures/pine_community', '.pine', translatePine],
+      ['thinkScript', 'tests/fixtures/thinkscript', '.ts', translateThinkScript],
+    ]) {
+      void d
+      for (const f of fs.readdirSync(rel(dir)).filter((x) => x.endsWith(ext))) {
+        if (!OFFERED[f]) continue
+        const out = translate(fs.readFileSync(path.join(rel(dir), f), 'utf8'))
+        const suggest = out && out.refusal && out.refusal.suggest
+        offers.push({ file: f, has: !!(suggest && String(suggest).trim()) })
+      }
+    }
+    const silent = offers.filter((o) => !o.has).map((o) => o.file)
+    expect(silent, `rostered as OFFERED but the door says nothing:\n${silent.join('\n')}`)
+      .toEqual([])
+    // ⭐ NON-VACUITY: the sweep found the rostered files at all. Without this an
+    // empty `offers` list would pass as "all of them offer".
+    expect(offers.length).toBe(Object.keys(OFFERED).length)
+  })
+
   it('⛔ every rostered name is a real corpus file', () => {
     const known = new Set(ALL.map((r) => r.file))
     const ghosts = [...Object.keys(RULED), ...Object.keys(OFFERED)].filter((f) => !known.has(f))
@@ -179,8 +270,12 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   // Lower it when a gap closes; never raise it. ⚠️ And it can only be lowered by
   // making a script TRANSLATE — moving one into `RULED` is caught by the bucketing
   // assertion above needing a written reason, and by review of that reason.
-  it('no more than 20 scripts are OPEN', () => {
-    expect(open.length).toBeLessThanOrEqual(20)
+  it('no more than 10 scripts are OPEN', () => {
+    // ⭐ 20 → 18 on 2026-08-30: `27-support-resistance-channels` translates (the
+    // `bool(x)` cast is published after all), and `18-fold-up-down-points-ratio`
+    // before it. A ratchet that is not tightened when a gap closes lets the gain
+    // regress in silence, which is the one thing a ratchet exists to stop.
+    expect(open.length).toBeLessThanOrEqual(10)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {
@@ -192,7 +287,7 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   })
 
   it('the doors that translate at all may not translate fewer', () => {
-    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(41)
+    expect(ALL.filter((r) => r.ok).length).toBeGreaterThanOrEqual(43)
   })
 })
 
@@ -273,7 +368,7 @@ describe('🔴 TRANSLATING IS NOT DELIVERING — how far a script actually gets'
     // Without this, a `saveable` count that happened to equal `translate` could be
     // produced by a gate that never ran.
     expect(total.evaluate).toBe(total.translate)
-    expect(total.evaluate).toBeGreaterThanOrEqual(41)
+    expect(total.evaluate).toBeGreaterThanOrEqual(43)
   })
 })
 
