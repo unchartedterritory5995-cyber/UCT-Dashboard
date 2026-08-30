@@ -369,3 +369,154 @@ def drift_series(broker_account_id: str, days: int = 30, conn=None) -> dict:
     return {"brokerAccountId": broker_account_id, "days": days, **stats,
             "points": [{"at": r["checked_at"], "dollar": r["drift_dollar"],
                         "pct": r["drift_pct"], "ok": bool(r["ok"])} for r in rows]}
+
+
+# Bias thresholds. A lean smaller than BOTH is inside the noise floor of
+# mark timing and not worth a member's attention or the owner's.
+_BIAS_MIN_SAMPLES = int(os.environ.get("BROKER_BIAS_MIN_SAMPLES", "6"))
+_BIAS_DOLLAR = float(os.environ.get("BROKER_BIAS_DOLLAR", "10"))
+_BIAS_PCT = float(os.environ.get("BROKER_BIAS_PCT", "0.0002"))  # 0.02%
+
+
+def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
+    """Which accounts are LEANING, as opposed to occasionally off?
+
+    The threshold check in this module answers "is it broken now" and pages when
+    drift exceeds a tolerance. It is structurally blind to the shape that
+    actually reached a member: a drift that never trips the tolerance and never
+    goes away. Measured 2026-08-29, the owner's own hero sat $19.96 from the
+    broker's reported total every day for weeks under every tolerance, and was
+    found only because two screens were compared by hand. Ten of eleven books
+    have nobody to do that comparing.
+
+    A lean is not a spike. Both conditions must hold:
+      • it is BIG ENOUGH to matter, in dollars AND in percent — a $10 lean on a
+        $1.6M account is noise; 0.06% of it is not, and vice versa;
+      • it DOMINATES its own scatter (spread <= 2x |mean|). Symmetric mark-timing
+        noise averages toward zero and has a spread far wider than its mean;
+        a systematic offset does not move.
+
+    Under `_BIAS_MIN_SAMPLES` readings the verdict is `insufficient`, never
+    `clean` — "we have not looked enough yet" and "we looked and it is fine" are
+    different answers and a digest that conflates them reads as reassurance.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        accounts = conn.execute(
+            "SELECT DISTINCT d.broker_account_id AS id, ba.brokerage_name AS name, "
+            "ba.account_number_masked AS mask FROM j2_broker_drift_series d "
+            "LEFT JOIN j2_broker_accounts ba ON ba.id = d.broker_account_id"
+        ).fetchall()
+        out = []
+        for a in accounts:
+            rows = conn.execute(
+                "SELECT drift_dollar, drift_pct FROM j2_broker_drift_series "
+                "WHERE broker_account_id = ? AND checked_at >= datetime('now', ?)",
+                (a["id"], f"-{int(days)} days"),
+            ).fetchall()
+            vals = [r["drift_dollar"] for r in rows if r["drift_dollar"] is not None]
+            pcts = [r["drift_pct"] for r in rows if r["drift_pct"] is not None]
+            rec = {"brokerAccountId": a["id"],
+                   "label": f"{a['name'] or '?'} {a['mask'] or ''}".strip(),
+                   "samples": len(vals), "mean": None, "meanPct": None,
+                   "spread": None, "verdict": "insufficient"}
+            if len(vals) >= _BIAS_MIN_SAMPLES:
+                mean = sum(vals) / len(vals)
+                spread = max(vals) - min(vals)
+                mean_pct = (sum(pcts) / len(pcts)) if pcts else 0.0
+                rec.update({"mean": round(mean, 2), "spread": round(spread, 2),
+                            "meanPct": round(mean_pct, 6)})
+                systematic = (abs(mean) >= _BIAS_DOLLAR
+                              and abs(mean_pct) >= _BIAS_PCT
+                              and spread <= 2 * abs(mean))
+                rec["verdict"] = "leaning" if systematic else "clean"
+            out.append(rec)
+    finally:
+        if owned:
+            conn.close()
+    out.sort(key=lambda r: -abs(r["mean"] or 0))
+    return {
+        "days": days,
+        "leaning": [r for r in out if r["verdict"] == "leaning"],
+        "insufficient": [r for r in out if r["verdict"] == "insufficient"],
+        "accounts": out,
+    }
+
+
+def bias_digest_text(scan: dict[str, Any]) -> str:
+    """The message. Names accounts, never counts them, and says plainly when it
+    does not yet have enough data rather than implying all-clear."""
+    lean = scan["leaning"]
+    if lean:
+        lines = [f"• {r['label']} — mean {r['mean']:+.2f} "
+                 f"({r['meanPct'] * 100:+.3f}%) over {r['samples']} checks, "
+                 f"spread {r['spread']:.2f}" for r in lean]
+        head = ("Accounts LEANING against their broker's own total. This is not a "
+                "spike — it is the same gap on every check, which no tolerance "
+                "will ever page for:")
+        body = head + chr(10) + chr(10).join(lines)
+    else:
+        body = ("No account is leaning: every book with enough readings averages "
+                "inside the noise floor.")
+    if scan["insufficient"]:
+        body += (f"{chr(10)}{chr(10)}Not yet judged ({len(scan['insufficient'])} account(s) under "
+                 f"{_BIAS_MIN_SAMPLES} readings) — too little data is not a clean bill.")
+    return body
+
+
+_BIAS_DIGEST_ID = "broker_bias_digest"
+
+
+def _bias_already_sent(fingerprint: str, et_day: str) -> bool:
+    """Durable, redeploy-proof day dedup. Fails OPEN — a repeated digest is a
+    nuisance; a missed one is the whole point of the digest. (An in-process
+    dict was the 2026-08-27 defect: four same-day deploys each wiped it and the
+    identical alert paged twice.)"""
+    try:
+        conn = get_connection()
+        try:
+            row = conn.execute(
+                "SELECT fingerprint, et_day FROM j2_broker_digest_dedup WHERE id = ?",
+                (_BIAS_DIGEST_ID,),
+            ).fetchone()
+            if row and row["fingerprint"] == fingerprint and row["et_day"] == et_day:
+                return True
+            conn.execute(
+                "INSERT INTO j2_broker_digest_dedup (id, fingerprint, et_day) "
+                "VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET "
+                "fingerprint = excluded.fingerprint, et_day = excluded.et_day",
+                (_BIAS_DIGEST_ID, fingerprint, et_day),
+            )
+            conn.commit()
+            return False
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def run_bias_digest() -> dict[str, Any]:
+    """Daily: is any book LEANING against its broker's own total?
+
+    ⛔ ALWAYS POSTS, clean or not. Ten of eleven books belong to members, and a
+    monitor that only speaks up on bad news is indistinguishable from a monitor
+    that died — this codebase has already paid for that twice (the weekly
+    books-audit was made unconditional for the same reason, and the canary is
+    still silent on success). A green line every day is what makes a missing one
+    mean something.
+
+    Never raises into the scheduler.
+    """
+    try:
+        scan = bias_scan()
+        text = bias_digest_text(scan)
+        leaning = [r["label"] for r in scan["leaning"]]
+        fingerprint = "|".join(sorted(leaning)) or "clean"
+        if not _bias_already_sent(fingerprint, _et_today()):
+            title = ("🔴 Broker drift: accounts leaning" if leaning
+                     else "🟢 Broker drift: no account leaning")
+            _post_discord(title, text)
+        return {"leaning": leaning, "checked": len(scan["accounts"])}
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
