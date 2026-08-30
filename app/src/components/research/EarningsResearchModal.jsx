@@ -296,6 +296,11 @@ export default function EarningsResearchModal({
           onSelect={onSectionChange}
           idPrefix="erm-rail"
           ariaLabel="Report sections"
+          // 12 sections at the 44px touch floor is ~570px of rail beside a
+          // canvas that is mostly dense numbers. Opt-in per surface: the two
+          // other SectionRail consumers keep their own geometry, and touch
+          // keeps the full floor here regardless (the rule is pointer:fine).
+          dense
           className={styles.rail}
         />
         <div

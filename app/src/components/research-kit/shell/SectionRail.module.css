@@ -131,18 +131,26 @@
   }
 }
 
-/* MOUSE/TRACKPAD — `--tap-min` (44px) is a TOUCH target floor, and on a
-   pointer:fine device it is simply oversized: 12 sections x 44px + gaps is
-   ~570px of rail, which is what made the rail read as sparse and chunky beside
-   a dense canvas. Touch keeps the full floor; this only relaxes it where the
-   pointer is precise. Scoped to the media feature rather than to a prop so it
-   applies wherever the rail is used (the modal, ResearchPage, CatalystFlow)
-   without three call sites having to opt in. */
+/* MOUSE/TRACKPAD, and only for a caller that ASKED (`dense`). `--tap-min`
+   (44px) is a TOUCH target floor, and on a pointer:fine device it is simply
+   oversized: 12 sections x 44px + gaps is ~570px of rail, which is what made
+   the earnings modal's rail read as sparse and chunky beside a dense canvas.
+
+   ⛔ Scoped to `[data-rk-dense]`, NOT to a bare `.rail`. This module is shared by three
+   surfaces — EarningsResearchModal, ResearchPage and CatalystFlow — and only
+   the first one was looked at. A bare `.rail` rule here silently re-spaces the
+   other two, which is a layout change nobody reviewed on the pages where it
+   would actually land. The media query stays, so touch keeps the full floor
+   even for a caller that opts in.
+
+   Both selectors combine the ATTRIBUTE with a class on purpose: a bare
+   `[data-rk-dense]` is specificity (0,1,0) and would lose to any class rule
+   later in the cascade — the trap that has bitten `[data-tone]` in this repo. */
 @media (pointer: fine) {
-  .item {
-    min-height: 34px;
-  }
-  .rail {
+  .rail[data-rk-dense] {
     gap: var(--space-sm);
+  }
+  .rail[data-rk-dense] .item {
+    min-height: 34px;
   }
 }
