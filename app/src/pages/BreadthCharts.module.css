@@ -209,8 +209,14 @@
   border: 1px solid var(--border);
   overflow: hidden;
   min-height: 120px;
+  /* Column, not row. The readout IS the legend: it belongs above the plot.
+     As a row this box made it a sibling column that ate a third of the width
+     and left the chart squeezed to the right of a mostly-empty gutter.
+     justify-content still centres the loading/empty/error placeholder, which
+     is the only reason the centring is here at all. */
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
 }
 
