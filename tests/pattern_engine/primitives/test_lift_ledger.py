@@ -125,17 +125,64 @@ def test_measure_returns_none_lift_when_nothing_fired():
 
 # ── the null ───────────────────────────────────────────────────────────────
 
-def test_shuffling_preserves_the_return_multiset_and_destroys_order():
-    bars = _series([100.0 * (1.01 ** i) * (0.98 if i % 5 == 0 else 1.0)
-                    for i in range(60)])
+def _abs_ret_autocorr(bars):
+    """Lag-1 autocorrelation of |return| — the standard volatility-clustering
+    measure. High means quiet days follow quiet days."""
+    r = [abs(bars[i]["c"] / bars[i - 1]["c"] - 1.0) for i in range(1, len(bars))]
+    n = len(r) - 1
+    m = sum(r) / len(r)
+    num = sum((r[i] - m) * (r[i + 1] - m) for i in range(n))
+    den = sum((x - m) ** 2 for x in r)
+    return num / den if den else 0.0
+
+
+def _clustered_series(n=900):
+    """Alternating calm and violent regimes — real volatility clustering."""
+    out, p = [], 100.0
+    x = 3
+    for i in range(n):
+        x = (1103515245 * x + 12345) % (2 ** 31)
+        amp = 0.004 if (i // 60) % 2 == 0 else 0.06
+        p *= 1.0 + ((x / (2 ** 31)) - 0.5) * amp
+        out.append(p)
+    return _series(out)
+
+
+def test_block_resampling_draws_only_real_returns_and_changes_the_order():
+    """A moving-block bootstrap resamples WITH REPLACEMENT, so the multiset is
+    deliberately not preserved — but no return may be invented.
+    """
+    bars = _clustered_series(300)
     out = ll.shuffle_returns(bars, random.Random(1))
     assert len(out) == len(bars)
 
     def rets(bs):
-        return sorted(round(bs[i]["c"] / bs[i - 1]["c"], 10)
-                      for i in range(1, len(bs)))
-    assert rets(out) == rets(bars), "the return multiset must be preserved"
+        return [round(bs[i]["c"] / bs[i - 1]["c"], 9) for i in range(1, len(bs))]
+    original, drawn = set(rets(bars)), rets(out)
+    assert set(drawn) <= original, "the null invented a return that never occurred"
     assert [b["c"] for b in out] != [b["c"] for b in bars], "order must change"
+
+
+def test_the_block_null_KEEPS_volatility_clustering_and_an_iid_shuffle_does_not():
+    """⭐ THE WHOLE REASON THE NULL IS BLOCK-BASED.
+
+    A structure like a Darvas box SELECTS a quiet stretch. Measured against an
+    iid-shuffled null — which destroys volatility clustering along with the
+    order — such a detector shows lift that is really a volatility effect
+    wearing a structural edge's clothes. The block null keeps quiet stretches
+    quiet, so the comparison isolates STRUCTURE.
+    """
+    bars = _clustered_series()
+    real = _abs_ret_autocorr(bars)
+    iid = _abs_ret_autocorr(ll.shuffle_returns(bars, random.Random(5), block=1))
+    blocked = _abs_ret_autocorr(
+        ll.shuffle_returns(bars, random.Random(5), block=ll.NULL_BLOCK_BARS))
+
+    assert real > 0.15, f"fixture is not actually clustered (rho={real:.3f})"
+    assert iid < 0.05, f"an iid shuffle should destroy clustering (rho={iid:.3f})"
+    assert blocked > iid * 3, (
+        f"the block null must RETAIN clustering: blocked={blocked:.3f} "
+        f"vs iid={iid:.3f}")
 
 
 def test_shuffling_refuses_a_series_with_a_non_positive_close():
@@ -231,3 +278,51 @@ def test_a_well_powered_lift_still_clears_the_same_null():
     out = ll.adjudicate(strong, nulls=[-0.0057, 0.0231, 0.010, 0.0, 0.008])
     assert out["published"] is True
     assert out["lift"] == 0.0765
+
+
+def test_the_cluster_bootstrap_CI_is_WIDER_than_the_naive_one():
+    """⭐ THE WHOLE REASON THE CI IS A CLUSTER BOOTSTRAP.
+
+    Detections are not independent draws: one ticker in a long consolidation
+    contributes many anchors that share a regime. The textbook two-proportion
+    standard error assumes independence and therefore comes out too narrow —
+    which is how a structure clears a CI gate it has not earned. Resampling
+    TICKERS carries the correlation, and the interval must widen.
+
+    The fixture makes the dependence extreme and obvious: each ticker is
+    internally unanimous, so all the information is in the 12 tickers, not in
+    the 480 anchors.
+    """
+    bars_by = {}
+    for k in range(12):
+        good = k < 8
+        closes = [100.0] * 300
+        bars_by[f"T{k}"] = _series(closes)
+
+    rows_by = {}
+    for k in range(12):
+        year = "2021"
+        win = k < 8
+        rows_by[f"T{k}"] = [(year, True, win)] * 20 + [(year, False, k < 4)] * 20
+
+    lo, hi = ll._cluster_bootstrap_ci(rows_by, trials=400, seed=1)
+    flat = [r for rows in rows_by.values() for r in rows]
+    t = ll._tally(flat)
+    p_c = t["wins"] / t["n"]
+    p_b = t["free_wins"] / t["free_n"]
+    lift = p_c - p_b
+    import math as _m
+    se = _m.sqrt(ll._wilson_se(p_c, t["n"]) ** 2 + ll._wilson_se(p_b, t["free_n"]) ** 2)
+    naive_w = 2 * ll.Z * se
+    cluster_w = hi - lo
+    assert cluster_w > naive_w, (
+        f"cluster CI ({cluster_w:.4f}) must be wider than naive ({naive_w:.4f})")
+
+
+def test_a_single_ticker_cannot_produce_a_finite_cluster_interval():
+    """One cluster carries no information about between-cluster variance, so
+    the honest answer is an infinite interval — which the gate then refuses.
+    """
+    lo, hi = ll._cluster_bootstrap_ci({"ONLY": [("2021", True, True)] * 50},
+                                      trials=400, seed=1)
+    assert lo == float("-inf") and hi == float("inf")

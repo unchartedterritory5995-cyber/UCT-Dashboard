@@ -30,27 +30,31 @@ observations share a forward window. Overlapping windows inflate n and shrink
 the CI without adding information — the fastest way to manufacture a
 significant result from noise.
 
-🔴 TWO KNOWN LIMITATIONS OF THIS METHOD, STATED RATHER THAN DISCOVERED LATER.
-Both make the published interval OPTIMISTICALLY NARROW, so a structure that
-clears the gates today might not clear a stricter version:
+✅ TWO LIMITATIONS FOUND ON THE FIRST RUN AND SINCE FIXED. Both had made the
+published interval optimistically narrow; both are now closed, and the
+weaker versions are kept only as the reason the stronger ones exist:
 
-  1. **Observations are treated as independent and they are not.** Detections
-     cluster by ticker — one name in a long consolidation contributes several
-     anchors that share a regime. The correct treatment is a cluster-robust
-     standard error by ticker, which would WIDEN every CI. Until that lands,
-     read a published lift as an upper bound on confidence, not a settled one.
-  2. **The null destroys volatility clustering along with the order.** A
-     detector that selects a low-volatility regime will therefore show lift the
-     null cannot reproduce, and some of that lift may be a volatility effect
-     rather than a structural edge. A block-bootstrap null would separate them.
+  1. **Observations cluster by ticker.** One name in a long consolidation
+     contributes several anchors that share a regime, so treating them as
+     independent understates the variance. The CI is now a CLUSTER BOOTSTRAP —
+     tickers are resampled with replacement and the whole lift is recomputed,
+     so within-ticker correlation is carried rather than assumed away.
+     `_normal_ci` survives only as the naive comparison a test pins as wider.
+  2. **A plain return shuffle destroys volatility clustering.** A detector that
+     selects a quiet regime would then show lift the null cannot reproduce, and
+     that lift would be a volatility effect wearing a structural edge's
+     clothes. The null is now a MOVING-BLOCK bootstrap: contiguous blocks of
+     returns are resampled, so local volatility structure survives and only the
+     long-range order is destroyed.
 
 ⚠️ THE NULL IS THE PART MOST IMPLEMENTATIONS SKIP. Osler found average
 simulated profits negative ~80% of the time on data where the pattern is
 meaningless by construction; without that control a purely mechanical drag
 reads as signal with the wrong sign. Here the null re-runs the IDENTICAL
-detector over return-shuffled series: the marginal return distribution is
-preserved and the temporal structure is destroyed, so any lift the detector
-still shows is an artifact of the detector, not of the market.
+detector over MOVING-BLOCK resampled series: contiguous blocks of returns are
+drawn with replacement, so the marginal distribution AND local volatility
+clustering survive while the long-range order is destroyed. Any lift the
+detector still shows is an artifact of the detector, not of the market.
 """
 from __future__ import annotations
 
@@ -73,6 +77,15 @@ Z = 1.959964
 #: lift against a spread rather than a single draw, bounded by the fact that
 #: each trial re-runs the detector over the whole sample.
 NULL_TRIALS = 12
+
+#: Resamples for the cluster bootstrap CI. origin: uct.
+BOOTSTRAP_TRIALS = 400
+
+#: Moving-block length for the null, in bars. origin: uct — long enough to carry
+#: a volatility episode (a quiet stretch or a shock runs days, not hours), short
+#: enough that many blocks fit in a series and the long-range order is still
+#: destroyed. ~1 trading month.
+NULL_BLOCK_BARS = 21
 
 
 def outcome(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
@@ -158,32 +171,96 @@ def _tally(rows: List[tuple]) -> dict:
             "years": sorted(by_year_fired)}
 
 
-def measure(detect: Callable, bars_by_ticker: Dict[str, List[dict]], **kw) -> dict:
-    """Conditional rate, pattern-free baseline over the same years, and lift."""
-    rows: List[tuple] = []
-    for bars in bars_by_ticker.values():
-        rows.extend(scan_series(detect, bars, **kw))
-    t = _tally(rows)
+def measure(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
+            *, bootstrap: int = BOOTSTRAP_TRIALS, seed: int = 20260830,
+            **kw) -> dict:
+    """Conditional rate, pattern-free baseline over the same years, and lift.
+
+    ⛔ THE CI IS A CLUSTER BOOTSTRAP OVER TICKERS, NOT A TWO-PROPORTION FORMULA.
+    Detections are not independent draws: one name in a long consolidation
+    contributes many anchors that share a regime, so the textbook standard
+    error understates the variance and every interval comes out too narrow.
+    Resampling TICKERS with replacement carries that correlation instead of
+    assuming it away.
+    """
+    rows_by_ticker: Dict[str, List[tuple]] = {}
+    for sym, bars in bars_by_ticker.items():
+        r = scan_series(detect, bars, **kw)
+        if r:
+            rows_by_ticker[sym] = r
+
+    flat = [row for rows in rows_by_ticker.values() for row in rows]
+    t = _tally(flat)
     n, free_n = t["n"], t["free_n"]
     if n == 0 or free_n == 0:
         return {**t, "rate": None, "baseline": None, "lift": None,
-                "ci_low": None, "ci_high": None, "anchors": len(rows)}
+                "ci_low": None, "ci_high": None, "anchors": len(flat),
+                "ci_method": None, "naive_ci": None}
+
     p_c = t["wins"] / n
     p_b = t["free_wins"] / free_n
     lift = p_c - p_b
-    se = math.sqrt(_wilson_se(p_c, n) ** 2 + _wilson_se(p_b, free_n) ** 2)
+
+    naive_se = math.sqrt(_wilson_se(p_c, n) ** 2 + _wilson_se(p_b, free_n) ** 2)
+    naive = (lift - Z * naive_se, lift + Z * naive_se)
+
+    lo, hi = _cluster_bootstrap_ci(rows_by_ticker, bootstrap, seed)
     return {**t, "rate": p_c, "baseline": p_b, "lift": lift,
-            "ci_low": lift - Z * se, "ci_high": lift + Z * se,
-            "anchors": len(rows)}
+            "ci_low": lo, "ci_high": hi, "anchors": len(flat),
+            "ci_method": "cluster-bootstrap", "naive_ci": naive,
+            "tickers": len(rows_by_ticker)}
 
 
-def shuffle_returns(bars: List[dict], rng: random.Random) -> List[dict]:
-    """A series with the SAME return distribution and NO temporal structure.
+def _lift_of(flat: List[tuple]) -> Optional[float]:
+    t = _tally(flat)
+    if t["n"] == 0 or t["free_n"] == 0:
+        return None
+    return t["wins"] / t["n"] - t["free_wins"] / t["free_n"]
 
-    Close-to-close returns are shuffled and replayed from the original first
-    close; the bar's own high/low/open are carried as fixed proportions of its
-    close so range geometry stays realistic. What is destroyed is the ORDER —
-    which is exactly the thing every structure detector claims to read.
+
+def _cluster_bootstrap_ci(rows_by_ticker: Dict[str, List[tuple]],
+                          trials: int, seed: int):
+    """Percentile CI from resampling TICKERS with replacement.
+
+    Each draw rebuilds the whole lift from a resampled set of symbols, so a
+    ticker that contributed 40 correlated anchors moves in or out as ONE unit —
+    which is exactly the dependence the naive formula ignores.
+    """
+    syms = list(rows_by_ticker)
+    if len(syms) < 2:
+        return (float("-inf"), float("inf"))
+    rng = random.Random(seed)
+    lifts = []
+    for _ in range(trials):
+        pick = [syms[rng.randrange(len(syms))] for _ in range(len(syms))]
+        flat = [row for s in pick for row in rows_by_ticker[s]]
+        v = _lift_of(flat)
+        if v is not None:
+            lifts.append(v)
+    if len(lifts) < 20:
+        return (float("-inf"), float("inf"))
+    lifts.sort()
+    lo = lifts[int(0.025 * (len(lifts) - 1))]
+    hi = lifts[int(0.975 * (len(lifts) - 1))]
+    return (lo, hi)
+
+
+def shuffle_returns(bars: List[dict], rng: random.Random,
+                    block: int = NULL_BLOCK_BARS) -> List[dict]:
+    """A series with the same return distribution and no long-range structure.
+
+    ⭐ MOVING-BLOCK, NOT IID. An independent shuffle destroys volatility
+    clustering along with the order, and that matters here: a structure like a
+    Darvas box SELECTS a quiet stretch, so against an iid null it would show
+    lift that is really a volatility effect wearing a structural edge's
+    clothes. Drawing contiguous `block`-length runs keeps quiet stretches quiet
+    and shocks bunched, so the null a detector is measured against has the same
+    volatility texture as the market — and only the long-range order, which is
+    the thing the detector claims to read, is gone.
+
+    Blocks are drawn with replacement from all overlapping start positions (the
+    standard moving-block bootstrap). The bar's own high/low/open ride along as
+    fixed proportions of its close so range geometry stays realistic.
     """
     closes = [b.get("c") or 0 for b in bars]
     rets, shape = [], []
@@ -196,7 +273,17 @@ def shuffle_returns(bars: List[dict], rng: random.Random) -> List[dict]:
         if i:
             prev = closes[i - 1]
             rets.append(c / prev if prev > 0 else 1.0)
-    rng.shuffle(rets)
+    if not rets:
+        return []
+    if block <= 1 or len(rets) <= block:
+        rng.shuffle(rets)
+    else:
+        drawn: List[float] = []
+        last_start = len(rets) - block
+        while len(drawn) < len(rets):
+            st = rng.randint(0, last_start)
+            drawn.extend(rets[st:st + block])
+        rets = drawn[:len(rets)]
 
     out, c = [], closes[0]
     for i, (o_r, h_r, l_r, v, t) in enumerate(shape):
