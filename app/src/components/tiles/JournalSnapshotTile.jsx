@@ -49,7 +49,24 @@ import styles from './JournalSnapshotTile.module.css'
 
 const JOURNAL_LINK = '/journal?j2tab=positions'
 const MAX_ROWS = 6
-const BROKER_PERIOD = '3M'
+/**
+ * ⭐ REVERSIBLE BY DESIGN. The 3M equity curve was the first number the paid
+ * home showed every morning (−46.85% at time of writing) and is not a decision
+ * input, so Zone C renders it OFF by default. Both switches are PROPS, not
+ * deletions: `<JournalSnapshotTile showEquityCurve period="3M" />` restores the
+ * pre-cockpit tile byte-for-byte, and `JournalSnapshotTile.props.test.jsx`
+ * asserts that rather than leaving it a claim.
+ *
+ * ⛔ THE DEFAULT PERIOD IS '1W', NOT '1D'. The task brief said `period = '1D'`;
+ * `_period_start` in api/services/journal_two/broker/performance_service.py
+ * knows only ALL / YTD / 1W / 1M / 3M / 1Y and returns `None` — i.e. ALL TIME —
+ * for anything else. So `'1D'` would have silently rendered the all-time P&L
+ * under a "1D" label: a wrong number with a confident caption, which is worse
+ * than the 3M figure it replaced. '1W' is the shortest window the endpoint
+ * actually knows. (The headline net-liq is unaffected either way — the service
+ * appends a live right-edge to the series regardless of the window.)
+ */
+const DEFAULT_BROKER_PERIOD = '1W'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -86,7 +103,7 @@ export function buildSpark(series) {
 
 const sign = (n) => (n > 0 ? styles.pos : n < 0 ? styles.neg : '')
 
-export default function JournalSnapshotTile() {
+export default function JournalSnapshotTile({ showEquityCurve = false, period = DEFAULT_BROKER_PERIOD }) {
   const { data: posData, isLoading: posLoading } = useSWR(
     '/api/j2/positions', fetcher, SWR_OPTS,
   )
@@ -108,7 +125,7 @@ export default function JournalSnapshotTile() {
 
   // Broker portfolio performance (real net-liq + equity curve), aggregated
   // across all connected brokers. Empty/ignored for manual-only users.
-  const { data: perf } = useJ2BrokerPerformance(null, BROKER_PERIOD, { portfolio: true })
+  const { data: perf } = useJ2BrokerPerformance(null, period, { portfolio: true })
   const brokerAccounts = accounts.filter(
     (a) => a.balanceSource === 'broker' && a.brokerTotalEquity != null,
   )
@@ -252,7 +269,7 @@ export default function JournalSnapshotTile() {
         ) : (
           <Link to={JOURNAL_LINK} className={styles.bodyLink} aria-label="Open your trading journal">
             {hasBroker
-              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} />
+              ? <BrokerHero perf={perf} positions={positions} strategies={strategies} brokerBase={brokerBase} brokerLive={brokerLive} isLive={isStreaming && brokerLive?.netLiq != null} showEquityCurve={showEquityCurve} period={period} />
               : <ManualHero agg={agg} today={manualToday} positions={positions} strategies={strategies} />}
 
             <div className={styles.rows}>
@@ -289,7 +306,7 @@ function CountLine({ positions, strategies, suffix }) {
 }
 
 /** Broker hero — real net-liq balance + Today/period P&L + equity sparkline. */
-function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive }) {
+function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLive, showEquityCurve, period }) {
   const series = perf?.equitySeries || []
   const value = brokerLive?.netLiq ?? brokerBase
 
@@ -319,12 +336,14 @@ function BrokerHero({ perf, positions, strategies, brokerBase, brokerLive, isLiv
       </div>
       <div className={styles.perfRow}>
         {todayChange != null && <PerfFigure label="Today" dollar={todayChange} pct={todayPct} />}
-        {periodPnl != null && <PerfFigure label={BROKER_PERIOD} dollar={periodPnl} pct={periodPct} />}
+        {periodPnl != null && <PerfFigure label={period} dollar={periodPnl} pct={periodPct} />}
       </div>
-      <Sparkline
-        className={styles.spark}
-        values={series.map((p) => p?.value)}
-      />
+      {showEquityCurve && (
+        <Sparkline
+          className={styles.spark}
+          values={series.map((p) => p?.value)}
+        />
+      )}
       <CountLine positions={positions} strategies={strategies} suffix={<> · synced</>} />
     </div>
   )

@@ -1,0 +1,50 @@
+/* app/src/pages/dashboard/ZoneRead.module.css
+ * Canonical breakpoints only (1024 / 640) — see CLAUDE.md's Responsive/Mobile
+ * System. Zone A's height is declared by Dashboard.module.css's `.main` grid;
+ * everything here sizes to 100% of that track rather than asserting a height
+ * of its own, so the budget has exactly one owner.
+ */
+.read {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: center;
+  height: 100%;
+}
+.state { display: flex; align-items: center; gap: var(--space-md); }
+.pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.live { color: var(--gain); border-color: var(--gain-border); }
+.premarket, .closed, .weekend { color: var(--text-muted); }
+.exposure { display: flex; align-items: baseline; gap: 6px; }
+.exposure b {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  color: var(--ut-gold, #dcbb5e);
+}
+.exposureLabel {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Touch: the strip stacks under the read rather than competing with it for a
+   narrow row, and the zone stops asserting a height it no longer owns (the
+   .main grid switches to auto rows at the same breakpoint). */
+@media (max-width: 1024px) {
+  .read { grid-template-columns: 1fr; height: auto; gap: var(--space-sm); }
+}
+@media (max-width: 640px) {
+  .exposure b { font-size: 22px; }
+}

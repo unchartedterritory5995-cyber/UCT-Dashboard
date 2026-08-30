@@ -43,6 +43,7 @@ import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import UIcon from '../components/ui/UIcon'
 import useSessionState from './dashboard/useSessionState'
+import ZoneRead from './dashboard/ZoneRead'
 import TheWeek from './dashboard/TheWeek'
 import ZoneDoors from './dashboard/ZoneDoors'
 import styles from './Dashboard.module.css'
@@ -107,12 +108,12 @@ export default function Dashboard() {
         <div className={styles.desktopOnly}>
           <div className={styles.cockpit}>
             <div className={styles.main}>
-              {/* Zone A · THE READ.
-                  ⚠️ FuturesStrip is the INTERIM occupant: Task 14 replaces it
-                  with `dashboard/ZoneRead` (session pill + exposure number +
-                  compact index strip). It sits here rather than ZoneRead so
-                  this commit does not import a module that does not exist yet. */}
-              <div className={styles.zoneA}><FuturesStrip /></div>
+              {/* Zone A · THE READ — session pill + UCT exposure + a compact
+                  six-across index strip, in the declared 120px. The Quote of
+                  the Day is demoted out of the top row (ZoneRead passes
+                  FuturesStrip `hideQuote`); the mobile stack below still
+                  renders it, which is where the spec says it belongs. */}
+              <div className={styles.zoneA}><ZoneRead /></div>
               {/* Zone B · THE DECISION — the only zone that varies. */}
               <div className={styles.zoneB}>{hero}</div>
               {/* Zone C · YOUR RISK */}
