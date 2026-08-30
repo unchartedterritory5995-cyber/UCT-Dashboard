@@ -401,6 +401,40 @@ export const todayReferenceFor = (position, snap, todayIso, preferBroker = false
 }
 
 /**
+ * Resolve collected per-component vintages into one verdict. Mirror of
+ * `_finish_vintage` in the Python authority (broker/composition.py) — the two
+ * lanes are held together by parity-fixtures.json.
+ */
+const finishVintage = (v, brokerSessions) => {
+  const c = v.components
+  const present = ['live', 'broker', 'cost'].filter((k) => c[k] > 0)
+  v.basis = present.length === 1 ? present[0] : (present.length ? 'mixed' : null)
+  if (!brokerSessions.length) return v
+  const known = brokerSessions.filter(([, sess]) => sess != null)
+  const distinct = new Set(known.map(([, sess]) => sess))
+  if (known.length === brokerSessions.length && distinct.size === 1) {
+    v.session = known[0][1]
+    return v
+  }
+  // Reference = the NEWEST session anyone reports, ties broken by date so the
+  // verdict is deterministic. A mark with NO session can never be certified as
+  // sharing one, so when nothing is dated every component is named.
+  let ref = null
+  if (known.length) {
+    const counts = new Map()
+    for (const [, sess] of known) counts.set(sess, (counts.get(sess) || 0) + 1)
+    for (const [sess, n] of counts) {
+      if (ref == null || n > counts.get(ref) || (n === counts.get(ref) && sess > ref)) ref = sess
+    }
+  }
+  v.session = null
+  v.conflicts = brokerSessions
+    .filter(([, sess]) => ref == null || sess !== ref)
+    .map(([symbol, session]) => ({ symbol, session: session ?? null }))
+  return v
+}
+
+/**
  * Live broker net-liquidation summary, computed the way Robinhood does — cash
  * plus the live market value of holdings — so it matches the broker's actual
  * number and reflects today's intraday move. This SUPERSEDES anchoring on the
@@ -440,6 +474,11 @@ export const todayReferenceFor = (position, snap, todayIso, preferBroker = false
 export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks, preferBroker = false) => {
   let marketValue = 0
   let today = 0
+  // WHICH MOMENT each part came from — reported, never enforced. Mixing is
+  // often correct; being unable to SEE the mix is what cost us this month.
+  const vintage = { basis: null, session: null, conflicts: [],
+                    components: { live: 0, broker: 0, cost: 0 } }
+  const brokerSessions = []
   // MIRROR PURITY: a broker-linked account's hero mirrors THE BROKER — only
   // broker-sourced rows participate. A manual row added into a broker account
   // must not move a number labeled as the broker's (its cash knows nothing of
@@ -455,6 +494,15 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     if (!Number.isFinite(px)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     marketValue += px * signed
+    const usedBroker = preferBroker
+      ? Number.isFinite(p?.brokerPrice)
+      : !Number.isFinite(live)
+    if (usedBroker) {
+      vintage.components.broker += 1
+      brokerSessions.push([p.symbol, p?.brokerPriceSession ?? null])
+    } else {
+      vintage.components.live += 1
+    }
     // Today is measured on the SAME price the row was valued at — pairing a
     // broker-marked value with a live-marked move would make (netLiq − today)
     // a previous-close equity from neither vintage. Without a live tick and
@@ -481,8 +529,12 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     const liveCur = live?.currentValue
     const bcv = s?.brokerCurrentValue
     let cur = Number.isFinite(liveCur) ? liveCur : bcv
-    if (!Number.isFinite(cur) && s?.source === 'broker') cur = s?.netEntry
-    if (Number.isFinite(cur)) marketValue += cur
+    let kind = Number.isFinite(liveCur) ? 'live' : 'broker'
+    if (!Number.isFinite(cur) && s?.source === 'broker') {
+      cur = s?.netEntry
+      kind = 'cost'   // neither a live nor a broker mark; never let it pose as one
+    }
+    if (Number.isFinite(cur)) { marketValue += cur; vintage.components[kind] += 1 }
     if (Number.isFinite(liveCur) && Number.isFinite(live?.prevCloseValue)) {
       // Today for options mirrors the equity rule: measured from the prior
       // session close, or from the entry (netEntry) for a strategy genuinely
@@ -502,7 +554,8 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
   const prevCloseEquity = netLiq != null ? netLiq - today : null
   const todayPct =
     prevCloseEquity != null && prevCloseEquity !== 0 ? today / prevCloseEquity : null
-  return { netLiq, marketValue, today, todayPct }
+  return { netLiq, marketValue, today, todayPct,
+           vintage: finishVintage(vintage, brokerSessions) }
 }
 
 /**
@@ -698,4 +751,58 @@ export const summaryStats = (trades) => {
     maxConsecWins,
     maxConsecLosses,
   }
+}
+
+/**
+ * One honest line saying WHICH MOMENT the hero's number is from.
+ *
+ * The owner's words on 2026-08-29 were "no matter what it is unreliable" — about
+ * a $19.96 gap they could not account for. The gap was real and is now 2c, but
+ * the lesson outlives it: a difference you cannot explain reads as broken, and
+ * the same difference, labelled, reads as precise. The data to label it always
+ * existed; nothing surfaced it.
+ *
+ * Returns null when there is nothing worth saying (an all-live book already
+ * says LIVE) — a label on every screen is noise, and noise is what gets
+ * ignored on the day it matters.
+ */
+export const vintageLabel = (vintage) => {
+  if (!vintage || !vintage.basis) return null
+  const { basis, session, components } = vintage
+  const total = components.live + components.broker + components.cost
+  if (basis === 'live') return null
+  if (basis === 'cost') return 'At cost — no marks yet'
+  if (basis === 'broker') {
+    return session ? `As of ${sessionLabel(session)} close` : "At your broker's last marks"
+  }
+  const bits = []
+  if (components.broker) {
+    bits.push(`${components.broker} of ${total} at your broker's ${
+      session ? `${sessionLabel(session)} close` : 'last marks'}`)
+  }
+  if (components.cost) bits.push(`${components.cost} at cost`)
+  return bits.length ? bits.join(' · ') : null
+}
+
+/**
+ * 'YYYY-MM-DD' → 'Fri Aug 28'.
+ *
+ * ⛔ Built from the date PARTS at local noon, never `new Date(iso)`. Parsing a
+ * bare date as UTC midnight and rendering it locally slips it a day for anyone
+ * west of Greenwich — this repo has paid for that exact bug four separate times
+ * (the calendar, the replay marker, the option excursion window, the trading-day
+ * spine). Noon cannot cross a day boundary under any offset.
+ */
+export const sessionLabel = (session) => {
+  const parts = String(session || '').split('-').map(Number)
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return String(session || '')
+  const [y, m, d] = parts
+  const dt = new Date(y, m - 1, d, 12)
+  // Built from fixed names rather than toLocaleDateString: the label is product
+  // copy, and a rail whose expected string depends on the test runner's locale
+  // fails for the wrong reason.
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${WD[dt.getDay()]} ${MO[dt.getMonth()]} ${dt.getDate()}`
 }

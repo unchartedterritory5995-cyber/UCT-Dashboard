@@ -349,6 +349,59 @@ async def admin_option_mark_compare(
     return _om.compare_prior_marks(user_id=user_id)
 
 
+@router.get("/admin/drift-series")
+async def admin_drift_series(
+    request: Request, broker_account_id: str, days: int = 30,
+) -> dict[str, Any]:
+    """Composed-vs-reported drift over time, with the statistics that show BIAS.
+
+    The mirror check keeps one verdict and pages on a threshold, which finds
+    breakage and is blind to a steady lean. The 2026-08-29 hero sat $19.96 from
+    the broker's own reported total every day, under every tolerance, and was
+    caught only by comparing two screens by hand.
+
+    Read `mean`: noise averages toward zero, so a mean that stays put is a
+    systematic offset and its sign says which side is high. `spread` separates a
+    steady bias from a jittery one. Points with a null drift are shown but never
+    counted as zero — that would drag a real bias toward the middle.
+
+    Gated by the PUSH_SECRET bearer, like the other admin instruments.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import mirror_check as _mc
+    return _mc.drift_series(broker_account_id, days=days)
+
+
+@router.get("/admin/broker-coverage")
+async def admin_broker_coverage(request: Request) -> dict[str, Any]:
+    """Per-brokerage readout of the traits the pipeline actually derived.
+
+    Every defect in the broker mirror this month was found on ONE account —
+    Robinhood, 1 of 11, while Schwab is 7. With more brokers arriving, the odds
+    that the next one is found by a member instead of by us only get worse.
+
+    This is what to read when a new brokerage is onboarded: does it carry real
+    activity timestamps or midnight stamps (which under-cover the live-cash rail
+    by design), are its marks dated yet, and is its composed number leaning
+    systematically against the broker's own total. All inferred from each
+    account's own data, so a brokerage nobody has special-cased is still
+    described correctly.
+
+    Gated by the PUSH_SECRET bearer, like the other admin instruments.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import broker_coverage as _bc
+    return _bc.report()
+
+
 @router.get("/admin/fidelity-audit")
 async def admin_fidelity_audit(user_id: str, raw: bool = False,
                                user: dict = Depends(require_admin)) -> dict[str, Any]:

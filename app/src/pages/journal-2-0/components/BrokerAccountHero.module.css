@@ -85,3 +85,12 @@
   margin-top: 2px;
   opacity: 0.9;
 }
+
+/* Where the hero's prices came from — quiet by design; it is a reassurance,
+   not an alert, and it must never compete with the value above it. */
+.vintageNote {
+  margin-top: 4px;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+  color: var(--color-text-muted, #8b8b8b);
+}

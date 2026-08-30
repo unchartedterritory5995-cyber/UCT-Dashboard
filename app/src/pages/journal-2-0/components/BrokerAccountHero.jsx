@@ -12,7 +12,7 @@
  * from the already-computed portfolioAggregates. Renders null for non-broker.
  */
 import { useMemo, useRef, useState } from 'react'
-import { money, moneySigned, percent, extendedSessionSplit, effectiveBrokerCash } from '../../../lib/journal-2-0'
+import { money, moneySigned, percent, extendedSessionSplit, effectiveBrokerCash, vintageLabel } from '../../../lib/journal-2-0'
 import useJ2BrokerPerformance from '../hooks/useJ2BrokerPerformance'
 import useIntradayEquityCurve from '../hooks/useIntradayEquityCurve'
 import useAnimatedNumber from '../../../hooks/useAnimatedNumber'
@@ -240,6 +240,9 @@ export default function BrokerAccountHero({
     }
   }
   const rangeUp = (rangeChange ?? 0) >= 0
+  // Only meaningful for the 1D view: the longer ranges are a curve of closes,
+  // not a composition of today's marks.
+  const vintageNote = isIntraday ? vintageLabel(liveSummary?.vintage) : null
 
   const scrubChange = scrubbing ? series[scrub].value - series[0].value : null
   const scrubPct = scrubbing && series[0].value ? scrubChange / Math.abs(series[0].value) : null
@@ -288,6 +291,16 @@ export default function BrokerAccountHero({
                   </span>
                 )}
               </>
+            )}
+            {/* WHICH MOMENT this number is from. The owner called the account
+                "unreliable" over a $19.96 gap they could not account for; the
+                gap is now 2c, but a difference you cannot explain reads as
+                broken whatever its size. Renders nothing on an all-live book —
+                a label on every screen is noise. */}
+            {vintageNote && (
+              <div className={styles.vintageNote} title="Where these prices came from">
+                {vintageNote}
+              </div>
             )}
           </div>
         </div>
