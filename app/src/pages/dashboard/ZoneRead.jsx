@@ -73,6 +73,16 @@ export default function ZoneRead({ showQuote = true }) {
   // re-judged on every read, so it cannot itself go stale.
   const wireDate = breadth?.wire_date ?? null
   const wireStale = breadth?.wire_status === 'stale'
+  // ⛔ 'unknown' IS ITS OWN ANSWER, NOT A MISSING ONE. `engine.wire_freshness`
+  // emits 'unknown' for an absent or unparseable date and its docstring is
+  // explicit that this is "deliberately distinct from 'stale': an absent date
+  // means we cannot tell, and claiming staleness we cannot support is the same
+  // class of error as claiming freshness we cannot support." Branching only on
+  // 'stale' left an unknown-vintage score rendering completely unlabelled —
+  // the 2026-08-14 shape in milder form, on the number Zone A now LEADS with.
+  // So we say we cannot tell, which is the true statement.
+  const wireUnknown = breadth?.wire_status === 'unknown'
+  const flagged = wireStale || wireUnknown
 
   return (
     <div className={styles.read}>
@@ -101,17 +111,23 @@ export default function ZoneRead({ showQuote = true }) {
       {/* One muted line under both columns: freshness stamp, then the note.
           Both are about the same reading, so they share a row rather than
           spending two of the zone's four available text lines. */}
-      {(wireDate || note) && (
-        <p className={`${styles.meta} ${wireStale ? styles.metaStale : ''}`}>
-          {wireStale && (
-            <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+      {(wireDate || wireUnknown || note) && (
+        <p className={`${styles.meta} ${flagged ? styles.metaStale : ''}`}>
+          {/* ⛔ gold={false}. UIcon's `gold` prop DEFAULTS TO TRUE and overrides
+              `stroke` with the metallic gradient — without it this warning
+              rendered as a decorative gold mark beside --warning-coloured text,
+              on the one signal that says the number above may not be today's. */}
+          {flagged && (
+            <UIcon name="warning" size={11} gold={false} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           )}
-          {wireDate && (
+          {wireDate ? (
             <span className={styles.wire}>
               Wire {wireDate}{wireStale ? ' — no run since; this is not today’s reading' : ''}
             </span>
-          )}
-          {wireDate && note && <span className={styles.dot}> · </span>}
+          ) : wireUnknown ? (
+            <span className={styles.wire}>Wire date unknown — freshness unverified</span>
+          ) : null}
+          {(wireDate || wireUnknown) && note && <span className={styles.dot}> · </span>}
           {note && <span className={styles.note}>{note}</span>}
         </p>
       )}

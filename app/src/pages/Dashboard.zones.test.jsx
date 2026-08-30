@@ -173,9 +173,30 @@ test('CONTROL: a mount split across lines is caught too — the old regex missed
 const cssRaw = readFileSync(join(here, 'Dashboard.module.css'), 'utf8')
 const css = cssRaw.replace(/\/\*[\s\S]*?\*\//g, '')
 
+// ⛔ `String.raw`, NOT A PLAIN TEMPLATE LITERAL. The first cut of these helpers
+// interpolated into a bare `` `${name}\s*:\s*...` ``, where the escape is eaten
+// before RegExp ever sees it: the compiled source was `--zone-as*:s*([^;]+);`,
+// which passed only because `s*` can match empty — and it then matched
+// whitespace EXACTLY, so a Prettier run would have reddened this rail with no
+// defect present. Same escape family as the word-boundary-became-a-backspace
+// bug fixed in 23f13b23b. The control below fails on that shape.
+const declRe = (name) => new RegExp(String.raw`${name}\s*:\s*([^;]+);`, 'g')
+const gridRowRe = (cls, row) => new RegExp(String.raw`\.${cls}\s*\{\s*grid-row:\s*${row}\s*;\s*\}`)
+
+test('CONTROL: the rail’s own regexes survived their escapes', () => {
+  // If `\s` decayed to a literal `s`, neither of these reformatted snippets
+  // matches — which is exactly how the broken version would have gone red on a
+  // formatting change instead of on a real defect.
+  expect(declRe('--zone-a').source).toContain('\s')
+  expect([...'  --zone-a :  120px;'.matchAll(declRe('--zone-a'))]).toHaveLength(1)
+  expect(gridRowRe('zoneA', 1).test('.zoneA {\n  grid-row: 1;\n}')).toBe(true)
+  // …and it still discriminates: a different row number must NOT match.
+  expect(gridRowRe('zoneA', 2).test('.zoneA { grid-row: 1; }')).toBe(false)
+})
+
 test('each zone height is declared exactly once, as a custom property', () => {
   for (const [name, px] of [['--zone-a', '120px'], ['--zone-b', '440px'], ['--zone-c', '300px']]) {
-    const decls = [...css.matchAll(new RegExp(`${name}\s*:\s*([^;]+);`, 'g'))].map(m => m[1].trim())
+    const decls = [...css.matchAll(declRe(name))].map(m => m[1].trim())
     // The property may be REDECLARED to collapse a zone (see the :has rule),
     // but the real height literal must appear exactly once.
     expect(decls.filter(v => v === px),
@@ -218,6 +239,6 @@ test('I2: an empty Zone B COLLAPSES ITS TRACK — and the false display:none rul
 
 test('each zone owns an explicit grid row, so hiding one never shifts the others', () => {
   for (const [cls, row] of [['zoneA', 1], ['zoneB', 2], ['zoneC', 3]]) {
-    expect(css).toMatch(new RegExp(`\.${cls} \{ grid-row: ${row}; \}`))
+    expect(css, `.${cls} no longer owns grid-row ${row}`).toMatch(gridRowRe(cls, row))
   }
 })

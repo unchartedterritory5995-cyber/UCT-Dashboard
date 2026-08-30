@@ -200,3 +200,53 @@ describe('the quote', () => {
     expect(screen.queryByText(/[“]/)).toBeNull()
   })
 })
+
+// ─── FIX ROUND 2 ────────────────────────────────────────────────────────────
+
+describe('wire_status: "unknown"', () => {
+  // ⛔ `engine.wire_freshness` emits 'unknown' for an absent or unparseable
+  // date, and its docstring is explicit that this is "deliberately distinct
+  // from 'stale': an absent date means we cannot tell, and claiming staleness
+  // we cannot support is the same class of error as claiming freshness we
+  // cannot support." Branching only on 'stale' left an unknown-vintage score
+  // rendering completely unlabelled — the 2026-08-14 shape in milder form, on
+  // the number Zone A now LEADS with.
+  test('says freshness is unverified instead of rendering the score bare', () => {
+    h.breadth = { exposure: { score: 55 }, wire_date: null, wire_status: 'unknown' }
+    mount()
+    expect(screen.getByText(/freshness unverified/),
+      'an unknown-vintage exposure number rendered with nothing beside it')
+      .toBeInTheDocument()
+    expect(screen.getByText('55')).toBeInTheDocument()
+  })
+
+  test('CONTROL: a FRESH wire says none of that', () => {
+    // Without this, "unverified" could be printed unconditionally.
+    h.breadth = { exposure: { score: 55 }, wire_date: '2026-08-30', wire_status: 'fresh' }
+    mount()
+    expect(screen.queryByText(/freshness unverified/)).toBeNull()
+    expect(screen.queryByText(/not today/)).toBeNull()
+    expect(screen.getByText(/Wire 2026-08-30/)).toBeInTheDocument()
+  })
+
+  test('and a payload with no wire fields at all still renders nothing', () => {
+    // 'unknown' is a STATEMENT the server made; its absence is not.
+    h.breadth = { exposure: { score: 87 } }
+    mount()
+    expect(screen.queryByText(/freshness unverified/)).toBeNull()
+    expect(screen.queryByText(/^Wire /)).toBeNull()
+  })
+})
+
+test('the stale-wire warning icon is NOT brand gold', () => {
+  // UIcon's `gold` prop DEFAULTS TO TRUE and overrides `stroke` with the
+  // metallic gradient, so the one signal that says "this number may not be
+  // today's" rendered as decoration beside --warning-coloured text.
+  h.breadth = { exposure: { score: 55 }, wire_date: '2026-08-13', wire_status: 'stale' }
+  mount()
+  const warn = document.querySelector('[class*="metaStale"] svg')
+  expect(warn, 'the stale-wire warning icon is gone').not.toBeNull()
+  expect(warn.getAttribute('stroke'),
+    'the warning icon is rendering with UIcon’s gold gradient instead of a '
+    + 'semantic stroke — gold={false} is missing').not.toMatch(/url\(#uig/)
+})

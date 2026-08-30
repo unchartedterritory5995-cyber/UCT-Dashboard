@@ -72,8 +72,12 @@ export default function TheWeek() {
   // but with all three missing this still rendered a "The Week" TileCard
   // header over an empty grid: the whole-component version of the 849px dead
   // column this hero exists to replace. Nothing to say is said by saying
-  // nothing. Zone B's `.zoneB:empty { display: none }` collapses the zone
-  // around this null so no 440px void is left behind either.
+  // nothing. Zone B collapses around this null so no 440px void is left behind
+  // either — via `.cockpit:has(.zoneB:empty) { --zone-b: 0px }`, which shrinks
+  // the TRACK. (It used to say `.zoneB:empty { display: none }`; that rule was
+  // deleted because hiding the item left its 440px track standing and slid Zone
+  // C into it. A comment describing a rule that no longer exists is the same
+  // defect one level up, so this line moves whenever that CSS does.)
   //
   // ⛔ THIS IS ALSO THE OUTAGE PATH. `jsonFetcher` throws on a non-ok
   // response, so a 402/500 leaves both `desk` and `cal` undefined and lands
