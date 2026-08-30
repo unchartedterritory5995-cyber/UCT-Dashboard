@@ -1192,6 +1192,16 @@ def _ctx_posture(sym: str) -> str:
             bits.append(f"{row[col]:+.1f}% vs {label}")
     if row.get("dist_52w_high_pct") is not None:
         bits.append(f"{row['dist_52w_high_pct']:+.1f}% vs 52w high")
+    # Real DOLLAR levels. Everything else here is a percentage, so a member
+    # asking "where's the entry" got no price to anchor on and the model
+    # computed one — which is why `price_without_tool` kept firing on answers
+    # the judge rated 4/4/4/4. These are also the levels this desk's own
+    # playbook trades off ("PREV DAY HIGH BREAK"). Rendered independently:
+    # a break level is useful even when the low is missing.
+    if row.get("prev_day_high") is not None:
+        bits.append(f"prev day high ${row['prev_day_high']:g}")
+    if row.get("prev_day_low") is not None:
+        bits.append(f"prev day low ${row['prev_day_low']:g}")
     if row.get("rsi14") is not None:
         bits.append(f"RSI {row['rsi14']:.0f}")
     if row.get("adr_pct") is not None:
@@ -1278,6 +1288,19 @@ def _ctx_levels(sym: str) -> str:
             if segs:
                 spot = f" (spot ${gxw['spot']:g})" if gxw.get("spot") else ""
                 bits.append("gamma: " + ", ".join(segs) + spot)
+    except Exception:
+        pass
+    # The desk's OWN playbook entry is a prev-day-high break, and this pack —
+    # the one whose entire job is price levels — carried only dark-pool and
+    # gamma prices. "Where's the entry?" routes here, not to posture, so the
+    # model had no desk level to anchor on and computed one.
+    try:
+        from api.services.screener import snapshot_db
+        row = snapshot_db.get_row(sym) or {}
+        if row.get("prev_day_high") is not None:
+            bits.append(f"prev day high ${row['prev_day_high']:g}")
+        if row.get("prev_day_low") is not None:
+            bits.append(f"prev day low ${row['prev_day_low']:g}")
     except Exception:
         pass
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
