@@ -30,11 +30,11 @@
 // the exit code is 2, and NOTHING is written to stdout — so a caller can never
 // mistake a diagnostic for a payload.
 /* global process, Buffer, __FLOW_FACTS_CLI__ */
-import { parseCSV, processFlowData } from './flowCompute'
+import { parseCSV, processFlowData, filterRowsByDate, availableDatesFrom } from './flowCompute'
 
 export const USAGE = [
   'usage:',
-  '  flow-facts aggregate < flow.csv   parsed + processed dataset as JSON',
+  '  flow-facts aggregate [--date-filter=Last1] < flow.csv   dataset as JSON',
   '  flow-facts stats     < flow.csv   sizing/telemetry only, no row payload',
 ].join('\n')
 
@@ -52,7 +52,7 @@ export const USAGE = [
  * null lets the data speak for itself, which is the honest server-side default:
  * this process has no user, and therefore no earnings-soon list to impose.
  */
-export function aggregateCsv(csv, { erSoon = null } = {}) {
+export function aggregateCsv(csv, { erSoon = null, dateFilter = null } = {}) {
   if (typeof csv !== 'string' || csv.length === 0) {
     throw new Error('stdin must be a non-empty CSV')
   }
@@ -61,8 +61,21 @@ export function aggregateCsv(csv, { erSoon = null } = {}) {
   const parseMs = Date.now() - t0
   if (!rows.length) throw new Error('CSV parsed but contained 0 valid rows')
 
+  // APPLY THE PAGE'S OWN DATE SELECTION, through the page's own helper.
+  // The page opens on dateFilter='Last1' over a days=1 fetch, so aggregating
+  // the whole CSV USUALLY lands on the same rows -- but only because that
+  // window usually holds exactly one session. On a CSV spanning two dates (a
+  // boundary, a backfill) "usually" silently becomes a DIFFERENT dataset than
+  // the page renders, and the numbers would change under the reader a couple
+  // of seconds after first paint. Filtering here with filterRowsByDate makes
+  // the match structural instead of coincidental.
+  const selected = dateFilter
+    ? filterRowsByDate(rows, { dateFilter, availableDates: availableDatesFrom(rows) })
+    : rows
+  if (!selected.length) throw new Error('no rows match dateFilter=' + dateFilter)
+
   const t1 = Date.now()
-  const D = processFlowData(rows, erSoon == null ? null : new Set(erSoon))
+  const D = processFlowData(selected, erSoon == null ? null : new Set(erSoon))
   const processMs = Date.now() - t1
 
   return {
@@ -70,6 +83,8 @@ export function aggregateCsv(csv, { erSoon = null } = {}) {
     stats: {
       csvBytes: csv.length,
       rawRows: rows.length,
+      dateFilter: dateFilter || 'All',
+      selectedRows: selected.length,
       parseMs,
       processMs,
       totalMs: parseMs + processMs,
@@ -119,8 +134,10 @@ export async function main(argv) {
   }
   routeConsoleToStderr()
   try {
+    const flag = argv.find(a => a.startsWith('--date-filter='))
+    const dateFilter = flag ? flag.slice('--date-filter='.length) : null
     const csv = await readStdin()
-    const { D, stats } = aggregateCsv(csv)
+    const { D, stats } = aggregateCsv(csv, { dateFilter })
     const payload = cmd === 'stats' ? { ok: true, stats } : { ok: true, stats, D }
     process.stdout.write(JSON.stringify(payload) + '\n')
   } catch (err) {

@@ -134,7 +134,7 @@ def test_it_actually_aggregates_and_reports_its_own_cost():
 def test_it_builds_once_per_version(monkeypatch):
     calls = {"n": 0}
 
-    def fake_build(csv):
+    def fake_build(csv, date_filter=None):
         calls["n"] += 1
         return {"json_bytes": b'{"ok":true}', "stats": {}}
 
@@ -157,7 +157,7 @@ def test_the_version_returned_is_the_one_the_body_was_built_from(monkeypatch):
     CURRENT version onto an older body is exactly the defect that header exists
     to kill.
     """
-    monkeypatch.setattr(fa, "build", lambda csv: {"json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {"json_bytes": b'{"ok":true}', "stats": {}})
     key = ("stocks", 1)
     v, _ = fa.get_cached_or_build(key, 5, lambda: "csv")
     assert v == 5
@@ -174,7 +174,7 @@ def test_the_version_returned_is_the_one_the_body_was_built_from(monkeypatch):
 
 def test_a_concurrent_build_with_nothing_cached_declines_rather_than_queues(monkeypatch):
     """Queueing behind a multi-second subprocess is the 524 outage class."""
-    monkeypatch.setattr(fa, "build", lambda csv: {"json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {"json_bytes": b'{"ok":true}', "stats": {}})
     fa._BUILD_LOCK.acquire()
     try:
         assert fa.get_cached_or_build(("stocks", 1), 1, lambda: "csv") is None
@@ -183,22 +183,95 @@ def test_a_concurrent_build_with_nothing_cached_declines_rather_than_queues(monk
 
 
 def test_an_empty_csv_from_the_provider_is_not_cached(monkeypatch):
-    monkeypatch.setattr(fa, "build", lambda csv: {"json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {"json_bytes": b'{"ok":true}', "stats": {}})
     assert fa.get_cached_or_build(("stocks", 1), 1, lambda: "") is None
     assert not fa._CACHE, "an empty source was cached as though it were an answer"
 
 
 def test_the_cache_is_bounded(monkeypatch):
-    monkeypatch.setattr(fa, "build", lambda csv: {"json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {"json_bytes": b'{"ok":true}', "stats": {}})
     for i in range(fa._CACHE_MAX + 4):
         fa.get_cached_or_build(("stocks", i), 1, lambda: "csv")
     assert len(fa._CACHE) <= fa._CACHE_MAX
 
 
 def test_the_cached_body_is_gzipped(monkeypatch):
-    monkeypatch.setattr(fa, "build", lambda csv: {"json_bytes": b'{"ok":true,"D":{}}', "stats": {}})
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {"json_bytes": b'{"ok":true,"D":{}}', "stats": {}})
     _, gz = fa.get_cached_or_build(("stocks", 1), 1, lambda: "csv")
     assert gzip.decompress(gz) == b'{"ok":true,"D":{}}'
+
+
+# ── the date selection ──────────────────────────────────────────────────────
+
+_HEADER = ("CreatedDate,CreatedTime,Symbol,Type,Volume,Price,Side,CallPut,Strike,"
+           "Spot,Premium,ExpirationDate,Color,ImpliedVolatility,Dte,ER,StockEtf,"
+           "Sector,Uoa,Weekly,MktCap,OI")
+
+
+def _row(date, sym):
+    return (f"{date},10:00:00 AM,{sym},SWEEP,500,10.5,,CALL,100,95.0,525000,"
+            "7/31/2026,WHITE,0,7,F,STOCK,Information Technology,F,T,5e10,900")
+
+
+def _two_day_csv():
+    nl = chr(10)   # written as chr(10) so no escape can be mangled in transit
+    return nl.join([_HEADER, _row("7/23/2026", "OLDD"),
+                    _row("7/24/2026", "NEWW")]) + nl
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("Last1", "Last1"), ("Last20", "Last20"), ("All", "All"),
+    ("last1", None),          # case matters — the page sends the exact token
+    ("Last999", None),        # 3 digits is not a selection the page can make
+    ("", None), (None, None),
+    ("; rm -rf /", None), ("--date-filter=x", None), ("Last1 --inject", None),
+])
+def test_only_the_pages_own_selections_reach_argv(raw, expected):
+    """This is the ONE caller-supplied string that reaches a subprocess argv."""
+    assert fa.valid_date_filter(raw) == expected
+
+
+def test_the_date_filter_actually_changes_the_dataset():
+    """⛔ A filter that silently does nothing is the defect worth catching.
+
+    Threading a parameter through four layers and having it land on a no-op
+    looks identical to it working — the response is still a valid aggregate.
+    So assert the two answers DIFFER, and name which row each kept.
+    """
+    if not fa.available():
+        pytest.skip("node/bundle not present in this environment")
+    csv = _two_day_csv()
+
+    everything = fa.build(csv)
+    newest_only = fa.build(csv, "Last1")
+    assert everything and newest_only
+
+    assert everything["stats"]["selectedRows"] == 2
+    assert newest_only["stats"]["selectedRows"] == 1
+    assert newest_only["stats"]["rawRows"] == 2, "the filter must select, not re-parse"
+    syms = {t["S"] for t in json.loads(newest_only["json_bytes"])["D"]["all_trades"]}
+    assert syms == {"NEWW"}, f"Last1 kept the wrong session: {syms}"
+
+
+def test_a_rejected_filter_falls_back_to_the_whole_csv_not_an_error():
+    if not fa.available():
+        pytest.skip("node/bundle not present in this environment")
+    out = fa.build(_two_day_csv(), "; rm -rf /")
+    assert out is not None and out["stats"]["selectedRows"] == 2
+
+
+def test_two_date_selections_do_not_collide_in_the_cache(monkeypatch):
+    """The key carries the filter, so 'Last1' can never be served for 'All'."""
+    seen = []
+
+    def fake_build(csv, date_filter=None):
+        seen.append(date_filter)
+        return {"json_bytes": b'{"ok":true}', "stats": {}}
+
+    monkeypatch.setattr(fa, "build", fake_build)
+    fa.get_cached_or_build(("stocks", 1, "Last1"), 9, lambda: "csv", "Last1")
+    fa.get_cached_or_build(("stocks", 1, "All"), 9, lambda: "csv", "All")
+    assert seen == ["Last1", "All"], "a second selection reused the first answer"
 
 
 # ── the endpoint ────────────────────────────────────────────────────────────

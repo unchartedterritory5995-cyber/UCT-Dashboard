@@ -79,11 +79,17 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
           if (Math.abs(p.x - drag.current.sx) + Math.abs(p.y - drag.current.sy) < THRESHOLD) return
           drag.current.moved = true
         }
-        const ms = mediaSizeRef.current || { width: el.clientWidth, height: el.clientHeight }
+        // Normalize against pane 0's media size (what the primitive resolves x/y
+        // against), NOT the container — the price pane is shorter/narrower than the
+        // container (volume pane + right axis), so the container denom scaled the
+        // mark up-and-left off the cursor.
+        const ms = (c.getMediaSize && c.getMediaSize()) || mediaSizeRef.current || { width: el.clientWidth, height: el.clientHeight }
         const w = ms.width || 1
         const h = ms.height || 1
-        const nx = Math.max(0, Math.min(1, p.x / w))
-        const ny = Math.max(0, Math.min(1, p.y / h))
+        // Apply the grab offset (centre − grab point) so the exact spot you grabbed
+        // stays under the cursor and the mark tracks the mouse 1:1 (no jump, no lag).
+        const nx = Math.max(0, Math.min(1, (p.x + drag.current.ox) / w))
+        const ny = Math.max(0, Math.min(1, (p.y + drag.current.oy) / h))
         drag.current.nx = nx
         drag.current.ny = ny
         c.setOptions({ x: nx, y: ny })
@@ -100,7 +106,13 @@ export default function useWatermarkDrag({ containerRef, controllerRef, getActiv
       if (!inRect(p)) return
       // We own this press — stop it reaching the chart so it doesn't start a pan.
       suppressChart(e)
-      drag.current = { sx: p.x, sy: p.y, moved: false, nx: null, ny: null }
+      // Grab offset = (mark centre − grab point), so the point you grabbed stays
+      // pinned under the cursor instead of the centre snapping to it.
+      const c0 = controllerRef.current
+      const r0 = c0 && c0.getRect && c0.getRect()
+      const ox = r0 ? (r0.x + r0.w / 2) - p.x : 0
+      const oy = r0 ? (r0.y + r0.h / 2) - p.y : 0
+      drag.current = { sx: p.x, sy: p.y, ox, oy, moved: false, nx: null, ny: null }
       try { el.setPointerCapture(e.pointerId) } catch { /* ignore */ }
     }
 

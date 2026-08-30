@@ -1608,6 +1608,27 @@
 /* the AI row keeps its gold accent — its icon matches the gold text, full strength */
 .chartCtxAi .chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); opacity: 1; }
 
+/* "Chart template" side flyout — a second menu that opens to the RIGHT of the
+   parent row (left:100%), listing the user's saved chart-settings templates. */
+.chartCtxSubWrap { position: relative; }
+.chartCtxItemOpen { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.1)); }
+.chartCtxCaret { margin-left: auto; padding-left: 10px; font-size: 11px; opacity: 0.6; }
+.chartCtxFlyout {
+  position: absolute; left: 100%; top: -5px; margin-left: 5px; z-index: 902;
+  min-width: 190px; max-width: 260px; max-height: 340px; overflow-y: auto;
+  display: flex; flex-direction: column;
+  background: var(--menu-bg, var(--bg-elevated, #12171f));
+  border: 1px solid var(--menu-border, var(--border, #2a3340));
+  border-radius: 10px; padding: 5px;
+  box-shadow: 0 14px 44px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  font-family: 'Instrument Sans', sans-serif;
+}
+.chartCtxTplName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chartCtxFlyoutEmpty {
+  padding: 9px 11px; max-width: 210px; font-size: 12px; line-height: 1.4;
+  color: var(--menu-text, var(--text, #e5e7eb)); opacity: 0.6;
+}
+
 /* ── Transient AI popup (shown only when no AI Search widget is in the layout) ── */
 .tempAiTab {
   position: fixed; z-index: 901;

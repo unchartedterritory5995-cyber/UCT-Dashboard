@@ -425,6 +425,10 @@ function _mentionSeek(m) {
   const n = raw == null || raw === '' ? NaN : Number(raw)
   return Number.isFinite(n) ? n : Infinity
 }
+// Watermark "Interval" field label — the display timeframe (e.g. code 'D' → '1D').
+const TF_WM_LABELS = { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '1h', D: '1D', W: '1W', M: '1M' }
+function tfWatermarkLabel(tf) { return TF_WM_LABELS[tf] || (tf ? String(tf) : '') }
+
 export function buildDeskMentionMarkers(mentions, resolvedTf) {
   if (parseTf(resolvedTf).minutes != null) return []
   if (!Array.isArray(mentions)) return []
@@ -1479,6 +1483,8 @@ export default function StockChart({
   exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
+  watermarkAdjusting = false, // Charts workspace: explicit "adjust watermark" mode — unlock the drag, show a confirm/cancel bar, and hold the dragged spot PENDING until confirmed (instead of the hover-drag committing immediately).
+  onWatermarkAdjustEnd = null, // (pos:{x,y} | null) => void — fired when adjust mode ends: a position to persist on Confirm, or null on Cancel.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
   leftBarPad = 0,             // bars of empty space before the first bar on the default zoom (intraday popup: matches the right padding)
   overlaysFromStart = false,  // MA overlays begin at the chart's first bar (expanding-window warmup) instead of after `period` bars (intraday popup)
@@ -2373,12 +2379,18 @@ export default function StockChart({
     try { localStorage.setItem(TOOLBAR_COLLAPSED_LS, v ? '1' : '0') } catch { /* private mode — non-fatal */ }
   }, [])
 
+  // Explicit "adjust watermark" mode: the dragged spot is held here (pending)
+  // until the user hits Confirm — so a hover-drag can't silently move the mark.
+  const [wmPending, setWmPending] = useState(null)
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
-    locked: lockWatermark,
+    // In adjust mode the drag is UNLOCKED even on a surface that otherwise locks it.
+    locked: lockWatermark && !watermarkAdjusting,
     getActiveTool: () => activeToolRef.current,
     onCommit: ({ x, y }) => {
+      // Adjust mode: hold the spot pending (Confirm persists it, Cancel discards).
+      if (watermarkAdjusting) { setWmPending({ x, y }); return }
       // Setup Library: persist the new position on THIS example only, never the
       // global chart_settings (so other charts site-wide keep their watermark).
       if (onWatermarkCommit) { onWatermarkCommit({ x, y }); return }
@@ -2388,6 +2400,59 @@ export default function StockChart({
       setPref('chart_settings', JSON.stringify(next))
     },
   })
+  // A custom watermark placement is active (adjusting, mid-drag, or a saved
+  // per-chart position) — when so, DROP the hard-centering so the x-fraction can
+  // move the mark HORIZONTALLY (otherwise x is pinned to the plot centre).
+  const wmCustomRef = useRef(false)
+  wmCustomRef.current = watermarkAdjusting || wmPending != null || watermarkX != null
+  // Adjust mode on/off: seed pending with the mark's CURRENT position (so turning
+  // off hard-centering doesn't shift it) + arm it; clear pending when it ends.
+  useEffect(() => {
+    if (!watermarkAdjusting) { setWmPending(null); return undefined }
+    try {
+      const c = wmCtrlRef.current
+      const r = c?.getRect?.()
+      const ms = c?.getMediaSize?.()
+      if (r && ms && ms.width && ms.height) {
+        const seed = { x: (r.x + r.w / 2) / ms.width, y: (r.y + r.h / 2) / ms.height }
+        setWmPending(seed)
+        // Drop hard-centering + place at the seed NOW (not on the next data poll),
+        // so the very first drag can move BOTH axes with no jump.
+        c.setOptions({ x: seed.x, y: seed.y, hardCenterXPx: null })
+      }
+      c?.setArmed?.(true)
+    } catch { /* noop */ }
+    return () => { try { wmCtrlRef.current?.setArmed?.(false) } catch { /* noop */ } }
+  }, [watermarkAdjusting])
+  // Apply the watermark's placement (position + alignment + hard-centering) to the
+  // primitive the INSTANT its inputs change — not only on the next data poll. This
+  // is what makes "Reset to center" (watermarkX→null) and an alignment change take
+  // effect immediately. During an active drag the hook owns x/y (wmPending only
+  // changes on drag-end), so this never fights it.
+  useEffect(() => {
+    const c = wmCtrlRef.current
+    if (!c || !chartReady) return
+    const custom = watermarkAdjusting || wmPending != null || watermarkX != null
+    const align = cs.watermark?.align || 'center'
+    let hardCenterXPx = null
+    // Hard-center whenever there's no custom drag position — alignment is text-only
+    // and never changes the block's placement.
+    if (!custom && centerWatermarkOnPlot) {
+      try {
+        const chart = chartRef.current
+        const tw = chart?.timeScale?.().width() || 0
+        let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
+        if (tw > 0) hardCenterXPx = (tw + aw) / 2
+      } catch { /* noop */ }
+    }
+    try {
+      c.setOptions({
+        x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
+        y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
+        align, custom, hardCenterXPx,
+      })
+    } catch { /* noop */ }
+  }, [chartReady, watermarkAdjusting, wmPending, watermarkX, watermarkY, cs.watermark?.align, cs.watermark.x, cs.watermark.y, centerWatermarkOnPlot])
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
@@ -2407,6 +2472,8 @@ export default function StockChart({
       try {
         const tw = ts.width()
         let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
+        // Don't re-center a custom-placed / being-adjusted watermark on resize.
+        if (wmCustomRef.current) return
         if (tw > 0 && wmCtrlRef.current) wmCtrlRef.current.setOptions({ hardCenterXPx: (tw + aw) / 2 })
       } catch { /* noop */ }
     }
@@ -7495,7 +7562,7 @@ export default function StockChart({
     }
     {
       const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
-        ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
+        ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
       // WHOLE widget — the candle plot PLUS the right price-axis gutter — measured
@@ -7516,10 +7583,17 @@ export default function StockChart({
         opacity: watermarkOpacity ?? cs.watermark.opacity,
         sizeScale: cs.watermark.sizeScale,
         weight: cs.watermark.weight ?? 700,
-        x: watermarkX ?? cs.watermark.x,
-        y: watermarkY ?? cs.watermark.y,
+        // In adjust mode the PENDING dragged spot wins, so a data-poll re-render
+        // can't snap the mark back to its saved position mid-drag.
+        x: wmPending?.x ?? watermarkX ?? cs.watermark.x,
+        y: wmPending?.y ?? watermarkY ?? cs.watermark.y,
+        // Horizontal alignment (left/center/right) + whether a custom drag position
+        // is active (a custom position uses the centre anchor; align does text
+        // justification and the left/right non-custom placement).
+        align: cs.watermark.align || 'center',
+        custom: wmCustomRef.current,
         ...(watermarkPad != null ? { padX: watermarkPad, padTop: watermarkPadTop ?? watermarkPad } : {}),
-        hardCenterXPx: _wmCenterX,
+        hardCenterXPx: wmCustomRef.current ? null : _wmCenterX,
       })
     }
 
@@ -12421,6 +12495,14 @@ export default function StockChart({
           sections,
           clickPrice,
           currentPrice,
+          // Location-aware menu: true when the right-click landed inside the
+          // watermark's rect, so the host can offer "Adjust watermark".
+          onWatermark: (() => {
+            try {
+              const r = wmCtrlRef.current?.getRect?.()
+              return !!(r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h)
+            } catch { return false }
+          })(),
           resetView: () => {
             try {
               // VERTICAL: clear manual price-scale drag / locked placement + re-enable
@@ -13959,6 +14041,53 @@ export default function StockChart({
         </div>
         )
       })()}
+      {/* Watermark ADJUST mode — a floating confirm/cancel bar (mirrors the
+          highlight-period toolbar). While it's up the watermark drag is unlocked
+          and armed; drag it anywhere, then Confirm to keep it or Cancel to revert. */}
+      {watermarkAdjusting && (
+        <div style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 31,
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: '#0e0f0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 14px',
+          boxShadow: '0 12px 32px -14px rgba(0,0,0,0.8)', pointerEvents: 'auto', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+          <button
+            type="button"
+            onClick={() => {
+              const pos = wmPending || { x: watermarkX ?? cs.watermark.x, y: watermarkY ?? cs.watermark.y }
+              setWmPending(null)
+              onWatermarkAdjustEnd?.(pos)
+            }}
+            style={{ fontSize: 12, fontWeight: 600, color: '#0e0f0d', background: '#dcbb5e', border: 'none',
+              borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >Confirm</button>
+          <button
+            type="button"
+            onClick={() => {
+              setWmPending(null)
+              try {
+                const c = wmCtrlRef.current
+                if (watermarkX != null) {
+                  // Had a saved custom position → revert to it (hard-centering stays off).
+                  c?.setOptions?.({ x: watermarkX, y: watermarkY ?? cs.watermark.y })
+                } else {
+                  // No saved position → restore the hard-centered default look.
+                  const chart = chartRef.current
+                  let hc = null
+                  try {
+                    const tw = chart?.timeScale?.().width() || 0
+                    let aw = 0; try { aw = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
+                    if (tw > 0) hc = (tw + aw) / 2
+                  } catch { /* noop */ }
+                  c?.setOptions?.({ x: cs.watermark.x, y: cs.watermark.y, hardCenterXPx: hc })
+                }
+              } catch { /* noop */ }
+              onWatermarkAdjustEnd?.(null)
+            }}
+            style={{ fontSize: 12, fontWeight: 600, color: '#c9ccd1', background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.16)', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >Cancel</button>
+        </div>
+      )}
       <canvas
         ref={vpCanvasRef}
         style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 2 }}
