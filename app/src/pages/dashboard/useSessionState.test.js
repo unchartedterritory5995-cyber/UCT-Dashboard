@@ -13,7 +13,7 @@
 // TZ=UTC, TZ=America/Los_Angeles, and TZ=Asia/Tokyo (see task report) to
 // confirm no fixture is TZ-load-bearing.
 import { test, expect } from 'vitest'
-import { resolveSession, nextBoundary, formatCountdown } from './useSessionState'
+import { resolveSession, nextBoundary, resolveBoundary, formatCountdown } from './useSessionState'
 
 const et = (s) => new Date(`${s} GMT-0400`)   // EDT
 
@@ -113,4 +113,102 @@ test('formatCountdown is compact enough for a 120px zone', () => {
   expect(formatCountdown(0)).toBe('now')
   expect(formatCountdown(-5)).toBe('now')
   expect(formatCountdown(undefined)).toBe('now')
+})
+
+// ─── nextBoundary vs MARKET HOLIDAYS ────────────────────────────────────────
+//
+// 🔴 THE DEFECT THESE COVER. `nextBoundary` knew weekends and clock hours and
+// nothing else, so on Thanksgiving the paid home counted down — to the minute
+// — to an open that would not happen. The closure list is NOT typed here or in
+// the component: it is served from `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` via
+// `GET /api/market-calendar` and arrives as a parameter, so these fixtures
+// pass a Set the way the hook does.
+//
+// ⛔ SECOND TZ TRAP, AND IT IS NOT THE ONE ABOVE. `et()` bakes GMT-0400 (EDT),
+// which is correct for the August fixtures and WRONG for November/December —
+// US DST ended 2026-11-01, so those dates are EST (GMT-0500) and an EDT offset
+// would silently shift every fixture an hour earlier in ET, moving 07:00 to
+// 06:00 and quietly changing what is being asserted. `est()` is the winter
+// twin; the offset is baked in, so both remain host-TZ-independent.
+const est = (s) => new Date(`${s} GMT-0500`)   // EST
+
+// The two 2026 dates read off `_NYSE_HOLIDAYS_YYYYMMDD` (20261126, 20261225).
+const THANKSGIVING = '2026-11-26'   // Thursday
+const CHRISTMAS = '2026-12-25'      // Friday
+const holidaySet = (...days) => new Set(days)
+
+test('a holiday weekday counts down to the NEXT session, not to a bell that will not ring', () => {
+  // Thanksgiving 07:00 ET. Holiday-blind, this is "Opens in 2h 30m" — the lie.
+  expect(nextBoundary(est(`${THANKSGIVING} 07:00`)).ms).toBe(150 * 60_000)
+  // Knowing the closure, the next open is Friday 09:30: 1 day + 09:30 − 07:00.
+  expect(nextBoundary(est(`${THANKSGIVING} 07:00`), holidaySet(THANKSGIVING)))
+    .toEqual({ kind: 'open', ms: (1440 + 570 - 420) * 60_000 })
+})
+
+test('MID-holiday it never claims a session is running', () => {
+  // 11:00 on Thanksgiving. Holiday-blind this reads `close` — "the session
+  // ends in 5h" — which is a wrong SENTENCE, not just a wrong number.
+  expect(nextBoundary(est(`${THANKSGIVING} 11:00`)).kind).toBe('close')
+  expect(nextBoundary(est(`${THANKSGIVING} 11:00`), holidaySet(THANKSGIVING)).kind).toBe('open')
+})
+
+test('a holiday that EXTENDS a weekend is walked all the way through', () => {
+  // Christmas 2026 falls on a Friday. From Friday 11:00 the next open is the
+  // following Monday 09:30 — the walk must cross a closure AND a weekend, the
+  // case the old `day === 5 ? 3 : …` arithmetic could not express.
+  const b = nextBoundary(est(`${CHRISTMAS} 11:00`), holidaySet(CHRISTMAS))
+  expect(b.kind).toBe('open')
+  expect(b.ms).toBe((3 * 1440 + 570 - 660) * 60_000)
+})
+
+test('a holiday MONDAY pushes the Friday-evening countdown out to Tuesday', () => {
+  // Fri 2026-01-16 18:00 ET with Mon 2026-01-19 (MLK, in the table) closed →
+  // Tue 2026-01-20 09:30. The whole shape the spec's WEEKEND row implies.
+  const b = nextBoundary(est('2026-01-16 18:00'), holidaySet('2026-01-19'))
+  expect(b.kind).toBe('open')
+  expect(b.ms).toBe((4 * 1440 + 570 - 1080) * 60_000)
+})
+
+test('CONTROL: with no calendar the answers are byte-identical to the old arithmetic', () => {
+  // Without this every assertion above is satisfied by a function that simply
+  // pushes every answer out by a day. Sweeps the same week the pre-existing
+  // suite pins and asserts the holiday-aware walk did not move any of it.
+  const expected = { '2026-08-24': 1, '2026-08-25': 1, '2026-08-26': 1, '2026-08-27': 1,
+                     '2026-08-28': 3, '2026-08-29': 2, '2026-08-30': 1 }
+  for (const [d, daysAhead] of Object.entries(expected)) {
+    const mins = d === '2026-08-29' || d === '2026-08-30' ? 660 : 1080
+    const at = d === '2026-08-29' || d === '2026-08-30' ? '11:00' : '18:00'
+    expect(nextBoundary(et(`${d} ${at}`)).ms, d)
+      .toBe((daysAhead * 1440 + 570 - mins) * 60_000)
+    // …and passing an EMPTY calendar changes nothing either.
+    expect(nextBoundary(et(`${d} ${at}`), new Set()).ms, d)
+      .toBe((daysAhead * 1440 + 570 - mins) * 60_000)
+  }
+})
+
+// ─── resolveBoundary — the day the answer landed on ─────────────────────────
+//
+// ⭐ `dayKey` is what lets the caller ask "is this inside the table I was
+// served?" WITHOUT re-walking the calendar itself. A second walk would be a
+// second authority over one question.
+test('resolveBoundary reports the ET day the boundary falls on', () => {
+  expect(resolveBoundary(et('2026-08-28 07:30')).dayKey).toBe('2026-08-28')   // today's open
+  expect(resolveBoundary(et('2026-08-28 11:00')).dayKey).toBe('2026-08-28')   // today's close
+  expect(resolveBoundary(et('2026-08-28 18:00')).dayKey).toBe('2026-08-31')   // Monday's open
+  expect(resolveBoundary(est(`${THANKSGIVING} 07:00`), holidaySet(THANKSGIVING)).dayKey)
+    .toBe('2026-11-27')
+})
+
+test('resolveBoundary refuses rather than looping when nothing opens within the walk', () => {
+  // A fortnight of closures is not a real calendar — it is the shape of a
+  // corrupt or hostile payload. `ms: null` + `dayKey: null` is the honest
+  // answer, and the hook turns it into "no countdown" rather than a number.
+  const fortnight = new Set()
+  for (let i = 0; i < 31; i += 1) {
+    const d = new Date(Date.UTC(2026, 7, 24 + i))
+    fortnight.add(d.toISOString().slice(0, 10))
+  }
+  const b = resolveBoundary(et('2026-08-24 18:00'), fortnight)
+  expect(b.ms).toBeNull()
+  expect(b.dayKey).toBeNull()
 })

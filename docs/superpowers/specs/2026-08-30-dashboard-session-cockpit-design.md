@@ -167,7 +167,16 @@ logic (`useMarketOpen`). Only **Zone B** varies; A, C and D are constant.
 | `PREMARKET` | weekday before 09:30 ET | Today's catalysts (as scored overnight) |
 | `LIVE` | weekday 09:30–16:00 ET | Today's catalysts, live prices overlaid |
 | `CLOSED` | weekday after 16:00 ET | Today's catalysts, marked settled |
-| `WEEKEND` | Sat/Sun and market holidays | **The Week** (see below) |
+| `WEEKEND` | Sat/Sun ~~and market holidays~~ | **The Week** (see below) |
+
+> ⛔ **CORRECTED IN PLACE 2026-08-30.** A market holiday does **not** resolve
+> to `WEEKEND`. `resolveSession` is pure and synchronous, read at first render,
+> and the calendar arrives asynchronously — so a holiday still resolves to
+> `PREMARKET`/`LIVE`/`CLOSED` and Zone B still renders `CatalystTable`. What
+> shipped instead is Zone A no longer CONTRADICTING itself: the countdown walks
+> past closures and the session pill reads **Holiday**. See
+> §"Deviations from this document" at the end of this file for what remains and
+> why `TheWeek` is not the substitute.
 
 A 24-day production sweep of the catalyst store confirms the split this
 design assumes:
@@ -341,7 +350,21 @@ GET /api/dashboard/signposts
 ```
 
 Reads existing cached services only; adds no new data sources. Cached 60 s.
-This is the only new API in the design.
+~~This is the only new API in the design.~~
+
+> ⛔ **CORRECTED IN PLACE 2026-08-30.** There are now **two**.
+> `GET /api/market-calendar` was added so Zone A's countdown stops lying on
+> market holidays: the repo's one NYSE closure table
+> (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) had no HTTP surface, and a second copy
+> in the frontend would have been a second authority over one value. It derives
+> from that frozenset, does no I/O, is computed once at import and cached a day.
+> Full reasoning in §"Deviations from this document" at the end of this file.
+>
+> ⚠️ Also amended since: this endpoint's `desk` card is **no longer null**. It
+> was listed as a permanent refusal beside `journal`/`community`, but its
+> objection was cache SHAPE rather than per-user data — and the client-side
+> stand-in it was left to was blank Mon–Fri and structurally "0" the rest of the
+> time. It is one local read behind this endpoint's own 60s cache.
 
 ---
 
@@ -432,15 +455,21 @@ deliver. They are written down because an unshipped spec item that nobody
 recorded is indistinguishable from one nobody wanted — and the surrounding
 sections still describe them as though they exist.
 
-- **The Week ships THREE panels, not four.** §"The Week (weekend Zone B)" lists
-  four sources; the **Compass Weekly Review** panel
-  (`GET /api/j2/accounts/{id}/coach/weekly-reviews`) was dropped during planning
-  and the omission propagated silently through the task briefs into the build.
-  `TheWeek.jsx` renders Latest Sunday Scan · Next week on deck · From the Desk
-  (+ the Quote of the Day panel added later for §Zone A's weekend treatment).
-  ⚠️ It is the only one of the four that is PER-USER, which is why it is not a
-  drop-in: every other panel reads a global cache, so this one changes the
-  component's data contract rather than adding a query.
+- ~~**The Week ships THREE panels, not four.**~~ **CLOSED 2026-08-30** — the
+  **Compass Weekly Review** panel (`GET /api/j2/accounts/{id}/coach/weekly-reviews`)
+  shipped. `TheWeek.jsx` now renders Latest Sunday Scan · Compass Weekly Review ·
+  Next week on deck · From the Desk (+ the Quote of the Day panel added for
+  §Zone A's weekend treatment), which is the four sources §"The Week" specifies.
+
+  It was indeed not a drop-in — it is the only PER-USER panel on the hero — but
+  the cost was measured before building rather than assumed: the account roster
+  shares its SWR key with `JournalSnapshotTile` (Zone C, mounted in every state),
+  so it adds **zero** requests there, and the reviews call has no
+  `refreshInterval` — one request per account id per page load. It is COUNTED by
+  the empty-frame gate, unlike the quote: a review is genuinely about the week
+  and is absent far more often than not, so counting it leaves the gate
+  reachable, while not counting it would silently drop a member's only personal
+  panel on a weekend the desk published nothing.
 
 - **Zone B's empty state is NOT the slim bar this spec specifies.** §"Zone B —
   The Decision" says the empty state "collapses to a slim bar with a reason and
@@ -489,3 +518,73 @@ sections still describe them as though they exist.
   explicitly anticipates a DB template named "chart", and the day one is added
   it wins and `/theme-tracker` lands on a workspace with no themes again, which
   is the exact defect Task 6 set out to fix.
+
+### Deviations from this document — recorded 2026-08-30, fix round 1
+
+⛔ The opposite failure to the section above: something this document says is
+true that the branch has deliberately made untrue. Left unrecorded, the next
+reader takes the spec's word for it.
+
+- **§"New backend surface" says the signposts aggregate is "the only new API in
+  the design". It is no longer.** `GET /api/market-calendar` was added to stop
+  Zone A's countdown lying on market holidays.
+
+  The alternative was a hardcoded closure table in the frontend. This repo
+  maintains exactly ONE NYSE closure list —
+  `api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD`, with a hand-written
+  "refresh annually" contract and five backend readers — and it had no HTTP
+  surface. A second copy in JavaScript would be a second authority over one
+  value, diverging in whichever year somebody refreshed only one. The route
+  DERIVES its payload from that frozenset (no I/O, no params, computed once at
+  import, cached a day, public like `/api/quote-of-the-day` because the
+  Dashboard is a FREE_PAGE).
+
+  It also carries the anti-rot signal the closure table never had: a `status`
+  field that is POSITIVE when clean (`ok` + `days_remaining`), an admin alert
+  180 days before the cliff, and — because the field is always present — a
+  readable difference between "looked, and it is fine" and "did not look".
+
+- **§"Session states" says a market holiday resolves to `WEEKEND`. It does not,
+  and this is now a PARTIAL fix rather than an absent one.** `resolveSession`
+  stays holiday-blind on purpose: it is pure and synchronous, read at first
+  render, its four states are branched on across the codebase, and the calendar
+  arrives asynchronously. What changed is that Zone A no longer CONTRADICTS
+  itself — the countdown walks past closures and the session pill reads
+  **Holiday** when the served calendar says so, reconciled inside `ZoneRead.jsx`
+  where no shared contract is touched.
+
+  ⚠️ What remains: **Zone B still renders `CatalystTable` on a closure**, and its
+  empty copy asks `useMarketOpen` — a second holiday-blind authority, shared with
+  the `/catalysts` page — so at 11:00 on Thanksgiving it reads *"Scanning today's
+  tape"*. Bounded by the zone's declared height, so it cannot grow the page.
+  Swapping the hero to `TheWeek` is NOT the fix: its "Next week on deck" panel is
+  the bare `/api/calendar` payload, which is only "next week" because
+  `_current_week_monday` rolls a WEEKEND date forward — mid-week it returns THIS
+  week, so the panel would carry a label untrue of its contents. The real fix is
+  a holiday-aware session contract, which is its own piece of work.
+
+### Fix round 2 — what moved after the deviations above were written
+
+- **`/api/dashboard/signposts` now fills the `desk` card.** §"New backend
+  surface" is annotated in place. The refusal there was CACHE SHAPE, not
+  per-user data, and it was the expensive kind of caution: the client stand-in
+  it forced was blank Monday–Friday (it borrowed `TheWeek`'s SWR key, and that
+  hero mounts only at the weekend) and structurally **"0"** whenever it did
+  render, because `substack_posts.published_at` is a unix EPOCH INT and the
+  filter used `Date.parse`, which is `NaN` for an integer. `journal` and
+  `community` stay client-filled — their refusal IS per-user and is pinned by
+  its own test so the two cannot drift together.
+
+- **The anti-rot warning has a push path.** The first cut mapped
+  `expiring → "warning"`, and `chart_health_alerts` pages Discord only on
+  `critical` — so the 180-day notice lived solely in an in-memory deque that is
+  wiped on every redeploy. Seven milestone days (180/90/30/14/7/3/1) now emit
+  `critical`, each under its own key; every other expiring day stays a feed
+  warning. Making all 180 critical would page ~48x/day for half a year, which
+  is the same as no alert.
+
+- **`READ_ONLY` in `ZoneDoors.jsx` was not read-only.** Its four
+  `revalidateOn*: false` flags gate SWR's automatic triggers only; the
+  Dashboard's own pull-to-refresh calls `mutate` explicitly, which reaches the
+  revalidator past all four. `isPaused: () => true` is what makes the claim
+  true, and the claim was asserted in three comments while being false.
