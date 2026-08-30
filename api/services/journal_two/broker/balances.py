@@ -30,11 +30,23 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import timeutil
 from api.services.journal_two.broker.snaptrade_adapter import normalize_symbol
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _snapshot_session_day() -> str:
+    """The session the CURRENT reading belongs to — a patchable seam.
+
+    The equity curve plots SESSIONS, not sync days; see
+    `timeutil.session_day_et` for why the pre-dawn sync makes those different.
+    Falls back to the raw ET date only if the clock string is unparseable,
+    which cannot happen for `_now_iso()` but keeps this total.
+    """
+    return timeutil.session_day_et(_now_iso()) or _et_date()
 
 
 def _et_date() -> str:
@@ -256,7 +268,8 @@ def write_balances(
                     total_equity = excluded.total_equity, cash = excluded.cash,
                     market_value = excluded.market_value, synced_at = excluded.synced_at
                 """,
-                (user_id, broker_account["id"], _et_date(), equity, cash, mv, _now_iso()),
+                (user_id, broker_account["id"], _snapshot_session_day(), equity, cash, mv,
+                 _now_iso()),
             )
         else:
             # Untrustworthy derived equity: refresh the component balances but do
