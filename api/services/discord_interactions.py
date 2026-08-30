@@ -96,13 +96,21 @@ def bars_warm_gate(timeout: float = BARS_WARM_TIMEOUT_S):
 PAGE_BARS = 5000                 # legacy default; the real number comes from discord_chart_house.page_fetch_bars
 
 # Per-member throttle. A chart costs renderer CPU and one of the shared render
-# slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "6/60"
-# means six charts per rolling sixty seconds per Discord user.
+# slots; nobody should be able to hog them. DISCORD_CHART_USER_RATE = "12/60"
+# means twelve charts per rolling sixty seconds per Discord user.
+#
+# Raised 6 → 12 on 2026-08-30 (owner). The throttle exists to stop ONE member
+# pinning the render slots, not to ration charts: a member walking a watchlist
+# hits six in well under a minute and the seventh reply was a refusal. The
+# aggregate ceiling is set by the render slots, not by this number - 8 slots at
+# ~2.4 s a chart is ~200 charts/minute across the whole server - so doubling one
+# member's allowance moves the shared ceiling barely at all while removing the
+# stall a single member actually feels.
 _rate_lock = threading.Lock()
 _rate_hits: dict[str, deque] = {}
 
 
-def user_rate(default: str = "6/60") -> tuple[int, float]:
+def user_rate(default: str = "12/60") -> tuple[int, float]:
     raw = os.environ.get("DISCORD_CHART_USER_RATE", default)
     try:
         n, s = raw.split("/")
@@ -1271,12 +1279,29 @@ ROSTER_MAX = int(os.environ.get("DISCORD_CHART_ROSTER_MAX", "10"))
 # open are then already rendered before anyone is awake.
 ROSTER_MAX_QUIET = int(os.environ.get("DISCORD_CHART_ROSTER_MAX_QUIET", "24"))
 
+# Renders the warm cycle may ATTEMPT per run. Raised 6 → 12 / 8 → 16 on
+# 2026-08-30 (owner), and env-backed like the roster sizes above so the pair can
+# be tuned without a deploy.
+#
+# ⛔ This is a CEILING ON CANDIDATES, not a promise of work done: `warm_hot_charts`
+# is also bounded in WALL CLOCK by DISCORD_CHART_WARM_BUDGET_S (a third of the
+# interval), and prod on 2026-08-29 was already spending its whole budget and
+# deferring. So raising it does NOT double the renderer's load - the deadline
+# still cuts the cycle at the same second. What it buys is reach on the cycles
+# that finish early (quiet hours, a warm hot set), where the old literal 6 was
+# leaving slots unused. The round-robin cursor is what makes the deferred tail
+# fair; without it a bigger limit would just grow the tail that never gets warmed.
+WARM_RENDERS = int(os.environ.get("DISCORD_CHART_WARM_RENDERS", "12"))
+# Quiet hours must stay at least as greedy as live hours - a chart holds for 15
+# minutes instead of 2, so the work is cheap exactly when there is time for it.
+WARM_RENDERS_QUIET = int(os.environ.get("DISCORD_CHART_WARM_RENDERS_QUIET", "16"))
+
 
 def roster_budget() -> tuple:
     """(roster size, renders per cycle) for right now."""
     if png_cache.market_quiet():
-        return ROSTER_MAX_QUIET, 8
-    return ROSTER_MAX, 6
+        return ROSTER_MAX_QUIET, WARM_RENDERS_QUIET
+    return ROSTER_MAX, WARM_RENDERS
 
 
 def seed_roster(symbols, tf: str = "D", limit: int | None = None) -> int:

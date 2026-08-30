@@ -1115,7 +1115,7 @@ def test_user_rate_check_allows_n_then_throttles_then_recovers(monkeypatch):
     assert di.user_rate_check("u1", t0 + 60) == 0.0         # window rolled, allowed again
     assert "3 charts per minute" in di.throttle_message(wait) and "55s" in di.throttle_message(wait)
     monkeypatch.setenv("DISCORD_CHART_USER_RATE", "garbage")
-    assert di.user_rate() == (6, 60.0)                      # bad env → the default, never unlimited
+    assert di.user_rate() == (12, 60.0)                     # bad env → the default, never unlimited
 
 
 def test_endpoint_throttles_a_member_after_the_allowance_and_schedules_nothing_extra(monkeypatch):
