@@ -142,7 +142,35 @@ export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
 /** How many BASE bars one higher-timeframe bar spans, for the lookback sum.
  *  ⚠️ TRADING days, not calendar. Too SMALL is the dangerous direction — it
- *  would let a tree claim it needs fewer bars than it reads. */
+ *  would let a tree claim it needs fewer bars than it reads.
+ *
+ *  ⛔⛔ AND THESE NUMBERS ARE ONLY RIGHT ON A **DAILY** BASE, WHICH THIS COMMENT
+ *  DID NOT SAY. Five bars to a week is true when one bar is one day. `maxLookback`
+ *  takes no base parameter and cannot ask, so on an intraday chart it under-claims
+ *  by the number of bars in a session. MEASURED, `tf(sma(close, 4), 'W')`:
+ *
+ *      base | bars per week | claim | actually spans | under-claim
+ *        D  |             5 |    25 |             25 |   1x
+ *       60  |            35 |    25 |            175 |   7x
+ *        5  |           390 |    25 |           1950 |  78x
+ *        1  |          1950 |    25 |           9750 | 390x
+ *
+ *  Handed exactly the 25 five-minute bars it asks for, the column is 0 finite of
+ *  25 — so this is the "too SMALL" direction the line above warns about, live.
+ *
+ *  ⭐ WHY IT HAS NOT BEEN FIXED HERE. `interpret` DOES know the base (`opts.tf`)
+ *  and refuses a down-read with it; `maxLookback` runs at SAVE and BUDGET time,
+ *  where there is no chart and no base — and a formula is PERSISTED and recomputed
+ *  later, so a base folded in at save time would be replayed against a different
+ *  one. The base is knowable only at compute time, which is not where this is
+ *  called. Closing it is therefore a decision about the BUDGET CAP rather than an
+ *  arithmetic fix, and it is owed one. `interpret.baseAssumption.test.js` pins the
+ *  measurement so it cannot quietly get worse while that decision is outstanding.
+ *
+ *  ⚠️ THE FAILURE IS A BLANK COLUMN, NOT A WRONG NUMBER — the chart hands over
+ *  every bar it holds regardless of the claim, so a tree that fits still computes
+ *  correctly. What the low claim buys is a budget gate that is too permissive on
+ *  intraday, and a member whose weekly window silently draws nothing. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
 
 /** Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
