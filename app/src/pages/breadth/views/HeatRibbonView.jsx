@@ -3,21 +3,36 @@
  * window, colored by that session's OWN tier. Answers "when did the regime
  * change?", which no snapshot view can.
  */
-import { metricColor, resolveViewColors } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, metricColor, resolveViewColors } from './breadthViewShared'
 
 export default function HeatRibbonView({ rows = [], rowIdx = 0, metrics = [], onDrill, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const compact = options.density === 'compact'
   // rows are newest-first from the cursor; display oldest → newest (left → right).
-  const window = rows.slice(rowIdx).reverse()
-  if (!window.length || !metrics.length) return null
+  // `win`, not `window`: a local named `window` shadows the global for the whole
+  // function body.
+  const win = rows.slice(rowIdx).reverse()
+  if (!win.length) return null
 
-  const basis = `${window.length} sessions · since ${window[0].date}`
+  // 🔴 UNCHECK EVERY METRIC IN CUSTOMIZE AND THIS RENDERED `null` — a blank
+  // panel, no message, indistinguishable from a view that crashed. The Monitor
+  // tab has always explained this state; say the same thing here.
+  if (!metrics.length) {
+    return (
+      <div data-testid="ribbon-refusal"
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+        {ALL_METRICS_HIDDEN}
+      </div>
+    )
+  }
+
+  const basis = `${win.length} sessions · since ${win[0].date}`
   const cellH = compact ? 10 : 16
 
   return (
     <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>
-      <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+      <div data-testid="ribbon-basis"
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', marginBottom: 8 }}>
         {basis}
       </div>
@@ -34,9 +49,9 @@ export default function HeatRibbonView({ rows = [], rowIdx = 0, metrics = [], on
             {m.label}
           </div>
           <div style={{ display: 'grid', gap: 1, flex: 1,
-                        gridTemplateColumns: `repeat(${window.length}, minmax(0, 1fr))` }}>
-            {window.map((row, i) => (
-              <div key={row.date ?? i} data-testid={`ribbon-${m.key}-${i}`}
+                        gridTemplateColumns: `repeat(${win.length}, minmax(0, 1fr))` }}>
+            {win.map((row, i) => (
+              <div key={row.date ?? i} data-testid={`ribbon-cell-${m.key}-${i}`}
                    title={`${row.date} · ${m.label} ${m.getFmt(row)}`}
                    style={{ height: cellH, borderRadius: 1,
                             opacity: colors.fillOpacity,

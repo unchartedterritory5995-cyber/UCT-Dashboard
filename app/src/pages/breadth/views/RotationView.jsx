@@ -34,22 +34,24 @@ const PANELS = [
 export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const lookback = Number(options.lookback ?? 20)
-  const window = rows.slice(rowIdx)
-  if (!window.length) return null
+  // `win`, not `window`: a local named `window` shadows the global for the
+  // whole function body.
+  const win = rows.slice(rowIdx)
+  if (!win.length) return null
 
   // ⛔ THE SPAN MEASURED IS THE SPAN PRINTED. `series[Math.min(lookback, len-1)]`
   // silently compared against the OLDEST available row and still printed
   // "/60d" — implying history this lens never read, which is precisely what the
   // spec's basis rule forbids. `measured` is the number of sessions the change
   // actually covers, and it is what both the label and the footer state.
-  const measured = Math.min(lookback, window.length - 1)
+  const measured = Math.min(lookback, win.length - 1)
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '12px 18px' }}>
       <div data-testid="rotation-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', marginBottom: 8 }}>
-        {window.length} session{window.length === 1 ? '' : 's'} · since {window[window.length - 1].date}
+        {win.length} session{win.length === 1 ? '' : 's'} · since {win[win.length - 1].date}
         {measured < lookback
           ? ` · shorter than the ${lookback}-day setting, so changes are measured over ${measured}`
           : ` · changes measured over ${measured} sessions`}
@@ -57,7 +59,7 @@ export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
 
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
         {PANELS.map(p => {
-          const series = window.map(p.read)
+          const series = win.map(p.read)
           const vals = series.filter(v => v != null && !isNaN(Number(v))).map(Number)
           const now = series[0]
           const prior = measured > 0 ? series[measured] : null
@@ -94,7 +96,7 @@ export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
                   {usable ? Number(now).toFixed(3) : '—'}
                 </span>
                 {usable && (
-                  <span data-testid={`delta-${p.key}`}
+                  <span data-testid={`rotation-delta-${p.key}`}
                         style={{ font: '700 11px \'Instrument Sans\', sans-serif',
                                  color: deltaColor }}>
                     {delta >= 0 ? '+' : ''}{delta.toFixed(3)} / {measured}d
@@ -104,12 +106,12 @@ export default function RotationView({ rows = [], rowIdx = 0, options = {} }) {
               <svg width="100%" height="30" viewBox="0 0 100 30" preserveAspectRatio="none"
                    style={{ marginTop: 6 }} aria-hidden="true">
                 {pts
-                  ? <polyline data-testid={`spark-${p.key}`} points={pts} fill="none" strokeWidth="1.4"
+                  ? <polyline data-testid={`rotation-spark-${p.key}`} points={pts} fill="none" strokeWidth="1.4"
                               vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity}
                               stroke={deltaColor} />
                   : <line x1="0" y1="15" x2="100" y2="15" stroke="#334155" strokeDasharray="2 2" />}
               </svg>
-              <div data-testid={`verdict-${p.key}`}
+              <div data-testid={`rotation-verdict-${p.key}`}
                    style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#94a3b8', marginTop: 4 }}>
                 {verdict}
               </div>

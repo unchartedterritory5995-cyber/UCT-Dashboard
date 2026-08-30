@@ -43,7 +43,6 @@ const SERVED = {
 import { STYLES, VIEW_CONFIG, optionDefaults, optionsSchema } from './viewMetricConfig'
 import { VIEW_COMPONENTS, viewsByKind } from './viewRegistry'
 import { PALETTES } from './breadthViewShared'
-import { FIRED_ACCENT } from './EventLedgerView'
 import { HM_METRICS } from '../heatmapMetrics'
 
 const METRICS = HM_METRICS.filter(m => !m.isHeader)
@@ -160,6 +159,46 @@ describe('view registry', () => {
   })
 })
 
+/**
+ * 🔴 TWO VIEWS OWNED `marker-{key}`.
+ *
+ * `PercentileLadderView` and `MetersView` both drew one marker per metric and
+ * both called it `marker-{key}`, so a query for `marker-vix` in any document
+ * holding both — this rail's own, for one — silently matched whichever mounted
+ * first. Every id a view owns is namespaced to that view now
+ * (`{style}-{role}` / `{style}-{role}-{key}`), and the property that makes the
+ * convention worth having is checked here rather than assumed: no test id is
+ * rendered by two different styles.
+ *
+ * ⛔ DERIVED, NOT A TYPED ROSTER of "the views this feature touched" — a list
+ * like that is exactly what goes stale, and it would have to grow an exemption
+ * the day a ninth view lands.
+ */
+describe('no two views claim the same test id', () => {
+  afterEach(() => { swrState.data = null })
+
+  it('every rendered test id belongs to exactly one style', () => {
+    swrState.data = SERVED
+    const owners = new Map()
+    const clashes = []
+    for (const style of STYLES) {
+      const Component = VIEW_COMPONENTS[style]
+      const { container } = render(<Component {...propsFor(style)} />)
+      for (const el of container.querySelectorAll('[data-testid]')) {
+        const id = el.getAttribute('data-testid')
+        if (id === 'echart') continue          // the stub at the top of this file
+        const prev = owners.get(id)
+        if (prev && prev !== style) clashes.push(`${id}: "${prev}" and "${style}"`)
+        else owners.set(id, style)
+      }
+    }
+    expect(owners.size, 'no view rendered a test id — this rail proves nothing')
+      .toBeGreaterThan(20)
+    expect(clashes, 'these ids are ambiguous: a query matches whichever view '
+      + 'mounted first').toEqual([])
+  })
+})
+
 describe('the props bundle is the one BreadthViews passes', () => {
   const real = bundlesFromContainer()
 
@@ -214,15 +253,17 @@ const OCEAN_ONLY = (() => {
 const PALETTE_STYLES = STYLES.filter(s => optionsSchema(s).some(o => o.name === 'palette'))
 
 /**
- * ⛔ ONE EXEMPTION, AND IT IS SELF-CLEANING. The Event Ledger's accent is
- * DELIBERATELY direction-neutral — it reports that a named thing happened and
- * does not grade it, so it has no bull/bear colour to paint (painting one drew
- * *90% Down Volume Day* green). The exemption is therefore paired with a
- * positive claim below: the ledger must render the neutral accent AND be
- * byte-identical across palettes. Wire the palette back into it and that test
- * fails, so the exemption cannot quietly outlive its reason.
+ * ⛔ NO EXEMPTIONS. `NO_PALETTE_OUTPUT = new Set(['events'])` used to sit here,
+ * parking the Event Ledger outside the loop below because its fired accent was
+ * a hardcoded UT gold. The neutrality was right — a fired event is not a
+ * bullish event — but hardcoding made `options.palette` INERT in that lens: the
+ * control was on screen, offered four choices, and moved nothing.
+ *
+ * The accent is `colors.tier.a` now (the palette's own caution tone: neutral,
+ * and still the palette's), so the ledger is covered by the same rail as the
+ * other fourteen. `EventLedgerView.test.jsx` holds the other half of the
+ * ruling — that the accent is never the bull or bear colour.
  */
-const NO_PALETTE_OUTPUT = new Set(['events'])
 
 describe('every palette-honoring view paints with the palette it was given', () => {
   afterEach(() => { swrState.data = null })
@@ -233,12 +274,33 @@ describe('every palette-honoring view paints with the palette it was given', () 
     expect(OCEAN_ONLY).toContain(PALETTES.ocean.tier.g3.toLowerCase())  // #0891b2
   })
 
+  /**
+   * 🔴 A BORROWED TONE IS INVISIBLE TO THE LOOP BELOW — AND TO THE USER.
+   *
+   * `ocean.tier.a` was `#fbbf24`, classic's amber, copied verbatim. For a view
+   * that paints several tiers that is merely untidy; for the Event Ledger,
+   * whose ONLY palette-sourced colour is the caution tone, it meant classic and
+   * ocean rendered byte-identically. `OCEAN_ONLY` excludes any colour another
+   * palette also produces, so the loop below would have reported the ledger
+   * blind — correctly. The caution tone is per palette now.
+   */
+  it('no palette borrows another palette caution tone', () => {
+    const seen = new Map()
+    for (const [name, p] of Object.entries(PALETTES)) {
+      const tone = p.tier.a.toLowerCase()
+      expect(seen.has(tone), `"${name}" reuses "${seen.get(tone)}" caution tone ${tone} — `
+        + 'the Event Ledger accent reads tier.a, so its palette control would be inert')
+        .toBe(false)
+      seen.set(tone, name)
+    }
+    expect(seen.size).toBe(Object.keys(PALETTES).length)
+  })
+
   it('renders an OCEAN colour for every view that offers the palette option', () => {
     expect(PALETTE_STYLES.length).toBeGreaterThan(10)
     swrState.data = SERVED
     const blind = []
     for (const style of PALETTE_STYLES) {
-      if (NO_PALETTE_OUTPUT.has(style)) continue
       const Component = VIEW_COMPONENTS[style]
       const { container } = render(
         <Component {...propsFor(style)} options={{ ...optionDefaults(style), palette: 'ocean' }} />)
@@ -250,16 +312,22 @@ describe('every palette-honoring view paints with the palette it was given', () 
       + 'Customize control moves nothing on screen').toEqual([])
   })
 
-  it('THE EXEMPTION, PROVEN: the Event Ledger renders the same under any palette', () => {
+  // The loop above is a sweep; this pins that the ledger is genuinely IN it
+  // rather than passing because some other element happened to carry a colour.
+  it('covers the Event Ledger with no carve-out', () => {
+    expect(PALETTE_STYLES).toContain('events')
     const events = rows.map((r, i) => ({ ...r, new_52w_lows: i === 0 ? 999 : 5 }))
     const draw = (palette) => render(<VIEW_COMPONENTS.events rows={events} currentRow={events[0]}
       prevRow={events[3]} rowIdx={0} onDrill={() => {}}
-      options={{ ...optionDefaults('events'), palette }} />).container.innerHTML
+      options={{ ...optionDefaults('events'), palette }} />).container.innerHTML.toLowerCase()
 
-    const classic = draw('classic')
-    expect(classic, 'no event fired, so this fixture proves nothing about the accent')
-      .toContain(FIRED_ACCENT)
-    expect(draw('ocean')).toBe(classic)
-    for (const c of OCEAN_ONLY) expect(classic.toLowerCase()).not.toContain(c)
+    const has = (html, hex) => html.includes(hex.toLowerCase()) || html.includes(hexToRgb(hex))
+    const ocean = draw('ocean')
+    expect(has(ocean, PALETTES.ocean.tier.a)).toBe(true)
+    expect(ocean).not.toBe(draw('classic'))
+    // …and neutrality survives the change: no bull/bear tone in the output.
+    for (const c of [PALETTES.ocean.bull, PALETTES.ocean.bear]) {
+      expect(has(ocean, c), `the ledger painted ${c}, a directional tone`).toBe(false)
+    }
   })
 })

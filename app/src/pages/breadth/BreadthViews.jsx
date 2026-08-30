@@ -63,6 +63,21 @@ export default function BreadthViews({ rows, onDrill, live = null, liveStamp = n
   // (Timeline grid, Scoreboard sparklines).
   const recentRows = useMemo(() => filledRows.slice(rowIdx, rowIdx + 30), [filledRows, rowIdx])
 
+  // ⚠️ DELIBERATELY OVER ALL LOADED ROWS, NOT `rows.slice(rowIdx)` — and that is
+  // the one place on this tab where the cursor is ignored on purpose.
+  //
+  // This is the BOARD-level normalizer: `normalizeMetric` uses it to put a
+  // dozen metrics with different units onto one 0..100 scale so Rings, Radar,
+  // Meters and Levels can be read side by side, and `pickSignals` compares them
+  // against each other. That scale has to be the same object whichever session
+  // the cursor sits on, or scrubbing back a day silently re-scales every board
+  // and a metric's ring appears to move when only its yardstick did.
+  //
+  // `PercentileLadderView` asks a DIFFERENT question — "where does today sit in
+  // its own history?" — which is a claim about the past, so it slices at the
+  // cursor (`rows.slice(rowIdx)`) and would be reading the future if it did
+  // not. Both are right; the difference is not an oversight, and the ladder is
+  // not the one to "fix".
   const pctileByKey = useMemo(() => {
     const out = {}
     for (const k of PCTILE_KEYS) {

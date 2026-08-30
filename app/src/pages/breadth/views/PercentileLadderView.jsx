@@ -3,7 +3,7 @@
  * loaded window: a 10-bin histogram, today's marker, and the percentile rank.
  * A metric with too few readings says so rather than ranking against noise.
  */
-import { metricValue, percentileRank, resolveViewColors } from './breadthViewShared'
+import { ALL_METRICS_HIDDEN, metricValue, percentileRank, resolveViewColors } from './breadthViewShared'
 
 const MIN_READINGS = 20
 const BINS = 10
@@ -27,13 +27,32 @@ export const markerX = (pct) =>
 
 export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow, metrics = [], onDrill, options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
-  const window = rows.slice(rowIdx)
-  if (!window.length || !metrics.length || !currentRow) return null
+  // ⭐ `rows.slice(rowIdx)` — the window AS OF THE CURSOR, never all loaded
+  // rows. Scrubbing back a month must rank that day against the history it
+  // could see, not against sessions that had not happened yet. (`BreadthViews`
+  // computes its own board-level `pctileByKey` over every loaded row; the
+  // comment there says why the two differ.)
+  //
+  // `win`, not `window`: a local named `window` shadows the global for the
+  // whole function body.
+  const win = rows.slice(rowIdx)
+  if (!win.length || !currentRow) return null
+
+  // 🔴 UNCHECK EVERY METRIC IN CUSTOMIZE AND THIS RENDERED `null` — a blank
+  // panel with no explanation. Same answer the Monitor tab has always given.
+  if (!metrics.length) {
+    return (
+      <div data-testid="ladder-refusal"
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+        {ALL_METRICS_HIDDEN}
+      </div>
+    )
+  }
 
   const sortMode = options.sort ?? 'group'
 
   const entries = metrics.map(m => {
-    const vals = window.map(r => metricValue(m, r)).filter(v => v != null)
+    const vals = win.map(r => metricValue(m, r)).filter(v => v != null)
     const today = metricValue(m, currentRow)
     if (vals.length < MIN_READINGS || today == null) {
       return { m, ok: false, have: vals.length }
@@ -55,11 +74,12 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
     ? [...entries].sort((a, b) => (b.ok ? b.pct : -1) - (a.ok ? a.pct : -1))
     : entries
 
-  const basis = `${window.length} sessions · since ${window[window.length - 1].date}`
+  const basis = `${win.length} sessions · since ${win[win.length - 1].date}`
 
   return (
     <div style={{ overflow: 'auto', height: '100%', padding: '12px 18px' }}>
-      <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
+      <div data-testid="ladder-basis"
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', marginBottom: 8 }}>{basis}</div>
       {ordered.map(({ m, ok, pct, hist, peak, today, have }) => (
         <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -78,7 +98,7 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
             <>
               <svg width="100%" height="26" viewBox="0 0 100 26" preserveAspectRatio="none"
                    style={{ flex: 1, minWidth: 0 }} role="img"
-                   aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${window.length} sessions`}>
+                   aria-label={`${m.label}: ${m.getFmt(currentRow)}, ${pct}th percentile of ${win.length} sessions`}>
                 {hist.map((c, i) => {
                   const h = (c / peak) * 18
                   return <rect key={i} x={i * 10 + 0.6} y={20 - h} width={8.8} height={h}
@@ -86,7 +106,12 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
                 })}
                 <line x1="0" y1="20.5" x2="100" y2="20.5" stroke="#334155" strokeWidth="0.6"
                       vectorEffect="non-scaling-stroke" />
-                <rect data-testid={`marker-${m.key}`} x={markerX(pct)} y="1"
+                {/* ⛔ `marker-{key}` COLLIDED WITH `MetersView`'s OWN MARKERS.
+                    Both boards can be on screen in the same test document, and
+                    both draw one marker per metric — a query for `marker-vix`
+                    matched whichever rendered first. Every id this view owns is
+                    namespaced to the view. */}
+                <rect data-testid={`ladder-marker-${m.key}`} x={markerX(pct)} y="1"
                       width={MARKER_W} height="21"
                       fill={colors.bull} opacity={colors.fillOpacity}>
                   <title>{`${m.getFmt(currentRow)} — ${pct}th percentile`}</title>
@@ -96,14 +121,14 @@ export default function PercentileLadderView({ rows = [], rowIdx = 0, currentRow
                 <span style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: '#e8e8ea' }}>
                   {m.getFmt(currentRow)}
                 </span>
-                <span data-testid={`pctile-${m.key}`}
+                <span data-testid={`ladder-pctile-${m.key}`}
                       style={{ font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
                   {pct}
                 </span>
               </div>
             </>
           ) : (
-            <div data-testid={`insufficient-${m.key}`}
+            <div data-testid={`ladder-refusal-${m.key}`}
                  style={{ flex: 1, font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b' }}>
               Needs {MIN_READINGS} readings to rank — has {have}
             </div>

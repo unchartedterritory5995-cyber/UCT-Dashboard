@@ -4,7 +4,7 @@
  * where we are; momentum says which way we are going. No snapshot view can
  * show both, which is the whole reason this lens exists.
  */
-import { resolveViewColors } from './breadthViewShared'
+import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
 import { optionsSchema } from './viewMetricConfig'
 
 // The option schema already carries the human label the Customize panel shows
@@ -14,6 +14,11 @@ const levelLabel = (value) =>
   optionsSchema('clock').find(o => o.name === 'level')?.choices
     ?.find(c => c.value === value)?.label ?? value
 
+// Both axes are closed on the UPPER side: level 50 counts as broad, momentum 0
+// counts as improving. Neither boundary is arbitrary — 50 is the midpoint of a
+// participation percentage and 0 is the sign change of a difference — but they
+// ARE decisions, so `RegimeClockView.test.jsx` pins both rather than leaving a
+// reader to infer them from `>=`.
 export function quadrantOf(level, momentum) {
   if (level >= 50) return momentum >= 0 ? 'Expansion' : 'Distribution'
   return momentum >= 0 ? 'Recovery' : 'Contraction'
@@ -31,22 +36,24 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
   const roc = Number(options.rocWindow ?? 20)
   const trailLen = Number(options.trail ?? 30)
   const levelKey = options.level ?? 'pct_above_50sma'
-  const window = rows.slice(rowIdx)
+  // `win`, not `window`: a local named `window` shadows the global for the
+  // whole function body.
+  const win = rows.slice(rowIdx)
   const need = roc + 1
 
   const levelAt = (i) => {
-    const v = window[i]?.[levelKey]
+    const v = win[i]?.[levelKey]
     return v == null || isNaN(Number(v)) ? null : Number(v)
   }
 
-  if (window.length < need || levelAt(0) == null || levelAt(roc) == null) {
+  if (win.length < need || levelAt(0) == null || levelAt(roc) == null) {
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
-        <div data-testid="clock-insufficient">
-          Needs {need} sessions of {levelLabel(levelKey)} to measure momentum — has {window.length}.
+        <div data-testid="clock-refusal">
+          Needs {need} sessions of {levelLabel(levelKey)} to measure momentum — has {win.length}.
         </div>
-        <div style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
-          Widen the window with the day pills above.
+        <div data-testid="clock-refusal-hint" style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
+          {WIDEN_WINDOW_HINT}
         </div>
       </div>
     )
@@ -54,10 +61,10 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
 
   // Trail points: newest-first index i → (level, level - level(i+roc)).
   const pts = []
-  for (let i = 0; i < Math.min(trailLen, window.length - roc); i++) {
+  for (let i = 0; i < Math.min(trailLen, win.length - roc); i++) {
     const lv = levelAt(i), prior = levelAt(i + roc)
     if (lv == null || prior == null) continue
-    pts.push({ i, date: window[i].date, level: lv, mom: lv - prior })
+    pts.push({ i, date: win[i].date, level: lv, mom: lv - prior })
   }
   if (!pts.length) return null
 
@@ -79,7 +86,7 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '10px 18px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <span data-testid="regime-name"
+        <span data-testid="clock-regime"
               style={{ font: '800 20px \'Instrument Sans\', sans-serif', color: colors.bull }}>
           {regime}
         </span>
@@ -89,7 +96,7 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
         <span style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
           level <strong style={{ color: '#e2e8f0' }}>{today.level.toFixed(1)}</strong>
           {'  ·  '}{roc}d momentum{' '}
-          <strong data-testid="regime-momentum" style={{ color: today.mom >= 0 ? colors.bull : colors.bear }}>
+          <strong data-testid="clock-momentum" style={{ color: today.mom >= 0 ? colors.bull : colors.bear }}>
             {today.mom >= 0 ? '+' : ''}{today.mom.toFixed(1)}
           </strong>
         </span>
@@ -116,7 +123,8 @@ export default function RegimeClockView({ rows = [], rowIdx = 0, options = {} })
         ))}
       </svg>
 
-      <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
+      <div data-testid="clock-basis"
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
         {pts.length} sessions plotted · since {pts[pts.length - 1].date} · y-axis ±{maxMom.toFixed(0)}
       </div>
     </div>

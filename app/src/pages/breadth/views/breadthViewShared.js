@@ -8,6 +8,24 @@
 
 export const clamp = (v) => Math.max(0, Math.min(100, v))
 
+/**
+ * ONE SENTENCE EACH, SHARED BY EVERY VIEW THAT NEEDS IT.
+ *
+ * `WIDEN_WINDOW_HINT` — a view that refuses because the loaded window is too
+ * short has to say what to DO about it. Only the Regime Clock did; the
+ * Divergence lens refuses for exactly the same reason and left the reader with
+ * a dead end. Hand-copying the sentence into the second lens is how the two
+ * drift, so it lives here and `refusalHint.test.js` pins that every view
+ * refusing on window depth carries it.
+ *
+ * `ALL_METRICS_HIDDEN` — the Monitor tab's long-standing wording for "you
+ * unchecked everything" (`pages/Breadth.jsx`). The Heat Ribbon and Percentile
+ * Ladder rendered `null` in that state: a blank panel with no explanation,
+ * indistinguishable from a broken view.
+ */
+export const WIDEN_WINDOW_HINT = 'Widen the window with the day pills above.'
+export const ALL_METRICS_HIDDEN = 'All metrics hidden — open Customize to show some.'
+
 // MA-stack metrics are a count of 4 boolean columns; expose the count.
 const MA_STACK_COLS = {
   spy_ma_stack: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
@@ -64,8 +82,15 @@ export const PALETTES = {
     tier: { g3: '#d4af37', g2: '#c9a84c', g1: '#e8d8a0', a: '#9c8a4e', r1: '#9aa0a6', r2: '#6b7280', r3: '#4b5563', '': '#475569' },
     bull: '#d4af37', bear: '#6b7280',
   },
+  // ⛔ `a` USED TO BE CLASSIC'S `#fbbf24`, VERBATIM — the only slot ocean
+  // borrowed. That reads as harmless until a view's ONLY palette-sourced colour
+  // is the caution tone: the Event Ledger's fired accent is `tier.a` (it is the
+  // one direction-neutral tone a palette carries), so under a borrowed caution
+  // the whole lens rendered byte-identically in classic and ocean and its
+  // palette control moved nothing on screen. Every palette owns its caution
+  // tone now, and `viewRegistry.test.jsx` pins that.
   ocean: {
-    tier: { g3: '#0891b2', g2: '#22d3ee', g1: '#a5f3fc', a: '#fbbf24', r1: '#fecaca', r2: '#fb7185', r3: '#e11d48', '': '#475569' },
+    tier: { g3: '#0891b2', g2: '#22d3ee', g1: '#a5f3fc', a: '#f59e0b', r1: '#fecaca', r2: '#fb7185', r3: '#e11d48', '': '#475569' },
     bull: '#22d3ee', bear: '#fb7185',
   },
 }

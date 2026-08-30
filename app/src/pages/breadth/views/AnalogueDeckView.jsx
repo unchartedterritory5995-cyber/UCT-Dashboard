@@ -13,6 +13,40 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 
 const HORIZON_LABEL = { fwd_5d: '5 days', fwd_10d: '10 days', fwd_20d: '20 days', fwd_60d: '60 days' }
 
+/**
+ * Middle value of a list — the AVERAGE of the two middle values on an even
+ * length, not the upper one.
+ *
+ * ⛔ `sorted[Math.floor(n / 2)]` is the upper-middle element, so with the
+ * default `matches: 5` and one match short of its horizon the deck reported the
+ * median of four returns as the THIRD-smallest. On `[-4, -1, +1, +5]` that
+ * prints "median +1.0%" for a set whose middle is 0.0% — the summary line most
+ * likely to be read on its own, biased upward by construction.
+ */
+export function medianOf(values) {
+  if (!values.length) return null
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+/**
+ * ⛔ THIS LENS DELIBERATELY IGNORES `rowIdx` / `currentRow`, ALONE AMONG ITS
+ * SIBLINGS — it is not an oversight, and nothing in the file said so.
+ *
+ * Every other view slices its window at the date cursor, so the arrow keys
+ * scrub them through history. The analogue search does not live here: the
+ * server always matches against the LATEST stored session
+ * (`breadth_analogues.find_analogues` takes the newest row as "today" and
+ * caches the answer for six hours), so there is no per-date result to scrub to.
+ * Accepting the cursor and quietly serving the same payload would be worse than
+ * ignoring it — it would look like a date-aware view that had frozen.
+ *
+ * What the reader gets instead is the honest label: the deck states "Matched
+ * against {reference_date}", straight off the response, so the session the
+ * comparison is really anchored to is on screen rather than assumed. A
+ * per-date endpoint is the change that would make the cursor meaningful here.
+ */
 export default function AnalogueDeckView({ options = {} }) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const horizon = options.horizon ?? 'fwd_20d'
@@ -34,7 +68,8 @@ export default function AnalogueDeckView({ options = {} }) {
   const analogues = data?.analogues ?? []
   if (error || !analogues.length) {
     return (
-      <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
+      <div data-testid="analogues-refusal"
+           style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
         {error ? `Could not load analogues — ${error.message ?? 'network error'}`
                : 'No historical session resembles today closely enough to report.'}
       </div>
@@ -43,13 +78,11 @@ export default function AnalogueDeckView({ options = {} }) {
 
   const withReturn = analogues.filter(a => a.forward_returns?.[horizon] != null)
   const higher = withReturn.filter(a => a.forward_returns[horizon] > 0).length
-  const median = withReturn.length
-    ? [...withReturn.map(a => a.forward_returns[horizon])].sort((x, y) => x - y)[Math.floor(withReturn.length / 2)]
-    : null
+  const median = medianOf(withReturn.map(a => a.forward_returns[horizon]))
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '12px 18px' }}>
-      <div data-testid="analogue-summary"
+      <div data-testid="analogues-summary"
            style={{ font: '800 15px \'Instrument Sans\', sans-serif', color: '#e8e8ea', marginBottom: 4 }}>
         {withReturn.length
           ? `${higher} of ${withReturn.length} higher ${HORIZON_LABEL[horizon]} later`
@@ -61,7 +94,8 @@ export default function AnalogueDeckView({ options = {} }) {
           </span>
         )}
       </div>
-      <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginBottom: 10 }}>
+      <div data-testid="analogues-basis"
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginBottom: 10 }}>
         Matched against {data.reference_date} · similarity over 16 weighted breadth metrics
       </div>
 
@@ -69,7 +103,7 @@ export default function AnalogueDeckView({ options = {} }) {
         {analogues.map(a => {
           const fwd = a.forward_returns?.[horizon]
           return (
-            <div key={a.date} data-testid={`analogue-${a.date}`}
+            <div key={a.date} data-testid={`analogues-card-${a.date}`}
                  style={{ background: '#0e131a', borderRadius: 8, padding: 10,
                           border: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>

@@ -3,9 +3,13 @@
  * sustained gaps shaded. Answers "is price outrunning the troops?", the
  * classic breadth read, which the table can only imply.
  */
-import { resolveViewColors } from './breadthViewShared'
+import { resolveViewColors, WIDEN_WINDOW_HINT } from './breadthViewShared'
 import { zscore, divergenceRuns } from './divergence'
 
+// Both series are z-scored against the loaded window, so the refusal below is a
+// window-DEPTH refusal — exactly the Regime Clock's, and it now carries the
+// same "here is what to do about it" hint. Fewer than this and the standard
+// deviation is noise; the boundary itself is pinned in the test file.
 const MIN_SESSIONS = 20
 
 const PRICE_LABEL = { sp500_close: 'S&P 500', qqq_close: 'QQQ' }
@@ -25,8 +29,11 @@ export default function DivergenceView({ rows = [], rowIdx = 0, options = {} }) 
   if (asc.length < MIN_SESSIONS) {
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
-        <div data-testid="divergence-insufficient">
+        <div data-testid="divergence-refusal">
           Needs {MIN_SESSIONS} sessions to z-score both series — has {asc.length}.
+        </div>
+        <div data-testid="divergence-refusal-hint" style={{ marginTop: 6, color: '#64748b', fontSize: 11 }}>
+          {WIDEN_WINDOW_HINT}
         </div>
       </div>
     )
@@ -87,7 +94,8 @@ export default function DivergenceView({ rows = [], rowIdx = 0, options = {} }) 
                   opacity={colors.fillOpacity} vectorEffect="non-scaling-stroke" />
       </svg>
 
-      <div style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
+      <div data-testid="divergence-basis"
+           style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginTop: 6 }}>
         {asc.length} sessions · since {asc[0].date} · shaded where the gap held ≥{minGap} sessions
       </div>
     </div>

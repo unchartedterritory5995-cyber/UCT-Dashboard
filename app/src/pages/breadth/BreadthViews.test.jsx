@@ -40,16 +40,16 @@ describe('BreadthViews', () => {
     render(<BreadthViews rows={deepRows} onDrill={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Regime Clock' }))
     expect(screen.queryByTestId('echart')).not.toBeInTheDocument()
-    expect(screen.getByTestId('regime-name')).toBeInTheDocument()
+    expect(screen.getByTestId('clock-regime')).toBeInTheDocument()
     // It read the window, not just today's row: momentum needs 21 sessions and
     // the refusal would have rendered instead had the bundle handed it fewer.
-    expect(screen.queryByTestId('clock-insufficient')).not.toBeInTheDocument()
-    expect(screen.getByTestId('regime-momentum').textContent).toMatch(/^[+-]/)
+    expect(screen.queryByTestId('clock-refusal')).not.toBeInTheDocument()
+    expect(screen.getByTestId('clock-momentum').textContent).toMatch(/^[+-]/)
   })
 
   it('a lens whose window is too short renders its stated refusal, not a chart', () => {
     render(<BreadthViews rows={rows} onDrill={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Regime Clock' }))
-    expect(screen.getByTestId('clock-insufficient').textContent).toMatch(/needs 21 sessions/i)
+    expect(screen.getByTestId('clock-refusal').textContent).toMatch(/needs 21 sessions/i)
   })
 })

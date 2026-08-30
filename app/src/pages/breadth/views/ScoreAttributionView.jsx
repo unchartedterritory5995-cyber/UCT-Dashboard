@@ -39,7 +39,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
   if (error || !data || data.ok === false || !Array.isArray(data.components)) {
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
-        <div data-testid="attribution-unavailable">
+        <div data-testid="attribution-refusal">
           {error ? `Could not load attribution — ${error.message ?? 'network error'}`
                  : (data?.reason ?? data?.detail ?? 'No attribution for this session')}
         </div>
@@ -75,7 +75,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
         const delta = (prev && c.present && prev.present) ? c.points - prev.points : null
         const fill = c.max_points ? (c.points / c.max_points) * 100 : 0
         return (
-          <div key={c.key} data-testid={`component-${c.key}`}
+          <div key={c.key} data-testid={`attribution-component-${c.key}`}
                style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div style={{ width: 150, flex: '0 0 150px', textAlign: 'right',
                           font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8',
@@ -94,7 +94,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
                           color: c.present ? '#e2e8f0' : '#64748b' }}>
               {c.present ? `${Number(c.points).toFixed(0)} / ${c.max_points}` : 'Not reported'}
               {delta != null && (
-                <span data-testid={`delta-${c.key}`}
+                <span data-testid={`attribution-delta-${c.key}`}
                       style={{ marginLeft: 6, color: delta >= 0 ? colors.bull : colors.bear }}>
                   {delta >= 0 ? '+' : ''}{delta.toFixed(0)}
                 </span>

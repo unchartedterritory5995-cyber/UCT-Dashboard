@@ -21,20 +21,20 @@ describe('RotationView', () => {
   it('calls a rising equal-weight ratio broadening', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
+    expect(getByTestId('rotation-verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
   })
 
   it('calls a falling ratio narrowing', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-iwm_qqq_ratio').textContent).toMatch(/narrowing/i)
+    expect(getByTestId('rotation-verdict-iwm_qqq_ratio').textContent).toMatch(/narrowing/i)
   })
 
   it('marks a series absent rather than drawing it as zero', () => {
     const noVxn = rows.map(r => ({ ...r, vxn: null }))
     const { getByTestId } = render(<RotationView rows={noVxn} rowIdx={0} currentRow={noVxn[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
-    expect(getByTestId('verdict-vol_spread').textContent).toMatch(/not reported/i)
+    expect(getByTestId('rotation-verdict-vol_spread').textContent).toMatch(/not reported/i)
   })
 
   // 🔴 THE COLOUR MUST NOT CONTRADICT THE SENTENCE UNDER IT. `vol_spread`
@@ -46,18 +46,18 @@ describe('RotationView', () => {
     const widening = rows.map((r, i) => ({ ...r, vix: 16, vxn: 26 - i * 0.2 }))
     const { getByTestId, container } = render(<RotationView rows={widening} rowIdx={0}
       currentRow={widening[0]} onDrill={() => {}} options={{ lookback: 20, palette: 'classic' }} />)
-    expect(getByTestId('delta-vol_spread').textContent).toMatch(/^\+/)      // it rose
-    expect(getByTestId('verdict-vol_spread').textContent).toMatch(/narrowing/i)
-    expect(getByTestId('delta-vol_spread').style.color).toBe(BEAR)
-    expect(container.querySelector('[data-testid="spark-vol_spread"]').getAttribute('stroke'))
+    expect(getByTestId('rotation-delta-vol_spread').textContent).toMatch(/^\+/)      // it rose
+    expect(getByTestId('rotation-verdict-vol_spread').textContent).toMatch(/narrowing/i)
+    expect(getByTestId('rotation-delta-vol_spread').style.color).toBe(BEAR)
+    expect(container.querySelector('[data-testid="rotation-spark-vol_spread"]').getAttribute('stroke'))
       .toBe(PALETTES.classic.bear)
   })
 
   it('still draws a rising equal-weight ratio bullish — the flag is per panel', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20, palette: 'classic' }} />)
-    expect(getByTestId('verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
-    expect(getByTestId('delta-rsp_spy_ratio').style.color).toBe(BULL)
+    expect(getByTestId('rotation-verdict-rsp_spy_ratio').textContent).toMatch(/broadening/i)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').style.color).toBe(BULL)
   })
 
   // 🔴 "/60d" OVER 12 SESSIONS IS A CLAIM ABOUT HISTORY THE LENS NEVER READ.
@@ -65,8 +65,8 @@ describe('RotationView', () => {
     const short = rows.slice(0, 12)
     const { getByTestId } = render(<RotationView rows={short} rowIdx={0} currentRow={short[0]}
       onDrill={() => {}} options={{ lookback: 60 }} />)
-    expect(getByTestId('delta-rsp_spy_ratio').textContent).toMatch(/\/ 11d$/)
-    expect(getByTestId('delta-rsp_spy_ratio').textContent).not.toMatch(/60d/)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').textContent).toMatch(/\/ 11d$/)
+    expect(getByTestId('rotation-delta-rsp_spy_ratio').textContent).not.toMatch(/60d/)
     expect(getByTestId('rotation-basis').textContent)
       .toMatch(/12 sessions · since 2026-08-29 · shorter than the 60-day setting/)
   })
