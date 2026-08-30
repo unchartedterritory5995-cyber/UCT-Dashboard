@@ -485,7 +485,13 @@ function ChartPane({
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const openSettings = useCallback(() => setSettingsOpen(true), [])
+  // Optional section to reveal on open (e.g. 'watermark' from the right-click
+  // "Adjust watermark"). Callers like onClick pass an event — ignore non-strings.
+  const [settingsTarget, setSettingsTarget] = useState(null)
+  const openSettings = useCallback((target = null) => {
+    setSettingsTarget(typeof target === 'string' ? target : null)
+    setSettingsOpen(true)
+  }, [])
   const updateChartSettings = useCallback((next) => {
     writeActiveSettings(next)
   }, [writeActiveSettings])
@@ -887,6 +893,7 @@ function ChartPane({
       <ChartSettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}
         onChange={updateChartSettings}
         onApplyThemeAll={onApplyThemeAll}

@@ -316,6 +316,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onOptsChange?.({ ...(opts || {}), watermarkPos: null })
   }, [opts, onOptsChange])
 
+  // Location-aware right-click item — one row keyed to WHERE the click landed,
+  // opening Chart settings at the matching section. Order = priority (watermark
+  // sits on top of the plot). Future self-learning items extend this.
+  const ctxLocItem = ctxMenu ? (() => {
+    if (ctxMenu.onWatermark) return { icon: 'pin', label: 'Watermark settings', target: 'watermark' }
+    const rt = ctxMenu.region?.type
+    if (rt === 'priceAxis' || rt === 'timeAxis') return { icon: 'ruler', label: 'Axis settings', target: 'axis' }
+    if (rt === 'overlay') return { icon: 'sliders', label: 'MA settings', target: 'ma' }
+    if (rt === 'price') {
+      return ctxMenu.onCandle
+        ? { icon: 'chart', label: 'Candle settings', target: 'candles' }
+        : { icon: 'gear', label: 'Canvas settings', target: 'canvas' }
+    }
+    return null
+  })() : null
+
   const handleBarContextMenu = useCallback((p) => {
     try { p.event?.preventDefault?.() } catch { /* noop */ }
     // Clamp so the ~230px×~180px menu stays on screen.
@@ -325,7 +341,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       price: p.clickPrice, bar: p.bar, currentPrice: p.currentPrice,
       resetView: p.resetView, openSettings: p.openSettings,
       clearDrawings: p.clearDrawings, hasDrawings: p.hasDrawings,
-      onWatermark: p.onWatermark })
+      onWatermark: p.onWatermark, region: p.region, onCandle: p.onCandle })
   }, [])
 
   useEffect(() => {
@@ -571,24 +587,36 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </>
             ) : (
               <>
+                {/* ── Price action (at the clicked bar) ── */}
                 {Number.isFinite(ctxMenu.price) && (
-                  <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
-                    <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
-                    Set alert @ ${ctxMenu.price.toFixed(2)}
-                  </button>
+                  <>
+                    <button type="button" className={styles.chartCtxItem} onClick={handleSetAlert}>
+                      <UIcon name="bell" size={14} className={styles.chartCtxIcon} />
+                      Set alert @ ${ctxMenu.price.toFixed(2)}
+                    </button>
+                    <div className={styles.menuDivider} />
+                  </>
                 )}
+                {/* ── Chart actions ── */}
                 <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
                   <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
                 </button>
                 <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
                   <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
                 </button>
-                {/* Location-aware: only when the right-click landed on the watermark. */}
-                {ctxMenu.onWatermark && (
-                  <button type="button" className={styles.chartCtxItem} onClick={startWatermarkAdjust}>
-                    <UIcon name="pin" size={14} className={styles.chartCtxIcon} />Adjust watermark
-                  </button>
+                {/* ── Location-aware section — ONE item keyed to WHERE the user
+                    right-clicked (watermark / price axis / moving average / candle /
+                    blank canvas), opening Chart settings at the matching section. ── */}
+                {ctxLocItem && (
+                  <>
+                    <div className={styles.menuDivider} />
+                    <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(ctxLocItem.target); closeCtx() }}>
+                      <UIcon name={ctxLocItem.icon} size={14} className={styles.chartCtxIcon} />{ctxLocItem.label}
+                    </button>
+                  </>
                 )}
+                <div className={styles.menuDivider} />
+                {/* ── Chart configuration ── */}
                 <button type="button" className={styles.chartCtxItem} onClick={() => { paneRef.current?.openSettings(); closeCtx() }}>
                   <UIcon name="gear" size={14} className={styles.chartCtxIcon} />Chart settings
                 </button>
@@ -629,10 +657,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
+                {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
-                  <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
-                    <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
-                  </button>
+                  <>
+                    <div className={styles.menuDivider} />
+                    <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.clearDrawings?.(); setCtxToast('Drawings cleared'); closeCtx() }}>
+                      <UIcon name="trash" size={14} className={styles.chartCtxIcon} />Clear all drawings
+                    </button>
+                  </>
                 )}
                 {ctxMenu.bar && (
                   <button type="button" className={`${styles.chartCtxItem} ${styles.chartCtxAi}`} onClick={handleAiSearch}>

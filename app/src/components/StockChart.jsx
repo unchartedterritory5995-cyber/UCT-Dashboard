@@ -12533,6 +12533,12 @@ export default function StockChart({
               return !!(r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h)
             } catch { return false }
           })(),
+          // Location-aware: true when the click's price sits within the nearest
+          // bar's high–low (i.e. on a candle) vs blank plot space.
+          onCandle: (() => {
+            const b = closest
+            return !!(b && Number.isFinite(clickPrice) && Number.isFinite(b.l) && Number.isFinite(b.h) && clickPrice >= b.l && clickPrice <= b.h)
+          })(),
           resetView: () => {
             try {
               // VERTICAL: clear manual price-scale drag / locked placement + re-enable
