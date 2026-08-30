@@ -2525,6 +2525,19 @@
       "cadence": "nightly",
       "yields": "bool",
       "sentence": "the pattern engine's own reading that the symbol is in a flat base (a tight horizontal consolidation on drying volume after a prior advance), which is a different answer from the older heuristic pattern tag"
+    },
+    "base_relation_count": {
+      "source": {
+        "store": "screener_rows",
+        "column": "base_relation_count"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the number of NAMED multi-week structures on this symbol beyond its trend shape -- a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. 0 means we looked and none fired"
     }
   },
   "_functions_arg_role_kinds": {
@@ -2642,7 +2655,11 @@
     "candle_weekly": "TEXT -- the Weekly Candle: the named shape of the weekly bar, resampled from the daily series. A name is not a magnitude, and it has no numeric part: the weekly bar's body, wicks and close position are computed to name it and not stored as columns. Only the DAILY bar's measurements are declared (body_pct, upper_wick_pct, lower_wick_pct, close_position).",
     "candle_weekly_label": "TEXT -- the wording the Weekly column displays, including the (forming) flag while the week is still open. Prose, not a magnitude, and it has no numeric part: nothing about the weekly bar is stored as a number.",
     "candle_monthly": "TEXT -- the Monthly Candle: the named shape of the monthly bar, resampled from the daily series. A name is not a magnitude, and it has no numeric part: the monthly bar's body, wicks and close position are computed to name it and not stored as columns. Only the DAILY bar's measurements are declared (body_pct, upper_wick_pct, lower_wick_pct, close_position).",
-    "candle_monthly_label": "TEXT -- the wording the Monthly column displays, including the (forming) flag while the month is still open. Prose, not a magnitude, and it has no numeric part: nothing about the monthly bar is stored as a number."
+    "candle_monthly_label": "TEXT -- the wording the Monthly column displays, including the (forming) flag while the month is still open. Prose, not a magnitude, and it has no numeric part: nothing about the monthly bar is stored as a number.",
+    "base_shape": "TEXT -- the trend structure's machine key. A classification label is not a number and this grammar has no string literal, so no expression over it is writeable. The countable part, `base_relation_count`, IS declared",
+    "base_shape_label": "TEXT -- the display form of `base_shape`, carried so the grid can render a label without a second lookup",
+    "base_matches": "TEXT -- every structure the symbol satisfied at once, delimiter-wrapped so the Base Structure filter can test membership. A list is not a number; expressing membership needs a `contains` this table does not declare, exactly as `patterns` and `candle_matches` already record",
+    "base_render": "TEXT -- the rendered head, primary (secondary) +N. A display string, not a fact a formula can compute over"
   },
   "_functions_math": "SQR/LOG/CLG/EXP/SGN, the three math operators and the trig family are all POINTWISE: lookback 0, no state, no warm-up, and they cannot repaint. DOMAIN REFUSALS ANSWER NaN, NEVER AN EXCEPTION AND NEVER A SUBSTITUTE VALUE -- sqrt of a negative, log of a non-positive and MOD/idiv by zero are all 'not computable', which is exactly what NaN already means everywhere else in this table. A scan that asked for LOG(C) on a zero close gets a bar it cannot answer for, not a -inf that would then compare as the smallest thing in the universe and silently win every < test.",
   "_functions_sum_dev": "`sum` and `dev` are the two rolling reductions TradingView scripts reach for most after the averages. ⛔ `dev` is Pine's `ta.dev`: the MEAN ABSOLUTE DEVIATION about the simple average of the same window -- NOT the standard deviation, which this table already declares as `stdev`. They differ on every real series, and CCI is defined on the mean absolute one: mapping `dev` to `stdev` would return a plausible CCI that is wrong on every bar, which is the exact failure the PCF look-alike table exists to prevent.",

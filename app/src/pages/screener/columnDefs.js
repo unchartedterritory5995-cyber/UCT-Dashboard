@@ -422,6 +422,30 @@ export const COLUMN_DEFS = {
     desc: 'ANALYST ESTIMATE — projected long-term annual EPS growth over the next 5 years, a forecast rather than a measurement. From the nightly Finviz pull.' },
   sales_past_5y_growth: { label: 'Sales 5Y', fmt: pct,
     desc: 'Annualized sales growth over the past 5 years, from the nightly Finviz pull.' },
+  // ── multi-week BASE structure ──
+  // ⭐ A DIFFERENT QUESTION FROM EVERY CANDLE COLUMN. Those ask what TODAY's
+  // bar is; these ask what the last several WEEKS built. Same two-axis grammar:
+  // `base_shape` is a total partition (every row has exactly one) and the
+  // named structures are sparse on top of it.
+  // 🔴 THE `_label` COMPANIONS MUST BE SELECTED OR THE RICH LABEL NEVER
+  // RENDERS — the key column's formatter reads `row.<col>_label`, exactly as
+  // the candle columns do.
+  base_render: { label: 'Structure', fmt: v => v || '—',
+    desc: 'The multi-week structure this symbol is in, rendered as primary (secondary) +N — "Darvas Box (Declining Structure)". Named structures lead because they are more specific than a trend reading; the trend reading is still carried in Shape. DESCRIPTIVE ONLY: it names what the chart is doing and forecasts nothing. Every threshold behind it is either quoted from a published source or explicitly marked as ours — see api/services/screener/base_catalog.py.' },
+  base_shape: { label: 'Shape', fmt: (v, row) => row?.base_shape_label || (v || '—'),
+    desc: 'The trend structure read off the confirmed swing sequence — advancing, declining, contracting, expanding, or undefined when there are too few swings to say. A TOTAL partition: every symbol with enough history gets exactly one, so a blank means we refused for want of bars, never that the answer was nothing.' },
+  base_shape_label: { label: 'Shape Label', fmt: v => v || '—',
+    desc: 'The display text behind the Shape column. Select this one directly to keep it where Shape itself is not also in the view.' },
+  base_matches: { label: 'Matched Structures',
+    fmt: (v, row) => {
+      if (!v) return '—'
+      if (row?.base_render) return row.base_render
+      const keys = String(v).split(',').filter(Boolean)
+      return keys.length ? keys.join(', ') : '—'
+    },
+    desc: 'EVERY structure this symbol satisfied — its one shape plus any named structures — not just the one that renders. ⛔ This is the column the Base Structure FILTER queries, because screening the rendered head would silently drop every symbol whose structure was ALSO a Darvas box. Stored delimiter-wrapped so a search for one key cannot match a longer key that contains it: measured on real rows, a bare "range" search matched 122 rows where the wrapped form matched 64.' },
+  base_relation_count: { label: 'Named', fmt: num(0),
+    desc: 'How many NAMED structures fired on this symbol beyond its shape — a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. Zero is a real answer (we looked and none fired); a blank means the row was not classified at all.' },
   // ── Wave 6: per-pattern engine flags ──
   // `tri`, not `bool`, the `optionable`/`shortable` precedent: ✓ the engine
   // detected this pattern, ✗ the engine has active detections on this symbol

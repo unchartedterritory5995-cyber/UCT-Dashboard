@@ -740,9 +740,14 @@ OP_OPERANDS = {
 }
 
 VIEWS = {
+    # ⭐ `base_render` REPLACED `patterns` here (owner ruling 2026-08-30). The
+    # cheap six-detector heuristic left 59% of Overview rows blank and rendered
+    # only `v.split(',')[0]`, so a name that was both a flat base and a VCP
+    # showed one word and hid the rest. It is retired from the most-seen slot
+    # rather than left standing beside its replacement.
     "overview": {"label": "Overview", "columns": [
         "ticker", "company", "sector", "market_cap", "price", "chg_pct_1d",
-        "vol_ratio", "rs_rank", "patterns"]},
+        "vol_ratio", "rs_rank", "base_render"]},
     "valuation": {"label": "Valuation", "columns": [
         "ticker", "company", "market_cap", "pe_fwd", "peg", "price",
         "uct_composite"]},
@@ -778,7 +783,7 @@ VIEWS = {
     # ⭐ A FILTER FAMILY WITH NO VIEW IS HALF-SHIPPED — the rail that caught
     # four candle columns filterable-and-invisible. These land together.
     "bases": {"label": "Bases & Structure", "columns": [
-        "ticker", "company", "base_render", "base_shape_label",
+        "ticker", "company", "base_render", "base_shape", "base_shape_label",
         "base_relation_count", "price", "chg_pct_1d", "candle_score",
         "pct_vs_sma50", "dist_52w_high_pct", "vol_ratio"]},
     "patterns": {"label": "Patterns", "columns": [
