@@ -3,28 +3,42 @@
  * spread. All three series already ride in every breadth row and appear
  * nowhere else on this tab.
  *
- * ⭐ THREE STACKED INSTRUMENT PANELS, NOT THREE CARDS IN A ROW.
+ * ⭐ THREE STACKED INSTRUMENT PANELS, EACH ONE A FULL-WIDTH TRACE.
  *
  * Side by side on a 1500px page the three sat in a third of the width each with
- * a 30px sparkline, and the lens spent most of its viewport on nothing. There
- * are only ever three panels — the table below is the whole roster — so there is
- * no grid to be responsive about: stack them, let each take a third of the
- * height, and spend the width on the one thing that needed it. A ratio's
- * sparkline is a shape, and a shape over 90 sessions at 400px is a hairball; at
- * full width it is a trend.
+ * a 30px sparkline. The first correction stacked them — right — but kept the
+ * reading in a 232px column BESIDE the trace and gave every panel a 132px
+ * floor, so three panels needed 460px before they had drawn anything and the
+ * lens grew a scrollbar to show three numbers. A lens that scrolls to show
+ * three numbers is worse than one that was too small.
  *
- * Each panel now reads as one instrument: the reading on the left, the trace on
- * the right, and the trace carries the REFERENCE the reading is measured from —
- * a dashed line at the value `measured` sessions ago, and a tick at the session
- * it came from. The delta printed beside the number is then something you can
- * see rather than something you have to take on trust.
+ * 🔴 SO NOTHING HERE HAS A HEIGHT OF ITS OWN. The panel is a flex column of
+ * three bands — header, trace, footer — where only the trace flexes. The header
+ * and footer are two thin lines of type whose height is their own text; the
+ * trace takes every pixel left over. Three panels therefore fit whatever height
+ * the container offers, from a full page down to a quarter-size compare pane,
+ * and the thing that grows with the room is the SHAPE, which is the only thing
+ * on the panel that gets better with more of it.
+ *
+ * 🔴 AND THE TRACE IS A LINE ON A ROBUST DOMAIN, NOT A FILLED MOUNTAIN.
+ *
+ * Two separate defects wore one appearance. The domain was min…max, so a single
+ * extreme session owned the whole height and crushed the rest of the window
+ * flat — the trace read as a jagged spike over a dead line, and the panel looked
+ * like mostly empty rectangle because it WAS mostly empty. And the fill was
+ * anchored to the floor of the box, an axis position with no meaning for a
+ * ratio, so every wiggle was rendered as a change in area against an arbitrary
+ * baseline. `traceDomain` (in `rotation.js`) fixes the first; the fill is gone
+ * for the second. What is left is a line, the dashed reference it is measured
+ * from, and the two numbers that bound the axis.
  */
-import { resolveViewColors } from './breadthViewShared'
+import { fillsRow, resolveViewColors } from './breadthViewShared'
 // ⭐ The panel table MOVED to `rotation.js` (framework-free) — The Read quotes a
 // panel's own `up`/`down` sentence, and a second copy of that copy is how the
 // strip and the card beneath it would end up naming opposite directions. The
-// `risingIsBull` ruling and the `measured` ruling both live there now.
-import { ROTATION_PANELS as PANELS, rotationMeasured } from './rotation'
+// `risingIsBull` ruling and the `measured` ruling both live there now, and so
+// does the drawn domain.
+import { ROTATION_PANELS as PANELS, rotationMeasured, traceDomain } from './rotation'
 
 const pointIndex = (e) => {
   const el = e.target?.closest?.('[data-seek-idx]')
@@ -34,11 +48,21 @@ const pointIndex = (e) => {
 }
 
 // The plot's own box. Height is a viewBox unit, not pixels — the svg stretches
-// to whatever the flex row gives it — but the top/bottom insets keep the trace
-// off its own edges so a series pinned at its window high is still visible.
+// to whatever the trace band gives it — but the top/bottom insets keep the trace
+// off its own edges so a series pinned at the top of its domain is still
+// visible, and so a clipped run reads as "against the ceiling" rather than as
+// part of the border.
 const H = 40
 const TOP = 3
 const BOT = H - 3
+
+// The smallest a panel is allowed to get before the lens scrolls instead of
+// clipping. Three of these plus the basis line is ~230px — inside what a
+// quarter-size compare pane offers, and far inside a full-height single view.
+const PANEL_MIN_H = 66
+// Enough for the two domain bounds at 9px with a sign, and no more: it is a
+// scale, not a column.
+const AXIS_W = 46
 
 // Every number this lens prints, printed the same way. It formats RATIOS (and a
 // volatility spread), which is this file's own reading — the shared registry
@@ -56,7 +80,7 @@ export default function RotationView({
   const win = rows.slice(rowIdx)
   if (!win.length) return null
 
-  // The sparklines below plot oldest → newest; this is the session each drawn
+  // The traces below plot oldest → newest; this is the session each drawn
   // x-position belongs to, computed ONCE rather than per panel.
   const ascRows = [...win].reverse()
   const lastX = Math.max(1, ascRows.length - 1)
@@ -68,8 +92,8 @@ export default function RotationView({
   const measured = rotationMeasured(lookback, win.length)
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '12px 18px',
-                  display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ height: '100%', minHeight: 0, overflow: 'auto', padding: '9px 16px 10px',
+                  display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div data-testid="rotation-basis"
            style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b',
                     letterSpacing: '.4px', flex: '0 0 auto' }}>
@@ -96,20 +120,21 @@ export default function RotationView({
         const rising = usable && delta >= 0
         const deltaColor = rising === p.risingIsBull ? colors.bull : colors.bear
 
-        const min = vals.length ? Math.min(...vals) : 0
-        const max = vals.length ? Math.max(...vals) : 1
-        const range = (max - min) || 1
+        // The axis. Pinned to the two numbers the panel prints so the headline
+        // is never off its own scale — see `traceDomain`.
+        const { lo, hi, clipped, min, max } = traceDomain(vals, [now, prior])
+        const span = hi - lo
         const asc = [...series].reverse()
         const X = (i) => (i / lastX) * 100
-        const Y = (v) => BOT - ((Number(v) - min) / range) * (BOT - TOP)
+        // Clamped, deliberately: a reading past the fence is drawn AT the edge
+        // and counted in `clipped`, rather than being allowed to reset the scale
+        // for the other eighty-nine sessions.
+        const Y = (v) => {
+          const t = (Number(v) - lo) / span
+          return BOT - Math.min(1, Math.max(0, t)) * (BOT - TOP)
+        }
         const drawn = asc.map((v, i) => (v == null ? null : { i, v: Number(v) })).filter(Boolean)
         const pts = drawn.map(d => `${X(d.i).toFixed(2)},${Y(d.v).toFixed(2)}`).join(' ')
-        // The fog under the trace — the FuturesStrip idiom, and the reason the
-        // fill stops at the floor rather than at the reference line: a fill
-        // between line and reference crosses itself every time the ratio does.
-        const fog = drawn.length
-          ? `${X(drawn[0].i).toFixed(2)},${BOT} ${pts} ${X(drawn[drawn.length - 1].i).toFixed(2)},${BOT}`
-          : ''
         // Where the reference reading sits, on both axes.
         const refY = usable ? Y(prior) : null
         const refX = usable ? X(lastX - measured) : null
@@ -117,48 +142,59 @@ export default function RotationView({
 
         return (
           <div key={p.key} data-testid={`rotation-panel-${p.key}`}
-               style={{ background: '#0e131a', borderRadius: 10, padding: '12px 14px',
+               style={{ background: '#0e131a', borderRadius: 10, padding: '6px 12px 5px',
                         border: '1px solid rgba(255,255,255,0.05)',
-                        flex: '1 1 0', minHeight: 132,
-                        display: 'grid', gap: 16, alignItems: 'stretch',
-                        gridTemplateColumns: 'minmax(180px, 232px) minmax(0, 1fr)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
-                               textTransform: 'uppercase', color: '#94a3b8' }}>{p.label}</span>
-                <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569' }}>{p.sub}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
-                <span data-testid={`rotation-value-${p.key}`}
-                      style={{ font: '800 30px \'Instrument Sans\', sans-serif', color: '#e8e8ea',
-                               letterSpacing: '-0.5px', lineHeight: 1.1 }}>
-                  {usable ? fmt(now) : '—'}
-                </span>
-                {usable && (
-                  <span data-testid={`rotation-delta-${p.key}`}
-                        style={{ font: '700 11px \'Instrument Sans\', sans-serif',
-                                 color: deltaColor }}>
-                    {delta >= 0 ? '+' : ''}{fmt(delta)} / {measured}d
-                  </span>
-                )}
-              </div>
+                        ...fillsRow(PANEL_MIN_H), minWidth: 0,
+                        display: 'flex', flexDirection: 'column' }}>
+
+            {/* Header — what this is, on the left; what it reads, on the right.
+                One line, so it costs the trace nothing it does not have to. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: '0 0 auto',
+                          minWidth: 0 }}>
+              <span style={{ font: '700 10px \'Instrument Sans\', sans-serif', letterSpacing: '.5px',
+                             textTransform: 'uppercase', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                {p.label}
+              </span>
+              <span style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {p.sub}
+              </span>
+              <span data-testid={`rotation-value-${p.key}`}
+                    style={{ font: '800 22px \'Instrument Sans\', sans-serif', color: '#e8e8ea',
+                             letterSpacing: '-0.4px', lineHeight: 1, marginLeft: 'auto',
+                             fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                {usable ? fmt(now) : '—'}
+              </span>
               {usable && (
-                <div data-testid={`rotation-reference-${p.key}`}
-                     style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
-                              marginTop: 2 }}>
-                  measured from {fmt(prior)} on {win[measured].date}
-                </div>
+                <span data-testid={`rotation-delta-${p.key}`}
+                      style={{ font: '700 11px \'Instrument Sans\', sans-serif', color: deltaColor,
+                               fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {delta >= 0 ? '+' : ''}{fmt(delta)} / {measured}d
+                </span>
               )}
-              <div data-testid={`rotation-verdict-${p.key}`}
-                   style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#94a3b8',
-                            marginTop: 'auto', paddingTop: 8, lineHeight: 1.45 }}>
-                {verdict}
-              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, minWidth: 0 }}>
+            {/* The trace band — the ONLY thing on the panel that flexes. */}
+            <div style={{ flex: '1 1 auto', minHeight: 18, display: 'flex', alignItems: 'stretch',
+                          gap: 6, margin: '3px 0 2px', minWidth: 0 }}>
+              {/* The trace's own scale, and after `traceDomain` these are the
+                  DRAWN bounds rather than the window's extremes — the two
+                  differ exactly when a session sits outside the fence, and the
+                  footer says so when they do. Without them the shape is
+                  unreadable in absolute terms, which is the complaint a
+                  sparkline usually earns. */}
+              {vals.length > 0 && (
+                <div data-testid={`rotation-range-${p.key}`}
+                     style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                              font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                              textAlign: 'right', flex: `0 0 ${AXIS_W}px`, width: AXIS_W,
+                              fontVariantNumeric: 'tabular-nums' }}>
+                  <span>{fmt(hi)}</span>
+                  <span>{fmt(lo)}</span>
+                </div>
+              )}
               <svg width="100%" height="100%" viewBox={`0 0 100 ${H}`} preserveAspectRatio="none"
-                   style={{ flex: 1, minWidth: 0, minHeight: 64, display: 'block' }}
+                   style={{ flex: 1, minWidth: 0, display: 'block' }}
                    aria-hidden="true"
                    onClick={(e) => {
                      const i = pointIndex(e)
@@ -167,7 +203,6 @@ export default function RotationView({
                    }}>
                 {pts ? (
                   <>
-                    <polygon points={fog} fill={deltaColor} opacity={0.10} />
                     {refY != null && (
                       <>
                         <line data-testid={`rotation-baseline-${p.key}`}
@@ -181,9 +216,15 @@ export default function RotationView({
                               strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round"
                               vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity}
                               stroke={deltaColor} />
+                    {/* The head, as a round-capped hairline rather than a
+                        `<circle>`: the box is stretched non-uniformly, so a
+                        circle drawn in viewBox units renders as a flat ellipse
+                        at page width. A non-scaling stroke is round in device
+                        pixels whatever the box does. */}
                     {head && (
-                      <circle cx={X(head.i)} cy={Y(head.v)} r="1.4" fill={deltaColor}
-                              opacity={colors.fillOpacity} />
+                      <line x1={X(head.i)} y1={Y(head.v)} x2={X(head.i)} y2={Y(head.v) + 0.01}
+                            stroke={deltaColor} strokeWidth="3.4" strokeLinecap="round"
+                            vectorEffect="non-scaling-stroke" opacity={colors.fillOpacity} />
                     )}
                   </>
                 ) : (
@@ -199,17 +240,37 @@ export default function RotationView({
                   </rect>
                 )))}
               </svg>
-              {/* The trace's own scale. Two numbers is the whole axis a ratio
-                  needs, and without them the shape is unreadable in absolute
-                  terms — which is the complaint a sparkline usually earns. */}
-              {vals.length > 0 && (
-                <div data-testid={`rotation-range-${p.key}`}
-                     style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                              font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
-                              textAlign: 'right', flex: '0 0 auto', padding: '2px 0' }}>
-                  <span>{fmt(max)}</span>
-                  <span>{fmt(min)}</span>
-                </div>
+            </div>
+
+            {/* Footer — the sentence this panel's direction means, and the
+                reading the delta above was taken from. Wraps rather than
+                truncates: the verdict is the panel's one claim in words. */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flex: '0 0 auto',
+                          flexWrap: 'wrap', minWidth: 0 }}>
+              <span data-testid={`rotation-verdict-${p.key}`}
+                    style={{ font: '600 11px \'Instrument Sans\', sans-serif', color: '#94a3b8',
+                             flex: '1 1 auto', minWidth: 0, lineHeight: 1.35 }}>
+                {verdict}
+              </span>
+              {/* ⛔ A TRIMMED AXIS HAS TO SAY SO. Without this line a run held
+                  against the ceiling reads as a plateau, and the two bounds
+                  beside the trace would be quietly narrower than the window
+                  they claim to scale. Every session keeps its true value in its
+                  own tooltip either way. */}
+              {clipped > 0 && (
+                <span data-testid={`rotation-clip-${p.key}`}
+                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#64748b',
+                               whiteSpace: 'nowrap' }}>
+                  {clipped} session{clipped === 1 ? '' : 's'} outside the drawn range
+                  {' · full span '}{fmt(min)}–{fmt(max)}
+                </span>
+              )}
+              {usable && (
+                <span data-testid={`rotation-reference-${p.key}`}
+                      style={{ font: '600 9px \'Instrument Sans\', sans-serif', color: '#475569',
+                               whiteSpace: 'nowrap' }}>
+                  measured from {fmt(prior)} on {win[measured].date}
+                </span>
               )}
             </div>
           </div>
