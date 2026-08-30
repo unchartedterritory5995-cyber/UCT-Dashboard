@@ -495,8 +495,22 @@ def bias_scan(days: int = 7, conn=None) -> dict[str, Any]:
     except Exception:  # noqa: BLE001 — a digest never raises
         pass
 
+    # ⛔ LEDGER CONSERVATION IS DELIBERATELY NOT ON THIS CHANNEL YET.
+    # The invariant works — Webull ••0376 closed 41 of 41 windows at exactly
+    # 0.00 and the owner's own account 6 of 6 — but a first fleet run put six
+    # of eleven accounts in `gap`, and I cannot yet attribute those: SWEEP_OUT
+    # and SWEEP_IN are BOTH 100% positive in the payload (861,296 vs 814,504 on
+    # one Schwab book) and both cannot be right for cash, while midnight-stamped
+    # brokers misattribute across window edges. An alarm that fires on six of
+    # eleven accounts on its first morning gets muted, and a muted alarm is
+    # worse than none. It stays an INSTRUMENT
+    # (GET /admin/ledger-conservation) until the sweep convention is decoded
+    # the way `amount - fee` was: by measurement, not assertion.
+    gaps: list[str] = []
+
     return {
         "days": days,
+        "ledgerGaps": gaps,
         "basisDivergences": basis,
         "leaning": [r for r in out if r["verdict"] == "leaning"],
         "insufficient": [r for r in out if r["verdict"] == "insufficient"],
@@ -526,6 +540,12 @@ def bias_digest_text(scan: dict[str, Any]) -> str:
                  f"transfers-in all move a broker's basis legitimately; both "
                  f"numbers are shown so you can tell which):" + chr(10)
                  + chr(10).join(f"• {b}" for b in basis))
+    gaps = scan.get("ledgerGaps") or []
+    if gaps:
+        body += (f"{chr(10)}{chr(10)}Cash does not conserve — the activity ledger is "
+                 f"missing something, and every trade reconstructed across the gap "
+                 f"is built on it:" + chr(10)
+                 + chr(10).join(f"• {g}" for g in gaps))
     if scan["insufficient"]:
         body += (f"{chr(10)}{chr(10)}Not yet judged ({len(scan['insufficient'])} account(s) under "
                  f"{_BIAS_MIN_SAMPLES} readings) — too little data is not a clean bill.")
