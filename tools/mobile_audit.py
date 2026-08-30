@@ -35,7 +35,13 @@ VIEWPORTS = {
                            "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"},
     "phone390": {"width": 390, "height": 844, "isMobile": True, "deviceScaleFactor": 3},
     "tablet": {"width": 820, "height": 1180, "isMobile": True, "deviceScaleFactor": 2},
+    "desktop": {"width": 1280, "height": 1000, "deviceScaleFactor": 1, "isMobile": False},
 }
+
+# Vertical budget in "screens" per route. A route absent from this map is
+# not budgeted. /dashboard's budget is the whole point of the cockpit
+# redesign — it must fit one viewport with a 5% tolerance for gaps.
+HEIGHT_BUDGETS = {"/dashboard": 1.05}
 
 PUBLIC_ROUTES = ["/", "/login", "/signup", "/terms", "/privacy"]
 
@@ -83,7 +89,16 @@ PROBE_JS = r"""
     }
   });
 
-  return { overflowX, vw, scrollWidth: de.scrollWidth, offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10) };
+  // The dashboard's scroll container is the flex child, not <html>.
+  const sc = document.querySelector('[class*="_content_"]') || de;
+  const scrollHeight = sc.scrollHeight;
+  const viewportHeight = window.innerHeight;
+
+  return {
+    overflowX, vw, scrollWidth: de.scrollWidth,
+    offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10),
+    scrollHeight, viewportHeight, screens: +(scrollHeight / viewportHeight).toFixed(2),
+  };
 }
 """
 
@@ -218,6 +233,16 @@ def main():
                     entry.update(probe)
                     entry["screenshot"] = str(shot.relative_to(OUT_DIR.parent))
                     flag = "OVERFLOW" if probe["overflowX"] > 2 else "ok"
+                    # Vertical budget: /dashboard must fit one viewport.
+                    # Baseline measured 2026-08-30: 5.5 screens at 2133x1050,
+                    # 6.9 at 1277x1000. Target after Phase 3: <= 1.05.
+                    budget = HEIGHT_BUDGETS.get(route)
+                    hflag = "ok"
+                    if budget is not None and probe.get("screens", 0) > budget:
+                        hflag = "OVER_BUDGET"
+                        entry["heightFlag"] = hflag
+                    print(f"[{vp_name:8}] {route:24} {flag:9} {hflag:12} "
+                          f"screens={probe.get('screens')}")
                     print(f"[{vp_name:8}] {route:24} {flag:9} overflowX={probe['overflowX']:>4}  small={probe['smallCount']}")
                 except Exception as e:  # noqa: BLE001
                     entry["error"] = str(e)
