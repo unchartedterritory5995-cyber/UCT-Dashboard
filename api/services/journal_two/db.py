@@ -857,6 +857,13 @@ _PHASE_2_ALTERS = [
     # so open equity rows can show a real price + P&L when the live tick feed is
     # empty (after hours). Manual positions leave this NULL → fall back to live.
     "ALTER TABLE j2_positions ADD COLUMN broker_price REAL",
+    # The broker's PRIOR-session mark + the sessions each mark belongs to.
+    # A closed-session "Today" must be measured broker-mark to broker-mark;
+    # the live feed's prev_close is a second vendor's prior close and adds
+    # its disagreement at both ends. See balances._roll_broker_marks.
+    "ALTER TABLE j2_positions ADD COLUMN broker_price_session TEXT",
+    "ALTER TABLE j2_positions ADD COLUMN broker_price_prev REAL",
+    "ALTER TABLE j2_positions ADD COLUMN broker_price_prev_session TEXT",
     "ALTER TABLE j2_option_strategies ADD COLUMN source TEXT",
     "ALTER TABLE j2_option_strategies ADD COLUMN external_id TEXT",
     # Current option market value (broker mark x qty x 100), refreshed each sync

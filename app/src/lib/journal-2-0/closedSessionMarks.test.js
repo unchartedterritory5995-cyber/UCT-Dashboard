@@ -14,7 +14,7 @@
  * is measured on the same price the row was valued at.
  */
 import { describe, it, expect } from 'vitest'
-import { preferBrokerMarks, brokerLiveSummary, currentPriceFor } from './calculations'
+import { preferBrokerMarks, brokerLiveSummary, currentPriceFor, todayReferenceFor } from './calculations'
 import { buildEquityRows } from '../../pages/journal-2-0/lib/holdingsRows'
 
 const LAST_CLOSE = '2026-08-28' // Friday
@@ -119,5 +119,82 @@ describe('the rows must sum to the hero', () => {
     expect(snap.price).toBe(5.445)
     expect(snap.todayDollar).toBeCloseTo(230, 6)
     expect(snap.changePct).toBeCloseTo(((5.445 - 5.33) / 5.33) * 100, 6)
+  })
+})
+
+// ── Today measured broker-mark to BROKER-mark ───────────────────────────────
+// The other half of the 2026-08-29 report: the hero was $19.96 off AND Today
+// read −$61.06 against Robinhood's −$23.29. Valuing at the broker's mark while
+// still measuring FROM our vendor's prev_close leaves the two vendors'
+// disagreement at both ends of the subtraction.
+describe('the Today reference under broker marks', () => {
+  // Thursday's broker marks, as the live sentinel recorded them 2026-08-28.
+  const PREV = { DELL: 471.80, ORCL: 151.9399, SNAP: 5.335, SPY: 771.07, TH: 18.93 }
+  const withPrev = POSITIONS.map((p) => ({ ...p, brokerPricePrev: PREV[p.symbol] }))
+
+  it('prefers the broker prior mark over the feed prev_close', () => {
+    const p = { symbol: 'SNAP', shares: 2000, brokerPrice: 5.445, brokerPricePrev: 5.335 }
+    expect(todayReferenceFor(p, PRICES.SNAP, '2026-08-29', true)).toBe(5.335)
+    // …but only when we are on broker marks; the live path is unchanged.
+    expect(todayReferenceFor(p, PRICES.SNAP, '2026-08-29', false)).toBe(5.33)
+  })
+
+  it('falls back to the feed when no prior broker mark has synced yet', () => {
+    // brokerPricePrev is null until a SECOND session has synced. Honest
+    // degradation to exactly the previous behaviour, never a fabricated zero.
+    const p = { symbol: 'SNAP', shares: 2000, brokerPrice: 5.445 }
+    expect(todayReferenceFor(p, PRICES.SNAP, '2026-08-29', true)).toBe(5.33)
+  })
+
+  it('a genuine same-day fill still measures from the fill', () => {
+    const p = { symbol: 'SNAP', shares: 10, entryPrice: 5.50, entryDate: '2026-08-29T14:00:00Z',
+                brokerPrice: 5.445, brokerPricePrev: 5.335 }
+    expect(todayReferenceFor(p, PRICES.SNAP, '2026-08-29', true)).toBe(5.50)
+  })
+
+  it('a placeholder broker entry date is NOT a same-day fill', () => {
+    // entryEstimated rows carry the sync time as their entry date.
+    const p = { symbol: 'SNAP', shares: 10, entryPrice: 5.50, entryEstimated: true,
+                entryDate: '2026-08-29T07:40:00Z', brokerPricePrev: 5.335 }
+    expect(todayReferenceFor(p, PRICES.SNAP, '2026-08-29', true)).toBe(5.335)
+  })
+
+  // Our option feed reported the LEAP's prior close as 675 (the broker's own
+  // Thursday mark was 655) — options are deliberately outside this change, so
+  // the option leg is identical either side.
+  const MARKS = { s1: { currentValue: 665, prevCloseValue: 675 } }
+  const STRATEGIES = [{ id: 's1', brokerCurrentValue: 675, netEntry: 610, source: 'broker' }]
+
+  it('moves Today from -$61.06 toward the broker figure', () => {
+    const before = brokerLiveSummary(ACCOUNT, POSITIONS, STRATEGIES, PRICES,
+                                     '2026-08-29', MARKS, false)
+    const after = brokerLiveSummary(ACCOUNT, withPrev, STRATEGIES, PRICES,
+                                    '2026-08-29', MARKS, true)
+    expect(before.today).toBeCloseTo(-61.06, 2)   // exactly what the owner reported
+    // Equities mark-to-mark = -36.58; the option leg stays -10.00.
+    expect(after.today).toBeCloseTo(-46.58, 2)
+    const rh = -23.29
+    expect(Math.abs(after.today - rh)).toBeLessThan(Math.abs(before.today - rh))
+  })
+
+  it('leaves the OPTION as the dominant remaining residual — pinned, not fixed', () => {
+    // Our option feed says the LEAP fell 675 -> 665 on Friday (-$10); the
+    // broker's own marks say it ROSE 655 -> 665 (+$10). A $20 swing on one
+    // wide-spread Jan-2028 contract, and the bulk of what still separates us
+    // from Robinhood's -23.29. Which prior mark is right is NOT decidable from
+    // one Saturday, so nothing here guesses: the equity legs moved, the option
+    // leg did not. This test exists so the next session sees the number.
+    const after = brokerLiveSummary(ACCOUNT, withPrev, STRATEGIES, PRICES,
+                                    '2026-08-29', MARKS, true)
+    const equitiesOnly = brokerLiveSummary(ACCOUNT, withPrev, [], PRICES,
+                                           '2026-08-29', {}, true)
+    expect(equitiesOnly.today).toBeCloseTo(-36.58, 2)
+    expect(after.today - equitiesOnly.today).toBeCloseTo(-10.00, 2)
+  })
+
+  it('keeps the rows summing to the hero on the new reference too', () => {
+    const rows = buildEquityRows(withPrev, PRICES, '2026-08-29', true)
+    const hero = brokerLiveSummary(ACCOUNT, withPrev, [], PRICES, '2026-08-29', {}, true)
+    expect(rows.reduce((s, r) => s + r.todayDollar, 0)).toBeCloseTo(hero.today, 6)
   })
 })

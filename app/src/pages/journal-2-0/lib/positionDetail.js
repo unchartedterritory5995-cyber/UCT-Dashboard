@@ -5,20 +5,10 @@
  *   diversity · Today's return · Total return; the Stats list is CLOSED;
  *   analyst buckets: Buy = strongBuy+buy, Sell = sell+strongSell.
  */
-import { currentPriceFor, positionPnlDollar, money } from '../../../lib/journal-2-0'
+import { currentPriceFor, todayReferenceFor, positionPnlDollar, money } from '../../../lib/journal-2-0'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
 const DASH = '—'
-
-function prevCloseOf(snap) {
-  if (!snap) return null
-  if (Number.isFinite(snap.prev_close)) return snap.prev_close
-  if (Number.isFinite(snap.price) && Number.isFinite(snap.change_pct)) {
-    const pc = snap.price / (1 + snap.change_pct / 100)
-    return Number.isFinite(pc) ? pc : null
-  }
-  return null
-}
 
 /** Volume display: 950 · 12.50K · 2.00M · 3.10B. Null → —. */
 export function fmtVolume(v) {
@@ -40,10 +30,10 @@ export function yourPositionModel(position, snap, netLiq, todayIso, preferBroker
   const prices = snap ? { [position.symbol]: snap } : {}
   const price = fin(currentPriceFor(position, prices, preferBroker))
   const signed = (position.side === 'Short' ? -1 : 1) * (position.shares || 0)
-  // entryDate is a FULL ISO timestamp — date-part compare (see brokerLiveSummary).
-  const openedToday =
-    todayIso && position.entryDate && String(position.entryDate).slice(0, 10) === todayIso
-  const ref = openedToday ? fin(position.entryPrice) : prevCloseOf(snap)
+  // ONE grammar with brokerLiveSummary + buildEquityRows. Note this now uses
+  // openedTodayFill, so a broker import's PLACEHOLDER entry date no longer
+  // reads as a same-day fill here (it never should have).
+  const ref = fin(todayReferenceFor(position, snap, todayIso, preferBroker))
   const livePrice = fin(snap?.price)
   // Today rides the SAME price the row was valued at (see brokerLiveSummary).
   const priced = livePrice != null || preferBroker

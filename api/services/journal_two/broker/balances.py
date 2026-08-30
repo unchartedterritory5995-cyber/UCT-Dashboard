@@ -300,6 +300,42 @@ def write_balances(
 
 # ── Holdings reconciliation (positions) ──────────────────────────────────────
 
+def _roll_broker_marks(conn: sqlite3.Connection, j2_account_id: str,
+                       session: str) -> None:
+    """Carry each broker row's current mark into `broker_price_prev` when the
+    SESSION turns over — run once, before this sync's marks overwrite it.
+
+    A closed-session "Today" has to be measured broker-mark to BROKER-mark. The
+    live feed's `prev_close` is our own vendor's prior close, so pairing it with
+    the broker's mark measures the move plus the two vendors' disagreement at
+    both ends (measured 2026-08-29: −$43.40 against Robinhood's −$23.29, where a
+    mark-to-mark computation reproduced −$26.49). Nothing stored the broker's
+    PRIOR mark, so nothing could compute it.
+
+    A row whose `broker_price_session` is NULL is SKIPPED, not promoted: its
+    mark is of unknown vintage, and a baseline whose session we cannot name is
+    worse than no baseline (the consumer falls back to the feed's prev_close,
+    which is today's behaviour). Every write site stamps the session ALONGSIDE
+    the mark, so rows self-heal after one sync and the second session onward
+    yields a `prev` we can stand behind.
+
+    ⛔ Must run BEFORE this sync's marks are written — it promotes the mark
+    currently on the row, which the loop is about to overwrite.
+
+    Idempotent within a session: several syncs on one day find
+    `broker_price_session` already equal and roll nothing.
+    """
+    conn.execute(
+        "UPDATE j2_positions SET broker_price_prev = broker_price, "
+        "broker_price_prev_session = broker_price_session, "
+        "broker_price_session = ? "
+        "WHERE account_id = ? AND source = 'broker' AND closed_at IS NULL "
+        "AND broker_price IS NOT NULL "
+        "AND broker_price_session IS NOT NULL AND broker_price_session <> ?",
+        (session, j2_account_id, session),
+    )
+
+
 def reconcile_positions(
     user_id: str,
     broker_account: dict,
@@ -311,6 +347,10 @@ def reconcile_positions(
     {upserted, closed, discrepancies}."""
     j2_account_id = broker_account["j2AccountId"]
     broker_account_id = broker_account["id"]
+    # ONE session for the whole reconcile: read once so a sync straddling the
+    # 09:30 boundary cannot stamp some rows with today and others with
+    # yesterday, which would make the next roll promote a mixed baseline.
+    mark_session = _snapshot_session_day()
 
     # Index FIFO-reconstructed open lots by (symbol, side) for entry seeding.
     fifo_by_key = {(p["symbol"], p["side"]): p for p in fifo_open_positions}
@@ -322,6 +362,7 @@ def reconcile_positions(
     seen_ext: set[str] = set()
     try:
         conn.execute("BEGIN")
+        _roll_broker_marks(conn, j2_account_id, mark_session)
         for p in raw_positions:
             symbol = _pos_symbol(p)
             units = _num(p.get("units"))
@@ -382,16 +423,17 @@ def reconcile_positions(
                         original_shares, entry_price, stop_price, breakeven_stop,
                         raise_to_breakeven, setup, notes, context_at_entry,
                         created_at, updated_at, closed_at, account_id,
-                        source, external_id, entry_estimated, broker_price
+                        source, external_id, entry_estimated, broker_price,
+                        broker_price_session
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, '{}',
-                              ?, ?, NULL, ?, 'broker', ?, ?, ?)
+                              ?, ?, NULL, ?, 'broker', ?, ?, ?, ?)
                     """,
                     # stop_price column is NOT NULL; broker imports have no stop, so we
                     # store entry_price as a placeholder and the UI renders it as "—"
                     # for broker positions until the user sets a real stop.
                     (str(uuid.uuid4()), user_id, symbol, side, entry_date, shares,
                      shares, entry_price, entry_price, now, now, j2_account_id,
-                     ext, entry_estimated, cur_price),
+                     ext, entry_estimated, cur_price, mark_session),
                 )
             else:
                 # Update broker-owned facts only. Preserve user enrichments
@@ -426,10 +468,11 @@ def reconcile_positions(
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_date = ?, entry_estimated = 0, "
-                        "broker_price = ?, updated_at = ?, "
+                        "broker_price = ?, broker_price_session = ?, updated_at = ?, "
                         "stop_price = CASE WHEN ? THEN ? ELSE stop_price END "
                         "WHERE id = ?",
-                        (shares, shares, entry_price, entry_date, cur_price, now,
+                        (shares, shares, entry_price, entry_date, cur_price,
+                         mark_session, now,
                          1 if stop_is_placeholder else 0, entry_price, existing["id"]),
                     )
                 elif shares_changed or existing["entry_estimated"] == 1:
@@ -443,10 +486,11 @@ def reconcile_positions(
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, original_shares = ?, "
                         "entry_price = ?, entry_estimated = 1, broker_price = ?, "
-                        "updated_at = ?, "
+                        "broker_price_session = ?, updated_at = ?, "
                         "stop_price = CASE WHEN ? THEN ? ELSE stop_price END "
                         "WHERE id = ?",
-                        (shares, shares, entry_price, cur_price, now,
+                        (shares, shares, entry_price, cur_price,
+                         mark_session, now,
                          1 if stop_is_placeholder else 0, entry_price, existing["id"]),
                     )
                 else:
@@ -455,8 +499,9 @@ def reconcile_positions(
                     # basis — never downgrade an unchanged position to an estimate.
                     conn.execute(
                         "UPDATE j2_positions SET shares = ?, broker_price = ?, "
-                        "updated_at = ? WHERE id = ?",
-                        (shares, cur_price, now, existing["id"]),
+                        "broker_price_session = ?, updated_at = ? WHERE id = ?",
+                        (shares, cur_price, mark_session, now,
+                         existing["id"]),
                     )
             upserted += 1
 
