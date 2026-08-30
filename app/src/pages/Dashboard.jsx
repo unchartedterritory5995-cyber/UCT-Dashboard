@@ -76,7 +76,12 @@ export default function Dashboard() {
           <div className={styles.row1}>
             <FuturesStrip />
           </div>
-          <IntradayPulse />
+          {/* ⛔ MUST stay wrapped — see the SectorRotation comment below.
+              Dashboard.zones.test.jsx treats any bare child of .desktopOnly
+              as the defect shape, so every mount here gets a track. */}
+          <div className={styles.rowFull}>
+            <IntradayPulse />
+          </div>
 
           {/* Row B — the decision row: catalysts hero + journal/movers rail */}
           <div className={styles.rowB}>
@@ -100,8 +105,14 @@ export default function Dashboard() {
             <TapeFeed />
           </div>
 
-          {/* Sector rotation — SPDR sectors ranked strongest→weakest */}
-          <SectorRotation />
+          {/* Sector rotation — SPDR sectors ranked strongest→weakest.
+              ⛔ MUST stay wrapped. TileCard is height:100%, and .desktopOnly
+              is display:block/height:auto — a bare mount here resolved that
+              100% against nothing and expanded to 3,081px around a 323px
+              list. Rail: Dashboard.zones.test.jsx */}
+          <div className={styles.rowSector}>
+            <SectorRotation />
+          </div>
 
           {/* Row D — earnings + flow */}
           <div className={styles.rowD}>
@@ -109,9 +120,13 @@ export default function Dashboard() {
             <OptionsFlowPreview />
           </div>
 
-          <DeskVideoRail />
+          <div className={styles.rowFull}>
+            <DeskVideoRail />
+          </div>
           {/* Compass noticed — self-hiding awareness feed */}
-          <CompassTodayTile />
+          <div className={styles.rowFull}>
+            <CompassTodayTile />
+          </div>
         </div>
 
         {/* ── Mobile: triaged, decision-first stack (spec §5) ────────────── */}

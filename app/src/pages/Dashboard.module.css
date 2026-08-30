@@ -65,6 +65,11 @@
   align-items: start;
 }
 
+/* Bare tiles have no grid track to resolve TileCard's height:100% against.
+   These wrappers supply one. See Dashboard.zones.test.jsx. */
+.rowSector { display: grid; grid-template-columns: 1fr; max-height: 420px; }
+.rowFull   { display: grid; grid-template-columns: 1fr; }
+
 /* Hover lift on every desktop tile (element selector on TileCard roots). */
 .desktopOnly :is(.rowB, .rowC, .rowD) > * > :first-child,
 .desktopOnly .rail > * > :first-child {
