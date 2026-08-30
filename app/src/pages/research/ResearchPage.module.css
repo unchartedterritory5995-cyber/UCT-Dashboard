@@ -5,7 +5,7 @@
 .hdrId { min-width: 0; }
 .hdrName { font-size: 18px; font-weight: 800; color: var(--text-heading); }
 .hdrCo { color: var(--text); font-weight: 600; font-size: 14px; }
-.hdrSub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.hdrSub { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
 .hdrRs { display: flex; align-items: center; }
 .hdrPx { margin-left: auto; text-align: right; }
 .hdrPxBig { font-size: 18px; font-weight: 800; color: var(--text-heading); }
@@ -23,46 +23,52 @@
 
 /* tab bar */
 .tabs { display: flex; gap: 5px; margin: 14px 0 12px; flex-wrap: nowrap; overflow-x: auto; }
-.tab { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px; font-size: 12px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.tab { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px; font-size: var(--text-base); color: var(--text); cursor: pointer; white-space: nowrap; }
 .tabOn { background: var(--ut-gold-dim); border-color: var(--ut-gold); color: var(--ut-gold); font-weight: 700; }
 
 /* overview */
 .ovWrap { display: flex; flex-direction: column; gap: 10px; }
 .chartCard { padding: 8px; }
 .ovChart { height: 300px; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* minmax(0, 1fr), NOT 1fr. A grid item defaults to `min-width: auto`, so a
+   `1fr` track refuses to shrink below its content's intrinsic minimum. These
+   cards are composed into the earnings modal as well as this page, and inside
+   the modal's narrower canvas the tracks resolved to 369px + 130px inside a
+   348px column — 137px of horizontal overflow, measured live on FCEL's The
+   Street canvas. minmax(0, ...) lets the track actually take its share. */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 
 @media (max-width: 640px) {
   .ovChart { height: 240px; }
 }
 .card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; }
-.ct { font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
-.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ct { font-size: var(--text-xs); letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
 .tbl th, .tbl td { padding: 3px 4px; text-align: right; }
 .tbl th:first-child, .tbl td:first-child { text-align: left; }
-.tbl th { color: var(--text-muted); font-size: 9px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-.kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+.tbl th { color: var(--text-muted); font-size: var(--text-xs); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.kv { display: flex; justify-content: space-between; padding: 3px 0; font-size: var(--text-base); }
 .kv b { color: var(--text-bright); }
-.ai { font-size: 12px; line-height: 1.55; color: var(--text); }
+.ai { font-size: var(--text-base); line-height: 1.55; color: var(--text); }
 
 /* financials tab */
 .finWrap { display: flex; flex-direction: column; gap: 10px; }
 .gridScroll { overflow-x: auto; }
-.fgrid { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fgrid { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
 .fgrid th, .fgrid td { padding: 4px 8px; text-align: right; white-space: nowrap; }
 .fgrid th:first-child, .fgrid td:first-child { text-align: left; }
-.fgrid th { color: var(--text-muted); font-size: 9px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.fgrid th { color: var(--text-muted); font-size: var(--text-xs); text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .fgrid tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
 .fperiod { color: var(--text-bright); font-weight: 700; }
 .heatPos2 { background: rgba(52, 209, 124, 0.30); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
 .heatPos1 { background: rgba(52, 209, 124, 0.12); color: var(--gain); border-radius: var(--radius-sm); }
 .heatNeg1 { background: rgba(242, 75, 66, 0.12); color: var(--loss); border-radius: var(--radius-sm); }
 .heatNeg2 { background: rgba(242, 75, 66, 0.30); color: var(--text-bright); font-weight: 700; border-radius: var(--radius-sm); }
-.fnote { color: var(--text-muted); font-size: 12px; padding: 8px 2px; }
+.fnote { color: var(--text-muted); font-size: var(--text-base); padding: 8px 2px; }
 
 /* rating-change list (Estimates tab) */
 .rclist { display: flex; flex-direction: column; gap: 2px; }
-.rcrow { display: grid; grid-template-columns: 88px 1fr auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.rcrow { display: grid; grid-template-columns: 88px 1fr auto auto; gap: 10px; align-items: center; font-size: var(--text-base); padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .rcdate { color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .rcfirm { color: var(--text-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rcgrade { color: var(--text); white-space: nowrap; }
@@ -71,10 +77,10 @@
 /* ownership tab */
 .ownHolders { margin-top: 8px; }
 .holderName { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: 10px; align-items: center; font-size: var(--text-base); padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 
 /* filings tab */
-.filingRow { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.filingRow { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; font-size: var(--text-base); padding: 5px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .filingForm { color: var(--ut-gold); font-weight: 700; }
 .filingLink { color: var(--info); text-decoration: none; }
 .filingLink:hover { text-decoration: underline; }
@@ -84,7 +90,7 @@
 .compNum { font-size: 46px; font-weight: 900; line-height: 1; }
 .ratingGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 14px; }
 .ratingCard { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
-.ratingLbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+.ratingLbl { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .ratingVal { font-size: 24px; font-weight: 800; line-height: 1.2; }
 .meter { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); margin-top: 7px; overflow: hidden; }
 .meterFill { height: 100%; border-radius: 3px; transition: width 0.3s; }
@@ -96,7 +102,7 @@
 .soonInner { text-align: center; color: var(--text-muted); }
 .soonGlyph { font-size: 34px; color: var(--ut-gold); opacity: 0.6; }
 .soonTitle { font-size: 15px; font-weight: 700; color: var(--text-bright); margin-top: 8px; }
-.soonSub { font-size: 12px; margin-top: 4px; }
+.soonSub { font-size: var(--text-base); margin-top: 4px; }
 
 /* paywall */
 .paywall { display: flex; align-items: center; justify-content: center; min-height: 60vh; padding: 24px; }
@@ -110,7 +116,7 @@
 
 @media (max-width: 640px) {
   .page { padding: 14px 12px 80px; }
-  .grid { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
   .hdrPx { margin-left: 0; text-align: left; flex-basis: 100%; }
   /* Tab strip → edge-to-edge horizontal scroller with 44px tap targets. */
   .tabs {
@@ -144,9 +150,9 @@
 .basisToggle { display: flex; gap: 4px; }
 .basisOn, .basisOff, .basisBtn {
   min-height: 26px; padding: 3px 10px; border-radius: var(--radius-sm); cursor: pointer;
-  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  font-size: var(--text-sm); letter-spacing: .04em; text-transform: uppercase;
   border: 1px solid rgba(255,255,255,.14); background: transparent;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 .basisOn { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
 

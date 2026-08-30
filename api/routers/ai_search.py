@@ -1806,9 +1806,14 @@ def _claude_synth_enabled() -> bool:
 _SYNTH_NOTE = (
     "\n\nWEB FINDINGS (a live web search already ran for this question; its "
     "answer and numbered sources follow). Treat them as RETRIEVAL, not as your "
-    "answer: reason over them together with the UCT desk data above, keep the "
-    "SAME [n] citation numbers when you use a web claim, and prefer a desk "
-    "figure over a web one whenever both exist. If the two disagree, say so.\n")
+    "answer: reason over them together with the UCT desk data above, and prefer "
+    "a desk figure over a web one whenever both exist. If the two disagree, say "
+    "so.\n"
+    "CITATION RULE — every FIGURE you take from the web findings carries its "
+    "[n] marker IMMEDIATELY after it, in the same sentence, reusing the SAME "
+    "numbering. A desk figure needs no [n]; attribute it to 'UCT desk data' "
+    "instead. A number with neither an [n] nor a desk attribution reads as "
+    "invented — if you cannot source it either way, leave it out.\n")
 
 
 def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | None:

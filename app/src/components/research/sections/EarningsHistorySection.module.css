@@ -36,19 +36,18 @@
    its true 320:132 (≈0.41×width) aspect ratio instead of letterboxing inside
    a too-short fixed box.
 
-   SIZE-CONTRACT NOTE (round 2 fold-in): `ReactionBars.SIZE`/`REACTION_BARS_SIZE`
-   (the kit's `{width:'100%', height:132}` skeleton-reservation contract, §3.4)
-   no longer describes this component's RENDERED box in this composition —
-   at a ~726px section width the strip now renders ≈275px tall (0.41×width),
-   not the fixed 132px `SIZE.height` — because `height:auto` above overrides
-   it. This section has no loading/skeleton state to reconcile against today
-   (it is zero-fetch and synchronous — `quarters` is derived from props
-   already in hand, so ReactionBars never renders while "loading" here), so
-   there is no layout-shift consequence in practice. If a FUTURE change adds
-   a skeleton for this exact composition, it must NOT reserve
-   `REACTION_BARS_SIZE.height` verbatim for the strip — it needs a
-   width-aware ~0.41-aspect-ratio reservation instead, or it will under-
-   reserve and reintroduce the CLS this contract exists to prevent. */
+   SIZE-CONTRACT NOTE — RESOLVED 2026-08-30. It used to read: "`REACTION_BARS_SIZE`
+   no longer describes this component's rendered box; at a ~726px section width
+   the strip renders about 275px tall (0.41 x width), so a future skeleton here
+   must reserve a width-aware 0.41 aspect ratio rather than the contracted
+   132px." That was true while the viewBox was a FIXED 320 units: `height:auto`
+   sized the SVG to `width x 132/320`, which at any real width is far taller
+   than the contract. ReactionBars now cuts its viewBox from its OWN measured
+   width, so the box aspect and the viewBox aspect are the same thing and
+   `height:auto` resolves to exactly `SIZE.height`. Measured live at 1200px and
+   390px viewports: viewBox width == rendered SVG width (scale 1.000), rendered
+   height 132px. `REACTION_BARS_SIZE` describes the real box again, so a future
+   skeleton for this composition CAN reserve it verbatim. */
 .reactionWrap [data-testid="rk-reaction"] {
   height: auto !important;
   width: calc(100% - 58px);
