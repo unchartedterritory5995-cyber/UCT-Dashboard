@@ -48,3 +48,15 @@ test('renders a crisp company logo beside each ticker row', () => {
   expect(screen.getByAltText('RNG logo')).toBeInTheDocument()
   expect(screen.getByAltText('GRND logo')).toBeInTheDocument()
 })
+
+test('renders an On the Tape section so TapeFeed has a home', async () => {
+  // MoversSidebar's external prop is `data` (destructured internally as
+  // `propData`) — not `propData` itself. Also: a case-insensitive REGEX match
+  // (as the brief's own snippet used) is ambiguous here — the section's
+  // wrapping <div> also carries the "Nothing on the tape yet" empty-state
+  // text as a sibling, so its combined textContent contains "ON THE TAPE" as
+  // a substring too, and findByText(/ON THE TAPE/i) fails with "Found
+  // multiple elements". An exact string match targets only the label <span>.
+  renderWithProviders(<MoversSidebar data={{ ripping: [], drilling: [] }} />)
+  expect(await screen.findByText('ON THE TAPE')).toBeTruthy()
+})

@@ -127,9 +127,44 @@
 .tape { color: var(--ut-gold, #dcbb5e); }
 
 .tapeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 18px;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+.tapeLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tapeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.tapeRow {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.tapeRow:last-child { border-bottom: none; padding-bottom: 0; }
+.tapeRowMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.tapeEmpty {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 12px;
+  padding: 4px 0;
 }
 
 .rowGroup { display: flex; flex-direction: column; }
