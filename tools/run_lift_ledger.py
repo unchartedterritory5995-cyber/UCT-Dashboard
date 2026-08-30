@@ -49,6 +49,14 @@ from api.services.screener import technicals                        # noqa: E402
 #: high and the measurement would be of a different pattern.
 WINDOWS = {
     "darvas-box":          400,
+    # 260-bar base search + 60 bars of prior-advance history behind it.
+    "flat-base":           400,
+    # Two stacked bases plus the failed advance between them, each needing its
+    # own prior-advance history: the same 400 will not hold both.
+    "base-on-base":        600,
+    # A cup may run 65 weeks (325 bars) plus a handle, so a 400-bar window
+    # would silently redefine the pattern as a shorter one.
+    "cup-with-handle":     500,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

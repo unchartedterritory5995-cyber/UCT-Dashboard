@@ -38,6 +38,8 @@ here, and never as a confidence number bolted onto a shape.
 Sources: the 15-lane sweep in `docs/superpowers/research/bases/`.
 """
 from dataclasses import dataclass
+
+from api.services.pattern_engine.primitives import cup
 from typing import Callable, Optional
 
 #: Darvas's own count. Sourced — see the DARVAS_BOX criteria below.
@@ -1031,6 +1033,767 @@ STAGE4_BREAKDOWN = Structure(
 )
 
 
+# -- Flat Base (William J. O'Neil / IBD) ------------------------------------
+# The cheapest of the IBD bases to detect and the one E2 (Base-on-Base) needs,
+# because base-on-base is defined by its relationship to a PRIOR base's pivot.
+
+_IBD_FLAT = "ibd_flat_base"   # IBD editorial, "Flat Base Is A Simple Pattern..."
+
+#: 5 weeks x 5 sessions. SOURCED.
+FLAT_MIN_BARS = 25
+
+#: Intraday peak to intraday trough. SOURCED, and the measurement basis is
+#: sourced too -- IBD is explicit that it is high-to-low, not close-to-close,
+#: which is one of the few places the house names its price series. Using
+#: weekly closes here would UNDER-measure depth and admit bases IBD rejects.
+FLAT_MAX_DEPTH = 0.15
+
+#: Ten cents above the base high. SOURCED, three separate IBD articles agree.
+FLAT_PIVOT_PAD = 0.10
+
+#: Ours: an upper bound on how far back the base may be sought, so a decade of
+#: dead sideways price cannot be reported as one enormous "flat base".
+FLAT_MAX_LOOKBACK = 260
+
+#: OURS, and the house asked for it. IBD requires "tight trading" inside a flat
+#: base and publishes no number, so this is our number serving their rule --
+#: mean daily (high-low)/close across the base.
+#: ⛔ MEASURED, NOT CHOSEN BY TASTE: the sourced 15% ceiling ALONE matched
+#: 41.1% of the universe, above the 35% band at which `Compression Bar (NR4)`
+#: was deleted for being uninformative. The tell was in the distribution --
+#: median matched depth sat at 14.3%, i.e. hard against the ceiling, so the
+#: published rule was admitting bases that are the opposite of tight.
+FLAT_MAX_TIGHTNESS = 0.025
+
+#: OURS. A flat base is a REST IN AN ADVANCE -- IBD places it "as a second or
+#: third base in a stock's major advance" -- so a stock that never advanced is
+#: not forming one, it is merely dead sideways. The 20% figure has only
+#: third-party corroboration (a summary of O'Neil, not IBD editorial), so the
+#: number is recorded as ours rather than dressed in the house's name.
+FLAT_PRIOR_ADVANCE = 0.20
+FLAT_ADVANCE_LOOKBACK = 60
+
+#: OURS, but DERIVED rather than picked. IBD's flat base is price that "moved
+#: horizontally"; the published rules bound the base's HEIGHT and say nothing
+#: about its SLOPE, so a smooth advance sits happily inside a 15% band and was
+#: being labelled a flat base -- a defect a FIXTURE caught, not the universe
+#: sweep, because 41% coverage hid it perfectly.
+#: A base that drifts monotonically by D has depth at least D, so for the shape
+#: to be a consolidation rather than a trend the drift must be a MINORITY of
+#: the permitted depth. Two-thirds is that minority, and it lands on the
+#: measured separation: a pure 50% advance drifts 15.2% and is refused, while
+#: the real universe keeps 3.8%.
+FLAT_MAX_DRIFT = FLAT_MAX_DEPTH * 2.0 / 3.0
+
+#: SOURCED IN SHAPE, ours in number. IBD counts a flat base from the first DOWN
+#: week -- "Usually, start counting with the first down week on a weekly chart."
+#: A base therefore OPENS AT ITS HIGH: the top is where the rest begins, not
+#: somewhere in the middle. That is what stops the window running back into the
+#: advance the base is resting, and it is a statement about where the base
+#: STARTS, so it belongs in choosing the window rather than in judging the
+#: symbol. As a gate it would have cost more than half the population (4.6% ->
+#: 2.0%); as a window rule it costs almost nothing and makes the reported base
+#: length honest.
+FLAT_HEAD_BARS = 5              # one week
+FLAT_HEAD_REACH = 0.97
+
+
+def _head_max_array(bars) -> list:
+    """`out[i]` = the highest high over `bars[i : i+FLAT_HEAD_BARS]`.
+
+    ⛔ A MONOTONIC DEQUE, NOT A NESTED LOOP, AND CACHED BY THE CALLER. The
+    first version rebuilt this with an inner `max()` over a 5-bar slice for
+    every bar -- O(n x 5) allocations -- and `base_on_base_state` calls
+    `flat_base_state` a dozen times per anchor over the SAME series, so the
+    ledger scan recomputed an identical array twelve times per anchor and the
+    base-on-base measurement ran for forty minutes without finishing. The
+    array depends only on the bars, so it is built once and passed down.
+    """
+    n = len(bars)
+    out = [0.0] * n
+    dq: list = []              # indices, highs decreasing
+    for i in range(n - 1, -1, -1):
+        h = bars[i].get("h") or 0.0
+        while dq and (bars[dq[-1]].get("h") or 0.0) <= h:
+            dq.pop()
+        dq.append(i)
+        if dq[0] - i >= FLAT_HEAD_BARS:
+            dq.pop(0)
+        out[i] = bars[dq[0]].get("h") or 0.0
+    return out
+
+
+def flat_base_state(bars, end: Optional[int] = None,
+                    head_max: Optional[list] = None) -> Optional[dict]:
+    """The LONGEST horizontal base ending at the last bar, or None.
+
+    The window extends backwards while it stays BOTH within the depth ceiling
+    and horizontal. Depth is monotone non-decreasing in the window length --
+    widening can only raise the high or lower the low, and `1 - low/high` moves
+    one way -- so the first depth violation is final and bounds the search.
+    Drift is NOT monotone, so every length up to that bound is tested and the
+    longest qualifying one wins.
+
+    ⛔⛔ DRIFT BELONGS IN THE WINDOW SELECTION, NOT ONLY IN THE VERDICT. The
+    first version chose the longest window inside the 15% ceiling and then
+    asked whether it was horizontal. On a base that rests an advance -- which
+    is the ONLY kind IBD describes -- that greedily swallowed the tail of the
+    advance itself, so the base it measured was part trend and its drift was
+    the trend's. The structure was then refused for a property of a window it
+    should never have chosen.
+
+    ⭐⭐ NO RECENCY GATE IS NEEDED, AND THAT IS THE POINT. The window is
+    ANCHORED to the last bar, so the base is either in place now or it is not.
+    `darvas-box` and `green-line-breakout` each had to grow an age bound after
+    the coverage harness caught them reporting long-dead structures (96.7% of
+    the universe, and a median 74-session-old breakout). Making "current"
+    structural rather than a threshold is the cheaper fix, and it cannot drift.
+    """
+    if end is not None:
+        bars = bars[:end]
+    n = len(bars)
+    if n < FLAT_MIN_BARS:
+        return None
+
+    if head_max is None:
+        head_max = _head_max_array(bars)
+
+    hi, lo, best = 0.0, float("inf"), None
+    # Running sums for a least-squares fit in j, where j counts BACKWARDS from
+    # the last bar. Prepending a bar is then an O(1) update, which keeps the
+    # whole scan linear instead of quadratic over 3,705 symbols.
+    s1 = sj = sjj = sjy = 0.0
+    for k in range(1, min(n, FLAT_MAX_LOOKBACK) + 1):
+        b = bars[n - k]
+        h, l, c = b.get("h") or 0, b.get("l") or 0, b.get("c") or 0
+        if h <= 0 or l <= 0 or c <= 0:
+            break
+        j = k - 1
+        s1 += c
+        sj += j
+        sjj += j * j
+        sjy += j * c
+        hi, lo = max(hi, h), min(lo, l)
+        if k < FLAT_MIN_BARS:
+            continue
+        depth = (hi - lo) / hi if hi > 0 else 1.0
+        if depth > FLAT_MAX_DEPTH:
+            break
+        den = k * sjj - sj * sj
+        mean = s1 / k
+        if den <= 0 or mean <= 0:
+            continue
+        slope = (k * sjy - sj * s1) / den
+        drift = abs(slope * (k - 1)) / mean
+        if drift > FLAT_MAX_DRIFT:
+            continue
+        # The base must OPEN at its high -- IBD counts from the first down
+        # week. Without this the window ran back through the advance the base
+        # rests on: a 30-bar consolidation after a 50% advance was reported as
+        # 50 bars, 20 of them trend.
+        if head_max[n - k] < FLAT_HEAD_REACH * hi:
+            continue
+        best = {"bars": k, "high": hi, "low": lo, "depth": depth,
+                "pivot": hi + FLAT_PIVOT_PAD, "drift": drift}
+    if best is None:
+        return None
+    best["tightness"] = _base_tightness(bars, best["bars"])
+    best["prior_advance"] = _prior_advance(bars, best["bars"])
+    return best
+
+
+def _base_tightness(bars, k) -> float:
+    """Mean daily range as a fraction of close, across the base."""
+    vals = [((b["h"] - b["l"]) / b["c"]) for b in bars[-k:]
+            if (b.get("c") or 0) > 0 and b.get("h") and b.get("l")]
+    return (sum(vals) / len(vals)) if vals else 1.0
+
+
+def _prior_advance(bars, k, look: int = FLAT_ADVANCE_LOOKBACK):
+    """Gain from the pre-base trough into the base's first bar, or None."""
+    start = len(bars) - k
+    pre = bars[max(0, start - look):start]
+    if len(pre) < 20:
+        return None
+    lows = [b["l"] for b in pre if (b.get("l") or 0) > 0]
+    entry = bars[start].get("c") or 0
+    if not lows or entry <= 0:
+        return None
+    lo = min(lows)
+    return ((entry - lo) / lo) if lo > 0 else None
+
+
+def flat_base_qualifies(st: Optional[dict]) -> bool:
+    """Does a base state clear every gate the Flat Base structure applies?
+
+    ⛔⛔ ONE DEFINITION, ONE PLACE. `flat_base_state` finds the SHAPE; these
+    gates decide whether the shape is a flat base. When the gates lived only
+    inside the detector, `base_on_base_state` composed on the raw shape and so
+    accepted second bases that Flat Base itself refuses -- the composed
+    structure matched 21.2% of the universe while its own component matched
+    4.5%. A structure built out of another must not be looser than the thing
+    it is built from, and the only way to guarantee that is for both to ask
+    the same function.
+    """
+    if st is None:
+        return False
+    if st["tightness"] > FLAT_MAX_TIGHTNESS:
+        return False
+    if st["drift"] > FLAT_MAX_DRIFT:
+        return False
+    return (st["prior_advance"] or 0.0) >= FLAT_PRIOR_ADVANCE
+
+
+def _detect_flat_base(ctx) -> bool:
+    """A TIGHT base that is resting an advance -- not merely a quiet stretch.
+
+    ⛔ The extra gates are ours and every one is load-bearing. Measured over
+    3,705 symbols: the sourced rules alone matched 41.1%; + tightness 26.4%;
+    + prior advance 4.8%; + horizontality and the opening-high rule 4.5%. A
+    label two-fifths of the market carries would say nothing, and that is the
+    failure the coverage harness was built after.
+    """
+    return flat_base_qualifies(flat_base_state(ctx.bars))
+
+
+FLAT_BASE = Structure(
+    key="flat-base",
+    label="Flat Base",
+    axis="relation",
+    family="Base Structure",
+    bias="neutral",
+    rank=15,
+    min_bars=FLAT_MIN_BARS,
+    desc=("A tight sideways consolidation at least five weeks long that has "
+          "corrected no more than 15% from its intraday high to its intraday "
+          "low. The pivot is ten cents above the base high."),
+    criteria=(
+        Criterion(
+            condition="Base length, minimum",
+            value=FLAT_MIN_BARS,
+            quote=("It needs at least five weeks to form. Shorter patterns are "
+                   "not adequate enough to flush out weak or impatient "
+                   "shareholders."),
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition="Base depth, maximum",
+            value=FLAT_MAX_DEPTH,
+            quote=("The stock's price declines no more than 15% from its "
+                   "intraday peak to intraday trough."),
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition=("Depth is measured INTRADAY high to INTRADAY low, not "
+                       "close to close"),
+            value="high-to-low",
+            quote="from its intraday peak to intraday trough",
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition=("CONFLICT, recorded not averaged: the same house "
+                       "publishes both a plain 15% ceiling and a tighter "
+                       "10-15% band. We implement 15% and say so."),
+            value="10-15% vs 15%",
+            quote=("Still, look for consolidation areas that are at least five "
+                   "weeks long and fall no more than 10% to 15%."),
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition="Pivot / buy point",
+            value=FLAT_PIVOT_PAD,
+            quote=("The optimal [buy point] is determined by finding the "
+                   "highest price in the pattern and adding 10 cents to it."),
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition="Tightness of trade within the base",
+            value=None,
+            quote="Flat bases should show tight trading.",
+            source_id=_IBD_FLAT, confidence="high",
+            missing=("The house requires tight trading and publishes NO number "
+                     "for it -- no maximum weekly range, no close dispersion. "
+                     "Any tightness gate here would be ours wearing IBD's "
+                     "name, so there is none."),
+        ),
+        Criterion(
+            condition=("Base stage -- usually the second or third base of an "
+                       "advance. A FREQUENCY statement, never a disqualifier."),
+            value="second-or-third",
+            quote=("Flat bases tend to form as a second or third base in a "
+                   "stock's major advance... Rarely, flat bases are the first "
+                   "base."),
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition="Search horizon for the base start",
+            value=FLAT_MAX_LOOKBACK,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Tightness ceiling -- mean daily range / close. OURS, "
+                       "supplying the number the house requires and never "
+                       "publishes. Measured: sourced rules alone matched 41.1% "
+                       "of the universe; with this, 26.4%."),
+            value=FLAT_MAX_TIGHTNESS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Prior advance into the base. OURS. A flat base rests an "
+                       "advance; without this the label also lands on stocks "
+                       "that never advanced. Measured: 26.4% -> 4.8%."),
+            value=FLAT_PRIOR_ADVANCE,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Where the base is counted from",
+            value="first-down-week",
+            quote="Usually, start counting with the first down week on a weekly chart.",
+            source_id=_IBD_FLAT, confidence="high",
+        ),
+        Criterion(
+            condition=("How much of its high the base's first week must reach, "
+                       "which is how the rule above is made computable. OURS -- "
+                       "the house says where counting starts and never says how "
+                       "close to the high that is. It chooses where the base "
+                       "STARTS rather than which symbols qualify: as a verdict "
+                       "gate it cost more than half the population (4.6% -> "
+                       "2.0%); as a window rule it costs ~0.2pp and stops the "
+                       "base swallowing the advance it rests."),
+            value=FLAT_HEAD_REACH,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Horizontality -- maximum fitted drift across the base, "
+                       "DERIVED as two-thirds of the sourced depth ceiling. "
+                       "OURS. The published rules bound the base's height and "
+                       "not its slope, so a smooth advance sat inside a 15% "
+                       "band and read as a flat base. Measured: 4.8% -> 3.8%."),
+            value=FLAT_MAX_DRIFT,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=4.5,
+    detect=_detect_flat_base,
+)
+
+
+# -- Base on Base (William J. O'Neil / IBD) ---------------------------------
+# The only IBD base defined by its RELATIONSHIP to a prior base rather than by
+# its own shape, and the only one whose whole function is bookkeeping: it
+# exists to stop the base count incrementing. The corpus is blunt about the
+# half-implementation risk -- "a detector that finds the shape but does not
+# feed the count has implemented half of it" -- so `base_stage_count` ships
+# beside the predicate, not later.
+
+_IBD_BOB = "ibd_base_on_base"       # IBD editorial on the base count
+_MSI_BOB = "marketsmith_india_bob"  # MarketSmith India (affiliated, not IBD)
+
+#: The defining number, and the most consistently stated figure in the whole
+#: IBD taxonomy. SOURCED.
+BOB_MAX_GAIN = 0.20
+
+#: Ours: how far back a prior base may be sought, and the step of that search.
+#: The two bases are stacked, so the gap between them is the FAILED advance --
+#: short by construction, since it gained less than 20%.
+BOB_MAX_GAP = 60
+BOB_SEARCH_STEP = 5
+
+#: Ours, and load-bearing. The prior base must be separated from the current
+#: one by a real advance leg. Without this the backwards search slid its end
+#: index INTO the advance, found a "base" that was really the trend's first
+#: few bars, and measured the leg from there -- a 30% breakout came out as
+#: 12% and a two-stage structure reported as a base-on-base. A truncated leg
+#: understates the gain, and understating the gain is the direction that
+#: wrongly COLLAPSES two stages into one.
+BOB_MIN_LEG = 10
+
+
+def base_on_base_state(bars) -> Optional[dict]:
+    """A base sitting on a prior base whose breakout gained less than 20%.
+
+    THE 20% IS MEASURED FROM THE PIVOT, NOT FROM THE BASE LOW. The corpus
+    flags this precisely: measuring from the low inflates the gain and would
+    silently reclassify base-on-bases as two separate stages -- which is the
+    one thing this structure exists to prevent.
+    """
+    head_max = _head_max_array(bars)
+    b2 = flat_base_state(bars, head_max=head_max)
+    if not flat_base_qualifies(b2):
+        return None
+    n = len(bars)
+    start2 = n - b2["bars"]
+    if start2 < FLAT_MIN_BARS:
+        return None
+
+    top = start2 - BOB_MIN_LEG
+    floor = max(FLAT_MIN_BARS, start2 - BOB_MAX_GAP)
+    for e1 in range(top, floor - 1, -BOB_SEARCH_STEP):
+        b1 = flat_base_state(bars, end=e1, head_max=head_max)
+        if not flat_base_qualifies(b1):
+            continue
+        pivot1 = b1["pivot"]
+        if pivot1 <= 0:
+            continue
+        # ⛔ THE PEAK IS TAKEN FROM THE PRIOR PIVOT TO NOW, NOT TO THE NEW
+        # BASE'S START. The advance's high often lands while the second base
+        # is forming, so truncating at `start2` clips it -- and a clipped peak
+        # understates the gain, which is the direction that wrongly turns two
+        # stages into one.
+        highs = [b.get("h") or 0 for b in bars[e1:]]
+        if not highs:
+            continue
+        peak = max(highs)
+        if peak <= pivot1:
+            continue                      # the first base never broke out
+        gain = (peak - pivot1) / pivot1
+        if gain >= BOB_MAX_GAIN:
+            continue                      # a full stage: two bases, not one
+        return {"gain": gain, "pivot1": pivot1, "peak": peak,
+                "base1_bars": b1["bars"], "base2_bars": b2["bars"],
+                "pivot2": b2["pivot"], "stages": 1}
+    return None
+
+
+#: Ours: how deep a stack of bases is walked. Six is far past any real base
+#: count; the bound exists so a pathological series cannot loop.
+BOB_MAX_STACK = 6
+
+
+def base_stack(bars, max_bases: int = BOB_MAX_STACK) -> list:
+    """The stack of bases ending at, and behind, the last bar. Newest first."""
+    out, end = [], len(bars)
+    head_max = _head_max_array(bars)
+    while len(out) < max_bases:
+        b = flat_base_state(bars, end=end, head_max=head_max)
+        if not flat_base_qualifies(b):
+            break
+        start = end - b["bars"]
+        out.append({"start": start, "end": end, "base": b})
+        # Step back past a minimum advance leg for the same reason
+        # `base_on_base_state` does: searching from `start` itself lets the
+        # next window slide into the advance and report the trend's first bars
+        # as a base.
+        end = start - BOB_MIN_LEG
+        if end < FLAT_MIN_BARS:
+            break
+    return out
+
+
+def base_stage_count(bars) -> int:
+    """How many STAGES the current stack of bases represents.
+
+    THE OTHER HALF OF THE PATTERN, and the reason it exists at all. IBD: "If
+    the gain is less than 20% and the stock forms another base, it's a
+    base-on-base pattern and counted as one stage." A detector that reports the
+    shape and still counts two has implemented the geometry and discarded the
+    point -- the whole function of this structure is to stop the base count
+    incrementing, because base count is what tells a reader whether a setup is
+    early or late in an advance.
+
+    ⛔ The first version of this returned 1 for a base-on-base and 1 for a lone
+    base, which is true and useless: it could not tell one stage from two, so
+    it could not have been wrong. Adjacent bases are separated here by the
+    advance between them, and only an advance of 20% or more off the older
+    base's PIVOT opens a new stage.
+    """
+    stack = base_stack(bars)
+    if not stack:
+        return 0
+    stages = 1
+    for i in range(len(stack) - 1):
+        newer_end = stack[i]["end"]
+        older = stack[i + 1]
+        pivot = older["base"]["pivot"]
+        # Same span as `base_on_base_state`: from the older pivot through the
+        # END of the newer base, so an advance that peaks while the newer base
+        # forms is not clipped. The two must agree, or a structure could be a
+        # base-on-base and still increment the count it exists to hold.
+        highs = [b.get("h") or 0 for b in bars[older["end"]:newer_end]]
+        peak = max(highs) if highs else 0.0
+        if pivot > 0 and (peak - pivot) / pivot >= BOB_MAX_GAIN:
+            stages += 1
+    return stages
+
+
+def _detect_base_on_base(ctx) -> bool:
+    return base_on_base_state(ctx.bars) is not None
+
+
+BASE_ON_BASE = Structure(
+    key="base-on-base",
+    label="Base on Base",
+    axis="relation",
+    family="Base Structure",
+    bias="neutral",
+    # ⛔ MUST OUTRANK `flat-base`, which it is built on. A base-on-base
+    # requires a qualifying flat base, so the two ALWAYS fire together and the
+    # renderer leads with the lower rank. At 16 it rendered as
+    # "Flat Base (Base on Base)" -- the general statement leading the specific
+    # one, on every symbol that had it.
+    rank=13,
+    min_bars=FLAT_MIN_BARS * 2,
+    desc=("A second base formed directly on a first, because the breakout from "
+          "the first gained less than 20% before the market turned it back. "
+          "The pair counts as ONE stage, not two."),
+    criteria=(
+        Criterion(
+            condition="Defining condition -- the prior breakout gained less than 20%",
+            value=BOB_MAX_GAIN,
+            quote=("If the gain is less than 20% and the stock forms another "
+                   "base, it's a base-on-base pattern and counted as one stage."),
+            source_id=_IBD_BOB, confidence="high",
+        ),
+        Criterion(
+            condition="The gain is measured FROM THE PIVOT, not from the base low",
+            value="from-pivot",
+            quote=("A breakout needs to produce a gain of at least 20% in order "
+                   "to be counted as one stage."),
+            source_id=_IBD_BOB, confidence="high",
+        ),
+        Criterion(
+            condition="Base-count treatment -- the pair counts as ONE stage",
+            value=1,
+            quote=("If a stock advances less than 20%, then forms another base, "
+                   "it's all counted as one consolidation"),
+            source_id=_IBD_BOB, confidence="high",
+        ),
+        Criterion(
+            condition="Second base depth -- ideally 10-15%, rarely over 20%",
+            value="10-20%",
+            quote="Shallow depth (ideally 10-15%, rarely more than 20%).",
+            source_id=_MSI_BOB, confidence="med",
+        ),
+        Criterion(
+            condition="How far the second base may sink into the first",
+            value=None,
+            source_id=_IBD_BOB, confidence="high",
+            missing=("No fetched source states a maximum overlap with a number "
+                     "-- neither as a share of the first base's range nor as a "
+                     "price level. The summarised rule is 'ideally not by "
+                     "much', which is not a predicate. So we do not test it, "
+                     "rather than inventing a bound and attributing it."),
+        ),
+        Criterion(
+            condition="Minimum duration for each of the two bases",
+            value=None,
+            source_id=_IBD_BOB, confidence="high",
+            missing=("Nothing published says whether each constituent base must "
+                     "meet its own type's minimum or whether the pair has its "
+                     "own. We apply the flat base's five weeks to each because "
+                     "that is the detector we run, and this records that the "
+                     "choice is ours."),
+        ),
+        Criterion(
+            condition=("CONFLICT, recorded not resolved: entry volume. The "
+                       "affiliate says merely 'above-average'; IBD uses 40% "
+                       "above the 50-day everywhere else."),
+            value="above-average vs +40%",
+            quote="Enter as the stock clears the second base on above-average volume.",
+            source_id=_MSI_BOB, confidence="med",
+        ),
+        Criterion(
+            condition="Search horizon for the prior base",
+            value=BOB_MAX_GAP,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=0.6,
+    detect=_detect_base_on_base,
+)
+
+
+# -- Cup with Handle (William J. O'Neil / IBD) ------------------------------
+# The flagship base of the taxonomy. Geometry lives in
+# `pattern_engine.primitives.cup`; what lives here is provenance -- which of
+# its numbers a house published, which are ours, and which it declined to give.
+
+_IBD_CUP = "ibd_cup_with_handle"     # IBD editorial / O'Neil, How to Make Money in Stocks
+_IBD_HANDOUT = "ibd_handout"         # IBD teaching handout, provenance unverified
+_BULKOWSKI = "bulkowski_cupwithhandle"
+
+
+def _detect_cup_with_handle(ctx) -> bool:
+    return cup.cup_with_handle_state(ctx.bars) is not None
+
+
+CUP_WITH_HANDLE = Structure(
+    key="cup-with-handle",
+    label="Cup with Handle",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=12,
+    min_bars=cup.CUP_MIN_BARS + cup.HANDLE_MIN_BARS,
+    desc=("A U-shaped consolidation after a prior advance whose right side "
+          "returns near the old high, then pauses in a short handle that "
+          "drifts down along its lows. The pivot is ten cents above the "
+          "handle's peak."),
+    criteria=(
+        Criterion(
+            condition="Base length, minimum",
+            value=cup.CUP_MIN_BARS,
+            quote=("A proper cup base needs to span a minimum of seven weeks, "
+                   "while a flat base can be as short as five weeks."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Base length, observed range",
+            value=cup.CUP_MAX_BARS,
+            quote=("They range from seven weeks to as long as 65 weeks in "
+                   "length, with many forming over three to six months."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Base depth, normal band",
+            value=(cup.CUP_MIN_DEPTH, cup.CUP_MAX_DEPTH),
+            quote=("The size of the decline, or correction, in a cup base "
+                   "should generally be between 12% and 33%."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition=("Base depth, bear-market allowance. CONDITIONAL on a "
+                       "regime the detector is not given, so it is an opt-in "
+                       "argument and never the default -- silently applying it "
+                       "would measure a different rule than the one published."),
+            value=cup.CUP_BEAR_MAX_DEPTH,
+            quote="In bear markets, cups can run as deep as 50%.",
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Handle forms in the upper half of the base",
+            value="upper-half",
+            quote=("A proper handle forms in the upper half of a base and "
+                   "drifts slightly downward along its price lows."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition=("Handle drifts DOWN along its LOWS; an upward drift is "
+                       "a named defect. Measured on the lows, not the closes -- "
+                       "a handle can close flat while its lows step down, and "
+                       "that is the shakeout the rule describes."),
+            value="down-along-lows",
+            quote="handle with an upward drift, a negative",
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Handle within 15% of the old high",
+            value=cup.HANDLE_WITHIN_OLD_HIGH,
+            quote=("Handle should form in the upper half of the cup, and "
+                   "within 15% of the old price high"),
+            source_id=_IBD_HANDOUT, confidence="med",
+        ),
+        Criterion(
+            condition="Handle depth",
+            value=cup.HANDLE_MAX_DEPTH,
+            quote="depth of the handle should be 10%-12%",
+            source_id=_IBD_HANDOUT, confidence="med",
+        ),
+        Criterion(
+            condition="Handle length, minimum",
+            value=None,
+            source_id=_IBD_CUP, confidence="high",
+            missing=("No IBD source states a minimum handle duration. "
+                     "Bulkowski publishes '1 week minimum with no maximum' -- "
+                     "for HIS pattern, under HIS identification guidelines. "
+                     "Importing it would put a number in O'Neil's mouth that "
+                     "he never said, so the bounds we use are recorded "
+                     "separately as ours."),
+        ),
+        Criterion(
+            condition="Pivot / buy point",
+            value=cup.PIVOT_PAD,
+            quote="10 cents above the peak in the handle",
+            source_id=_IBD_HANDOUT, confidence="med",
+        ),
+        Criterion(
+            condition="Cup shape -- U, not V; no jagged weekly swings",
+            value="smooth-U",
+            quote=("Cups should show smooth action on the left and right sides "
+                   "of the pattern. There shouldn't be jagged edges or many "
+                   "wild weekly swings of 10% to 15% or more."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Symmetry -- down weeks left roughly match up weeks right",
+            value="roughly-symmetric",
+            quote=("The base should be symmetrical in shape; the number of "
+                   "down weeks on the left side should roughly match the "
+                   "number of up weeks on the right side."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Rim tolerance -- how near the old high the right side must return",
+            value=None,
+            source_id=_IBD_CUP, confidence="high",
+            missing=("O'Neil says the right side returns 'near' the old high "
+                     "and never quantifies it, and Bulkowski likewise says the "
+                     "rims should be 'near the same price'. `rim_equality` is "
+                     "therefore a continuous score and the cutoff below is "
+                     "ours."),
+        ),
+        Criterion(
+            condition="Accumulation vs distribution weeks inside the base",
+            value=None,
+            source_id=_IBD_CUP, confidence="high",
+            missing=("The house states a DIRECTION -- 'you prefer to see weeks "
+                     "of accumulation outnumber weeks of distribution' -- with "
+                     "no ratio, and no OHLCV definition of an accumulation "
+                     "week. A direction is not a predicate, so it is not "
+                     "tested."),
+        ),
+        Criterion(
+            condition=("Bulkowski's measured numbers are recorded and NOT used: "
+                       "rank 3 of 39, 5% break-even failure, 54% average rise "
+                       "on 913 'perfect trades'."),
+            value=None,
+            source_id=_BULKOWSKI, confidence="high",
+            missing=("They are measured on HIS definition, not IBD's, and he "
+                     "publishes no benchmark -- no all-stocks control over the "
+                     "same window and no stated date range. An average rise "
+                     "over an unstated horizon in a hand-selected sample of "
+                     "PERFECT patterns is not comparable to anything. Our own "
+                     "number, if we earn one, comes from the lift ledger."),
+        ),
+        Criterion(
+            condition=("Prior uptrend before the base. ⛔ Omitting this does "
+                       "not loosen the rule, it makes it a DIFFERENT rule: the "
+                       "same geometry with no advance in front of it is a "
+                       "stock that fell and recovered."),
+            value=cup.CUP_PRIOR_UPTREND,
+            quote="first leg should be up at least 30%",
+            source_id=_IBD_HANDOUT, confidence="med",
+        ),
+        Criterion(
+            condition=("Volume must EASE through the base and handle. A "
+                       "direction, not a ratio -- the house publishes no "
+                       "percentage, so the test is the direction alone."),
+            value="eases",
+            quote=("Volume should mostly ease until the breakout ... Turnover "
+                   "fell sharply as it shaped a handle."),
+            source_id=_IBD_CUP, confidence="high",
+        ),
+        Criterion(
+            condition="Minimum roundness, separating a U from the named V failure",
+            value=cup.MIN_ROUNDNESS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Minimum rim equality",
+            value=cup.MIN_RIM_EQUALITY,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="Handle search bounds, in bars, and the rim width",
+            value=(cup.HANDLE_MIN_BARS, cup.HANDLE_MAX_BARS, cup.RIM_BARS),
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=0.6,
+    detect=_detect_cup_with_handle,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -1078,7 +1841,8 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [DARVAS_BOX, GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY,
+RELATIONS = [BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX, FLAT_BASE,
+             GREEN_LINE_BREAKOUT, POCKET_PIVOT, POWER_PLAY,
              STAGE2_BREAKOUT, STAGE4_BREAKDOWN]
 
 ALL_STRUCTURES = SHAPES + RELATIONS

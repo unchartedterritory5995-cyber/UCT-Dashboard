@@ -103,6 +103,55 @@
         "the lift's CI lower bound +0.0545 does not exceed the random-data null (max of 30 trials = +0.0554) at n=1146"
       ],
       "note": "⭐ THE ESCALATION RULE EARNING ITS KEEP. This structure PASSED its 5-trial screen (+8.35pp, CI [+5.45, +11.03], n=1146 against a null max of +2.82pp) and would have been published on the spot. The plan requires a structure that passes the screen to be re-run at 30 trials, because the null's UPPER TAIL is what the verdict turns on and five draws barely sample it. At 30 trials the null max rose to +5.54pp -- past the CI's lower bound of +5.45pp -- and the refusal happened on its own. The three 10-trial chunks came in at +4.34, +5.54 and +4.42, so the single trial that decided this sat in the middle chunk; a 20-trial run using only the outer two would have published it. That is the whole argument for escalating in one direction only: fewer trials means a lower null maximum, which makes the gate EASIER, so trial count can never be tuned toward a result. Compare Darvas, which was pushed to the same 30 trials to try to break it and did not bend: null max +2.10pp against a CI lower bound of +5.56pp, with zero of 30 trials coming close."
+    },
+    "flat-base": {
+      "published": false,
+      "sample_tickers": 112,
+      "lift": -0.0689,
+      "ci_low": -0.1033,
+      "ci_high": -0.0279,
+      "n": 746,
+      "rate": 0.2064,
+      "baseline": 0.2753,
+      "null_max": -0.0702,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound -0.1033 does not exceed the random-data null (max of 5 trials = -0.0702) at n=746"
+      ],
+      "note": "⭐ NEGATIVE, BUT NOT THE SAME FINDING AS GREEN LINE BREAKOUT OR POCKET PIVOT -- and the difference is the whole reason the null exists. Those two came in far BELOW their own nulls (-4.96pp against a null max of +3.32pp; -6.55pp against +1.50pp), which is evidence about the structures. This one measured -6.89pp against a null max of -7.02pp: the detector produces almost exactly the same negative number on moving-block resampled data where the structure cannot be present. So the sign is a mechanical property of what the predicate SELECTS -- a tight, quiet, low-range consolidation, which resolves +10%-before-8% less often than the average anchor for reasons that have nothing to do with O'Neil -- rather than evidence that flat bases underperform. Reporting this as 'flat bases lose money' would be the mirror of reporting a raw hit rate as an edge. It earns no number either way: the CI's lower bound (-10.33pp) does not clear the null, so nothing is published, and that refusal is the honest end of it."
+    },
+    "base-on-base": {
+      "published": false,
+      "sample_tickers": 177,
+      "lift": -0.0324,
+      "ci_low": -0.1007,
+      "ci_high": 0.0394,
+      "n": 173,
+      "rate": 0.2428,
+      "baseline": 0.2752,
+      "null_max": -0.0288,
+      "null_trials": 5,
+      "reasons": [
+        "95% CI [-0.1007, +0.0394] includes zero at n=173",
+        "the lift's CI lower bound -0.1007 does not exceed the random-data null (max of 5 trials = -0.0288) at n=173"
+      ],
+      "note": "Refused on width, not on sign. -3.24pp with a CI of [-10.07, +3.94] at n=173 -- the interval straddles zero, so there is no finding either way. That is the expected outcome for a structure this rare (0.62% of the universe, 23 symbols): it requires TWO stacked qualifying bases, so anchors are scarce and the interval is wide. Its value is not a lift number anyway -- it is `base_stage_count`, which stops the base count incrementing and is what tells a reader whether a setup is early or late in an advance."
+    },
+    "cup-with-handle": {
+      "published": false,
+      "sample_tickers": 274,
+      "lift": -0.0718,
+      "ci_low": -0.1274,
+      "ci_high": -0.004,
+      "n": 153,
+      "rate": 0.2026,
+      "baseline": 0.2744,
+      "null_max": 0.0424,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound -0.1274 does not exceed the random-data null (max of 5 trials = +0.0424) at n=153"
+      ],
+      "note": "The most recognised base in the industry, and it earns no number here. -7.18pp with a cluster CI of [-12.74, -0.40] at n=153, against a null whose maximum reached +4.24pp -- so unlike the flat base, this one sits BELOW its own null rather than at it. ⚠️ TWO CAVEATS THAT MATTER. First, this measures the CORRECTED detector: an earlier version omitted the prior-uptrend and volume-ease rules and measured -8.47pp on 1.97% of the universe, but that detector was not implementing the published pattern -- a cup with no advance in front of it is a stock that fell and recovered, which is mean reversion. Adding the two sourced rules cut coverage to 0.57% and is the number reported here. Second, even now the implementation is a SUBSET: IBD's accumulation-versus-distribution week requirement publishes no ratio and no OHLCV definition (recorded as a refusal), the smoothness rule is approximated by roundness, and nothing here reads market context or fundamentals. So this is evidence about the daily-computable core of the rule on our universe, not a verdict on O'Neil's method."
     }
   }
 }

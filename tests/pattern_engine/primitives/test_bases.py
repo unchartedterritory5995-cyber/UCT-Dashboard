@@ -172,3 +172,55 @@ def test_a_relation_outranks_the_shape_in_the_rendered_head():
 def test_shape_label_matches_the_catalog():
     out = bases.classify(_from_closes(_noise(300)))
     assert out["base_shape_label"] == bc.by_key(out["base_shape"]).label
+
+
+# ── the lazy context ───────────────────────────────────────────────────────
+
+def test_the_lazy_context_returns_exactly_what_eager_segmentation_would():
+    """⛔ A CACHE THAT QUIETLY RETURNS SOMETHING ELSE MOVES EVERY STRUCTURE.
+
+    `BaseCtx` defers `zigzag.segment` until a predicate asks for a swing,
+    because segmentation costs 8.48 ms against a 0.28-0.47 ms predicate and the
+    lift harness rebuilds a context per anchor. That is a speed change and must
+    be nothing else, so the four derived views are checked against the
+    computation they replaced rather than trusted.
+    """
+    from api.services.pattern_engine.primitives import zigzag
+    import random
+
+    rng = random.Random(20260830)
+    px, bars = 40.0, []
+    for i in range(400):
+        px = max(1.0, px * (1 + rng.gauss(0.0004, 0.021)))
+        bars.append({"t": 20240000 + i, "o": px, "c": px,
+                     "h": px * 1.01, "l": px * 0.99, "v": 1_000_000})
+
+    swings = zigzag.segment(bars)
+    confirmed = [s for s in swings if not s["provisional"]]
+    ctx = bases._context(bars, bars)
+
+    assert ctx.swings == confirmed
+    assert ctx.provisional == next(
+        (s for s in swings if s["provisional"]), None)
+    assert ctx.highs == [s for s in confirmed if s["type"] == "high"]
+    assert ctx.lows == [s for s in confirmed if s["type"] == "low"]
+    assert confirmed, "fixture: there must be confirmed swings to compare"
+
+
+def test_the_context_does_not_segment_until_a_swing_is_asked_for():
+    """The control on the optimisation: if it segmented eagerly anyway, the
+    speed claim above would be false while every value test still passed.
+    """
+    bars = [{"t": 20240000 + i, "o": 10.0, "c": 10.0, "h": 10.1, "l": 9.9,
+             "v": 1_000} for i in range(120)]
+    ctx = bases._context(bars, bars)
+    assert ctx._seg is None, "the context segmented before anything asked"
+    _ = ctx.swings
+    assert ctx._seg is not None, "asking for swings must populate the cache"
+
+
+def test_bars_full_defaults_to_bars_when_the_caller_has_one_series():
+    bars = [{"t": 20240000 + i, "o": 1.0, "c": 1.0, "h": 1.0, "l": 1.0,
+             "v": 1} for i in range(10)]
+    assert bases._context(bars, None).bars_full is bars
+    assert bases._context(bars, []).bars_full is bars

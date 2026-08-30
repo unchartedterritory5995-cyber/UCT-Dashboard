@@ -46,7 +46,6 @@ _NULL = {
 }
 
 
-@dataclass(frozen=True)
 class BaseCtx:
     """Everything a structure predicate may look at, built once per ticker.
 
@@ -54,31 +53,71 @@ class BaseCtx:
     be built on a swing that can still move — that is the repainting six of ten
     charting vendors do not disclose. The provisional one is kept separately for
     predicates that legitimately want to know where price is right now.
+
+    ⭐⭐ THE SEGMENTATION IS LAZY, AND THAT IS A THROUGHPUT DECISION WITH A
+    MEASUREMENT BEHIND IT. `zigzag.segment` costs **8.48 ms** on a 600-bar
+    window; the base-on-base and cup-with-handle predicates cost 0.28 ms and
+    0.47 ms. Neither reads a swing. The lift harness rebuilds a context PER
+    ANCHOR -- tens of thousands per scan, six scans per screen -- so eagerly
+    segmenting made a measurement of a structure that never asks for swings
+    spend ~97% of its time computing them. A base-on-base screen ran forty
+    minutes without finishing; the cost was never in the detector.
+
+    Nothing about the VALUES changes: the same confirmed-only list, computed
+    from the same bars, the first time anything asks. `test_bases.py` pins that
+    the lazy and eager readings agree, because a cache that quietly returns
+    something else would move every structure at once.
     """
-    bars: list
-    #: The DEEP series, when the caller has one. Structures whose definition
-    #: reaches past the working window (Green Line Breakout needs every month
-    #: we hold) read this; everything else reads `bars`. Defaults to `bars` so
-    #: a caller with only one series is never handed None.
-    bars_full: list
-    swings: list          # confirmed only
-    provisional: Optional[dict]
-    highs: list           # confirmed swing highs, oldest -> newest
-    lows: list            # confirmed swing lows, oldest -> newest
+
+    __slots__ = ("bars", "bars_full", "_seg")
+
+    def __init__(self, bars: list, bars_full: list):
+        self.bars = bars
+        #: The DEEP series, when the caller has one. Structures whose
+        #: definition reaches past the working window (Green Line Breakout
+        #: needs every month we hold) read this; everything else reads `bars`.
+        #: Defaults to `bars` so a caller with only one series is never handed
+        #: None.
+        self.bars_full = bars_full if bars_full else bars
+        self._seg = None
+
+    def _segment(self) -> dict:
+        if self._seg is None:
+            swings = zigzag.segment(self.bars)
+            confirmed = [x for x in swings if not x["provisional"]]
+            self._seg = {
+                "swings": confirmed,
+                "provisional": next(
+                    (x for x in swings if x["provisional"]), None),
+                "highs": [x for x in confirmed if x["type"] == "high"],
+                "lows": [x for x in confirmed if x["type"] == "low"],
+            }
+        return self._seg
+
+    @property
+    def swings(self) -> list:
+        return self._segment()["swings"]
+
+    @property
+    def provisional(self):
+        return self._segment()["provisional"]
+
+    @property
+    def highs(self) -> list:
+        return self._segment()["highs"]
+
+    @property
+    def lows(self) -> list:
+        return self._segment()["lows"]
+
+    def __repr__(self) -> str:
+        state = "segmented" if self._seg is not None else "unsegmented"
+        return "BaseCtx(bars=%d, %s)" % (len(self.bars), state)
 
 
 def _context(bars: list, bars_full: list) -> BaseCtx:
-    swings = zigzag.segment(bars)
-    confirmed = [s for s in swings if not s["provisional"]]
-    prov = next((s for s in swings if s["provisional"]), None)
-    return BaseCtx(
-        bars=bars,
-        bars_full=bars_full or bars,
-        swings=confirmed,
-        provisional=prov,
-        highs=[s for s in confirmed if s["type"] == "high"],
-        lows=[s for s in confirmed if s["type"] == "low"],
-    )
+    """Build a context. The zigzag runs only if a predicate asks for it."""
+    return BaseCtx(bars=bars, bars_full=bars_full)
 
 
 def _classify_shape(ctx: BaseCtx) -> str:

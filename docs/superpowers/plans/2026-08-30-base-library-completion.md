@@ -140,12 +140,56 @@ Each structure ships only when it has: sourced criteria with provenance, a
 measured coverage figure recorded on the entry, and a ledger row (published or
 refused). No structure ships on the strength of its geometry alone.
 
-- [ ] **E1 — flat/cup base detector.** Unblocks Base-on-Base, which is defined
+- [x] **E1 — flat/cup base detector. BOTH SHIPPED.**
+      **Flat Base** (4.5% coverage): the published rules alone matched 41.1%
+      of the universe -- above the band at which NR4 was deleted -- because
+      IBD bounds the base's HEIGHT and never its SLOPE, so a smooth advance
+      sits inside a 15% band and read as a flat base. Three gates of ours
+      close that, each measured and each labelled ours: tightness (the house
+      requires it and publishes no number), horizontality (DERIVED as
+      two-thirds of the sourced depth ceiling), and a prior advance. A fourth
+      rule -- the base opens at its high, since IBD counts from the first down
+      week -- went into WINDOW SELECTION rather than the verdict: as a gate it
+      cost half the population, as a window rule it costs 0.2pp and stops the
+      base swallowing the advance it rests on.
+      Ledger: **-6.89pp, refused** -- see its artifact note, because the sign
+      is a property of what the predicate SELECTS, not a verdict on O'Neil.
+      **Cup with Handle** (0.57% coverage, 0.6ms/ticker): geometry lives in
+      `pattern_engine/primitives/cup.py`, beside the `shape.py` primitives
+      built for it. `MIN_ROUNDNESS` is derived from a measured table (linear V
+      0.000 / cosine cup 0.208 / semicircle 1.000, depth-invariant) after a
+      hand-picked 0.30 refused every realistic cup. The 50% bear-market depth
+      allowance is CONDITIONAL on a regime the detector is not given, so it is
+      an opt-in argument and never the default. Bulkowski's measured numbers
+      are recorded and REFUSED: different definition, no benchmark, no stated
+      date range, hand-selected "perfect" patterns.
+      ⛔⛔ IT SHIPPED ONCE MEASURING THE WRONG PATTERN. The first version
+      omitted the prior-uptrend and volume-ease rules -- both sourced, one at
+      high confidence -- and scored -8.47pp on 1.97% of the universe. A cup
+      with no advance in front of it is a stock that fell and recovered, which
+      is mean reversion; leaving the rule out did not make the detector looser,
+      it made it a DIFFERENT detector, and publishing that number under
+      O'Neil's name would have been a misattribution. With both rules in:
+      0.57% coverage, **-7.18pp, refused**. The fixtures had hidden it -- they
+      carried a 7% lead and flat volume and passed only because the detector
+      did not yet ask.
+      *(original wording:)* flat/cup base detector. Unblocks Base-on-Base, which is defined
       by its relationship to a prior base's pivot. Needs the `shape.py`
       roundness and rim-equality primitives already shipped.
-- [ ] **E2** Base-on-Base, including the base-count field it exists to feed —
-      "a detector that finds the shape but does not feed the count has
-      implemented half of it."
+- [x] **E2** Base-on-Base SHIPPED with `base_stage_count` -- the half that
+      matters, since the pattern's entire function is to stop the base count
+      incrementing. Three defects found on the way:
+      (a) the backwards search slid its end index INTO the advance, found the
+      trend's first bars as a "base", and measured a 30% breakout as 12%;
+      (b) the peak was clipped at the new base's start, though an advance
+      often peaks while the new base is forming. Both understate the gain, and
+      understating the gain is the direction that wrongly reports a
+      base-on-base.
+      (c) it composed on the RAW base shape rather than the gated one, so the
+      composed structure matched 21.2% of the universe while its own component
+      matched 4.5%. `flat_base_qualifies` is now the single definition both
+      ask -- a structure built out of another must never be looser than the
+      thing it is built from. Coverage 0.62%.
 - [ ] **E3** Stage / trend / remount (8): Stage 2 Breakout · Stage 2 Momentum ·
       Stage 4 Breakdown · 20EMA Hold · EMA Crossback · EMA Crossover · FTD ·
       Mean Reversion. ⚠️ Weinstein's volume rule is **asymmetric by design** —
@@ -162,6 +206,20 @@ refused). No structure ships on the strength of its geometry alone.
       dependent state machine over a trading range, 22 of 28 events
       non-bootstrapping, SOS and Upthrust bar-identical at resistance. Its
       canon supplies 16 numbers against 183 refusals.
+
+## Measured: where the scan time actually went
+
+`bases._context` eagerly ran `zigzag.segment` on every context it built --
+**8.48 ms** on a 600-bar window, against predicates costing 0.27-0.52 ms. The
+lift harness builds a context PER ANCHOR (tens of thousands per scan, six
+scans per screen), and neither base-on-base nor cup-with-handle reads a swing,
+so ~97% of those screens was spent computing something nothing asked for. A
+base-on-base screen ran **40 minutes without finishing**; the same screen now
+takes **19 seconds**. `BaseCtx` segments lazily, `test_bases.py` pins that the
+lazy and eager readings are identical, and a control asserts it really does
+defer -- otherwise the speed claim could be false while every value test
+passed. ⚠️ This is the second time the cost was in the harness rather than the
+detector; measure before optimising a predicate.
 
 ## Wave F — rails promised and not yet written
 
