@@ -104,3 +104,59 @@ def test_a_zero_short_float_is_a_value(monkeypatch):
     """CONTROL — zero short interest is a real and notable reading."""
     _stub_row(monkeypatch, {"pct_vs_sma20": 1.0, "short_float_pct": 0.0})
     assert "0.0%" in ai._ctx_posture("CVNA")
+
+
+# ── the desk holds real dollar levels and never handed them over ───────────
+def test_the_posture_pack_hands_over_prev_day_levels(monkeypatch):
+    """`price_without_tool` kept firing on answers the judge rated 4/4/4/4 —
+    entry/stop levels the model had to COMPUTE, because the desk gave it only
+    percentages ("+0.72% vs 20sma") and never a dollar level.
+
+    The screener row carries prev_day_high / prev_day_low as exact stored
+    dollars, and they are the levels this desk's own playbook trades off
+    ("PREV DAY HIGH BREAK"). Handing them over makes an entry desk-sourced
+    instead of invented."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 0.72, "prev_day_high": 219.86,
+                            "prev_day_low": 215.66})
+    out = ai._ctx_posture("NVDA")
+    assert "219.86" in out and "215.66" in out, out
+    assert "prev day" in out.lower(), out
+
+
+def test_prev_day_levels_absent_are_not_invented(monkeypatch):
+    """CONTROL — same rule as everywhere else: never render a field we lack."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 0.72, "prev_day_high": None,
+                            "prev_day_low": None})
+    out = ai._ctx_posture("NVDA")
+    assert "prev day" not in out.lower() and "None" not in out, out
+
+
+def test_a_lone_prev_day_high_is_still_worth_having(monkeypatch):
+    """CONTROL — one side present must not be dropped because the other is
+    missing; a break level is useful without the low."""
+    _stub_row(monkeypatch, {"pct_vs_sma20": 0.72, "prev_day_high": 219.86,
+                            "prev_day_low": None})
+    assert "219.86" in ai._ctx_posture("NVDA")
+
+
+def test_the_levels_pack_also_carries_prev_day_levels(monkeypatch):
+    """"What levels matter and where's the entry" routes to the LEVELS pack,
+    not posture — and that pack held only dark-pool/gamma prices. The desk's own
+    playbook entry ("PREV DAY HIGH BREAK") was missing from the one pack whose
+    whole job is price levels."""
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row",
+                        lambda sym: {"prev_day_high": 219.86, "prev_day_low": 215.66})
+    from api.routers import signature
+    monkeypatch.setattr(signature, "_serve_dpl", lambda sym: {})
+    out = ai._ctx_levels("NVDA")
+    assert "219.86" in out and "215.66" in out, out
+
+
+def test_the_levels_pack_stays_silent_with_nothing_to_say(monkeypatch):
+    """CONTROL — no dark pool, no prev-day levels, no line at all."""
+    from api.services.screener import snapshot_db
+    monkeypatch.setattr(snapshot_db, "get_row", lambda sym: {})
+    from api.routers import signature
+    monkeypatch.setattr(signature, "_serve_dpl", lambda sym: {})
+    assert ai._ctx_levels("NVDA") == ""
