@@ -59,7 +59,7 @@ import os
 import threading
 import time
 
-from . import (snapshot_db, candles, bar_character, technicals, patterns, enrich, setup_score,
+from . import (snapshot_db, candles, bar_character, bases, technicals, patterns, enrich, setup_score,
               context_joins, finviz_universe, earnings_dates, earnings_context,
               analyst_pass, insider_capture, pattern_join, darkpool_agg, opt_flow)
 
@@ -456,6 +456,12 @@ def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
                          lambda: candles.weekly_candle(bars_full)))
         row.update(_step("bars_monthly_candle",
                          lambda: candles.monthly_candle(bars_full)))
+        # ⭐ MULTI-WEEK STRUCTURE. Takes `bars_full` as well as the working
+        # window because Green Line Breakout reaches back over every month we
+        # hold — a 400-bar window would silently turn its all-time high into a
+        # one-year high and the label would be wrong without being empty.
+        row.update(_step("bars_structure",
+                         lambda: bases.classify(bars, bars_full=bars_full)))
         row.update(_step("bars_setup_score",
                          lambda: setup_score.compute(
                              bars, pole_pct=row.get("pole_pct"))))

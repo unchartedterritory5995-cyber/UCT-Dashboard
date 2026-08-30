@@ -878,3 +878,27 @@ def meta() -> dict:
         }
         for s in ALL_STRUCTURES
     }
+
+
+def match_value(key: str) -> str:
+    """The value a `contains` filter must use against `base_matches`.
+
+    ⛔ DELIMITER-WRAPPED. `contains` compiles to `LIKE %v%` in `query.py`, so a
+    bare key makes a filter for `range` match a row carrying only
+    `contracting-range`. The candle library learned this once already; the
+    wrapping is why `bases.classify` emits `,a,b,` rather than `a,b`.
+    """
+    return f",{key},"
+
+
+def enum_options() -> list:
+    """Filter presets, DERIVED — never hand-listed beside the registry.
+
+    The seven candle options that were once typed into `filters.py` became a
+    second authority and drifted the moment that library grew from 7 labels to
+    62. This list cannot drift: it is the registry.
+    """
+    out = [{"label": "Any"}]
+    for s in sorted(ALL_STRUCTURES, key=lambda q: (q.axis != "relation", q.rank)):
+        out.append({"label": s.label, "op": "contains", "value": match_value(s.key)})
+    return out

@@ -19,7 +19,7 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
-from . import bar_character, candle_catalog
+from . import bar_character, base_catalog, candle_catalog
 
 
 def _range(key, label, category, column, presets, unit=None):
@@ -425,6 +425,18 @@ FILTERS = dict([
     _range("consecutive_up", "Consecutive Up Days", "multi_candle", "consecutive_up",
            [{"label": "Any"}, {"label": "3+", "op": "gte", "min": 3}]),
     # ── pattern ──
+    # ⛔ QUERIES `base_matches`, NOT `base_shape`. Every row carries exactly one
+    # SHAPE, but a row can also carry any number of named RELATIONS, and only
+    # one of them renders. Screening the rendered head would silently drop
+    # every symbol whose structure was also a Darvas box — the identical
+    # information loss `candle_type` vs `candle_matches` already documents.
+    # ⭐ The options are DERIVED from `base_catalog`, never typed here: the
+    # seven candle options that were once hand-listed beside their registry
+    # drifted the moment that library grew from 7 labels to 62.
+    _enum("base_structure", "Base Structure", "pattern", "base_matches",
+          base_catalog.enum_options()),
+    _open_range("base_relation_count", "Named Structures", "pattern",
+                "base_relation_count"),
     _enum("pattern", "Chart Pattern", "pattern", "patterns",
           [{"label": "Any"},
            {"label": "VCP", "op": "contains", "value": "vcp"},
@@ -763,6 +775,12 @@ VIEWS = {
     # A filter category with no view behind it is a half-shipped family; these
     # close that. (Nothing rails "every filter category has a view" — the gap
     # was invisible to 400+ green tests and obvious in one screenshot.)
+    # ⭐ A FILTER FAMILY WITH NO VIEW IS HALF-SHIPPED — the rail that caught
+    # four candle columns filterable-and-invisible. These land together.
+    "bases": {"label": "Bases & Structure", "columns": [
+        "ticker", "company", "base_render", "base_shape_label",
+        "base_relation_count", "price", "chg_pct_1d", "candle_score",
+        "pct_vs_sma50", "dist_52w_high_pct", "vol_ratio"]},
     "patterns": {"label": "Patterns", "columns": [
         "ticker", "company", "pattern_engine_ids", "pattern_engine_conf",
         "pattern_engine_dir", "pattern_expectancy_r", "pattern_entry_dist_pct",

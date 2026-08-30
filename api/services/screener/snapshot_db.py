@@ -91,6 +91,15 @@ COLUMNS = [
     # rows carry one that today's bar alone cannot see.
     "candle_recent", "candle_recent_bars_ago", "candle_recent_label",
     "candle_recent_status",
+    # ⭐ MULTI-WEEK STRUCTURE — what the last several WEEKS built, as opposed
+    # to what today's bar is. Same two-axis grammar as the candle columns:
+    # `base_shape` is the TOTAL partition (every row gets exactly one) and
+    # `base_matches` is delimiter-wrapped and holds the shape PLUS every
+    # relation that fired. The FILTER reads `base_matches`; screening
+    # `base_shape` would drop every symbol whose structure was also a Darvas
+    # box or a Power Play. See api/services/screener/base_catalog.py.
+    "base_shape", "base_shape_label", "base_matches", "base_relation_count",
+    "base_render",
     # levels the LIVE tier reuses to classify the forming bar (see live_tier)
     "avg_body", "avg_range",
     # the WEEKLY bar's structure, resampled from the daily series
@@ -146,6 +155,7 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "ma_stack",
          "candle_recent", "candle_recent_label", "candle_recent_status",
          "candle_weekly", "candle_weekly_label",
          "candle_monthly", "candle_monthly_label",
+         "base_shape", "base_shape_label", "base_matches", "base_render",
          "patterns", "snapshot_date", "bars_asof",
          # Wave 1. `accdis` joins _TEXT here too: it has always held letter
          # grades in a REAL-declared column (latent since v1; SQLite dynamic
