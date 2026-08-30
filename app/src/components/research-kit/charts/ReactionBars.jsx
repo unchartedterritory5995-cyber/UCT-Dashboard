@@ -1,5 +1,6 @@
 // app/src/components/research-kit/charts/ReactionBars.jsx
 import useMeasuredWidth from './useMeasuredWidth'
+import { labelStep } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import styles from './ReactionBars.module.css'
@@ -172,6 +173,9 @@ export default function ReactionBars({
   }
 
   const geo = reactionGeometry(rows, { impliedPct, width: vbWidth, height: VIEWBOX.height })
+  // Thin the axis on a narrow chart rather than shrinking the type below the
+  // smallest token — see labelStep's docblock.
+  const step = labelStep(geo.width / Math.max(geo.bars.length, 1))
   const impliedText = geo.bracket ? ` Implied ±${geo.bracket.pct.toFixed(1)}%${impliedLabel ? ` ${impliedLabel}` : ''}.` : ''
   const built = ariaLabel
     || `Next-day move after each report: closed up ${stats.upCount} of ${stats.total}, average move ${stats.avgAbs.toFixed(1)}%.${impliedText}`
@@ -209,7 +213,7 @@ export default function ReactionBars({
 
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
 
-        {geo.bars.map((b) => (
+        {geo.bars.map((b, i) => (
           <g key={b.key}>
             {b.h > 0 && (
               <rect
@@ -237,9 +241,11 @@ export default function ReactionBars({
                 ★
               </text>
             )}
-            <text className={styles.qlabel} x={b.cx} y={geo.labelY} textAnchor="middle">
-              {b.label}
-            </text>
+            {i % step === 0 && (
+              <text className={styles.qlabel} x={b.cx} y={geo.labelY} textAnchor="middle">
+                {b.label}
+              </text>
+            )}
           </g>
         ))}
       </svg>

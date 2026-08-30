@@ -1,6 +1,7 @@
 // app/src/components/research-kit/charts/ImpliedVsRealized.jsx
 
 import useMeasuredWidth from './useMeasuredWidth'
+import { labelStep } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import VerdictChip from '../VerdictChip'
@@ -302,6 +303,9 @@ export default function ImpliedVsRealized({
   }
 
   const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height })
+  // Thin the axis on a narrow chart rather than shrinking the type below the
+  // smallest token — see labelStep's docblock.
+  const step = labelStep(geo.width / Math.max(geo.cols.length, 1))
   const chip = cold.cold ? null : impliedVerdict(paired, live)
   // I2: coldStartState's `cold` flag counts the LIVE current quarter as
   // "recorded", so it can read warm (cold.cold === false, cold.caption ===
@@ -331,7 +335,7 @@ export default function ImpliedVsRealized({
       >
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
 
-        {geo.cols.map((c) => (
+        {geo.cols.map((c, i) => (
           <g key={c.key}>
             {c.implied && (
               <rect
@@ -357,9 +361,11 @@ export default function ImpliedVsRealized({
                 NOW
               </text>
             )}
-            <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
-              {c.isCurrent ? `±${c.label}` : c.label}
-            </text>
+            {(i % step === 0 || c.isCurrent) && (
+              <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
+                {c.isCurrent ? `±${c.label}` : c.label}
+              </text>
+            )}
           </g>
         ))}
       </svg>
