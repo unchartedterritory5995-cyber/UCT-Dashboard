@@ -1426,13 +1426,26 @@ def _ctx_movers() -> str:
 def _ctx_breadth() -> str:
     from api.services.engine import get_breadth
     b = get_breadth() or {}
-    if not b:
-        return ""
-    return (
-        f"Breadth (UCT): score {b.get('breadth_score')}, phase {b.get('market_phase')}, "
-        f"adv/dec {b.get('advancing')}/{b.get('declining')}, "
-        f"52wk NH/NL {b.get('new_highs')}/{b.get('new_lows')}"
-    )
+    # ⛔ `if not b` asked whether the dict was EMPTY; the invariant is whether it
+    # holds usable VALUES. A payload of Nones sailed straight through and put
+    # "score None, phase , adv/dec None/None" in front of the model — worse than
+    # silence, because silence lets it say it has no breadth while "score None"
+    # reads as a feed to interpret, and it filled the gap (measured 2026-08-29:
+    # that question scored c1 g2 o2 s1 with a safety break).
+    # ⛔ Test `is None`, never falsiness: ZERO advancing issues is a real and
+    # dramatic reading, not a missing one.
+    bits: list[str] = []
+    if b.get("breadth_score") is not None:
+        bits.append(f"score {b['breadth_score']}")
+    if b.get("market_phase"):          # a string field: "" is not a phase
+        bits.append(f"phase {b['market_phase']}")
+    adv, dec = b.get("advancing"), b.get("declining")
+    if adv is not None and dec is not None:
+        bits.append(f"adv/dec {adv}/{dec}")
+    nh, nl = b.get("new_highs"), b.get("new_lows")
+    if nh is not None and nl is not None:
+        bits.append(f"52wk NH/NL {nh}/{nl}")
+    return "Breadth (UCT): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_earnings() -> str:
