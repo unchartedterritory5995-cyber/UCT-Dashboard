@@ -185,3 +185,48 @@ describe('Options Flow respects the design system type floor', () => {
     }
   })
 })
+
+
+describe('Options Flow respects the design system RADIUS scale', () => {
+  // The page carried 12 distinct numeric radii against a 6-token scale — the
+  // same "mirror without a check" shape as the palette above, and the other
+  // half of why it read as a different product.
+  //
+  // ⛔ THE SUB-4px VALUES ARE DELIBERATE AND ALLOWED. tokens.css floors at
+  // --radius-sm: 4px, but this page is dense data UI: 1-3px on a table chip or
+  // a heat cell is a considered choice, and snapping those to 4px visibly
+  // bloats them. Everything AT OR ABOVE the floor must be a token — those were
+  // arbitrary (5/10/14/20) and snapped with a <=2px visual delta.
+  //
+  // If a `--radius-xs: 2px` token is ever added to the design system, fold
+  // {1,2,3} into it and delete this exception. That is a system-wide decision,
+  // not one to make from inside this page.
+  const TOKENS = new Set([4, 6, 8, 12, 16])
+  const DENSE_UI_EXCEPTION = new Set([1, 2, 3])
+
+  const SRC = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/pages/OptionsFlow.jsx'), 'utf8')
+  const numeric = [...SRC.matchAll(/borderRadius:\s*(\d+)\b/g)].map(m => Number(m[1]))
+
+  it('uses no arbitrary radius at or above the 4px token floor', () => {
+    const bad = [...new Set(numeric.filter(v => v >= 4 && !TOKENS.has(v)))].sort((a, b) => a - b)
+    expect(bad,
+      `these radii are >= the 4px floor but are not tokens (${[...TOKENS].sort((a,b)=>a-b).join('/')}px). `
+      + 'Snap to the nearest token, or add one to tokens.css if the scale is genuinely missing a step')
+      .toEqual([])
+  })
+
+  it('keeps the sub-floor values to the documented dense-UI set', () => {
+    const bad = [...new Set(numeric.filter(v => v < 4 && !DENSE_UI_EXCEPTION.has(v)))]
+    expect(bad, 'a new sub-4px radius appeared outside the documented set').toEqual([])
+  })
+
+  it('control: this check can actually fail', () => {
+    // Non-vacuity — if the regex stopped matching, both assertions above would
+    // pass forever on an empty array.
+    expect(numeric.length).toBeGreaterThan(100)
+    const probe = [...'borderRadius: 7'.matchAll(/borderRadius:\s*(\d+)\b/g)].map(m => Number(m[1]))
+    expect(probe).toEqual([7])
+    expect(TOKENS.has(7)).toBe(false)
+  })
+})
