@@ -285,3 +285,46 @@ export function shouldSkipStaleParse({ servedVer, currentVer, alreadySkipped }) 
   if (servedVer == null || currentVer == null) return false
   return String(servedVer) !== String(currentVer)
 }
+
+/** How long the FIRST aggregate waits before running. */
+export const DELTA_WAIT_MS = 600
+export const ER_BADGE_WAIT_MS = 6000
+
+/**
+ * Milliseconds to defer the first `processFlowData`, so it runs ONCE.
+ *
+ * ── The waste this removes, measured on prod 2026-08-29 ────────────────────
+ * `erSoonArr` (the earnings-soon symbol set) is a DEPENDENCY of the processing
+ * effect, and it is built from `/api/calendar`. Resource timing on a real load:
+ *
+ *     /api/flow/data?days=1  (14 MB)   done at    31 ms
+ *     /api/calendar                    done at 8,005 ms   <- 100x slower
+ *     ...its two look-ahead weeks      done at 9,470 ms   (serialised behind it)
+ *
+ * So the effect ran once at ~1.8 s WITHOUT badges and again at ~9.5 s WITH
+ * them — two full aggregates over 107,346 rows to change one per-row flag.
+ * `/api/calendar` is not inherently slow (cold 5,442 ms, warm 53 ms); the first
+ * visitor after a deploy pays it and eats the redundant pass.
+ *
+ * ⭐ WAITING IS ONLY AFFORDABLE BECAUSE SOMETHING IS ALREADY ON SCREEN.
+ * Prehydration paints the server-computed dataset at ~204 ms, which takes the
+ * client's aggregate off the critical path and turns it into background work —
+ * and background work can afford to wait for the input that would otherwise
+ * make it run twice.
+ *
+ * ⛔ SO THE WAIT IS GATED ON `alreadyPainted`, AND THAT GUARD IS THE WHOLE
+ * SAFETY STORY. With nothing on screen there is no budget to spend: an empty
+ * page must NEVER sit on a spinner waiting for a cosmetic earnings badge. If
+ * prehydration was unavailable (503, offline, a shape it declines), this
+ * returns 0 and the page behaves exactly as it does today.
+ *
+ * The caller re-runs this effect when `erSoonArr` changes, so a set that
+ * arrives early cancels the timer and runs immediately; the constant is only
+ * the ceiling for a calendar that is slow or never answers.
+ */
+export function firstPassWaitMs({ processedOnce, deltaPending, erSoonReady, alreadyPainted }) {
+  if (processedOnce) return 0
+  const deltaWait = deltaPending ? DELTA_WAIT_MS : 0
+  const erWait = (!erSoonReady && alreadyPainted) ? ER_BADGE_WAIT_MS : 0
+  return Math.max(deltaWait, erWait)
+}
