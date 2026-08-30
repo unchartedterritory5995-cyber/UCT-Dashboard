@@ -1,4 +1,5 @@
 // app/src/components/research-kit/charts/ReactionBars.jsx
+import useMeasuredWidth from './useMeasuredWidth'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import styles from './ReactionBars.module.css'
@@ -58,7 +59,13 @@ export function reactionGeometry(rows, { width = VIEWBOX.width, height = VIEWBOX
   const baselineY = PAD_TOP + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
-  const barW = Math.min(18, slot * 0.42)
+  // The 18 cap was the RIGHT number when the viewBox was always 320 wide (8
+  // rows -> slot 40 -> 0.42*slot = 16.8, so the ratio bound, not the cap). Now
+  // that the box tracks the real container the slot roughly doubles on desktop
+  // and an 18px bar in an 89px slot reads as a thread. 36 keeps each bar the
+  // same FRACTION of its slot at the width this actually renders at; below
+  // ~430px the 0.42 term still binds first, so narrow layouts are unchanged.
+  const barW = Math.min(36, slot * 0.42)
 
   const bars = list.map((r, i) => {
     const cx = slot * (i + 0.5)
@@ -144,6 +151,12 @@ export default function ReactionBars({
   className = '',
   ariaLabel,
 }) {
+  // Above the EmptyState early-return: skipping a hook on one branch is the
+  // classic hook-order crash, and this component has such a branch. It is also
+  // the branch that hid the bug in the sibling chart — the wrapper does not
+  // exist on the first render, which is why the hook uses a callback ref.
+  const [wrapRef, vbWidth] = useMeasuredWidth(VIEWBOX.width)
+
   const rows = Array.isArray(quarters) ? quarters : []
   const stats = reactionStats(rows)
 
@@ -158,7 +171,7 @@ export default function ReactionBars({
     )
   }
 
-  const geo = reactionGeometry(rows, { impliedPct })
+  const geo = reactionGeometry(rows, { impliedPct, width: vbWidth, height: VIEWBOX.height })
   const impliedText = geo.bracket ? ` Implied ±${geo.bracket.pct.toFixed(1)}%${impliedLabel ? ` ${impliedLabel}` : ''}.` : ''
   const built = ariaLabel
     || `Next-day move after each report: closed up ${stats.upCount} of ${stats.total}, average move ${stats.avgAbs.toFixed(1)}%.${impliedText}`
@@ -167,8 +180,9 @@ export default function ReactionBars({
     <div className={`${styles.wrap} ${className}`}>
       {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
       <svg
+        ref={wrapRef}
         className={styles.svg}
-        viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+        viewBox={`0 0 ${vbWidth} ${VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
         style={{ height }}
         role="img"
