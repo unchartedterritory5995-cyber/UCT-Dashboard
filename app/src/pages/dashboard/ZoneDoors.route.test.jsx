@@ -1,11 +1,23 @@
 // app/src/pages/dashboard/ZoneDoors.route.test.jsx
 //
-// ⭐ Reads the hrefs ZoneDoors ITSELF renders and resolves them against the
-// real route table (indirectly — the manifest doors.js is the authority
-// doors.test.js already checks against App.jsx). The component is the
-// authority for what it renders; this test is a reader. See
+// ⭐ Reads the hrefs ZoneDoors ITSELF renders and checks them against the
+// manifest (doors.js) — never a typed URL. The component is the authority
+// for what it renders; this test is a reader. See
 // app/src/routes/lostDoors.route.test.jsx for why a component test alone
 // cannot be the rail for a door.
+//
+// ⚰️ This header USED TO SAY it "resolves them against the real route table
+// (indirectly — the manifest doors.js is the authority doors.test.js already
+// checks against App.jsx)". That was false on two counts: `doors.test.js`
+// checks key/label/route/icon FORMAT only — that `to` starts with a `/` —
+// and never resolves anything, and THIS file doesn't render `App` at any
+// href either, so nothing here or "indirectly" behind it ever proved a door
+// opens onto a real page. A comment making a false claim about what a rail
+// does is how the real rail never gets written; `doors.route.test.jsx`
+// (sibling file, added for exactly this) is that rail — it renders the real
+// `App` at the hrefs `ZoneDoors` produces and asserts none of them lands on
+// the 404 page. This file's own job stays narrower and is now stated as
+// such below: the hrefs/values ZoneDoors renders, not route resolution.
 //
 // ⛔ Mocks `useMobileSWR`, NOT `swr`. ZoneDoors polls through the mobile-aware
 // wrapper (see the ruling documented in ZoneDoors.jsx) — a bare `useSWR`
