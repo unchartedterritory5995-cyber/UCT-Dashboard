@@ -1,0 +1,35 @@
+/* One absolutely-positioned overlay per view that plots a series. Positioned
+   imperatively (see hoverReadout.jsx) — never through React state. */
+.tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 6;
+  max-width: 240px;
+  background: #0b1017;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  font: 600 10px 'Instrument Sans', sans-serif;
+  color: #cbd5e1;
+  white-space: nowrap;
+  transition: opacity 0.08s linear;
+}
+
+.tipTitle {
+  font: 800 10px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.3px;
+  color: #e8e8ea;
+  margin-bottom: 2px;
+}
+
+.tipRow {
+  color: #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip { transition: none; }
+}

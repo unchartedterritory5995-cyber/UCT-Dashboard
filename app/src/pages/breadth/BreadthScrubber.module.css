@@ -1,0 +1,65 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 6px 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  min-width: 34px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0e131a;
+  color: #cbd5e1;
+  font: 700 11px 'Instrument Sans', sans-serif;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: #c9a84c; color: #e8e8ea; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.range {
+  flex: 1;
+  min-width: 140px;
+  accent-color: #c9a84c;
+  cursor: pointer;
+}
+.range:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.ends {
+  font: 600 9px 'Instrument Sans', sans-serif;
+  color: #475569;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+/* The drag readout. It is the LOUDEST thing on this row on purpose — it is
+   also the only thing on it, now that the session date is stated once, in the
+   header cluster, where the arrows that move it live. */
+.position {
+  font: 700 11px 'Instrument Sans', sans-serif;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
+  text-align: right;
+}
+
+.speed {
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0e131a;
+  color: #cbd5e1;
+  font: 600 10px 'Instrument Sans', sans-serif;
+  padding: 0 4px;
+}
+.speed:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.note {
+  font: 600 10px 'Instrument Sans', sans-serif;
+  color: #64748b;
+  flex-basis: 100%;
+}

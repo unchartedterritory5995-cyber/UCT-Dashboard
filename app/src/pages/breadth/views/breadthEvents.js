@@ -16,12 +16,15 @@ const ZWEIG_HIGH = 0.615
 const ZWEIG_WINDOW = 10
 // 90% up/down volume day: the share of volume in advancing names.
 const VOL_SHARE = 0.9
-const WASHOUT_PCTILE = 0.95
-// The smallest N where the top (1 - WASHOUT_PCTILE) fraction of a window is
+// Both highs-lows percentile events cut at the same quantile — one constant, so
+// the washout and the thrust can never end up on different definitions of
+// "extreme" while sharing one sentence in the spec.
+const EXTREME_PCTILE = 0.95
+// The smallest N where the top (1 - EXTREME_PCTILE) fraction of a window is
 // even one row wide — derived from the same constant the cut uses, so tuning
-// WASHOUT_PCTILE can never leave this floor (or its on-screen "Needs N
+// EXTREME_PCTILE can never leave this floor (or its on-screen "Needs N
 // readings" text) stale beside it.
-const PCTILE_MIN_N = Math.ceil(1 / (1 - WASHOUT_PCTILE))
+const PCTILE_MIN_N = Math.ceil(1 / (1 - EXTREME_PCTILE))
 
 /** 10-day EMA of advancing/(advancing+declining), oldest→newest. null until seeded. */
 export function zweigEma(ratios) {
@@ -56,6 +59,18 @@ const upVolShare = (row) => {
   const r = row?.up_vol_ratio
   if (r == null || isNaN(Number(r)) || Number(r) < 0) return null
   return Number(r) / (1 + Number(r))
+}
+
+// The two percentile events differ ONLY in which series they rank, so the note
+// and the detector have one author apiece. A hand-copied second detector is how
+// the highs side would quietly end up reading the lows cut.
+const pctileNote = (series) =>
+  `${series} in the top ${Math.round((1 - EXTREME_PCTILE) * 100)}% of the loaded window`
+
+const pctileDetect = (ctx, i, def) => {
+  const cut = ctx.pctileCut(def.pctileField, def.pctileQ)
+  const v = ctx.rows[i]?.[def.pctileField]
+  return (cut == null || v == null) ? null : Number(v) >= cut
 }
 
 export const EVENT_DEFS = [
@@ -104,14 +119,26 @@ export const EVENT_DEFS = [
   // by BOTH the coverage guard in `scanEvents` and the detector below, so a
   // second percentile event on a different series cannot end up guarded against
   // this one's — which is what a hardcoded `'new_52w_lows'` in the guard did.
+  // There are TWO of them now, on different series, which is what makes that
+  // fix testable: a fixture where one field is deep and the other is empty
+  // cannot pass with a hardcoded field in the guard.
   { key: 'lowWashout', label: 'New-Low Washout', family: 'washout', basis: 'percentile',
-    pctileField: 'new_52w_lows', pctileQ: WASHOUT_PCTILE,
-    note: `New 52-week lows in the top ${Math.round((1 - WASHOUT_PCTILE) * 100)}% of the loaded window`,
-    detect: (ctx, i, def) => {
-      const cut = ctx.pctileCut(def.pctileField, def.pctileQ)
-      const v = ctx.rows[i]?.[def.pctileField]
-      return (cut == null || v == null) ? null : Number(v) >= cut
-    } },
+    pctileField: 'new_52w_lows', pctileQ: EXTREME_PCTILE,
+    note: pctileNote('New 52-week lows'),
+    detect: pctileDetect },
+
+  // The spec's percentile row reads "Washout / thrust in highs-lows" — this is
+  // the highs half. Same shape, same quantile, its own series.
+  //
+  // ⛔ IT IS NOT TINTED GREEN, and that is not an oversight. The Event Ledger's
+  // fired state is a direction-NEUTRAL accent (see `EventLedgerView.jsx`): the
+  // lens reports that a named thing happened and does not grade it. A thrust in
+  // new highs is arguably bullish and arguably late-cycle froth; that call is
+  // the owner's, not this file's.
+  { key: 'highThrust', label: 'New-High Thrust', family: 'thrust', basis: 'percentile',
+    pctileField: 'new_52w_highs', pctileQ: EXTREME_PCTILE,
+    note: pctileNote('New 52-week highs'),
+    detect: pctileDetect },
 ]
 
 /** The families the ledger actually defines — the ONE authority the Customize
