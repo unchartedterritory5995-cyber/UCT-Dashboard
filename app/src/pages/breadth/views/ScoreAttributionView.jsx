@@ -14,8 +14,15 @@ import { resolveViewColors } from './breadthViewShared'
 // through `RouteErrorBoundary`. `jsonFetcher` throws on a non-ok status so SWR
 // reports it as an error instead. See `utils/jsonFetcher.test.js`.
 import jsonFetcher from '../../../utils/jsonFetcher'
+import SeekDate from './SeekDate'
+// ⭐ ONE AUTHOR FOR THE KEY — The Read reads this endpoint's answer out of the
+// SWR cache without fetching it, and a cache read only works on a
+// byte-identical key. See `breadthEndpoints.js`.
+import { attributionKey } from './breadthEndpoints'
 
-export default function ScoreAttributionView({ rows = [], currentRow, options = {} }) {
+export default function ScoreAttributionView({
+  rows = [], currentRow, onSeek, canSeek, options = {},
+}) {
   const colors = resolveViewColors(options.palette, options.intensity)
   const date = currentRow?.date
   // ⭐ The window the CLIENT loaded, not a fourth one nobody warms. `get_history`
@@ -23,11 +30,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
   // paid a cold ~415-row fetch plus a full derivation pass every 5 minutes on a
   // single-process pod. `rows` IS the loaded window and `currentRow` came out of
   // it, so this can never ask for less history than it needs.
-  const days = Math.min(3650, Math.max(1, rows.length || 90))
-  const { data, isLoading, error } = useSWR(
-    date ? `/api/breadth-monitor/score-components/${date}?days=${days}` : null,
-    jsonFetcher,
-  )
+  const { data, isLoading, error } = useSWR(attributionKey(date, rows.length), jsonFetcher)
 
   if (isLoading) {
     return <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#64748b' }}>Loading attribution…</div>
@@ -39,7 +42,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
   if (error || !data || data.ok === false || !Array.isArray(data.components)) {
     return (
       <div style={{ padding: 24, font: '600 12px \'Instrument Sans\', sans-serif', color: '#94a3b8' }}>
-        <div data-testid="attribution-unavailable">
+        <div data-testid="attribution-refusal">
           {error ? `Could not load attribution — ${error.message ?? 'network error'}`
                  : (data?.reason ?? data?.detail ?? 'No attribution for this session')}
         </div>
@@ -58,9 +61,15 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
           {data.total == null ? '—' : data.total}
         </span>
         {totalDelta != null && (
+          // The one date this lens puts on screen is the session it is
+          // comparing against — so it is the one thing here worth a cursor.
+          // It comes off the SERVER's payload, not the loaded window, so it can
+          // legitimately fall outside it (a cursor on the oldest loaded row has
+          // a prior session nobody fetched) and renders disabled when it does.
           <span style={{ font: '700 12px \'Instrument Sans\', sans-serif',
                          color: totalDelta >= 0 ? colors.bull : colors.bear }}>
-            {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(1)} vs {data.prev.date}
+            {totalDelta >= 0 ? '+' : ''}{totalDelta.toFixed(1)} vs{' '}
+            <SeekDate date={data.prev.date} styleKey="attribution" onSeek={onSeek} canSeek={canSeek} />
           </span>
         )}
         <span style={{ font: '600 10px \'Instrument Sans\', sans-serif', color: '#64748b', marginLeft: 'auto' }}>
@@ -75,7 +84,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
         const delta = (prev && c.present && prev.present) ? c.points - prev.points : null
         const fill = c.max_points ? (c.points / c.max_points) * 100 : 0
         return (
-          <div key={c.key} data-testid={`component-${c.key}`}
+          <div key={c.key} data-testid={`attribution-component-${c.key}`}
                style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div style={{ width: 150, flex: '0 0 150px', textAlign: 'right',
                           font: '700 10px \'Instrument Sans\', sans-serif', color: '#94a3b8',
@@ -94,7 +103,7 @@ export default function ScoreAttributionView({ rows = [], currentRow, options = 
                           color: c.present ? '#e2e8f0' : '#64748b' }}>
               {c.present ? `${Number(c.points).toFixed(0)} / ${c.max_points}` : 'Not reported'}
               {delta != null && (
-                <span data-testid={`delta-${c.key}`}
+                <span data-testid={`attribution-delta-${c.key}`}
                       style={{ marginLeft: 6, color: delta >= 0 ? colors.bull : colors.bear }}>
                   {delta >= 0 ? '+' : ''}{delta.toFixed(0)}
                 </span>

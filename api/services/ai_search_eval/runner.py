@@ -65,22 +65,66 @@ def _judge_client():
     return _get_anthropic_client()
 
 
-def _fast_lane_evidence(question: dict, meta: dict) -> bool:
-    """The fast lane's gate, standing where the agent lane's tool gate stands.
+# Desk pack -> the agent-lane TOOL that fetches the same thing. The fast lane
+# fires no tools, so without this translation every mechanical check that reads
+# tool NAMES misreads the lane: `fabricated_scan_rows` fired on four answers
+# whose scanner pack HAD loaded, two of them scoring 4/4/4/4 from the judge.
+# That is the recorded `uncited_thesis` trap — a check armed against evidence
+# the lane cannot supply fails every good answer as a safety break.
+#
+# Translating (rather than disarming) keeps every check MEANING what it means:
+# an answer listing scanner rows with no candidates pack really is fabricating.
+# It also lets both lanes share ONE gate, so their scores are comparable.
+_PACK_TOOL_ALIAS = {
+    "regime": "get_regime",
+    "quote": "get_quote",
+    "breadth": "get_breadth",
+    "movers": "get_movers",
+    "candidates": "get_scanner_candidates",
+    "flow": "get_options_flow",
+    "fundamentals": "get_fundamentals",
+    "posture": "get_short_interest",
+    "verdict": "grade_ticker",
+    "patterns": "find_patterns_on_ticker",
+    "sector": "get_sector_strength",
+    "playbook": "ask_the_brain",
+    "history": "get_bar_summary",
+    # several packs answer what one agent tool answers
+    "earnings": "get_earnings_intel",
+    "earnings_deep": "get_earnings_intel",
+    "call_recap": "get_earnings_intel",
+    "analyst": "get_earnings_intel",
+    "news": "get_polygon_news",
+    "news_ticker": "get_polygon_news",
+    "tape": "get_polygon_news",
+    "catalyst": "get_polygon_news",
+}
 
-    The fast lane fires NO tools — it is one Perplexity call with the desk
-    context in its system prompt — so `must_call_tools` can never be satisfied
-    and the agent gate would fail every question. The equivalent question is
-    "did the desk actually ground this answer?", read off the SAME
-    `_AMBIENT` set the capture log uses to decide desk-grounded vs web-only,
-    so the exam and the telemetry can never disagree about what counts.
 
-    A question that declares no required tools owes no desk evidence.
+def _fast_lane_capture(meta: dict, result: dict) -> list[dict]:
+    """The fast lane's answer evidence, in the tool shape the checks expect.
+
+    Every fired desk pack becomes one entry named for its agent-tool twin, so
+    `must_call_tools`, `fabricated_scan_rows` and the tool-sourced number test
+    all read the fast lane correctly. The desk context block is the result on
+    each, because that is genuinely where the pack's numbers ended up.
+
+    Citations become a `web_search` entry: a rung-2 question legitimately
+    satisfied by the web leg must not read as ungrounded. Their URLs carry no
+    figures, so a web-sourced PRICE stays unverifiable here by construction —
+    that is a real limit of this lane, recorded rather than papered over.
     """
-    if not (question.get("must_call_tools") or []):
-        return True
-    from api.services.ai_search_log import _AMBIENT
-    return bool(set(meta.get("grounding_sources") or []) - set(_AMBIENT))
+    ctx = meta.get("ctx_block") or ""
+    seen: dict[str, dict] = {}
+    for pack in (meta.get("grounding_sources") or []):
+        tool = _PACK_TOOL_ALIAS.get(pack)
+        if tool and tool not in seen:
+            seen[tool] = {"name": tool, "args": {"pack": pack}, "result": ctx}
+    cites = (result or {}).get("citations") or []
+    if cites:
+        seen["web_search"] = {"name": "web_search", "args": {},
+                              "result": [str(c) for c in cites][:20]}
+    return list(seen.values())
 
 
 def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None = None,
@@ -129,20 +173,16 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
         s = summary.setdefault(rung, {"questions": 0, "passed": 0, "ungraded": 0})
         capture: list[dict] = []
         grounding_note = ""
-        evidence_pass = None
         t0 = time.time()
         try:
             system, _salt, meta = router._grounded_system(q["question"])
             grounding_note = ",".join(meta.get("grounding_sources") or []) or "none"
             if lane == "fast":
                 res = router.fast_lane_answer(q["question"], system, _salt) or {}
-                # The desk context block IS this lane's tool result: it is where
-                # an honest price comes from, so `price_without_tool` must be
-                # able to find the number there or the check would flag every
-                # correctly-grounded answer.
-                capture = [{"name": "desk_grounding", "args": {},
-                            "result": meta.get("ctx_block") or ""}]
-                evidence_pass = _fast_lane_evidence(q, meta)
+                # Desk packs, translated into the tool vocabulary every check
+                # already speaks — so ONE gate serves both lanes and their
+                # scores are directly comparable.
+                capture = _fast_lane_capture(meta, res)
             else:
                 res = run_agent(q["question"], system, [], None, capture=capture) or {}
         except Exception as e:   # infra fault → ungraded, never a model verdict
@@ -152,9 +192,7 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
         transcript = {"answer": res.get("answer") or "",
                       "fired_tools": capture, "question": q}
         mech = checks.run_mechanical_checks(transcript)
-        # One gate variable: the agent lane's tool gate, or the fast lane's
-        # grounding gate standing in the same slot of `question_passed`.
-        gate_pass = mech["tool_gate_pass"] if evidence_pass is None else evidence_pass
+        gate_pass = mech["tool_gate_pass"]
 
         if res.get("error") and not res.get("answer"):
             err = str(res.get("error") or "")
@@ -216,7 +254,7 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
             "axes": {k: axes.get(k) for k in ("correctness", "grounding", "opinion", "safety")},
             "auto_fails": mech["auto_fails"],
             "tool_gate_pass": gate_pass,
-            "evidence_gate_pass": evidence_pass,
+            "missing_tool_groups": mech.get("missing_tool_groups") or [],
             "tools_used": res.get("tools_used") or [],
             "grounding": grounding_note,
             "elapsed_s": elapsed,
@@ -310,3 +348,55 @@ def fast_lane_desk_readiness(question: str | None = None) -> dict:
     missing = [p for p in _DESK_CANARY_EXPECT if p not in sources]
     return {"warm": not missing and err is None, "sources": sources,
             "missing": missing, "question": q, "error": err}
+
+
+def run_grounding_audit(*, rungs: list[int] | None = None,
+                        question_ids: list[str] | None = None) -> dict:
+    """Does the RIGHT desk data reach the prompt? No provider call, no judge.
+
+    The first honest fast-lane run scored 13/30 with ELEVEN gate misses, and
+    several of those answers scored 4/4/4/4 from the judge — a fluent answer
+    built without the desk pack the question needed. That is a RETRIEVAL
+    failure wearing an answer-quality costume, and paying for 90 Perplexity
+    calls plus 90 judge calls to discover which packs fire is absurd when
+    `_grounded_system` alone answers it in seconds for nothing.
+
+    Reports per question: which packs fired, and which required tool groups
+    NOTHING fired for — by name, because "11 gate misses" is not a next step
+    and "S1-06 is missing get_options_flow" is.
+    """
+    from api.services.compass_eval import checks
+    from api.routers import ai_search as router
+
+    questions = load_golden_set()
+    if rungs:
+        questions = [q for q in questions if int(q["rung"]) in set(rungs)]
+    if question_ids:
+        wanted = set(question_ids)
+        questions = [q for q in questions if q["id"] in wanted]
+
+    rows: list[dict] = []
+    for q in questions:
+        try:
+            _system, _salt, meta = router._grounded_system(q["question"])
+            packs = list(meta.get("grounding_sources") or [])
+            err = None
+        except Exception as e:
+            packs, meta, err = [], {}, f"{type(e).__name__}: {e}"
+        # The fast lane ALWAYS makes a web call, so the web leg is present by
+        # construction. Omitting it made five questions read as missing a
+        # `web_search` the lane cannot fail to have — the cold-desk trap one
+        # level down: an audit reporting a miss that is impossible.
+        capture = _fast_lane_capture(meta, {"citations": ["<web leg>"]})
+        mech = checks.run_mechanical_checks(
+            {"answer": "", "fired_tools": capture, "question": q})
+        rows.append({
+            "id": q["id"], "rung": int(q["rung"]),
+            "fired_packs": packs,
+            "fired_tools": sorted({c["name"] for c in capture}),
+            "missing_groups": mech.get("missing_tool_groups") or [],
+            "covered": bool(mech.get("tool_gate_pass")),
+            "error": err,
+        })
+    return {"rows": rows, "total": len(rows),
+            "covered": sum(1 for r in rows if r["covered"])}

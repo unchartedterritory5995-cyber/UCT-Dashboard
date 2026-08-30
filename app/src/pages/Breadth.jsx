@@ -23,6 +23,8 @@ import {
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 } from './breadth/heatmapMetrics'
 import BreadthViews from './breadth/BreadthViews'
+import UnmountReporter from './breadth/UnmountReporter'
+import useBreadthUrlState from './breadth/useBreadthUrlState'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -839,24 +841,128 @@ function BreadthTabs({ active, onChange, isAdmin }) {
 export default function Breadth() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+
+  // ── the shareable link (spec §5) ───────────────────────────────────────────
+  //
+  // The PAGE owns the router, because `days` is the page's state and
+  // `view`/`date`/`compare` are the Views tab's — one writer per key, merged
+  // through `mergeParams`, exactly the split `useEarningsModalRoute` uses for
+  // `?week`/`?d` beside `?earnings`.
+  const url = useBreadthUrlState({ dayChoices: VIEWS_DAY_CHOICES })
+  const urlInitial = url.initial
+
   // Phones land on the readable Overview; desktop/tablet keep the Monitor.
+  // ⭐ A LINK CARRYING VIEWS STATE OPENS THE VIEWS TAB — otherwise the Discord
+  // bot's `?view=clock` lands a phone on Daily and the read it linked to is two
+  // taps away, which is the same as not linking to it.
   const [activeTab, setActiveTab] = useState(() => {
+    if (urlInitial.view || urlInitial.compare) return 'heatmap'
     try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
     catch { return 'breadth' }
   })
   const [days, setDays] = useState(90)
-  const [viewsDays, setViewsDays] = useState(90)
+  const [viewsDays, setViewsDays] = useState(urlInitial.days ?? 90)
   const isViewsTab = activeTab === 'heatmap'
   const effectiveDays = isViewsTab ? viewsDays : days
+
+  /**
+   * 🔴 THE LINK IS AN ENTRY CONDITION FOR THE PAGE VISIT — NOT FOR EVERY MOUNT.
+   *
+   * `BreadthViews` is rendered conditionally on `activeTab === 'heatmap'`, so an
+   * ordinary tab switch UNMOUNTS it and coming back MOUNTS A FRESH ONE.
+   * `urlInitial` is parsed once and frozen for the life of this page, so every
+   * remount handed the child the ORIGINAL link again and `useBreadthViews`
+   * re-applied its `view` / `compare` / `layout` over whatever the reader had
+   * chosen in between. `?date=` was re-seeked the same way.
+   *
+   * ⛔ AND THE REVERSION IS PERSISTED. `useBreadthViews` debounce-writes every
+   * state change to localStorage and, once hydrated, to the server preference —
+   * so opening a `?view=` link, picking a different style, and glancing at
+   * another tab silently stomped the standing preference, and it stayed stomped
+   * on later visits carrying no query at all (`loadFromStorage` reads the
+   * corrupted blob).
+   *
+   * ⭐ SO THE "ALREADY APPLIED" MEMORY LIVES HERE, ABOVE THE CHILD'S MOUNT
+   * BOUNDARY. A ref inside `useBreadthViews` cannot hold it: it dies with the
+   * mount that is the problem. Once a mounted Views tab has been left, the link
+   * is SPENT and the next mount is handed nothing — the child's own state,
+   * restored from the preference blob it just flushed, is the authority.
+   *
+   * The spend is on LEAVING a mount, not on the first report back: an
+   * out-of-window `?date=` legitimately keeps retrying while the tab is up
+   * (widen the window with the day pills and the link lands), and clearing on
+   * the first `onUrlChange` would kill that inside the very mount it serves.
+   *
+   * 🔴 AND "LEAVING" IS THE CHILD'S OWN LIFECYCLE, NOT A TAB COMPARISON.
+   *
+   * This was `if (!isViewsTab && urlVisit === 'open') setUrlVisit('spent')` — a
+   * proxy that could only ever catch the unmount reason someone had thought of.
+   * `BreadthViews` is ALSO gated on `rows.length > 0`, and `rows` empties on an
+   * ordinary window change: the day pill moves `effectiveDays`, the SWR key
+   * changes, and `data` is `undefined` until the new window resolves. With no
+   * live row to carry (outside RTH, or once the 4:15 collector has written the
+   * day) `rows` is empty for that stretch, the child unmounts and remounts, the
+   * tab never changed — so the link was still live and the whole persisted
+   * reversion came back, on a SUCCESSFUL fetch. `keepPreviousData` below removes
+   * that trigger; `UnmountReporter` removes the assumption, which is the fix.
+   *
+   * `setUrlSpent` is called from an effect cleanup inside the mounted subtree,
+   * so this is a plain state update from a committed child, not the
+   * "adjusting state during render" shape the rest of this wave uses.
+   */
+  const [urlSpent, setUrlSpent] = useState(false)
+  const spendLink = useCallback(() => setUrlSpent(true), [])
+  // Only ever undoes a report StrictMode's dev-mode double-invoke made about a
+  // mount that never actually ended — see the header of `UnmountReporter.jsx`.
+  const unspendLink = useCallback(() => setUrlSpent(false), [])
+  const viewsUrlState = urlSpent ? null : urlInitial
+
+  // What BreadthViews last reported about itself; composed with `days` here so
+  // the query is written from ONE place.
+  const [viewsUrl, setViewsUrl] = useState(null)
+  useEffect(() => {
+    // Only the Views tab owns these params. On any other tab the query is left
+    // exactly as it was rather than being scrubbed — a tab switch is not a
+    // statement about the link.
+    if (!isViewsTab) return
+    url.write({ ...(viewsUrl ?? {}), days: viewsDays })
+  }, [isViewsTab, viewsUrl, viewsDays, url])
 
   useEffect(() => {
     if (activeTab === 'analogues' && !isAdmin) setActiveTab('breadth')
   }, [activeTab, isAdmin])
-  const { data, isLoading, error } = useSWR(
+  /**
+   * ⭐ `keepPreviousData` — the window pills change this key, and without it
+   * `data` is `undefined` for the whole of an ordinary first-of-session fetch.
+   * Every tab that reads `rows` blanked and rebuilt on each widen, and on the
+   * Views tab the blank UNMOUNTED `BreadthViews` (see the link-spend block
+   * above). Holding the previous window until the new one lands is both the
+   * honest thing on screen — the rows shown are real rows, just the narrower
+   * set, and the counts beside them describe exactly what is drawn — and the
+   * removal of that unmount trigger. COT and Data Charts return before `rows`
+   * is read at all, so they cannot see this either way.
+   */
+  const { data, isLoading, isValidating, error } = useSWR(
     `/api/breadth-monitor?days=${effectiveDays}`,
     fetcher,
-    { refreshInterval: 5 * 60 * 1000 }
+    { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
+  /**
+   * ⛔ `isLoading` (`!data && isValidating`) is permanently false here once any
+   * window has loaded once this session — `keepPreviousData` means `data` is
+   * never undefined again, so it cannot flag a window change in flight.
+   *
+   * `data.days` is the server's own stamp of which window the payload it
+   * returned actually covers (`{"rows": ..., "days": days}` in
+   * `api/routers/breadth_monitor.py`) — the knowing side, not a client re-guess.
+   * While a fetch for a NEW window is in flight, `data` still holds the OLD
+   * window's payload (that is the point of `keepPreviousData`), so
+   * `data.days !== effectiveDays` for exactly the stretch where the meta line
+   * would otherwise caption the active pill with a count it doesn't describe.
+   * Gating on `isValidating` too keeps this quiet on an ordinary 5-minute
+   * background refresh of the SAME window, where the two never disagree.
+   */
+  const windowMismatch = isValidating && data != null && data.days !== effectiveDays
   const [collapsedCols, setCollapsedCols] = useState(() => {
     try {
       const raw = localStorage.getItem('breadth_collapsed_cols')
@@ -1005,7 +1111,9 @@ export default function Breadth() {
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
           {rows.length > 0
-            ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+            ? (windowMismatch
+                ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
             : isLoading ? 'Loading…' : 'No data'}
         </span>
         <div className={styles.daysPills}>
@@ -1073,8 +1181,14 @@ export default function Breadth() {
       )}
 
 
+      {/* ⛔ THE REPORTER WRAPS THE CHILD RATHER THAN SITTING BESIDE IT: its
+          cleanup has to be the child's own unmount, for every reason the child
+          can leave — not a second copy of the conditions above it. */}
       {rows.length > 0 && activeTab === 'heatmap' && (
-        <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock} />
+        <UnmountReporter onUnmount={spendLink} onReattached={unspendLink}>
+          <BreadthViews rows={rows} onDrill={openDrill} live={liveBreadth} liveStamp={liveClock}
+                        urlState={viewsUrlState} onUrlChange={setViewsUrl} />
+        </UnmountReporter>
       )}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (

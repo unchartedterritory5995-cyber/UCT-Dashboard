@@ -26,6 +26,7 @@ is not what it asked for, not handed 3,650 dressed as it.
 """
 
 import os
+import re
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -36,6 +37,25 @@ from api.services.breadth_analogues import find_analogues, invalidate_cache as i
 router = APIRouter()
 
 _PUSH_SECRET = os.environ.get("PUSH_SECRET", "")
+
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _require_iso_date(value: str) -> str:
+    """400 on a path date that is not YYYY-MM-DD.
+
+    ⛔ ONE VALIDATOR, TWO ENDPOINTS. `session-path` has rejected a malformed
+    date since it shipped; `score-components` took whatever it was handed and
+    ran a full `get_history` fetch + derivation pass before answering
+    `ok: false` — real work to answer a question the string could never match.
+    Copying the regex into the second endpoint is how the two drift, so both
+    call this. The rule is the one already shipped, verbatim, and
+    `test_breadth_score_components.py` derives its expectation from the
+    neighbour rather than retyping the message.
+    """
+    if not _ISO_DATE.fullmatch(value):
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return value
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -369,7 +389,14 @@ def get_breadth_score_components(date: str,
     same reason: it selects a `get_history` cache entry, and the sibling
     endpoint is what warms it. The client passes the window it already loaded,
     so this shares that entry instead of opening a fourth one nothing warms.
+
+    The path date is validated the way `session-path` validates its own —
+    through `_require_iso_date`, the one authority — BEFORE the service runs.
+    An unvalidated param bought a full history fetch and derivation pass on a
+    single-process pod just to answer `ok: false` to a string that could never
+    have matched a stored date.
     """
+    _require_iso_date(date)
     try:
         return svc.score_components(date, days=days)
     except Exception as e:
@@ -477,9 +504,7 @@ def get_breadth_session_path(session_date: str,
     `breadth_intraday.RETENTION_DAYS`; an unrecorded day is `ok: False`, not an
     error, so the surface can fall back without treating it as an outage.
     """
-    import re
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", session_date):
-        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    _require_iso_date(session_date)
     from api.services import breadth_intraday
     try:
         path = breadth_intraday.session_path(session_date)

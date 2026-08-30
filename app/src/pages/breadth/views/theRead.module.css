@@ -1,0 +1,41 @@
+/* The Read — a slim, always-visible strip above the visualization.
+   Chrome only: no bull/bear tone anywhere in here, because the paragraph is a
+   reading of the instruments and grading it green or red would be an opinion
+   the views themselves do not assert. Colours come from the theme tokens, never
+   a hardcoded green/red. */
+
+.strip {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 12px;
+  margin: 0 4px 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.kicker {
+  flex: none;
+  font: 800 9px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.body {
+  font: 500 11.5px 'Instrument Sans', sans-serif;
+  line-height: 1.55;
+  color: var(--text-bright);
+  min-width: 0;
+}
+
+/* One clause per sentence, so a reader can see where each claim ends — and so
+   a screenshot of the strip can be checked clause by clause against the lens
+   that produced it. */
+.clause + .clause { margin-left: 5px; }
+
+.refusal {
+  font: 500 11.5px 'Instrument Sans', sans-serif;
+  color: var(--text-muted);
+}

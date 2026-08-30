@@ -8,6 +8,34 @@
 
 export const clamp = (v) => Math.max(0, Math.min(100, v))
 
+/**
+ * ONE SENTENCE EACH, SHARED BY EVERY VIEW THAT NEEDS IT.
+ *
+ * `WIDEN_WINDOW_HINT` — a view that refuses because the loaded window is too
+ * short has to say what to DO about it. Only the Regime Clock did; the
+ * Divergence lens refuses for exactly the same reason and left the reader with
+ * a dead end. Hand-copying the sentence into the second lens is how the two
+ * drift, so it lives here and `refusalHint.test.js` pins that every view
+ * refusing on window depth carries it.
+ *
+ * `ALL_METRICS_HIDDEN` — the Monitor tab's long-standing wording for "you
+ * unchecked everything" (`pages/Breadth.jsx`). The Heat Ribbon and Percentile
+ * Ladder rendered `null` in that state: a blank panel with no explanation,
+ * indistinguishable from a broken view.
+ */
+export const WIDEN_WINDOW_HINT = 'Widen the window with the day pills above.'
+export const ALL_METRICS_HIDDEN = 'All metrics hidden — open Customize to show some.'
+
+/**
+ * `SEEK_OUT_OF_WINDOW` — the ONE sentence a view says when it names a date the
+ * cursor cannot reach. The Analogue Deck routinely names 2025 sessions a 90-day
+ * window does not hold, and the Event Ledger can name a last-fired date older
+ * than the window; both must render that date as a DISABLED affordance carrying
+ * this reason rather than as a link that silently does nothing. Composed from
+ * `WIDEN_WINDOW_HINT` so the "what to do about it" half has one author.
+ */
+export const SEEK_OUT_OF_WINDOW = `Outside the loaded window. ${WIDEN_WINDOW_HINT}`
+
 // MA-stack metrics are a count of 4 boolean columns; expose the count.
 const MA_STACK_COLS = {
   spy_ma_stack: ['spy_above_10sma', 'spy_above_20sma', 'spy_above_50sma', 'spy_above_200sma'],
@@ -31,6 +59,50 @@ export function metricValue(metric, row) {
 export function percentileRank(sorted, v) {
   if (!sorted?.length) return null
   return Math.round(sorted.filter(x => x <= v).length / sorted.length * 100)
+}
+
+/**
+ * Fewest readings before a metric may be ranked against its own history. The
+ * Percentile Ladder refuses below it ("Needs 20 readings to rank — has 8") and
+ * `theRead.js` omits its percentile clause for the same reason, off the same
+ * number — a hand-typed second copy is how the paragraph would come to claim a
+ * percentile the lens beside it refuses to draw.
+ */
+export const LADDER_MIN_READINGS = 20
+
+/**
+ * Middle value of a list — the AVERAGE of the two middle values on an even
+ * length, not the upper one.
+ *
+ * ⛔ `sorted[Math.floor(n / 2)]` is the upper-middle element, so with the
+ * Analogue Deck's default `matches: 5` and one match short of its horizon the
+ * deck reported the median of four returns as the THIRD-smallest. On
+ * `[-4, -1, +1, +5]` that prints "median +1.0%" for a set whose middle is 0.0%
+ * — the summary line most likely to be read on its own, biased upward by
+ * construction. It sits here rather than in `AnalogueDeckView.jsx` because The
+ * Read quotes the same median, and re-deriving it is how the two would drift.
+ */
+export function medianOf(values) {
+  if (!values.length) return null
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+/**
+ * The Regime Clock's four quadrants: participation LEVEL against its rate of
+ * change. Both axes are closed on the UPPER side — level 50 counts as broad,
+ * momentum 0 counts as improving. Neither boundary is arbitrary (50 is the
+ * midpoint of a participation percentage, 0 is the sign change of a difference)
+ * but they ARE decisions, so `RegimeClockView.test.jsx` pins both rather than
+ * leaving a reader to infer them from `>=`.
+ *
+ * It lives here, beside the other framework-free helpers, because The Read
+ * names the regime too and must name the one the Clock is drawing.
+ */
+export function quadrantOf(level, momentum) {
+  if (level >= 50) return momentum >= 0 ? 'Expansion' : 'Distribution'
+  return momentum >= 0 ? 'Recovery' : 'Contraction'
 }
 
 // Keys whose raw value is already on a 0..100 scale.
@@ -64,8 +136,15 @@ export const PALETTES = {
     tier: { g3: '#d4af37', g2: '#c9a84c', g1: '#e8d8a0', a: '#9c8a4e', r1: '#9aa0a6', r2: '#6b7280', r3: '#4b5563', '': '#475569' },
     bull: '#d4af37', bear: '#6b7280',
   },
+  // ⛔ `a` USED TO BE CLASSIC'S `#fbbf24`, VERBATIM — the only slot ocean
+  // borrowed. That reads as harmless until a view's ONLY palette-sourced colour
+  // is the caution tone: the Event Ledger's fired accent is `tier.a` (it is the
+  // one direction-neutral tone a palette carries), so under a borrowed caution
+  // the whole lens rendered byte-identically in classic and ocean and its
+  // palette control moved nothing on screen. Every palette owns its caution
+  // tone now, and `viewRegistry.test.jsx` pins that.
   ocean: {
-    tier: { g3: '#0891b2', g2: '#22d3ee', g1: '#a5f3fc', a: '#fbbf24', r1: '#fecaca', r2: '#fb7185', r3: '#e11d48', '': '#475569' },
+    tier: { g3: '#0891b2', g2: '#22d3ee', g1: '#a5f3fc', a: '#f59e0b', r1: '#fecaca', r2: '#fb7185', r3: '#e11d48', '': '#475569' },
     bull: '#22d3ee', bear: '#fb7185',
   },
 }

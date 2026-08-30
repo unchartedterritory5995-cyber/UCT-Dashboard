@@ -933,7 +933,10 @@ def _ctx_flow_ticker(sym: str) -> str:
 _FLOW_RE = re.compile(
     r"\b(options? flow|sweeps?|unusual (options|activity)|whales?"
     r"|call buying|put buying|smart money|big (?:options? )?prints?|options? premium"
-    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b(?=\s+(?:on|for|in|say|said|look|is|was|today|right)))",
+    # `tape|show` added 2026-08-29: "what's the flow TAPE showing on SPY" is
+    # how a member asks for this, and it loaded no flow pack at all.
+    r"|(?<!cash )(?<!news )(?<!order )(?<!fund )flow\b"
+    r"(?=\s+(?:on|for|in|say|said|look|is|was|today|right|tape|show)))",
     re.I)
 
 
@@ -1223,6 +1226,79 @@ def _ctx_levels(sym: str) -> str:
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
 
 
+_HIST_DATE_RE = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
+
+
+def _hist_date_ymd(query: str) -> int | None:
+    """A PAST calendar date named in the question, as a YYYYMMDD int, else None.
+
+    Today is deliberately excluded: the live quote pack already answers it with
+    fresher data, and a stored daily bar for today is mid-session. A future date
+    ("does INTC report on 2026-11-04?") is not a history lookup at all.
+    """
+    m = _HIST_DATE_RE.search(query or "")
+    if not m:
+        return None
+    y, mo, d = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    try:
+        import datetime as _dt
+        _dt.date(y, mo, d)                       # reject 2025-13-45
+    except ValueError:
+        return None
+    ymd = y * 10000 + mo * 100 + d
+    try:
+        today = int(_et_day().replace("-", ""))
+    except Exception:
+        return None
+    return ymd if ymd < today else None
+
+
+def _fmt_vol(v) -> str:
+    try:
+        v = float(v or 0)
+    except (TypeError, ValueError):
+        return "?"
+    if v >= 1e9:
+        return f"{v / 1e9:.1f}B"
+    if v >= 1e6:
+        return f"{v / 1e6:.1f}M"
+    if v >= 1e3:
+        return f"{v / 1e3:.0f}K"
+    return f"{v:.0f}"
+
+
+def _ctx_history(query: str, syms: list[str]) -> str:
+    """That session's OHLCV + day move for a ticker named with a PAST date.
+
+    The single most-asked shape in the prod capture log is "what moved <SYM> on
+    <DATE>? give the specific % move that day" — and the desk was answering one
+    of them "I don't have historical, date-stamped tape", while bars.db on the
+    same pod held the bar. This hands it over.
+
+    ⛔ If the named date had no session, this returns "". Labelling the previous
+    Friday's bar with the Saturday a member typed would be fabricated precision,
+    which is worse than the honest "I don't have it" it replaces.
+    """
+    ymd = _hist_date_ymd(query)
+    if not ymd or not syms:
+        return ""
+    from api.services import bars_sqlite
+    segs: list[str] = []
+    for sym in syms[:2]:
+        rows = bars_sqlite.get_bars_before(sym, "D", 2, ymd) or []
+        if not rows or int(rows[-1][0]) != ymd:
+            continue
+        _ts, o, h, l, c, v = rows[-1][:6]
+        iso = f"{ymd // 10000:04d}-{(ymd // 100) % 100:02d}-{ymd % 100:02d}"
+        seg = (f"{sym} on {iso} (UCT desk daily bar): open ${o:g}, high ${h:g}, "
+               f"low ${l:g}, close ${c:g}, volume {_fmt_vol(v)}")
+        prior = rows[-2][4] if len(rows) >= 2 else None
+        if prior:
+            seg += f"; {(c - prior) / prior * 100:+.1f}% vs prior close ${prior:g}"
+        segs.append(seg)
+    return "; ".join(segs)
+
+
 def _ctx_ticker_news(sym: str) -> str:
     """Per-ticker headlines w/ sentiment (Massive/Polygon, 5-min module cache)
     — the why-is-it-moving fallback when the curated tape has nothing."""
@@ -1264,9 +1340,14 @@ _VERDICT_RE = re.compile(
     r"\b(trade (?:setup|opportunit(?:y|ies)|idea)|find (?:me )?a (?:good )?(?:trade|setup|entry)"
     r"|should i (?:buy|enter|take|get in)|worth (?:a )?(?:trade|buy(?:ing)?|swing|entry)"
     r"|how would you trade|entry and stop|is (?:it|this) a buy"
-    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade))\b", re.I)
+    r"|good (?:swing|trade|entry) here|call this trade|grade (?:this|the) (?:setup|trade)"
+    # 2026-08-29: the gate for "give me the desk's call" did not contain the
+    # word `verdict`, nor "best setup" — the two phrasings the exam actually used.
+    r"|verdict|desk read|best setup|where'?s the entry)\b", re.I)
 _LEVELS_RE = re.compile(
-    r"\b(support|resistance|key levels?|price levels?|levels? to watch|dark ?pool"
+    # bare `levels?` 2026-08-29: "what levels matter" reached the model with no
+    # dark-pool/gamma pack, because the gate only knew three fixed phrasings.
+    r"\b(support|resistance|levels?|dark ?pool"
     r"|gamma\b|gex\b|call wall|put wall|zero[- ]gamma|max pain)\b", re.I)
 
 # COT / futures positioning — a market-level ask resolved from the query's own
@@ -1345,13 +1426,26 @@ def _ctx_movers() -> str:
 def _ctx_breadth() -> str:
     from api.services.engine import get_breadth
     b = get_breadth() or {}
-    if not b:
-        return ""
-    return (
-        f"Breadth (UCT): score {b.get('breadth_score')}, phase {b.get('market_phase')}, "
-        f"adv/dec {b.get('advancing')}/{b.get('declining')}, "
-        f"52wk NH/NL {b.get('new_highs')}/{b.get('new_lows')}"
-    )
+    # ⛔ `if not b` asked whether the dict was EMPTY; the invariant is whether it
+    # holds usable VALUES. A payload of Nones sailed straight through and put
+    # "score None, phase , adv/dec None/None" in front of the model — worse than
+    # silence, because silence lets it say it has no breadth while "score None"
+    # reads as a feed to interpret, and it filled the gap (measured 2026-08-29:
+    # that question scored c1 g2 o2 s1 with a safety break).
+    # ⛔ Test `is None`, never falsiness: ZERO advancing issues is a real and
+    # dramatic reading, not a missing one.
+    bits: list[str] = []
+    if b.get("breadth_score") is not None:
+        bits.append(f"score {b['breadth_score']}")
+    if b.get("market_phase"):          # a string field: "" is not a phase
+        bits.append(f"phase {b['market_phase']}")
+    adv, dec = b.get("advancing"), b.get("declining")
+    if adv is not None and dec is not None:
+        bits.append(f"adv/dec {adv}/{dec}")
+    nh, nl = b.get("new_highs"), b.get("new_lows")
+    if nh is not None and nl is not None:
+        bits.append(f"52wk NH/NL {nh}/{nl}")
+    return "Breadth (UCT): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_earnings() -> str:
@@ -1658,6 +1752,18 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             if line:
                 _add(fn_name.replace("_ctx_", ""), line)
                 meta["grounding_intents"].append(fn_name.replace("_ctx_", ""))
+        except Exception:
+            pass
+    # Historical session — query-resolved like COT below, because the trigger is
+    # a DATE in the question, which the per-ticker machinery has no notion of.
+    # Answers the most-asked shape in the capture log ("what moved X on DATE?
+    # give the specific % move that day") from bars we already hold.
+    if _hist_date_ymd(query or ""):
+        try:
+            line = _ctx_history(query or "", syms)
+            if line:
+                _add("history", line)
+                meta["grounding_intents"].append("history")
         except Exception:
             pass
     # COT / futures positioning — resolved from the query's own words (futures

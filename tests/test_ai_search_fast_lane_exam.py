@@ -128,7 +128,7 @@ def test_a_desk_question_answered_with_no_desk_grounding_fails(monkeypatch):
     out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
     r = out["results"][0]
     assert r["verdict"] == "FAIL"
-    assert r.get("evidence_gate_pass") is False, r
+    assert r.get("tool_gate_pass") is False, r
 
 
 def test_the_same_question_passes_once_the_desk_grounds_it(monkeypatch):
@@ -138,18 +138,18 @@ def test_the_same_question_passes_once_the_desk_grounds_it(monkeypatch):
                answer="NVDA last 178.20 per UCT desk data.")
     out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
     r = out["results"][0]
-    assert r.get("evidence_gate_pass") is True, r
+    assert r.get("tool_gate_pass") is True, r
     assert r["verdict"] == "PASS", r
 
 
-def test_ambient_grounding_alone_is_not_desk_evidence(monkeypatch):
-    """`regime` and `recency` ride along with nearly every ask — counting them
-    as desk evidence would make the gate unfailable (lesson_gate_that_cannot_
-    fail). Only a non-ambient source counts."""
+def test_a_pack_that_rides_along_does_not_satisfy_a_group_it_is_not_in(monkeypatch):
+    """`regime` fires on nearly every ask. S1-01 needs a quote-group pack TOO,
+    so regime alone must not open the gate — otherwise a pack that is always
+    present would make the gate unfailable (lesson_gate_that_cannot_fail)."""
     _stub_exam(monkeypatch, ctx="Market regime: bull_trend", sources=["regime"],
                answer="NVDA looks constructive.")
     out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
-    assert out["results"][0].get("evidence_gate_pass") is False
+    assert out["results"][0].get("tool_gate_pass") is False
 
 
 # ── 4. median-of-N, and NAME the unstable questions ────────────────────────
@@ -244,3 +244,87 @@ def test_readiness_names_the_missing_pack(monkeypatch):
     monkeypatch.setattr(ai, "_grounded_system",
                         lambda q: ("SYS", "salt", {"grounding_sources": ["regime"]}))
     assert "quote" in runner.fast_lane_desk_readiness()["missing"]
+
+
+# ── 6. the pack->tool translation is complete and meaningful ────────────────
+def test_every_tool_the_golden_set_names_is_reachable_from_a_desk_pack():
+    """Derived from the golden set, so a question added tomorrow that names a
+    tool with no desk equivalent fails BY NAME rather than silently grading the
+    fast lane against a gate it can never open."""
+    import json
+    from pathlib import Path
+    data = json.loads(
+        (Path(runner.__file__).parent / "golden_set_search.json").read_text(encoding="utf-8"))
+    tools = {t for q in data["questions"]
+             for g in (q.get("must_call_tools") or []) for t in g}
+    mapped = set(runner._PACK_TOOL_ALIAS.values())
+    # web_search has no desk pack by construction — the fast lane's web leg is
+    # evidenced by its CITATIONS, added separately in _fast_lane_capture.
+    unreachable = sorted(tools - mapped - {"web_search"})
+    assert not unreachable, f"golden-set tools with no desk pack: {unreachable}"
+
+
+def test_the_capture_names_packs_after_their_agent_tool_twins():
+    """The whole point: `fabricated_scan_rows` looks for get_scanner_candidates
+    by NAME. Four answers auto-failed it while their candidates pack had loaded,
+    two of them scoring 4/4/4/4 from the judge."""
+    cap = runner._fast_lane_capture(
+        {"grounding_sources": ["candidates", "regime"], "ctx_block": "rows"}, {})
+    assert {c["name"] for c in cap} == {"get_scanner_candidates", "get_regime"}
+
+
+def test_citations_become_the_web_leg_evidence():
+    cap = runner._fast_lane_capture(
+        {"grounding_sources": [], "ctx_block": ""},
+        {"citations": ["https://reuters.com/a", "https://wsj.com/b"]})
+    assert [c["name"] for c in cap] == ["web_search"]
+
+
+def test_an_unknown_pack_is_dropped_rather_than_invented():
+    """CONTROL — an unmapped pack must not become a tool name the checks would
+    then treat as satisfied evidence."""
+    cap = runner._fast_lane_capture(
+        {"grounding_sources": ["some_new_pack"], "ctx_block": "x"}, {})
+    assert cap == []
+
+
+# ── 7. grounding-only: measure RETRIEVAL without paying for answers ─────────
+def test_grounding_only_makes_no_provider_or_judge_call(monkeypatch):
+    """The 11 gate misses in the first honest fast-lane run were a retrieval
+    question, not an answer question — and answering 30 questions 3x to learn
+    which PACKS fire is absurd. This mode runs _grounded_system alone: free,
+    seconds, and it isolates the half that was actually broken."""
+    def _boom(*a, **k):
+        raise AssertionError("grounding-only must not call the provider or judge")
+    monkeypatch.setattr(ai, "fast_lane_answer", _boom)
+    monkeypatch.setattr(runner, "_judge_client", _boom)
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "quote"],
+                                    "ctx_block": "x"}))
+    out = runner.run_grounding_audit(question_ids=["S1-01-quote-nvda"])
+    assert out["rows"][0]["fired_packs"] == ["regime", "quote"]
+
+
+def test_grounding_only_names_the_missing_tool_groups(monkeypatch):
+    """Names, not a count: 'S1-06 is missing get_options_flow' is a next step;
+    '11 gate misses' is not."""
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime"], "ctx_block": ""}))
+    out = runner.run_grounding_audit(question_ids=["S1-06-flow"])
+    row = out["rows"][0]
+    assert row["covered"] is False
+    assert ["get_options_flow"] in row["missing_groups"], row
+
+
+def test_grounding_only_reports_coverage_when_the_pack_fires(monkeypatch):
+    """CONTROL — the audit must be able to say COVERED, or it is a gate that
+    can only fail."""
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "flow"],
+                                    "ctx_block": "x"}))
+    out = runner.run_grounding_audit(question_ids=["S1-06-flow"])
+    assert out["rows"][0]["covered"] is True
+    assert out["covered"] == 1 and out["total"] == 1
