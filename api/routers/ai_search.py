@@ -1259,6 +1259,55 @@ def _ctx_levels(sym: str) -> str:
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
 
 
+# "Which of today's candidates has the best setup?" — a question about a desk
+# LIST, naming no ticker, so the per-ticker packs never run and the model picks
+# a name and justifies it from nothing. Both halves are required: a ranking word
+# AND a list the desk actually owns.
+_LIST_SCOPE_RE = re.compile(
+    r"\b(scanner|candidates?|the scan|on the scan|watch ?list|uct ?20)\b", re.I)
+_RANK_RE = re.compile(
+    r"\b(best|which (?:one|of)|rank(?:ed|ing)?|top (?:pick|name|setup)"
+    r"|strongest|most compelling)\b", re.I)
+_LIST_VERDICT_MAX = 3          # grade_ticker is a real computation per symbol
+
+
+def _candidate_symbols(limit: int) -> list[str]:
+    """Top scanner symbols, newest scan. ⛔ The buckets are NESTED and the key is
+    `ticker` — see _ctx_candidates for the history of getting that wrong."""
+    try:
+        from api.services.engine import get_candidates
+        buckets = (get_candidates() or {}).get("candidates") or {}
+    except Exception:
+        return []
+    out: list[str] = []
+    for rows in buckets.values():
+        for r in (rows or []):
+            t = str((r or {}).get("ticker") or "").upper().strip()
+            if t and t not in out:
+                out.append(t)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def _ctx_list_verdict(query: str, syms: list[str]) -> str:
+    """The desk's read on the top names of a list the member asked to rank."""
+    if syms:                       # named a ticker → per-ticker packs own it
+        return ""
+    q = query or ""
+    if not (_LIST_SCOPE_RE.search(q) and _RANK_RE.search(q)):
+        return ""
+    segs = []
+    for sym in _candidate_symbols(_LIST_VERDICT_MAX):
+        try:
+            line = _ctx_verdict(sym)
+        except Exception:
+            line = ""
+        if line:
+            segs.append(line)
+    return ("Desk read on the top scan names: " + " || ".join(segs)) if segs else ""
+
+
 _SHORT_INT_RE = re.compile(r"\bshort (?:interest|float)\b|\bsqueeze\b", re.I)
 
 
@@ -1876,6 +1925,14 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             # NOT the same as leaking a null: "score None" reads as a data
             # VALUE, "no current data" reads as a stated gap.
             meta["grounding_gaps"].append(name)
+    # "Which of today's candidates is best?" names no ticker, so nothing above
+    # graded anything. Resolve the names from the desk's own list and read them.
+    try:
+        _lv = _ctx_list_verdict(query or "", syms)
+        if _lv:
+            _add("list_verdict", _lv)
+    except Exception:
+        pass
     # A pack can FIRE and still not answer what was asked. The posture gate is
     # broad (trend / RSI / stage 2 / short interest), so a short-interest ask
     # gets a TECHNICAL posture line back — and the model, seeing a confident
