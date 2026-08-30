@@ -303,3 +303,68 @@ def test_the_route_is_registered_and_gated():
     data_route = next(r for r in fr.flow_router.routes
                       if getattr(r, "path", "") == "/api/flow/data")
     assert "require_flow_user" in asc._guard_names_for(data_route)
+
+
+# ── the boot warmer and the endpoint must agree on the key ──────────────────
+
+
+def test_the_warmer_fills_the_entry_the_endpoint_reads(monkeypatch):
+    """⛔ A WARMER THAT FILLS A DIFFERENT KEY WARMS NOTHING — silently.
+
+    It logs success, costs the full build, and the first real visitor still
+    eats a cold one. Nothing in logs or review distinguishes it from a warmer
+    that works, which is why both paths go through `flow_router.build_aggregate`
+    rather than forming the key twice.
+    """
+    from api import flow_router as fr
+
+    monkeypatch.setattr(fa, "build", lambda csv, date_filter=None: {
+        "json_bytes": b'{"ok":true}', "stats": {}})
+    monkeypatch.setattr(fr, "_get_cached_or_build",
+                        lambda source, days: (1, gzip.compress(b"csv")))
+    monkeypatch.setattr(fr, "_current_version", lambda: 7)
+
+    # What the WARMER does, for the default view.
+    fr.build_aggregate("stocks", 1, "Last1")
+    warmed = set(fa._CACHE.keys())
+    assert warmed, "the warmer cached nothing at all"
+
+    # What the ENDPOINT would look up for that same view, derived the same way.
+    fa._CACHE.clear()
+    fr.build_aggregate("stocks", 1, "Last1", 7)
+    assert set(fa._CACHE.keys()) == warmed, (
+        "the warmer and the endpoint disagree on the cache key — the warm is a "
+        f"silent no-op ({warmed} vs {set(fa._CACHE.keys())})")
+
+
+def test_the_warmer_uses_the_routers_builder_not_its_own_key(monkeypatch):
+    """The source-level half: flow-worker must not re-form the key itself."""
+    import ast, pathlib as _pl
+    src = _pl.Path("api/flow_worker_main.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
+    names = set()
+    for c in calls:
+        f = c.func
+        if isinstance(f, ast.Attribute):
+            names.add(f.attr)
+    assert "build_aggregate" in names, (
+        "flow_worker_main no longer calls build_aggregate — the aggregate warm "
+        "is gone, so the first visitor after a restart pays the cold build")
+    assert "get_cached_or_build" not in names or "build_aggregate" in names
+    # ...and it must NOT reach past the router into the service directly, which
+    # is how the two keys would drift apart.
+    assert "flow_aggregate" not in src, (
+        "flow_worker_main imports the aggregate service directly — form the key "
+        "in ONE place (flow_router.build_aggregate) or it will drift")
+
+
+def test_the_warm_range_filters_mirror_the_pages_range_chips():
+    """`Last{days}` is not a guess — OptionsFlow.jsx builds exactly that."""
+    import pathlib as _pl
+    page = _pl.Path("app/src/pages/OptionsFlow.jsx").read_text(encoding="utf-8")
+    assert 'days === 0 ? "All" : "Last" + days' in page, (
+        "the page no longer derives its date filter as Last{days} — the "
+        "worker's warm keys now describe a view nobody asks for")
+    worker = _pl.Path("api/flow_worker_main.py").read_text(encoding="utf-8")
+    assert 'f"Last{_d}"' in worker

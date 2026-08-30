@@ -1,23 +1,13 @@
 /**
  * Robinhood-style holdings list row models (Phase 2).
  * Pure functions — no React, no fetch. Semantics per the RH spec:
- *   today$ = signedShares × (price − ref); ref = fill price for same-day
- *   entries, else prev close (derived from change_pct when the feed lacks it).
+ *   today$ = signedShares × (price − ref). The ref rule lives in ONE place —
+ *   calculations.js :: todayReferenceFor (same-day fill → the broker's
+ *   prior-session mark under broker marks → the feed's previous close).
  */
-import { currentPriceFor, openedTodayFill, positionPnlDollar } from '../../../lib/journal-2-0'
+import { currentPriceFor, todayReferenceFor, positionPnlDollar } from '../../../lib/journal-2-0'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
-
-function prevCloseOf(snap) {
-  if (!snap) return null
-  // The feed emits prev_close 0.0 for "missing" — a real close is never 0.
-  if (Number.isFinite(snap.prev_close) && snap.prev_close > 0) return snap.prev_close
-  if (Number.isFinite(snap.price) && Number.isFinite(snap.change_pct)) {
-    const pc = snap.price / (1 + snap.change_pct / 100)
-    return Number.isFinite(pc) ? pc : null
-  }
-  return null
-}
 
 // `preferBroker` must be the SAME flag the hero composed with (brokerLiveSummary):
 // if the rows priced off our live feed while the hero priced off the broker's
@@ -27,9 +17,9 @@ export function buildEquityRows(positions, prices, todayIso, preferBroker = fals
     const snap = prices?.[p.symbol]
     const price = fin(currentPriceFor(p, prices, preferBroker))
     const signed = (p.side === 'Short' ? -1 : 1) * (p.shares || 0)
-    // Same-day-fill rule shared with brokerLiveSummary: real fills only —
-    // broker imports with a placeholder (estimated) entry date use prev close.
-    const ref = openedTodayFill(p, todayIso) ? fin(p.entryPrice) : prevCloseOf(snap)
+    // ONE grammar with brokerLiveSummary + yourPositionModel: same-day fill →
+    // the broker's prior-session mark (under broker marks) → the feed's close.
+    const ref = fin(todayReferenceFor(p, snap, todayIso, preferBroker))
     const livePrice = fin(snap?.price)
     const priced = livePrice != null || preferBroker
     const todayDollar = priced && price != null && ref != null ? signed * (price - ref) : null

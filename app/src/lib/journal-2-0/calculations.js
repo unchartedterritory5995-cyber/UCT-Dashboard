@@ -366,6 +366,41 @@ export const effectiveBrokerCash = (account) => {
 }
 
 /**
+ * The reference price "Today" is measured FROM, for one equity row.
+ *
+ * Precedence: the fill price when the position genuinely opened today
+ * (Robinhood measures a same-day entry from your fill, starting ~$0), else the
+ * BROKER's prior-session mark when we are valuing at broker marks, else the
+ * feed's previous close (`prev_close` when > 0 — the feed emits 0.0 for
+ * "missing"), else derived from `change_pct`.
+ *
+ * The broker rung is why this exists. On a closed session the row is valued at
+ * the broker's mark; pairing that with our vendor's prev_close measures the
+ * move PLUS the two vendors' disagreement at both ends. Measured 2026-08-29:
+ * −$43.40 against Robinhood's −$23.29, where mark-to-mark reproduced −$26.49.
+ * `brokerPricePrev` is null until a second session has synced, and the row then
+ * falls back to the feed — honest, and exactly today's behaviour.
+ *
+ * ⛔ ONE grammar, three consumers (brokerLiveSummary, buildEquityRows,
+ * yourPositionModel). They held three hand-written copies of this rule; a
+ * fourth would drift.
+ */
+export const todayReferenceFor = (position, snap, todayIso, preferBroker = false) => {
+  if (openedTodayFill(position, todayIso)) {
+    return Number.isFinite(position?.entryPrice) ? position.entryPrice : undefined
+  }
+  if (preferBroker && Number.isFinite(position?.brokerPricePrev)) {
+    return position.brokerPricePrev
+  }
+  if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) return snap.prev_close
+  if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {
+    const pc = snap.price / (1 + snap.change_pct / 100)
+    return Number.isFinite(pc) ? pc : undefined
+  }
+  return undefined
+}
+
+/**
  * Live broker net-liquidation summary, computed the way Robinhood does — cash
  * plus the live market value of holdings — so it matches the broker's actual
  * number and reflects today's intraday move. This SUPERSEDES anchoring on the
@@ -431,14 +466,7 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
       // previous close — the `prev_close` field when present AND > 0 (the feed
       // emits 0.0 for "missing", never a real close), otherwise derived from
       // `change_pct` (price / (1 + pct/100)). Mirrors positionTodayDollar.
-      let ref
-      if (openedTodayFill(p, todayIso)) {
-        ref = p.entryPrice
-      } else {
-        const snap = prices?.[p.symbol]
-        if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) ref = snap.prev_close
-        else if (Number.isFinite(snap?.change_pct)) ref = live / (1 + snap.change_pct / 100)
-      }
+      const ref = todayReferenceFor(p, prices?.[p.symbol], todayIso, preferBroker)
       if (Number.isFinite(ref)) today += signed * (px - ref)
     }
   }
@@ -519,14 +547,11 @@ export const extendedSessionSplit = (positions, prices, opts = {}) => {
     if (!Number.isFinite(dayClose)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     closeValue += signed * dayClose
-    let ref
-    if (openedTodayFill(p, todayIso)) {
-      ref = p.entryPrice
-    } else if (Number.isFinite(snap?.prev_close) && snap.prev_close > 0) {
-      ref = snap.prev_close
-    } else if (Number.isFinite(snap?.price) && Number.isFinite(snap?.change_pct)) {
-      ref = snap.price / (1 + snap.change_pct / 100)
-    }
+    // Same grammar as everywhere else. `preferBroker` is FALSE by construction
+    // here: BrokerAccountHero refuses this split entirely when it is composing
+    // from broker marks (the legs come from day_close/ext_price, our vendor's),
+    // so this path only ever runs in the live-vendor regime.
+    const ref = todayReferenceFor(p, snap, todayIso, false)
     if (Number.isFinite(ref)) regularDollar += signed * (dayClose - ref)
     const ext = Number.isFinite(snap?.ext_price) ? snap.ext_price : snap?.price
     if (Number.isFinite(ext)) extDollar += signed * (ext - dayClose)

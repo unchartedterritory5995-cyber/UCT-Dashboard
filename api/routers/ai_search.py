@@ -606,6 +606,39 @@ def _billing_units(mode: str) -> int:
     return 2 if mode in ("reasoning", "agent") else 1
 
 
+def _agent_pinned(client_mode) -> bool:
+    """The member explicitly chose the agent lane in the UI pill."""
+    return (client_mode or "").strip().lower() == "agent"
+
+
+def _agent_autoroute_enabled() -> bool:
+    """OFF by default. The agent lane bills 2 units against a $15/day cap
+    surface and is slower than one Perplexity shot — arming it is a spend
+    decision, so it is a Railway var, not a code default."""
+    return os.environ.get("AI_SEARCH_AGENT_AUTOROUTE", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _wants_agent(query: str, client_mode) -> bool:
+    """Should an UNPINNED ask go to the tool-calling lane?
+
+    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
+    only lane that can iterate and call the desk's 16 tools is hidden behind a
+    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
+    with the gap concentrated in rung 3: "give me the desk's call".
+
+    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
+    a request for the desk's call. A second regex meaning the same thing is this
+    repo's most repeated defect. Everything else stays on one fast shot, which
+    answers it well and costs half as much.
+    """
+    if client_mode in ("fast", "reasoning"):
+        return False                      # a stated choice is never overridden
+    if not _agent_autoroute_enabled():
+        return False
+    return bool(_VERDICT_RE.search(query or ""))
+
+
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
 # tickers named in the question) into the system prompt, so answers carry data
 # Perplexity can't see. Every piece is a cached internal read (regime 15-min,
@@ -1226,7 +1259,57 @@ def _ctx_levels(sym: str) -> str:
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
 
 
+_SHORT_INT_RE = re.compile(r"\bshort (?:interest|float)\b|\bsqueeze\b", re.I)
+
+
+def _short_interest_missing(syms: list[str]) -> bool:
+    """True when NO named symbol has a short float on its screener row.
+
+    The nightly Finviz snapshot leaves `short_float_pct` NULL for plenty of
+    names — sparse the same way implied_move_pct is. Silence there reads to the
+    model as "the desk didn't mention it", not "the desk doesn't have it".
+    """
+    try:
+        from api.services.screener import snapshot_db
+    except Exception:
+        return False
+    for s in (syms or [])[:2]:
+        try:
+            row = snapshot_db.get_row(s) or {}
+        except Exception:
+            return False          # can't tell → never claim a gap
+        if row.get("short_float_pct") is not None:
+            return False
+    return True
+
+
 _HIST_DATE_RE = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
+
+_MONTHS = {m: i for i, m in enumerate(
+    ("jan", "feb", "mar", "apr", "may", "jun",
+     "jul", "aug", "sep", "oct", "nov", "dec"), start=1)}
+
+# "March 3rd, 2016" · "Sep 18 2025" · "20 August 2026". Traders do not type ISO,
+# and the log's most-asked shape is a dated question.
+# ⛔ BOTH a day number and a 20xx year are mandatory — without them "will NVDA
+# march higher" and "stocks may rally" become history lookups.
+_HIST_WORD_DATE_RE = re.compile(
+    r"\b(?:(?P<m1>[A-Za-z]{3,9})\s+(?P<d1>\d{1,2})(?:st|nd|rd|th)?"
+    r"|(?P<d2>\d{1,2})(?:st|nd|rd|th)?\s+(?P<m2>[A-Za-z]{3,9}))"
+    r",?\s+(?P<y>20\d{2})\b", re.I)
+
+
+def _hist_written_date(query: str) -> tuple[int, int, int] | None:
+    """(y, m, d) from a written date, or None. Month must be a real month name."""
+    m = _HIST_WORD_DATE_RE.search(query or "")
+    if not m:
+        return None
+    word = (m.group("m1") or m.group("m2") or "").lower()[:3]
+    mon = _MONTHS.get(word)
+    if not mon:
+        return None
+    day = int(m.group("d1") or m.group("d2"))
+    return int(m.group("y")), mon, day
 
 
 def _hist_date_ymd(query: str) -> int | None:
@@ -1237,9 +1320,13 @@ def _hist_date_ymd(query: str) -> int | None:
     ("does INTC report on 2026-11-04?") is not a history lookup at all.
     """
     m = _HIST_DATE_RE.search(query or "")
-    if not m:
-        return None
-    y, mo, d = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    if m:
+        y, mo, d = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    else:
+        written = _hist_written_date(query)
+        if not written:
+            return None
+        y, mo, d = written
     try:
         import datetime as _dt
         _dt.date(y, mo, d)                       # reject 2025-13-45
@@ -1426,13 +1513,26 @@ def _ctx_movers() -> str:
 def _ctx_breadth() -> str:
     from api.services.engine import get_breadth
     b = get_breadth() or {}
-    if not b:
-        return ""
-    return (
-        f"Breadth (UCT): score {b.get('breadth_score')}, phase {b.get('market_phase')}, "
-        f"adv/dec {b.get('advancing')}/{b.get('declining')}, "
-        f"52wk NH/NL {b.get('new_highs')}/{b.get('new_lows')}"
-    )
+    # ⛔ `if not b` asked whether the dict was EMPTY; the invariant is whether it
+    # holds usable VALUES. A payload of Nones sailed straight through and put
+    # "score None, phase , adv/dec None/None" in front of the model — worse than
+    # silence, because silence lets it say it has no breadth while "score None"
+    # reads as a feed to interpret, and it filled the gap (measured 2026-08-29:
+    # that question scored c1 g2 o2 s1 with a safety break).
+    # ⛔ Test `is None`, never falsiness: ZERO advancing issues is a real and
+    # dramatic reading, not a missing one.
+    bits: list[str] = []
+    if b.get("breadth_score") is not None:
+        bits.append(f"score {b['breadth_score']}")
+    if b.get("market_phase"):          # a string field: "" is not a phase
+        bits.append(f"phase {b['market_phase']}")
+    adv, dec = b.get("advancing"), b.get("declining")
+    if adv is not None and dec is not None:
+        bits.append(f"adv/dec {adv}/{dec}")
+    nh, nl = b.get("new_highs"), b.get("new_lows")
+    if nh is not None and nl is not None:
+        bits.append(f"52wk NH/NL {nh}/{nl}")
+    return "Breadth (UCT): " + ", ".join(bits) if bits else ""
 
 
 def _ctx_earnings() -> str:
@@ -1627,7 +1727,8 @@ def _fresh_salt(query: str, salt: str) -> str:
 
 def _empty_meta() -> dict:
     return {"grounding_sources": [], "grounding_intents": [], "regime_label": None,
-            "recency": None, "had_live_price": False, "ctx_block": "", "query_tickers": []}
+            "recency": None, "had_live_price": False, "ctx_block": "",
+            "query_tickers": [], "grounding_gaps": []}
 
 
 def _uct_context(query: str) -> tuple[str, str, dict]:
@@ -1734,13 +1835,29 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
     for rx, fn_name in _INTENT_SPECS:
         if not rx.search(query or ""):
             continue
+        name = fn_name.replace("_ctx_", "")
         try:
             line = getattr(this_mod, fn_name)()
-            if line:
-                _add(fn_name.replace("_ctx_", ""), line)
-                meta["grounding_intents"].append(fn_name.replace("_ctx_", ""))
         except Exception:
-            pass
+            line = ""
+        if line:
+            _add(name, line)
+            meta["grounding_intents"].append(name)
+        else:
+            # The member ASKED for this and the desk has nothing. Silence is
+            # indistinguishable from "we never looked", so the model fills the
+            # gap — rung 4 (data-limits honesty) scores 0/5 on this lane and the
+            # breadth question fabricates every run. Declaring the absence is
+            # NOT the same as leaking a null: "score None" reads as a data
+            # VALUE, "no current data" reads as a stated gap.
+            meta["grounding_gaps"].append(name)
+    # A pack can FIRE and still not answer what was asked. The posture gate is
+    # broad (trend / RSI / stage 2 / short interest), so a short-interest ask
+    # gets a TECHNICAL posture line back — and the model, seeing a confident
+    # desk line with no short interest in it, invents a number. Measured: that
+    # question scored c0 g0 s0 on every single exam run.
+    if _SHORT_INT_RE.search(query or "") and syms and _short_interest_missing(syms):
+        meta["grounding_gaps"].append("short interest")
     # Historical session — query-resolved like COT below, because the trigger is
     # a DATE in the question, which the per-ticker machinery has no notion of.
     # Answers the most-asked shape in the capture log ("what moved X on DATE?
@@ -1763,6 +1880,12 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
                 meta["grounding_intents"].append("cot")
         except Exception:
             pass
+    if meta["grounding_gaps"]:
+        parts.append(
+            "DESK GAPS (the member asked for these and the desk has no current "
+            "data for them: " + ", ".join(meta["grounding_gaps"]) + ") — say so "
+            "plainly, do not estimate them, and never pass a web figure off as "
+            "desk data.")
     if not parts:
         return "", "", meta
     ctx = "\n".join(parts)[:_CTX_BUDGET]
@@ -2374,11 +2497,13 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
         # zero accounts → decline, fall through to the normal public stream.
-    # ── Agent lane (client-pinned only, never auto-routed): the one-brain tool
-    # loop. Falls back to auto routing when the lane is over its dollar cap or
-    # the synthesis client is down — the ask always answers.
+    # ── Agent lane: the one-brain tool loop. Pinned by the UI pill, OR
+    # auto-routed for a request for the desk's CALL when
+    # AI_SEARCH_AGENT_AUTOROUTE is armed (default off — see _wants_agent).
+    # Falls back to auto routing when the lane is over its dollar cap or the
+    # synthesis client is down — the ask always answers.
     agent_mode = False
-    if (body.mode or "").strip().lower() == "agent":
+    if _agent_pinned(body.mode) or _wants_agent(body.query, body.mode):
         try:
             from api.services import ai_search_agent
             agent_mode = ai_search_agent.available()

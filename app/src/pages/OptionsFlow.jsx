@@ -3,7 +3,7 @@ import { BarChart, Bar, AreaChart, Area, ComposedChart, Line, XAxis, YAxis, Tool
 import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
-import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse } from "./optionsFlow/flowLoadPolicy";
+import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange, shouldSkipStaleParse, firstPassWaitMs, processedKey } from "./optionsFlow/flowLoadPolicy";
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import FlowIcon from "./optionsFlow/FlowIcon";
 import {
@@ -866,6 +866,15 @@ export default function OptionsFlowDashboard() {
   // parsed rather than skipped, so a version that never catches up cannot
   // leave the page empty forever.
   const _staleParseSkipped = useRef(false);
+  // Did the server-computed dataset actually reach the screen? This is the
+  // budget that lets the first client aggregate WAIT for the earnings set
+  // instead of running twice — with nothing painted there is no budget.
+  const _prehydrated = useRef(false);
+  // WHICH view the client's own aggregate last published. A range switch is a
+  // different view, so prehydration is not a first-paint-only trick — it can
+  // serve 1d -> 5d too. This is what stops it overwriting a client result for
+  // the SAME view while still allowing it to fill a NEW one.
+  const _processedViewKey = useRef(null);
   // dataVersion in effect at the moment the current base rows were fetched.
   const _baseFetchedVer = useRef(null);
   // csvFile the base effect last ran for, + whether we currently hold rows.
@@ -1162,6 +1171,8 @@ export default function OptionsFlowDashboard() {
       const label = dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFilter;
       console.log(`[perf] processFlowData (${label}): ${(performance.now()-t2).toFixed(0)}ms (${res.filteredCount} rows${res.usedWorker ? ", worker" : ", MAIN THREAD"})`);
       _processedOnce.current = true;
+      _processedViewKey.current = snapshotKey(csvFile) + "|"
+        + processedKey(dateFilter, dateFrom, dateTo);
       setD(res.D);
     };
 
@@ -1189,8 +1200,20 @@ export default function OptionsFlowDashboard() {
         baseRowCount: rowCount,
         dateFrom, dateTo, loadedFetchDays, dataMode,
       }).action === "fetch-delta";
-    if (deltaPending) {
-      const id = setTimeout(run, 600);
+    // `erSoonArr` is a dependency of this effect and arrives from /api/calendar,
+    // which finished at 8,005 ms on a measured load while the 14 MB tape landed
+    // at 31 ms. Running now and again when it lands is two full aggregates over
+    // 107,346 rows to change one per-row badge. Since prehydration already put
+    // the server's dataset on screen, this pass is background work and can wait
+    // for its input — but ONLY because something is painted. See firstPassWaitMs.
+    const waitMs = firstPassWaitMs({
+      processedOnce: _processedOnce.current,
+      deltaPending,
+      erSoonReady: erSoonArr != null,
+      alreadyPainted: _prehydrated.current,
+    });
+    if (waitMs) {
+      const id = setTimeout(run, waitMs);
       return () => { cancelled = true; clearTimeout(id); };
     }
     run();
@@ -1296,11 +1319,22 @@ export default function OptionsFlowDashboard() {
     // re-checks that on arrival, so a slow aggregate can never land on top of
     // a fresher real result. flowPrehydrate declines any shape it cannot
     // answer for exactly (see that file) rather than approximating one.
-    if (!silent && !_processedOnce.current) {
+    // Fires for any genuine navigation — the FIRST load and every range switch
+    // (1d -> 5d measured at 1,713 ms of fetch + parse + aggregate, all of which
+    // the server has already done and cached per (source, days, filter)). Not on
+    // a silent background refresh: the user is reading current data there, and
+    // replacing it under them buys nothing.
+    const _preViewKey = snapshotKey(csvFile) + "|"
+      + processedKey(dateFilter, dateFrom, dateTo);
+    if (!silent && _processedViewKey.current !== _preViewKey) {
       fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
-        if (cancelled || !pre || _processedOnce.current) return;
+        // Keyed by VIEW, not by "have we ever processed". The client's own
+        // aggregate stays the authority for the view it has published; this may
+        // only fill one it has not.
+        if (cancelled || !pre || _processedViewKey.current === _preViewKey) return;
         console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
           + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
+        _prehydrated.current = true;   // the budget firstPassWaitMs spends
         setD(pre.D);
       });
     }
