@@ -322,6 +322,33 @@ async def admin_redate_equity_snapshots(
     return snapshot_redate.run(dry_run=False)
 
 
+@router.get("/admin/option-mark-compare")
+async def admin_option_mark_compare(
+    request: Request, user_id: str | None = None,
+) -> dict[str, Any]:
+    """Our option feed's implied day-move vs THE BROKER'S, side by side.
+
+    Read-only instrument for one undecided number: on 2026-08-29 our feed said
+    the owner's SNAP Jan-2028 LEAP fell 675 -> 665 on Friday (−$10) while the
+    broker's own marks said it ROSE 655 -> 665 (+$10). `_roll_option_marks` now
+    stores the broker's prior mark; this reports the two implied moves against
+    each other so the decision is made from data rather than one Saturday.
+
+    `disagreement` is feedDay − brokerDay — the dollars the choice is worth.
+    `awaiting_broker_prior` counts strategies whose broker prior mark has not
+    been captured yet (it lands at the first sync after the session turns over).
+
+    Gated by the PUSH_SECRET bearer, like the other admin instruments.
+    """
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or not hmac.compare_digest(auth, f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+    from api.services.journal_two.broker import option_marks as _om
+    return _om.compare_prior_marks(user_id=user_id)
+
+
 @router.get("/admin/fidelity-audit")
 async def admin_fidelity_audit(user_id: str, raw: bool = False,
                                user: dict = Depends(require_admin)) -> dict[str, Any]:

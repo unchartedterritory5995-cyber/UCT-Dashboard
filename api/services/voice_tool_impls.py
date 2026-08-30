@@ -117,11 +117,29 @@ def _dark_pool(sym: str | None = None) -> list[dict]:
 
 
 def _economic_calendar() -> list[dict]:
+    """Upcoming US econ events as [{title, date, time}].
+
+    ⛔ This imported `engine.get_macro_events`, which DOES NOT EXIST — and the
+    except swallowed the ImportError, so this tool answered "no upcoming events
+    available" every time, forever. The live feed is `econ_calendar_fmp`,
+    already powering the Calendar page and the week poster.
+    """
     try:
-        from api.services.engine import get_macro_events
-        return get_macro_events() or []
-    except (ImportError, AttributeError):
+        import datetime as _dt
+        from api.services import econ_calendar_fmp
+        today = _dt.date.today()
+        week = econ_calendar_fmp.fetch_us_econ_week(
+            today.isoformat(), (today + _dt.timedelta(days=7)).isoformat()) or {}
+    except Exception:
         return []
+    out: list[dict] = []
+    for day in sorted(week):
+        for ev in (week.get(day) or []):
+            title = str(ev.get("event") or "").strip()
+            if title:
+                out.append({"title": title, "date": day,
+                            "time": str(ev.get("time") or "").strip()})
+    return out
 
 
 # ── Registration helper — called at import and after registry.clear() ───────

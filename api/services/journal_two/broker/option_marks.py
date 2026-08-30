@@ -220,3 +220,75 @@ def get_option_marks(user_id: str, account_id: str | None = None,
 def _reset_cache_for_tests() -> None:
     _agg_cache.clear()
     _snap_cache.clear()
+
+def compare_prior_marks(user_id: str | None = None, conn=None) -> dict[str, Any]:
+    """Our feed's implied option day-move vs THE BROKER'S, side by side.
+
+    The instrument for one undecided number. On 2026-08-29 our feed said the
+    owner's SNAP Jan-2028 LEAP fell 675 -> 665 on Friday (−$10) while the
+    broker's own marks said it ROSE 655 -> 665 (+$10) — a $20 swing on one
+    wide-spread contract, and the bulk of what still separates a closed-session
+    Today from Robinhood's figure. Neither side could be called right from a
+    single Saturday, so `_roll_option_marks` began STORING the broker's prior
+    mark and this reports the two implied moves against each other.
+
+    Read it after a few sessions: if `brokerDay` tracks the broker's own Today
+    and `feedDay` does not, the option's Today baseline should move to the
+    broker's prior mark — and its CURRENT side must move with it (see
+    option_reconstruct._roll_option_marks; splitting the ends is the defect the
+    equity fix removed).
+
+    `disagreement` is feedDay − brokerDay: the dollars this decision is worth,
+    per strategy. Rows where either side lacks a prior mark are reported with
+    nulls rather than dropped — an absent baseline is the thing worth seeing.
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        sql = ("SELECT id, user_id, underlying, broker_current_value, "
+               "broker_current_value_prev, broker_current_value_prev_session, "
+               "broker_mark_synced_at FROM j2_option_strategies "
+               "WHERE source = 'broker' AND status = 'open'")
+        params: tuple = ()
+        if user_id:
+            sql += " AND user_id = ?"
+            params = (user_id,)
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        if owned:
+            conn.close()
+
+    by_user: dict[str, list] = {}
+    for r in rows:
+        by_user.setdefault(r["user_id"], []).append(r)
+
+    out: list[dict[str, Any]] = []
+    for uid, urows in by_user.items():
+        try:
+            marks = get_option_marks(uid)
+        except Exception:  # noqa: BLE001 — a diagnostic must not raise
+            marks = {}
+        for r in urows:
+            m = marks.get(r["id"]) or {}
+            feed_cur, feed_prev = _f(m.get("currentValue")), _f(m.get("prevCloseValue"))
+            bro_cur, bro_prev = _f(r["broker_current_value"]), _f(r["broker_current_value_prev"])
+            feed_day = None if (feed_cur is None or feed_prev is None) else round(feed_cur - feed_prev, 2)
+            bro_day = None if (bro_cur is None or bro_prev is None) else round(bro_cur - bro_prev, 2)
+            out.append({
+                "strategyId": r["id"], "userId": uid, "underlying": r["underlying"],
+                "feedCurrent": feed_cur, "feedPrevClose": feed_prev, "feedDay": feed_day,
+                "brokerCurrent": bro_cur, "brokerPrev": bro_prev,
+                "brokerPrevSession": r["broker_current_value_prev_session"],
+                "brokerMarkSyncedAt": r["broker_mark_synced_at"],
+                "brokerDay": bro_day,
+                "disagreement": (None if (feed_day is None or bro_day is None)
+                                 else round(feed_day - bro_day, 2)),
+            })
+    comparable = [r for r in out if r["disagreement"] is not None]
+    return {
+        "strategies": len(out),
+        "comparable": len(comparable),
+        "awaiting_broker_prior": sum(1 for r in out if r["brokerPrev"] is None),
+        "total_disagreement": round(sum(r["disagreement"] for r in comparable), 2),
+        "rows": out,
+    }

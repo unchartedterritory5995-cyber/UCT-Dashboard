@@ -768,6 +768,20 @@ describe('the modal never hands the reader off', () => {
   })
 })
 
+describe('the rail opts INTO the dense row height', () => {
+  // SectionRail's tightening defaults OFF so ResearchPage and CatalystFlow keep
+  // their own geometry; this modal is the surface that asked for it (12 sections
+  // at the 44px touch floor is ~570px of rail). Without this assertion the
+  // `dense` prop could be dropped from the call site and nothing would fail —
+  // the CSS would simply stop applying, silently, on the one surface it is for.
+  it('passes dense, so the modal rail carries data-rk-dense', () => {
+    const { container } = renderModal()
+    const rail = container.querySelector('nav[aria-label="Report sections"]')
+    expect(rail).toBeTruthy()
+    expect(rail.hasAttribute('data-rk-dense')).toBe(true)
+  })
+})
+
 describe('the rail is curated, and old links still land', () => {
   it('is ELEVEN curated sections, each answering a question no other does', () => {
     // Eleven shallow entries once split one question across three clicks and

@@ -21,7 +21,16 @@ import pytest
 
 import api.routers.ai_search as ai
 
-VERDICT_ASK = "what's the desk read on NVDA"
+# Measured A/B, rung 3, back-to-back, 3 repeats each (2026-08-30):
+#   S3-02 COMPOUND  "pull the desk verdict AND the street's reaction, THEN the
+#                    swing view"          FAIL c1 -> PASS c4   agent WINS
+#   S3-01 SIMPLE    "what's the desk read on NVDA"
+#                                         PASS   -> FAIL c2 g1 agent LOSES
+# So the agent's value is MULTI-STEP work, not the word "verdict". Routing every
+# desk-call ask at it made simple questions worse and left the median unchanged.
+COMPOUND_ASK = ("CRM just reported. Pull the desk verdict and the street's "
+                "reaction, then give me the swing view for the next few weeks.")
+SIMPLE_VERDICT_ASK = "what's the desk read on NVDA"
 PLAIN_ASK = "what were the biggest gainers today"
 
 
@@ -30,8 +39,15 @@ def _armed(monkeypatch):
     monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "1")
 
 
-def test_a_request_for_the_desks_call_routes_to_the_agent():
-    assert ai._wants_agent(VERDICT_ASK, None) is True
+def test_a_compound_desk_call_routes_to_the_agent():
+    """The measured win: several lookups plus a sequencing step."""
+    assert ai._wants_agent(COMPOUND_ASK, None) is True
+
+
+def test_a_simple_desk_call_stays_on_one_shot():
+    """CONTROL, and the whole point of the refinement — measured: the agent
+    scored WORSE than one shot on this exact question."""
+    assert ai._wants_agent(SIMPLE_VERDICT_ASK, None) is False
 
 
 def test_a_plain_question_stays_on_the_fast_lane():
@@ -44,7 +60,7 @@ def test_a_plain_question_stays_on_the_fast_lane():
 def test_an_explicit_client_mode_always_wins(pinned):
     """CONTROL — a member who picked a lane keeps it. Auto-routing is for the
     default, never an override of a stated choice."""
-    assert ai._wants_agent(VERDICT_ASK, pinned) is False
+    assert ai._wants_agent(COMPOUND_ASK, pinned) is False
 
 
 def test_the_flag_is_off_by_default(monkeypatch):
@@ -52,21 +68,28 @@ def test_the_flag_is_off_by_default(monkeypatch):
     $15/day cap. Shipping it live-by-default would be a spend change nobody
     approved."""
     monkeypatch.delenv("AI_SEARCH_AGENT_AUTOROUTE", raising=False)
-    assert ai._wants_agent(VERDICT_ASK, None) is False
+    assert ai._wants_agent(COMPOUND_ASK, None) is False
 
 
 def test_disarming_the_flag_stops_it(monkeypatch):
     monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "0")
-    assert ai._wants_agent(VERDICT_ASK, None) is False
+    assert ai._wants_agent(COMPOUND_ASK, None) is False
 
 
-def test_the_trigger_is_the_existing_verdict_gate():
-    """Derived, not restated: every phrasing the verdict gate already knows must
-    route, so the two can never disagree about what "the desk's call" means."""
-    for q in ("give me your verdict on AMD", "should i buy TSLA here",
-              "where's the entry on TSLA", "which has the best setup"):
-        assert ai._VERDICT_RE.search(q), q
-        assert ai._wants_agent(q, None) is True, q
+def test_the_trigger_is_still_anchored_on_the_verdict_gate():
+    """Derived, not restated: a compound ask that is NOT a desk-call stays on
+    one shot, so the two gates can never disagree about what a desk call is."""
+    compound_but_not_a_call = ("what were the biggest gainers today and then "
+                               "what is on the economic calendar")
+    assert not ai._VERDICT_RE.search(compound_but_not_a_call)
+    assert ai._wants_agent(compound_but_not_a_call, None) is False
+
+
+def test_breadth_of_lookups_also_counts_as_compound():
+    """Two distinct desk intents in one ask is multi-step work even without a
+    sequencing word — derived by asking the EXISTING gates, never a new regex."""
+    q = "should i buy TSLA here and what do the dark pool levels say"
+    assert ai._wants_agent(q, None) is True, q
 
 
 def test_pinning_agent_still_works_with_the_flag_off(monkeypatch):
@@ -102,3 +125,83 @@ def test_the_endpoint_probe_is_not_vacuous():
     import io
     src = io.open(ai.__file__, encoding="utf-8").read()
     assert "ai_search_agent.available()" in src
+
+
+# ── the exam must be able to SEE the routing decision ──────────────────────
+def test_the_auto_lane_sends_a_desk_call_ask_to_the_agent(monkeypatch):
+    """⛔ My first A/B of this flag was VACUOUS: run_exam(lane="fast") calls
+    fast_lane_answer DIRECTLY, so it never consults _wants_agent and both arms
+    measured the same code path. Identical scores, identical grounding lines —
+    a fixture that cannot distinguish. lane="auto" mirrors the endpoint."""
+    from api.services.ai_search_eval import runner
+    from api.services.compass_eval import judge, store
+    import api.services.ai_search_agent as agent
+
+    monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "1")
+    monkeypatch.setattr(store, "init_db", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_run", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "_judge_client", lambda: object())
+    monkeypatch.setattr(judge, "judge_answer", lambda *a, **k: {
+        "correctness": 4, "grounding": 4, "opinion": 4, "safety": 4, "rationale": "ok"})
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "quote", "verdict"],
+                                    "ctx_block": "NVDA last 178.20"}))
+    monkeypatch.setattr(agent, "available", lambda: True)
+
+    used = {"agent": False, "fast": False}
+
+    def _agent(query, system, hist, x, capture=None):
+        used["agent"] = True
+        if capture is not None:
+            capture.append({"name": "grade_ticker", "args": {}, "result": "GO"})
+        return {"answer": "desk verdict: GO", "tools_used": ["grade_ticker"]}
+
+    def _fast(*a, **k):
+        used["fast"] = True
+        return {"answer": "one shot", "citations": []}
+
+    monkeypatch.setattr(agent, "run_agent", _agent)
+    monkeypatch.setattr(ai, "fast_lane_answer", _fast)
+
+    # S3-02 is the COMPOUND one the A/B showed the agent winning; S3-01 is the
+    # simple desk-call the agent measurably LOST, and no longer routes.
+    runner.run_exam(lane="auto", question_ids=["S3-02-verdict-vs-web"])
+    assert used["agent"] is True and used["fast"] is False, used
+
+
+def test_the_auto_lane_keeps_a_plain_ask_on_one_shot(monkeypatch):
+    """CONTROL — the discriminating half. If everything routed to the agent the
+    A/B would be vacuous in the other direction."""
+    from api.services.ai_search_eval import runner
+    from api.services.compass_eval import judge, store
+    import api.services.ai_search_agent as agent
+
+    monkeypatch.setenv("AI_SEARCH_AGENT_AUTOROUTE", "1")
+    monkeypatch.setattr(store, "init_db", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_run", lambda *a, **k: None)
+    monkeypatch.setattr(store, "record_score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "_judge_client", lambda: object())
+    monkeypatch.setattr(judge, "judge_answer", lambda *a, **k: {
+        "correctness": 4, "grounding": 4, "opinion": 4, "safety": 4, "rationale": "ok"})
+    monkeypatch.setattr(ai, "_grounded_system",
+                        lambda q: ("SYS", "salt",
+                                   {"grounding_sources": ["regime", "movers"], "ctx_block": "x"}))
+    monkeypatch.setattr(agent, "available", lambda: True)
+
+    used = {"agent": False, "fast": False}
+
+    def _agent(*a, **k):
+        used["agent"] = True
+        return {"answer": "x", "tools_used": []}
+
+    def _fast(*a, **k):
+        used["fast"] = True
+        return {"answer": "one shot", "citations": []}
+
+    monkeypatch.setattr(agent, "run_agent", _agent)
+    monkeypatch.setattr(ai, "fast_lane_answer", _fast)
+
+    runner.run_exam(lane="auto", question_ids=["S1-02-movers"])
+    assert used["fast"] is True and used["agent"] is False, used

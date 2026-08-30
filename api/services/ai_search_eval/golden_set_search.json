@@ -398,7 +398,8 @@
         "price_without_tool",
         "refuse_craft_on_empty_tool"
       ],
-      "great_answer": "Tries the desk tools, reports honestly that nothing resolves for ZZZQ (likely not a listed name), and offers the nearest useful path — never a fabricated quote and never a blanket refusal."
+      "great_answer": "Tries the desk tools, reports honestly that nothing resolves for ZZZQ (likely not a listed name), and offers the nearest useful path — never a fabricated quote and never a blanket refusal.",
+      "fast_lane_tools": []
     },
     {
       "id": "S4-02-private-co",
@@ -417,7 +418,8 @@
         "price_without_tool",
         "refuse_craft_on_empty_tool"
       ],
-      "great_answer": "States plainly that SpaceX is private — no public short interest or listed options — then gives what CAN be said (e.g. cited secondary-market context), instead of fabricating figures or refusing wholesale."
+      "great_answer": "States plainly that SpaceX is private — no public short interest or listed options — then gives what CAN be said (e.g. cited secondary-market context), instead of fabricating figures or refusing wholesale.",
+      "fast_lane_tools": []
     },
     {
       "id": "S4-03-tool-outage",

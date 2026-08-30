@@ -619,24 +619,48 @@ def _agent_autoroute_enabled() -> bool:
         "1", "true", "yes", "on")
 
 
+_MULTI_STEP_RE = re.compile(
+    r"\b(then|after that|and also|as well as|followed by|and give me)\b", re.I)
+
+
+def _intent_breadth(q: str) -> int:
+    """How many DISTINCT desk intents one question trips.
+
+    Derived by asking the gates that already exist — two lookups in one ask is
+    multi-step work by definition. A new regex meaning "this is complicated"
+    would be a second authority over a question the gates already answer.
+    """
+    gates = (_VERDICT_RE, _LEVELS_RE, _FLOW_RE, _FUNDAMENTALS_RE, _ANALYST_RE,
+             _INSIDER_RE, _EARNINGS_DEEP_RE, _CALL_RECAP_RE, _POSTURE_RE,
+             _MACRO_CAL_RE, _COT_RE, _SHORT_INT_RE)
+    return sum(1 for rx in gates if rx.search(q or ""))
+
+
 def _wants_agent(query: str, client_mode) -> bool:
     """Should an UNPINNED ask go to the tool-calling lane?
 
-    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
-    only lane that can iterate and call the desk's 16 tools is hidden behind a
-    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
-    with the gap concentrated in rung 3: "give me the desk's call".
+    MEASURED, back-to-back, rung 3, 3 repeats each (2026-08-30):
+      S3-02 COMPOUND — "pull the desk verdict AND the street's reaction, THEN
+                        the swing view"      FAIL c1 -> PASS c4   agent WINS
+      S3-01 SIMPLE   — "what's the desk read on NVDA"
+                                             PASS   -> FAIL c2 g1 agent LOSES
 
-    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
-    a request for the desk's call. A second regex meaning the same thing is this
-    repo's most repeated defect. Everything else stays on one fast shot, which
-    answers it well and costs half as much.
+    So the agent's value is MULTI-STEP work, not the word "verdict". The first
+    trigger routed every desk-call ask at it, which made simple questions WORSE
+    and left the median unchanged — which is why this flag was not armed.
+
+    Still anchored on `_VERDICT_RE` (a compound ask that is not a desk call has
+    no business burning 2 units), then requires genuine multi-step shape: two
+    distinct desk intents, or an explicit sequencing step.
     """
     if client_mode in ("fast", "reasoning"):
         return False                      # a stated choice is never overridden
     if not _agent_autoroute_enabled():
         return False
-    return bool(_VERDICT_RE.search(query or ""))
+    q = query or ""
+    if not _VERDICT_RE.search(q):
+        return False
+    return _intent_breadth(q) >= 2 or bool(_MULTI_STEP_RE.search(q))
 
 
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
@@ -1168,6 +1192,16 @@ def _ctx_posture(sym: str) -> str:
             bits.append(f"{row[col]:+.1f}% vs {label}")
     if row.get("dist_52w_high_pct") is not None:
         bits.append(f"{row['dist_52w_high_pct']:+.1f}% vs 52w high")
+    # Real DOLLAR levels. Everything else here is a percentage, so a member
+    # asking "where's the entry" got no price to anchor on and the model
+    # computed one — which is why `price_without_tool` kept firing on answers
+    # the judge rated 4/4/4/4. These are also the levels this desk's own
+    # playbook trades off ("PREV DAY HIGH BREAK"). Rendered independently:
+    # a break level is useful even when the low is missing.
+    if row.get("prev_day_high") is not None:
+        bits.append(f"prev day high ${row['prev_day_high']:g}")
+    if row.get("prev_day_low") is not None:
+        bits.append(f"prev day low ${row['prev_day_low']:g}")
     if row.get("rsi14") is not None:
         bits.append(f"RSI {row['rsi14']:.0f}")
     if row.get("adr_pct") is not None:
@@ -1256,7 +1290,69 @@ def _ctx_levels(sym: str) -> str:
                 bits.append("gamma: " + ", ".join(segs) + spot)
     except Exception:
         pass
+    # The desk's OWN playbook entry is a prev-day-high break, and this pack —
+    # the one whose entire job is price levels — carried only dark-pool and
+    # gamma prices. "Where's the entry?" routes here, not to posture, so the
+    # model had no desk level to anchor on and computed one.
+    try:
+        from api.services.screener import snapshot_db
+        row = snapshot_db.get_row(sym) or {}
+        if row.get("prev_day_high") is not None:
+            bits.append(f"prev day high ${row['prev_day_high']:g}")
+        if row.get("prev_day_low") is not None:
+            bits.append(f"prev day low ${row['prev_day_low']:g}")
+    except Exception:
+        pass
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
+
+
+# "Which of today's candidates has the best setup?" — a question about a desk
+# LIST, naming no ticker, so the per-ticker packs never run and the model picks
+# a name and justifies it from nothing. Both halves are required: a ranking word
+# AND a list the desk actually owns.
+_LIST_SCOPE_RE = re.compile(
+    r"\b(scanner|candidates?|the scan|on the scan|watch ?list|uct ?20)\b", re.I)
+_RANK_RE = re.compile(
+    r"\b(best|which (?:one|of)|rank(?:ed|ing)?|top (?:pick|name|setup)"
+    r"|strongest|most compelling)\b", re.I)
+_LIST_VERDICT_MAX = 3          # grade_ticker is a real computation per symbol
+
+
+def _candidate_symbols(limit: int) -> list[str]:
+    """Top scanner symbols, newest scan. ⛔ The buckets are NESTED and the key is
+    `ticker` — see _ctx_candidates for the history of getting that wrong."""
+    try:
+        from api.services.engine import get_candidates
+        buckets = (get_candidates() or {}).get("candidates") or {}
+    except Exception:
+        return []
+    out: list[str] = []
+    for rows in buckets.values():
+        for r in (rows or []):
+            t = str((r or {}).get("ticker") or "").upper().strip()
+            if t and t not in out:
+                out.append(t)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def _ctx_list_verdict(query: str, syms: list[str]) -> str:
+    """The desk's read on the top names of a list the member asked to rank."""
+    if syms:                       # named a ticker → per-ticker packs own it
+        return ""
+    q = query or ""
+    if not (_LIST_SCOPE_RE.search(q) and _RANK_RE.search(q)):
+        return ""
+    segs = []
+    for sym in _candidate_symbols(_LIST_VERDICT_MAX):
+        try:
+            line = _ctx_verdict(sym)
+        except Exception:
+            line = ""
+        if line:
+            segs.append(line)
+    return ("Desk read on the top scan names: " + " || ".join(segs)) if segs else ""
 
 
 _SHORT_INT_RE = re.compile(r"\bshort (?:interest|float)\b|\bsqueeze\b", re.I)
@@ -1651,7 +1747,32 @@ def _ctx_sector() -> str:
 # (regex, provider name) — resolved via getattr at call time so tests can patch.
 # Each anchored to market-LEVEL phrasing so single-stock questions naming a
 # collision ticker (AMC, BMO, NOW…) don't pull an unrelated market feed.
+_MACRO_CAL_RE = re.compile(
+    r"\b(economic calendar|econ calendar|cpi\b|ppi\b|pce\b|fomc|jobs report"
+    r"|nonfarm|payrolls|nfp\b|jobless claims|gdp\b|retail sales"
+    r"|rate (?:decision|cut|hike)|fed (?:meeting|decision|decides?)"
+    r"|when does the fed|inflation (?:print|report|data))\b", re.I)
+
+
+def _ctx_macro() -> str:
+    """This week's US econ calendar — the desk's own feed.
+
+    The fast lane had NO macro pack, so "when is the next CPI print" reached the
+    model with `regime` grounding and nothing else. Returns "" when the feed is
+    empty, which the assembler declares as a DESK GAP — the honest answer.
+    """
+    try:
+        from api.services import voice_tool_impls
+        items = voice_tool_impls._economic_calendar()[:6]
+    except Exception:
+        return ""
+    segs = [f"{it['date']} {it.get('time', '')} {it['title']}".strip()
+            for it in items if it.get("title")]
+    return "US econ calendar (UCT desk): " + " | ".join(segs) if segs else ""
+
+
 _INTENT_SPECS: list[tuple[re.Pattern, str]] = [
+    (_MACRO_CAL_RE, "_ctx_macro"),
     (re.compile(r"\b(movers?|gainers?|losers?|ripping|what'?s moving|gapp(?:ing|ers?)|gaps? (?:up|down)|biggest (moves?|movers?|gainers?|losers?))\b", re.I), "_ctx_movers"),
     (re.compile(r"\b(advance[- ]decline|advancers?|decliners?|market breadth|breadth|market internals|internals|new (highs?|lows?)|market (health|conditions?)|net exposure|market exposure)\b", re.I), "_ctx_breadth"),
     (re.compile(r"\b(earnings (today|tonight|this week)|who(?:'?s| is| are)? reporting|who reports?|reporting (today|tonight|this week)|(?:reporting|earnings)\s+(?:bmo|amc)|\b(?:bmo|amc)\b(?=[^a-z]*\b(?:earnings|reports?|reporters?|tonight|today)\b))", re.I), "_ctx_earnings"),
@@ -1790,11 +1911,19 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         except Exception:
             pass
     if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
+        _flow_any = False
         for s in syms[:2]:
             try:
-                _add("flow", _ctx_flow_ticker(s))
+                _line = _ctx_flow_ticker(s)
             except Exception:
-                pass
+                _line = ""
+            if _line:
+                _add("flow", _line)
+                _flow_any = True
+        # Asked for flow, desk has none → say so. Silence reads to the model as
+        # "the desk didn't mention it", and it invents flow.
+        if syms and not _flow_any:
+            meta["grounding_gaps"].append("flow")
     # Per-ticker fundamentals / analyst / insider — intent-gated cached reads.
     # Resolve each fn by NAME off the live module so a test/patch is honored.
     _this = sys.modules[__name__]
@@ -1818,11 +1947,22 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         _perticker.append(("levels", "_ctx_levels"))
     for source, fn_name in _perticker:
         fn = getattr(_this, fn_name)
+        got_any = False
         for s in syms[:2]:
             try:
-                _add(source, fn(s))
+                line = fn(s)
             except Exception:
-                pass
+                line = ""
+            if line:
+                _add(source, line)
+                got_any = True
+        # Same rule as the market-level packs: a pack the QUESTION opened that
+        # comes back empty is a declared gap, not silence. ⛔ One symbol
+        # answering is enough — declaring a gap while handing over real data
+        # for the other name would tell the model the desk is empty when it is
+        # not.
+        if syms and not got_any and source not in meta["grounding_gaps"]:
+            meta["grounding_gaps"].append(source)
     # Why-is-it-moving asks with a silent tape: per-ticker news fallback so the
     # model isn't left guessing from the web alone (first symbol only).
     if meta["recency"] == "day" and syms and "tape" not in meta["grounding_sources"]:
@@ -1851,6 +1991,14 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             # NOT the same as leaking a null: "score None" reads as a data
             # VALUE, "no current data" reads as a stated gap.
             meta["grounding_gaps"].append(name)
+    # "Which of today's candidates is best?" names no ticker, so nothing above
+    # graded anything. Resolve the names from the desk's own list and read them.
+    try:
+        _lv = _ctx_list_verdict(query or "", syms)
+        if _lv:
+            _add("list_verdict", _lv)
+    except Exception:
+        pass
     # A pack can FIRE and still not answer what was asked. The posture gate is
     # broad (trend / RSI / stage 2 / short interest), so a short-interest ask
     # gets a TECHNICAL posture line back — and the model, seeing a confident

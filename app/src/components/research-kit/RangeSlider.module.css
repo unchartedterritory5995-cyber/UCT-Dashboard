@@ -9,7 +9,7 @@
    the fixed end labels (see labelPct's JSDoc). */
 .valueRow {
   position: relative;
-  height: 15px;
+  height: 17px;
 }
 
 .valueLabel {
@@ -18,7 +18,7 @@
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: 600;
   line-height: var(--lh-tight);
   color: var(--text-bright);
@@ -63,7 +63,7 @@
 
 .endLabel {
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 400;
   line-height: var(--lh-tight);
   color: var(--text-muted);
@@ -78,7 +78,7 @@
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 400;
   line-height: var(--lh-tight);
   color: var(--text-muted);
@@ -117,7 +117,7 @@
     height: 16px;
   }
   .valueRow {
-    height: 17px;
+    height: 19px;
   }
 }
 

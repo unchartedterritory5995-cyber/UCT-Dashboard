@@ -28,6 +28,7 @@ import { translateThinkScript } from '../engine/ast/thinkscript'
 import { detectDialect, DIALECTS } from '../engine/ast/dialect'
 import { evaluateFormula } from './FormulaField'
 import { BUILDER_INPUT_SCOPE, memberInputTranslation } from './builderInputs'
+import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
@@ -49,7 +50,48 @@ plot(r < 30 and close > ta.sma(close, 200) ? 1 : 0, "Signal")`
  * PURE, and it never throws — `translatePine` returns a refusal rather than
  * raising and `evaluateFormula` is already the door that cannot throw.
  */
-export function inspectPine(source) {
+/** ⭐⭐ THE INPUTS A MEMBER CAN SET AT PASTE TIME, AND THE ONES THAT STAY PUT —
+ *  in ONE shape, whichever translator read the script.
+ *
+ *  ⛔⛔ NORMALISED HERE, AT THE DOOR, FOR THE REASON THIS FILE ALREADY STATES ABOUT
+ *  `ignored`: *"Normalising here — in ONE place, at the door — is what stops a
+ *  second spelling entering the UI, where it would become a component that renders
+ *  one and silently misses the other."* The two lanes hand back different shapes:
+ *  Pine has been through `memberInputTranslation` and carries `skippedInputs` with
+ *  a `windowBound` flag, thinkScript has no declare mode at all and carries only
+ *  `inputsFolded`. A renderer that sniffed for one of those would render the Pine
+ *  lane and silently show nothing for the other — which is exactly the state this
+ *  change is fixing.
+ *
+ *  ⛔ SETTABLE MEANS "THE AUTHOR'S OWN DEFAULT IS A NUMBER". `input.source(hl2)`
+ *  folds to `(high + low) / 2` and `input averageType = AverageType.WILDERS` folds
+ *  to a name; a number field seeded with either is a control nobody can use, and
+ *  both translators refuse a number aimed at one BY NAME rather than dropping it.
+ *
+ *  ⚠️ THE PREDICATE IS THE ENGINE'S (`memberValue.js`), not a local copy. That
+ *  module exists because `Number(null)` is `0` — the coercion defect measured on
+ *  the shipped Pine door — and a second answer here would let the box offer a
+ *  field the translator then refuses, or hide one it would have taken. */
+function splitFoldedInputs(out) {
+  const settable = []
+  const fixed = []
+  // ⛔ THE PINE LANE'S OWN SPLIT COMES FIRST AND IS NOT RE-DERIVED. A Pine input
+  // that could be a LIVE knob is already in `memberInputs` and must not appear
+  // here as a paste-time field too — two controls for one value, disagreeing.
+  const rows = Array.isArray(out?.skippedInputs)
+    ? out.skippedInputs.filter((k) => k.windowBound === true)
+    : (out?.inputsFolded || [])
+  const others = Array.isArray(out?.skippedInputs)
+    ? out.skippedInputs.filter((k) => k.windowBound !== true)
+    : []
+  for (const k of rows) {
+    if (k && k.name && isNumericText(k.folded)) settable.push(k)
+    else fixed.push(k)
+  }
+  return { pasteInputs: settable, fixedInputs: [...fixed, ...others] }
+}
+
+export function inspectPine(source, opts = undefined) {
   // ⭐ THE TRANSLATION THAT KEEPS THE AUTHOR'S KNOBS. `memberInputTranslation`
   // runs `translatePine` twice — once declaring every bound input to find which
   // ones the engine has to fold back into a window, then again declaring only the
@@ -57,9 +99,10 @@ export function inspectPine(source) {
   // ⛔ IT IS NOT A DIFFERENT TRANSLATOR. Same function, same guards, same
   // refusals; the only difference is that a threshold or a multiplier reaches the
   // formula as its own identifier instead of as somebody else's constant.
-  const translated = memberInputTranslation(translatePine, source)
+  const translated = memberInputTranslation(translatePine, source, opts || {})
   const outputs = translated.outputs.map((out) => ({
     ...out,
+    ...splitFoldedInputs(out),
     vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
     // ⛔ THE DOWNSTREAM VERDICT IS THE DOWNSTREAM DOOR'S. Not a copy of its
     // rules, not a prediction of them — the function itself.
@@ -99,7 +142,7 @@ export function inspectPine(source) {
  * @param {'auto'|'pine'|'thinkscript'|'pcf'|'formula'} [dialect]
  * @returns {{ok, dialect, version, outputs, selected, refusal, ignored, folded}}
  */
-export function inspectSource(source, dialect = 'auto') {
+export function inspectSource(source, dialect = 'auto', opts = undefined) {
   const chosen = dialect === 'auto' ? detectDialect(source) : dialect
   /* istanbul ignore next — `DIALECTS` is the closed set; a caller typo is a bug */
   const lang = DIALECTS.includes(chosen) ? chosen : 'formula'
@@ -114,11 +157,25 @@ export function inspectSource(source, dialect = 'auto') {
     // NOT, because `declareInputs` is `pine.js`'s option and thinkScript's own
     // input form has not been given the same hand-back. Routing both through it
     // would be a claim about a capability one of them does not have.
+    // ⚰️ THIS COMMENT SAID THE OPTIONS REACH THE PINE LANE ONLY, *"and that is
+    // not an oversight to tidy up later: `inputValues` is `pine.js`'s option and
+    // `translateThinkScript` has no equivalent."* It was true when written and
+    // false one commit later — the exact shape of
+    // `lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`, where a
+    // sentence explaining why something is NOT checked is how a false premise
+    // never gets revisited. Measured: 6 of the 10 thinkScript studies that
+    // translate fold 22 inputs between them, and not one reached the member.
+    //
+    // ⛔ WHAT IS STILL PINE-ONLY IS `declareInputs`, and that is a real
+    // difference: a LIVE knob needs a declare mode thinkScript has no equivalent
+    // for. A PASTE-TIME value needs only that the translator freeze it, which both
+    // now do, with the same semantics and the same shared predicate.
     const t = lang === 'pine'
-      ? memberInputTranslation(translatePine, source)
-      : translateThinkScript(source)
+      ? memberInputTranslation(translatePine, source, opts || {})
+      : translateThinkScript(source, opts || {})
     const outputs = (t.outputs || []).map((out) => ({
       ...out,
+      ...splitFoldedInputs(out),
       vendorNotes: out.ast ? vendorNotesForTree(out.ast) : [],
       refusal: stamp(out.refusal),
       downstream: out.formula ? evaluateFormula(out.formula, BUILDER_INPUT_SCOPE) : null,
@@ -217,9 +274,33 @@ const DIALECT_LABEL = Object.freeze({
  *        keeps the Pine-only behaviour `PineBox` shipped with; anything else
  *        routes through `inspectSource`.
  */
+/** The member's typed text → the `inputValues` map `translatePine` takes.
+ *
+ *  ⛔⛔ A BLANK FIELD SENDS NOTHING, AND `Number('')` IS `0`. Blank means "leave
+ *  the author's default alone"; passing `0` for it would silently substitute a
+ *  zero-bar window for the length the member is looking at, and this engine's
+ *  whole reason for existing is not to answer a plausible different number.
+ *
+ *  ⚠️ A NON-NUMERIC ENTRY IS PASSED THROUGH AS TYPED rather than dropped. The
+ *  translator refuses a non-number by name (`pine:input-kind`), and that refusal
+ *  is what the member needs to see — dropping it here would silently fall back to
+ *  the author's default and show a formula that is not the one they asked for. */
+function memberSettings(settings) {
+  const out = {}
+  for (const [name, raw] of Object.entries(settings || {})) {
+    if (typeof raw !== 'string' || raw.trim() === '') continue
+    // ⛔ `memberNumber`, THE ENGINE'S OWN PREDICATE. A blank is already gone
+    // above; anything else that is not a number is forwarded AS TYPED so the
+    // translator refuses it by name, which is what the member needs to see.
+    const n = memberNumber(raw)
+    out[name] = n === null ? raw : n
+  }
+  return out
+}
+
 function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const inspect = useCallback(
-    (s) => (dialect === undefined ? inspectPine(s) : inspectSource(s, dialect)),
+    (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
   )
   const [text, setText] = useState(initialSource)
@@ -228,15 +309,60 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   const [showNotes, setShowNotes] = useState(false)
   const areaRef = useRef(null)
 
+  // ⭐⭐ THE MEMBER'S OWN VALUES. `translatePine`'s `inputValues` has shipped,
+  // tested and green since the knob work — and until now its only caller was its
+  // own test file. Measured: 21 of the 43 corpus scripts that translate lose at
+  // least one length to the window ceiling, and only 2 of the 43 blocked knobs
+  // declare a `maxval`, so "read the author's bounds" would have unlocked almost
+  // nothing. What a member actually wants is to set the length THEY trade, at the
+  // moment they are looking at the script. This is that door.
+  //
+  // ⛔ THE TREE STILL HOLDS A LITERAL. Nothing about static decidability moved:
+  // the value is fixed BEFORE translation, so `maxLookback` is still a pure tree
+  // sum over `num` nodes and the repaint linter still decides statically. A
+  // different length is a different indicator and gets a different `astHash`,
+  // which is correct rather than a workaround.
+  const [settings, setSettings] = useState({})
+
+  // ⛔⛔ THE ROSTER IS THE PRISTINE TRANSLATION'S, AND THAT IS WHY IT IS STATE.
+  // Once a member sets a length, the re-translation reports `folded` as THEIR
+  // value — so reading the roster off the live report would lose the author's
+  // default the moment it is overridden, and the field could no longer say what
+  // it is departing from. It is refreshed only on a pass with no overrides.
+  //
+  // ⚠️ PER OUTPUT, matching the "Fixed at their defaults" line beside it. A
+  // script can plot two columns off different inputs.
+  const [authorKnobs, setAuthorKnobs] = useState(
+    () => (initialSource && report ? (report.outputs || []).map((o) => o.pasteInputs || []) : []))
+
+  // ⛔ A NEW PASTE FORGETS THE OLD VALUES, and this ref is how the effect can
+  // tell "the member typed in the script" from "the member turned a knob".
+  // `translatePine` ignores a name that is not an input of the script it was
+  // handed, so a stale knob is usually inert — but `len` is the commonest
+  // identifier in the corpus, and carrying one paste's `len` into the next would
+  // silently compute a length the member never chose for it.
+  const lastTextRef = useRef(initialSource)
+
   useEffect(() => {
-    if (text.trim() === '') { setReport(null); setChosen(null); return undefined }
+    if (text.trim() === '') {
+      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
+    }
     const id = setTimeout(() => {
-      const next = inspect(text)
+      const values = memberSettings(settings)
+      const overridden = Object.keys(values).length > 0
+      const next = inspect(text, overridden ? { inputValues: values } : undefined)
+      const isNewText = lastTextRef.current !== text
+      lastTextRef.current = text
       setReport(next)
-      setChosen(next.selected >= 0 ? next.selected : null)
+      // ⛔ A LENGTH CHANGE MUST NOT MOVE THE MEMBER'S PICK. Re-selecting
+      // `next.selected` on every pass would snap a two-plot script back to the
+      // first column each time a field is touched.
+      setChosen((prev) => ((isNewText || prev == null)
+        ? (next.selected >= 0 ? next.selected : null) : prev))
+      if (!overridden) setAuthorKnobs((next.outputs || []).map((o) => o.pasteInputs || []))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
-  }, [text, inspect])
+  }, [text, settings, inspect])
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
@@ -269,6 +395,18 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     if (split.found < 2) return null
     return { split, report: inspectLibrary(split.scripts) }
   }, [text])
+
+  // ⭐ THE FIELDS THE MEMBER SEES, and the ONE place `chosen` selects them.
+  const settingFields = useMemo(
+    () => (chosen == null ? [] : (authorKnobs[chosen] || [])), [authorKnobs, chosen])
+
+  // ⛔ EVERYTHING ELSE THAT STAYED FOLDED, WITHOUT THE LENGTHS. The sentence
+  // below says "fixed at their defaults", which stopped being true of a length the
+  // moment there was a field for it — and a member reading that about a control
+  // sitting live two lines above would be reading a false sentence about the
+  // screen in front of them. Same shape as the note this line already carries: it
+  // once printed EVERY folded entry and became false the day one could be a knob.
+  const plainSkipped = useMemo(() => (active?.fixedInputs || []), [active])
 
   const numericColumn = !!(active && active.formula && !yieldsCondition(active.formula))
   const condition = useMemo(() => {
@@ -336,7 +474,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
         aria-label={anyDialect ? 'Script or formula' : 'Pine script'}
         disabled={disabled}
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => { setText(e.target.value); setSettings({}) }}
       />
 
       {report && (
@@ -429,7 +567,75 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </p>
           )}
 
-          {active && active.skippedInputs && active.skippedInputs.length > 0 && (
+          {/* ⭐⭐ THE LENGTHS, AS FIELDS — the half of a pasted script that used to
+              arrive as somebody else's constant with no way to change it.
+              ⛔ RENDERED FROM `authorKnobs`, NOT FROM `active`. An out-of-range
+              value refuses the whole translation, so `active` is null exactly
+              when the member most needs the field they must correct — reading
+              the live report here would make the control vanish at the moment it
+              is wanted, leaving a refusal and nothing to act on. */}
+          {settingFields.length > 0 && (
+            <div className={styles.settings} data-testid="pine-settings">
+              <p className={styles.folded}>
+                {/* ⚰️ THIS SAID "Lengths", AND THAT WAS TRUE OF ONE DOOR ONLY. On
+                    the Pine lane these rows are window-bound by construction, so
+                    every one of them IS a length. thinkScript has no declare mode
+                    at all, so its rows are every numeric input the study folds —
+                    `over_Bought = 70` and `oversold = 26` among them. A heading
+                    that calls a threshold a length is a false sentence about the
+                    fields directly beneath it, and it arrived the moment the
+                    second door was wired in. */}
+                <UIcon name="sliders" size={12} /> Settings from the script — set them here,
+                {' '}before you save
+              </p>
+              <div className={styles.settingRow}>
+                {settingFields.map((k) => (
+                  <label key={k.name} className={styles.settingField}>
+                    <span className={styles.settingLabel}>{k.title || k.name}</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      className={styles.settingInput}
+                      data-testid={`pine-input-${k.name}`}
+                      aria-label={k.title || k.name}
+                      value={settings[k.name] ?? ''}
+                      placeholder={String(k.folded)}
+                      min={Number.isFinite(k.min) ? k.min : undefined}
+                      max={Number.isFinite(k.max) ? k.max : undefined}
+                      disabled={disabled}
+                      onChange={(e) => setSettings(
+                        (p) => ({ ...p, [k.name]: e.target.value }))}
+                    />
+                    {/* ⛔ THE AUTHOR'S NUMBER STAYS ON SCREEN once it has been
+                        departed from. A field showing 21 with no trace of the 14
+                        it replaced cannot be checked against the script the
+                        member is reading on TradingView. */}
+                    {(settings[k.name] ?? '') !== '' && String(k.folded) !== settings[k.name] && (
+                      <span className={styles.settingWas} data-testid={`pine-input-was-${k.name}`}>
+                        was {k.folded}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <p className={styles.folded}>
+                {/* ⛔ THE MECHANISM, NOT AN APOLOGY. These are frozen in before the
+                    formula is translated — that is what keeps a window a literal
+                    and the repaint verdict decidable — so they are a choice made
+                    HERE rather than a knob turned later. Saying so is what stops a
+                    member hunting for a gear that will not exist.
+                    ⚠️ AND IT NAMES NO MECHANISM IT CANNOT KEEP. The two doors reach
+                    this state for different reasons — Pine because a length cannot
+                    be a declared knob, thinkScript because it has no declared knobs
+                    at all — so the sentence states the CONSEQUENCE, which is true
+                    of both, rather than a cause that is true of one. */}
+                These are written into the formula this engine saves, so they are chosen here
+                {' '}rather than turned afterwards. Leave a field blank to keep the author’s.
+              </p>
+            </div>
+          )}
+
+          {active && plainSkipped.length > 0 && (
             <p className={styles.folded} data-testid="pine-inputs-folded">
               {/* ⭐ SAID OUT LOUD. A knob folded to its default silently would be a
                   formula that means something other than the script the member
@@ -440,9 +646,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                   read "fixed at their defaults" about a control sitting live in
                   their own settings. */}
               Fixed at their defaults:{' '}
-              {active.skippedInputs.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
-              {active.skippedInputs.some((f) => /lands in a WINDOW/.test(f.reason || ''))
-                && ' — a length cannot be a member input in this engine, so it stays as written.'}
+              {plainSkipped.map((f) => `${f.title || f.name || f.call} = ${f.folded}`).join(' · ')}
             </p>
           )}
 
@@ -478,6 +682,10 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
               here can resolve. */}
           <p className={styles.refLink}>
             <a href="/formulas/reference">See every name you can write →</a>
+            {/* ⭐ THE OTHER HALF OF "what can I build with": the names this
+                engine holds, and the formulas other members have already
+                published out of them. */}
+            <a href="/formulas/library">Browse what other members published →</a>
           </p>
 
           {/* ⭐⭐ THE LIBRARY MANIFEST. Four reaches, never one number: translating
