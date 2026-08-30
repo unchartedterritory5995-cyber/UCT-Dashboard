@@ -17,6 +17,7 @@ import CompareGrid from './CompareGrid'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
 import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
 import QuickPresetSwitcher from './QuickPresetSwitcher'
+import { DEFAULT_PRESET } from './useBreadthViews'
 import { VIEW_CONFIG, optionsSchema } from './views/viewMetricConfig'
 import { VIEW_COMPONENTS } from './views/viewRegistry'
 import customizeStyles from './CustomizePanel.module.css'
@@ -366,6 +367,42 @@ export default function BreadthViews({
     return viewProps
   }
 
+  /**
+   * ⭐ ONE PANEL, ANY STYLE — the same trick `bundleFor` plays for the views.
+   *
+   * Compare mode hid Customize entirely because every mutator on the hook
+   * targeted `state.viewStyle`, so a panel in a pane would have edited whatever
+   * style Single mode happened to be on. The writes take a style now, beside the
+   * reads that always did, and this resolves one style's whole panel — label,
+   * eligible metrics, schema, preset roster and every handler — so a pane's gear
+   * gets the identical component the header renders, bound to its own style.
+   *
+   * ⛔ NOT a second Customize implementation, and not a reduced one: the same
+   * `BreadthViewsCustomizePanel`, including presets and Save-as. A pane offering
+   * a subset of the real panel would be a third answer to "what can I change
+   * about a view", after Single and the /charts widget.
+   */
+  const customizeFor = (style) => {
+    const preset = views.activePresetFor(style)
+    return {
+      viewLabel: VIEW_CONFIG[style]?.label ?? style,
+      metrics: views.eligibleMetricsFor(style),
+      optionsSchema: optionsSchema(style),
+      options: optionsFor(style),
+      activePreset: preset,
+      visibleKeys: visibleKeysFor(style),
+      presetNames: views.presetNamesFor(style),
+      isDefaultActive: preset === DEFAULT_PRESET,
+      onToggleVisible: (key) => views.toggleVisible(key, style),
+      onSetOption: (name, value) => views.setOption(name, value, style),
+      onSavePreset: (name) => views.savePreset(name, style),
+      onRenamePreset: (from, to) => views.renamePreset(from, to, style),
+      onDeletePreset: (name) => views.deletePreset(name, style),
+      onSwitchPreset: (name) => views.switchPreset(name, style),
+      onResetActive: () => views.resetActive(style),
+    }
+  }
+
   const ActiveView = VIEW_COMPONENTS[views.viewStyle]
   const isCompare = views.layout === 'compare'
 
@@ -385,7 +422,17 @@ export default function BreadthViews({
           ))}
         </div>
         {!isCompare && <BreadthViewSwitcher viewStyle={views.viewStyle} onSelect={views.setViewStyle} />}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* ⭐ THE ONE PLACE THIS TAB NAMES ITS SESSION.
+            The date used to be printed here AND in the scrubber's readout a row
+            below, in bolder type — two copies of the tab's single most important
+            value, thirty pixels apart. This is the canonical one: it sits inside
+            the stepper that moves it, and it is the slot the LIVE badge takes
+            over, so "which session" is answered in exactly one place whether
+            that session is a finished day or a provisional one. The scrubber
+            states its position instead, and carries the date on the slider for
+            hover and for screen readers. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+             title="The session every view on this tab is drawn as of">
           <button onClick={() => onSeek(rowIdx + 1)}
                   disabled={rowIdx >= rows.length - 1} aria-label="Previous day">←</button>
           {currentRow._live ? (
@@ -400,7 +447,9 @@ export default function BreadthViews({
             </span>
           ) : (
             <span data-testid="cursor-date"
-                  style={{ font: '600 12px Instrument Sans, sans-serif', color: '#cbd5e1' }}>{currentRow.date}</span>
+                  style={{ font: '700 13px Instrument Sans, sans-serif', color: '#e2e8f0',
+                           letterSpacing: '.2px', fontVariantNumeric: 'tabular-nums',
+                           minWidth: 88, textAlign: 'center' }}>{currentRow.date}</span>
           )}
           <button onClick={() => onSeek(rowIdx - 1)}
                   disabled={rowIdx === 0} aria-label="Next day">→</button>
@@ -416,8 +465,10 @@ export default function BreadthViews({
           </span>
         )}
         {isCompare ? (
+          // The panel is not hidden any more, so this is a pointer rather than
+          // an apology: it says where the control moved to and what its scope is.
           <span className={layoutStyles.note} style={{ marginLeft: 'auto' }}>
-            Each pane uses its own style’s saved options — switch to Single to customize one.
+            Options are per style — the gear in a pane’s header edits that style everywhere.
           </span>
         ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
@@ -478,6 +529,7 @@ export default function BreadthViews({
       <div style={{ flex: 1, minHeight: 0 }}>
         {isCompare
           ? <CompareGrid quad={views.compareQuad} propsForStyle={bundleFor}
+                         customizeForStyle={customizeFor}
                          onPick={views.setComparePane} />
           : (ActiveView && <ActiveView {...bundleFor(views.viewStyle)} />)}
       </div>

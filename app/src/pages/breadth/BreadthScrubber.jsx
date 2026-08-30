@@ -50,6 +50,26 @@ export default function BreadthScrubber({
   if (!rows.length) return null
 
   const row = rows[rowIdx] ?? rows[0]
+  /**
+   * 🔴 THE SESSION DATE USED TO BE PRINTED TWICE, THIRTY PIXELS APART — once in
+   * the header cluster between the step arrows, once here in bolder type.
+   *
+   * The spec asked for the date "legible beside the control", and read
+   * literally that produced a second, LOUDER copy of the tab's most important
+   * single value. The canonical one is the header's: it sits inside the ← →
+   * stepper that moves it, and it is the slot the LIVE badge takes over when the
+   * cursor is on a provisional row — the date and that badge are one statement
+   * of "which session am I looking at", and splitting it across two rows made
+   * the live case say two different kinds of thing at once.
+   *
+   * So this control states its POSITION ("12 of 40"), which is the fact the
+   * slider owns and the one the header cannot give, and the session it sits on
+   * rides on the slider itself as `aria-valuetext` and its title — where a
+   * screen reader announces it on every step and a pointer finds it on hover.
+   * Demoted, not dropped: the live suffix still travels with it, so nothing
+   * about this control can present a provisional row as a finished day.
+   */
+  const sessionLabel = `${row?.date ?? ''}${row?._live ? ' · live' : ''}`
   // ⭐ The refusal and the guard are the SAME value: `disabled` is derived from
   // the reason, so a play button can never be dead without saying why.
   const blockedReason =
@@ -77,13 +97,11 @@ export default function BreadthScrubber({
              value={Math.max(0, last - rowIdx)}
              disabled={last < 1}
              aria-label="Session"
-             aria-valuetext={row?.date ?? ''}
+             aria-valuetext={sessionLabel}
+             title={sessionLabel}
              onChange={(e) => onSeek?.(last - Number(e.target.value))} />
       <span className={styles.ends}>newest</span>
 
-      <span className={styles.date} data-testid="scrubber-date">
-        {row?.date}{row?._live ? ' · live' : ''}
-      </span>
       {/* 🔴 CLAMPED, because the window can shrink under the cursor. Scrub deep
           into a 365-day window, press the 90d pill, and `rowIdx` is briefly
           larger than the new window — this printed "-5 of 5", a position that

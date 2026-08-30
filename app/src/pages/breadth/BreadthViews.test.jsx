@@ -52,4 +52,28 @@ describe('BreadthViews', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Regime Clock' }))
     expect(screen.getByTestId('clock-refusal').textContent).toMatch(/needs 21 sessions/i)
   })
+
+  /**
+   * 🔴 THE TAB PRINTED ITS SESSION DATE TWICE, ONE ROW APART — the header
+   * cluster and the scrubber's readout, the secondary copy in the bolder type.
+   * The header is the canonical one: it sits inside the stepper that moves the
+   * cursor and it is the slot the LIVE badge takes over. The scrubber states its
+   * POSITION instead and carries the date on the slider, where a hover and a
+   * screen reader can still reach it.
+   */
+  it('names the cursor’s session once in the chrome, in the header cluster', () => {
+    render(<BreadthViews rows={deepRows} onDrill={() => {}} />)
+    const date = deepRows[0].date
+    expect(screen.getAllByTestId('cursor-date')).toHaveLength(1)
+    expect(screen.getByTestId('cursor-date').textContent).toBe(date)
+
+    const scrubber = screen.getByTestId('scrubber')
+    expect(scrubber.textContent, 'the scrubber prints the date a second time')
+      .not.toContain(date)
+    // …it states position instead, and the cursor opens on the NEWEST session,
+    // which is the right-hand end of an oldest → newest slider.
+    expect(scrubber.textContent).toContain('30 of 30')
+    // Demoted, not dropped: the control the reader drags still knows its session.
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext')).toBe(date)
+  })
 })

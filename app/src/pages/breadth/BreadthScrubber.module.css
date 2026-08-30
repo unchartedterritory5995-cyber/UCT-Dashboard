@@ -34,18 +34,17 @@
   white-space: nowrap;
 }
 
-.date {
-  font: 800 12px 'Instrument Sans', sans-serif;
-  color: #e2e8f0;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  min-width: 84px;
-}
-
+/* The drag readout. It is the LOUDEST thing on this row on purpose — it is
+   also the only thing on it, now that the session date is stated once, in the
+   header cluster, where the arrows that move it live. */
 .position {
-  font: 600 10px 'Instrument Sans', sans-serif;
-  color: #64748b;
+  font: 700 11px 'Instrument Sans', sans-serif;
+  color: #94a3b8;
+  letter-spacing: 0.2px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
+  text-align: right;
 }
 
 .speed {

@@ -125,7 +125,7 @@ describe('one cursor, one window, one scrubber', () => {
     fireEvent.click(cell)
 
     expect(screen.getByTestId('cursor-date').textContent).toBe(target)
-    expect(screen.getByTestId('scrubber-date').textContent).toBe(target)
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext')).toBe(target)
   })
 
   it('the arrow keys still drive the one cursor from compare mode', () => {
@@ -275,6 +275,96 @@ describe('per-style options follow the style into whatever pane it sits in', () 
     const markers = metersPane.querySelectorAll('[data-testid^="marker-"]')
     expect([...markers].map(m => m.getAttribute('data-testid')).sort())
       .toEqual(['marker-breadth_score', 'marker-vix'])
+  })
+})
+
+/**
+ * 🔴 COMPARE MODE USED TO HIDE CUSTOMIZE ENTIRELY, so a reader in the 2×2 could
+ * not change ANY pane's options — the panel and the preset switcher simply were
+ * not there. That was honest about a real limit (the hook's writes could only
+ * target the single active style) but it left the reader with no way out except
+ * leaving the layout.
+ *
+ * ⛔ AND A CONTROL THAT IS PRESENT BUT INERT WOULD HAVE BEEN WORSE — this tab
+ * has already paid for that twice (the metric checklist on the lenses, the Event
+ * Ledger's dead palette control). So the writes take a style now and the gear in
+ * each pane's header edits THAT pane's style. These tests are about the wire:
+ * the panel is real, it edits the right style, and what it writes is the same
+ * per-style preset Single mode reads.
+ */
+describe('a pane can be customized without leaving compare mode', () => {
+  const OCEAN = ['#22d3ee', 'rgb(34, 211, 238)']
+  const paintsOcean = (el) => {
+    const html = el.innerHTML.toLowerCase()
+    return OCEAN.some(c => html.includes(c))
+  }
+  // Heat Ribbon in pane 0 on a custom preset — Default is immutable by design,
+  // and editing it opens the Save-as prompt rather than changing anything.
+  const seedRibbonPane = () => localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    viewStyle: 'treemap',
+    byView: { ribbon: { activePreset: 'Mine',
+                        presets: { Mine: { visible: ['pct_above_50sma', 'vix'], options: { palette: 'classic' } } } } },
+    layout: 'compare', compare: ['ribbon', 'clock', 'events', 'analogues'],
+  }))
+  const openPanePanel = (i) => {
+    fireEvent.click(screen.getByTestId(`compare-customize-${i}`))
+    return screen.getByRole('dialog')
+  }
+
+  it('gives every pane a gear, and offers no inert page-level Customize beside it', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    toCompare()
+    for (let i = 0; i < COMPARE_PANES; i++) {
+      expect(screen.getByTestId(`compare-customize-${i}`)).toBeTruthy()
+    }
+    // The page-level trigger acted on the single active style; there isn't one
+    // here, so it stays retired rather than sitting on screen doing nothing.
+    expect(screen.queryByTitle('Customize this view')).toBeNull()
+  })
+
+  it('edits the pane’s OWN style, and leaves the other three alone', () => {
+    seedRibbonPane()
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    const ribbonPane = () => panes()[0]
+    expect(paintsOcean(ribbonPane()), 'the fixture starts ocean — it proves nothing').toBe(false)
+
+    const dialog = openPanePanel(0)
+    expect(dialog.getAttribute('aria-label')).toBe('Customize Heat Ribbon')
+    fireEvent.change(within(dialog).getByLabelText('Color palette'), { target: { value: 'ocean' } })
+
+    expect(paintsOcean(ribbonPane()), 'the pane ignored its own Customize').toBe(true)
+    for (const other of panes().slice(1)) expect(paintsOcean(other)).toBe(false)
+  })
+
+  it('changes which metrics a pane draws, from inside the pane', () => {
+    // The palette assertion above cannot see this: a pane handed the wrong
+    // metric set still paints in the right colours.
+    seedRibbonPane()
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    const vixCells = () => panes()[0].querySelectorAll('[data-testid^="ribbon-cell-vix-"]')
+    expect(vixCells().length).toBeGreaterThan(0)
+
+    const dialog = openPanePanel(0)
+    const vixRow = [...dialog.querySelectorAll('label')].find(l => l.textContent === 'VIX')
+    fireEvent.click(vixRow.querySelector('input'))
+    expect(vixCells()).toHaveLength(0)
+    // …and the metric it was not asked about is untouched.
+    expect(panes()[0].querySelectorAll('[data-testid^="ribbon-cell-pct_above_50sma-"]').length)
+      .toBeGreaterThan(0)
+  })
+
+  it('writes it to the STYLE’s preset, so Single mode opens on the same thing', () => {
+    // ⛔ The point of per-style options: a pane edit is not pane-local scratch.
+    seedRibbonPane()
+    const { container } = render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    const dialog = openPanePanel(0)
+    fireEvent.change(within(dialog).getByLabelText('Color palette'), { target: { value: 'ocean' } })
+
+    fireEvent.click(screen.getByTestId('layout-single'))
+    const switcher = within(screen.getByRole('group', { name: 'Visualization style' }))
+    fireEvent.click(switcher.getByRole('button', { name: 'Heat Ribbon' }))
+    expect(screen.getByTestId('ribbon-basis'), 'Single is not showing the ribbon').toBeTruthy()
+    expect(paintsOcean(container)).toBe(true)
   })
 })
 

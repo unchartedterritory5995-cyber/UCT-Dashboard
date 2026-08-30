@@ -85,6 +85,69 @@ describe('CompareGrid', () => {
 })
 
 /**
+ * ⭐ CUSTOMIZE, PER PANE — and asked for the same way the view bundle is.
+ *
+ * The grid learns nothing new about styles here: it calls one resolver with a
+ * style key and renders whatever came back, exactly as it does for the view.
+ */
+describe('each pane carries its own Customize', () => {
+  const quad = ['clock', 'divergence', 'events', 'analogues']
+  const panelFor = (style) => ({
+    viewLabel: VIEW_CONFIG[style].label, metrics: [], optionsSchema: [], options: {},
+    activePreset: 'Default', visibleKeys: new Set(), presetNames: ['Default'],
+    isDefaultActive: true,
+    onToggleVisible: () => {}, onSetOption: () => {}, onSavePreset: () => {},
+    onRenamePreset: () => {}, onDeletePreset: () => {}, onSwitchPreset: () => {},
+    onResetActive: () => {},
+  })
+  const mount = (props = {}) => render(
+    <CompareGrid quad={quad} propsForStyle={() => lensProps}
+                 customizeForStyle={panelFor} onPick={() => {}} {...props} />)
+
+  it('asks the caller for a panel ONCE PER PANE, by that pane’s style', () => {
+    const customizeForStyle = vi.fn(panelFor)
+    mount({ customizeForStyle })
+    expect(customizeForStyle.mock.calls.map(c => c[0])).toEqual(quad)
+  })
+
+  it('opens the panel for the pane’s OWN style, one at a time', () => {
+    mount()
+    fireEvent.click(screen.getByTestId('compare-customize-1'))
+    expect(screen.getByRole('dialog', { name: 'Customize Divergence' })).toBeTruthy()
+    expect(screen.queryAllByRole('dialog')).toHaveLength(1)
+
+    fireEvent.click(screen.getByTestId('compare-customize-2'))
+    expect(screen.getByRole('dialog', { name: 'Customize Event Ledger' })).toBeTruthy()
+    expect(screen.queryAllByRole('dialog'),
+           'two panels at once would cover the grid they configure').toHaveLength(1)
+  })
+
+  // 🔴 A CONTROL PRESENT BUT INERT IS THE DEFECT THIS TAB HAS ALREADY FIXED
+  // TWICE. If the container has no resolver to give, the gear is not rendered at
+  // all — the same rule the style switcher follows in compare mode.
+  it('renders no gear when there is no panel to open', () => {
+    render(<CompareGrid quad={quad} propsForStyle={() => lensProps} onPick={() => {}} />)
+    expect(screen.queryByTestId('compare-customize-0')).toBeNull()
+  })
+
+  it('closes the panel when the pane changes style under it', () => {
+    // Otherwise the panel would go on editing the style the pane no longer shows.
+    mount()
+    fireEvent.click(screen.getByTestId('compare-customize-0'))
+    expect(screen.queryAllByRole('dialog')).toHaveLength(1)
+    fireEvent.change(screen.getByTestId('compare-pick-0'), { target: { value: 'radar' } })
+    expect(screen.queryAllByRole('dialog')).toHaveLength(0)
+  })
+
+  it('names the pane’s preset on the gear when it is not the default', () => {
+    render(<CompareGrid quad={quad} propsForStyle={() => lensProps} onPick={() => {}}
+                        customizeForStyle={(s) => ({ ...panelFor(s),
+                          activePreset: 'Sea', isDefaultActive: false })} />)
+    expect(screen.getByTestId('compare-customize-0').textContent).toContain('Sea')
+  })
+})
+
+/**
  * ⭐ THE CONTROL BEHIND THE RULING — why the quad is a set.
  *
  * `BreadthViews.compare.test.jsx` asserts that four panes never produce a

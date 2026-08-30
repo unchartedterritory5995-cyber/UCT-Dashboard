@@ -73,8 +73,10 @@ describe('BreadthViews with a provisional row', () => {
     render(<BreadthViews rows={makeRows()} onDrill={vi.fn()} liveStamp="1:44 PM" />)
     expect(screen.getByTestId('cursor-live').textContent).toMatch(/LIVE · 1:44 PM/)
     expect(screen.queryByTestId('cursor-date')).not.toBeInTheDocument()
-    // …and the one other place the session is named marks it provisional too.
-    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-05 · live')
+    // …and the scrubber, which no longer prints the date beside it, still
+    // carries the provisional marking on the control the reader drags.
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext'))
+      .toBe('2026-08-05 · live')
   })
 
   it('shows the plain date once the cursor moves to a settled day', async () => {
@@ -82,7 +84,7 @@ describe('BreadthViews with a provisional row', () => {
     await userEvent.click(screen.getByLabelText('Previous day'))
     expect(screen.getByTestId('cursor-date').textContent).toBe('2026-08-04')
     expect(screen.queryByTestId('cursor-live')).not.toBeInTheDocument()
-    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-04')
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext')).toBe('2026-08-04')
   })
 
   it('offers a live-measured tile on the live row and drills it', async () => {

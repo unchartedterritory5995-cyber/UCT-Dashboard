@@ -53,17 +53,33 @@ describe('the slider reads oldest → newest, left → right', () => {
     expect(onSeek).toHaveBeenCalledWith(3)
   })
 
-  it('names the session it sits on', () => {
+  /**
+   * 🔴 THIS CONTROL USED TO PRINT THE SESSION DATE, and so did the header
+   * cluster one row above it — two copies of the same value, the louder of them
+   * on the secondary control. The date is stated once now, in the header, and
+   * this control states the fact the header cannot: WHERE in the window it sits.
+   *
+   * ⛔ The date is demoted, not dropped. It rides on the slider, so a screen
+   * reader announces it on every step and a pointer finds it on hover — and the
+   * assertions below read that value, which is not a weaker claim than reading a
+   * span: it is the same string, from the control the user is dragging.
+   */
+  it('states its position in the window, and names the session on the slider', () => {
     mount({ rowIdx: 2 })
-    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-23')
     expect(screen.getByTestId('scrubber-position').textContent).toBe('3 of 5')
+    const range = screen.getByTestId('scrubber-range')
+    expect(range.getAttribute('aria-valuetext')).toBe('2026-08-23')
+    expect(range.getAttribute('title')).toBe('2026-08-23')
+    // …and it is not printed a second time in this row.
+    expect(screen.getByTestId('scrubber').textContent).not.toContain('2026-08-23')
   })
 
   it('marks a provisional row as provisional rather than as a finished day', () => {
     const live = [{ date: '2026-08-26', _live: true }, ...rows]
     render(<BreadthScrubber rows={live} rowIdx={0} playing={false}
                             onSeek={() => {}} onStep={() => {}} onPlayingChange={() => {}} />)
-    expect(screen.getByTestId('scrubber-date').textContent).toBe('2026-08-26 · live')
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext'))
+      .toBe('2026-08-26 · live')
   })
 })
 

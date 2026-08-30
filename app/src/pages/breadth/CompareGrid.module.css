@@ -12,6 +12,10 @@
   padding: 0 4px 4px;
 }
 
+/* ⛔ `overflow: visible`, deliberately: the pane's Customize panel is anchored
+   in the header and would be clipped away by a pane that hides its overflow.
+   The pane's own content is still contained — `.body` scrolls and clips — so
+   the only thing allowed out is the panel. */
 .pane {
   display: flex;
   flex-direction: column;
@@ -20,7 +24,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: #0b0f14;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .head {
@@ -45,10 +49,39 @@
 }
 .pick:hover { border-color: #c9a84c; color: #e8e8ea; }
 
+.gearAnchor {
+  margin-left: auto;
+}
+
+.gear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0e131a;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.gear:hover { border-color: #c9a84c; color: #e8e8ea; }
+.gear[aria-expanded='true'] { border-color: #c9a84c; color: #c9a84c; }
+
+.gearPreset {
+  font: 700 9px 'Instrument Sans', sans-serif;
+  letter-spacing: 0.3px;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  border-radius: 0 0 7px 7px;
 }
 
 @media (max-width: 640px) {

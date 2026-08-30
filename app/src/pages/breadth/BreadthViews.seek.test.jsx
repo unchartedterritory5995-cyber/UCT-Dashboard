@@ -46,7 +46,7 @@ describe('a date on screen moves the cursor', () => {
     fireEvent.click(cell)
     expect(cursorDate()).toBe(target)
     // …and the scrubber, which reads the same cursor, followed.
-    expect(screen.getByTestId('scrubber-date').textContent).toBe(target)
+    expect(screen.getByTestId('scrubber-range').getAttribute('aria-valuetext')).toBe(target)
   })
 
   it('clicking a Regime Clock trail dot seeks to that session', () => {

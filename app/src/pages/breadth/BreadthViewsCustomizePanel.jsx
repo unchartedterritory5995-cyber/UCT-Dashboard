@@ -30,6 +30,10 @@ export default function BreadthViewsCustomizePanel({
   viewLabel, metrics, optionsSchema, options, activePreset, visibleKeys, presetNames,
   isDefaultActive, onToggleVisible, onSetOption, onSavePreset, onRenamePreset,
   onDeletePreset, onSwitchPreset, onResetActive, onClose,
+  // `'down'` (the default) drops the panel below its trigger; `'up'` lifts it
+  // above. Compare mode's bottom-row panes need the second — a 340px panel
+  // hanging off a header that already sits low would open off the screen.
+  placement = 'down',
 }) {
   // Modes: null | 'saveAs' | 'rename' | 'delete' | 'savePromptFromDefault'
   const [mode, setMode] = useState(null)
@@ -81,7 +85,8 @@ export default function BreadthViewsCustomizePanel({
   const grouped = groupMetrics(metrics)
 
   return (
-    <div className={styles.panel} ref={panelRef} role="dialog" aria-label={`Customize ${viewLabel}`}>
+    <div className={`${styles.panel} ${placement === 'up' ? styles.panelUp : ''}`}
+         ref={panelRef} role="dialog" aria-label={`Customize ${viewLabel}`}>
       <div className={styles.header}>
         <h2 className={styles.title}>Customize {viewLabel}</h2>
         <button className={styles.xBtn} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>

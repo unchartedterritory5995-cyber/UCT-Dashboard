@@ -35,6 +35,24 @@ const emptyState = () => ({
   layout: DEFAULT_LAYOUT, compare: defaultQuad(),
 })
 
+/**
+ * Which view a mutation lands on. Every mutator takes an OPTIONAL trailing style
+ * and falls back to the ACTIVE one, so every existing call site is unchanged and
+ * a compare pane can name its own. It resolves against `prev` inside the
+ * updater, never against a captured `viewStyle`, because the active style can
+ * move between a click and the state settling.
+ *
+ * ⛔ BOTH LIVE AT MODULE SCOPE. They are pure functions of their arguments, and
+ * a copy re-created per render would have to be listed in every mutator's
+ * dependency array to satisfy `react-hooks/exhaustive-deps` — turning eight
+ * stable callbacks into eight that change on every render.
+ */
+const targetStyle = (prev, style) => (isStyle(style) ? style : prev.viewStyle)
+const patchView = (prev, style, fn) => {
+  const s = targetStyle(prev, style)
+  return { ...prev, byView: { ...prev.byView, [s]: fn(prev.byView[s]) } }
+}
+
 export function validatePresetName(name, existingNames) {
   const trimmed = (name ?? '').trim()
   if (!trimmed) return 'Name cannot be empty.'
@@ -224,8 +242,37 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
   }, [loading, prefs, setPref])
 
   const viewStyle = state.viewStyle
-  const view = state.byView[viewStyle] ?? { activePreset: DEFAULT_PRESET, presets: {} }
-  const activePreset = view.activePreset
+  const viewOf = useCallback(
+    (style) => state.byView[style] ?? { activePreset: DEFAULT_PRESET, presets: {} },
+    [state.byView],
+  )
+  /**
+   * ⭐ EVERY READ AND EVERY MUTATOR TAKES A STYLE NOW, AND THE ACTIVE-STYLE
+   * VALUES ARE DERIVED FROM THEM.
+   *
+   * Compare mode's Customize panel was hidden because this hook could only ever
+   * edit `state.viewStyle` — four panes, one editable style, so the honest thing
+   * was to show nothing. `visibleKeysFor` / `optionsFor` already took a style;
+   * the rest did not, and that asymmetry was the whole reason a reader in
+   * compare mode could not change a pane's options at all.
+   *
+   * ⛔ THE ACTIVE STYLE IS NOT A SECOND CODE PATH. `activePreset`,
+   * `presetNames`, `eligibleMetrics` and the no-style mutator calls all resolve
+   * through the same per-style function, so a pane and the single view can never
+   * disagree about what a style's preset says — the property `visibleKeysFor`
+   * was introduced for, extended to the half that writes.
+   */
+  const activePresetFor = useCallback((style) => viewOf(style).activePreset, [viewOf])
+  const presetNamesFor = useCallback(
+    (style) => [DEFAULT_PRESET, ...Object.keys(viewOf(style).presets).sort((a, b) => a.localeCompare(b))],
+    [viewOf],
+  )
+  const eligibleMetricsFor = useCallback(
+    (style) => (isStyle(style) ? VIEW_CONFIG[style].eligibleKeys(allMetrics).filter(m => !m.isHeader) : []),
+    [allMetrics],
+  )
+
+  const activePreset = activePresetFor(viewStyle)
   const isDefaultActive = activePreset === DEFAULT_PRESET
 
   /**
@@ -263,21 +310,13 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
   const visibleKeys = useMemo(() => visibleKeysFor(viewStyle), [visibleKeysFor, viewStyle])
   const options = useMemo(() => optionsFor(viewStyle), [optionsFor, viewStyle])
 
-  const presetNames = useMemo(
-    () => [DEFAULT_PRESET, ...Object.keys(view.presets).sort((a, b) => a.localeCompare(b))],
-    [view.presets],
-  )
+  const presetNames = useMemo(() => presetNamesFor(viewStyle), [presetNamesFor, viewStyle])
 
   const eligibleMetrics = useCallback(
-    () => VIEW_CONFIG[viewStyle].eligibleKeys(allMetrics).filter(m => !m.isHeader),
-    [viewStyle, allMetrics],
+    () => eligibleMetricsFor(viewStyle), [eligibleMetricsFor, viewStyle],
   )
 
-  // --- mutators (all operate on the ACTIVE view) ---
-  const patchView = (prev, fn) => ({
-    ...prev,
-    byView: { ...prev.byView, [prev.viewStyle]: fn(prev.byView[prev.viewStyle]) },
-  })
+  // --- mutators (see `targetStyle` / `patchView` at the top of this file) ---
 
   const setViewStyle = useCallback((style) => {
     if (!isStyle(style)) return
@@ -301,12 +340,13 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
   // Resolve a preset's current visible array (used when an edit materializes a
   // migrated `hidden` preset into an explicit `visible` one). Editing Default is
   // blocked by the callers, so this only runs for custom presets.
-  const materializeActive = (prev) => {
-    const v = prev.byView[prev.viewStyle]
+  const materializeFor = (prev, style) => {
+    const s = targetStyle(prev, style)
+    const v = prev.byView[s]
     // Saving / editing from Default starts from the view's curated default set,
     // not the full eligible board.
-    if (v.activePreset === DEFAULT_PRESET) return [...resolveDefaultVisible(prev.viewStyle, allMetrics)]
-    const eligible = new Set(VIEW_CONFIG[prev.viewStyle].eligibleKeys(allMetrics).map(m => m.key))
+    if (v.activePreset === DEFAULT_PRESET) return [...resolveDefaultVisible(s, allMetrics)]
+    const eligible = new Set(VIEW_CONFIG[s].eligibleKeys(allMetrics).map(m => m.key))
     const p = v.presets[v.activePreset]
     if (!p) return [...eligible]
     if (p.visible) return p.visible.filter(k => eligible.has(k))
@@ -314,12 +354,12 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     return [...eligible].filter(k => !hidden.has(k))
   }
 
-  const toggleVisible = useCallback((key) => {
+  const toggleVisible = useCallback((key, style) => {
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (v.activePreset === DEFAULT_PRESET) return prev  // immutable
-      return patchView(prev, (vv) => {
-        const cur = new Set(materializeActive(prev))
+      return patchView(prev, style, (vv) => {
+        const cur = new Set(materializeFor(prev, style))
         cur.has(key) ? cur.delete(key) : cur.add(key)
         const p = vv.presets[vv.activePreset]
         return {
@@ -330,41 +370,41 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     })
   }, [allMetrics])
 
-  const setOption = useCallback((name, value) => {
+  const setOption = useCallback((name, value, style) => {
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (v.activePreset === DEFAULT_PRESET) return prev
-      return patchView(prev, (vv) => {
+      return patchView(prev, style, (vv) => {
         const p = vv.presets[vv.activePreset]
         return {
           ...vv,
-          presets: { ...vv.presets, [vv.activePreset]: { visible: materializeActive(prev), options: { ...(p.options ?? {}), [name]: value } } },
+          presets: { ...vv.presets, [vv.activePreset]: { visible: materializeFor(prev, style), options: { ...(p.options ?? {}), [name]: value } } },
         }
       })
     })
   }, [allMetrics])
 
-  const savePreset = useCallback((name) => {
+  const savePreset = useCallback((name, style) => {
     const trimmed = (name ?? '').trim()
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (validatePresetName(trimmed, Object.keys(v.presets))) return prev
-      const visible = materializeActive(prev)
+      const visible = materializeFor(prev, style)
       const options = v.activePreset === DEFAULT_PRESET ? {} : { ...(v.presets[v.activePreset]?.options ?? {}) }
-      return patchView(prev, (vv) => ({
+      return patchView(prev, style, (vv) => ({
         activePreset: trimmed,
         presets: { ...vv.presets, [trimmed]: { visible, options } },
       }))
     })
   }, [allMetrics])
 
-  const renamePreset = useCallback((oldName, newName) => {
+  const renamePreset = useCallback((oldName, newName, style) => {
     const trimmed = (newName ?? '').trim()
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (!v.presets[oldName]) return prev
       if (validatePresetName(trimmed, Object.keys(v.presets).filter(n => n !== oldName))) return prev
-      return patchView(prev, (vv) => {
+      return patchView(prev, style, (vv) => {
         const next = { ...vv.presets }
         next[trimmed] = next[oldName]; delete next[oldName]
         return { activePreset: vv.activePreset === oldName ? trimmed : vv.activePreset, presets: next }
@@ -372,31 +412,32 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     })
   }, [])
 
-  const deletePreset = useCallback((name) => {
+  const deletePreset = useCallback((name, style) => {
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (!v.presets[name]) return prev
-      return patchView(prev, (vv) => {
+      return patchView(prev, style, (vv) => {
         const next = { ...vv.presets }; delete next[name]
         return { activePreset: vv.activePreset === name ? DEFAULT_PRESET : vv.activePreset, presets: next }
       })
     })
   }, [])
 
-  const switchPreset = useCallback((name) => {
+  const switchPreset = useCallback((name, style) => {
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const v = prev.byView[targetStyle(prev, style)]
       if (name !== DEFAULT_PRESET && !v.presets[name]) return prev
-      return patchView(prev, (vv) => ({ ...vv, activePreset: name }))
+      return patchView(prev, style, (vv) => ({ ...vv, activePreset: name }))
     })
   }, [])
 
-  const resetActive = useCallback(() => {
+  const resetActive = useCallback((style) => {
     setState(prev => {
-      const v = prev.byView[prev.viewStyle]
+      const s = targetStyle(prev, style)
+      const v = prev.byView[s]
       if (v.activePreset === DEFAULT_PRESET) return prev
-      const visible = [...resolveDefaultVisible(prev.viewStyle, allMetrics)]
-      return patchView(prev, (vv) => ({
+      const visible = [...resolveDefaultVisible(s, allMetrics)]
+      return patchView(prev, style, (vv) => ({
         ...vv,
         presets: { ...vv.presets, [vv.activePreset]: { visible, options: {} } },
       }))
@@ -409,6 +450,7 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     renamePreset, deletePreset, switchPreset, resetActive,
     // compare mode (spec §3)
     layout: state.layout, compareQuad: state.compare, setLayout, setComparePane,
-    visibleKeysFor, optionsFor,
+    // per-style resolvers — the reads a pane needs, beside the writes it needs
+    visibleKeysFor, optionsFor, activePresetFor, presetNamesFor, eligibleMetricsFor,
   }
 }
