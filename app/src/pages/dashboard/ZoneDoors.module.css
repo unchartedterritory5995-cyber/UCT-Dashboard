@@ -1,0 +1,11 @@
+/* app/src/pages/dashboard/ZoneDoors.module.css
+ * Canonical breakpoints only (1024 / 640) — see CLAUDE.md's Responsive/Mobile System.
+ */
+.doors { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-sm); max-height: 90px; }
+.door { display: flex; flex-direction: column; gap: 2px; justify-content: center; min-height: var(--tap-min); padding: 10px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--text-bright); text-decoration: none; }
+.door:hover { border-color: var(--accent); }
+.icon { color: var(--ut-gold, #dcbb5e); }
+.label { font-size: 12px; font-weight: 600; }
+.value { font-family: var(--font-mono); font-size: 15px; color: var(--ut-gold, #dcbb5e); }
+@media (max-width: 1024px) { .doors { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: none; } }
+@media (max-width: 640px) { .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
