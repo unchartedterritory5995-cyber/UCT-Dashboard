@@ -1,6 +1,6 @@
 /** TradeReplay — bar reveal, marker gating, running-P&L math. */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import TradeReplay from './TradeReplay'
 
 const setMarkers = vi.fn()
@@ -49,6 +49,28 @@ describe('TradeReplay', () => {
   it('markers appear only once playback REACHES entry/exit; P&L is side-aware', async () => {
     render(<TradeReplay trade={TRADE} onClose={() => {}} />)
     const scrub = await screen.findByLabelText('Replay position')
+
+    // ⚰️⚰️ THIS TEST WAS FLAKY UNDER FULL-SUITE LOAD — ~1 run in 5, green 8/8 in
+    // isolation — and the cause was this line running too early, not anything
+    // about markers. DIAGNOSED FROM THE FAILING DOM rather than guessed: it read
+    // `Waiting…` (so idx === 0) AND `❮❮ Pause` (so playing === true). A scrub
+    // sets playing FALSE, so the state on screen could not be the scrub's — it is
+    // the mount sequence's. The chart-creation effect ends with
+    // `setIdx(0); setPlaying(true)`, and `{bars && …}` renders the slider in the
+    // SAME commit that sets `bars`, so `findByLabelText` can resolve BEFORE that
+    // effect has run. Scrubbing then, and the effect landing after, wipes it.
+    //
+    // ⭐ SO THE FIX IS TO WAIT FOR THE COMPONENT TO BE READY, and `setMarkers`
+    // having been called is the proof: `markersRef` is created by that very
+    // effect, so a single call cannot have happened before it ran. Its deps are
+    // stable, so it never runs again — after this line the scrub is the last word.
+    //
+    // ⛔ AND IT IS A TEST FIX, NOT A COMPONENT ONE. The component is right to
+    // start playing on mount; what was wrong was asserting on a state the mount
+    // was still entitled to overwrite. Changing the component to satisfy this
+    // test would have been the wrong repair to a correctly-diagnosed race.
+    await waitFor(() => expect(setMarkers).toHaveBeenCalled())
+
     // Scrub to just the first (pre-entry) bar → no markers, "Before entry".
     act(() => { fireEvent.change(scrub, { target: { value: '1' } }) })
     expect(setMarkers).toHaveBeenLastCalledWith([])
