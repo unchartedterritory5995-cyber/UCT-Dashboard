@@ -1,0 +1,31 @@
+/**
+ * The ledger row's column track — the only part of this lens that is not an
+ * inline style, because it is the only part that has to change with the
+ * VIEWPORT rather than with the box.
+ *
+ * 🔴 FIVE COLUMNS DO NOT FIT A PHONE. Measured at 390px in Chromium: the row is
+ * 354px wide and the five tracks resolve to 7 / 104 / 110 / 58 / 27 — the note
+ * gets twenty-seven pixels, which renders as `The…` `10-…` `Ne…`. That is not a
+ * narrow column, it is a column that says nothing while taking the width the
+ * status and the label needed.
+ *
+ * ⛔ SO THE NOTE IS THE ONE THAT GOES, AND NOT THE BASIS. The note is the
+ * threshold's WORDING; the `PCTILE` / `FORMULA` / `TIER` / `COLLECTED` chip is
+ * its PROVENANCE, and provenance is what every lens on this tab is required to
+ * state. The chip stays, the window/since line above stays, and the full note
+ * stays on the row's `title`. Dropping the chip to keep three characters of the
+ * sentence would have traded the claim for its decoration.
+ */
+.row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 7px minmax(104px, 1.3fr) minmax(110px, 1.5fr) 58px minmax(0, 2.4fr);
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 7px minmax(88px, 1.4fr) minmax(96px, 1.6fr) 54px;
+  }
+  .note { display: none; }
+}

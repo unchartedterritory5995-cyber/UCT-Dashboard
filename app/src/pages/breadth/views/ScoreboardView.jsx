@@ -3,7 +3,7 @@
  * history (color = up/down vs the window start). Signal of the Day card has a
  * gold ★ + border; the notable card pulses.
  */
-import { metricValue, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricValue, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 import signalStyles from './signals.module.css'
@@ -72,9 +72,7 @@ export default function ScoreboardView({
           const sp = buildSpark(asc.map((r, i) => ({ v: metricValue(m, r), i })),
                                 m.polarity, colors.bull, colors.bear)
           return (
-            <div key={m.key} onClick={clickable ? () => onDrill(m) : undefined}
-                 role={clickable ? 'button' : undefined}
-                 aria-label={clickable ? `${m.label} details` : undefined}
+            <div key={m.key} {...drillProps(m, onDrill)}
                  className={isNotable ? signalStyles.pulse : undefined}
                  style={{ background: '#0e131a', borderRadius: 8, padding: pad,
                           border: isSignal ? '1px solid #c9a84c' : '1px solid rgba(255,255,255,0.05)',

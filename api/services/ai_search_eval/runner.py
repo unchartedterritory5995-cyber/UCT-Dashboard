@@ -208,8 +208,17 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
             res = {"answer": "", "error": f"harness: {type(e).__name__}"}
         elapsed = round(time.time() - t0, 1)
 
+        q_for_checks = q
+        if lane != "agent" and "fast_lane_tools" in q:
+            # A correct refusal fires no packs: the fast lane resolves no symbol
+            # for an unknown ticker or a private company, so `must_call_tools` is
+            # agent-shaped for those two questions — the AGENT can call get_quote
+            # and be TOLD the ticker is unknown. A gate no correct answer can
+            # satisfy is a broken gate, not a bar. Deliberately narrow: only two
+            # questions carry the key, and a rail pins that.
+            q_for_checks = dict(q, must_call_tools=q["fast_lane_tools"])
         transcript = {"answer": res.get("answer") or "",
-                      "fired_tools": capture, "question": q}
+                      "fired_tools": capture, "question": q_for_checks}
         mech = checks.run_mechanical_checks(transcript)
         gate_pass = mech["tool_gate_pass"]
         # A web-sourced price cannot appear in a tool result in this lane
@@ -354,6 +363,19 @@ _DESK_CANARY = "what is NVDA trading at right now"
 _DESK_CANARY_EXPECT = ("quote",)
 
 
+# One probe per pack the golden set can require. Each question is phrased to
+# trip that pack's OWN intent gate, so a regressed gate reports the pack as cold
+# — which is the truth from the exam's point of view either way.
+_PACK_PROBES = {
+    "quote":      _DESK_CANARY,
+    "movers":     "what are the biggest gainers on the tape right now",
+    "flow":       "what is the options flow saying on TSLA today",
+    "breadth":    "what is market breadth telling us right now",
+    "candidates": "what is on the scanner today",
+    "playbook":   "how does the desk trade a high tight flag",
+}
+
+
 def fast_lane_desk_readiness(question: str | None = None) -> dict:
     """Is the desk actually warm enough to grade the fast lane?
 
@@ -368,16 +390,23 @@ def fast_lane_desk_readiness(question: str | None = None) -> dict:
     desk is cold" is unactionable while "quote never fired" is a next step.
     """
     from api.routers import ai_search as router
-    q = question or _DESK_CANARY
-    try:
-        _system, _salt, meta = router._grounded_system(q)
-        sources = list(meta.get("grounding_sources") or [])
-        err = None
-    except Exception as e:                      # a probe fault is COLD, never warm
-        sources, err = [], f"{type(e).__name__}: {e}"
+    probes = {"quote": question} if question else dict(_PACK_PROBES)
+    sources: set[str] = set()
+    cold: list[str] = []
+    err = None
+    for pack, q in probes.items():
+        try:
+            _system, _salt, meta = router._grounded_system(q)
+            got = set(meta.get("grounding_sources") or [])
+        except Exception as e:                  # a probe fault is COLD, never warm
+            got, err = set(), f"{type(e).__name__}: {e}"
+        sources |= got
+        if pack not in got:
+            cold.append(pack)
     missing = [p for p in _DESK_CANARY_EXPECT if p not in sources]
-    return {"warm": not missing and err is None, "sources": sources,
-            "missing": missing, "question": q, "error": err}
+    return {"warm": not missing and err is None, "sources": sorted(sources),
+            "missing": missing, "cold_packs": cold,
+            "question": question or "pack sweep", "error": err}
 
 
 def run_grounding_audit(*, rungs: list[int] | None = None,

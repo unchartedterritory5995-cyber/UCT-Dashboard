@@ -70,6 +70,41 @@ describe('reading the link', () => {
   })
 })
 
+/**
+ * ⛔ THE LINK IS AN ENTRY CONDITION — Back does not re-apply it, deliberately.
+ *
+ * This rail exists so the non-behaviour is a DECISION with a name rather than
+ * an omission nobody wrote down. The reasoning is in the header of
+ * `useBreadthUrlState.js`: every write REPLACES (there are no intra-page
+ * entries to go back to), and a live read of the query beside a debounced
+ * writer turns each settled write into new input — the cursor would fight its
+ * own URL 300ms after every step of playback.
+ *
+ * If a future change makes history navigation re-apply the link, THIS goes red,
+ * and whoever makes it has to state the trade rather than discover it later as
+ * a scrubber that jumps.
+ */
+describe('the link is an ENTRY condition, not a live input', () => {
+  it('does not re-read the query when the URL changes underneath it', () => {
+    const { spies } = mountAt('?view=clock&days=90')
+    expect(api().initial).toMatchObject({ view: 'clock', days: 90 })
+
+    // A history navigation, exactly as Back performs one.
+    act(() => {
+      window.history.replaceState({}, '', '/breadth?view=radar&days=365')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+
+    expect(api().initial,
+      'the hook started tracking the query — read the Back decision in its header')
+      .toMatchObject({ view: 'clock', days: 90 })
+    // ⛔ CONTROL: the probe can see a URL change at all, so the assertion above
+    // is not passing because nothing happened.
+    expect(search()).toContain('view=radar')
+    expect(urlWrites(spies.push), 'a write pushed an entry Back could land on').toHaveLength(0)
+  })
+})
+
 describe('writing the link', () => {
   it('REPLACES — one history entry, however many times state moves', () => {
     const { spies } = mountAt('?view=clock')

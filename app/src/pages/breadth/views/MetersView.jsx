@@ -3,7 +3,7 @@
  * track with 30/70 reference ticks. Marker color = metricColor (tier-driven).
  * The Signal of the Day gets a gold ★ label; the notable divergence pulses.
  */
-import { metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricColor, sortVisibleMetrics, resolveViewColors } from './breadthViewShared'
 import signalStyles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -23,9 +23,7 @@ export default function MetersView({ currentRow, metrics, normalize, onDrill, si
         const isNotable = m.key === notableKey
         return (
           <div key={m.key}
-               role={clickable ? 'button' : undefined}
-               aria-label={clickable ? `${m.label} details` : undefined}
-               onClick={clickable ? () => onDrill(m) : undefined}
+               {...drillProps(m, onDrill)}
                style={{ display: 'grid', gridTemplateColumns: '84px 1fr 52px',
                         alignItems: 'center', gap: 10, cursor: clickable ? 'pointer' : 'default' }}>
             <span style={{ font: '700 9px Instrument Sans, sans-serif', letterSpacing: '.5px',

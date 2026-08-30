@@ -88,8 +88,26 @@
   .grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
-    grid-auto-rows: minmax(220px, auto);
+    /* 🔴 THE FLOOR IS THE HEADER PLUS THE SMALLEST BODY A LENS STILL READS IN,
+       and it moved when the header did. This was 220px against a 31px header,
+       leaving 189px of body — measured in Chromium at 390px, the Regime Clock's
+       axis labels start colliding below exactly that. Raising the pane picker
+       and its gear to the 44px tap minimum grew the header to 53px and silently
+       took 24px off every pane's body, so the clock rendered its momentum scale
+       as one smear of digits. 53 + 189 + slack. */
+    grid-auto-rows: minmax(244px, auto);
     height: auto;
     overflow-y: auto;
   }
+}
+
+/* ⛔ PHONE tap targets — the pane picker and its gear are 22px tall, and in
+   one-column compare they are the only per-pane controls there are. */
+@media (max-width: 640px) {
+  .pick,
+  .gear {
+    height: auto;
+    min-height: var(--tap-min, 44px);
+  }
+  .gear { min-width: var(--tap-min, 44px); justify-content: center; }
 }

@@ -1,7 +1,7 @@
 // app/src/pages/breadth/views/viewMetricConfig.test.js
 import { describe, it, expect } from 'vitest'
 import {
-  VIEW_CONFIG, STYLES, isPairMetric, resolveDefaultVisible, optionDefaults, optionsSchema,
+  VIEW_CONFIG, STYLES, isPairMetric, resolveDefaultVisible, optionDefaults,
 } from './viewMetricConfig'
 import { PAIRS } from './breadthViewShared'
 

@@ -188,9 +188,18 @@ export default function DailyOverview({ rows, live, cols, phaseClassFn, onDrill 
     [rows, session.date, today],
   )
 
-  const heroChoices = HERO_METRICS.filter(m => (session.path?.[m.key]?.length ?? 0) >= 2)
+  // Memoized so `active` is a value the compiler can see is never mutated —
+  // `geom` below depends on it, and a freshly-filtered array read as "may be
+  // modified later", which made the whole component bail out of optimization.
+  const heroChoices = useMemo(
+    () => HERO_METRICS.filter(m => (session.path?.[m.key]?.length ?? 0) >= 2),
+    [session.path],
+  )
   const [heroKey, setHeroKey] = useState(HERO_METRICS[0].key)
-  const active = heroChoices.find(m => m.key === heroKey) ?? heroChoices[0] ?? null
+  const active = useMemo(
+    () => heroChoices.find(m => m.key === heroKey) ?? heroChoices[0] ?? null,
+    [heroChoices, heroKey],
+  )
 
   const storedRows = useMemo(() => rows?.filter(r => !r._live) ?? [], [rows])
   const geom = useMemo(() => {

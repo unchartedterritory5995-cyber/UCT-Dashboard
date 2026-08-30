@@ -4,7 +4,7 @@
  * dimension. Signal of the Day row label is gold ★; notable pulses.
  */
 import { Fragment } from 'react'
-import { metricColor, resolveViewColors } from './breadthViewShared'
+import { drillProps, metricColor, resolveViewColors } from './breadthViewShared'
 import useHoverReadout from './useHoverReadout'
 import HoverReadout from './HoverReadout'
 import UIcon from '../../../components/ui/UIcon'
@@ -54,9 +54,7 @@ export default function TimelineView({
           const clickable = !!m.drillKey
           return (
             <Fragment key={m.key}>
-              <div onClick={clickable ? () => onDrill(m) : undefined}
-                   role={clickable ? 'button' : undefined}
-                   aria-label={clickable ? `${m.label} details` : undefined}
+              <div {...drillProps(m, onDrill)}
                    className={isNotable ? signalStyles.pulse : undefined}
                    style={{ font: '700 9px Instrument Sans, sans-serif', textTransform: 'uppercase',
                             letterSpacing: '.3px', color: isSignal ? '#c9a84c' : '#94a3b8',

@@ -135,6 +135,128 @@ describe('one cursor, one window, one scrubber', () => {
     fireEvent.keyDown(window, { key: 'ArrowLeft' })
     expect(screen.getByTestId('cursor-date').textContent).toBe(rows[1].date)
   })
+
+  /**
+   * 🔴 IN A REAL BROWSER THE ARROWS WERE DESTRUCTIVE IN COMPARE AND NOWHERE
+   * ELSE, and the test above could not see it: it fires on `window` with
+   * nothing focused, which is the one case that always worked.
+   *
+   * With a pane's style `<select>` focused — where a reader who has just picked
+   * a lens is standing — the press moved the cursor AND walked that pane to a
+   * different lens, four presses walking it four lenses back. Two unrelated
+   * things from one key, one of them invisible until the board had rearranged.
+   *
+   * The ruling: a control that natively owns the arrow keys keeps them, in
+   * BOTH layouts, and the cursor stands still. Nothing else on the tab may see
+   * a press the cursor took.
+   */
+  it('a pane picker keeps its own arrow keys, and the cursor does not move with them', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    toCompare()
+    const before = screen.getByTestId('cursor-date').textContent
+    const pick = screen.getByTestId('compare-pick-0')
+    expect(fireEvent.keyDown(pick, { key: 'ArrowLeft', cancelable: true }),
+      'the container took a key the pane picker owns').toBe(true)
+    expect(screen.getByTestId('cursor-date').textContent,
+      'the cursor moved on the same press that walks a pane picker').toBe(before)
+  })
+
+  it('claims the arrows it DOES act on, in compare exactly as in single', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    toCompare()
+    expect(fireEvent.keyDown(window, { key: 'ArrowLeft', cancelable: true }),
+      'the press was left for the page to scroll with').toBe(false)
+  })
+})
+
+/**
+ * 🔴 A LAYOUT SWITCH IS NOT A STATEMENT ABOUT TIME.
+ *
+ * Reported from the deployed page: entering Compare snapped the cursor back to
+ * the newest session and dropped `date=` from the link. Driven end to end in
+ * Chromium against this branch — with the page's own URL wiring — it does not
+ * reproduce, and these rails are why it cannot start: the whole point of one
+ * shared cursor is that it survives what you are looking at.
+ */
+describe('the cursor survives the layout, in both directions', () => {
+  const cursor = () => screen.getByTestId('cursor-date').textContent
+
+  it('keeps the session the reader scrubbed to when Compare opens', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    fireEvent.change(screen.getByTestId('scrubber-range'),
+      { target: { value: String(rows.length - 1 - 12) } })
+    expect(cursor()).toBe(rows[12].date)
+    toCompare()
+    expect(cursor(), 'entering compare moved the reader in time').toBe(rows[12].date)
+    fireEvent.click(screen.getByTestId('layout-single'))
+    expect(cursor(), 'leaving compare moved the reader in time').toBe(rows[12].date)
+  })
+
+  it('keeps reporting that session for the link across the switch', () => {
+    // ⛔ The URL half, separately: the cursor could be right on screen while the
+    // link stopped carrying it, which is what was actually reported.
+    const onUrlChange = vi.fn()
+    const last = () => onUrlChange.mock.calls[onUrlChange.mock.calls.length - 1][0]
+    render(<BreadthViews rows={rows} onDrill={() => {}}
+                         urlState={{ view: null, date: null, compare: null }}
+                         onUrlChange={onUrlChange} />)
+    fireEvent.change(screen.getByTestId('scrubber-range'),
+      { target: { value: String(rows.length - 1 - 12) } })
+    expect(last().date).toBe(rows[12].date)
+    toCompare()
+    expect(last()).toMatchObject({ date: rows[12].date, layout: 'compare' })
+    fireEvent.click(screen.getByTestId('layout-single'))
+    expect(last()).toMatchObject({ date: rows[12].date, layout: 'single' })
+  })
+
+  it('restores the single view even after the panes have been re-picked', () => {
+    // The reported symptom was landing on the FIRST board rather than the lens
+    // the reader left. Re-picking panes is what actually happened on the way
+    // there, so the rail does that rather than switching straight back.
+    const switcher = () => within(screen.getByRole('group', { name: 'Visualization style' }))
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    fireEvent.click(switcher().getByRole('button', { name: 'Regime Clock' }))
+    toCompare()
+    fireEvent.change(screen.getByTestId('compare-pick-0'), { target: { value: 'treemap' } })
+    fireEvent.change(screen.getByTestId('compare-pick-1'), { target: { value: 'radar' } })
+    fireEvent.click(screen.getByTestId('layout-single'))
+    expect(switcher().getByRole('button', { name: 'Regime Clock' }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+/**
+ * 🔴 THE GEAR COULD NOT CLOSE ITS OWN PANEL. The panel dismissed on a mousedown
+ * outside ITSELF, and the trigger sits beside it rather than within it — so the
+ * mousedown closed the panel and the click that followed re-opened it. Single
+ * mode had one of these; compare mode has five.
+ *
+ * The two halves are one rule ("outside" is the ANCHOR, not the panel), so both
+ * are pinned here: the trigger closes, and a genuine outside click still does.
+ */
+describe('a pane gear closes the panel it opened', () => {
+  const gear = (i) => screen.getByTestId(`compare-customize-${i}`)
+  const toggle = (el) => { fireEvent.mouseDown(el); fireEvent.click(el) }
+
+  it('opens on the first press and CLOSES on the second', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    toCompare()
+    toggle(gear(0))
+    expect(gear(0)).toHaveAttribute('aria-expanded', 'true')
+    toggle(gear(0))
+    expect(gear(0), 'the outside-click handler reopened the panel its trigger just closed')
+      .toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('CONTROL: a press somewhere else still dismisses it', () => {
+    // Without this the rule could be satisfied by a panel that never dismisses.
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    toCompare()
+    toggle(gear(0))
+    expect(gear(0)).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.mouseDown(screen.getByTestId('scrubber'))
+    expect(gear(0)).toHaveAttribute('aria-expanded', 'false')
+  })
 })
 
 describe('the pane picker is a view over the registry', () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
-import RegimeClockView, { quadrantOf } from './RegimeClockView'
+import RegimeClockView from './RegimeClockView'
+import { quadrantOf } from './breadthViewShared'
 import { optionsSchema } from './viewMetricConfig'
 
 const mkRows = (levels) => levels.map((v, i) => ({ date: `2026-08-${String(i + 1).padStart(2, '0')}`, pct_above_50sma: v }))

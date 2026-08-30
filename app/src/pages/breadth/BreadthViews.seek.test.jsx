@@ -86,6 +86,60 @@ describe('a date on screen moves the cursor', () => {
 })
 
 /**
+ * 🔴 THE ARROW KEYS HAVE TO CLAIM THE PRESS, AND HAVE TO LET GO OF IT.
+ *
+ * Driven in a real browser, an arrow press in COMPARE mode did two things at
+ * once: it moved the cursor AND walked a pane's style `<select>` to a different
+ * lens, because the container read the key and the focused native control read
+ * the same key. Repeated, the reader watched their board rearrange itself while
+ * they thought they were scrubbing. The press also reached the browser, which
+ * scrolls the page on an arrow.
+ *
+ * Two halves, and BOTH are needed — either alone is the bug:
+ *  · a control that natively owns the arrows (input, textarea, select,
+ *    contenteditable) keeps them, and the cursor does not move;
+ *  · everywhere else the container takes them and calls `preventDefault`, so
+ *    nothing downstream — page scroll, an ancestor handler, the tab strip —
+ *    acts on the same press.
+ */
+describe('the arrow keys, and what else sees them', () => {
+  // `fireEvent` returns false when a handler called preventDefault.
+  const press = (key, target = window) => fireEvent.keyDown(target, { key, cancelable: true })
+
+  it('claims the press it acts on, so nothing downstream sees the same arrow', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    expect(press('ArrowLeft'), 'the press was left for the browser to scroll with').toBe(false)
+    expect(cursorDate()).toBe(rows[1].date)
+  })
+
+  it('leaves a <select> its own arrows, and the cursor stands still', () => {
+    // The scrubber's speed picker is the single-mode example; a compare pane's
+    // style picker is the one that was actually destructive.
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    const select = screen.getByTestId('scrubber-speed')
+    const before = cursorDate()
+    expect(press('ArrowLeft', select), 'a native control had its key taken away').toBe(true)
+    expect(cursorDate(), 'the cursor moved on a key the select owns').toBe(before)
+  })
+
+  it('leaves a text input alone, as it always did', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    const before = cursorDate()
+    expect(press('ArrowLeft', input)).toBe(true)
+    expect(cursorDate()).toBe(before)
+    input.remove()
+  })
+
+  it('ignores keys it does not act on', () => {
+    render(<BreadthViews rows={rows} onDrill={() => {}} />)
+    expect(press('ArrowDown'), 'a key this tab does not own was swallowed').toBe(true)
+    expect(press('a')).toBe(true)
+  })
+})
+
+/**
  * 🔴 THE REFUSAL, END TO END.
  *
  * The Analogue Deck names historical sessions the server found across ALL of

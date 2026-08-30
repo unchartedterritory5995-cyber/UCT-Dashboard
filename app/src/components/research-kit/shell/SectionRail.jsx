@@ -46,6 +46,14 @@ export default function SectionRail({
   onSelect,
   idPrefix = 'rk-rail',
   ariaLabel = 'Sections',
+  // Opt-IN row tightening for a pointer:fine device. `--tap-min` (44px) is a
+  // TOUCH target floor; on a mouse it is simply oversized, and 12 sections at
+  // 44px is ~570px of rail beside a dense canvas. Default FALSE so the two
+  // other consumers of this rail — ResearchPage and CatalystFlow — keep the
+  // geometry they were designed with; only a caller that has looked at its own
+  // layout opts in. Touch keeps the full floor either way: the CSS is behind
+  // `@media (pointer: fine)`, so this prop cannot shrink a thumb target.
+  dense = false,
   className = '',
 }) {
   const list = Array.isArray(sections) ? sections : []
@@ -74,7 +82,15 @@ export default function SectionRail({
   // `links` group (§4.3) as well as the tablist, so it is a distinct landmark
   // concern from the tablist's own aria-label, not a duplicate of it.
   return (
-    <nav className={`${styles.rail} ${className}`} aria-label={ariaLabel}>
+    // `data-rk-dense` is the density's ONE authority: the CSS selects on it and
+    // a test can read it. A hashed CSS-module class name would be neither
+    // greppable nor assertable without coupling to Vite's scoping scheme —
+    // the coupling research-kit/testing/restraint.js retired for exactly this.
+    <nav
+      className={`${styles.rail} ${className}`}
+      data-rk-dense={dense || undefined}
+      aria-label={ariaLabel}
+    >
       <div className={styles.tabs} role="tablist" aria-label={ariaLabel} aria-orientation="vertical">
         {list.map((s, i) => {
           const isActive = s.id === activeId

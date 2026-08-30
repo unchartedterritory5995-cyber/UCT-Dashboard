@@ -100,3 +100,38 @@ def test_a_technical_question_does_not_claim_a_short_interest_gap(monkeypatch):
                         lambda sym: {"pct_vs_sma20": 1.0, "short_float_pct": None})
     _ctx, _salt, meta = ai._uct_context("is CVNA extended above its 20 day moving average?")
     assert "short interest" not in (meta.get("grounding_gaps") or []), meta
+
+
+# ── per-ticker packs: same silence, one layer down ──────────────────────────
+def test_a_per_ticker_pack_asked_for_and_empty_is_declared(monkeypatch):
+    """Ask for flow on TSLA, get no flow pack, and the model invents flow. The
+    market-level rule already covers breadth/movers; the per-ticker packs had
+    the identical hole."""
+    monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda sym: "")
+    ctx, _salt, meta = ai._uct_context("what is the options flow saying on TSLA today?")
+    assert "flow" in (meta.get("grounding_gaps") or []), meta
+    assert "no current data" in ctx.lower(), ctx
+
+
+def test_a_per_ticker_pack_with_data_is_not_a_gap(monkeypatch):
+    """CONTROL — the discriminating half."""
+    monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda sym: "TSLA flow: heavy call buying")
+    _ctx, _salt, meta = ai._uct_context("what is the options flow saying on TSLA today?")
+    assert "flow" not in (meta.get("grounding_gaps") or []), meta
+
+
+def test_a_per_ticker_pack_nobody_asked_for_is_not_declared(monkeypatch):
+    """CONTROL — the load-bearing half, same as the market-level rule: only
+    packs the QUESTION opened may be declared missing."""
+    monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda sym: "")
+    _ctx, _salt, meta = ai._uct_context("what is TSLA trading at?")
+    assert "flow" not in (meta.get("grounding_gaps") or []), meta
+
+
+def test_one_symbol_answering_is_enough(monkeypatch):
+    """CONTROL — a two-ticker ask where ONE has data is not a gap. Declaring it
+    would tell the model the desk is empty while handing it real data."""
+    monkeypatch.setattr(ai, "_ctx_flow_ticker",
+                        lambda sym: "NVDA flow: sweeps" if sym == "NVDA" else "")
+    _ctx, _salt, meta = ai._uct_context("options flow on NVDA and TSLA today?")
+    assert "flow" not in (meta.get("grounding_gaps") or []), meta

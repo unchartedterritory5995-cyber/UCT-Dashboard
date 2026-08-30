@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react'
 import styles from './CustomizePanel.module.css'
 import UIcon from '../../components/ui/UIcon'
 import { DEFAULT_PRESET, validatePresetName } from './useBreadthViews'
+import { DISMISS_ZONE } from './customizeAnchor'
 
 function groupMetrics(metrics) {
   const seen = new Map()
@@ -43,9 +44,35 @@ export default function BreadthViewsCustomizePanel({
   const panelRef = useRef(null)
   const inputRef = useRef(null)
 
+  /**
+   * 🔴 "OUTSIDE" IS THE ANCHOR, NOT THE PANEL — and the difference was a gear
+   * that could not close its own panel.
+   *
+   * The trigger sits BESIDE this panel inside the anchor, not within it, so a
+   * mousedown on the gear read as "outside" and closed the panel; the click
+   * that followed then toggled `open` back to true on a value that was already
+   * false. The panel flickered shut and reopened, and the one control every
+   * reader reaches for to dismiss it was the one control that could not. In
+   * Single that was one gear; compare mode multiplied it to five.
+   *
+   * ⛔ THE FIX IS NOT `stopPropagation` ON THE TRIGGER. That hides the event
+   * from every other listener on the page to fix one of them, and it would have
+   * to be repeated at each of the five call sites — five copies of one rule.
+   * The anchor is a fact this panel can read off its own DOM position, so the
+   * rule lives once, here, and every call site inherits it by rendering the
+   * panel where it already renders it.
+   *
+   * The fallback is the panel itself: a caller that mounts it outside an anchor
+   * keeps exactly the old behaviour rather than losing dismissal entirely.
+   */
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
-    const onClick = (e) => { if (panelRef.current && !panelRef.current.contains(e.target)) onClose() }
+    const onClick = (e) => {
+      const el = panelRef.current
+      if (!el) return
+      const zone = el.closest(`[${DISMISS_ZONE}]`) ?? el
+      if (!zone.contains(e.target)) onClose()
+    }
     window.addEventListener('keydown', onKey)
     window.addEventListener('mousedown', onClick)
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onClick) }

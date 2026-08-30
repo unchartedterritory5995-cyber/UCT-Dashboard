@@ -1911,11 +1911,19 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         except Exception:
             pass
     if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
+        _flow_any = False
         for s in syms[:2]:
             try:
-                _add("flow", _ctx_flow_ticker(s))
+                _line = _ctx_flow_ticker(s)
             except Exception:
-                pass
+                _line = ""
+            if _line:
+                _add("flow", _line)
+                _flow_any = True
+        # Asked for flow, desk has none → say so. Silence reads to the model as
+        # "the desk didn't mention it", and it invents flow.
+        if syms and not _flow_any:
+            meta["grounding_gaps"].append("flow")
     # Per-ticker fundamentals / analyst / insider — intent-gated cached reads.
     # Resolve each fn by NAME off the live module so a test/patch is honored.
     _this = sys.modules[__name__]
@@ -1939,11 +1947,22 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         _perticker.append(("levels", "_ctx_levels"))
     for source, fn_name in _perticker:
         fn = getattr(_this, fn_name)
+        got_any = False
         for s in syms[:2]:
             try:
-                _add(source, fn(s))
+                line = fn(s)
             except Exception:
-                pass
+                line = ""
+            if line:
+                _add(source, line)
+                got_any = True
+        # Same rule as the market-level packs: a pack the QUESTION opened that
+        # comes back empty is a declared gap, not silence. ⛔ One symbol
+        # answering is enough — declaring a gap while handing over real data
+        # for the other name would tell the model the desk is empty when it is
+        # not.
+        if syms and not got_any and source not in meta["grounding_gaps"]:
+            meta["grounding_gaps"].append(source)
     # Why-is-it-moving asks with a silent tape: per-ticker news fallback so the
     # model isn't left guessing from the web alone (first symbol only).
     if meta["recency"] == "day" and syms and "tape" not in meta["grounding_sources"]:
