@@ -1262,7 +1262,7 @@ FLAT_BASE = Structure(
     axis="relation",
     family="Base Structure",
     bias="neutral",
-    rank=15,
+    rank=16,
     min_bars=FLAT_MIN_BARS,
     desc=("A tight sideways consolidation at least five weeks long that has "
           "corrected no more than 15% from its intraday high to its intraday "
@@ -1531,7 +1531,7 @@ BASE_ON_BASE = Structure(
     # renderer leads with the lower rank. At 16 it rendered as
     # "Flat Base (Base on Base)" -- the general statement leading the specific
     # one, on every symbol that had it.
-    rank=13,
+    rank=14,
     min_bars=FLAT_MIN_BARS * 2,
     desc=("A second base formed directly on a first, because the breakout from "
           "the first gained less than 20% before the market turned it back. "
@@ -1903,7 +1903,7 @@ DOUBLE_BOTTOM = Structure(
     axis="relation",
     family="Base Structure",
     bias="bullish",
-    rank=14,
+    rank=15,
     min_bars=DBL_MIN_BARS,
     desc=("A W: two down legs where the second undercuts the first, shaking "
           "out everyone who bought the first low. The pivot is ten cents "
@@ -2533,6 +2533,390 @@ VCP = Structure(
 )
 
 
+# -- Ascending Base (William J. O'Neil / IBD) -------------------------------
+# ⭐⭐ THE ONLY STRUCTURE IN THE TAXONOMY WITH NO CONFLICTS. IBD editorial, the
+# O'Neil quote inside it, MarketSmith and the base-counting column all give the
+# SAME numbers: three pullbacks, 10-20% each, 9-16 weeks. Every other base in
+# this file needed a "CONFLICT, recorded not resolved" criterion. The corpus
+# calls it "the most mechanically specifiable of all the IBD bases", and that
+# is why it is a strict alternation with monotonicity constraints rather than a
+# shape with tolerances.
+
+_IBD_ASC = "ibd_ascending_base"
+_MARKETSMITH = "marketsmith_ascending"   # O'Neil-affiliated, not IBD editorial
+
+#: "There are three healthy price pullbacks of 10% to 20%"
+ASC_PULLBACKS = 3
+ASC_MIN_PULLBACK = 0.10
+ASC_MAX_PULLBACK = 0.20
+
+#: "over a nine- to 16-week span"
+ASC_MIN_BARS = 45
+ASC_MAX_BARS = 80
+
+#: "after a stock has run up at least 20% off an earlier base" (MarketSmith,
+#: med confidence -- IBD editorial states the PLACEMENT without a number).
+ASC_PRIOR_ADVANCE = 0.20
+ASC_ADVANCE_LOOKBACK = 120
+
+#: "$0.1 higher than the high point from which the third pull back began"
+ASC_PIVOT_PAD = 0.10
+
+#: SOURCED: "up to 5% above the ideal buy point" is IBD's general buy zone, so
+#: a staircase whose price has run further than that has resolved and the label
+#: would describe the past.
+ASC_BUY_ZONE = 0.05
+
+
+def ascending_base_state(ctx) -> Optional[dict]:
+    """Three higher-low, higher-high pullbacks of 10-20%, or None.
+
+    ⛔ THE PIVOT IS THE HIGH BEFORE THE THIRD LOW, not the highest point of the
+    structure. The rule is "the high point from which the third pullback
+    began", and on a staircase that is a specific, earlier price than whatever
+    the stock reached afterwards.
+    """
+    bars = ctx.bars
+    swings = ctx.swings
+    if not bars or len(swings) < ASC_PULLBACKS * 2:
+        return None
+
+    pairs = []
+    for a, b in zip(swings, swings[1:]):
+        if a["type"] == "high" and b["type"] == "low":
+            hi, lo = a["price"], b["price"]
+            if hi > 0 and lo > 0 and lo < hi:
+                pairs.append((a, b, (hi - lo) / hi))
+    if len(pairs) < ASC_PULLBACKS:
+        return None
+
+    step = pairs[-ASC_PULLBACKS:]
+    highs = [x[0]["price"] for x in step]
+    lows = [x[1]["price"] for x in step]
+    depths = [x[2] for x in step]
+
+    # A strict staircase: every high above the last, every low above the last.
+    if not all(b > a for a, b in zip(highs, highs[1:])):
+        return None
+    if not all(b > a for a, b in zip(lows, lows[1:])):
+        return None
+    if not all(ASC_MIN_PULLBACK <= d <= ASC_MAX_PULLBACK for d in depths):
+        return None
+
+    n = len(bars)
+    start = step[0][0]["bar_index"]
+    end = step[-1][1]["bar_index"]
+    # ⛔ THE SPAN IS THE BASE'S OWN DURATION -- first high to third low -- NOT
+    # the distance from the base's start to today. Measuring to `n - 1` folds
+    # "time since the base finished" into "how long the base took", and the
+    # 9-16 week window then refuses any staircase that completed a few weeks
+    # ago. Measured: 3 symbols with the wrong span, 16 with the right one.
+    span = end - start
+    if not (ASC_MIN_BARS <= span <= ASC_MAX_BARS):
+        return None
+
+    adv = _prior_advance(bars, n - start, look=ASC_ADVANCE_LOOKBACK)
+    if (adv or 0.0) < ASC_PRIOR_ADVANCE:
+        return None
+
+    # Structural recency, the same shape as the VCP's: the staircase is intact
+    # while price holds above its third low and has not run past the published
+    # 5% buy zone above the pivot.
+    pivot = highs[-1] + ASC_PIVOT_PAD
+    last_close = bars[-1].get("c") or 0.0
+    if not (lows[-1] <= last_close <= pivot * (1.0 + ASC_BUY_ZONE)):
+        return None
+
+    return {"highs": highs, "lows": lows, "depths": depths,
+            "bars": span, "age_bars": (n - 1) - end, "prior_advance": adv,
+            "pivot": pivot}
+
+
+def _detect_ascending_base(ctx) -> bool:
+    return ascending_base_state(ctx) is not None
+
+
+ASCENDING_BASE = Structure(
+    key="ascending-base",
+    label="Ascending Base",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=13,
+    min_bars=ASC_MIN_BARS,
+    desc=("A three-step staircase midway through an advance: three pullbacks "
+          "of 10-20%, each bottoming higher than the last and each recovery "
+          "making a new high."),
+    criteria=(
+        Criterion(
+            condition="Number of pullbacks -- exactly three",
+            value=ASC_PULLBACKS,
+            quote=("There are three healthy price pullbacks of 10% to 20%, "
+                   "with each low higher than the preceding one."),
+            source_id=_IBD_ASC, confidence="high",
+        ),
+        Criterion(
+            condition="Pullback depth, each",
+            value=(ASC_MIN_PULLBACK, ASC_MAX_PULLBACK),
+            quote="three 10-20% pullbacks",
+            source_id=_MARKETSMITH, confidence="high",
+        ),
+        Criterion(
+            condition="Each low higher than the preceding one",
+            value="higher-lows",
+            quote="with each low higher than the preceding one",
+            source_id=_IBD_ASC, confidence="high",
+        ),
+        Criterion(
+            condition="Three advances to new highs, each above the last",
+            value="higher-highs",
+            quote=("The base shows three advances to new highs, with each high "
+                   "rising above the previous high."),
+            source_id=_IBD_ASC, confidence="high",
+        ),
+        Criterion(
+            condition="Base length",
+            value=(ASC_MIN_BARS, ASC_MAX_BARS),
+            quote=("Ascending bases are shaped by three pullbacks with higher "
+                   "highs and higher lows over a nine- to 16-week span."),
+            source_id=_IBD_ASC, confidence="high",
+        ),
+        Criterion(
+            condition="Placement -- midway through an advance, never a first base",
+            value=ASC_PRIOR_ADVANCE,
+            quote=("midway along a move up after a stock has run up at least "
+                   "20% off an earlier base"),
+            source_id=_MARKETSMITH, confidence="med",
+        ),
+        Criterion(
+            condition=("Pivot -- the high from which the THIRD pullback began, "
+                       "not the structure's highest point"),
+            value=ASC_PIVOT_PAD,
+            quote=("when the stock price rises $0.1 higher than the high point "
+                   "from which the third pull back began"),
+            source_id=_MARKETSMITH, confidence="med",
+        ),
+        Criterion(
+            condition=("The pullbacks are attributed to general-market "
+                       "declines. An EXPLANATION, never a required condition -- "
+                       "railing on it would over-refuse, and it needs index "
+                       "data this per-symbol detector is not given."),
+            value=None,
+            quote=("Each of the pullbacks usually occurs because the general "
+                   "market is declining at that time."),
+            source_id=_IBD_ASC, confidence="high",
+            missing=("O'Neil states it as a cause, not a criterion, so there "
+                     "is nothing to test even with index data in hand."),
+        ),
+        Criterion(
+            condition="Buy zone above the pivot",
+            value=ASC_BUY_ZONE,
+            quote="up to 5% above the ideal buy point",
+            source_id=_IBD_ASC, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐ NO CONFLICTS. Every fetched source -- IBD editorial, "
+                       "its O'Neil quote, MarketSmith and the base-counting "
+                       "column -- gives identical numbers. Unique in this "
+                       "taxonomy, and worth recording precisely because every "
+                       "neighbouring base needed a conflict criterion."),
+            value="no-conflicts",
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=0.11,
+    detect=_detect_ascending_base,
+)
+
+
+# -- Square Box (William J. O'Neil, HTMMIS 4th ed.) -------------------------
+# ⚠️ IBD publishes a dedicated column defining this base and then OMITS it from
+# its own "seven bases" list. Recorded, not reconciled.
+
+_IBD_BOX = "ibd_square_box"
+
+#: "The square box just takes four weeks to develop and does not exceed seven
+#: weeks." ⭐ THE ONLY IBD BASE WITH A PUBLISHED MAXIMUM DURATION -- every
+#: other one has a floor and no ceiling, so this is the only base you can
+#: invalidate by being too LONG.
+BOX_MIN_BARS = 20
+BOX_MAX_BARS = 35
+
+#: "With a square box, a stock corrects no more than 15%."
+BOX_MAX_DEPTH = 0.15
+
+#: "adding a dime to Deere's 79.66 high"
+BOX_PIVOT_PAD = 0.10
+
+#: OURS, and the corpus says outright that this is where the work happens:
+#: "the tilt test is what does most of the discriminating work here. Without
+#: it, this detector will fire constantly." IBD's only characterisation is a
+#: "square, boxy look" with no angle published, so the number is ours.
+#: ⛔⛔ IT IS A RATIO, NOT AN ABSOLUTE DRIFT, AND THAT MATTERS. The first
+#: version reused the flat base's absolute bound (drift <= 2/3 of the depth
+#: CEILING) and matched 46.7% of the universe -- a NOISE verdict, exactly the
+#: failure the corpus predicted. The bug is that an absolute drift is
+#: scale-DEPENDENT: 10% of price over a 4-7 week box is a visible trend, while
+#: the same 10% over a 52-week base is flat. Measuring drift against the box's
+#: OWN depth is scale-free: a box that drifts more than a third of its own
+#: height is a channel, not a box. Measured: 46.7% -> 16.8%.
+BOX_MAX_BOXINESS = 0.30
+
+#: OURS, serving a SOURCED placement rule: the square box "forms after a stock
+#: has already moved up out of an earlier base". The house states the placement
+#: and never a number, so this is ours -- and it mirrors the flat base, which
+#: needed the same gate for the same reason. Measured: 16.8% -> 5.1%.
+BOX_PRIOR_ADVANCE = 0.20
+BOX_ADVANCE_LOOKBACK = 60
+
+
+def square_box_state(bars) -> Optional[dict]:
+    """A four-to-seven week boxy consolidation ending at the last bar."""
+    n = len(bars)
+    if n < BOX_MIN_BARS:
+        return None
+    head_max = _head_max_array(bars)
+    best = None
+    for k in range(BOX_MIN_BARS, min(n, BOX_MAX_BARS) + 1):
+        w = bars[n - k:]
+        highs = [b.get("h") or 0 for b in w]
+        lows = [b.get("l") or 0 for b in w]
+        if not highs or min(lows) <= 0:
+            continue
+        hi, lo = max(highs), min(lows)
+        if hi <= 0:
+            continue
+        depth = (hi - lo) / hi
+        if depth > BOX_MAX_DEPTH or depth <= 0:
+            continue
+        drift = _base_drift_of(w)
+        if drift > BOX_MAX_BOXINESS * depth:
+            continue
+        best = {"bars": k, "high": hi, "low": lo, "depth": depth,
+                "drift": drift, "boxiness": drift / depth,
+                "prior_advance": _prior_advance(bars, k,
+                                                look=BOX_ADVANCE_LOOKBACK),
+                "pivot": hi + BOX_PIVOT_PAD}
+    return best
+
+
+def _base_drift_of(window) -> float:
+    """Fitted drift across a window, over its mean close. Absolute."""
+    w = [b.get("c") or 0 for b in window if (b.get("c") or 0) > 0]
+    n = len(w)
+    if n < 3:
+        return 1.0
+    mx = (n - 1) / 2.0
+    my = sum(w) / n
+    den = sum((i - mx) ** 2 for i in range(n))
+    if den <= 0 or my <= 0:
+        return 1.0
+    slope = sum((i - mx) * (w[i] - my) for i in range(n)) / den
+    return abs(slope * (n - 1)) / my
+
+
+def _detect_square_box(ctx) -> bool:
+    st = square_box_state(ctx.bars)
+    if st is None:
+        return False
+    return (st["prior_advance"] or 0.0) >= BOX_PRIOR_ADVANCE
+
+
+SQUARE_BOX = Structure(
+    key="square-box",
+    label="Square Box",
+    axis="relation",
+    family="Base Structure",
+    bias="neutral",
+    rank=17,
+    min_bars=BOX_MIN_BARS,
+    desc=("A short, shallow, boxy consolidation of four to seven weeks "
+          "correcting no more than 15% -- the only base that can be "
+          "invalidated by lasting too long."),
+    criteria=(
+        Criterion(
+            condition=("Base length -- a floor AND a ceiling. The only IBD base "
+                       "with a published maximum duration."),
+            value=(BOX_MIN_BARS, BOX_MAX_BARS),
+            quote=("The square box just takes four weeks to develop and does "
+                   "not exceed seven weeks."),
+            source_id=_IBD_BOX, confidence="high",
+        ),
+        Criterion(
+            condition="Base depth, maximum",
+            value=BOX_MAX_DEPTH,
+            quote="With a square box, a stock corrects no more than 15%.",
+            source_id=_IBD_BOX, confidence="high",
+        ),
+        Criterion(
+            condition="Pivot / buy point",
+            value=BOX_PIVOT_PAD,
+            quote="You get the buy point by adding a dime to Deere's 79.66 high",
+            source_id=_IBD_BOX, confidence="high",
+        ),
+        Criterion(
+            condition="Tilt -- the 'boxy look'",
+            value=None,
+            quote="Note how the chart action has a square, boxy look.",
+            source_id=_IBD_BOX, confidence="high",
+            missing=("No maximum slope is published for the box's highs or "
+                     "lows. Our drift bound below is therefore ours -- and it "
+                     "is doing most of the discriminating, because a sub-15% "
+                     "correction over a 4-7 week window is otherwise a very "
+                     "common shape."),
+        ),
+        Criterion(
+            condition=("Breakout volume. IBD accepted a breakout week whose "
+                       "volume FELL against the prior week provided it was "
+                       "above average -- a materially weaker bar than the "
+                       "40%-above-50-day rule it applies to the flat base, a "
+                       "base of essentially the same shape and depth."),
+            value=None,
+            quote=("Volume came in above average that week, even if it dipped "
+                   "slightly from the prior week's level."),
+            source_id=_IBD_BOX, confidence="high",
+            missing="No square-box-specific volume percentage is published.",
+        ),
+        Criterion(
+            condition=("OVERLAP WITH THE FLAT BASE, unresolved by publication. "
+                       "A 5-, 6- or 7-week sub-15% consolidation satisfies BOTH "
+                       "definitions, and IBD publishes no tiebreak. Both are "
+                       "allowed to fire: relations are zero-or-many by design, "
+                       "so the honest answer is to report both rather than "
+                       "invent a precedence rule."),
+            value=None,
+            source_id=_IBD_BOX, confidence="high",
+            missing="IBD's tiebreak between square box and flat base.",
+        ),
+        Criterion(
+            condition=("IBD defines this base in a dedicated column and then "
+                       "omits it from its own 'seven bases' list. Recorded, "
+                       "not reconciled."),
+            value="absent-from-seven-bases",
+            quote=("a relatively new pattern among the lineup of bases defined "
+                   "by IBD"),
+            source_id=_IBD_BOX, confidence="high",
+        ),
+        Criterion(
+            condition=("Boxiness -- fitted drift as a fraction of the box's OWN "
+                       "depth. Ours, and a RATIO rather than an absolute drift: "
+                       "an absolute bound is scale-dependent and matched 46.7% "
+                       "of the universe. Measured: 46.7% -> 16.8%."),
+            value=BOX_MAX_BOXINESS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Prior advance into the box. Ours, serving the sourced "
+                       "placement rule above. Measured: 16.8% -> 5.1%."),
+            value=BOX_PRIOR_ADVANCE,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=8.0,
+    detect=_detect_square_box,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -2580,10 +2964,10 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX, DOUBLE_BOTTOM,
-             FLAT_BASE, GREEN_LINE_BREAKOUT, HIGH_TIGHT_FLAG,
-             POCKET_PIVOT, POWER_PLAY, STAGE2_BREAKOUT,
-             STAGE4_BREAKDOWN, VCP]
+RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX,
+             DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
+             HIGH_TIGHT_FLAG, POCKET_PIVOT, POWER_PLAY, SQUARE_BOX,
+             STAGE2_BREAKOUT, STAGE4_BREAKDOWN, VCP]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

@@ -71,6 +71,10 @@ WINDOWS = {
     # The contraction sequence plus the advance it continues, plus the
     # prior-advance lookback behind that.
     "vcp":                 400,
+    # A 9-16 week staircase plus the advance it sits midway in.
+    "ascending-base":      400,
+    # A 4-7 week box plus the advance it follows.
+    "square-box":          300,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

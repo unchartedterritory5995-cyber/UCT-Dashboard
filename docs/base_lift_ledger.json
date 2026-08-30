@@ -200,6 +200,40 @@
         "the lift's CI lower bound -0.0026 does not exceed the random-data null (max of 5 trials = +0.0492) at n=613"
       ],
       "note": "The flagship modern setup, and the narrowest miss in the ledger: +3.59pp with a CI of [-0.26, +7.82] at n=613. The interval includes zero by a QUARTER of a percentage point, and its lower bound also has to clear a null that reached +4.92pp. Both gates fail, so nothing is published -- but this is the structure most likely to change verdict on a wider sample, because the sample here is 279 tickers rather than the full 3,707 and widening it can only tighten the interval. ⚠️ That cuts both ways and is not a promise: a tighter interval around a point estimate of +3.59pp still has to clear a ~+5pp null, so 'more data would fix it' is a hypothesis, not a forecast. ⛔ It is also exactly the structure where the temptation to widen the sample UNTIL the answer changes is strongest, which would be p-hacking with extra steps: if it is re-measured, it is re-measured once, on the full universe, and whatever comes back is the answer.\n\nTwo limitations belong beside the number. The contraction COUNT is a lower bound -- pullbacks tighter than the segmenter's confirmation threshold never register, and Minervini's own 25/15/8 example yields two confirmed contractions rather than three -- so this measures bases whose contractions are large enough to confirm. And his market-relative depth rule (avoid corrections more than 2.5-3x the index decline) is not applied at all: it needs the index decline over the same window, which a per-symbol detector is not given."
+    },
+    "ascending-base": {
+      "published": false,
+      "sample_tickers": 279,
+      "lift": 0.0167,
+      "ci_low": -0.1114,
+      "ci_high": 0.1278,
+      "n": 69,
+      "rate": 0.2899,
+      "baseline": 0.2731,
+      "null_max": 0.0724,
+      "null_trials": 5,
+      "reasons": [
+        "95% CI [-0.1114, +0.1278] includes zero at n=69",
+        "the lift's CI lower bound -0.1114 does not exceed the random-data null (max of 5 trials = +0.0724) at n=69"
+      ],
+      "note": "The only structure in the taxonomy with NO published conflicts: IBD editorial, its O'Neil quote, MarketSmith and the base-counting column all give the same numbers (three pullbacks, 10-20%, 9-16 weeks). Every other base needed a 'CONFLICT, recorded not resolved' criterion. It is also the thinnest real structure measured: 4 of 3,705 symbols (0.11%), n=69, and a CI of [-11.14, +12.78] that is 24 points wide. Nothing can be concluded from that in either direction, and the sourced 9-16 week window is why -- the median staircase on our universe runs 104 bars (~21 weeks), well outside what IBD publishes. We honour the published range rather than widening it to gather evidence, which would be measuring a different pattern and calling it his.\n\n⚠️ It nearly shipped measuring almost nothing: the 9-16 week span was computed from the base's START TO TODAY, which folds 'time since the base finished' into 'how long the base took' and refuses any staircase that completed a few weeks ago. Measured base-start to base-END, the same 87 candidates yield 16 rather than 3."
+    },
+    "square-box": {
+      "published": false,
+      "sample_tickers": 279,
+      "lift": 0.0107,
+      "ci_low": -0.0103,
+      "ci_high": 0.0306,
+      "n": 2709,
+      "rate": 0.2824,
+      "baseline": 0.2717,
+      "null_max": 0.0002,
+      "null_trials": 5,
+      "reasons": [
+        "95% CI [-0.0103, +0.0306] includes zero at n=2709",
+        "the lift's CI lower bound -0.0103 does not exceed the random-data null (max of 5 trials = +0.0002) at n=2709"
+      ],
+      "note": "⭐ THE CLEANEST NULL RESULT IN THE LEDGER, and worth reading as evidence rather than absence. On the largest sample of any structure here (n=2,709) the lift is +1.07pp with a CI of [-1.03, +3.06] -- straddling zero -- against a null maximum of +0.02pp. That near-zero null is the notable part: unlike the double bottom, whose detector finds +6.39pp on pure noise because a W is two lows with a high between them, this detector has essentially NO mechanical edge on random data. So the measurement is unusually trustworthy and what it says is that the structure does not distinguish itself from its own base rate. A wide interval on a thin sample would be 'we cannot tell'; this is closer to 'we can tell, and there is nothing here'.\n\n⚠️ The detector needed two corrections before it measured the right thing. The published rules alone matched 46.7% of the universe -- the NOISE band -- exactly as the corpus warned ('without the tilt test, this detector will fire constantly'). The tilt test existed but was an ABSOLUTE drift bound borrowed from the flat base, and an absolute bound is scale-dependent: 10% of price across a 4-7 week box is a visible trend, while the same 10% across a 52-week base is flat. Measuring drift against the box's own depth is scale-free (46.7% -> 16.8%), and the sourced placement rule -- it forms after a prior advance -- took it to 8.0%."
     }
   }
 }
