@@ -143,11 +143,16 @@ def count_stage(closes, stage):
     return int(mask[valid].sum())
 
 
-def adv_decline_count(closes):
+def adv_decline_parts(closes):
     chg = closes.pct_change().iloc[-1]
     valid = chg.notna()
     adv = int((chg[valid] > 0).sum())
     dec = int((chg[valid] < 0).sum())
+    return adv, dec
+
+
+def adv_decline_count(closes):
+    adv, dec = adv_decline_parts(closes)
     return adv - dec
 
 
@@ -665,7 +670,14 @@ def test_every_published_metric_carries_an_accuracy_grade():
 MIRRORED = (
     "pct_above_sma", "pct_above_ema", "count_period_return", "count_nd_highs",
     "count_nd_lows", "count_near_52w_high", "count_52w_vol_highs", "count_stage",
-    "adv_decline_count", "up_volume_ratio", "mcclellan_oscillator",
+    # `adv_decline_count` became a two-line delegate on 2026-08-29
+    # (uct-intelligence `0c13eb9` "stop discarding advancing/declining counts"),
+    # and this rail went red the moment it did — correctly, and unnoticed. Mirror
+    # BOTH halves: pinning only the delegate would leave the arithmetic that
+    # actually produces the counts unpinned, which is the half `compute_metrics`
+    # reproduces.
+    "adv_decline_parts", "adv_decline_count",
+    "up_volume_ratio", "mcclellan_oscillator",
 )
 
 

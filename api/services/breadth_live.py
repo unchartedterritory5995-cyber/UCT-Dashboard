@@ -547,6 +547,27 @@ def build_levels(tickers: list[str], closes: np.ndarray, volumes: np.ndarray,
     # one-bar difference in a 252-bar extreme.
     n52 = min(252, n_dates + 1)
     n20 = min(20, n_dates + 1)
+    # 🔴 `nath` IS NOT AN ALL-TIME WINDOW AND `new_ath` IS NOT AN ALL-TIME-HIGH
+    # COUNT HERE. `_FRAME_SESSIONS` is 380, so n_dates >= 252 always and this
+    # reduces to 252 — the same width as `n52`. `max52` and `maxath` are then
+    # byte-identical arrays (measured, `tests/test_breadth_new_ath_definition.py`),
+    # so live `new_ath` == live `new_52w_highs`, every session, exactly.
+    #
+    # This is the defect the COLLECTOR removed on 2026-08-06 (uct-intelligence
+    # `506d8ad` "new_ath was never an all-time high — source it from full
+    # history", hardened by `4aeb6`/`5ecd5f6`, stored history repaired by
+    # `--repair-ath`). It survived here because a one-year frame cannot hold an
+    # all-time high: the collector had to download full history per ticker to
+    # get one, and this module never did.
+    #
+    # ⛔ CONSEQUENCE, and it is not cosmetic: the STORED `new_ath` is now a real
+    # all-time-high count and the LIVE one is a 52-week-high count, under one
+    # key. `reconcile`'s "new_ath: close (1.5% mean / 4.3% worst)" grade in
+    # `_ACCURACY` was measured over sessions stored BEFORE that repair, when both
+    # sides were 52-week counts, so it currently certifies nothing. Do not
+    # backfill `new_ath` from this module (`sweep_history` writes every key it is
+    # handed) without deciding the definition first — see the 2026-08-30 breadth
+    # data report for the three options and what each costs.
     nath = min(252, n_dates)
 
     lv: dict = {
