@@ -149,18 +149,10 @@
    NOTE: position:fixed + z-index makes this a stacking context, so the
    satellites inside it (AgentPicker / VisionAttachButton at 9000, the
    coach-mark) are scoped to the cluster and travel with it. */
-/* Right-anchored, NEVER horizontally centred — a fixed-centred orb parks on
-   top of whatever sits at top-centre of the content column (the IWM index
-   box or the Quote of the Day heading, depending on viewport width). `left`
-   and `transform` are pinned explicitly so a future rule (or a drag-restore
-   path) can't reintroduce centring without visibly touching this block.
-   Rail: tools/mobile_audit.py's `orbOverlap` probe. */
 .orbCluster {
   position: fixed;
-  left: auto;
-  right: var(--space-lg);
+  right: 18px;
   bottom: 18px;
-  transform: none;
   z-index: var(--z-fab);
   display: inline-flex;
   align-items: center;
