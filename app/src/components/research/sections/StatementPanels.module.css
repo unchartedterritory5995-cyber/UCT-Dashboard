@@ -1,3 +1,7 @@
+/* Sizes are tokens, not literals. The rendered pixel size is UNCHANGED on
+   desktop (--text-sm is 11px, --text-base is 12px); what changes is that
+   they now follow the phone comfort scale in tokens.css like every other
+   surface, instead of staying literal 11px on a 390px screen. */
 .wrap { display: flex; flex-direction: column; gap: 10px; }
 
 .head {
@@ -6,14 +10,14 @@
 }
 
 .count {
-  font-size: 11px; font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm); font-variant-numeric: tabular-nums;
   color: var(--text-muted, #8a8f98);
 }
 
 .toggle { display: flex; gap: 4px; }
 .on, .off {
   min-height: 26px; padding: 3px 10px; border-radius: var(--radius-sm); cursor: pointer;
-  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  font-size: var(--text-sm); letter-spacing: .04em; text-transform: uppercase;
   border: 1px solid rgba(255, 255, 255, .14); background: transparent;
   color: var(--text-muted, #8a8f98);
 }
@@ -49,7 +53,7 @@
   gap: 6px; margin-bottom: 2px;
 }
 .title {
-  font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  font-size: var(--text-sm); font-weight: 700; letter-spacing: .05em;
   text-transform: uppercase;
   color: var(--text, #d8dade);
 }
@@ -68,7 +72,7 @@
   .expand { width: var(--tap-min, 44px); height: var(--tap-min, 44px); margin: -12px -14px -12px 0; }
 }
 
-.note { margin: 0; font-size: 12px; color: var(--text-muted, #8a8f98); }
+.note { margin: 0; font-size: var(--text-base); color: var(--text-muted); }
 
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; }
@@ -76,7 +80,7 @@
 
 .yoy {
   display: flex; align-items: center; gap: 5px;
-  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  font-size: var(--text-sm); letter-spacing: .04em; text-transform: uppercase;
   color: var(--text-muted, #8a8f98); cursor: pointer;
 }
 .yoy input { accent-color: var(--ut-gold, #dcbb5e); cursor: pointer; }
@@ -87,6 +91,6 @@
 
 .expandedSym {
   margin-left: 10px;
-  font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  font-size: var(--text-base); font-weight: 600; letter-spacing: .04em;
   color: var(--ut-gold, #dcbb5e);
 }
