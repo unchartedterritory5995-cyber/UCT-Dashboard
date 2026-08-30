@@ -250,3 +250,54 @@ test('the stale-wire warning icon is NOT brand gold', () => {
     'the warning icon is rendering with UIcon’s gold gradient instead of a '
     + 'semantic stroke — gold={false} is missing').not.toMatch(/url\(#uig/)
 })
+
+// ─── FIX ROUND 3 · the two edges of the `unknown` branch ────────────────────
+
+describe('wire_status "unknown" — the edges', () => {
+  test('with NO score, the stamp is silent — a caption needs a subject', () => {
+    // 'unknown' fires exactly when there is no wire, i.e. the cold-start and
+    // wire-outage shape, where there is usually no score either. A
+    // warning-coloured "Wire date unknown" floating above nothing is a caption
+    // for an absent subject; the missing number already says "nothing here".
+    h.breadth = { exposure: {}, wire_date: null, wire_status: 'unknown' }
+    mount()
+    expect(screen.queryByText(/freshness unverified/),
+      'a freshness warning rendered with no exposure number to be about')
+      .toBeNull()
+    expect(screen.queryByText(/uct exposure/i)).toBeNull()
+  })
+
+  test('CONTROL: with a score, the same payload DOES warn', () => {
+    // Without this, the assertion above is satisfied by a stamp that never
+    // renders at all.
+    h.breadth = { exposure: { score: 55 }, wire_date: null, wire_status: 'unknown' }
+    mount()
+    expect(screen.getByText(/freshness unverified/)).toBeInTheDocument()
+  })
+
+  test('an UNPARSEABLE date is never printed as fact', () => {
+    // engine.wire_freshness returns 'unknown' for a date that is PRESENT but
+    // unparseable, and preferring wire_date rendered "Wire <garbage>" with no
+    // explanation. Unknown wins over the date: if the server could not parse
+    // it, we do not print it.
+    h.breadth = { exposure: { score: 55 }, wire_date: 'not-a-date', wire_status: 'unknown' }
+    mount()
+    expect(screen.queryByText(/not-a-date/),
+      'an unparseable wire date was rendered to the member as if it were one')
+      .toBeNull()
+    expect(screen.getByText(/freshness unverified/)).toBeInTheDocument()
+  })
+
+  test('CONTROL: a parseable date on a fresh wire IS printed', () => {
+    h.breadth = { exposure: { score: 55 }, wire_date: '2026-08-30', wire_status: 'fresh' }
+    mount()
+    expect(screen.getByText(/Wire 2026-08-30/)).toBeInTheDocument()
+  })
+
+  test('the note still renders on its own when there is no wire stamp at all', () => {
+    // The meta line must not vanish just because the stamp is silent.
+    h.breadth = { exposure: { score: 55, note: 'Leadership intact.' }, wire_status: 'unknown', wire_date: null }
+    mount()
+    expect(screen.getByText(/Leadership intact/)).toBeInTheDocument()
+  })
+})

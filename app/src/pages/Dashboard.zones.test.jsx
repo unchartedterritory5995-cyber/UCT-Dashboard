@@ -187,7 +187,11 @@ test('CONTROL: the rail’s own regexes survived their escapes', () => {
   // If `\s` decayed to a literal `s`, neither of these reformatted snippets
   // matches — which is exactly how the broken version would have gone red on a
   // formatting change instead of on a real defect.
-  expect(declRe('--zone-a').source).toContain('\s')
+  // ⛔ `String.raw`, NOT `'\s'`. In a plain single-quoted string `'\s'` IS
+  // `'s'`, so the first cut of this very line passed against the FIXED and the
+  // BROKEN source alike — the escape-eating bug, inside the assertion that
+  // names it.
+  expect(declRe('--zone-a').source).toContain(String.raw`\s`)
   expect([...'  --zone-a :  120px;'.matchAll(declRe('--zone-a'))]).toHaveLength(1)
   expect(gridRowRe('zoneA', 1).test('.zoneA {\n  grid-row: 1;\n}')).toBe(true)
   // …and it still discriminates: a different row number must NOT match.

@@ -81,8 +81,21 @@ export default function ZoneRead({ showQuote = true }) {
   // 'stale' left an unknown-vintage score rendering completely unlabelled —
   // the 2026-08-14 shape in milder form, on the number Zone A now LEADS with.
   // So we say we cannot tell, which is the true statement.
+  //
+  // ⛔ TWO EDGES, BOTH OF WHICH RENDERED SOMETHING FALSE:
+  //   * `'unknown'` fires exactly when there is no wire — i.e. the cold-start
+  //     and wire-outage shape, where there is usually no SCORE either. A
+  //     warning-coloured "Wire date unknown" with no number to be about is a
+  //     caption for an absent subject, so the stamp is gated on `score != null`.
+  //     A missing number already says "nothing to read here"; it needs no badge.
+  //   * `engine.wire_freshness` ALSO returns `'unknown'` for a date that is
+  //     PRESENT but unparseable. Preferring `wire_date` then rendered
+  //     "Wire <garbage>" with no explanation, so `unknown` now WINS over the
+  //     date: if the server could not parse it, we do not print it as fact.
   const wireUnknown = breadth?.wire_status === 'unknown'
-  const flagged = wireStale || wireUnknown
+  const showUnknown = wireUnknown && score != null
+  const showWireDate = !!wireDate && !wireUnknown
+  const flagged = wireStale || showUnknown
 
   return (
     <div className={styles.read}>
@@ -111,7 +124,7 @@ export default function ZoneRead({ showQuote = true }) {
       {/* One muted line under both columns: freshness stamp, then the note.
           Both are about the same reading, so they share a row rather than
           spending two of the zone's four available text lines. */}
-      {(wireDate || wireUnknown || note) && (
+      {(showWireDate || showUnknown || note) && (
         <p className={`${styles.meta} ${flagged ? styles.metaStale : ''}`}>
           {/* ⛔ gold={false}. UIcon's `gold` prop DEFAULTS TO TRUE and overrides
               `stroke` with the metallic gradient — without it this warning
@@ -120,14 +133,14 @@ export default function ZoneRead({ showQuote = true }) {
           {flagged && (
             <UIcon name="warning" size={11} gold={false} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           )}
-          {wireDate ? (
+          {showUnknown ? (
+            <span className={styles.wire}>Wire date unknown — freshness unverified</span>
+          ) : showWireDate ? (
             <span className={styles.wire}>
               Wire {wireDate}{wireStale ? ' — no run since; this is not today’s reading' : ''}
             </span>
-          ) : wireUnknown ? (
-            <span className={styles.wire}>Wire date unknown — freshness unverified</span>
           ) : null}
-          {(wireDate || wireUnknown) && note && <span className={styles.dot}> · </span>}
+          {(showWireDate || showUnknown) && note && <span className={styles.dot}> · </span>}
           {note && <span className={styles.note}>{note}</span>}
         </p>
       )}
