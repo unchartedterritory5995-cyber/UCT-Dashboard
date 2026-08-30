@@ -167,7 +167,16 @@ logic (`useMarketOpen`). Only **Zone B** varies; A, C and D are constant.
 | `PREMARKET` | weekday before 09:30 ET | Today's catalysts (as scored overnight) |
 | `LIVE` | weekday 09:30–16:00 ET | Today's catalysts, live prices overlaid |
 | `CLOSED` | weekday after 16:00 ET | Today's catalysts, marked settled |
-| `WEEKEND` | Sat/Sun and market holidays | **The Week** (see below) |
+| `WEEKEND` | Sat/Sun ~~and market holidays~~ | **The Week** (see below) |
+
+> ⛔ **CORRECTED IN PLACE 2026-08-30.** A market holiday does **not** resolve
+> to `WEEKEND`. `resolveSession` is pure and synchronous, read at first render,
+> and the calendar arrives asynchronously — so a holiday still resolves to
+> `PREMARKET`/`LIVE`/`CLOSED` and Zone B still renders `CatalystTable`. What
+> shipped instead is Zone A no longer CONTRADICTING itself: the countdown walks
+> past closures and the session pill reads **Holiday**. See
+> §"Deviations from this document" at the end of this file for what remains and
+> why `TheWeek` is not the substitute.
 
 A 24-day production sweep of the catalyst store confirms the split this
 design assumes:
@@ -341,7 +350,21 @@ GET /api/dashboard/signposts
 ```
 
 Reads existing cached services only; adds no new data sources. Cached 60 s.
-This is the only new API in the design.
+~~This is the only new API in the design.~~
+
+> ⛔ **CORRECTED IN PLACE 2026-08-30.** There are now **two**.
+> `GET /api/market-calendar` was added so Zone A's countdown stops lying on
+> market holidays: the repo's one NYSE closure table
+> (`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) had no HTTP surface, and a second copy
+> in the frontend would have been a second authority over one value. It derives
+> from that frozenset, does no I/O, is computed once at import and cached a day.
+> Full reasoning in §"Deviations from this document" at the end of this file.
+>
+> ⚠️ Also amended since: this endpoint's `desk` card is **no longer null**. It
+> was listed as a permanent refusal beside `journal`/`community`, but its
+> objection was cache SHAPE rather than per-user data — and the client-side
+> stand-in it was left to was blank Mon–Fri and structurally "0" the rest of the
+> time. It is one local read behind this endpoint's own 60s cache.
 
 ---
 
@@ -539,3 +562,29 @@ reader takes the spec's word for it.
   `_current_week_monday` rolls a WEEKEND date forward — mid-week it returns THIS
   week, so the panel would carry a label untrue of its contents. The real fix is
   a holiday-aware session contract, which is its own piece of work.
+
+### Fix round 2 — what moved after the deviations above were written
+
+- **`/api/dashboard/signposts` now fills the `desk` card.** §"New backend
+  surface" is annotated in place. The refusal there was CACHE SHAPE, not
+  per-user data, and it was the expensive kind of caution: the client stand-in
+  it forced was blank Monday–Friday (it borrowed `TheWeek`'s SWR key, and that
+  hero mounts only at the weekend) and structurally **"0"** whenever it did
+  render, because `substack_posts.published_at` is a unix EPOCH INT and the
+  filter used `Date.parse`, which is `NaN` for an integer. `journal` and
+  `community` stay client-filled — their refusal IS per-user and is pinned by
+  its own test so the two cannot drift together.
+
+- **The anti-rot warning has a push path.** The first cut mapped
+  `expiring → "warning"`, and `chart_health_alerts` pages Discord only on
+  `critical` — so the 180-day notice lived solely in an in-memory deque that is
+  wiped on every redeploy. Seven milestone days (180/90/30/14/7/3/1) now emit
+  `critical`, each under its own key; every other expiring day stays a feed
+  warning. Making all 180 critical would page ~48x/day for half a year, which
+  is the same as no alert.
+
+- **`READ_ONLY` in `ZoneDoors.jsx` was not read-only.** Its four
+  `revalidateOn*: false` flags gate SWR's automatic triggers only; the
+  Dashboard's own pull-to-refresh calls `mutate` explicitly, which reaches the
+  revalidator past all four. `isPaused: () => true` is what makes the claim
+  true, and the claim was asserted in three comments while being false.
