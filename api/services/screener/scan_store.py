@@ -283,6 +283,31 @@ def hits(def_hash: str, tf: Any, as_of: Any) -> list:
     return [r["ticker"] for r in rows]
 
 
+def hit_values(def_hash: str, tf: Any, as_of: Any) -> dict:
+    """``{symbol: value}`` for this session's hits — the number each one ANSWERED
+    with, which is what lets a screen be SORTED rather than only filtered.
+
+    ⛔ A SYMBOL WITH NO RECORDED VALUE IS ABSENT FROM THE MAP, NOT PRESENT AS 0.0.
+    Rows written before ``scan_hits`` carried a ``value`` column have NULL, and 0.0
+    is a number a member could sort by — indistinguishable from a real answer. The
+    caller must be able to tell "answered 0" from "not recorded", and only an
+    absence can say the second.
+
+    ⚠️ SEPARATE FROM ``hits`` ON PURPOSE, the same way ``coverage`` is: membership
+    is one question and the value behind it is another. A caller that wants only the
+    roster must not pay for the values, and — more importantly — a value that failed
+    to load must never be able to shorten the roster.
+    """
+    h, code, day = _key(def_hash, tf, as_of)
+    _ensure()
+    with contextlib.closing(snapshot_db.connect()) as conn:
+        rows = conn.execute(
+            "SELECT ticker, value FROM scan_hits "
+            "WHERE def_hash=? AND tf=? AND as_of=? AND value IS NOT NULL",
+            (h, code, day)).fetchall()
+    return {r["ticker"]: float(r["value"]) for r in rows}
+
+
 # --------------------------------------------------------------------------- #
 # the receipt
 # --------------------------------------------------------------------------- #
@@ -934,6 +959,11 @@ def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
     if session is None:
         return {"as_of": None, "rows": [], "live": None}
     nightly = hits(h, code, session)
+    # ⭐ THE NIGHTLY VALUE, so a row that has no LIVE counterpart still carries the
+    # number it answered with. Without this the sweep's values were stored and never
+    # read: `_row` sourced `value` from the live row alone, so every nightly-only
+    # symbol reported `None` and a screen still could not be sorted.
+    nightly_values = hit_values(h, code, session)
     fresh: dict = {}
     if session == latest:
         now_ts = float(_now_for_reads() if now is None else now)
@@ -947,7 +977,11 @@ def hits_for(def_hash: str, tf: Any, as_of: Any = None, *,
         return {"symbol": sym, "tier": _TIER_LIVE if r else _TIER_NIGHTLY,
                 "in_nightly": in_nightly,
                 "live_as_of": r["as_of"] if r else None,
-                "value": r["value"] if r else None,
+                # ⛔ LIVE WINS WHEN THERE IS ONE, ELSE THE NIGHTLY ANSWER. `tier`
+                # already tells a reader WHICH, so `value` means "the value at the
+                # tier this row states" rather than "the live value or nothing".
+                # ⚠️ `.get` — an unrecorded value stays None and never becomes 0.0.
+                "value": (r["value"] if r else nightly_values.get(sym)),
                 "src_price": r["src_price"] if r else None,
                 "live_cols": r["live_cols"] if r else 0}
 
