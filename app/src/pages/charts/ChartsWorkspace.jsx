@@ -1477,6 +1477,27 @@ export default function ChartsWorkspace() {
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
 
+  // Legacy-door widget seeding: /theme-tracker and /watchlists redirect here
+  // with ?ensure=<type> (LegacyRedirect.jsx) because Theme Tracker / Watchlists
+  // are reachable ONLY as a widget inside /charts. Without this, a member whose
+  // saved workspace lacks that widget would land on a board missing the very
+  // thing the door promised.
+  // ⏳ Waits for hydration — same race the deep-link effect above guards
+  // against: prefs land a beat after mount, and seeding onto DEFAULT_LAYOUT
+  // before the real saved layout arrives would just get overwritten.
+  // ✅ Idempotent: runs once per mount (`ensureWidgetAppliedRef`) and checks
+  // the CURRENT layout for the widget type before adding — a re-render or a
+  // repeat visit through the same door never adds a second one.
+  const ensureWidgetAppliedRef = useRef(false)
+  useEffect(() => {
+    if (ensureWidgetAppliedRef.current || prefsLoading) return
+    ensureWidgetAppliedRef.current = true
+    const want = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('ensure')
+    if (!want) return
+    if (layoutRef.current?.widgets?.some(w => w.type === want)) return
+    handleAddWidget(want, undefined, { instant: true })
+  }, [prefsLoading, handleAddWidget])
+
   // Commit a pending smart-placement add (Place / Enter / click the ghost). Mirrors
   // the immediate add path: apply the previewed resizes to existing widgets, then add
   // the newcomer at the previewed slot. Reads the pending add from a ref so the
