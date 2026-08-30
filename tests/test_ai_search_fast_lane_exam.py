@@ -387,3 +387,33 @@ def test_the_exam_still_fails_an_uncited_invented_price(monkeypatch):
                answer="NVDA traded at $999.99 that session.")
     out = runner.run_exam(lane="fast", question_ids=["S1-01-quote-nvda"])
     assert "price_without_tool" in (out["results"][0].get("auto_fails") or [])
+
+
+def test_the_list_verdict_pack_is_known_to_the_translation_map():
+    """`list_verdict` calls grade_ticker on the top scan names — it satisfies
+    exactly the gate S3-03 asks for. A new pack missing from _PACK_TOOL_ALIAS
+    is invisible to every check that reads tool NAMES, so the audit reported a
+    miss for a pack that had just fired."""
+    assert runner._PACK_TOOL_ALIAS.get("list_verdict") == "grade_ticker"
+
+
+def test_every_pack_the_router_can_emit_is_either_mapped_or_deliberate():
+    """Derived: read the pack names the ROUTER actually adds, so the next pack
+    added without a mapping fails BY NAME rather than silently reading as an
+    ungrounded answer."""
+    import ast
+    import io
+    import api.routers.ai_search as _ai
+    src = io.open(_ai.__file__, encoding="utf-8").read()
+    added = set()
+    for node in ast.walk(ast.parse(src)):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "_add" and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            added.add(node.args[0].value)
+    # Packs with no agent-tool twin by design: no golden-set question requires
+    # them, so mapping them would invent a satisfied gate.
+    no_twin = {"levels", "cot", "wire", "uct20", "insider"}
+    unmapped = sorted(added - set(runner._PACK_TOOL_ALIAS) - no_twin)
+    assert not unmapped, f"packs with no tool alias and no exemption: {unmapped}"
