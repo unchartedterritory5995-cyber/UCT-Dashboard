@@ -129,19 +129,30 @@ plot(v)`)
     // `pine:statement` with no line and no token; it now names `int`, at line 35,
     // on `_hull = Mode(modeSwitch, src, int(length * lengthMult))` — a numeric type
     // cast this door reads as an unknown function.
-    // ⚠️ AND AT LEAST ONE MORE WALL STANDS BEHIND IT, measured rather than guessed:
-    // translating `int(x)` as `idiv(x, 1)` in a scratch build moved this to
-    // `pine:window` at line 22 (`wma(_src, _length / 2)` reduces to 27.5). That
-    // build is NOT shipped — see the `⚰️` note at the numeric-cast site in
-    // `pine.js` — so this assertion pins the wall the door ACTUALLY reaches today.
+    // ✅ AND THE WALL BEHIND IT NOW SHIPS. This note used to say: *"translating
+    // `int(x)` as `idiv(x, 1)` in a scratch build moved this to `pine:window` at
+    // line 22 … That build is NOT shipped."* It is shipped, on 2026-08-30, but
+    // NARROWER than that scratch build was: `int(x)` is taken only where its
+    // argument already folds to a WHOLE number — which is exactly this script's
+    // `int(length * lengthMult)` = `int(55)` — because TradingView publishes no
+    // rule for casting a FRACTIONAL float, and truncation, rounding and floor are
+    // the same answer only when there is no fraction to lose.
+    //
+    // ⭐⭐ SO THE TITLE OF THIS TEST IS NOW LITERALLY TRUE. It reaches a wall a
+    // member can ACT on: `wma(_src, _length / 2)` reduces to 27.5, and the refusal
+    // carries `hma(close, 55)` as a copyable `suggest` — the call this table
+    // already declares, which spares the hand-expansion entirely. A wall that
+    // names the whole vocabulary was a dead end; this one is a next step.
     // ⚠️ Pinned here as well as in `pine.community.guards.test.js` because that
     // file pins the whole corpus at once; this one says why THIS script moved.
     const src = fs.readFileSync(path.resolve(process.cwd(),
       '../tests/fixtures/pine_community/07-hull-suite.pine'), 'utf8')
     const r = translatePine(src).refusal
     expect(r).toBeTruthy()
-    expect(r.guard).toBe('pine:function')
-    expect(r.token).toBe('int')
-    expect(r.line).toBe(35)
+    expect(r.guard).toBe('pine:window')
+    expect(r.line).toBe(22)
+    // ⛔ THE OFFER IS THE POINT, not the guard name. Without this the test would
+    // pass on a refusal that merely moved rather than one that helps.
+    expect(r.suggest).toBe('hma(close, 55)')
   })
 })

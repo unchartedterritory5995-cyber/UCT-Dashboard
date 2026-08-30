@@ -85,6 +85,11 @@ describe('the Pine guard census, by name', () => {
 /** ⭐ REGENERATE, NEVER HAND-EDIT: run the case above, paste what it reports, and
  *  say in the diff WHY a guard moved on or off. A name leaving this list means a
  *  corpus script now reaches it; a name arriving means one stopped. */
+// ⭐⭐ `pine:window` LEFT THIS LIST on 2026-08-30, and a guard leaving it is the
+// direction worth noticing: an unexercised refusal is a sentence NO MEMBER HAS EVER
+// READ, so nothing has ever checked that it helps. `07-hull-suite` now reaches it
+// — the `int` fold cleared the two walls in front — and what it reads there names
+// `hma(close, 55)` as the call that spares the whole hand-expansion.
 const EXPECTED_UNEXERCISED = [
   'pine:character',
   'pine:colour-value',
@@ -125,7 +130,6 @@ const EXPECTED_UNEXERCISED = [
   // ⚠️ Unexercised does NOT mean dead: an undefined name is still a real refusal
   // a member can reach by typo. It means no PUBLISHED script does.
   'pine:undefined',
-  'pine:window',
 ]
 
 /* ⭐ MEASURED ACROSS BOTH PUBLISHED CORPORA. The guards above are reached by NONE
