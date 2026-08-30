@@ -1,6 +1,25 @@
 import '@testing-library/jest-dom'
+import { configure } from '@testing-library/dom'
 import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
+
+// ── waitFor / findBy budget under a PARALLEL suite ────────────────────────
+// testing-library's async utilities default to 1000ms, a figure that assumes
+// an otherwise-idle machine. This suite deliberately runs 12 forks at once
+// (see the pool cap in vite.config.js, which was measured: cumulative test
+// time TRIPLES at the default worker count while wall time barely moves).
+// A starved worker makes 1000ms far too tight — ArticlesSection's search box
+// debounces 250ms, so its `waitFor` had only 4x the debounce to also schedule
+// a fork, run a timer, re-render and paint. It failed a full-suite run and
+// passed alone, which is the signature of a budget, not a bug.
+//
+// vite.config.js already applied this reasoning to `testTimeout` by capping
+// the pool; the async-utility budget was simply never revisited alongside it.
+//
+// ⚠️ Kept BELOW vitest's 5000ms testTimeout on purpose. A genuinely broken
+// wait then still fails as a waitFor error naming the element it wanted,
+// rather than as an opaque "Test timed out in 5000ms" with no subject.
+configure({ asyncUtilTimeout: 4000 })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers
