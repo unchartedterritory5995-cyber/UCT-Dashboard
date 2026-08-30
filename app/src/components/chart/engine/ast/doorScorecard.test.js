@@ -116,6 +116,22 @@ const OFFERED = {
   // folds where its argument is already whole, and `pine:window` now carries its
   // advice as a copyable `suggest`. The rail below checks that; the label is not
   // takeable by description.
+  // ⭐⭐ TWO MORE EARNED IT on 2026-08-30, and both hand back a rewrite VERIFIED to
+  // translate before the offer was written — `pine.requestOffer.test.js` applies
+  // each one to the real published script and asserts it comes back `ok`.
+  '23-higher-timeframe-ema.pine': 'it asks for a literal daily rung and this engine '
+    + 'resamples only weekly and monthly from the daily bars it holds — the door hands '
+    + 'back `timeframe.period`, and SAYS that it is not the same request',
+  '26-spy-to-es-qqq-to-nq.pine': 'it asks for the ETF\'s EXTENDED session and this engine '
+    + 'serves the regular one — the door hands back `session.regular` rather than '
+    + 'answering a real but different number on every bar',
+  // ⛔ `01-supertrend-mobius` WAS CONSIDERED AND LEFT OPEN. Its refusal already
+  // names `CompoundValue(length, thisExpression, startingValue)` in prose, which is
+  // genuinely useful — but the thinkScript `Resolver` does not hold the source text,
+  // so it cannot hand back the member's OWN expression, only a template with
+  // placeholders. OFFERED is now a checked claim meaning "the exact text that
+  // works"; a template is not that. Filing it here would be the very thing the
+  // rail below exists to stop.
   '07-hull-suite.pine': 'a hand-expanded Hull hands `wma` a half-window of 27.5 and '
     + 'TradingView publishes no rounding for it — the door hands back `hma`, which '
     + 'this table already declares and which spares the expansion entirely',
@@ -254,12 +270,12 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   // Lower it when a gap closes; never raise it. ⚠️ And it can only be lowered by
   // making a script TRANSLATE — moving one into `RULED` is caught by the bucketing
   // assertion above needing a written reason, and by review of that reason.
-  it('no more than 12 scripts are OPEN', () => {
+  it('no more than 10 scripts are OPEN', () => {
     // ⭐ 20 → 18 on 2026-08-30: `27-support-resistance-channels` translates (the
     // `bool(x)` cast is published after all), and `18-fold-up-down-points-ratio`
     // before it. A ratchet that is not tightened when a gap closes lets the gain
     // regress in silence, which is the one thing a ratchet exists to stop.
-    expect(open.length).toBeLessThanOrEqual(12)
+    expect(open.length).toBeLessThanOrEqual(10)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {

@@ -1415,6 +1415,7 @@ export default function StockChart({
   watermarkPad = null,       // px inset used for BOTH the left/right gutter and the top when corner-pinned (Setup Library — even top-left gap). null = default (14px sides, flush top).
   watermarkCenterX = null,   // px from the pane's left edge — when set, pins the watermark's horizontal CENTER here on every chart (no edge clamp) so it stays tucked in the top-left corner and never drifts by name width or pane width (Setup Library)
   watermarkPadTop = null,    // px top inset, independent of the side gutter (watermarkPad). Charts workspace uses this to drop the mark below the floating drawing toolbar. Falls back to watermarkPad when null.
+  watermarkBrandMark = false, // UCT pseudo-tickers (breadth / theme indexes): the watermark "Logo" field uses the UCT compass brand mark, not a company-logo lookup on the synthetic symbol.
   onWatermarkCommit = null,  // (pos:{x,y}) => void — when set, a watermark drag persists HERE (per-example) instead of writing the global chart_settings (Setup Library)
   watermarkName = null,      // Model Book: curated company name for the watermark. For a REUSED ticker (e.g. WTW = Weight Watchers in 2017, now Willis Towers Watson) the live ticker meta is the wrong company — this overrides the name (and drops the then-wrong sector/industry).
   watermarkSector = null,    // Model Book: curated historical sector — used when the live ticker meta is the wrong/absent company (renamed/delisted), so the watermark still shows sector below the name like every other stock.
@@ -2245,11 +2246,15 @@ export default function StockChart({
   const hideBase = !!cs.compareHideBase && (cs.comparisonSymbols || []).some(x => x && x.enabled && x.sym)
   const hideBaseRef = useRef(hideBase)
   hideBaseRef.current = hideBase
-  // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
-  // volume) — so the pane must be ON and in its own pane regardless of prefs.
-  const showVolume = hideBase ? false : (blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible))
-  // Volume in its own pane (no bottom band reserved on the price scale).
-  const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
+  // blankVolume reserves an EMPTY, labeled volume pane (breadth symbols with no
+  // volume) — but only WHEN volume is on. Turning Volume off in settings removes the
+  // pane entirely, same as any other chart; blankVolume just decides blank-vs-bars
+  // for the pane WHEN it shows.
+  const showVolume = hideBase ? false : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
+  // Volume in its own pane (no bottom band reserved on the price scale). Only when
+  // volume is actually shown — otherwise no pane exists and its bottom-margin
+  // reservation would leave an empty gap (the breadth "pane won't go away" bug).
+  const volInSeparatePane = showVolume && (blankVolume || volumeSeparatePane || !!cs.volume?.separatePane)
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -2468,14 +2473,16 @@ export default function StockChart({
     // naturalWidth ≤ 2 as no logo, so the badge shows just the circle (like TSLA).
     img.onload = () => { if (!cancelled) setWmLogo(img.naturalWidth > 2 ? img : null) }
     img.onerror = () => { if (!cancelled) setWmLogo(null) }
-    img.src = `/api/ticker-logo/${encodeURIComponent(s)}`
+    // UCT pseudo-tickers use the bundled compass mark; real tickers use the proxy.
+    img.src = watermarkBrandMark ? brandMark : `/api/ticker-logo/${encodeURIComponent(s)}`
     return () => { cancelled = true }
-  }, [sym, watermark, wmLogoEnabled])
+  }, [sym, watermark, wmLogoEnabled, watermarkBrandMark])
   // Push the badge state to the primitive (redraws; block re-lays-out to include it).
   // logoEnabled draws the circle even before/without an image, so no layout shift.
+  // The brand mark has transparent margins → scale it up to fill the badge circle.
   useEffect(() => {
-    try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo }) } catch { /* noop */ }
-  }, [wmLogo, wmLogoEnabled])
+    try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
+  }, [wmLogo, wmLogoEnabled, watermarkBrandMark])
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)

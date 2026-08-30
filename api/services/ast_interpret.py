@@ -159,6 +159,20 @@ TF_RESAMPLABLE = ("W", "M")
 #: numbers `max_lookback` multiplies by, and a lookback that is too SMALL is
 #: the dangerous direction — it would let a tree claim it needs fewer bars
 #: than it reads and answer off a warmup it never had.
+#:
+#: ⛔⛔ AND THEY ARE ONLY RIGHT ON A **DAILY** BASE, WHICH THIS COMMENT DID NOT
+#: SAY — the same omission its JS twin carried. Five bars to a week is true when
+#: one bar is one day. `max_lookback` takes no base parameter, so on intraday bars
+#: it under-claims by a session's worth: measured on the JS lane, `tf(sma(close,
+#: 4), 'W')` claims 25 at every base while a week spans 25 / 175 / 1950 / 9750
+#: bars at D / 60m / 5m / 1m — up to 390x.
+#:
+#: ⭐ THIS LANE IS NOT WHERE IT BITES. The scan lane runs `DEFAULT_TF = "D"`
+#: (`scan_evaluator`), so the daily assumption HOLDS here and the numbers are
+#: correct for every sweep. It is recorded anyway because this file is the mirror
+#: of the one where it does bite, and a mirror that silently disagrees about WHY a
+#: number is right is how the two stop being a mirror
+#: (`lesson_rail_the_mirror_not_just_the_lane`).
 TF_BASE_BARS = {"W": 5, "M": 21}
 
 
