@@ -7,6 +7,28 @@
 .list a { color: inherit; text-decoration: none; }
 .list a:hover { color: var(--ut-gold, #dcbb5e); }
 
+/* ── Compass Weekly Review — the one PERSONAL panel on the weekend hero ──── */
+.excerpt {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.panelLink {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #dcbb5e);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.panelLink:hover { opacity: 1; }
+
 /* ── Quote of the Day — first-class on the WEEKEND state (spec, Zone A) ──── */
 .quotePanel { gap: 6px; }
 .quoteText {
