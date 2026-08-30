@@ -405,8 +405,8 @@ describe('viewBox tracks the measured container width', () => {
 
   function withMeasuredWidth(px, fn) {
     const realRO = globalThis.ResizeObserver
-    const proto = Object.getPrototypeOf(document.createElement('div'))
-    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'clientWidth')
+    const proto = Element.prototype
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'getBoundingClientRect')
     // Captures the callback so a test can SIMULATE a resize. jsdom has no
     // layout, and a real browser cannot help here either: a backgrounded tab
     // suspends the rendering lifecycle, so ResizeObserver never fires there
@@ -421,12 +421,12 @@ describe('viewBox tracks the measured container width', () => {
       observe() { roCallbacks.push(this._cb) }
       disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
     }
-    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => px })
+    Object.defineProperty(proto, 'getBoundingClientRect', { configurable: true, writable: true, value: () => ({ width: px, height: 0, top: 0, left: 0, right: px, bottom: 0, x: 0, y: 0 }) })
     try {
       return fn()
     } finally {
-      if (realClientWidth) Object.defineProperty(proto, 'clientWidth', realClientWidth)
-      else delete proto.clientWidth
+      if (realClientWidth) Object.defineProperty(proto, 'getBoundingClientRect', realClientWidth)
+      else delete proto.getBoundingClientRect
       if (realRO) globalThis.ResizeObserver = realRO
       else delete globalThis.ResizeObserver
     }
@@ -481,8 +481,8 @@ describe('viewBox tracks the measured container width', () => {
     // OTHER half — that the observer callback actually re-reads and re-renders,
     // rather than being an observer wired to nothing.
     let width = 604
-    const proto = Object.getPrototypeOf(document.createElement('div'))
-    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'clientWidth')
+    const proto = Element.prototype
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'getBoundingClientRect')
     const realRO = globalThis.ResizeObserver
     roCallbacks.length = 0
     globalThis.ResizeObserver = class {
@@ -493,7 +493,7 @@ describe('viewBox tracks the measured container width', () => {
       observe() { roCallbacks.push(this._cb) }
       disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
     }
-    Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => width })
+    Object.defineProperty(proto, 'getBoundingClientRect', { configurable: true, writable: true, value: () => ({ width: width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 }) })
     try {
       const { container } = render(<ImpliedVsRealized {...WARM} />)
       expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
@@ -501,8 +501,8 @@ describe('viewBox tracks the measured container width', () => {
       act(() => { roCallbacks.forEach((cb) => cb()) })
       expect(viewBoxOf(container)).toBe(`0 0 880 ${VIEWBOX.height}`)
     } finally {
-      if (realClientWidth) Object.defineProperty(proto, 'clientWidth', realClientWidth)
-      else delete proto.clientWidth
+      if (realClientWidth) Object.defineProperty(proto, 'getBoundingClientRect', realClientWidth)
+      else delete proto.getBoundingClientRect
       if (realRO) globalThis.ResizeObserver = realRO
       else delete globalThis.ResizeObserver
     }

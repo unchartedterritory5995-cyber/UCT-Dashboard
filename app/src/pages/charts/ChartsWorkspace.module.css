@@ -538,7 +538,13 @@
 .symbolStatic {
   font: inherit;
   font-weight: 700;
-  color: var(--color-text);
+  /* --text, NOT the --color-text alias. This label renders INSIDE .widget,
+     which re-points --text (and --bg) for the light theme further down this
+     file. An alias declared on :root is substituted using the ROOT's own
+     computed value and merely INHERITED here, so it would resolve to the
+     page's ink (#1f2328) on the widget's black ground. The canonical token
+     resolves in whichever scope actually applies. */
+  color: var(--text);
   white-space: nowrap;
 }
 
