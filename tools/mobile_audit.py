@@ -38,10 +38,11 @@ VIEWPORTS = {
     "desktop": {"width": 1280, "height": 1000, "deviceScaleFactor": 1, "isMobile": False},
 }
 
-# Vertical budget in "screens" per route. A route absent from this map is
-# not budgeted. /dashboard's budget is the whole point of the cockpit
-# redesign — it must fit one viewport with a 5% tolerance for gaps.
-HEIGHT_BUDGETS = {"/dashboard": 1.05}
+# Vertical budget in "screens" per (route, viewport). A pair absent from
+# this map is not budgeted. Phone and tablet legitimately scroll — the
+# phone dashboard is ~2,768px — so budgeting them would be permanently
+# red, and a permanently-red rail is one nobody reads.
+HEIGHT_BUDGETS = {("/dashboard", "desktop"): 1.05}
 
 PUBLIC_ROUTES = ["/", "/login", "/signup", "/terms", "/privacy"]
 
@@ -93,11 +94,16 @@ PROBE_JS = r"""
   const sc = document.querySelector('[class*="_content_"]') || de;
   const scrollHeight = sc.scrollHeight;
   const viewportHeight = window.innerHeight;
+  // viewportHeight <= 0 would make screens NaN, and `NaN > budget` is
+  // false — a fail-open path in a rail whose whole job is to fail loud.
+  // Report null instead so the Python side can flag it explicitly rather
+  // than silently reading "ok".
+  const screens = viewportHeight > 0 ? +(scrollHeight / viewportHeight).toFixed(2) : null;
 
   return {
     overflowX, vw, scrollWidth: de.scrollWidth,
     offenders: offenders.slice(0, 12), smallCount: smallTargets.length, smallTargets: smallTargets.slice(0, 10),
-    scrollHeight, viewportHeight, screens: +(scrollHeight / viewportHeight).toFixed(2),
+    scrollHeight, viewportHeight, screens,
   };
 }
 """
@@ -236,10 +242,25 @@ def main():
                     # Vertical budget: /dashboard must fit one viewport.
                     # Baseline measured 2026-08-30: 5.5 screens at 2133x1050,
                     # 6.9 at 1277x1000. Target after Phase 3: <= 1.05.
-                    budget = HEIGHT_BUDGETS.get(route)
-                    hflag = "ok"
-                    if budget is not None and probe.get("screens", 0) > budget:
-                        hflag = "OVER_BUDGET"
+                    # Three states MUST stay distinguishable in report.json:
+                    # absent heightFlag = not budgeted; "ok" = checked and
+                    # passed; "OVER_BUDGET" = checked and failed. A budgeted
+                    # route therefore ALWAYS writes heightFlag, pass or fail —
+                    # never only on the failure branch, or "checked, passed"
+                    # and "never looked" become the same (missing) key.
+                    budget = HEIGHT_BUDGETS.get((route, vp_name))
+                    if budget is None:
+                        hflag = "n/a"  # console-only; not budgeted, no entry key
+                    else:
+                        screens_val = probe.get("screens")
+                        if screens_val is None:
+                            # viewportHeight was <=0 in the probe — a real
+                            # failure to measure, not a silent "ok".
+                            hflag = "NO_HEIGHT_DATA"
+                        elif screens_val > budget:
+                            hflag = "OVER_BUDGET"
+                        else:
+                            hflag = "ok"
                         entry["heightFlag"] = hflag
                     print(f"[{vp_name:8}] {route:24} {flag:9} {hflag:12} "
                           f"screens={probe.get('screens')}")
