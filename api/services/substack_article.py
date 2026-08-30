@@ -11,8 +11,10 @@ publications are admin-configurable (`POST /api/desk/publications` takes any
 feed URL), so this parser runs against markup we do not control, and its output
 goes into `dangerouslySetInnerHTML`.
 
-Stdlib only -- `html.parser`, no bs4/lxml/bleach. Same call the poller beside it
-already made for XML ("no feedparser dependency").
+Stdlib only for PARSING -- `html.parser`, no bs4/lxml/bleach. Same call the
+poller beside it already made for XML ("no feedparser dependency"). The one
+intra-repo import is `cap_universe`, the static $300M+ symbol list that the
+prose ticker source validates against.
 
 THREE THINGS SUBSTACK GETS RIGHT that a naive whitelist would destroy, and that
 this converter deliberately preserves on every <img>:
@@ -41,6 +43,8 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from api.services import cap_universe
+
 # Bump when the OUTPUT of convert() changes. Stored per row so a converter
 # improvement re-converts from the stored raw body with zero network traffic.
 #   1 -> 2: tickers also sourced from each chart's own label, not just the
@@ -49,11 +53,14 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 #           data-post-slug, so the reader can route them in-house.
 #   3 -> 4: Substack's own dead "Leave a comment" / "Share" buttons are
 #           dropped with their labels (148 of them across the archive).
+#   4 -> 5: prose mentions are a THIRD ticker source -- a symbol named in the
+#           body but never charted (a guest section, or any post carrying
+#           neither a "Charts Covered" heading nor chart labels) now surfaces.
 # ⛔ ANY change to what convert() EMITS needs a bump here. Shipping the furniture
 # drop without one left every stored row on the previous output and the
 # improvement applied to nothing -- silently, because a backfill with no version
 # change has no work to find.
-CONVERTER_VERSION = 4
+CONVERTER_VERSION = 5
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -145,6 +152,35 @@ _TICKER_RE = re.compile(r"^[A-Z][A-Z.\-]{0,5}$")
 _CHART_LABEL_RE = re.compile(
     r"^([A-Z][A-Z.\-]{0,5})\s*\(\s*(?:daily|weekly|hourly|monthly|\d+\s*(?:min|m|h)\b)",
     re.I,
+)
+
+# The THIRD ticker source: a symbol named in the body that was never charted.
+# Sources 1 and 2 only ever surface what the author CHARTED, so a guest section
+# -- or any post in a publication that writes about names without charting them
+# -- carried no symbols at all.
+#
+# Bare all-caps prose CANNOT be trusted on shape alone, so a candidate has to
+# clear three gates: it is in `cap_universe`, it is at least two characters, and
+# it is not house vocabulary. Measured on the 2026-08-16 fixture, the shape test
+# alone proposes RS (relative strength), EMA, MA, GAP, PEG (this desk's own
+# post-earnings-gap label), AI, BE, FOR, YOU and ON -- every one of them also a
+# real ticker, which is exactly why the universe check cannot carry this alone.
+#
+# The length floor is structural rather than listed: A, B, C, D, E, F, G, H, R,
+# S, T, U, V and W are all real tickers, and as bare prose they are hopeless.
+# Anything single-letter still reaches the roster via the chart-label source
+# whenever it is genuinely charted.
+_PROSE_MIN_LEN = 2
+_PROSE_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9.\-])([A-Z][A-Z.\-]{1,5})(?![A-Za-z0-9])")
+
+# Regenerate by intersecting cap_universe with chart/technical vocabulary, house
+# setup labels, all-caps emphasis words and unit abbreviations; only the words
+# that actually collide are listed, so this stays a statement about the universe
+# rather than a wish list.
+_PROSE_STOPWORDS = frozenset(
+    "AI ALL AM AN ARE AS ATR BE BY CAN CAR DD EAT EDIT EMA ET EU FAST FCF "
+    "FOR GAP GO IT KEY LOW MA NEXT NOW ON OPEN OR OUT PEG PLAY PM REAL RS "
+    "RSI RUN SEE SMA SO UP WELL WTI YOU".split()
 )
 
 # A srcset candidate boundary: a comma followed by whitespace, or a comma
@@ -302,6 +338,7 @@ class _Converter(HTMLParser):
         self.sections: list[dict] = []
         self.tickers: list[str] = []          # from the "Charts Covered" heading
         self.chart_symbols: list[str] = []    # from each chart's own label
+        self.prose_symbols: list[str] = []    # named in the body, never charted
         self.images = 0
         # Every text run, in order. The search index needs the article as
         # PLAIN TEXT, and the word count is derived from the same list -- a
@@ -426,6 +463,7 @@ class _Converter(HTMLParser):
             if 0 < len(stripped) <= 60:
                 self._last_label = stripped
                 self._note_chart_label(stripped)
+            self._note_prose_symbols(data)
         self._emit(_html.escape(data, quote=False))
 
     def _note_chart_label(self, text: str) -> None:
@@ -434,6 +472,22 @@ class _Converter(HTMLParser):
             sym = m.group(1).upper()
             if sym not in self.chart_symbols:
                 self.chart_symbols.append(sym)
+
+    def _note_prose_symbols(self, text: str) -> None:
+        """Symbols named in body copy. Called from the non-heading branch of
+        `handle_data`, so it inherits that path's two exclusions for free:
+        dropped subtrees (the subscribe form) and heading text -- and headings
+        are where the all-caps false positives live ("WHAT WE WILL COVER
+        TODAY")."""
+        universe = cap_universe.symbols()
+        if not universe:
+            return                  # cannot answer; say nothing rather than guess
+        for m in _PROSE_TOKEN_RE.finditer(text):
+            sym = m.group(1).strip(".-")
+            if (len(sym) < _PROSE_MIN_LEN or sym in _PROSE_STOPWORDS
+                    or sym not in universe or sym in self.prose_symbols):
+                continue
+            self.prose_symbols.append(sym)
 
     # -- element-specific emitters --------------------------------------------
     def _keep_attrs(self, tag: str, attrs: dict[str, str]) -> list[tuple[str, str]]:
@@ -595,6 +649,9 @@ def convert(raw_html: str, *, utm: dict[str, str] | None = None,
     # catalogue coverage — most issues have the labels and not the heading.
     tickers = list(parser.tickers)
     tickers += [s for s in parser.chart_symbols if s not in tickers]
+    # Prose mentions append last: the charted sources are curated and ordered,
+    # and nothing here is allowed to reshuffle them.
+    tickers += [s for s in parser.prose_symbols if s not in tickers]
 
     return ConvertedArticle(
         html=parser.html,
