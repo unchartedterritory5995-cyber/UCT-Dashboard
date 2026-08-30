@@ -117,6 +117,43 @@ describe('bool(x) is x != 0, which is what TradingView publishes', () => {
     expect(formulaOf(out) === 'close != 0 ? 1 : 0').toBe(false)
   })
 
+  // ─── the OTHER numeric cast, and the line this door will not cross ────────
+  //
+  // ⚰️⚰️ THE NARROWING WAS UNRAILED AND A MUTATION FOUND IT. `int(x)` is taken
+  // ONLY where its argument already folds to a whole number — the one case where
+  // truncation, rounding and floor are the same answer, so no vendor claim is
+  // needed. Widening it to truncate a FRACTIONAL float left every test GREEN,
+  // because no corpus script writes `int(2.5)`. The narrowing IS the
+  // justification, so it has to be the thing under test.
+  //
+  // ⛔ AND THE RULE IS NOT PUBLISHED. I looked: TradingView's type-system page and
+  // the v6 migration guide both state the int→float direction and neither states
+  // what casting a fractional float does; the reference manual is a JS app that
+  // cannot be quoted from. Absent that, picking one is exactly the invention the
+  // `bool` ruling above was right to refuse and wrong about the reason for.
+
+  it('⭐ `int(x)` folds when the answer needs no ruling — a whole-number argument', () => {
+    const f = formulaOf(translatePine(SRC('sma(close, int(20 * 1.0)) > 0')))
+    expect(f).toBe('sma(close, 20) > 0 ? 1 : 0')
+  })
+
+  it('⛔⛔ …and REFUSES a fractional one rather than picking a rounding', () => {
+    const out = translatePine(SRC('sma(close, int(20.5)) > 0'))
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:function')
+    // ⭐ THE REFUSAL NAMES BOTH SPELLINGS, because "this is unpublished" without a
+    // next step is a dead end, and both of these are declared in the table.
+    expect(out.refusal.message).toMatch(/idiv/)
+    expect(out.refusal.message).toMatch(/round/)
+    expect(out.refusal.message).toMatch(/TO UNBLOCK/)
+  })
+
+  it('⛔ a member’s OWN one-argument `int` wins over the fold too', () => {
+    const own = ['//@version=6', 'indicator("t")', 'int(a) => a + 1',
+      'plot(int(close))', ''].join('\n')
+    expect(formulaOf(translatePine(own))).toBe('close + 1')
+  })
+
   it('⭐ the real corpus script it unblocks translates, saves and screens', () => {
     // ⚠️ THROUGH THE SHIPPED DOOR, not a re-description of it.
     const fs = require('node:fs')

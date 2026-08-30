@@ -16,10 +16,18 @@ over the same universe, and it is independent of everything the backfill does.
 ran once. These rails exist to prove it can REFUSE — a gate nobody has watched
 fail is not a gate — and that a passing write touches exactly two keys.
 
-Measured 2026-08-30 over 96 collected sessions, which is why the gate matters:
-the collector's own cached price frames reproduce `adv_decline` on 89/96, and a
-bars.db recompute reproduces it on 0/96 (median |diff| 8.5). Both sources go
+Measured 2026-08-30, which is why the gate matters: the collector's own cached
+price frames reproduce `adv_decline` on 91 of 98 graded sessions, and a bars.db
+recompute reproduces it on 0 of 96 (median |diff| 8.5, and still 0 of 61 at
+>=99% bars coverage). The bars gap is COVERAGE, not basis: bars.db cannot price
+0.3-22% of each session's point-in-time universe and the missing names are
+distributed like the day, so a count comes back scaled — a proportional error,
+against an exact integer identity with no tolerance to spend. Both sources go
 through this same gate; only one of them gets to write.
+
+Restated rows — a row the collector's `--backfill` recomputed from a LATER day's
+frame — are the seventh case, and they live in
+`tests/test_breadth_adv_dec_restated.py`.
 """
 import json
 import re

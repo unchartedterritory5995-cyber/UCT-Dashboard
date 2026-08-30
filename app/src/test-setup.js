@@ -18,8 +18,17 @@ import { configure } from '@testing-library/react'
 // and why every attempt to pin "the" flaky test failed.
 //
 // ⚠️ NOT a licence for slow assertions. An element that never appears still
-// fails; it just takes 5s to say so, and only FAILING waits ever pay that.
-configure({ asyncUtilTimeout: 5000 })
+// fails; it just takes 4s to say so, and only FAILING waits ever pay that.
+//
+// 4000, not 5000, and the 1000ms of headroom is the whole point: at exactly
+// vitest's 5000ms `testTimeout` the two deadlines RACE. Whichever fires first
+// writes the failure message, so the same broken wait reports either
+// "Unable to find an element with the text: …" (useful — it names what it
+// wanted) or "Test timed out in 5000ms" (useless — no subject at all), and
+// which one you get depends on scheduling. Landing below testTimeout makes
+// the waitFor error deterministic, which is what you actually read at 2am.
+// The ceiling still dwarfs the 250ms debounce that motivated it.
+configure({ asyncUtilTimeout: 4000 })
 import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 

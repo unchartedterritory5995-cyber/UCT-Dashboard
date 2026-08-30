@@ -20,7 +20,7 @@ describe('AddTradeModal', () => {
   })
 
   it('requires a symbol', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn()
     render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} />)
     await user.click(screen.getByRole('button', { name: 'Add Trade' }))
@@ -29,7 +29,7 @@ describe('AddTradeModal', () => {
   })
 
   it('submits with empty contextAtEntry', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} />)
 
@@ -49,7 +49,7 @@ describe('AddTradeModal', () => {
   })
 
   it('includes entryTimeEt / exitTimeEt in the payload when the time inputs are filled', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} />)
 
@@ -68,7 +68,7 @@ describe('AddTradeModal', () => {
   })
 
   it('rejects exit date before entry date', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn()
     render(<AddTradeModal settings={SETTINGS} onSave={onSave} onClose={vi.fn()} />)
 
@@ -87,7 +87,7 @@ describe('AddTradeModal', () => {
   })
 
   it('shows live preview of P&L and R-multiple', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<AddTradeModal settings={SETTINGS} onSave={vi.fn()} onClose={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'YSS')
@@ -109,7 +109,7 @@ describe('AddTradeModal', () => {
   })
 
   it('disables Check with Compass until a stop is entered', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(<AddTradeModal settings={SETTINGS} onSave={vi.fn()} onClose={vi.fn()} />)
 
     await user.type(screen.getByPlaceholderText('e.g. NVDA'), 'NVDA')
@@ -127,7 +127,7 @@ describe('AddTradeModal', () => {
   })
 
   it('attaches the Compass verdict to the submitted payload after a run', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     global.fetch = vi.fn((url) => {
       if (String(url).includes('/coach/pre-trade-verdict')) {
