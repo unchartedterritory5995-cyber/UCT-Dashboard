@@ -232,6 +232,28 @@ def _member_label(name: str) -> str:
     return f["label"] if f else name
 
 
+
+def _retired_refusal(key: str, entry: dict) -> ValueError:
+    """The ONE member-facing sentence for a filter that has been retired.
+
+    ⛔ REFUSE, NEVER SILENTLY DROP. A saved screen that quietly stops applying
+    one of its criteria returns MORE rows and reads as a broader market — the
+    same defect `CoverageLine` exists to prevent, running in the opposite
+    direction. A member would act on a result that is wrong and looks right.
+
+    ⛔ WORDS A MEMBER CAN ACT ON, following `_readiness_refusal`: name the
+    filter they chose, say it was retired, and name what replaced it. Never
+    "unknown filter key", which blames the member for a change we made.
+    """
+    label = entry.get("label") or key
+    replacement = entry.get("replaced_by_label")
+    tail = (f" Use {replacement} instead."
+            if replacement else " It has no replacement.")
+    return ValueError(
+        f"This screen uses {label}, which was retired.{tail}"
+        " Edit the screen to remove it, and the rest of its criteria will run.")
+
+
 def _readiness_refusal(label: str) -> ValueError:
     """The ONE member-facing sentence for a column not yet live on this pod —
     the same words regardless of which of the four places found it (a filter,
@@ -464,6 +486,9 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             # member's watchlist.
             _list_clauses(f, clauses, params, list_joins, user_id)
             continue
+        retired = getattr(filters, "RETIRED", {}).get(key)
+        if retired is not None:
+            raise _retired_refusal(key, retired)
         name = filters.column_for(key)
         if not name:
             raise ValueError(f"unknown filter key: {key}")

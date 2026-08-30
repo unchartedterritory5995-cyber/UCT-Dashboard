@@ -739,6 +739,25 @@ OP_OPERANDS = {
     "lte_col": ("other",),
 }
 
+#: ⛔ FILTERS THAT ONCE EXISTED AND NO LONGER DO — the safe-deletion mechanism.
+#:
+#: A saved screen serializes filter KEYS as JSON (`screener_saved_screens.
+#: spec_json`), and `query.py` raises `unknown filter key` on anything it
+#: cannot resolve. So deleting a filter is not a cleanup: it turns every saved
+#: screen that used it into a 500, and there is no way to know from this
+#: machine how many members that is.
+#:
+#: ⛔⛔ AND SILENTLY DROPPING IT WOULD BE WORSE. A screen that quietly stops
+#: applying one of its criteria returns MORE rows and looks like a broader
+#: market — the same "silently loses symbols reads as a quiet market" defect
+#: `CoverageLine` exists to prevent, in the opposite direction. A retired
+#: filter must therefore REFUSE, loudly and with a sentence that says what to
+#: use instead.
+#:
+#: Each entry: the member-facing replacement (or None), and when.
+RETIRED: dict = {}
+
+
 VIEWS = {
     # ⭐ `base_render` REPLACED `patterns` here (owner ruling 2026-08-30). The
     # cheap six-detector heuristic left 59% of Overview rows blank and rendered
