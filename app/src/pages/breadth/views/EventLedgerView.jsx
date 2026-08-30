@@ -3,7 +3,7 @@
  * happened. Every threshold is sourced (tier / formula / percentile) and shown,
  * so a reader can check the claim rather than trust it.
  */
-import { resolveViewColors } from './breadthViewShared'
+import { fillsRow, resolveViewColors } from './breadthViewShared'
 import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
 // ⛔ THE FAMILY NAMES ARE NOT RE-TYPED HERE. `EVENT_DEFS` owns the roster and
@@ -21,6 +21,12 @@ const BASIS_LABEL = {
 const BASIS_CHIP = {
   tier: 'TIER', formula: 'FORMULA', percentile: 'PCTILE', collected: 'COLLECTED',
 }
+
+// A ledger row's floor and ceiling. The floor is what the row measured at
+// before it could flex (5px of padding either side of an 11px line); the
+// ceiling stops a one-family filter from drawing three slabs.
+const ROW_MIN_H = 26
+const ROW_MAX_H = 42
 
 /**
  * Group the scanned events by the family THEY carry. Insertion order is
@@ -83,8 +89,10 @@ export default function EventLedgerView({
   const firedCount = events.filter(e => e.firedToday).length
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '12px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+    <div style={{ height: '100%', minHeight: 0, padding: '12px 18px',
+                  display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10,
+                    flex: '0 0 auto' }}>
         <span data-testid="events-headline"
               style={{ font: '800 15px \'Instrument Sans\', sans-serif',
                        color: firedCount ? accent : '#94a3b8' }}>
@@ -104,12 +112,30 @@ export default function EventLedgerView({
           under the family it declares, with its status, its basis and its note
           on the same line. Roughly twice the height for four times the reading.
           ⛔ NOTHING BELOW IS TINTED BY DIRECTION: the fired accent is the
-          palette's caution tone and every other tone here is chrome. */}
+          palette's caution tone and every other tone here is chrome.
+
+          🔴 AND THE LEDGER BREATHES INTO THE ROOM IT IS GIVEN. Ten rows at
+          their intrinsic 26px stopped a third of the way down a full-height
+          panel: the box was `height: 100%` and the content simply declined it.
+          The rows flex between that 26px — what a quarter-size compare pane
+          gets — and a ceiling that keeps a three-event filter from drawing
+          three slabs. Row LEADING is the only thing that changes; nothing here
+          is stretched or re-ranked to fill space. */}
+      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto',
+                    display: 'flex', flexDirection: 'column' }}>
       {byFamily(events).map(([family, list]) => {
         const firedHere = list.filter(e => e.firedToday).length
         return (
-        <section key={family} data-testid={`events-family-${family}`} style={{ marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <section key={family} data-testid={`events-family-${family}`}
+                 /* ⛔ THE GROW FACTOR IS THE ROW COUNT, not 1. A flat `flex: 1`
+                    hands a one-event family the same slack as a four-event one,
+                    so the sections stop lining up and the ledger reads as five
+                    unrelated blocks. Weighted by rows, every row in the lens
+                    ends up the same height whichever family it sits under. */
+                 style={{ marginBottom: 12, flex: `${list.length} 1 auto`, minHeight: 0,
+                          display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+                        flex: '0 0 auto' }}>
             <span style={{ font: '800 9px \'Instrument Sans\', sans-serif', letterSpacing: '1px',
                            textTransform: 'uppercase', color: '#64748b', whiteSpace: 'nowrap' }}>
               {optionLabel('events', 'families', family)}
@@ -145,7 +171,8 @@ export default function EventLedgerView({
                  title={`${e.note} · ${BASIS_LABEL[e.basis]}`}
                  style={{ display: 'grid', alignItems: 'center', gap: 8,
                           gridTemplateColumns: '7px minmax(104px, 1.3fr) minmax(110px, 1.5fr) 58px minmax(0, 2.4fr)',
-                          padding: '5px 8px 5px 6px',
+                          ...fillsRow(ROW_MIN_H, ROW_MAX_H),
+                          padding: '0 8px 0 6px',
                           borderLeft: `2px solid ${e.firedToday ? accent : 'transparent'}`,
                           borderBottom: '1px solid rgba(255,255,255,0.04)',
                           background: e.firedToday ? 'rgba(255,255,255,0.025)' : 'transparent',
@@ -182,6 +209,7 @@ export default function EventLedgerView({
         </section>
         )
       })}
+      </div>
     </div>
   )
 }

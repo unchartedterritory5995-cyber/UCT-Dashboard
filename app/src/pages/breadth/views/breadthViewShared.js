@@ -166,6 +166,32 @@ export function resolveViewColors(paletteKey = 'classic', intensityKey = 'normal
   }
 }
 
+/**
+ * ⭐ THE ONE WAY A LENS TAKES THE HEIGHT IT IS OFFERED.
+ *
+ * 🔴 Four lenses rendered their content in the top third of a full-height panel
+ * with 300-400px of dead black beneath — and the parent was never at fault.
+ * `BreadthViews` hands every view a `flex: 1; min-height: 0` box and each view
+ * root correctly says `height: 100%`; what stopped there was the CONTENT. A
+ * ribbon band was a fixed 16px, a ladder row a fixed 34px svg, a ledger row its
+ * own text height. A box can be 100% tall and still draw ink in the first 200px
+ * of it. The height was offered and declined.
+ *
+ * So a row that should share the room says so, off one declaration: grow into
+ * what is spare, shrink to `min` before the list scrolls instead, and never
+ * exceed `max` — a two-metric board must not draw two slabs. `basis: 0` is what
+ * makes siblings share EQUALLY rather than in proportion to their own content.
+ *
+ * ⛔ LONGHANDS, NOT `flex: '1 1 0'`, AND NOT AS A STYLE PREFERENCE. jsdom's
+ * CSSOM drops the `flex` shorthand silently — `el.style.flex` reads `''` on an
+ * element that declares it — so a rail written against the shorthand passes
+ * identically on a view that declares nothing at all. The longhands round-trip,
+ * which is what makes "this row flexes" an assertion that can fail.
+ */
+export const fillsRow = (min, max) => ({
+  flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: min, maxHeight: max,
+})
+
 export function metricColor(metric, row, tierMap = VIEW_TIER_COLOR) {
   const tier = metric.getTier ? (metric.getTier(row) || '') : ''
   return tierMap[tier] ?? tierMap[''] ?? VIEW_TIER_COLOR['']
