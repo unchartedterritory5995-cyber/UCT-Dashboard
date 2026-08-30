@@ -104,3 +104,58 @@ class TestReport:
 
     def test_an_empty_fleet_does_not_raise(self, env):
         assert broker_coverage.report() == {"brokerages": [], "total": 0}
+
+
+class TestOrdersRailSignal:
+    """Does the ORDERS rail recover real execution times for this brokerage?
+
+    Schwab activities are 100% midnight-stamped, so intraday cash cannot derive
+    from the ledger. The orders rail could supply a real time instead, and
+    `j2_broker_precise_times` is its durable record — provisionals are pruned
+    once the real activity lands, so their absence proves nothing on its own.
+    """
+
+    def _traded(self, ba_id, n=3, user="u1"):
+        conn = auth_db.get_connection()
+        try:
+            for i in range(n):
+                conn.execute(
+                    "INSERT INTO j2_broker_activities (id, user_id, broker_account_id, "
+                    "external_id, activity_type, occurred_at, raw_json, created_at) "
+                    "VALUES (?,?,?,?,?,datetime('now','-1 days'),?,datetime('now'))",
+                    (f"a{ba_id}{i}", user, ba_id, f"x{ba_id}{i}", "BUY", "{}"))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _precise(self, ba_id, user="u1"):
+        conn = auth_db.get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO j2_broker_precise_times "
+                "(user_id, broker_account_id, match_key, precise_ts) VALUES (?,?,?,?)",
+                (user, ba_id, f"{ba_id}|AAPL|BUY|10", "2026-08-28T14:30:00+00:00"))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_traded_but_no_real_times_means_the_rail_is_not_delivering(self, env):
+        _acct("Schwab", "s1")
+        self._traded("s1")
+        b = broker_coverage.report()["brokerages"][0]
+        assert b["recentTrades"] == 3 and b["preciseTimes"] == 0
+        assert b["ordersRailDelivering"] is False
+
+    def test_no_recent_trades_says_UNKNOWN_not_broken(self, env):
+        # The distinction that matters: a quiet week is not a failing rail.
+        _acct("Webull", "w1")
+        b = broker_coverage.report()["brokerages"][0]
+        assert b["recentTrades"] == 0
+        assert b["ordersRailDelivering"] is None
+
+    def test_traded_and_real_times_recovered_means_it_works(self, env):
+        _acct("Robinhood", "r1")
+        self._traded("r1")
+        self._precise("r1")
+        b = broker_coverage.report()["brokerages"][0]
+        assert b["ordersRailDelivering"] is True
