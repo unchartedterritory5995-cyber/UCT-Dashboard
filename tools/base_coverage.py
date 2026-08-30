@@ -32,6 +32,19 @@ class CoverageReport(TypedDict):
 
 
 def classify(pct: float) -> str:
+    """⚠️ THESE BANDS ARE FOR A **SPARSE** LABEL, NOT A TOTAL PARTITION.
+
+    A RELATION is optional — most symbols should not carry it — so 35% is
+    genuinely uninformative and 0% is genuinely dead. A SHAPE is a total
+    partition: with five shapes covering every symbol, the average shape
+    holds 20% by construction and a 36.7% shape is perfectly normal. Running
+    a shape through these bands reports `noise` on correct code, which is
+    how a rail earns its way onto the ignore list.
+
+    Measured 2026-08-30: `advancing-structure` = 36.7% of the universe and is
+    fine; `darvas-box` = 4.8% and is fine; the first Darvas predicate =
+    96.7% and was NOT.
+    """
     if pct <= DEAD_PCT:
         return "dead"
     if pct < THIN_PCT:
