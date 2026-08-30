@@ -170,11 +170,32 @@ virtualized scan scrolling re-serves from memory. Rail:
 `RowSpark.test.jsx` — pins the no-fetch-fallback and desktop-reads-nothing
 directions plus the pure `sparkPath` geometry.
 
-## Deliberately deferred (Phase 5+)
+## Phase 5 — touch drawing works (same branch, 2026-08-30)
 
-- **Touch drawing pass** — restyle ChartToolbar for touch (left rail, 44px),
-  test pointer-based drawing end-to-end on iOS Safari. (The toolbar now starts
-  collapsed on phone; its chevron expands it.)
+Verified end-to-end with REAL touch input (CDP `Input.dispatchTouchEvent` →
+Chromium's genuine `pointerType:'touch'` path) against a seeded chart:
+
+- **The phone toolbar overlap bug** — at 393px the ACTIONS cluster (7 coarse
+  40px buttons + the labelled Indicators button) is wider than the toolbar; as
+  `flex: 0 0 auto` it overflowed the flex line and painted OVER the zero-width
+  tools rail, so every drawing tool was untappable (the Trendline tap landed
+  on the Magnet button — found by the automated walk, invisible to a
+  screenshot). Fixed in the ≤640px block: `.toolbar` wraps, `.actions` takes
+  its own line(s), `.tools` gets basis 0 so the collapse chevron shares line 1.
+  Rail: `ChartToolbar.phonewrap.test.js` (mobileShellHeight idiom — the three
+  declarations are the artifact under test).
+- **Placement on touch is TAP-TAP** (each pointerdown adds an anchor; the
+  second commits) — the overlay's existing model, which matches TradingView
+  mobile. Verified: arm Trendline → two taps → drawing rendered AND persisted
+  to `uct-chart-drawings` (per-symbol). Long-press on a drawing opens its
+  context menu; a second finger aborts placement in favor of pinch-zoom —
+  both already built into the overlay.
+
+## Deliberately deferred (Phase 6+)
+
+- **Touch drawing polish** — the pipeline works (Phase 5); remaining polish is
+  per-tool: bigger touch handles for reshaping, a first-use "tap two points"
+  hint, and an on-device iOS Safari pass.
 - **Price + interval in the top app bar** (reclaim MobileNav's title row on
   /charts), long-press crosshair inspect card, per-widget mobile headers.
 - **Tablet (641–1024px portrait)** still renders the RGL workspace.
