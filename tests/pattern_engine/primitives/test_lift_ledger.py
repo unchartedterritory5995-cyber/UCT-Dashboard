@@ -382,3 +382,97 @@ def test_meta_never_reports_a_lift_the_ledger_refused():
                 f"{key} was refused but meta() reports {m[key]['lift_pp']}")
         else:
             assert m[key]["lift_pp"] is not None, f"{key} published but meta() hides it"
+
+
+# ── freshness ──────────────────────────────────────────────────────────────
+
+def test_an_undated_artifact_is_stale_by_definition():
+    """An undated number cannot be known to be current, so it is not trusted."""
+    import json, tempfile, os
+    fd, p = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    try:
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump({"structures": {}}, fh)
+        assert ll.is_stale(path=p) is True
+        assert ll.age_days(path=p) is None
+    finally:
+        os.unlink(p)
+
+
+def test_staleness_is_measured_against_the_recorded_date():
+    import datetime as dt
+    import json, tempfile, os
+    fd, p = tempfile.mkstemp(suffix=".json")
+    os.close(fd)
+    try:
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump({"measured_at": "2026-01-01", "structures": {}}, fh)
+        fresh = dt.date(2026, 3, 1)
+        old = dt.date(2026, 9, 1)
+        assert ll.is_stale(path=p, today=fresh) is False
+        assert ll.is_stale(path=p, today=old) is True
+    finally:
+        os.unlink(p)
+
+
+def test_the_ledger_is_not_stale():
+    """⛔ THE FRESHNESS RAIL. Nothing re-runs the harness automatically -- it is
+    a deliberate tool, because the web pod already carries ~135 cron jobs and a
+    multi-minute monthly harness buys nothing there. So this test IS the
+    refresh mechanism: when it goes red, re-run
+
+        python tools/run_lift_ledger.py
+
+    and commit the rewritten artifact. Going red is the design, not a defect.
+    """
+    age = ll.age_days()
+    assert age is not None, "the ledger records no measured_at date"
+    assert not ll.is_stale(), (
+        f"the lift ledger was measured {age} days ago (bound is "
+        f"{ll.MAX_LEDGER_AGE_DAYS}). Re-run `python tools/run_lift_ledger.py` "
+        f"and commit the rewritten artifact.")
+
+
+# ── the evidence reaches the member ────────────────────────────────────────
+
+def test_the_filter_payload_carries_evidence_only_for_published_structures():
+    """⛔ THE BLANK MUST STAY HONEST ALL THE WAY TO THE SCREEN.
+
+    A refused structure is ABSENT from the evidence dict, never present with a
+    zero. `pattern_join` shipped a synthetic breakeven to members as a
+    measurement across 46 of 79 rows by treating absence as zero; the ledger
+    exists so that cannot happen again, and it only holds if the surface
+    preserves it.
+    """
+    from api.services.screener import base_catalog as bc
+    from api.services.screener import filters
+
+    m = filters.meta()
+    ctl = [f for f in m["filters"] if f["key"] == "base_structure"][0]
+    ev = ctl.get("evidence") or {}
+    entries = ll.load().get("structures") or {}
+
+    for key, e in entries.items():
+        token = bc.match_value(key)
+        if e.get("published"):
+            assert token in ev, f"{key} is published but carries no evidence"
+            assert ev[token]["lift_pp"] is not None
+        else:
+            assert token not in ev, (
+                f"{key} was REFUSED but the filter payload carries evidence "
+                f"for it: {ev.get(token)}")
+
+
+def test_the_evidence_states_its_own_vintage_and_metric():
+    """A number with no conditions beside it cannot be challenged or re-derived,
+    and a member cannot tell a fresh measurement from a two-year-old one.
+    """
+    from api.services.screener import filters
+
+    ctl = [f for f in filters.meta()["filters"]
+           if f["key"] == "base_structure"][0]
+    basis = ctl.get("evidence_basis") or {}
+    assert basis.get("measured_at"), "evidence ships with no date"
+    assert basis.get("metric"), "evidence ships with no metric"
+    assert "stale" in basis, "the surface cannot tell whether the number is stale"

@@ -1016,6 +1016,45 @@ def _my_scans_entry(user_id):
     }
 
 
+
+def _structure_evidence() -> dict:
+    """Measured lift per structure key, for the structures that earned one.
+
+    ⛔ A structure with no measured lift is ABSENT from this dict. It is never
+    present with a 0.0 — `pattern_join` already shipped a synthetic breakeven
+    to members as a measurement across 46 of 79 rows by treating absence as
+    zero, and the whole point of the ledger is that the blank stays honest.
+    """
+    from api.services.screener import base_catalog, lift_ledger
+
+    out = {}
+    for st in base_catalog.ALL_STRUCTURES:
+        entry = lift_ledger.for_structure(st.key)
+        if not entry:
+            continue
+        out[base_catalog.match_value(st.key)] = {
+            "lift_pp": round(entry["lift"] * 100, 2),
+            "ci_pp": [round(entry["ci_low"] * 100, 2),
+                      round(entry["ci_high"] * 100, 2)],
+            "n": entry.get("n"),
+        }
+    return out
+
+
+def _evidence_basis() -> dict:
+    """The conditions the lift numbers were measured under — stated ONCE,
+    beside them, so no surface has to guess at the metric or the vintage."""
+    from api.services.screener import lift_ledger
+
+    data = lift_ledger.load()
+    return {
+        "measured_at": data.get("measured_at"),
+        "metric": data.get("baseline_metric"),
+        "sample": data.get("sample"),
+        "stale": lift_ledger.is_stale(),
+    }
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1068,6 +1107,20 @@ def meta(user_id=None) -> dict:
             band = bands.get(f["column"])
             if band is not None:
                 entry["distribution"] = band
+        # ⭐ MEASURED EVIDENCE RIDES BESIDE THE CONTROL, EXACTLY AS
+        # `distribution` DOES, AND FOR THE SAME REASON: it is a MEASUREMENT,
+        # not an editorial preset. A member choosing "Darvas Box" should be
+        # able to see that it beat the market's own base rate by a measured
+        # amount, and — far more often — that a structure has NO measured
+        # number at all. Refused structures are deliberately absent from this
+        # dict rather than present with a zero: `lift_ledger.for_structure`
+        # returns None for both "never measured" and "measured and refused",
+        # because to a member those say the same honest thing.
+        if key == "base_structure":
+            ev = _structure_evidence()
+            if ev:
+                entry["evidence"] = ev
+                entry["evidence_basis"] = _evidence_basis()
         out_filters.append(entry)
     categories = CATEGORIES
     if user_id is not None:

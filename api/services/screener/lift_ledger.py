@@ -419,3 +419,46 @@ def for_structure(key: str, path: str = None) -> Optional[dict]:
     if not entry or not entry.get("published"):
         return None
     return entry
+
+
+#: How long a measurement may stand before it must be re-taken. origin: uct —
+#: what this measures (whether a multi-week structure beats the market's own
+#: base rate) moves on a quarterly timescale, not a nightly one, so a quarter
+#: plus a month of slack is the bound. Shorter would cry wolf; much longer and
+#: a number could outlive the market regime that produced it.
+MAX_LEDGER_AGE_DAYS = 120
+
+
+def measured_at(path: str = None):
+    """The artifact's own date, or None if it does not record one."""
+    import datetime as _dt
+    raw = load(path).get("measured_at")
+    try:
+        return _dt.date.fromisoformat(str(raw))
+    except Exception:
+        return None
+
+
+def age_days(path: str = None, today=None) -> Optional[int]:
+    import datetime as _dt
+    when = measured_at(path)
+    if when is None:
+        return None
+    return ((today or _dt.date.today()) - when).days
+
+
+def is_stale(max_age_days: int = MAX_LEDGER_AGE_DAYS, path: str = None,
+             today=None) -> bool:
+    """⛔ A MEASUREMENT WITH NO REFRESH GOES WRONG SILENTLY.
+
+    This is the other half of the pair with `tools/run_lift_ledger.py`. The
+    harness is a deliberate tool rather than a cron job (the web pod already
+    carries ~135 jobs and cannot shed them), which means nothing re-runs it on
+    its own — so the freshness guarantee has to be a rail that goes RED. A job
+    that silently stops running is invisible; a failing test is not.
+
+    An artifact with NO date is stale by definition: an undated number cannot
+    be known to be current.
+    """
+    age = age_days(path, today=today)
+    return True if age is None else age > max_age_days
