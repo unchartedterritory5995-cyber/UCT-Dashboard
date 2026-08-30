@@ -17,7 +17,18 @@ from api.services.breadth_monitor import _conn, get_history
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
 
-_cache: dict = {"ts": 0, "data": None, "top_n": None}
+# ⛔ ONE ENTRY PER `top_n`, NOT ONE SLOT WITH A `top_n` STAMP.
+#
+# The single-slot version was correct but thrashed: it compared the stored
+# `top_n` and recomputed on a mismatch, so two callers alternating between 5 and
+# 10 matches EVICTED EACH OTHER on every request — a full 500-row similarity
+# pass each time, on the single-process pod, with the six-hour TTL never once
+# doing its job. The whole search is identical up to the final `top_n` cut, so
+# both answers can simply be held.
+#
+# Bounded by construction: `top_n` is `ge=3, le=10` at the router, so this holds
+# at most eight entries of a few kilobytes each.
+_cache: dict[int, dict] = {}
 _CACHE_TTL = 6 * 3600  # 6 hours
 
 
@@ -165,13 +176,13 @@ def find_analogues(
     Returns:
         dict with 'reference_date', 'analogues' list, and 'reference_metrics'.
     """
-    # Check cache — keyed on top_n too. Without this, a request for 10 matches
-    # could be served a cached result computed for 5 (or vice versa), silently,
-    # for up to _CACHE_TTL.
+    # Keyed BY top_n. A request for 10 matches must never be served a result
+    # computed for 5 (that was the original defect), and asking for 5 again
+    # must not throw away the 10 (that was the fix's own cost).
     now = time.time()
-    if (_cache["data"] is not None and _cache["top_n"] == top_n
-            and (now - _cache["ts"]) < _CACHE_TTL):
-        return _cache["data"]
+    hit = _cache.get(top_n)
+    if hit is not None and (now - hit["ts"]) < _CACHE_TTL:
+        return hit["data"]
 
     rows = _get_all_snapshots(lookback_days)
     if len(rows) < 20:
@@ -243,16 +254,17 @@ def find_analogues(
         "analogues": selected,
     }
 
-    # Cache result
-    _cache["ts"] = now
-    _cache["data"] = result
-    _cache["top_n"] = top_n
+    # Cache result under its own top_n
+    _cache[top_n] = {"ts": now, "data": result}
 
     return result
 
 
 def invalidate_cache():
-    """Clear the analogues cache (e.g. after new breadth push)."""
-    _cache["ts"] = 0
-    _cache["data"] = None
-    _cache["top_n"] = None
+    """Clear the analogues cache (e.g. after new breadth push).
+
+    Every entry, not just the last one written: a push makes yesterday's answer
+    stale at EVERY match count, and leaving the others behind would serve a
+    pre-push deck to whichever caller asked for a different `top_n`.
+    """
+    _cache.clear()

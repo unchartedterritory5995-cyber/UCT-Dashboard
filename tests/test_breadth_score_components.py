@@ -93,6 +93,83 @@ def test_an_unrecorded_date_is_still_a_refusal_not_an_error(recorded_history):
     assert recorded_history == [180]
 
 
+# ── missing vs provisional ──────────────────────────────────────────────────
+#
+# 🔴 A LIVE ROW IS NOT A MISSING ONE. The Views tab renders today's breadth
+# from `/live` as a row carrying today's date, and the Score Attribution lens
+# asks this function about whatever date the cursor is on — so for most of every
+# trading day the default cursor position produced "no stored session for that
+# date" about a session that simply had not been written yet. `session_path`'s
+# own contract is the precedent: absence answers `ok: False`, and the caller is
+# told which absence it is.
+
+def test_a_session_the_collector_has_not_written_yet_is_provisional(recorded_history):
+    """The fixture's newest stored row is 2026-08-28; tomorrow is provisional."""
+    out = bm.score_components("2026-08-29", days=90)
+    assert out["ok"] is False
+    assert out["provisional"] is True
+    assert "provisional" in out["reason"]
+    assert "no stored session" not in out["reason"]
+    assert out["latest_stored"] == "2026-08-28"
+
+
+def test_a_date_the_collector_has_passed_is_genuinely_missing(recorded_history):
+    """A gap BEHIND the newest stored row is the other fact, and keeps the old
+    wording — the two must not collapse back into one sentence."""
+    out = bm.score_components("2026-08-20", days=90)
+    assert out["ok"] is False
+    assert out["provisional"] is False
+    assert out["reason"] == "no stored session for that date"
+
+
+def test_an_empty_history_reports_missing_not_provisional(monkeypatch):
+    """Nothing stored at all: there is no boundary to be past, so calling every
+    date provisional would be a guess."""
+    monkeypatch.setattr(bm, "get_history", lambda days: [])
+    out = bm.score_components("2026-08-29")
+    assert (out["ok"], out["provisional"], out["latest_stored"]) == (False, False, None)
+
+
+# ── the path date is validated like its neighbour ───────────────────────────
+
+def test_a_malformed_date_is_rejected_before_any_history_is_fetched(recorded_history):
+    """🔴 An unvalidated path param bought a full `get_history` fetch plus a
+    derivation pass on a single-process pod, only to answer `ok: false` to a
+    string that could never match a stored date."""
+    from fastapi import HTTPException
+    from api.routers import breadth_monitor as router
+
+    with pytest.raises(HTTPException) as e:
+        router.get_breadth_score_components("not-a-date", days=180, _user={})
+    assert e.value.status_code == 400
+    assert recorded_history == [], "history was fetched for a date that cannot exist"
+
+
+def test_both_endpoints_reject_a_malformed_date_identically():
+    """Derived from the neighbour, not retyped: `session-path` has validated its
+    path date since it shipped, and a second hand-written regex here is exactly
+    the second-authority defect this repo keeps paying for."""
+    from fastapi import HTTPException
+    from api.routers import breadth_monitor as router
+
+    bad = "2026-8-1"
+    errs = {}
+    for name, call in (
+        ("session_path", lambda: router.get_breadth_session_path(bad, _user={})),
+        ("score_components", lambda: router.get_breadth_score_components(bad, days=90, _user={})),
+    ):
+        with pytest.raises(HTTPException) as e:
+            call()
+        errs[name] = (e.value.status_code, e.value.detail)
+
+    assert errs["score_components"] == errs["session_path"]
+    assert errs["session_path"][0] == 400
+
+    # …and the probe can tell a rejection from an acceptance, so it is not
+    # passing because both endpoints happen to raise on everything.
+    assert router._require_iso_date("2026-08-01") == "2026-08-01"
+
+
 def _bounds(q):
     """ge/le off a FastAPI Query, wherever the installed pydantic keeps them."""
     out = {}
