@@ -233,6 +233,21 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
     return out
 
 
+# Metrics this sweep must NEVER write into `breadth_daily_ohlc`, whatever
+# `compute_metrics` hands back.
+#
+# `new_ath` is an ALL-TIME-high count. This sweep only ever holds `window`
+# sessions (320 by default), so anything it computed under that name would be a
+# ~15-month high FILED AS an all-time high — and `write_bulk` is a write to
+# stored history, so every row it touched would carry the wrong definition
+# permanently, mixed in beside rows that carry the real one.
+#
+# Today `compute_metrics` publishes `new_ath: None` and the `fv is None` skip
+# below already drops it. That is INCIDENTAL: give the key a number again and
+# the sweep starts writing it silently. This set is the standing refusal.
+# Rail: tests/test_breadth_recon_never_writes_new_ath.py
+_NEVER_SWEEP_STORE = frozenset({"new_ath"})
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
@@ -279,7 +294,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         if ds < from_date:      # warmup only — seed the buffer, don't store
             continue
         for metric, val in full.items():
-            if metric == "date":
+            if metric == "date" or metric in _NEVER_SWEEP_STORE:
                 continue
             fv = _f(val)
             if fv is None:
