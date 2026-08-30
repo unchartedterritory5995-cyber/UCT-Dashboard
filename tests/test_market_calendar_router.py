@@ -160,36 +160,128 @@ def test_the_warning_fires_BEFORE_the_countdown_vanishes_not_with_it():
     )
 
 
-def test_a_non_clean_runway_reaches_the_admin_alert_feed(monkeypatch):
-    # `chart_health_alerts` is rendered by pages/admin/ChartHealth.jsx and pages
-    # Discord on `critical` — a surface a human actually reads, unlike a log
-    # line nobody greps or a tool nobody runs.
-    import api.routers.market_calendar as mc
+ANY_DAY = date(2026, 8, 30)
+
+
+def _emissions(monkeypatch) -> list:
+    """Capture what `_announce` hands the alert feed, without touching it."""
     from api.services import chart_health_alerts
 
-    seen: list[tuple] = []
+    seen: list = []
     monkeypatch.setattr(chart_health_alerts, "emit",
                         lambda *a, **kw: seen.append(a) or True)
+    return seen
 
-    mc._announce("expiring", 30)
-    mc._announce("expired", -5)
-    assert [a[0] for a in seen] == ["market_calendar_stale"] * 2
-    assert [a[1] for a in seen] == ["warning", "critical"]
+
+def test_a_non_clean_runway_reaches_the_admin_alert_feed(monkeypatch):
+    # `chart_health_alerts` is rendered by pages/admin/ChartHealth.jsx — a
+    # surface a human actually reads, unlike a log line nobody greps or a tool
+    # nobody runs.
+    import api.routers.market_calendar as mc
+
+    seen = _emissions(monkeypatch)
+    mc._announce("expiring", 100, ANY_DAY)
+    assert len(seen) == 1
     # The message has to carry the FIX, not just the complaint.
     assert "_NYSE_HOLIDAYS_YYYYMMDD" in seen[0][2]
     assert "nyse.com" in seen[0][2]
 
 
+# ---------------------------------------------------------------------------
+# The PUSH path
+# ---------------------------------------------------------------------------
+#
+# THE FEED ALONE WAS NOT A SIGNAL. `chart_health_alerts` keeps entries in an
+# in-memory `deque(maxlen=200)` that is WIPED ON EVERY REDEPLOY (several times a
+# day here), behind an admin page nobody is prompted to open - and it pages
+# Discord only on `critical`. The first cut mapped `expiring -> "warning"`, so
+# the 180-day early warning had no push path at all and Discord heard about it
+# only at `expired`, i.e. after the countdown had already vanished for every
+# member. A warning that arrives with the failure is a post-mortem.
+#
+# AND THE EARLIER TEST ENCODED THAT RATHER THAN CATCHING IT: it asserted
+# `expiring == "warning"` as if it were the requirement. A guard testing the
+# adjacent thing - it pinned what the code did, not what the code needed to do.
+
+def test_a_MILESTONE_day_is_critical_so_it_actually_pages(monkeypatch):
+    import api.routers.market_calendar as mc
+
+    for days in mc._MILESTONE_DAYS:
+        seen = _emissions(monkeypatch)
+        mc._announce("expiring", days, ANY_DAY)
+        assert len(seen) == 1, days
+        key, severity = seen[0][0], seen[0][1]
+        # `_should_page_discord` returns False for anything but "critical" -
+        # severity IS the push switch in this system.
+        assert severity == "critical", f"{days} days out would not have paged"
+        # Its OWN key, so the per-key 30-min cooldown cannot swallow the next
+        # milestone and the feed shows them as separate events.
+        assert key == f"market_calendar_expiring_{days}d"
+
+
+def test_CONTROL_an_ordinary_expiring_day_stays_a_feed_WARNING(monkeypatch):
+    # THE OTHER HALF, AND WHY THIS IS NOT JUST "make expiring critical".
+    # `_DISCORD_COOLDOWN_SEC` is 30 minutes, so a permanently-critical expiring
+    # would page up to 48x/day for 180 days - the same as no alert at all.
+    import api.routers.market_calendar as mc
+
+    for days in (179, 120, 91, 45, 8, 2):
+        seen = _emissions(monkeypatch)
+        mc._announce("expiring", days, ANY_DAY)
+        assert seen[0][1] == "warning", f"{days} days out paged when it should not"
+        assert seen[0][0] == "market_calendar_stale"
+
+
+def test_every_milestone_is_inside_the_window_that_can_reach_it():
+    # A MILESTONE OUTSIDE `_EXPIRING_WITHIN_DAYS` COULD NEVER FIRE: the status
+    # would still be "ok" on that day and `_announce` returns early. The two
+    # constants have to move together, and nothing else would say so.
+    import api.routers.market_calendar as mc
+
+    assert max(mc._MILESTONE_DAYS) <= mc._EXPIRING_WITHIN_DAYS
+    assert max(mc._MILESTONE_DAYS) == mc._EXPIRING_WITHIN_DAYS, (
+        "the longest notice should be the moment the window opens, or the first "
+        "half of the warning period passes in silence"
+    )
+    assert list(mc._MILESTONE_DAYS) == sorted(mc._MILESTONE_DAYS, reverse=True)
+
+
+def test_the_milestones_are_reachable_by_the_classifier():
+    # The bridge between the two halves: a milestone is only ever hit if
+    # `_classify` actually produces that exact `days_remaining` on some day.
+    import api.routers.market_calendar as mc
+
+    horizon = date.fromisoformat(mc._COVERS_THROUGH)
+    for days in mc._MILESTONE_DAYS:
+        day = date.fromordinal(horizon.toordinal() - days)
+        assert mc._classify(day) == ("expiring", days)
+
+
+def test_expired_pages_but_is_DAY_STAMPED_rather_than_every_30_minutes(monkeypatch):
+    import api.routers.market_calendar as mc
+
+    seen = _emissions(monkeypatch)
+    mc._announce("expired", -5, date(2027, 1, 2))
+    mc._announce("expired", -6, date(2027, 1, 3))
+    assert [a[1] for a in seen] == ["critical", "critical"]
+    assert [a[0] for a in seen] == [
+        "market_calendar_expired_2027-01-02",
+        "market_calendar_expired_2027-01-03",
+    ]
+    # Same day twice = the same key, so the feed's own throttle collapses it.
+    seen2 = _emissions(monkeypatch)
+    mc._announce("expired", -5, date(2027, 1, 2))
+    mc._announce("expired", -5, date(2027, 1, 2))
+    assert seen2[0][0] == seen2[1][0]
+
+
 def test_CONTROL_a_clean_runway_raises_nothing(monkeypatch):
-    # Without this, the alert above is satisfied by one that fires every day —
+    # Without this, the alerts above are satisfied by one that fires every day -
     # which is the same as never firing, because nobody would read it.
     import api.routers.market_calendar as mc
-    from api.services import chart_health_alerts
 
-    seen = []
-    monkeypatch.setattr(chart_health_alerts, "emit",
-                        lambda *a, **kw: seen.append(a) or True)
-    mc._announce("ok", 488)
+    seen = _emissions(monkeypatch)
+    mc._announce("ok", 488, ANY_DAY)
     assert seen == []
 
 
@@ -203,7 +295,7 @@ def test_the_alert_can_never_break_the_route(monkeypatch):
         raise RuntimeError("alert feed down")
 
     monkeypatch.setattr(chart_health_alerts, "emit", boom)
-    mc._announce("expired", -5)          # must not raise
+    mc._announce("expired", -5, ANY_DAY)          # must not raise
     assert _payload()["status"] in ("ok", "expiring", "expired", "unknown")
 
 

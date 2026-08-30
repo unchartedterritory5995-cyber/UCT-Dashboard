@@ -61,10 +61,20 @@ const MAX_CLOSURE_WALK_DAYS = 14
  * `null` (not `false`) when the calendar is unknown: "we cannot tell" is not
  * "it is a normal day", and the pill must fall back to the session label rather
  * than assert a holiday it cannot see.
+ *
+ * ⛔ AND `coversThrough` IS REQUIRED FOR THE SAME REASON. A `Set` answers
+ * `has()` for any date you hand it, so a table that ends in 2027 would report a
+ * confident `false` for every day of 2028 — "the exchange is open" asserted
+ * from a table that has nothing to say. Past the horizon this returns `null`,
+ * which is the same word it uses for "no calendar at all", because it is the
+ * same fact. Omitting the argument is treated as unknown rather than as
+ * unlimited coverage: a caller that forgets it gets a refusal, not a guess.
  */
-export function isMarketHoliday(date = new Date(), holidays = null) {
-  if (!holidays) return null
-  return holidays.has(etDayKey(etClock(date)))
+export function isMarketHoliday(date = new Date(), holidays = null, coversThrough = null) {
+  if (!holidays || !coversThrough) return null
+  const key = etDayKey(etClock(date))
+  if (key > coversThrough) return null
+  return holidays.has(key)
 }
 
 export function resolveSession(date = new Date()) {
@@ -251,9 +261,16 @@ export function useNextBoundary() {
 
   // ⛔ REPORTED EVEN WHEN THE BOUNDARY IS NOT VERIFIED. Whether TODAY is a
   // closure and whether the NEXT BELL is inside the table's horizon are two
-  // different questions; a table that has lapsed at its far end still answers
-  // the first one correctly for today.
-  const holidayToday = isMarketHoliday(now, holidays)
+  // different questions: on a Friday two days before the horizon, the next open
+  // is past it while today is still squarely inside it, and the pill can be
+  // right when the countdown cannot.
+  //
+  // ⚠️ THAT IS ONLY TRUE WHILE TODAY ITSELF IS INSIDE THE HORIZON — an earlier
+  // version of this comment said "a table that has lapsed at its far end still
+  // answers the first one correctly for today", which is exactly backwards for
+  // the lapsed case it named. `isMarketHoliday` now takes `coversThrough` and
+  // returns null past it.
+  const holidayToday = isMarketHoliday(now, holidays, coversThrough)
 
   if (!verified) {
     return { kind: null, ms: null, label: null, verified: false, reason, holidayToday }

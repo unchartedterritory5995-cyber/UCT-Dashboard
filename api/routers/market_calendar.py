@@ -43,7 +43,9 @@ _MAX_AGE = 86_400
 
 # How much runway the table must keep before we start saying so. The source set
 # is refreshed BY HAND, once a year; half a year of notice is enough for that
-# cadence to be met without the warning becoming background noise.
+# cadence to be met without the warning becoming background noise. Must stay in
+# step with `_MILESTONE_DAYS[0]` — a first milestone outside the expiring window
+# would never fire, which a test pins.
 _EXPIRING_WITHIN_DAYS = 180
 
 _REFRESH_HINT = (
@@ -97,21 +99,60 @@ def _classify(today: date) -> tuple[str, int | None]:
     return "ok", remaining
 
 
-def _announce(status: str, days_remaining: int | None) -> None:
+# The days-remaining values that get a PUSH rather than a feed entry. Chosen to
+# be self-limiting: an alert that fires on all 180 days is an alert nobody reads
+# by day three, and `_DISCORD_COOLDOWN_SEC` is 30 min, so a permanently-critical
+# `expiring` would page up to 48x/day for half a year.
+_MILESTONE_DAYS = (180, 90, 30, 14, 7, 3, 1)
+
+
+def _announce(status: str, days_remaining: int | None, today: date) -> None:
     """Put a non-clean runway on a surface a human actually reads.
 
-    `chart_health_alerts` is the in-app admin alert feed (rendered by
-    `pages/admin/ChartHealth.jsx`) and pages Discord on `critical`; it is
-    in-memory, throttled per key, and never raises — the same best-effort idiom
-    `provider_coverage_monitor._alert` uses. Called from the request path
-    rather than at import so a cold module cannot emit before the app is up,
-    and the throttle makes the per-request call free.
+    🔴 THE FEED ALONE WAS NOT A SIGNAL, IT WAS A LOTTERY. `chart_health_alerts`
+    keeps its entries in an in-memory `deque(maxlen=200)` behind an admin page
+    nobody is prompted to open, and that deque is WIPED ON EVERY REDEPLOY —
+    which happens several times a day here. It pages Discord only on
+    `critical`, and the first cut mapped `expiring → "warning"`, so the whole
+    180-day early warning had no push path at all: Discord heard about it only
+    at `expired`, i.e. after the countdown had already vanished for every
+    member. A warning that arrives with the failure is a post-mortem.
+
+    ⛔ AND THE FIX IS NOT "make expiring critical" — 30-minute cooldown × 180
+    days is thousands of messages, which is the same as no alert. So the push
+    is MILESTONE-GATED: seven days out of the 180 get a `critical` (and
+    therefore a page), each under its own alert key so the feed shows them
+    separately and the per-key cooldown does not swallow the next one. Every
+    other expiring day still lands in the feed as a `warning`.
+
+    ⚠️ HONEST LIMIT: `_discord_last` is in-memory too, so a redeploy on a
+    milestone day can re-page. That is bounded to a handful of messages on
+    seven days across six months — a real notice period at a cost worth paying,
+    not the daily flood a blanket critical would produce.
+
+    Called from the request path rather than at import so a cold module cannot
+    emit before the app is up; `emit` is in-memory and throttled per key, so
+    the per-request call is free. Never raises — the same best-effort idiom
+    `provider_coverage_monitor._alert` uses.
     """
     if status == "ok":
         return
+
+    milestone = status == "expiring" and days_remaining in _MILESTONE_DAYS
+    if status == "expiring":
+        # A milestone is the moment this needs to LEAVE the building; every
+        # other expiring day is a note in the feed.
+        key = f"market_calendar_expiring_{days_remaining}d" if milestone else "market_calendar_stale"
+        severity = "critical" if milestone else "warning"
+    else:
+        # expired / unknown — the countdown is already gone for everyone. Day-
+        # stamped so it re-pages once a day rather than every 30 minutes.
+        key = f"market_calendar_{status}_{today.isoformat()}"
+        severity = "critical"
+
     msg = (
         f"NYSE closure table is {status}"
-        + (f" ({days_remaining} days)" if days_remaining is not None else "")
+        + (f" ({days_remaining} days left)" if days_remaining is not None else "")
         + f" — the dashboard countdown stops rendering when it lapses; {_REFRESH_HINT}"
     )
     _logger.warning("[market-calendar] %s", msg)
@@ -119,11 +160,9 @@ def _announce(status: str, days_remaining: int | None) -> None:
         from api.services import chart_health_alerts
 
         chart_health_alerts.emit(
-            "market_calendar_stale",
-            "critical" if status in ("expired", "unknown") else "warning",
-            msg,
+            key, severity, msg,
             {"status": status, "days_remaining": days_remaining,
-             "covers_through": _COVERS_THROUGH},
+             "covers_through": _COVERS_THROUGH, "milestone": milestone},
         )
     except Exception:  # pragma: no cover - alerting must never break the route
         pass
@@ -147,8 +186,9 @@ def market_calendar(response: Response) -> dict:
     and using the last holiday would report the final week of that year as
     unknown when it is in fact known to have no closure in it.
     """
-    status, days_remaining = _classify(date.today())
-    _announce(status, days_remaining)
+    today = date.today()
+    status, days_remaining = _classify(today)
+    _announce(status, days_remaining, today)
     response.headers["Cache-Control"] = f"public, max-age={_MAX_AGE}"
     return {
         "holidays": list(_HOLIDAYS_ISO),

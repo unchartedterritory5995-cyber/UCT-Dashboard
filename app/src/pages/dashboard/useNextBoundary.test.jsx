@@ -216,4 +216,25 @@ describe('useNextBoundary', () => {
     await waitFor(() => expect(result.current.verified).toBe(true))
     expect(result.current.reason).toBeNull()
   })
+
+  it('⛔ past the horizon it reports null, not a confident "not a holiday"', async () => {
+    // A `Set` answers `has()` for ANY date, so a table ending in 2026 would
+    // otherwise report a confident `false` for every day of 2027 — "the
+    // exchange is open today" asserted from a table with nothing to say about
+    // today. That is the same error as the countdown lie, one element over.
+    at('2026-11-26T16:00:00Z')                     // Thanksgiving 11:00 ET
+    serve(calendar(['2026-11-26'], '2026-11-25'))  // …table ended YESTERDAY
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await act(async () => { await Promise.resolve() })
+    expect(result.current.holidayToday).toBeNull()
+  })
+
+  it('CONTROL: the SAME day inside the horizon still reports the closure', async () => {
+    // Without this, the assertion above passes for a hook that reports null
+    // whenever a horizon is present at all.
+    at('2026-11-26T16:00:00Z')
+    serve(calendar(['2026-11-26'], '2026-12-31'))
+    const { result } = renderHook(() => useNextBoundary(), { wrapper })
+    await waitFor(() => expect(result.current.holidayToday).toBe(true))
+  })
 })
