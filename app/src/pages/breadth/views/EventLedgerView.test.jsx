@@ -142,6 +142,47 @@ describe('EventLedgerView', () => {
     })
   })
 
+  /**
+   * 🔴 THE LEDGER STOPPED A THIRD OF THE WAY DOWN A FULL-HEIGHT PANEL.
+   *
+   * Same shape as the Heat Ribbon and the Percentile Ladder: the box was
+   * `height: 100%` of what the container offered and the CONTENT declined it —
+   * ten rows at their own 26px text height, then black. Rows flex now, and the
+   * only thing that changes as the room grows is their leading; nothing is
+   * stretched, dropped or re-ranked to fill space.
+   *
+   * ⛔ AND THE SECTION'S GROW FACTOR IS ITS ROW COUNT. A flat `flex: 1` hands a
+   * one-event family the same slack as a four-event one, so rows come out
+   * different heights per family and the ledger reads as five unrelated blocks
+   * instead of one list.
+   */
+  it('lets its rows share the height, weighted by how many each family holds', () => {
+    const { container } = render(<EventLedgerView rows={rows} rowIdx={0} currentRow={rows[0]}
+      onDrill={() => {}} options={{}} />)
+
+    const cards = [...container.querySelectorAll('[data-testid^="events-card-"]')]
+    expect(cards.length).toBeGreaterThan(1)
+    for (const card of cards) {
+      expect(Number(card.style.flexGrow)).toBe(1)
+      expect(Number.parseFloat(card.style.flexBasis)).toBe(0)
+      expect(Number.parseFloat(card.style.maxHeight))
+        .toBeGreaterThan(Number.parseFloat(card.style.minHeight))
+    }
+
+    const sections = [...container.querySelectorAll('[data-testid^="events-family-"]')]
+    expect(sections.length).toBeGreaterThan(1)
+    for (const section of sections) {
+      const rowsHere = section.querySelectorAll('[data-testid^="events-card-"]').length
+      expect(Number(section.style.flexGrow),
+             'a section grew by 1 instead of by its row count').toBe(rowsHere)
+    }
+    // CONTROL: the families do NOT all hold the same number of events, so the
+    // assertion above could not have passed on a hard-coded 1.
+    const counts = new Set(sections.map(s =>
+      s.querySelectorAll('[data-testid^="events-card-"]').length))
+    expect(counts.size).toBeGreaterThan(1)
+  })
+
   it('renders nothing for an empty window WITHOUT scanning it first', () => {
     scanEvents.mockClear()
     const { container } = render(<EventLedgerView rows={[]} rowIdx={0} currentRow={null}

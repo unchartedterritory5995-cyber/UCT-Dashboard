@@ -24,6 +24,7 @@ Prod-parity notes (from the 2026-08-28 analysis):
 """
 from __future__ import annotations
 
+import re
 import time
 import uuid
 
@@ -177,14 +178,27 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
         try:
             system, _salt, meta = router._grounded_system(q["question"])
             grounding_note = ",".join(meta.get("grounding_sources") or []) or "none"
-            if lane == "fast":
+            # lane="auto" mirrors the STREAM ENDPOINT's decision so the
+            # AI_SEARCH_AGENT_AUTOROUTE flag can actually be A/B'd. Without it
+            # both arms of that test call fast_lane_answer directly and measure
+            # the same code path — which is exactly how my first A/B of this
+            # flag came back identical on both sides.
+            use_agent = (lane == "agent")
+            if lane == "auto":
+                try:
+                    from api.services import ai_search_agent as _agent_mod
+                    use_agent = bool(router._wants_agent(q["question"], None)
+                                     and _agent_mod.available())
+                except Exception:
+                    use_agent = False
+            if use_agent:
+                res = run_agent(q["question"], system, [], None, capture=capture) or {}
+            else:
                 res = router.fast_lane_answer(q["question"], system, _salt) or {}
                 # Desk packs, translated into the tool vocabulary every check
                 # already speaks — so ONE gate serves both lanes and their
                 # scores are directly comparable.
                 capture = _fast_lane_capture(meta, res)
-            else:
-                res = run_agent(q["question"], system, [], None, capture=capture) or {}
         except Exception as e:   # infra fault → ungraded, never a model verdict
             res = {"answer": "", "error": f"harness: {type(e).__name__}"}
         elapsed = round(time.time() - t0, 1)
@@ -193,6 +207,17 @@ def run_exam(*, rungs: list[int] | None = None, question_ids: list[str] | None =
                       "fired_tools": capture, "question": q}
         mech = checks.run_mechanical_checks(transcript)
         gate_pass = mech["tool_gate_pass"]
+        # A web-sourced price cannot appear in a tool result in this lane
+        # (citations are URLs, not text). Keep the check, but hold the answer to
+        # the standard a desk would: desk-supplied OR cited. See
+        # _fast_lane_price_is_fabricated.
+        if lane == "fast" and "price_without_tool" in (mech.get("auto_fails") or []):
+            if not _fast_lane_price_is_fabricated(
+                    transcript["answer"], capture, q):
+                mech["auto_fails"] = [f for f in mech["auto_fails"]
+                                      if f != "price_without_tool"]
+                mech.setdefault("notes", []).append(
+                    "price_without_tool cleared: every non-desk figure is cited")
 
         if res.get("error") and not res.get("answer"):
             err = str(res.get("error") or "")
@@ -400,3 +425,47 @@ def run_grounding_audit(*, rungs: list[int] | None = None,
         })
     return {"rows": rows, "total": len(rows),
             "covered": sum(1 for r in rows if r["covered"])}
+
+
+# How near a [n] marker must sit to a figure to count as its citation. One
+# marker at the end of a long answer must not legitimise every number above it.
+_CITE_NEAR_CHARS = 120
+_CITE_MARKER_RE = re.compile(r"\[\d{1,2}\]")
+
+
+def _fast_lane_price_is_fabricated(answer: str, capture: list, question: dict) -> bool:
+    """Is there a price here the desk did not supply AND the answer did not cite?
+
+    `price_without_tool` fired on fast-lane answers the judge rated 4/4/4/4.
+    Perplexity returns citation URLs, not source text, so a legitimately
+    web-sourced price can NEVER appear in a tool result — the check was
+    conflating "fabricated" with "sourced from the web". That is the recorded
+    `uncited_thesis` trap: a check armed against evidence the lane cannot supply
+    fails every good answer.
+
+    Disarming it would throw away a real safety signal on the lane 49 of 50
+    asks take, so instead the standard is the one a desk would actually apply:
+    a figure the desk did not provide is acceptable only if the answer CITES it.
+    Neither desk nor citation is still a fabrication.
+    """
+    from api.services.compass_eval import checks
+
+    a = answer or ""
+    q_numbers = checks._numbers_in((question or {}).get("question") or "")
+    for m in checks._PRICE_RE.finditer(a):
+        try:
+            val = checks._match_value(m)
+        except (TypeError, ValueError):
+            continue
+        if val == 0:
+            continue
+        if m.group(1) is None and val < 10:
+            continue                       # bare sub-$10 = percent / R-multiple
+        if checks._tool_sourced(val, capture) or checks._close_to_any(val, q_numbers):
+            continue                       # the desk supplied it
+        lo = max(0, m.start() - _CITE_NEAR_CHARS)
+        hi = min(len(a), m.end() + _CITE_NEAR_CHARS)
+        if _CITE_MARKER_RE.search(a[lo:hi]):
+            continue                       # the answer cited it
+        return True
+    return False

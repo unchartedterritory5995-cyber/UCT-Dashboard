@@ -29,10 +29,15 @@
  * byte-identical key and a near-miss fails SILENTLY — indistinguishable from
  * "that lens has not been opened yet".
  */
+import { Fragment } from 'react'
 import useSWR from 'swr'
 import { composeRead } from './theRead'
 import { analoguesKey, attributionKey } from './breadthEndpoints'
 import styles from './theRead.module.css'
+// ⛔ ITS OWN MODULE, not a second export beside the component: this is the one
+// place the view layer is allowed to touch the composer's sentence, and it is
+// worth being able to point at. `TheReadStrip.test.jsx` holds its rails.
+import { splitFigures } from './theReadFigures'
 
 export default function TheReadStrip({
   rows = [], rowIdx = 0, optionsFor, ladderMetrics = [],
@@ -57,7 +62,11 @@ export default function TheReadStrip({
         <p className={styles.body}>
           {read.clauses.map(c => (
             <span key={c.key} className={styles.clause} data-testid={`the-read-clause-${c.key}`}>
-              {c.text}
+              {splitFigures(c.text).map((part, i) => (
+                i % 2
+                  ? <b key={i} className={styles.num}>{part}</b>
+                  : <Fragment key={i}>{part}</Fragment>
+              ))}
             </span>
           ))}
         </p>

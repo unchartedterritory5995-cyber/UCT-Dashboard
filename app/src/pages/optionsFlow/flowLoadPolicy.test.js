@@ -11,6 +11,9 @@ import {
   snapshotKey,
   shouldRefetchRange,
   shouldSkipStaleParse,
+  firstPassWaitMs,
+  DELTA_WAIT_MS,
+  ER_BADGE_WAIT_MS,
 } from './flowLoadPolicy'
 
 // Baseline: a mounted page that has finished its base fetch for the default
@@ -352,5 +355,54 @@ describe('shouldSkipStaleParse — do not spend a parse on bytes we know are sta
       }
     }
     expect(skips).toBe(1)
+  })
+})
+
+describe('firstPassWaitMs — run the first aggregate ONCE, not twice', () => {
+  const W = (o) => firstPassWaitMs({
+    processedOnce: false, deltaPending: false, erSoonReady: true, alreadyPainted: true, ...o,
+  })
+
+  it('waits for the earnings set when something is already painted', () => {
+    // Measured: /api/calendar finished at 8,005ms while the 14MB tape landed at
+    // 31ms, so running now means running again when it lands — two full passes
+    // over 107,346 rows to change one per-row badge.
+    expect(W({ erSoonReady: false })).toBe(ER_BADGE_WAIT_MS)
+  })
+
+  it('⛔ NEVER makes an EMPTY screen wait for a cosmetic badge', () => {
+    // THE SAFETY STORY. The wait is affordable only because prehydration put
+    // the server-computed dataset on screen. If it did not (503, offline, a
+    // shape it declines), waiting would be a spinner the user stares at for
+    // six seconds to gain an earnings icon. Behave exactly as before instead.
+    expect(W({ erSoonReady: false, alreadyPainted: false })).toBe(0)
+  })
+
+  it('does not wait once the set has arrived', () => {
+    expect(W({ erSoonReady: true })).toBe(0)
+  })
+
+  it('still coalesces the delta exactly as before', () => {
+    expect(W({ deltaPending: true, erSoonReady: true })).toBe(DELTA_WAIT_MS)
+    // and takes the LONGER of the two when both are outstanding — waiting the
+    // shorter one would fire early and reintroduce the second pass.
+    expect(W({ deltaPending: true, erSoonReady: false })).toBe(
+      Math.max(DELTA_WAIT_MS, ER_BADGE_WAIT_MS))
+  })
+
+  it('never delays anything after the first pass', () => {
+    // Every later change — a range switch, a version bump — must process
+    // immediately; the coalescing exists only for the initial load.
+    for (const o of [{ deltaPending: true }, { erSoonReady: false }, { erSoonReady: false, deltaPending: true }]) {
+      expect(W({ ...o, processedOnce: true })).toBe(0)
+    }
+  })
+
+  it('the ceiling is a ceiling, not a schedule', () => {
+    // The caller re-runs this effect when erSoonArr changes, so an early set
+    // cancels the timer. The constant only bounds a calendar that never answers
+    // — and it must comfortably exceed the measured cold call (5,442ms) or a
+    // cold load fires early and pays the second pass anyway.
+    expect(ER_BADGE_WAIT_MS).toBeGreaterThan(5442)
   })
 })

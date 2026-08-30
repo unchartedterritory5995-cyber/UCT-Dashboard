@@ -36,7 +36,10 @@ _MODELS = {
 # Per-tier timeouts. Deep research can run for minutes.
 _TIMEOUTS = {
     "lite":      15,
-    "fast":      18,
+    # 18 -> 30 (2026-08-29): sized for the old 700-token stub budget. Raising
+    # max_tokens to 1800 makes the answer take longer to GENERATE, and 18s began
+    # killing one question in every exam run — for a member, a dead ask.
+    "fast":      30,
     "reasoning": 35,
     "deep":      300,   # 5 min — deep research is intentionally slow
 }
@@ -350,6 +353,13 @@ def web_search(
             data = r.json()
             break
         except requests.Timeout:
+            # One bounded retry before the outage ladder: a single slow upstream
+            # call was costing a whole ask. BOUNDED by the enclosing
+            # `for attempt in (0, 1)`, so this can never spin — an unbounded
+            # retry on a blocking call is the threadpool surface behind the 524.
+            if attempt == 0:
+                time.sleep(0.4)
+                continue
             stale = _serve_shadow(model, domain_pack, query) if (allow_stale and not history) else None
             if stale is not None:
                 return stale

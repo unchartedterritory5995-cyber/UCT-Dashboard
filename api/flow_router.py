@@ -757,6 +757,26 @@ async def prune_expired(request: Request, _auth: dict = Depends(require_flow_adm
     })
 
 
+def build_aggregate(source: str, days: int, date_filter, version=None):
+    """Build (or serve cached) the aggregate for one view. (version, gz) or None.
+
+    ⛔ THE ONE PLACE THE CACHE KEY IS FORMED. The endpoint and the flow-worker's
+    boot warmer both call this, because a warmer that computes its key even
+    slightly differently from the reader populates a DIFFERENT entry and warms
+    nothing — while looking, in logs and in code review, exactly like a warmer
+    that works. That is the second-authority-over-one-value defect this repo
+    keeps paying for, and the failure here is completely silent.
+    """
+    if version is None:
+        version = _current_version()
+    key = (source, days, date_filter)
+    return flow_aggregate.get_cached_or_build(
+        key, version,
+        lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
+        date_filter,
+    )
+
+
 @flow_router.get("/aggregate")
 async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_user)):
     """The PROCESSED dataset — the same thing the browser computes, computed once.
@@ -799,11 +819,7 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
     version = _current_version()
     key = (source, days, date_filter)
 
-    built = flow_aggregate.get_cached_or_build(
-        key, version,
-        lambda: gzip.decompress(_get_cached_or_build(source, days)[1]).decode("utf-8"),
-        date_filter,
-    )
+    built = build_aggregate(source, days, date_filter, version)
     if not built:
         return JSONResponse({"error": "aggregate build failed"}, status_code=503)
 

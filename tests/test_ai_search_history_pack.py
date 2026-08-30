@@ -139,3 +139,43 @@ def test_the_reachability_probe_is_not_vacuous():
     src = io.open(ai.__file__, encoding="utf-8").read()
     body = src.split("def _uct_context", 1)[1].split("\ndef ", 1)[0]
     assert "_ctx_cot(" in body
+
+
+# ── traders do not type ISO dates ──────────────────────────────────────────
+@pytest.mark.parametrize("q,expected", [
+    ("What exact price did NVDA close at on March 3rd, 2016?", 20160303),
+    ("what moved INTC on Sep 18 2025", 20250918),
+    ("what happened to DE on 20 August 2026", 20260820),
+    ("how did AMD trade on december 1, 2024", 20241201),
+])
+def test_a_written_month_is_a_date(q, expected):
+    """The pack was built for the log's most-asked shape and could not read the
+    way a member actually writes a date."""
+    assert ai._hist_date_ymd(q) == expected
+
+
+@pytest.mark.parametrize("q", [
+    "will NVDA march higher this week",
+    "stocks may rally into year end",
+    "is this a march toward new highs",
+])
+def test_a_month_word_without_a_day_and_year_is_not_a_date(q):
+    """CONTROL — the load-bearing half. 'march higher' and 'may rally' are the
+    reason the year and the day are BOTH mandatory; without them every other
+    question would trigger a history lookup."""
+    assert ai._hist_date_ymd(q) is None
+
+
+def test_a_written_future_date_is_still_not_history():
+    """CONTROL — the past-only rule must survive the new parser."""
+    assert ai._hist_date_ymd("does INTC report on January 5, 2099") is None
+
+
+def test_a_written_date_reaches_the_bars(monkeypatch):
+    """End to end: the parsed date must actually drive the lookup."""
+    _stub_bars(monkeypatch, [
+        (20160302, 30.0, 31.0, 29.5, 30.00, 10_000_000),
+        (20160303, 30.1, 32.0, 30.0, 31.50, 20_000_000),
+    ])
+    out = ai._ctx_history("What exact price did NVDA close at on March 3rd, 2016?", ["NVDA"])
+    assert "2016-03-03" in out and "31.5" in out, out

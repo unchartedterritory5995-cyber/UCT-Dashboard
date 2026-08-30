@@ -18,6 +18,8 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import TheReadStrip from './TheReadStrip'
+import { splitFigures } from './theReadFigures'
+import { composeRead } from './theRead'
 import ScoreAttributionView from './ScoreAttributionView'
 import AnalogueDeckView from './AnalogueDeckView'
 import { analoguesKey, attributionKey } from './breadthEndpoints'
@@ -83,6 +85,69 @@ describe('the strip', () => {
     render(wrap(strip({ rows: ROWS.slice(0, 3).map(r => ({ date: r.date })), ladderMetrics: [] })))
     expect(screen.queryByTestId('the-read-clause-regime')).toBeNull()
     expect(screen.getByTestId('the-read-refusal').textContent).toContain('3 sessions')
+  })
+
+  /**
+   * 🔴 THE STRIP NOW SETS THE SENTENCE — AND MAY DO NOTHING ELSE TO IT.
+   *
+   * The paragraph got a measure, leading, and weighted figures so it can be
+   * skimmed for values and read for sense. Every one of those is CSS except the
+   * last, which splits the clause text to wrap its numbers in `<b>` — and a
+   * split is exactly the kind of "harmless" presentation change that quietly
+   * becomes a second author over `theRead.js`'s sentence.
+   *
+   * So the load-bearing property is byte-for-byte identity: what the composer
+   * wrote is what the DOM reads, per clause and across the whole strip. If a
+   * future rewrite drops a clause "to make it fit", or reflows the text, or
+   * loses a character to a greedy pattern, this goes red.
+   */
+  describe('presentation only — the composer owns every word', () => {
+    const read = () => composeRead({
+      rows: ROWS, rowIdx: 0, optionsFor: optionDefaults, ladderMetrics: LADDER,
+      analogueData: null, attributionData: null,
+    })
+
+    it('renders each clause byte for byte, and the strip is their concatenation', () => {
+      const composed = read()
+      expect(composed.clauses.length).toBeGreaterThan(3)
+      render(wrap(strip()))
+      for (const c of composed.clauses) {
+        expect(screen.getByTestId(`the-read-clause-${c.key}`).textContent).toBe(c.text)
+      }
+      // The clauses are blocks now, so the DOM concatenates them without the
+      // joining space `read.text` uses — compare against the same construction.
+      expect(screen.getByTestId('the-read').textContent)
+        .toBe(`The Read${composed.clauses.map(c => c.text).join('')}`)
+    })
+
+    it('the figure split re-emits its input, on every clause the composer writes', () => {
+      for (const c of read().clauses) {
+        expect(splitFigures(c.text).join(''), `clause ${c.key} did not survive the split`)
+          .toBe(c.text)
+      }
+    })
+
+    it('CONTROL: the split is not a no-op — it finds the figures, whole', () => {
+      // Without this the identity above is satisfied by a function that returns
+      // `[text]` and emphasises nothing (`lesson_a_fixture_that_cannot_distinguish`).
+      const parts = splitFigures(
+        'Distribution — % above 50 SMA at 52.1, down 4.3 points over 20 sessions.')
+      expect(parts.filter((_, i) => i % 2)).toEqual(['50', '52.1', '4.3', '20'])
+      // A sign and a unit ride WITH the number rather than being stranded.
+      expect(splitFigures('Equal vs Cap -0.001 over 20 sessions').filter((_, i) => i % 2))
+        .toEqual(['-0.001', '20'])
+      expect(splitFigures('1st percentile of 90 readings').filter((_, i) => i % 2))
+        .toEqual(['1st', '90'])
+    })
+
+    it('weights the figures and nothing else', () => {
+      render(wrap(strip()))
+      const el = screen.getByTestId('the-read-clause-regime')
+      const bolded = [...el.querySelectorAll('b')].map(b => b.textContent)
+      expect(bolded.length).toBeGreaterThan(0)
+      expect(bolded.every(t => /\d/.test(t)),
+             'a run with no digit in it was given figure weight').toBe(true)
+    })
   })
 
   it('is style-independent — the same read whatever lens is on screen', () => {

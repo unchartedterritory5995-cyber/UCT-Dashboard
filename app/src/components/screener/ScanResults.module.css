@@ -117,3 +117,31 @@
   font-size: 11px; color: var(--text-muted); padding: 1px 7px;
   border: 1px solid var(--border); border-radius: 999px; white-space: nowrap;
 }
+
+/* ⭐ THE DEFINITION'S OWN ANSWER, on the row it belongs to. Monospaced so a column
+   of numbers reads as a column — the whole point is comparing them down the list. */
+.value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--gold, #c9a84c);
+  margin-left: auto;
+  padding-right: 10px;
+  white-space: nowrap;
+}
+
+/* A quiet toggle: the scan's own order is a fact, re-ordering is the member's choice. */
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sortBtn[aria-pressed='true'] { color: var(--gold, #c9a84c); border-color: var(--gold, #c9a84c); }

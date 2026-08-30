@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, cleanup } from '@testing-library/react'
 import HeatRibbonView from './HeatRibbonView'
 import { ALL_METRICS_HIDDEN } from './breadthViewShared'
 
@@ -99,6 +99,56 @@ describe('HeatRibbonView', () => {
       const { container } = draw(4, { onSeek })
       fireEvent.click(cells(container)[4])            // the newest session
       expect(onSeek).toHaveBeenCalledWith('2026-08-05')
+    })
+  })
+
+  /**
+   * 🔴 THE RIBBON DREW 13px BANDS WITH 400px OF BLACK UNDER THEM.
+   *
+   * `BreadthViews` hands every lens a `flex: 1; min-height: 0` box and this view
+   * has always been `height: 100%` of it — the height was OFFERED. What declined
+   * it was the content: every band was a fixed `cellH` px, so ten metrics drew
+   * ~190px of ink into a ~600px panel and stopped. This is the view a reader
+   * scrubs a playhead across, so it is the one most improved by the room.
+   *
+   * The rail is on the DECLARATION rather than a measured pixel because jsdom
+   * has no layout engine — there is no height to measure. What it CAN see is
+   * whether the band asked to flex, and that is the thing that regressed.
+   */
+  describe('the strip takes the height it is offered', () => {
+    const draw = (options = {}) => render(<HeatRibbonView rows={rows} rowIdx={0}
+      currentRow={rows[0]} metrics={metrics} onDrill={() => {}} options={options} />)
+    // The band is the cell's grandparent: cell → grid → row.
+    const band = (container) =>
+      container.querySelector('[data-testid="ribbon-cell-a-0"]').parentElement.parentElement
+
+    it('flexes its bands between a floor and a ceiling, and declares no height', () => {
+      const { container } = draw()
+      const row = band(container)
+      expect(Number(row.style.flexGrow)).toBe(1)
+      expect(Number.parseFloat(row.style.flexBasis)).toBe(0)
+      const min = Number.parseFloat(row.style.minHeight)
+      const max = Number.parseFloat(row.style.maxHeight)
+      // The floor is what the band used to be PINNED at; the ceiling is what
+      // stops a two-metric board drawing two slabs.
+      expect(min).toBeLessThanOrEqual(16)
+      expect(max).toBeGreaterThanOrEqual(3 * min)
+
+      // …and the cell fills the band rather than declaring a size of its own —
+      // the fixed `height: cellH` here is what the defect actually was.
+      expect(container.querySelector('[data-testid="ribbon-cell-a-0"]').style.height).toBe('100%')
+    })
+
+    it('CONTROL: compact still means compact — the option moves BOTH bounds', () => {
+      // Without this, the bounds above could be constants the density option no
+      // longer reaches, and "compact" would be a control that moves nothing.
+      const normal = band(draw({}).container)
+      cleanup()
+      const compact = band(draw({ density: 'compact' }).container)
+      expect(Number.parseFloat(compact.style.minHeight))
+        .toBeLessThan(Number.parseFloat(normal.style.minHeight))
+      expect(Number.parseFloat(compact.style.maxHeight))
+        .toBeLessThan(Number.parseFloat(normal.style.maxHeight))
     })
   })
 
