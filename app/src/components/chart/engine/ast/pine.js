@@ -187,10 +187,21 @@ export const REFUSALS = Object.freeze({
   // `accum(0, self + close, 250)`. What is outside the grammar is state that does
   // not FORGET — the accumulator re-seeds a fixed number of bars back, so a value
   // whose whole history matters cannot ride it.
+  // ⭐ AND IT SAYS WHO COULD CHANGE THAT, rather than stopping at "no node".
+  // A member reading "the grammar has no node for it" cannot tell a permanent
+  // ruling from a backlog item, and those call for very different next moves —
+  // rewrite the script, or wait. `windowRefusal` in `builderInputs.js` names the
+  // same owners for the same reason, so the two refusals answer alike.
   'pine:state':
     'this value carries forward in a way the bounded accumulator cannot hold. '
     + '`var` state that re-seeds does translate, as `accum`; what this one needs '
-    + 'is a running total with no window, which the grammar has no node for',
+    + 'is a running total with no window, which the grammar has no node for. '
+    + 'TO UNBLOCK: an unbounded accumulator would end static decidability — '
+    + '`maxLookback` could no longer be a tree sum and the repaint verdict could '
+    + 'no longer be decided before the tree runs — so it is not a backlog item. '
+    + '`closedTable.json::_no_offset_reopened_by` names who may re-open that (the '
+    + 'repaint-claim owner and the manifest owner, together). Re-seeding the value '
+    + 'at a stated window turns it into `accum`, which translates today',
   'pine:reassign':
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
@@ -257,8 +268,18 @@ export const REFUSALS = Object.freeze({
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⚰️⚰️ THIS SENTENCE STOPPED DESCRIBING ITS OWN GUARD. It read "a displaced
+  // plot writes its value at a different bar from the one that produced it" — and
+  // `pickOutputArgument`'s own docblock already records that this is "true about
+  // the DRAWING and false about the COLUMN", which is why a POSITIVE displacement
+  // now translates into an `offset` node and a NEGATIVE one is recorded as
+  // presentation. What actually reaches this guard today is neither: it is a
+  // displacement that does not reduce to a whole-number CONSTANT. A refusal whose
+  // sentence describes a case it no longer refuses sends a member looking for a
+  // limit that was lifted.
   'pine:plot-offset':
-    'a displaced plot writes its value at a different bar from the one that produced it',
+    'a plot displacement has to reduce to a whole number of bars at translation '
+    + 'time, and this one does not',
   'pine:role-order':
     'this table states what kind each argument is and never what role it plays, '
     + 'so several price series cannot be matched onto it by position',
@@ -959,6 +980,22 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
 export const PINE_INEXPRESSIBLE = Object.freeze({
+  // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
+  // here it fell into the generic arm and answered with the WHOLE declared
+  // vocabulary — sixty-odd names — which tells a member that `time` is missing and
+  // nothing about why it could not simply be added. It is not a gap in the table:
+  // `time(<session>)` answers "is this bar inside that window", and a session only
+  // means something on INTRADAY bars. On the daily bars this engine screens there
+  // is no inside to be in — the same fact `thinkscript:time` states at its own
+  // door, for the same construct, in the same words.
+  // ⚠️ THIS IS A DIFFERENT ARM FROM THE CLOCK-MISMATCH ENTRY ABOVE. That one is
+  // the bare NAME `time` (a unit difference, permanent). This one is the CALL
+  // `time(…)` (a session read, which intraday bars would answer).
+  time: 'a SESSION CLOCK — `time(<session>)` answers whether a bar falls '
+    + 'inside a session window, and a session only means something on INTRADAY '
+    + 'bars. This engine screens daily bars, where there is no inside to be in. '
+    + 'TO UNBLOCK: intraday bars in the scan lane, which `scan_evaluator` refuses '
+    + 'by name and for reasons of its own — not a table entry here',
   // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
   // positions line up perfectly, which is what makes it dangerous. Pine's
   // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
@@ -4922,6 +4959,15 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
  *  `time` is the only Pine clock name we hold under the same spelling and a
  *  different meaning, so it is the only one that needs saying. */
 const PINE_CLOCK_MISMATCH = Object.freeze({
+  // ⚰️ I APPENDED A "TO UNBLOCK: divide the millisecond literal by 1000" HERE AND
+  // TOOK IT BACK OUT. `pine.test.js` asserts this message does NOT say TO UNBLOCK
+  // — "the refusal must say what DIFFERS, not that work is pending" — and that
+  // ruling is right twice over. The units differ PERMANENTLY, so there is nothing
+  // pending; and the advice was wrong for the script that reaches this door
+  // anyway: `15-anchored-vwap` writes `time("D")` and `input.time(timestamp(…))`,
+  // not a bare comparison against a millisecond literal. A rail that says a
+  // sentence must not exist is a ruling, and the shape of it should not be edited
+  // to fit an addition.
   time: 'in Pine a bar timestamp in MILLISECONDS since 1970, where this engine’s '
     + '`time` is SECONDS — a thousand-fold difference that would compare true '
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
@@ -6265,7 +6311,21 @@ function foldDisplacement(resolver, seriesArg) {
     value = -Number(folded.args[0].value)
   }
   if (!Number.isInteger(value)) {
-    throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
+    // ⭐⭐ AND IT NAMES WHAT WOULD CHANGE THE ANSWER. `12-ichimoku-clouds` writes
+    // `displacement = isintraday ? 21 : 26` — a fact about the CHART, not about
+    // the script. This engine folds a displacement at translation time, before
+    // there is a chart, and it must: a definition is persisted and recomputed
+    // later, so a displacement folded against one timeframe would be replayed
+    // against another. Writing the number MEANT clears this wall.
+    // ⚠️ AND IT DOES NOT PROMISE THE SCRIPT THEN TRANSLATES — measured, ichimoku
+    // moves to `pine:window` at line 65 behind it. Naming the next wall is the
+    // door's job when the member gets there; promising there is no next wall
+    // would be the offer this refusal is careful not to make.
+    throw new PineRefusal('pine:plot-offset',
+      `${REFUSALS['pine:plot-offset']} — it depends on something this translator `
+      + 'cannot know before there is a chart to read it from (a timeframe flag, a '
+      + 'series, a name it could not fold). TO UNBLOCK: write the whole number of '
+      + 'bars you mean.',
       locate(seriesArg.offsetTok))
   }
   return value

@@ -6,38 +6,26 @@ names from the existing ticker_meta cache (in-process TTL → on-disk). For
 matches that don't have a cached name, fires a bounded background fetch so
 subsequent requests resolve names — never blocks the autocomplete response.
 """
-import json
 import logging
-import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
 from fastapi import APIRouter, Query
 
+from api.services import cap_universe
+
 _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _resolve_universe_path() -> str:
-    here = os.path.join(os.path.dirname(__file__), "..", "data", "cap_universe.json")
-    if os.path.exists(here):
-        return here
-    return os.path.join("api", "data", "cap_universe.json")
-
-
 def _load_universe() -> List[str]:
-    try:
-        with open(_resolve_universe_path(), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        if isinstance(data, list):
-            # Deduplicate + uppercase + sort alphabetically (stable for prefix scan)
-            out = sorted({str(t).upper() for t in data if t})
-            _logger.info("[ticker-search] loaded %d tickers from cap_universe", len(out))
-            return out
-    except Exception as e:
-        _logger.warning("[ticker-search] cap_universe load failed: %s", e)
-    return []
+    """Sorted, de-duplicated and upper-cased -- the order the prefix scan
+    relies on. Reading and caching the file itself belongs to
+    `services.cap_universe`, which is also what the article converter asks."""
+    out = sorted(cap_universe.symbols())
+    _logger.info("[ticker-search] loaded %d tickers from cap_universe", len(out))
+    return out
 
 
 _UNIVERSE: List[str] = _load_universe()

@@ -127,6 +127,20 @@
   to { transform: rotate(360deg); }
 }
 
+/* Small spinner inside the "Loading chart history…" pill (Origin range). */
+.originSpinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: spin 0.7s linear infinite;
+  flex: 0 0 auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .originSpinner { animation: none; }
+}
+
 /* ── Skeleton overlay ──
    Sits on top of the (already-rendered) chart container while bars are
    in flight. The chart wrapper, toolbar, and ticker header all paint

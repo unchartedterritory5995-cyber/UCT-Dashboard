@@ -339,7 +339,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     const rt = ctxMenu.region?.type
     if (rt === 'priceAxis' || rt === 'timeAxis') return { icon: 'ruler', label: 'Axis settings', target: 'axis' }
     if (rt === 'overlay') return { icon: 'sliders', label: 'MA settings', target: 'ma' }
-    if (rt === 'volume') return { icon: 'volume', label: 'Volume settings', target: 'volume' }
+    if (rt === 'volume') return { icon: 'chart', label: 'Volume settings', target: 'volume' }
     if (rt === 'price') {
       return ctxMenu.onCandle
         ? { icon: 'chart', label: 'Candle settings', target: 'candles' }

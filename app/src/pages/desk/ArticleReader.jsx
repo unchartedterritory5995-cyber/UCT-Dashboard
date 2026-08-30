@@ -536,7 +536,7 @@ export default function ArticleReader() {
             the 12 chips the screen shows. */}
         {data.tickers?.length > 0 && (
           <div className={styles.printRoster} aria-hidden="true">
-            <span className={styles.printRosterLabel}>Charts covered — </span>
+            <span className={styles.printRosterLabel}>Covered — </span>
             {data.tickers.join(' · ')}
           </div>
         )}
