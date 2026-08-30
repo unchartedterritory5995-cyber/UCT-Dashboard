@@ -62,9 +62,17 @@
   overflow-y: auto;
 }
 
+/* ⛔ NOT `1fr 1fr`. This renders in TWO containers of very different widths:
+   the Dashboard's 240px cockpit rail (~208px usable after padding) and a
+   full-width mobile section. Two fixed columns gave the rail ~100px each,
+   which is narrower than a ticker plus its percentage — measured 220px of
+   content in a 201px box, so the DRILLING column's percentages were clipped
+   behind a horizontal scrollbar. `auto-fit` + a 120px floor collapses to one
+   column when the container cannot honestly fit two, and keeps two on mobile.
+   Rail: MoversSidebar.overflow.test.js */
 .moversGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 24px;
   height: 100%;
 }

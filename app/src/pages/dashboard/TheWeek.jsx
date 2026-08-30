@@ -54,8 +54,14 @@ export default function TheWeek() {
   const { quote } = useQuoteOfTheDay()
 
   const articles = desk?.articles ?? []
-  const scan = articles.find(a => (a.slug || '').startsWith('sunday-scans-'))
-  const reading = articles.filter(a => a !== scan).slice(0, 4)
+  const isScan = (a) => (a.slug || '').startsWith('sunday-scans-')
+  const scan = articles.find(isScan)
+  // ⛔ Exclude by KIND, not by object identity. `a !== scan` drops only the one
+  // scan we picked, and the desk holds several posts that share the "Sunday
+  // Scans" title — so production rendered the same headline four times under
+  // "From the Desk", directly beneath the panel already showing it. A reading
+  // list is what is NOT the scan, not everything-but-this-particular-scan.
+  const reading = articles.filter(a => !isScan(a)).slice(0, 4)
 
   const days = cal?.days ?? {}
   const onDeck = Object.keys(days)

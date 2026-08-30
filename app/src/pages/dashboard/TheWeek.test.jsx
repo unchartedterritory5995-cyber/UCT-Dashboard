@@ -142,4 +142,32 @@ describe('TheWeek', () => {
     const link = screen.getByText('Sunday Scans')
     expect(link.getAttribute('href')).toBe('https://x.test/scan')
   })
+
+  // 🔴 PRODUCTION DEFECT, seen only by looking at the deployed page. The
+  // reading list excluded the scan by OBJECT IDENTITY (`a !== scan`), so it
+  // dropped only the one post we picked. The desk holds several posts sharing
+  // the "Sunday Scans" title, and the live weekend hero rendered that same
+  // headline FOUR times under "From the Desk", directly beneath the panel
+  // already showing it. Exclude by KIND, not by identity.
+  test('From the Desk excludes EVERY sunday-scans post, not just the one it picked', () => {
+    deskData = { articles: [
+      { slug: 'sunday-scans-w3', title: 'Sunday Scans', url: '#' },
+      { slug: 'sunday-scans-w2', title: 'Sunday Scans', url: '#' },
+      { slug: 'sunday-scans-w1', title: 'Sunday Scans', url: '#' },
+      { slug: 'the-tape-friday', title: 'Friday Tape Read', url: '#' },
+    ] }
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    // the hero panel still shows it exactly once
+    expect(screen.getAllByText(/Sunday Scans/i)).toHaveLength(1)
+    // and the non-scan article is what the reading list actually offers
+    expect(screen.getByText('Friday Tape Read')).toBeTruthy()
+  })
+
+  // CONTROL: a desk with no scan at all still lists its articles, so the
+  // filter above cannot pass by simply hiding everything.
+  test('CONTROL: with no sunday-scans post, From the Desk still lists articles', () => {
+    deskData = { articles: [{ slug: 'the-tape-friday', title: 'Friday Tape Read', url: '#' }] }
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText('Friday Tape Read')).toBeTruthy()
+  })
 })
