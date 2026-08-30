@@ -28,6 +28,7 @@
 // `null` today — see the backend's own docstring for why. A card with a null
 // value renders as a plain link with no number: a normal state, not an error.
 import { Link } from 'react-router-dom'
+import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import jsonFetcher from '../../utils/jsonFetcher'
 import UIcon from '../../components/ui/UIcon'
@@ -39,10 +40,24 @@ export default function ZoneDoors() {
     refreshInterval: 60_000,
     marketHoursOnly: true,
   })
+  // ⛔ THE COMMUNITY DARK LAUNCH, HONOURED HERE TOO. `NavBar.jsx` and
+  // `MoreSheet.jsx` both hide The Floor until `/api/community/status` reports
+  // enabled; this surface shipped it unconditionally, so Zone D was the ONE
+  // place advertising a door whose endpoints 503 the moment the flag is rolled
+  // back. The flag is armed today, which is exactly why the gap was invisible.
+  //
+  // ⛔ NOT `useMobileSWR`: a bare `useSWR` with no `refreshInterval` is not a
+  // polling site (`hooks/pollingSites.rail.test.js` only counts a third-argument
+  // `refreshInterval`), and this key is already polled at 120s by NavBar — SWR
+  // dedupes it, so this adds a cache read rather than a request.
+  const { data: communityStatus } = useSWR('/api/community/status', jsonFetcher)
+  const doors = DOORS.filter(
+    (d) => d.key !== 'community' || communityStatus?.enabled,
+  )
 
   return (
     <nav className={styles.doors} aria-label="Sections">
-      {DOORS.map((d) => {
+      {doors.map((d) => {
         const card = data?.[d.key]
         return (
           <Link key={d.key} to={d.to} className={styles.door}>

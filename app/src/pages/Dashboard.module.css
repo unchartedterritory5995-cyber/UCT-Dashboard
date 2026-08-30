@@ -30,12 +30,20 @@
    ⛔ ONLY 640 AND 1024 ARE CANONICAL (CLAUDE.md, Responsive/Mobile System).
    This file previously carried 1440 / 1100 / 768 blocks; the rewrite deletes
    them rather than porting them, so no non-canonical literal survives here. */
-.cockpit {
+.desktopOnly {
   --zone-a: 120px;
   --zone-b: 440px;
   --zone-c: 300px;
+  /* Zone D was OUTSIDE this invariant: `.zoneD` declared only a margin and the
+     90px lived in ZoneDoors.module.css with no overflow, so the one zone whose
+     content is variable-width labels was also the one nothing bounded. The
+     page measures ~1,006px against a 1,000px viewport — a wrapping door label
+     is exactly what eats the remaining headroom. */
+  --zone-d: 90px;
   /* A + B + C plus the two gaps BETWEEN them — the height .main occupies. */
   --zone-stack: calc(var(--zone-a) + var(--zone-b) + var(--zone-c) + 2 * var(--space-md));
+}
+.cockpit {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 240px;
   /* 🔴 THE ROW IS EXPLICIT, AND THAT IS THE POINT. It used to be implicit and
@@ -58,7 +66,7 @@
 
 .zoneA, .zoneB, .zoneC, .rail { min-height: 0; overflow: hidden; }
 .zoneB > *, .zoneC > *, .rail > * { max-height: 100%; overflow-y: auto; }
-.zoneD { margin-top: var(--space-md); }
+.zoneD { margin-top: var(--space-md); max-height: var(--zone-d); overflow: hidden; }
 
 /* 🔴 AN EMPTY ZONE B COLLAPSES ITS TRACK — IT DOES NOT MERELY HIDE ITS ITEM.
    TheWeek returns null when all three panels are empty (a quiet weekend, or a
@@ -77,7 +85,7 @@
    shrinks the cockpit row — and the rail's cap with it — by the same 440px.
    ⚠️ One `var(--space-md)` gap around the zero track remains; that is real and
    deliberate, not an oversight. */
-.cockpit:has(.zoneB:empty) { --zone-b: 0px; }
+.desktopOnly:has(.zoneB:empty) { --zone-b: 0px; }
 
 /* Gold-edge emphasis on the hero zone — element selector so TileCard's hashed
    classes stay untouched. */

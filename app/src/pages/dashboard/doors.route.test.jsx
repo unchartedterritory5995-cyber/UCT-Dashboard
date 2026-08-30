@@ -39,6 +39,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { MemoryRouter } from 'react-router-dom'
+import { SWRConfig } from 'swr'
 import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
@@ -70,6 +71,12 @@ beforeEach(() => {
       })
     }
     if (u.startsWith('/api/maintenance')) return json({ maintenance: false })
+    // ⚠️ `/api/community/status` is deliberately NOT armed here. The flag is
+    // seeded into ZoneDoors' own render below (an SWR `fallback`), which is
+    // where this rail needs the door to exist; arming it for the whole App
+    // instead put the real Floor on screen and it does not mount under jsdom,
+    // so the /community case failed for a reason that had nothing to do with
+    // its route.
     return json({})
   }))
 })
@@ -93,7 +100,15 @@ function open(url) {
  *  so the stubbed `fetch` above is all this needs. One fewer mock is one fewer
  *  way for this rail to pass for the wrong reason. */
 function hrefsFromZoneDoors() {
-  const out = render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
+  // ⛔ THE COMMUNITY FLAG IS SEEDED SYNCHRONOUSLY. ZoneDoors gates that door on
+  // `/api/community/status`, and reading hrefs off a first render would race the
+  // fetch and silently drop a door from the set this rail then opens. An SWR
+  // `fallback` is a seeded cache entry, not a mock of the path.
+  const out = render(
+    <SWRConfig value={{ fallback: { '/api/community/status': { enabled: true } } }}>
+      <MemoryRouter><ZoneDoors /></MemoryRouter>
+    </SWRConfig>,
+  )
   const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
   out.unmount()
   cleanup()

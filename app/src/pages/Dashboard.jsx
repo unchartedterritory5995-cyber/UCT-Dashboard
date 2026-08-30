@@ -111,9 +111,17 @@ export default function Dashboard() {
               {/* Zone A · THE READ — session pill + UCT exposure + a compact
                   six-across index strip, in the declared 120px. The Quote of
                   the Day is demoted out of the top row (ZoneRead passes
-                  FuturesStrip `hideQuote`); the mobile stack below still
-                  renders it, which is where the spec says it belongs. */}
-              <div className={styles.zoneA}><ZoneRead /></div>
+                  FuturesStrip `hideQuote`) and reduced to one line.
+
+                  ⛔ …AND SUPPRESSED ENTIRELY ON THE WEEKEND, because that is
+                  the one state where Zone B's hero (`TheWeek`) gives the quote
+                  its own first-class panel. Both read the same
+                  `useQuoteOfTheDay`, which has a local rotation fallback and so
+                  is ALWAYS truthy — the duplicate was guaranteed, every
+                  weekend, not occasional. Two tasks each correct alone (Task 12
+                  gave the quote its panel; the S4 fix gave Zone A its
+                  one-liner) and nobody owned the pair. */}
+              <div className={styles.zoneA}><ZoneRead showQuote={session !== 'WEEKEND'} /></div>
               {/* Zone B · THE DECISION — the only zone that varies. */}
               <div className={styles.zoneB}>{hero}</div>
               {/* Zone C · YOUR RISK */}
@@ -149,8 +157,11 @@ export default function Dashboard() {
             >
               <MoversSidebar />
             </MobileSection>
-            {/* 5. Market glance */}
-            <FuturesStrip />
+            {/* 5. Market glance.
+                ⛔ Same weekend rule as Zone A above: on WEEKEND the hero is
+                TheWeek, which carries the quote's first-class panel, so this
+                strip must not render a second copy of the same line. */}
+            <FuturesStrip hideQuote={session === 'WEEKEND'} />
             <MobileSection
               icon={<UIcon name="flow" />}
               title="Theme Tracker"

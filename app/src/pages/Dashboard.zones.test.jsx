@@ -199,7 +199,8 @@ test('CONTROL: the rail’s own regexes survived their escapes', () => {
 })
 
 test('each zone height is declared exactly once, as a custom property', () => {
-  for (const [name, px] of [['--zone-a', '120px'], ['--zone-b', '440px'], ['--zone-c', '300px']]) {
+  for (const [name, px] of [['--zone-a', '120px'], ['--zone-b', '440px'],
+    ['--zone-c', '300px'], ['--zone-d', '90px']]) {
     const decls = [...css.matchAll(declRe(name))].map(m => m[1].trim())
     // The property may be REDECLARED to collapse a zone (see the :has rule),
     // but the real height literal must appear exactly once.
@@ -236,9 +237,30 @@ test('I2: an empty Zone B COLLAPSES ITS TRACK — and the false display:none rul
   expect(css, 'the old `.zoneB:empty { display: none }` is back — it hides the item '
     + 'and leaves the 440px track standing, which is the defect it claimed to fix')
     .not.toMatch(/\.zoneB:empty\s*\{\s*display:\s*none/)
-  const has = css.match(/\.cockpit:has\(\.zoneB:empty\)\s*\{([^}]*)\}/)
+  const has = css.match(/\.desktopOnly:has\(\.zoneB:empty\)\s*\{([^}]*)\}/)
   expect(has, 'nothing collapses the Zone B track when the hero renders null').toBeTruthy()
   expect(has[1]).toContain('--zone-b')
+})
+
+test('ALL FOUR zones are inside the height invariant — Zone D included', () => {
+  // 🔴 Zone D used to be outside it: `.zoneD` declared only a margin, and its
+  // 90px lived in ZoneDoors.module.css with no `overflow` — so the one zone
+  // whose content is variable-width labels was the one nothing bounded, on a
+  // page with ~45px of headroom. A wrapping door label was what would have
+  // eaten it.
+  const zoneD = css.split('.zoneD {')[1]?.split('}')[0] ?? ''
+  expect(zoneD, '.zoneD is gone').not.toBe('')
+  expect(zoneD, '.zoneD declares no height cap').toMatch(/max-height:\s*var\(--zone-d\)/)
+  expect(zoneD, '.zoneD does not clip, so a wrapping door label grows the page')
+    .toMatch(/overflow:\s*hidden/)
+})
+
+test('and Zone D height is not restated in ZoneDoors.module.css', () => {
+  // The copy that made it a second authority over one number.
+  const doors = readFileSync(join(here, 'dashboard', 'ZoneDoors.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  expect(doors, 'ZoneDoors.module.css caps its own height again — that number now '
+    + 'lives once, as --zone-d').not.toMatch(/max-height:\s*90px/)
 })
 
 test('each zone owns an explicit grid row, so hiding one never shifts the others', () => {

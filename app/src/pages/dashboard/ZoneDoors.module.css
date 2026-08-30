@@ -1,11 +1,15 @@
 /* app/src/pages/dashboard/ZoneDoors.module.css
  * Canonical breakpoints only (1024 / 640) — see CLAUDE.md's Responsive/Mobile System.
  */
-.doors { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-sm); max-height: 90px; }
+/* ⛔ NO max-height HERE. Zone D's 90px is declared ONCE, as `--zone-d` in
+   Dashboard.module.css beside the other three zone heights, and applied by
+   `.zoneD`. A copy here was a second authority over one number — and the one
+   that lived outside the height invariant the other three zones are held to. */
+.doors { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-sm); }
 .door { display: flex; flex-direction: column; gap: 2px; justify-content: center; min-height: var(--tap-min); padding: 10px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--text-bright); text-decoration: none; }
 .door:hover { border-color: var(--accent); }
 .icon { color: var(--ut-gold, #dcbb5e); }
 .label { font-size: 12px; font-weight: 600; }
 .value { font-family: var(--font-mono); font-size: 15px; color: var(--ut-gold, #dcbb5e); }
-@media (max-width: 1024px) { .doors { grid-template-columns: repeat(4, minmax(0, 1fr)); max-height: none; } }
+@media (max-width: 1024px) { .doors { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

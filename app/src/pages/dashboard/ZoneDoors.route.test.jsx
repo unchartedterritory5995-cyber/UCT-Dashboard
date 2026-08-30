@@ -29,6 +29,7 @@
 // decision).
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { SWRConfig } from 'swr'
 import { test, expect, vi, beforeEach } from 'vitest'
 import ZoneDoors from './ZoneDoors'
 import { DOORS } from './doors'
@@ -41,9 +42,22 @@ vi.mock('../../hooks/useMobileSWR', () => ({
 
 beforeEach(() => { mockData = undefined })
 
+/** ⛔ THE COMMUNITY DARK LAUNCH. ZoneDoors hides The Floor unless
+ *  `/api/community/status` reports enabled — the same gate NavBar.jsx and
+ *  MoreSheet.jsx apply. It reads that through a bare `useSWR`, so the flag is
+ *  seeded as an SWR `fallback` (a cache entry, not a mock of the path).
+ *  Default ON here so the existing cases keep measuring all eight doors. */
+const mount = (ui, { community = true } = {}) => render(
+  <SWRConfig value={{ fallback: { '/api/community/status': { enabled: community } } }}>
+    <MemoryRouter>{ui}</MemoryRouter>
+  </SWRConfig>,
+)
+
+const VISIBLE = (community) => DOORS.filter((d) => d.key !== 'community' || community)
+
 test('renders one link per door, each pointing at its manifest route', () => {
   mockData = {}
-  render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
+  mount(<ZoneDoors />)
   const hrefs = screen.getAllByRole('link').map(a => a.getAttribute('href'))
   expect(hrefs.sort()).toEqual(DOORS.map(d => d.to).sort())
 })
@@ -51,7 +65,7 @@ test('renders one link per door, each pointing at its manifest route', () => {
 test('a card carrying a numeric value renders the number on its door', () => {
   const breadthDoor = DOORS.find(d => d.key === 'breadth')
   mockData = { breadth: { label: 'Exposure', value: 87, tone: 'neutral' } }
-  render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
+  mount(<ZoneDoors />)
   // No whitespace text node sits between the two adjacent <span> siblings, so
   // the accessible name concatenates them with no space — "Breadth87".
   const link = screen.getByRole('link', { name: `${breadthDoor.label}87` })
@@ -65,17 +79,52 @@ test('a card carrying a numeric value renders the number on its door', () => {
 test('a null-value card renders as a plain link with no number', () => {
   const deskDoor = DOORS.find(d => d.key === 'desk')
   mockData = { desk: { label: 'New', value: null, tone: 'neutral' } }
-  render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
+  mount(<ZoneDoors />)
   const link = screen.getByRole('link', { name: deskDoor.label })
   expect(link.textContent).toBe(deskDoor.label)
 })
 
 test('undefined data (still loading, or the fetch failed) renders every door as a plain link, never a crash', () => {
   mockData = undefined
-  expect(() => render(<MemoryRouter><ZoneDoors /></MemoryRouter>)).not.toThrow()
+  expect(() => mount(<ZoneDoors />)).not.toThrow()
   const hrefs = screen.getAllByRole('link').map(a => a.getAttribute('href'))
   expect(hrefs.sort()).toEqual(DOORS.map(d => d.to).sort())
   for (const d of DOORS) {
     expect(screen.getByRole('link', { name: d.label }).textContent).toBe(d.label)
   }
+})
+
+// ─── The Floor's dark-launch gate ───────────────────────────────────────────
+//
+// 🔴 `NavBar.jsx` and `MoreSheet.jsx` both hide The Floor until
+// `/api/community/status` reports enabled. Zone D shipped it UNCONDITIONALLY,
+// so the dashboard was the one surface advertising a door whose endpoints 503
+// the moment the flag is rolled back. The flag is armed today, which is exactly
+// why the gap was invisible.
+
+test('the Community door is HIDDEN while the dark launch is off', () => {
+  mockData = {}
+  mount(<ZoneDoors />, { community: false })
+  const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
+  expect(hrefs).not.toContain('/community')
+  // …and every OTHER door is untouched — the gate must not take the strip down.
+  expect(hrefs.sort()).toEqual(VISIBLE(false).map((d) => d.to).sort())
+})
+
+test('CONTROL: it comes back when the flag is on', () => {
+  // Without this, "hidden" is satisfied by a door that never renders at all.
+  mockData = {}
+  mount(<ZoneDoors />, { community: true })
+  expect(screen.getAllByRole('link').map((a) => a.getAttribute('href')))
+    .toContain('/community')
+})
+
+test('an UNANSWERED status check hides it — the gate fails closed', () => {
+  // No fallback seeded at all: the status request is in flight or failed, and
+  // an unknown flag must not advertise the door. Same fail-closed rule the
+  // nav applies (`!communityStatus?.enabled`).
+  mockData = {}
+  render(<MemoryRouter><ZoneDoors /></MemoryRouter>)
+  expect(screen.getAllByRole('link').map((a) => a.getAttribute('href')))
+    .not.toContain('/community')
 })

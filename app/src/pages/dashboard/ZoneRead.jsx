@@ -28,8 +28,15 @@
 //
 // ⛔ `marketHoursOnly: true`. The exposure score is pushed once a day by the
 // morning wire and is NOT derivable intraday (see MarketBreadth.jsx's own note
-// on why only % above the 50-day goes live). A 5-minute poll is already
-// generous; slowing it 10× on evenings and weekends costs zero real freshness.
+// on why only % above the 50-day goes live), so this asks for very little.
+//
+// ⚠️ BUT 300s IS NOT THE PAGE'S EFFECTIVE CADENCE, and an earlier version of
+// this comment claimed it was. `MarketBreadth.jsx` polls the SAME `/api/breadth`
+// SWR key at 60s and is mounted by the dashboard's mobile branch, which is
+// hidden by CSS rather than unmounted — SWR dedupes by key, so the shorter
+// interval wins and Zone A actually refreshes every 60s. That is harmless
+// (one request either way, and fresher than needed), but the number written
+// here is not the number the page runs at.
 //
 // ⭐ ONE SOURCE FOR THE EXPOSURE NUMBER. This reads `/api/breadth` →
 // `exposure.score`, which is the same field MarketBreadth's ExposureBar reads
@@ -63,9 +70,13 @@ export default function ZoneRead({ showQuote = true }) {
   })
   const score = breadth?.exposure?.score
   const note = breadth?.exposure?.note || ''
-  // 🔴 THE STAMP THAT WAS MISSING — carried from MarketBreadth.jsx, which
-  // desktop no longer renders at all, so this is the ONLY copy on the page
-  // rather than a second one. On 2026-08-14 the 06:35 wire crashed before
+  // 🔴 THE STAMP THAT WAS MISSING — carried from MarketBreadth.jsx, which is the
+  // only other surface that renders it. ⚠️ It is NOT unmounted on desktop, as
+  // an earlier version of this comment claimed: the dashboard's mobile branch
+  // is hidden with `display: none`, so MarketBreadth is live in the DOM and
+  // fetching on every desktop load — it simply is not VISIBLE there. This is
+  // therefore the only stamp a desktop member can SEE, which is what makes it
+  // load-bearing here. On 2026-08-14 the 06:35 wire crashed before
   // pushing, the dashboard served the prior day's rating all day, and a stale
   // 55 was pixel-identical to a fresh 55. Zone A now LEADS with that number,
   // which makes the stamp more load-bearing here than it was there.
