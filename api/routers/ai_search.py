@@ -1494,6 +1494,33 @@ _ANSWER_MAX_TOKENS = 1800
 _PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
 
 
+def fast_lane_answer(query: str, system: str, salt: str, *, mode: str = "fast",
+                     history=None, cost_surface: str = "ai_search",
+                     allow_stale: bool = True) -> dict:
+    """THE definition of the fast (Perplexity) lane's provider call.
+
+    Three byte-identical copies of this call lived in this file — the single
+    shot plus two stream fallbacks — all passing the same max_tokens,
+    domain_pack, recency, salt and cost surface. That is how a 700-token cap
+    and an 18-site domain allowlist survived review for months: a reader fixes
+    the copy they found. One definition, and `tests/test_ai_search_fast_lane_
+    exam.py` fails BY NAME (via AST) on a fourth.
+
+    It is also the exam's SEAM for this lane — the fast-lane twin of the agent
+    lane's tool-capture hook. Grading a lane through a second, hand-copied set
+    of parameters would grade something members never receive.
+
+    (Deliberately phrased without that hook's keyword: a standing rail greps
+    THIS file to prove the router never opts into it, and a comment quoting it
+    is indistinguishable from a call site to a text search.)
+    """
+    return perplexity_search.web_search(
+        query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=mode,
+        domain_pack="finance", recency=_auto_recency(query), related=True,
+        cache_salt=salt, history=history, cost_surface=cost_surface,
+        allow_stale=allow_stale)   # UI labels stale answers
+
+
 def _time_bucket() -> str:
     """Freshness bucket for market-action queries: 5-min granularity during the
     extended session (Mon-Fri 4:00-20:00 ET) so hot answers refresh fast; a
@@ -2043,11 +2070,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     salt = _history_salt(_fresh_salt(body.query, salt), history)
 
     def _search(m):
-        return perplexity_search.web_search(
-            body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=m, domain_pack="finance",
-            recency=_auto_recency(body.query), related=True, cache_salt=salt, history=history,
-            cost_surface="ai_search", allow_stale=True,   # UI labels stale answers
-        )
+        return fast_lane_answer(body.query, system, salt, mode=m, history=history)
 
     result = _search(mode)
     effective_mode = mode
@@ -2172,11 +2195,8 @@ async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answe
         outstanding = 0
         fb = await _loop.run_in_executor(
             None,
-            lambda: perplexity_search.web_search(
-                body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode="fast",
-                domain_pack="finance", recency=_auto_recency(body.query),
-                related=True, cache_salt=salt,   # FULL salt — history digest incl.
-                history=history, cost_surface="ai_search", allow_stale=True))
+            # FULL salt — history digest included.
+            lambda: fast_lane_answer(body.query, system, salt, history=history))
         if fb.get("answer"):
             if not fb.get("cached"):
                 try:
@@ -2342,11 +2362,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                         _fb_loop = asyncio.get_running_loop()
                         fb = await _fb_loop.run_in_executor(
                             None,
-                            lambda: perplexity_search.web_search(
-                                body.query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode="fast",
-                                domain_pack="finance", recency=_auto_recency(body.query),
-                                related=True, cache_salt=salt, history=history,
-                                cost_surface="ai_search", allow_stale=True))
+                            lambda: fast_lane_answer(body.query, system, salt,
+                                                     history=history))
                         if fb.get("answer"):
                             if not fb.get("cached"):
                                 _reserve(user_id, 1)

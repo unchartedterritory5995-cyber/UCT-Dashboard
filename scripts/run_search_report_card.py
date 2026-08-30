@@ -36,6 +36,18 @@ parser.add_argument("--questions", default=None, help="comma list of question id
 parser.add_argument("--offline", action="store_true",
                     help="validate the golden set + print bars; run nothing")
 parser.add_argument("--notes", default="")
+parser.add_argument("--lane", default="agent", choices=("agent", "fast"),
+                    help="which lane to grade. 'fast' is the Perplexity path "
+                         "49 of 50 real member asks take; 'agent' is the "
+                         "tool-calling lane that gets 1 in 50.")
+parser.add_argument("--allow-cold-desk", action="store_true",
+                    help="run the fast lane even when the desk packs are cold. "
+                         "The result is NOT a baseline — a cold desk makes a "
+                         "correctly-grounded lane look like it invents prices.")
+parser.add_argument("--repeats", type=int, default=1,
+                    help="run the exam N times and gate on the MEDIAN run. "
+                         "Measured 2026-08-29: three runs on identical code "
+                         "scored 19/20/16, so N=1 cannot detect a real change.")
 args = parser.parse_args()
 
 # ── env staging (BEFORE any api import) ──────────────────────────────────────
@@ -72,19 +84,48 @@ if not args.offline and not os.environ.get("PERPLEXITY_API_KEY"):
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.services.ai_search_eval import golden_set as gs          # noqa: E402
-from api.services.ai_search_eval.runner import run_exam           # noqa: E402
+from api.services.ai_search_eval.runner import (                  # noqa: E402
+    fast_lane_desk_readiness,
+    run_exam,
+    run_exam_repeated,
+)
 
 rungs = [int(x) for x in args.rungs.split(",")] if args.rungs else None
 qids = [x.strip() for x in args.questions.split(",")] if args.questions else None
 
 counts = gs.rung_question_counts()
-print(f"AI-Search agent report card — {sum(counts.values())} questions "
-      f"{dict(sorted(counts.items()))}")
+print(f"AI-Search {args.lane.upper()}-lane report card — {sum(counts.values())} "
+      f"questions {dict(sorted(counts.items()))}")
 print(f"baseline: {gs.BASELINE_LABEL}")
 print(f"sandbox:  {_sandbox}")
 
-out = run_exam(rungs=rungs, question_ids=qids, offline=args.offline,
-               notes=args.notes)
+# ── fast-lane pre-flight: is the desk warm enough to grade this lane? ──
+if args.lane == "fast" and not args.offline:
+    _ready = fast_lane_desk_readiness()
+    print(f"desk:     {'WARM' if _ready['warm'] else 'COLD'} — packs fired for "
+          f"the canary: {', '.join(_ready['sources']) or 'none'}"
+          + (f" | MISSING: {', '.join(_ready['missing'])}" if _ready["missing"] else "")
+          + (f" | probe error: {_ready['error']}" if _ready.get("error") else ""))
+    if not _ready["warm"] and not args.allow_cold_desk:
+        print()
+        print("!! THE DESK IS COLD - refusing to report a fast-lane result.")
+        print("   This lane's whole evidence base is the desk grounding block, so a")
+        print("   cold run grades the harness, not the product: every rung-1 answer")
+        print("   would look like a fabricated price. Run where the packs are warm,")
+        print("   or pass --allow-cold-desk to see a NON-baseline signal anyway.")
+        sys.exit(3)
+
+_repeats = 1 if args.offline else max(1, int(args.repeats))
+_rep = None
+if _repeats > 1:
+    _rep = run_exam_repeated(repeats=_repeats, rungs=rungs, question_ids=qids,
+                             offline=False, notes=args.notes, lane=args.lane)
+    # Gate on a run that ACTUALLY happened (median_low), never on an average
+    # nobody observed.
+    out = _rep["runs"][_rep["totals"].index(_rep["median_passed"])]
+else:
+    out = run_exam(rungs=rungs, question_ids=qids, offline=args.offline,
+                   notes=args.notes, lane=args.lane)
 
 if args.offline:
     print(f"selected {len(out['selected'])} question(s): {', '.join(out['selected'])}")
@@ -104,9 +145,29 @@ for r in out["results"]:
         print(f"  {r['id']:<28} {r['verdict']:<5} "
               f"c{ax.get('correctness')} g{ax.get('grounding')} "
               f"o{ax.get('opinion')} s{ax.get('safety')} "
-              f"tools={','.join(r.get('tools_used') or []) or '-'}"
+              # The fast lane fires no tools; its evidence is the desk
+              # grounding, so print THAT or the line reads as "no evidence"
+              # for a perfectly grounded answer.
+              + (f"grounding={r.get('grounding') or 'none'}" if args.lane == "fast"
+                 else f"tools={','.join(r.get('tools_used') or []) or '-'}")
               + (f"  AUTO-FAIL:{','.join(r['auto_fails'])}" if r.get("auto_fails") else "")
               + ("" if r.get("tool_gate_pass") else "  GATE-MISS"))
+
+if _rep is not None:
+    print()
+    print(f"  {_repeats} runs — passed per run: {_rep['totals']}  "
+          f"median {_rep['median_passed']}  "
+          f"safety breaks {_rep['safety_breaks']}  ungraded {_rep['ungraded']}")
+    if _rep["flaky"]:
+        print(f"  UNSTABLE ({len(_rep['flaky'])} of {len(_rep['per_question'])} "
+              f"questions flipped across runs) — these cannot gate anything:")
+        for qid in _rep["flaky"]:
+            row = _rep["per_question"][qid]
+            print(f"    {qid:<28} passed {row['passes']}/{row['of']}  "
+                  f"{'/'.join(v or '?' for v in row['verdicts'])}")
+    else:
+        print("  every question returned the same verdict in every run")
+    print(f"  gating on the median run ({out['run_id']})")
 
 gate = gs.evaluate_gate(out["summary"], safety_breaks=out["safety_breaks"],
                         ungraded=out["ungraded"])
