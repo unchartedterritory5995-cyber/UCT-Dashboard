@@ -3,7 +3,7 @@ import gzip
 import json
 import os
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -352,3 +352,101 @@ def test_paused_realerts_so_it_cannot_go_quiet_for_days(spool_dir, monkeypatch):
     fts._paused_alerted_at = time.time() - fts._PAUSED_REALERT_SEC - 1
     fts._check_disk_budget()
     assert len(posts) == 2
+
+
+# ── socket-down windows → the REST backfill (deploy-swap heal) ───────────────
+#
+# The spool's own header: "Deploy-swap gaps (socket down) are the one class
+# this cannot capture." A window it holds ZERO frames for IS that case, and it
+# would otherwise wait for the T+1 flat-file heal. These pin the handoff.
+
+
+class _FakeBackfill:
+    """Stand-in for api.flow_rest_backfill with a recording async entry."""
+
+    def __init__(self, enabled=True):
+        self.ENABLED = enabled
+        self.calls = []
+
+    def backfill_gap_async(self, start_ns, end_ns, contracts):
+        if not self.ENABLED:
+            return False
+        self.calls.append((start_ns, end_ns, list(contracts)))
+        return True
+
+
+def _install(monkeypatch, backfill, qpool=("O:AAA", "O:BBB")):
+    import sys, types
+    monkeypatch.setitem(sys.modules, "api.flow_rest_backfill", backfill)
+    mod = types.ModuleType("api.massive_ws_worker")
+    if qpool is not None:
+        mod._q_subscribed = set(qpool)
+    monkeypatch.setitem(sys.modules, "api.massive_ws_worker", mod)
+
+
+def test_a_window_with_no_spooled_frames_is_handed_to_rest(monkeypatch):
+    """Zero frames == the socket was down == exactly the REST heal's job."""
+    bf = _FakeBackfill()
+    _install(monkeypatch, bf)
+    windows = [(570, 575)]
+    out = fts._rest_backfill_uncovered(date(2026, 8, 28), windows, {0: []})
+    assert out["uncovered"] == 1 and out["sent"] == 1
+    assert len(bf.calls) == 1
+    start_ns, end_ns, contracts = bf.calls[0]
+    assert end_ns > start_ns
+    assert set(contracts) == {"O:AAA", "O:BBB"}
+
+
+def test_a_window_the_spool_COVERED_is_not_re_read_over_rest(monkeypatch):
+    """⛔ THE DISCRIMINATING CASE. A window healed from frames we actually
+    received must not also be pulled over REST — that spends vendor calls to
+    insert rows dedup_key throws away. Without this the handoff would look
+    correct while doubling the backfill's cost on every ordinary freeze."""
+    bf = _FakeBackfill()
+    _install(monkeypatch, bf)
+    windows = [(570, 575), (600, 605)]
+    covered = {0: [("O:AAA", 1.0, 5, 4, 0, 1)], 1: []}   # window 0 had frames
+    out = fts._rest_backfill_uncovered(date(2026, 8, 28), windows, covered)
+    assert out["uncovered"] == 1, "a covered window was treated as socket-down"
+    assert len(bf.calls) == 1
+    # ...and it is the SECOND window that went, not the first.
+    day = datetime(2026, 8, 28, tzinfo=ET)
+    expect = int((day + timedelta(minutes=600, seconds=-fts.EDGE_SEC)).timestamp() * 1e9)
+    assert bf.calls[0][0] == expect
+
+
+def test_it_is_inert_while_the_flag_is_off(monkeypatch):
+    """Ships dark: FLOW_REST_BACKFILL_ENABLED defaults to 0."""
+    bf = _FakeBackfill(enabled=False)
+    _install(monkeypatch, bf)
+    out = fts._rest_backfill_uncovered(date(2026, 8, 28), [(570, 575)], {0: []})
+    assert out["sent"] == 0
+    assert out["reason"] == "rest_backfill_disabled"
+    assert bf.calls == []
+
+
+def test_it_never_raises_when_the_qpool_is_unavailable(monkeypatch):
+    """The consumer module may not be importable on every pod. A heal that
+    cannot run must not take the spool replay down with it."""
+    bf = _FakeBackfill()
+    _install(monkeypatch, bf, qpool=None)      # module present, attribute absent
+    out = fts._rest_backfill_uncovered(date(2026, 8, 28), [(570, 575)], {0: []})
+    assert out["sent"] == 0 and "qpool" in (out["reason"] or "")
+
+
+def test_no_gaps_means_no_work_and_no_import(monkeypatch):
+    import sys
+    monkeypatch.setitem(sys.modules, "api.flow_rest_backfill", None)  # would raise if touched
+    out = fts._rest_backfill_uncovered(date(2026, 8, 28), [], {})
+    assert out == {"uncovered": 0, "sent": 0, "contracts": 0, "reason": None}
+
+
+def test_the_window_span_matches_the_spools_own_conversion():
+    """A REST-filled window and a spool-filled one must describe the same span,
+    or the two heals disagree about what they covered."""
+    day = datetime(2026, 8, 28, tzinfo=ET)
+    s, e = 570, 575
+    t0 = int((day + timedelta(minutes=s, seconds=-fts.EDGE_SEC)).timestamp() * 1e9)
+    t1 = int((day + timedelta(minutes=e, seconds=fts.EDGE_SEC)).timestamp() * 1e9)
+    # the same expressions _collect_window_trades uses for its spool scan
+    assert t1 - t0 == int(((e - s) * 60 + 2 * fts.EDGE_SEC) * 1e9)

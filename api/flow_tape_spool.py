@@ -577,6 +577,62 @@ def _replay_window(target: date, gap_start_min: int, gap_end_min: int,
     return out
 
 
+def _rest_backfill_uncovered(target: date, windows: list, by_window: dict) -> dict:
+    """Hand SOCKET-DOWN windows to the REST backfill. Never raises.
+
+    ⛔ THE ONE CLASS THIS MODULE CANNOT COVER, handed to the one thing that can.
+    This file's own header says it plainly: "Deploy-swap gaps (socket down) are
+    the one class this cannot capture — those need Massive's 2nd concurrent
+    connection." A window the spool holds ZERO frames for IS that case: the
+    socket was down, so nothing arrived to spool. Replaying it from the spool
+    inserts nothing and the window waits for the T+1 flat-file heal.
+
+    `flow_rest_backfill` re-reads such a window from Massive's REST /v3/trades
+    the SAME day. It self-gates on FLOW_REST_BACKFILL_ENABLED (default OFF), so
+    until that flag is armed this function costs one dict comprehension and
+    returns `{"sent": 0, ...}`.
+
+    ⚠️ ONLY windows with no spool coverage are sent. A window the spool DID
+    cover has already been healed from frames we actually received; re-reading
+    it over REST would spend vendor calls to insert rows dedup_key throws away.
+    """
+    uncovered = [(i, s, e) for i, (s, e) in enumerate(windows) if not by_window.get(i)]
+    out = {"uncovered": len(uncovered), "sent": 0, "contracts": 0, "reason": None}
+    if not uncovered:
+        return out
+    try:
+        from api import flow_rest_backfill
+        if not flow_rest_backfill.ENABLED:
+            out["reason"] = "rest_backfill_disabled"
+            return out
+        # The live subscription set is the contract universe to re-read. Same
+        # source the manual /rest-backfill endpoint uses; imported read-only.
+        try:
+            from api.massive_ws_worker import _q_subscribed
+            contracts = list(_q_subscribed)
+        except Exception as e:  # noqa: BLE001
+            out["reason"] = f"qpool_unavailable: {e}"
+            return out
+        if not contracts:
+            out["reason"] = "qpool_empty"
+            return out
+        out["contracts"] = len(contracts)
+        # Same day-anchor + edge margin the spool replay uses, so a REST-filled
+        # window and a spool-filled one describe the same span.
+        day_et = datetime(target.year, target.month, target.day, tzinfo=ET)
+        for _i, s, e in uncovered:
+            t0 = int((day_et + timedelta(minutes=s, seconds=-EDGE_SEC)).timestamp() * 1e9)
+            t1 = int((day_et + timedelta(minutes=e, seconds=EDGE_SEC)).timestamp() * 1e9)
+            if flow_rest_backfill.backfill_gap_async(t0, t1, contracts):
+                out["sent"] += 1
+        logger.info("[tape-spool] %d socket-down window(s) handed to REST backfill "
+                 "(%d contracts)", out["sent"], out["contracts"])
+    except Exception:  # noqa: BLE001
+        logger.exception("[tape-spool] REST backfill handoff failed")
+        out["reason"] = "exception"
+    return out
+
+
 def replay_gaps(target: date = None) -> dict:
     """Detect today's gap windows and heal each from the spool. Idempotent
     (dedup_key). Never raises. Skips outside trading days/sessions."""
@@ -621,6 +677,9 @@ def replay_gaps(target: date = None) -> dict:
             return {"status": "deferred_budget", "deferred": deferred}
 
         by_window = _collect_window_trades(target, windows)
+        # Windows with NO spooled frames are socket-down (deploy swap) — see
+        # _rest_backfill_uncovered. Inert unless FLOW_REST_BACKFILL_ENABLED.
+        rest = _rest_backfill_uncovered(target, windows, by_window)
         conflicts_before = _live_writer_conflicts()
         results, aborted = [], False
         for i, (s, e) in enumerate(windows):
@@ -652,7 +711,11 @@ def replay_gaps(target: date = None) -> dict:
 
         out = {"status": "aborted_live_conflict" if aborted else "completed",
                "target": target.isoformat(), "windows": results,
-               "deferred": deferred, "inserted_total": total_ins}
+               "deferred": deferred, "inserted_total": total_ins,
+               # Socket-down windows the spool could not cover, and what
+               # happened to them. Visible in /api/flow-gap-fill/status so
+               # "the REST heal is armed but never fires" is answerable.
+               "rest_backfill": rest}
         _stats["last_replay"] = out
 
         # B7: Discord only when there's something to say, once per window/day.
