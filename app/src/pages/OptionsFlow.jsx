@@ -4,6 +4,7 @@ import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
 import { useAuth } from "../context/AuthContext";
 import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetchUrl, shouldFetchVersion, inFlowMarketWindow, shouldRefetchRange } from "./optionsFlow/flowLoadPolicy";
+import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import {
   P,
   gradeCluster,
@@ -1274,6 +1275,30 @@ export default function OptionsFlowDashboard() {
     // explicit user actions (range change, mode change) via the reset
     // handlers that own those actions.
     const t0 = performance.now();
+
+    // ── PREHYDRATE: render the numbers while the tape is still parsing ───────
+    // Measured on prod: the 14 MB download is 88 ms. The wait is 854 ms of
+    // parsing plus 1,617-3,433 ms of processFlowData — arithmetic every member
+    // repeats on the same tape. `/api/flow/aggregate` did it once per version,
+    // so ask for the answer in parallel with the CSV and paint as soon as it
+    // lands. The spinner is gated `csvLoading && !D`, so setting D IS the
+    // first paint; the CSV keeps downloading behind it and the worker still
+    // parses, because the rows are what later range changes and ticker drills
+    // read from.
+    //
+    // ⛔ IT CAN ONLY EVER FILL AN EMPTY SCREEN. The client computation stays
+    // the authority: this fires only when nothing has been processed yet, and
+    // re-checks that on arrival, so a slow aggregate can never land on top of
+    // a fresher real result. flowPrehydrate declines any shape it cannot
+    // answer for exactly (see that file) rather than approximating one.
+    if (!silent && !_processedOnce.current) {
+      fetchPrehydrate(csvFile, dateFilter, dataVersionRef.current).then(pre => {
+        if (cancelled || !pre || _processedOnce.current) return;
+        console.log(`[perf] prehydrated: ${(performance.now()-t0).toFixed(0)}ms `
+          + `(${pre.stats?.totalTrades ?? "?"} trades, server-computed, v${pre.version})`);
+        setD(pre.D);
+      });
+    }
 
     // A version-driven refresh (baseNonce > 0) MUST bypass the browser cache.
     // csvFile is version-stable and the response carries max-age=300, so a
