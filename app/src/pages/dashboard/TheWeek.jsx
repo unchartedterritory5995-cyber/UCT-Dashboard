@@ -13,11 +13,13 @@
 //     against api/routers/calendar.py's `_get_calendar_payload`/`_empty_day`.
 //     Earnings chips live under each day's bmo/amc/tbd buckets and carry a
 //     `sym` field (api/routers/calendar.py::_chip), never `symbol`/`title`.
-//   - No `?week=` param is needed: `_current_week_monday` already rolls a
-//     weekend date forward to the UPCOMING week's Monday (calendar.py,
-//     "a member who opens the calendar on a Saturday sees the UPCOMING
-//     week"), so the bare /api/calendar call already IS "next week on deck"
-//     when this component is on screen (WEEKEND state only).
+//   - No `?week=` param is needed, but the panel may NOT call it "next week":
+//     `_current_week_monday` is `_monday_of(_next_session_day(today))`, and
+//     `_next_session_day` rolls forward for SAT/SUN ONLY (calendar.py, "a
+//     member who opens the calendar on a Saturday sees the UPCOMING week").
+//     It is holiday-naive, so on a mid-week closure — Labor Day, Thanksgiving
+//     — it returns THIS week, and this hero now renders on those days too.
+//     See `onDeckHeading` below: the heading is READ off the payload.
 //   - Article link routing mirrors the existing convention in
 //     ArticlesSection.jsx: an internal `/desk/article/{slug}` reader link
 //     only when `has_body && slug`; otherwise the external `url`.
@@ -112,6 +114,37 @@ export default function TheWeek() {
   const reviewExcerpt = (review?.summary || '').trim()
 
   const days = cal?.days ?? {}
+  // 🔴 THE HEADING IS READ OFF THE PAYLOAD, NOT ASSERTED ABOUT IT. This panel
+  // said "Next week on deck" unconditionally, which was true only because the
+  // hero only ever rendered on a Saturday or Sunday. A market closure now draws
+  // this same hero mid-week (Dashboard.jsx::heroState), and on a closure
+  // `_current_week_monday` returns THIS week — so the fixed label would have
+  // traded one wrong sentence on the paid home for another.
+  //
+  // ⛔ AND IT IS NOT A SECOND RULE ABOUT WHICH WEEK IT IS. Re-deriving
+  // `_current_week_monday` here, or comparing `week_start` to a browser clock,
+  // would put a second authority on the calendar's own anchor — the defect the
+  // backend's own docstring records having already paid for once ("the frontend
+  // used to carry a SECOND, contradictory one"). `_empty_day` and both live day
+  // builders stamp `is_today: d == today` on every day they emit, so the
+  // payload already answers "does today fall inside the week I am about?".
+  // This asks that, and nothing else.
+  //
+  // ⛔ NOT `is_current_week`, WHICH CANNOT ANSWER THIS. That flag is `true` for
+  // the DEFAULT anchored payload and `false` for a `?week=` one — so it is
+  // `true` every Saturday, on a payload that is deliberately NEXT week. Reading
+  // it here would restore the exact wrong sentence, with a field name that
+  // looks like it means the opposite.
+  //
+  // ⚠️ HONEST LIMIT: `/api/calendar` is served stale for up to 30 minutes
+  // (`_WEEKLY_STALE_MAX_AGE`), so a payload built just before ET midnight can
+  // carry yesterday's `is_today` for up to half an hour after it. The worst
+  // case is "Next week on deck" over this week's names between 00:00 and 00:30
+  // ET on a Monday — bounded, self-clearing, and the same staleness every other
+  // field of this payload already carries.
+  const onDeckHeading = Object.values(days).some(d => d?.is_today === true)
+    ? 'This week on deck'
+    : 'Next week on deck'
   const onDeck = Object.keys(days)
     .sort()
     .flatMap(ds => {
@@ -181,7 +214,7 @@ export default function TheWeek() {
         )}
         {onDeck.length > 0 && (
           <section className={styles.panel}>
-            <h3 className={styles.h}>Next week on deck</h3>
+            <h3 className={styles.h}>{onDeckHeading}</h3>
             <ul className={styles.list}>
               {onDeck.map((e, i) => <li key={`${e.sym}-${i}`}>{e.sym}</li>)}
             </ul>

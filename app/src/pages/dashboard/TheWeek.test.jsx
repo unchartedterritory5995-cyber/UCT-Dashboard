@@ -272,3 +272,77 @@ describe('TheWeek', () => {
     })
   })
 })
+
+// ─── 🔴 "NEXT WEEK ON DECK" OVER THIS WEEK'S NAMES ──────────────────────────
+//
+// This hero used to render on Saturdays and Sundays only, and `/api/calendar`'s
+// anchor (`_current_week_monday` = `_monday_of(_next_session_day(today))`) rolls
+// forward for SAT/SUN ONLY — so the fixed heading "Next week on deck" happened
+// to be true for every day the panel could be seen. A market closure now draws
+// this same hero mid-week, `_next_session_day` is holiday-naive, and on Labor
+// Day the payload is THIS week. The heading had to stop asserting a
+// relationship the panel cannot know and start reading the one the payload
+// states: every day the router emits carries `is_today: d == today`.
+//
+// ⛔ NOT `is_current_week`. That field is `true` for the DEFAULT anchored
+// payload and `false` only for a `?week=` one — so it is `true` every Saturday,
+// on a payload that is deliberately NEXT week. It has the name that looks like
+// the answer and is not.
+describe('“on deck” names the week the payload is actually about', () => {
+  /** One earnings chip, so the panel renders at all. */
+  const withDays = (days) => ({ week_start: Object.keys(days)[0], days })
+
+  test('a payload containing today reads THIS week — the mid-week closure case', () => {
+    // Labor Day, Mon 2026-09-07: a weekday, so `_next_session_day` returns it
+    // unchanged and the calendar serves the week that has already started.
+    calData = withDays({
+      '2026-09-07': { label: 'Mon Sep 7', day: 'Monday', is_today: true, bmo: [{ sym: 'AVGO' }], amc: [], tbd: [] },
+      '2026-09-08': { label: 'Tue Sep 8', day: 'Tuesday', is_today: false, bmo: [], amc: [{ sym: 'ORCL' }], tbd: [] },
+    })
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText(/this week on deck/i)).toBeTruthy()
+    expect(
+      screen.queryByText(/next week on deck/i),
+      'the panel called this week "next week" — the wrong sentence the Zone B '
+      + 'holiday swap would otherwise have traded for the old one',
+    ).toBeNull()
+    expect(screen.getByText('AVGO')).toBeTruthy()
+  })
+
+  test('a payload with no today reads NEXT week — the weekend case, unchanged', () => {
+    calData = withDays({
+      '2026-09-07': { label: 'Mon Sep 7', day: 'Monday', is_today: false, bmo: [{ sym: 'AVGO' }], amc: [], tbd: [] },
+    })
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText(/next week on deck/i)).toBeTruthy()
+    expect(screen.queryByText(/this week on deck/i)).toBeNull()
+  })
+
+  test('an `is_current_week: true` weekend payload STILL reads next week', () => {
+    // ⭐ THE DISCRIMINATOR between the two derivations. `/api/calendar` sets
+    // `is_current_week: true` on every default (no `?week=`) payload, INCLUDING
+    // the Saturday one that is deliberately about the upcoming week. A heading
+    // derived from that flag says "This week" on the exact day the panel is
+    // most obviously about next week.
+    calData = {
+      week_start: '2026-09-07',
+      week_end: '2026-09-11',
+      is_current_week: true,
+      days: {
+        '2026-09-07': { label: 'Mon Sep 7', day: 'Monday', is_today: false, bmo: [{ sym: 'AVGO' }], amc: [], tbd: [] },
+      },
+    }
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText(/next week on deck/i)).toBeTruthy()
+  })
+
+  test('a day payload with no is_today field at all degrades to NEXT week', () => {
+    // The `{events: []}`-shaped and older-cached payloads. An absent field is
+    // not `true`, and the panel must not claim a relationship from silence.
+    calData = withDays({
+      '2026-09-07': { label: 'Mon Sep 7', day: 'Monday', bmo: [{ sym: 'AVGO' }], amc: [], tbd: [] },
+    })
+    render(<MemoryRouter><TheWeek /></MemoryRouter>)
+    expect(screen.getByText(/next week on deck/i)).toBeTruthy()
+  })
+})
