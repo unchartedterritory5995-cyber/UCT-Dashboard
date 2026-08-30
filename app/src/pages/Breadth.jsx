@@ -942,11 +942,27 @@ export default function Breadth() {
    * removal of that unmount trigger. COT and Data Charts return before `rows`
    * is read at all, so they cannot see this either way.
    */
-  const { data, isLoading, error } = useSWR(
+  const { data, isLoading, isValidating, error } = useSWR(
     `/api/breadth-monitor?days=${effectiveDays}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
+  /**
+   * ⛔ `isLoading` (`!data && isValidating`) is permanently false here once any
+   * window has loaded once this session — `keepPreviousData` means `data` is
+   * never undefined again, so it cannot flag a window change in flight.
+   *
+   * `data.days` is the server's own stamp of which window the payload it
+   * returned actually covers (`{"rows": ..., "days": days}` in
+   * `api/routers/breadth_monitor.py`) — the knowing side, not a client re-guess.
+   * While a fetch for a NEW window is in flight, `data` still holds the OLD
+   * window's payload (that is the point of `keepPreviousData`), so
+   * `data.days !== effectiveDays` for exactly the stretch where the meta line
+   * would otherwise caption the active pill with a count it doesn't describe.
+   * Gating on `isValidating` too keeps this quiet on an ordinary 5-minute
+   * background refresh of the SAME window, where the two never disagree.
+   */
+  const windowMismatch = isValidating && data != null && data.days !== effectiveDays
   const [collapsedCols, setCollapsedCols] = useState(() => {
     try {
       const raw = localStorage.getItem('breadth_collapsed_cols')
@@ -1095,7 +1111,9 @@ export default function Breadth() {
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
           {rows.length > 0
-            ? `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+            ? (windowMismatch
+                ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
             : isLoading ? 'Loading…' : 'No data'}
         </span>
         <div className={styles.daysPills}>
