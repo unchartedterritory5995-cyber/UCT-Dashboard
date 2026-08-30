@@ -520,7 +520,7 @@ const _dateToMs = (v) => {
 // back from the newest bar; 'ytd' = since Jan 1 of the newest bar's year. 12M and 1Y
 // are intentionally both present (same ~12-month window) per the requested button set.
 const RANGE_OPTS = [
-  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['1Y', 12], ['5Y', 60],
+  ['3M', 3], ['6M', 6], ['YTD', 'ytd'], ['1Y', 12], ['5Y', 60], ['Origin', 'origin'],
 ]
 
 // Bars-worth of blank space to render on the LEFT when a framed window's start
@@ -4293,6 +4293,7 @@ export default function StockChart({
   // Overlay modes (compare / index pane / multi-symbol comparisons) keep the
   // full fetch so their overlays align across the whole range.
   const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
+  const pendingOriginRef = useRef(false)   // "Origin" range: centre bar 0 once full history lands
   const _depthKeyRef = useRef(null)
   const _fullTarget = fullBarsFor(resolvedTf)
   const _overlayActive = !!(
@@ -4303,6 +4304,7 @@ export default function StockChart({
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
+    pendingOriginRef.current = false   // a pending "Origin" doesn't carry to a new symbol/tf
   }
   // Pinned book charts (entryDate / exactDateRange) frame a specific historical
   // year that the shallow first-paint window can miss entirely (a 2020 example
@@ -13163,7 +13165,39 @@ export default function StockChart({
   // to the requested price-history span on the CURRENT bars via a date-based cutoff,
   // so it works precisely on daily (its intended use) and degrades gracefully to
   // "all available" on shorter-history intraday timeframes.
+  // "Origin": frame the symbol's FIRST bar in the CENTRE of the plot, at the current
+  // zoom width (empty space to its left). Returns false if the chart isn't ready.
+  const centerFirstBar = () => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const bars = filteredBars
+      if (!ts || !bars || bars.length < 2) return false
+      const cur = ts.getVisibleLogicalRange()
+      const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
+      return true
+    } catch { return false }
+  }
+  // Once the full history has loaded (fetchDepth bumped to the full target), centre
+  // bar 0 for a pending "Origin" click.
+  useEffect(() => {
+    if (!pendingOriginRef.current || fetchDepth !== _fullTarget) return
+    if (centerFirstBar()) pendingOriginRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredBars, fetchDepth])
+
   const applyRange = (val) => {
+    if (val === 'origin') {
+      // Load the full history first (viewport-first fetch is shallow), then centre
+      // bar 0 — immediately if it's already loaded, else via the effect above.
+      const wasFull = fetchDepth === _fullTarget
+      pendingOriginRef.current = true
+      setFetchDepth(_fullTarget)
+      if (wasFull) {
+        requestAnimationFrame(() => { if (pendingOriginRef.current && centerFirstBar()) pendingOriginRef.current = false })
+      }
+      return
+    }
     try {
       const ts = chartRef.current?.timeScale()
       const _bars = filteredBars
@@ -14288,8 +14322,14 @@ export default function StockChart({
       {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
-      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.volume != null || crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
         <div ref={volLegendRef} className={styles.volLegend}>
+          {crosshairData.volume != null && (
+            <span className={styles.volLegItem}>
+              <span className={styles.volLegLabel}>Vol</span>
+              <span className={styles.volLegVal}>{formatVolume(crosshairData.volume)}</span>
+            </span>
+          )}
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>
               <span className={styles.volLegLabel}>$ Vol</span>
