@@ -39,23 +39,47 @@ describe('TimelineView', () => {
 const singleMetric = [{ key: 'a', label: 'a', drillKey: null, getFmt: () => 'x', getTier: () => 'g1' }]
 const manyRows = Array.from({ length: 25 }, (_, i) => ({ date: `d${i}` }))
 
+// ⛔ COUNT THE CELLS BY THEIR OWN ID, not by "children of the first element with
+// a grid-template-columns style". The view draws TWO grids on one column
+// template now — the dated header and the cell body — so "the first grid" names
+// whichever happens to render first rather than the thing under test.
+const cells = (c) => c.querySelectorAll('[data-testid^="timeline-cell-a-"]')
+
 describe('TimelineView windowDays', () => {
-  it('renders windowDays day-cells (plus the label cell)', () => {
+  it('renders one cell per session in the window', () => {
     const { container } = render(
       <TimelineView recentRows={manyRows} metrics={singleMetric} onDrill={() => {}}
-                    signalKey={null} notableKey={null} options={{ windowDays: 10 }} />,
+                    signalKey={null} notableKey={null} options={{ windowDays: 20 }} />,
     )
-    // grid children = 1 label + N day cells for the single metric row
-    const grid = container.querySelector('div[style*="grid-template-columns"]')
-    expect(grid.children.length).toBe(1 + 10)
+    expect(cells(container).length).toBe(20)
   })
 
-  it('defaults to 20 when no option given', () => {
+  /**
+   * 🔴 THE DEFAULT IS THE VIEW'S WHOLE DISTINCTION FROM THE HEAT RIBBON, so it
+   * is pinned here rather than left to `optionDefaults`. This view prints the
+   * READING in every cell; ten columns is what makes a cell wide enough to read
+   * a number off. At thirty it is a colour strip, which is the Ribbon's job —
+   * and the Ribbon does it over the whole loaded window instead of thirty
+   * sessions.
+   */
+  it('defaults to a ten-session tape, and every cell carries its reading', () => {
     const { container } = render(
       <TimelineView recentRows={manyRows} metrics={singleMetric} onDrill={() => {}}
                     signalKey={null} notableKey={null} />,
     )
-    const grid = container.querySelector('div[style*="grid-template-columns"]')
-    expect(grid.children.length).toBe(1 + 20)
+    const drawn = [...cells(container)]
+    expect(drawn.length).toBe(10)
+    expect(drawn.every(el => el.textContent === 'x')).toBe(true)
+  })
+
+  it('dates every column — the thing a 365-session ribbon cannot do', () => {
+    const { container } = render(
+      <TimelineView recentRows={recentRows} metrics={metrics} onDrill={() => {}}
+                    signalKey={null} notableKey={null} />,
+    )
+    // recentRows is newest-first; the tape reads oldest → newest.
+    const header = container.querySelector('[data-testid="timeline-dates"]')
+    expect([...header.children].map(c => c.textContent))
+      .toEqual(['', '05-31', '06-01'])
   })
 })

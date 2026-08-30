@@ -13,7 +13,7 @@ describe('accent views honor palette', () => {
   it('Radar polygon uses the ocean bull accent', () => {
     const { container } = render(<RadarView currentRow={row} metrics={metrics} normalize={normalize}
       onDrill={() => {}} signalKey={null} notableKey={null} options={{ palette: 'ocean', intensity: 'normal' }} />)
-    const poly = container.querySelector('polygon[stroke]:not([stroke="#1e293b"])')
+    const poly = container.querySelector('[data-testid="radar-shape"]')
     // ocean bull = #22d3ee → rgb(34, 211, 238)
     expect(poly.getAttribute('stroke').replace(/\s/g, '')).toMatch(/#22d3ee|rgb\(34,211,238\)/)
   })

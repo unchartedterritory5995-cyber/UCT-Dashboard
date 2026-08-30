@@ -23,7 +23,9 @@ describe('PercentileLadderView', () => {
 
   // 🔴 `marker-{key}` WAS ALSO `MetersView`'s ID. Rendering both boards into one
   // document — which the registry rail does — made `marker-a` ambiguous, so a
-  // query silently read whichever mounted first.
+  // query silently read whichever mounted first. BOTH ends carry their style key
+  // now (`ladder-marker-a` / `meters-marker-a`); the bare id belongs to nobody,
+  // which is what this asserts by naming each side explicitly.
   it('namespaces its markers so MetersView markers stay distinguishable', () => {
     const meterMetric = { key: 'a', label: 'a', polarity: 'bull', drillKey: null,
                           getFmt: () => 'a', getTier: () => 'g3' }
@@ -35,7 +37,7 @@ describe('PercentileLadderView', () => {
           onDrill={() => {}} signalKey={null} notableKey={null} options={{}} />
       </>)
     expect(container.querySelectorAll('[data-testid="ladder-marker-a"]').length).toBe(1)
-    expect(container.querySelectorAll('[data-testid="marker-a"]').length).toBe(1)
+    expect(container.querySelectorAll('[data-testid="meters-marker-a"]').length).toBe(1)
   })
 
   // 🔴 THE OLD ASSERTION DEFENDED THE DEFECT. It read `x ≈ 100`, which is the
