@@ -837,6 +837,7 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
     version = _current_version()
     key = (source, days, date_filter)
 
+    flow_aggregate._STATS["endpoint_requests"] += 1   # member traffic only
     built = build_aggregate(source, days, date_filter, version)
     if not built:
         return JSONResponse({"error": "aggregate build failed"}, status_code=503)
