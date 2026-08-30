@@ -17,16 +17,16 @@
 }
 
 .label {
-  font-size: 10px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: .08em;
   color: var(--ut-gold, #dcbb5e);
 }
 
 .count {
-  font-size: 11px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted, #8a8f98);
+  color: var(--text-muted);
 }
 
 .input {
@@ -36,7 +36,7 @@
   border: 1px solid rgba(255, 255, 255, .14);
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, .25);
-  color: var(--color-text, #d8dade);
+  color: var(--text-bright);
   font-size: 13px;
 }
 .input:focus {
@@ -46,8 +46,8 @@
 
 .note {
   margin: 0;
-  font-size: 12px;
-  color: var(--color-text-muted, #8a8f98);
+  font-size: var(--text-base);
+  color: var(--text-muted);
 }
 
 .hits {
@@ -69,7 +69,7 @@
   padding: 0;
   margin-right: 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: .04em;
   color: var(--ut-gold, #dcbb5e);
@@ -77,15 +77,15 @@
 .sym:hover { text-decoration: underline; }
 
 .meta {
-  font-size: 11px;
-  color: var(--color-text-muted, #8a8f98);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
 .snippet {
   margin: 4px 0 0;
   font-size: 12.5px;
   line-height: 1.6;
-  color: var(--color-text, #d8dade);
+  color: var(--text-bright);
 }
 
 .mark {

@@ -288,7 +288,7 @@ function ChartHoldCell({ sym, onOpen, children, ...rest }) {
 function Card({ children, title, sub }) {
   return (
     <div style={{
-      background:P.cd, border:"1px solid "+P.bd, borderRadius:10,
+      background:P.cd, border:"1px solid "+P.bd, borderRadius:8,
       padding:"14px 16px", display:"flex", flexDirection:"column", gap:8, minWidth:0
     }}>
       {title && (
@@ -2660,7 +2660,7 @@ export default function OptionsFlowDashboard() {
         style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.75)",
           display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"40px 16px", overflowY:"auto" }}>
         <div style={{ width:"min(900px,96vw)", maxHeight:"90vh", overflowY:"auto",
-          borderRadius:14, boxShadow:"0 24px 80px rgba(0,0,0,0.9)" }}
+          borderRadius:12, boxShadow:"0 24px 80px rgba(0,0,0,0.9)" }}
           onClick={e=>e.stopPropagation()}>
           {content}
         </div>
@@ -3018,7 +3018,7 @@ export default function OptionsFlowDashboard() {
               setDataMode(m);
             }
           }} style={{
-            padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
+            padding:"8px 28px", borderRadius:4, border:"none", cursor:"pointer",
             fontSize:14, fontWeight:800, fontFamily:"inherit",
             background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
           }}>{label}</button>
@@ -3045,7 +3045,7 @@ export default function OptionsFlowDashboard() {
                 setDataMode(m);
               }
             }} style={{
-              padding:"8px 28px", borderRadius:5, border:"none", cursor:"pointer",
+              padding:"8px 28px", borderRadius:4, border:"none", cursor:"pointer",
               fontSize:14, fontWeight:800, fontFamily:"inherit",
               background:dataMode===m?"#1a2540":"transparent", color:dataMode===m?"#f0f4f8":"#4a5c73"
             }}>{label}</button>
@@ -3588,7 +3588,7 @@ export default function OptionsFlowDashboard() {
               {showCal && (
                 <div ref={calRef} style={{
                   position:"absolute", top:"100%", right:0, marginTop:6, zIndex:999,
-                  background:P.cd, border:"1px solid "+P.bl, borderRadius:10, padding:14,
+                  background:P.cd, border:"1px solid "+P.bl, borderRadius:8, padding:14,
                   boxShadow:"0 8px 32px rgba(0,0,0,0.6)", minWidth:290
                 }}>
                   <div style={{ display:"flex", gap:4, marginBottom:10, flexWrap:"wrap" }}>
@@ -3752,7 +3752,7 @@ export default function OptionsFlowDashboard() {
                   </button>
                 ))}
               </div>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
                 {[["0dte","0DTE"],["1dte","1DTE"],["2dte","2DTE"],["3dte","3DTE"],["week","Week"],["month","Month"],["all","All"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setGexDte(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
@@ -3765,7 +3765,7 @@ export default function OptionsFlowDashboard() {
                   assumed customer-long (dealer short). Trade-Aware scales each
                   contract by est_customer_net/OI from dealer_positioning, so
                   bought vs sold flow signs the gamma. 2026-07-22. */}
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }} title="Naive: assumes dealers are short all OI. Trade-Aware: signs each strike from your Massive bought/sold flow (est_dealer_net).">
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }} title="Naive: assumes dealers are short all OI. Trade-Aware: signs each strike from your Massive bought/sold flow (est_dealer_net).">
                 {[[false,"Naive"],[true,"Trade-Aware"]].map(([v,label])=>(
                   <button key={label} onClick={()=>setGexAdjusted(v)} style={{
                     padding:"5px 14px", borderRadius:4, border:"none", cursor:"pointer",
@@ -3887,7 +3887,7 @@ export default function OptionsFlowDashboard() {
 
                 {/* GEX Chart with Levels */}
                 {showGexChart && gexData && !gexData.error && (
-                  <div style={{ background:P.cd, borderRadius:10, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
+                  <div style={{ background:P.cd, borderRadius:8, padding:12, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                       <span style={{ fontSize:11, fontWeight:700, color:P.ac, textTransform:"uppercase", letterSpacing:1 }}>{gexData.ticker} Chart with GEX Levels</span>
                       <div style={{ display:"flex", gap:4 }}>
@@ -4354,7 +4354,7 @@ export default function OptionsFlowDashboard() {
                   const gPct = v => Math.max(0, Math.min(100, ((v-gaugeMin)/(gaugeMax-gaugeMin))*100));
 
                   return (
-                  <div style={{ background:P.cd, borderRadius:10, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
+                  <div style={{ background:P.cd, borderRadius:8, padding:16, border:"1px solid "+P.bd, marginTop:4 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                       <span style={{ fontSize:13, fontWeight:700, color:"#dcbb5e", letterSpacing:1.5, textTransform:"uppercase" }}>GEX Summary</span>
                       <span style={{ fontSize:11, color:P.dm }}>{gexData.ticker} · {gexDteLabel(gexPayloadDte(gexData, gexDte))}{gexData.fetchedAt ? " · "+gexData.fetchedAt+" ET" : ""}</span>
@@ -4498,7 +4498,7 @@ export default function OptionsFlowDashboard() {
                         )}
                       </div>
                       <div style={{ position:"relative", padding:"0 4px" }}>
-                        <div style={{ position:"relative", height:20, borderRadius:10, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
+                        <div style={{ position:"relative", height:20, borderRadius:8, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>
                           {zg&&<div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(zg)+"%",background:P.ac,opacity:0.6,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${zg.toFixed(0)}</span></div>}
                           <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(pwStrike)+"%",background:P.be,opacity:0.4,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${pwStrike}</span></div>
                           <div style={{ position:"absolute",top:0,height:"100%",width:2,left:gPct(cwStrike)+"%",background:P.bu,opacity:0.5,borderRadius:1 }}><span style={{ position:"absolute",top:24,transform:"translateX(-50%)",fontSize:10,color:P.dm,whiteSpace:"nowrap" }}>${cwStrike}</span></div>
@@ -4596,14 +4596,14 @@ export default function OptionsFlowDashboard() {
             </div>
             {/* AI Narrative */}
             {narrativeLoading && (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"8px 14px", fontSize:10, color:P.dm }}>
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"8px 14px", fontSize:10, color:P.dm }}>
                 <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:P.ac, marginRight:6, animation:"pulse 1.5s infinite" }}/>
                 Generating market summary…
                 <style>{"@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}"}</style>
               </div>
             )}
             {marketNarrative && !narrativeLoading && (
-              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"10px 14px" }}>
+              <div style={{ background:P.cd, border:"1px solid "+P.bd, borderTop:"none", borderRadius:"0 0 8px 8px", padding:"10px 14px" }}>
                 <div style={{ fontSize:11, color:P.tx, lineHeight:1.8 }}>{marketNarrative}</div>
               </div>
             )}
@@ -4615,7 +4615,7 @@ export default function OptionsFlowDashboard() {
           <div className="of-tabs" style={{ display:"flex", gap:1, background:P.al, borderRadius:6, padding:2, width:"fit-content", flexWrap:"wrap" }}>
           {TABS.map(t => (
             <button key={t} onClick={()=>setTab(t)} style={{
-              padding:"6px 14px", borderRadius:5, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
+              padding:"6px 14px", borderRadius:4, border:tab===t?("2px solid "+(t==="Leaderboard"?"#dcbb5e":t==="Watchlist"?P.ac:t==="Leaders"?"#6ba3be":P.ac)):(t==="Watchlist"?"1px solid "+P.ac+"55":t==="Leaderboard"?"1px solid #dcbb5e55":t==="Leaders"?"1px solid #6ba3be55":"1px solid transparent"), cursor:"pointer",
               fontSize:11, fontWeight:tab===t?800:(t==="Watchlist"||t==="Leaderboard"||t==="Leaders")?800:600, fontFamily:"inherit",
               background:tab===t?(t==="Watchlist"?P.ac+"33":t==="Leaderboard"?"#dcbb5e33":t==="Leaders"?"#6ba3be33":P.ac+"22"):"transparent",
               color:tab===t?(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.wh):(t==="Watchlist"?P.ac:t==="Leaderboard"?"#dcbb5e":t==="Leaders"?"#6ba3be":P.mt)
@@ -4675,7 +4675,7 @@ export default function OptionsFlowDashboard() {
                     : D.clean_confirmed.filter(capThresh[c]).reduce((a,t)=>a+t.P,0);
                   return (
                     <button key={c} onClick={()=>setCapFilter(c)} title={capDescriptions[c]||"All cap sizes"} style={{
-                      padding:"5px 12px", borderRadius:20, border:`1.5px solid ${active?clr:P.bd}`,
+                      padding:"5px 12px", borderRadius:16, border:`1.5px solid ${active?clr:P.bd}`,
                       cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                       background:active?clr+"22":"transparent",
                       color:active?clr:P.mt, transition:"all 0.15s",
@@ -5007,7 +5007,7 @@ export default function OptionsFlowDashboard() {
             {FD.SECTORS.length > 0 && (
               <Card>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:8 }}>
-                  <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+                  <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
                     {[["sectors","Sectors"],["themes","Themes"]].map(([v,label])=>(
                       <button key={v} onClick={()=>{setSectorView(v);setSelectedItem(null);}} style={{
                         padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
@@ -5607,7 +5607,7 @@ export default function OptionsFlowDashboard() {
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <div style={{ fontSize:14, fontWeight:900, color:P.ac, letterSpacing:1 }}>TOP 10 FLOW PICKS</div>
-                      <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.bg, borderRadius:5, padding:2 }}>
+                      <div className="of-chiprow-seg" style={{ display:"flex", gap:2, background:P.bg, borderRadius:4, padding:2 }}>
                         {["Both","Calls","Puts","Unusual","Standout"].map(f=>(
                           <button key={f} onClick={()=>setTop5Filter(f)} style={{
                             padding:"3px 10px", borderRadius:4, border:"none", cursor:"pointer",
@@ -6739,7 +6739,7 @@ export default function OptionsFlowDashboard() {
             </Card>
             {/* Filters */}
             <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
                 {[["All","All DTE"],["ST","0–59d"],["LT","60–179d"],["LEAPS","180+d"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setTfDteFilter(v)} style={{
                     padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
@@ -6748,7 +6748,7 @@ export default function OptionsFlowDashboard() {
                   }}>{label}</button>
                 ))}
               </div>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
                 {["All","Calls","Puts"].map(f=>(
                   <button key={f} onClick={()=>setCpFilter(f)} style={{
                     padding:"4px 12px", borderRadius:4, border:"none", cursor:"pointer",
@@ -8070,7 +8070,7 @@ export default function OptionsFlowDashboard() {
                     Premiums reflect flow that <b>traded</b> in this range. For positions still open regardless of when they opened, switch to <b>Still open (all)</b>.
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
-                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16, borderTop:"3px solid "+dirC }}>
+                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:16, borderTop:"3px solid "+dirC }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Net Direction{searchDte!=="All"?" ("+({ST:"0–59d",LT:"60–179d",LEAPS:"180+d"})[searchDte]+")":""}</div>
                       <div style={{ fontSize:28, fontWeight:900, color:dirC }}>{dir}</div>
                       <div style={{ fontSize:10, color:P.dm, marginTop:4 }}>{ccTrades.length} directional trades</div>
@@ -8135,7 +8135,7 @@ export default function OptionsFlowDashboard() {
                         </div>
                       )}
                     </div>
-                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
+                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bullish Flow{oiConfirmedOnly?" (Still Open)":""}</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.bu }}>{fmt(ccBDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
@@ -8170,7 +8170,7 @@ export default function OptionsFlowDashboard() {
                         )}
                       </div>
                     </div>
-                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:10, padding:16 }}>
+                    <div style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:8, padding:16 }}>
                       <div style={{ fontSize:11, color:P.dm, marginBottom:4 }}>Bearish Flow{oiConfirmedOnly?" (Still Open)":""}</div>
                       <div style={{ fontSize:22, fontWeight:800, color:P.be }}>{fmt(ccRDisplay)}</div>
                       <div style={{ width:"100%", height:4, background:P.al, borderRadius:2, marginTop:8 }}>
@@ -8526,13 +8526,13 @@ export default function OptionsFlowDashboard() {
               </div>
               <div style={{ display:"flex", gap:4, marginTop:10, flexWrap:"wrap", alignItems:"center" }}>
                 <button onClick={()=>setTrackerDateFilter("All")}
-                  style={{ padding:"4px 12px", borderRadius:5, border:"1px solid "+(trackerDateFilter==="All"?P.ac:P.bd),
+                  style={{ padding:"4px 12px", borderRadius:4, border:"1px solid "+(trackerDateFilter==="All"?P.ac:P.bd),
                     background:trackerDateFilter==="All"?P.ac+"18":"transparent", color:trackerDateFilter==="All"?P.ac:P.dm,
                     fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>All</button>
                 {trackerDates.length > 0 && (
                   <select value={trackerDateFilter==="All"?"":trackerDateFilter}
                     onChange={e=>e.target.value?setTrackerDateFilter(e.target.value):setTrackerDateFilter("All")}
-                    style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit", fontWeight:600 }}>
+                    style={{ background:P.cd, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit", fontWeight:600 }}>
                     <option value="">Select date...</option>
                     {trackerDates.map(d=><option key={d} value={d}>{d}</option>)}
                   </select>
@@ -8550,7 +8550,7 @@ export default function OptionsFlowDashboard() {
                       const accentC = v === "Calls" ? P.bu : v === "Puts" ? P.be : P.ac;
                       return (
                         <button key={v} onClick={() => setTrackerCpFilter(v)}
-                          style={{ padding:"4px 12px", borderRadius:5,
+                          style={{ padding:"4px 12px", borderRadius:4,
                             border:"1px solid "+(active ? accentC : P.bd),
                             background: active ? accentC+"18" : "transparent",
                             color: active ? accentC : P.dm,
@@ -8871,21 +8871,21 @@ export default function OptionsFlowDashboard() {
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                   {wlDates.length>0 && (
                     <select value={wlDate} onChange={e=>wlLoad(e.target.value)}
-                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:5, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}>
+                      style={{ background:P.al, border:"1px solid "+P.bd, borderRadius:4, color:P.wh, fontSize:10, padding:"5px 14px", fontFamily:"inherit" }}>
                       <option value={new Date().toISOString().slice(0,10)}>Today</option>
                       {wlDates.map(d=><option key={d} value={d}>{d}</option>)}
                     </select>
                   )}
                   <button onClick={wlPopulate}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:4, border:"1px solid "+P.ac+"60", background:"transparent", color:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Auto-Fill from Scanner
                   </button>
                   <button onClick={wlPopulateUnusual}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid #dcbb5e60", background:"transparent", color:"#dcbb5e", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:4, border:"1px solid #dcbb5e60", background:"transparent", color:"#dcbb5e", fontSize:10, fontWeight:700, fontFamily:"inherit", textAlign:"center", cursor:"pointer" }}>
                     ⟳ Fill from Unusual
                   </button>
                   <button onClick={()=>{setWlBull([]);setWlBear([]);setWlRemoved([]);}}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
+                    style={{ padding:"5px 14px", borderRadius:4, border:"1px solid "+P.be+"40", background:"transparent", color:P.be, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:"pointer" }}>
                     <FlowIcon name="trash"/> Clear All
                   </button>
                   {/* Discord push — admin-only. Preview Images is the single push
@@ -8894,7 +8894,7 @@ export default function OptionsFlowDashboard() {
                   {isAdmin && (
                     <div style={{ display:"flex", alignItems:"center", gap:2 }}>
                       <select value={discordLabel} onChange={e=>setDiscordLabel(e.target.value)}
-                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"5px 0 0 5px", color:P.wh, fontSize:10, padding:"5px 6px", fontFamily:"inherit" }}>
+                        style={{ background:P.al, border:"1px solid #5865F222", borderRadius:"4px 0 0 4px", color:P.wh, fontSize:10, padding:"5px 6px", fontFamily:"inherit" }}>
                         {["WATCHLIST","UNUSUAL","MORNING","MIDDAY","CLOSING","WEEKLY","MONTHLY"].map(l=><option key={l} value={l}>{l}</option>)}
                       </select>
                       <select value={discordCount} onChange={e=>setDiscordCount(Number(e.target.value))}
@@ -8904,7 +8904,7 @@ export default function OptionsFlowDashboard() {
                       </select>
                       <button onClick={previewWatchlistImages} disabled={wlPreviewBusy}
                         title="Render the Bull + Bear watchlist as a branded image and preview it before pushing to Discord"
-                        style={{ padding:"5px 12px", borderRadius:"0 5px 5px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
+                        style={{ padding:"5px 12px", borderRadius:"0 4px 4px 0", border:"none", background:wlPreviewBusy?"#5865F266":"#5865F2",
                           color:"#fff", fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlPreviewBusy?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
                         {wlPreviewBusy ? <><FlowIcon name="camera"/> Rendering…</> : <><FlowIcon name="camera"/> Preview Images</>}
                       </button>
@@ -8914,18 +8914,18 @@ export default function OptionsFlowDashboard() {
                     <div onClick={closeWlPreview}
                       style={{ position:"fixed", inset:0, zIndex:10000, background:"rgba(0,0,0,0.8)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
                       <div onClick={e=>e.stopPropagation()}
-                        style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:10, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
+                        style={{ background:P.bg, border:"1px solid "+P.bl, borderRadius:8, padding:16, maxWidth:"95vw", maxHeight:"92vh", overflow:"auto", boxShadow:"0 12px 48px rgba(0,0,0,0.6)" }}>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, marginBottom:12, flexWrap:"wrap" }}>
                           <div style={{ fontSize:13, fontWeight:800, color:P.wh, fontFamily:"inherit" }}>
                             <FlowIcon name="camera"/> Discord Preview — {discordLabel} <span style={{ color:P.dm, fontWeight:600 }}>· exactly what will post</span>
                           </div>
                           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                             <button onClick={pushPreviewToDiscord} disabled={wlPreview.pushing}
-                              style={{ padding:"6px 16px", borderRadius:5, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                              style={{ padding:"6px 16px", borderRadius:4, border:"none", background:wlPreview.pushing?"#5865F266":"#5865F2", color:"#fff", fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
                               {wlPreview.pushing ? "Pushing…" : <><FlowIcon name="upload"/> Push to Discord</>}
                             </button>
                             <button onClick={closeWlPreview} disabled={wlPreview.pushing}
-                              style={{ padding:"6px 14px", borderRadius:5, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
+                              style={{ padding:"6px 14px", borderRadius:4, border:"1px solid "+P.bd, background:"transparent", color:P.dm, fontSize:11, fontWeight:700, fontFamily:"inherit", cursor:wlPreview.pushing?"not-allowed":"pointer" }}>
                               Cancel
                             </button>
                           </div>
@@ -8948,7 +8948,7 @@ export default function OptionsFlowDashboard() {
                     </div>
                   )}
                   <button onClick={wlFetchOI} disabled={wlOILoading}
-                    style={{ padding:"5px 14px", borderRadius:5, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
+                    style={{ padding:"5px 14px", borderRadius:4, border:"1px solid "+(wlOILoading?P.bd:P.ac), background:"transparent",
                       color:wlOILoading?P.dm:P.ac, fontSize:10, fontWeight:700, fontFamily:"inherit", cursor:wlOILoading?"not-allowed":"pointer" }}>
                     {wlOILoading?"Fetching…":<><FlowIcon name="chart"/> Fetch Live OI</>}
                   </button>
@@ -8976,7 +8976,7 @@ export default function OptionsFlowDashboard() {
                 );
               })}
               </div>
-              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:5, padding:2 }}>
+              <div style={{ display:"flex", gap:2, background:P.al, borderRadius:4, padding:2 }}>
                 {[["both","Both"],["bull","Bull"],["bear","Bear"]].map(([v,label])=>(
                   <button key={v} onClick={()=>setWlViewFilter(v)} style={{
                     padding:"4px 10px", borderRadius:4, border:"none", cursor:"pointer",

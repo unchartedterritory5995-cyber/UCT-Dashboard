@@ -58,6 +58,45 @@
   --warn: #dcbb5e;
   --warn-bg: #dcbb5e15;
   --warn-border: #dcbb5e35;
+
+  /* ── LEGACY ALIASES ─────────────────────────────────────────────────────
+     These nine names are used across ~212 CSS declarations in app/src and were
+     NEVER DEFINED anywhere. A `var(--x)` with no fallback and no definition is
+     an INVALID declaration: the browser drops it, and the property falls back
+     to inherited/initial. So `color: var(--color-danger)` did not make an error
+     message red -- it silently inherited its parent's colour. Nothing errors,
+     nothing logs, and the rule reads as if it works, which is why this survived.
+     Verified empty at the root of the running production app, not by grep.
+
+     Defined as `var()` references, not literals, so they follow the THEME: the
+     theme blocks below ([data-theme="oled"] / [data-theme="light"]) match the
+     SAME element these are declared on (<html>), so the substitution here uses
+     the light values when light is active. Verified in a browser across all
+     three themes -- light gives --text-primary #0b0e11 and --bg-base #ffffff.
+
+     ⛔ BUT AN ALIAS DOES NOT FOLLOW A *NESTED* SCOPE. A custom property that
+     references another is substituted using the REFERENCING element's own
+     computed value, then inherited as a finished value. So a descendant that
+     re-points --text (ChartsWorkspace.module.css does exactly this for chart
+     widgets in light mode) does NOT re-point an alias it inherited from :root.
+     Measured: a nested [data-theme="light"] container still reported
+     --text-primary #f8f7f3, contrast 1.07 against white.
+     Inside such a scope, USE THE CANONICAL TOKEN. `tokens.reachable.test.js`
+     fails by name if an alias is used in a stylesheet that re-points an alias
+     target in a nested selector.
+
+     ⛔ These are a BRIDGE, not new vocabulary. Do not reach for them in new
+     code -- use the canonical token on the right. `tokens.reachable.test.js`
+     fails by name on any NEW undefined variable, so the set cannot grow. */
+  --text-primary: var(--text-bright);
+  --text-secondary: var(--text-muted);
+  --text-dim: var(--text-muted);
+  --text-faint: var(--text-muted);
+  --color-text: var(--text);
+  --color-danger: var(--loss);
+  --color-warning: var(--warn);
+  --color-success: var(--gain);
+  --bg-base: var(--bg);
   --info: #5ea8f7;
   --info-bg: #5ea8f712;
   --info-border: #5ea8f730;

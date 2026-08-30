@@ -275,6 +275,174 @@
       "inputs": {
         "account": {
           "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [
+          {
+            "symbol": "LIQUID",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 9,
+            "brokerPriceSession": "2026-08-28",
+            "source": "broker"
+          },
+          {
+            "symbol": "THIN",
+            "side": "Long",
+            "shares": 5,
+            "brokerPrice": 20,
+            "brokerPriceSession": "2026-08-28",
+            "source": "broker"
+          }
+        ],
+        "strategies": [],
+        "prices": {
+          "LIQUID": {
+            "price": 10
+          }
+        },
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 200.0,
+        "netLiq": 200.0,
+        "vintage": {
+          "basis": "mixed",
+          "session": "2026-08-28",
+          "conflicts": [],
+          "components": {
+            "live": 1,
+            "broker": 1,
+            "cost": 0
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [
+          {
+            "symbol": "FRESH",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 9,
+            "brokerPriceSession": "2026-08-28",
+            "source": "broker"
+          },
+          {
+            "symbol": "STALE",
+            "side": "Long",
+            "shares": 5,
+            "brokerPrice": 20,
+            "brokerPriceSession": "2026-08-21",
+            "source": "broker"
+          }
+        ],
+        "strategies": [],
+        "prices": {},
+        "optionMarks": {},
+        "preferBroker": true
+      },
+      "expected": {
+        "marketValue": 190.0,
+        "netLiq": 190.0,
+        "vintage": {
+          "basis": "broker",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "STALE",
+              "session": "2026-08-21"
+            }
+          ],
+          "components": {
+            "live": 0,
+            "broker": 2,
+            "cost": 0
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [
+          {
+            "symbol": "A",
+            "side": "Long",
+            "shares": 10,
+            "brokerPrice": 9,
+            "source": "broker"
+          }
+        ],
+        "strategies": [],
+        "prices": {},
+        "optionMarks": {},
+        "preferBroker": true
+      },
+      "expected": {
+        "marketValue": 90.0,
+        "netLiq": 90.0,
+        "vintage": {
+          "basis": "broker",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "A",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 0,
+            "broker": 1,
+            "cost": 0
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
+          "brokerCash": 0.0
+        },
+        "positions": [],
+        "strategies": [
+          {
+            "id": "s1",
+            "netEntry": 610.0,
+            "source": "broker"
+          }
+        ],
+        "prices": {},
+        "optionMarks": {}
+      },
+      "expected": {
+        "marketValue": 610.0,
+        "netLiq": 610.0,
+        "vintage": {
+          "basis": "cost",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 0,
+            "broker": 0,
+            "cost": 1
+          }
+        }
+      }
+    },
+    {
+      "inputs": {
+        "account": {
+          "balanceSource": "broker",
           "brokerCash": -18760.66,
           "brokerCashLive": -29750.66
         },
@@ -332,7 +500,34 @@
       },
       "expected": {
         "marketValue": 40523.75,
-        "netLiq": 10773.09
+        "netLiq": 10773.09,
+        "vintage": {
+          "basis": "mixed",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "DELL",
+              "session": null
+            },
+            {
+              "symbol": "ORCL",
+              "session": null
+            },
+            {
+              "symbol": "NEXA",
+              "session": null
+            },
+            {
+              "symbol": "SPY",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 1,
+            "broker": 5,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -377,7 +572,17 @@
       },
       "expected": {
         "marketValue": 250.0,
-        "netLiq": 2250.0
+        "netLiq": 2250.0,
+        "vintage": {
+          "basis": "mixed",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 2,
+            "broker": 1,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -415,7 +620,22 @@
       },
       "expected": {
         "marketValue": 1000.0,
-        "netLiq": 1000.0
+        "netLiq": 1000.0,
+        "vintage": {
+          "basis": "broker",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "AAPL",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 0,
+            "broker": 1,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -438,7 +658,17 @@
       },
       "expected": {
         "marketValue": 610.0,
-        "netLiq": 0.0
+        "netLiq": 0.0,
+        "vintage": {
+          "basis": "cost",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 0,
+            "broker": 0,
+            "cost": 1
+          }
+        }
       }
     },
     {
@@ -465,7 +695,17 @@
       },
       "expected": {
         "marketValue": 700.0,
-        "netLiq": 700.0
+        "netLiq": 700.0,
+        "vintage": {
+          "basis": "live",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 1,
+            "broker": 0,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -496,7 +736,22 @@
       },
       "expected": {
         "marketValue": 100.0,
-        "netLiq": 200.0
+        "netLiq": 200.0,
+        "vintage": {
+          "basis": "broker",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "AAPL",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 0,
+            "broker": 1,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -523,7 +778,17 @@
       },
       "expected": {
         "marketValue": 10.0,
-        "netLiq": null
+        "netLiq": null,
+        "vintage": {
+          "basis": "live",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 1,
+            "broker": 0,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -603,7 +868,17 @@
       },
       "expected": {
         "marketValue": 31874.19,
-        "netLiq": 9708.44
+        "netLiq": 9708.44,
+        "vintage": {
+          "basis": "live",
+          "session": null,
+          "conflicts": [],
+          "components": {
+            "live": 6,
+            "broker": 0,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -684,7 +959,38 @@
       },
       "expected": {
         "marketValue": 31891.85,
-        "netLiq": 9726.1
+        "netLiq": 9726.1,
+        "vintage": {
+          "basis": "mixed",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "DELL",
+              "session": null
+            },
+            {
+              "symbol": "ORCL",
+              "session": null
+            },
+            {
+              "symbol": "SNAP",
+              "session": null
+            },
+            {
+              "symbol": "SPY",
+              "session": null
+            },
+            {
+              "symbol": "TH",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 1,
+            "broker": 5,
+            "cost": 0
+          }
+        }
       }
     },
     {
@@ -722,7 +1028,22 @@
       },
       "expected": {
         "marketValue": 540.0,
-        "netLiq": 540.0
+        "netLiq": 540.0,
+        "vintage": {
+          "basis": "mixed",
+          "session": null,
+          "conflicts": [
+            {
+              "symbol": "A",
+              "session": null
+            }
+          ],
+          "components": {
+            "live": 1,
+            "broker": 1,
+            "cost": 0
+          }
+        }
       }
     }
   ],

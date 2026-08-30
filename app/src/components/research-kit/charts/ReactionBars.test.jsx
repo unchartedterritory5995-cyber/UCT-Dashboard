@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import ReactionBars, {
   SIZE, VIEWBOX, reactionGeometry, reactionStats, outcomeOf,
 } from './ReactionBars'
@@ -177,5 +177,108 @@ describe('ReactionBars', () => {
 
   it('exports a SIZE box for SkeletonBlock', () => {
     expect(SIZE).toEqual({ width: '100%', height: VIEWBOX.height })
+  })
+})
+
+// ── the viewBox tracks the CONTAINER (mirror of ImpliedVsRealized's rail) ────
+//
+// Both charts share `useMeasuredWidth`, and jsdom implements no ResizeObserver,
+// so every OTHER test in this file renders the 320-unit fallback. Without this
+// block the entire measured path — the reason this chart stopped drawing at a
+// third of its width — is invisible to a green run.
+describe('viewBox tracks the measured container width', () => {
+  const roCallbacks = []
+
+  function withMeasuredWidth(px, fn) {
+    const realRO = globalThis.ResizeObserver
+    const proto = Element.prototype
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'getBoundingClientRect')
+    roCallbacks.length = 0
+    globalThis.ResizeObserver = class {
+      // Registers on observe(), NOT in the constructor — a stub that collects
+      // the callback at construction stays green when `ro.observe(node)` is
+      // deleted, which is the exact wire these tests exist to protect.
+      constructor(cb) { this._cb = cb }
+      observe() { roCallbacks.push(this._cb) }
+      disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
+    }
+    Object.defineProperty(proto, 'getBoundingClientRect', { configurable: true, writable: true, value: () => ({ width: px, height: 0, top: 0, left: 0, right: px, bottom: 0, x: 0, y: 0 }) })
+    try {
+      return fn()
+    } finally {
+      if (realClientWidth) Object.defineProperty(proto, 'getBoundingClientRect', realClientWidth)
+      else delete proto.getBoundingClientRect
+      if (realRO) globalThis.ResizeObserver = realRO
+      else delete globalThis.ResizeObserver
+    }
+  }
+
+  const viewBoxOf = (c) => c.querySelector('[data-testid="rk-reaction"]')?.getAttribute('viewBox')
+
+  it('cuts the box to the wrapper width once it can be measured', () => {
+    const { container } = withMeasuredWidth(604, () => render(<ReactionBars quarters={ROWS} />))
+    expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+  })
+
+  it('is a DIFFERENT box at a different width — the measurement is read, not ignored', () => {
+    const { container } = withMeasuredWidth(880, () => render(<ReactionBars quarters={ROWS} />))
+    expect(viewBoxOf(container)).toBe(`0 0 880 ${VIEWBOX.height}`)
+  })
+
+  it('falls back to VIEWBOX.width when the element measures 0 (detached/hidden)', () => {
+    const { container } = withMeasuredWidth(0, () => render(<ReactionBars quarters={ROWS} />))
+    expect(viewBoxOf(container)).toBe(`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`)
+  })
+
+  it('measures after mounting EMPTY first — the real SWR arrival order', () => {
+    // This chart has an EmptyState early-return too, so it carries the same
+    // trap: a useRef-based hook would measure an absent node once and never
+    // run again. The shared hook uses a callback ref; this pins the ordering.
+    const { container } = withMeasuredWidth(604, () => {
+      const r = render(<ReactionBars quarters={[]} />)
+      expect(r.container.querySelector('[data-testid="rk-reaction"]')).toBeNull()
+      r.rerender(<ReactionBars quarters={ROWS} />)
+      return r
+    })
+    expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+  })
+
+  it('re-cuts the box when the container later RESIZES', () => {
+    let width = 604
+    const proto = Element.prototype
+    const realClientWidth = Object.getOwnPropertyDescriptor(proto, 'getBoundingClientRect')
+    const realRO = globalThis.ResizeObserver
+    roCallbacks.length = 0
+    globalThis.ResizeObserver = class {
+      constructor(cb) { this._cb = cb }
+      observe() { roCallbacks.push(this._cb) }
+      disconnect() { const i = roCallbacks.indexOf(this._cb); if (i >= 0) roCallbacks.splice(i, 1) }
+    }
+    Object.defineProperty(proto, 'getBoundingClientRect', { configurable: true, writable: true, value: () => ({ width: width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 }) })
+    try {
+      const { container } = render(<ReactionBars quarters={ROWS} />)
+      expect(viewBoxOf(container)).toBe(`0 0 604 ${VIEWBOX.height}`)
+      width = 880
+      act(() => { roCallbacks.forEach((cb) => cb()) })
+      expect(viewBoxOf(container)).toBe(`0 0 880 ${VIEWBOX.height}`)
+    } finally {
+      if (realClientWidth) Object.defineProperty(proto, 'getBoundingClientRect', realClientWidth)
+      else delete proto.getBoundingClientRect
+      if (realRO) globalThis.ResizeObserver = realRO
+      else delete globalThis.ResizeObserver
+    }
+  })
+
+  it('bars get WIDER in a wider box, and stay capped', () => {
+    const barOf = (w) => reactionGeometry(ROWS, { width: w, height: VIEWBOX.height }).bars[0].w
+    expect(barOf(604)).toBeGreaterThan(barOf(320))
+    expect(barOf(4000)).toBe(barOf(604))
+  })
+
+  it('the whole box is used: the last bar stays inside it', () => {
+    const geo = reactionGeometry(ROWS, { width: 604, height: VIEWBOX.height })
+    const last = geo.bars[geo.bars.length - 1]
+    expect(last.cx).toBeGreaterThan(604 * 0.8)
+    expect(last.cx).toBeLessThan(604)
   })
 })

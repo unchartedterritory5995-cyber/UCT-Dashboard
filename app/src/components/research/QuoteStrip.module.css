@@ -44,5 +44,8 @@
 
 @media (max-width: 640px) {
   .strip { padding-left: var(--space-md); padding-right: var(--space-md); }
-  .cells { gap: var(--space-md); font-size: var(--text-base); }
+  /* --space-sm, not --space-md: measured at 390px the row's natural width is
+     336px against 327px of space, so a 12px gap wrapped all five readings onto
+     a second line for the sake of 9px. Four 8px gaps buy 16px and it fits. */
+  .cells { gap: var(--space-sm); font-size: var(--text-base); }
 }
