@@ -83,6 +83,7 @@ WINDOWS = {
     "wyckoff-spring":      300,
     # A base up to 45 weeks plus the 200-day average behind it.
     "cheat-3c":            500,
+    "low-cheat":           500,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

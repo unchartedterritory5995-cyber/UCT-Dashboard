@@ -17,7 +17,7 @@ def _leg(bars, n, to, v=1_000_000):
 
 
 def _cheat(recovery=0.40, depth=0.25, plateau=0.06, lead=260, top=100.0,
-           ma_rising=True, prior_gain=2.5):
+           ma_rising=True, prior_gain=2.5, inside_days=0):
     """A long rising lead, a cup down to `depth`, a partial right-side rally
     to `recovery` of the decline, then a tight plateau.
 
@@ -46,10 +46,25 @@ def _cheat(recovery=0.40, depth=0.25, plateau=0.06, lead=260, top=100.0,
     # plateau's floor -- which both dragged the measured recovery below the
     # published band and pushed price under the 200-day average. The fixture
     # was failing two gates for a reason that had nothing to do with either.
-    for i in range(bc.CHEAT_PLATEAU_BARS - 1):
+    for i in range(bc.CHEAT_PLATEAU_BARS - 1 - inside_days):
         bars.append(_bar(len(bars),
                          target * (1 - (plateau if i % 2 else 0.0))))
-    bars.append(_bar(len(bars), target))
+    # Inside days on light volume: each range strictly inside the last, and
+    # volume below the base's mean. Sourced as the low cheat's confirmation.
+    # ⚠️ CENTRED ON THE TARGET, not on the previous bar. Centring each inside
+    # day on its predecessor walks price DOWN the plateau, which dropped the
+    # measured recovery to 2.5% -- below the lower-third band the test exists
+    # to exercise. The bars must tighten in place, which is what an inside day
+    # actually is.
+    span = None
+    for j in range(inside_days):
+        prev = bars[-1]
+        span = (prev["h"] - prev["l"]) * 0.6 if span is None else span * 0.75
+        b = _bar(len(bars), target, v=200_000)
+        b["h"], b["l"] = target + span / 2, target - span / 2
+        bars.append(b)
+    if not inside_days:
+        bars.append(_bar(len(bars), target))
     return bars
 
 
@@ -149,3 +164,66 @@ def test_our_only_number_is_the_plateau_length():
     ours = [x for x in c.criteria if x.origin == "uct"]
     assert [x.value for x in ours] == [bc.CHEAT_PLATEAU_BARS]
     assert all(x.source_id is None for x in ours)
+
+
+# ── the Low Cheat: the same detector with one band moved ───────────────────
+
+def test_a_plateau_in_the_LOWER_third_is_a_low_cheat_not_a_3C():
+    """Minervini's own framing is positional: the low cheat is the lower third,
+    the classic cheat the middle third, the handle the upper third. The two
+    share one detector and differ only in where the plateau sits.
+    """
+    bars = _cheat(recovery=0.20, inside_days=3, prior_gain=5.0)
+    assert bc.low_cheat_state(bases._context(bars, bars)) is not None
+    assert bc.cheat_3c_state(bases._context(bars, bars)) is None
+
+
+def test_a_low_cheat_WITHOUT_inside_days_is_refused():
+    """The confirmation is stated for this entry and not the classic one --
+    "Before I buy, I ALSO like to see some inside days on very low volume".
+    It is the riskier entry, so it carries the extra requirement.
+    """
+    bars = _cheat(recovery=0.20, inside_days=0, prior_gain=5.0)
+    assert bc.low_cheat_state(bases._context(bars, bars)) is None
+
+
+def test_a_plateau_in_the_MIDDLE_third_is_a_3C_not_a_low_cheat():
+    """The control. Without it the two could both fire everywhere and the
+    positional distinction would be decorative.
+    """
+    bars = _cheat(recovery=0.40)
+    assert bc.cheat_3c_state(bases._context(bars, bars)) is not None
+    assert bc.low_cheat_state(bases._context(bars, bars)) is None
+
+
+def test_the_two_bands_meet_without_a_gap_or_an_overlap():
+    """⛔ A gap would leave plateaus that are neither, and an overlap would let
+    one structure be both. The bands are adjacent by construction.
+    """
+    assert bc.LOW_CHEAT_MAX_RECOVERY == bc.CHEAT_MIN_RECOVERY
+
+
+def test_the_low_cheat_requires_inside_days_and_the_3C_does_not():
+    """"Before I buy, I ALSO like to see some inside days on very low volume"
+    is stated for the low cheat, which is the riskier entry. It is not carried
+    over to the classic cheat, where he does not state it.
+    """
+    lc = bc.by_key("low-cheat")
+    assert any("inside days" in (c.quote or "") for c in lc.criteria)
+    c3 = bc.by_key("cheat-3c")
+    assert not any("inside days" in (c.quote or "") for c in c3.criteria)
+
+
+def test_the_unpublished_cap_floor_is_a_refusal_that_names_its_consequence():
+    """A third party asserts '>$10B'. That number is theirs. Not filtering by
+    size means this fires on small caps he would not apply it to, and the
+    refusal says so rather than leaving the gap silent.
+    """
+    lc = bc.by_key("low-cheat")
+    cap = [c for c in lc.criteria if "MARKET-CAP FLOOR" in c.condition]
+    assert cap and cap[0].value is None and cap[0].missing
+    assert "THEIRS, not his" in cap[0].missing
+
+
+def test_the_low_cheat_leads_the_classic_cheat_it_precedes():
+    assert bc.by_key("low-cheat").rank < bc.by_key("cheat-3c").rank

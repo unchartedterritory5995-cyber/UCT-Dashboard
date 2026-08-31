@@ -2116,7 +2116,7 @@ HIGH_TIGHT_FLAG = Structure(
     axis="relation",
     family="Base Structure",
     bias="bullish",
-    rank=11,
+    rank=22,
     min_bars=HTF_POLE_MIN_BARS + HTF_FLAG_MIN_BARS,
     desc=("A near-vertical doubling in four to eight weeks, then a shallow, "
           "tight three-to-five week flag on drying volume. Rare, and the "
@@ -3411,7 +3411,8 @@ def _sma(bars, n, end=None):
     return (sum(seg) / len(seg)) if len(seg) >= n else None
 
 
-def cheat_3c_state(ctx) -> Optional[dict]:
+def cheat_state(ctx, min_recovery: float, max_recovery: float,
+                require_inside_days: bool = False) -> Optional[dict]:
     """An early pivot inside a cup: the plateau after a partial right-side rally.
 
     ⛔ THE RECOVERY BAND IS THE WHOLE POINT. A cheat is not "price is back near
@@ -3459,7 +3460,7 @@ def cheat_3c_state(ctx) -> Optional[dict]:
     if last <= 0:
         return None
     recovery = (last - low) / (top - low)
-    if not (CHEAT_MIN_RECOVERY <= recovery <= CHEAT_MAX_RECOVERY):
+    if not (min_recovery <= recovery <= max_recovery):
         return None
 
     plate = bars[-CHEAT_PLATEAU_BARS:]
@@ -3482,9 +3483,43 @@ def cheat_3c_state(ctx) -> Optional[dict]:
     if (adv or 0.0) < CHEAT_PRIOR_ADVANCE:
         return None
 
+    inside = _inside_days_on_light_volume(bars, top_i)
+    if require_inside_days and not inside:
+        return None
+
     return {"top": top, "low": low, "depth": depth, "bars": span,
             "recovery": recovery, "plateau_depth": plateau_depth,
-            "prior_advance": adv, "pivot": ph}
+            "prior_advance": adv, "pivot": ph, "inside_days": inside}
+
+
+def _inside_days_on_light_volume(bars, base_start: int,
+                                 window: int = 5, need: int = 2) -> int:
+    """Inside days in the recent window whose volume is below the base's mean.
+
+    SOURCED as a confirmation, with no number: "I also like to see some inside
+    days on very low volume, another sign that supply coming to market has
+    slowed to a trickle". "Some" and "very low" are not quantities, so the
+    counts here are ours and are recorded as ours.
+    """
+    seg = [b.get("v") or 0 for b in bars[base_start:] if (b.get("v") or 0) > 0]
+    if not seg:
+        return 0
+    base_vol = sum(seg) / len(seg)
+    hits = 0
+    for i in range(max(1, len(bars) - window), len(bars)):
+        cur, prev = bars[i], bars[i - 1]
+        ch, cl = cur.get("h") or 0, cur.get("l") or 0
+        ph_, pl = prev.get("h") or 0, prev.get("l") or 0
+        if ch <= 0 or cl <= 0 or ph_ <= 0 or pl <= 0:
+            continue
+        if ch < ph_ and cl > pl and (cur.get("v") or 0) < base_vol:
+            hits += 1
+    return hits
+
+
+def cheat_3c_state(ctx) -> Optional[dict]:
+    """The classic cheat: a plateau in the MIDDLE third of the base."""
+    return cheat_state(ctx, CHEAT_MIN_RECOVERY, CHEAT_MAX_RECOVERY)
 
 
 def _detect_cheat_3c(ctx) -> bool:
@@ -3593,6 +3628,132 @@ CHEAT_3C = Structure(
 )
 
 
+# -- The "Low Cheat" (Mark Minervini) ---------------------------------------
+# ⭐ THE SAME DETECTOR AS THE 3-C WITH ONE BAND MOVED. Minervini's own framing
+# is positional, not structural: "The low cheat forms in the LOWER THIRD of the
+# base. It's riskier to buy in the lower third of the base than in the middle
+# third (the classic cheat area) or the upper third (from the handle)." So the
+# two share `cheat_state` and differ only in where the plateau sits -- writing
+# a second detector would put a second authority on every other rule they hold
+# in common.
+
+_MINERVINI_LOW = "minervini_ttlac_lowcheat"
+
+#: The lower third of the base. The 3-C's band starts where this one ends.
+LOW_CHEAT_MIN_RECOVERY = 0.05
+LOW_CHEAT_MAX_RECOVERY = 1.0 / 3.0
+
+
+def low_cheat_state(ctx) -> Optional[dict]:
+    """A plateau in the lower third of the base, with inside days to confirm."""
+    return cheat_state(ctx, LOW_CHEAT_MIN_RECOVERY, LOW_CHEAT_MAX_RECOVERY,
+                       require_inside_days=True)
+
+
+def _detect_low_cheat(ctx) -> bool:
+    return low_cheat_state(ctx) is not None
+
+
+LOW_CHEAT = Structure(
+    key="low-cheat",
+    label="Low Cheat",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=11,
+    min_bars=CHEAT_MIN_BARS + 20,
+    desc=("A pause in the LOWER third of a base -- an earlier and riskier "
+          "entry than the classic cheat, confirmed by inside days on light "
+          "volume."),
+    criteria=(
+        Criterion(
+            condition="Location -- the lower third of the base",
+            value=(LOW_CHEAT_MIN_RECOVERY, LOW_CHEAT_MAX_RECOVERY),
+            quote=("The low cheat forms in the lower third of the base. It's "
+                   "riskier to buy in the lower third of the base than in the "
+                   "middle third (the classic cheat area) or the upper third "
+                   "(from the handle)."),
+            source_id=_MINERVINI_LOW, confidence="high",
+        ),
+        Criterion(
+            condition="Confirmation -- inside days on very low volume",
+            value="inside-days-light-volume",
+            quote=("Before I buy, I also like to see some inside days on very "
+                   "low volume, another sign that supply coming to market has "
+                   "slowed to a trickle and the line of least resistance is "
+                   "forming."),
+            source_id=_MINERVINI_LOW, confidence="high",
+        ),
+        Criterion(
+            condition="Minimum post-IPO basing period",
+            value=10,
+            quote="The basing period after the IPO should be at least 10 days.",
+            source_id=_MINERVINI_LOW, confidence="high",
+        ),
+        Criterion(
+            condition=("Intended universe -- larger caps and recent IPOs. The "
+                       "MARKET-CAP FLOOR is not published."),
+            value=None,
+            quote=("I like to use the low cheat for larger cap names, and in "
+                   "some cases new issues that recently went public."),
+            source_id=_MINERVINI_LOW, confidence="high",
+            missing=("No cap floor is given. A third party asserts '>$10B'; "
+                     "that number is THEIRS, not his, and importing it would "
+                     "put a figure in his mouth. So this detector does not "
+                     "filter by size at all, which means it fires on small "
+                     "caps he would not apply it to."),
+        ),
+        Criterion(
+            condition="The IPO condition itself",
+            value=None,
+            quote=("The low cheat can work for IPOs that don't spend much time "
+                   "trading below their IPO price and don't correct too "
+                   "excessively."),
+            source_id=_MINERVINI_LOW, confidence="high",
+            missing=("'Much time' and 'too excessively' are not quantities, "
+                     "and we hold no IPO-price field either, so the IPO branch "
+                     "is not implemented."),
+        ),
+        Criterion(
+            condition="Position sizing -- scale in, do not commit fully",
+            value=None,
+            quote=("I will often start a position at a low cheat and then add "
+                   "as it forms additional pivot points at progressively "
+                   "higher prices."),
+            source_id=_MINERVINI_LOW, confidence="high",
+            missing=("He publishes no fractions. A third party's ladder "
+                     "('<=20% at the low cheat, ~50% at the cheat, full at the "
+                     "handle') is theirs, not his. Sizing is not this "
+                     "detector's business anyway -- recorded so the absence is "
+                     "visible."),
+        ),
+        Criterion(
+            condition=("Worked example durations -- 14 days (GOOG), 19 days "
+                       "(TWTR). EXAMPLES, not thresholds."),
+            value="14d/19d-illustrative",
+            quote="The Twitter base formed in 19 days.",
+            source_id=_MINERVINI_LOW, confidence="high",
+        ),
+        Criterion(
+            condition=("The named outcomes are not performance: GOOG 'soared "
+                       "625 percent in 40 months', TWTR 'ran up 77 percent in "
+                       "just 16 days'."),
+            value=None,
+            source_id=_MINERVINI_LOW, confidence="high",
+            missing=("Single illustrations. No sample, no base rate, and "
+                     "selected after the fact."),
+        ),
+        Criterion(
+            condition="Inside-day window and count required",
+            value=(5, 2),
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=1.1,
+    detect=_detect_low_cheat,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -3641,6 +3802,7 @@ SHAPES = [
 ]
 
 RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CHEAT_3C, CLIMAX_TOP,
+             LOW_CHEAT,
              CUP_WITH_HANDLE,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
