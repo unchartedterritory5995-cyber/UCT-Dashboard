@@ -870,6 +870,44 @@ export function setBarsPushEnabled(on) {
 }
 if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 
+// ─── Bars-history split-fetch gate (instant-charts Phase 5, edge caching) ─────
+// When ON (and the chart is a standard native D/W/M path), the DEEP sealed history is
+// fetched from the edge-cacheable /api/bars-history endpoint (served from Cloudflare's
+// nearest PoP, never touching the origin) while the recent+live tail keeps coming from
+// /api/bars. First paint is unchanged (the ~600-bar tail from /api/bars); only the deep
+// history a user pans to is offloaded to the edge — so the origin serves small live tails,
+// not multi-thousand-bar history fetches. Mirrors the bars-push rollout idiom exactly:
+// explicit localStorage '1'/'0' wins, else a staged % by a stable per-browser bucket.
+// DEFAULT 0 = fully off (byte-identical to the pre-Phase-5 load path) until canaried.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
+
+function _barsHistoryBucket() {
+  try {
+    let b = localStorage.getItem('uct.barsHistory.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsHistory.bucket', b) }
+    const n = parseInt(b, 10)
+    return Number.isFinite(n) ? n : 100
+  } catch { return 100 }  // no storage → out of rollout (safe default-off)
+}
+
+export function _barsHistorySplitEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistory.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    return _barsHistoryBucket() < BARS_HISTORY_SPLIT_ROLLOUT_PCT
+  } catch { return false }
+}
+
+export function setBarsHistorySplitEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsHistory.enabled', '1')
+    else localStorage.removeItem('uct.barsHistory.enabled')
+    window.dispatchEvent(new Event('uct-barshistory-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
 const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -4638,12 +4676,29 @@ export default function StockChart({
   // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
   // the previous ticker" bug). `to` implies a full window (no `since`).
   const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
+  // Phase 5 split-fetch: for a STANDARD native D/W/M chart, cap the /api/bars fetch to the
+  // live tail (~first-paint depth) and pull the DEEP sealed history from the edge-cacheable
+  // /api/bars-history endpoint instead. First paint is unchanged (the tail); only the older
+  // history a user pans to is offloaded from the origin to the CDN edge. Excludes replay
+  // (`to`), custom TFs, overrides, and pinned/entryDate charts (they need one full fetch).
+  const _splitOn = _barsHistorySplitEnabled() && !!sym && !isIntraday && !_isCustomTf
+    && !_hasOverride && !replayCutoff && !_pinnedFull
+    && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
+  const _primaryBars = _splitOn ? Math.min(barCount, FIRST_PAINT_BARS) : barCount
+  // Deep sealed history from the edge — only once the user has panned PAST the first-paint
+  // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
+  // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
+  const _histBars = (_splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+                     && fetchDepth > FIRST_PAINT_BARS) ? fetchDepth : 0
+  const histUrl = _histBars
+    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_histBars}`
+    : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
         ? (_toParam != null
-            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}&to=${encodeURIComponent(_toParam)}`
-            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -4673,6 +4728,18 @@ export default function StockChart({
   // even when refreshInterval polling is paused (hidden/popped-out window), which is
   // exactly the stall it recovers from.
   barsMutateRef.current = mutate
+
+  // ── Phase 5: deep SEALED history from the CDN edge (/api/bars-history) ──
+  // Static within the session (sealed bars don't change intraday), so no refreshInterval —
+  // the primary /api/bars tail SWR above owns freshness + the live bar. Fires only on a deep
+  // pan (histUrl is null on first paint), and is edge-served (never hits the origin on a HIT).
+  const { data: histData } = useSWR(histUrl, fetcher, {
+    dedupingInterval: 60_000,
+    revalidateOnFocus: false,
+    refreshInterval: 0,
+    refreshWhenHidden: false,
+    onErrorRetry: barsSwrOnErrorRetry,
+  })
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -4775,6 +4842,26 @@ export default function StockChart({
       memPut(sym, resolvedTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Phase 5 split-fetch: fold the edge-served DEEP SEALED history into idbBars ──
+  // The /api/bars tail (recent + today + live) is merged by the effect above; this prepends
+  // the older sealed bars a user panned to, fetched from the CDN edge instead of the origin.
+  // Same cross-ticker guards as the tail path. mergeDelta(deepSealed, currentTail) keeps the
+  // fresher tail winning on the overlap (today + live close) while filling the older range.
+  useEffect(() => {
+    if (!histData?.bars?.length || !sym || !resolvedTf) return
+    if (!histData.sealed) return                                   // only the sealed endpoint's shape
+    if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
+    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
+    const cur = idbBarsRef.current
+    if (!cur?.length) return                                       // wait for the tail to establish the series
+    const merged = mergeDelta(histData.bars, cur)
+    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
+    idbBarsRef.current = merged
+    setIdbBars(merged)
+    idbPut(sym, resolvedTf, merged)
+    memPut(sym, resolvedTf, merged)
+  }, [histData])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
