@@ -531,6 +531,7 @@ def get_bars_history(
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
     v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
+    d: str = Query(default="", description="Last-sealed date (YYYY-MM-DD). When it matches the current sealed boundary, the response is IMMUTABLE (cached ~1y) — a new trading day mints a fresh d → a fresh URL, so it self-refreshes with no purge. Used by the client + the global pre-warm sweep to stock Cloudflare Cache Reserve."),
 ):
     """Edge-cacheable SEALED history for a symbol (Phase 5). D/W/M only in v1."""
     import orjson as _orjson
@@ -572,11 +573,21 @@ def get_bars_history(
         "tf": tfu, "bars": sealed, "sealed": True,
         "version": version, "last_sealed": last_sealed, "count": len(sealed),
     })
-    # PUBLIC + self-healing: 1h fresh, then serve-stale up to a day while revalidating.
-    # A rare correction to sealed history self-heals within the hour; the immutable +
-    # content-versioned-URL upgrade (max-age=1y) is a later Phase-5 step once the CDN
-    # cache rule + client split-fetch are in place.
-    out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    # Cache policy:
+    #  • d matches the CURRENT sealed boundary  → IMMUTABLE, ~1 year. Safe because the date
+    #    makes each day's URL unique: when a new trading day seals, the client (and the
+    #    pre-warm sweep) request a NEW d → a NEW URL, so the cache self-refreshes with NO
+    #    purge. Recent corrections are covered by the always-fresh /api/bars tail that the
+    #    client merges over this history (the tail wins the overlap), so a stale sealed bar
+    #    inside the tail window never reaches the user. This is what lets a global pre-warm
+    #    stock Cloudflare Cache Reserve so no first-time user in any region hits the origin.
+    #  • no d / stale d (the boundary moved since the client's tail)  → short public cache,
+    #    so current data is never frozen for a year under a mismatched date. Backward-compat:
+    #    older clients that don't send d keep the original 1h self-healing behavior.
+    if d and last_sealed and d == last_sealed:
+        out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     st = inner.headers.get("Server-Timing")
     if st:
         out.headers["Server-Timing"] = st

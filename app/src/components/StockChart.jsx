@@ -912,6 +912,22 @@ export function setBarsHistorySplitEnabled(on) {
 }
 if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
 
+// Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
+// in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
+// sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
+// new day seals) AND makes every user + the nightly pre-warm sweep request the SAME URL, so
+// Cloudflare Cache Reserve serves it globally and no first-time user hits the origin. A miss
+// (rare tz edge case) just degrades to the short cache — never wrong data.
+function _etPeriodStartISO(tf) {
+  try {
+    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    if (tf === 'W') { const back = (et.getDay() + 6) % 7; et.setDate(et.getDate() - back) }
+    else if (tf === 'M') { et.setDate(1) }
+    const y = et.getFullYear(), m = String(et.getMonth() + 1).padStart(2, '0'), d = String(et.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  } catch { return '' }
+}
+
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
 const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
@@ -4692,10 +4708,25 @@ export default function StockChart({
   // Deep sealed history from the edge — only once the user has panned PAST the first-paint
   // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
   // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
-  const _histBars = (_splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
-                     && fetchDepth > FIRST_PAINT_BARS) ? fetchDepth : 0
-  const histUrl = _histBars
-    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_histBars}`
+  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && fetchDepth > FIRST_PAINT_BARS
+  // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
+  // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
+  // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
+  // makes it immutable + self-refreshing. Falls back to no `d` (short cache) if we can't yet
+  // read a sealed bar — still correct, just not immutable for that one request.
+  let _histSealedDate = ''
+  if (_histFire && Array.isArray(idbBars) && idbBars.length) {
+    const _cut = _etPeriodStartISO(resolvedTf)
+    if (_cut) {
+      for (let i = idbBars.length - 1; i >= 0; i--) {
+        const _t = idbBars[i]?.t
+        if (typeof _t === 'string' && _t.length === 10 && _t < _cut) { _histSealedDate = _t; break }
+      }
+    }
+  }
+  const histUrl = _histFire
+    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_fullTarget}${_histSealedDate ? `&d=${_histSealedDate}` : ''}`
     : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null

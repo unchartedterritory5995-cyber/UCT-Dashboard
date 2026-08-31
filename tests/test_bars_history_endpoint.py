@@ -57,6 +57,43 @@ def test_daily_history_strips_developing_bar_and_is_cacheable():
     assert "public" in cc and "max-age=3600" in cc and "stale-while-revalidate" in cc
 
 
+def test_matching_d_yields_immutable_one_year_cache():
+    # The pre-warm sweep + client send d=<current last-sealed>; a match = permanent URL.
+    payload = {"ticker": "AAPL", "tf": "D", "bars": [
+        {"t": "2020-01-02", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10},
+        {"t": "2020-01-03", "o": 1, "h": 2, "l": 0.5, "c": 1.6, "v": 10},
+        {"t": _today_iso(), "o": 1, "h": 2, "l": 0.5, "c": 1.7, "v": 10},
+    ]}
+    with _mock_serve(payload):
+        r = _client().get("/api/bars-history/AAPL?tf=D&d=2020-01-03")
+    assert r.status_code == 200
+    cc = r.headers.get("Cache-Control", "")
+    assert "immutable" in cc and "max-age=31536000" in cc
+
+
+def test_missing_d_stays_backward_compatible_short_cache():
+    payload = {"ticker": "AAPL", "tf": "D", "bars": [
+        {"t": "2020-01-02", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10},
+        {"t": "2020-01-03", "o": 1, "h": 2, "l": 0.5, "c": 1.6, "v": 10},
+    ]}
+    with _mock_serve(payload):
+        r = _client().get("/api/bars-history/AAPL?tf=D")   # no d — older clients
+    cc = r.headers.get("Cache-Control", "")
+    assert "immutable" not in cc and "max-age=3600" in cc
+
+
+def test_mismatched_d_is_not_frozen_immutable():
+    # A stale d (client's boundary moved) must NOT freeze current data for a year.
+    payload = {"ticker": "AAPL", "tf": "D", "bars": [
+        {"t": "2020-01-02", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10},
+        {"t": "2020-01-03", "o": 1, "h": 2, "l": 0.5, "c": 1.6, "v": 10},
+    ]}
+    with _mock_serve(payload):
+        r = _client().get("/api/bars-history/AAPL?tf=D&d=1999-12-31")
+    cc = r.headers.get("Cache-Control", "")
+    assert "immutable" not in cc and "max-age=3600" in cc
+
+
 def test_intraday_falls_back_to_no_store():
     # v1 serves D/W/M only; intraday must never be edge-cached. (Short-circuits before serve.)
     r = _client().get("/api/bars-history/AAPL?tf=5")
