@@ -9,6 +9,7 @@ import AiSearchWidget from './AiSearchWidget'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
+import ChartDateNav from './ChartDateNav'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
@@ -532,6 +533,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               onCycleColor={handleCycleTabColor}
             />
           ) : null,
+          // Time Navigator — seated right after the timeframe buttons, before the
+          // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
+          tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
           tfBarRight: (
             <>
               {!isThemeIndex && (

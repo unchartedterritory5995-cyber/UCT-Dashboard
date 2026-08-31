@@ -6,10 +6,10 @@
 // `abbrev` (set by ChartPane's width fit) swaps each label for its terse form
 // (MARKET CAP → MC) once the row would collide with the timeframe bar. The full
 // label is kept in `title` so a hover still reads it. Values are never abbreviated.
-export default function ChartMetaRow({ items = [], abbrev = false, styles }) {
+export default function ChartMetaRow({ items = [], abbrev = false, tight = false, styles }) {
   if (!items.length) return null
   return (
-    <div className={styles.chartMeta}>
+    <div className={`${styles.chartMeta} ${tight ? styles.chartMetaTight : ''}`}>
       {items.map((it) => {
         const label = abbrev ? (it.short || it.label) : it.label
         return (

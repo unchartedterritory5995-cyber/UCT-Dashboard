@@ -196,6 +196,16 @@
   }
   .trainBtn { width: 34px; height: 34px; }
 }
+
+/* Chart shell (phone AND coarse tablet ≤1024px): MobileChartsApp's bottom chart
+   toolbar occupies the strip just above the tab bar (it stamps
+   html[data-mobile-chart-shell] while mounted), so the orb steps up over it
+   instead of covering the More button. */
+@media (max-width: 1024px) {
+  :global(html[data-mobile-chart-shell]) .orbCluster {
+    bottom: calc(126px + env(safe-area-inset-bottom, 0px));
+  }
+}
 .orbCluster.dragging .orb {
   transition: none;
   animation: none;
@@ -264,4 +274,11 @@
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
+}
+
+/* Landscape immersive charting (html[data-mobile-chart-shell]): the rotated
+   phone chart owns the whole screen — the orb sits out; it's one rotation away
+   in portrait. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .orbCluster { display: none; }
 }

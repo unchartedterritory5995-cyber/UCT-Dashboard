@@ -159,24 +159,47 @@ file is being rewritten, so all four snap to the canonical set.
 
 ## Session states
 
-The page resolves exactly one state per render, from existing market-session
-logic (`useMarketOpen`). Only **Zone B** varies; A, C and D are constant.
+The page resolves exactly one state per render, from
+`pages/dashboard/useSessionState.js` — **not** `useMarketOpen`, which this
+document said until 2026-08-30 and which cannot express `WEEKEND` at all (its
+shape is `{isOpen, isPremarket, isExtended}`; see that hook's own note on why it
+is a deliberate sibling rather than an extension). Only **Zone B** varies; A, C
+and D are constant.
 
-| State | When | Zone B content |
+⚠️ **The first column is `heroState`, not `resolveSession`.** They are the same
+value on ~250 of ~260 trading days and differ on the ~10 that this table's last
+row is about, so read the column label before reading the row:
+`heroState = holidayToday === true ? 'WEEKEND' : session` (`Dashboard.jsx`,
+where `session` is `useSessionState()`'s `resolveSession` read). `resolveSession`
+**never** returns `WEEKEND` on a holiday — see the note under the table. The
+last row therefore takes precedence: read the first three as "…and the served
+calendar does not say today is a closure".
+
+| `heroState` | When | Zone B content |
 |---|---|---|
 | `PREMARKET` | weekday before 09:30 ET | Today's catalysts (as scored overnight) |
 | `LIVE` | weekday 09:30–16:00 ET | Today's catalysts, live prices overlaid |
 | `CLOSED` | weekday after 16:00 ET | Today's catalysts, marked settled |
-| `WEEKEND` | Sat/Sun ~~and market holidays~~ | **The Week** (see below) |
+| `WEEKEND` | Sat/Sun **and market holidays** | **The Week** (see below) |
 
-> ⛔ **CORRECTED IN PLACE 2026-08-30.** A market holiday does **not** resolve
-> to `WEEKEND`. `resolveSession` is pure and synchronous, read at first render,
-> and the calendar arrives asynchronously — so a holiday still resolves to
-> `PREMARKET`/`LIVE`/`CLOSED` and Zone B still renders `CatalystTable`. What
-> shipped instead is Zone A no longer CONTRADICTING itself: the countdown walks
-> past closures and the session pill reads **Holiday**. See
-> §"Deviations from this document" at the end of this file for what remains and
-> why `TheWeek` is not the substitute.
+> ✅ **TRUE AS OF 2026-08-30, fix round 3 — and read the mechanism, because it
+> is not what this table implies.** `resolveSession` STILL returns
+> `PREMARKET`/`LIVE`/`CLOSED` on a market holiday: it is pure and synchronous,
+> read at first render, and the closure calendar arrives over the wire, so
+> teaching it holidays would mean making the session state asynchronous. The
+> dashboard COMPOSES the two answers instead — `Dashboard.jsx::heroState` reads
+> `useNextBoundary().holidayToday` (the same value Zone A's pill reads) and
+> picks the `WEEKEND` hero when it is `true`, on both the desktop and the mobile
+> branch. An unknown calendar (`null`) falls through to the session, so the page
+> degrades to today's behaviour rather than to a blank.
+>
+> ⛔ **This is a DASHBOARD composition, not a session contract.** `useMarketOpen`,
+> `marketSession.js` and `engine.expected_wire_date` remain holiday-blind, and
+> `CatalystTable`'s own empty copy still asks `useMarketOpen` — it is simply no
+> longer on screen on a closure. Consolidating those four authorities is a
+> separate project. Rails: `Dashboard.holiday.test.jsx` (both branches, plus the
+> unknown-calendar fallback) and `Dashboard.quote.test.jsx`. Full reasoning in
+> §"Fix round 3" at the end of this file.
 
 A 24-day production sweep of the catalyst store confirms the split this
 design assumes:
@@ -563,6 +586,13 @@ reader takes the spec's word for it.
   week, so the panel would carry a label untrue of its contents. The real fix is
   a holiday-aware session contract, which is its own piece of work.
 
+  > ✅ **CLOSED in §"Fix round 3" below.** Zone B is holiday-aware, and the
+  > objection above was right about the label, which is why the label was fixed
+  > FIRST: `TheWeek`'s heading is now read off the payload's own `is_today`
+  > rather than asserting a week it cannot know. What did NOT happen — and was
+  > not needed — is the "holiday-aware session contract": `resolveSession` and
+  > its three holiday-blind siblings are untouched.
+
 ### Fix round 2 — what moved after the deviations above were written
 
 - **`/api/dashboard/signposts` now fills the `desk` card.** §"New backend
@@ -588,3 +618,80 @@ reader takes the spec's word for it.
   Dashboard's own pull-to-refresh calls `mutate` explicitly, which reaches the
   revalidator past all four. `isPaused: () => true` is what makes the claim
   true, and the claim was asserted in three comments while being false.
+
+### Fix round 3 — Zone B learns the calendar Zone A already had
+
+Written 2026-08-30, eight days before Labor Day: the first production exercise
+of this cockpit.
+
+- **The two zones were about to contradict each other on the paid home.** Round 1
+  taught Zone A closures and deliberately left Zone B alone; the result would
+  have been a "Holiday" pill with a suppressed countdown sitting sixty pixels
+  above a 440px card asking `CatalystTable` to scan a tape that is shut —
+  near-certainly with zero rows and the copy *"Scanning today's tape"*. Two
+  zones, two calendars, one screen, on the one day of the year it is visible.
+
+- **`Dashboard.jsx::heroState` composes the two answers.** `resolveSession` is
+  untouched — still pure, still synchronous, still four values, still mocked by
+  `Dashboard.session.test.jsx`, which passes unchanged. So are `useMarketOpen`,
+  `marketSession.js` and `expected_wire_date`, which have app-wide consumers
+  (the live-price polling cadence among them) and are a consolidation project of
+  their own, not a change to make eight days out.
+
+  It reads `useNextBoundary().holidayToday` rather than mounting its own
+  `useMarketCalendar` + `new Date()`: that is the value Zone A's pill already
+  reads, so the two zones cannot disagree, and a second clock here could have
+  straddled a midnight tick and produced the very contradiction being fixed.
+  `=== true`, so `null` — loading, endpoint down, past the closure table's
+  horizon — falls through to the session and renders today's behaviour exactly.
+
+  ⚠️ Cost, named: `useNextBoundary` ticks a 60s clock, so `Dashboard` now
+  re-renders once a minute. Zone A already did; every tile below it polls on a
+  15–60s cadence anyway. No remount, and no new request — SWR dedupes the
+  calendar key with `ZoneRead`'s.
+
+- **BOTH branches, and the rail counts to two.** `Dashboard.jsx` mounts the
+  desktop cockpit and the mobile stack together and lets CSS hide one; jsdom
+  computes no CSS, so `getAllByText(...).length > 0` passes on a one-branch fix
+  and a phone member on Labor Day is exactly who the missed branch would have
+  reached. `Dashboard.holiday.test.jsx` asserts `2`.
+
+- **The quote flags moved with it.** `showQuote`/`hideQuote` were written as
+  `session === 'WEEKEND'`, which is still `LIVE` on Labor Day — leaving them
+  would have re-created the duplicate-quote defect `Dashboard.quote.test.jsx`
+  exists for, on every closure, with every existing assertion in that file still
+  green. Both now read `heroState`, and that file gained the closure cases.
+
+- **"NEXT WEEK ON DECK" WAS FIXED FIRST, because the round-1 objection was
+  correct.** `_current_week_monday` is `_monday_of(_next_session_day(today))`,
+  and `_next_session_day` rolls forward for **Sat/Sun only** — it is
+  holiday-naive — so on Labor Day the payload is THIS week and the fixed heading
+  would have traded one wrong sentence for another. `TheWeek.jsx` now READS the
+  relationship off the payload: every day the router emits carries
+  `is_today: d == today` (`_empty_day` plus both live day builders), so the
+  heading is *This week on deck* when the payload contains today and *Next week
+  on deck* when it does not.
+
+  ⛔ **Not `is_current_week`.** That field is `true` for the DEFAULT anchored
+  payload and `false` only for a `?week=` one — so it is `true` every Saturday,
+  on a payload that is deliberately about NEXT week. It has the name that looks
+  like the answer and is not; a test pins the distinction so nobody "simplifies"
+  the derivation into it.
+
+  ⚠️ Honest limit: `/api/calendar` is served stale for up to 30 minutes
+  (`_WEEKLY_STALE_MAX_AGE`), so a payload built just before ET midnight can carry
+  yesterday's `is_today` for up to half an hour after it. Worst case is "Next
+  week on deck" over this week's names between 00:00 and 00:30 ET on a Monday —
+  bounded, self-clearing, and the same staleness every other field of that
+  payload already carries.
+
+- **Naming the holiday in Zone A's pill was considered and REFUSED.**
+  `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` is a `frozenset[int]` of `YYYYMMDD`
+  dates and carries no names; `/api/market-calendar` serves ISO date strings and
+  a horizon. Nothing in this repo maps a closure date to "Labor Day" — grepped
+  for the obvious names, and every hit is prose in a comment or a test. Adding a
+  mapping would be a hand-maintained second list beside the table whose own
+  design note reads *"the fix is not a second table"*, and it would rot on the
+  same annual cadence — except silently, because a wrong NAME still renders
+  confidently where a missing DATE at least makes the countdown disappear. The
+  pill says **Holiday**, which is the true thing the data supports.

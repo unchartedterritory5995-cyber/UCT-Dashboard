@@ -28,7 +28,11 @@ const QUOTE = 'MARKER-QUOTE-TEXT'
 // `renderWithProviders` an AuthProvider from the OLD module graph while the
 // freshly-imported tree reads a NEW AuthContext — so `useAuth` throws
 // "must be used within AuthProvider" on a tree that is correctly wrapped.
-const h = vi.hoisted(() => ({ session: 'LIVE' }))
+// `holiday` is the closure answer `useNextBoundary` hands the page: `true` on a
+// NYSE full closure, `false` on a session day, `null` whenever the served
+// calendar cannot say. Dashboard.jsx composes it with `session` to pick the
+// hero, so it decides which surface owns the quote just as `session` does.
+const h = vi.hoisted(() => ({ session: 'LIVE', holiday: null }))
 
 vi.mock('../hooks/useQuoteOfTheDay', () => ({
   default: () => ({ quote: { t: QUOTE, a: 'Marker Author' }, label: null, source: 'server' }),
@@ -67,15 +71,16 @@ vi.mock('./dashboard/useSessionState', () => ({
   resolveSession: () => h.session,
   nextBoundary: () => ({ kind: 'close', ms: 0 }),
   formatCountdown: () => '0m',
-  useNextBoundary: () => ({ kind: 'close', ms: 0, label: 'Closes in 0m' }),
+  useNextBoundary: () => ({ kind: 'close', ms: 0, label: 'Closes in 0m', holidayToday: h.holiday }),
 }))
 
 import Dashboard from './Dashboard'
 
 afterEach(cleanup)
 
-function renderAt(session) {
+function renderAt(session, holiday = null) {
   h.session = session
+  h.holiday = holiday
   // ⛔ renderWithProviders, not a bare MemoryRouter: with a real snapshot in
   // hand FuturesStrip renders real cells, and TickerPopup reads AuthContext.
   renderWithProviders(<Dashboard />)
@@ -126,6 +131,49 @@ describe('the controls that keep this honest', () => {
     const desktop = document.querySelector('[class*="desktopOnly"]')
     expect(desktop.textContent).not.toMatch(/quote of the day/i)
     // …while the quote itself is still there, as one line.
+    expect(countIn('[class*="desktopOnly"]')).toBe(1)
+  })
+})
+
+// ─── 🔴 THE SAME PAIR, ONE STATE FURTHER ────────────────────────────────────
+//
+// The duplicate above was "two tasks each correct alone, and nobody owned the
+// pair". Making Zone B holiday-aware adds a THIRD composition in which
+// `TheWeek` owns the quote — and the two suppression flags were written as
+// `session === 'WEEKEND'`, which is still LIVE on Labor Day. Gating them on the
+// raw session would have re-created the exact defect this file exists for, on
+// every closure, while every assertion above stayed green.
+describe('a market closure is a THIRD state where TheWeek owns the quote', () => {
+  for (const session of ['PREMARKET', 'LIVE', 'CLOSED']) {
+    test(`${session} on a closure: once in the desktop cockpit`, () => {
+      renderAt(session, true)
+      expect(countIn('[class*="desktopOnly"]'),
+        'Zone A rendered its one-liner alongside TheWeek’s panel — the same '
+        + 'quote twice, because the suppression flag read `session` instead of '
+        + 'the hero the page actually chose')
+        .toBe(1)
+    })
+
+    test(`${session} on a closure: once in the mobile stack`, () => {
+      renderAt(session, true)
+      expect(countIn('[class*="mobileOnly"]'),
+        'FuturesStrip’s quote panel and TheWeek’s panel both rendered')
+        .toBe(1)
+    })
+  }
+
+  test('and it really is TheWeek’s panel that survives, not Zone A’s line', () => {
+    // Without this, "exactly once" is satisfied by the weekday arrangement —
+    // Zone A's one-liner over a Zone B that never swapped at all.
+    renderAt('LIVE', true)
+    const desktop = document.querySelector('[class*="desktopOnly"]')
+    expect(desktop.textContent).toMatch(/quote of the day/i)
+  })
+
+  test('CONTROL: the same session with the calendar saying NOT a closure is unchanged', () => {
+    renderAt('LIVE', false)
+    const desktop = document.querySelector('[class*="desktopOnly"]')
+    expect(desktop.textContent).not.toMatch(/quote of the day/i)
     expect(countIn('[class*="desktopOnly"]')).toBe(1)
   })
 })

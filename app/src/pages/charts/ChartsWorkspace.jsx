@@ -19,7 +19,7 @@ import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
-import MobileWorkspace from './widgets/MobileWorkspace'
+import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
 import { planPlacement, nudgePlan } from './placement/place'
 import GhostPreview from './placement/GhostPreview'
@@ -630,7 +630,21 @@ function DeleteConfirm({ onYes, onCancel }) {
 }
 
 export default function ChartsWorkspace() {
-  const isMobile = useMediaQuery('(max-width: 640px)')
+  const isPhonePortrait = useMediaQuery('(max-width: 640px)')
+  // A rotated phone (coarse pointer, short landscape viewport) also gets the
+  // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
+  // 700–930px landscape width fell into the desktop RGL branch, which is
+  // unusable on a phone. The shell + the fixed bars go immersive via CSS
+  // scoped to html[data-mobile-chart-shell] (see MobileCharts.module.css).
+  const isPhoneLandscape = useMediaQuery('(pointer: coarse) and (orientation: landscape) and (max-height: 500px)')
+  // iPad-class: a COARSE-pointer tablet viewport gets the chart-first shell in
+  // its two-pane tablet mode (chart + docked companion panel) — the RGL grid's
+  // drag/resize is mouse-only and unusable on touch. A narrow DESKTOP window
+  // (fine pointer) at these widths keeps the RGL workspace unchanged. The
+  // phone branches above win first, so a rotated phone stays immersive.
+  const isTabletTouch = useMediaQuery('(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)')
+  const isMobile = isPhonePortrait || isPhoneLandscape || isTabletTouch
+  const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
   // newer-wins against the server via the preferences store. Renders nothing.
@@ -2026,8 +2040,9 @@ export default function ChartsWorkspace() {
   const wsMyLayouts = myLayouts.filter(t => t.layout?.kind !== 'multichart')
 
   if (isMobile) {
-    // Phone: tabbed widget stack (RGL drag/resize doesn't fit a phone). Rendered
-    // inside the provider so widgets keep color-group ticker linking. Grid mode
+    // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
+    // pickers; non-chart widgets open as full-screen pages). Rendered inside
+    // the provider so widgets keep color-group ticker linking. Grid mode
     // renders as a vertically stacked cell list (its own @media CSS).
     return (
       <WorkspaceContext.Provider value={workspaceValue}>
@@ -2050,12 +2065,13 @@ export default function ChartsWorkspace() {
             </div>
           </div>
         ) : (
-          <MobileWorkspace
+          <MobileChartsApp
             widgets={layout.widgets}
             onRemove={handleRemoveWidget}
             onColorChange={handleColorChange}
             onOptsChange={handleOptsChange}
             onAddWidget={handleAddWidget}
+            tablet={shellTablet}
           />
         )}
       </WorkspaceContext.Provider>

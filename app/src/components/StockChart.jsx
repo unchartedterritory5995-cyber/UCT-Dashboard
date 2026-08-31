@@ -1509,6 +1509,7 @@ export default function StockChart({
   // ── Optional multi-chart sync hooks (additive — all behavior unchanged when absent) ──
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onTimeRangeChange = null, // (payload: {from, to}) => void — fires when visible time range changes
+  onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
@@ -1598,6 +1599,18 @@ export default function StockChart({
   // (`charts_workspace_layout`, `multichart_state`); a surface without one
   // passes nothing and stays global.
   chartId = null,
+  // Optional host ref filled with the mounted ChartToolbar's imperative API
+  // ({ openIndicatorLibrary, openAlerts }) so external chrome — the phone bottom
+  // toolbar's ƒx sheet — can open the SAME IndicatorLibraryDialog / alert
+  // popover the toolbar owns instead of mounting a second one (the "ONE
+  // POPOVER, NOT A SECOND MOUNT" rule above). Calls resolve toolbarRef lazily,
+  // so they return false (not throw) while no toolbar is mounted.
+  toolbarApiRef = null,
+  // Seed the drawing toolbar COLLAPSED on a browser that has never touched its
+  // show/hide toggle (localStorage 'uct.chart.toolbar.collapsed' unset). An
+  // explicit user choice always wins over this. The phone shell passes true so
+  // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
+  toolbarDefaultCollapsed = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2377,7 +2390,14 @@ export default function StockChart({
   // "hide toolbar" survives a refresh / arrangement save until it's reopened.
   const TOOLBAR_COLLAPSED_LS = 'uct.chart.toolbar.collapsed'
   const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
-    try { return localStorage.getItem(TOOLBAR_COLLAPSED_LS) === '1' } catch { return false }
+    // An explicit user choice (either direction) always wins; the host default
+    // only seeds a browser that has never touched the toggle. The phone shell
+    // passes toolbarDefaultCollapsed so its canvas starts clean, chevron to expand.
+    try {
+      const v = localStorage.getItem(TOOLBAR_COLLAPSED_LS)
+      if (v != null) return v === '1'
+    } catch { /* private mode — fall through to the host default */ }
+    return !!toolbarDefaultCollapsed
   })
   const setToolbarCollapsedPersist = useCallback((v) => {
     setToolbarCollapsed(v)
@@ -3489,6 +3509,22 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
+
+  // Publish the toolbar's imperative API to a host-supplied ref (see the
+  // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
+  // valid across toolbar mount/unmount without re-running this effect.
+  useEffect(() => {
+    if (!toolbarApiRef) return undefined
+    toolbarApiRef.current = {
+      openIndicatorLibrary: () => {
+        try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
+      },
+      openAlerts: (initialFor = null) => {
+        try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
+      },
+    }
+    return () => { toolbarApiRef.current = null }
+  }, [toolbarApiRef])
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
@@ -4299,7 +4335,7 @@ export default function StockChart({
   // Overlay modes (compare / index pane / multi-symbol comparisons) keep the
   // full fetch so their overlays align across the whole range.
   const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
-  const pendingOriginRef = useRef(false)   // "Origin" range: centre bar 0 once full history lands
+  const pendingNavRef = useRef(null)   // deferred time-nav awaiting full history: null | { kind:'origin'|'date'|'year', target }
   const originSawFetchRef = useRef(false)   // saw the deep fetch actually start (isValidating→true)
   const originBaseLenRef = useRef(0)        // filteredBars length at click — detects the deeper history landing
   const [originLoading, setOriginLoading] = useState(false)  // "Loading chart history…" until the true first bar lands
@@ -4313,7 +4349,7 @@ export default function StockChart({
   if (_depthKeyRef.current !== _depthKey) {
     _depthKeyRef.current = _depthKey
     if (fetchDepth !== FIRST_PAINT_BARS) setFetchDepth(FIRST_PAINT_BARS)
-    pendingOriginRef.current = false   // a pending "Origin" doesn't carry to a new symbol/tf
+    pendingNavRef.current = null   // a pending time-nav doesn't carry to a new symbol/tf
     originSawFetchRef.current = false
     if (originLoading) setOriginLoading(false)
   }
@@ -5204,6 +5240,10 @@ export default function StockChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
     [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
+  // Live mirror for the imperative date-nav API (below) so its methods read the
+  // current bars without re-publishing the API on every data poll.
+  const filteredBarsRef = useRef(null)
+  filteredBarsRef.current = filteredBars
 
   // Capture the last + prior REGULAR-session close for the PNG export. filteredBars is
   // RTH-only (pre/post excluded), so its last close is the current intraday print during
@@ -13241,21 +13281,104 @@ export default function StockChart({
       return true
     } catch { return false }
   }
-  // Finish a pending "Origin": wait for the full history to actually LAND — not just
-  // for the requested depth flag to flip — before centring bar 0. The viewport-first
-  // fetch is shallow, so `fetchDepth === _fullTarget` becomes true the instant we ask
-  // for more, while the deeper bars are still in flight; centring then would frame a
-  // shallow first bar (e.g. WMT's 2006) as the origin. We hold "Loading chart history…"
-  // and centre only once the deep fetch has SETTLED (isValidating false) and the bars
-  // have grown (or a real fetch ran and returned no more — a genuinely short history).
+  // ── Date-nav index helpers (bars are ascending by time) ──
+  // Nearest loaded bar at/before ms (−1 if ms precedes the first loaded bar).
+  const barIdxAtOrBefore = (bars, ms) => {
+    if (!bars?.length) return -1
+    let lo = 0, hi = bars.length - 1, res = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const t = _dateToMs(bars[mid].t)
+      if (t <= ms) { res = mid; lo = mid + 1 } else { hi = mid - 1 }
+    }
+    return res
+  }
+  // First loaded bar at/after ms (−1 if none — ms past the last loaded bar).
+  const barIdxAtOrAfter = (bars, ms) => {
+    if (!bars?.length) return -1
+    let lo = 0, hi = bars.length - 1, res = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const t = _dateToMs(bars[mid].t)
+      if (t >= ms) { res = mid; hi = mid - 1 } else { lo = mid + 1 }
+    }
+    return res
+  }
+  // "Go to date": frame so the target day sits at the RIGHT edge (+0.5 bar), history to
+  // the left (MarketSmith-style), keeping the current zoom width. A sliver of the next
+  // bar can show — owner is fine with that (data is NOT hidden, so no replay-like blank).
+  const goToDateRightEdge = (targetMs) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const bars = filteredBarsRef.current
+      if (!ts || !bars || bars.length < 2 || !Number.isFinite(targetMs)) return false
+      let idx = barIdxAtOrBefore(bars, targetMs)
+      if (idx < 0) idx = 0   // target predates our history → clamp to the first bar
+      const cur = ts.getVisibleLogicalRange()
+      const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      const to = idx + 0.5
+      ts.setVisibleLogicalRange({ from: to - W, to })
+      return true
+    } catch { return false }
+  }
+  // "Go to year": frame the whole calendar year (Jan 1 – Dec 31) on screen.
+  const frameYear = (year) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const bars = filteredBarsRef.current
+      if (!ts || !bars || bars.length < 2 || !Number.isFinite(year)) return false
+      const yStart = Date.UTC(year, 0, 1)
+      const yEnd = Date.UTC(year, 11, 31, 23, 59, 59)
+      let fromIdx = barIdxAtOrAfter(bars, yStart)
+      let toIdx = barIdxAtOrBefore(bars, yEnd)
+      if (fromIdx < 0) fromIdx = 0
+      if (toIdx < 0) return false
+      if (toIdx < fromIdx) toIdx = fromIdx
+      const span = Math.max(1, toIdx - fromIdx)
+      const padB = Math.max(1, Math.round(span * 0.03))
+      ts.setVisibleLogicalRange({ from: fromIdx - padB, to: toIdx + padB })
+      return true
+    } catch { return false }
+  }
+  const applyPendingNav = () => {
+    const nav = pendingNavRef.current
+    if (!nav) return false
+    if (nav.kind === 'date') return goToDateRightEdge(nav.target)
+    if (nav.kind === 'year') return frameYear(nav.target)
+    return centerFirstBar()   // 'origin'
+  }
+  // Request full history + defer a nav until it LANDS (shared by Origin + date/year
+  // jumps that reach past the loaded window). Shows "Loading chart history…".
+  const startNavLoad = (nav) => {
+    pendingNavRef.current = nav
+    originBaseLenRef.current = filteredBarsRef.current?.length || 0
+    originSawFetchRef.current = false
+    setOriginLoading(true)
+    if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
+    setTimeout(() => {
+      if (pendingNavRef.current) {   // stalled fetch — apply on whatever loaded so it can't trap the pill
+        applyPendingNav()
+        pendingNavRef.current = null
+        originSawFetchRef.current = false
+        setOriginLoading(false)
+      }
+    }, 6000)
+  }
+  // Finish a pending nav: wait for the full history to actually LAND — not just for the
+  // requested depth flag to flip — before applying. The viewport-first fetch is shallow,
+  // so `fetchDepth === _fullTarget` becomes true the instant we ask for more while the
+  // deeper bars are still in flight; applying then would frame a shallow first bar (e.g.
+  // WMT's 2006) as the origin. We hold "Loading chart history…" and apply only once the
+  // deep fetch has SETTLED (isValidating false) and the bars have grown (or a real fetch
+  // ran and returned no more — a genuinely short history).
   useEffect(() => {
-    if (!pendingOriginRef.current) return
+    if (!pendingNavRef.current) return
     if (isValidating) { originSawFetchRef.current = true; return }  // fetch in flight — wait
     if (barCount !== _fullTarget) return
     const grew = (filteredBars?.length || 0) > originBaseLenRef.current
     if (!(grew || originSawFetchRef.current)) return  // deep bars haven't landed yet
-    if (centerFirstBar()) {
-      pendingOriginRef.current = false
+    if (applyPendingNav()) {
+      pendingNavRef.current = null
       originSawFetchRef.current = false
       setOriginLoading(false)
     }
@@ -13264,30 +13387,17 @@ export default function StockChart({
 
   const applyRange = (val) => {
     if (val === 'origin') {
-      if (pendingOriginRef.current) return   // already loading the origin — ignore repeat clicks
+      if (pendingNavRef.current) return   // already loading — ignore repeat clicks
       // Already at full depth with settled data ⇒ centre immediately (no loading state).
       const deepLoaded = barCount === _fullTarget && !isValidating && (filteredBars?.length || 0) > 1
       if (deepLoaded) {
-        pendingOriginRef.current = true
-        requestAnimationFrame(() => { if (pendingOriginRef.current && centerFirstBar()) pendingOriginRef.current = false })
+        pendingNavRef.current = { kind: 'origin' }
+        requestAnimationFrame(() => { if (pendingNavRef.current && centerFirstBar()) pendingNavRef.current = null })
         return
       }
       // Shallow ⇒ request the full history and show "Loading chart history…" until the
-      // true first bar lands (the effect above finishes it). Safety timeout so a stalled
-      // fetch can never trap the chart in the loading state.
-      originBaseLenRef.current = filteredBars?.length || 0
-      originSawFetchRef.current = false
-      pendingOriginRef.current = true
-      setOriginLoading(true)
-      if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
-      setTimeout(() => {
-        if (pendingOriginRef.current) {
-          centerFirstBar()
-          pendingOriginRef.current = false
-          originSawFetchRef.current = false
-          setOriginLoading(false)
-        }
-      }, 6000)
+      // true first bar lands (the effect above finishes it).
+      startNavLoad({ kind: 'origin' })
       return
     }
     try {
@@ -13351,6 +13461,78 @@ export default function StockChart({
       }
     } catch { /* noop */ }
   }
+
+  // ── Imperative date-nav API (published to the host via onDateNavApi) ──
+  // Drives the top-bar Time Navigator box (ChartDateNav): jump to a date at the
+  // right edge, frame a whole year, step one bar, and read the loaded date span.
+  // Jumps that reach past the loaded window trigger a full-history load first
+  // (same "Loading chart history…" pill as Origin) and apply once it lands.
+  const _navFirstLoadedMs = () => {
+    const b = filteredBarsRef.current
+    return b && b.length ? _dateToMs(b[0].t) : null
+  }
+  const goToDate = (targetMs) => {
+    if (!Number.isFinite(targetMs)) return
+    if (pendingNavRef.current) return
+    const firstMs = _navFirstLoadedMs()
+    if (firstMs != null && targetMs < firstMs && barCount !== _fullTarget) {
+      startNavLoad({ kind: 'date', target: targetMs })   // reaches past loaded history
+      return
+    }
+    goToDateRightEdge(targetMs)   // clamps to bar 0 if genuinely before inception
+  }
+  const goToYear = (year) => {
+    if (!Number.isFinite(year)) return
+    if (pendingNavRef.current) return
+    const firstMs = _navFirstLoadedMs()
+    if (firstMs != null && Date.UTC(year, 0, 1) < firstMs && barCount !== _fullTarget) {
+      startNavLoad({ kind: 'year', target: year })
+      return
+    }
+    frameYear(year)
+  }
+  const stepBar = (dir) => {
+    try {
+      const ts = chartRef.current?.timeScale()
+      const cur = ts?.getVisibleLogicalRange()
+      if (!ts || !cur) return
+      ts.setVisibleLogicalRange({ from: cur.from + dir, to: cur.to + dir })
+    } catch { /* noop */ }
+  }
+  // Load the full history WITHOUT moving the view — so the dropdown's year list can
+  // show every year the symbol has traded (not just the shallow loaded span).
+  const ensureFullHistory = () => {
+    if (barCount === _fullTarget) return
+    if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
+  }
+  const getDateMeta = () => {
+    const bars = filteredBarsRef.current
+    if (!bars || !bars.length) return null
+    const firstMs = _dateToMs(bars[0].t)
+    const lastMs = _dateToMs(bars[bars.length - 1].t)
+    let rightMs = lastMs
+    try {
+      const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
+      if (cur && Number.isFinite(cur.to)) {
+        const ri = Math.max(0, Math.min(bars.length - 1, Math.round(cur.to)))
+        rightMs = _dateToMs(bars[ri].t)
+      }
+    } catch { /* noop */ }
+    return {
+      firstMs, lastMs, rightMs,
+      firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
+      lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
+      fullyLoaded: barCount === _fullTarget,
+      loading: originLoading,
+    }
+  }
+  useEffect(() => {
+    if (typeof onDateNavApi !== 'function') return undefined
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta })
+    return () => onDateNavApi(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
+
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (

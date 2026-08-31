@@ -57,6 +57,9 @@ from api.services import cap_universe
 #   4 -> 5: prose mentions are a THIRD ticker source -- a symbol named in the
 #           body but never charted (a guest section, or any post carrying
 #           neither a "Charts Covered" heading nor chart labels) now surfaces.
+#   6 -> 7: the prose source reads HEADING text too -- this desk marks a
+#           watchlist line up as an <h6>, so names appearing only there
+#           ('Honorable mention: ...') were invisible.
 #   5 -> 6: the prose source also accepts ETFs -- the liquid-ETF watchlist
 #           plus this desk's thematic funds. cap_universe is an equity
 #           screen, so CIBR/TQQQ/LABU/SKYY were being refused.
@@ -64,7 +67,7 @@ from api.services import cap_universe
 # drop without one left every stored row on the previous output and the
 # improvement applied to nothing -- silently, because a backfill with no version
 # change has no work to find.
-CONVERTER_VERSION = 6
+CONVERTER_VERSION = 7
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -169,6 +172,10 @@ _CHART_LABEL_RE = re.compile(
 # alone proposes RS (relative strength), EMA, MA, GAP, PEG (this desk's own
 # post-earnings-gap label), AI, BE, FOR, YOU and ON -- every one of them also a
 # real ticker, which is exactly why the universe check cannot carry this alone.
+#
+# Heading text is scanned as well: measured over four consecutive issues that
+# adds 9 real names and zero false positives, because a token still clears all
+# three gates whether it sits in a heading or a paragraph.
 #
 # The length floor is structural rather than listed: A, B, C, D, E, F, G, H, R,
 # S, T, U, V and W are all real tickers, and as bare prose they are hopeless.
@@ -493,7 +500,10 @@ class _Converter(HTMLParser):
             if 0 < len(stripped) <= 60:
                 self._last_label = stripped
                 self._note_chart_label(stripped)
-            self._note_prose_symbols(data)
+        # Headings too: this desk marks a watchlist line up as an <h6>
+        # ("Honorable mention: IBIT NVDA HOOD ..."), so skipping headings
+        # lost every name that appeared ONLY there -- 9 on 2026-08-30.
+        self._note_prose_symbols(data)
         self._emit(_html.escape(data, quote=False))
 
     def _note_chart_label(self, text: str) -> None:
@@ -504,11 +514,15 @@ class _Converter(HTMLParser):
                 self.chart_symbols.append(sym)
 
     def _note_prose_symbols(self, text: str) -> None:
-        """Symbols named in body copy. Called from the non-heading branch of
-        `handle_data`, so it inherits that path's two exclusions for free:
-        dropped subtrees (the subscribe form) and heading text -- and headings
-        are where the all-caps false positives live ("WHAT WE WILL COVER
-        TODAY")."""
+        """Symbols named anywhere in the body, headings included. Called from
+        `handle_data` after its drop guard, so it still inherits that path's one
+        exclusion: dropped subtrees (the subscribe form) contribute nothing.
+
+        Heading text used to be skipped on the theory that all-caps false
+        positives live there ("WHAT WE WILL COVER TODAY"). The three gates
+        below already reject those on their own -- none of those words is a
+        symbol -- and skipping headings cost real names, because a watchlist
+        line is sometimes marked up as one."""
         universe = _prose_universe()
         if not universe:
             return                  # cannot answer; say nothing rather than guess

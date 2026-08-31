@@ -20,6 +20,12 @@
 // one of PREMARKET/LIVE/CLOSED/WEEKEND per render; A, C and D are constant.
 // Rail: Dashboard.session.test.jsx.
 //
+// ⭐ …AND A MARKET CLOSURE IS COMPOSED ON TOP OF IT, HERE. The spec's state
+// table has always read `WEEKEND` = "Sat/Sun and market holidays"; the session
+// function deliberately does not know closures (see `heroState` below), so the
+// dashboard reads the served calendar's answer and picks the weekend hero on a
+// holiday. Rail: Dashboard.holiday.test.jsx.
+//
 // ⛔ SEVEN PREVIEW TILES LOST THEIR MOUNT HERE AND BECAME ZONE D DOORS
 // (LeadershipTile · CatalystFlow · OptionsFlowPreview · DeskVideoRail ·
 // CompassTodayTile · SectorRotation · IntradayPulse), plus TapeFeed, whose
@@ -42,7 +48,7 @@ import FlowScoreboardTile from '../components/tiles/FlowScoreboardTile'
 import MoversSidebar from '../components/MoversSidebar'
 import CatalystTable from '../components/tiles/CatalystTable'
 import UIcon from '../components/ui/UIcon'
-import useSessionState from './dashboard/useSessionState'
+import useSessionState, { useNextBoundary } from './dashboard/useSessionState'
 import ZoneRead from './dashboard/ZoneRead'
 import TheWeek from './dashboard/TheWeek'
 import ZoneDoors from './dashboard/ZoneDoors'
@@ -85,6 +91,10 @@ function MobileSection({ icon, title, subtitle, children, expanded, onToggle }) 
 
 export default function Dashboard() {
   const { mutate } = useSWRConfig()
+  // ⭐ THE PAGE'S ONE SESSION READ — `ZoneRead` is handed this rather than
+  // calling the hook again. See the note on `boundary` below for why two
+  // instances of a ticking hook is a real disagreement and not just a
+  // duplicate call.
   const session = useSessionState()
   // Mobile accordion state — Movers open by default.
   const [openSection, setOpenSection] = useState('movers')
@@ -100,23 +110,78 @@ export default function Dashboard() {
   // weekday-only mobile hero would leave a Saturday member on a phone looking
   // at the very composition this redesign exists to retire.
   //
-  // ⚠️ A MARKET HOLIDAY STILL TAKES THE WEEKDAY BRANCH, DELIBERATELY. Zone A's
-  // pill and countdown are now holiday-aware; this is not, and both of the
-  // obvious fixes are worse than the gap:
-  //   * Rendering `TheWeek` on a holiday BREAKS ONE OF ITS PANELS. Its "Next
-  //     week on deck" list is the bare `/api/calendar` payload, which is only
-  //     "next week" because `_current_week_monday` rolls a WEEKEND date forward
-  //     — see TheWeek.jsx's own header. On a Thursday it returns THIS week, so
-  //     the panel would carry a label that is not true of its contents.
-  //   * Teaching `resolveSession` holidays makes a pure, synchronous function
-  //     asynchronous, and four states that the whole codebase branches on.
-  // ⛔ SO THE GAP IS NAMED RATHER THAN PAPERED OVER: on a closure Zone B renders
-  // `CatalystTable`'s empty state, whose copy asks `useMarketOpen` — a SECOND
-  // holiday-blind authority, shared with the `/catalysts` page — and therefore
-  // reads "Scanning today's tape" at 11:00 on Thanksgiving. Bounded (the zone's
-  // declared height means it cannot grow the page) but still a wrong sentence,
-  // and fixing it means changing that shared session contract, not this line.
-  const hero = session === 'WEEKEND' ? <TheWeek /> : <CatalystTable />
+  // 🔴 A MARKET HOLIDAY TAKES THE WEEKEND HERO. Until this commit only Zone A
+  // knew about closures: on Labor Day the paid home would have rendered a
+  // "Holiday" pill and a suppressed countdown in Zone A, directly above a 440px
+  // card asking `CatalystTable` to scan a tape that is shut — two zones reading
+  // two different calendars, sixty vertical pixels apart, on the first day of
+  // the exercise. The spec's own state table says `WEEKEND` = "Sat/Sun and
+  // market holidays"; this is the line that makes that true for the dashboard.
+  //
+  // ⛔ COMPOSED HERE, NOT TAUGHT TO `resolveSession`. That function is pure and
+  // synchronous, read at first render, mocked by Dashboard.session.test.jsx, and
+  // its four values are branched on across the codebase — the calendar arrives
+  // over the wire, so teaching it closures means making the session state
+  // asynchronous. `useMarketOpen`, `marketSession.js` and `expected_wire_date`
+  // are three further holiday-blind authorities with app-wide consumers (the
+  // live-price polling cadence among them). Consolidating the four is a real
+  // project; this is one component composing two answers it already holds.
+  //
+  // ⭐ ONE CLOCK AND ONE CALENDAR, READ HERE AND HANDED DOWN. `holidayToday` is
+  // `isMarketHoliday(now, holidays, coversThrough)` computed inside
+  // `useNextBoundary`, off ONE served calendar and ONE `new Date()`. Zone A's
+  // pill and countdown need that same read, so `ZoneRead` is given this one as
+  // a prop instead of calling the hook itself.
+  //
+  // 🔴 THAT SENTENCE WAS FALSE UNTIL THIS COMMIT, AND IT IS THE REASON THE
+  // HOOKS MOVED UP HERE. This comment used to warn that "a second `new Date()`
+  // here" could "straddle a midnight tick and disagree about the same day" —
+  // while `useNextBoundary()` was in fact instantiated TWICE, at this line and
+  // in ZoneRead.jsx. What the two instances shared was the FETCH (SWR dedupes
+  // `/api/market-calendar` by key) and the derivation; what they did NOT share
+  // was the clock. Each held its own `now` state and its own 60s interval, and
+  // a Dashboard re-render does not refresh ZoneRead's state — so at an ET
+  // midnight the two ticks land either side of it and Zone A's pill and Zone
+  // B's hero can disagree about which day it is for up to ~60s. Same shape for
+  // `useSessionState` at the top of this function. Both are now called once,
+  // here. Rail: Dashboard.oneClock.test.jsx.
+  //
+  // ⛔ `=== true`, NOT TRUTHINESS. `holidayToday` is `null` while the calendar is
+  // loading, when the endpoint is down, and past the horizon its table can speak
+  // for. "We cannot tell" is not "it is a closure" — and it is not "it is a
+  // normal day" either, which is why the null falls through to `session` rather
+  // than being read either way. Same rule, same reason, as `pillFor` in
+  // ZoneRead.jsx.
+  //
+  // ⚠️ WHAT THAT BUYS, MEASURED — AND IT IS NOT "no flash of the wrong one",
+  // which is what this comment used to claim. `holidayToday` is `null` on the
+  // FIRST paint of every load (SWR resolves asynchronously, even from cache),
+  // so the honest guarantee is:
+  //   * NO BLANK, ever — an unverified calendar renders today's behaviour, not
+  //     a spinner and not an empty Zone B; and
+  //   * NO FLASH ON A SESSION DAY — `holidayToday` goes null → false, the hero
+  //     never changes, and that is ~250 of ~260 trading days a year;
+  //   * on a CLOSURE (~10 days a year) both branches paint `CatalystTable`
+  //     first and swap to `TheWeek` when the calendar lands. One flicker per
+  //     load. Only the first load of the day pays a network round trip:
+  //     `/api/market-calendar` ships `Cache-Control: public, max-age=86400`
+  //     (`market_calendar.py::_MAX_AGE`), so later loads resolve out of the
+  //     browser cache and the window is about a frame.
+  //
+  // ⚠️ AND THE TWO BRANCHES DO NOT FLICKER ALIKE. The desktop cockpit swaps
+  // inside the fixed `--zone-b: 440px` track, so nothing below it moves — with
+  // one documented exception, `TheWeek` rendering null on a quiet week, which
+  // trips Dashboard.module.css's `:has(.zoneB:empty)` collapse and is a
+  // separate case from this one. The mobile stack renders `{hero}` with no
+  // height budget at all, and `TheWeek` and `CatalystTable` are not the same
+  // height, so a closure shifts the content beneath it once per load.
+  //
+  // ⛔ NOT WORTH BLOCKING THE RENDER TO REMOVE. Holding Zone B until the
+  // calendar lands would trade one flicker on ten days for a blank hero on all
+  // 260 — including every session day, where the wait buys nothing at all.
+  const boundary = useNextBoundary()
+  const heroState = boundary.holidayToday === true ? 'WEEKEND' : session
+  const hero = heroState === 'WEEKEND' ? <TheWeek /> : <CatalystTable />
 
   return (
     <div className={styles.page}>
@@ -130,15 +195,28 @@ export default function Dashboard() {
                   the Day is demoted out of the top row (ZoneRead passes
                   FuturesStrip `hideQuote`) and reduced to one line.
 
-                  ⛔ …AND SUPPRESSED ENTIRELY ON THE WEEKEND, because that is
-                  the one state where Zone B's hero (`TheWeek`) gives the quote
-                  its own first-class panel. Both read the same
+                  ⛔ …AND SUPPRESSED ENTIRELY WHEN `TheWeek` IS THE HERO, because
+                  that is the one composition where Zone B gives the quote its
+                  own first-class panel. ⛔ IT READS `heroState`, NOT `session`:
+                  a closure now draws `TheWeek` while `session` still says LIVE,
+                  so gating on the raw session would have re-created the exact
+                  duplicate below on every holiday. Both read the same
                   `useQuoteOfTheDay`, which has a local rotation fallback and so
                   is ALWAYS truthy — the duplicate was guaranteed, every
                   weekend, not occasional. Two tasks each correct alone (Task 12
                   gave the quote its panel; the S4 fix gave Zone A its
-                  one-liner) and nobody owned the pair. */}
-              <div className={styles.zoneA}><ZoneRead showQuote={session !== 'WEEKEND'} /></div>
+                  one-liner) and nobody owned the pair.
+
+                  ⭐ `session` AND `boundary` ARE PROPS, NOT HOOK CALLS. Both
+                  are resolved once above and passed in, so Zone A and Zone B
+                  read one clock — see the note on `boundary` above. */}
+              <div className={styles.zoneA}>
+                <ZoneRead
+                  session={session}
+                  boundary={boundary}
+                  showQuote={heroState !== 'WEEKEND'}
+                />
+              </div>
               {/* Zone B · THE DECISION — the only zone that varies. */}
               <div className={styles.zoneB}>{hero}</div>
               {/* Zone C · YOUR RISK */}
@@ -175,10 +253,11 @@ export default function Dashboard() {
               <MoversSidebar />
             </MobileSection>
             {/* 5. Market glance.
-                ⛔ Same weekend rule as Zone A above: on WEEKEND the hero is
-                TheWeek, which carries the quote's first-class panel, so this
-                strip must not render a second copy of the same line. */}
-            <FuturesStrip hideQuote={session === 'WEEKEND'} />
+                ⛔ Same rule as Zone A above, off the same `heroState`: whenever
+                the hero is TheWeek — weekend OR closure — it carries the quote's
+                first-class panel, so this strip must not render a second copy
+                of the same line. */}
+            <FuturesStrip hideQuote={heroState === 'WEEKEND'} />
             <MobileSection
               icon={<UIcon name="flow" />}
               title="Theme Tracker"

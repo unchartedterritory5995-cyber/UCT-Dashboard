@@ -145,7 +145,15 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Collapsed (icon-only, 60px) rail: keep it scrollable but hide the scrollbar
+     chrome, which otherwise drew a stray vertical line beside the icons. Scrolling
+     still works (wheel/touch); the track returns when the rail expands on hover so
+     an overflowing expanded menu still shows its scrollbar. */
+  scrollbar-width: none;            /* Firefox */
 }
+.mainItems::-webkit-scrollbar { width: 0; height: 0; }   /* WebKit — collapsed */
+.nav:hover .mainItems { scrollbar-width: thin; }
+.nav:hover .mainItems::-webkit-scrollbar { width: 8px; }
 .navGroup {
   display: flex;
   flex-direction: column;

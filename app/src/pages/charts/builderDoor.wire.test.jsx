@@ -40,15 +40,16 @@
 // make a "How to build this" tablist appear, because not one of them renders one.
 //
 // ⭐ BOTH VIEWPORTS, BECAUSE THE DEFECT WAS ON BOTH. `/charts` renders through
-// `MobileWorkspace` at ≤640px and through the RGL grid above it, and the
+// `MobileChartsApp` at ≤640px and through the RGL grid above it, and the
 // audit found the builder unreachable on desktop AND phone. The phone case
 // drives `useMediaQuery` the way `ChartsWorkspace` reads it, so it exercises the
-// real `MobileWorkspace` branch.
+// real `MobileChartsApp` branch (the chart-first phone shell, which composes
+// `ChartPane` directly — same StockChart → ChartToolbar path, no widget host).
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, within, cleanup, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { Parser } from 'acorn'
@@ -138,7 +139,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 // Viewport. `ChartsWorkspace` asks for `(max-width: 640px)`; every OTHER query
 // in the tree keeps its desktop answer, so flipping this flips exactly the
-// branch that chooses `MobileWorkspace`.
+// branch that chooses `MobileChartsApp`.
 let phone = false
 vi.mock('../../hooks/useMediaQuery', () => ({
   default: (q) => (String(q).includes('640') ? phone : false),
@@ -190,6 +191,12 @@ async function openTheBuilderFromCharts(user) {
   const indicators = await screen.findByTitle('Indicators — browse and add', {}, { timeout: 8000 })
   await user.click(indicators)
 
+  await intoTheLibraryDoor(user)
+}
+
+/** Steps 2–3, shared by both viewports: the library is open — find the
+ *  authoring door inside it. */
+async function intoTheLibraryDoor(user) {
   // 2. The library opens. This is where a member's own formulas already live,
   //    marked "Your formula" — so it is where authoring one belongs.
   await screen.findByRole('searchbox', { name: /search indicators/i })
@@ -197,6 +204,22 @@ async function openTheBuilderFromCharts(user) {
   // 3. 🔴 THE DOOR. Cut it and this line is what reds.
   const create = await screen.findByTestId('library-new-formula')
   await user.click(create)
+}
+
+/** The PHONE walk. The drawing toolbar starts COLLAPSED on the phone shell
+ *  (toolbarDefaultCollapsed — clean canvas), so the member-visible door is the
+ *  bottom toolbar's ƒx sheet, whose "Browse indicator library…" row reaches the
+ *  SAME dialog through StockChart's toolbarApiRef. Nothing here is mocked, so
+ *  this also proves that ref wiring end-to-end. */
+async function openTheBuilderFromPhoneCharts(user) {
+  // Scoped to the shell's own toolbar: in a real browser the chart toolbar's
+  // Indicators button is display:none while collapsed, but jsdom loads no
+  // CSS-module styles, so an unscoped name query would see both.
+  const toolbar = await screen.findByTestId('mobile-chart-toolbar', {}, { timeout: 8000 })
+  await user.click(within(toolbar).getByRole('button', { name: 'Indicators' }))
+  await user.click(await screen.findByRole('button', { name: /browse indicator library/i }))
+
+  await intoTheLibraryDoor(user)
 }
 
 describe('/charts — the criteria builder has a door', () => {
@@ -249,16 +272,16 @@ describe('/charts — the criteria builder has a door', () => {
     }
   })
 
-  it('PHONE (≤640px, the MobileWorkspace branch): the same door opens the same builder', async () => {
+  it('PHONE (≤640px, the MobileChartsApp branch): the same door opens the same builder', async () => {
     phone = true
     const user = userEvent.setup()
     render(<ChartsWorkspace />)
-    // The phone branch really is the one under test: MobileWorkspace draws the
-    // widget tab strip, the RGL grid does not exist.
-    await screen.findByRole('tablist', { name: 'Chart widgets' })
+    // The phone branch really is the one under test: the mobile shell draws its
+    // thumb-zone chart toolbar, the RGL grid does not exist.
+    await screen.findByTestId('mobile-chart-toolbar')
     expect(screen.queryByTestId('rgl-responsive')).toBeNull()
 
-    await openTheBuilderFromCharts(user)
+    await openTheBuilderFromPhoneCharts(user)
     expect(await screen.findByRole('tablist', { name: 'How to build this' }, { timeout: 8000 })).toBeInTheDocument()
   })
 

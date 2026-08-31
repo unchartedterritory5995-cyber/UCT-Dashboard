@@ -1797,6 +1797,8 @@ def _build_range_week(monday: date) -> dict:
         "week_end":        week_end,
         "days":            days,
         "source":          source,
+        # `is_current_week` means "the default anchored payload", NOT "contains
+        # today" — see the note at its `True` emission in `_build_current_week`.
         "is_current_week": False,
     }
 
@@ -2033,6 +2035,9 @@ def _get_calendar_payload(week: str | None = None):
                         "week_end":   (target_monday + timedelta(days=4)).isoformat(),
                         "days":       {},
                         "source":     "out_of_range",
+                        # See the note at the `True` emission in
+                        # `_build_current_week`: this field reports "the default
+                        # anchored payload", not "contains today".
                         "is_current_week": False,
                     }
                 payload = _get_or_build_range_week(target_monday)
@@ -2043,6 +2048,7 @@ def _get_calendar_payload(week: str | None = None):
                     "week_end":   (target_monday + timedelta(days=4)).isoformat(),
                     "days":       {},
                     "source":     "error",
+                    # Same field, same meaning — see `_build_current_week`.
                     "is_current_week": False,
                 }
         # Malformed or current-week param → fall through to the current week.
@@ -2165,6 +2171,42 @@ def _build_current_week() -> dict:
         "week_end":        week_end,
         "days":            days,
         "source":          source,
+        # ⛔ `is_current_week` REPORTS "THIS IS THE DEFAULT ANCHORED PAYLOAD",
+        # NOT "this week contains today". ⭐ THIS COMMENT IS THE FIELD'S ONE
+        # OWNER; the three `False` emissions point here rather than restating it.
+        #
+        # It is `True` on exactly one path — this one, the no-`?week=` build —
+        # and `False` on every `?week=` path, including a `?week=` naming the
+        # very Monday this build would have anchored on. So the name says the
+        # opposite of what the value reports, in the one case that matters:
+        # `_current_week_monday` deliberately rolls the anchor FORWARD on Sat/Sun
+        # ("a member who opens the calendar on a Saturday sees the UPCOMING
+        # week"), so every weekend this ships `True` on a payload that is about
+        # NEXT week and contains no `is_today` at all. It points the other way
+        # too: on that same weekend a `?week=` for the week that just ended
+        # returns `False` on a payload that DOES carry an `is_today` day, since
+        # `_build_range_week` stamps it against the real ET today like everyone
+        # else. Two readers reached for this field in one week and both would
+        # have shipped a wrong heading off it.
+        #
+        # ⭐ THE FIELD THAT DOES STATE THE RELATIONSHIP IS `days[*].is_today`.
+        # All three day builders (`_empty_day`, the wire path and the EW live
+        # path) stamp `is_today: d == today` against the ET calendar day, so a
+        # payload contains today iff exactly one of its days carries it — which
+        # is the question, asked of the payload rather than of a browser clock.
+        # `app/src/pages/dashboard/TheWeek.jsx` derives its heading that way and
+        # says so in-file; `Calendar.jsx` never reads this field either, deriving
+        # its own `isCurrentWeek` from `!weekParam`.
+        #
+        # ⚠️ DOCUMENTED, NOT RENAMED. Nothing in production reads it, but it is
+        # on a public payload and the backend suite names it — asserted in
+        # `tests/test_calendar_paging.py` and
+        # `tests/test_calendar_past_day_backfill.py`, and built into fixtures in
+        # those plus `tests/test_calendar_load_latency.py`. ⛔ Re-derive that
+        # roster (`grep -rn is_current_week tests/`) rather than trusting a
+        # count typed here; the point is that it is NOT zero, so a rename is a
+        # contract change and not a cleanup. Naming what the field reports costs
+        # nothing and is the half that stops the next reader.
         "is_current_week": True,
     }
     # `_WEEKLY_STALE.serve()` checks the raw TTL cache (`fresh()`) BEFORE ever

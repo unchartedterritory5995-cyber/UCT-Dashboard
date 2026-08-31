@@ -3,9 +3,15 @@
 // Zone A is three things in 120px: which session this is, the one exposure
 // number, and the index strip with the quote demoted out of it.
 //
-// ⛔ THE HOOK IS INJECTED, NOT CLOCKED. `useSessionState.test.js` owns the ET
-// arithmetic; faking Date here would re-test that and nothing else
+// ⛔ THE SESSION AND THE BOUNDARY ARE PASSED IN, NOT CLOCKED.
+// `useSessionState.test.js` owns the ET arithmetic; faking Date here would
+// re-test that and nothing else
 // (`lesson_a_half_faked_clock_manufactures_false_positives`).
+//
+// ⭐ THEY ARE PROPS NOW, NOT A MODULE MOCK. ZoneRead calls no hook of its own:
+// Dashboard.jsx resolves both once and hands them down, so the page has ONE
+// clock (see `Dashboard.oneClock.test.jsx`). This file therefore injects the
+// two values directly, which is the same injection with one less indirection.
 //
 // ⛔ `useMobileSWR` IS THE MOCK, NOT `swr`. ZoneRead polls through the
 // mobile-aware wrapper (the ruling documented in ZoneRead.jsx). A bare `swr`
@@ -19,12 +25,6 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 const h = vi.hoisted(() => ({
   session: 'LIVE', breadth: undefined, opts: null, quote: undefined,
   boundary: { kind: 'close', ms: 0, label: 'Closes in 3h 02m' },
-}))
-
-vi.mock('./useSessionState', () => ({
-  default: () => h.session,
-  resolveSession: () => h.session,
-  useNextBoundary: () => h.boundary,
 }))
 
 vi.mock('../../hooks/useMobileSWR', () => ({
@@ -42,7 +42,9 @@ vi.mock('../../hooks/useMobileSWR', () => ({
 
 import ZoneRead from './ZoneRead'
 
-const mount = () => render(<MemoryRouter><ZoneRead /></MemoryRouter>)
+const mount = () => render(
+  <MemoryRouter><ZoneRead session={h.session} boundary={h.boundary} /></MemoryRouter>,
+)
 
 beforeEach(() => {
   h.session = 'LIVE'
@@ -219,7 +221,11 @@ describe('the quote', () => {
 
   test('showQuote={false} drops it — the spec’s one reversible flag', () => {
     h.quote = { quote: { t: 'Risk comes from not knowing what you are doing.', a: 'Buffett' } }
-    render(<MemoryRouter><ZoneRead showQuote={false} /></MemoryRouter>)
+    render(
+      <MemoryRouter>
+        <ZoneRead session={h.session} boundary={h.boundary} showQuote={false} />
+      </MemoryRouter>,
+    )
     expect(screen.queryByText(/Risk comes from not knowing/)).toBeNull()
   })
 
