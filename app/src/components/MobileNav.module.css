@@ -334,3 +334,11 @@
     font-size: 12px;
   }
 }
+
+/* Landscape immersive charting: while the phone chart shell is mounted
+   (html[data-mobile-chart-shell], stamped by MobileChartsApp) a rotated phone
+   gives the whole screen to the chart — the top bar steps aside. Portrait and
+   every other route are untouched. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .topBar { display: none; }
+}

@@ -48,6 +48,7 @@ function rafObserveElementRect(instance, cb) {
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
+import RowSpark from '../components/mobile/RowSpark'
 import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
@@ -374,6 +375,10 @@ const WatchRow = React.memo(function WatchRow({
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
+          {/* Phone-only mini price path (Deepvue-style scanning). Reads ONLY the
+              local bars store — never the network — and renders/fetches nothing
+              on desktop. See components/mobile/RowSpark.jsx. */}
+          <RowSpark sym={sym} />
         </span>
       )
     }

@@ -83,6 +83,14 @@ function fmtLevel(v) {
 const _COARSE_POINTER = typeof window !== 'undefined'
   && !!window.matchMedia?.('(pointer: coarse)')?.matches
 const HIT_THRESHOLD = _COARSE_POINTER ? 15 : 8 // pixels
+// Selection-handle PAINT radius. The grab zone was already coarse-aware
+// (HIT_THRESHOLD above) but the dot itself stayed 4px — finger users couldn't
+// SEE what was grabbable. On touch the dot grows and renderSelectionHandles
+// adds a soft halo sized to the real hit zone, so the affordance matches it.
+const HANDLE_R = _COARSE_POINTER ? 7 : 4
+// One-time "tap two points" coach chip for multi-point tools on touch —
+// single flag across all tools (the voice.dictation.hintSeen idiom).
+const TAP_HINT_LS = 'uct.drawings.tapHintSeen'
 
 // ─── Geometry helpers ────────────────────────────────────────────────────────
 
@@ -691,10 +699,18 @@ function renderAnchoredVwap(ctx, anchorPt, bars, timeToIndex, toPixelFn) {
 }
 
 function renderSelectionHandles(ctx, pts) {
-  ctx.fillStyle = '#c9a84c'
   for (const p of pts) {
+    if (_COARSE_POINTER) {
+      // Halo = the actual grab zone (HIT_THRESHOLD + the handle slack), so a
+      // finger sees exactly how close is close enough.
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, HIT_THRESHOLD + 2, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(201, 168, 76, 0.16)'
+      ctx.fill()
+    }
     ctx.beginPath()
-    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
+    ctx.arc(p.x, p.y, HANDLE_R, 0, Math.PI * 2)
+    ctx.fillStyle = '#c9a84c'
     ctx.fill()
     ctx.strokeStyle = '#1a1c17'
     ctx.lineWidth = 1
@@ -1061,6 +1077,17 @@ export default function ChartDrawingOverlay({
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
+  // First-use coach chip for touch: a multi-point tool places by TAP-TAP, and
+  // a finger user's instinct is to drag. Shown until the first successful
+  // placement (or its ✕) — a single flag across every multi-point tool. A
+  // storage read failure counts as seen: never nag in private mode.
+  const [tapHintSeen, setTapHintSeen] = useState(() => {
+    try { return localStorage.getItem(TAP_HINT_LS) === '1' } catch { return true }
+  })
+  const markTapHintSeen = useCallback(() => {
+    setTapHintSeen(true)
+    try { localStorage.setItem(TAP_HINT_LS, '1') } catch { /* private mode */ }
+  }, [])
   const [mouseCoords, setMouseCoords] = useState(null)
   const [textInput, setTextInput] = useState(null)
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, drawingId }
@@ -2083,12 +2110,15 @@ export default function ChartDrawingOverlay({
         }
         addDrawing(drawingData)
         setPendingPoints([])
+        // A completed placement is the proof the tap-tap model landed —
+        // retire the touch coach chip for good. (Event context, not an effect.)
+        markTapHintSeen()
         if (!repeatMode) setActiveTool(null)
       } else {
         setPendingPoints(newPending)
       }
     }
-  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId])
+  }, [activeTool, hoverActive, pendingPoints, color, lineWidth, lineStyle, toChart, snap, addDrawing, setSelectedId, timeToIndex, bars, lineData, drawings, hitTestAll, hitTestHandle, repeatMode, isDragging, removeDrawing, selectedId, markTapHintSeen])
 
   const handlePointerMove = useCallback((e) => {
     const pos = getCanvasPos(e)
@@ -2540,6 +2570,39 @@ export default function ChartDrawingOverlay({
           requestRedraw()
         }}
       />
+      {/* Touch coach chip: multi-point tools place by TAP-TAP, not drag. Shown
+          on coarse-pointer devices until the first completed placement (or ✕).
+          Inline-styled like the overlay's other DOM chrome; palette matches the
+          drawing context menu. */}
+      {_COARSE_POINTER && !tapHintSeen && activeTool && (POINT_COUNT[activeTool] || 2) >= 2 && !textInput && (
+        <div
+          data-testid="tap-tap-hint"
+          style={{
+            /* Bottom-center: the armed toolbar owns the chart's top rows, and
+               the thumb is already down here. Clears the range bar + vol strip. */
+            position: 'absolute', bottom: 118, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 6, display: 'flex', alignItems: 'center', gap: 10,
+            background: 'rgba(26, 28, 23, 0.94)', border: '1px solid rgba(201, 168, 76, 0.55)',
+            borderRadius: 999, padding: '8px 8px 8px 14px', pointerEvents: 'auto',
+            color: '#ece6d4', fontSize: 12.5, fontFamily: '"Instrument Sans", sans-serif',
+            whiteSpace: 'nowrap', boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+          }}
+        >
+          {pendingPoints.length === 0
+            ? `Tap ${(POINT_COUNT[activeTool] || 2) === 3 ? '3 points' : '2 points'} to place`
+            : 'Now tap the next point'}
+          <button
+            type="button"
+            aria-label="Dismiss drawing hint"
+            onClick={markTapHintSeen}
+            style={{
+              minWidth: 28, minHeight: 28, borderRadius: '50%', border: 'none',
+              background: 'rgba(201, 168, 76, 0.16)', color: '#c9a84c',
+              fontSize: 14, lineHeight: 1, cursor: 'pointer', touchAction: 'manipulation',
+            }}
+          >×</button>
+        </div>
+      )}
       {textInput && (
         <TextInputOverlay
           x={textInput.x}

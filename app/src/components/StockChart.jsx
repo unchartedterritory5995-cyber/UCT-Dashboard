@@ -1599,6 +1599,18 @@ export default function StockChart({
   // (`charts_workspace_layout`, `multichart_state`); a surface without one
   // passes nothing and stays global.
   chartId = null,
+  // Optional host ref filled with the mounted ChartToolbar's imperative API
+  // ({ openIndicatorLibrary, openAlerts }) so external chrome — the phone bottom
+  // toolbar's ƒx sheet — can open the SAME IndicatorLibraryDialog / alert
+  // popover the toolbar owns instead of mounting a second one (the "ONE
+  // POPOVER, NOT A SECOND MOUNT" rule above). Calls resolve toolbarRef lazily,
+  // so they return false (not throw) while no toolbar is mounted.
+  toolbarApiRef = null,
+  // Seed the drawing toolbar COLLAPSED on a browser that has never touched its
+  // show/hide toggle (localStorage 'uct.chart.toolbar.collapsed' unset). An
+  // explicit user choice always wins over this. The phone shell passes true so
+  // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
+  toolbarDefaultCollapsed = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2378,7 +2390,14 @@ export default function StockChart({
   // "hide toolbar" survives a refresh / arrangement save until it's reopened.
   const TOOLBAR_COLLAPSED_LS = 'uct.chart.toolbar.collapsed'
   const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
-    try { return localStorage.getItem(TOOLBAR_COLLAPSED_LS) === '1' } catch { return false }
+    // An explicit user choice (either direction) always wins; the host default
+    // only seeds a browser that has never touched the toggle. The phone shell
+    // passes toolbarDefaultCollapsed so its canvas starts clean, chevron to expand.
+    try {
+      const v = localStorage.getItem(TOOLBAR_COLLAPSED_LS)
+      if (v != null) return v === '1'
+    } catch { /* private mode — fall through to the host default */ }
+    return !!toolbarDefaultCollapsed
   })
   const setToolbarCollapsedPersist = useCallback((v) => {
     setToolbarCollapsed(v)
@@ -3490,6 +3509,22 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
+
+  // Publish the toolbar's imperative API to a host-supplied ref (see the
+  // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
+  // valid across toolbar mount/unmount without re-running this effect.
+  useEffect(() => {
+    if (!toolbarApiRef) return undefined
+    toolbarApiRef.current = {
+      openIndicatorLibrary: () => {
+        try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
+      },
+      openAlerts: (initialFor = null) => {
+        try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
+      },
+    }
+    return () => { toolbarApiRef.current = null }
+  }, [toolbarApiRef])
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)

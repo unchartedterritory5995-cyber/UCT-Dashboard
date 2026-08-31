@@ -7,7 +7,9 @@ import styles from './SymbolSearch.module.css'
 
 // Default suggestions shown when the input is empty. Hardcoded names so the
 // empty-state list always shows them even before the ticker_meta cache fills.
-const POPULAR_RESULTS = [
+// Exported: the phone symbol sheet (pages/charts/mobile) shows the same list,
+// so the two surfaces can never drift on what "popular" means.
+export const POPULAR_RESULTS = [
   { ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust' },
   { ticker: 'QQQ',   name: 'Invesco QQQ Trust' },
   { ticker: 'AAPL',  name: 'Apple Inc.' },
