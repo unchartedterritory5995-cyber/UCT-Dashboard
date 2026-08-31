@@ -548,6 +548,8 @@ function ChartPane({
   // chart to the journal exactly as shown") can freeze the window the user
   // was actually looking at.
   const viewRangeRef = useRef(null)
+  // StockChart publishes its imperative date-nav API here (Time Navigator box).
+  const dateNavApiRef = useRef(null)
 
   // Null-safe for the TF BAR only. StockChart keeps the raw prop: several of its
   // behaviors key off whether an onTfChange exists at all, and a surface that
@@ -625,6 +627,12 @@ function ChartPane({
     // The visible time-range at this instant (null before the first report) —
     // the journal-capture read-out.
     getViewState: () => ({ range: viewRangeRef.current }),
+    // Time Navigator (top-bar date box) — delegate to StockChart's published API.
+    goToDate: (ms) => dateNavApiRef.current?.goToDate?.(ms),
+    goToYear: (y) => dateNavApiRef.current?.goToYear?.(y),
+    stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
+    ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
+    getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
   return (
@@ -681,6 +689,9 @@ function ChartPane({
           }}
           styles={styles}
         >
+          {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
+              fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
+          {slots?.tfBarAfterTf}
           {!compact && !mini && (
             <ChartMetaRow items={metaItems} abbrev={infoAbbrev} styles={styles} />
           )}
@@ -882,6 +893,7 @@ function ChartPane({
              subscription effect re-run, which self-heals a lost subscription
              if the underlying chart instance is ever recreated. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
+          onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
         />
         {flagToast && (
           <div className={styles.flagToast}>
