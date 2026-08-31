@@ -3519,6 +3519,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # Rich ticker SEARCH index (symbol + name + type + exchange from Massive's
+    # reference feed) — powers the /charts Symbol Search modal's name matching
+    # (e.g. "AAPL" → AAPU/AAPD). Loads a disk snapshot instantly, rebuilds daily.
+    try:
+        from api.services import ticker_search_index as _tsi
+        _tsi.start_background_build()
+        print("[startup] ticker-search index build scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-search index scheduling failed (non-fatal): {e}")
+
     # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
     # Flag-gated so it runs exactly once; background + low-concurrency so it never
     # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.

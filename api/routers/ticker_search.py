@@ -88,24 +88,15 @@ def _enqueue_name_backfill(ticker: str) -> None:
             _BACKFILL_INFLIGHT.discard(ticker)
 
 
-@router.get("/api/ticker-search")
-def ticker_search(
-    q: str = Query("", max_length=10),
-    limit: int = Query(20, ge=1, le=50),
-):
-    """Return up to `limit` ticker suggestions ranked: exact > prefix > substring.
+# Category chip → the index asset-types it selects. 'breadth' is served from the
+# breadth registry (not the index); '' / 'all' means no filter.
+_CHIP_TYPES = {"stock": {"stock"}, "etf": {"etf"}, "index": {"index"}}
 
-    Response shape: {"results": [{"ticker": "NVDA", "name": "NVIDIA Corp" | None}, ...]}
-    """
-    qq = (q or "").strip().upper()
-    if not qq:
-        return {"results": []}
-    if not _UNIVERSE:
-        return {"results": []}
 
-    exact = []
-    prefix = []
-    substring = []
+def _fallback_symbol_scan(qq: str, limit: int):
+    """Symbol-only scan over cap_universe — used only until the rich index has built
+    (best-effort startup window). Names come from the ticker_meta cache."""
+    exact, prefix, substring = [], [], []
     for t in _UNIVERSE:
         if t == qq:
             exact.append(t)
@@ -113,53 +104,81 @@ def ticker_search(
             prefix.append(t)
         elif qq in t:
             substring.append(t)
-        if len(prefix) + len(exact) >= limit and not substring:
-            # Early exit when prefix-only fills the page — substring isn't checked
-            # beyond what's already gathered. Acceptable: prefix matches dominate
-            # the common case (user is typing the start of the ticker).
-            pass
+    out = []
+    for t in (exact + prefix + substring)[:limit]:
+        out.append({"ticker": t, "name": _name_from_cache(t), "type": "stock",
+                    "exchange": None})
+    return out
 
-    merged = exact + prefix + substring
-    merged = merged[:limit]
+
+@router.get("/api/ticker-search")
+def ticker_search(
+    q: str = Query("", max_length=48),
+    limit: int = Query(20, ge=1, le=50),
+    type: str = Query("", max_length=16),
+):
+    """Predictive symbol search ranked across ticker AND name: exact symbol > symbol
+    prefix > symbol contains > name contains. So "AAPL" returns AAPL then AAPU/AAPD/…
+    (leveraged/inverse products whose NAME references it), and "bull 2x" or "uranium"
+    find products by description.
+
+    `type` filters by category chip: stock | etf | index | breadth | '' (all).
+
+    Row shape: {"ticker","name"|None,"type","exchange"|None,[breadth|delisted flags]}
+    """
+    qq = (q or "").strip().upper()
+    if not qq:
+        return {"results": []}
+
+    chip = (type or "").strip().lower()
+    want_breadth = chip in ("", "all", "breadth")
+    want_delisted = chip in ("", "all")
+    index_types = _CHIP_TYPES.get(chip)  # None for all/breadth
+    from api.services import ticker_search_index as _tsi
 
     results = []
     live_syms = set()
-    for t in merged:
-        name = _name_from_cache(t)
-        if name is None:
-            _enqueue_name_backfill(t)
-        results.append({"ticker": t, "name": name})
-        live_syms.add(t)
+    if chip != "breadth":
+        if _tsi.ready():
+            for row in _tsi.search(q, limit, types=index_types):
+                if row.get("name") is None:
+                    _enqueue_name_backfill(row["ticker"])
+                results.append(row)
+                live_syms.add(row["ticker"])
+        elif index_types is None or "stock" in (index_types or set()):
+            # Index still building — degrade to the bare symbol scan.
+            for row in _fallback_symbol_scan(qq, limit):
+                if row.get("name") is None:
+                    _enqueue_name_backfill(row["ticker"])
+                results.append(row)
+                live_syms.add(row["ticker"])
 
     # UCT BREADTH pseudo-tickers (UCTA50 = % above 50-day MA, UCTNH = new highs…):
-    # symbol-level matches ("UCT", "UCTA50") jump to the FRONT so they're found the
-    # moment they're typed; name matches ("breadth", "highs") sit after live tickers.
-    try:
-        from api.services import breadth_symbols as _breadth_syms
-        b_front, b_back = [], []
-        for rec in _breadth_syms.search(qq, limit):
-            row = {"ticker": rec["ticker"], "name": rec["name"],
-                   "breadth": True, "group_label": rec.get("group_label")}
-            (b_front if rec.get("symbol_hit") else b_back).append(row)
-        results = b_front + results + b_back
-    except Exception:
-        pass
+    # symbol-level matches jump to the FRONT; name matches sit after live tickers.
+    if want_breadth:
+        try:
+            from api.services import breadth_symbols as _breadth_syms
+            b_front, b_back = [], []
+            for rec in _breadth_syms.search(qq, limit):
+                row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
+                       "exchange": "UCT", "breadth": True, "group_label": rec.get("group_label")}
+                (b_front if rec.get("symbol_hit") else b_back).append(row)
+            results = b_front + results + b_back
+        except Exception:
+            pass
 
-    # Merge in DELISTED tickers (Yahoo, Twitter, Lehman…) so dead names are discoverable
-    # too — labeled `delisted` + delisting date so the dropdown can badge them. They live in
-    # a separate registry (kept out of cap_universe / the live warmers), so a live ticker
-    # that shares a symbol always wins: skip any delisted match already present as a live row.
-    try:
-        from api.services import delisted_registry
-        for rec in delisted_registry.search(qq, limit):
-            if rec["ticker"] in live_syms:
-                continue
-            results.append({
-                "ticker": rec["ticker"],
-                "name": rec.get("name"),
-                "delisted": True,
-                "delisted_date": rec.get("delisted_date"),
-            })
-    except Exception:
-        pass
+    # DELISTED tickers (Yahoo, Twitter, Lehman…) — a live ticker sharing a symbol wins.
+    if want_delisted:
+        try:
+            from api.services import delisted_registry
+            for rec in delisted_registry.search(qq, limit):
+                if rec["ticker"] in live_syms:
+                    continue
+                results.append({
+                    "ticker": rec["ticker"], "name": rec.get("name"),
+                    "type": "delisted", "exchange": None,
+                    "delisted": True, "delisted_date": rec.get("delisted_date"),
+                })
+        except Exception:
+            pass
     return {"results": results[:limit]}

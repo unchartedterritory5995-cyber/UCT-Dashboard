@@ -5213,6 +5213,21 @@ def flow_board(
     return wf.board_data(days=days, cap=cap, limit=limit)
 
 
+@router.get("/confluence-flow")
+def confluence_flow_ep(
+    days: int = Query(30, description="rolling window in trading days"),
+    min_dte: int = Query(30, description="exclude DTE < this (gamma cutoff)"),
+    cap: str = Query("all", description="cap band: all | mega | large | mid_small"),
+    _auth: dict = Depends(require_flow_user),
+):
+    """Options-flow leg of the Confluence screen — per-ticker net/bull/bear + the
+    TOP CONTRACT's premium + LEAP SHARE, from the live flow.db (uncapped). Reuses
+    weekly_flow's still-open engine so it matches the Open-Flow board. The dark-pool
+    leg + join live web-side (api/confluence_screen.py)."""
+    from api import confluence_flow
+    return confluence_flow.flow_leg(days=days, min_dte=min_dte, cap=cap)
+
+
 @router.get("/pushed")
 def get_pushed(alert_date: str = Query(None, description="alert_date to filter (defaults to all recent)")):
     """Read-only list of alerts pushed to Discord (manual + auto). Feeds the
