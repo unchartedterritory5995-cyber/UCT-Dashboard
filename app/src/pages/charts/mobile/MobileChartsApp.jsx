@@ -43,7 +43,12 @@ export function chartWidgetIndex(widgets) {
  * = candles only) — the GridChartCell precedent: never ChartWidget, which is
  * desktop workspace chrome.
  */
-export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOptsChange, onAddWidget }) {
+/* `tablet` (ChartsWorkspace's coarse-pointer 641–1024px branch): the same
+ * shell in TWO PANES — chart column + a DOCKED companion panel where the
+ * phone shows a full-screen page. Same state, same handlers; only the
+ * presentation and the tap-to-chart rule change (a docked panel never covers
+ * the chart, so it stays open while the chart retargets beside it). */
+export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOptsChange, onAddWidget, tablet = false }) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
   // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
@@ -93,8 +98,18 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   // chart's symbol, so it stays open — correct by construction, no widget-type
   // list to maintain. (Render-time state adjustment, same pattern as the
   // pending-watchlist open below.)
-  if (screen && sym !== screen.symAtOpen) {
+  if (!tablet && screen && sym !== screen.symAtOpen) {
     setScreen(null)
+  }
+
+  // Tablet lands with the companion panel already useful: the first watchlist
+  // widget docks itself once the layout hydrates (once — closing it sticks).
+  // Same render-time adjustment pattern as the rules above.
+  const [panelAutoOpened, setPanelAutoOpened] = useState(false)
+  const firstWatchlist = (widgets || []).find((w) => w.type === 'watchlist')
+  if (tablet && !panelAutoOpened && firstWatchlist && screen === null) {
+    setPanelAutoOpened(true)
+    setScreen({ id: firstWatchlist.id, symAtOpen: sym })
   }
   const tf = chartWidget?.opts?.tf || 'D'
   const opts = chartWidget?.opts || null
@@ -153,10 +168,44 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     toolbarDefaultCollapsed: true,
   }), [chartWidget?.id])
 
+  // The widget page's shared pieces (used by BOTH presentations):
+  // phone = full-screen overlay with a back button; tablet = docked panel with
+  // a close ✕. Same WidgetHost mount either way — `merged` keeps the desktop
+  // drag/close bar (with its accidental-remove ✕) off touch; removal is the
+  // deliberate trash button in the header.
+  const pageBody = screenWidget && (
+    <div className={styles.screenBody}>
+      <WidgetHost
+        key={screenWidget.id}
+        widget={screenWidget}
+        merged
+        onRemove={() => { onRemove(screenWidget.id); setScreen(null) }}
+        onColorChange={(c) => onColorChange(screenWidget.id, c)}
+        onOptsChange={(o) => onOptsChange(screenWidget.id, o)}
+      />
+    </div>
+  )
+  const pageTrash = screenWidget && (
+    <button
+      type="button"
+      className={styles.screenAction}
+      aria-label={`Remove ${MENU_LABEL[screenWidget.type] || screenWidget.type} from layout`}
+      onClick={() => { onRemove(screenWidget.id); setScreen(null) }}
+    >
+      <UIcon name="trash" size={16} gold={false} />
+    </button>
+  )
+
   return (
-    <div className={`${wsStyles.mobileWorkspace} ${styles.shell}`} data-testid="mobile-charts-app" data-charts-theme={chartsTheme}>
+    <div
+      className={`${wsStyles.mobileWorkspace} ${styles.shell} ${tablet ? styles.tabletShell : ''}`}
+      data-testid="mobile-charts-app"
+      data-shell-mode={tablet ? 'tablet' : 'phone'}
+      data-charts-theme={chartsTheme}
+    >
       {chartWidget ? (
         <>
+          <div className={styles.chartCol}>
           <MobileSymbolStrip sym={sym} onOpenSearch={() => setSheet('symbol')} />
           <div className={styles.chartArea}>
             <div className={styles.paneWrap}>
@@ -176,13 +225,9 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
               />
             </div>
 
-            {/* Full-screen widget page — rendered OVER the chart so the chart
-                never unmounts (returning from the watchlist is instant).
-                `merged` = WidgetHost's header-less contract: the desktop
-                drag/close bar (with its accidental-remove ✕) stays off the
-                phone; a multi-tab slot still gets its tab strip. Removal moves
-                to the trash button in this header. */}
-            {screenWidget && (
+            {/* Phone: the widget page is a full-screen overlay OVER the chart
+                (it never unmounts — returning is instant). */}
+            {!tablet && screenWidget && (
               <div className={styles.widgetScreen}>
                 <div className={styles.screenHeader}>
                   <button type="button" className={styles.screenBack} onClick={() => setScreen(null)}>
@@ -190,25 +235,9 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
                     Chart
                   </button>
                   <span className={styles.screenTitle}>{MENU_LABEL[screenWidget.type] || screenWidget.type}</span>
-                  <button
-                    type="button"
-                    className={styles.screenAction}
-                    aria-label={`Remove ${MENU_LABEL[screenWidget.type] || screenWidget.type} from layout`}
-                    onClick={() => { onRemove(screenWidget.id); setScreen(null) }}
-                  >
-                    <UIcon name="trash" size={16} gold={false} />
-                  </button>
+                  {pageTrash}
                 </div>
-                <div className={styles.screenBody}>
-                  <WidgetHost
-                    key={screenWidget.id}
-                    widget={screenWidget}
-                    merged
-                    onRemove={() => { onRemove(screenWidget.id); setScreen(null) }}
-                    onColorChange={(c) => onColorChange(screenWidget.id, c)}
-                    onOptsChange={(o) => onOptsChange(screenWidget.id, o)}
-                  />
-                </div>
+                {pageBody}
               </div>
             )}
           </div>
@@ -220,6 +249,29 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
             onOpenWatchlist={handleOpenWatchlist}
             onOpenMore={() => setSheet('more')}
           />
+          </div>
+
+          {/* Tablet: the same page DOCKS beside the chart — TradingView-iPad
+              style. Tapping a watchlist row retargets the chart NEXT TO it
+              (the tap-to-chart bounce is phone-only; nothing here covers the
+              chart). ✕ closes the panel; ★ or the Tools sheet reopens it. */}
+          {tablet && screenWidget && (
+            <aside className={styles.sidePanel} aria-label={MENU_LABEL[screenWidget.type] || screenWidget.type}>
+              <div className={styles.screenHeader}>
+                <span className={styles.panelTitle}>{MENU_LABEL[screenWidget.type] || screenWidget.type}</span>
+                {pageTrash}
+                <button
+                  type="button"
+                  className={styles.screenAction}
+                  aria-label="Close panel"
+                  onClick={() => setScreen(null)}
+                >
+                  <UIcon name="x" size={15} gold={false} />
+                </button>
+              </div>
+              {pageBody}
+            </aside>
+          )}
         </>
       ) : (
         /* The saved layout has no chart widget (the user removed it on desktop).

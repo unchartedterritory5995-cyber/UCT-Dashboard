@@ -637,7 +637,14 @@ export default function ChartsWorkspace() {
   // unusable on a phone. The shell + the fixed bars go immersive via CSS
   // scoped to html[data-mobile-chart-shell] (see MobileCharts.module.css).
   const isPhoneLandscape = useMediaQuery('(pointer: coarse) and (orientation: landscape) and (max-height: 500px)')
-  const isMobile = isPhonePortrait || isPhoneLandscape
+  // iPad-class: a COARSE-pointer tablet viewport gets the chart-first shell in
+  // its two-pane tablet mode (chart + docked companion panel) — the RGL grid's
+  // drag/resize is mouse-only and unusable on touch. A narrow DESKTOP window
+  // (fine pointer) at these widths keeps the RGL workspace unchanged. The
+  // phone branches above win first, so a rotated phone stays immersive.
+  const isTabletTouch = useMediaQuery('(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)')
+  const isMobile = isPhonePortrait || isPhoneLandscape || isTabletTouch
+  const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
   // newer-wins against the server via the preferences store. Renders nothing.
@@ -2026,6 +2033,7 @@ export default function ChartsWorkspace() {
             onColorChange={handleColorChange}
             onOptsChange={handleOptsChange}
             onAddWidget={handleAddWidget}
+            tablet={shellTablet}
           />
         )}
       </WorkspaceContext.Provider>

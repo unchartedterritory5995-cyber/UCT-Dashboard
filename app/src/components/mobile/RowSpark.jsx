@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useIsPhone } from '../../hooks/useBreakpoint'
+import useMediaQuery from '../../hooks/useMediaQuery'
 import { idbGet } from '../../utils/barsIDB'
 import styles from './RowSpark.module.css'
+
+// Phone AND the iPad two-pane's docked panel (coarse pointer ≤1024px) — the
+// same surfaces the chart shell serves. A narrow DESKTOP window (fine pointer)
+// keeps its dense column look and performs zero reads.
+const SPARK_MQ = '(pointer: coarse) and (max-width: 1024px)'
 
 /* RowSpark — the Deepvue-style mini price path on phone watchlist rows.
  *
@@ -11,8 +16,8 @@ import styles from './RowSpark.module.css'
  * the Universe Bars Pack and by every chart view). A symbol the store doesn't
  * hold renders nothing; it never falls back to /api/bars.
  *
- * Desktop renders nothing AND reads nothing (useIsPhone gates the IDB read;
- * the CSS module hides the node above 640px as the layout-level guarantee).
+ * Off-surface mounts render nothing AND read nothing (SPARK_MQ gates the IDB
+ * read; the CSS module's matching media is the layout-level guarantee).
  * Results memo in a module Map so a virtualized list scrolling the same
  * symbols back into view re-renders from memory.
  */
@@ -42,12 +47,12 @@ const SPARK_BARS = 30           // ~6 trading weeks
 const memo = new Map()          // sym -> sparkPath result (null = known-absent)
 
 export default function RowSpark({ sym }) {
-  const isPhone = useIsPhone()
+  const sparkOn = useMediaQuery(SPARK_MQ)
   // The memo is the source of truth; state only ticks when an async read lands.
   const [, setLoadTick] = useState(0)
 
   useEffect(() => {
-    if (!isPhone || !sym || memo.has(sym)) return undefined
+    if (!sparkOn || !sym || memo.has(sym)) return undefined
     let on = true
     idbGet(sym, 'D')
       .then((entry) => {
@@ -60,9 +65,9 @@ export default function RowSpark({ sym }) {
         if (on) setLoadTick((n) => n + 1)
       })
     return () => { on = false }
-  }, [sym, isPhone])
+  }, [sym, sparkOn])
 
-  const d = isPhone ? memo.get(sym) : null
+  const d = sparkOn ? memo.get(sym) : null
   if (!d) return null
   return (
     <svg className={styles.spark} width="56" height="16" viewBox="0 0 56 16" aria-hidden="true" data-testid="row-spark">

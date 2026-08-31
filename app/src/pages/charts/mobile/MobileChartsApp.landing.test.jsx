@@ -73,7 +73,7 @@ function makeHandlers() {
   }
 }
 
-function renderApp(widgets, handlers = makeHandlers(), ctx = {}) {
+function renderApp(widgets, handlers = makeHandlers(), ctx = {}, extraProps = {}) {
   const value = {
     ...WORKSPACE_FALLBACK,
     groupSyms: { A: 'NVDA', B: null, C: null, D: null },
@@ -82,7 +82,7 @@ function renderApp(widgets, handlers = makeHandlers(), ctx = {}) {
   }
   const ui = (w, syms) => (
     <WorkspaceContext.Provider value={syms ? { ...value, groupSyms: { ...value.groupSyms, ...syms } } : value}>
-      <MobileChartsApp widgets={w} {...handlers} />
+      <MobileChartsApp widgets={w} {...handlers} {...extraProps} />
     </WorkspaceContext.Provider>
   )
   const utils = render(ui(widgets))
@@ -273,6 +273,47 @@ describe('price alert from the chart', () => {
     await user.click(await screen.findByRole('button', { name: /set price alert/i }))
     expect(screen.getByRole('button', { name: /alert above/i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /alert below/i })).toBeDisabled()
+  })
+})
+
+describe('TABLET (two-pane): the page docks beside the chart instead of covering it', () => {
+  test('cold-hydrating a layout with a watchlist auto-docks it as the companion panel', () => {
+    const { rerenderWith } = renderApp([], makeHandlers(), {}, { tablet: true })
+    rerenderWith(HYDRATED)
+
+    // Both panes at once — and the phone chrome is absent: no back button,
+    // a Close ✕ instead.
+    expect(screen.getByTestId('mobile-charts-app')).toHaveAttribute('data-shell-mode', 'tablet')
+    expect(screen.getByTestId('chart-pane')).toBeInTheDocument()
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^chart$/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /close panel/i })).toBeInTheDocument()
+  })
+
+  test('a same-group publish retargets the chart BESIDE the panel — no phone bounce', () => {
+    const { rerenderWith } = renderApp([], makeHandlers(), {}, { tablet: true })
+    rerenderWith(HYDRATED)
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+
+    rerenderWith(HYDRATED, { A: 'AAPL' })
+    // Chart follows the tap; the docked panel STAYS (it never covered the chart).
+    expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-sym', 'AAPL')
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
+  })
+
+  test('closing the panel sticks (auto-dock is once), and ★ reopens it', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([], makeHandlers(), {}, { tablet: true })
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /close panel/i }))
+    expect(screen.queryByTestId('widget-body-watchlist')).toBeNull()
+    // A later hydration tick must not force it back open.
+    rerenderWith([...HYDRATED])
+    expect(screen.queryByTestId('widget-body-watchlist')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Watchlist' }))
+    expect(screen.getByTestId('widget-body-watchlist')).toBeInTheDocument()
   })
 })
 

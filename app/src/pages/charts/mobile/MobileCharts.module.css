@@ -20,6 +20,44 @@
   overscroll-behavior: contain;
 }
 
+/* ── Tablet two-pane (coarse-pointer 641–1024px, set via the `tablet` prop) ──
+ * The chart column and a docked companion panel sit side by side. On phone
+ * .chartCol is display:contents so the phone layout is byte-identical to the
+ * pre-tablet markup; the compound .shell.tabletShell selector outranks
+ * .mobileWorkspace's flex-direction without depending on stylesheet order. */
+.chartCol { display: contents; }
+
+.shell.tabletShell { flex-direction: row; }
+.tabletShell .chartCol {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidePanel {
+  flex: 0 0 clamp(300px, 36vw, 400px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.panelTitle {
+  flex: 1 1 auto;
+  padding-left: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* ── Symbol strip (top) ────────────────────────────────────────────────── */
 
 .symStrip {

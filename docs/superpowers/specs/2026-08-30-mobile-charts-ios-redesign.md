@@ -207,11 +207,38 @@ Chromium's genuine `pointerType:'touch'` path) against a seeded chart:
   asserts hint shown → placement → hint retired → line SELECTED by body tap →
   anchor DRAGGED by touch → reshaped points persisted. Exit 1 on any break.
 
-## Deliberately deferred (Phase 7+)
+## Phase 7 — iPad two-pane (2026-08-31)
+
+A COARSE-pointer 641–1024px viewport (min-height 501px so a rotated phone
+stays immersive) now renders `MobileChartsApp` in **tablet mode** instead of
+the desktop RGL grid — whose drag/resize is mouse-only and unusable on touch.
+A narrow fine-pointer desktop window keeps RGL unchanged.
+
+- **Two panes**: the phone shell's chart column (symbol strip · chart · thumb
+  toolbar) plus a DOCKED companion panel (`clamp(300px, 36vw, 400px)`) where
+  the phone shows a full-screen page. Same state, same handlers — `.chartCol`
+  is `display:contents` on phone so the phone layout stays byte-identical.
+- **The tap-to-chart rule inverts by construction**: a docked panel never
+  covers the chart, so a watchlist row tap retargets the chart BESIDE it and
+  the panel stays open (the phone bounce is `!tablet`-gated).
+- **Auto-dock once**: the first watchlist widget docks itself when the layout
+  hydrates (render-time adjustment); closing it sticks; ★ or the Tools sheet
+  reopens/re-points the panel.
+- **Sparklines follow**: RowSpark's gate widened from phone-only to
+  `(pointer: coarse) and (max-width: 1024px)` — the docked panel is exactly
+  Deepvue's iPad watchlist surface. Fine-pointer windows still read nothing.
+- FAB raises under `html[data-mobile-chart-shell]` widened to ≤1024px so the
+  orb/"?" clear the toolbar on tablets too.
+- Rig: `iphone_walk.py` adds an iPad context (820×1180) asserting the
+  two-pane docks; landing suite grows to 22 (auto-dock, stay-open on
+  same-group publish, close-sticks + ★ reopen).
+
+## Deliberately deferred (Phase 8+)
 
 - **On-device iOS Safari pass** — Phase 6 closed the reshape/hint polish; the
   remaining verification (WebKit quirks, safe-areas, scroll feel) is real
   glass's to give, or `tools/iphone_walk.py --engine webkit` on a Mac.
 - **Price + interval in the top app bar** (reclaim MobileNav's title row on
   /charts), long-press crosshair inspect card, per-widget mobile headers.
-- **Tablet (641–1024px portrait)** still renders the RGL workspace.
+- **Tablet fine-pointer widths** keep the RGL workspace (deliberate — mouse
+  users get the desktop grid; Phase 7 moved only coarse-pointer tablets).

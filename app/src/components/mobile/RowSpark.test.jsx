@@ -1,6 +1,6 @@
 /* RowSpark — the herd-guard rail.
  *
- * The component's whole contract is "phone-only, LOCAL-only": hundreds of
+ * The component's whole contract is "touch-surface-only, LOCAL-only": hundreds of
  * watchlist rows (thousands in scan mode) may mount one of these, so it must
  * never open a network request and must read nothing at all off-phone. The
  * tests pin both directions plus the pure geometry.
@@ -8,9 +8,9 @@
 import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { vi } from 'vitest'
 
-let phone = true
-vi.mock('../../hooks/useBreakpoint', () => ({
-  useIsPhone: () => phone,
+let sparkSurface = true
+vi.mock('../../hooks/useMediaQuery', () => ({
+  default: () => sparkSurface,
 }))
 
 const idbGet = vi.fn()
@@ -23,7 +23,7 @@ const { default: RowSpark, sparkPath } = await import('./RowSpark')
 const bars = (closes) => closes.map((c, i) => ({ t: i, c }))
 
 beforeEach(() => {
-  phone = true
+  sparkSurface = true
   idbGet.mockReset()
 })
 afterEach(cleanup)
@@ -70,8 +70,8 @@ describe('the component — phone-only, local-only', () => {
     expect(screen.queryByTestId('row-spark')).toBeNull()
   })
 
-  test('desktop mounts read NOTHING at all', () => {
-    phone = false
+  test('desktop (fine-pointer) mounts read NOTHING at all', () => {
+    sparkSurface = false
     render(<RowSpark sym="DESK" />)
     expect(idbGet).not.toHaveBeenCalled()
     expect(screen.queryByTestId('row-spark')).toBeNull()

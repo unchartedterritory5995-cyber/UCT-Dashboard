@@ -277,7 +277,20 @@ def main():
                                    is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
         lpage = make_page(lctx, args.base, args.email, args.password, 'landscape')
         shot(lpage, '10-landscape')
+        lctx.close()
+
+        # ── iPad two-pane (coarse-pointer tablet branch) ──
+        tctx = browser.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=2,
+                                   is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
+        tpage = make_page(tctx, args.base, args.email, args.password, 'ipad')
+        tablet_ok = (tpage.locator('[data-shell-mode="tablet"]').count() > 0
+                     and tpage.get_by_role('button', name='Close panel').count() > 0)
+        print('  tablet two-pane docked:', tablet_ok)
+        shot(tpage, '30-ipad-two-pane', wait=1800)
         browser.close()
+        if not tablet_ok:
+            print('FAIL: iPad viewport did not dock the two-pane shell')
+            return 1
 
     print(f'done -> {OUT}')
     if not drew:
