@@ -16,6 +16,7 @@ Status (freshness = a TAG, never a filter): 5d net vs 30d net ->
 """
 import os
 import time
+import threading
 from datetime import date
 
 import httpx
@@ -36,6 +37,7 @@ BUILDING_FRAC = float(os.environ.get("CONFLUENCE_BUILDING_FRAC", "0.40"))
 
 _TTL = float(os.environ.get("CONFLUENCE_BOARD_TTL", "1800"))            # 30 min
 _CACHE: dict = {"at": 0.0, "board": None}
+_COMPUTE_LOCK = threading.Lock()                                        # single-flight compute
 
 _BANDS = {"Large Cap": "L", "Mid Cap": "M", "Small Cap": "S"}
 _BAND_META = {"L": ("Large Cap", "$10B – $500B"), "M": ("Mid Cap", "$2B – $10B"),
@@ -160,18 +162,26 @@ def compute_board() -> dict:
             "warnings": warnings or None}
 
 
+_WARMING = {"ok": False, "status": "warming",
+            "reason": "board is computing — try again shortly", "rows": []}
+
+
 def get_board(force: bool = False) -> dict:
-    now = time.time()
-    if not force and _CACHE["board"] and now - _CACHE["at"] < _TTL:
-        return _CACHE["board"]
-    board = compute_board()
-    if board.get("ok"):
-        _CACHE["at"] = now
-        _CACHE["board"] = board
-    elif _CACHE["board"]:
-        # keep serving the last good board if a recompute is mid-warm
-        return _CACHE["board"]
-    return board
+    """READ path: serve the cached board (or the last good one, or 'warming') —
+    NEVER computes inline, so /api/confluence can't hang the request/gateway.
+    Only force=True (scheduler / boot warm / admin refresh) computes, single-flight."""
+    if not force:
+        return _CACHE["board"] or _WARMING          # stale is fine; scheduler refreshes
+    if not _COMPUTE_LOCK.acquire(blocking=False):    # a compute is already running
+        return _CACHE["board"] or _WARMING
+    try:
+        board = compute_board()
+        if board.get("ok"):
+            _CACHE["at"] = time.time()
+            _CACHE["board"] = board
+        return _CACHE["board"] or board
+    finally:
+        _COMPUTE_LOCK.release()
 
 
 def scheduled_refresh():
