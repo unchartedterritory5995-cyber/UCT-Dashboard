@@ -34,7 +34,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine, treeYieldsBool } from './pine.js'
+import { translatePine, treeYieldsBool, readsBars } from './pine.js'
 import { parseFormula } from './parse.js'
 import { conditionFrom } from '../../builder/toCondition.js'
 import { translateThinkScript } from './thinkscript.js'
@@ -456,11 +456,23 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
   // must not be softened; it is what stops a screen silently returning the
   // universe.
   //
-  // ⭐ SO THE MISSING PIECE IS AN AFFORDANCE, NOT A TRANSLATION. TradingView's Pine
+  // ⭐ SO THE MISSING PIECE WAS AN AFFORDANCE, NOT A TRANSLATION. TradingView's Pine
   // Screener never asks a script for a boolean: a plot becomes a NUMERIC COLUMN and
   // the member picks the operator and the threshold in the screener UI. A pasted
   // `rsi(close, 14)` is a perfectly good column; it is just not a filter until
-  // somebody says `< 30`. Our door requires the definition itself to be 0/1.
+  // somebody says `< 30`.
+  //
+  // ⚰️ AND IT SHIPPED — THIS PARAGRAPH READ "Our door requires the definition
+  // itself to be 0/1" IN THE PRESENT TENSE, sixty lines above the case that
+  // measures it as false. `PineBox` renders an operator and a threshold beside a
+  // numeric column and hands back the COMPARISON, built and re-verified by
+  // `conditionFrom`. MEASURED: 43 of 43 translating scripts, every one of the 126
+  // offered columns, and all 126 accepted by the backend's own `assert_scannable`.
+  // A reader who stopped here would have gone off to build the thing that exists
+  // — which is what a present-tense sentence about a closed gap is for.
+  // ⛔ THE SENTENCE BELOW IS KEPT IN THE PAST TENSE ON PURPOSE: the ARITHMETIC that
+  // made this the priority is still the reason it was done first, and deleting the
+  // reasoning would leave the next reader unable to check the call.
   //
   // ⚠️ WHICH IS WHY THIS SITS IN THE SCORECARD RATHER THAN IN A BACKLOG. Closing
   // every one of the OPEN translation gaps would add at most that many scripts —
@@ -470,12 +482,26 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
   //
   // ⭐ THE VERDICT IS THE SHIPPED ONE, AND BOTH LANES AGREE ON IT. `treeYieldsBool`
   // is `pine.js`'s, the same function `thinkscript.js` imports so the two doors ask
-  // one question. Measured against the backend's own `assert_scannable` over these
-  // exact 148 columns: 49 and 49, 19 scripts and 19 scripts. If that ever diverges,
-  // one lane is telling a member their screen will run while the other refuses it —
-  // the recorded `scannable: true` / every-row-refuses defect.
+  // one question. If that ever diverges, one lane is telling a member their screen
+  // will run while the other refuses it — the recorded `scannable: true` /
+  // every-row-refuses defect.
+  //
+  // ⚰️ THIS READ "over these exact 148 columns: 49 and 49, 19 scripts and 19
+  // scripts" and every number in it had moved. It is a claim about a RUN, and a
+  // run that happened once is a claim with a shelf life
+  // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+  // ⭐ RE-RUN 2026-08-30 rather than re-typed — the 126 offered columns pushed
+  // through `api/services/scan_definition.assert_scannable` one at a time, each
+  // with its own `ast_hash` so the `hash` gate is satisfied honestly:
+  //     126 columns · 47 scannable in EACH lane · 18 scripts · 0 disagreements,
+  //     and all 79 backend refusals are the `yields` gate — the one that stops a
+  //     numeric column being screened as `!= 0` and returning the universe.
+  // The counts fell (148→126, 49→47, 19→18) because the doors stopped offering
+  // constants, not because anything closed; the AGREEMENT is what this paragraph
+  // is actually about, and it is exact.
 
   const columns = []
+  const withheld = []
   for (const [d, dir, translate] of [
     [DOORS[0], 'tests/fixtures/pine', translatePine],
     [DOORS[1], 'tests/fixtures/pine_community', translatePine],
@@ -485,7 +511,9 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
       if (!r.ok) continue
       const o = translate(fs.readFileSync(path.join(rel(dir), r.file), 'utf8'))
       for (const out of o.outputs) {
-        if (!out.formula || out.hidden) continue
+        if (!out.formula) continue
+        // ⭐ THE WITHHELD ROWS ARE COUNTED, NOT SKIPPED — see the sweep below.
+        if (out.hidden) { withheld.push({ file: r.file, formula: out.formula }); continue }
         let bool = false
         try { bool = !!treeYieldsBool(parseFormula(out.formula).ast) } catch (e) { bool = false }
         columns.push({ file: r.file, bool, formula: out.formula })
@@ -531,15 +559,126 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     }
     console.log(`\nreachable as a screen with one comparison: `
       + `${reachable.size} of ${scriptsTranslating.size} translating scripts\n`)
-    // ⛔ THE RATCHET. 19 could be screened as written; this is what the paste path
+    // ⛔ THE RATCHET. 18 can be screened as written; this is what the paste path
     // can actually deliver a member to the screener with.
+    // ⚠️ 41 → 43 ON 2026-08-30, AND IT WAS NOT A GAIN — the measured value had been
+    // 43 while this said 41, so a ratchet whose whole job is to refuse a
+    // regression was carrying two scripts of it. Exactly the slack the OPEN
+    // ratchet was found holding the day before (10 against a measured 9). A
+    // ratchet is only a rail at the value it actually measures; below that it is
+    // a comment. ⭐ 43 of 43 is also a CEILING, so this now says something
+    // stronger: every script that translates can reach the screener.
     expect(reachable.size).toBeGreaterThanOrEqual(scriptsScannable.size)
-    expect(reachable.size).toBeGreaterThanOrEqual(41)
+    expect(reachable.size).toBeGreaterThanOrEqual(43)
+    expect(reachable.size).toBe(scriptsTranslating.size)
+  })
+
+  it('⭐⭐ NOT ONE COLUMN ANY DOOR OFFERS IS THE SAME NUMBER ON EVERY BAR', () => {
+    // ⛔⛔ THE RAIL THIS FILE DID NOT HAVE WHEN IT NEEDED IT. Across 2026-08-30
+    // twenty-three columns were found, by accident, to be constants offered as
+    // screens — twelve in the Pine lane (`0 && X ? Y : 0`, from `input.bool`
+    // toggles the scripts ship switched OFF) and eleven in the thinkScript lane
+    // (`30`, `70`, `50`, `0`, `2`, `-2`, `74`, `26` — horizontal guide lines).
+    // Two community scripts were counted as TRANSLATING on nothing else; two more
+    // were counted as SCANNABLE on a literal `0`, which matches nothing on every
+    // symbol forever and is indistinguishable from a quiet market.
+    //
+    // EVERY ONE was found because some OTHER number moved and somebody looked: a
+    // two-directional column pin falling while a script was added. Nothing asked
+    // this question on purpose. It asks it now.
+    //
+    // ⭐ IT ASKS THE ENGINE'S OWN PREDICATE. `readsBars` is imported from
+    // `pine.js` rather than re-walked here — a test carrying its own copy would
+    // agree with the door right up until the day it mattered.
+    const flat = columns.filter((c) => {
+      const p = parseFormula(c.formula)
+      return p.ok && !readsBars(p.ast)
+    })
+    expect(flat.map((c) => `${c.file}: ${c.formula}`)).toEqual([])
+  })
+
+  it('⭐⭐ …and the FOURTH door is swept too, which is the mistake that made this rail', () => {
+    // ⛔⛔ THE SWEEP ABOVE COVERS THREE DOORS AND THERE ARE FOUR. Leaving TC2000
+    // out would repeat, in the same commit, the exact error the rail exists to
+    // answer: the constant-column defect was fixed in the Pine lane on 2026-08-30
+    // and left standing in the thinkScript lane, where `hidden: false` was
+    // hardcoded beside a predicate that already knew better. One lane fixed is not
+    // the bug fixed (`lesson_rail_the_mirror_not_just_the_lane`).
+    //
+    // ⚠️ PCF HAS NO `hidden` CHANNEL and needs none: a TC2000 criteria is ONE
+    // expression, not a list of plots, so there is nothing for an author to hide
+    // and the `display.none` half of `hidden` has no meaning here. Only the
+    // constant half applies, and it applies for the same reason — a member can
+    // paste `1`, and a criteria that is the same number on every bar screens
+    // nothing.
+    //
+    // ⭐ MEASURED 2026-08-30: 0 of 57. The door is clean, and this is what keeps
+    // it that way rather than the fact being rediscovered by whoever notices a
+    // different number move.
+    const pcfFlat = []
+    for (const c of [...PCF.accepted, ...PCF.offset_dependent]) {
+      let tree = null
+      try {
+        const o = parsePcf(c.source)
+        tree = o && o.ok ? o.ast : null
+      } catch (e) { tree = null }
+      if (tree && !readsBars(tree)) pcfFlat.push(`${c.id}: ${c.source}`)
+    }
+    expect(pcfFlat).toEqual([])
+    // ⛔ NON-VACUITY: a `parsePcf` that started returning nothing would make the
+    // loop above examine zero trees and pass in silence.
+    const seen = [...PCF.accepted, ...PCF.offset_dependent].filter((c) => {
+      try {
+        const o = parsePcf(c.source)
+        return !!(o && o.ok && o.ast)
+      } catch (e) { return false }
+    })
+    expect(seen.length).toBeGreaterThanOrEqual(50)
+  })
+
+  it('⛔ …and that sweep is NOT vacuous — the doors really are withholding rows', () => {
+    // ⛔⛔ WITHOUT THIS, THE SWEEP ABOVE PASSES BY DELETING THE FILTER THAT FEEDS
+    // IT. `columns` skips `out.hidden`, so a door that stopped stamping `hidden`
+    // — exactly the bug in the thinkScript lane, where `hidden: false` was
+    // hardcoded while the same file computed the predicate twice — would push
+    // constants INTO `columns` and be caught. But a door that stamped EVERYTHING
+    // hidden would empty `columns` and the sweep would pass on nothing at all.
+    //
+    // So the withheld rows are counted rather than discarded: they exist, there
+    // are a lot of them, and — the load-bearing half — the sweep's own predicate
+    // must actually FIRE on some of them. If every withheld row read bars, then
+    // `hidden` is carrying only `display.none` and the constant half has quietly
+    // stopped working.
+    expect(withheld.length).toBeGreaterThan(20)
+    const flatWithheld = withheld.filter((c) => {
+      const p = parseFormula(c.formula)
+      return p.ok && !readsBars(p.ast)
+    })
+    expect(flatWithheld.length,
+      'no withheld row is a constant — the constant half of `hidden` has stopped '
+      + 'working, and the sweep above is now passing for the wrong reason',
+    ).toBeGreaterThan(10)
   })
 
   it('🔴 THE RATCHET — scannable scripts may only ever increase', () => {
     // ⛔ THE NUMBER TO DRIVE UP, and the one the operator affordance would move.
     // Measured 2026-08-29: 19 of 41.
-    expect(scriptsScannable.size).toBeGreaterThanOrEqual(19)
+    //
+    // ⚰️⚰️ 19 → 18 ON 2026-08-30, AND THE ONE THAT LEFT WAS NEVER A SCAN.
+    // `treeYieldsBool` answers TRUE for the literal `0` — correctly, 0 and 1 are
+    // how this engine spells a boolean — so a horizontal guide line plotted at
+    // zero registered as a boolean COLUMN and made its script scannable.
+    // MEASURED, four scripts were scannable only on such a column:
+    // `01-squeeze-momentum-lazybear`, `02-wavetrend-oscillator-lazybear` (both
+    // already excluded here, because `pine.js` stamps `hidden`), plus
+    // `08-relative-strength-zscore-vs-spy` and `20-roc-stdev-lower-switch`, whose
+    // lane hardcoded `hidden: false`. A scan on the constant `0` matches NOTHING,
+    // on every symbol, forever — and it is indistinguishable from a quiet market.
+    // ⭐ SO A RATCHET THAT MAY ONLY RISE STILL HAS TO ADMIT A CORRECTION. It is
+    // lowered here because the MEASUREMENT got honest, not because coverage got
+    // worse; the two are told apart by naming the scripts, which is why they are
+    // named. If this climbs back past 18 without a named script, suspect the
+    // constant columns came back rather than that a door opened.
+    expect(scriptsScannable.size).toBeGreaterThanOrEqual(18)
   })
 })

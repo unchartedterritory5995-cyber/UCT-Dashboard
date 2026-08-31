@@ -703,6 +703,10 @@
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
+/* When the Time Navigator box precedes the info fields, its right divider already
+   provides the separation — drop the wide 18px lead so MARKET CAP sits ~6px from the
+   divider (matching the box's inner left gap). Only applied on that surface. */
+.chartMetaTight { margin-left: 4px; }
 .chartMetaItem {
   display: inline-flex;
   align-items: baseline;

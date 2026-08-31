@@ -141,6 +141,42 @@
   .originSpinner { animation: none; }
 }
 
+/* "Scroll to present" button — right edge, appears when today's bar is off-screen.
+   Same look as the toolbar collapse button (shares the --chart-toolbar-* tokens
+   StockChart publishes from the canvas color). */
+.toPresentBtn {
+  position: absolute;
+  /* Default seat until the positioning effect pins it above the earnings badge
+     (bottom-right of the price pane, clear of the axis); left/top are then set
+     imperatively and take over from right/bottom. */
+  right: 74px;
+  bottom: 26%;
+  z-index: 7;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--chart-panel-border-low, rgba(255, 255, 255, 0.08));
+  border-radius: 6px;
+  background: var(--chart-toolbar-bg, rgba(26, 28, 23, 0.9));
+  color: var(--chart-toolbar-text, #a8a290);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  transition: background 0.12s, color 0.12s;
+  animation: toPresentIn 150ms ease-out;
+}
+.toPresentBtn:hover {
+  background: var(--chart-toolbar-bg-hover, rgba(40, 43, 36, 0.96));
+  color: var(--chart-toolbar-text-hover, #ece6d4);
+}
+@keyframes toPresentIn {
+  from { opacity: 0; transform: translateY(-50%) translateX(7px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
 /* ── Skeleton overlay ──
    Sits on top of the (already-rendered) chart container while bars are
    in flight. The chart wrapper, toolbar, and ticker header all paint

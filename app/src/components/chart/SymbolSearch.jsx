@@ -1,4 +1,4 @@
-// app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + predictive search overlay
+// app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + centered symbol-search modal
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
@@ -10,54 +10,109 @@ import styles from './SymbolSearch.module.css'
 // Exported: the phone symbol sheet (pages/charts/mobile) shows the same list,
 // so the two surfaces can never drift on what "popular" means.
 export const POPULAR_RESULTS = [
-  { ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust' },
-  { ticker: 'QQQ',   name: 'Invesco QQQ Trust' },
-  { ticker: 'AAPL',  name: 'Apple Inc.' },
-  { ticker: 'MSFT',  name: 'Microsoft Corp.' },
-  { ticker: 'NVDA',  name: 'NVIDIA Corp.' },
-  { ticker: 'AMZN',  name: 'Amazon.com Inc.' },
-  { ticker: 'GOOGL', name: 'Alphabet Inc. Class A' },
-  { ticker: 'META',  name: 'Meta Platforms Inc.' },
-  { ticker: 'TSLA',  name: 'Tesla Inc.' },
-  { ticker: 'AMD',   name: 'Advanced Micro Devices' },
-  { ticker: 'AVGO',  name: 'Broadcom Inc.' },
-  { ticker: 'NFLX',  name: 'Netflix Inc.' },
-  { ticker: 'CRM',   name: 'Salesforce Inc.' },
-  { ticker: 'COST',  name: 'Costco Wholesale Corp.' },
-  { ticker: 'LLY',   name: 'Eli Lilly & Co.' },
-  { ticker: 'PLTR',  name: 'Palantir Technologies' },
-  { ticker: 'SMCI',  name: 'Super Micro Computer' },
-  { ticker: 'MSTR',  name: 'MicroStrategy Inc.' },
-  { ticker: 'COIN',  name: 'Coinbase Global' },
-  { ticker: 'SNOW',  name: 'Snowflake Inc.' },
-  { ticker: 'IWM',   name: 'iShares Russell 2000 ETF' },
-  { ticker: 'DIA',   name: 'SPDR Dow Jones Industrial' },
-  { ticker: 'XLF',   name: 'Financial Select Sector SPDR' },
-  { ticker: 'XLE',   name: 'Energy Select Sector SPDR' },
-  { ticker: 'XLK',   name: 'Technology Select Sector SPDR' },
-  { ticker: 'XLV',   name: 'Health Care Select Sector SPDR' },
-  { ticker: 'GLD',   name: 'SPDR Gold Trust' },
-  { ticker: 'TLT',   name: 'iShares 20+ Year Treasury' },
-  { ticker: 'ARKK',  name: 'ARK Innovation ETF' },
-  { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
+  { ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust', type: 'etf' },
+  { ticker: 'QQQ',   name: 'Invesco QQQ Trust', type: 'etf' },
+  { ticker: 'AAPL',  name: 'Apple Inc.', type: 'stock' },
+  { ticker: 'MSFT',  name: 'Microsoft Corp.', type: 'stock' },
+  { ticker: 'NVDA',  name: 'NVIDIA Corp.', type: 'stock' },
+  { ticker: 'AMZN',  name: 'Amazon.com Inc.', type: 'stock' },
+  { ticker: 'GOOGL', name: 'Alphabet Inc. Class A', type: 'stock' },
+  { ticker: 'META',  name: 'Meta Platforms Inc.', type: 'stock' },
+  { ticker: 'TSLA',  name: 'Tesla Inc.', type: 'stock' },
+  { ticker: 'AMD',   name: 'Advanced Micro Devices', type: 'stock' },
+  { ticker: 'AVGO',  name: 'Broadcom Inc.', type: 'stock' },
+  { ticker: 'NFLX',  name: 'Netflix Inc.', type: 'stock' },
+  { ticker: 'CRM',   name: 'Salesforce Inc.', type: 'stock' },
+  { ticker: 'COST',  name: 'Costco Wholesale Corp.', type: 'stock' },
+  { ticker: 'LLY',   name: 'Eli Lilly & Co.', type: 'stock' },
+  { ticker: 'PLTR',  name: 'Palantir Technologies', type: 'stock' },
+  { ticker: 'SMCI',  name: 'Super Micro Computer', type: 'stock' },
+  { ticker: 'MSTR',  name: 'MicroStrategy Inc.', type: 'stock' },
+  { ticker: 'COIN',  name: 'Coinbase Global', type: 'stock' },
+  { ticker: 'SNOW',  name: 'Snowflake Inc.', type: 'stock' },
+  { ticker: 'IWM',   name: 'iShares Russell 2000 ETF', type: 'etf' },
+  { ticker: 'DIA',   name: 'SPDR Dow Jones Industrial', type: 'etf' },
+  { ticker: 'XLF',   name: 'Financial Select Sector SPDR', type: 'etf' },
+  { ticker: 'XLE',   name: 'Energy Select Sector SPDR', type: 'etf' },
+  { ticker: 'XLK',   name: 'Technology Select Sector SPDR', type: 'etf' },
+  { ticker: 'XLV',   name: 'Health Care Select Sector SPDR', type: 'etf' },
+  { ticker: 'GLD',   name: 'SPDR Gold Trust', type: 'etf' },
+  { ticker: 'TLT',   name: 'iShares 20+ Year Treasury', type: 'etf' },
+  { ticker: 'ARKK',  name: 'ARK Innovation ETF', type: 'etf' },
+  { ticker: 'SOXX',  name: 'iShares Semiconductor ETF', type: 'etf' },
 ]
+
+// Category chips → the `type` query param the backend filters on. 'all' = no filter.
+const CHIPS = [
+  { key: 'all', label: 'All', type: '' },
+  { key: 'stock', label: 'Stocks', type: 'stock' },
+  { key: 'etf', label: 'ETFs', type: 'etf' },
+  { key: 'index', label: 'Indices', type: 'index' },
+  { key: 'breadth', label: 'Breadth', type: 'breadth' },
+]
+
+// The exact indices our charts render (api/index_bars.py INDEX_MAP). This IS the
+// full "Indices" universe, so the chip is served client-side from this list — both
+// the empty-state preload and searches filter it (no backend round-trip needed).
+const INDICES_PRESET = [
+  { ticker: 'SPX', name: 'S&P 500 Index', type: 'index' },
+  { ticker: 'NDX', name: 'Nasdaq 100 Index', type: 'index' },
+  { ticker: 'DJX', name: 'Dow Jones Industrial Average', type: 'index' },
+  { ticker: 'RUT', name: 'Russell 2000 Index', type: 'index' },
+  { ticker: 'VIX', name: 'CBOE Volatility Index', type: 'index' },
+  { ticker: 'XSP', name: 'Mini S&P 500 Index', type: 'index' },
+  { ticker: 'XND', name: 'Micro Nasdaq 100 Index', type: 'index' },
+]
+
+// q matches a preset/breadth row by ticker OR name (case-insensitive substring).
+const matchQ = (r, q) => {
+  if (!q) return true
+  const qu = q.toUpperCase()
+  return String(r.ticker || '').includes(qu) || String(r.name || '').toUpperCase().includes(qu)
+}
+
+const TYPE_LABEL = { stock: 'stock', etf: 'ETF', index: 'index', breadth: 'breadth', delisted: 'delisted' }
+
+// Render `text` with every case-insensitive occurrence of the typed query wrapped in
+// a gold `.hit` span (TradingView highlights the matched term; ours is gold).
+function highlighted(text, query, styles) {
+  if (!text) return null
+  const q = (query || '').trim()
+  if (!q) return text
+  const tl = text.toLowerCase()
+  const ql = q.toLowerCase()
+  if (!tl.includes(ql)) return text
+  const parts = []
+  let idx = 0, pos = tl.indexOf(ql, idx), k = 0
+  while (pos !== -1) {
+    if (pos > idx) parts.push(text.slice(idx, pos))
+    parts.push(<span key={k++} className={styles.hit}>{text.slice(pos, pos + q.length)}</span>)
+    idx = pos + q.length
+    pos = tl.indexOf(ql, idx)
+  }
+  if (idx < text.length) parts.push(text.slice(idx))
+  return parts
+}
 
 const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
   const [activeIdx, setActiveIdx] = useState(0)
+  const [chip, setChip] = useState('all')
+  const [breadthAll, setBreadthAll] = useState([])
   const inputRef = useRef(null)
   const wrapRef = useRef(null)
   const listRef = useRef(null)
   const abortRef = useRef(null)
-  const dropdownRef = useRef(null)
-  // Fixed-position coords for the portaled dropdown (see the positioning effect).
-  const [menuPos, setMenuPos] = useState(null)
+  const dialogRef = useRef(null)
+  // Was the highlighted row chosen by KEYBOARD (arrows)? Enter only honors a row when
+  // this is true — a mouse hovering a row must NOT hijack Enter away from the typed
+  // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
+  const navByKbdRef = useRef(false)
 
-  // Imperative open-with-text — used by ChartWidget so typing a letter on the
+  // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
-  // Up-to-date open flag for the imperative handler (avoids a stale closure).
   const openRef = useRef(false)
   openRef.current = open
   useImperativeHandle(ref, () => ({
@@ -67,71 +122,29 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       const wasOpen = openRef.current
       openRef.current = true
       setOpen(true)
+      if (!wasOpen) setChip('all')
       setQuery(q => (wasOpen ? q + (text || '') : (text || '')).toUpperCase())
     },
   }), [])
 
-  // Position the dropdown as a fixed-position PORTAL (rendered to document.body).
-  // The chart-widget header is `overflow:hidden` and only ~28px tall, and the grid
-  // item's transform makes even position:fixed get clipped — so an in-tree dropdown
-  // has its top/bottom cut off. A portal escapes every ancestor. Recompute on
-  // scroll/resize so it tracks the badge while open.
+  // Focus the input once the modal is mounted.
   useEffect(() => {
-    if (!open) { setMenuPos(null); return }
-    const place = () => {
-      const el = wrapRef.current
-      if (!el) return
-      const r = el.getBoundingClientRect()
-      const W = Math.min(280, window.innerWidth - 16)
-      const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8))
-      setMenuPos({ left, top: r.bottom + 4, width: W })
-    }
-    place()
-    window.addEventListener('scroll', place, true)
-    window.addEventListener('resize', place)
-    return () => {
-      window.removeEventListener('scroll', place, true)
-      window.removeEventListener('resize', place)
-    }
-  }, [open])
-
-  // Focus the input once it's mounted (after the position is known). The
-  // activeElement guard keeps a scroll-triggered reposition from stealing the caret.
-  useEffect(() => {
-    if (open && menuPos && inputRef.current && document.activeElement !== inputRef.current) {
+    if (open && inputRef.current && document.activeElement !== inputRef.current) {
       inputRef.current.focus()
       const len = inputRef.current.value.length
-      try { inputRef.current.setSelectionRange(len, len) } catch {}
+      try { inputRef.current.setSelectionRange(len, len) } catch { /* */ }
     }
-  }, [open, menuPos])
-
-  // Close on outside click (the portaled dropdown lives outside wrapRef, so check both)
-  useEffect(() => {
-    if (!open) return
-    const handler = (e) => {
-      const inWrap = wrapRef.current && wrapRef.current.contains(e.target)
-      const inMenu = dropdownRef.current && dropdownRef.current.contains(e.target)
-      if (!inWrap && !inMenu) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
   // Close on Escape
   useEffect(() => {
-    if (!open) return
-    const handler = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
+    if (!open) return undefined
+    const handler = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    document.addEventListener('keydown', handler, true)
+    return () => document.removeEventListener('keydown', handler, true)
   }, [open])
 
-  // Return focus to the chart when the dropdown CLOSES so type-to-search works
-  // again immediately. Type-to-search fires from the chart's onKeyDown, which
-  // needs the chart element focused; closing by clicking outside left focus on
-  // <body>, so the next keystroke never reached the chart handler and the search
-  // wouldn't reopen. Only refocus if nothing else claimed focus (checked after the
-  // click's focus settles) — so clicking straight into another input isn't
-  // hijacked. Charts only (boundsRef, the chart element, is passed there).
+  // Return focus to the chart when the modal CLOSES so type-to-search works again.
   const wasOpenRef = useRef(false)
   useEffect(() => {
     const justClosed = wasOpenRef.current && !open
@@ -148,58 +161,89 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     return () => cancelAnimationFrame(id)
   }, [open, boundsRef])
 
-  // Debounced server-side autocomplete (3,685-ticker $300M+ universe).
-  // Empty query → POPULAR. Non-empty → /api/ticker-search.
+  // Fetch the full UCT breadth catalog once (on first open) so the Breadth chip has a
+  // real list to preload + filter (works on any backend — independent of search).
   useEffect(() => {
-    if (!open) return
+    if (!open || breadthAll.length) return undefined
+    let alive = true
+    fetch('/api/breadth-symbols')
+      .then(r => (r.ok ? r.json() : { symbols: [] }))
+      .then(d => {
+        if (!alive) return
+        const rows = (d.symbols || []).map(s => ({
+          ticker: String(s.symbol || '').toUpperCase(),
+          name: s.name || s.label || '',
+          type: 'breadth', breadth: true, group_label: s.group,
+        })).filter(r => r.ticker)
+        setBreadthAll(rows)
+      })
+      .catch(() => { /* leave empty */ })
+    return () => { alive = false }
+  }, [open, breadthAll.length])
+
+  // Results. Indices + Breadth are OUR OWN closed universes → served entirely
+  // client-side (empty-state preload + search both filter the curated/fetched list),
+  // so their filter is exact regardless of the backend. Stocks/ETFs/All go to the
+  // server; the chip type-filters the response (once the server labels a type).
+  useEffect(() => {
+    if (!open) return undefined
+    navByKbdRef.current = false   // a fresh query/chip resets keyboard selection
     const q = query.trim()
-    if (!q) {
-      setResults(POPULAR_RESULTS)
+    const typeParam = CHIPS.find(c => c.key === chip)?.type || ''
+
+    if (chip === 'index') {
+      setResults(INDICES_PRESET.filter(r => matchQ(r, q)))
       setActiveIdx(0)
-      return
+      return undefined
     }
-    // Instant lock: show the typed ticker as the selected item IMMEDIATELY (no
-    // debounce/network wait) so "Go to {typed}" + Enter always reflect the current
-    // text. The debounced fetch below enriches it with autocomplete matches.
+    if (chip === 'breadth') {
+      setResults(breadthAll.filter(r => matchQ(r, q)))
+      setActiveIdx(0)
+      return undefined
+    }
+    if (!q) {
+      setResults(typeParam ? POPULAR_RESULTS.filter(r => r.type === typeParam) : POPULAR_RESULTS)
+      setActiveIdx(0)
+      return undefined
+    }
+    // Instant lock so "Go to {typed}" + Enter always work with no network wait.
     setResults([{ ticker: q.toUpperCase(), name: null, _typed: true }])
     setActiveIdx(0)
     if (abortRef.current) abortRef.current.abort()
     const ctl = new AbortController()
     abortRef.current = ctl
+    const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=40${typeParam ? `&type=${typeParam}` : ''}`
     const t = setTimeout(() => {
-      fetch(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { signal: ctl.signal })
+      fetch(url, { signal: ctl.signal })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(j => {
-          const arr = Array.isArray(j?.results) ? j.results : []
-          // Ensure the literal "go to {q}" fallback is always present last when
-          // no exact match exists — keeps the type-anything UX from the V1.
+          let arr = Array.isArray(j?.results) ? j.results : []
+          // Client-side safety net: if a category is active AND the server labeled
+          // types, keep only that type (so a stale/typeless server can't leak the
+          // wrong category through). Typeless responses (old server) pass through.
+          if (typeParam && arr.some(r => r.type)) arr = arr.filter(r => r.type === typeParam)
           const hasExact = arr.some(r => r.ticker === q.toUpperCase())
-          const merged = hasExact ? arr : [...arr, { ticker: q.toUpperCase(), name: null, _typed: true }]
+          const merged = (hasExact || typeParam) ? arr : [...arr, { ticker: q.toUpperCase(), name: null, _typed: true }]
           setResults(merged)
           setActiveIdx(0)
         })
         .catch(() => {
-          // Network or 4xx — show the literal typed value so submit still works.
-          setResults([{ ticker: q.toUpperCase(), name: null, _typed: true }])
+          setResults(typeParam ? [] : [{ ticker: q.toUpperCase(), name: null, _typed: true }])
           setActiveIdx(0)
         })
     }, 150)
     return () => { clearTimeout(t); ctl.abort() }
-  }, [query, open])
+  }, [query, open, chip, breadthAll])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {
     const el = listRef.current?.children?.[activeIdx]
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest' })
-    }
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
   }, [activeIdx])
 
   const submit = useCallback((ticker) => {
-    const clean = ticker.trim().toUpperCase()
-    if (clean && clean !== sym) {
-      onSymbolChange(clean)
-    }
+    const clean = (ticker || '').trim().toUpperCase()
+    if (clean && clean !== sym) onSymbolChange(clean)
     setOpen(false)
     setQuery('')
   }, [sym, onSymbolChange])
@@ -207,20 +251,27 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const handleInputKey = useCallback((e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
+      navByKbdRef.current = true
       setActiveIdx(i => Math.min(i + 1, Math.max(0, results.length - 1)))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
+      navByKbdRef.current = true
       setActiveIdx(i => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
-      // Instant: Enter goes straight to the typed ticker with no wait for the
-      // debounced autocomplete. Only defer to a suggestion the user explicitly
-      // arrow-navigated to (activeIdx > 0).
       const typed = query.trim()
-      if (activeIdx > 0 && results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
+      // Only a KEYBOARD-selected row (arrowed to) beats the typed symbol; a row the
+      // mouse happens to hover never does.
+      if (navByKbdRef.current && activeIdx > 0 && results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
       else if (typed) submit(typed)
       else if (results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
+    } else if (e.key === 'Tab') {
+      // Tab / Shift+Tab cycles the category chips (TradingView-ish quick filter).
+      e.preventDefault()
+      const i = CHIPS.findIndex(c => c.key === chip)
+      const n = (i + (e.shiftKey ? -1 : 1) + CHIPS.length) % CHIPS.length
+      setChip(CHIPS[n].key)
     }
-  }, [results, activeIdx, submit, query])
+  }, [results, activeIdx, submit, query, chip])
 
   if (!onSymbolChange) {
     // Read-only mode — just show symbol, not clickable
@@ -232,13 +283,11 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       <button
         className={styles.badge}
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
-        onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
+        onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setChip('all'); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
         aria-label={sym ? `${sym} — click to search a different ticker` : 'Search ticker'}
       >
         {displayLabel ? (
-          // fullLabel: lift the 240px cap so the whole name has real layout width
-          // (otherwise it overflows the capped box and paints over the day gain).
           <span
             className={styles.labelWrap}
             style={{ ...(fullLabel ? { maxWidth: 'none' } : null), ...(labelColor ? { color: labelColor } : null) }}
@@ -246,12 +295,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
             {logoSym ? (
               <span className={styles.labelLogo}><CompanyLogo sym={logoSym} name={displayLabel} size={16} round /></span>
             ) : brandLogo ? (
-              // Thematic indexes have no company ticker → no logo.dev logo. Fall back to
-              // the Uncharted Territory compass mark (the app's brand symbol) instead.
               <span className={styles.labelLogo}>
-                {/* Rendered a touch larger than a company logo (20 vs 16): the mark
-                    has transparent padding + pointed arms and isn't clipped to a
-                    filled circle, so it reads smaller at the same box size. */}
                 <img src={uctMark} alt="Uncharted Territory" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
               </span>
             ) : null}
@@ -266,74 +310,117 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         )}
       </button>
 
-      {open && menuPos && createPortal(
+      {open && createPortal(
         <div
-          ref={dropdownRef}
-          className={styles.dropdown}
-          style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 3000, ...(themeVars || {}) }}
+          className={styles.backdrop}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false) }}
         >
-          <div className={styles.inputRow}>
-            <input
-              ref={inputRef}
-              className={styles.input}
-              value={query}
-              onChange={e => setQuery(e.target.value.toUpperCase())}
-              onKeyDown={handleInputKey}
-              placeholder="Type ticker..."
-              spellCheck={false}
-              maxLength={10}
-            />
-          </div>
-          <div ref={listRef} className={styles.list}>
-            {results.map((r, i) => (
-              <button
-                key={`${r.ticker}-${i}`}
-                className={[
-                  styles.item,
-                  r.ticker === sym ? styles.itemActive : '',
-                  i === activeIdx ? styles.itemHighlighted : '',
-                ].filter(Boolean).join(' ')}
-                onMouseEnter={() => setActiveIdx(i)}
-                onClick={() => submit(r.ticker)}
-              >
-                {r._typed ? (
-                  <>Go to <strong>{r.ticker}</strong></>
-                ) : (
-                  <>
-                    <span className={styles.itemSym}>{r.ticker}</span>
-                    {r.name && <span className={styles.itemName}>{r.name}</span>}
-                    {r.delisted && (
-                      <span
-                        style={{
-                          marginLeft: 'auto', fontSize: 10, fontWeight: 600, color: '#c9a84c',
-                          border: '1px solid rgba(201,168,76,0.4)', borderRadius: 3,
-                          padding: '0 5px', whiteSpace: 'nowrap',
-                        }}
-                      >
-                        Delisted{r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''}
-                      </span>
-                    )}
-                    {r.breadth && (
-                      <span
-                        style={{
-                          marginLeft: 'auto', fontSize: 10, fontWeight: 600, color: '#8ab4f8',
-                          border: '1px solid rgba(138,180,248,0.4)', borderRadius: 3,
-                          padding: '0 5px', whiteSpace: 'nowrap',
-                        }}
-                        title={r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator'}
-                      >
-                        BREADTH
-                      </span>
-                    )}
-                  </>
-                )}
+          <div
+            ref={dialogRef}
+            className={styles.dialog}
+            style={themeVars || undefined}
+            role="dialog"
+            aria-label="Symbol search"
+          >
+            <div className={styles.dialogHead}>
+              <span className={styles.dialogTitle}>Symbol Search</span>
+              <button type="button" className={styles.dialogClose} onClick={() => setOpen(false)} aria-label="Close">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <line x1="2" y1="2" x2="12" y2="12" /><line x1="12" y1="2" x2="2" y2="12" />
+                </svg>
               </button>
-            ))}
-            {results.length === 0 && query.trim() && (
-              <button className={styles.item} onClick={() => submit(query)}>
-                Go to <strong>{query.trim().toUpperCase()}</strong>
-              </button>
-            )}
+            </div>
+
+            <div className={styles.searchRow}>
+              <svg className={styles.searchIcon} viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="7" cy="7" r="4.5" /><line x1="10.5" y1="10.5" x2="14" y2="14" />
+              </svg>
+              <input
+                ref={inputRef}
+                className={styles.searchInput}
+                value={query}
+                onChange={e => setQuery(e.target.value.toUpperCase())}
+                onKeyDown={handleInputKey}
+                placeholder="Search symbol or company…"
+                spellCheck={false}
+                maxLength={48}
+              />
+              {query && (
+                <button type="button" className={styles.searchClear} onClick={() => { setQuery(''); inputRef.current?.focus() }} aria-label="Clear">
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <line x1="2" y1="2" x2="12" y2="12" /><line x1="12" y1="2" x2="2" y2="12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            <div className={styles.chipRow}>
+              {CHIPS.map(c => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`${styles.chip} ${chip === c.key ? styles.chipActive : ''}`}
+                  onClick={() => { setChip(c.key); inputRef.current?.focus() }}
+                >{c.label}</button>
+              ))}
+            </div>
+
+            <div ref={listRef} className={styles.resultList}>
+              {results.map((r, i) => (
+                <button
+                  key={`${r.ticker}-${i}`}
+                  className={[
+                    styles.resultRow,
+                    r.ticker === sym ? styles.resultCurrent : '',
+                    i === activeIdx ? styles.resultActive : '',
+                  ].filter(Boolean).join(' ')}
+                  onMouseEnter={() => { navByKbdRef.current = false; setActiveIdx(i) }}
+                  onClick={() => submit(r.ticker)}
+                >
+                  {r._typed ? (
+                    <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
+                  ) : (
+                    <>
+                      <span className={styles.resultLogo}>
+                        {r.breadth
+                          ? <img src={uctMark} alt="" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
+                          : <CompanyLogo sym={r.ticker} name={r.name || r.ticker} size={26} round />}
+                      </span>
+                      <span className={styles.resultMain}>
+                        <span className={styles.resultSym}>{highlighted(r.ticker, query, styles)}</span>
+                        {r.name && <span className={styles.resultName}>{highlighted(r.name, query, styles)}</span>}
+                      </span>
+                      <span className={styles.resultRight}>
+                        {r.exchange && !r.breadth && !r.delisted && <span className={styles.resultExch}>{r.exchange}</span>}
+                        {r.delisted ? (
+                          <span className={`${styles.typeBadge} ${styles.badgeDelisted}`}>
+                            Delisted{r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''}
+                          </span>
+                        ) : r.breadth ? (
+                          <span className={`${styles.typeBadge} ${styles.badgeBreadth}`} title={r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator'}>BREADTH</span>
+                        ) : r.type ? (
+                          <span className={`${styles.typeBadge} ${styles['badge_' + r.type] || ''}`}>{TYPE_LABEL[r.type] || r.type}</span>
+                        ) : null}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ))}
+              {results.length === 0 && (
+                <div className={styles.resultEmpty}>
+                  {query.trim() && chip === 'all'
+                    ? <button className={styles.resultRow} onClick={() => submit(query)}><span className={styles.resultTyped}>Go to <strong>{query.trim().toUpperCase()}</strong></span></button>
+                    : 'No matches found'}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.dialogFoot}>
+              <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+              <span><kbd>↵</kbd> select</span>
+              <span><kbd>Tab</kbd> category</span>
+              <span><kbd>esc</kbd> close</span>
+            </div>
           </div>
         </div>,
         document.body,
