@@ -421,6 +421,27 @@ my changes, never WHY they fail. Finish the job.
 
 ---
 
+## Known follow-up, measured and NOT done here
+
+**`base_catalog.py` is 4,292 lines carrying 18 structure definitions.** It
+tripled during this build and the repo's own guidance prefers smaller focused
+files. It is not split here, deliberately: the remaining work is H1 (suite
+green) and H3 (merge), and a package-level refactor of the file every
+structure and every rail imports is exactly the change that turns a green
+branch red at the finish line.
+
+The seam is already established and should be followed when it is split: the
+cup's geometry lives in `pattern_engine/primitives/cup.py` while its
+PROVENANCE lives in the catalog. Extracting the remaining state functions the
+same way is the natural first cut (~800 lines), though the bulk is the
+criteria blocks -- and those are the product, not overhead. A split by house
+(`oneil.py`, `minervini.py`, ...) would cut deeper but reorganises the one
+file whose diff reviewers actually read.
+
+⚠️ Do NOT split it as a tidy-up alongside a behaviour change. Every structure's
+verdict is a published number now; a move that shuffles definitions and edits
+logic in the same commit makes any regression un-bisectable.
+
 ## Explicitly out of scope
 
 - **Re-enabling `PATTERN_VISION_ENABLED`.** The 640 confirmed verdicts remain
