@@ -1623,7 +1623,7 @@ CUP_WITH_HANDLE = Structure(
     axis="relation",
     family="Base Structure",
     bias="bullish",
-    rank=12,
+    rank=21,
     min_bars=cup.CUP_MIN_BARS + cup.HANDLE_MIN_BARS,
     desc=("A U-shaped consolidation after a prior advance whose right side "
           "returns near the old high, then pauses in a short handle that "
@@ -3360,6 +3360,239 @@ WYCKOFF_SPRING = Structure(
 )
 
 
+# -- The 3-C / Cup Completion Cheat (Mark Minervini) ------------------------
+# The best-sourced structure in the whole build: nine criteria at high
+# confidence with published numbers, including the ONLY explicit minimum base
+# duration Minervini publishes anywhere in the book. An early pivot formed
+# INSIDE a cup, before any handle -- "the earliest point at which you should
+# attempt to buy any stock".
+
+_MINERVINI_3C = "minervini_ttlac_3c"
+
+#: "the stock should have already moved up by at least 25 to 100 percent...
+#: during the previous 3 to 36 months of trading"
+CHEAT_PRIOR_ADVANCE = 0.25
+CHEAT_PRIOR_LOOKBACK = 250        # ~12 months, inside the published 3-36
+
+#: "The pattern can form in as few as 3 weeks to as many as 45 weeks"
+CHEAT_MIN_BARS = 15
+CHEAT_MAX_BARS = 225
+
+#: "The correction from peak to low point varies from 15 or 20 percent to 35
+#: or 40 percent in some cases, and as much as 50 percent" -- the widest
+#: published form is used, since the narrower one is a sub-range of it.
+CHEAT_MIN_DEPTH = 0.15
+CHEAT_MAX_DEPTH = 0.50
+
+#: "Corrections in excess of 60 percent are usually too deep and are extremely
+#: prone to failure." A separate DISQUALIFIER, not the band's ceiling.
+CHEAT_HARD_DEPTH = 0.60
+
+#: "form a plateau area (the cheat), which should be contained within 5 percent
+#: to 10 percent from high point to low point"
+CHEAT_PLATEAU_MAX_DEPTH = 0.10
+
+#: "usually recouping about one-third to one-half its previous decline"
+CHEAT_MIN_RECOVERY = 1.0 / 3.0
+CHEAT_MAX_RECOVERY = 0.50
+
+#: Ours: how long the plateau is measured over. The house says "a number of
+#: days or weeks" and gives no count.
+CHEAT_PLATEAU_BARS = 10
+
+#: "trading above its upwardly trending 200-day moving average"
+CHEAT_MA_BARS = 200
+
+
+def _sma(bars, n, end=None):
+    end = len(bars) if end is None else end
+    seg = [b.get("c") or 0 for b in bars[max(0, end - n):end]
+           if (b.get("c") or 0) > 0]
+    return (sum(seg) / len(seg)) if len(seg) >= n else None
+
+
+def cheat_3c_state(ctx) -> Optional[dict]:
+    """An early pivot inside a cup: the plateau after a partial right-side rally.
+
+    ⛔ THE RECOVERY BAND IS THE WHOLE POINT. A cheat is not "price is back near
+    the highs" -- it is a pause AFTER recouping only about a third to a half of
+    the decline. Price that has recovered most of the base is forming a handle
+    or is already extended, which is a different (and later) entry.
+    """
+    bars = ctx.bars
+    n = len(bars)
+    if n < CHEAT_MIN_BARS + 20:
+        return None
+
+    # ⛔ THE BASE'S TOP IS THE HIGHEST QUALIFYING SWING, NOT THE LAST ONE.
+    # Taking `highs[-1]` picked a minor swing high formed INSIDE the plateau
+    # itself, so the "base" was the last ten bars and its depth was 7% -- the
+    # structure measured the pause instead of the base the pause sits in.
+    cands = [h for h in ctx.highs
+             if CHEAT_MIN_BARS <= (n - 1) - h["bar_index"] <= CHEAT_MAX_BARS]
+    if not cands:
+        return None
+    top_sw = max(cands, key=lambda h: h["price"])
+    top, top_i = top_sw["price"], top_sw["bar_index"]
+    if top <= 0:
+        return None
+
+    after = bars[top_i:]
+    lows = [b.get("l") or 0 for b in after if (b.get("l") or 0) > 0]
+    if not lows:
+        return None
+    low = min(lows)
+    if low <= 0 or low >= top:
+        return None
+
+    depth = (top - low) / top
+    if depth >= CHEAT_HARD_DEPTH:
+        return None
+    if depth < CHEAT_MIN_DEPTH or depth > CHEAT_MAX_DEPTH:
+        return None
+
+    span = (n - 1) - top_i
+    if not (CHEAT_MIN_BARS <= span <= CHEAT_MAX_BARS):
+        return None
+
+    last = bars[-1].get("c") or 0
+    if last <= 0:
+        return None
+    recovery = (last - low) / (top - low)
+    if not (CHEAT_MIN_RECOVERY <= recovery <= CHEAT_MAX_RECOVERY):
+        return None
+
+    plate = bars[-CHEAT_PLATEAU_BARS:]
+    ph = max((b.get("h") or 0) for b in plate)
+    pl = min((b.get("l") or 0) for b in plate if (b.get("l") or 0) > 0)
+    if ph <= 0 or pl <= 0:
+        return None
+    plateau_depth = (ph - pl) / ph
+    if plateau_depth > CHEAT_PLATEAU_MAX_DEPTH:
+        return None
+
+    ma = _sma(bars, CHEAT_MA_BARS)
+    ma_prev = _sma(bars, CHEAT_MA_BARS, end=n - 20)
+    if ma is None or ma_prev is None:
+        return None
+    if last <= ma or ma <= ma_prev:
+        return None                       # must be above a RISING 200-day
+
+    adv = _prior_advance(bars, n - top_i, look=CHEAT_PRIOR_LOOKBACK)
+    if (adv or 0.0) < CHEAT_PRIOR_ADVANCE:
+        return None
+
+    return {"top": top, "low": low, "depth": depth, "bars": span,
+            "recovery": recovery, "plateau_depth": plateau_depth,
+            "prior_advance": adv, "pivot": ph}
+
+
+def _detect_cheat_3c(ctx) -> bool:
+    return cheat_3c_state(ctx) is not None
+
+
+CHEAT_3C = Structure(
+    key="cheat-3c",
+    label="Cheat (3-C)",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=12,
+    min_bars=CHEAT_MIN_BARS + 20,
+    desc=("A pause inside a cup after price has recouped only a third to a "
+          "half of its decline -- an early pivot before any handle forms."),
+    criteria=(
+        Criterion(
+            condition="Prior advance required",
+            value=CHEAT_PRIOR_ADVANCE,
+            quote=("To qualify, the stock should have already moved up by at "
+                   "least 25 to 100 percent-and in some cases by 200 or 300 "
+                   "percent-during the previous 3 to 36 months of trading."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="Trend gate -- above a RISING 200-day moving average",
+            value=CHEAT_MA_BARS,
+            quote=("The stock also should be trading above its upwardly "
+                   "trending 200-day moving average"),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition=("Pattern duration. ⭐ The ONLY explicit minimum base "
+                       "duration Minervini publishes anywhere in the book -- "
+                       "the VCP section publishes none, which is why the VCP "
+                       "entry records that as a refusal rather than borrowing "
+                       "this number."),
+            value=(CHEAT_MIN_BARS, CHEAT_MAX_BARS),
+            quote=("The pattern can form in as few as 3 weeks to as many as 45 "
+                   "weeks (most are 7 to 25 weeks in duration)."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="Pattern depth",
+            value=(CHEAT_MIN_DEPTH, CHEAT_MAX_DEPTH),
+            quote=("The correction from peak to low point varies from 15 or 20 "
+                   "percent to 35 or 40 percent in some cases, and as much as "
+                   "50 percent, depending on the general market conditions."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="Depth disqualifier, separate from the band",
+            value=CHEAT_HARD_DEPTH,
+            quote=("Corrections in excess of 60 percent are usually too deep "
+                   "and are extremely prone to failure."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="The plateau (the cheat itself), high to low",
+            value=CHEAT_PLATEAU_MAX_DEPTH,
+            quote=("The stock will pause over a number of days or weeks and "
+                   "form a plateau area (the cheat), which should be contained "
+                   "within 5 percent to 10 percent from high point to low "
+                   "point."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition=("Right-side rally BEFORE the pause. ⛔ This band is the "
+                       "whole point: a cheat is a pause after recouping only "
+                       "about a third to a half of the decline, not price back "
+                       "near its highs -- that is a handle, or extended."),
+            value=(CHEAT_MIN_RECOVERY, CHEAT_MAX_RECOVERY),
+            quote=("The price will start to run up the right side, usually "
+                   "recouping about one-third to one-half its previous "
+                   "decline."),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="Preferred shakeout -- the plateau drifting below a prior low",
+            value="shakeout-preferred",
+            quote=("The optimum situation is to have the cheat drift down to "
+                   "where the price drops below a prior low point, creating a "
+                   "shakeout"),
+            source_id=_MINERVINI_3C, confidence="high",
+        ),
+        Criterion(
+            condition="Volume dry-up and price tightness at the cheat",
+            value=None,
+            quote=("A valid cheat area should exhibit a contraction in volume "
+                   "and tightness in price."),
+            source_id=_MINERVINI_3C, confidence="high",
+            missing=("No volume ratio and no window for 'dries up "
+                     "dramatically'. The 5-10% plateau bound already enforces "
+                     "the price tightness half, so no invented volume "
+                     "threshold is added on top of it."),
+        ),
+        Criterion(
+            condition="Length of the plateau",
+            value=CHEAT_PLATEAU_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=2.2,
+    detect=_detect_cheat_3c,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -3407,7 +3640,8 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CLIMAX_TOP, CUP_WITH_HANDLE,
+RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CHEAT_3C, CLIMAX_TOP,
+             CUP_WITH_HANDLE,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
