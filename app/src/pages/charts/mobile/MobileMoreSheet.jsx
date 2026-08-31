@@ -19,6 +19,7 @@ export default function MobileMoreSheet({
   onOpenSettings,          // chart settings modal
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
+  onDrawOnChart,           // expands the collapsed drawing toolbar (row hidden when absent)
 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const flagged = isFlagged(sym)
@@ -31,6 +32,13 @@ export default function MobileMoreSheet({
           <span className={styles.rowLabel}>Set price alert…</span>
           <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
         </button>
+        {onDrawOnChart && (
+          <button type="button" className={styles.row} onClick={() => { onClose(); onDrawOnChart() }}>
+            <span className={styles.rowIcon}><UIcon name="edit" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Draw on chart</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
         <button
           type="button"
           className={styles.row}

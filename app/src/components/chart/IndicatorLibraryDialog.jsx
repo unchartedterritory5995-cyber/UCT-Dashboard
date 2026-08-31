@@ -96,6 +96,25 @@ export function isRowOn(row, settings) {
     : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
 }
 
+/** The settings blob after flipping one catalog row — the ONE write every
+ *  toggling surface shares (this dialog, the phone ƒx sheet's Studies
+ *  switches). Carved-out rows flip their settings slice; engine rows go
+ *  through `setIndicatorEnabled`. A refused engine write returns `settings`
+ *  BY IDENTITY so callers can skip persisting a no-op. */
+export function toggledRow(row, settings, registry) {
+  const on = isRowOn(row, settings)
+  if (row.carvedOut) {
+    return {
+      ...settings,
+      indicators: {
+        ...(settings?.indicators || {}),
+        [row.id]: { ...(settings?.indicators?.[row.id] || {}), enabled: !on },
+      },
+    }
+  }
+  return setIndicatorEnabled(settings, row.id, !on, registry)
+}
+
 // 🔴 …AND SINCE THIS FIX, THE MEMBER CAN AUTHOR ONE FROM HERE — `onCreateFormula`.
 // The criteria builder (Phase E, nine tasks: picker, plain-language door,
 // crossings, starter library) had EXACTLY ONE mount site, `ChartToolbar`'s
@@ -224,16 +243,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   }, [rows])
 
   const toggle = useCallback((row) => {
-    const on = isRowOn(row, settings)
-    const next = row.carvedOut
-      ? {
-          ...settings,
-          indicators: {
-            ...(settings?.indicators || {}),
-            [row.id]: { ...(settings?.indicators?.[row.id] || {}), enabled: !on },
-          },
-        }
-      : setIndicatorEnabled(settings, row.id, !on, registry)
+    const next = toggledRow(row, settings, registry)
     // Identity, not deep-equality: a REFUSED write returns `settings` itself and
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a

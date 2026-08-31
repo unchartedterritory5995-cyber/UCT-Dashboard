@@ -18,6 +18,7 @@ import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 import { forwardRef } from 'react'
 import MobileChartsApp, { chartWidgetIndex } from './MobileChartsApp'
+import { instanceTombstone } from '../../../components/chart/instanceShape'
 import { WorkspaceContext, WORKSPACE_FALLBACK } from '../WorkspaceContext'
 
 // The chart engine. The shell composes ChartPane directly; the props it passes
@@ -357,6 +358,56 @@ describe('Phase 8 — the feel layer wires', () => {
     const stored = { overlays: [{ enabled: true }, { enabled: true }, { enabled: false }, { enabled: false }] }
     renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
     expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('2')
+  })
+
+  test('…and library indicators count too (instance existence IS enabled)', () => {
+    const stored = {
+      // settingsVersion 2 = the instance model; an unstamped blob runs the
+      // legacy v1 fold, which rebuilds instances from `indicators` and drops
+      // these.
+      settingsVersion: 2,
+      overlays: [{ enabled: true }, { enabled: false }, { enabled: false }, { enabled: false }],
+      indicatorInstances: [{ id: 'i1', key: 'rsi' }, { id: 'i2', key: 'macd' }],
+    }
+    renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
+    expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('3')
+  })
+
+  test('wave 4: a TOMBSTONE is not an instance — a toggled-off study never badges', () => {
+    const stored = {
+      settingsVersion: 2,
+      overlays: [{ enabled: false }, { enabled: false }, { enabled: false }, { enabled: false }],
+      indicatorInstances: [
+        { instanceId: 'legacy:rsi', defId: 'rsi', inputs: {}, hidden: false },
+        // What setIndicatorEnabled(…, false) leaves behind — the off-marker,
+        // built by the real factory so the fixture can't drift from the shape.
+        instanceTombstone('legacy:macd'),
+      ],
+    }
+    renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
+    expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('1')
+  })
+
+  test('wave 4: a carved-out row (Volume Profile) draws with no instance — it badges off its settings slice', () => {
+    const stored = {
+      settingsVersion: 2,
+      overlays: [{ enabled: false }, { enabled: false }, { enabled: false }, { enabled: false }],
+      indicators: { volumeProfile: { enabled: true } },
+    }
+    renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
+    expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('1')
+  })
+
+  test('wave 4: More → Draw on chart exists and closes the sheet on tap', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /draw on chart/i }))
+    // The sheet closed; the expand itself rides toolbarApiRef into the real
+    // StockChart (mocked here) — the rig verifies the toolbar actually opens.
+    expect(screen.queryByRole('button', { name: /draw on chart/i })).toBeNull()
   })
 
   test('More → Share chart image exists and closes the sheet on tap', async () => {

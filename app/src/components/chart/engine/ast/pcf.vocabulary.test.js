@@ -401,6 +401,21 @@ describe('the family shape says what it does, and `fixed` has not shipped', () =
     expect(JSON.stringify(r.ast)).toContain('\"stoch\"')
   })
 
+  it('⛔ `wholeNumber` owns the smoothing FLOOR — not the dead arm beside it', () => {
+    // ⚰️ `fillParams` carries a `smoothBy < 1` refusal that cannot fire:
+    // `smoothBy` is either the literal 1 or a `wholeNumber` result, and
+    // `wholeNumber` already refuses anything below 1. The arm is kept as a
+    // defensive backstop, so this pins WHICH guard the member actually meets —
+    // if `wholeNumber` is ever loosened, that arm comes alive with a sentence
+    // nobody has read, and this case goes red first.
+    const zero = parsePcf('STOC14.0 < 20')
+    expect(zero.ok).toBe(false)
+    expect(zero.guard).toBe('pcf:window')
+    expect(String(zero.error)).toMatch(/gives 0 as its smoothing/)
+    // ⭐ AND THE FLOOR IS EXACTLY 1, not 'some positive number' — the control.
+    expect(parsePcf('STOC14.1 < 20').ok).toBe(true)
+  })
+
   it('⛔ `smoothParam` is the mechanism behind it, and STOC is its only user', () => {
     // Pins WHICH field does the work, so the docblock cannot drift back onto the
     // wrong one. If a second family takes it, this fails and the count is re-read.

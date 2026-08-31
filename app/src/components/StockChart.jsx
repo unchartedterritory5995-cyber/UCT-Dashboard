@@ -3651,9 +3651,14 @@ export default function StockChart({
           c.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png')
         } catch (err) { reject(err) }
       }),
+      // The phone shell starts the drawing toolbar collapsed (clean canvas);
+      // this is the discoverable door — Tools sheet "Draw on chart" expands it
+      // through the SAME persisting setter the chevron uses, so the choice
+      // sticks exactly as if the user had tapped the chevron.
+      expandDrawToolbar: () => { setToolbarCollapsedPersist(false); return true },
     }
     return () => { toolbarApiRef.current = null }
-  }, [toolbarApiRef])
+  }, [toolbarApiRef, setToolbarCollapsedPersist])
 
   // ── "Back to live" chip (showGoLive surfaces) ────────────────────────────
   // No state of its own: the pill renders off `lastBarOff` — the SAME
