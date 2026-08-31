@@ -177,6 +177,33 @@ def load_null_chunks(paths: str, key: str) -> list:
     return out
 
 
+def _note_stamp(row: dict) -> list:
+    return [row.get(f) for f in ("lift", "ci_low", "ci_high", "n", "null_max")]
+
+
+def _carry_note(prior: dict, row: dict) -> None:
+    """Carry a hand-written note forward ONLY while it still describes the row.
+
+    ⛔ The harness rewrites the numbers and cannot rewrite the prose, so a
+    note silently outlives the measurement it was written about -- that is how
+    `cup-with-handle` kept a note explaining why it sat "below its own null"
+    after a wider sample moved it from -7.18pp to -0.18pp. The note is stamped
+    with the row it describes; when the row moves, the note is DROPPED rather
+    than carried, because a missing explanation is recoverable and a wrong one
+    is not.
+    """
+    note = prior.get("note")
+    if not note:
+        return
+    if prior.get("note_measured") == _note_stamp(row):
+        row["note"] = note
+        row["note_measured"] = prior["note_measured"]
+    else:
+        row["note_dropped"] = (
+            "A note written for a previous measurement was dropped when this "
+            "row changed. Re-write it against the numbers above.")
+
+
 def _run_grouped(args, bars_by, wanted, existing) -> int:
     """Measure every requested structure, one pass per WINDOW group.
 
@@ -240,9 +267,7 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
                 row["null_trials"] = len(nl)
             if not verdict["published"]:
                 row["reasons"] = verdict.get("reasons", [])
-            prior = structures.get(st.key) or {}
-            if prior.get("note"):
-                row["note"] = prior["note"]
+            _carry_note(structures.get(st.key) or {}, row)
             structures[st.key] = row
             measured.append(st.key)
 
@@ -396,9 +421,7 @@ def main() -> int:
             row["reasons"] = verdict.get("reasons", [])
         # ⛔ Keep any hand-written `note` — the artifact's prose records WHY a
         # verdict landed where it did, and a re-run must not silently erase it.
-        prior = structures.get(s.key) or {}
-        if prior.get("note"):
-            row["note"] = prior["note"]
+        _carry_note(structures.get(s.key) or {}, row)
         structures[s.key] = row
         measured.append(s.key)
 

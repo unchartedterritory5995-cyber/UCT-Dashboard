@@ -695,3 +695,43 @@ def test_one_failing_detector_does_not_poison_its_neighbours():
     assert not got["ok"].get("refused"), (
         "the healthy detector was refused because its neighbour raised")
     assert (got["ok"]["n"] or 0) > 0
+
+
+def test_a_note_is_STAMPED_with_the_measurement_it_describes():
+    """⛔⛔ A STALE NOTE IS A FALSE CLAIM WITH A CITATION ATTACHED.
+
+    The harness rewrites the ROWS; the notes are prose and are carried forward
+    untouched, so a re-measurement silently leaves every note behind. Not
+    hypothetical: after the full-universe run `cup-with-handle` moved from
+    -7.18pp to -0.18pp while its note still explained why it sat "below its own
+    null" -- a sentence that had been true of a different measurement and now
+    described nothing.
+
+    ⭐ CHECKING THE FIGURES A NOTE CITES IS THE WRONG TEST, and the first
+    version of this rail tried it: it immediately flagged the Darvas note for
+    quoting its null distribution's MINIMUM (-2.06pp), a real number the row
+    does not store. Legitimate prose talks about more than the row's fields.
+
+    So the knowing side STAMPS its answer instead: a note carries
+    `note_measured`, the row's numbers at the time it was written. If the row
+    has moved, the note is stale by construction -- whatever it happens to say.
+    """
+    entries = (ll.load().get("structures") or {})
+    assert entries, "no rows -- this rail would pass vacuously"
+
+    stamped = 0
+    for key, e in entries.items():
+        if not e.get("note"):
+            continue
+        stamp = e.get("note_measured")
+        assert stamp is not None, (
+            "%s carries a note with no `note_measured` stamp, so nothing can "
+            "tell whether it still describes this row" % key)
+        current = [e.get(f) for f in ("lift", "ci_low", "ci_high", "n",
+                                      "null_max")]
+        assert list(stamp) == current, (
+            "%s: the note was written for %r and the row now reads %r -- "
+            "re-measurement left the prose behind" % (key, list(stamp), current))
+        stamped += 1
+
+    assert stamped > 0, "no notes are stamped -- this rail would pass vacuously"
