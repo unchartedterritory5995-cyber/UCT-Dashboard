@@ -4209,6 +4209,188 @@ def _uct(condition: str, value: object) -> Criterion:
 
 _SHAPE_MIN_BARS = 60
 
+# ---------------------------------------------------------------------------
+# EMA Crossback (OURS -- Oliver Kell's re-entry, as WE write it)
+#
+# ⭐@@STAR@ THE FIRST STRUCTURE IN THIS LIBRARY THAT IS OURS END TO END, and the
+# provenance grammar has to carry that honestly. Every criterion below is
+# `origin="uct"`: the 15-source corpus assembled specifically to find this
+# material contains NO Kell, so there is no published sentence to quote and no
+# published number to cite. What we do have is our OWN written playbook
+# (`app/src/pages/modelbook/setupPlaybooks.js`), and these criteria are read
+# from it rather than invented here -- which is why the two refusals at the end
+# matter more than usual.
+#
+# ⛔ THE `structure_origin` BADGE IS WHAT MAKES THIS SHIPPABLE. Without a
+# structure-level "ours, not a published pattern" label, this would render
+# beside Darvas Box and the O'Neil bases as though a house had published it.
+# It does not, and the panel says so.
+#
+# ⛔ AND THE RECLAIM MUST HAVE HAPPENED. Our own playbook names the mistake:
+# "anticipating the reclaim before price actually crosses back above the
+# averages." So the predicate requires price ABOVE both averages NOW, having
+# been below the 9 within the window -- never "approaching" them.
+
+CB_EXTENSION = 0.60      # ours -- swept; see the criterion
+CB_WINDOW = 30           # ours -- how far back the crossback may have begun
+CB_RECLAIM_BARS = 5      # ours -- the reclaim must be RECENT
+CB_FAST, CB_SLOW = 9, 20  # ours-by-selection: the playbook names the 9/20 pair
+
+
+def _ema_series(bars, n):
+    """EMA at every index; None until there are `n` usable closes.
+
+    ⛔ A SERIES, not a single value, because three of the criteria below are
+    about CROSSINGS -- and a crossing cannot be tested from one endpoint.
+    """
+    out, e, k, seed = [], None, 2.0 / (n + 1), []
+    for b in bars:
+        c = b.get("c") or 0
+        if c <= 0:
+            out.append(e)
+            continue
+        if e is None:
+            seed.append(c)
+            if len(seed) == n:
+                e = sum(seed) / n
+        else:
+            e = c * k + e * (1 - k)
+        out.append(e)
+    return out
+
+
+def ema_crossback_state(bars) -> Optional[dict]:
+    """Price left the 9/20 pair, the 9 crossed the 20, and price RECLAIMED both."""
+    n = len(bars)
+    if n < 120:
+        return None
+    fast, slow = _ema_series(bars, CB_FAST), _ema_series(bars, CB_SLOW)
+    if not fast[-1] or not slow[-1]:
+        return None
+
+    close = bars[-1].get("c") or 0
+    if close <= 0 or close <= fast[-1] or close <= slow[-1]:
+        return None                      # not reclaimed -- see the header note
+
+    lo = max(0, n - 1 - CB_WINDOW)
+    if not any((bars[i].get("c") or 0) < (fast[i] or 0)
+               for i in range(lo, n - 1) if fast[i]):
+        return None                      # it never crossed back down at all
+
+    below = [i for i in range(max(0, n - 1 - CB_RECLAIM_BARS), n)
+             if fast[i] and (bars[i].get("c") or 0) < fast[i]]
+    if not below:
+        return None                      # the reclaim is old news
+
+    crossed = any(
+        fast[i] and slow[i] and fast[i - 1] and slow[i - 1]
+        and fast[i - 1] <= slow[i - 1] and fast[i] > slow[i]
+        for i in range(lo, n))
+    if not crossed:
+        return None
+
+    pre = bars[max(0, lo - 120):lo]
+    lows = [b.get("l") or 0 for b in pre if (b.get("l") or 0) > 0]
+    if not lows:
+        return None
+    peak = max((b.get("h") or 0) for b in pre)
+    trough = min(lows)
+    if peak <= 0 or trough <= 0:
+        return None
+    advance = (peak - trough) / trough
+    if advance < CB_EXTENSION:
+        return None
+
+    return {"advance": advance, "reclaim_bars_ago": (n - 1) - max(below),
+            "fast": fast[-1], "slow": slow[-1]}
+
+
+def _detect_ema_crossback(ctx) -> bool:
+    return ema_crossback_state(ctx.bars) is not None
+
+
+EMA_CROSSBACK = Structure(
+    key="ema-crossback",
+    label="EMA Crossback",
+    axis="relation",
+    family="Momentum & Trend",
+    bias="bullish",
+    rank=62,
+    min_bars=120,
+    desc=("An extended stock pulls back through the 9- and 20-day EMAs, the 9 "
+          "crosses the 20, and price then reclaims both -- a re-entry into a "
+          "trend that is already running. Ours, not a published pattern."),
+    criteria=(
+        Criterion(
+            condition=("Prior advance before the pullback -- the setup is a "
+                       "RE-ENTRY, so there must be a trend to re-enter"),
+            value=CB_EXTENSION, origin="uct", confidence="med",
+            quote=None, source_id=None,
+        ),
+        Criterion(
+            condition=("Price crosses back down through the fast EMA, then "
+                       "closes above BOTH averages. Ours: the reclaim must "
+                       "have HAPPENED -- our own playbook names anticipating "
+                       "it as the mistake"),
+            value="reclaim-both", origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="The fast EMA crosses the slow EMA within the window",
+            value=(CB_FAST, CB_SLOW), origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("How far back the crossback may have begun (trading "
+                       "days), and how recent the reclaim must be"),
+            value=(CB_WINDOW, CB_RECLAIM_BARS), origin="uct", confidence="low",
+        ),
+        # ⛔ THESE TWO ARE REFUSALS, NOT "ours" -- and the distinction is a
+        # rail, not a nicety. Both originally carried `origin="uct"` ALONGSIDE
+        # `value=None` + `missing`, which put them in two provenance states at
+        # once; `test_every_criterion_has_exactly_one_provenance_state` caught
+        # it on the first run. A refusal is a refusal whoever is declining, and
+        # the structure still reads as ours because `structure_origin` keys on
+        # `source_id`, which no criterion here carries.
+        Criterion(
+            condition=("⛔ THE SHORT LEG IS NOT IMPLEMENTED. Our playbook "
+                       "trades this both ways -- the short is price rallying "
+                       "into the UNDERSIDE of the averages 'or VWAP' and "
+                       "printing a rejection"),
+            value=None,
+            missing=("VWAP is an intraday measure and 'a rejection' is a "
+                     "same-session judgement; neither is expressible on a "
+                     "completed daily bar. Shipping the long leg alone is a "
+                     "SUBSET of our own setup, and this says so rather than "
+                     "approximating the short with a daily proxy."),
+            confidence="high",
+        ),
+        Criterion(
+            condition=("⛔@@STOP@ NO PRIMARY SOURCE EXISTS FOR ANY NUMBER HERE"),
+            value=None,
+            missing=("The 15-source research corpus contains no Kell material "
+                     "at all, so there is no published sentence to quote and "
+                     "no published threshold to cite. Every value above is "
+                     "OURS: the 60% prior advance, the 30-bar window and the "
+                     "5-bar reclaim recency were SWEPT on the real universe "
+                     "(837 tickers, 2026-08-31), not chosen by eye -- 40% "
+                     "extension fires on 10.75%, 60% on 7.53%, 80% on 4.54%, "
+                     "and dropping the 9/20 cross entirely widens 40% from "
+                     "10.75% to 16.61%, which is how that criterion was shown "
+                     "to be load-bearing. 60% was taken because it puts the "
+                     "structure in line with the measured relations beside it "
+                     "(stage-4 7.8%, double-bottom 7.1%) rather than because "
+                     "any authority published it."),
+            confidence="high",
+        ),
+    ),
+    detect=_detect_ema_crossback,
+    # Measured through the SHIPPED path (`bases.classify`, not the predicate in
+    # isolation): 201 of 2,811 tickers on 2026-08-31. The 837-ticker prototype
+    # sweep said 7.53%; the full universe says 7.15%, and the full one is what
+    # is recorded.
+    coverage_pct=7.2,
+)
+
+
 SHAPES = [
     Structure(
         key="advancing-structure", label="Advancing Structure", axis="shape",
@@ -4251,7 +4433,8 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             SAUCER, VCP, WYCKOFF_SPRING]
+             SAUCER, VCP, WYCKOFF_SPRING,
+             EMA_CROSSBACK]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
