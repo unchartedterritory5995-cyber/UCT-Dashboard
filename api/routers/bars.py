@@ -547,21 +547,34 @@ def get_bars_history(
             "note": "history endpoint serves D/W/M only in v1 — use /api/bars for intraday",
         }))
 
-    # Reuse the ENTIRE live serve path (intercepts + crash handling) to get full bars.
-    inner = get_bars(ticker, tf=tfu, bars=bars)
-    if getattr(inner, "status_code", 200) != 200:
-        return _no_store(inner)     # never cache a 503/transient/no-data
+    # 🔴 READ-ONLY — serve only what is ALREADY STORED; NEVER trigger a provider fetch/write.
+    # Requesting deep history through the live serve path (get_bars) kicks a deep backfill
+    # WRITE per symbol; a global pre-warm sweep of that would storm the single memory-tight
+    # pod into an OOM mid-write → SQLite corruption (the 2026-08-31 incident). The WORKER
+    # warms the deep D/W/M history into bars.db on its own volume; this endpoint only reads
+    # it and lets Cloudflare cache it. An un-warmed symbol serves whatever depth is stored
+    # (the client's live /api/bars tail still covers the recent range) — never a fetch.
+    sym = (ticker or "").strip().upper()
     try:
-        payload = _orjson.loads(inner.body)
-        all_bars = payload.get("bars") or []
+        from api.services import breadth_symbols as _bsym
+        if _bsym.is_breadth_symbol(sym):
+            all_bars = (_bsym.build_breadth_bars(sym, tfu, bars) or {}).get("bars") or []  # cache-first, no provider
+        elif is_index(sym):
+            # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
+            return _no_store(JSONResponse(content={
+                "ticker": sym, "tf": tfu, "bars": [], "sealed": False,
+                "note": "index history not served by /api/bars-history",
+            }))
+        else:
+            rows = _bars_fetch._sqlite.get_bars(sym, tfu, bars)   # PURE read — no fetch, no write
+            all_bars = _fmt_sqlite_bars(rows, tfu, sym) if rows else []
     except Exception:
-        return _no_store(inner)
+        return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": [], "sealed": False}))
 
     # Only date-string series (stocks/ETFs/breadth D/W/M) get the date-based sealed cut.
-    # Unix-ts series (cash-settled indexes) are already instant from a warm disk cache and
-    # aren't handled by v1 — serve them uncacheable rather than mis-slice them.
+    # A non-iso last bar (or nothing stored) serves uncacheable rather than mis-slice.
     if all_bars and not _is_iso_date(all_bars[-1].get("t")):
-        return _no_store(inner)
+        return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": all_bars, "sealed": False}))
 
     cutoff = _period_start_iso(tfu)
     sealed = [b for b in all_bars if _is_iso_date(b.get("t")) and b["t"] < cutoff]
@@ -569,7 +582,7 @@ def get_bars_history(
     version = f"{_HISTORY_LOGIC_VERSION}.{last_sealed}"
 
     out = JSONResponse(content={
-        "ticker": payload.get("ticker", (ticker or "").upper()),
+        "ticker": sym,
         "tf": tfu, "bars": sealed, "sealed": True,
         "version": version, "last_sealed": last_sealed, "count": len(sealed),
     })
@@ -588,9 +601,7 @@ def get_bars_history(
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
-    st = inner.headers.get("Server-Timing")
-    if st:
-        out.headers["Server-Timing"] = st
+    out.headers["Server-Timing"] = f'bars;desc="history-read";dur={len(sealed)}'
     return out
 
 
