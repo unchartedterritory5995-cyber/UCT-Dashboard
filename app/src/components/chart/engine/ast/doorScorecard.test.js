@@ -276,7 +276,20 @@ describe('the measurement is real before any number is read off it', () => {
     // TO UNBLOCK — "the refusal must say what DIFFERS, not that work is pending" —
     // because the millisecond-versus-second gap is permanent. A refusal that
     // states an unfixable difference IS actionable: it tells a member to stop.
-    const ACTIONABLE = /TO UNBLOCK|would change this answer|write if IsNaN|arrives with|not yet fold|no session to be inside|MILLISECONDS|NOT THE SAME REQUEST|is NOT what stops it/i
+    //
+    // ⭐ A SECOND OF THAT KIND JOINED 2026-08-31: `a node this engine does not have`.
+    // `thinkscript:aggregation` used to say "this door does not yet fold …" to
+    // every case that reached it, and `not yet fold` is why this rail was green.
+    // That sentence is TRUE of a period that reduces to no constant and FALSE of
+    // `AggregationPeriod.DAY` and of every intraday value, which need a node the
+    // vocabulary does not contain — so the rail was being satisfied by the very
+    // wording that misled the member.
+    // ⛔ AND THE OBVIOUS UNBLOCK FOR DAY IS FORBIDDEN, deliberately: "drop the
+    // `period` argument" is right in the scan lane and silently wrong on a chart
+    // (`thinkscript.aggregation.test.js` header, and a rail there now asserts the
+    // sentence does NOT say it). A dead end stated plainly beats a rewrite that
+    // is correct where the member tested it and wrong where they look at it.
+    const ACTIONABLE = /TO UNBLOCK|would change this answer|write if IsNaN|arrives with|not yet fold|no session to be inside|MILLISECONDS|NOT THE SAME REQUEST|is NOT what stops it|a node this engine does not have/i
     const silent = []
     for (const [d, dir, ext, translate] of [
       ['Pine', 'tests/fixtures/pine', '.pine', translatePine],

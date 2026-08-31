@@ -81,6 +81,83 @@ describe('another timeframe inside one column', () => {
     expect(out.refusal).toBeTruthy()
   })
 
+  // ─── and the refusal SENTENCE, not just the guard ───────────────────────
+  //
+  // ⚰️ THE THREE REFUSAL CASES ABOVE ALL PASSED WHILE SHARING ONE FALSE SENTENCE.
+  // `REFUSALS['thinkscript:aggregation']` read "what is missing is this
+  // translation" — true of the computed period, false of DAY and of every
+  // intraday value, which need a NODE this engine does not have. Asserting only
+  // `guard` cannot see that, and a member reading "the translation is missing"
+  // waits for work that would not help them
+  // (`lesson_rail_the_sentence_not_just_the_guard`).
+
+  it('⛔⛔ DAY is refused as an ABSOLUTE period, never as a missing fold', () => {
+    const out = translateThinkScript('plot p = close(period = AggregationPeriod.DAY);\n')
+    const msg = String(out.refusal.message)
+    expect(msg).toMatch(/ABSOLUTELY/)
+    expect(msg).toMatch(/resamples only UPWARD/i)
+    expect(msg).not.toMatch(/what is missing is this translation/i)
+    expect(msg).not.toMatch(/missing is folding this argument/i)
+    // ⛔⛔ AND IT MUST OFFER NO REWRITE. The obvious one — drop the `period`
+    // argument — is exactly what this file's header rules out: right in the scan
+    // lane, silently wrong on a chart. A definition is SAVED and can be charted,
+    // so that advice would be correct where the member tested it and wrong where
+    // they look at it. This is the rail on that judgement, the same shape as the
+    // one guarding the `time` ms-vs-seconds refusal.
+    expect(msg).not.toMatch(/TO UNBLOCK/)
+  })
+
+  it('⛔ an intraday period is refused as FINER than the base, and offers nothing', () => {
+    const msg = String(translateThinkScript(
+      'plot p = close(period = AggregationPeriod.FOUR_HOURS);\n').refusal.message)
+    expect(msg).toMatch(/FINER/)
+    expect(msg).toMatch(/cannot be resampled down/i)
+    expect(msg).not.toMatch(/what is missing is this translation/i)
+    expect(msg).not.toMatch(/TO UNBLOCK/)
+  })
+
+  it('⭐ a COMPUTED period still says the fold is missing — the one case where it is TRUE', () => {
+    const msg = String(translateThinkScript(
+      'def a = if close > open then AggregationPeriod.WEEK else AggregationPeriod.MONTH;\n'
+      + 'plot p = close(period = a);\n').refusal.message)
+    expect(msg).toMatch(/missing is folding this argument/i)
+  })
+
+  it('⛔⛔ the three refusals are genuinely DIFFERENT SENTENCES', () => {
+    // A split that produced one sentence three times passes every case above and
+    // changes nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    const m = (src) => String(translateThinkScript(src).refusal.message)
+    const day = m('plot p = close(period = AggregationPeriod.DAY);\n')
+    const intra = m('plot p = close(period = AggregationPeriod.FOUR_HOURS);\n')
+    const computed = m('def a = if close > open then AggregationPeriod.WEEK else AggregationPeriod.MONTH;\n'
+      + 'plot p = close(period = a);\n')
+    expect(new Set([day, intra, computed]).size).toBe(3)
+    expect(day).toContain('AggregationPeriod.DAY')
+    expect(intra).toContain('AggregationPeriod.FOUR_HOURS')
+  })
+
+  it('⛔⛔ the REAL published script gets the specific sentence, not the generic one', () => {
+    // ⚰️⚰️ THE HAND-WRITTEN CASES ABOVE CANNOT SEE THIS ONE. `aggregationNameOf`
+    // follows a binding to an input default, and a mutation disabling that walk
+    // left every snippet in this file GREEN — so I removed it as dead code.
+    // `22-average-daily-range-zones.ts` fell straight through to the generic
+    // sentence and the corpus rail named it.
+    // ⛔ THE TWO SPELLINGS LOOK THE SAME AND ARE NOT: a snippet writing
+    // `close(period = p)` resolves upstream, while 22 writes
+    // `open(period = aggregationPeriod)` and shadows `open`/`high`/`low` with
+    // `def`s of those names, so the argument arrives as a NAME. A probe that
+    // cannot reach a branch is not evidence about that branch.
+    const fs = require('node:fs')
+    const path = require('node:path')
+    const src = fs.readFileSync(path.resolve(process.cwd(),
+      '../tests/fixtures/thinkscript/22-average-daily-range-zones.ts'), 'utf8')
+    expect(src).toMatch(/input\s+aggregationPeriod\s*=\s*AggregationPeriod\.DAY/)
+    expect(src).toMatch(/period\s*=\s*aggregationPeriod/)
+    const out = translateThinkScript(src)
+    expect(out.refusal.guard).toBe('thinkscript:aggregation')
+    expect(String(out.refusal.message)).toMatch(/ABSOLUTELY/)
+  })
+
   it('⭐ it composes — a weekly ratio is one column', () => {
     expect(only(translateThinkScript(
       'plot rs = close / close(period = AggregationPeriod.WEEK);\n')).ast).toEqual({
