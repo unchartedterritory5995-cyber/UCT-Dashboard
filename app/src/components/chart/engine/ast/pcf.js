@@ -997,6 +997,18 @@ function readFused(table, token, letters, nodeTypes) {
         smoothBy = got.value === null
           ? 1
           : wholeNumber(got.value, param, got.index, token.text)
+        // ⚰️ UNREACHABLE BY CONSTRUCTION, AND KEPT — the same call `conditionFrom`
+        // makes about its own last branch. `smoothBy` is either the literal 1 or
+        // whatever `wholeNumber` returned, and `wholeNumber` refuses anything that
+        // is not an integer >= 1 before it can get here. So this arm cannot fire
+        // today, and its sentence has never been read by a member.
+        // ⭐ WHAT THEY READ INSTEAD IS BETTER, MEASURED: `STOC14.0` refuses
+        // `pcf:window` with "a TC2000 period must be a whole number written into
+        // the formula — `STOC14.0` gives 0 as its smoothing", which names the value
+        // AND the parameter. `wholeNumber` owns the floor, and
+        // `pcf.vocabulary.test.js` pins that ownership so a future loosening there
+        // shows up as a guard change rather than as this arm quietly coming alive
+        // with a sentence nobody has checked.
         if (smoothBy < 1) {
           refuse('pcf:parameter',
             `\`${token.text}\` smooths over ${smoothBy} bars, and a smoothing period starts at 1`,
