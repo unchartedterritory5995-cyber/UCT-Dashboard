@@ -80,6 +80,13 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     return () => document.documentElement.removeAttribute('data-mobile-chart-shell')
   }, [])
 
+  // The pickers portal to <body>, OUTSIDE the shell's [data-charts-theme]
+  // token subtree — on Sunrise that left hard-dark sheets over a light chart.
+  // `.uctSunSheet` (a GLOBAL class — Sheet's className lands on the panel) is
+  // a second selector on the workspace's own sunrise token block, so the
+  // sheets flip with the exact palette the strip/toolbar use.
+  const sheetTheme = chartsTheme === 'sunrise' ? 'uctSunSheet' : ''
+
   const chartIdx = chartWidgetIndex(widgets)
   const chartWidget = chartIdx >= 0 ? widgets[chartIdx] : null
   const otherWidgets = useMemo(() => (widgets || []).filter((w) => w.type !== 'chart'), [widgets])
@@ -365,19 +372,21 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         </div>
       )}
 
-      <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} />
+      <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} className={sheetTheme} />
       <MobileTfSheet
         open={sheet === 'tf'}
         onClose={closeSheet}
         tf={tf}
         onTf={handleTf}
         customTfs={Array.isArray(cs?.header?.customTimeframes) ? cs.header.customTimeframes : []}
+        className={sheetTheme}
       />
       <MobileChartTypeSheet
         open={sheet === 'type'}
         onClose={closeSheet}
         chartType={cs?.chartType || 'candles'}
         onPick={(t) => write({ ...cs, chartType: t, preset: 'custom' })}
+        className={sheetTheme}
       />
       <MobileIndicatorSheet
         open={sheet === 'indicators'}
@@ -386,8 +395,9 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onWrite={write}
         onBrowseLibrary={browseLibrary}
         onOpenSettings={openSettings}
+        className={sheetTheme}
       />
-      <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} />
+      <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} className={sheetTheme} />
       <MobileMoreSheet
         open={sheet === 'more'}
         onClose={closeSheet}
@@ -399,6 +409,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
         onDrawOnChart={drawOnChart}
+        className={sheetTheme}
       />
     </div>
   )

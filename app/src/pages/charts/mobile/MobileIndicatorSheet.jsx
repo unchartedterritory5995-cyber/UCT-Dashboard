@@ -25,7 +25,7 @@ import styles from './MobileCharts.module.css'
  * study the sheet hides would read as a badge counting ghosts. */
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
-export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings }) {
+export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '' }) {
   const overlays = Array.isArray(cs?.overlays) ? cs.overlays : []
 
   const toggle = (idx) => {
@@ -60,7 +60,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   }
 
   return (
-    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators">
+    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators" className={className}>
       <div className={styles.sheetList}>
         <div className={styles.sectionLabel}>Moving averages</div>
         {overlays.map((o, i) => (

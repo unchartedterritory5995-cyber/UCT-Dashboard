@@ -1044,8 +1044,17 @@
    The chart CANVAS gets a light sky-gradient via StockChart's canvasTheme; here we
    flip the workspace chrome + every variable-driven widget (panels, headers, text,
    borders) to a light palette so they read correctly on the bright look. Iteration 1:
-   widget internals that hardcode dark colors still need per-widget passes. */
-:global([data-charts-theme='sunrise']) {
+   widget internals that hardcode dark colors still need per-widget passes.
+
+   `.uctSunSheet` is the SAME palette for the phone shell's bottom sheets: the
+   mobile Sheet portals to <body>, OUTSIDE this [data-charts-theme] subtree, so
+   on Sunrise the light strip/toolbar/chart were getting hard-dark pickers.
+   MobileChartsApp stamps the class on each sheet's panel (Sheet's `className`
+   lands there), and since Sheet + every sheet-content style is token-driven,
+   redefining the tokens IS the whole theme. One block, two doors — extend the
+   palette here and both surfaces move together. */
+:global([data-charts-theme='sunrise']),
+:global(.uctSunSheet) {
   --bg: #d7e6f2;
   --bg-surface: #e8eff5;
   --bg-elevated: #f2f6fa;
@@ -1055,6 +1064,14 @@
   --text-bright: #0a141e;
   --text-heading: #16212e;   /* was light cream — used by widget headings/quarter labels/company names */
   --text-muted: #3e4a58;   /* darker so labels (tf buttons, meta, headers) read on white */
+  /* ⚠️ --text-dim is a ROOT-level alias of --text-muted (tokens.css), so its
+     var() resolved at :root against the LIGHT muted — redefining --text-muted
+     here never reached it. Every dim label (sheet section headers, row
+     chevrons, "· intraday") stayed washed-out on the bright look until this
+     explicit override. Same story for the cream accent; value matches the
+     app light-mode dark cream in tokens.css. */
+  --text-dim: #55606e;
+  --ut-cream: #4a4130;
   /* Darker gold + the SAME very-dark green/red as the candles + volume, so every
      accent (tickers, %s, labels) matches and reads on the bright canvas. */
   --ut-gold: #7a5c16;

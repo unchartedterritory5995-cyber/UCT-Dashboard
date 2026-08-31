@@ -520,3 +520,34 @@ drawing → context bottom-sheet with Delete Drawing; eraser tool in the
 drawbar) — recorded so nobody adds a redundant path. A full VoiceOver run
 still needs a physical device (user-owned), as does the $IDX theme-index
 tap on production.
+
+## Wave 5 — Sunrise sheets + small-screen verification
+
+Two dimensions no crawl had covered:
+
+- **iPhone SE (375×667), both orientations**: the ƒx sheet grew ~8 rows in
+  wave 4 — verified the bottom-sheet scrolls and the last row ("All chart
+  settings…", 48px) stays reachable and tappable in portrait AND landscape.
+  No fix needed; recorded.
+- **Sunrise (light) theme — a real find**: the shell (strip · chart ·
+  toolbar) follows `[data-charts-theme]` via CSS tokens, but the Sheet
+  PORTALS to `<body>`, outside that subtree — so Sunrise shipped hard-dark
+  pickers over a light canvas. Fix follows the grain: `.uctSunSheet` is a
+  SECOND SELECTOR on the workspace's existing sunrise token block (one
+  palette, one file), stamped on each sheet panel through Sheet's
+  `className`; since Sheet + all sheet content styles are token-driven,
+  redefining the tokens IS the theme. Zero effect on the dark default.
+  - ⚠️ Root-cause nuance worth keeping: `--text-dim` is a ROOT-level alias
+    of `--text-muted` (tokens.css), so its `var()` resolves at `:root` and a
+    scoped `--text-muted` override never reaches it — dim labels stayed
+    washed-out on Sunrise (sheets AND workspace) until the block gained
+    explicit `--text-dim`/`--ut-cream` overrides.
+  - **Gate 6 added to `iphone_walk.py`**: flip the pref, open ƒx, assert
+    the panel's computed background is LIGHT (avg rgb > 140; dark is ~10),
+    restore the pref. A portal escaping a theme scope is a silent-regression
+    class; only a themed walk sees it.
+
+Also this wave, from the ship itself: master's `CACHE_LOGIC_VERSION` 6→7
+bump broke the walk's IDB seeds (hand-typed `v: 6`) — the walk now derives
+the constant from `barsIDB.js` at import, refusing loudly when unparseable
+(the same interpolation `api/main.py`'s startup fingerprint uses).

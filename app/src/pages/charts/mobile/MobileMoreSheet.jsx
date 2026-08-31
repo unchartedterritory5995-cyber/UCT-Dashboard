@@ -20,12 +20,13 @@ export default function MobileMoreSheet({
   onSetAlert,              // opens the price-alert sheet
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
   onDrawOnChart,           // expands the collapsed drawing toolbar (row hidden when absent)
+  className = '',
 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const flagged = isFlagged(sym)
 
   return (
-    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Tools" ariaLabel="Chart tools">
+    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Tools" ariaLabel="Chart tools" className={className}>
       <div className={styles.sheetList}>
         <button type="button" className={styles.row} onClick={() => { onClose(); onSetAlert?.() }}>
           <span className={styles.rowIcon}><UIcon name="bell" size={17} gold={false} /></span>

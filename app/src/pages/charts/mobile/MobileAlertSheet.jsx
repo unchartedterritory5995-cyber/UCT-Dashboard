@@ -15,9 +15,9 @@ import styles from './MobileCharts.module.css'
  * State lives in AlertBody, which the Sheet unmounts on close — every open
  * re-seeds from the CURRENT live price with no reset effects.
  */
-export default function MobileAlertSheet({ open, onClose, sym }) {
+export default function MobileAlertSheet({ open, onClose, sym, className = '' }) {
   return (
-    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={`Alert — ${sym}`} ariaLabel="Set price alert">
+    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={`Alert — ${sym}`} ariaLabel="Set price alert" className={className}>
       <AlertBody sym={sym} onClose={onClose} />
     </Sheet>
   )

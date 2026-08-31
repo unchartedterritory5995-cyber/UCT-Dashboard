@@ -75,9 +75,9 @@ export const CHART_TYPES = [
   { key: 'area', name: 'Area', Glyph: GlyphArea },
 ]
 
-export default function MobileChartTypeSheet({ open, onClose, chartType, onPick }) {
+export default function MobileChartTypeSheet({ open, onClose, chartType, onPick, className = '' }) {
   return (
-    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Chart type" ariaLabel="Chart type picker">
+    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Chart type" ariaLabel="Chart type picker" className={className}>
       <div className={styles.typeGrid} role="listbox" aria-label="Chart types">
         {CHART_TYPES.map((t) => (
           <button

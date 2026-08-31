@@ -19,9 +19,9 @@ const TICKERISH = /^[A-Z][A-Z0-9.-]{0,9}$/
  * All search state lives in SearchBody, which the Sheet unmounts on close —
  * every open starts from a fresh query with no reset effects.
  */
-export default function MobileSymbolSheet({ open, onClose, onPick }) {
+export default function MobileSymbolSheet({ open, onClose, onPick, className = '' }) {
   return (
-    <Sheet open={open} onClose={onClose} variant="fullscreen" ariaLabel="Symbol search" className={styles.searchPanel}>
+    <Sheet open={open} onClose={onClose} variant="fullscreen" ariaLabel="Symbol search" className={`${styles.searchPanel} ${className}`}>
       <SearchBody onClose={onClose} onPick={onPick} />
     </Sheet>
   )
