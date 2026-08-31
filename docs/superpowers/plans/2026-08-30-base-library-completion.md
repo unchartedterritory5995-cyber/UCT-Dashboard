@@ -263,14 +263,47 @@ refused). No structure ships on the strength of its geometry alone.
       on Base are in; **Double Bottom** is in; Saucer with Handle, Ascending
       Base and High Tight Flag remain. That is a better use of the same effort
       than four detectors with nothing behind them.
-- [ ] **E4** Momentum continuation (7): Low-Cheat · Go Signal · HVC · Launchpad ·
-      Wedge Pop · Measured Move · Oops Reversal.
-- [ ] **E5** Short setups (3): 7-Week Short Rule · Late-Stage Climax ·
-      Short Squeeze.
-- [ ] **E6** Gap & catalyst (4) with the §6.1 intraday decomposition:
-      BGU · Gap-and-Go · Open Bull Gap Support · Red to Green.
-      ⚠️ `needs_intraday` exists on `Structure` and NO structure sets it yet —
-      the flag is currently unexercised and must gate something or be removed.
+- [~] **E4 — PARTIALLY BUILT, and the rest is the E3 finding again.**
+      **Low Cheat SHIPPED** (1.1% coverage) as the same detector as the 3-C
+      with one band moved -- Minervini's framing is positional, so a second
+      detector would have put a second authority on every rule they share.
+      **3-C Cheat SHIPPED** (2.2%), the best-sourced structure in the build.
+      ⛔ `Go Signal`, `HVC` and `Wedge Pop` appear NOWHERE in the 15-source
+      corpus -- the same finding as E3's four EMA setups. `Launchpad`,
+      `Measured Move` and `Oops Reversal` have material but only as passing
+      mentions or as another author's pattern (the Oops is Larry Williams',
+      reaching us through Connors' ADX Gapper), so each would need its own
+      sourcing pass before it could ship as anything but ours.
+- [x] **E5 — DONE, with one substitution.** **Climax Top SHIPPED** (2.1%) --
+      the "Late-Stage Climax", carrying the sharpest self-contradiction in the
+      corpus: IBD's selling column says a 20%+ three-week surge should be HELD
+      eight weeks and that a 25%+ three-week surge is a climax top. A 30% move
+      in two weeks is both. **Parabolic Extension SHIPPED** (0.54%) in place
+      of "Short Squeeze", which has no corpus material at all; it is the
+      daily-detectable half of Kullamagi's parabolic short, with the intraday
+      entry, the uncomputable cap branch and the asserted risk/reward all
+      recorded as refusals. The **7-Week Short Rule** is a Morales/Kacher
+      HOLDING rule (a clock that a buyable gap-up resets), not a per-symbol
+      structure -- it belongs to position management, not to this axis.
+      ⭐ Bearish coverage went from ONE structure to THREE, which matters
+      because the render now leads with risk: a warning can only lead if a
+      warning exists.
+- [~] **E6 — ONE OF FOUR BUILT, and the premise changed under it.**
+      **Buyable Gap-Up SHIPPED** (1.9%) -- and it is the most unusual
+      provenance case in the library, because the corpus explicitly instructs
+      us NOT to implement one of its gates: the volume rule reaches us in two
+      phrasings differing by a factor of 1.67, with the note "Do not implement
+      until resolved". The structure ships as an explicit SUBSET of the
+      authors' rule, and a test proves the gate really is absent.
+      ⛔ `Gap-and-Go` and `Red to Green` have ZERO corpus material. `Open Bull
+      Gap Support` likewise.
+      ⚠️ The `needs_intraday` half of this item is MOOT: F2 deleted the flag,
+      because a field nothing sets is a claim nobody checks. The BGU records
+      its intraday dependency as a REFUSAL on the criterion instead -- the
+      authors' own confirmation rule ("not confirmed until the close", since
+      it depends on volume accumulating through the session) cannot be
+      expressed by a daily-bar detector, and saying so on the criterion is
+      more useful than a boolean nothing reads.
 - [~] **E7 — SCOPE CORRECTED. One event built, the schematic deliberately
       NOT.** Measured on the corpus itself: **184 refusals and not one
       criterion at high confidence carrying a published constant.** Its own
