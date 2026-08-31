@@ -430,7 +430,21 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     onPick?.(rows.length ? { source: picked, inputs: rows } : picked)
   }, [active, onPick, condition])
 
-  const usable = report ? report.outputs.filter((o) => o.formula) : []
+  // ⚰️⚰️ THIS COUNTED EVERY ROW WITH A FORMULA, and it is what a member reads.
+  //
+  // Both engines already stamp `hidden` on a row that is not a column a screen
+  // can answer from — an author's `display.none`, or a tree that touches no bar
+  // and is therefore the same number for every symbol. Neither flag reached here.
+  // MEASURED across the three corpora: the member was offered 173 columns and
+  // 126 can screen. `03-rsi-directional-momentum-scanner` alone announced
+  // "This script offers 18 columns" and had 4 — the other 14 were the literal
+  // `0`, each with its own radio button and its own title, one of them
+  // "Cont 3rd Short", a saveable scan matching NOTHING on every symbol forever.
+  // ⛔ THE ENGINE KNEW, TWICE, AND THE DOOR ASKED NEITHER. `pine.js`'s own
+  // comment describes this exact script. Reading `hidden` here is not a new rule;
+  // it is this surface finally asking the question the rows already answer
+  // (`lesson_a_second_authority_over_one_value`).
+  const usable = report ? report.outputs.filter((o) => o.formula && !o.hidden) : []
   const anyDialect = dialect !== undefined
   // ⛔ THE DETECTED dialect, not the requested one. With `dialect="auto"` the box
   // is asked to read "whatever this is" and the member has to be told what it
@@ -501,6 +515,30 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                 {usable.length === 1 ? 'This script offers one column' : `This script offers ${usable.length} columns`}
               </legend>
               {report.outputs.map((out, i) => {
+                // ⭐ A HIDDEN ROW IS SHOWN AND NOT OFFERED, which is the whole
+                // difference between this and quietly dropping it. A member who
+                // pasted a script with eighteen plots and is shown four has been
+                // told nothing about the other fourteen; the door's own rule is
+                // to refuse BY NAME, at the place the member typed. So the row
+                // stays, without a radio, and says which of the two reasons it is
+                // — the row carries `hiddenReason` precisely so this does not have
+                // to guess.
+                if (out.formula && out.hidden) {
+                  return (
+                    <div key={`hid-${out.line}-${i}`} className={styles.outputRow}
+                      data-testid={`pine-output-hidden-${i}`}>
+                      <span className={styles.outKind}>{out.kind}</span>
+                      <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
+                      <code className={styles.outFormula}>{out.formula}</code>
+                      <span className={styles.outReadback}>
+                        {out.hiddenReason === 'author'
+                          ? 'The script hides this plot, so it is not offered as a column.'
+                          : 'The same number on every bar and every symbol — a screen '
+                            + 'cannot answer from it.'}
+                      </span>
+                    </div>
+                  )
+                }
                 if (!out.formula) {
                   return (
                     <div key={`bad-${out.line}-${i}`} className={styles.outputRow}>

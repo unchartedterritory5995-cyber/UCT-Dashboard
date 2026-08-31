@@ -6200,6 +6200,9 @@ export function translatePine(source, opts = {}) {
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
+      // Asked ONCE each, because both answers are needed twice below.
+      const authorHid = outputHidden(args)
+      const flat = !readsBars(ast)
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -6233,7 +6236,16 @@ export function translatePine(source, opts = {}) {
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
         displace: shift < 0 ? shift : 0,
-        hidden: outputHidden(args) || !readsBars(ast),
+        hidden: authorHid || flat,
+        // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
+        // merges "the author hid this plot" with "this reads no bar" — one flag,
+        // one definition of usable column, as the paragraph above argues. But a
+        // MEMBER staring at a row that offers no radio button needs a sentence,
+        // and the two cases want different sentences: one is a choice the script's
+        // author made, the other is a fact about the column. Deriving it at the
+        // renderer would put a third authority on a question this row has already
+        // answered twice (`lesson_a_second_authority_over_one_value`).
+        hiddenReason: authorHid ? 'author' : flat ? 'constant' : null,
         refusal: null,
       }
     } catch (err) {
@@ -6324,7 +6336,14 @@ function chooseOutput(rows, table) {
 
 /** Does this tree read the tape at all? A `series` leaf or a `call` — anything
  *  else is arithmetic on literals and is the same number for every symbol. */
-function readsBars(node) {
+/** ⭐ EXPORTED so a rail can ask THE ENGINE whether a tree touches a bar, rather
+ *  than carrying its own copy of the walk. A test that re-implements this is a
+ *  second authority over the one predicate that decides whether a column is a
+ *  column — and it would agree with the engine right up until the day it
+ *  mattered. `thinkscript.js` keeps its own `readsTheBar` because it walks its
+ *  own node shapes before they become this engine's; that is a different tree,
+ *  not a second opinion about the same one. */
+export function readsBars(node) {
   const stack = [node]
   while (stack.length) {
     const n = stack.pop()

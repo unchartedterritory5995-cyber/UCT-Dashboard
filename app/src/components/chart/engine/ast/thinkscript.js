@@ -4138,7 +4138,10 @@ function readsTheBar(node) {
 
 function chooseOutput(rows) {
   const usable = rows.map((r, i) => i)
-    .filter((i) => rows[i].refusal === null && !rows[i].hidden && readsTheBar(rows[i].ast))
+    // ⛔ `&& readsTheBar(...)` USED TO SIT HERE TOO. Now that the row stamps it
+    // into `hidden`, repeating it would be the same fact in two places — and the
+    // day they disagreed, this is the copy that would silently win.
+    .filter((i) => rows[i].refusal === null && !rows[i].hidden)
   if (!usable.length) return -1
   const boolish = usable.find((i) => {
     if (rows[i].kind === 'condition') return true
@@ -4221,16 +4224,38 @@ export function translateThinkScript(source, opts = {}) {
         const ast = resolver.asNode(value, o.nameTok)
         const formula = printOrRefuse(ast, o.nameTok)
         verifyRoundTrip(formula, ast, o.nameTok)
+        // ⚰️⚰️ `hidden: false` WAS HARDCODED HERE while this same module computed
+        // `readsTheBar` twice, forty lines apart, to answer exactly this question.
+        // The knowledge was right and it never reached the ROW — so every consumer
+        // outside this file (the corpus count, the door scorecard, and above all
+        // `PineBox`, which is what a member looks at) read `hidden` and was told
+        // `false` about a horizontal guide line.
+        //
+        // MEASURED across the thinkScript corpus: 9 of 28 offered columns touch no
+        // bar at all — `30`, `70`, `50` on an RSI; `0`, `2`, `-2` on a z-score;
+        // `74`, `26` on an MFI. Every one is the same number on every bar and every
+        // symbol. This file's own comment below already says counting them "made
+        // two corpus scripts report as working on a zero line".
+        // ⭐ SO THE PREDICATE STAYS WHERE IT WAS AND THE ANSWER MOVES ONTO THE ROW.
+        // `pine.js` stamps the identical flag for the identical reason; a lane that
+        // computes the fact and declines to record it is the mirror half of
+        // `lesson_rail_the_mirror_not_just_the_lane`.
         return {
           ...site,
           formula,
           ast,
           inputsFolded: program.folded.filter((f) => resolver.inputs.has(key(f.name))),
-          hidden: false,
+          hidden: !readsTheBar(ast),
+          hiddenReason: readsTheBar(ast) ? null : 'constant',
           refusal: null,
         }
       } catch (err) {
-        return { ...site, formula: null, ast: null, inputsFolded: [], hidden: false, refusal: fromError(err) }
+        return {
+          ...site, formula: null, ast: null, inputsFolded: [],
+          // A refused row has no formula to offer, so it is not hidden — it is
+          // REFUSED, and the renderer says so with the guard's own sentence.
+          hidden: false, hiddenReason: null, refusal: fromError(err),
+        }
       }
     })
 
@@ -4270,7 +4295,7 @@ export function translateThinkScript(source, opts = {}) {
     // plot that is a constant translated perfectly and screens nothing, and
     // counting it made two corpus scripts report as working on a zero line and on
     // an all-NaN column.
-    const usable = rows.filter((r) => r.refusal === null && !r.hidden && readsTheBar(r.ast))
+    const usable = rows.filter((r) => r.refusal === null && !r.hidden)
     const refusals = [...program.hard, ...rows.filter((r) => r.refusal).map((r) => r.refusal)]
       .sort(byPosition)
 

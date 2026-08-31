@@ -82,7 +82,7 @@
   "04-rsi-with-rate-of-change.ts": {
     "translates": true,
     "outputs": 6,
-    "usable": 6,
+    "usable": 3,
     "selectedFormula": "50 * ((rma(abs((close[14] != 0 ? (close / close[14] - 1) * 100 : 0) - (close[14] != 0 ? (close / close[14] - 1) * 100 : 0)[1]), 14) != 0 ? rma((close[14] != 0 ? (close / close[14] - 1) * 100 : 0) - (close[14] != 0 ? (close / close[14] - 1) * 100 : 0)[1], 14) / rma(abs((close[14] != 0 ? (close / close[14] - 1) * 100 : 0) - (close[14] != 0 ? (close / close[14] - 1) * 100 : 0)[1]), 14) : 0) + 1)",
     "ignoredLines": [
       6,
@@ -212,7 +212,7 @@
   "08-relative-strength-zscore-vs-spy.ts": {
     "translates": true,
     "outputs": 6,
-    "usable": 6,
+    "usable": 3,
     "selectedFormula": "stdev(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126) != 0 ? ((!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0) - sma(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126)) / stdev(!na(sym('SPY', close)) && sym('SPY', close) > 0 ? close / sym('SPY', close) : 0 / 0, 126) : 0",
     "ignoredLines": [
       4,
@@ -325,7 +325,7 @@
   "11-money-flow-index-mobile.ts": {
     "translates": true,
     "outputs": 5,
-    "usable": 5,
+    "usable": 3,
     "selectedFormula": "100 - 100 / (1 + (sum(volume, 14) != 0 ? sum((high + low + close) / 3 > ((high + low + close) / 3)[1] ? (high + low + close) / 3 * volume : (high + low + close) / 3 < ((high + low + close) / 3)[1] ? -((high + low + close) / 3 * volume) : 0, 14) / sum((high + low + close) / 3 > ((high + low + close) / 3)[1] ? volume : (high + low + close) / 3 < ((high + low + close) / 3)[1] ? -volume : 0, 14) : 0))",
     "ignoredLines": [
       18,
@@ -443,7 +443,7 @@
   "17-compoundvalue-vs-manual-fibonacci.ts": {
     "translates": false,
     "outputs": 2,
-    "usable": 1,
+    "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [
       1,
@@ -508,7 +508,7 @@
   "20-roc-stdev-lower-switch.ts": {
     "translates": true,
     "outputs": 3,
-    "usable": 3,
+    "usable": 2,
     "selectedFormula": "(close / close[14] - 1) * 100",
     "ignoredLines": [
       7,
@@ -636,7 +636,7 @@
   "24-position-capital-efficiency.ts": {
     "translates": false,
     "outputs": 4,
-    "usable": 1,
+    "usable": 0,
     "selectedFormula": null,
     "ignoredLines": [
       5,
@@ -671,7 +671,7 @@
     "downstream": null
   },
   "_translating": 10,
-  "_columns": 34,
+  "_columns": 23,
   "_saveable": 10,
   "_blocked": [],
   "_atLineOne": [

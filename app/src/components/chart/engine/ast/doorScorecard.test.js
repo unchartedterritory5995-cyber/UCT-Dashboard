@@ -34,7 +34,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine, treeYieldsBool } from './pine.js'
+import { translatePine, treeYieldsBool, readsBars } from './pine.js'
 import { parseFormula } from './parse.js'
 import { conditionFrom } from '../../builder/toCondition.js'
 import { translateThinkScript } from './thinkscript.js'
@@ -470,12 +470,26 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
   //
   // ⭐ THE VERDICT IS THE SHIPPED ONE, AND BOTH LANES AGREE ON IT. `treeYieldsBool`
   // is `pine.js`'s, the same function `thinkscript.js` imports so the two doors ask
-  // one question. Measured against the backend's own `assert_scannable` over these
-  // exact 148 columns: 49 and 49, 19 scripts and 19 scripts. If that ever diverges,
-  // one lane is telling a member their screen will run while the other refuses it —
-  // the recorded `scannable: true` / every-row-refuses defect.
+  // one question. If that ever diverges, one lane is telling a member their screen
+  // will run while the other refuses it — the recorded `scannable: true` /
+  // every-row-refuses defect.
+  //
+  // ⚰️ THIS READ "over these exact 148 columns: 49 and 49, 19 scripts and 19
+  // scripts" and every number in it had moved. It is a claim about a RUN, and a
+  // run that happened once is a claim with a shelf life
+  // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+  // ⭐ RE-RUN 2026-08-30 rather than re-typed — the 126 offered columns pushed
+  // through `api/services/scan_definition.assert_scannable` one at a time, each
+  // with its own `ast_hash` so the `hash` gate is satisfied honestly:
+  //     126 columns · 47 scannable in EACH lane · 18 scripts · 0 disagreements,
+  //     and all 79 backend refusals are the `yields` gate — the one that stops a
+  //     numeric column being screened as `!= 0` and returning the universe.
+  // The counts fell (148→126, 49→47, 19→18) because the doors stopped offering
+  // constants, not because anything closed; the AGREEMENT is what this paragraph
+  // is actually about, and it is exact.
 
   const columns = []
+  const withheld = []
   for (const [d, dir, translate] of [
     [DOORS[0], 'tests/fixtures/pine', translatePine],
     [DOORS[1], 'tests/fixtures/pine_community', translatePine],
@@ -485,7 +499,9 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
       if (!r.ok) continue
       const o = translate(fs.readFileSync(path.join(rel(dir), r.file), 'utf8'))
       for (const out of o.outputs) {
-        if (!out.formula || out.hidden) continue
+        if (!out.formula) continue
+        // ⭐ THE WITHHELD ROWS ARE COUNTED, NOT SKIPPED — see the sweep below.
+        if (out.hidden) { withheld.push({ file: r.file, formula: out.formula }); continue }
         let bool = false
         try { bool = !!treeYieldsBool(parseFormula(out.formula).ast) } catch (e) { bool = false }
         columns.push({ file: r.file, bool, formula: out.formula })
@@ -537,9 +553,73 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     expect(reachable.size).toBeGreaterThanOrEqual(41)
   })
 
+  it('⭐⭐ NOT ONE COLUMN ANY DOOR OFFERS IS THE SAME NUMBER ON EVERY BAR', () => {
+    // ⛔⛔ THE RAIL THIS FILE DID NOT HAVE WHEN IT NEEDED IT. Across 2026-08-30
+    // twenty-three columns were found, by accident, to be constants offered as
+    // screens — twelve in the Pine lane (`0 && X ? Y : 0`, from `input.bool`
+    // toggles the scripts ship switched OFF) and eleven in the thinkScript lane
+    // (`30`, `70`, `50`, `0`, `2`, `-2`, `74`, `26` — horizontal guide lines).
+    // Two community scripts were counted as TRANSLATING on nothing else; two more
+    // were counted as SCANNABLE on a literal `0`, which matches nothing on every
+    // symbol forever and is indistinguishable from a quiet market.
+    //
+    // EVERY ONE was found because some OTHER number moved and somebody looked: a
+    // two-directional column pin falling while a script was added. Nothing asked
+    // this question on purpose. It asks it now.
+    //
+    // ⭐ IT ASKS THE ENGINE'S OWN PREDICATE. `readsBars` is imported from
+    // `pine.js` rather than re-walked here — a test carrying its own copy would
+    // agree with the door right up until the day it mattered.
+    const flat = columns.filter((c) => {
+      const p = parseFormula(c.formula)
+      return p.ok && !readsBars(p.ast)
+    })
+    expect(flat.map((c) => `${c.file}: ${c.formula}`)).toEqual([])
+  })
+
+  it('⛔ …and that sweep is NOT vacuous — the doors really are withholding rows', () => {
+    // ⛔⛔ WITHOUT THIS, THE SWEEP ABOVE PASSES BY DELETING THE FILTER THAT FEEDS
+    // IT. `columns` skips `out.hidden`, so a door that stopped stamping `hidden`
+    // — exactly the bug in the thinkScript lane, where `hidden: false` was
+    // hardcoded while the same file computed the predicate twice — would push
+    // constants INTO `columns` and be caught. But a door that stamped EVERYTHING
+    // hidden would empty `columns` and the sweep would pass on nothing at all.
+    //
+    // So the withheld rows are counted rather than discarded: they exist, there
+    // are a lot of them, and — the load-bearing half — the sweep's own predicate
+    // must actually FIRE on some of them. If every withheld row read bars, then
+    // `hidden` is carrying only `display.none` and the constant half has quietly
+    // stopped working.
+    expect(withheld.length).toBeGreaterThan(20)
+    const flatWithheld = withheld.filter((c) => {
+      const p = parseFormula(c.formula)
+      return p.ok && !readsBars(p.ast)
+    })
+    expect(flatWithheld.length,
+      'no withheld row is a constant — the constant half of `hidden` has stopped '
+      + 'working, and the sweep above is now passing for the wrong reason',
+    ).toBeGreaterThan(10)
+  })
+
   it('🔴 THE RATCHET — scannable scripts may only ever increase', () => {
     // ⛔ THE NUMBER TO DRIVE UP, and the one the operator affordance would move.
     // Measured 2026-08-29: 19 of 41.
-    expect(scriptsScannable.size).toBeGreaterThanOrEqual(19)
+    //
+    // ⚰️⚰️ 19 → 18 ON 2026-08-30, AND THE ONE THAT LEFT WAS NEVER A SCAN.
+    // `treeYieldsBool` answers TRUE for the literal `0` — correctly, 0 and 1 are
+    // how this engine spells a boolean — so a horizontal guide line plotted at
+    // zero registered as a boolean COLUMN and made its script scannable.
+    // MEASURED, four scripts were scannable only on such a column:
+    // `01-squeeze-momentum-lazybear`, `02-wavetrend-oscillator-lazybear` (both
+    // already excluded here, because `pine.js` stamps `hidden`), plus
+    // `08-relative-strength-zscore-vs-spy` and `20-roc-stdev-lower-switch`, whose
+    // lane hardcoded `hidden: false`. A scan on the constant `0` matches NOTHING,
+    // on every symbol, forever — and it is indistinguishable from a quiet market.
+    // ⭐ SO A RATCHET THAT MAY ONLY RISE STILL HAS TO ADMIT A CORRECTION. It is
+    // lowered here because the MEASUREMENT got honest, not because coverage got
+    // worse; the two are told apart by naming the scripts, which is why they are
+    // named. If this climbs back past 18 without a named script, suspect the
+    // constant columns came back rather than that a door opened.
+    expect(scriptsScannable.size).toBeGreaterThanOrEqual(18)
   })
 })
