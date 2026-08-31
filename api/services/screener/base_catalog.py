@@ -3186,6 +3186,180 @@ PARABOLIC_EXTENSION = Structure(
 )
 
 
+# -- Wyckoff Spring ---------------------------------------------------------
+# ⛔⛔ THE ONLY WYCKOFF EVENT BUILT, AND DELIBERATELY SO. The Wyckoff corpus
+# supplies a GRAMMAR, NOT THRESHOLDS: 184 refusals and not one criterion at
+# high confidence with a published constant. Its own summary says so -- "almost
+# every criterion below is comparative ('wider spread than', 'less volume than
+# the prior') with no published constant... there are only about a dozen [real
+# numbers] in the entire corpus and most of them are illustrative examples on a
+# $50 stock". Wyckoff is quoted rejecting mechanical rules outright: "Instead
+# of steadfast rules, Wyckoff advocated broad guidelines... Nothing in the
+# stock market is definitive."
+#
+# A four-schematic state machine built on that would be OUR invention wearing
+# his name -- and it would attribute to him a precision he explicitly denied.
+# The Spring is the exception the corpus itself names: "this is the single most
+# computable Wyckoff criterion in the corpus: `low < tr_support AND close >
+# tr_support`". So the Spring ships and the schematic does not.
+
+_WYCKOFF = "wyckoff_schematics"
+
+#: Ours: how far back the trading range is read.
+SPRING_TR_BARS = 60
+
+#: Ours: how recent the penetration must be for this to be a setup rather than
+#: history. "Springs usually occur late within a TR" is published; "late" as a
+#: fraction of the range is NOT, so the bound is ours.
+SPRING_RECENT_BARS = 10
+
+#: Ours, and load-bearing. A trading range is HORIZONTAL; without this every
+#: downtrend "penetrates support" on almost every bar, which is the same
+#: failure the square box had. Reuses the boxiness ratio so the file holds one
+#: definition of "not trending" rather than two.
+SPRING_MAX_BOXINESS = BOX_MAX_BOXINESS
+
+
+def wyckoff_spring_state(bars) -> Optional[dict]:
+    """A penetration below trading-range support that closed back inside.
+
+    ⛔ THE RANGE MUST BE A RANGE. The published criterion is comparative --
+    price goes below support and closes back above it -- and on a downtrend
+    that is true almost every day. The horizontality bound is what makes the
+    word "support" mean anything, and it is ours.
+    """
+    n = len(bars)
+    if n < SPRING_TR_BARS + 5:
+        return None
+
+    tr = bars[n - SPRING_TR_BARS:n - SPRING_RECENT_BARS]
+    recent = bars[n - SPRING_RECENT_BARS:]
+    if len(tr) < 20 or not recent:
+        return None
+
+    lows = [b.get("l") or 0 for b in tr if (b.get("l") or 0) > 0]
+    highs = [b.get("h") or 0 for b in tr if (b.get("h") or 0) > 0]
+    if not lows or not highs:
+        return None
+    support, resistance = min(lows), max(highs)
+    if support <= 0 or resistance <= support:
+        return None
+
+    depth = (resistance - support) / resistance
+    if depth <= 0:
+        return None
+    if _base_drift_of(tr) > SPRING_MAX_BOXINESS * depth:
+        return None                      # a trend, not a trading range
+
+    spring = None
+    for b in recent:
+        lo, c = b.get("l") or 0, b.get("c") or 0
+        if lo <= 0 or c <= 0:
+            continue
+        if lo < support and c > support:
+            pen = (support - lo) / support
+            if spring is None or pen > spring["penetration"]:
+                spring = {"penetration": pen, "low": lo, "close": c}
+    if spring is None:
+        return None
+
+    # Still inside the range now -- a spring that has since broken down is a
+    # failed spring, which is a different event with a different meaning.
+    last = bars[-1].get("c") or 0
+    if last <= support:
+        return None
+
+    return {"support": support, "resistance": resistance, "range_depth": depth,
+            "penetration": spring["penetration"], "spring_low": spring["low"],
+            "close": last}
+
+
+def _detect_wyckoff_spring(ctx) -> bool:
+    return wyckoff_spring_state(ctx.bars) is not None
+
+
+WYCKOFF_SPRING = Structure(
+    key="wyckoff-spring",
+    label="Wyckoff Spring",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=19,
+    min_bars=SPRING_TR_BARS + 5,
+    desc=("Price dipped below the floor of a trading range and closed back "
+          "inside it -- the shakeout that traps late sellers before the range "
+          "resolves."),
+    criteria=(
+        Criterion(
+            condition="Price penetrates trading-range support and closes back inside",
+            value="undercut-and-reclaim",
+            quote=("A 'spring' takes price below the low of the TR and then "
+                   "reverses to close within the TR; this action allows large "
+                   "interests to mislead the public about the future trend "
+                   "direction and to acquire additional shares at bargain "
+                   "prices."),
+            source_id=_WYCKOFF, confidence="high",
+        ),
+        Criterion(
+            condition="What the event IS -- a bear trap, not a breakdown",
+            value="bear-trap",
+            quote=("A spring is an example of a 'bear trap'... In reality, "
+                   "though, the drop marks the end of the downtrend, thus "
+                   "'trapping' the late sellers, or bears."),
+            source_id=_WYCKOFF, confidence="high",
+        ),
+        Criterion(
+            condition="Depth of the penetration below support",
+            value=None,
+            quote="a penetration below a previous support area",
+            source_id=_WYCKOFF, confidence="high",
+            missing=("No depth is published. The one numeric penetration "
+                     "figure in the corpus is an illustrative example on a $50 "
+                     "stock, not a threshold, so there is nothing to gate on "
+                     "and any penetration counts."),
+        ),
+        Criterion(
+            condition="'Springs usually occur late within a TR'",
+            value=None,
+            quote="Springs or shakeouts usually occur late within a TR",
+            source_id=_WYCKOFF, confidence="high",
+            missing=("'Late' is never expressed as a fraction of the range's "
+                     "duration. Our recency bound below is ours."),
+        ),
+        Criterion(
+            condition=("⛔⛔ THE CORPUS PUBLISHES A GRAMMAR, NOT THRESHOLDS, and "
+                       "that is why only this ONE event is built. 184 refusals "
+                       "and no criterion at high confidence carries a published "
+                       "constant; the source's own summary calls almost every "
+                       "criterion comparative with no published number. Wyckoff "
+                       "himself rejected mechanical rules. A four-schematic "
+                       "state machine would be our invention wearing his name."),
+            value="grammar-not-thresholds",
+            quote=("Instead of steadfast rules, Wyckoff advocated broad "
+                   "guidelines when analyzing the stock market. Nothing in the "
+                   "stock market is definitive."),
+            source_id=_WYCKOFF, confidence="high",
+        ),
+        Criterion(
+            condition="Trading-range lookback and how recent the spring must be",
+            value=(SPRING_TR_BARS, SPRING_RECENT_BARS),
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Horizontality of the range. OURS, and load-bearing: the "
+                       "published criterion is comparative, and on a downtrend "
+                       "'price went below support and closed back above it' is "
+                       "true on almost every bar. This is what makes the word "
+                       "support mean anything."),
+            value=SPRING_MAX_BOXINESS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=2.8,
+    detect=_detect_wyckoff_spring,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -3237,7 +3411,7 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CLIMAX_TOP, CUP_WITH_HANDLE,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             VCP]
+             VCP, WYCKOFF_SPRING]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

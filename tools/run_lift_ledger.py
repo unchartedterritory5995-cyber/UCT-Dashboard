@@ -79,6 +79,8 @@ WINDOWS = {
     "climax-top":          300,
     # A <=20-bar parabolic leg; nothing behind it is read.
     "parabolic-extension": 200,
+    # A 60-bar trading range plus the recent window the spring must sit in.
+    "wyckoff-spring":      300,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

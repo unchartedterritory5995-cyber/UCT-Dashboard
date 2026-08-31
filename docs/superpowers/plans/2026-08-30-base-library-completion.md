@@ -271,7 +271,25 @@ refused). No structure ships on the strength of its geometry alone.
       BGU · Gap-and-Go · Open Bull Gap Support · Red to Green.
       ⚠️ `needs_intraday` exists on `Structure` and NO structure sets it yet —
       the flag is currently unexercised and must gate something or be removed.
-- [ ] **E7** The Wyckoff schematic (4). Largest single build: a sequence-
+- [~] **E7 — SCOPE CORRECTED. One event built, the schematic deliberately
+      NOT.** Measured on the corpus itself: **184 refusals and not one
+      criterion at high confidence carrying a published constant.** Its own
+      summary says why -- "the Wyckoff corpus supplies a grammar, not
+      thresholds... almost every criterion below is comparative ('wider spread
+      than', 'less volume than the prior') with no published constant... there
+      are only about a dozen [real numbers] in the entire corpus and most of
+      them are illustrative examples on a $50 stock". And Wyckoff is quoted
+      rejecting mechanical rules outright: "Instead of steadfast rules,
+      Wyckoff advocated broad guidelines... Nothing in the stock market is
+      definitive."
+      A four-schematic, sequence-dependent state machine on that base would be
+      OUR invention wearing his name, and would attribute to him a precision he
+      explicitly denied. **Wyckoff Spring SHIPPED** (2.8% coverage) because the
+      corpus itself singles it out: "this is the single most computable Wyckoff
+      criterion in the corpus: `low < tr_support AND close > tr_support`". A
+      rail asserts the other events are NOT registered, so a later pass cannot
+      quietly add them without revisiting this.
+      *(original:)* The Wyckoff schematic (4). Largest single build: a sequence-
       dependent state machine over a trading range, 22 of 28 events
       non-bootstrapping, SOS and Upthrust bar-identical at resistance. Its
       canon supplies 16 numbers against 183 refusals.
