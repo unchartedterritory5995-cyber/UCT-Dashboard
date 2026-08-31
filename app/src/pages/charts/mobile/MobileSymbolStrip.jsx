@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import CompanyLogo from '../../../components/CompanyLogo'
 import UIcon from '../../../components/ui/UIcon'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -41,6 +41,23 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
   const chgAbs = Number.isFinite(q?.change) ? q.change : null
   const up = (chg ?? 0) >= 0
 
+  // Tick flash: the price takes the tick's direction color for a beat, then
+  // fades back. Pure CSS animation on a per-tick `key` (the keyframes omit the
+  // `to` frame, so the browser animates back to the base color — no JS timer),
+  // with the direction derived by RENDER-TIME state adjustment (the repo's
+  // set-state-in-effect-free pattern, same as the shell's tap-to-chart rule).
+  // A symbol switch resets clean: the new symbol's first quote is not a tick.
+  const [tick, setTick] = useState({ sym, price: null, dir: null, seq: 0 })
+  if (tick.sym !== sym || tick.price !== price) {
+    const isTick = tick.sym === sym && price != null && tick.price != null && price !== tick.price
+    setTick({
+      sym,
+      price,
+      dir: isTick ? (price > tick.price ? 'up' : 'down') : null,
+      seq: tick.seq + 1,
+    })
+  }
+
   return (
     <div className={styles.symStrip}>
       <button
@@ -66,7 +83,10 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
       </button>
       {price != null && (
         <div className={styles.quote} aria-live="off">
-          <span className={styles.price}>{fmtPrice(price)}</span>
+          <span
+            key={tick.dir ? tick.seq : 'static'}
+            className={`${styles.price} ${tick.dir === 'up' ? styles.priceFlashUp : tick.dir === 'down' ? styles.priceFlashDown : ''}`}
+          >{fmtPrice(price)}</span>
           {chg != null && (
             <span className={`${styles.chg} ${up ? styles.chgUp : styles.chgDown}`}>
               {chgAbs != null ? `${up ? '+' : ''}${Math.abs(chgAbs) >= 1 ? chgAbs.toFixed(2) : chgAbs.toFixed(3)} (` : ''}

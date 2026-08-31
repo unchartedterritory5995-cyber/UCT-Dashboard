@@ -143,6 +143,39 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   const openSettings = useCallback(() => paneRef.current?.openSettings(), [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
 
+  // Toolbar ƒx badge: how many MA overlay slots are live (the same `enabled`
+  // flag MobileIndicatorSheet toggles) — chart state visible without opening
+  // the sheet.
+  const indicatorCount = useMemo(
+    () => (Array.isArray(cs?.overlays) ? cs.overlays.filter((o) => o?.enabled).length : 0),
+    [cs],
+  )
+
+  // Share chart image — TradingView's camera button, through the native iOS
+  // share sheet (navigator.share with a file). The PNG comes from the SAME
+  // takeScreenshot() recipe the desktop "Save to Notebook" uses, via the
+  // toolbarApi bridge. Fallback where file-share is unsupported: a plain
+  // download. A cancelled share sheet rejects with AbortError — swallowed.
+  const handleShareSnapshot = useCallback(async () => {
+    try {
+      const blob = await toolbarApiRef.current?.getSnapshotBlob?.()
+      if (!blob) return
+      const file = new File([blob], `${sym}-${tf}.png`, { type: 'image/png' })
+      if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] })
+        return
+      }
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 4000)
+    } catch { /* share cancelled / chart not ready — nothing to clean up */ }
+  }, [sym, tf])
+
   // ★ Watchlist — the scan→tap→chart loop, one tap from the chart. Opens the
   // layout's first watchlist widget; with none saved, adds one and opens it as
   // soon as it hydrates into `widgets`.
@@ -166,6 +199,8 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     // Clean canvas by default on phone: the drawing toolbar starts collapsed
     // (chevron to expand) unless this browser has explicitly chosen otherwise.
     toolbarDefaultCollapsed: true,
+    // The » back-to-live chip when panned into history (phone/tablet only).
+    showGoLive: true,
   }), [chartWidget?.id])
 
   // The widget page's shared pieces (used by BOTH presentations):
@@ -248,6 +283,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
             onOpenIndicators={() => setSheet('indicators')}
             onOpenWatchlist={handleOpenWatchlist}
             onOpenMore={() => setSheet('more')}
+            indicatorCount={indicatorCount}
           />
           </div>
 
@@ -317,6 +353,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onAddWidget={(t) => { onAddWidget(t) }}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
+        onShareSnapshot={handleShareSnapshot}
       />
     </div>
   )

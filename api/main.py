@@ -3529,6 +3529,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-search index scheduling failed (non-fatal): {e}")
 
+    # Index bars warm loop — keeps the 7 cash-settled indexes (SPX/NDX/VIX/RUT/DJX/
+    # XSP/XND) hot in their disk cache so index charts serve from cache (<1ms) instead
+    # of a multi-second yfinance fetch. Only 7 symbols → cheap to run web-side.
+    try:
+        from api import index_bars as _idx
+        _idx.start_index_warm()
+        print("[startup] index-bars warm loop scheduled")
+    except Exception as e:
+        print(f"[startup] index-bars warm scheduling failed (non-fatal): {e}")
+
     # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
     # Flag-gated so it runs exactly once; background + low-concurrency so it never
     # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.
@@ -4324,6 +4334,27 @@ async def lifespan(app: FastAPI):
             print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)")
         except Exception as _e_dpff:
             print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
+
+        # -- Confluence Radar: warm the board cache (2026-08-30) ----------------
+        # Dark-pool accumulation × LEAP/size-with-time flow join. The compute is
+        # ~4 min (two 120s flow-worker legs over the PRIVATE network + a dark-pool
+        # read), so it runs OFF the request path on a schedule; /api/confluence
+        # serves the warmed cache. Self-gates on WORKER_INTERNAL_URL (the flow leg
+        # needs it) so it's inert where that isn't set.
+        try:
+            if (os.environ.get("CONFLUENCE_ENABLED", "1") == "1"
+                    and os.environ.get("WORKER_INTERNAL_URL")):
+                from api import confluence_screen as _confl
+                from apscheduler.triggers.interval import IntervalTrigger as _ConflIv
+                _scheduler.add_job(
+                    _confl.scheduled_refresh,
+                    trigger=_ConflIv(minutes=int(os.environ.get("CONFLUENCE_REFRESH_MIN", "30"))),
+                    id="confluence_refresh", max_instances=1, replace_existing=True,
+                    coalesce=True, misfire_grace_time=600)
+                threading.Timer(90, _confl.scheduled_refresh).start()  # one-shot boot warm
+                print("[startup] confluence board warm scheduled (every 30 min + boot warm)")
+        except Exception as _e_confl:
+            print(f"[startup] confluence warm skip: {_e_confl}")
 
         # -- Dark pool: intraday live-preview poller (2026-07-27) ---------------
         # Near-real-time (~3 min) companion to the nightly ingest above. Polls
@@ -6917,6 +6948,34 @@ async def _massive_flatfiles_backfill(start: str, end: str, force: bool = False)
         return massive_flatfiles_worker.backfill_range(s, e, force=force)
     except Exception as e:
         return {"error": str(e)}
+
+
+# ── Confluence Radar: dark-pool accumulation × LEAP/size-with-time flow ────────
+from api.flow_admin_auth import (  # noqa: E402
+    require_flow_user as _require_flow_user,
+    require_flow_admin,
+)
+
+
+@app.get("/api/confluence")
+async def _confluence_board(_auth: dict = Depends(_require_flow_user)):
+    """The Confluence board — names with dark-pool accumulation AND aligned
+    LEAP/size-with-time options flow. Served from a scheduler-warmed cache; never
+    computes on the request path (a cold cache returns {ok:false, status:'warming'})."""
+    from fastapi.concurrency import run_in_threadpool
+    from api import confluence_screen
+    return await run_in_threadpool(confluence_screen.get_board, False)
+
+
+@app.post("/api/admin/confluence/refresh")
+async def _confluence_refresh(_auth: dict = Depends(require_flow_admin)):
+    """Admin: force a full recompute (slow, ~4 min) off the request path."""
+    import threading
+    from api import confluence_screen
+    threading.Thread(target=confluence_screen.scheduled_refresh, daemon=True,
+                     name="confluence-manual-refresh").start()
+    return {"status": "refreshing", "check": "/api/confluence"}
+
 
 # Discord flow watchlist -- manual trigger endpoint
 register_discord_routes(app)

@@ -9,6 +9,10 @@ flow_db,bs_iv,flow_worker_main,live_massive_router,flow_router,flow_router_mount
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
 oi_snapshots,massive_stream,flow_tape_spool,flow_backup,dealer_positioning,
 flow_rest_backfill,alpha_gold_eod,weekly_flow,flow_opt_aggregate}.py
+⚠️ TODO (2026-08-30): add `confluence_flow.py` to the DASHBOARD watch list — it's a
+flow module (reached via live_massive_router's /confluence-flow, imports weekly_flow)
+but is NOT yet watched, so a lone edit to it won't deploy until then (touch a watched
+file meanwhile, as this note does).
 + railway.json + requirements.txt (synced to the DASHBOARD's live list 2026-08-21
 — the dashboard is the only authority; this mirror had drifted to include a
 worker_main.py the dashboard never had and to miss four real entries). This header is

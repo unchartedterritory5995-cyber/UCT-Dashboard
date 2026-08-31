@@ -24,7 +24,7 @@ import { WorkspaceContext, WORKSPACE_FALLBACK } from '../WorkspaceContext'
 // (sym / tf / chartId / density / showTfBar) ARE the binding under test, so the
 // mock surfaces them as data- attributes.
 vi.mock('../../../components/chart/pane/ChartPane', () => ({
-  default: forwardRef(function ChartPaneMock({ sym, tf, chartId, density, showTfBar }, ref) {
+  default: forwardRef(function ChartPaneMock({ sym, tf, chartId, density, showTfBar, stockChartProps }, ref) {
     void ref
     return (
       <div
@@ -34,6 +34,7 @@ vi.mock('../../../components/chart/pane/ChartPane', () => ({
         data-chartid={chartId}
         data-density={density}
         data-showtfbar={String(showTfBar)}
+        data-golive={String(!!stockChartProps?.showGoLive)}
       />
     )
   }),
@@ -321,5 +322,33 @@ describe('WARM prefs — the path that always looked fine', () => {
   test('still binds the chart when widgets are present at first render', () => {
     renderApp(HYDRATED)
     expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-chartid', 'w-chart')
+  })
+})
+
+describe('Phase 8 — the feel layer wires', () => {
+  test('the shell asks its chart for the back-to-live chip', () => {
+    renderApp(HYDRATED)
+    expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-golive', 'true')
+  })
+
+  test('the ƒx button carries the widget settings\' live-overlay count', () => {
+    // All four positional slots stated explicitly (cs.overlays merges by
+    // index over the defaults), so the count is deterministic: 2. The badge is
+    // visual-only — the accessible name stays the stable "Indicators".
+    const stored = { overlays: [{ enabled: true }, { enabled: true }, { enabled: false }, { enabled: false }] }
+    renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
+    expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('2')
+  })
+
+  test('More → Share chart image exists and closes the sheet on tap', async () => {
+    const user = userEvent.setup()
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /share chart image/i }))
+    // The sheet closed; with no live chart behind the mock the handler
+    // resolves to "no snapshot" and does nothing further.
+    expect(screen.queryByRole('button', { name: /share chart image/i })).toBeNull()
   })
 })
