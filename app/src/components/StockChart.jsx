@@ -3542,28 +3542,13 @@ export default function StockChart({
     return () => { toolbarApiRef.current = null }
   }, [toolbarApiRef])
 
-  // ── "Back to live" chip state (showGoLive surfaces) ──────────────────────
-  // Away = the newest bar's slot is off the right edge of the view. The range
-  // subscription fires every pan frame, so state flips only when the answer
-  // changes. exactDateRange charts are frozen historical windows — never offer
-  // a jump that would unpin them.
-  const [awayFromLive, setAwayFromLive] = useState(false)
-  const awayFromLiveRef = useRef(false)
-  useEffect(() => {
-    if (!showGoLive || !chartReady || exactDateRange) return undefined
-    const ts = chartRef.current?.timeScale()
-    if (!ts) return undefined
-    const onRange = (range) => {
-      const lastIdx = (lastBarCountRef.current || 0) - 1
-      const away = !!range && lastIdx >= 0 && range.to < lastIdx + 0.5
-      if (away !== awayFromLiveRef.current) {
-        awayFromLiveRef.current = away
-        setAwayFromLive(away)
-      }
-    }
-    ts.subscribeVisibleLogicalRangeChange(onRange)
-    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* torn down */ } }
-  }, [showGoLive, chartReady, exactDateRange])
+  // ── "Back to live" chip (showGoLive surfaces) ────────────────────────────
+  // No state of its own: the pill renders off `lastBarOff` — the SAME
+  // rAF-throttled visible-range state the desktop "Scroll to present" button
+  // and the label-suppression effect already maintain. A second subscription
+  // computing "newest bar off-screen" would be a second authority on one
+  // value (this repo's most-documented defect class); the render sites below
+  // are mutually exclusive on `showGoLive` instead.
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
@@ -14688,8 +14673,10 @@ export default function StockChart({
       {/* "Scroll to present" — appears at the right edge only when today's / the most
           recent bar is scrolled off-screen. A quick-access "Reset view": jumps back to
           the default present-day window. Disappears once the latest bar is in frame.
-          Not shown on pinned (Model Book) / replay charts, where there is no "present". */}
-      {lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
+          Not shown on pinned (Model Book) / replay charts, where there is no "present".
+          `!showGoLive`: a surface that opted into the thumb-sized » pill below (the
+          phone/tablet shell) gets exactly ONE back-to-now affordance, not two. */}
+      {!showGoLive && lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
         <button
           ref={presentBtnElRef}
           type="button"
@@ -14721,10 +14708,13 @@ export default function StockChart({
         </div>
       )}
       {/* "Back to live" (showGoLive surfaces — the phone/tablet chart shell):
-          shown while the newest bar is off-screen, floating just left of the
-          price axis above the time axis — the spot TradingView's » chip lives.
-          One tap snaps the view back to the developing bar. */}
-      {showGoLive && awayFromLive && chartReady && (
+          the toPresentBtn's thumb-sized sibling, same `lastBarOff` state and
+          the same no-"present" guards, mutually exclusive with it on
+          `showGoLive`. One tap scrolls back to the developing bar — via
+          scrollToRealTime(), which KEEPS the user's pinch zoom (the
+          TradingView-mobile behavior), where the desktop button resets the
+          whole view. */}
+      {showGoLive && lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
         <button
           type="button"
           className={styles.goLivePill}

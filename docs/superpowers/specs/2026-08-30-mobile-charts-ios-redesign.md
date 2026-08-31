@@ -250,12 +250,18 @@ micro-interactions, all additive:
 
 - **Back-to-live chip** — pan into history and a » button (40px round,
   `UIcon skipForward`) floats left of the price axis; one tap
-  `scrollToRealTime()`. StockChart prop `showGoLive` (default false — ONLY
-  the mobile shell passes it, desktop byte-identical), state from a
-  `subscribeVisibleLogicalRangeChange` listener that flips only when
-  "newest bar off-screen" changes. Frozen `exactDateRange` exhibits never
-  offer it. Rig step `golive_walk`: touch-pan → pill appears → tap →
-  retires; a FAIL gate like place/reshape.
+  `scrollToRealTime()` (KEEPS pinch zoom — TV-mobile behavior). StockChart
+  prop `showGoLive` (default false — ONLY the mobile shell passes it,
+  desktop byte-identical). ⚠️ CONVERGED at the master merge: master's
+  `dd2e2d731` shipped its own desktop "Scroll to present" button
+  (`toPresentBtn`, 26px, `doResetView()`) off a `lastBarOff` state the
+  label-suppression effect maintains. ONE authority: the pill now renders
+  off that SAME `lastBarOff` (its own range subscription was deleted), and
+  the two render sites are mutually exclusive on `showGoLive` — a surface
+  gets exactly one back-to-now affordance. Rig step `golive_walk`:
+  touch-pan → pill appears → tap → retires; a FAIL gate like place/reshape
+  (it caught the orb-cluster tap-interception at bottom: 42px AND the
+  edge-swipe history-back at start x=70).
 - **Long-press crosshair already sticks** — LWC's `trackingMode.exitMode`
   DEFAULTS to `OnNextTap` (verified in the installed typings), so the
   TradingView press-hold-drag-release-inspect loop needed zero config. What
