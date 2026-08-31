@@ -759,3 +759,59 @@ def test_every_PUBLISHED_number_carries_an_explanation():
             "explanation beside it." % key)
         assert e.get("note_measured"), (
             "%s has a note with no stamp" % key)
+
+
+def test_a_NEGATIVE_lift_can_never_publish():
+    """⛔⛔ THE GATE THAT WAS MISSING, AND IT HAD FIRED.
+
+    `cheat-3c` measured -1.10pp with a CI of [-2.16, -0.09] against a null max
+    of -3.91pp and PUBLISHED: its interval excludes zero (both bounds are
+    negative) and its lower bound does clear a null that is even more
+    negative. A structure that reliably UNDERPERFORMS its own baseline was
+    surfaced to members through `filters._structure_evidence` as a measured
+    edge.
+
+    I had described this exact hole while comparing ALTERNATIVE gates -- "any
+    relaxation needs a sign condition or it publishes losers" -- and missed
+    that the shipped gate carried it. It only never fired because no structure
+    had yet landed with a negative lift sitting above a more-negative null.
+    """
+    verdict = ll.adjudicate(
+        {"lift": -0.0110, "ci_low": -0.0216, "ci_high": -0.0009, "n": 6139},
+        [-0.0391, -0.0500])
+    assert verdict["published"] is False
+    assert any("not positive" in r for r in verdict["reasons"])
+
+
+def test_the_sign_gate_does_not_block_a_genuine_positive():
+    """The control: gate zero must refuse losers without refusing winners."""
+    verdict = ll.adjudicate(
+        {"lift": 0.0735, "ci_low": 0.0678, "ci_high": 0.0796, "n": 24428,
+         "rate": 0.3467, "baseline": 0.2732, "years": ["2020", "2021"]},
+        [0.0110, 0.0090])
+    assert verdict["published"] is True
+
+
+def test_no_published_row_in_the_artifact_carries_a_negative_lift():
+    """The same check against the shipped artifact, so a bad row cannot sit
+    there unnoticed even if the gate were bypassed by a hand edit.
+    """
+    entries = (ll.load().get("structures") or {})
+    published = {k: v for k, v in entries.items() if v.get("published")}
+    assert published, "no published rows -- this rail would pass vacuously"
+    for key, e in published.items():
+        assert (e.get("lift") or 0) > 0, (
+            "%s is published with lift %r" % (key, e.get("lift")))
+
+
+def test_member_visible_evidence_never_shows_a_negative_lift():
+    """The surface, not just the store. `_structure_evidence` is what reaches
+    a member, and it reads the artifact -- so it is checked separately.
+    """
+    from api.services.screener import filters
+
+    ev = filters._structure_evidence()
+    assert ev, "no evidence surfaced -- this rail would pass vacuously"
+    for key, e in ev.items():
+        assert e["lift_pp"] > 0, (
+            "%s would show members a lift of %+.2fpp" % (key, e["lift_pp"]))

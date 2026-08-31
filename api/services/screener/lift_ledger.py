@@ -492,6 +492,27 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
             f"95% CI [{result['ci_low']:+.4f}, {result['ci_high']:+.4f}] "
             f"includes zero at n={result['n']}")
 
+    # ⛔⛔ GATE ZERO: THE LIFT MUST BE POSITIVE. This was missing, and it is not
+    # a theoretical hole -- it FIRED. `cheat-3c` measured -1.10pp with a CI of
+    # [-2.16, -0.09] against a null max of -3.91pp, and PUBLISHED: its interval
+    # excludes zero (both bounds negative) and its lower bound does clear a
+    # null that is even more negative. A structure that reliably UNDERPERFORMS
+    # its own baseline was therefore surfaced to members through
+    # `filters._structure_evidence` as a measured edge.
+    #
+    # ⚠️ I described this exact hole while comparing ALTERNATIVE gates -- "any
+    # relaxation needs a sign condition or it publishes losers" -- and did not
+    # notice the shipped gate had it. It never fired only because no structure
+    # had yet landed with a negative lift sitting above a more-negative null.
+    #
+    # A negative result is a FINDING and belongs in the artifact with its
+    # reasons. It is not a lift to put in front of a member.
+    if lift <= 0:
+        reasons.append(
+            f"the measured lift {lift:+.4f} is not positive: the structure "
+            f"resolved no better than its own pattern-free baseline, so there "
+            f"is no edge to publish (the result is kept as a finding)")
+
     if nulls:
         worst = max(nulls)
         # ⛔⛔ COMPARE THE CI's LOWER BOUND TO THE NULL, NOT THE POINT ESTIMATE.

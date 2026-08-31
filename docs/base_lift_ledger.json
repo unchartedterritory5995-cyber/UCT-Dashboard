@@ -1,6 +1,6 @@
 {
   "_": "MEASURED LIFT PER NAMED STRUCTURE. This file is the ONLY authority on what a structure has been measured to do; `base_catalog.Structure` deliberately carries no lift field, so the catalog can never disagree with the harness. `published: false` means we have no number -- either it was never measured or it was measured and refused -- and `base_catalog.meta()` surfaces None for both, because to a member they say the same honest thing. The reasons stay here for anyone auditing.",
-  "measured_at": "2026-08-30",
+  "measured_at": "2026-08-31",
   "method": "Lift = conditional rate - pattern-free rate, where the pattern-free half is restricted to the YEARS the structure actually fired in (the baseline drifts: target-first ran 17.1% in 2018 and 35.7% in 2020). Anchors are stepped by the full 20-session horizon so no two observations share a forward window. The CI is a 400-draw CLUSTER BOOTSTRAP resampling tickers with replacement, because detections cluster by ticker and a two-proportion SE assumes that away. The null re-runs the IDENTICAL detector over MOVING-BLOCK resampled series (21-bar blocks) so local volatility clustering survives and only the long-range order is destroyed -- an iid shuffle would hand a quiet-regime detector a free volatility premium.",
   "gates": "All three must pass or NO number is published: (1) the lift's 95% CI excludes zero; (2) the CI's LOWER BOUND exceeds the random-data null's maximum -- not the point estimate, which let a 32.97pp lift on n=13 through on the first run; (3) n is whatever (1) requires, derived rather than typed.",
   "sample": "Seeded-random draw from the screener universe, up to 3,000 daily bars per ticker. The size differs per structure and per run, so it is recorded on each row as `sample_tickers` rather than claimed once here; a row's window is `tools/run_lift_ledger.py::WINDOWS[key]`.",
@@ -32,7 +32,8 @@
       "null_max": 0.0007,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound -0.0649 does not exceed the random-data null (max of 5 trials = +0.0007) at n=6924"
+        "the measured lift -0.0537 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.0649 does not exceed the random-data null (max of 1 trials = +0.0007) at n=6924"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -48,7 +49,8 @@
       "null_max": 0.0013,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound -0.0467 does not exceed the random-data null (max of 5 trials = +0.0013) at n=5348"
+        "the measured lift -0.0340 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.0467 does not exceed the random-data null (max of 1 trials = +0.0013) at n=5348"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -64,7 +66,7 @@
       "null_max": 0.1386,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound +0.1035 does not exceed the random-data null (max of 5 trials = +0.1386) at n=163"
+        "the lift's CI lower bound +0.1035 does not exceed the random-data null (max of 1 trials = +0.1386) at n=163"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -80,7 +82,7 @@
       "null_max": 0.0356,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound +0.0068 does not exceed the random-data null (max of 5 trials = +0.0356) at n=1667"
+        "the lift's CI lower bound +0.0068 does not exceed the random-data null (max of 1 trials = +0.0356) at n=1667"
       ]
     },
     "stage-4-breakdown": {
@@ -108,7 +110,8 @@
       "null_max": -0.1,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound -0.1132 does not exceed the random-data null (max of 5 trials = -0.1000) at n=21634"
+        "the measured lift -0.1056 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.1132 does not exceed the random-data null (max of 1 trials = -0.1000) at n=21634"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -124,7 +127,8 @@
       "null_max": -0.0844,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound -0.1057 does not exceed the random-data null (max of 5 trials = -0.0844) at n=3445"
+        "the measured lift -0.0912 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.1057 does not exceed the random-data null (max of 1 trials = -0.0844) at n=3445"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -141,7 +145,8 @@
       "null_trials": 5,
       "reasons": [
         "95% CI [-0.0248, +0.0186] includes zero at n=1888",
-        "the lift's CI lower bound -0.0248 does not exceed the random-data null (max of 5 trials = -0.0011) at n=1888"
+        "the measured lift -0.0018 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.0248 does not exceed the random-data null (max of 1 trials = -0.0011) at n=1888"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -157,7 +162,7 @@
       "null_max": 0.1344,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound +0.1031 does not exceed the random-data null (max of 5 trials = +0.1344) at n=661"
+        "the lift's CI lower bound +0.1031 does not exceed the random-data null (max of 1 trials = +0.1344) at n=661"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -173,7 +178,7 @@
       "null_max": 0.0431,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound +0.0251 does not exceed the random-data null (max of 5 trials = +0.0431) at n=22024"
+        "the lift's CI lower bound +0.0251 does not exceed the random-data null (max of 1 trials = +0.0431) at n=22024"
       ]
     },
     "vcp": {
@@ -188,7 +193,7 @@
       "null_max": 0.0392,
       "null_trials": 5,
       "reasons": [
-        "the lift's CI lower bound +0.0327 does not exceed the random-data null (max of 5 trials = +0.0392) at n=8305"
+        "the lift's CI lower bound +0.0327 does not exceed the random-data null (max of 1 trials = +0.0392) at n=8305"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -205,7 +210,7 @@
       "null_trials": 5,
       "reasons": [
         "95% CI [-0.0139, +0.0531] includes zero at n=799",
-        "the lift's CI lower bound -0.0139 does not exceed the random-data null (max of 5 trials = +0.0455) at n=799"
+        "the lift's CI lower bound -0.0139 does not exceed the random-data null (max of 1 trials = +0.0455) at n=799"
       ],
       "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
@@ -221,6 +226,106 @@
       "null_max": -0.0081,
       "null_trials": 30,
       "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
+    },
+    "buyable-gap-up": {
+      "published": true,
+      "sample_tickers": 3456,
+      "lift": 0.1256,
+      "ci_low": 0.1099,
+      "ci_high": 0.1393,
+      "n": 5374,
+      "rate": 0.3952,
+      "baseline": 0.2696,
+      "null_max": 0.1042,
+      "null_trials": 5
+    },
+    "cheat-3c": {
+      "published": false,
+      "sample_tickers": 3408,
+      "lift": -0.011,
+      "ci_low": -0.0216,
+      "ci_high": -0.0009,
+      "n": 6139,
+      "rate": 0.2611,
+      "baseline": 0.2721,
+      "null_max": -0.0391,
+      "null_trials": 5,
+      "reasons": [
+        "the measured lift -0.0110 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)"
+      ]
+    },
+    "low-cheat": {
+      "published": true,
+      "sample_tickers": 3408,
+      "lift": 0.028,
+      "ci_low": 0.0083,
+      "ci_high": 0.0456,
+      "n": 2856,
+      "rate": 0.2997,
+      "baseline": 0.2717,
+      "null_max": -0.0086,
+      "null_trials": 5
+    },
+    "saucer": {
+      "published": false,
+      "sample_tickers": 3408,
+      "lift": -0.174,
+      "ci_low": -0.1822,
+      "ci_high": -0.1658,
+      "n": 8499,
+      "rate": 0.1021,
+      "baseline": 0.2761,
+      "null_max": -0.172,
+      "null_trials": 5,
+      "reasons": [
+        "the measured lift -0.1740 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
+        "the lift's CI lower bound -0.1822 does not exceed the random-data null (max of 1 trials = -0.1720) at n=8499"
+      ]
+    },
+    "climax-top": {
+      "published": false,
+      "sample_tickers": 3461,
+      "lift": 0.1424,
+      "ci_low": 0.1307,
+      "ci_high": 0.1542,
+      "n": 7463,
+      "rate": 0.4111,
+      "baseline": 0.2687,
+      "null_max": 0.1338,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound +0.1307 does not exceed the random-data null (max of 1 trials = +0.1338) at n=7463"
+      ]
+    },
+    "wyckoff-spring": {
+      "published": false,
+      "sample_tickers": 3461,
+      "lift": 0.0114,
+      "ci_low": 0.003,
+      "ci_high": 0.0202,
+      "n": 11232,
+      "rate": 0.2825,
+      "baseline": 0.2711,
+      "null_max": 0.011,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound +0.0030 does not exceed the random-data null (max of 1 trials = +0.0110) at n=11232"
+      ]
+    },
+    "parabolic-extension": {
+      "published": false,
+      "sample_tickers": 3461,
+      "lift": 0.0332,
+      "ci_low": 0.0109,
+      "ci_high": 0.0515,
+      "n": 2077,
+      "rate": 0.3038,
+      "baseline": 0.2706,
+      "null_max": 0.1177,
+      "null_trials": 5,
+      "reasons": [
+        "the lift's CI lower bound +0.0109 does not exceed the random-data null (max of 1 trials = +0.1177) at n=2077"
+      ]
     }
   }
 }
