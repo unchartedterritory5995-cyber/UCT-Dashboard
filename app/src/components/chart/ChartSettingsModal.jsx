@@ -151,6 +151,7 @@ const SETTINGS_TARGET_TAB = {
   watermark: 'canvas',
   axis: 'canvas',
   ma: 'indicators',
+  volume: 'indicators',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -194,6 +195,7 @@ export default function ChartSettingsModal({
   const panelRef = useRef(null)
   const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
   const axisRef = useRef(null)        // Axis Labels section (Canvas) — for scrollTo='axis'
+  const volumeRef = useRef(null)      // Volume group (Indicators) — for scrollTo='volume'
   const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
@@ -345,7 +347,7 @@ export default function ChartSettingsModal({
     if (!open || didScrollRef.current) return
     const tab = SETTINGS_TARGET_TAB[scrollTo]
     if (!tab || activeTab !== tab) return
-    const ref = scrollTo === 'watermark' ? watermarkRef : scrollTo === 'axis' ? axisRef : null
+    const ref = scrollTo === 'watermark' ? watermarkRef : scrollTo === 'axis' ? axisRef : scrollTo === 'volume' ? volumeRef : null
     if (ref) { try { ref.current?.scrollIntoView({ block: 'start', behavior: 'auto' }) } catch { /* noop */ } }
     didScrollRef.current = true
   }, [open, scrollTo, activeTab])
@@ -967,7 +969,7 @@ export default function ChartSettingsModal({
             if (!rows.length) return null
             return (
               <section key={group} className={styles.section}>
-                <div className={styles.sectionLabel}>{group}</div>
+                <div className={styles.sectionLabel} ref={/volume/i.test(group) ? volumeRef : undefined}>{group}</div>
                 {rows.map((row) => {
                   const on = readEnabled(row)
                   const enabledKey = row.enabledKey || 'enabled'

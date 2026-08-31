@@ -138,6 +138,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  // A couple of new tests below point window.location at /charts?ensure=...
+  // to exercise the legacy-door widget seeding — reset it so it never leaks
+  // into a later test in this file.
+  window.history.pushState({}, '', '/')
 })
 
 test('every workspace action a member needs is still reachable from the toolbar', () => {
@@ -695,4 +699,58 @@ test('a popped-out layout is not disturbed by opening a different layout on the 
     expect(popped(fake, 'chart')).toBeTruthy()
     expect(popped(fake, 'watchlist')).toBeTruthy()
   } finally { openSpy.mockRestore() }
+})
+
+// ── Legacy-door widget seeding (?ensure=<type>) ─────────────────────────────
+//
+// /theme-tracker and /watchlists (LegacyRedirect.jsx) land here with
+// ?ensure=themes / ?ensure=watchlist because those pages are reachable ONLY
+// as a widget inside /charts. These tests exercise the honouring side: the
+// workspace must seed the requested widget when the saved layout lacks it,
+// and never add a second one on re-render / a repeat visit.
+function goTo(pathAndQuery) {
+  window.history.pushState({}, '', pathAndQuery)
+}
+
+test('?ensure=themes seeds a themes widget when the saved layout lacks one', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?ensure=themes')
+  renderWS()
+  expect(screen.getByTestId('body-themes')).toBeInTheDocument()
+})
+
+test('?ensure=watchlist seeds a watchlist widget when the saved layout lacks one', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?ensure=watchlist')
+  renderWS()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+})
+
+test('no ?ensure param -> no widget is seeded beyond what was saved (the control)', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid^="body-"]').length).toBe(0)
+})
+
+test('?ensure=themes is idempotent — a themes widget already on the saved layout is not duplicated', () => {
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({
+      widgets: [{ id: 'w1', type: 'themes', color: 'A', x: 0, y: 0, w: 4, h: 8, opts: {} }],
+      cols: 24,
+    }),
+  }
+  goTo('/charts?ensure=themes')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(1)
+})
+
+test('?ensure=themes on a brand-new member (no saved layout at all) still yields exactly one themes widget', () => {
+  // No charts_workspace_layout in prefs -> the pre-existing "first visit"
+  // effect also fires and applies UCT_DEFAULT_LAYOUT, which already contains
+  // a themes widget. The ensure-effect must not race that into a duplicate.
+  mockPrefs = {}
+  goTo('/charts?ensure=themes')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(1)
 })

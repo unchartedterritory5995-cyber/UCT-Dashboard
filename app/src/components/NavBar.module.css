@@ -119,11 +119,88 @@
   background: rgba(220, 187, 94, 0.13);
   box-shadow: inset 2px 0 0 #dcbb5e;
 }
+/* 🔴 THE RAIL USED TO OVERFLOW ITS OWN `overflow: hidden` BOX, SILENTLY.
+   `.nav` is `height: 100vh; overflow: hidden`, and this was `flex: 1` with no
+   overflow of its own and no `min-height: 0` — so a flex child that could not
+   shrink pushed its tail out through a clipped parent. Measured from the CSS,
+   paid non-admin with community on, at a 1000px viewport:
+
+       16 items x 44px                        = 704px   (fit, 77px spare)
+       17 items x 44px + 4 group labels x ~26 = 854px   (73px OVERFLOW)
+
+   Admin is one item worse (~117px). A 1080p window with browser chrome is
+   ~940-960px of inner height, so `Community` and `Support` rendered UNDERNEATH
+   `.bottomItems` and the tail was clipped with NO scroll affordance — on every
+   page, on the owner's own monitor.
+
+   ⛔ `min-height: 0` IS LOAD-BEARING, not decoration: a column flex item's
+   default `min-height: auto` refuses to shrink below its content, so
+   `overflow-y: auto` alone would still have overflowed. This is the same
+   "no track to resolve against" shape as the 2,714px SectorRotation void and
+   as the cockpit rail's missing height bound. Rail: NavBar.overflow.test.js. */
 .mainItems {
   display: flex;
   flex-direction: column;
   width: 100%;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Collapsed (icon-only, 60px) rail: keep it scrollable but hide the scrollbar
+     chrome, which otherwise drew a stray vertical line beside the icons. Scrolling
+     still works (wheel/touch); the track returns when the rail expands on hover so
+     an overflowing expanded menu still shows its scrollbar. */
+  scrollbar-width: none;            /* Firefox */
+}
+.mainItems::-webkit-scrollbar { width: 0; height: 0; }   /* WebKit — collapsed */
+.nav:hover .mainItems { scrollbar-width: thin; }
+.nav:hover .mainItems::-webkit-scrollbar { width: 8px; }
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+/* Group heading (Home / Markets / Charts / Journal) — the four-group
+   taxonomy MobileTabBar's bottom tab bar already used, now shared via
+   navGroups.js. Same opacity/hover-delay recipe as .label: invisible while
+   the rail is collapsed to 60px (no room for text), fades in with the other
+   labels on the deliberate-hover expand to 200px. */
+/* ⛔ `display: none`, NOT `opacity: 0`. This rule was copied byte-for-byte from
+   `.label`'s hover recipe, and the copy is the defect: `.label` is INLINE
+   inside a row that already has height, so hiding it by opacity costs nothing.
+   `.groupLabel` is a BLOCK with 18px of vertical padding, so four invisible
+   ones added ~106px of height to a rail that had ~77px to spare. Reuse of a
+   correct recipe is not automatically correct — it depends on the box. */
+.groupLabel {
+  display: none;
+  width: 100%;
+  padding: 14px 18px 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.navGroup:first-child .groupLabel {
+  padding-top: 4px;
+}
+.nav:hover .groupLabel {
+  display: block;
+  opacity: 1;
+  /* ⚠️ THE DELAY NO LONGER DOES ANYTHING FOR THESE HEADINGS, and saying so
+     beats leaving a comment that describes a mechanism that stopped running.
+     `display` is not an animatable property, so swapping none→block makes the
+     element appear at once and the `transition: opacity` above never gets a
+     chance to run — the headings POP while the item labels still fade in over
+     0.15s after the same 0.12s delay. That is a small, accepted cosmetic
+     inconsistency, taken because `opacity: 0` is what cost the collapsed rail
+     ~106px of invisible height. The delay is kept only so a future revert to an
+     animatable hiding mechanism inherits the right timing. */
+  transition-delay: 0.12s;
 }
 .bottomItems {
   display: flex;
@@ -168,6 +245,16 @@
     align-items: center;
   }
   .label {
+    display: none;
+  }
+  /* ⛔ THE HOVER RULE MUST BE NAMED HERE, NOT JUST `.groupLabel`.
+     `.nav:hover .groupLabel` is (0,3,0) — two classes plus `:hover`, which is a
+     pseudo-CLASS and counts in the class column — against (0,1,0) for a bare
+     `.groupLabel`. Specificity beats source order, so without this selector a
+     touch device that fires :hover would re-add the ~106px this block exists to
+     avoid. Rail: NavBar.overflow.test.js. */
+  .groupLabel,
+  .nav:hover .groupLabel {
     display: none;
   }
   .brandName {

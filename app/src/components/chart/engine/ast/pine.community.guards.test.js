@@ -99,13 +99,21 @@ const REFUSES = Object.freeze({
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and
   // the third is honest: line 40 reads another symbol built by `ticker.new(…)`.
   '26-spy-to-es-qqq-to-nq.pine': ['pine:request', 40, 'request.security'],
-  // ⚰️ `27-support-resistance-channels` LEFT THIS TABLE on 2026-08-30. It refused
-  // `pine:function` @37 on `bool`, and `pine.js` stated in-file that the cast was
-  // unpublished. It is published — TradingView's v6 migration guide says `na`, `0`
-  // and `0.0` cast FALSE and anything else TRUE — so `bool(x)` folds to `x != 0`,
-  // which this engine's NaN-comparison rule makes an exact identity rather than an
-  // approximation. A refusal resting on a claim about a vendor is only as good as
-  // the claim.
+  // ⚰️⭐ `27` LEFT THIS TABLE on 2026-08-30 and CAME BACK THE SAME DAY at a
+  // different wall. It refused `pine:function` @37 on `bool`; the cast turned out
+  // to be published (TradingView's v6 migration guide: `na`, `0` and `0.0` cast
+  // FALSE, anything else TRUE), so `bool(x)` folds to `x != 0` and line 37
+  // resolved. That fold was correct and stays. What it bought was NOT a column:
+  // the `plotshape` it unblocked is `bool(ph) and showpp` with
+  // `showpp = input.bool(defval=false)`, so the result is false on every bar.
+  // The script's real wall is 40 lines further down and always was.
+  // ⛔ THE LESSON IS ABOUT THE MEASUREMENT, NOT THE VENDOR: "the refusal moved"
+  // and "the member gained something" are different claims, and only the first was
+  // ever checked. 28 has the identical story one guard along.
+  '27-support-resistance-channels.pine': ['pine:reassign', 183, ':='],
+  // ⭐ A BOOLEAN ACCUMULATED ACROSS A `for` OVER A RUNTIME ARRAY — the same shape
+  // as 27's, caught by the block guard first because 28 wraps it in a function.
+  '28-support-resistance-dynamic-v2.pine': ['pine:block', 133, 'for'],
   '29-zigzag-plus-plus.pine': ['pine:module', 16, 'import'],
   '30-pivot-points-high-low-mtf.pine': ['pine:no-output', null, null],
 })

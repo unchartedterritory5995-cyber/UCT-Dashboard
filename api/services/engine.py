@@ -2765,21 +2765,58 @@ def candidate_tickers(*buckets: str) -> list[str]:
 
 # ─── UCT 20 Portfolio ──────────────────────────────────────────────────────────
 
-def get_uct20_portfolio_data() -> dict:
-    """Return UCT 20 portfolio performance data.
+def get_uct20_portfolio_warm() -> dict | None:
+    """The UCT 20 portfolio from WARM sources only. NEVER does network I/O.
 
-    Priority: cache → wire_data["uct20_portfolio"] → direct engine call (local dev).
+    cache → `wire_data["uct20_portfolio"]`. Returns `None` — not `{}` — when
+    neither source holds it, so a caller can tell "no warm source" apart from a
+    genuinely cached empty portfolio.
+
+    ⭐ WHY THIS EXISTS AS ITS OWN FUNCTION. `get_uct20_portfolio_data()` below
+    ends in a DIRECT `uct_intelligence.api` call that fetches bars for every
+    ever-held symbol — real network work, and forbidden on endpoints like
+    `/api/dashboard/signposts` that must never do I/O per request. That endpoint
+    used to protect itself by peeking `cache.get("uct20_portfolio")` by hand,
+    which meant it saw the FIRST tier of this resolution and not the second —
+    and the second is the one that is reliably warm:
+
+      * `api/main.py`'s lifespan seeds `wire_data` into the cache at boot from
+        `/data/wire_data.json` (23h TTL), and `_load_wire_data()` above falls
+        back to reading that same file. So `wire_data` is warm on a fresh pod.
+      * NOTHING warms `uct20_portfolio` itself. It is absent from `main.py`'s
+        `_warm_dashboard_caches` roster, and `/api/push` INVALIDATES it on every
+        morning wire push (see push.py's `INVALIDATE_KEYS`) while re-setting
+        `wire_data`. So the key is cold on a fresh pod AND cold again after
+        every wire run, until some unrelated request happens to call the
+        function below and re-derive it.
+
+    A caller that needs the portfolio without paying for the network calls this;
+    the full function is DERIVED from it rather than restating the two tiers.
     """
     cached = cache.get("uct20_portfolio")
     if cached is not None:
         return cached
 
-    # Try wire_data (populated by /api/push from morning wire engine)
+    # Try wire_data (populated by /api/push from morning wire engine, and seeded
+    # into the cache at boot from the Railway volume).
     wire = _load_wire_data()
     if wire and wire.get("uct20_portfolio"):
         result = wire["uct20_portfolio"]
         cache.set("uct20_portfolio", result, ttl=3600)
         return result
+
+    return None
+
+
+def get_uct20_portfolio_data() -> dict:
+    """Return UCT 20 portfolio performance data.
+
+    Priority: cache → wire_data["uct20_portfolio"] → direct engine call (local dev).
+    The first two tiers are `get_uct20_portfolio_warm()` — one authority.
+    """
+    warm = get_uct20_portfolio_warm()
+    if warm is not None:
+        return warm
 
     # Local dev fallback: call engine directly
     try:

@@ -73,6 +73,45 @@ export const isBrokerPlaceholderStop = (p) => {
 }
 
 /**
+ * 🔴 THE STOP A POSITION IS ACTUALLY PROTECTED BY, or `null` when it has none.
+ * **This is the predicate every surface should ask.** `isBrokerPlaceholderStop`
+ * above answers a narrower question — "is this the broker's NOT-NULL seed" —
+ * and three surfaces were asking it as though it were this one.
+ *
+ * Three ways a stored `stopPrice` is not a stop:
+ *   1. The BROKER PLACEHOLDER (`stop === entry` on a broker row).
+ *   2. NOT FINITE — null / undefined / NaN.
+ *   3. 🔴 ZERO OR NEGATIVE. `api/services/journal_two/positions.py` stores
+ *      `stop_price = 0.0` when `stopPrice` is omitted at create (it is
+ *      optional), and that is a MANUAL row, so rule 1 never fires on it.
+ *      Left through, a $0 stop renders as real protection and books the ENTIRE
+ *      NOTIONAL as risk: 100 shares at $100 read "stop $0.00" and
+ *      "$10,000.00 risk", twenty times the truth.
+ *
+ * ⭐ WHY IT LIVES HERE AND NOT ON ONE TILE. The rule shipped on the dashboard
+ * cockpit first, and for one round the SAME position read "no stop, $0 risk"
+ * there and "stop $0.00, full notional at risk" on the Journal's Positions tab
+ * — the client holding two answers about one position's protection. The server
+ * has had this rule the whole time (`api/services/portfolio_heat.py`:
+ * `if stop <= 0: return True`).
+ *
+ * ⚠️ The client and server tolerance FORMS still differ (relative vs absolute
+ * for rule 1); unifying them is separate, scoped work.
+ * @param {Position} p
+ * @returns {number|null}
+ */
+export const realStop = (p) => {
+  if (isBrokerPlaceholderStop(p)) return null
+  const s = activeStop(p)
+  if (!Number.isFinite(s) || s <= 0) return null
+  return s
+}
+
+/** True when a position has NO usable stop. The inverse of `realStop`, named
+ *  for the question call sites actually ask. @param {Position} p */
+export const hasNoRealStop = (p) => realStop(p) === null
+
+/**
  * Did this position genuinely OPEN today? True only when the entry date is
  * today AND the entry is real. Broker holdings-as-truth seeds unknown entries
  * with a sync-time placeholder date + entryEstimated flag — a reconnect
@@ -236,10 +275,14 @@ export const portfolioAggregates = (openPositions, prices, accountSize) => {
     if (current == null) continue
     value += current * p.shares
     unrealized += positionPnlDollar(p, current)
-    // Broker imports carry entry_price as a NOT-NULL stop placeholder — that
-    // is "no stop set", not a real stop at breakeven. Counting it made HEAT
-    // equal the whole unrealized P&L for every broker position.
-    if (!isBrokerPlaceholderStop(p)) {
+    // ⛔ STOP-DERIVED FIGURES NEED A REAL STOP. Broker imports carry
+    // entry_price as a NOT-NULL placeholder ("no stop set", not a stop at
+    // breakeven) — counting it made HEAT equal the whole unrealized P&L for
+    // every broker position. A MANUAL row created without a stop carries 0.0
+    // for the same NOT-NULL reason, and counting THAT booked the entire
+    // notional as risk. `realStop` covers both; asking
+    // `isBrokerPlaceholderStop` here only covered the first.
+    if (!hasNoRealStop(p)) {
       risk += positionRiskDollar(p)
       heat += positionHeatDollar(p, current)
     }

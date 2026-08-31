@@ -1492,11 +1492,60 @@ def test_OUTSIDE_the_session_the_cycle_answers_closed_AND_RECORDS_that(
 
 
 def test_a_tf_other_than_D_is_REFUSED_BY_NAME_in_wave_1(store, live_clock, monkeypatch):
-    """Wave 1 is daily-only: intraday timeframes arrive with the prewarm ring's
-    MEASURED coverage (spec §5.5), not before it."""
+    """Wave 1 is daily-only — and the reason is NOT the same for every timeframe.
+
+    ⚰️⚰️ THIS TEST DROVE ONLY ``"W"`` AND THE GATE SAID "intraday timeframes
+    arrive with the prewarm ring's MEASURED per-symbol cost". So the case it
+    exercised is the one the sentence describes WRONGLY, and the case the sentence
+    is about was never exercised at all. It demonstrated the defect instead of
+    catching it (``lesson_rail_the_sentence_not_just_the_guard``).
+
+    ⛔ ``W`` IS NOT BLOCKED ON COST. ``bars_prewarm`` warms it universe-wide at
+    5000 bars (``for sym in ticker_list: jobs.append((sym, 'W', 5000))``), so it
+    costs the ring nothing. What it lacks is a forming bar. An over-refusal has no
+    red test and nobody complains about it (``lesson_an_over_refusal_is_invisible``),
+    so the only rail available is on the SENTENCE.
+    """
     monkeypatch.setenv("SCAN_LIVE_SWEEP_ENABLED", "1")
-    with pytest.raises(scan_evaluator.ScanRunRefused, match=r"\[gate:tf\]"):
-        scan_evaluator.run_sweep([_definition(PRICE_TREE)], "W", universe=["AAA"], mode="live")
+
+    # ⭐ EVERY REFUSED TIMEFRAME STILL REFUSES, at the same gate.
+    for tf in ("1", "5", "15", "30", "60", "W", "M"):
+        with pytest.raises(scan_evaluator.ScanRunRefused, match=r"\[gate:tf\]"):
+            scan_evaluator.run_sweep(
+                [_definition(PRICE_TREE)], tf, universe=["AAA"], mode="live")
+
+    intraday = scan_evaluator._wrong_tf_reason("5")
+    higher = scan_evaluator._wrong_tf_reason("W")
+
+    # ⛔⛔ THE INTRADAY SENTENCE NAMES THE TWO CORRECTNESS WALLS THAT OUTRANK THE
+    # COST, and names the cost LAST. Offering the ring's number as the blocker made
+    # this gate look one measurement away from opening when it is not — and the
+    # ring (`api/services/intraday_prewarm.py`) has never been written.
+    assert "unix seconds" in intraday
+    assert "forming bar has no owner" in intraday
+    assert "does not exist yet" in intraday
+
+    # ⛔⛔ AND THE HIGHER-TIMEFRAME SENTENCE SAYS THE COST IS *NOT* THE BLOCKER.
+    assert "is NOT what stops it" in higher
+    assert "universe-wide" in higher
+    assert "forming bar" in higher
+
+    # ⭐ THE DISCRIMINATOR. Without this the two could converge on one sentence
+    # again and every assertion above would still pass on the intraday half.
+    # ⚰️ MY FIRST DRAFT ASSERTED THE WORD "intraday" IS ABSENT FROM THE HIGHER
+    # SENTENCE. It is not, and it SHOULD not be: that sentence says "is a HIGHER
+    # timeframe rather than an intraday one", which is the useful half. The
+    # distinction is not vocabulary, it is which BLOCKERS each names — so that is
+    # what is asserted.
+    assert intraday != higher
+    assert "unix seconds" not in higher          # not a higher-timeframe problem
+    assert "does not exist yet" not in higher    # the ring is not what stops W/M
+    assert "is NOT what stops it" not in intraday  # for intraday the cost IS real
+
+    # ⛔ AND THE SPLIT IS DERIVED FROM THE LADDER, not typed — so a sixth intraday
+    # rung lands on the right side of the gate with no edit in the evaluator.
+    assert scan_evaluator._intraday_codes() == ("1", "5", "15", "30", "60")
+    assert scan_evaluator.DEFAULT_TF not in scan_evaluator._intraday_codes()
 
 
 def test_the_WALL_CLOCK_RAIL_stops_STARTING_definitions_past_the_budget_and_NAMES_them(

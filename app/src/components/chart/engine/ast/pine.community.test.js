@@ -84,18 +84,36 @@ describe('the community corpus, by name', () => {
     '20-cm-ultimate-ma-mtf.pine',
     '21-ma-cross-alert-mtf-chartart.pine',
     '24-multi-timeframe-rsi.pine',
-    // ⭐⭐ THE SAME AUTHOR'S v6 SIBLING, AND THE DOOR ACCEPTED THE v5 ONE ALL
-    // ALONG. 28 (v5) writes `plotshape(ph and showpp, …)`; 27 (v6) writes
-    // `plotshape(bool(ph) and showpp, …)` — the identical construct, differing
-    // only by the wrapper TradingView's OWN converter inserts because v6 removed
-    // the implicit int/float→bool cast. So the refusal was a PINE VERSION
-    // ARTIFACT, not a semantics gap, and `pine.js` carried an in-file ruling
-    // saying the cast was unpublished. It is published, verbatim, and the reading
-    // that ruling called "plausible" (`not na(x)`) is BACKWARDS — TradingView
-    // says `0` casts to FALSE. See the citation at the fold site.
-    '27-support-resistance-channels.pine',
-    '28-support-resistance-dynamic-v2.pine',
   ]
+
+  // ⚰️⚰️ 27 AND 28 WERE HERE AND NEITHER EVER HAD A COLUMN. Both are RULED now
+  // (see `doorScorecard.test.js`), and how they got onto this roster is the part
+  // worth keeping.
+  //
+  // They were admitted because each translated — and MEASURED, the only columns
+  // either one offered were:
+  //     27 → `pivothigh(high, 10, 10)[10] != 0 && 0`   and its `pivotlow` twin
+  //     28 → `pivothigh(high, 10, 10)[10] && 0`        and its `pivotlow` twin
+  // `plotshape(bool(ph) and showpp, …)` where `showpp = input.bool(defval=false)`.
+  // Every one of them is FALSE ON EVERY BAR: a shape the script's own default
+  // switches off. The member would have opened the door and found a column that
+  // never fires, and the coverage number counted two scripts for it.
+  //
+  // ⭐ THE ENGINE ALREADY KNEW HOW TO REJECT THIS and could not see it. A column
+  // that reads no bars is hidden by `readsBars` as "worth nothing to a screen" —
+  // a policy `pine.js` states in its own words about `hline`. But `X && 0` LOOKS
+  // like it reads bars: it contains a call. Only once `and`/`or` folded a deciding
+  // constant did the tree collapse to `0` and the existing policy get to fire.
+  // ⛔ So this was not a rule that was missing. It was a rule that could not SEE,
+  // and two scripts sat inside its blind spot being counted as wins.
+  //
+  // ⚠️ AND THE COMMENT THAT USED TO SIT HERE WAS RIGHT ABOUT EVERYTHING IT
+  // CHECKED. `bool(x)` really is published as `x != 0`, 28 really is 27's v5
+  // sibling, and the old in-file ruling really was backwards. All true, and none
+  // of it load-bearing: the fold it justified unblocked a construct inside a
+  // disabled `plotshape`, and the scripts' real wall (a `for` loop accumulating
+  // over a runtime array) was never touched. Checking the claim you doubted is
+  // not the same as checking the claim you needed.
 
   const outcome = (f) => {
     const src = fs.readFileSync(path.join(DIR, f), 'utf8')

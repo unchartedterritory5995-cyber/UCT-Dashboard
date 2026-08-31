@@ -1491,6 +1491,43 @@ export default function ChartsWorkspace() {
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
 
+  // Legacy-door widget seeding: /theme-tracker and /watchlists redirect here
+  // with ?ensure=<type> (LegacyRedirect.jsx) because Theme Tracker / Watchlists
+  // are reachable ONLY as a widget inside /charts. Without this, a member whose
+  // saved workspace lacks that widget would land on a board missing the very
+  // thing the door promised.
+  // ⏳ Waits for hydration — same race the deep-link effect above guards
+  // against: prefs land a beat after mount, and seeding onto DEFAULT_LAYOUT
+  // before the real saved layout arrives would just get overwritten.
+  // ✅ Idempotent: runs once per mount (`ensureWidgetAppliedRef`) and checks
+  // the CURRENT layout for the widget type before adding — a re-render or a
+  // repeat visit through the same door never adds a second one.
+  //
+  // ⛔⛔ THIS SEED IS STILL CLOBBERED FOR A BRAND-NEW USER, AND THE GATE BELOW
+  // CANNOT FIX IT. A `|| templatesLoading` was added here and then REVERTED
+  // after it was disproved by experiment: with `?ensure=news` (a real registry
+  // type deliberately absent from UCT_DEFAULT_LAYOUT, so unlike the shipped
+  // `?ensure=themes` test it can actually discriminate) the seeded widget is
+  // GONE both with and without it — byte-identical behaviour, a pure no-op that
+  // bought only an extra dependency. Waiting for templates makes BOTH effects
+  // fire on the same commit, and the LATER one wins, so sitting above the
+  // wholesale default-layout effect means being overwritten BY it, not before
+  // it. ⛔ Today the seed survives only because UCT_DEFAULT_LAYOUT happens to
+  // contain the two widget types the live doors ask for. THE REAL FIX belongs
+  // in that default-layout effect — it must not overwrite a layout an ensure
+  // has already seeded. Deferred, with the reasoning, in
+  // docs/superpowers/specs/2026-08-30-dashboard-session-cockpit-design.md.
+  const ensureWidgetAppliedRef = useRef(false)
+  useEffect(() => {
+    if (ensureWidgetAppliedRef.current || prefsLoading) return
+    ensureWidgetAppliedRef.current = true
+    const want = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('ensure')
+    if (!want) return
+    if (layoutRef.current?.widgets?.some(w => w.type === want)) return
+    handleAddWidget(want, undefined, { instant: true })
+  }, [prefsLoading, handleAddWidget])
+
+
   // Commit a pending smart-placement add (Place / Enter / click the ghost). Mirrors
   // the immediate add path: apply the previewed resizes to existing widgets, then add
   // the newcomer at the previewed slot. Reads the pending add from a ref so the
@@ -1627,6 +1664,7 @@ export default function ChartsWorkspace() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
+
   const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
   const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
   // Which template's ✕ is awaiting delete confirmation (id), or null.
