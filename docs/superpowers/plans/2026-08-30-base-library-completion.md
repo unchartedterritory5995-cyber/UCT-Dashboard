@@ -33,36 +33,57 @@
 
 ## Wave A — close the in-flight measurement
 
-- [ ] **A1** Read the 30-trial Darvas null. If its CI lower bound (+5.56pp) no
+- [x] **A1** DONE. Darvas held at 30 trials: null max +2.10pp against a CI
+      lower bound of +5.56pp, and ZERO of 30 trials reached it.
+      *(original:)* Read the 30-trial Darvas null. If its CI lower bound (+5.56pp) no
       longer clears the null max, Darvas is refused and the ledger publishes
       NOTHING. That is a valid outcome; do not soften the gate to avoid it.
-- [ ] **A2** Write `docs/base_lift_ledger.json`: one row per relation, each
+- [x] **A2** DONE — `docs/base_lift_ledger.json`, now 14 rows.
+      *(original:)* Write `docs/base_lift_ledger.json`: one row per relation, each
       `published` with `{lift, ci_low, ci_high, n, null_max, null_trials}` or
       refused with `reasons`. Header records `measured_at`, `method`, `sample`,
       `baseline_metric`.
-- [ ] **A3** Confirm the three artifact rails go green
+- [x] **A3** DONE, and a fourth was added later: a PUBLISHED row must
+      carry >= 30 null trials, so the escalation rule is a rail rather
+      than prose.
+      *(original:)* Confirm the three artifact rails go green
       (`test_the_ledger_artifact_names_EVERY_relation`,
       `test_the_artifact_records_its_own_method_and_date`,
       `test_meta_never_reports_a_lift_the_ledger_refused`).
-- [ ] **A4** Commit.
+- [x] **A4** DONE.
 
 ## Wave B — make the evidence durable and visible
 
-- [ ] **B1 — the ledger goes stale silently today.** `measured_at` is written
+- [x] **B1** DONE — `lift_ledger.is_stale()` + `MAX_LEDGER_AGE_DAYS=120`
+      + `test_an_undated_artifact_is_stale_by_definition`.
+      *(original:)* the ledger goes stale silently today. `measured_at` is written
       and nothing reads it. Add `lift_ledger.is_stale(max_age_days)` and a rail
       that fails by name when the artifact is older than the bound. A number
       measured once and never re-checked is the `_a_comment_naming_a_mechanism_
       is_a_claim_about_a_run` shape in data form.
-- [ ] **B2** Register a scheduler job that re-runs the ledger and rewrites the
+- [~] **B2 — DELIBERATELY NOT DONE, and this is the correction.** The
+      plan called for a cron job; that was the wrong call. The web pod
+      already carries ~135 cron jobs, 39 threads and a 39s boot, and the
+      jobs cannot move off it (20+ SQLite DBs on its volume). This
+      harness runs for MINUTES-TO-HOURS, and what it measures moves on a
+      quarterly timescale, not a nightly one. It is a TOOL
+      (`tools/run_lift_ledger.py`) and the freshness guarantee is B1's
+      rail, which fails BY NAME and names the command. A job that
+      silently stops running is invisible; a red rail is not. Reasoning
+      lives in the tool's own docstring.
+      *(original:)* Register a scheduler job that re-runs the ledger and rewrites the
       artifact. ⚠️ It must run where `bars.db` is complete, and it must NOT run
       inside the member-serving request path — the harness takes minutes.
       Follow the `_run_patterns_universe_scan` precedent for placement, and pin
       the job id with an AST test the way `test_schedulers.py` does.
-- [ ] **B3 — the lift is in `meta()` and invisible on screen.** Have the
+- [x] **B3** DONE — `filters._structure_evidence()` surfaces the measured
+      lift, CI and n on the `base_structure` filter, and a refused
+      structure is ABSENT rather than present with a zero.
+      *(original:)* the lift is in `meta()` and invisible on screen. Have the
       `base_render` / `base_shape` column descriptions state the measured lift
       or say plainly that there is none. This is the half-shipped-family rail
       applied to a number instead of a column.
-- [ ] **B4** Commit.
+- [x] **B4** DONE.
 
 ## Wave C — retire the second pattern vocabulary
 
@@ -72,35 +93,47 @@ on two different confidence scales (`pattern_conf_max` 0-1 vs
 calls it unresolved. Overview no longer shows the cheap one; the filter, the
 Patterns view seats and the columns remain.
 
-- [ ] **C1 — DO NOT DELETE ANYTHING FIRST.** Saved screens serialize filter
+- [x] **C1** DONE — queried the live table via `railway ssh`: **1 saved
+      screen, 0 referencing the retired keys.**
+      *(original:)* DO NOT DELETE ANYTHING FIRST. Saved screens serialize filter
       keys as JSON (`saved_screens.spec_json`). Query the live table for
       specs referencing `pattern` or `pattern_conf_max` and COUNT them. A
       deletion that breaks a member's saved screen is not a cleanup.
-- [ ] **C2** If the count is zero: remove the `pattern` filter, the `patterns`
+- [x] **C2** DONE — `api/services/screener/patterns.py` deleted; `pattern`
+      and `pattern_conf_max` moved to `filters.RETIRED` with a typed
+      refusal rather than silently dropped.
+      *(original:)* If the count is zero: remove the `pattern` filter, the `patterns`
       and `pattern_conf_max` columns, and their Patterns-view seats; delete
       `api/services/screener/patterns.py`. If non-zero: write the migration
       that rewrites those specs onto `base_structure` first, and only then
       delete.
-- [ ] **C3** Rail: exactly one pattern vocabulary is reachable by a member.
-- [ ] **C4** Commit.
+- [x] **C3** DONE.
+      *(original:)* Rail: exactly one pattern vocabulary is reachable by a member.
+- [x] **C4** DONE.
 
 ## Wave D — make the 85 existing detectors reachable
 
 The highest value-to-effort item on this plan, and none of it is new detection.
 
-- [ ] **D1** `pattern_engine_ids` truncates at 10 while the median covered
+- [x] **D1** DONE — near-universal detectors excluded by measured firing
+      rate, guarded by `MIN_POPULATION_FOR_EXCLUSION` after a 0.95x1
+      threshold excluded everything on a small population.
+      *(original:)* `pattern_engine_ids` truncates at 10 while the median covered
       symbol carries 14 — **2,675 of 2,890 (92.6%) truncated**. Nine detectors
       fire on ~100% of the universe and are ranked last but still occupy the
       list. EXCLUDE them from the column rather than ranking them, and record
       the measured firing rate that justifies each exclusion.
-- [ ] **D2** Only 2 of 85 detectors have a screenable flag column. Promote the
+- [x] **D2** DONE — all 78 firing detectors screenable, with ZERO new
+      snapshot columns.
+      *(original:)* Only 2 of 85 detectors have a screenable flag column. Promote the
       **37 detectors in the 1-10% band** — the informative tail — using the
       existing `_PATTERN_FLAG_COLUMNS` mechanism. ⚠️ Each new flag is a
       snapshot column and must be registered in all three rails Wave 1c already
       exercised (closed-table manifest, display def, member reachability).
-- [ ] **D3** Re-measure truncation after D1: the number that was 92.6% must be
+- [x] **D3** DONE — truncation **90.8% -> 0%**, re-measured not assumed.
+      *(original:)* Re-measure truncation after D1: the number that was 92.6% must be
       reported, not assumed improved.
-- [ ] **D4** Commit.
+- [x] **D4** DONE.
 
 ## ⚠️ MEASURED CONSTRAINT ON WAVE E — the ledger does not scale linearly
 
@@ -277,12 +310,19 @@ global to per-structure). Mutation-checked.
 
 ## Wave F — rails promised and not yet written
 
-- [ ] **F1** The candle/engine boundary. The owner ruled the 18
+- [x] **F1** DONE — the boundary was being crossed by 16 detectors on
+      68.8% of symbols; now enforced by `category` in
+      `pattern_join._SCREENER_EXCLUDED_CATEGORIES`, railed in
+      `tests/test_screener_wave5_pattern_join.py`. I had asserted this
+      rail existed when it did not.
+      *(original:)* The candle/engine boundary. The owner ruled the 18
       `detectors/candlestick/*` stay, on the grounds that the chart overlay
       consumes them. That ruling is only safe if the boundary is enforced: the
       candle library owns screener columns, the engine owns the chart overlay,
       neither crosses. I asserted this rail exists; it does not. Write it.
-- [ ] **F2** `needs_intraday` must gate something real (see E6) or be deleted.
+- [x] **F2** DONE — DELETED. It was declared, surfaced, and gated nothing;
+      a tombstone comment records why rather than leaving a silent gap.
+      *(original:)* `needs_intraday` must gate something real (see E6) or be deleted.
       A field nothing sets is a claim nobody checks.
 
 ## Wave G — the failures nobody has explained
@@ -291,21 +331,34 @@ global to per-structure). Mutation-checked.
 *correlation*, not an attribution — I established only that they fail without
 my changes, never WHY they fail. Finish the job.
 
-- [ ] **G1** `ScreensManager.door.test.jsx` — intermittent. Observed twice
+- [x] **G1** DONE — not flaky: a cold first mount measured 451ms against
+      testing-library's 1000ms default, 2.2x headroom, which collapses
+      under concurrent load. Explicit 5000ms timeout; 418/418 under load.
+      *(original:)* `ScreensManager.door.test.jsx` — intermittent. Observed twice
       under heavy concurrent load, then 5 consecutive clean runs. Reproduce
       deterministically (run the suite under CPU load) and fix or quarantine.
-- [ ] **G2** `test_memory_schema.py::test_pattern_detections_indexes_exist` —
+- [x] **G2** DONE — an exact index-set assertion went stale when
+      `idx_pd_detected` landed; now a subset assertion with a
+      non-vacuity control.
+      *(original:)* `test_memory_schema.py` —
       failing throughout. Likely `idx_pd_detected` absent from the local
       `patterns.db`; confirm and either fix the fixture or the schema.
-- [ ] **G3** `test_router_patterns.py::test_get_detections_returns_stored`.
-- [ ] **G4** `test_screener_wave2_analyst_job.py::test_run_pass_stops_at_the_
+- [x] **G3** DONE — a hardcoded `detected_at` of 1700100100 (2023-11-16)
+      against a 7-day active window. Swept across 3 files.
+- [x] **G4** DONE — a HALF-FAKED CLOCK: `_now_et` was faked while
+      `read_analyst_fields` used real `time.time()` for its 8-day cutoff,
+      so a fixture pinned to 2026-08-22 rotted exactly 8 days later.
+      `now` is now injectable.
+      *(original:)* `test_screener_wave2_analyst_job.py::test_run_pass_stops_at_the_
       deadline_and_the_receipt_closes` — `KeyError: 'BBB'`.
 
 ## Wave H — ship
 
 - [ ] **H1** Full suite green, or every remaining failure attributed to a named
       cause in the commit.
-- [ ] **H2 — measure the nightly cost.** `bases.classify` now runs per ticker
+- [x] **H2** DONE — `bases.classify` = **23.0s for 3,707 tickers**, 0.3x
+      the weekly candle pass. Re-check after the structures added since.
+      *(original:)* measure the nightly cost. `bases.classify` now runs per ticker
       inside the 3:00 AM build and reads `bars_full`. Measured in isolation it
       is ~17s for 3,707 tickers, but that was WITHOUT the rest of the build's
       work and cache pressure. Time the real build before shipping; the weekly
