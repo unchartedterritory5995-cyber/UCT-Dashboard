@@ -1021,3 +1021,36 @@ def test_a_published_neutral_row_keeps_the_side_it_did_not_headline():
         assert (sides[head].get("lift") or -9) >= max(
             (v.get("lift") or -9) for v in sides.values()), (
             "%s headlines the weaker side" % key)
+
+
+def test_member_visible_evidence_carries_its_DIRECTION():
+    """⛔⛔ A LIFT WITHOUT ITS DIRECTION IS UNREADABLE ON THE SURFACE TOO.
+
+    `parabolic-extension` publishes +31.21pp on the SHORT metric -- it
+    resolved DOWNWARD more often than its baseline. A member shown "+31.21pp"
+    beside a structure name, with no direction, reads an upside edge. That is
+    the same mistake that had `stage-4-breakdown` published at +7.30pp on a
+    metric answering the opposite question; the ledger learned it, and the
+    surface a member actually sees has to learn it too.
+    """
+    from api.services.screener import base_catalog as bc
+    from api.services.screener import filters
+
+    ev = filters._structure_evidence()
+    assert ev, "no evidence surfaced -- this rail would pass vacuously"
+
+    saw_short = False
+    for match_value, e in ev.items():
+        assert e.get("direction") in ("long", "short"), match_value
+        assert e.get("resolves") in ("upward", "downward"), match_value
+        assert (e["resolves"] == "downward") == (e["direction"] == "short")
+        key = match_value.strip(",")
+        st = bc.by_key(key)
+        assert st is not None, key
+        if st.bias == "bearish":
+            assert e["direction"] == "short", key
+            saw_short = True
+
+    assert saw_short, (
+        "no bearish structure is published -- this rail would not have "
+        "exercised the case it exists for")

@@ -1128,11 +1128,22 @@ def _structure_evidence() -> dict:
         entry = lift_ledger.for_structure(st.key)
         if not entry:
             continue
+        # ⛔⛔ THE DIRECTION TRAVELS WITH THE NUMBER OR THE NUMBER IS
+        # UNREADABLE. `parabolic-extension` publishes +31.21pp on the SHORT
+        # metric: it resolved DOWNWARD more often than its baseline. A member
+        # shown "+31.21pp" beside a structure name, with no direction, reads
+        # an upside edge -- the exact mistake that had `stage-4-breakdown`
+        # published at +7.30pp on a metric that answered the opposite
+        # question. The ledger learned this; the surface a member actually
+        # sees has to learn it too.
         out[base_catalog.match_value(st.key)] = {
             "lift_pp": round(entry["lift"] * 100, 2),
             "ci_pp": [round(entry["ci_low"] * 100, 2),
                       round(entry["ci_high"] * 100, 2)],
             "n": entry.get("n"),
+            "direction": entry.get("direction"),
+            "resolves": ("downward" if entry.get("direction") == "short"
+                         else "upward"),
         }
     return out
 
