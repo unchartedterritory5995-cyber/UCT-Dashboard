@@ -278,7 +278,7 @@
       ]
     },
     "buyable-gap-up": {
-      "published": true,
+      "published": false,
       "sample_tickers": 3456,
       "lift": 0.1256,
       "ci_low": 0.1099,
@@ -286,8 +286,19 @@
       "n": 5374,
       "rate": 0.3952,
       "baseline": 0.2696,
-      "null_max": 0.1042,
-      "null_trials": 5
+      "null_max": 0.114,
+      "null_trials": 30,
+      "reasons": [
+        "the lift's CI lower bound +0.1099 does not exceed the random-data null (max of 30 trials = +0.1140) at n=5374"
+      ],
+      "note": "+12.56pp, CI [+10.99, +13.93] at n=5,374, against a 30-trial null whose maximum reached +11.40pp.\n\n⭐ THE ESCALATION RULE WORKING IN THE OTHER DIRECTION. This PASSED its 5-trial screen -- a +12.56pp lift with a CI lower bound of +10.99pp against a null max of +10.42pp -- and FAILED the 30-trial escalation, because the null's upper tail kept climbing: +10.42pp on five draws, +11.40pp on thirty. That is precisely why the escalation runs in one direction only. Stage 4 moved the other way on a wider SAMPLE; this one moved back on a harder NULL, and both are the same discipline.\n\n⚠️ Read the number with its known bias. The detector is an explicit SUBSET of the authors' rule -- their volume gate is not implemented, because it reaches us in two phrasings that differ by a factor of 1.67 and the research note says not to choose between them. A gate we do not apply is a gate whose rejections we do not make, so this measurement includes gap-ups the full rule would refuse.",
+      "note_measured": [
+        0.1256,
+        0.1099,
+        0.1393,
+        5374,
+        0.114
+      ]
     },
     "cheat-3c": {
       "published": false,
