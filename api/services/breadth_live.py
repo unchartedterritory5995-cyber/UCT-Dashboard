@@ -1274,8 +1274,19 @@ def enabled() -> bool:
     return os.environ.get("BREADTH_LIVE_ENABLED", "1") != "0"
 
 
-def compute_live(force: bool = False) -> dict:
-    """Breadth right now: one snapshot compared against cached levels."""
+def compute_live(force: bool = False, cached_only: bool = False) -> dict:
+    """Breadth right now: one snapshot compared against cached levels.
+
+    ``cached_only=True`` returns the warm cache when it is fresh, else a not-ok
+    sentinel WITHOUT recomputing. The recompute here fetches a full-market snapshot
+    (`get_full_market_snapshot`) and scores the whole universe — a ~12-16s cold
+    operation. Callers on a latency-sensitive path (the breadth pseudo-ticker chart
+    serve builds its developing candle from this) must NEVER pay that inline; they
+    pass ``cached_only=True`` and simply omit the live tick when the cache is cold.
+    The live-breadth dashboard poll (`/api/breadth-monitor/live`, every 60s) keeps
+    the cache warm through the session, so the chart's developing candle is fresh in
+    practice without any chart request ever triggering the snapshot.
+    """
     if not enabled():
         return {"ok": False, "reason": "breadth live disabled (BREADTH_LIVE_ENABLED=0)"}
     import time as _time
@@ -1284,6 +1295,8 @@ def compute_live(force: bool = False) -> dict:
         hit = _live_cache.get("payload")
         if hit and not force and now - _live_cache.get("at", 0) < _LIVE_TTL_SECONDS:
             return hit
+    if cached_only:
+        return {"ok": False, "reason": "no warm live cache (cached_only)"}
 
     levels = reference_levels()
     if not levels:

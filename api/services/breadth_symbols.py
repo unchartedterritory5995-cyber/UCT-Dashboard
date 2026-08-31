@@ -234,7 +234,12 @@ def _live_map() -> dict:
     try:
         from api.services import breadth_live
         if breadth_live.enabled() and breadth_live._session_started():
-            payload = breadth_live.compute_live() or {}
+            # CACHE-ONLY: a chart serve must never trigger compute_live's ~12-16s
+            # full-universe snapshot recompute. Read the warm cache (kept fresh by the
+            # dashboard live-breadth poll) or omit today's live tick. This is the fix
+            # for breadth pseudo-tickers cold-building 12-16s on every request — the
+            # recompute was baked into the (cached) series build, defeating the cache.
+            payload = breadth_live.compute_live(cached_only=True) or {}
             if not payload.get("anchored") or payload.get("degraded"):
                 return {}
             m = payload.get("metrics")
