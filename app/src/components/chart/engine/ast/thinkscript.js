@@ -157,10 +157,20 @@ export const REFUSALS = Object.freeze({
   // unexamined: `ta.highestbars` and the displaced plot were both recovered this
   // week purely by re-reading a refusal's own last sentence against what the
   // table already held.
+  // ⚰️⚰️ THIS SENTENCE WAS TRUE OF ONE CASE AND PREFIXED THREE. It read "what
+  // is missing is this translation", which is right for a period that reaches no
+  // constant — and FALSE for the two that reach one this engine has no node for:
+  //   AggregationPeriod.WEEK / .MONTH  → already fold to `tf(…, 'W'/'M')`
+  //   .DAY                             → the BASE; `tf` resamples UP, so no code
+  //   .FOUR_HOURS and every intraday   → FINER than the base; unreachable, ever
+  // A member reading "the translation is missing" waits for work that would not
+  // help them, which is the `pine:plot-offset` defect exactly
+  // (`lesson_rail_the_sentence_not_just_the_guard`).
+  // ⭐ SO THE SHARED HALF STATES ONLY WHAT IS SHARED, and the tail — `rule.why`
+  // for a period that never reduced, or the per-period sentence at the fold site
+  // — says which situation the member is actually in.
   'thinkscript:aggregation':
-    'this door does not yet fold a second aggregation period onto the engine\'s '
-    + 'higher-timeframe read. The `tf` node exists and serves weekly and monthly '
-    + 'from daily bars; what is missing is this translation',
+    'this thinkorswim aggregation period is not one this engine can read',
   'thinkscript:symbol':
     'this door does not yet fold another ticker onto the engine\'s cross-symbol '
     + 'read. The `sym` node exists, the Pine door emits it, and the scan gate '
@@ -1618,6 +1628,70 @@ const TS_DEFERRED_CALLS = Object.freeze({
  *  the interpreter then refuses is the "told it would run, answers nothing" shape
  *  this codebase has already paid for twice. */
 const TS_AGGREGATION_TF = Object.freeze({ week: 'W', month: 'M' })
+
+/** ⭐⭐ THE PERIODS THIS ENGINE CANNOT SERVE, AND WHY EACH ONE CANNOT.
+ *
+ *  ⚰️ ONE SENTENCE USED TO COVER ALL OF THEM — "what is missing is this
+ *  translation" — and it is FALSE for every entry below. The translation is not
+ *  missing: `AggregationPeriod.WEEK` and `.MONTH` fold to `tf(…, 'W')` and
+ *  `tf(…, 'M')` today. What is missing is a NODE, and the reason differs by
+ *  period, which is the whole point of splitting them:
+ *
+ *    `day`  — this engine's BASE. `tf` resamples UP from daily, so there is no
+ *             `tf(x, 'D')` to fold to. On a screen the bars are already daily;
+ *             the ambiguity is that a saved definition can be charted at another
+ *             timeframe, where the plain series is that timeframe's bar.
+ *    finer  — below the base. No amount of translation reaches it: you cannot
+ *             resample a daily bar down into four-hour bars.
+ *
+ *  ⛔ A MEMBER TOLD "the translation is missing" WAITS FOR WORK THAT WOULD NOT
+ *  HELP THEM. That is the same defect as the `pine:plot-offset` sentence that
+ *  described a case it had stopped refusing
+ *  (`lesson_rail_the_sentence_not_just_the_guard`). */
+const TS_AGGREGATION_UNSERVABLE = Object.freeze({
+  day: 'base',
+  two_days: 'coarser', three_days: 'coarser', four_days: 'coarser',
+  opt_exp: 'coarser', quarter: 'coarser', year: 'coarser',
+  min: 'finer', two_min: 'finer', three_min: 'finer', four_min: 'finer',
+  five_min: 'finer', ten_min: 'finer', fifteen_min: 'finer', twenty_min: 'finer',
+  thirty_min: 'finer', hour: 'finer', two_hours: 'finer', three_hours: 'finer',
+  four_hours: 'finer',
+})
+
+/** The aggregation NAME a node reduces to, servable or not — so a refusal can
+ *  say which situation the member is in. Deliberately a separate walk from
+ *  `foreignPeriodOf`, which answers "can I serve this"; merging them would make
+ *  one function answer two questions and the refusal would have to guess.
+ *
+ *  ⚰️⚰️ THE BINDING WALK IS LOAD-BEARING AND I ALMOST DELETED IT. A mutation
+ *  that disabled the recursion left every case in my hand-written probe green,
+ *  so I concluded the value always arrives pre-resolved and removed it as dead
+ *  code with a docblock saying so. `22-average-daily-range-zones.ts` — a REAL
+ *  published script — went straight to the generic sentence, and the corpus rail
+ *  named it.
+ *  ⛔ THE PROBE WAS THE PROBLEM: it wrote `input p = AggregationPeriod.DAY;` and
+ *  `close(period = p)`, which resolves upstream; 22 writes
+ *  `input aggregationPeriod = AggregationPeriod.DAY;` and `open(period =
+ *  aggregationPeriod)`, which arrives here as a NAME. Two spellings, and only the
+ *  corpus had the one that walks this branch
+ *  (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail` — a probe that
+ *  cannot reach the code is not evidence about it). */
+function aggregationNameOf(node, env, depth = 0) {
+  if (!node || depth > 4) return null
+  if (node.e === 'member' && node.base && node.base.e === 'name'
+      && key(node.base.name) === 'aggregationperiod') return key(node.name)
+  if (node.e === 'name') {
+    const dot = String(node.name).indexOf('.')
+    if (dot > 0) {
+      return key(node.name.slice(0, dot)) === 'aggregationperiod'
+        ? key(node.name.slice(dot + 1)) : null
+    }
+    const bound = env.get(key(node.name))
+    if (!bound) return null
+    if (bound.kind === 'input' || bound.expr) return aggregationNameOf(bound.expr, env, depth + 1)
+  }
+  return null
+}
 
 const TS_SERIES_ARG_GUARDS = Object.freeze({
   // ⚰⚰ EVERY `why` HERE ASSERTED SOMETHING FALSE ABOUT THE ENGINE. The symbol
@@ -3354,6 +3428,40 @@ class Resolver {
       if (rule.guard === 'thinkscript:aggregation') {
         const code = this.foreignPeriodOf(a.value)
         if (code) return { tf: code, field }
+        // ⭐ AND WHEN IT CANNOT BE SERVED, SAY WHICH OF THE THREE SITUATIONS THIS
+        // IS. `rule.why` is written for the fold-this-argument case and is simply
+        // untrue of a period the engine has no node for.
+        const named = aggregationNameOf(a.value, this.env)
+        const kind = named ? TS_AGGREGATION_UNSERVABLE[named] : null
+        if (kind) {
+          const spelled = `AggregationPeriod.${named.toUpperCase()}`
+          throw new ThinkScriptRefusal(rule.guard,
+            kind === 'base'
+              ? `${REFUSALS[rule.guard]} — ${spelled} names DAILY bars ABSOLUTELY, the way `
+                + 'every thinkorswim aggregation does. On a screen that happens to be the '
+                + 'bars already being read; on an intraday chart it is a higher timeframe, '
+                + 'and this engine resamples only UPWARD from the bars it is handed, so '
+                + 'there is no daily code for `tf` to carry. '
+                // ⛔⛔ AND NO "TO UNBLOCK" HERE, DELIBERATELY. The obvious advice —
+                // drop the `period` argument — is the one rewrite this door has
+                // already ruled out: `thinkscript.aggregation.test.js` says in its
+                // own header that mapping DAY to a no-op is "right in the scan lane
+                // and silently wrong on a chart". A definition is SAVED and can be
+                // charted, so that advice would hand a member a column that is
+                // correct where they tested it and wrong where they look at it.
+                // A refusal with no way forward is better than one with a wrong one
+                // (the `time` ms-vs-seconds refusal was corrected for this exact
+                // reason, and a rail there forbids the sentence).
+                + 'Nothing in the vocabulary spells "the daily value regardless of chart '
+                + 'timeframe", so this is a node this engine does not have rather than a '
+                + 'fold it has not written.'
+              : `${REFUSALS[rule.guard]} — ${spelled} is ${kind === 'finer'
+                ? 'FINER than the daily bars this engine reads, and no translation '
+                  + 'reaches it: a daily bar cannot be resampled down into intraday ones'
+                : 'a period this engine has no code for; `tf` serves weekly and '
+                  + 'monthly, resampled up from daily'}.`,
+            locate(a.nameTok || n.tok))
+        }
       }
       return new ThinkScriptRefusal(rule.guard,
         `${REFUSALS[rule.guard]} — ${rule.why}`, locate(a.nameTok || n.tok))

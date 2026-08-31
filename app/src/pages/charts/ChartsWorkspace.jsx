@@ -643,7 +643,18 @@ export default function ChartsWorkspace() {
   // (fine pointer) at these widths keeps the RGL workspace unchanged. The
   // phone branches above win first, so a rotated phone stays immersive.
   const isTabletTouch = useMediaQuery('(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)')
-  const isMobile = isPhonePortrait || isPhoneLandscape || isTabletTouch
+  // ⚠️ ONE media query (comma list = OR inside a single MediaQueryList), NOT
+  // `isPhonePortrait || isPhoneLandscape || isTabletTouch`: those are three
+  // separate MQLs whose change events fire one at a time during a rotation, so
+  // React saw an intermediate render where ALL were false — the desktop branch
+  // mounted for a frame and REMOUNTED the shell, wiping every bit of its state
+  // (open sheet, open widget page, pending opens). Discovery journey
+  // `rotate-midsheet` caught the sheet vanishing; one MQL cannot have a gap.
+  const isMobile = useMediaQuery(
+    '(max-width: 640px), '
+    + '(pointer: coarse) and (orientation: landscape) and (max-height: 500px), '
+    + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
+  )
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;

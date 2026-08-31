@@ -49,6 +49,7 @@ import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
 import RowSpark from '../components/mobile/RowSpark'
+import useLongPress from '../components/mobile/useLongPress'
 import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
@@ -344,6 +345,15 @@ const WatchRow = React.memo(function WatchRow({
   // Member rows (a group's stocks, shown when expanded) render as normal stock rows, indented.
   isGroup = false, expanded = false, isMember = false, grpcount = null, onToggleGroup = null,
 }) {
+  // Touch long-press on the sym cell opens the SAME row menu desktop right-click
+  // does (notes / price alerts / remove live there — iOS never fires
+  // contextmenu, so without this phones have no row actions at all). The hook
+  // carries desktop right-click too, and swallows the long-press's release
+  // click itself — otherwise that click would select the row and (in the phone
+  // chart shell) bounce back to the chart under the just-opened sheet.
+  const onRowMenu = useCallback((e) => onCtx(e, sym, wlId, isOwner), [onCtx, sym, wlId, isOwner])
+  const rowMenuBind = useLongPress(onRowMenu)
+
   // Signed % cell (green/red text + day-direction tint flash) — shared by the
   // %-from-open/high/low columns so they read like the % Change column.
   const pctCell = (key, v) => (
@@ -372,7 +382,7 @@ const WatchRow = React.memo(function WatchRow({
         </span>
       )
       return (
-        <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
+        <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {/* Phone-only mini price path (Deepvue-style scanning). Reads ONLY the

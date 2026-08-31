@@ -45,3 +45,56 @@ test('mouse pointerdown does not start the long-press timer', () => {
   act(() => { vi.advanceTimersByTime(1000) })
   expect(onTrigger).not.toHaveBeenCalled()
 })
+
+/* The release-click swallow: a FIRED long-press releases into a synthetic
+ * click, which used to also run the element's own onClick — selecting the row
+ * underneath the menu the press just opened. The hook now swallows exactly
+ * that one click, and nothing else. */
+function ClickProbe({ onTrigger, onClick }) {
+  const lp = useLongPress(onTrigger)
+  return <div data-testid="target" {...lp} onClick={onClick}>press me</div>
+}
+
+test('the click that releases a FIRED long-press is swallowed', () => {
+  vi.useFakeTimers()
+  const onTrigger = vi.fn()
+  const onClick = vi.fn()
+  render(<ClickProbe onTrigger={onTrigger} onClick={onClick} />)
+  const el = screen.getByTestId('target')
+  fireEvent.pointerDown(el, { pointerType: 'touch', clientX: 10, clientY: 10 })
+  act(() => { vi.advanceTimersByTime(460) })
+  expect(onTrigger).toHaveBeenCalledTimes(1)
+  fireEvent.pointerUp(el)
+  fireEvent.click(el)
+  expect(onClick).not.toHaveBeenCalled()
+  // …and only THAT click: the next tap goes through normally.
+  fireEvent.pointerDown(el, { pointerType: 'touch', clientX: 10, clientY: 10 })
+  fireEvent.pointerUp(el)
+  fireEvent.click(el)
+  expect(onClick).toHaveBeenCalledTimes(1)
+})
+
+test('a plain tap (released before the threshold) clicks normally', () => {
+  vi.useFakeTimers()
+  const onTrigger = vi.fn()
+  const onClick = vi.fn()
+  render(<ClickProbe onTrigger={onTrigger} onClick={onClick} />)
+  const el = screen.getByTestId('target')
+  fireEvent.pointerDown(el, { pointerType: 'touch', clientX: 10, clientY: 10 })
+  act(() => { vi.advanceTimersByTime(100) })
+  fireEvent.pointerUp(el)
+  fireEvent.click(el)
+  expect(onTrigger).not.toHaveBeenCalled()
+  expect(onClick).toHaveBeenCalledTimes(1)
+})
+
+test('a right-click never arms the swallow — the next mouse click passes', () => {
+  const onTrigger = vi.fn()
+  const onClick = vi.fn()
+  render(<ClickProbe onTrigger={onTrigger} onClick={onClick} />)
+  const el = screen.getByTestId('target')
+  fireEvent.contextMenu(el)
+  expect(onTrigger).toHaveBeenCalledTimes(1)
+  fireEvent.click(el)
+  expect(onClick).toHaveBeenCalledTimes(1)
+})

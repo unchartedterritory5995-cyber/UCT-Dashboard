@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
+import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
@@ -23,8 +24,12 @@ export default function MobileAlertSheet({ open, onClose, sym }) {
 }
 
 function AlertBody({ sym, onClose }) {
-  const { createAlert } = useWatchlistAlerts()
+  const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
   const { prices } = useRealtimePrices([sym])
+  // The symbol's live alerts, so state is visible and nobody stacks blind
+  // duplicates. deleteAlert mutates every alerts cache — the list refreshes
+  // through the same SWR key this read comes from.
+  const active = getAlertsForSym(sym)
   const live = prices?.[sym]?.price
   const [value, setValue] = useState(() => (Number.isFinite(live) ? String(live >= 1 ? live.toFixed(2) : live.toFixed(4)) : ''))
   const [status, setStatus] = useState(null)   // null | 'done' | 'error'
@@ -80,6 +85,31 @@ function AlertBody({ sym, onClose }) {
       </div>
       {status === 'done' && <div className={styles.alertOk}>Alert set — you’ll get a ping when it hits.</div>}
       {status === 'error' && <div className={styles.alertErr}>Couldn’t save the alert — try again.</div>}
+
+      {active.length > 0 && (
+        <div className={styles.alertList}>
+          <div className={styles.sectionLabel}>Active alerts on {sym}</div>
+          {active.map((a) => (
+            <div key={a.id} className={styles.alertRow}>
+              <span className={`${styles.alertDir} ${a.direction === 'above' ? styles.chgUp : styles.chgDown}`}>
+                {a.direction === 'above' ? '▲' : '▼'}
+              </span>
+              <span className={styles.alertRowPx}>
+                {Number(a.target_price) >= 1 ? Number(a.target_price).toFixed(2) : Number(a.target_price).toFixed(4)}
+              </span>
+              <span className={styles.alertRowKind}>{a.direction === 'above' ? 'crosses above' : 'crosses below'}</span>
+              <button
+                type="button"
+                className={styles.alertDel}
+                aria-label={`Delete ${a.direction} alert at ${a.target_price}`}
+                onClick={() => { haptics.tap(); deleteAlert(a.id) }}
+              >
+                <UIcon name="trash" size={15} gold={false} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

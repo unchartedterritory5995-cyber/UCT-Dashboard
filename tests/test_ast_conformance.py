@@ -260,13 +260,29 @@ def test_a_corpus_name_the_table_does_not_declare_also_aborts():
         ac.assert_corpus_covers_the_table(manifest, corpus)
 
 
-def test_the_real_manifest_coverage_is_armed_and_task_3_owes_the_first_pass():
+def test_the_real_manifest_is_covered_by_the_corpus():
+    """Every function the table declares has at least one conformance case.
+
+    The JS lane and the Python lane compute from ONE shared series, and this is
+    what keeps that guarantee whole: a function added to the manifest with no
+    case would be a hole in the cross-lane oracle, and a member's chart could
+    disagree with their screen with nothing red.
+
+    Measured 2026-08-31: 64 declared functions, 64 covered.
+
+    ⚰️ THIS WAS NAMED `..._is_armed_and_task_3_owes_the_first_pass` AND THE SKIP
+    MESSAGE SAID THE MANIFEST DID NOT EXIST YET. It has existed for some time and
+    this rail runs on every pass -- so the name asserted, to anyone grepping for
+    what guards cross-lane parity, that the guard was still parked. The skip
+    branch stays (a missing manifest must not read as coverage) but it no longer
+    claims a pending task.
+    """
     manifest = ac.load_manifest()
     if manifest is None:
-        pytest.skip("app/src/components/chart/engine/ast/closedTable.json does "
-                    "not exist yet -- Task 3 writes it and owes this rail's "
-                    "first pass. The rail is proved non-vacuous by the two "
-                    "synthetic-manifest tests above, which run every time.")
+        pytest.skip("app/src/components/chart/engine/ast/closedTable.json is "
+                    "missing, so there is no floor to derive. The rail is proved "
+                    "non-vacuous by the two synthetic-manifest tests above, "
+                    "which run every time.")
     ac.assert_corpus_covers_the_table(manifest, ac.load_corpus())
 
 

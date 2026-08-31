@@ -159,3 +159,85 @@ def test_warmup_rows_are_never_returned():
 def test_empty_store_does_not_raise():
     assert bm.get_history(30) == []
     assert bm.get_latest() is None
+    # The Time Navigator helpers must be just as unbothered by an empty store.
+    assert bm.date_bounds() == {"min": None, "max": None}
+    assert bm.next_trading_day("2026-01-01") is None
+
+
+# ── Time Navigator: end/anchor teleport window ────────────────────────────────
+# The Monitor's date box moves WHERE a fixed-width window ends. The window is
+# still derived backward, so a dated read must agree with the latest read on the
+# same date — the whole "a date is worth the same" invariant, now under `end`.
+
+
+def test_end_puts_the_named_session_at_the_top_row():
+    _seed(60)
+    full = bm.get_history(60)
+    # Pick a real interior session as the target.
+    target = full[20]["date"]
+    win = bm.get_history(10, end=target)
+    assert win[0]["date"] == target, "the end date must be the newest returned row"
+    # And nothing newer than the target leaked into the window.
+    assert all(r["date"] <= target for r in win)
+
+
+def test_end_le_snaps_down_to_the_last_session_on_or_before():
+    _seed(60)
+    full = bm.get_history(60)
+    # The fixture jumps 2026-01-21 → 2026-02-01, so 2026-01-25 is a non-session
+    # day inside the gap. anchor='le' must land on the last real bar before it.
+    assert "2026-01-21" in {r["date"] for r in full}
+    assert "2026-01-25" not in {r["date"] for r in full}
+    win = bm.get_history(5, end="2026-01-25")
+    assert win[0]["date"] == "2026-01-21"
+    # A target past the newest data clamps to the latest rather than returning nothing.
+    future = bm.get_history(5, end="2099-12-31")
+    assert future[0]["date"] == full[0]["date"], "a future end clamps to the latest"
+    # A target before the oldest data clamps to the earliest.
+    early = bm.get_history(5, end="1990-01-01")
+    assert early[0]["date"] == full[-1]["date"], "a pre-history end clamps to the earliest"
+
+
+def test_end_ge_lands_on_the_first_session_of_a_year():
+    """Year jump: anchor='ge', end=YYYY-01-01 → that year's FIRST stored bar."""
+    _seed(60)
+    # The fixture spans 2026-01-01.. onward; first session is 2026-01-01.
+    win = bm.get_history(10, end="2026-01-01", anchor="ge")
+    first = bm.get_history(500)[-1]["date"]
+    assert win[0]["date"] == first
+    # A year with nothing on/after it clamps to the latest rather than emptying.
+    latest = bm.get_history(500)[0]["date"]
+    clamp = bm.get_history(10, end="2099-01-01", anchor="ge")
+    assert clamp[0]["date"] == latest
+
+
+def test_a_dated_window_agrees_with_the_latest_read_on_shared_dates():
+    """The warm-up look-back must reach past `end` too — a value is a property of
+    its date, never of where the window happens to stop."""
+    _seed(60)
+    full = {r["date"]: r for r in bm.get_history(60)}
+    target = bm.get_history(60)[18]["date"]
+    win = bm.get_history(12, end=target)
+    mismatches = []
+    for r in win:
+        for f in DERIVED:
+            if r.get(f) != full[r["date"]].get(f):
+                mismatches.append(f"{r['date']}.{f}: end -> {r.get(f)!r}, latest -> {full[r['date']].get(f)!r}")
+    assert not mismatches, "a dated window changed a date's worth:\n" + "\n".join(mismatches)
+
+
+def test_date_bounds_reports_the_first_and_last_session():
+    _seed(60)
+    rows = bm.get_history(500)
+    b = bm.date_bounds()
+    assert b["max"] == rows[0]["date"]
+    assert b["min"] == rows[-1]["date"]
+
+
+def test_next_trading_day_walks_forward_and_stops_at_the_top():
+    _seed(60)
+    rows = bm.get_history(500)          # newest-first
+    newest, second = rows[0]["date"], rows[1]["date"]
+    assert bm.next_trading_day(second) == newest
+    assert bm.next_trading_day(newest) is None
+    assert bm.next_trading_day(None) is None

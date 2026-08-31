@@ -14,13 +14,17 @@ there (NKE C40 6/17/27 came back $0). flow.db is uncapped, so this is exact.
 """
 import os
 import time
+import threading
 from datetime import date
 
 from api import weekly_flow as wf
 
 LEAP_MIN_DTE = int(os.environ.get("CONFLUENCE_LEAP_MIN_DTE", "180"))
 _CACHE: dict = {}
-_TTL = float(os.environ.get("CONFLUENCE_FLOW_TTL", "120"))
+# 30-min TTL, kept warm by the background warmer below so the web-side internal
+# call (api/confluence_screen.py) hits a warm cache (<1s) instead of a cold ~120s
+# compute that times out the join.
+_TTL = float(os.environ.get("CONFLUENCE_FLOW_TTL", "1800"))
 
 
 def _leap_premium(contracts: dict, ref: date) -> float:
@@ -78,3 +82,29 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
         return res
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "reason": f"error: {e}", "names": {}}
+
+
+# ── Background warmer ─────────────────────────────────────────────────────────
+# Keeps the (large|mid_small) × (30d|5d) cache entries warm so the web join's
+# internal call is instant. A cold 30d compute is ~120s; without warming the
+# web-side 200s timeout can still lose a race and the board recomputes to 0 rows.
+def warm_all() -> None:
+    for cap in ("large", "mid_small"):
+        flow_leg(days=30, cap=cap)
+        flow_leg(days=5, cap=cap)
+
+
+def _warm_loop(interval: float) -> None:
+    while True:
+        try:
+            warm_all()
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(interval)
+
+
+def start_background_warm(interval: float = 1200.0) -> None:
+    """Spawn the warm loop (daemon). Fast to call — the slow work runs in-thread,
+    so it never blocks flow-worker boot (the 'nothing slow before uvicorn.run' rule)."""
+    threading.Thread(target=_warm_loop, args=(interval,), daemon=True,
+                     name="confluence-flow-warm").start()

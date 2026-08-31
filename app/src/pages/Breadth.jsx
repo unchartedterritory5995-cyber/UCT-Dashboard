@@ -14,6 +14,7 @@ import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
+import BreadthDateNav from './breadth/BreadthDateNav'
 import DailyOverview from './breadth/DailyOverview'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -117,7 +118,10 @@ const G = {
 // can only ever say "not in the last 90", never "last fired in March". Each tab
 // keeps its own window so switching tabs never moves the other one.
 export const VIEWS_DAY_CHOICES = [90, 180, 365]
-export const OTHER_DAY_CHOICES = [30, 60, 90]
+// The Monitor sheet no longer offers 30/60/90 window pills — its Time Navigator
+// (date box) drives WHERE the fixed window ends instead of how wide it is. This
+// is the fixed span it always shows (was the 90d default the pills topped out at).
+export const MONITOR_WINDOW = 90
 
 export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
@@ -860,10 +864,17 @@ export default function Breadth() {
     try { return window.matchMedia('(max-width: 640px)').matches ? 'overview' : 'breadth' }
     catch { return 'breadth' }
   })
-  const [days, setDays] = useState(90)
   const [viewsDays, setViewsDays] = useState(urlInitial.days ?? 90)
   const isViewsTab = activeTab === 'heatmap'
-  const effectiveDays = isViewsTab ? viewsDays : days
+  const effectiveDays = isViewsTab ? viewsDays : MONITOR_WINDOW
+  // Monitor Time Navigator: the window is a fixed span (MONITOR_WINDOW); this is
+  // the date it ENDS on. null = the latest window (with today's live row on top).
+  // `anchor` is the backend snap rule — 'le' for a picked/typed date, 'ge' for a
+  // year jump (→ that year's first session). Only applied on the Monitor tab, so
+  // switching tabs never carries a back-in-time window onto Views/Overview.
+  const [monitorEndDate, setMonitorEndDate] = useState(null)
+  const [monitorAnchor, setMonitorAnchor] = useState('le')
+  const monitorEnd = activeTab === 'breadth' ? monitorEndDate : null
 
   /**
    * 🔴 THE LINK IS AN ENTRY CONDITION FOR THE PAGE VISIT — NOT FOR EVERY MOUNT.
@@ -943,7 +954,7 @@ export default function Breadth() {
    * is read at all, so they cannot see this either way.
    */
   const { data, isLoading, isValidating, error } = useSWR(
-    `/api/breadth-monitor?days=${effectiveDays}`,
+    `/api/breadth-monitor?days=${effectiveDays}${monitorEnd ? `&end=${monitorEnd}&anchor=${monitorAnchor}` : ''}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
@@ -1006,10 +1017,45 @@ export default function Breadth() {
   // The backend withholds the live read the moment the 4:15 collector writes
   // today's row, so an estimate never sits beside the number it estimated.
   const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' || activeTab === 'overview' })
+  // Today's provisional row only belongs on top when we're at the LATEST window.
+  // Once the Time Navigator has teleported back in time (`monitorEnd` set), the
+  // top row is a finished past session — prepending today would misdate it.
   const rows = useMemo(
-    () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
-    [liveBreadth.row, storedRows],
+    () => (liveBreadth.row && !monitorEnd ? [liveBreadth.row, ...storedRows] : storedRows),
+    [liveBreadth.row, storedRows, monitorEnd],
   )
+
+  // ── Time Navigator handlers (Monitor tab) ─────────────────────────────────
+  // Each sets where the fixed window ENDS. The window is derived backward from
+  // that top row, so the sheet "teleports" without changing how much it shows.
+  const onDateStep = useCallback((dir) => {
+    if (dir < 0) {
+      // The top row's OLDER neighbour is already in the window (rows[1]).
+      const older = rows[1]?.date
+      if (older) { setMonitorAnchor('le'); setMonitorEndDate(older) }
+    } else {
+      // The NEWER neighbour sits outside the window — the backend named it. At
+      // the newest day, step back to the live window (null).
+      const nd = data?.next_date
+      if (!nd || (data?.max_date && nd >= data.max_date)) setMonitorEndDate(null)
+      else { setMonitorAnchor('le'); setMonitorEndDate(nd) }
+    }
+  }, [rows, data])
+
+  const onDatePick = useCallback((iso) => {
+    setMonitorAnchor('le')
+    // Picking the newest day or later returns to the live window.
+    if (data?.max_date && iso >= data.max_date) setMonitorEndDate(null)
+    else setMonitorEndDate(iso)
+  }, [data])
+
+  const onYearPick = useCallback((y) => {
+    const jan1 = `${y}-01-01`
+    // The current year lands on the live window if it has no room to look back.
+    if (data?.max_date && jan1 >= data.max_date) { setMonitorEndDate(null); return }
+    // 'ge' snaps to that year's FIRST session — the start of the year.
+    setMonitorAnchor('ge'); setMonitorEndDate(jan1)
+  }, [data])
 
   const lastUpdated = storedRows[0]?._created_at
     ? formatETFull(storedRows[0]._created_at + 'Z')
@@ -1116,17 +1162,31 @@ export default function Breadth() {
                 : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
             : isLoading ? 'Loading…' : 'No data'}
         </span>
-        <div className={styles.daysPills}>
-          {(isViewsTab ? VIEWS_DAY_CHOICES : OTHER_DAY_CHOICES).map(d => (
-            <button
-              key={d}
-              className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
-              onClick={() => (isViewsTab ? setViewsDays(d) : setDays(d))}
-            >
-              {d}d
-            </button>
-          ))}
-        </div>
+        {isViewsTab ? (
+          // Views keeps its window pills (a lens is defined by how many sessions
+          // it spans). The Monitor sheet instead teleports to any date in time.
+          <div className={styles.daysPills}>
+            {VIEWS_DAY_CHOICES.map(d => (
+              <button
+                key={d}
+                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+                onClick={() => setViewsDays(d)}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        ) : (
+          <BreadthDateNav
+            topDate={rows[0]?.date ?? null}
+            minDate={data?.min_date ?? null}
+            maxDate={data?.max_date ?? null}
+            canForward={!!monitorEnd}
+            onStep={onDateStep}
+            onPickDate={onDatePick}
+            onPickYear={onYearPick}
+          />
+        )}
         {activeTab !== 'heatmap' && (
           <>
             {activeTab === 'breadth' && (
@@ -1199,8 +1259,10 @@ export default function Breadth() {
 
       {/* Every row below describes a finished day. None of them can say what
           today is doing, because today isn't a row yet — this is that answer,
-          and it disappears the moment the 4:15 collector makes it one. */}
-      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
+          and it disappears the moment the 4:15 collector makes it one. It only
+          belongs above the LATEST window; teleported back in time, "today" has
+          no business sitting over a historical sheet. */}
+      {activeTab === 'breadth' && !monitorEnd && <LiveSessionStrip live={liveBreadth} />}
 
       {rows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap}>

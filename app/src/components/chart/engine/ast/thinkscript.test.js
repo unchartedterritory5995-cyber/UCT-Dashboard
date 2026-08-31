@@ -2852,7 +2852,14 @@ describe('⛔⛔ the constructs that are OUTSIDE A SCREEN`S WORLD block the whol
   it('AggregationPeriod through a bar-field call → :aggregation at the argument', () => {
     const x = r('plot s = high(period = AggregationPeriod.DAY);\n')
     expect(x.guard).toBe('thinkscript:aggregation')
-    expect(x.message).toMatch(/another timeframe/)
+    // ⚰️ THIS MATCHED /another timeframe/, which came from the SHARED `rule.why`
+    // that every aggregation refusal used to carry. DAY now gets its own sentence
+    // — it names daily bars ABSOLUTELY, and the wall is that this engine resamples
+    // only upward — so the generic phrase is gone by design rather than by
+    // accident. Matching the specific claim keeps this case discriminating;
+    // loosening it to /aggregation/ would let any wording pass. The full split is
+    // covered in `thinkscript.aggregation.test.js`.
+    expect(x.message).toMatch(/ABSOLUTELY/)
   })
 
   it('close(symbol = …) → :symbol, and it names what to do instead', () => {

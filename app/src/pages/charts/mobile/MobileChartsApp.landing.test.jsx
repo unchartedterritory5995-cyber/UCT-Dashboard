@@ -35,6 +35,11 @@ vi.mock('../../../components/chart/pane/ChartPane', () => ({
         data-density={density}
         data-showtfbar={String(showTfBar)}
         data-golive={String(!!stockChartProps?.showGoLive)}
+        data-cleancanvas={String(
+          stockChartProps?.verticalLegend === false
+          && stockChartProps?.alwaysShowLegend === false
+          && stockChartProps?.showRangeSelector === false,
+        )}
       />
     )
   }),
@@ -55,7 +60,11 @@ vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useBreadthSymbols', () => ({ default: () => new Map() }))
 vi.mock('../../../hooks/useFlagged', () => ({ useFlagged: () => ({ isFlagged: () => false, toggle: vi.fn() }) }))
 const createAlert = vi.fn(() => Promise.resolve({}))
-vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ createAlert }) }))
+const deleteAlert = vi.fn(() => Promise.resolve({}))
+let mockActiveAlerts = []
+vi.mock('../../../hooks/useWatchlistAlerts', () => ({
+  default: () => ({ createAlert, deleteAlert, getAlertsForSym: () => mockActiveAlerts }),
+}))
 
 // The shape ChartsWorkspace hands down once prefs resolve — Themes FIRST, the
 // arrangement that produced the original measured defect.
@@ -94,6 +103,7 @@ function renderApp(widgets, handlers = makeHandlers(), ctx = {}, extraProps = {}
 
 beforeEach(() => {
   localStorage.clear()
+  mockActiveAlerts = []
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [] }) })))
 })
 afterEach(() => { vi.unstubAllGlobals() })
@@ -331,6 +341,15 @@ describe('Phase 8 — the feel layer wires', () => {
     expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-golive', 'true')
   })
 
+  test('Phase 10: the shell takes back the desktop canvas furniture', () => {
+    // ChartPane force-enables verticalLegend / alwaysShowLegend /
+    // showRangeSelector for the desktop workspace; the shell's overrides ride
+    // stockChartProps (spread AFTER them). Legend = crosshair inspection tool;
+    // range bar stays desktop.
+    renderApp(HYDRATED)
+    expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-cleancanvas', 'true')
+  })
+
   test('the ƒx button carries the widget settings\' live-overlay count', () => {
     // All four positional slots stated explicitly (cs.overlays merges by
     // index over the defaults), so the count is deterministic: 2. The badge is
@@ -350,5 +369,43 @@ describe('Phase 8 — the feel layer wires', () => {
     // The sheet closed; with no live chart behind the mock the handler
     // resolves to "no snapshot" and does nothing further.
     expect(screen.queryByRole('button', { name: /share chart image/i })).toBeNull()
+  })
+})
+
+describe('Phase 9 — alert management + add-widget feedback', () => {
+  test('the alert sheet lists the symbol\'s active alerts and deletes one', async () => {
+    const user = userEvent.setup()
+    mockActiveAlerts = [
+      { id: 71, sym: 'NVDA', target_price: 250.5, direction: 'above', is_active: 1 },
+      { id: 72, sym: 'NVDA', target_price: 180, direction: 'below', is_active: 1 },
+    ]
+    const { rerenderWith } = renderApp([])
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: /set price alert/i }))
+    expect(await screen.findByText('Active alerts on NVDA')).toBeInTheDocument()
+    expect(screen.getByText('250.50')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /delete below alert at 180/i }))
+    expect(deleteAlert).toHaveBeenCalledWith(72)
+  })
+
+  test('Add widget closes the sheet and opens the new widget once it hydrates', async () => {
+    const user = userEvent.setup()
+    const handlers = makeHandlers()
+    const { rerenderWith } = renderApp([], handlers)
+    rerenderWith(HYDRATED)
+
+    await user.click(screen.getByRole('button', { name: /more tools/i }))
+    await user.click(await screen.findByRole('button', { name: 'Add Scanner' }))
+    expect(handlers.onAddWidget).toHaveBeenCalledWith('scanner')
+    // Sheet closed immediately; nothing to show until the layout hydrates.
+    expect(screen.queryByRole('button', { name: 'Add Scanner' })).toBeNull()
+    expect(screen.queryByTestId('widget-body-scanner')).toBeNull()
+
+    // The save path lands the new widget → the page opens on it, unprompted.
+    rerenderWith([...HYDRATED, { id: 'w-scr', type: 'scanner', color: 'A', opts: {} }])
+    expect(screen.getByTestId('widget-body-scanner')).toBeInTheDocument()
   })
 })

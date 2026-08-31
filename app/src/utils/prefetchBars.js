@@ -145,8 +145,13 @@ function _enqueue(url, priority = false) {
   _kickSoon()
 }
 
-function _url(sym, tf) {
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}`
+function _url(sym, tf, warm = true) {
+  // warm=1 marks a best-effort BACKGROUND prefetch so the server de-prioritizes it under
+  // load (it sheds a fast 503 rather than starving the chart the user actually clicked).
+  // IDB warming is keyed by (sym,tf), not the URL, so the extra param never breaks it.
+  // The hover/focus intent-warm passes warm=false so it isn't shed AND its SWR-cache key
+  // matches the visible chart's (no `&warm`), letting the imminent click paint from cache.
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BAR_COUNTS[tf] ?? 5000}${warm ? '&warm=1' : ''}`
 }
 
 // Prefetch a list of tickers for a specific timeframe (e.g. visible list rows).
@@ -384,7 +389,8 @@ const _deepSeen = new Set()
 let _deepKick = null
 
 function _deepUrl(sym, tf) {
-  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}`
+  // Deep background warm — best-effort, so it sheds under load like the shallow prefetch.
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}&warm=1`
 }
 async function _deepWarmOne(sym, tf) {
   try {
@@ -470,7 +476,7 @@ async function _warmIntentNow(sym, tf) {
       memPut(sym, tf, have.bars)
       return
     }
-    const json = await preload(_url(sym, tf), fetcher) // dedupes + warms SWR cache
+    const json = await preload(_url(sym, tf, false), fetcher) // intent warm: not shed, matches the chart's SWR key
     if (json?.bars?.length && !json.delta) {
       // Preserve deeper history on a stale-daily refresh (see _idbWarmOne).
       const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)

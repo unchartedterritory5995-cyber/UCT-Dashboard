@@ -219,6 +219,18 @@ def ready() -> bool:
     return bool(_INDEX)
 
 
+def contains(sym: str) -> bool:
+    """Is this exact symbol in the built index? The bars serve path uses this to
+    tell a real-but-cold symbol (keep its retryable "warming" 503 so the cold fetch
+    warms it) apart from a genuinely-uncarried one (200 no_data). Returns False when
+    the index isn't ready yet — the caller keeps its own cap_universe fallback, so
+    nothing regresses during the brief startup window before the snapshot loads."""
+    if not sym:
+        return False
+    with _LOCK:
+        return sym.strip().upper() in _BY_SYM
+
+
 def status() -> dict:
     return {"rows": len(_INDEX), "built_at": _BUILT_AT, "building": _BUILDING,
             "snapshot": _SNAP_PATH}

@@ -79,7 +79,7 @@ export default function MobileMoreSheet({
             type="button"
             className={styles.row}
             aria-label={`Add ${MENU_LABEL[t] || t}`}
-            onClick={() => { haptics.tap(); onAddWidget?.(t) }}
+            onClick={() => { haptics.tap(); onClose(); onAddWidget?.(t) }}
           >
             <span className={styles.rowIcon}><UIcon name="plus" size={16} gold={false} /></span>
             <span className={styles.rowLabel}>{MENU_LABEL[t] || t}</span>

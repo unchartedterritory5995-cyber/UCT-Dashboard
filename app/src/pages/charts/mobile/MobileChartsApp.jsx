@@ -193,6 +193,25 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     setScreen({ id: watchlistWidget.id, symAtOpen: sym })
   }
 
+  // Add-widget from the Tools sheet opens what you just added — the same
+  // pending pattern, generalized: remember how many of that type existed at
+  // tap time, and when a NEW one hydrates, open it as a page. (Adding a chart
+  // is exempt: the shell binds the first chart; a page would be a mirror.)
+  const [pendingAdd, setPendingAdd] = useState(null) // {type, count} at tap time
+  const handleAddFromSheet = useCallback((t) => {
+    if (t !== 'chart') {
+      setPendingAdd({ type: t, count: (widgets || []).filter((w) => w.type === t).length })
+    }
+    onAddWidget(t)
+  }, [widgets, onAddWidget])
+  if (pendingAdd) {
+    const ofType = (widgets || []).filter((w) => w.type === pendingAdd.type)
+    if (ofType.length > pendingAdd.count) {
+      setPendingAdd(null)
+      setScreen({ id: ofType[ofType.length - 1].id, symAtOpen: sym })
+    }
+  }
+
   const stockChartProps = useMemo(() => ({
     chartId: chartWidget?.id || null,
     toolbarApiRef,
@@ -201,6 +220,15 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     toolbarDefaultCollapsed: true,
     // The » back-to-live chip when panned into history (phone/tablet only).
     showGoLive: true,
+    // Phase 10 — the clean canvas. ChartPane force-enables these for the
+    // desktop workspace; the spread order lets the shell take them back:
+    // the symbol strip already shows the live price, so the legend becomes
+    // what it is on TradingView mobile — a crosshair INSPECTION tool, not
+    // permanent furniture — and the TC2000 range bar stays desktop (the TF
+    // sheet owns timeframes here).
+    verticalLegend: false,
+    alwaysShowLegend: false,
+    showRangeSelector: false,
   }), [chartWidget?.id])
 
   // The widget page's shared pieces (used by BOTH presentations):
@@ -350,7 +378,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         sym={sym}
         widgets={otherWidgets}
         onOpenWidget={openWidgetScreen}
-        onAddWidget={(t) => { onAddWidget(t) }}
+        onAddWidget={handleAddFromSheet}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}

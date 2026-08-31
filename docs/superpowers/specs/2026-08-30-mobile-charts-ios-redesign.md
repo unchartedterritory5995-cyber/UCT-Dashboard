@@ -292,3 +292,156 @@ micro-interactions, all additive:
 
 Landing suite grows to 25 (goLive wire pinned through the ChartPane mock's
 `data-golive`, badge count, share row) + 5 flash tests.
+
+## Phase 9 — little spots (shipped)
+
+Four gaps found by using the thing, not by any list:
+
+- **Full-height chart** — the app top bar burned a row saying "Charts" under
+  a tab already saying it. On the phone shell (portrait ≤640, the same
+  `html[data-mobile-chart-shell]` attribute) MobileNav's `.topBar` hides,
+  Layout releases ONLY the top reservation (tab bar stays), the workspace
+  override re-derives height from the tab-bar token alone, and the symbol
+  strip absorbs the notch via `max(4px, env(safe-area-inset-top))`. Same
+  three-file mechanism as landscape-immersive; `mobileShellHeight.test.js`
+  grew a describe pinning all three declarations together.
+- **Alert sheet manages state** — it now lists the symbol's active alerts
+  (`getAlertsForSym`) with ▲/▼ + price + per-row delete, so nobody stacks
+  blind duplicates. Same hook, same SWR caches.
+- **Add-widget opens what you added** — the Tools-sheet add closes the sheet
+  and, when the new widget hydrates into the layout, opens it as a page
+  (pendingWatchlistOpen generalized to {type, countAtTap}; `chart` exempt —
+  the shell already binds the first chart).
+- **Long-press row actions** — watchlist rows only had `onContextMenu`,
+  which iOS never fires: phones had NO row actions (Notes / alert / remove).
+  The sym cell now binds `useLongPress` (one binding: touch long-press +
+  desktop right-click), and the RELEASE-CLICK SWALLOW moved INTO the hook
+  (`onClickCapture` keyed on its own firedRef — all seven consumers get the
+  fix; without it the release selects the row and the tap-to-chart rule
+  yanks the page out from under the just-opened sheet). Flagged rows keep
+  no menu BY DESIGN (the star is their remove) — same as desktop.
+
+Rig: two new FAIL gates (top bar hidden with the tab bar as the control;
+long-press → the AAPL row sheet in an owner list the walk provisions via
+the API — RigList, idempotent). ⚠️ The long-press press itself is a
+JS-dispatched `pointerdown`, NOT a CDP touch: headless Chromium parks a
+motionless `dispatchTouchEvent` press in tap-vs-scroll disambiguation and
+flushes pointerdown only at release, so a held CDP press can never reach
+450ms (a 2px nudge stays inside browser slop; more cancels by tolerance).
+Real browsers deliver immediately; the hook's timing + swallow are
+unit-tested (`useLongPress.test.jsx`, 3 new cases).
+
+## Phase 10 — the clean canvas (shipped)
+
+Owner verdict after using production: "still very much behind TradingView's
+ease of use." Diagnosis: the CHROME became iOS-grade in Phases 1–9, but the
+CANVAS still wore desktop clothes — an 8-row always-on legend, the TC2000
+range bar, the $-Vol strip, the A/L/% scale chips, the voice orb + "?" FABs
+on the volume pane, and a three-row drawing-toolbar wall. TV mobile shows
+NONE of that. This phase takes it all off the phone shell:
+
+- **Legend = crosshair inspection tool.** ChartPane force-enables
+  `verticalLegend` + `alwaysShowLegend` + `showRangeSelector` for the
+  desktop workspace; the shell overrides all three through
+  `stockChartProps` (spread after them — pinned by the landing rail's
+  `data-cleancanvas`). Idle canvas shows candles + the strip's live price;
+  long-press summons OHLC/MA values, horizontal row.
+- **`.volLegend` + `.scaleToggle` hidden** under the shell attribute
+  (settings sheet still owns log/percent).
+- **FABs off the chart page** (portrait now, matching landscape) — the orb
+  cluster sat ON the volume pane and once tap-blocked the go-live chip.
+  One tab away everywhere else.
+- **Actions wall slimmed by title selector** (zero logic): Share
+  (More-sheet owns it on phone), Keyboard shortcuts, Replay, Compare,
+  bar-close clock — hidden at ≤640. The indicator-alerts bell STAYS (only
+  door to that feature).
+- **Ghost chevron**: the collapsed-toolbar expander drops to opacity .4 on
+  transparent — an affordance, not furniture.
+
+Full rig PASS unchanged (all five gates). Every change is scoped to
+`html[data-mobile-chart-shell]` + phone width or to `stockChartProps` —
+desktop, grid, and iPad byte-identical.
+
+## Phase 11 — the 500-user discovery sweep (wave 1)
+
+`tools/mobile_discovery.py`: 12 user JOURNEYS (SE 375×667 · Pro Max 430×932 ·
+landscape sheets · rotation mid-sheet · dotted/garbage/edge symbols ·
+bars-API-dead · search-API-dead · settings dialog · indicator library +
+sub-pane add · persistence reload · two-chart layout · iPad dialogs), each an
+isolated context capturing screenshots + console/pageerrors into
+mobile_audit_out/discovery/report.md. Discovery REPORTS (exit 0 always); the
+walk GATES.
+
+**Wave-1 findings → fixes (all verified by journey rerun + full walk PASS):**
+- 🐛 **Rotation wiped the shell.** `isMobile` OR-ed three separate
+  useMediaQuery MQLs; their change events fire one at a time, so a rotation
+  produced one render with all three false — the desktop branch mounted for a
+  frame and REMOUNTED MobileChartsApp (open sheet gone, open page gone).
+  Fixed: ONE comma-list media query = one MQL, no gap. Journey now shows the
+  TF sheet surviving rotation and still committing.
+- 🧹 **Landscape kept desktop chips.** The clean-canvas hide was
+  portrait-width-only; rotated phones got A/L/% + $-Vol back. Media extended
+  with the landscape clause.
+- 🧹 **"● LIVE" is furniture too** (invisible in seeded rig runs — no live
+  feed; real phones always show it). Hidden on the shell; STALE/RECONNECTING
+  (`.staleIndicator`) still render — quiet when healthy, loud when broken.
+- 🐛 **Focus ring stuck on the ƒx button** after sheet close (Sheet restores
+  focus to its opener; the app's heavy gold focus-visible ring reads as a
+  stuck state on touch). Quiet inset ring for keyboard; none otherwise.
+- 🧹 **Settings modal on phone**: templates row clipped "UCT Chart Themes"
+  mid-word (now one-row momentum scroll, tabs too) and wore a 🎨 emoji
+  (→ UIcon sun; the no-emoji rule's last holdout on this surface).
+- ✅ Confirmed GOOD by journeys: SE + Pro Max layouts, both sheets in
+  landscape, dotted-ticker + garbage + search-API-dead degradation ("Go to X"
+  fallback everywhere), bars-error Retry state, indicator LIBRARY on phone
+  (real sheet, plain-English rows), persistence across reload (tf survives
+  server-side), two-chart layouts, iPad dialogs.
+
+**Rig hardening the sweep forced** (the sandbox's Chromium image swap changed
+CDP touch semantics — streams flush at release, tap pointerups get swallowed):
+gestures are now JS-dispatched (`js_pointer_drag` / `js_touch_drag` /
+balanced tap pairs) — deterministic across browser builds; walk + discovery
+both self-heal the account's server-persisted symbol/timeframe (discovery
+journeys pick BRK.B/1h and the seed covers SPY-family DAILY only — the
+"regression" that cost two hours was the rig's own leftover state opening an
+honest no-data error chart).
+
+Unexplored crevices queued for wave 2: widget pages (scanner/news/themes) at
+phone quality bar, sub-pane indicator visual verify (needs a seeded sym kept
+clean), alert-sheet visual pass, synthetic $IDX symbols, VoiceOver semantics.
+
+## Phase 11 — wave 2: the action-point crawl
+
+`tools/mobile_crawl.py`: the mechanical stand-in for hundreds of testers. It
+enumerates EVERY tappable control in every reachable charts-tab state (chart,
+each sheet, settings tabs, library, drawing bar, each widget page — phone /
+SE / iPad viewports), taps each on a disposable admin account, classifies the
+outcome (changed / noop / error / neterr / left-route / overflow / crash /
+skipped-destructive), self-recovers between actions, and writes
+ledger.tsv + report.md + a screenshot per state. ~720 ledger rows this wave
+across three runs.
+
+**Verdict of the crawl:** ZERO real JS errors, zero route escapes, zero
+overflow introductions across every tapped control — the shell's logic is
+sound. The yield was ergonomic: a 57-item sub-44px tap-target sweep, fixed
+in this wave (each verified by re-crawl):
+- AI Search page: suggestion chips 28px → 44, settings gear 17px → 44.
+- Watchlists chrome: MY LISTS/PREBUILT/COMMUNITY rail 21px → 44, "New
+  watchlist" 21px → 44, header action buttons 19px → 40, list rows 31 → 44.
+- Theme Tracker period pills 27px → 44.
+- Settings modal: tabs 37 → 44, ✕ 29 → 44, template buttons ~25 → 40.
+- ƒx sheet MA switches: visual iOS 46×28 kept; hit area grown to standard
+  via an invisible pseudo-element.
+All coarse-pointer scoped; desktop metrics byte-identical.
+
+**Also learned:** `FREE_PAGES` is now `['/morning-wire']` — the owner
+tightened the paywall since CLAUDE.md's "free tier includes Charts" note; a
+free account correctly bounces to the Wire with a two-tab bar (crawler runs
+as admin). Deferred: VoiceInputButton (36×31) is inline-styled shared J2
+code — its bump belongs to a J2 pass, not this branch.
+
+Crawler lessons baked in: one login shared via storage_state (12 rapid
+logins trip the auth 429), widget PAGES survive Escape and must be closed by
+their back button between states, sheet-state enumeration scopes to the
+sheet root, and resource-load failures (the rig's own aborted bars) class as
+`neterr`, never `error`.

@@ -40,15 +40,17 @@ vi.mock('swr', () => ({
   default: () => ({ data: { rows: ROWS, days: 90 }, isLoading: false, error: null, mutate: () => {} }),
 }))
 
-import Breadth, { VIEWS_DAY_CHOICES, OTHER_DAY_CHOICES } from '../Breadth'
+import Breadth, { VIEWS_DAY_CHOICES, MONITOR_WINDOW } from '../Breadth'
 
 const pills = () => screen.getAllByRole('button')
   .map(b => b.textContent).filter(t => /^\d+d$/.test(t))
 
 describe('breadth window choices', () => {
-  it('offers deeper windows on the Views tab than the monitor', () => {
+  it('offers deeper windows on the Views tab than the monitor sheet', () => {
     expect(VIEWS_DAY_CHOICES).toEqual([90, 180, 365])
-    expect(OTHER_DAY_CHOICES).toEqual([30, 60, 90])
+    // The Monitor no longer offers a WIDTH choice — its Time Navigator moves
+    // WHERE a fixed span ends. That span is the old 90d default.
+    expect(MONITOR_WINDOW).toBe(90)
   })
   it('starts the Views tab at the shallowest of its own choices', () => {
     expect(Math.min(...VIEWS_DAY_CHOICES)).toBe(90)
@@ -73,20 +75,27 @@ describe('the Views tab actually renders its own pills', () => {
     expect(pills()).toEqual(VIEWS_DAY_CHOICES.map(d => `${d}d`))
   })
 
-  it('the Monitor tab keeps its own shallower set', () => {
+  // The Monitor sheet dropped its 30/60/90 width pills for the Time Navigator
+  // date box (type/pick any date; the sheet teleports so that day is the top
+  // row). So the Monitor shows the date field and NO `Nd` pill at all.
+  it('the Monitor tab shows the Time Navigator date box, not window pills', () => {
     render(<Breadth />)
-    expect(pills()).toEqual(OTHER_DAY_CHOICES.map(d => `${d}d`))
+    expect(screen.getByPlaceholderText('M/D/YYYY')).toBeInTheDocument()
+    expect(pills()).toEqual([])
+    expect(screen.queryByRole('button', { name: '30d' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '90d' })).toBeNull()
     expect(screen.queryByRole('button', { name: '365d' })).toBeNull()
   })
 
-  it('the two tabs hold SEPARATE windows — switching does not move the other', () => {
+  it('the Views window is its own — a monitor tab switch never renders it', () => {
     const { container } = render(<Breadth />)
     fireEvent.click(within(container).getByRole('button', { name: 'Views' }))
     fireEvent.click(within(container).getByRole('button', { name: '365d' }))
     fireEvent.click(within(container).getByRole('button', { name: 'Monitor' }))
-    // Back on the monitor, its own pills are the shallow set again.
+    // Back on the monitor: the date box, and none of the Views width pills.
+    expect(within(container).getByPlaceholderText('M/D/YYYY')).toBeInTheDocument()
     expect([...container.querySelectorAll('button')].map(b => b.textContent)
-      .filter(t => /^\d+d$/.test(t))).toEqual(OTHER_DAY_CHOICES.map(d => `${d}d`))
+      .filter(t => /^\d+d$/.test(t))).toEqual([])
   })
 })
 

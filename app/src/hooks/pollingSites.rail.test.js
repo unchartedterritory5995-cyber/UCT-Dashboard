@@ -222,6 +222,23 @@ const BARE_POLL_SITES = {
   // while running" case measures the tick actually firing (>= 2 GETs), which is
   // what makes this a measured decision rather than a row that silences a red.
   'app/src/components/chart/builder/EvidenceTab.jsx': 1,
+  // ⭐ A SECOND POST-CENSUS ROW, and the decision was already made IN THE SOURCE
+  // — this only records it. `useConfluence.js` arrived with the Confluence Radar
+  // board (`4849ddc2a`) and turned this rail red in the FULL suite, which is the
+  // only place it runs; a scoped run cannot see it.
+  //   • the hook's own comment states the trade: the board is SERVER-cached with
+  //     a 30-minute recompute and a boot warm, so the client "just polls it
+  //     lightly" at 120s. `useMobileSWR` doubling that to 240s buys almost
+  //     nothing against a 30-minute recompute;
+  //   • it already sets `revalidateOnFocus: false` BY HAND, so the app-global
+  //     half of the trade — the reason most sites take the wrapper — is already
+  //     kept, and the wrapper would flip it to `true`;
+  //   • and the wrapper would mount a `useMarketOpen` 60s interval per call site
+  //     for a board whose freshness is a server-side cron, not a session clock.
+  // ⚠️ RECORDING A DECISION IS NOT SILENCING ONE. This row is added because the
+  // reasoning is written at the call site and is checkable there; if that comment
+  // and this row ever disagree, the call site is the authority.
+  'app/src/hooks/useConfluence.js': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
   'app/src/components/research/sections/SetupSection.jsx': 1,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,

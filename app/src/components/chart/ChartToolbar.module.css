@@ -543,6 +543,19 @@
      chevron and scroll within what's left. */
   .tools { flex: 1 1 0; }
   .toggleBtn { margin-left: 2px; }
+  /* Phase 10 — slim the actions wall: these are desktop affordances on a
+     393px canvas. Share lives in the phone More sheet; keyboard shortcuts
+     and Replay scrubbing are mouse/keyboard tools; Compare's popover is
+     desktop-shaped; the bar-close clock is a niche toggle. The Indicator
+     bell STAYS — it is the only door to indicator alerts. Matching by title
+     keeps this zero-logic and self-healing if buttons move between clusters. */
+  .toolbar [title^="Share chart"],
+  .toolbar [title^="Keyboard shortcuts"],
+  .toolbar [title^="Replay"],
+  .toolbar [title^="Compare symbols"],
+  .toolbar [title^="Time until"] {
+    display: none;
+  }
   /* Collapsed (the phone shell's default): the tools/actions are display:none,
      so drop the strip's backdrop too — otherwise an empty grey band spans the
      top of the chart with just the expand chevron in it. */
@@ -550,6 +563,14 @@
     background: transparent;
     padding: 0;
   }
+  /* …and the expand chevron itself goes quiet: on the clean phone canvas a
+     solid grey 40px square in the corner reads as clutter. Ghost until
+     touched; the tap target stays full size. */
+  .toolbar.collapsed .toggleBtn {
+    opacity: 0.4;
+    background: transparent;
+  }
+  .toolbar.collapsed .toggleBtn:active { opacity: 1; }
 }
 
 /* Touch has no hover — keep the toolbar fully visible (don't depend on :hover). */

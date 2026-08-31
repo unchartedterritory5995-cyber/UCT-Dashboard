@@ -94,26 +94,26 @@ def test_production_path_falls_through_when_primary_corrupt(fresh_quarantine):
 def test_production_inner_invokes_fetch_with_validation_on_cold_fetch(
     fresh_quarantine, isolated_caches
 ):
-    """Verify that the production cache-miss path actually routes through
-    fetch_with_validation (the wiring being added in this task).
+    """Verify that the cold-fetch path actually routes through fetch_with_validation.
 
-    With every cache layer empty and a cold ticker, _get_bars_inner must
-    eventually call fetch_with_validation. We mock fetch_with_validation
-    itself to assert the call site is wired up.
+    Instant-charts Phase 4: a cold miss no longer fetches inline — _get_bars_inner
+    kicks the fetch to a background job (_do_cold_fetch), which is where the provider
+    fetch (and thus fetch_with_validation) now runs. So we drive _do_cold_fetch
+    directly and assert the validation wiring is intact.
     """
     clean_bars = [
         {"t": 1715080800, "o": 700, "h": 705, "l": 698, "c": 702, "v": 1500000},
         {"t": 1715080900, "o": 702, "h": 707, "l": 701, "c": 706, "v": 1100000},
     ]
 
-    # Patch fetch_with_validation in the bars_fetch module — that's what
-    # _get_bars_inner calls (the wiring we're verifying).
+    # Patch fetch_with_validation in the bars_fetch module — that's what the cold bg
+    # fetch (_do_cold_fetch → _fetch_intraday) calls (the wiring we're verifying).
     with patch.object(bars_fetch, "fetch_with_validation", return_value=clean_bars) as mock_fwv:
-        bars_fetch._get_bars_inner("QQQ", "5", 100)
+        bars_fetch._do_cold_fetch("QQQ", "5", 100, date_tf=False)
 
     # The cold-fetch path must have routed through fetch_with_validation
     # for an intraday timeframe.
-    assert mock_fwv.called, "fetch_with_validation was not invoked from production fetch path"
+    assert mock_fwv.called, "fetch_with_validation was not invoked from the cold bg fetch path"
     # First positional arg should be ticker (uppercase), second should be tf.
     call_args = mock_fwv.call_args
     args, kwargs = call_args
