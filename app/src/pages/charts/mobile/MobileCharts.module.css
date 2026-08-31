@@ -796,3 +796,11 @@
   outline: 2px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
   outline-offset: -2px;
 }
+
+/* Phase 11 crawl — the MA switches are the visual iOS 46x28; their HIT AREA
+   grows to the 44px standard through an invisible pseudo-element (no layout
+   or knob-math change). */
+@media (pointer: coarse) {
+  .switch { position: relative; }
+  .switch::after { content: ''; position: absolute; inset: -8px -6px; }
+}

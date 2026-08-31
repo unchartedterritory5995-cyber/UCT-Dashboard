@@ -409,3 +409,39 @@ honest no-data error chart).
 Unexplored crevices queued for wave 2: widget pages (scanner/news/themes) at
 phone quality bar, sub-pane indicator visual verify (needs a seeded sym kept
 clean), alert-sheet visual pass, synthetic $IDX symbols, VoiceOver semantics.
+
+## Phase 11 — wave 2: the action-point crawl
+
+`tools/mobile_crawl.py`: the mechanical stand-in for hundreds of testers. It
+enumerates EVERY tappable control in every reachable charts-tab state (chart,
+each sheet, settings tabs, library, drawing bar, each widget page — phone /
+SE / iPad viewports), taps each on a disposable admin account, classifies the
+outcome (changed / noop / error / neterr / left-route / overflow / crash /
+skipped-destructive), self-recovers between actions, and writes
+ledger.tsv + report.md + a screenshot per state. ~720 ledger rows this wave
+across three runs.
+
+**Verdict of the crawl:** ZERO real JS errors, zero route escapes, zero
+overflow introductions across every tapped control — the shell's logic is
+sound. The yield was ergonomic: a 57-item sub-44px tap-target sweep, fixed
+in this wave (each verified by re-crawl):
+- AI Search page: suggestion chips 28px → 44, settings gear 17px → 44.
+- Watchlists chrome: MY LISTS/PREBUILT/COMMUNITY rail 21px → 44, "New
+  watchlist" 21px → 44, header action buttons 19px → 40, list rows 31 → 44.
+- Theme Tracker period pills 27px → 44.
+- Settings modal: tabs 37 → 44, ✕ 29 → 44, template buttons ~25 → 40.
+- ƒx sheet MA switches: visual iOS 46×28 kept; hit area grown to standard
+  via an invisible pseudo-element.
+All coarse-pointer scoped; desktop metrics byte-identical.
+
+**Also learned:** `FREE_PAGES` is now `['/morning-wire']` — the owner
+tightened the paywall since CLAUDE.md's "free tier includes Charts" note; a
+free account correctly bounces to the Wire with a two-tab bar (crawler runs
+as admin). Deferred: VoiceInputButton (36×31) is inline-styled shared J2
+code — its bump belongs to a J2 pass, not this branch.
+
+Crawler lessons baked in: one login shared via storage_state (12 rapid
+logins trip the auth 429), widget PAGES survive Escape and must be closed by
+their back button between states, sheet-state enumeration scopes to the
+sheet root, and resource-load failures (the rig's own aborted bars) class as
+`neterr`, never `error`.

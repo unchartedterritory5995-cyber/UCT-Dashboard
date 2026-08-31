@@ -739,3 +739,13 @@
 .ttFooterRefresh:hover { color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.06)); }
 .ttFooterRefreshSpin { animation: ttFooterSpin 0.7s linear infinite; }
 @keyframes ttFooterSpin { to { transform: rotate(360deg); } }
+
+/* Phase 11 crawl — the period pills (TODAY/1W/1M/3M/…) measured 27px tall on
+   a phone. 44px hit height on coarse pointers; desktop unchanged. */
+@media (pointer: coarse) {
+  .periodTab {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+}
