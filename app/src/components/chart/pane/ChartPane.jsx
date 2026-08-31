@@ -693,7 +693,9 @@ function ChartPane({
               fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
           {slots?.tfBarAfterTf}
           {!compact && !mini && (
-            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} styles={styles} />
+            /* tight: when the Time Navigator sits before the fields, drop the wide
+               left margin so MARKET CAP hugs the box's divider (matches its left gap). */
+            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
