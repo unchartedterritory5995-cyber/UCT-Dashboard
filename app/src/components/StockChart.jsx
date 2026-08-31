@@ -1611,6 +1611,11 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  // "Back to live" chip: while the newest bar is off the right edge, a small »
+  // button floats above the time axis; one tap snaps back to realtime. Only
+  // the phone/tablet chart shell passes this — desktop surfaces already have
+  // the range bar + double-click resets and stay byte-identical.
+  showGoLive = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3522,9 +3527,43 @@ export default function StockChart({
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
       },
+      // Chart snapshot as a PNG blob — the same takeScreenshot() recipe the bar
+      // context menu's "Save to Notebook" path uses (LWC canvases only; DOM
+      // overlays like the legend are not captured). Reads chartRef at call
+      // time, so it binds whatever chart instance is live.
+      getSnapshotBlob: () => new Promise((resolve, reject) => {
+        try {
+          const c = chartRef.current?.takeScreenshot?.()
+          if (!c) return reject(new Error('chart not ready'))
+          c.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png')
+        } catch (err) { reject(err) }
+      }),
     }
     return () => { toolbarApiRef.current = null }
   }, [toolbarApiRef])
+
+  // ── "Back to live" chip state (showGoLive surfaces) ──────────────────────
+  // Away = the newest bar's slot is off the right edge of the view. The range
+  // subscription fires every pan frame, so state flips only when the answer
+  // changes. exactDateRange charts are frozen historical windows — never offer
+  // a jump that would unpin them.
+  const [awayFromLive, setAwayFromLive] = useState(false)
+  const awayFromLiveRef = useRef(false)
+  useEffect(() => {
+    if (!showGoLive || !chartReady || exactDateRange) return undefined
+    const ts = chartRef.current?.timeScale()
+    if (!ts) return undefined
+    const onRange = (range) => {
+      const lastIdx = (lastBarCountRef.current || 0) - 1
+      const away = !!range && lastIdx >= 0 && range.to < lastIdx + 0.5
+      if (away !== awayFromLiveRef.current) {
+        awayFromLiveRef.current = away
+        setAwayFromLive(away)
+      }
+    }
+    ts.subscribeVisibleLogicalRangeChange(onRange)
+    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* torn down */ } }
+  }, [showGoLive, chartReady, exactDateRange])
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
@@ -14600,6 +14639,20 @@ export default function StockChart({
           <span className={styles.originSpinner} aria-hidden="true" />
           Loading chart history…
         </div>
+      )}
+      {/* "Back to live" (showGoLive surfaces — the phone/tablet chart shell):
+          shown while the newest bar is off-screen, floating just left of the
+          price axis above the time axis — the spot TradingView's » chip lives.
+          One tap snaps the view back to the developing bar. */}
+      {showGoLive && awayFromLive && chartReady && (
+        <button
+          type="button"
+          className={styles.goLivePill}
+          aria-label="Back to latest bar"
+          onClick={() => { try { chartRef.current?.timeScale().scrollToRealTime() } catch { /* torn down */ } }}
+        >
+          <UIcon name="skipForward" size={16} gold={false} />
+        </button>
       )}
       {/* blankVolume (breadth): a plain "Volume" label so the empty pane still reads
           as the volume pane (TC2000-style), with no $ Vol / Avg values. */}

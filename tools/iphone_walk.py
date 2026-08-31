@@ -189,6 +189,65 @@ def touch_walk(ctx, page):
     return reshaped
 
 
+def golive_walk(ctx, page):
+    """Pan into history by touch → the » back-to-live chip appears → tap it →
+    the view snaps to the newest bar and the chip retires. True only on the
+    full round trip (Phase 8's flagship chart interaction)."""
+    cdp = None
+    try:
+        cdp = ctx.new_cdp_session(page)
+    except Exception:
+        print('  (no CDP — go-live pan needs touch drags; step skipped)')
+        return True  # webkit run: absence of CDP is not a regression signal
+
+    def touch(kind, points):
+        cdp.send('Input.dispatchTouchEvent', {
+            'type': kind,
+            'touchPoints': [{'x': x, 'y': y, 'id': 1} for x, y in points],
+        })
+
+    pill = page.get_by_label('Back to latest bar')
+    if pill.count() > 0:
+        print('  go-live: pill ALREADY visible before the pan — investigate')
+    # Deselect the reshaped trendline first so the drag below is a chart PAN,
+    # not a drawing move; then drag right along a mid-canvas lane. ⚠️ START
+    # x >= 150: a rightward swipe that begins near the left edge trips
+    # Chromium's overscroll history-back and NAVIGATES to the previous page —
+    # measured 2026-08-31 with a start at x=70 (the walk landed on /dashboard
+    # and every later step cascade-failed). y=300 clears the legend, the
+    # drawn line, and the toolbar.
+    touch('touchStart', [(60, 300)])
+    touch('touchEnd', [])
+    page.wait_for_timeout(400)
+    touch('touchStart', [(150, 300)])
+    for x in range(170, 351, 20):
+        touch('touchMove', [(x, 300)])
+        page.wait_for_timeout(30)
+    touch('touchEnd', [])
+    page.wait_for_timeout(700)
+    if '/charts' not in page.url:
+        print('  go-live: pan NAVIGATED AWAY (edge-gesture regression) — url', page.url)
+        return False
+    appeared = pill.count() > 0 and pill.is_visible()
+    print('  go-live pill appeared after pan:', appeared)
+    shot(page, '23-golive-pill', wait=200)
+    if not appeared:
+        return False
+    try:
+        pill.click(timeout=4000)
+    except Exception as e:
+        # A timeout here has meant a FAB intercepting the tap (the orb cluster
+        # did exactly that at bottom: 42px) — that's a product bug, not rig
+        # noise, so it fails the gate with the interceptor named.
+        print('  pill TAP FAILED (intercepted?):', str(e).splitlines()[-1][:120])
+        return False
+    page.wait_for_timeout(900)  # scrollToRealTime glides back to the live edge
+    gone = pill.count() == 0
+    print('  pill retired after snap-back:', gone)
+    shot(page, '24-back-at-live', wait=200)
+    return gone
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--base', default=os.environ.get('MOBILE_AUDIT_BASE', 'http://localhost:8077'))
@@ -235,6 +294,7 @@ def main():
         # Touch drawing first (the isolation-proven order), then the watchlist
         # page detour — page navigation must not be a variable under the walk.
         drew = touch_walk(ctx, page)
+        golive = golive_walk(ctx, page)
         step = 'star'
         try:
             open_sheets = page.evaluate("() => document.querySelectorAll('[data-sheet-panel]').length")
@@ -296,7 +356,10 @@ def main():
     if not drew:
         print('FAIL: touch place/reshape did not persist — the phone drawing pipeline regressed')
         return 1
-    print('PASS: touch place + reshape verified end-to-end')
+    if not golive:
+        print('FAIL: back-to-live chip round trip failed — pan/pill/snap regressed')
+        return 1
+    print('PASS: touch place + reshape + back-to-live verified end-to-end')
     return 0
 
 

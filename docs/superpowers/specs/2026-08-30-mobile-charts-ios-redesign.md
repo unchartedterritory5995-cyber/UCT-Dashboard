@@ -242,3 +242,47 @@ A narrow fine-pointer desktop window keeps RGL unchanged.
   /charts), long-press crosshair inspect card, per-widget mobile headers.
 - **Tablet fine-pointer widths** keep the RGL workspace (deliberate — mouse
   users get the desktop grid; Phase 7 moved only coarse-pointer tablets).
+
+## Phase 8 — the feel layer (shipped)
+
+The "little things TradingView/Deepvue have that are hard to name." Seven
+micro-interactions, all additive:
+
+- **Back-to-live chip** — pan into history and a » button (40px round,
+  `UIcon skipForward`) floats left of the price axis; one tap
+  `scrollToRealTime()`. StockChart prop `showGoLive` (default false — ONLY
+  the mobile shell passes it, desktop byte-identical), state from a
+  `subscribeVisibleLogicalRangeChange` listener that flips only when
+  "newest bar off-screen" changes. Frozen `exactDateRange` exhibits never
+  offer it. Rig step `golive_walk`: touch-pan → pill appears → tap →
+  retires; a FAIL gate like place/reshape.
+- **Long-press crosshair already sticks** — LWC's `trackingMode.exitMode`
+  DEFAULTS to `OnNextTap` (verified in the installed typings), so the
+  TradingView press-hold-drag-release-inspect loop needed zero config. What
+  Phase 8 adds: `-webkit-touch-callout/user-select: none` on `.chartArea` +
+  `.symStrip` (coarse only) so iOS's text loupe never hijacks the press.
+- **Press states** — coarse-only `:active` compression (scale .94, 90ms) on
+  every toolbar button/grid cell, bg-tint on sheet rows. The visual "thunk";
+  iOS Safari gives web apps no vibration API (haptics.js already documents
+  the no-op).
+- **Tick flash** — the strip's price takes the tick's direction color and
+  eases back. Direction = comparison vs the PREVIOUS quote (not the day's
+  sign), render-time state adjustment (no set-state-in-effect), pure CSS
+  keyframes with the `to` frame omitted (browser fills the base color), a
+  per-tick React key restarts consecutive same-direction flashes. A symbol
+  switch never flashes. `MobileSymbolStrip.flash.test.jsx` (5).
+- **ƒx count badge** — gold chip on the Indicators button = enabled overlay
+  slots. VISUAL-ONLY: the accessible name stays the stable "Indicators"
+  (`builderDoor.wire.test` queries it by exact name — a dynamic aria-label
+  broke it in development; the rail won).
+- **Share chart image** — More-sheet row (camera icon): StockChart's
+  toolbarApi grew `getSnapshotBlob()` (the same `takeScreenshot()` recipe
+  the desktop Save-to-Notebook path uses) → `navigator.share({files})` =
+  the native iOS share sheet, download fallback elsewhere. AbortError
+  (user cancels) swallowed.
+- **Already-there discoveries, recorded so nobody re-ships them**: the
+  search sheet had logos/`autocapitalize=characters`/`enterKeyHint=go`
+  since Phase 1; `Sheet` has had a drag grip bar (`styles.grip`) all along.
+
+Landing suite grows to 25 (goLive wire pinned through the ChartPane mock's
+`data-golive`, badge count, share row) + 5 flash tests.
