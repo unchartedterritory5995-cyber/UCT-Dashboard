@@ -18,8 +18,8 @@
 export const NAV_GROUPS = [
   { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/dashboard', '/morning-wire'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
-    routes: ['/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
-             '/post-market', '/screener', '/calendar', '/catalysts', '/ai-search', '/uct-20'] },
+    routes: ['/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/confluence',
+             '/dark-pool', '/post-market', '/screener', '/calendar', '/catalysts', '/ai-search', '/uct-20'] },
   { key: 'charts', label: 'Charts', icon: 'chart',
     routes: ['/charts', '/watchlists', '/theme-tracker', '/model-book', '/setup-library'] },
   { key: 'journal', label: 'Journal', icon: 'journal',

@@ -25,6 +25,7 @@ export const NAV_ITEMS = [
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
+  { to: '/confluence',   label: 'Confluence',    icon: 'magnet' },
   { to: '/post-market',  label: 'Post Market',   icon: 'moon' },
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/desk',         label: 'The Desk',      icon: 'desk' },

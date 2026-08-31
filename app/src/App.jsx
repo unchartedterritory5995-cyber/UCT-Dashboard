@@ -83,6 +83,7 @@ const LiveFlowMassive = lazyPage('/live-massive', () => import('./pages/LiveFlow
 const Traders = lazyPage('/traders', () => import('./pages/Traders'))
 const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazyPage('/dark-pool', () => import('./pages/DarkPool'))
+const Confluence = lazyPage('/confluence', () => import('./pages/Confluence'))
 const PostMarket = lazyPage('/post-market', () => import('./pages/PostMarket'))
 const ModelBook = lazyPage('/model-book', () => import('./pages/ModelBook'))
 const SetupLibrary = lazyPage('/setup-library', () => import('./pages/SetupLibrary'))
@@ -504,6 +505,7 @@ export default function App() {
                     every voice navigation target against this route table. */}
                 <Route path="/traders" element={<Traders />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
+                <Route path="/confluence" element={<Confluence />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />
                 <Route path="/setup-library" element={<SetupLibrary />} />
