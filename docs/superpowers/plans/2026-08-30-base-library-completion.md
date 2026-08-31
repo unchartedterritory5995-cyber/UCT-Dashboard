@@ -257,6 +257,24 @@ defer -- otherwise the speed claim could be false while every value test
 passed. ⚠️ This is the second time the cost was in the harness rather than the
 detector; measure before optimising a predicate.
 
+## Measured: the scan was re-deriving one thing fourteen times
+
+`bases._context` is the per-anchor cost (a volatility-scaled zigzag, 2.28 ms)
+and the detectors cost 0.25-0.50 ms, so measuring N structures segmented the
+IDENTICAL window N times. `--grouped` walks the anchors once per WINDOW group
+and evaluates every detector on one context; the null reuses one set of
+moving-block resamples across the group. Grouping is derived from `WINDOWS`,
+never declared twice -- a 1,500-bar structure cannot ride a 400-bar pass
+without silently becoming a different pattern.
+
+⛔ Proved, not argued, because the detectors now share one mutable object per
+anchor and a detector that wrote to it would change what every later detector
+in that anchor sees -- raising nothing, and invisible to any single-structure
+test. The shared pass is compared field by field against the separate passes,
+the shared null against the separate null, and one deliberately broken
+detector must not poison its neighbours (error counts moved from a single
+global to per-structure). Mutation-checked.
+
 ## Wave F — rails promised and not yet written
 
 - [ ] **F1** The candle/engine boundary. The owner ruled the 18
@@ -306,6 +324,42 @@ my changes, never WHY they fail. Finish the job.
 - **Expanding intraday bar coverage** beyond today's 2.6-7.0%.
 - **Correcting `setup_templates`' unsourced numbers.** The corpus proves several
   are unattributable; that is a reviewed change to the model book, not this.
+
+## The refusal rate, and the decision taken on it
+
+Thirteen of the first fourteen structures were refused, which reads alarming
+until the refusals are separated. They are three different situations:
+
+- **Measured NEGATIVE (4):** cup-with-handle -7.18pp, flat-base -6.89pp,
+  pocket-pivot -6.55pp, green-line-breakout -4.96pp. These resolved WORSE than
+  their own pattern-free baseline. Findings, not failures.
+- **Too rare to measure (4):** power-play (n=13, interval 61pp wide),
+  high-tight-flag (n=53), ascending-base (n=69, 24pp wide), stage-2 (n=153).
+  Nothing concludable in either direction; the limit is the SAMPLE.
+- **Positive but cannot clear their own null (5):** stage-4 +8.35pp (n=1,146,
+  missed by 9 basis points), double-bottom +4.44pp (n=1,849), vcp +3.59pp,
+  square-box +1.07pp, base-on-base.
+
+⭐ AND THE BAR IS A CHOICE. The gate asks the CI's LOWER bound to beat the
+null's MAXIMUM, which is stricter than a conventional significance test. Under
+"the central estimate beats the null and the interval excludes zero" -- also a
+legitimate standard -- FOUR would publish rather than one.
+⛔ But a naive relaxation is worse than it looks: `lift > null_max` alone would
+have "published" flat-base at **-6.89pp**, because its lift exceeds its own
+NEGATIVE null. Any loosening needs a sign condition or it publishes losers.
+
+**Decision (owner deferred to me, 2026-08-30): widen the sample, keep the
+bar.** Most rows were measured on 279 tickers against a universe of 3,461, and
+a wider sample can only tighten intervals -- it is the honest lever, because
+it changes the evidence rather than the standard.
+⛔⛔ ONCE, AND WHATEVER COMES BACK STANDS. Re-running at successively wider
+samples until a structure passes is p-hacking with extra steps. The full-
+universe run is a single run and its output is the answer, including for
+structures that come back WORSE.
+
+That required removing the reason the sample was ever narrow: measuring the
+structures one at a time re-derived the same per-anchor context for each, so a
+full-universe pass would have taken ~20 hours. See the note below.
 
 ## The honest risk
 
