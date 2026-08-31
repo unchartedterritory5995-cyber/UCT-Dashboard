@@ -3413,9 +3413,17 @@ async def lifespan(app: FastAPI):
                 _pw = 0
                 _pw_syms: set[str] = set()
 
-                def _warm_sym_into_memory(sym: str, tf: str):
+                # FIRST_PAINT_BARS on the client (barsBackfill.js) — the chart's opening
+                # fetch is `bars=600`, a DIFFERENT cache key from the deep 8000/5000 warm
+                # below. Without warming this key too, even a hot-set symbol pays a cold
+                # SQLite read (the slow "stale-swr" tier) on its FIRST view after a deploy,
+                # which is exactly the kind of slow op that clogs the shared threadpool.
+                # 600 bars is small (~1/13th the deep payload) so this is memory-cheap.
+                _FIRST_PAINT_BARS = 600
+
+                def _warm_sym_into_memory(sym: str, tf: str, bc: int = None):
                     nonlocal _pw
-                    _bc = 8000 if tf in ('D', 'W') else 5000
+                    _bc = bc if bc is not None else (8000 if tf in ('D', 'W') else 5000)
                     try:
                         _lt = _pbs.get_last_ts(sym, tf)
                         if _lt is None:
@@ -3433,6 +3441,10 @@ async def lifespan(app: FastAPI):
                     _pw_syms.add(_sym)
                     for _tf in ('D', 'W', '5', '15', '30', '60'):
                         _warm_sym_into_memory(_sym, _tf)
+                    # Also warm the FIRST-PAINT depth for the daily-basis TFs so the very
+                    # first chart view after a deploy is mem-instant, not a cold read.
+                    _warm_sym_into_memory(_sym, 'D', bc=_FIRST_PAINT_BARS)
+                    _warm_sym_into_memory(_sym, 'W', bc=_FIRST_PAINT_BARS)
 
                 try:
                     from api.services import breadth_monitor as _bm
@@ -3447,6 +3459,7 @@ async def lifespan(app: FastAPI):
                                     _pw_syms.add(_s.upper())
                                     for _tf in ('D', 'W'):
                                         _warm_sym_into_memory(_s.upper(), _tf)
+                                        _warm_sym_into_memory(_s.upper(), _tf, bc=_FIRST_PAINT_BARS)
                 except Exception:
                     pass
 
