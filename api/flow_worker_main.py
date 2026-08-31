@@ -313,6 +313,16 @@ def _start_flow_schedulers():
         except Exception as e:  # noqa: BLE001
             log.warning("flat-files scheduling failed: %s", e)
 
+        try:
+            # Confluence flow-leg cache warmer — keeps (large|mid_small)×(30d|5d)
+            # warm so the web join's internal call is instant (a cold 30d compute
+            # is ~120s and was timing out the join -> 0-row board).
+            from api import confluence_flow
+            confluence_flow.start_background_warm()
+            log.info("[startup] confluence flow-leg warmer started")
+        except Exception as e:  # noqa: BLE001
+            log.warning("confluence warmer start failed: %s", e)
+
         def _nightly_flow_prune():
             # Retention on the LIVE flow.db, which lives here post-cutover.
             #
