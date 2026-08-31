@@ -3797,6 +3797,32 @@ class Resolver {
         && !this.shadowedByDefinition(name)) {
       return cOp('!=', [this.resolve(node.args[0].value), cNum(0)])
     }
+    // ⭐⭐ `float(x)` IS THE IDENTITY, and it is the SAFEST of the three casts
+    // rather than the boldest. This paragraph's neighbour above spells out why
+    // `int(x)` stays narrow — TradingView does not publish whether casting a
+    // fractional float truncates, rounds or floors, so folding it would invent a
+    // rounding direction. `float(x)` has no such question to answer: this engine
+    // holds ONE numeric column type, so widening an int to a float changes no
+    // value, and a bool is already carried as 0/1 — which is exactly what
+    // TradingView says `float(true)` is. `float(na)` is `na`, which this door
+    // already expands to `0 / 0`.
+    //
+    // ⚰️ THIS WAS DESIGNED, MEASURED AND PARKED, and the note is 40 lines up:
+    // "`float(x)` is the identity in an engine with one numeric column type …
+    // MEASURED they take `02-ict`'s four `pine:function` output refusals to the
+    // `pine:state` that is actually blocking them", held back because the corpus
+    // snapshot "was outside the lane that wrote this". That lane boundary is gone
+    // and the `pine:state` wall behind it fell with the function-local scope fix,
+    // so the four outputs go further than the note could have known.
+    //
+    // ⛔ SHADOWING IS CHECKED, like `bool`'s: a member who defines their own
+    // `float(x) =>` gets THEIR function. And a wrong arity FALLS THROUGH to the
+    // ordinary `pine:function` sentence, which names the whole vocabulary rather
+    // than a bespoke complaint about one cast.
+    if (name === 'float' && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(name)) {
+      return this.resolve(node.args[0].value)
+    }
     if (name === 'fixnan') {
       throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
     }

@@ -90,10 +90,19 @@ describe('the Pine guard census, by name', () => {
 // READ, so nothing has ever checked that it helps. `07-hull-suite` now reaches it
 // — the `int` fold cleared the two walls in front — and what it reads there names
 // `hma(close, 55)` as the call that spares the whole hand-expansion.
+// ⭐⭐ `pine:cycle` LEFT THE LIST on 2026-08-31, the same way and for the same
+// kind of reason: `float(x)` folds to the identity now, so `02-ict`'s four
+// `pine:function` output refusals stopped stopping at a CAST and reached the
+// walls actually in their way — two `pine:state` at line 105 and two `pine:cycle`
+// at line 112. Both are real: `previous_state = nz(current_state[1])` reads
+// `current_state` BEFORE three later `:=` branches, so the binding read is not
+// the last word on the name, and `trigger_condition` is computed from it.
+// ⛔ THE FOLD DID NOT CREATE THESE. It removed the thing standing in front of
+// them — which is what makes an unexercised guard the wrong thing to celebrate:
+// its sentence had never been read by anyone until a cast stopped hiding it.
 const EXPECTED_UNEXERCISED = [
   'pine:character',
   'pine:colour-value',
-  'pine:cycle',
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',
