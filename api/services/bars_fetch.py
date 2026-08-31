@@ -159,6 +159,17 @@ _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 _COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
 _cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
 
+# 🟡 Global cap on CONCURRENT best-effort WARM serves (background prefetch: opening a
+# theme/watchlist warms ~20 holdings at once, across MANY browsers = a lot of concurrent
+# warm=1 requests). Each warm serve holds an anyio-pool worker while it reads+formats from
+# SQLite; unbounded, they queue AHEAD of the chart the user actually CLICKED (which is NOT
+# a warm request) and drag it to seconds — the theme-flood symptom. When the cap is full a
+# warm request SHEDS instantly (fast 503 → the client re-warms on its next poll, or the
+# real click fetches it), so the shared threadpool stays available for real chart requests.
+# The click's own request never sheds. Tune via BARS_WARM_SERVE_MAX.
+_WARM_SERVE_MAX = max(1, int(_os.environ.get("BARS_WARM_SERVE_MAX", "6")))
+_warm_serve_sem = _threading.Semaphore(_WARM_SERVE_MAX)
+
 
 def _depth_tier(bars: int) -> int:
     """Coarse depth bucket for the deep-fill throttle marker, so a shallow view
@@ -2870,7 +2881,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 new = _delta_intraday(_sym, _tf, _last_ts)
                             if new:
                                 _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
-                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars)
+                        # Re-read only when the delta actually advanced the store. When
+                        # `new` is empty the SQLite rows are unchanged, so reuse the rows
+                        # the serve already read — this skips a redundant multi-thousand-row
+                        # get_bars().fetchall() (SQLite-C holds the GIL) on every idle poll,
+                        # which is the dominant bg-delta contention under a warm flood.
+                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars) if new else _stored
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
                             "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf, _sym),

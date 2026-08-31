@@ -378,10 +378,32 @@ def get_bars(
             elif to:
                 # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
                 response = _get_bars_to_response(ticker, tf, bars, to, warm=bool(warm))
-            elif since:
-                response = _get_bars_since_response(ticker, tf, bars, since)
             else:
-                response = _get_bars_inner(ticker, tf, bars)
+                # Best-effort background warm (theme/watchlist prefetch, `warm=1`)
+                # de-prioritizes under load: when the warm-serve slots are full it SHEDS
+                # fast (a 503 the client re-tries), so it can never starve the chart the
+                # user actually CLICKED — a non-warm request that always serves. This is
+                # the fix for "open a theme → the stock you click takes 5-6s" (the flood
+                # of ~20 holding warms was queueing ahead of the click on the shared pool).
+                _warm_slot = False
+                if warm:
+                    _warm_slot = _bars_fetch._warm_serve_sem.acquire(blocking=False)
+                    if not _warm_slot:
+                        _mark_serve("warm-shed")
+                        response = JSONResponse(
+                            status_code=503,
+                            content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
+                        )
+                        response.headers["Retry-After"] = "4"
+                if response is None:
+                    try:
+                        if since:
+                            response = _get_bars_since_response(ticker, tf, bars, since)
+                        else:
+                            response = _get_bars_inner(ticker, tf, bars)
+                    finally:
+                        if _warm_slot:
+                            _bars_fetch._warm_serve_sem.release()
         except Exception as e:
             crashed = True
             _log.error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
