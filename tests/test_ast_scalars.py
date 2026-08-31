@@ -234,7 +234,29 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # `candle_weekly*`, `candle_monthly*`) for `candle_type`'s reason: a
     # classification is not a magnitude, and `candle_matches` is a
     # delimiter-wrapped membership list the filter reads, not a number.
-    assert (len(declared), len(excluded)) == (111, 89)
+    # (111, 89) -> (111, 92) on 2026-08-31: the BASE & STRUCTURE LIBRARY, and
+    # this is the "never both in one commit" case arriving as a branch, so the
+    # arithmetic is written out rather than left to be re-derived:
+    #   declared  111 - 1 + 1 = 111  (`pattern_conf_max` RETIRED with the cheap
+    #                                 pattern vocabulary; `base_relation_count`
+    #                                 DECLARED -- an INT count of named
+    #                                 structures, the one countable thing the
+    #                                 library produces, written by the shipped
+    #                                 `bases.classify` so R8 is met on arrival)
+    #   excluded   89 - 1 + 4 =  92  (`patterns` RETIRED alongside its scalar;
+    #                                 `base_shape` and `base_shape_label` are
+    #                                 CLASSIFICATIONS, `base_matches` is a
+    #                                 delimiter-wrapped membership list the
+    #                                 filter tests with a `contains` this table
+    #                                 does not declare, and `base_render` is a
+    #                                 display string -- all four for
+    #                                 `candle_matches`'s reason, and each
+    #                                 carries that reason in closedTable.json)
+    # ⚠️ The totals net to a wash on the declared side, which is exactly the
+    # shape that hides a mistake: a retirement and an addition cancelling means
+    # the pair moved for TWO reasons at once. Both are spelled out above so the
+    # next reader does not have to reconstruct which.
+    assert (len(declared), len(excluded)) == (111, 92)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
