@@ -405,8 +405,35 @@ my changes, never WHY they fail. Finish the job.
 
 ## Wave H — ship
 
-- [ ] **H1** Full suite green, or every remaining failure attributed to a named
-      cause in the commit.
+- [~] **H1 — IN PROGRESS. ~7,000 tests green so far; three failures attributed
+      to master, two resolved by the merge, two defects of mine FIXED.**
+
+      ⭐ THE MERGE WAS PART OF H1, NOT SEPARATE FROM IT. `breadth_live` and
+      `calendar_actuals_patch` failed on this branch and passed on master,
+      which read as a regression I had caused. It was not: **master had
+      advanced 195 commits**, `breadth_live.py` was updated there to track an
+      updated external `breadth_collector.py`, and this branch was simply
+      stale. Merging fixed both.
+      ⛔ AND MY FIRST ATTRIBUTION WAS WRONG FOR A SUBTLE REASON. I checked
+      `git diff --name-only origin/master...HEAD` and saw no breadth files, so
+      I called them pre-existing. That is a THREE-DOT diff -- it compares
+      against the MERGE BASE and answers "what did I change?", not "what
+      differs between us?". A file master had moved and I had not looked
+      untouched by exactly the command I used to prove it was untouched.
+
+      Two defects of mine, found only because the whole suite ran:
+        - the AST conformance fixture still carried a case for
+          `pattern_conf_max`, retired by Wave C;
+        - the scalar PARTITION ledger read (111, 89) against a true (111, 92),
+          and the declared side NETS TO A WASH -- a retirement and an addition
+          cancelling, which is the shape that hides a mistake.
+
+      Attributed to master, verified by running them in a throwaway worktree at
+      `origin/master` rather than by reasoning: `test_closed_table_citations`
+      (an f-string split across two literals makes the scanner read
+      `closedTable.json::f`), `test_cross_module_imports_resolve::KNOWN_DEAD`
+      (`voice_tool_impls.get_macro_events` resolves again), and
+      `test_ast_tc2000_remainder::A5`.
 - [x] **H2** DONE — `bases.classify` = **23.0s for 3,707 tickers**, 0.3x
       the weekly candle pass. Re-check after the structures added since.
       *(original:)* measure the nightly cost. `bases.classify` now runs per ticker
