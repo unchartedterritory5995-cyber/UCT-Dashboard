@@ -75,6 +75,10 @@ WINDOWS = {
     "ascending-base":      400,
     # A 4-7 week box plus the advance it follows.
     "square-box":          300,
+    # 3-week surge + the prolonged advance that must precede it.
+    "climax-top":          300,
+    # A <=20-bar parabolic leg; nothing behind it is read.
+    "parabolic-extension": 200,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

@@ -2917,6 +2917,275 @@ SQUARE_BOX = Structure(
 )
 
 
+# -- Climax Top (IBD) -------------------------------------------------------
+# ⭐⭐ THE SHARPEST SELF-CONTRADICTION IN THE CORPUS, and it is inside ONE
+# column. IBD's selling column says a stock that gains 20% or more in three
+# weeks or less "should be held at least eight weeks", and -- in the same
+# column -- that a stock which soars "25% to 50% or more in three weeks or
+# less" is showing "the hallmark of a climax top". Those overlap: a 30% move in
+# two weeks is simultaneously a hold-for-eight-weeks signal and an exhaustion
+# warning. We implement the climax reading, label the structure bearish, and
+# record the other rule verbatim rather than pretending the tension is not
+# there.
+
+_IBD_CLIMAX = "ibd_selling_climax"
+
+#: "shares soar 25% to 50% or more in three weeks or less"
+CLIMAX_MIN_GAIN = 0.25
+CLIMAX_MAX_BARS = 15          # three weeks
+
+#: OURS. "After a PROLONGED ADVANCE" is the precondition and IBD never
+#: quantifies it. Without something here the rule fires on any sharp three-week
+#: pop, including the first leg off a bottom -- which is the opposite of a
+#: climax.
+CLIMAX_PRIOR_ADVANCE = 0.50
+CLIMAX_PRIOR_LOOKBACK = 120
+
+
+def climax_top_state(bars) -> Optional[dict]:
+    """A 25%+ surge inside three weeks, after a prolonged advance."""
+    n = len(bars)
+    if n < CLIMAX_MAX_BARS + 20:
+        return None
+    last = bars[-1].get("c") or 0.0
+    if last <= 0:
+        return None
+
+    best = None
+    for k in range(3, CLIMAX_MAX_BARS + 1):
+        lows = [b.get("l") or 0 for b in bars[n - k:] if (b.get("l") or 0) > 0]
+        if not lows:
+            continue
+        lo = min(lows)
+        if lo <= 0:
+            continue
+        gain = (last - lo) / lo
+        if gain < CLIMAX_MIN_GAIN:
+            continue
+        if best is None or gain > best["gain"]:
+            best = {"gain": gain, "bars": k, "from_low": lo, "close": last}
+    if best is None:
+        return None
+
+    adv = _prior_advance(bars, best["bars"], look=CLIMAX_PRIOR_LOOKBACK)
+    if (adv or 0.0) < CLIMAX_PRIOR_ADVANCE:
+        return None
+    best["prior_advance"] = adv
+    return best
+
+
+def _detect_climax_top(ctx) -> bool:
+    return climax_top_state(ctx.bars) is not None
+
+
+CLIMAX_TOP = Structure(
+    key="climax-top",
+    label="Climax Top",
+    axis="relation",
+    family="Exhaustion",
+    bias="bearish",
+    rank=55,
+    min_bars=CLIMAX_MAX_BARS + 20,
+    desc=("A 25%-or-more surge inside three weeks at the end of a prolonged "
+          "advance -- the hallmark of an exhaustion move rather than a "
+          "continuation."),
+    criteria=(
+        Criterion(
+            condition="Surge size and window",
+            value=(CLIMAX_MIN_GAIN, CLIMAX_MAX_BARS),
+            quote=("After a prolonged advance, shares soar 25% to 50% or more "
+                   "in three weeks or less. That's the hallmark of a climax "
+                   "top."),
+            source_id=_IBD_CLIMAX, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐⭐ DIRECT OVERLAP WITH THE HOLD RULE IN THE SAME "
+                       "COLUMN. IBD tells you to HOLD a stock that gains 20%+ "
+                       "in three weeks or less for at least eight weeks, and "
+                       "tells you 25%+ in three weeks or less is a climax top. "
+                       "A 30% move in two weeks satisfies both. Recorded, not "
+                       "reconciled -- the house publishes both and we are not "
+                       "entitled to pick which one it meant."),
+            value="hold-8-weeks vs climax-top",
+            quote=("any stock that surges that fast in three weeks or less "
+                   "should be held at least eight weeks"),
+            source_id=_IBD_CLIMAX, confidence="high",
+        ),
+        Criterion(
+            condition="The 'prolonged advance' that must precede it",
+            value=None,
+            quote="After a prolonged advance",
+            source_id=_IBD_CLIMAX, confidence="high",
+            missing=("IBD never quantifies 'prolonged'. Our number is recorded "
+                     "separately, below, and it is load-bearing: without it the "
+                     "rule fires on any sharp three-week pop, including the "
+                     "first leg off a bottom, which is the OPPOSITE of a "
+                     "climax."),
+        ),
+        Criterion(
+            condition="Prior advance required before the surge",
+            value=CLIMAX_PRIOR_ADVANCE,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=2.1,
+    detect=_detect_climax_top,
+)
+
+
+# -- Parabolic Extension (Kristjan Kullamagi) -------------------------------
+# His "Parabolic Short". ⚠️ ONLY THE DAILY-DETECTABLE HALF IS IMPLEMENTED: the
+# entry ("short the opening range lows of the 1- or 5-minute candle") and the
+# stop ("a reclaim of VWAP") are intraday, and this is a daily-bar structure.
+# What ships is the STATE -- the stock is parabolically extended -- not his
+# trade.
+
+_QULLAMAGGIE = "qullamaggie_parabolic"
+
+#: "A stock up 50-100%+ in a few days or weeks (if larger cap)"
+PARA_MIN_GAIN = 0.50
+
+#: "The stock should be up 3-5+ days in a row."
+PARA_MIN_UP_DAYS = 3
+
+#: OURS: "a few days or weeks" is not a number.
+PARA_MAX_BARS = 20
+
+
+def parabolic_extension_state(bars) -> Optional[dict]:
+    """A vertical move with a run of consecutive up days behind it."""
+    n = len(bars)
+    if n < PARA_MAX_BARS + 5:
+        return None
+    last = bars[-1].get("c") or 0.0
+    if last <= 0:
+        return None
+
+    up = 0
+    for i in range(n - 1, 0, -1):
+        c, prev = bars[i].get("c") or 0, bars[i - 1].get("c") or 0
+        if c > prev > 0:
+            up += 1
+        else:
+            break
+    if up < PARA_MIN_UP_DAYS:
+        return None
+
+    best = None
+    for k in range(3, PARA_MAX_BARS + 1):
+        lows = [b.get("l") or 0 for b in bars[n - k:] if (b.get("l") or 0) > 0]
+        if not lows:
+            continue
+        lo = min(lows)
+        if lo <= 0:
+            continue
+        gain = (last - lo) / lo
+        if gain < PARA_MIN_GAIN:
+            continue
+        if best is None or gain > best["gain"]:
+            best = {"gain": gain, "bars": k, "from_low": lo,
+                    "up_days": up, "close": last}
+    return best
+
+
+def _detect_parabolic_extension(ctx) -> bool:
+    return parabolic_extension_state(ctx.bars) is not None
+
+
+PARABOLIC_EXTENSION = Structure(
+    key="parabolic-extension",
+    label="Parabolic Extension",
+    axis="relation",
+    family="Exhaustion",
+    bias="bearish",
+    rank=57,
+    min_bars=PARA_MAX_BARS + 5,
+    desc=("Up 50% or more within a few weeks with three or more consecutive "
+          "up days -- stretched far enough from its short-term averages that "
+          "reversion to them is the expected move."),
+    criteria=(
+        Criterion(
+            condition="Prior move, larger caps",
+            value=PARA_MIN_GAIN,
+            quote=("A stock up 50-100%+ in a few days or weeks (if larger cap) "
+                   "or 300-1000%+ (if smaller cap)."),
+            source_id=_QULLAMAGGIE, confidence="high",
+        ),
+        Criterion(
+            condition="Consecutive up days",
+            value=PARA_MIN_UP_DAYS,
+            quote="The stock should be up 3-5+ days in a row.",
+            source_id=_QULLAMAGGIE, confidence="high",
+        ),
+        Criterion(
+            condition=("The large-cap / small-cap boundary that selects between "
+                       "50-100% and 300-1000%"),
+            value=None,
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing=("No market-cap or share-price level is published, so his "
+                     "TWO-BRANCH rule is not computable. We apply the "
+                     "larger-cap threshold universally, which means this "
+                     "OVER-FIRES on small caps he would require a far bigger "
+                     "move from. Stated because it biases the measurement, not "
+                     "merely the label."),
+        ),
+        Criterion(
+            condition="Length of the parabolic leg",
+            value=None,
+            quote="in a few days or weeks",
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing="No maximum bar count is published; ours is recorded below.",
+        ),
+        Criterion(
+            condition="Extension above the moving averages that makes it 'parabolic'",
+            value=None,
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing=("No percentage or ATR multiple is published. He defines "
+                     "the 10- and 20-day MAs as the TARGET, never as an "
+                     "entry-qualifying distance, so there is nothing to test."),
+        ),
+        Criterion(
+            condition=("Entry and stop are INTRADAY and are not implemented: "
+                       "'short on the opening range lows (1-minute, 5-minute "
+                       "candles)', stop at 'highs of the day or if VWAP fail, "
+                       "a reclaim of the VWAP'."),
+            value=None,
+            quote=("When you think you have identified a candidate you can "
+                   "short on the opening range lows (1-minute, 5-minute "
+                   "candles)."),
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing=("This is a daily-bar structure. What ships is the STATE "
+                     "(the stock is parabolically extended), not his trade."),
+        ),
+        Criterion(
+            condition="The asserted 5-10x risk/reward",
+            value=None,
+            quote="This setup is more like 5-10x risk reward",
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing=("An asserted payoff SHAPE, not a measured expectancy over "
+                     "a sample. His only win-rate statement is hedged and "
+                     "unquantified ('probably going to be higher'). Nothing "
+                     "here is usable as evidence."),
+        ),
+        Criterion(
+            condition="Borrow / shortability, the practical gate on this setup",
+            value=None,
+            source_id=_QULLAMAGGIE, confidence="high",
+            missing=("No published rule on locate availability or borrow cost, "
+                     "and we hold no borrow data either -- so a name this "
+                     "labels may be untradeable short."),
+        ),
+        Criterion(
+            condition="Maximum length of the parabolic leg",
+            value=PARA_MAX_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=0.54,
+    detect=_detect_parabolic_extension,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -2964,10 +3233,11 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CUP_WITH_HANDLE, DARVAS_BOX,
-             DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
-             HIGH_TIGHT_FLAG, POCKET_PIVOT, POWER_PLAY, SQUARE_BOX,
-             STAGE2_BREAKOUT, STAGE4_BREAKDOWN, VCP]
+RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CLIMAX_TOP, CUP_WITH_HANDLE,
+             DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
+             HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
+             POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
+             VCP]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
