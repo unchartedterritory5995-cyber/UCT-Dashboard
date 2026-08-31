@@ -38,10 +38,34 @@ SYMS = ['SPY', 'AAPL', 'NVDA', 'TSLA', 'META', 'AMD', 'MSFT', 'PLTR']
 IOS_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
           'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1')
 
+
+def _idb_logic_version():
+    """CACHE_LOGIC_VERSION, read from barsIDB.js — never hand-typed here.
+
+    The seed's version field once carried a literal ``6``; when the app bumped
+    to 7 (the 2026-08-31 wrong-basis heal) every seeded entry silently read as
+    a cache miss, the sandbox backend had no bars to fall back on, and both
+    drag gates failed on a "Failed to load chart" screen — a walk regression
+    that looked exactly like a product one. Same defect class (and same fix)
+    as api/main.py's startup-fingerprint interpolation of this constant.
+    """
+    src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            '..', 'app', 'src', 'utils', 'barsIDB.js')
+    with open(src_path, encoding='utf-8') as f:
+        m = re.search(r'const CACHE_LOGIC_VERSION\s*=\s*(\d+)', f.read())
+    if not m:
+        raise SystemExit('iphone_walk: cannot read CACHE_LOGIC_VERSION from barsIDB.js — '
+                         'fix this parser rather than guessing a number')
+    return int(m.group(1))
+
+
+IDB_LOGIC_VERSION = _idb_logic_version()
+
 # Seeds ~220 synthetic weekday bars per symbol into the app's own IDB store
-# (uct_bars_v1/bars, the exact idbPut record shape incl. CACHE_LOGIC_VERSION).
-# ⚠️ Keep the version literal in step with app/src/utils/barsIDB.js — a mismatch
-# just makes the seed read as absent (charts render empty, nothing breaks).
+# (uct_bars_v1/bars, the exact idbPut record shape incl. CACHE_LOGIC_VERSION —
+# interpolated from barsIDB.js via IDB_LOGIC_VERSION above, never hand-typed:
+# a stale literal makes every seed read as absent and the walk fail on an
+# empty chart, which is indistinguishable from a real regression).
 SEED_JS = """
 async (syms) => {
   const days = 220
@@ -79,14 +103,14 @@ async (syms) => {
     const st = tx.objectStore('bars')
     syms.forEach((s, i) => {
       const bars = mkBars(i + 3)
-      st.put({ key: `${s}_D`, bars, lastT: bars[bars.length - 1].t, savedAt: Date.now(), v: 6 })
+      st.put({ key: `${s}_D`, bars, lastT: bars[bars.length - 1].t, savedAt: Date.now(), v: __IDB_LOGIC_VERSION__ })
     })
     tx.oncomplete = res
     tx.onerror = res
   })
   return 'seeded'
 }
-"""
+""".replace('__IDB_LOGIC_VERSION__', str(IDB_LOGIC_VERSION))
 
 
 def shot(page, name, wait=1200):
