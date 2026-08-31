@@ -106,6 +106,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const listRef = useRef(null)
   const abortRef = useRef(null)
   const dialogRef = useRef(null)
+  // Was the highlighted row chosen by KEYBOARD (arrows)? Enter only honors a row when
+  // this is true — a mouse hovering a row must NOT hijack Enter away from the typed
+  // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
+  const navByKbdRef = useRef(false)
 
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -183,6 +187,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // server; the chip type-filters the response (once the server labels a type).
   useEffect(() => {
     if (!open) return undefined
+    navByKbdRef.current = false   // a fresh query/chip resets keyboard selection
     const q = query.trim()
     const typeParam = CHIPS.find(c => c.key === chip)?.type || ''
 
@@ -246,13 +251,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const handleInputKey = useCallback((e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
+      navByKbdRef.current = true
       setActiveIdx(i => Math.min(i + 1, Math.max(0, results.length - 1)))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
+      navByKbdRef.current = true
       setActiveIdx(i => Math.max(i - 1, 0))
     } else if (e.key === 'Enter') {
       const typed = query.trim()
-      if (activeIdx > 0 && results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
+      // Only a KEYBOARD-selected row (arrowed to) beats the typed symbol; a row the
+      // mouse happens to hover never does.
+      if (navByKbdRef.current && activeIdx > 0 && results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
       else if (typed) submit(typed)
       else if (results[activeIdx]?.ticker) submit(results[activeIdx].ticker)
     } else if (e.key === 'Tab') {
@@ -365,7 +374,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                     r.ticker === sym ? styles.resultCurrent : '',
                     i === activeIdx ? styles.resultActive : '',
                   ].filter(Boolean).join(' ')}
-                  onMouseEnter={() => setActiveIdx(i)}
+                  onMouseEnter={() => { navByKbdRef.current = false; setActiveIdx(i) }}
                   onClick={() => submit(r.ticker)}
                 >
                   {r._typed ? (

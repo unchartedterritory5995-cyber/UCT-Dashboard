@@ -13329,14 +13329,16 @@ export default function StockChart({
       if (!ts || !bars || bars.length < 2 || !Number.isFinite(year)) return false
       const yStart = Date.UTC(year, 0, 1)
       const yEnd = Date.UTC(year, 11, 31, 23, 59, 59)
-      let fromIdx = barIdxAtOrAfter(bars, yStart)
-      let toIdx = barIdxAtOrBefore(bars, yEnd)
+      let fromIdx = barIdxAtOrAfter(bars, yStart)   // first trading day of the year
+      let toIdx = barIdxAtOrBefore(bars, yEnd)       // last trading day of the year
       if (fromIdx < 0) fromIdx = 0
       if (toIdx < 0) return false
       if (toIdx < fromIdx) toIdx = fromIdx
-      const span = Math.max(1, toIdx - fromIdx)
-      const padB = Math.max(1, Math.round(span * 0.03))
-      ts.setVisibleLogicalRange({ from: fromIdx - padB, to: toIdx + padB })
+      // Frame EXACTLY the year: the first bar flush at the left edge, the last bar
+      // flush at the right edge, and NO bleed into the adjacent years (the ±0.5
+      // stops at the bar boundaries, so Dec-prev and Jan-next stay off-screen). This
+      // keeps the calendar's year highlight accurate for the framed year.
+      ts.setVisibleLogicalRange({ from: fromIdx - 0.5, to: toIdx + 0.5 })
       return true
     } catch { return false }
   }
@@ -13514,7 +13516,10 @@ export default function StockChart({
     try {
       const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
       if (cur && Number.isFinite(cur.to)) {
-        const ri = Math.max(0, Math.min(bars.length - 1, Math.round(cur.to)))
+        // floor, not round: the right-edge date is the LAST bar actually on screen
+        // (round could pick the just-off-screen next bar — e.g. Jan-next after a
+        // year frame, which wrongly highlighted the next year).
+        const ri = Math.max(0, Math.min(bars.length - 1, Math.floor(cur.to)))
         rightMs = _dateToMs(bars[ri].t)
       }
     } catch { /* noop */ }
