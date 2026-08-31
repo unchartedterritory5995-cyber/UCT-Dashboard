@@ -16,6 +16,7 @@ import re
 
 import pytest
 
+from api.services import cap_universe
 from api.services import substack_article as sa
 
 _FIXTURE = os.path.join(
@@ -229,6 +230,79 @@ def test_an_ordinary_all_caps_heading_is_not_mistaken_for_tickers():
     out = sa.convert("<h2><strong>WHAT WE WILL COVER TODAY</strong></h2>")
     assert "uctTickerChips" not in out.html
     assert out.tickers == []
+
+
+# -- prose mentions: the third ticker source ----------------------------------
+# Sources 1 and 2 only ever surface what the author CHARTED. Names he discusses
+# without charting -- the whole of a guest section, or any post in a publication
+# that has neither a "Charts Covered" heading nor chart labels -- were invisible.
+
+def test_prose_mentions_are_a_third_ticker_source(art):
+    """Measured on this fixture: 44 symbols come from the charted sources, and
+    each of these is named in the body without ever being charted."""
+    for sym in ("NVDA", "HD", "WMT", "BABA", "BIDU", "SNDK", "PANW", "KEYS"):
+        assert sym in art.tickers, f"{sym} is named in the body but was not surfaced"
+    assert len(art.tickers) > 44, "the prose source added nothing"
+
+
+def test_prose_source_works_with_neither_heading_nor_chart_labels():
+    """The shape a guest section actually has: bare symbols in a sentence."""
+    body = "<p>Watching MU and SNDK into the print, INTC still basing.</p>"
+    assert sa.convert(body).tickers == ["MU", "SNDK", "INTC"]
+
+
+@pytest.mark.parametrize("word", ["RS", "EMA", "PEG", "AI", "BE", "FOR", "YOU", "ON", "MA", "GAP"])
+def test_house_vocabulary_is_not_read_as_a_symbol(art, word):
+    """Every one of these is a real ticker in cap_universe AND a word this desk
+    writes constantly -- RS is relative strength, PEG is the post-earnings-gap
+    label, EMA/MA/GAP are chart vocabulary. Measured: all ten collide."""
+    assert word in sa._prose_universe(), f"{word} left the universe -- rail is vacuous"
+    assert word not in art.tickers
+
+
+def test_single_letter_prose_mentions_are_ignored():
+    """F, C, T and X are all real tickers. As bare prose they are hopeless, and
+    the chart-label source still catches them whenever they are actually charted."""
+    assert sa.convert("<p>Grade A setup, watch the C and F names.</p>").tickers == []
+
+
+def test_the_universe_filter_gates_only_the_prose_source(art):
+    """EROC and CBRS are charted in this fixture and are in NEITHER the equity
+    universe nor the ETF watchlist. Applying the prose filter to the charted
+    sources would silently drop them -- it must reach the prose source alone."""
+    universe = sa._prose_universe()
+    assert universe, "the prose universe failed to load -- every rail here is vacuous"
+    for sym in ("EROC", "CBRS"):
+        assert sym not in universe, f"{sym} joined the universe -- pick another rail"
+        assert sym in art.tickers, f"{sym} was charted but the universe filter ate it"
+
+
+def test_prose_source_accepts_etfs_the_equity_screen_refuses(art):
+    """cap_universe screens EQUITIES, so leveraged and thematic funds are absent
+    from it -- these four are named in the body and were being refused."""
+    for etf in ("TQQQ", "LABU", "SKYY", "IGV"):
+        assert etf not in cap_universe.symbols(), f"{etf} joined the equity screen -- pick another rail"
+        assert etf in art.tickers, f"{etf} is named in the body but was refused"
+
+
+def test_indices_are_not_tagged():
+    """Owner call: an index is not a tradeable symbol, so a chip that opens a
+    chart for one is a dead end. ETFs carry this exposure instead."""
+    assert sa.convert("<p>SPX held while NDX lagged and DXY firmed.</p>").tickers == []
+
+
+def test_curated_symbols_still_lead(art):
+    """Prose symbols append. The author's own ordering is not reshuffled."""
+    assert art.tickers[0] == "INTC"
+    assert art.tickers.index("NVDA") > 34
+
+
+def test_prose_scan_does_not_reach_dropped_regions():
+    """handle_data returns early inside a dropped subtree, so the subscribe
+    form's copy cannot contribute symbols."""
+    body = ('<div class="subscription-widget-wrap"><p>NVDA WMT HD</p></div>'
+            "<p>Only AMD here.</p>")
+    assert sa.convert(body).tickers == ["AMD"]
 
 
 def test_empty_alt_is_filled_from_the_chart_label(art):

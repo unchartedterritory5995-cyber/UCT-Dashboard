@@ -99,6 +99,23 @@ export default function Dashboard() {
   // and mobile together (CSS hides one, and jsdom computes no CSS), so a
   // weekday-only mobile hero would leave a Saturday member on a phone looking
   // at the very composition this redesign exists to retire.
+  //
+  // ⚠️ A MARKET HOLIDAY STILL TAKES THE WEEKDAY BRANCH, DELIBERATELY. Zone A's
+  // pill and countdown are now holiday-aware; this is not, and both of the
+  // obvious fixes are worse than the gap:
+  //   * Rendering `TheWeek` on a holiday BREAKS ONE OF ITS PANELS. Its "Next
+  //     week on deck" list is the bare `/api/calendar` payload, which is only
+  //     "next week" because `_current_week_monday` rolls a WEEKEND date forward
+  //     — see TheWeek.jsx's own header. On a Thursday it returns THIS week, so
+  //     the panel would carry a label that is not true of its contents.
+  //   * Teaching `resolveSession` holidays makes a pure, synchronous function
+  //     asynchronous, and four states that the whole codebase branches on.
+  // ⛔ SO THE GAP IS NAMED RATHER THAN PAPERED OVER: on a closure Zone B renders
+  // `CatalystTable`'s empty state, whose copy asks `useMarketOpen` — a SECOND
+  // holiday-blind authority, shared with the `/catalysts` page — and therefore
+  // reads "Scanning today's tape" at 11:00 on Thanksgiving. Bounded (the zone's
+  // declared height means it cannot grow the page) but still a wrong sentence,
+  // and fixing it means changing that shared session contract, not this line.
   const hero = session === 'WEEKEND' ? <TheWeek /> : <CatalystTable />
 
   return (

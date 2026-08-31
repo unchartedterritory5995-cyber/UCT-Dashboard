@@ -14,16 +14,35 @@ import TheWeek from './TheWeek'
 
 let deskData
 let calData
+// The Compass weekly-review payload. `undefined` is the SHIPPED default for
+// almost every member — no account, Compass off, or no Sunday run yet — so the
+// cases below that say nothing about it are asserting the omission path.
+let coachData
 
 vi.mock('swr', () => ({
-  default: (key) => ({
-    data: String(key).includes('desk') ? deskData : calData,
-  }),
+  default: (key) => {
+    const k = String(key)
+    if (k.includes('coach')) return { data: coachData }
+    return { data: k.includes('desk') ? deskData : calData }
+  },
 }))
 
 beforeEach(() => {
   deskData = { articles: [{ slug: 'sunday-scans-da5', title: 'Sunday Scans', url: '#' }] }
   calData = { days: {} }
+  coachData = undefined
+})
+
+/** The real shape of GET /api/j2/accounts/{id}/coach/weekly-reviews. */
+const reviewPayload = (over = {}) => ({
+  reviews: [{
+    id: 'rv-1',
+    summary: 'You sized up on two A-grade setups and left the C-grade alone.',
+    body: 'FULL REVIEW BODY — several paragraphs the hero must never render.',
+    metadata: { week_start: '2026-08-24' },
+    created_at: '2026-08-30T12:00:00Z',
+    ...over,
+  }],
 })
 
 describe('TheWeek', () => {
@@ -169,5 +188,87 @@ describe('TheWeek', () => {
     deskData = { articles: [{ slug: 'the-tape-friday', title: 'Friday Tape Read', url: '#' }] }
     render(<MemoryRouter><TheWeek /></MemoryRouter>)
     expect(screen.getByText('Friday Tape Read')).toBeTruthy()
+  })
+
+  // ─── The Compass Weekly Review — the spec's FOURTH source ────
+  //
+  // ⛔ It is the only PER-USER panel on this hero; the other three read a
+  // firm-wide cache. That is why it was dropped during planning, and why the
+  // omission cases below matter more than the happy path: on the paid home,
+  // "no review" is the common case, not the edge one.
+  describe('Compass Weekly Review', () => {
+    test('renders the week and a SHORT excerpt, linked through to Compass', () => {
+      coachData = reviewPayload()
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.getByText(/compass weekly review/i)).toBeTruthy()
+      expect(screen.getByText('Week of 2026-08-24')).toBeTruthy()
+      expect(screen.getByText(/sized up on two A-grade setups/)).toBeTruthy()
+      expect(screen.getByText('Open in Compass →').getAttribute('href'))
+        .toBe('/journal?j2tab=compass')
+    })
+
+    test('shows the SUMMARY, never the full review body', () => {
+      // The hero is a 440px zone with four panels in it. A full review is a
+      // page of prose; dropping it in here is the "849px dead column" defect
+      // wearing a different label.
+      coachData = reviewPayload()
+      const { container } = render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(container.textContent).not.toContain('FULL REVIEW BODY')
+    })
+
+    test('reads metadata.week_start — the field the router actually emits', () => {
+      // The router has NO top-level `week_start`; it lives inside `metadata`.
+      // Trusting a flat field would render "Your latest review" forever and
+      // nothing would report it.
+      coachData = reviewPayload({ metadata: { week_start: '2026-07-06' } })
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.getByText('Week of 2026-07-06')).toBeTruthy()
+    })
+
+    test('a review with a blank summary still stands on its week + link', () => {
+      coachData = reviewPayload({ summary: '' })
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.getByText('Week of 2026-08-24')).toBeTruthy()
+      expect(screen.getByText('Open in Compass →')).toBeTruthy()
+    })
+
+    test('omits itself when the member has no review yet — no empty labelled panel', () => {
+      coachData = { reviews: [] }
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.queryByText(/compass weekly review/i)).toBeNull()
+    })
+
+    test('omits itself when the endpoint fails or there is no account (data undefined)', () => {
+      // jsonFetcher THROWS on a non-ok answer, so an outage, a 402 and "this
+      // member has no J2 account" all land on `data === undefined` — one
+      // absence, one omission, never a labelled frame with nothing in it.
+      coachData = undefined
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.queryByText(/compass weekly review/i)).toBeNull()
+      // …and the rest of the hero is unaffected.
+      expect(screen.getByText(/Sunday Scans/i)).toBeTruthy()
+    })
+
+    // ⭐ THE GATE, BOTH WAYS. The review is COUNTED by the empty-frame gate
+    // (unlike the quote): it is genuinely about the week, and it is absent
+    // often enough that counting it leaves the gate reachable.
+    test('a review ALONE keeps the hero on screen — the only personal panel is never silently dropped', () => {
+      deskData = { articles: [] }
+      calData = { days: {} }
+      coachData = reviewPayload()
+      render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(screen.getByText('The Week')).toBeTruthy()
+      expect(screen.getByText(/compass weekly review/i)).toBeTruthy()
+    })
+
+    test('and with the review ALSO empty the hero still renders NOTHING', () => {
+      // The control for the case above: without it, "a review keeps the frame"
+      // is satisfied by a component that always renders.
+      deskData = { articles: [] }
+      calData = { days: {} }
+      coachData = { reviews: [] }
+      const { container } = render(<MemoryRouter><TheWeek /></MemoryRouter>)
+      expect(container.textContent).toBe('')
+    })
   })
 })

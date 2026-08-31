@@ -21,6 +21,14 @@
 //   - Article link routing mirrors the existing convention in
 //     ArticlesSection.jsx: an internal `/desk/article/{slug}` reader link
 //     only when `has_body && slug`; otherwise the external `url`.
+//   - GET /api/j2/accounts/{id}/coach/weekly-reviews
+//     -> {reviews: [{id, body, summary, metadata, feedback, created_at}]},
+//     NEWEST FIRST (coach.py::list_weekly_reviews ORDERs by created_at DESC),
+//     and the week lives at `metadata.week_start` — verified by reading
+//     api/routers/journal_two.py + api/services/journal_two/coach.py. There is
+//     no top-level `week_start`; `CompassReview.jsx` reads
+//     `review.week_start || review.metadata?.week_start` and this mirrors that
+//     rather than inventing a second field path.
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import TileCard from '../../components/TileCard'
@@ -39,6 +47,27 @@ import fetcher from '../../utils/jsonFetcher'
 // element of the WEEKEND state, where there is room for it." Zone A demotes it
 // to one line every day; here, on the only state with space, it gets a panel.
 import useQuoteOfTheDay from '../../hooks/useQuoteOfTheDay'
+// ⭐ THE ONLY PERSONAL PANEL ON THIS HERO. The other three read a firm-wide
+// cache; this one is per-member, which is why it was dropped during planning
+// rather than being a drop-in. It is bounded, not per-render:
+//   * `useJ2SelectedAccount` -> `useJ2Accounts` -> SWR key `/api/j2/accounts`,
+//     which `JournalSnapshotTile` (Zone C, mounted in EVERY session state)
+//     already holds — SWR dedupes by key, so it costs ZERO new requests.
+//   * ONE additional SWR key for the reviews, with NO `refreshInterval`: one
+//     request per account id per page load, never one per render.
+// (`useJ2Accounts` does poll, but `marketHoursOnly` scales its interval and
+// this hero only ever renders on the WEEKEND — when the market is closed.)
+import useJ2SelectedAccount from '../journal-2-0/hooks/useJ2SelectedAccount'
+// ⛔ compassScope, not a raw `accountId`. Every other Compass surface passes
+// this (null -> the '_all_' unified sentinel), and hand-rolling the mapping
+// here would put a second authority on "which coach am I asking".
+import { compassScope } from '../journal-2-0/hooks/compassScope'
+
+// The Compass tab's own deep-link contract (`JournalTwoRoot.jsx` reads
+// `?j2tab=`), same idiom as `JournalSnapshotTile`'s `/journal?j2tab=positions`.
+// A free member who follows it lands on Positions rather than a blank pane —
+// JournalTwoRoot already falls back for the paid-only Compass tab.
+const COMPASS_LINK = '/journal?j2tab=compass'
 
 function ArticleLink({ article, className }) {
   const { title, slug, has_body, url } = article
@@ -51,6 +80,11 @@ function ArticleLink({ article, className }) {
 export default function TheWeek() {
   const { data: desk } = useSWR('/api/desk/articles?limit=12', fetcher)
   const { data: cal } = useSWR('/api/calendar', fetcher)
+  const { accountId } = useJ2SelectedAccount()
+  const { data: coach } = useSWR(
+    `/api/j2/accounts/${compassScope(accountId)}/coach/weekly-reviews`,
+    fetcher,
+  )
   const { quote } = useQuoteOfTheDay()
 
   const articles = desk?.articles ?? []
@@ -62,6 +96,20 @@ export default function TheWeek() {
   // "From the Desk", directly beneath the panel already showing it. A reading
   // list is what is NOT the scan, not everything-but-this-particular-scan.
   const reading = articles.filter(a => !isScan(a)).slice(0, 4)
+
+  // Newest first out of the router, so [0] IS the latest week. ⛔ No client-side
+  // sort: re-deriving an order the server already owns is how the two answers
+  // drift. A non-ok response (or no account, or no review yet) leaves `coach`
+  // undefined and this null — one absence, one omission, no empty frame.
+  const review = coach?.reviews?.[0] ?? null
+  const reviewWeek = review?.week_start || review?.metadata?.week_start || null
+  // ⛔ THE SUMMARY, NOT THE BODY. `summary` is the review's own short form
+  // (coach.py fills it from the model, falling back to
+  // `_extract_first_paragraph(body)`), so an excerpt here is READ, never
+  // re-derived by slicing the body on this side of the wire. When it is blank
+  // the panel still stands on the week + the link — the review exists, and
+  // truncating `body` ourselves would be a second authority on "the gist".
+  const reviewExcerpt = (review?.summary || '').trim()
 
   const days = cal?.days ?? {}
   const onDeck = Object.keys(days)
@@ -96,7 +144,16 @@ export default function TheWeek() {
   // very defect the gate exists to remove: a "The Week" header over a card that
   // says nothing about the week. Nothing to say about the week is still said by
   // saying nothing — the quote rides along when there IS a week to show.
-  if (!scan && onDeck.length === 0 && reading.length === 0) return null
+  //
+  // ⭐ THE COMPASS REVIEW *IS* COUNTED, AND THE QUOTE STILL IS NOT — the two
+  // are opposite cases, not an inconsistency. A weekly review is ABOUT this
+  // week and is absent far more often than not (no account, Compass off, no
+  // Sunday run yet), so counting it leaves this gate reachable; and NOT
+  // counting it would be the worse bug in the other direction — a member's
+  // only personal panel silently dropped because the desk published nothing.
+  // The quote is available almost always, which is why counting THAT would
+  // make the gate unreachable.
+  if (!scan && onDeck.length === 0 && reading.length === 0 && !review) return null
 
   return (
     <TileCard title="The Week" icon="calendar">
@@ -105,6 +162,21 @@ export default function TheWeek() {
           <section className={styles.panel}>
             <h3 className={styles.h}>Latest Sunday Scan</h3>
             <ArticleLink article={scan} className={styles.lead} />
+          </section>
+        )}
+        {review && (
+          <section className={styles.panel}>
+            <h3 className={styles.h}>Compass Weekly Review</h3>
+            <Link to={COMPASS_LINK} className={styles.lead}>
+              {reviewWeek ? `Week of ${reviewWeek}` : 'Your latest review'}
+            </Link>
+            {/* ⛔ CLAMPED IN CSS, NOT SLICED IN JS. A JS truncation bakes a
+                character count into the component and hands screen readers a
+                sentence that stops mid-word; `-webkit-line-clamp` keeps the
+                whole summary in the DOM and shows the excerpt the 440px zone
+                has room for. */}
+            {reviewExcerpt && <p className={styles.excerpt}>{reviewExcerpt}</p>}
+            <Link to={COMPASS_LINK} className={styles.panelLink}>Open in Compass →</Link>
           </section>
         )}
         {onDeck.length > 0 && (

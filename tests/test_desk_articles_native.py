@@ -89,10 +89,16 @@ def test_the_stored_article_matches_the_source_post(store, seeded):
     assert row["word_count"] > 3_000
     assert row["reading_minutes"] == 18
     # 34 from the "Charts Covered" heading + 10 reached only by a chart label
-    # (the ETF walk, and names charted without making that list).
+    # (the ETF walk, and names charted without making that list) + 18 named in
+    # the body but never charted at all, four of them ETFs the equity screen
+    # does not carry.
     tickers = json.loads(row["tickers_json"])
-    assert len(tickers) == 44
+    assert len(tickers) == 62
     assert tickers[:3] == ["INTC", "ALAB", "ARM"] and "QQQ" in tickers
+    # NVDA is discussed in the prose and never charted, so neither of the two
+    # older sources could see it. Pinned here, not just in the converter unit
+    # tests, because this is the value that actually reaches the reader.
+    assert "NVDA" in tickers
     assert any(s["text"] == "WHAT WE WILL COVER TODAY"
                for s in json.loads(row["sections_json"]))
 

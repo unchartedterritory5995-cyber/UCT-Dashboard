@@ -47,6 +47,9 @@
 }
 .live { color: var(--gain); border-color: var(--gain-border); }
 .premarket, .closed, .weekend { color: var(--text-muted); }
+/* A NYSE full closure on a weekday. Muted like the other shut states — it is
+   not a warning, it is simply not a session. */
+.holiday { color: var(--text-muted); }
 
 .countdown {
   font-family: var(--font-mono);

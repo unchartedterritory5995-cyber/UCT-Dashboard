@@ -156,7 +156,7 @@ test('the print masthead + FULL roster exist in the DOM for the PDF', () => {
   // preview that the screen collapses.
   const roster = container.textContent
   for (const sym of TICKERS) expect(roster).toContain(sym)
-  expect(roster).toContain('Charts covered')
+  expect(roster).toContain('Covered')
 })
 
 test('the interactive chrome is marked for print exclusion; the print root wraps the page', () => {
