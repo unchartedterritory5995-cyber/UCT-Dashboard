@@ -510,3 +510,13 @@ Verification: wave4 probe 16/16 (relative badge asserts — the account's MA
 count is part of the baseline), five-gate walk PASS on the shipped dist,
 mobile suite 94/94, engine suite 3681 passed, dialog + builder-door + wire
 suites green.
+
+**Wave-4 closing audits:** the queued aria pass ran clean — zero nameless
+interactive controls across all 8 shell states (chart, six sheets,
+watchlist page) and every sheet exposes `role="dialog"`; the crawler's
+accessible-name-driven enumeration had already forced the hygiene, now it
+is measured. Drawing DELETION on touch was verified covered (long-press a
+drawing → context bottom-sheet with Delete Drawing; eraser tool in the
+drawbar) — recorded so nobody adds a redundant path. A full VoiceOver run
+still needs a physical device (user-owned), as does the $IDX theme-index
+tap on production.
