@@ -14,13 +14,13 @@ def _isolate_ohlc_store(monkeypatch):
     session OHLC (wick) store from bleeding real wick rows into their fixed-value asserts.
     The store's own use is covered in test_breadth_daily_ohlc.py.
 
-    build_breadth_bars now CACHES the computed series per (sym, tf) (the instant-charts
+    build_breadth_bars now CACHES the SEALED daily series per symbol (the instant-charts
     fix), so clear that cache before each test — otherwise the first test's mock data
     would be served to every later test that uses the same symbol."""
     monkeypatch.setattr("api.services.breadth_daily_ohlc.history", lambda *a, **k: {})
     try:
         from api.services.cache import cache
-        cache.delete_prefix("breadthbars_")
+        cache.delete_prefix("breadthdaily_")
     except Exception:
         pass
 
