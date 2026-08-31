@@ -33,19 +33,15 @@ from api.services.screener import filters as flt
 # must say what the two authorities are and why the collision has not been
 # resolved yet. `test_every_allowance_still_collides` deletes the excuse the
 # moment it stops being true.
-ALLOWED = {
-    "pocket pivot": (
-        "`base_catalog.POCKET_PIVOT` implements the full Morales/Kacher rule "
-        "(volume above the largest down-day volume in ten sessions, a top-half "
-        "close, above BOTH the 50- and 200-day, an extension test, a 5-month "
-        "downtrend disqualifier, and an explicit refusal when the window holds "
-        "no down day). `bar_character`'s `pocket-pivot` implements the first "
-        "of those and the up-day test — so it is a strict SUPERSET wearing the "
-        "same name, and a member can read 'Pocket Pivot' on the bar while the "
-        "structure column declines to call it one. Measured 2026-08-31; the "
-        "fix is a rename of the CHARACTER (it describes an accumulation bar, "
-        "not the published setup), not a loosening of the structure."
-    ),
+ALLOWED: dict = {
+    # ⭐ EMPTY, AND THAT IS A RESULT, NOT A DEFAULT. This list held exactly
+    # one entry -- "pocket pivot", shipped as BOTH a base structure (the full
+    # Morales/Kacher rule) and a bar character (its volume signature alone).
+    # `test_every_allowance_still_collides` is what emptied it: the moment the
+    # character was renamed to "Up Day, Volume Tops Recent Selling", the
+    # allowance went stale and the rail refused to let the excuse outlive the
+    # defect. An exemption list nobody prunes is where exemptions go to be
+    # forgotten.
 }
 
 
