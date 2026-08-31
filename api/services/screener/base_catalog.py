@@ -4233,6 +4233,78 @@ ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
 
 
+def provenance(key: str = "") -> dict:
+    """Every criterion of every structure, with where it came from.
+
+    ⭐⭐ WHY THIS EXISTS. The library carries ~200 criteria across 21
+    structures: verbatim quotes with their source, numbers we supplied and
+    label as ours, refusals naming exactly what a house declined to publish,
+    and recorded conflicts where two authorities contradict each other. Until
+    now NONE of it left this module -- `meta()` returned a label, a coverage
+    figure and a lift, and no router imported this file at all. That is the
+    repo's own `lesson_built_tested_green_and_unreachable` at the scale of a
+    15-source research sweep: the most valuable thing here was the part nobody
+    could see.
+
+    ⛔ THE THREE PROVENANCE STATES SURVIVE THE TRIP. A criterion is `sourced`
+    (a value AND its quote AND a source id), `refused` (no value, plus
+    `missing` naming what would have to be published), or `ours`
+    (origin='uct'). Collapsing them at the boundary -- rendering a refusal as
+    an empty string, say -- would rebuild the defect the whole grammar exists
+    to prevent: a number attributed to nobody.
+    """
+    def _state(c) -> str:
+        if c.origin == "uct":
+            return "ours"
+        if c.value is None and c.missing:
+            return "refused"
+        return "sourced"
+
+    def _one(st) -> dict:
+        return {
+            "key": st.key,
+            "label": st.label,
+            "desc": st.desc,
+            "axis": st.axis,
+            "family": st.family,
+            "bias": st.bias,
+            "coverage_pct": st.coverage_pct,
+            "criteria": [{
+                "condition": c.condition,
+                "value": c.value,
+                "state": _state(c),
+                "quote": c.quote,
+                "source_id": c.source_id,
+                "confidence": c.confidence,
+                "missing": c.missing,
+            } for c in st.criteria],
+        }
+
+    if key:
+        st = _BY_KEY.get(key)
+        return _one(st) if st else {}
+    return {st.key: _one(st) for st in ALL_STRUCTURES}
+
+
+def provenance_counts() -> dict:
+    """How many criteria are sourced, refused and ours -- DERIVED, never typed.
+
+    A refusal count that drifts from the criteria it describes is the defect
+    this repo has paid for repeatedly, so nothing here is a literal.
+    """
+    out = {"sourced": 0, "refused": 0, "ours": 0, "structures": 0}
+    for st in ALL_STRUCTURES:
+        out["structures"] += 1
+        for c in st.criteria:
+            if c.origin == "uct":
+                out["ours"] += 1
+            elif c.value is None and c.missing:
+                out["refused"] += 1
+            else:
+                out["sourced"] += 1
+    return out
+
+
 def by_key(key):
     return _BY_KEY.get(key)
 
