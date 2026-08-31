@@ -109,7 +109,7 @@
       "direction": "long"
     },
     "stage-4-breakdown": {
-      "published": true,
+      "published": false,
       "sample_tickers": 3456,
       "lift": 0.073,
       "ci_low": 0.0678,
@@ -128,7 +128,10 @@
         0.0203
       ],
       "direction": "long",
-      "direction_stale": "Graded on the LONG metric, which reads backwards for a bearish structure: a positive lift says price resolved UPWARD after it. Re-measurement on the mirrored metric is in flight; until it lands this row answers a question the structure does not ask."
+      "direction_stale": "Graded on the LONG metric, which reads backwards for a bearish structure: a positive lift says price resolved UPWARD after it. Re-measurement on the mirrored metric is in flight; until it lands this row answers a question the structure does not ask.",
+      "reasons": [
+        "graded on the long metric, but a bearish structure must be graded short: a positive lift here would say price resolved in the OPPOSITE direction to the structure's own claim"
+      ]
     },
     "flat-base": {
       "published": false,
@@ -397,20 +400,18 @@
     "climax-top": {
       "published": false,
       "sample_tickers": 3461,
-      "lift": 0.1424,
-      "ci_low": 0.1307,
-      "ci_high": 0.1542,
+      "direction": "short",
+      "lift": 0.203,
+      "ci_low": 0.1908,
+      "ci_high": 0.2165,
       "n": 7463,
-      "rate": 0.4111,
-      "baseline": 0.2687,
-      "null_max": 0.1338,
+      "rate": 0.4411,
+      "baseline": 0.2381,
+      "null_max": 0.1592,
       "null_trials": 5,
       "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)",
-        "the lift's CI lower bound +0.1307 does not exceed the random-data null (max of 5 trials = +0.1338) at n=7463"
-      ],
-      "direction": "long",
-      "direction_stale": "Graded on the LONG metric, which reads backwards for a bearish structure: a positive lift says price resolved UPWARD after it. Re-measurement on the mirrored metric is in flight; until it lands this row answers a question the structure does not ask."
+        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      ]
     },
     "wyckoff-spring": {
       "published": false,
@@ -432,20 +433,18 @@
     "parabolic-extension": {
       "published": false,
       "sample_tickers": 3461,
-      "lift": 0.0332,
-      "ci_low": 0.0109,
-      "ci_high": 0.0515,
+      "direction": "short",
+      "lift": 0.3121,
+      "ci_low": 0.2914,
+      "ci_high": 0.3361,
       "n": 2077,
-      "rate": 0.3038,
-      "baseline": 0.2706,
-      "null_max": 0.1177,
+      "rate": 0.5546,
+      "baseline": 0.2425,
+      "null_max": 0.1842,
       "null_trials": 5,
       "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)",
-        "the lift's CI lower bound +0.0109 does not exceed the random-data null (max of 5 trials = +0.1177) at n=2077"
-      ],
-      "direction": "long",
-      "direction_stale": "Graded on the LONG metric, which reads backwards for a bearish structure: a positive lift says price resolved UPWARD after it. Re-measurement on the mirrored metric is in flight; until it lands this row answers a question the structure does not ask."
+        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      ]
     }
   }
 }

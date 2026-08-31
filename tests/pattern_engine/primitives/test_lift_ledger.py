@@ -920,3 +920,40 @@ def test_every_row_records_which_direction_it_was_graded_on():
         assert d in ("long", "short"), (
             "%s records direction=%r; a lift without its direction is "
             "unreadable" % (key, d))
+
+
+def test_a_published_row_is_graded_on_its_own_structures_direction():
+    """⛔⛔ A ROW GRADED ON THE WRONG METRIC CANNOT PUBLISH, whatever its
+    numbers say -- it answers a question its structure does not ask.
+
+    `stage-4-breakdown` was published at +7.30pp on the LONG metric. For a
+    bearish structure that reads as its own negation: price resolved UPWARD
+    more often after a breakdown. Flagging it was not enough, because a
+    published number is what a member sees; it is unpublished until it is
+    re-measured on the mirrored metric.
+    """
+    from api.services.screener import base_catalog as bc
+
+    entries = (ll.load().get("structures") or {})
+    published = {k: v for k, v in entries.items() if v.get("published")}
+    assert published, "no published rows -- this rail would pass vacuously"
+    for key, row in published.items():
+        st = bc.by_key(key)
+        assert st is not None, key
+        assert row.get("direction") == ll.direction_for_bias(st.bias), (
+            "%s is %s and published on the %s metric"
+            % (key, st.bias, row.get("direction")))
+        assert not ll.direction_is_wrong(key, row), key
+
+
+def test_the_direction_check_can_actually_fail():
+    """The control: `direction_is_wrong` must not simply return False."""
+    from api.services.screener import base_catalog as bc
+
+    bearish = next(s for s in bc.RELATIONS if s.bias == "bearish")
+    assert ll.direction_is_wrong(bearish.key, {"direction": "long"}) is True
+    assert ll.direction_is_wrong(bearish.key, {"direction": "short"}) is False
+
+    bullish = next(s for s in bc.RELATIONS if s.bias == "bullish")
+    assert ll.direction_is_wrong(bullish.key, {"direction": "short"}) is True
+    assert ll.direction_is_wrong(bullish.key, {"direction": "long"}) is False

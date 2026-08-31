@@ -516,6 +516,32 @@ def null_lifts(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
     return out
 
 
+def direction_for_bias(bias: str) -> str:
+    """The metric direction a structure of this bias must be graded on.
+
+    ⛔ ONE DEFINITION, READ BY THE RUNNER, THE RE-ADJUDICATION AND THE RAIL.
+    A second copy of this mapping is how a row ends up graded one way and
+    checked another.
+    """
+    return "short" if bias == "bearish" else "long"
+
+
+def direction_is_wrong(key: str, row: dict) -> bool:
+    """Is this row graded on a metric that answers its structure's question?
+
+    A bearish structure graded LONG produces a number that reads as its own
+    negation: `stage-4-breakdown` published +7.30pp, which on a long metric
+    says price resolved UPWARD after a breakdown. Publishing that is worse
+    than publishing nothing, so a mismatch is a refusal rather than a note.
+    """
+    from api.services.screener import base_catalog as _bc
+
+    st = _bc.by_key(key)
+    if st is None or row.get("direction") is None:
+        return False
+    return row["direction"] != direction_for_bias(getattr(st, "bias", ""))
+
+
 def adjudicate(result: dict, nulls: List[float]) -> dict:
     """Apply the three gates. A failure emits NO lift key.
 
