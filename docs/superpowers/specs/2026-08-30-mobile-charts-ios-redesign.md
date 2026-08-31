@@ -292,3 +292,41 @@ micro-interactions, all additive:
 
 Landing suite grows to 25 (goLive wire pinned through the ChartPane mock's
 `data-golive`, badge count, share row) + 5 flash tests.
+
+## Phase 9 — little spots (shipped)
+
+Four gaps found by using the thing, not by any list:
+
+- **Full-height chart** — the app top bar burned a row saying "Charts" under
+  a tab already saying it. On the phone shell (portrait ≤640, the same
+  `html[data-mobile-chart-shell]` attribute) MobileNav's `.topBar` hides,
+  Layout releases ONLY the top reservation (tab bar stays), the workspace
+  override re-derives height from the tab-bar token alone, and the symbol
+  strip absorbs the notch via `max(4px, env(safe-area-inset-top))`. Same
+  three-file mechanism as landscape-immersive; `mobileShellHeight.test.js`
+  grew a describe pinning all three declarations together.
+- **Alert sheet manages state** — it now lists the symbol's active alerts
+  (`getAlertsForSym`) with ▲/▼ + price + per-row delete, so nobody stacks
+  blind duplicates. Same hook, same SWR caches.
+- **Add-widget opens what you added** — the Tools-sheet add closes the sheet
+  and, when the new widget hydrates into the layout, opens it as a page
+  (pendingWatchlistOpen generalized to {type, countAtTap}; `chart` exempt —
+  the shell already binds the first chart).
+- **Long-press row actions** — watchlist rows only had `onContextMenu`,
+  which iOS never fires: phones had NO row actions (Notes / alert / remove).
+  The sym cell now binds `useLongPress` (one binding: touch long-press +
+  desktop right-click), and the RELEASE-CLICK SWALLOW moved INTO the hook
+  (`onClickCapture` keyed on its own firedRef — all seven consumers get the
+  fix; without it the release selects the row and the tap-to-chart rule
+  yanks the page out from under the just-opened sheet). Flagged rows keep
+  no menu BY DESIGN (the star is their remove) — same as desktop.
+
+Rig: two new FAIL gates (top bar hidden with the tab bar as the control;
+long-press → the AAPL row sheet in an owner list the walk provisions via
+the API — RigList, idempotent). ⚠️ The long-press press itself is a
+JS-dispatched `pointerdown`, NOT a CDP touch: headless Chromium parks a
+motionless `dispatchTouchEvent` press in tap-vs-scroll disambiguation and
+flushes pointerdown only at release, so a held CDP press can never reach
+450ms (a 2px nudge stays inside browser slop; more cancels by tolerance).
+Real browsers deliver immediately; the hook's timing + swallow are
+unit-tested (`useLongPress.test.jsx`, 3 new cases).

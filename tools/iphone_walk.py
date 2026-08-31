@@ -282,6 +282,11 @@ def main():
                                   is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
         page = make_page(ctx, args.base, args.email, args.password, 'portrait')
         shot(page, '01-chart')
+        # Phase 9: the app top bar steps aside on the phone chart shell — the
+        # hamburger is gone while the bottom tab bar (the control) stays.
+        topbar_gone = (not page.get_by_label('Open menu').is_visible()
+                       and page.get_by_role('link', name='Home').is_visible())
+        print('  top bar hidden on /charts phone (tab bar stays):', topbar_gone)
         for label, name in [('Timeframe', '02-tf-sheet'), ('Chart type', '03-type-sheet'),
                             ('Indicators', '04-indicators-sheet'), ('More tools', '05-more-sheet')]:
             try:
@@ -295,6 +300,7 @@ def main():
         # page detour — page navigation must not be a variable under the walk.
         drew = touch_walk(ctx, page)
         golive = golive_walk(ctx, page)
+        longpress_ok = False
         step = 'star'
         try:
             open_sheets = page.evaluate("() => document.querySelectorAll('[data-sheet-panel]').length")
@@ -325,6 +331,65 @@ def main():
                         fl.nth(i).click(timeout=4000)
                         break
             shot(page, '06-watchlist-sparks', wait=1800)
+
+            # Phase 9: LONG-PRESS a row's sym cell → the row-action sheet
+            # (notes / alerts / remove — right-click's touch door). The hook
+            # swallows the release click, so the row must NOT also select and
+            # bounce the page back to the chart underneath the sheet.
+            # ⚠️ Row menus live on OWNER-LIST rows only — Flagged rows have
+            # none BY DESIGN (the star is their remove; same on desktop
+            # right-click) — so press in a real list: idempotent RigList.
+            step = 'make RigList'
+            wls = page.request.get(f'{args.base}/api/watchlists').json()
+            rig = next((w for w in wls if w.get('name') == 'RigList'), None)
+            if rig is None:
+                rig = page.request.post(f'{args.base}/api/watchlists', data={'name': 'RigList'}).json()
+                page.request.post(f"{args.base}/api/watchlists/{rig['id']}/items", data={'sym': 'AAPL'})
+            step = 'open RigList'
+            # Deterministic from either state: inside a list, ‹ Lists exists —
+            # go up; on the lists index it doesn't. Then tap the list.
+            lists_btn = page.get_by_role('button', name=re.compile('Lists'))
+            if lists_btn.count() and lists_btn.first.is_visible():
+                lists_btn.first.click(timeout=4000)
+                page.wait_for_timeout(600)
+            page.get_by_text('RigList', exact=True).first.click(timeout=4000)
+            page.wait_for_timeout(900)
+            step = 'long-press row'
+            row = page.locator('[data-watch-sym]').first
+            # Aim at the SYM CELL itself — the element carrying the binding.
+            # Guessed x-offsets missed twice (x+42 = the flag star, x+150 = the
+            # price cell; phone columns are narrower than they look).
+            cell = row.locator('[class*="symCell"]').first
+            box = cell.bounding_box() if cell.count() else row.bounding_box()
+            if box:
+                lx, ly = box['x'] + box['width'] * 0.55, box['y'] + box['height'] / 2
+                # ⚠️ NOT a CDP touch: headless Chromium holds a motionless
+                # dispatchTouchEvent press in tap-vs-scroll disambiguation and
+                # flushes pointerdown only AT RELEASE — the 450ms timer starts
+                # and dies in the same instant, so a held CDP press can never
+                # fire (a 2px nudge stays inside browser slop; a real move
+                # cancels by tolerance). Real browsers deliver pointerdown
+                # immediately, so a JS-dispatched pointerdown at the cell is
+                # the faithful stand-in; the hook's timing/swallow mechanics
+                # are unit-tested in useLongPress.test.jsx.
+                page.evaluate('''([x, y]) => {
+                  const el = document.elementFromPoint(x, y)
+                  el?.dispatchEvent(new PointerEvent('pointerdown', {
+                    pointerType: 'touch', bubbles: true, cancelable: true,
+                    clientX: x, clientY: y, pointerId: 7,
+                  }))
+                }''', [lx, ly])
+                page.wait_for_timeout(800)
+                row_sheet = page.locator('[data-sheet-panel]').count() > 0
+                print('  long-press row menu opened:', row_sheet)
+                shot(page, '07-row-menu', wait=300)
+                if row_sheet:
+                    page.keyboard.press('Escape')
+                    page.wait_for_timeout(400)
+                longpress_ok = row_sheet
+            else:
+                print('  long-press row menu: no row box — skipped')
+
             step = 'back to chart'
             page.get_by_role('button', name=re.compile('^Chart$')).click(timeout=4000)
             page.wait_for_timeout(500)
@@ -359,7 +424,13 @@ def main():
     if not golive:
         print('FAIL: back-to-live chip round trip failed — pan/pill/snap regressed')
         return 1
-    print('PASS: touch place + reshape + back-to-live verified end-to-end')
+    if not topbar_gone:
+        print('FAIL: app top bar still visible on the phone chart shell — full-height charting regressed')
+        return 1
+    if not longpress_ok:
+        print('FAIL: long-press row menu did not open — phone row actions regressed')
+        return 1
+    print('PASS: touch place + reshape + back-to-live + top-bar + long-press verified end-to-end')
     return 0
 
 

@@ -1562,3 +1562,13 @@
   padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
 }
 .addColItem:hover { background: var(--ut-gold-dim); color: var(--ut-gold); }
+
+/* Long-press on the sym cell opens the row menu (Watchlists.jsx WatchRow) —
+   iOS's text loupe / copy callout must not fight the press. Coarse only. */
+@media (pointer: coarse) {
+  .symCell {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

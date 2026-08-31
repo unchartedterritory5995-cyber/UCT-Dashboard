@@ -193,6 +193,25 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     setScreen({ id: watchlistWidget.id, symAtOpen: sym })
   }
 
+  // Add-widget from the Tools sheet opens what you just added — the same
+  // pending pattern, generalized: remember how many of that type existed at
+  // tap time, and when a NEW one hydrates, open it as a page. (Adding a chart
+  // is exempt: the shell binds the first chart; a page would be a mirror.)
+  const [pendingAdd, setPendingAdd] = useState(null) // {type, count} at tap time
+  const handleAddFromSheet = useCallback((t) => {
+    if (t !== 'chart') {
+      setPendingAdd({ type: t, count: (widgets || []).filter((w) => w.type === t).length })
+    }
+    onAddWidget(t)
+  }, [widgets, onAddWidget])
+  if (pendingAdd) {
+    const ofType = (widgets || []).filter((w) => w.type === pendingAdd.type)
+    if (ofType.length > pendingAdd.count) {
+      setPendingAdd(null)
+      setScreen({ id: ofType[ofType.length - 1].id, symAtOpen: sym })
+    }
+  }
+
   const stockChartProps = useMemo(() => ({
     chartId: chartWidget?.id || null,
     toolbarApiRef,
@@ -350,7 +369,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         sym={sym}
         widgets={otherWidgets}
         onOpenWidget={openWidgetScreen}
-        onAddWidget={(t) => { onAddWidget(t) }}
+        onAddWidget={handleAddFromSheet}
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
