@@ -46,7 +46,6 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import jsonFetcher from '../../utils/jsonFetcher'
 import useQuoteOfTheDay from '../../hooks/useQuoteOfTheDay'
 import UIcon from '../../components/ui/UIcon'
-import useSessionState, { useNextBoundary } from './useSessionState'
 import FuturesStrip from '../../components/tiles/FuturesStrip'
 import styles from './ZoneRead.module.css'
 
@@ -83,21 +82,41 @@ function pillFor(session, holidayToday) {
 }
 
 /**
+ * ⭐ THE SESSION AND THE BOUNDARY ARE PROPS, NOT HOOKS — THIS ZONE OWNS NO
+ * CLOCK. `Dashboard.jsx` calls `useSessionState()` and `useNextBoundary()`
+ * once and hands both answers down, so the pill here and the hero in Zone B
+ * are the same read of the same tick.
+ *
+ * 🔴 IT USED TO CALL BOTH ITSELF, AND THE COMMENT ONE FILE OVER SAID
+ * OTHERWISE. Dashboard.jsx warned against "a second `new Date()`" that could
+ * "straddle a midnight tick and disagree about the same day" — and there were
+ * two of each, here and there. SWR dedupes the `/api/market-calendar` FETCH by
+ * key, so the closure table was genuinely shared; the CLOCK was not. Each
+ * `useNextBoundary` instance held its own `now` state and its own 60s
+ * interval, and a Dashboard re-render does not refresh this component's state,
+ * so across an ET midnight the pill and the hero could disagree for up to a
+ * minute. Rail: `Dashboard.oneClock.test.jsx`.
+ *
+ * ⛔ REQUIRED PROPS, NOT OPTIONAL ONES WITH A HOOK FALLBACK. A "call the hook
+ * when the prop is absent" default cannot be written — React forbids the
+ * conditional hook — and calling it unconditionally would restore the second
+ * clock while looking like a fallback. A test that renders this component
+ * directly passes both (see `ZoneRead.test.jsx`), which is also simpler than
+ * the module mock it replaced.
+ *
  * @param {object} props
+ * @param {'PREMARKET'|'LIVE'|'CLOSED'|'WEEKEND'} props.session the resolved
+ *   session state, from `Dashboard`'s single `useSessionState()`.
+ * @param {{kind: string|null, ms: number|null, label: string|null,
+ *          verified: boolean, holidayToday: boolean|null}} props.boundary
+ *   `Dashboard`'s single `useNextBoundary()` return.
  * @param {boolean} [props.showQuote] render the Quote of the Day as a single
  *   line. ⭐ THE SPEC'S ONE FLAG ON THE ZONE A COMPONENT ("Reversible: it is
  *   one flag on the Zone A component"). Default ON: the spec DEMOTES the quote
  *   from half the top row to one line — it does not remove it. The full panel
  *   treatment lives in the WEEKEND state, inside `TheWeek`.
  */
-export default function ZoneRead({ showQuote = true }) {
-  const session = useSessionState()
-  const boundary = useNextBoundary()
-  // ⭐ ONE READ, TWO ELEMENTS. `useNextBoundary` already holds the served
-  // calendar and a ticking clock, so the pill asks IT rather than mounting a
-  // second `useMarketCalendar` and a second `new Date()` — two authorities on
-  // "is today a holiday" is exactly the shape that produced the disagreement
-  // this fixes.
+export default function ZoneRead({ session, boundary, showQuote = true }) {
   const pill = pillFor(session, boundary.holidayToday)
   const { quote } = useQuoteOfTheDay()
   const { data: breadth } = useMobileSWR('/api/breadth', jsonFetcher, {
@@ -159,10 +178,11 @@ export default function ZoneRead({ showQuote = true }) {
             {pill.label}
           </span>
           {/* Countdown to the next bell — spec, Zone A.
-              ⛔ ONLY WHEN IT IS VERIFIABLE. `useNextBoundary` returns a null
-              label while the market calendar is unknown (in flight, endpoint
-              down, or the boundary walked past the horizon the closure table
-              is authoritative about). It used to know weekends and clock hours
+              ⛔ ONLY WHEN IT IS VERIFIABLE. `useNextBoundary` (called once,
+              in Dashboard.jsx, and handed here) returns a null label while the
+              market calendar is unknown — in flight, endpoint down, or the
+              boundary walked past the horizon the closure table is
+              authoritative about. It used to know weekends and clock hours
               and nothing else, so on Thanksgiving this said "Opens in 16h 16m"
               — to the minute, on the paid home, about an open that would not
               happen. The pill beside it still names the session, which is the

@@ -243,9 +243,18 @@ export function useNextBoundary() {
       : (b.dayKey == null ? 'no-session-in-range' : 'beyond-horizon')
 
   // The client half of the anti-rot signal (the server half is
-  // `/api/market-calendar`'s own `status` field plus its admin alert). Once
-  // per mount, never per tick, and only for the lapsed case — the two
-  // transients are not worth a line.
+  // `/api/market-calendar`'s own `status` field plus its admin alert). Never
+  // per tick, and only for the lapsed case — the two transients are not worth
+  // a line.
+  //
+  // ⚠️ ONCE PER HOOK INSTANCE, WHICH IS NOT THE SENTENCE THIS COMMENT USED TO
+  // WRITE ("once per mount"). `warned` is a `useRef`: it bounds THIS instance
+  // and knows nothing about mounts. While `useNextBoundary` was called twice on
+  // one page — `Dashboard.jsx` for the hero and `ZoneRead.jsx` for the pill —
+  // a single dashboard load logged the line TWICE. Both calls are now hoisted
+  // into `Dashboard`, so on that page the two sentences coincide again; they
+  // coincide because there is one caller, not because the ref learned anything.
+  // A second consumer of this hook brings the second line back.
   const warned = useRef(false)
   useEffect(() => {
     if (reason !== 'beyond-horizon' || warned.current) return
