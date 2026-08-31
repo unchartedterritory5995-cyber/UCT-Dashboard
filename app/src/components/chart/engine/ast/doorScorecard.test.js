@@ -456,11 +456,23 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
   // must not be softened; it is what stops a screen silently returning the
   // universe.
   //
-  // ⭐ SO THE MISSING PIECE IS AN AFFORDANCE, NOT A TRANSLATION. TradingView's Pine
+  // ⭐ SO THE MISSING PIECE WAS AN AFFORDANCE, NOT A TRANSLATION. TradingView's Pine
   // Screener never asks a script for a boolean: a plot becomes a NUMERIC COLUMN and
   // the member picks the operator and the threshold in the screener UI. A pasted
   // `rsi(close, 14)` is a perfectly good column; it is just not a filter until
-  // somebody says `< 30`. Our door requires the definition itself to be 0/1.
+  // somebody says `< 30`.
+  //
+  // ⚰️ AND IT SHIPPED — THIS PARAGRAPH READ "Our door requires the definition
+  // itself to be 0/1" IN THE PRESENT TENSE, sixty lines above the case that
+  // measures it as false. `PineBox` renders an operator and a threshold beside a
+  // numeric column and hands back the COMPARISON, built and re-verified by
+  // `conditionFrom`. MEASURED: 43 of 43 translating scripts, every one of the 126
+  // offered columns, and all 126 accepted by the backend's own `assert_scannable`.
+  // A reader who stopped here would have gone off to build the thing that exists
+  // — which is what a present-tense sentence about a closed gap is for.
+  // ⛔ THE SENTENCE BELOW IS KEPT IN THE PAST TENSE ON PURPOSE: the ARITHMETIC that
+  // made this the priority is still the reason it was done first, and deleting the
+  // reasoning would leave the next reader unable to check the call.
   //
   // ⚠️ WHICH IS WHY THIS SITS IN THE SCORECARD RATHER THAN IN A BACKLOG. Closing
   // every one of the OPEN translation gaps would add at most that many scripts —
@@ -547,10 +559,18 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
     }
     console.log(`\nreachable as a screen with one comparison: `
       + `${reachable.size} of ${scriptsTranslating.size} translating scripts\n`)
-    // ⛔ THE RATCHET. 19 could be screened as written; this is what the paste path
+    // ⛔ THE RATCHET. 18 can be screened as written; this is what the paste path
     // can actually deliver a member to the screener with.
+    // ⚠️ 41 → 43 ON 2026-08-30, AND IT WAS NOT A GAIN — the measured value had been
+    // 43 while this said 41, so a ratchet whose whole job is to refuse a
+    // regression was carrying two scripts of it. Exactly the slack the OPEN
+    // ratchet was found holding the day before (10 against a measured 9). A
+    // ratchet is only a rail at the value it actually measures; below that it is
+    // a comment. ⭐ 43 of 43 is also a CEILING, so this now says something
+    // stronger: every script that translates can reach the screener.
     expect(reachable.size).toBeGreaterThanOrEqual(scriptsScannable.size)
-    expect(reachable.size).toBeGreaterThanOrEqual(41)
+    expect(reachable.size).toBeGreaterThanOrEqual(43)
+    expect(reachable.size).toBe(scriptsTranslating.size)
   })
 
   it('⭐⭐ NOT ONE COLUMN ANY DOOR OFFERS IS THE SAME NUMBER ON EVERY BAR', () => {
@@ -575,6 +595,45 @@ describe('🔴 …AND SCANNING IS A THIRD DOOR, which is where most of them stop
       return p.ok && !readsBars(p.ast)
     })
     expect(flat.map((c) => `${c.file}: ${c.formula}`)).toEqual([])
+  })
+
+  it('⭐⭐ …and the FOURTH door is swept too, which is the mistake that made this rail', () => {
+    // ⛔⛔ THE SWEEP ABOVE COVERS THREE DOORS AND THERE ARE FOUR. Leaving TC2000
+    // out would repeat, in the same commit, the exact error the rail exists to
+    // answer: the constant-column defect was fixed in the Pine lane on 2026-08-30
+    // and left standing in the thinkScript lane, where `hidden: false` was
+    // hardcoded beside a predicate that already knew better. One lane fixed is not
+    // the bug fixed (`lesson_rail_the_mirror_not_just_the_lane`).
+    //
+    // ⚠️ PCF HAS NO `hidden` CHANNEL and needs none: a TC2000 criteria is ONE
+    // expression, not a list of plots, so there is nothing for an author to hide
+    // and the `display.none` half of `hidden` has no meaning here. Only the
+    // constant half applies, and it applies for the same reason — a member can
+    // paste `1`, and a criteria that is the same number on every bar screens
+    // nothing.
+    //
+    // ⭐ MEASURED 2026-08-30: 0 of 57. The door is clean, and this is what keeps
+    // it that way rather than the fact being rediscovered by whoever notices a
+    // different number move.
+    const pcfFlat = []
+    for (const c of [...PCF.accepted, ...PCF.offset_dependent]) {
+      let tree = null
+      try {
+        const o = parsePcf(c.source)
+        tree = o && o.ok ? o.ast : null
+      } catch (e) { tree = null }
+      if (tree && !readsBars(tree)) pcfFlat.push(`${c.id}: ${c.source}`)
+    }
+    expect(pcfFlat).toEqual([])
+    // ⛔ NON-VACUITY: a `parsePcf` that started returning nothing would make the
+    // loop above examine zero trees and pass in silence.
+    const seen = [...PCF.accepted, ...PCF.offset_dependent].filter((c) => {
+      try {
+        const o = parsePcf(c.source)
+        return !!(o && o.ok && o.ast)
+      } catch (e) { return false }
+    })
+    expect(seen.length).toBeGreaterThanOrEqual(50)
   })
 
   it('⛔ …and that sweep is NOT vacuous — the doors really are withholding rows', () => {
