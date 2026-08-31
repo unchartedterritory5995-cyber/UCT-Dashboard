@@ -478,10 +478,13 @@ PP_TOP_HALF = 0.5       # sourced — "closes in the top half of its trading ran
 PP_DOWNTREND_BARS = 105  # ~5 months, ours; see the criterion below
 
 
-def _sma(closes, period):
-    if len(closes) < period:
-        return None
-    return sum(closes[-period:]) / period
+# ⚰️ `_sma(closes, period)` LIVED HERE AND WAS DEAD. A SECOND `_sma(bars, n,
+# end=None)` is defined ~2,900 lines below and SHADOWS it, so this one was
+# unreachable -- and its presence is what caused the pocket-pivot outage:
+# `_detect_pocket_pivot` was written against this signature, passed `closes`,
+# and raised AttributeError inside the OTHER `_sma` on every symbol. Two
+# definitions of one name is `lesson_a_second_authority_over_one_value` in
+# code. `tests/test_no_shadowed_definitions.py` is the standing rail.
 
 
 def _detect_pocket_pivot(ctx) -> bool:
