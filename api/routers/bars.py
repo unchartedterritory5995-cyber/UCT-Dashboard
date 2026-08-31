@@ -93,11 +93,27 @@ def _is_carried(ticker: str) -> bool:
     failed) would make *every* symbol look uncarried and silently turn every
     transient 503 into "no data" — a derived reference with no sanity bound. So
     an unreadable universe answers "carried" and the 503 stands."""
+    t = (ticker or "").strip().upper()
     syms = _carried_symbols()
     if not syms:
         return True
-    if (ticker or "").strip().upper() in syms:
+    if t in syms:
         return True
+    # ⭐ The Symbol Search modal offers a MUCH wider universe than cap_universe — the
+    # name-bearing index built from Massive's /v3/reference/tickers (every US ETF/ETN
+    # + leveraged/inverse product). If Search offers it, /api/bars MUST serve it: a
+    # searchable-but-cold symbol has to keep its retryable "warming" 503 so the cold
+    # fetch warms it, NOT get permanently downgraded to no_data:symbol_not_carried.
+    # That downgrade was the 2026-08-31 "GDX / SILJ / EWZ / EWT never load, infinite
+    # skeleton" bug — liquid ETFs that are simply outside cap_universe. contains()
+    # answers False until the index snapshot loads (a few seconds post-boot), so the
+    # cap_universe check above still governs during that window — no regression.
+    try:
+        from api.services import ticker_search_index as _tsi
+        if _tsi.contains(t):
+            return True
+    except Exception:
+        pass
     try:
         from api.services import delisted_registry as _dr
         # A registered dead entity is deliberately kept OUT of cap_universe, but

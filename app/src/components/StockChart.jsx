@@ -546,7 +546,38 @@ const leadingBlankBars = (startMs, firstBarMs, tf) => {
 // route now returns 503 during transient SQLite-swap windows precisely
 // so this retry loop can heal automatically. Also enforces a client-side
 // timeout so a hung cold Massive fetch can't tie up the chart indefinitely.
+// ─── Global concurrency gate for chart bars fetches ──────────────────────────
+// A big scan/watchlist mounts dozens of charts at once; each fires its own /api/bars
+// SWR. Beyond ~20-30 concurrent, the SINGLE web pod's SQLite/threadpool saturates and a
+// large share return a transient 503 — the "half (or all) of a big scan fails to load"
+// symptom. Measured on prod 2026-08-31: a 20-chart burst = 0% fail, a 50-chart burst =
+// 40% fail. Gating every bars fetch through a bounded queue keeps concurrency under that
+// ceiling, so a scan of ANY size loads fully — just slightly staggered — instead of
+// half-failing. A single clicked chart never waits: the gate only queues once it's full.
+// Tunable at runtime for canary/rollback: localStorage 'uct.barsFetchMax' or the default.
+export function _barsFetchMax() {
+  try {
+    const v = parseInt(localStorage.getItem('uct.barsFetchMax'), 10)
+    if (Number.isFinite(v) && v >= 1 && v <= 200) return v
+  } catch { /* ignore */ }
+  return 16
+}
+let _barsFetchActive = 0
+const _barsFetchWaiters = []
+function _acquireBarsSlot() {
+  if (_barsFetchActive < _barsFetchMax()) { _barsFetchActive++; return Promise.resolve() }
+  return new Promise((resolve) => { _barsFetchWaiters.push(resolve) })
+}
+function _releaseBarsSlot() {
+  const next = _barsFetchWaiters.shift()
+  if (next) next()                 // hand the slot straight to the next waiter (count holds)
+  else _barsFetchActive = Math.max(0, _barsFetchActive - 1)
+}
+// Test/observability hook.
+export function _barsFetchStats() { return { active: _barsFetchActive, waiting: _barsFetchWaiters.length, max: _barsFetchMax() } }
+
 const fetcher = async (url) => {
+  await _acquireBarsSlot()
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), 25000)
   try {
@@ -554,11 +585,24 @@ const fetcher = async (url) => {
     if (!r.ok) {
       const err = new Error(`HTTP ${r.status}`)
       err.status = r.status
+      // A cold "warming" 503 (the server kicked a background fetch and told us when
+      // to re-poll) is NOT a failure — it's a chart still loading. Surface that so
+      // the retry loop polls fast (Retry-After ~3s) and the UI keeps its skeleton
+      // instead of flashing "Failed to load". Body form: {error:"warming"} | {warming:true}.
+      if (r.status === 503) {
+        const ra = parseInt(r.headers.get('Retry-After') || '', 10)
+        if (Number.isFinite(ra) && ra > 0) err.retryAfterMs = ra * 1000
+        try {
+          const b = await r.clone().json()
+          if (b && (b.warming === true || b.error === 'warming')) err.warming = true
+        } catch { /* non-JSON body → treat as a generic 5xx */ }
+      }
       throw err
     }
     return await r.json()
   } finally {
     clearTimeout(timer)
+    _releaseBarsSlot()             // ALWAYS release — even on error/abort — so the gate can't deadlock
   }
 }
 
@@ -572,6 +616,17 @@ const fetcher = async (url) => {
 const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) => {
   const status = error?.status
   if (status && status >= 400 && status < 500) return
+  // A cold "warming" 503 means the server is fetching this ticker off the request
+  // thread and told us (Retry-After) when to re-poll — honor it so a cold symbol
+  // loads in a few seconds, not the 15s generic-5xx backoff below. More attempts,
+  // too: a truly-cold provider fetch can take a couple of polls to land in SQLite.
+  if (error?.warming) {
+    if (retryCount >= 12) return
+    const base = error.retryAfterMs || 3000
+    const delay = Math.min(base * Math.pow(1.25, retryCount), 12000)
+    setTimeout(() => revalidate({ retryCount }), delay)
+    return
+  }
   if (retryCount >= 4) return
   const delay = Math.min(15000 * Math.pow(1.5, retryCount), 60000)
   setTimeout(() => revalidate({ retryCount }), delay)
@@ -5065,7 +5120,14 @@ export default function StockChart({
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
   const drawBarsRef = useRef(null)
   drawBarsRef.current = bars
-  const loading = !bars && !error
+  // A cold "warming" 503 is still LOADING, not an error — keep the skeleton up and
+  // let the fast retry (barsSwrOnErrorRetry) re-poll until the bg fetch lands. And a
+  // 200 {no_data:true} is a SETTLED empty answer for a genuinely-uncarried symbol —
+  // NOT an infinite load: it must stop the skeleton and show an honest "no data" note
+  // (the 2026-08-31 bug: no_data rendered as a forever-spinner for off-cap-universe ETFs).
+  const _warming = !!error && error.warming === true && !bars?.length
+  const _serverNoData = !!(data && data.no_data) && !bars?.length && !error
+  const loading = (!bars && !error && !_serverNoData) || _warming
   // Delay the loading skeleton: a fast cache hit (pack / IDB / mem — ~tens of
   // ms) swaps chart→chart before this fires, so there's NO grey flash between
   // symbols. The skeleton appears only if a load genuinely drags (a cold
@@ -5098,7 +5160,10 @@ export default function StockChart({
   // recover silently. Otherwise a transient backend 5xx pins the chart at
   // a hard-fail state for the user even though usable history is sitting
   // in IndexedDB. The retry button below still mutate()'s on click.
-  const showFatalError = !!error && !bars?.length
+  const showFatalError = !!error && !bars?.length && !_warming
+  // Honest settled empty-state for a symbol the provider genuinely doesn't carry
+  // (a real 200 no_data), so it reads "no data" rather than spinning forever.
+  const showNoData = _serverNoData && !showFatalError
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
@@ -14063,6 +14128,15 @@ export default function StockChart({
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}
+      {showNoData && (
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
+          <span>No chart data available for {sym}.</span>
+          <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+            The data provider doesn't carry this symbol. It may be delisted, an index
+            with no OHLC series, or not a tradable ticker.
+          </span>
+        </div>
+      )}
       {!loading && !showFatalError && selectedRangeEmpty && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No {sym} chart data for the selected dates.</span>
@@ -14077,7 +14151,7 @@ export default function StockChart({
         ref={containerRef}
         className={styles.chart}
         style={{
-          display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
+          display: (showFatalError || showNoData || selectedRangeEmpty) ? 'none' : 'block',
           // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
           // the transparent LWC canvas, so it flows unbroken through the price + volume
           // panes. The user gradient (Canvas settings) works the same way. For a SOLID
