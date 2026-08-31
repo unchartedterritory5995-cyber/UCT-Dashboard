@@ -39,7 +39,7 @@ Sources: the 15-lane sweep in `docs/superpowers/research/bases/`.
 """
 from dataclasses import dataclass
 
-from api.services.pattern_engine.primitives import cup
+from api.services.pattern_engine.primitives import cup, shape
 from typing import Callable, Optional
 
 #: Darvas's own count. Sourced — see the DARVAS_BOX criteria below.
@@ -3754,6 +3754,203 @@ LOW_CHEAT = Structure(
 )
 
 
+# -- Saucer with Handle (IBD) -----------------------------------------------
+# ⭐⭐ IBD AGAINST ITSELF, INSIDE ONE BASE NAME. One column says a saucer
+# corrects "about 12% to 20%"; another says "up to 30%, or as much as a solid
+# cup pattern". A detector cannot satisfy both, and averaging them would
+# produce a number neither column published. We take the WIDER band -- so the
+# gate refuses only what BOTH columns would refuse -- and record the tighter
+# one verbatim.
+#
+# ⚠️ AND THE HOUSE SAYS THIS STRUCTURE IS HARD TO SEE ON DAILY BARS: "saucer
+# bases can be so long that they're only visible on a weekly or monthly
+# chart." A daily-bar detector will therefore MISS saucers rather than merely
+# mis-score them. Recorded on the structure, because it bounds what any
+# measurement of it can mean.
+
+_IBD_SAUCER = "ibd_saucer"
+
+#: "A proper saucer takes at least seven weeks to develop." / "Saucers form
+#: over a period of seven weeks to a year or more."
+SAUCER_MIN_BARS = 35
+SAUCER_MAX_BARS = 300          # ~a year and a bit, the published upper shape
+
+#: The WIDER of the two published depth ceilings. See the conflict above.
+SAUCER_MAX_DEPTH = 0.30
+SAUCER_MIN_DEPTH = 0.08
+
+#: OURS, and it is what separates a saucer from a cup: a saucer is SHALLOW AND
+#: LONG, a cup is deeper and shorter. The corpus says outright that the
+#: boundary "is a tunable, not a rule" -- IBD publishes no cutoff -- so the
+#: discriminator is depth per unit of duration, and the number is ours.
+SAUCER_MAX_DEPTH_PER_100_BARS = 0.12
+
+
+def saucer_state(ctx) -> Optional[dict]:
+    """A long, shallow, rounded base ending at the last bar.
+
+    ⛔ THE SHAPE TEST IS WHAT KEEPS THIS FROM BEING "ANY LONG BASE". Depth and
+    duration alone admit every cup; the saucer is the one whose decline is
+    gradual enough that the base flattens and stretches.
+    """
+    bars = ctx.bars
+    n = len(bars)
+    if n < SAUCER_MIN_BARS + 10:
+        return None
+
+    cands = [h for h in ctx.highs
+             if SAUCER_MIN_BARS <= (n - 1) - h["bar_index"] <= SAUCER_MAX_BARS]
+    if not cands:
+        return None
+    top_sw = max(cands, key=lambda h: h["price"])
+    top, top_i = top_sw["price"], top_sw["bar_index"]
+    if top <= 0:
+        return None
+
+    seg = bars[top_i:]
+    lows = [b.get("l") or 0 for b in seg if (b.get("l") or 0) > 0]
+    if not lows:
+        return None
+    low = min(lows)
+    if low <= 0 or low >= top:
+        return None
+
+    span = (n - 1) - top_i
+    depth = (top - low) / top
+    if depth < SAUCER_MIN_DEPTH or depth > SAUCER_MAX_DEPTH:
+        return None
+
+    # Shallow AND long: the discriminator against a cup.
+    if depth > SAUCER_MAX_DEPTH_PER_100_BARS * (span / 100.0):
+        return None
+
+    r = shape.roundness(bars, top_i, n - 1)
+    if r is None or r < cup.MIN_ROUNDNESS:
+        return None
+
+    low_idx = min(range(top_i, n), key=lambda i: bars[i].get("l") or 1e18)
+    return {"top": top, "low": low, "depth": depth, "bars": span,
+            "roundness": r,
+            "symmetry": shape.symmetry(bars, top_i, low_idx, n - 1),
+            "pivot": max((b.get("h") or 0) for b in bars[-10:]) + 0.10}
+
+
+def _detect_saucer(ctx) -> bool:
+    return saucer_state(ctx) is not None
+
+
+SAUCER = Structure(
+    key="saucer",
+    label="Saucer",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=23,
+    min_bars=SAUCER_MIN_BARS + 10,
+    desc=("A long, shallow, rounded base -- the cup's gentler cousin, where "
+          "the decline is slow enough that the pattern flattens and "
+          "stretches."),
+    criteria=(
+        Criterion(
+            condition="Base length, minimum",
+            value=SAUCER_MIN_BARS,
+            quote="A proper saucer takes at least seven weeks to develop.",
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition="Base length, published range",
+            value=(SAUCER_MIN_BARS, SAUCER_MAX_BARS),
+            quote="Saucers form over a period of seven weeks to a year or more.",
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐⭐ DEPTH: IBD AGAINST ITSELF INSIDE ONE BASE NAME. One "
+                       "column says 'about 12% to 20%', another 'up to 30%, or "
+                       "as much as a solid cup pattern'. A detector cannot "
+                       "satisfy both and averaging would invent a third "
+                       "number. We take the WIDER, so the gate refuses only "
+                       "what BOTH columns refuse."),
+            value=SAUCER_MAX_DEPTH,
+            quote=("they can correct up to 30%, or as much as a solid cup "
+                   "pattern."),
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition="The tighter published depth, recorded not applied",
+            value="12-20%",
+            quote=("You might see a correction of about 12% to 20%, while a "
+                   "typical cup can run as deep as 35%."),
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition="Handle volume -- light, drifting lower",
+            value="light-drifting-lower",
+            quote="The handle drifted lower in light volume, a bullish sign.",
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition=("Symmetry -- weeks left of the low matching weeks right. "
+                       "Stated as PRAISE OF ONE EXAMPLE, not as a rule, so it "
+                       "is scored and reported, never gated."),
+            value="reported-not-gated",
+            quote=("Altria's base showed nice symmetry. The number of weeks on "
+                   "the left side of the pattern equaled the number of weeks "
+                   "on the right side."),
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition=("⚠️ THE HOUSE SAYS THIS IS HARD TO SEE ON DAILY BARS, "
+                       "which bounds what any measurement of it can mean: a "
+                       "daily-bar detector will MISS saucers, not merely "
+                       "mis-score them."),
+            value="weekly-or-monthly",
+            quote=("saucer bases can be so long that they're only visible on a "
+                   "weekly or monthly chart."),
+            source_id=_IBD_SAUCER, confidence="high",
+        ),
+        Criterion(
+            condition="Saucer-specific handle geometry",
+            value=None,
+            source_id=_IBD_SAUCER, confidence="high",
+            missing=("Neither column publishes handle depth, length or "
+                     "position for a saucer. Whether the cup-with-handle's "
+                     "handle rules transfer unchanged is not stated, so they "
+                     "are NOT imported -- that would be borrowing a number "
+                     "across patterns."),
+        ),
+        Criterion(
+            condition="Breakout volume threshold",
+            value=None,
+            quote=("Sometimes volume can kick in a bit late with a [breakout], "
+                   "but the move still works out."),
+            source_id=_IBD_SAUCER, confidence="high",
+            missing=("The house explicitly SOFTENS the volume rule here rather "
+                     "than stating one, so there is no threshold to apply."),
+        ),
+        Criterion(
+            condition=("The claim that saucers produce gains 'similar to' cups "
+                       "and flat bases"),
+            value=None,
+            quote=("capable of producing strong gains similar to shorter "
+                   "patterns such as the cup-with-handle and flat bases."),
+            source_id=_IBD_SAUCER, confidence="high",
+            missing=("An equivalence claim with no sample, no period and no "
+                     "comparison statistic. Not usable as evidence."),
+        ),
+        Criterion(
+            condition=("Saucer-versus-cup boundary -- depth per 100 bars. OURS, "
+                       "and the corpus says outright it must be: 'IBD "
+                       "publishes no cutoff, so the saucer/cup boundary is a "
+                       "tunable, not a rule.'"),
+            value=SAUCER_MAX_DEPTH_PER_100_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=1.9,
+    detect=_detect_saucer,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -3807,7 +4004,7 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CHEAT_3C, CLIMAX_TOP,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             VCP, WYCKOFF_SPRING]
+             SAUCER, VCP, WYCKOFF_SPRING]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
