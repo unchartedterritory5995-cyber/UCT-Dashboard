@@ -361,3 +361,51 @@ NONE of that. This phase takes it all off the phone shell:
 Full rig PASS unchanged (all five gates). Every change is scoped to
 `html[data-mobile-chart-shell]` + phone width or to `stockChartProps` —
 desktop, grid, and iPad byte-identical.
+
+## Phase 11 — the 500-user discovery sweep (wave 1)
+
+`tools/mobile_discovery.py`: 12 user JOURNEYS (SE 375×667 · Pro Max 430×932 ·
+landscape sheets · rotation mid-sheet · dotted/garbage/edge symbols ·
+bars-API-dead · search-API-dead · settings dialog · indicator library +
+sub-pane add · persistence reload · two-chart layout · iPad dialogs), each an
+isolated context capturing screenshots + console/pageerrors into
+mobile_audit_out/discovery/report.md. Discovery REPORTS (exit 0 always); the
+walk GATES.
+
+**Wave-1 findings → fixes (all verified by journey rerun + full walk PASS):**
+- 🐛 **Rotation wiped the shell.** `isMobile` OR-ed three separate
+  useMediaQuery MQLs; their change events fire one at a time, so a rotation
+  produced one render with all three false — the desktop branch mounted for a
+  frame and REMOUNTED MobileChartsApp (open sheet gone, open page gone).
+  Fixed: ONE comma-list media query = one MQL, no gap. Journey now shows the
+  TF sheet surviving rotation and still committing.
+- 🧹 **Landscape kept desktop chips.** The clean-canvas hide was
+  portrait-width-only; rotated phones got A/L/% + $-Vol back. Media extended
+  with the landscape clause.
+- 🧹 **"● LIVE" is furniture too** (invisible in seeded rig runs — no live
+  feed; real phones always show it). Hidden on the shell; STALE/RECONNECTING
+  (`.staleIndicator`) still render — quiet when healthy, loud when broken.
+- 🐛 **Focus ring stuck on the ƒx button** after sheet close (Sheet restores
+  focus to its opener; the app's heavy gold focus-visible ring reads as a
+  stuck state on touch). Quiet inset ring for keyboard; none otherwise.
+- 🧹 **Settings modal on phone**: templates row clipped "UCT Chart Themes"
+  mid-word (now one-row momentum scroll, tabs too) and wore a 🎨 emoji
+  (→ UIcon sun; the no-emoji rule's last holdout on this surface).
+- ✅ Confirmed GOOD by journeys: SE + Pro Max layouts, both sheets in
+  landscape, dotted-ticker + garbage + search-API-dead degradation ("Go to X"
+  fallback everywhere), bars-error Retry state, indicator LIBRARY on phone
+  (real sheet, plain-English rows), persistence across reload (tf survives
+  server-side), two-chart layouts, iPad dialogs.
+
+**Rig hardening the sweep forced** (the sandbox's Chromium image swap changed
+CDP touch semantics — streams flush at release, tap pointerups get swallowed):
+gestures are now JS-dispatched (`js_pointer_drag` / `js_touch_drag` /
+balanced tap pairs) — deterministic across browser builds; walk + discovery
+both self-heal the account's server-persisted symbol/timeframe (discovery
+journeys pick BRK.B/1h and the seed covers SPY-family DAILY only — the
+"regression" that cost two hours was the rig's own leftover state opening an
+honest no-data error chart).
+
+Unexplored crevices queued for wave 2: widget pages (scanner/news/themes) at
+phone quality bar, sub-pane indicator visual verify (needs a seeded sym kept
+clean), alert-sheet visual pass, synthetic $IDX symbols, VoiceOver semantics.

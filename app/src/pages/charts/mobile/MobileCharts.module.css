@@ -786,3 +786,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 .alertDel:active { background: var(--bg-hover); }
+
+/* Phase 11 discovery — closing a sheet restores focus to its opener (Sheet's
+   a11y contract), and the app's default focus-visible ring painted a heavy
+   gold box on the toolbar button that read as a STUCK state on touch. Keep a
+   ring for real keyboard users, quiet and inset; drop the non-keyboard one. */
+.tbBtn:focus:not(:focus-visible) { outline: none; }
+.tbBtn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  outline-offset: -2px;
+}

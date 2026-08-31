@@ -781,3 +781,18 @@
     display: none;
   }
 }
+
+/* Phase 11 discovery — the clean canvas holds in LANDSCAPE too (the first
+   pass was portrait-width-only, so a rotated phone got the desktop chips
+   back), and the always-on "● LIVE" pill joins the furniture list: on a
+   phone the strip's tick-flash already says the feed is alive, so the badge
+   earns its place only when something is WRONG — STALE / RECONNECTING keep
+   rendering through .staleIndicator, untouched. */
+@media (pointer: coarse) and (max-width: 640px),
+       (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .volLegend,
+  :global(html[data-mobile-chart-shell]) .scaleToggle,
+  :global(html[data-mobile-chart-shell]) .liveIndicator {
+    display: none;
+  }
+}
