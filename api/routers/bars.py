@@ -317,9 +317,13 @@ def get_bars(
     import logging
     import time as _time
     import traceback
-    from api.services.bars_fetch import get_serve_layer
+    from api.services.bars_fetch import get_serve_layer, _mark_serve
     _log = logging.getLogger(__name__)
     _t0 = _time.perf_counter()
+    # Reset the serve-layer thread-local at entry so a branch that doesn't set it
+    # (index/breadth were intercepted before the tier-marking functions) can't report
+    # a STALE label carried over from a previous request on this same anyio thread.
+    _mark_serve("entry")
     response = None
     crashed = False
     try:
@@ -346,6 +350,9 @@ def get_bars(
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
             _drec = None if _is_breadth else _delisted.resolve(ticker)
             if _is_breadth:
+                # Coarse label now; build_breadth_bars refines it to breadth-cache vs
+                # breadth-build once the bars-layer cache lands (Phase 2).
+                _mark_serve("breadth")
                 response = JSONResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
@@ -353,6 +360,9 @@ def get_bars(
                 # what the client requested, while the record's provider+clamp isolate the era.
                 response = _get_delisted_bars_response(_drec, tf, bars, serve_as=ticker)
             elif is_index(ticker):
+                # Coarse label now; fetch_index_bars refines it to index-mem/index-sqlite
+                # vs index-yf once caching + bars.db persistence land (Phase 1).
+                _mark_serve("index")
                 since_int = None
                 if since:
                     try:

@@ -3529,6 +3529,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-search index scheduling failed (non-fatal): {e}")
 
+    # Index bars warm loop — keeps the 7 cash-settled indexes (SPX/NDX/VIX/RUT/DJX/
+    # XSP/XND) hot in their disk cache so index charts serve from cache (<1ms) instead
+    # of a multi-second yfinance fetch. Only 7 symbols → cheap to run web-side.
+    try:
+        from api import index_bars as _idx
+        _idx.start_index_warm()
+        print("[startup] index-bars warm loop scheduled")
+    except Exception as e:
+        print(f"[startup] index-bars warm scheduling failed (non-fatal): {e}")
+
     # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
     # Flag-gated so it runs exactly once; background + low-concurrency so it never
     # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.
