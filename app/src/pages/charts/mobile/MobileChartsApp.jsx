@@ -143,13 +143,16 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
   const openSettings = useCallback(() => paneRef.current?.openSettings(), [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
 
-  // Toolbar ƒx badge: how many MA overlay slots are live (the same `enabled`
-  // flag MobileIndicatorSheet toggles) — chart state visible without opening
-  // the sheet.
-  const indicatorCount = useMemo(
-    () => (Array.isArray(cs?.overlays) ? cs.overlays.filter((o) => o?.enabled).length : 0),
-    [cs],
-  )
+  // Toolbar ƒx badge: live MA overlay slots (the `enabled` flag
+  // MobileIndicatorSheet toggles) PLUS library indicators — an engine
+  // instance's EXISTENCE is what "enabled" means there (chartDefaults's
+  // instance model), so the count is the array length. Wave-3 crawl found
+  // the badge undercounting a chart running RSI/MACD sub-panes.
+  const indicatorCount = useMemo(() => {
+    const mas = Array.isArray(cs?.overlays) ? cs.overlays.filter((o) => o?.enabled).length : 0
+    const studies = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances.length : 0
+    return mas + studies
+  }, [cs])
 
   // Share chart image — TradingView's camera button, through the native iOS
   // share sheet (navigator.share with a file). The PNG comes from the SAME

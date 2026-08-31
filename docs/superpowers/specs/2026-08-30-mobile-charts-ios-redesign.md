@@ -445,3 +445,21 @@ logins trip the auth 429), widget PAGES survive Escape and must be closed by
 their back button between states, sheet-state enumeration scopes to the
 sheet root, and resource-load failures (the rig's own aborted bars) class as
 `neterr`, never `error`.
+
+## Phase 11 — wave 3 (post-ship polish)
+
+Shipped Phases 9–11w2 to production (master `67c8157d9`), then kept crawling:
+- **iPad crawl completed clean**: 193 action points, zero findings of any
+  class — the two-pane shell holds.
+- **Sub-pane indicators verified GOOD on phone** (RSI/MACD probe shot:
+  readable ~100px oscillator bands, clean grid) — no fix needed; recorded so
+  nobody "fixes" it blind.
+- **ƒx badge now counts library indicators too** — it counted only MA slots,
+  so a chart running RSI+MACD sub-panes undercounted. An engine instance's
+  EXISTENCE is what "enabled" means (chartDefaults instance model), so the
+  count is `indicatorInstances.length` + enabled MA slots. Landing rail
+  pinned (with a settingsVersion-2 fixture — an unstamped blob runs the v1
+  fold and drops raw instances, which the test's first draft rediscovered).
+- Queued still: $IDX synthetic-symbol e2e needs real theme data (sandbox has
+  none — verify on production once), VoiceOver semantics audit, and the
+  VoiceInputButton bump (J2-owned).

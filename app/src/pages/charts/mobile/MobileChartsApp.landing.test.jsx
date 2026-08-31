@@ -359,6 +359,19 @@ describe('Phase 8 — the feel layer wires', () => {
     expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('2')
   })
 
+  test('…and library indicators count too (instance existence IS enabled)', () => {
+    const stored = {
+      // settingsVersion 2 = the instance model; an unstamped blob runs the
+      // legacy v1 fold, which rebuilds instances from `indicators` and drops
+      // these.
+      settingsVersion: 2,
+      overlays: [{ enabled: true }, { enabled: false }, { enabled: false }, { enabled: false }],
+      indicatorInstances: [{ id: 'i1', key: 'rsi' }, { id: 'i2', key: 'macd' }],
+    }
+    renderApp([{ id: 'w-chart', type: 'chart', color: 'A', opts: { tf: 'D', settings: stored } }])
+    expect(screen.getByRole('button', { name: 'Indicators' })).toHaveTextContent('3')
+  })
+
   test('More → Share chart image exists and closes the sheet on tap', async () => {
     const user = userEvent.setup()
     const { rerenderWith } = renderApp([])
