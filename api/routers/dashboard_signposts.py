@@ -43,6 +43,21 @@ client filtered with `Date.parse(a.published_at)`, which is `NaN` for an
 integer. Every article failed `Number.isFinite` and the count was structurally
 zero. Computing it here is both correct and seven-days-a-week.
 
+🔴 AND `uct20` WAS THE SAME MISTAKE IN A THIRD COSTUME — not a refusal this
+time, but a read aimed one tier too shallow. It peeked the `uct20_portfolio`
+cache key to avoid `engine.get_uct20_portfolio_data()`'s network tail, which was
+the right instinct and the wrong depth: nothing on this pod ever warms that key
+(it is absent from `main.py`'s warm roster, and `/api/push` invalidates it every
+morning), while `wire_data` — which carries the whole portfolio — is seeded into
+the cache at boot from the volume. The door filled only when some unrelated
+request had warmed the key first. See the `uct20` block for the fix and
+`engine.get_uct20_portfolio_warm()` for the one authority it now reads.
+
+⭐ THE SHAPE, THREE TIMES: `desk` was refused for a reason that did not apply,
+`journal`/`community` are refused for a reason that does, and `uct20` was not
+refused at all — it read a source that happens to be cold. "Why is this door
+bare" is three different questions, and only the middle one is a decision.
+
 See `app/src/pages/dashboard/doors.js` for the manifest these 8 keys are
 derived from — it is the single authority for what the doors are.
 """
@@ -97,30 +112,93 @@ def signposts(user: dict = Depends(get_current_user)) -> dict:
     except Exception:
         out["options_flow"] = _card("Today", None)
 
-    # uct20 — count of open positions entered on the most recent entry date
-    # (mirrors the "NEW badge" idiom on /uct-20). Peeks the SAME cache key
-    # engine.get_uct20_portfolio_data() writes to, WITHOUT calling that
-    # function: on a cache miss it can fall through to a direct
-    # uct_intelligence.api call that fetches bars for every ever-held symbol
-    # (real network work) — exactly what this endpoint must never do. A cold
-    # key here just means the card stays null until something else warms it.
+    # uct20 — open positions entered on the most recent entry date. This is the
+    # SAME number a member can count off /uct-20: `UCT20.jsx` badges a row NEW
+    # when `posData.entry_date === latestEntry`, where `latestEntry` is the max
+    # `entry_date` across open positions. Matching that idiom (rather than
+    # inventing a 7-day window) means the door and the page it opens can never
+    # disagree. Measured against the live wire on 2026-08-30: 18 positions dated
+    # 2026-08-27 and 2 dated 2026-08-28, so this says 2 — not 20.
+    #
+    # 🔴 IT WAS BARE IN PRODUCTION, AND THE REASON WAS ORDER-DEPENDENCE.
+    # This block used to peek `cache.get("uct20_portfolio")` by hand — the first
+    # tier of `engine.get_uct20_portfolio_data()`'s resolution — deliberately
+    # avoiding that function because its LAST tier fetches bars for every
+    # ever-held symbol. But the tier it skipped in the middle is the warm one:
+    #
+    #   * `wire_data` IS seeded into the cache at boot by `api/main.py`'s
+    #     lifespan, from `/data/wire_data.json` on the Railway volume, and it
+    #     carries `uct20_portfolio` whole. Zero network, warm on a fresh pod.
+    #   * `uct20_portfolio` itself is warmed by NOTHING. It is not in
+    #     `main.py`'s `_warm_dashboard_caches` roster, and `/api/push`
+    #     INVALIDATES it on every morning wire run while re-setting `wire_data`.
+    #
+    # So the door filled only if some unrelated request (a member opening
+    # /uct-20, the voice tools, /api/uct20/backtest) had already re-derived the
+    # key — a coin flip, re-tossed every morning. `engine.get_uct20_portfolio_warm()`
+    # is those two warm tiers and nothing else; `get_uct20_portfolio_data()` is
+    # now DERIVED from it, so there is one authority for "where does the
+    # portfolio come from without a network call".
+    #
+    # ⛔ `open_positions: []` is 0, not null. An empty book is an ANSWER ("no
+    # names are new"); only a missing/absent portfolio is "we do not know".
     try:
-        portfolio = cache.get("uct20_portfolio") or {}
-        positions = portfolio.get("open_positions") or []
-        entry_dates = [p.get("entry_date") for p in positions if p.get("entry_date")]
-        latest = max(entry_dates) if entry_dates else None
-        new_count = (
-            sum(1 for p in positions if p.get("entry_date") == latest)
-            if latest else None
-        )
-        out["uct20"] = _card("This week", new_count)
+        portfolio = engine.get_uct20_portfolio_warm() or {}
+        positions = portfolio.get("open_positions")
+        if isinstance(positions, list):
+            # `entry_date` is an ISO 'YYYY-MM-DD' STRING (verified against the
+            # live wire payload). ISO dates sort lexicographically, so `max` is
+            # the newest — but only over strings: a stray non-string would make
+            # `max` raise on a mixed list and null the whole card.
+            entry_dates = [
+                p.get("entry_date") for p in positions
+                if isinstance(p, dict) and isinstance(p.get("entry_date"), str)
+            ]
+            latest = max(entry_dates) if entry_dates else None
+            new_count = (
+                sum(1 for p in positions
+                    if isinstance(p, dict) and p.get("entry_date") == latest)
+                if latest else 0
+            )
+        else:
+            new_count = None
+        out["uct20"] = _card("New", new_count)
     except Exception:
-        out["uct20"] = _card("This week", None)
+        out["uct20"] = _card("New", None)
 
     # calendar — tonight's AMC reporter count ("on deck" = up next). Peeks the
     # "earnings" cache key directly rather than calling engine.get_earnings():
     # that function does a LIVE EarningsWhispers/Finnhub/FMP fetch on a cache
     # miss, which is exactly the network call this endpoint must never make.
+    #
+    # ⚠️ THIS ONE STAYS A PEEK, AND THE REASON IS NOT THE SAME AS uct20's WAS.
+    # `uct20` had a warm mirror (wire_data carries the whole portfolio) and was
+    # simply not reading it. `amc_tonight` has NO warm mirror anywhere:
+    # `_normalize_earnings` builds it from `_fetch_ew_live(today)` plus a live
+    # Finnhub calendar call, and `wire_data["earnings"]` carries only `bmo` and
+    # `amc` (today's BMO + YESTERDAY's after-close) — measured against the live
+    # wire payload, whose earnings keys are exactly {"bmo", "amc"}. Reading
+    # `weekly_calendar[today]["amc"]` instead would be a SECOND, different
+    # definition of "on deck" (a raw provider roster vs EW's ranked top-15),
+    # silently swapping which one the door shows depending on cache state — a
+    # worse failure than a bare door.
+    #
+    # It is therefore order-dependent, but not a coin flip like uct20 was. The
+    # `earnings` key IS warmed deterministically, and in the windows where
+    # "tonight's reporters" is the live question:
+    #   * boot        — `main.py::_warm_dashboard_caches` calls get_earnings()
+    #                   ~8s after startup.
+    #   * every 15min — `fundamentals_reporters_warm`, `CronTrigger(day_of_week=
+    #                   "mon-fri", hour="6-9,16-19", minute="*/15")`, which reads
+    #                   `amc_tonight` itself. Cadence is under the key's 1800s TTL.
+    # Between ~10:15 and 16:00 ET the key can expire and the door goes bare
+    # until a member opens /calendar. Closing THAT would mean adding provider
+    # load on a schedule, which is an owner call, not a signposts change.
+    #
+    # ⛔ A WARM-BUT-EMPTY EARNINGS KEY IS `0`, NOT NULL. `_normalize_earnings`
+    # always returns an `amc_tonight` list, so a genuinely quiet night prints
+    # "0" and only a cold key leaves the door bare. Those two states must stay
+    # distinguishable — do not `or []` this into a fake zero.
     try:
         earnings = cache.get("earnings") or {}
         amc_tonight = earnings.get("amc_tonight")

@@ -101,3 +101,51 @@ def test_a_missing_manifest_does_not_break_the_backtest_tile():
         out = engine.get_uct20_backtest_data()
     assert out["harness"] == {}
     assert "monthly_returns" in out          # the rest of the tile survives
+
+
+# ── the portfolio's WARM tiers, split out ───────────────────────────────────
+#
+# `get_uct20_portfolio_data` ends in a direct `uct_intelligence.api` call that
+# fetches bars for every ever-held symbol. `get_uct20_portfolio_warm` is its
+# first two tiers — cache, then `wire_data` — and nothing else, so an endpoint
+# forbidden from doing network work (`/api/dashboard/signposts`) can read the
+# portfolio without reimplementing the resolution and drifting from it.
+
+def test_warm_returns_None_when_neither_tier_holds_the_portfolio():
+    """`None`, not `{}` — the caller has to tell "no warm source" apart from a
+    cached empty portfolio, because they render differently (a bare door vs a
+    real zero)."""
+    _clear()
+    with patch.object(engine, "_load_wire_data", return_value=None):
+        assert engine.get_uct20_portfolio_warm() is None
+
+
+def test_warm_resolves_from_wire_data_and_caches_what_it_found():
+    _clear()
+    payload = {"open_count": 1,
+               "open_positions": [{"symbol": "CRWD", "entry_date": "2026-08-28"}]}
+    with patch.object(engine, "_load_wire_data",
+                      return_value={"uct20_portfolio": payload}):
+        assert engine.get_uct20_portfolio_warm() == payload
+    # Second read needs no wire_data at all — the key is warm now.
+    with patch.object(engine, "_load_wire_data", return_value=None):
+        assert engine.get_uct20_portfolio_warm() == payload
+
+
+def test_a_CACHED_EMPTY_portfolio_is_returned_without_reaching_the_network_tier():
+    """⛔ THE SEMANTIC THE `_warm` SPLIT COULD HAVE QUIETLY BROKEN. The original
+    returned `cached` whenever it was `not None` — an empty dict included. A
+    refactor that tested truthiness instead would send a cached `{}` down to the
+    `uct_intelligence.api` call, which is real network work on whatever path
+    asked. `_load_wire_data` is made to EXPLODE so reaching tier 2 (let alone
+    tier 3) cannot pass silently."""
+    _clear()
+    cache.set("uct20_portfolio", {}, ttl=60)
+
+    def boom():
+        raise AssertionError("a cached portfolio must not fall through")
+
+    with patch.object(engine, "_load_wire_data", side_effect=boom):
+        assert engine.get_uct20_portfolio_warm() == {}
+        assert engine.get_uct20_portfolio_data() == {}
+    _clear()

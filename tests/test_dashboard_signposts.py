@@ -205,3 +205,223 @@ def test_journal_and_community_STAY_null_here(auth_client):
     body = auth_client.get("/api/dashboard/signposts").json()
     assert body["journal"]["value"] is None
     assert body["community"]["value"] is None
+
+
+# ---------------------------------------------------------------------------
+# The UCT 20 door — it was bare because it read one tier too shallow
+# ---------------------------------------------------------------------------
+#
+# 🔴 THE DEFECT, IN ONE SENTENCE: the block peeked `cache.get("uct20_portfolio")`
+# — the FIRST tier of `engine.get_uct20_portfolio_data()` — to stay off that
+# function's network tail, and skipped the middle tier, which is the only one
+# that is reliably warm. Nothing on the pod warms `uct20_portfolio` (it is not
+# in `main.py::_warm_dashboard_caches`, and `/api/push` INVALIDATES it every
+# morning), while `wire_data` — which carries the whole portfolio — is seeded
+# into the cache at boot from `/data/wire_data.json`. So the door filled only
+# when an unrelated request had already re-derived the key: a coin flip,
+# re-tossed daily. Measured live 2026-08-30: `/api/uct20/portfolio` returned 20
+# open positions while `/api/dashboard/signposts` returned `uct20: null`.
+#
+# ⛔ THE FIXTURE MATCHES THE REAL WIRE PAYLOAD, and that is not a formality —
+# the `desk` door above was structurally zero for its whole life because its
+# fixture built ISO strings where the store emits epoch ints. Verified against
+# the live `wire_data.json`: `uct20_portfolio.open_positions[]` rows carry
+# `{symbol, entry_date, entry_price, current_price, pct_return, dollar_pnl,
+# days_held}` and `entry_date` is an ISO `'YYYY-MM-DD'` STRING.
+
+def _open_position(symbol: str, entry_date, **over) -> dict:
+    """One row in the real shape of `wire_data.uct20_portfolio.open_positions`."""
+    row = {
+        "symbol": symbol,
+        "entry_date": entry_date,
+        "entry_price": 208.25,
+        "current_price": 218.4,
+        "pct_return": 4.87,
+        "dollar_pnl": 121.85,
+        "days_held": 1,
+    }
+    row.update(over)
+    return row
+
+
+def _wire_with(positions) -> dict:
+    """A wire_data payload carrying a portfolio in the shape /api/push stores."""
+    return {
+        "date": "2026-08-29",
+        "uct20_portfolio": {
+            "account_size": 50000.0,
+            "open_count": len(positions),
+            "open_positions": positions,
+            "trades": [],
+            "equity_curve": [],
+        },
+    }
+
+
+@pytest.fixture
+def cold_uct20_key():
+    """The production state this door has to survive: `uct20_portfolio` COLD.
+
+    Cleared before AND after, because `get_uct20_portfolio_warm()` writes the
+    key when it resolves from wire_data — a warm leftover would let a later
+    test pass for the wrong reason."""
+    _cache.invalidate("uct20_portfolio")
+    yield
+    _cache.invalidate("uct20_portfolio")
+
+
+def _uct20(client) -> dict:
+    return client.get("/api/dashboard/signposts").json()["uct20"]
+
+
+def test_uct20_fills_from_wire_data_when_its_OWN_cache_key_is_cold(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """⭐ THE REGRESSION RAIL FOR THE BARE DOOR. Cold key + warm wire_data is
+    exactly a fresh pod, and exactly the state after every morning push."""
+    from api.services import engine
+
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([
+        _open_position("CRWD", "2026-08-27"),
+        _open_position("NVDA", "2026-08-27"),
+        _open_position("AVGO", "2026-08-27"),
+        _open_position("ANET", "2026-08-28"),
+        _open_position("PLTR", "2026-08-28"),
+    ]))
+    assert _uct20(auth_client) == {"label": "New", "value": 2, "tone": "neutral"}
+
+
+def test_uct20_counts_only_the_MOST_RECENT_entry_date_not_the_whole_book(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """The definition, pinned: this is the same number a member can count off
+    /uct-20, where `UCT20.jsx` badges a row NEW when its `entry_date` equals the
+    max `entry_date` across open positions. Counting the book would say 4."""
+    from api.services import engine
+
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([
+        _open_position("CRWD", "2026-08-27"),
+        _open_position("NVDA", "2026-08-27"),
+        _open_position("AVGO", "2026-08-27"),
+        _open_position("ANET", "2026-08-28"),
+    ]))
+    assert _uct20(auth_client)["value"] == 1
+
+
+def test_uct20_reads_ISO_DATE_STRINGS_which_is_what_the_wire_actually_carries(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """⛔ THE `desk` LESSON APPLIED HERE. `entry_date` is an ISO string in the
+    live payload. A row carrying something else must be SKIPPED, never coerced
+    — and must not take the card down: `max()` over a mixed str/int list raises,
+    which the outer `except` would turn into a silent null door."""
+    from api.services import engine
+
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([
+        _open_position("CRWD", "2026-08-28"),      # the real shape   ✓
+        _open_position("BOGUS", 1756339200),       # epoch int        ✗
+        _open_position("NADA", None),              # missing          ✗
+        {"symbol": "SHAPELESS"},                   # no entry_date    ✗
+    ]))
+    assert _uct20(auth_client)["value"] == 1
+
+
+def test_uct20_is_a_real_ZERO_when_the_book_is_empty(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """⭐ The distinction the door renders differently: `0` prints a number,
+    `None` prints a plain link. A tracked-but-empty book is an ANSWER."""
+    from api.services import engine
+
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([]))
+    assert _uct20(auth_client)["value"] == 0
+
+
+def test_uct20_is_NULL_when_no_warm_source_holds_the_portfolio(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """A bare door is honest. "We do not know" must not render as "0 new"."""
+    from api.services import engine
+
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: None)
+    assert _uct20(auth_client)["value"] is None
+
+
+def test_uct20_never_calls_the_NETWORK_CAPABLE_resolver(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """⛔ THE CONSTRAINT THIS ENDPOINT EXISTS UNDER. `get_uct20_portfolio_data()`
+    ends in a direct `uct_intelligence.api` call that fetches bars for every
+    ever-held symbol. Simplifying the door to call it would look identical in
+    every other test here and would put real network work on the request path,
+    so this one makes that function EXPLODE and still demands a filled door."""
+    from api.services import engine
+
+    def _forbidden():
+        raise AssertionError("signposts must not call the network-capable resolver")
+
+    monkeypatch.setattr(engine, "get_uct20_portfolio_data", _forbidden)
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([
+        _open_position("CRWD", "2026-08-28"),
+        _open_position("NVDA", "2026-08-28"),
+    ]))
+    assert _uct20(auth_client)["value"] == 2
+
+
+def test_uct20_still_prefers_its_own_cache_key_over_wire_data(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    """Tier order unchanged: a freshly-pushed `uct20_portfolio` (written by
+    whatever last called the full resolver) still wins over the wire snapshot."""
+    from api.services import engine
+
+    _cache.set("uct20_portfolio", {
+        "open_positions": [_open_position("HOT", "2026-08-29")],
+    }, ttl=60)
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: _wire_with([
+        _open_position("STALE", "2026-08-28"),
+        _open_position("ALSO_STALE", "2026-08-28"),
+    ]))
+    assert _uct20(auth_client)["value"] == 1
+
+
+def test_a_raising_wire_load_leaves_uct20_null_and_the_other_seven_intact(
+    auth_client, monkeypatch, cold_uct20_key
+):
+    from api.services import engine
+
+    def boom():
+        raise RuntimeError("volume not mounted")
+
+    monkeypatch.setattr(engine, "_load_wire_data", boom)
+    body = auth_client.get("/api/dashboard/signposts").json()
+    assert body["uct20"]["value"] is None
+    assert set(body) == _door_keys()
+
+
+# ---------------------------------------------------------------------------
+# The calendar door — order-dependent, but deliberately left as it is
+# ---------------------------------------------------------------------------
+#
+# `amc_tonight` has NO warm mirror: `engine._normalize_earnings` builds it from
+# a LIVE EarningsWhispers fetch plus a live Finnhub calendar call, and
+# `wire_data["earnings"]` carries only `bmo` + `amc` (verified against the live
+# payload, whose earnings keys are exactly {"bmo", "amc"}). Reading a different
+# roster on a cold key would silently swap the door's DEFINITION depending on
+# cache state — worse than a bare door. The one thing that must not drift is
+# that a warm-but-quiet night and a cold key stay distinguishable.
+
+def test_calendar_is_a_real_ZERO_on_a_quiet_night_and_NULL_on_a_cold_key(auth_client):
+    _cache.invalidate("earnings")
+    try:
+        _cache.set("earnings", {"bmo": [], "amc": [], "amc_tonight": []}, ttl=60)
+        _cache.invalidate("dashboard_signposts")
+        assert auth_client.get("/api/dashboard/signposts").json()["calendar"] == {
+            "label": "On deck", "value": 0, "tone": "neutral"}
+
+        _cache.invalidate("earnings")
+        _cache.invalidate("dashboard_signposts")
+        assert auth_client.get(
+            "/api/dashboard/signposts").json()["calendar"]["value"] is None
+    finally:
+        _cache.invalidate("earnings")
