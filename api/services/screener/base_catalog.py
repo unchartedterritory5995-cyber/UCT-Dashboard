@@ -4233,6 +4233,113 @@ ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}
 
 
+def structure_origin(st) -> str:
+    """Whose structure is this -- "published" or "uct". DERIVED, never typed.
+
+    ⭐⭐ WHY A STRUCTURE-LEVEL ANSWER IS NEEDED AT ALL. `Criterion.origin` says
+    who supplied one NUMBER. It cannot say whether the STRUCTURE is a published
+    classic or something we invented, and those are different claims to a
+    member. Darvas Box carries several `origin="uct"` criteria (the frame must
+    be live, the lookback window) and is still Darvas' pattern. A structure
+    where NOTHING traces to a house is not a classic with some of our numbers
+    in it -- it is ours, and saying so is the whole point.
+
+    ⛔ THE TEST IS `source_id`, NOT `origin`. A REFUSAL carries a source_id: it
+    records a house being asked and declining to publish, which is engagement
+    with the literature and evidence the structure exists there. A structure
+    with no source_id anywhere was never in the corpus at all -- the 15-source
+    sweep was assembled specifically to find this material and returned nothing
+    for `Go Signal`, `HVC`, `Wedge Pop`, `20EMA Hold`, `EMA Crossback`,
+    `EMA Crossover` and `Stage 2 Momentum`. They come from our own
+    `setupGroups.js` model-book taxonomy.
+
+    ⛔ AND IT IS DERIVED. A hand-typed `is_ours=True` beside the criteria it
+    describes is the defect this repo has paid for in the writer index, the COT
+    router's "4 routes", the setup catalog's "24" and the single-writer index.
+    Add a UCT-only structure tomorrow and this answers correctly with no edit.
+    """
+    for c in st.criteria:
+        if c.source_id:
+            return "published"
+    return "uct"
+
+
+def provenance(key: str = "") -> dict:
+    """Every criterion of every structure, with where it came from.
+
+    ⭐⭐ WHY THIS EXISTS. The library carries ~200 criteria across 21
+    structures: verbatim quotes with their source, numbers we supplied and
+    label as ours, refusals naming exactly what a house declined to publish,
+    and recorded conflicts where two authorities contradict each other. Until
+    now NONE of it left this module -- `meta()` returned a label, a coverage
+    figure and a lift, and no router imported this file at all. That is the
+    repo's own `lesson_built_tested_green_and_unreachable` at the scale of a
+    15-source research sweep: the most valuable thing here was the part nobody
+    could see.
+
+    ⛔ THE THREE PROVENANCE STATES SURVIVE THE TRIP. A criterion is `sourced`
+    (a value AND its quote AND a source id), `refused` (no value, plus
+    `missing` naming what would have to be published), or `ours`
+    (origin='uct'). Collapsing them at the boundary -- rendering a refusal as
+    an empty string, say -- would rebuild the defect the whole grammar exists
+    to prevent: a number attributed to nobody.
+    """
+    def _state(c) -> str:
+        if c.origin == "uct":
+            return "ours"
+        if c.value is None and c.missing:
+            return "refused"
+        return "sourced"
+
+    def _one(st) -> dict:
+        return {
+            "key": st.key,
+            "label": st.label,
+            "desc": st.desc,
+            "axis": st.axis,
+            "family": st.family,
+            "bias": st.bias,
+            "coverage_pct": st.coverage_pct,
+            "origin": structure_origin(st),
+            "criteria": [{
+                "condition": c.condition,
+                "value": c.value,
+                "state": _state(c),
+                "quote": c.quote,
+                "source_id": c.source_id,
+                "confidence": c.confidence,
+                "missing": c.missing,
+            } for c in st.criteria],
+        }
+
+    if key:
+        st = _BY_KEY.get(key)
+        return _one(st) if st else {}
+    return {st.key: _one(st) for st in ALL_STRUCTURES}
+
+
+def provenance_counts() -> dict:
+    """How many criteria are sourced, refused and ours -- DERIVED, never typed.
+
+    A refusal count that drifts from the criteria it describes is the defect
+    this repo has paid for repeatedly, so nothing here is a literal.
+    """
+    out = {"sourced": 0, "refused": 0, "ours": 0, "structures": 0,
+           "uct_originals": 0}
+    for st in ALL_STRUCTURES:
+        out["structures"] += 1
+        if structure_origin(st) == "uct":
+            out["uct_originals"] += 1
+        for c in st.criteria:
+            if c.origin == "uct":
+                out["ours"] += 1
+            elif c.value is None and c.missing:
+                out["refused"] += 1
+            else:
+                out["sourced"] += 1
+    return out
+
+
 def by_key(key):
     return _BY_KEY.get(key)
 
