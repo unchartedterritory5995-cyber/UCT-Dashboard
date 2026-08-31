@@ -1002,16 +1002,46 @@ def test_pattern_engine_flags_are_preset_free_bool_controls():
     # vocabulary was retired with the Base & Structure library, so the assertion
     # now checks the stronger property — no OTHER control may offer a preset
     # whose label collides with a per-pattern engine flag.
+    # ⚠️ REWRITTEN 2026-08-31. The previous form asserted that NO other control
+    # may offer a preset whose label contains an engine word -- a proxy, and
+    # once the Base & Structure library shipped a sourced, gated, MEASURED
+    # "Flat Base" structure, that proxy flagged the correct design. Two
+    # controls answering "flat base" is only a defect when a member cannot
+    # tell WHICH INSTRUMENT answered, and the engine flags already say
+    # "(Pattern Engine)".
+    #
+    # So this now checks the property directly, and it is STRICTER than the
+    # proxy was in the way that matters: for each engine word, at most ONE
+    # member-visible control may present it UNQUALIFIED. A second unqualified
+    # one is the second-authority defect wearing a single word, whether it
+    # arrives as a filter label or as a preset inside another control.
     engine_words = {"vcp", "flat base"}
+    for word in engine_words:
+        unqualified = []
+        for key, f in filters.FILTERS.items():
+            label = str(f.get("label", "")).strip().lower()
+            if word in label and "engine" not in label:
+                unqualified.append("filter:" + key)
+            for preset in f.get("presets") or []:
+                plabel = str(preset.get("label", "")).strip().lower()
+                if plabel == word:
+                    owner = str(f.get("label", "")).lower()
+                    if "engine" not in owner and "engine" not in plabel:
+                        unqualified.append("%s preset:%s" % (key, plabel))
+        assert len(unqualified) <= 1, (
+            "%r is presented unqualified by more than one control (%s) -- a "
+            "member cannot tell which instrument answered"
+            % (word, ", ".join(sorted(unqualified))))
+
+    # And every engine flag must still name its engine, which is what makes
+    # the single-unqualified rule above safe.
     for key, f in filters.FILTERS.items():
-        if key.startswith("pattern_engine_"):
+        if not key.startswith("pattern_engine_"):
             continue
-        for preset in f.get("presets") or []:
-            label = str(preset.get("label", "")).strip().lower()
-            assert label not in engine_words, (
-                f"{key} offers a '{preset.get('label')}' preset, colliding with "
-                f"the pattern-engine flag of the same name over a different "
-                f"instrument")
+        label = str(f.get("label", "")).lower()
+        assert "engine" in label, (
+            f"{key} does not name its engine, so a colliding concept word "
+            f"would be indistinguishable to a member")
 
 
 def test_the_flag_controls_are_derived_from_the_ONE_writer():
