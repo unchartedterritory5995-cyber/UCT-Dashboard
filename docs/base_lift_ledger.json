@@ -18,7 +18,14 @@
       "baseline": 0.2666,
       "null_max": 0.011,
       "null_trials": 30,
-      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
+      "note": "+7.35pp, CI [+6.78pp, +7.96pp] at n=24,428, against a 30-trial null whose maximum reached +1.10pp.\n\nThe first structure to publish and the only one that has now cleared the bar on two independent samples. A 1960s box-range rule outscoring every modern base in this library is not the result anyone expected, and it is worth saying why it is credible: the moving-block null was built specifically to strip out the volatility premium a box detector would earn by selecting quiet stretches, and it removed almost nothing. ⛔ The structure ALSO carries our own recency bound: without it the label matched 96.7% of the universe, because over 400 bars nearly every stock frames a box at some point. The published number belongs to the gated definition, not to 'a Darvas box existed here once'.",
+      "note_measured": [
+        0.0735,
+        0.0678,
+        0.0796,
+        24428,
+        0.011
+      ]
     },
     "green-line-breakout": {
       "published": false,
@@ -35,7 +42,14 @@
         "the measured lift -0.0537 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
         "the lift's CI lower bound -0.0649 does not exceed the random-data null (max of 1 trials = +0.0007) at n=6924"
       ],
-      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
+      "note": "-5.37pp, CI [-6.49pp, -4.33pp] at n=6,924, against a 5-trial null whose maximum reached +0.07pp.\n\nA robust negative: the observed lift sits far below a null of essentially zero, so unlike the flat base this is not a selection artifact. It independently replicates Grimes, who measured buying 50-day highs and found significant underperformance -- a different dataset and a different definition arriving at the same sign, and the opposite of what the momentum literature asserts.",
+      "note_measured": [
+        -0.0537,
+        -0.0649,
+        -0.0433,
+        6924,
+        0.0007
+      ]
     },
     "pocket-pivot": {
       "published": false,
@@ -94,9 +108,16 @@
       "n": 34220,
       "rate": 0.3377,
       "baseline": 0.2647,
-      "null_max": 0.0173,
-      "null_trials": 5,
-      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
+      "null_max": 0.0203,
+      "null_trials": 30,
+      "note": "+7.30pp, CI [+6.78pp, +7.87pp] at n=34,220, against a 30-trial null whose maximum reached +2.03pp.\n\n⭐ THE STRUCTURE THAT FAILED BY NINE BASIS POINTS. On 279 tickers it measured +8.35pp with a CI lower bound of +5.45pp against a 30-trial null of +5.54pp -- refused. Widening the sample to 3,456 tightened the interval from +/-2.8pp to +/-0.55pp AND collapsed the null from +5.54 to +2.03, because the null's spread shrinks with sample size too. That second half is the part I had not expected to matter as much as it did. ⚠️ READ THE DIRECTION CAREFULLY: this is a BEARISH structure measured on a LONG metric (P(+10% before -8%)), so a positive lift says stocks resolve UPWARD more often after a Stage 4 breakdown than the baseline -- an oversold-bounce reading, not a confirmation that breakdowns fall. The number is real; the interpretation is not the obvious one.",
+      "note_measured": [
+        0.073,
+        0.0678,
+        0.0787,
+        34220,
+        0.0203
+      ]
     },
     "flat-base": {
       "published": false,
@@ -113,7 +134,14 @@
         "the measured lift -0.1056 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
         "the lift's CI lower bound -0.1132 does not exceed the random-data null (max of 1 trials = -0.1000) at n=21634"
       ],
-      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
+      "note": "-10.56pp, CI [-11.32pp, -9.88pp] at n=21,634, against a 5-trial null whose maximum reached -10.00pp.\n\nMeasurably negative, and MORE negative on the wider sample. ⚠️ But the null is almost as negative, so most of the sign is a property of what the predicate SELECTS -- a tight, quiet, low-range consolidation resolves +10%-before-8% less often than the average anchor for reasons that have nothing to do with O'Neil. Reporting this as 'flat bases lose money' would be the mirror of reporting a raw hit rate as an edge.",
+      "note_measured": [
+        -0.1056,
+        -0.1132,
+        -0.0988,
+        21634,
+        -0.1
+      ]
     },
     "base-on-base": {
       "published": false,
@@ -148,7 +176,14 @@
         "the measured lift -0.0018 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)",
         "the lift's CI lower bound -0.0248 does not exceed the random-data null (max of 1 trials = -0.0011) at n=1888"
       ],
-      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
+      "note": "-0.18pp, CI [-2.48pp, +1.86pp] at n=1,888, against a 5-trial null whose maximum reached -0.11pp.\n\n⚠️ THIS ROW REVERSED WHEN THE SAMPLE WIDENED, and the earlier reading was wrong. On 279 tickers it measured -7.18pp and I wrote a note explaining why the most famous base in the industry sat BELOW its own null. On 3,408 tickers it is a NON-EVENT, not a loser -- the interval straddles zero. The small-sample negative was noise, and the note that explained it was a confident account of something that had not happened. That is why notes are now stamped with the numbers they describe.",
+      "note_measured": [
+        -0.0018,
+        -0.0248,
+        0.0186,
+        1888,
+        -0.0011
+      ]
     },
     "high-tight-flag": {
       "published": false,
@@ -179,6 +214,14 @@
       "null_trials": 5,
       "reasons": [
         "the lift's CI lower bound +0.0251 does not exceed the random-data null (max of 1 trials = +0.0431) at n=22024"
+      ],
+      "note": "+3.18pp, CI [+2.51pp, +3.82pp] at n=22,024, against a 5-trial null whose maximum reached +4.31pp.\n\n⭐ THE CLEAREST CASE IN THE LEDGER FOR WHY THE NULL EXISTS. A positive result whose interval excludes zero, on 22,024 observations -- every screener in the industry would publish it. It is refused because the IDENTICAL detector on moving-block resampled series reaches a HIGHER number than the pessimistic end of the real one. Which is obvious once said: a W is two lows with a high between them, and noise makes those constantly. Widening the sample 12x did not rescue it; it confirmed it.",
+      "note_measured": [
+        0.0318,
+        0.0251,
+        0.0382,
+        22024,
+        0.0431
       ]
     },
     "vcp": {
@@ -225,7 +268,14 @@
       "baseline": 0.2705,
       "null_max": -0.0081,
       "null_trials": 30,
-      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
+      "note": "+0.99pp, CI [+0.35pp, +1.58pp] at n=33,851, against a 30-trial null whose maximum reached -0.81pp.\n\nThe smallest published edge in the ledger, and it flipped on evidence: at 279 tickers it was +1.07pp with a CI straddling zero and I wrote it up as a clean null result. At 3,456 tickers the interval excludes zero. ⛔ Its detector needed two corrections before it measured this at all -- the published rules alone matched 46.7% of the universe, and the tilt test that fixes that had to become a RATIO (drift over the box's own depth) because an absolute bound is scale-dependent: 10% of price across a 4-7 week box is a trend, across a 52-week base it is flat. A near-zero null is what makes this small number trustworthy: unlike the double bottom, whose detector finds +4.31pp on pure noise, this one has almost no mechanical edge on random data.",
+      "note_measured": [
+        0.0099,
+        0.0035,
+        0.0158,
+        33851,
+        -0.0081
+      ]
     },
     "buyable-gap-up": {
       "published": true,
@@ -252,6 +302,14 @@
       "null_trials": 5,
       "reasons": [
         "the measured lift -0.0110 is not positive: the structure resolved no better than its own pattern-free baseline, so there is no edge to publish (the result is kept as a finding)"
+      ],
+      "note": "-1.10pp, CI [-2.16pp, -0.09pp] at n=6,139, against a 5-trial null whose maximum reached -3.91pp.\n\n⛔⛔ THE ROW THAT EXPOSED A HOLE IN THE GATE. It PUBLISHED with a NEGATIVE lift, because its interval excludes zero (both bounds negative) and its lower bound clears a null that is even more negative. The gate had never checked the sign, and the defect stayed invisible for as long as no structure happened to land in that position. Gate zero now requires a positive lift. The result itself stands as a finding: the best-sourced structure in the build -- nine criteria at high confidence -- does not beat its own baseline.",
+      "note_measured": [
+        -0.011,
+        -0.0216,
+        -0.0009,
+        6139,
+        -0.0391
       ]
     },
     "low-cheat": {
