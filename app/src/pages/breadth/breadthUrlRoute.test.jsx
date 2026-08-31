@@ -102,16 +102,19 @@ describe('a link carrying Views state opens the Views tab', () => {
 })
 
 describe('an absent or invalid link is today’s behaviour exactly', () => {
-  it('a bare /breadth opens the Monitor on 90 days', () => {
+  it('a bare /breadth opens the Monitor with its Time Navigator date box', () => {
     at('')
     expect(tab('Monitor').className).toMatch(/tabActive/)
-    expect(activeDayPill()).toBe('90d')
+    // The Monitor has no width pill any more — it shows the date box (a fixed
+    // 90-day window whose END the navigator moves).
+    expect(screen.getByPlaceholderText('M/D/YYYY')).toBeTruthy()
+    expect(activeDayPill()).toBeUndefined()
   })
 
   it('an unknown style is IGNORED, not fatal — the page still opens', () => {
     at('?view=bogus')
     expect(tab('Monitor').className).toMatch(/tabActive/)
-    expect(activeDayPill()).toBe('90d')
+    expect(screen.getByPlaceholderText('M/D/YYYY')).toBeTruthy()
   })
 
   it('a window the pills do not offer falls back to 90 days', () => {

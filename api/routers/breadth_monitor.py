@@ -425,9 +425,32 @@ def get_breadth_symbols():
 
 @router.get("/api/breadth-monitor")
 def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
+                        end: str = Query(default=""),
+                        anchor: str = Query(default="le"),
                         _user: dict = Depends(require_paid)):
+    """History window, newest-first.
+
+    `end`/`anchor` let the Monitor's Time Navigator teleport the window so its
+    top row is a chosen date (`anchor=le`) or the start of a chosen year
+    (`anchor=ge`); omit `end` for the latest window. The response carries the
+    full data `min_date`/`max_date` (so the navigator can bound its calendar and
+    year list) and `next_date` (the session after the top row — its ▶ step).
+    """
+    anchor = anchor if anchor in ("le", "ge") else "le"
     try:
-        return {"rows": svc.get_history(days), "days": days}
+        rows = svc.get_history(days, end=end or None, anchor=anchor)
+        top = rows[0]["date"] if rows else None
+        bounds = svc.date_bounds()
+        return {
+            "rows": rows,
+            "days": days,
+            "top_date": top,
+            "min_date": bounds.get("min"),
+            "max_date": bounds.get("max"),
+            # Only needed when the window is held back in time; at the latest
+            # window there is nothing newer to step to.
+            "next_date": svc.next_trading_day(top) if end else None,
+        }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
