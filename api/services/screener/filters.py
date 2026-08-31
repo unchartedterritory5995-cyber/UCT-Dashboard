@@ -19,7 +19,7 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
-from . import bar_character, candle_catalog
+from . import bar_character, base_catalog, candle_catalog
 
 
 def _range(key, label, category, column, presets, unit=None):
@@ -28,12 +28,20 @@ def _range(key, label, category, column, presets, unit=None):
                  "unit": unit, "options_column": None}
 
 
-def _enum(key, label, category, column, presets, options_column=None):
+def _enum(key, label, category, column, presets, options_column=None,
+          options_list_column=None):
     """``options_column`` names the snapshot column whose DISTINCT values become
-    this filter's preset list at ``meta()`` time — see ``_distinct_options``."""
+    this filter's preset list at ``meta()`` time — see ``_distinct_options``.
+
+    ``options_list_column`` is the same idea for a DELIMITER-WRAPPED LIST
+    column, where the distinct values are the individual tokens rather than the
+    whole cell. Both markers ride on the FILTER, never in ``meta()``'s body —
+    the second-authority trap ``_distinct_options`` records.
+    """
     return key, {"label": label, "category": category, "type": "enum",
                  "column": column, "presets": presets, "allow_custom": False,
-                 "unit": None, "options_column": options_column}
+                 "unit": None, "options_column": options_column,
+                 "options_list_column": options_list_column}
 
 
 def _open_range(key, label, category, column, unit=None, factual=()):
@@ -425,14 +433,18 @@ FILTERS = dict([
     _range("consecutive_up", "Consecutive Up Days", "multi_candle", "consecutive_up",
            [{"label": "Any"}, {"label": "3+", "op": "gte", "min": 3}]),
     # ── pattern ──
-    _enum("pattern", "Chart Pattern", "pattern", "patterns",
-          [{"label": "Any"},
-           {"label": "VCP", "op": "contains", "value": "vcp"},
-           {"label": "Flat Base", "op": "contains", "value": "flat_base"},
-           {"label": "Bull Flag", "op": "contains", "value": "bull_flag"},
-           {"label": "52W Breakout", "op": "contains", "value": "breakout_52w"},
-           {"label": "Golden Cross", "op": "contains", "value": "golden_cross"},
-           {"label": "Death Cross", "op": "contains", "value": "death_cross"}]),
+    # ⛔ QUERIES `base_matches`, NOT `base_shape`. Every row carries exactly one
+    # SHAPE, but a row can also carry any number of named RELATIONS, and only
+    # one of them renders. Screening the rendered head would silently drop
+    # every symbol whose structure was also a Darvas box — the identical
+    # information loss `candle_type` vs `candle_matches` already documents.
+    # ⭐ The options are DERIVED from `base_catalog`, never typed here: the
+    # seven candle options that were once hand-listed beside their registry
+    # drifted the moment that library grew from 7 labels to 62.
+    _enum("base_structure", "Base Structure", "pattern", "base_matches",
+          base_catalog.enum_options()),
+    _open_range("base_relation_count", "Named Structures", "pattern",
+                "base_relation_count"),
     # ── performance (Wave 1 — all bare; return thresholds are the owner's) ──
     _open_range("chg_pct_1d", "Change Today", "performance", "chg_pct_1d", unit="%"),
     _open_range("chg_pct_1w", "Change 1W", "performance", "chg_pct_1w", unit="%"),
@@ -524,8 +536,6 @@ FILTERS = dict([
                 "upper_wick_pct"),
     _open_range("lower_wick_pct", "Lower Wick", "single_candle",
                 "lower_wick_pct"),
-    _open_range("pattern_conf_max", "Pattern Confidence", "pattern",
-                "pattern_conf_max"),
     _enum("industry", "Industry", "descriptive", "industry",
           [{"label": "Any"}], options_column="industry"),
     # ── context (Wave 1) ──
@@ -618,6 +628,15 @@ FILTERS = dict([
     # the moment Stage B's manifest lands. `pattern_engine_ids` (comma-joined
     # TEXT list) deliberately has NO control here — the `patterns` precedent:
     # a list column is a display surface, not a scalar.
+    # ⭐ ALL 78 FIRING DETECTORS BECOME SCREENABLE WITH NO NEW COLUMN. The
+    # comment below used to say a list column "deliberately has NO control" —
+    # true while it was an unwrapped, heavily-truncated blob, and false now:
+    # D1 dropped the eight near-universal ids and raised the cap, so the column
+    # truncates 0% of symbols, and wrapping made `contains` an exact-token
+    # test. `candle_matches` and `base_matches` are the same idiom.
+    _enum("pattern_engine_id", "Pattern Engine Detection", "pattern",
+          "pattern_engine_ids", [{"label": "Any"}],
+          options_list_column="pattern_engine_ids"),
     _open_range("pattern_engine_conf", "Pattern Engine Confidence", "pattern",
                 "pattern_engine_conf"),
     # Reader-encoded direction (ruling D4): +1 bullish · -1 bearish · 0 neutral.
@@ -727,10 +746,56 @@ OP_OPERANDS = {
     "lte_col": ("other",),
 }
 
+#: ⛔ FILTERS THAT ONCE EXISTED AND NO LONGER DO — the safe-deletion mechanism.
+#:
+#: A saved screen serializes filter KEYS as JSON (`screener_saved_screens.
+#: spec_json`), and `query.py` raises `unknown filter key` on anything it
+#: cannot resolve. So deleting a filter is not a cleanup: it turns every saved
+#: screen that used it into a 500, and there is no way to know from this
+#: machine how many members that is.
+#:
+#: ⛔⛔ AND SILENTLY DROPPING IT WOULD BE WORSE. A screen that quietly stops
+#: applying one of its criteria returns MORE rows and looks like a broader
+#: market — the same "silently loses symbols reads as a quiet market" defect
+#: `CoverageLine` exists to prevent, in the opposite direction. A retired
+#: filter must therefore REFUSE, loudly and with a sentence that says what to
+#: use instead.
+#:
+#: Each entry: the member-facing replacement (or None), and when.
+RETIRED: dict = {
+    # Retired 2026-08-30 with the Base & Structure library. The cheap
+    # six-detector heuristic left 59% of Overview rows blank, rendered only
+    # `v.split(',')[0]` so a name that was both a flat base and a VCP showed
+    # one word, and stood as a SECOND pattern vocabulary beside the engine —
+    # five shared key names on two different confidence scales (0-1 here,
+    # 0-100 there), a collision `pattern_join.py` documented and called
+    # unresolved.
+    # ⛔ Deleted only after MEASURING the blast radius: production held 1 saved
+    # screen and it referenced neither key; the firm's starter definitions
+    # referenced neither. A deletion without that count is not a cleanup.
+    "pattern": {
+        "label": "Chart Pattern",
+        "replaced_by": "base_structure",
+        "replaced_by_label": "Base Structure",
+        "when": "2026-08-30",
+    },
+    "pattern_conf_max": {
+        "label": "Pattern Confidence",
+        "replaced_by": None,
+        "when": "2026-08-30",
+    },
+}
+
+
 VIEWS = {
+    # ⭐ `base_render` REPLACED `patterns` here (owner ruling 2026-08-30). The
+    # cheap six-detector heuristic left 59% of Overview rows blank and rendered
+    # only `v.split(',')[0]`, so a name that was both a flat base and a VCP
+    # showed one word and hid the rest. It is retired from the most-seen slot
+    # rather than left standing beside its replacement.
     "overview": {"label": "Overview", "columns": [
         "ticker", "company", "sector", "market_cap", "price", "chg_pct_1d",
-        "vol_ratio", "rs_rank", "patterns"]},
+        "vol_ratio", "rs_rank", "base_render"]},
     "valuation": {"label": "Valuation", "columns": [
         "ticker", "company", "market_cap", "pe_fwd", "peg", "price",
         "uct_composite"]},
@@ -763,12 +828,17 @@ VIEWS = {
     # A filter category with no view behind it is a half-shipped family; these
     # close that. (Nothing rails "every filter category has a view" — the gap
     # was invisible to 400+ green tests and obvious in one screenshot.)
+    # ⭐ A FILTER FAMILY WITH NO VIEW IS HALF-SHIPPED — the rail that caught
+    # four candle columns filterable-and-invisible. These land together.
+    "bases": {"label": "Bases & Structure", "columns": [
+        "ticker", "company", "base_render", "base_shape", "base_shape_label",
+        "base_relation_count", "price", "chg_pct_1d", "candle_score",
+        "pct_vs_sma50", "dist_52w_high_pct", "vol_ratio"]},
     "patterns": {"label": "Patterns", "columns": [
         "ticker", "company", "pattern_engine_ids", "pattern_engine_conf",
         "pattern_engine_dir", "pattern_expectancy_r", "pattern_entry_dist_pct",
         "pattern_stop_dist_pct", "pattern_engine_vcp",
-        "pattern_engine_flat_base", "patterns", "pattern_conf_max",
-        "candle_score"]},
+        "pattern_engine_flat_base", "candle_score"]},
     "flow": {"label": "Positioning & Flow", "columns": [
         "ticker", "company", "price", "chg_pct_1d", "dp_notional_1d",
         "dp_prints_1d", "dp_notional_5d", "dp_level_dist_pct",
@@ -993,6 +1063,94 @@ def _my_scans_entry(user_id):
     }
 
 
+
+
+def _distinct_list_options(column):
+    """``[{Any}, …]`` from the distinct TOKENS a delimiter-wrapped list column
+    holds — the list analogue of ``_distinct_options``.
+
+    ⭐ DERIVED FROM THE DATA, NOT FROM THE DETECTOR REGISTRY. Importing the
+    registry here would pull the whole detector package into `filters`, which
+    every screener request touches, for a list that the snapshot already
+    contains. Reading the column also has the better property: it offers only
+    detections that actually OCCUR, so a member is never shown a filter that
+    matches nothing.
+
+    ⛔ Values are emitted WRAPPED (`,key,`). `contains` compiles to `LIKE %v%`,
+    and these ids collide as substrings — `head_shoulders` sits inside
+    `inverse_head_shoulders` — so a bare token would screen for a pattern and
+    silently return its opposite too.
+    """
+    from api.services.screener import snapshot_db
+    if column not in snapshot_db.COLUMNS:
+        return [{"label": "Any"}]
+    seen = set()
+    try:
+        with snapshot_db.connect() as conn:
+            # ⛔ NO `!= ''` CLAUSE. The obvious version needs a quoted empty
+            # string inside an f-string and the escaping is a trap — the first
+            # draft of this line terminated the string early, produced a SQL
+            # syntax error, and the bare `except` below turned it into an empty
+            # option list: a shipped control that silently matches nothing.
+            # The Python loop already skips empty tokens, so the clause bought
+            # nothing and cost that.
+            for (blob,) in conn.execute(
+                    f'SELECT "{column}" FROM screener_rows '
+                    f'WHERE "{column}" IS NOT NULL'):
+                for tok in str(blob).split(","):
+                    tok = tok.strip()
+                    if tok:
+                        seen.add(tok)
+    except Exception:
+        return [{"label": "Any"}]
+    out = [{"label": "Any"}]
+    for tok in sorted(seen):
+        out.append({"label": tok.replace("_", " ").title(),
+                    "op": "contains", "value": f",{tok},"})
+    return out
+
+
+def _structure_evidence() -> dict:
+    """Measured lift per structure key, for the structures that earned one.
+
+    ⛔ A structure with no measured lift is ABSENT from this dict. It is never
+    present with a 0.0 — `pattern_join` already shipped a synthetic breakeven
+    to members as a measurement, over more than half its rows, by treating
+    absence as zero — and the whole point of the ledger is that the blank
+    stays honest. (The exact counts live in `pattern_join.py`, beside the
+    thing they describe; a number typed here would be a second authority
+    on somebody else's measurement.)
+    """
+    from api.services.screener import base_catalog, lift_ledger
+
+    out = {}
+    for st in base_catalog.ALL_STRUCTURES:
+        entry = lift_ledger.for_structure(st.key)
+        if not entry:
+            continue
+        out[base_catalog.match_value(st.key)] = {
+            "lift_pp": round(entry["lift"] * 100, 2),
+            "ci_pp": [round(entry["ci_low"] * 100, 2),
+                      round(entry["ci_high"] * 100, 2)],
+            "n": entry.get("n"),
+        }
+    return out
+
+
+def _evidence_basis() -> dict:
+    """The conditions the lift numbers were measured under — stated ONCE,
+    beside them, so no surface has to guess at the metric or the vintage."""
+    from api.services.screener import lift_ledger
+
+    data = lift_ledger.load()
+    return {
+        "measured_at": data.get("measured_at"),
+        "metric": data.get("baseline_metric"),
+        "sample": data.get("sample"),
+        "stale": lift_ledger.is_stale(),
+    }
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1035,8 +1193,12 @@ def meta(user_id=None) -> dict:
     bands = dist.get("columns") or {}
     out_filters = []
     for key, f in FILTERS.items():
-        presets = (_distinct_options(f["options_column"])
-                   if f.get("options_column") else f["presets"])
+        if f.get("options_column"):
+            presets = _distinct_options(f["options_column"])
+        elif f.get("options_list_column"):
+            presets = _distinct_list_options(f["options_list_column"])
+        else:
+            presets = f["presets"]
         entry = {"key": key, "label": f["label"],
                  "category": f["category"], "type": f["type"],
                  "presets": presets, "allow_custom": f["allow_custom"],
@@ -1045,6 +1207,20 @@ def meta(user_id=None) -> dict:
             band = bands.get(f["column"])
             if band is not None:
                 entry["distribution"] = band
+        # ⭐ MEASURED EVIDENCE RIDES BESIDE THE CONTROL, EXACTLY AS
+        # `distribution` DOES, AND FOR THE SAME REASON: it is a MEASUREMENT,
+        # not an editorial preset. A member choosing "Darvas Box" should be
+        # able to see that it beat the market's own base rate by a measured
+        # amount, and — far more often — that a structure has NO measured
+        # number at all. Refused structures are deliberately absent from this
+        # dict rather than present with a zero: `lift_ledger.for_structure`
+        # returns None for both "never measured" and "measured and refused",
+        # because to a member those say the same honest thing.
+        if key == "base_structure":
+            ev = _structure_evidence()
+            if ev:
+                entry["evidence"] = ev
+                entry["evidence_basis"] = _evidence_basis()
         out_filters.append(entry)
     categories = CATEGORIES
     if user_id is not None:

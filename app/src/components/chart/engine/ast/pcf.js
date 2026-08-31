@@ -149,10 +149,29 @@ function refuse(guard, detail, index, token) {
  *                   the digits fused into the base token and the rest from the
  *                   dotted suffixes, left to right, defaulting when omitted.
  *                   `offset` is always last and is always refused unless zero.
+ *  `smoothParam`  — a parameter this table expresses by WRAPPING the call rather
+ *                   than passing it. `STOC14.3` is a %K smoothed over three bars
+ *                   and the table declares an unsmoothed `stoch`, so it becomes
+ *                   `sma(stoch(…), 3)`. Declared by exactly one family (STOC),
+ *                   measured.
  *  `fixed`        — a parameter this table cannot express, with the ONE value it
- *                   can. `STOC14.3` is a %K smoothed over three bars and the
- *                   table declares an unsmoothed `stoch`, so `3` refuses rather
- *                   than being dropped. */
+ *                   can: any other value refuses rather than being silently
+ *                   dropped.
+ *
+ *  ⚰️⚰️ THE `fixed` ENTRY USED TO CARRY THE `STOC14.3` EXAMPLE AND BOTH HALVES
+ *  WERE WRONG. It said that call "refuses rather than being dropped" — measured,
+ *  `STOC14.3 < 20` TRANSLATES, to `sma(stoch(close, high, low, 14), 3)` — and it
+ *  credited `fixed` for a case `smoothParam` handles. The example outlived the
+ *  behaviour it described: `smoothParam` was added to EXPRESS the smoothing, and
+ *  the paragraph explaining the neighbouring field was never re-read.
+ *
+ *  ⚠️ AND `fixed` HAS NO SHIPPED USER: 0 of the 44 entries across `PCF_FUSED`,
+ *  `PCF_DIFFERENT_FORMULA` and `PCF_CALLS` declare it, so both of its call sites
+ *  (the check here and the drop in `pcfCoverage`) are an extension point rather
+ *  than live behaviour. That is stated rather than left for the next reader to
+ *  discover by hunting for an example that does not exist — and
+ *  `pcf.vocabulary.test.js` fails the day the first family declares one, so the
+ *  guard cannot arrive unexercised. */
 export const PCF_FUSED = Object.freeze({
   AVG:    { spelling: 'AVG<field><period>[.<offset>]',    fn: 'sma',     field: true, params: ['period', 'offset'] },
   XAVG:   { spelling: 'XAVG<field><period>[.<offset>]',   fn: 'ema',     field: true, params: ['period', 'offset'] },

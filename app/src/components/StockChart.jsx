@@ -485,7 +485,7 @@ import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
 import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
-import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
+import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
 import { isDailyTailStale, isIntradayTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
@@ -5035,7 +5035,22 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane
+  // SPLIT / RE-BASIS heal (render path). The pack importer already drops a stale
+  // wrong-basis IDB entry when the authoritative tail disagrees (_closeMismatch in
+  // _importBatch), but a chart that paints straight from IDB BEFORE any pack re-ingest
+  // has no such guard — so a serve-time re-adjustment (a split, or a stale-server heal
+  // like the 2026-08-31 bars.db resync) shows the OLD basis: internally consistent and
+  // current-dated (so idbStaleDaily/_idbDailyLastInsane both miss it), yet 2x+ off the
+  // fresh server — the SOXL "$293 IDB vs $111 live" blank. Compare the newest CLOSED
+  // network bar to the IDB bar on that SAME date: a past session's close only moves on
+  // a re-adjustment, never on normal trading, and a closed (not developing) bar avoids
+  // an intraday-move false positive. On a mismatch, treat IDB as poisoned → render the
+  // fresh network (via _idbFresh=false below) and purge the entry (effect) so the next
+  // fetch is a clean FULL refetch, not a `since=` delta merged onto the wrong basis.
+  const _netClosed = (_netMatches && data.bars.length >= 2) ? data.bars[data.bars.length - 2] : null
+  const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
+    && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -5144,6 +5159,18 @@ export default function StockChart({
     const id = setTimeout(() => setShowSkeleton(true), 150)
     return () => clearTimeout(id)
   }, [loading])
+  // Basis-mismatch purge: once a re-based (wrong-basis) IDB entry is detected, the
+  // render already falls back to the fresh network (via _idbFresh=false), but the
+  // poisoned entry lingers and would feed a `since=` delta on the next open. Drop it
+  // so the next fetch is a clean full refetch. One-shot per (sym, tf) mismatch.
+  const _basisPurgedRef = useRef(null)
+  useEffect(() => {
+    if (!_idbBasisMismatch) return
+    const k = `${sym}_${resolvedTf}`
+    if (_basisPurgedRef.current === k) return
+    _basisPurgedRef.current = k
+    idbDelete(sym, resolvedTf)
+  }, [_idbBasisMismatch, sym, resolvedTf])
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
   // count, so a dead ticker never starves the grid mount queue waiting on it.

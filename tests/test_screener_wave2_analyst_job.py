@@ -5,6 +5,7 @@ receipt arithmetic closes). Every seam is monkeypatched; the clock is
 frozen via ap._now_et — no real FMP calls, no real sleeping, no real
 wall-clock dependency."""
 import datetime
+import time
 
 import api.services.screener.analyst_pass as ap
 
@@ -115,7 +116,18 @@ def test_tail_rotation_is_stable_across_a_repeated_day_index():
 
 def test_run_pass_stops_at_the_deadline_and_the_receipt_closes(monkeypatch, tmp_path):
     _use_tmp_db(monkeypatch, tmp_path)
-    started = datetime.datetime(2026, 8, 22, 2, 0, tzinfo=ap._ET)
+    # ⛔⛔ ANCHORED TO TODAY, NOT A DATE LITERAL. THIS TEST WAS A TIME BOMB AND
+    # IT WENT OFF. `_now_et` is faked (the deadline logic needs a fixed 2 AM ET
+    # clock) but `read_analyst_fields` reads the REAL wall clock for its 8-day
+    # freshness cutoff — a HALF-FAKED CLOCK. With `started` pinned to
+    # 2026-08-22, every row this test writes fell outside that window exactly
+    # 8 days later, and the read-backs began failing on ~2026-08-29 with a
+    # KeyError that looked like a product bug and was a fixture rotting.
+    # Anchoring the fake clock to TODAY at 02:00 ET keeps one consistent clock:
+    # the deadline arithmetic still gets its fixed ET hour, and everything this
+    # test writes stays inside the freshness window whenever the suite runs.
+    started = datetime.datetime.now(ap._ET).replace(
+        hour=2, minute=0, second=0, microsecond=0)
     deadline = ap._deadline_et(started)
 
     monkeypatch.setattr(ap, "actives", lambda failures=None: {"AAA", "BBB", "CCC"})
@@ -239,3 +251,21 @@ def test_enabled_defaults_off(monkeypatch):
     assert ap.enabled() is False
     monkeypatch.setenv("SCREENER_ANALYST_PASS_ENABLED", "1")
     assert ap.enabled() is True
+
+
+def test_the_freshness_read_accepts_an_injected_clock(monkeypatch, tmp_path):
+    """⛔ THE SEAM THAT LET A TEST ROT. `run_pass(now=...)` was injectable and
+    `read_analyst_fields` was not, so a fixture could fake the WRITE clock and
+    silently keep the real READ clock. Both halves are injectable now, and this
+    pins it: a row written 9 days before an injected `now` is stale against it,
+    and fresh against a `now` one day later than the row.
+    """
+    _use_tmp_db(monkeypatch, tmp_path)
+    anchor = time.time()
+    row = {"consensus": "Buy", "pt_target": 12.5, "upgrades_30d": None,
+           "downgrades_30d": None, "eps_next_y_growth": None}
+    ap.upsert("ZZZ", row, now=anchor - 9 * 86400)
+
+    assert ap.read_analyst_fields(["ZZZ"], now=anchor) == {}
+    fresh = ap.read_analyst_fields(["ZZZ"], now=anchor - 8 * 86400 + 60)
+    assert fresh["ZZZ"]["pt_target"] == 12.5

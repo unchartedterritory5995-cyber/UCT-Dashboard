@@ -1,3 +1,4 @@
+import time
 from api.services.pattern_engine import diagnostics
 from api.services.pattern_engine import memory
 from api.services.auth_db import init_db
@@ -23,7 +24,12 @@ def _det(**overrides):
         "narrative": {"headline": "", "what_it_is": "", "why_it_matters": "",
                       "what_to_watch_for": "", "failure_signal": ""},
         "status": "ready", "outcome": None,
-        "detected_at": 1700100100, "last_seen_at": 1700100100,
+        # ⛔ RELATIVE TO NOW, NEVER A DATE LITERAL. `get_active_detections`
+        # windows on `detected_at >= now - ACTIVE_WINDOW_SECS` (7d, added
+        # 2026-08-26). A 2023 literal sits silently outside it and empties
+        # the assert -- which reads as a product bug and is a fixture rotting.
+        "detected_at": int(time.time()) - 60,
+        "last_seen_at": int(time.time()) - 60,
     }
     base.update(overrides)
     return base

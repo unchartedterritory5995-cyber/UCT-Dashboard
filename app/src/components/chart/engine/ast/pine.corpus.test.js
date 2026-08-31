@@ -329,7 +329,13 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // always a win either. Here it is an OVER-REFUSAL being withdrawn: the door
     // was reporting an error inside a plot the member cannot see. The guard is
     // still live and still right for a `vwap(x)` on a plot that is switched ON.
-    expect(fired.size).toBe(9)
+    // ⭐ 9 → 10 ON 2026-08-31, and UP is the honest direction here. `pine:cycle`
+    // joined because `float(x)` now folds to the identity: 02-ict's four output
+    // refusals stopped at a CAST before and now reach what is actually blocking
+    // them (`pine:state` ×2, `pine:cycle` ×2). Same shape as the `pine:arity`
+    // movement recorded above, run the other way — a guard entering this set
+    // means a published script finally exercises a sentence nobody had read.
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

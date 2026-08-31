@@ -1,3 +1,4 @@
+import time
 """Smoke test for the types module — verifies all TypedDicts can be constructed
 and that the schema matches the spec."""
 from api.services.pattern_engine.types import (

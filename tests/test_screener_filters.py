@@ -990,15 +990,58 @@ def test_pattern_engine_flags_are_preset_free_bool_controls():
         assert f["allow_custom"] is False, key
         assert f["unit"] is None, key
         assert filters.is_valid_op(key, "eq"), key
-    # ⛔ AND THE LABEL SAYS WHICH ENGINE ANSWERED. The always-on `patterns`
-    # heuristic ships its own "VCP"/"Flat Base" presets on the `pattern` enum
-    # over a different column; two controls reading "VCP" over two different
-    # instruments is the second-authority defect wearing one word.
+    # ⛔ AND THE LABEL SAYS WHICH ENGINE ANSWERED.
     for key in ("pattern_engine_vcp", "pattern_engine_flat_base"):
         assert "engine" in filters.FILTERS[key]["label"].lower(), key
-    enum_labels = [p["label"] for p in filters.FILTERS["pattern"]["presets"]]
-    assert "VCP" in enum_labels and "Flat Base" in enum_labels
-    assert filters.FILTERS["pattern"]["column"] == "patterns"
+
+    # ⚰️ UPDATED 2026-08-30 — THE COLLISION THIS GUARDED IS GONE, BY DELETION.
+    # This used to assert that the always-on `patterns` heuristic ALSO shipped
+    # "VCP"/"Flat Base" presets over a different column, which is why the flag
+    # labels had to name their engine: two controls reading "VCP" over two
+    # instruments is the second-authority defect wearing one word. That cheap
+    # vocabulary was retired with the Base & Structure library, so the assertion
+    # now checks the stronger property — no OTHER control may offer a preset
+    # whose label collides with a per-pattern engine flag.
+    # ⚠️ REWRITTEN 2026-08-31. The previous form asserted that NO other control
+    # may offer a preset whose label contains an engine word -- a proxy, and
+    # once the Base & Structure library shipped a sourced, gated, MEASURED
+    # "Flat Base" structure, that proxy flagged the correct design. Two
+    # controls answering "flat base" is only a defect when a member cannot
+    # tell WHICH INSTRUMENT answered, and the engine flags already say
+    # "(Pattern Engine)".
+    #
+    # So this now checks the property directly, and it is STRICTER than the
+    # proxy was in the way that matters: for each engine word, at most ONE
+    # member-visible control may present it UNQUALIFIED. A second unqualified
+    # one is the second-authority defect wearing a single word, whether it
+    # arrives as a filter label or as a preset inside another control.
+    engine_words = {"vcp", "flat base"}
+    for word in engine_words:
+        unqualified = []
+        for key, f in filters.FILTERS.items():
+            label = str(f.get("label", "")).strip().lower()
+            if word in label and "engine" not in label:
+                unqualified.append("filter:" + key)
+            for preset in f.get("presets") or []:
+                plabel = str(preset.get("label", "")).strip().lower()
+                if plabel == word:
+                    owner = str(f.get("label", "")).lower()
+                    if "engine" not in owner and "engine" not in plabel:
+                        unqualified.append("%s preset:%s" % (key, plabel))
+        assert len(unqualified) <= 1, (
+            "%r is presented unqualified by more than one control (%s) -- a "
+            "member cannot tell which instrument answered"
+            % (word, ", ".join(sorted(unqualified))))
+
+    # And every engine flag must still name its engine, which is what makes
+    # the single-unqualified rule above safe.
+    for key, f in filters.FILTERS.items():
+        if not key.startswith("pattern_engine_"):
+            continue
+        label = str(f.get("label", "")).lower()
+        assert "engine" in label, (
+            f"{key} does not name its engine, so a colliding concept word "
+            f"would be indistinguishable to a member")
 
 
 def test_the_flag_controls_are_derived_from_the_ONE_writer():
@@ -1088,3 +1131,45 @@ def test_no_filter_family_is_entirely_invisible():
     # reason and rails nothing.
     probe = {"ghost": {"col_that_no_view_shows"}}
     assert [fam for fam, cols in probe.items() if not (cols & shown)] == ["ghost"]
+
+
+def test_the_list_option_helper_actually_returns_options(tmp_path, monkeypatch):
+    """⛔ THE RAIL THAT WOULD HAVE CAUGHT A SILENT SQL FAILURE.
+
+    `_distinct_list_options` ends in a bare `except: return [{"label": "Any"}]`,
+    so a broken query does not raise — it renders as a control with no options,
+    which looks like "no data" and is indistinguishable from a shipped filter
+    that matches nothing. That is exactly what happened: the first draft's
+    `!= ''` clause terminated its own f-string, produced a SQL syntax error,
+    and returned an empty list against a column holding 2,889 populated rows.
+
+    So the helper is pinned against a populated column, and the assertion is
+    that it returns MORE than the bare "Any" — a vacuous pass is the failure
+    mode here.
+    """
+    import sqlite3
+    from api.services.screener import filters, snapshot_db
+
+    db = tmp_path / "s.db"
+    monkeypatch.setenv("SCREENER_DB_PATH", str(db))
+    import importlib
+    importlib.reload(snapshot_db)
+    snapshot_db.init_db()
+    con = sqlite3.connect(str(db))
+    con.execute(
+        "INSERT INTO screener_rows (ticker, snapshot_date, pattern_engine_ids) "
+        "VALUES (?,?,?)", ("AAA", "2026-08-30", ",head_shoulders,cup_handle,"))
+    con.execute(
+        "INSERT INTO screener_rows (ticker, snapshot_date, pattern_engine_ids) "
+        "VALUES (?,?,?)", ("BBB", "2026-08-30", ",inverse_head_shoulders,"))
+    con.commit()
+    con.close()
+
+    opts = filters._distinct_list_options("pattern_engine_ids")
+    values = {o.get("value") for o in opts if o.get("value")}
+    assert len(opts) > 1, "the helper returned no options against populated data"
+    assert values == {",head_shoulders,", ",cup_handle,",
+                      ",inverse_head_shoulders,"}
+    # ⛔ and the wrapping keeps the two colliding ids apart
+    assert ",head_shoulders," not in ",inverse_head_shoulders,"
+    importlib.reload(snapshot_db)

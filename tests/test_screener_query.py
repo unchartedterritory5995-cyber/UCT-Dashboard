@@ -33,9 +33,16 @@ def test_build_where_rejects_bad_op():
 
 
 def test_contains_uses_like():
-    sql, params = query.build_where([{"key": "pattern", "op": "contains", "value": "vcp"}])
-    assert '"patterns" LIKE ?' in sql
-    assert params == ["%vcp%"]
+    """⚰️ Re-pointed 2026-08-30: this used `pattern`/`patterns`, retired with
+    the Base & Structure library. `base_structure` is now the `contains`
+    control, and it queries `base_matches` — the delimiter-wrapped column, so
+    the value carries its own commas and a search for one key cannot match a
+    longer key that contains it.
+    """
+    sql, params = query.build_where(
+        [{"key": "base_structure", "op": "contains", "value": ",darvas-box,"}])
+    assert '"base_matches" LIKE ?' in sql
+    assert params == ["%,darvas-box,%"]
 
 
 def test_run_scan_filters_and_paginates(tmp_path, monkeypatch):

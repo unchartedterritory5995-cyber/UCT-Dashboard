@@ -23,7 +23,12 @@ def test_build_row_merges_all_groups(tmp_path, monkeypatch):
     assert row["ma_stack"] == "full-bull"
     assert row["candle_type"] is not None
     assert row["avg_volume_30d"] == 1_000_000
-    assert row["patterns"]  # rising series -> at least breakout_52w
+    # ⚰️ 2026-08-30: was `row["patterns"]`, the retired six-detector
+    # heuristic. The structure group replaces it, and its SHAPE is a total
+    # partition — every row with enough history gets exactly one, so this
+    # asserts a stronger property than the old column could.
+    assert row["base_shape"]
+    assert row["base_matches"].startswith(",")
     assert "snapshot_date" in row and row["built_at"]
 
 
@@ -407,7 +412,7 @@ def test_a_raising_consumer_still_advances_the_rows_date(monkeypatch):
     dead, the row still says which session its bars came from — a row that
     cannot date itself is the one shape no downstream label can rescue."""
     from api.services.screener import (snapshot_builder as b, technicals,
-                                       candles, setup_score, patterns)
+                                       candles, setup_score, bases)
 
     def _boom(*a, **k):
         raise RuntimeError("dead")
@@ -415,7 +420,7 @@ def test_a_raising_consumer_still_advances_the_rows_date(monkeypatch):
     for mod, fn in ((technicals, "compute_technicals"),
                     (technicals, "ath_fields"), (candles, "single_candle"),
                     (candles, "multi_candle"), (setup_score, "compute"),
-                    (patterns, "detect_patterns")):
+                    (bases, "classify")):
         monkeypatch.setattr(mod, fn, _boom)
     bars = _bars()
     failures = {}
@@ -429,7 +434,7 @@ def test_a_raising_consumer_still_advances_the_rows_date(monkeypatch):
     # day, while the property actually under test — every failure is NAMED, never
     # rolled into one anonymous bucket — had not changed at all.
     named = {"bars_technicals", "bars_ath_fields", "bars_single_candle",
-             "bars_multi_candle", "bars_setup_score", "bars_detect_patterns"}
+             "bars_multi_candle", "bars_setup_score", "bars_structure"}
     assert named <= set(failures), sorted(named - set(failures))
     # each entry is keyed by its own label and counts the exception BY TYPE
     for label, kinds in failures.items():

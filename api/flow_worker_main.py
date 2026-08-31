@@ -319,7 +319,8 @@ def _start_flow_schedulers():
             # is ~120s and was timing out the join -> 0-row board).
             from api import confluence_flow
             confluence_flow.start_background_warm()
-            log.info("[startup] confluence flow-leg warmer started")
+            log.info("[startup] confluence flow-leg warmer started (OFF-HOURS only, "
+                     "single-flight; CONFLUENCE_WARM_ENABLED=0 to disable)")
         except Exception as e:  # noqa: BLE001
             log.warning("confluence warmer start failed: %s", e)
 

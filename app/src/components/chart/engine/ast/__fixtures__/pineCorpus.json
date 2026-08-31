@@ -24,7 +24,8 @@
    "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:function": 4
+   "pine:state": 2,
+   "pine:cycle": 2
   },
   "hiddenScaffolding": 4
  },

@@ -135,9 +135,24 @@ export function bareSwrPollSites(source) {
         && ((p.key.type === 'Identifier' && p.key.name === 'refreshInterval')
           || (p.key.type === 'Literal' && p.key.value === 'refreshInterval'))
       if (!isInterval) continue
+      const interval = source.slice(p.value.start, p.value.end).replace(/\s+/g, ' ')
+      // ⛔⛔ A LITERAL `0` IS NOT A POLLING SITE, and this census exists to force
+      // ONE question: does halving the tick on a touch client help here? For a
+      // site that never ticks the question has no content — half of zero is zero
+      // — and `useMobileSWR` would add a visibilitychange listener and a 60s
+      // `useMarketOpen` timer for a request that fires once.
+      //
+      // ⚠️ LITERAL ONLY, NEVER "an expression that mentions 0". `EvidenceTab`'s
+      // site is `polling ? pollMs : 0` and MUST stay counted — it polls while a
+      // job runs, which is exactly a decision worth recording. Widening this to
+      // any expression containing a zero would silently drop it, so a case below
+      // asserts the conditional form is still found.
+      // ⭐ AND THE FAILURE DIRECTION IS RIGHT: change the `0` to any other value
+      // and the site reappears in the census, red, needing a decision.
+      if (interval === '0') continue
       out.push({
         line: source.slice(0, n.start).split('\n').length,
-        interval: source.slice(p.value.start, p.value.end).replace(/\s+/g, ' '),
+        interval,
       })
     }
   })
@@ -238,9 +253,15 @@ const BARE_POLL_SITES = {
   // ⚠️ RECORDING A DECISION IS NOT SILENCING ONE. This row is added because the
   // reasoning is written at the call site and is checkable there; if that comment
   // and this row ever disagree, the call site is the authority.
+  // ⚰️ THREE ROWS LEFT THIS LIST on 2026-08-31 and none of them was ever a
+  // polling site: `SetupSection.jsx`, `useExpectedMove.js` and `useTranscript.js`
+  // all write a LITERAL `refreshInterval: 0`. The detector counted any mention of
+  // the key, so a site that never ticks sat in an allow-list whose entire subject
+  // is whether halving the tick would help. `bareSwrPollSites` now skips a literal
+  // zero — and the shrink-or-fail half of this rail is what forced these three to
+  // be looked at rather than quietly left behind.
   'app/src/hooks/useConfluence.js': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
-  'app/src/components/research/sections/SetupSection.jsx': 1,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,
   'app/src/components/tiles/FlowScoreboardTile.jsx': 1,
   'app/src/components/tiles/IntradayPulse.jsx': 1,
@@ -251,7 +272,6 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useCatalysts.js': 1,
   'app/src/hooks/useEarningsAudio.js': 1,
   'app/src/hooks/useEarningsTable.js': 1,
-  'app/src/hooks/useExpectedMove.js': 1,
   'app/src/hooks/useFilings.js': 1,
   'app/src/hooks/useFundamentals.js': 1,
   'app/src/hooks/useIndicatorAlerts.js': 1,
@@ -262,7 +282,6 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useSeen.js': 1,
   'app/src/hooks/useSentiment.js': 1,
   'app/src/hooks/useTickerTags.js': 1,
-  'app/src/hooks/useTranscript.js': 1,
   'app/src/hooks/useUserTickerSet.js': 1,
   'app/src/hooks/useWatchlistAlerts.js': 1,
   'app/src/hooks/useWatchlistMeta.js': 1,
@@ -447,5 +466,28 @@ describe('polling sites — the opt-in helper gets a rail', () => {
     const prose = "// refreshInterval: 30_000 would poll here\n"
       + "const s = 'refreshInterval'\n"
     expect(bareSwrPollSites(prose)).toEqual([])
+
+    // ⛔⛔ A LITERAL `0` IS NOT A POLL, AND A CONDITIONAL ZERO STILL IS.
+    // This pair is the whole guard on the exclusion added 2026-08-31. Half of
+    // zero is zero, so the census question cannot apply to a site that never
+    // ticks — three rows left the allow-list on that reasoning. But widening it
+    // to "an expression mentioning 0" would silently drop `EvidenceTab`'s
+    // `polling ? pollMs : 0`, which polls while a job runs and IS a decision.
+    // Without the second half, the exclusion could grow to cover it and nothing
+    // would say so.
+    const zero = "import useSWR from 'swr'\n"
+      + "export default () => useSWR('/api/x', f, { refreshInterval: 0 })\n"
+    expect(bareSwrPollSites(zero)).toEqual([])
+
+    const conditional = "import useSWR from 'swr'\n"
+      + "export default (p) => useSWR('/api/x', f, { refreshInterval: p ? 3000 : 0 })\n"
+    expect(bareSwrPollSites(conditional)).toHaveLength(1)
+    expect(bareSwrPollSites(conditional)[0].interval).toBe('p ? 3000 : 0')
+
+    // ⭐ AND THE FAILURE DIRECTION: change the 0 to anything else and it is a
+    // site again, red, needing a decision.
+    const woken = "import useSWR from 'swr'\n"
+      + "export default () => useSWR('/api/x', f, { refreshInterval: 1 })\n"
+    expect(bareSwrPollSites(woken)).toHaveLength(1)
   })
 })
