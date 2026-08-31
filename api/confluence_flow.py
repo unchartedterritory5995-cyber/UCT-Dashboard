@@ -48,7 +48,11 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
     if hit and now - hit[0] < _TTL:
         return hit[1]
     try:
-        trades, window = wf.load_directional_trades(days, min_dte, cap, min_premium=0.0)
+        # Use the board's per-print premium floor ($25k) — WITHOUT it the query
+        # loads every directional print and the aggregate times out at the gateway.
+        # Matches the Open-Flow board exactly (same floor, same still-open engine).
+        trades, window = wf.load_directional_trades(
+            days, min_dte, cap, min_premium=wf._BOARD_MIN_PREMIUM)
         agg = wf.aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
         ref = date.today()
         names: dict = {}
