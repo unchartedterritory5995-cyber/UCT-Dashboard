@@ -846,3 +846,77 @@ def test_a_FIVE_trial_screen_can_screen_but_cannot_publish():
     assert escalated["published"] is True, (
         "the same result must publish once it has been escalated, or the gate "
         "is refusing on trial count alone")
+
+
+# ── the metric's DIRECTION ─────────────────────────────────────────────────
+
+def _falls_then_recovers():
+    bars = [{"t": i, "o": 100, "c": 100, "h": 101, "l": 99} for i in range(3)]
+    bars += [{"t": 3 + i, "o": 100 - i * 2, "c": 100 - i * 2,
+              "h": 101 - i * 2, "l": 99 - i * 2} for i in range(10)]
+    bars += [{"t": 20 + i, "o": 100, "c": 100, "h": 101, "l": 99}
+             for i in range(15)]
+    return bars
+
+
+def test_the_short_metric_is_the_MIRROR_of_the_long_one():
+    """⭐⭐ SO THAT 'LIFT' MEANS THE SAME THING FOR EVERY STRUCTURE.
+
+    The metric was a LONG outcome applied to all structures regardless of
+    bias, which made a bearish row read backwards: `stage-4-breakdown`
+    published +7.30pp, and under a long metric that says price resolved UPWARD
+    more often after a breakdown -- the opposite of the claim the name makes.
+    A number that needs a footnote to avoid being read as its own negation is
+    not worth publishing.
+    """
+    bars = _falls_then_recovers()
+    assert ll.outcome(bars, 2, horizon=20, direction="long") is False
+    assert ll.outcome(bars, 2, horizon=20, direction="short") is True
+
+
+def test_the_two_directions_disagree_on_the_same_series():
+    """The control. If both graded a series identically the mirroring would be
+    decorative, and every assertion above would hold for a detector that
+    ignored `direction` entirely.
+    """
+    rises = [{"t": i, "o": 100 + i, "c": 100 + i, "h": 101 + i, "l": 99 + i}
+             for i in range(40)]
+    assert ll.outcome(rises, 2, horizon=20, direction="long") is True
+    assert ll.outcome(rises, 2, horizon=20, direction="short") is False
+
+
+def test_a_bearish_structure_is_graded_SHORT_and_a_bullish_one_LONG():
+    """The wiring, read off the shipped runner rather than restated here."""
+    import importlib.util
+    import os
+
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+    spec = importlib.util.spec_from_file_location(
+        "rll", os.path.join(root, "tools", "run_lift_ledger.py"))
+    rll = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rll)
+
+    from api.services.screener import base_catalog as bc
+
+    bearish = [s for s in bc.RELATIONS if s.bias == "bearish"]
+    assert bearish, "fixture: there must be a bearish structure to check"
+    for st in bearish:
+        assert rll._direction_of(st) == "short", st.key
+    for st in bc.RELATIONS:
+        if st.bias != "bearish":
+            assert rll._direction_of(st) == "long", st.key
+
+
+def test_every_row_records_which_direction_it_was_graded_on():
+    """⛔ A lift whose direction is not recorded cannot be read at all: +7.30pp
+    means opposite things depending on which question was asked.
+    """
+    entries = (ll.load().get("structures") or {})
+    graded = [k for k, v in entries.items() if v.get("lift") is not None]
+    assert graded, "no measured rows -- this rail would pass vacuously"
+    for key in graded:
+        d = entries[key].get("direction")
+        assert d in ("long", "short"), (
+            "%s records direction=%r; a lift without its direction is "
+            "unreadable" % (key, d))

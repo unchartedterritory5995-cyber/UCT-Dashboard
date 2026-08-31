@@ -108,7 +108,8 @@ NULL_BLOCK_BARS = 21
 
 
 def outcome(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
-            target: float = TARGET_PCT, stop: float = STOP_PCT) -> Optional[bool]:
+            target: float = TARGET_PCT, stop: float = STOP_PCT,
+            direction: str = "long") -> Optional[bool]:
     """Did the target come before the stop, starting from bar `i`?
 
     `True` target-first · `False` stop-first or neither · `None` not evaluable
@@ -118,12 +119,43 @@ def outcome(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
     question a member asks is "did this work", and an unresolved trade did not.
     Splitting them is a different, also-valid metric; mixing the two
     definitions between the conditional and the baseline would not be.
+
+    ⭐⭐ `direction` MAKES "LIFT" MEAN THE SAME THING FOR EVERY STRUCTURE. The
+    metric was a LONG outcome applied to all of them regardless of bias, and
+    that made a bearish structure's number read backwards: `stage-4-breakdown`
+    published +7.30pp, which under a long metric says price resolved UPWARD
+    more often after a breakdown than baseline -- an oversold-bounce reading,
+    and the exact opposite of what a reader seeing "Stage 4 Breakdown: +7.30pp"
+    would assume. A number that requires a footnote to avoid being read as its
+    own negation is not a number worth publishing.
+
+    With `direction="short"` the same test runs mirrored: the target is a FALL
+    of `target`, the stop a RISE of `stop`. A positive lift then means the same
+    thing on both sides -- the structure resolved in ITS OWN direction more
+    often than its pattern-free baseline did.
+
+    ⛔ The baseline is measured with the SAME direction as the conditional
+    half; comparing a short-side rate against a long-side baseline would be
+    the definition mixing this docstring already warns about, one level up.
     """
     if i < 0 or i + horizon >= len(bars):
         return None
     entry = bars[i].get("c") or 0
     if entry <= 0:
         return None
+    if direction == "short":
+        hit, miss = entry * (1 - target), entry * (1 + stop)
+        for j in range(i + 1, i + 1 + horizon):
+            b = bars[j]
+            lo, hi = b.get("l") or 0, b.get("h") or 0
+            if lo <= 0 or hi <= 0:
+                continue
+            if hi >= miss:
+                return False
+            if lo <= hit:
+                return True
+        return False
+
     up, dn = entry * (1 + target), entry * (1 - stop)
     for j in range(i + 1, i + 1 + horizon):
         b = bars[j]
@@ -153,7 +185,8 @@ _SCAN_ERRORS = [0]
 
 def scan_series(detect: Callable, bars: List[dict], *, step: int = HORIZON_BARS,
                 window: int = 400, min_history: int = 260,
-                horizon: int = HORIZON_BARS) -> List[tuple]:
+                horizon: int = HORIZON_BARS,
+                direction: str = "long") -> List[tuple]:
     """Walk one ticker and return `(year, fired, outcome)` per anchor.
 
     ⛔ The detector only ever sees `bars[:i+1]` — never a bar after the anchor.
@@ -163,7 +196,7 @@ def scan_series(detect: Callable, bars: List[dict], *, step: int = HORIZON_BARS,
     out = []
     n = len(bars)
     for i in range(min_history, n - horizon - 1, step):
-        res = outcome(bars, i, horizon=horizon)
+        res = outcome(bars, i, horizon=horizon, direction=direction)
         if res is None:
             continue
         lo = max(0, i + 1 - window)
@@ -212,7 +245,8 @@ def scan_series_many(detectors: Dict[str, Callable], bars: List[dict], *,
                      prepare: Optional[Callable] = None,
                      step: int = HORIZON_BARS, window: int = 400,
                      min_history: int = 260,
-                     horizon: int = HORIZON_BARS) -> Dict[str, List[tuple]]:
+                     horizon: int = HORIZON_BARS,
+                     direction: str = "long") -> Dict[str, List[tuple]]:
     """`scan_series` for several detectors at once, over ONE pass.
 
     ⭐⭐ WHY THIS EXISTS. Every detector was re-deriving the same thing. The
@@ -238,7 +272,7 @@ def scan_series_many(detectors: Dict[str, Callable], bars: List[dict], *,
         _SCAN_ERRORS_BY[k] = 0
     n = len(bars)
     for i in range(min_history, n - horizon - 1, step):
-        res = outcome(bars, i, horizon=horizon)
+        res = outcome(bars, i, horizon=horizon, direction=direction)
         if res is None:
             continue
         lo = max(0, i + 1 - window)

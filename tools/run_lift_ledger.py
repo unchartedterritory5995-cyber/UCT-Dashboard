@@ -206,6 +206,19 @@ def _carry_note(prior: dict, row: dict) -> None:
             "row changed. Re-write it against the numbers above.")
 
 
+def _direction_of(st) -> str:
+    """Which way a structure claims price will resolve.
+
+    ⭐ A BEARISH STRUCTURE IS GRADED ON THE MIRRORED METRIC, so "lift" means
+    the same thing for every row: the structure resolved in ITS OWN direction
+    more often than its pattern-free baseline did. Graded long, a bearish
+    structure's positive lift says price went UP after it -- which is the
+    opposite of the claim its name makes, and `stage-4-breakdown` published
+    +7.30pp under exactly that reading.
+    """
+    return "short" if getattr(st, "bias", "") == "bearish" else "long"
+
+
 def _run_grouped(args, bars_by, wanted, existing) -> int:
     """Measure every requested structure, one pass per WINDOW group.
 
@@ -218,22 +231,31 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
     import collections
 
     structures = dict((existing.get("structures") or {}))
+    # ⛔ GROUPED BY (WINDOW, DIRECTION), NOT WINDOW ALONE. Two structures may
+    # share a scan only if they see the same bars per anchor AND grade the
+    # same outcome. A bearish structure is graded on the MIRRORED metric, so
+    # putting it in a long-side pass would silently measure it against the
+    # wrong question -- the failure would be invisible, because the numbers
+    # would still look like numbers.
     groups = collections.OrderedDict()
     for st in bc.RELATIONS:
         if wanted and st.key not in wanted:
             continue
-        groups.setdefault(WINDOWS.get(st.key, DEFAULT_WINDOW), []).append(st)
+        key = (WINDOWS.get(st.key, DEFAULT_WINDOW), _direction_of(st))
+        groups.setdefault(key, []).append(st)
 
     measured = []
-    for window, members in groups.items():
+    for (window, direction), members in groups.items():
         usable = {k: v for k, v in bars_by.items() if len(v) >= window + 25}
-        kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS)
+        kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS,
+                  direction=direction)
         dets = {st.key: (lambda s: (lambda ctx: bool(s.detect(ctx))))(st)
                 for st in members}
         prep = lambda w: bases._context(w, w)
 
         t0 = time.time()
-        print("=== window %d : %s ===" % (window, ", ".join(d.key for d in members)))
+        print("=== window %d, %s : %s ==="
+              % (window, direction, ", ".join(d.key for d in members)))
         obs = ll.measure_many(dets, usable, prepare=prep,
                               bootstrap=args.bootstrap, **kw)
         nulls = ll.null_lifts_many(dets, usable, prepare=prep,
@@ -257,7 +279,8 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
                 print("        refused: %s" % r)
 
             row = {"published": bool(verdict["published"]),
-                   "sample_tickers": len(usable)}
+                   "sample_tickers": len(usable),
+                   "direction": direction}
             if o["lift"] is not None:
                 row.update({"lift": round(o["lift"], 4),
                             "ci_low": round(o["ci_low"], 4),
@@ -358,7 +381,8 @@ def main() -> int:
         # found it on 21 of 3,541 tickers; those cannot both be true, and that
         # contradiction is the only reason the bug was caught.
         det = (lambda st: (lambda w: bool(st.detect(bases._context(w, w)))))(s)
-        kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS)
+        kw = dict(window=window, min_history=window, step=ll.HORIZON_BARS,
+                  direction=_direction_of(s))
 
         t0 = time.time()
 
@@ -406,7 +430,8 @@ def main() -> int:
         # its quietest form: nothing disagrees loudly, the header is just wrong
         # about most of the file.
         row = {"published": bool(verdict["published"]),
-               "sample_tickers": len(usable)}
+               "sample_tickers": len(usable),
+               "direction": _direction_of(s)}
         if obs["lift"] is not None:
             row.update({
                 "lift": round(obs["lift"], 4),

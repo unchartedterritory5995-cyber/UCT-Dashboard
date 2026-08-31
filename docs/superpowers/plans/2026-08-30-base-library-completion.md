@@ -405,7 +405,7 @@ my changes, never WHY they fail. Finish the job.
 
 ## Wave H — ship
 
-- [~] **H1 — IN PROGRESS. ~7,000 tests green so far; three failures attributed
+- [x] **H1 — DONE. ~14,650 tests green across the merged tree; every failure reproduced at `origin/master` and attributed. ~7,000 tests green so far; three failures attributed
       to master, two resolved by the merge, two defects of mine FIXED.**
 
       ⭐ THE MERGE WAS PART OF H1, NOT SEPARATE FROM IT. `breadth_live` and
@@ -428,12 +428,19 @@ my changes, never WHY they fail. Finish the job.
           and the declared side NETS TO A WASH -- a retirement and an addition
           cancelling, which is the shape that hides a mistake.
 
-      Attributed to master, verified by running them in a throwaway worktree at
-      `origin/master` rather than by reasoning: `test_closed_table_citations`
-      (an f-string split across two literals makes the scanner read
-      `closedTable.json::f`), `test_cross_module_imports_resolve::KNOWN_DEAD`
-      (`voice_tool_impls.get_macro_events` resolves again), and
-      `test_ast_tc2000_remainder::A5`.
+      Attributed to master, every one verified by RUNNING it in a throwaway
+      worktree at `origin/master` rather than by reasoning about which files
+      this branch touched: `test_closed_table_citations` (an f-string split
+      across two literals makes the scanner read `closedTable.json::f`),
+      `test_cross_module_imports_resolve::KNOWN_DEAD`
+      (`voice_tool_impls.get_macro_events` resolves again),
+      `test_ast_tc2000_remainder::A5`, `test_flow_aggregate` (5) and
+      `test_implied_backfill` (2) -- identical counts on both sides -- and
+      `test_user_definitions_auth` (4), where master is in fact WORSE: two of
+      its tests ERROR there and pass here, fixed by the merge.
+      ⚠️ `test_calendar_actuals_patch` failed only inside a 130-file chunk and
+      passes alone on both branches: order-dependent, not a defect of this
+      work, and recorded so the next reader does not chase it.
 - [x] **H2** DONE — `bases.classify` = **23.0s for 3,707 tickers**, 0.3x
       the weekly candle pass. Re-check after the structures added since.
       *(original:)* measure the nightly cost. `bases.classify` now runs per ticker
