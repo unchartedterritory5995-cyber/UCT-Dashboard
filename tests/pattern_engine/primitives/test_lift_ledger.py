@@ -195,7 +195,9 @@ def test_shuffling_refuses_a_series_with_a_non_positive_close():
 def test_a_ci_that_includes_zero_is_refused():
     res = {"lift": 0.02, "ci_low": -0.01, "ci_high": 0.05, "n": 30,
            "rate": 0.3, "baseline": 0.28, "years": ["2021"]}
-    out = ll.adjudicate(res, nulls=[0.0])
+    # padded to the escalated trial count: this test is about the other
+    # gates, not about trial depth, and publication now requires 30.
+    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS)
     assert out["published"] is False
     assert any("includes zero" in r for r in out["reasons"])
 
@@ -222,7 +224,9 @@ def test_a_missing_null_is_a_refusal_never_a_pass():
 def test_all_gates_passing_publishes_the_lift():
     res = {"lift": 0.09, "ci_low": 0.05, "ci_high": 0.13, "n": 900,
            "rate": 0.37, "baseline": 0.28, "years": ["2021"]}
-    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0])
+    # 30 trials, same three values repeated: this test is about the other
+    # gates, and publication now requires an ESCALATED null.
+    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0] * 10)
     assert out["published"] is True
     assert out["lift"] == 0.09
 
@@ -243,7 +247,9 @@ def test_a_negative_lift_whose_ci_excludes_zero_is_still_refused():
     """
     res = {"lift": -0.06, "ci_low": -0.09, "ci_high": -0.03, "n": 900,
            "rate": 0.22, "baseline": 0.28, "years": ["2021"]}
-    out = ll.adjudicate(res, nulls=[0.0])
+    # padded to the escalated trial count: this test is about the other
+    # gates, not about trial depth, and publication now requires 30.
+    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS)
     assert out["published"] is False
     assert any("random-data null" in r for r in out["reasons"])
 
@@ -275,7 +281,8 @@ def test_a_well_powered_lift_still_clears_the_same_null():
     """
     strong = {"lift": 0.0765, "ci_low": 0.0578, "ci_high": 0.0953, "n": 2625,
               "rate": 0.3467, "baseline": 0.2701, "years": ["2014", "2015"]}
-    out = ll.adjudicate(strong, nulls=[-0.0057, 0.0231, 0.010, 0.0, 0.008])
+    out = ll.adjudicate(strong, nulls=([-0.0057, 0.0231, 0.010, 0.0, 0.008]
+                                       * 6))   # 30 trials, same values
     assert out["published"] is True
     assert out["lift"] == 0.0765
 
@@ -788,7 +795,7 @@ def test_the_sign_gate_does_not_block_a_genuine_positive():
     verdict = ll.adjudicate(
         {"lift": 0.0735, "ci_low": 0.0678, "ci_high": 0.0796, "n": 24428,
          "rate": 0.3467, "baseline": 0.2732, "years": ["2020", "2021"]},
-        [0.0110, 0.0090])
+        [0.0110, 0.0090] * 15)   # 30 trials
     assert verdict["published"] is True
 
 
@@ -815,3 +822,27 @@ def test_member_visible_evidence_never_shows_a_negative_lift():
     for key, e in ev.items():
         assert e["lift_pp"] > 0, (
             "%s would show members a lift of %+.2fpp" % (key, e["lift_pp"]))
+
+
+def test_a_FIVE_trial_screen_can_screen_but_cannot_publish():
+    """⛔⛔ THE ESCALATION RULE BELONGS IN THE GATE, NOT IN A TEST.
+
+    It lived as a procedure -- "remember to re-run at 30" -- enforced by a rail
+    that runs AFTER the artifact is already written. So a screening run could
+    and did write `published: true` on five trials, and the discipline
+    depended on someone noticing. The gate now refuses it outright: a screen
+    screens, and only an escalated run can publish.
+
+    A refusal at five trials needs no such protection -- more draws can only
+    raise a bar already failed.
+    """
+    strong = {"lift": 0.0735, "ci_low": 0.0678, "ci_high": 0.0796, "n": 24428,
+              "rate": 0.3467, "baseline": 0.2732, "years": ["2020"]}
+    screened = ll.adjudicate(strong, [0.0110] * 5)
+    assert screened["published"] is False
+    assert any("only 5 null trials" in r for r in screened["reasons"])
+
+    escalated = ll.adjudicate(strong, [0.0110] * ll.ESCALATED_NULL_TRIALS)
+    assert escalated["published"] is True, (
+        "the same result must publish once it has been escalated, or the gate "
+        "is refusing on trial count alone")

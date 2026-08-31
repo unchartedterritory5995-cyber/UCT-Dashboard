@@ -88,6 +88,15 @@ NULL_TRIALS = 12
 #: recombines chunks must assert the ranges are disjoint and contiguous.
 NULL_SEED = 20260830
 
+#: A PUBLISHED row must have been graded against this many null trials. The
+#: 5-trial setting is a SCREEN and nothing more: the gate compares the CI's
+#: lower bound to the null's MAXIMUM, and a maximum can only grow with more
+#: draws, so a small trial count is a strictly easier bar. Leaving that as a
+#: procedural rule -- "remember to escalate" -- put the whole discipline in a
+#: test that runs after the artifact is already written. It belongs in the
+#: gate, so a screening run can screen and cannot publish.
+ESCALATED_NULL_TRIALS = 30
+
 #: Resamples for the cluster bootstrap CI. origin: uct.
 BOOTSTRAP_TRIALS = 400
 
@@ -512,6 +521,13 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
             f"the measured lift {lift:+.4f} is not positive: the structure "
             f"resolved no better than its own pattern-free baseline, so there "
             f"is no edge to publish (the result is kept as a finding)")
+
+    if nulls and len(nulls) < ESCALATED_NULL_TRIALS:
+        reasons.append(
+            f"graded against only {len(nulls)} null trials; a published row "
+            f"requires {ESCALATED_NULL_TRIALS}, because the null's maximum "
+            f"can only grow with more draws and a smaller count is a strictly "
+            f"easier bar (re-run with --null-trials {ESCALATED_NULL_TRIALS})")
 
     if nulls:
         worst = max(nulls)
