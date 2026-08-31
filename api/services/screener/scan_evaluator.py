@@ -2101,6 +2101,82 @@ def _finish_live(receipt: dict, started: datetime.datetime, *,
     return receipt
 
 
+#: The timeframe codes BELOW the daily rung, derived from the ladder rather than
+#: typed here. ``ast_interpret.TF_LADDER`` is low-to-high, so everything before
+#: ``DEFAULT_TF`` is intraday and everything after it is higher-timeframe — and a
+#: sixth intraday rung added to the ladder lands on the right side of this gate
+#: with no edit in this file.
+def _intraday_codes() -> tuple:
+    from api.services.ast_interpret import TF_LADDER      # noqa: PLC0415
+
+    return tuple(TF_LADDER[:TF_LADDER.index(DEFAULT_TF)])
+
+
+def _wrong_tf_reason(tf_code: str) -> str:
+    """Why this timeframe is refused — and it is NOT ONE REASON.
+
+    ⚰️⚰️ THIS GATE SAID ONE SENTENCE OVER THREE SITUATIONS, AND THE SENTENCE WAS
+    WRONG FOR TWO OF THEM. It read: *"the live sweep evaluates 'D' only in Wave 1;
+    intraday timeframes arrive with the prewarm ring's MEASURED per-symbol cost
+    (spec 5.5), never assumed."* The condition is ``tf_code != DEFAULT_TF``, so it
+    also catches ``W`` and ``M`` — which ``bars_prewarm`` already warms
+    UNIVERSE-WIDE (``for sym in ticker_list: jobs.append((sym, 'W', 5000))``) and
+    which therefore cost the prewarm ring nothing at all. An over-refusal has no
+    red test and no complaint attached to it; the only way it surfaces is somebody
+    reading the sentence and noticing it does not describe the case
+    (``lesson_an_over_refusal_is_invisible``).
+
+    ⚰️ AND ITS OWN PINNING TEST DROVE IT WITH ``"W"``. So the case the sentence is
+    actually about — intraday — was never exercised, and the case that WAS
+    exercised is the one the sentence describes wrongly. The test demonstrated the
+    defect rather than catching it (``lesson_rail_the_sentence_not_just_the_guard``).
+
+    ⛔⛔ AND THE INTRADAY SENTENCE NAMED THE WRONG BLOCKER TOO. It offers the
+    prewarm ring's cost as the thing that is missing. Two CORRECTNESS walls stand in
+    front of that cost, neither of them fixable by warming anything, and both free
+    to find:
+
+      * ``_last_confirmed_index`` keys on a YYYYMMDD ``session`` while an intraday
+        bar's ``t`` is unix seconds, which ``ledger._normalize_bar_time`` passes
+        through verbatim. An epoch never equals a YYYYMMDD, so on ``tf='5'`` every
+        symbol would drop ``stale-bars`` and the receipt would read as a
+        market-wide blackout. ``scan_store`` already documents this exact hazard
+        against its own ``as_of`` column, in those words: *"unix seconds, most
+        likely … It is not the correct key here."*
+      * ``live_bars_for`` builds the forming bar from the 30-second full-market
+        snapshot's SESSION aggregates — its own docstring says "the confirmed DAILY
+        bars … PLUS today's forming bar". There is no five-minute forming bucket
+        in that snapshot, so an intraday forming bar has no owner.
+
+    ⭐ A MEASUREMENT OF A COMPONENT THAT DOES NOT EXIST IS NOT A DATE. The ring the
+    original sentence points at — ``api/services/intraday_prewarm.py`` — has never
+    been written; the task that owned it was repurposed. Naming a cost as the
+    blocker made the gate look one measurement away from opening when it is not,
+    and hid two walls that outrank it.
+    """
+    if tf_code in _intraday_codes():
+        return (
+            f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1, and {tf_code!r} "
+            "is intraday. THREE things are missing and the cost is the LAST of them: "
+            "(1) `_last_confirmed_index` keys on a YYYYMMDD session while an intraday "
+            "bar's `t` is unix seconds, so every symbol would drop `stale-bars` and "
+            "the receipt would read as a market-wide blackout (`scan_store` documents "
+            "the same hazard against its own `as_of`); (2) `live_bars_for` builds the "
+            "forming bar from the 30-second snapshot's SESSION aggregates, which "
+            "carry no five-minute bucket, so an intraday forming bar has no owner; "
+            "and only then (3) the prewarm ring's MEASURED per-symbol cost (spec "
+            "5.5), which is never assumed — and whose ring, "
+            "`api/services/intraday_prewarm.py`, does not exist yet.")
+    return (
+        f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1, and {tf_code!r} is a "
+        "HIGHER timeframe rather than an intraday one. ⚠️ The prewarm ring's cost is "
+        f"NOT what stops it: `bars_prewarm` already warms {tf_code!r} universe-wide at "
+        "5000 bars, so it costs the ring nothing. What is missing is a forming bar — "
+        "`live_bars_for` builds today's from the 30-second snapshot's SESSION "
+        "aggregates, which is a DAY's, and a live sweep whose newest bar is last "
+        f"{tf_code!r}'s close would answer the same number every cycle until it rolls.")
+
+
 def _run_live_cycle(definitions: Sequence[Any], tf: str, *,
                     universe: Optional[Sequence[str]] = None,
                     deadline: Optional[datetime.datetime] = None) -> dict:
@@ -2144,11 +2220,7 @@ def _run_live_cycle(definitions: Sequence[Any], tf: str, *,
         tf_code = scan_store._normalise_tf(tf)
         receipt["tf"] = tf_code
         if tf_code != DEFAULT_TF:
-            raise ScanRunRefused(
-                "tf",
-                f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1; intraday "
-                "timeframes arrive with the prewarm ring's MEASURED per-symbol cost "
-                f"(spec 5.5), never assumed. Got {tf_code!r}.")
+            raise ScanRunRefused("tf", _wrong_tf_reason(tf_code))
 
         state = _live_session_state(started)
         if state:

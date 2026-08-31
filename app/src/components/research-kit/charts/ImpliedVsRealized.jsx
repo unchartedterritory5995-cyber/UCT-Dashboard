@@ -1,11 +1,23 @@
 // app/src/components/research-kit/charts/ImpliedVsRealized.jsx
+
+import useMeasuredWidth from './useMeasuredWidth'
+import { labelStep } from './format'
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import VerdictChip from '../VerdictChip'
 import styles from './ImpliedVsRealized.module.css'
 
+// `width` is the FALLBACK only. The rendered chart re-cuts its viewBox to the
+// wrapper's MEASURED pixel width (see `useMeasuredWidth`) so the viewBox scale
+// is always exactly 1 and one viewBox unit is one CSS pixel. Before that, the
+// svg was `width:100%` with a fixed 320-unit box and `meet`, which is
+// HEIGHT-limited at any container wider than 320px: scale pinned at
+// min(boxW/320, 140/140) = 1, so the chart drew 320px wide and centred inside
+// the modal's ~604px canvas — 53% of its width, with ~140px of dead margin on
+// each side, and the labels stuck at their literal 7-8 unit sizes.
 export const VIEWBOX = { width: 320, height: 140 }
-/** §3.4 skeleton size contract. */
+/** §3.4 skeleton size contract. The HEIGHT is what a skeleton has to reserve;
+ *  the width is fluid by design and always was (`SIZE.width === '100%'`). */
 export const SIZE = { width: '100%', height: VIEWBOX.height }
 
 const PAD_TOP = 12
@@ -211,7 +223,14 @@ export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.he
   const baselineY = PAD_TOP + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
-  const barW = Math.min(9, slot * 0.28)
+  // The cap used to be 9 units, which was the RIGHT number when the viewBox was
+  // always 320 wide (slot 35.6 -> 0.28*slot = 9.96, so the cap bound). Now that
+  // the box tracks the real container the slot roughly doubles on desktop, and a
+  // 9px bar in a 67px slot reads as a stick, not a column. 18 keeps the pair
+  // occupying the same FRACTION of its slot at the width this actually renders
+  // at; below ~320px the 0.28 term still binds first, so narrow layouts are
+  // byte-identical to before.
+  const barW = Math.min(18, slot * 0.28)
   const half = barW / 2 + 1
 
   const cols = list.map((p, i) => {
@@ -258,6 +277,10 @@ export default function ImpliedVsRealized({
   ariaLabel,
   recordedCount = null,
 }) {
+  // Both hooks run ABOVE the EmptyState early-return — an early return that
+  // skips a hook is the classic hook-order crash, and this component has one.
+  const [wrapRef, vbWidth] = useMeasuredWidth(VIEWBOX.width)
+
   const paired = pairQuarters(quarters, impliedHistory, live)
   const cold = coldStartState(paired, historySince, { recorded: recordedCount })
 
@@ -279,7 +302,10 @@ export default function ImpliedVsRealized({
     )
   }
 
-  const geo = pairGeometry(plotted)
+  const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height })
+  // Thin the axis on a narrow chart rather than shrinking the type below the
+  // smallest token — see labelStep's docblock.
+  const step = labelStep(geo.width / Math.max(geo.cols.length, 1))
   const chip = cold.cold ? null : impliedVerdict(paired, live)
   // I2: coldStartState's `cold` flag counts the LIVE current quarter as
   // "recorded", so it can read warm (cold.cold === false, cold.caption ===
@@ -298,8 +324,9 @@ export default function ImpliedVsRealized({
       {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
 
       <svg
+        ref={wrapRef}
         className={styles.svg}
-        viewBox={`0 0 ${VIEWBOX.width} ${VIEWBOX.height}`}
+        viewBox={`0 0 ${vbWidth} ${VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
         style={{ height }}
         role="img"
@@ -308,7 +335,7 @@ export default function ImpliedVsRealized({
       >
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
 
-        {geo.cols.map((c) => (
+        {geo.cols.map((c, i) => (
           <g key={c.key}>
             {c.implied && (
               <rect
@@ -334,9 +361,11 @@ export default function ImpliedVsRealized({
                 NOW
               </text>
             )}
-            <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
-              {c.isCurrent ? `±${c.label}` : c.label}
-            </text>
+            {(i % step === 0 || c.isCurrent) && (
+              <text className={styles.qlabel} x={c.cx} y={geo.labelY} textAnchor="middle">
+                {c.isCurrent ? `±${c.label}` : c.label}
+              </text>
+            )}
           </g>
         ))}
       </svg>

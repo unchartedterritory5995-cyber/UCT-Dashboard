@@ -114,6 +114,8 @@ from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
+from api.routers import dashboard_signposts as dashboard_signposts_router
+from api.routers import market_calendar as market_calendar_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import etf as etf_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
@@ -3517,6 +3519,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # Rich ticker SEARCH index (symbol + name + type + exchange from Massive's
+    # reference feed) — powers the /charts Symbol Search modal's name matching
+    # (e.g. "AAPL" → AAPU/AAPD). Loads a disk snapshot instantly, rebuilds daily.
+    try:
+        from api.services import ticker_search_index as _tsi
+        _tsi.start_background_build()
+        print("[startup] ticker-search index build scheduled")
+    except Exception as e:
+        print(f"[startup] ticker-search index scheduling failed (non-fatal): {e}")
+
     # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
     # Flag-gated so it runs exactly once; background + low-concurrency so it never
     # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.
@@ -4313,6 +4325,27 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpff:
             print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
 
+        # -- Confluence Radar: warm the board cache (2026-08-30) ----------------
+        # Dark-pool accumulation × LEAP/size-with-time flow join. The compute is
+        # ~4 min (two 120s flow-worker legs over the PRIVATE network + a dark-pool
+        # read), so it runs OFF the request path on a schedule; /api/confluence
+        # serves the warmed cache. Self-gates on WORKER_INTERNAL_URL (the flow leg
+        # needs it) so it's inert where that isn't set.
+        try:
+            if (os.environ.get("CONFLUENCE_ENABLED", "1") == "1"
+                    and os.environ.get("WORKER_INTERNAL_URL")):
+                from api import confluence_screen as _confl
+                from apscheduler.triggers.interval import IntervalTrigger as _ConflIv
+                _scheduler.add_job(
+                    _confl.scheduled_refresh,
+                    trigger=_ConflIv(minutes=int(os.environ.get("CONFLUENCE_REFRESH_MIN", "30"))),
+                    id="confluence_refresh", max_instances=1, replace_existing=True,
+                    coalesce=True, misfire_grace_time=600)
+                threading.Timer(90, _confl.scheduled_refresh).start()  # one-shot boot warm
+                print("[startup] confluence board warm scheduled (every 30 min + boot warm)")
+        except Exception as _e_confl:
+            print(f"[startup] confluence warm skip: {_e_confl}")
+
         # -- Dark pool: intraday live-preview poller (2026-07-27) ---------------
         # Near-real-time (~3 min) companion to the nightly ingest above. Polls
         # off-exchange prints INCREMENTALLY during market hours into the
@@ -4824,6 +4857,21 @@ async def lifespan(app: FastAPI):
             # owner on 2 consecutive structural misses. Self-gates on market
             # window + BROKER_LIVE_SENTINEL_ENABLED (default ON). Cron
             # :11/:41 keeps it off the other broker jobs' minutes.
+            # Daily BIAS digest — the half a tolerance cannot do. mirror_check
+            # pages when drift is BIG; it is structurally blind to drift that is
+            # small and never goes away, which is the shape that actually
+            # reaches a member (the owner's own hero sat $19.96 off every day
+            # for weeks under every tolerance, found only by comparing two
+            # screens by hand). Ten of eleven books belong to MEMBERS and
+            # nobody does that comparing for them. ALWAYS posts green-or-red:
+            # a monitor that only speaks on bad news reads exactly like a dead
+            # one. 08:05 ET, after the nightly reconcile + canary have landed.
+            from api.services.journal_two.broker import mirror_check as _broker_mirror
+            _scheduler.add_job(
+                _broker_mirror.run_bias_digest,
+                trigger=CronTrigger(hour=8, minute=5, timezone=_ET),
+                id="broker_bias_digest", max_instances=1, replace_existing=True,
+            )
             from api.services.journal_two.broker import live_sentinel as _broker_live_sentinel
             _scheduler.add_job(
                 _broker_live_sentinel.run_sentinel_blocking,
@@ -6725,6 +6773,8 @@ app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 app.include_router(journal_two_router.router)
 app.include_router(community_router.router)
+app.include_router(dashboard_signposts_router.router)
+app.include_router(market_calendar_router.router)  # public: NYSE full closures, derived from bars_fetch
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
@@ -6888,6 +6938,34 @@ async def _massive_flatfiles_backfill(start: str, end: str, force: bool = False)
         return massive_flatfiles_worker.backfill_range(s, e, force=force)
     except Exception as e:
         return {"error": str(e)}
+
+
+# ── Confluence Radar: dark-pool accumulation × LEAP/size-with-time flow ────────
+from api.flow_admin_auth import (  # noqa: E402
+    require_flow_user as _require_flow_user,
+    require_flow_admin,
+)
+
+
+@app.get("/api/confluence")
+async def _confluence_board(_auth: dict = Depends(_require_flow_user)):
+    """The Confluence board — names with dark-pool accumulation AND aligned
+    LEAP/size-with-time options flow. Served from a scheduler-warmed cache; never
+    computes on the request path (a cold cache returns {ok:false, status:'warming'})."""
+    from fastapi.concurrency import run_in_threadpool
+    from api import confluence_screen
+    return await run_in_threadpool(confluence_screen.get_board, False)
+
+
+@app.post("/api/admin/confluence/refresh")
+async def _confluence_refresh(_auth: dict = Depends(require_flow_admin)):
+    """Admin: force a full recompute (slow, ~4 min) off the request path."""
+    import threading
+    from api import confluence_screen
+    threading.Thread(target=confluence_screen.scheduled_refresh, daemon=True,
+                     name="confluence-manual-refresh").start()
+    return {"status": "refreshing", "check": "/api/confluence"}
+
 
 # Discord flow watchlist -- manual trigger endpoint
 register_discord_routes(app)

@@ -23,6 +23,8 @@ import {
   positionRiskAccountPercent,
   positionHeatAccountPercent,
   portfolioAggregates,
+  realStop,
+  hasNoRealStop,
   tradePnlDollar,
   tradePnlPercent,
   tradeRMultiple,
@@ -1158,5 +1160,70 @@ describe('brokerLiveSummary — live option marks (Phase 2)', () => {
     )
     expect(out.marketValue).toBeCloseTo(-300)
     expect(out.today).toBeCloseTo(50)     // −300 − (−350): the short gained
+  })
+})
+
+describe('🔴 realStop / hasNoRealStop — the ONE stop predicate every surface asks', () => {
+  // This rule shipped on the dashboard cockpit first and STOPPED THERE: for a
+  // round, the same manual $0-stop position read "no stop, $0 risk" on the
+  // cockpit and `stop $0.00` with the full notional at risk on the Journal's
+  // Positions tab, because that surface asked the narrower
+  // `isBrokerPlaceholderStop`. The client held two answers about one position's
+  // protection. It lives here now so every surface inherits it.
+  const base = { side: 'Long', shares: 100, entryPrice: 100, raiseToBreakeven: 0, breakevenStop: null }
+
+  it('a MANUAL row with stopPrice 0 has no stop — positions.py seeds 0.0 when omitted', () => {
+    expect(realStop({ ...base, stopPrice: 0, source: 'manual' })).toBeNull()
+    expect(hasNoRealStop({ ...base, stopPrice: 0, source: 'manual' })).toBe(true)
+    // …and with no `source` at all (legacy rows), which is the same shape.
+    expect(realStop({ ...base, stopPrice: 0 })).toBeNull()
+  })
+
+  it('so does a negative or non-finite stop', () => {
+    expect(realStop({ ...base, stopPrice: -5 })).toBeNull()
+    expect(realStop({ ...base, stopPrice: null })).toBeNull()
+    expect(realStop({ ...base, stopPrice: undefined })).toBeNull()
+    expect(realStop({ ...base, stopPrice: NaN })).toBeNull()
+  })
+
+  it('the broker placeholder still counts as no stop', () => {
+    expect(realStop({ ...base, stopPrice: 100, source: 'broker' })).toBeNull()
+  })
+
+  it('CONTROL: a real stop passes, and the breakeven override still wins', () => {
+    // Without this the predicate could reject everything and every assertion
+    // above would pass.
+    expect(realStop({ ...base, stopPrice: 95 })).toBe(95)
+    expect(realStop({ ...base, stopPrice: 90, raiseToBreakeven: true, breakevenStop: 100 })).toBe(100)
+    expect(hasNoRealStop({ ...base, stopPrice: 95 })).toBe(false)
+  })
+
+  it('matches api/services/portfolio_heat.py, which has had `stop <= 0` all along', () => {
+    // The server and the client were two authorities over one rule and only the
+    // server knew. Equivalent inputs, equivalent verdicts.
+    for (const stop of [0, -0.01, -100]) {
+      expect(hasNoRealStop({ ...base, stopPrice: stop }), `stop=${stop}`).toBe(true)
+    }
+  })
+})
+
+describe('portfolioAggregates — a manual ZERO stop books no risk or heat', () => {
+  it('does not charge the entire notional as risk for a stopless manual row', () => {
+    // 🔴 THE MEASURED DEFECT: 100 shares at entry $100 with the seeded 0.0 stop
+    // booked risk = (100 − 0) × 100 = $10,000 — the whole position — and heat =
+    // (110 − 0) × 100 = $11,000. Every consumer of this helper inherited it:
+    // OpenPositionsTab, TodayMarketLead and BrokerAccountHero.
+    const positions = [
+      { symbol: 'TSLA', side: 'Long', shares: 100, entryPrice: 100, stopPrice: 0, source: 'manual', raiseToBreakeven: 0, breakevenStop: null },
+      { symbol: 'AAPL', side: 'Long', shares: 10, entryPrice: 200, stopPrice: 190, source: 'manual', raiseToBreakeven: 0, breakevenStop: null },
+    ]
+    const prices = { TSLA: 110, AAPL: 210 }
+    const agg = portfolioAggregates(positions, prices, 100_000)
+    // Only AAPL contributes: risk (200−190)×10 = 100, heat (210−190)×10 = 200.
+    expect(agg.risk).toBeCloseTo(100)
+    expect(agg.heat).toBeCloseTo(200)
+    // Value and unrealized still count BOTH — only stop-derived math is skipped.
+    expect(agg.unrealized).toBeCloseTo((110 - 100) * 100 + (210 - 200) * 10)
+    expect(agg.value).toBeCloseTo(110 * 100 + 210 * 10)
   })
 })

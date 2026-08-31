@@ -227,7 +227,15 @@ def cache_state() -> dict:
 # exactly how the desk insights pass reported healthy straight through a total
 # failure (its 4-consecutive-failure streak never survived a redeploy).
 _STATS = {"requests": 0, "cache_hits": 0, "builds": 0, "build_failures": 0,
-          "stale_served": 0, "declined_busy": 0, "last_build": None}
+          "stale_served": 0, "declined_busy": 0, "last_build": None,
+          # ⛔ MEMBER traffic, counted SEPARATELY from the warmer's own calls.
+          # The warmer goes through the same builder, so a single `requests`
+          # tally cannot answer the question that actually matters — "are
+          # members reaching the fast path?" — because the warmer keeps it
+          # non-zero forever even if every browser stopped asking. A signal
+          # that cannot distinguish the thing being measured from the thing
+          # measuring it is not a signal.
+          "endpoint_requests": 0}
 
 
 def stats() -> dict:

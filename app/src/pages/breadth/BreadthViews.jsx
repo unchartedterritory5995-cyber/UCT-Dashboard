@@ -16,6 +16,7 @@ import BreadthScrubber from './BreadthScrubber'
 import CompareGrid from './CompareGrid'
 import BreadthViewSwitcher from './BreadthViewSwitcher'
 import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
+import { anchorProps } from './customizeAnchor'
 import QuickPresetSwitcher from './QuickPresetSwitcher'
 import { DEFAULT_PRESET } from './useBreadthViews'
 import { VIEW_CONFIG, optionsSchema } from './views/viewMetricConfig'
@@ -62,20 +63,63 @@ export default function BreadthViews({
   const viewLabel = VIEW_CONFIG[views.viewStyle]?.label ?? views.viewStyle
   const panelMetrics = useMemo(() => views.eligibleMetrics(), [views])
 
-  // ⭐ ONE keydown binding, unchanged from the day the cursor shipped — except
-  // that arrow navigation now PAUSES playback. A user reaching for the arrows
-  // while the scrubber is running is taking the cursor back; leaving the
-  // interval alive would have them fighting it a tick later.
+  /**
+   * ⭐ ONE LATCH, EVERY DOOR THE READER MOVES THE CURSOR THROUGH.
+   *
+   * "The reader has taken the cursor" is ONE fact, and two behaviours hang off
+   * it: a refused `?date=` stops asserting itself, and the link stops retrying
+   * on a window change. Both were previously derived from nothing — the banner
+   * kept naming a session the reader had long since scrubbed away from, and a
+   * widen would have yanked them back to the link's date from wherever they
+   * were. Deriving both from one latch is what keeps them from disagreeing.
+   *
+   * ⛔ IT IS NOT `rowIdx !== 0`. That reads "is the cursor off the newest row",
+   * which is a different question: scrub away and back and the refusal would
+   * return, re-asserting a link the reader has already answered.
+   *
+   * The RENDER-TIME landing below deliberately does NOT go through here — that
+   * is the link moving the cursor, not the reader.
+   */
+  const [readerMoved, setReaderMoved] = useState(false)
+  const takeCursor = useCallback((next) => { setReaderMoved(true); setRowIdx(next) }, [])
+
+  /**
+   * ⭐ ONE keydown binding, and it CLAIMS the arrow keys it acts on.
+   *
+   * Two things were wrong with letting the event through. It reached the
+   * browser, which scrolls the page on an arrow press — so a reader scrubbing
+   * with the keyboard also walked the page sideways. And in compare mode a
+   * pane's style `<select>` sat in the tab order: an arrow with that focused
+   * moved the cursor AND silently walked the pane to a different lens, two
+   * unrelated things from one press, neither of which the reader asked for.
+   *
+   * ⛔ SO `<select>` JOINS INPUT/TEXTAREA/contentEditable IN THE EXEMPTION, and
+   * everything else gets `preventDefault()`. A control that natively owns the
+   * arrow keys keeps them (the speed picker, the scrubber's own slider, a pane
+   * picker); everywhere else the cursor takes them and nothing downstream —
+   * page scroll, an ancestor handler, the tab strip — sees the same press. The
+   * two behaviours are now identical in Single and in Compare, which is the
+   * property that was actually broken.
+   *
+   * Arrow navigation PAUSES playback: a reader reaching for the arrows while
+   * the scrubber runs is taking the cursor back, and leaving the interval alive
+   * would have them fighting it a tick later.
+   */
   useEffect(() => {
     const handler = e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
       const t = e.target
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      if (e.key === 'ArrowLeft')  { setPlaying(false); setRowIdx(p => Math.min(p + 1, rows.length - 1)) }
-      if (e.key === 'ArrowRight') { setPlaying(false); setRowIdx(p => Math.max(p - 1, 0)) }
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'
+                || t.tagName === 'SELECT' || t.isContentEditable)) return
+      e.preventDefault()
+      setPlaying(false)
+      takeCursor(e.key === 'ArrowLeft'
+        ? p => Math.min(p + 1, rows.length - 1)
+        : p => Math.max(p - 1, 0))
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [rows.length])
+  }, [rows.length, takeCursor])
 
   const filledRows = useMemo(() => {
     const asc = [...rows].reverse()
@@ -146,14 +190,16 @@ export default function BreadthViews({
     const idx = resolveSeekIndex(target, dateIndex, filledRows.length)
     if (idx == null) return false
     setPlaying(false)
-    setRowIdx(idx)
+    takeCursor(idx)
     return true
-  }, [dateIndex, filledRows.length])
+  }, [dateIndex, filledRows.length, takeCursor])
 
   // The playback advance — deliberately NOT `onSeek`, which pauses. The
   // scrubber owns the interval; this is the only door that moves the cursor
-  // without stopping the run.
-  const stepTo = useCallback((idx) => setRowIdx(idx), [])
+  // without stopping the run. It IS a reader move (they pressed play), so it
+  // goes through the same latch; `setReaderMoved(true)` on an already-true
+  // state is a React bail-out, so a 16/s run costs no extra render.
+  const stepTo = takeCursor
 
   const currentRow = filledRows[rowIdx] ?? filledRows[0]
 
@@ -192,11 +238,21 @@ export default function BreadthViews({
    * the reconciler cannot see, and would be re-read as "already landed" by a
    * render React chose to throw away.
    */
+  /**
+   * 🔴 AND THE REFUSAL IS A CLAIM ABOUT NOW, NOT A CLAIM THAT KEEPS STANDING.
+   *
+   * "2026-07-13 — that session is outside the loaded window" is true the moment
+   * a link opens on a window that does not hold it. It stops being the reader's
+   * situation the moment they scrub somewhere reachable — the cursor is now
+   * where THEY put it, and a banner still naming the link's date reads as a
+   * live condition rather than as what happened on the way in. Same latch
+   * retires the retry, so a later widen cannot yank the reader back either.
+   */
   const urlDate = urlState?.date ?? null
   const urlSeekIdx = urlDate ? resolveSeekIndex(urlDate, dateIndex, filledRows.length) : null
-  const urlDateRefused = urlDate && urlSeekIdx == null ? urlDate : null
+  const urlDateRefused = urlDate && urlSeekIdx == null && !readerMoved ? urlDate : null
   const [landedDate, setLandedDate] = useState(null)
-  if (urlDate !== landedDate && urlSeekIdx != null) {
+  if (!readerMoved && urlDate !== landedDate && urlSeekIdx != null) {
     setLandedDate(urlDate)
     // Already sitting on it (including our own write-back arriving as input):
     // claim it without moving the cursor.
@@ -212,16 +268,30 @@ export default function BreadthViews({
    * today's date into every link would pin a share to a session that stops
    * being "the latest read" the next morning — a different claim than the one
    * the sharer made.
+   *
+   * ⛔ AND A RUN IN FLIGHT REPORTS NOTHING. Playback steps the cursor up to
+   * sixteen times a second and every step used to be reported upward, so the
+   * page re-rendered on each tick to hand a debounced writer a value that was
+   * already stale before it could be written. The debounce was doing its job —
+   * it collapsed those to one URL write — but the REPORT above it was the
+   * churn, and the tab's showpiece is the one thing that should not thrash the
+   * page.
+   *
+   * ⭐ The effect still re-runs per tick (`rowIdx` is a dependency and must
+   * stay one); it returns before touching the parent. `playing` is a dependency
+   * too, so the moment a run stops this fires once with the session it stopped
+   * on — the link ends up describing exactly where the reader is, which is the
+   * only position during a run that a share was ever going to mean.
    */
   useEffect(() => {
-    if (!onUrlChange) return
+    if (!onUrlChange || playing) return
     onUrlChange({
       view: views.viewStyle,
       date: rowIdx > 0 ? (currentRow?.date ?? null) : null,
       compare: views.compareQuad,
       layout: views.layout,
     })
-  }, [onUrlChange, views.viewStyle, views.compareQuad, views.layout, rowIdx, currentRow?.date])
+  }, [onUrlChange, views.viewStyle, views.compareQuad, views.layout, playing, rowIdx, currentRow?.date])
   const isLiveRow = !!currentRow?._live
   const prevRow = filledRows[rowIdx + 3]
   // Newest-first window up to the current cursor, for time-series styles
@@ -433,7 +503,7 @@ export default function BreadthViews({
             hover and for screen readers. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}
              title="The session every view on this tab is drawn as of">
-          <button onClick={() => onSeek(rowIdx + 1)}
+          <button className={layoutStyles.step} onClick={() => onSeek(rowIdx + 1)}
                   disabled={rowIdx >= rows.length - 1} aria-label="Previous day">←</button>
           {currentRow._live ? (
             <span
@@ -451,9 +521,11 @@ export default function BreadthViews({
                            letterSpacing: '.2px', fontVariantNumeric: 'tabular-nums',
                            minWidth: 88, textAlign: 'center' }}>{currentRow.date}</span>
           )}
-          <button onClick={() => onSeek(rowIdx - 1)}
+          <button className={layoutStyles.step} onClick={() => onSeek(rowIdx - 1)}
                   disabled={rowIdx === 0} aria-label="Next day">→</button>
-          {rowIdx > 0 && <button onClick={() => onSeek(0)}>LATEST</button>}
+          {rowIdx > 0 && (
+            <button className={layoutStyles.latest} onClick={() => onSeek(0)}>LATEST</button>
+          )}
         </div>
         {/* The link named a session this window does not hold. Wave A's guard
             AND Wave A's sentence — the date stays legible, and the reader is
@@ -474,7 +546,7 @@ export default function BreadthViews({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
           <QuickPresetSwitcher presetNames={views.presetNames}
                                activePreset={views.activePreset} onSwitch={views.switchPreset} />
-          <div className={customizeStyles.anchor}>
+          <div className={customizeStyles.anchor} {...anchorProps()}>
             <button className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
                     onClick={() => setCustomizeOpen(o => !o)} title="Customize this view">
               <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={13} /></span> {viewLabel}

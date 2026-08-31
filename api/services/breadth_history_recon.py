@@ -1,13 +1,58 @@
 """Historical breadth reconstruction — recompute past breadth values from stored bars.
 
 The breadth collector only began storing daily snapshots on 2026-01-02, but our daily
-stock bars go back decades. The breadth value at any past day's CLOSE is a deterministic
-recomputation from those bars via the EXACT live method (`breadth_live._metrics_at_close`
-= build levels from prior sessions, fold in the day's close, `compute_metrics`). This
-module wraps that so we can (Phase 0) VALIDATE it against days we actually collected, then
-(Phase 1+) backfill years of accurate close-basis history.
+stock bars go back decades. This module recomputes a past day's CLOSE-basis breadth from
+those bars through the EXACT live METHOD (`breadth_live._metrics_at_close` = build levels
+from prior sessions, fold in the day's close, `compute_metrics`), so we can (Phase 0)
+VALIDATE it against days we actually collected, then (Phase 1+) backfill years of
+close-basis history.
+
+🔴 IT REPRODUCES THE METHOD. IT CANNOT REPRODUCE THE COLLECTOR'S ANSWER, and this
+docstring asserted the opposite ("a deterministic recomputation … via the EXACT live
+method") for the life of the file. The recompute is deterministic; it is not the same
+measurement, because it is not taken over the same POPULATION.
+
+MEASURED 2026-08-30, per name, over all 114 usable collector frames (2026-03-16..08-28),
+diffing the recompute against the collector's own cached frame on that frame's own
+point-in-time universe:
+
+    disagreeing names, by kind          count      net effect on adv−dec
+    --------------------------------    ------     ---------------------
+    priced by the collector, absent      32,202     the whole gap
+      from bars.db that session
+    priced by bars.db, absent from          325     small
+      the collector's frame
+    ex-dividend sign flip                     5     ~nil (2,190 ex-div
+                                                    names were comparable)
+    exactly-flat boundary                   120     ~nil
+    genuine value disagreement              801     concentrated on ONE
+                                                    session (2026-03-18)
+
+Subtract the two coverage terms and the recompute lands on the collector's number
+EXACTLY on 64 of 114 sessions (median residual 0, p90 2). The dividend-adjustment
+hypothesis is FALSIFIED as a material cause: five sign flips in 114 sessions.
+
+⛔ SO THE ERROR IS NOT NOISE AND DOES NOT SHRINK WITH CARE — it is a scale factor.
+bars.db priced 0.3%–22% fewer names than the collector's universe on a normal session,
+and the names it is missing are distributed like the day, not like a coin. So a
+count metric comes back as `collector_value × coverage`: on 61 sessions with ≥99%
+bars coverage the median |diff| on `adv_decline` is still 6, it is never 0, and it
+points TOWARD ZERO relative to the day's own net on 43 of those 61. A recompute of a
+strong day will always understate it. Treat every count this module produces as
+"the collector's count, scaled by that session's bars coverage"; the `pct_above_*`
+family is coverage-invariant by construction and is the part that survives.
 
 Phase 0 only: recompute + validation. No writes to any chart store yet.
+
+⭐ ONE EXCEPTION, and it earns it: `apply_adv_dec_counts` (bottom of this file)
+DOES write — the two advance/decline COUNTS the collector computed and threw
+away — but only onto rows that are missing them, only those two keys, and only
+where the pair reproduces the `adv_decline` the collector already stored,
+exactly. Phase 0's discipline is what makes that safe: the validation is not a
+campaign that ran once, it is a per-row precondition of every write, so no
+source can put a plausible-but-wrong number into a table people read. See the
+long header above that function for the measurement that decides which source
+is allowed to write.
 """
 from __future__ import annotations
 
@@ -188,6 +233,21 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
     return out
 
 
+# Metrics this sweep must NEVER write into `breadth_daily_ohlc`, whatever
+# `compute_metrics` hands back.
+#
+# `new_ath` is an ALL-TIME-high count. This sweep only ever holds `window`
+# sessions (320 by default), so anything it computed under that name would be a
+# ~15-month high FILED AS an all-time high — and `write_bulk` is a write to
+# stored history, so every row it touched would carry the wrong definition
+# permanently, mixed in beside rows that carry the real one.
+#
+# Today `compute_metrics` publishes `new_ath: None` and the `fv is None` skip
+# below already drops it. That is INCIDENTAL: give the key a number again and
+# the sweep starts writing it silently. This set is the standing refusal.
+# Rail: tests/test_breadth_recon_never_writes_new_ath.py
+_NEVER_SWEEP_STORE = frozenset({"new_ath"})
+
 _SWEEP_STATE: dict = {"status": "idle"}
 
 
@@ -234,7 +294,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
         if ds < from_date:      # warmup only — seed the buffer, don't store
             continue
         for metric, val in full.items():
-            if metric == "date":
+            if metric == "date" or metric in _NEVER_SWEEP_STORE:
                 continue
             fv = _f(val)
             if fv is None:
@@ -617,3 +677,406 @@ def validate_recent(days: int = 10) -> dict:
         "per_metric": summary,
         "per_day": per_day,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ADVANCE/DECLINE COUNTS — the historical backfill of `advancing`/`declining`
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The collector computed `adv` and `dec` and stored only `adv - dec`, so every
+# stored row carries `adv_decline` and NEITHER count. The Event Ledger's Zweig
+# Breadth Thrust needs `advancing / (advancing + declining)` and therefore
+# refuses to evaluate at all ("Advance/decline counts cover 0 of 90 sessions —
+# needs 11"). The collector fix (uct-intelligence `0c13eb9`) is forward-only.
+#
+# ⭐ THE ORACLE. There is no stored `advancing` to check a recomputation
+# against — that IS the problem. But `adv_decline` was computed from the SAME
+# two counts on the SAME closes over the SAME universe, so
+#
+#       advancing - declining == adv_decline
+#
+# is an exact identity that any correct pair must satisfy, and it is
+# independent of everything written here. Every write below is gated on it,
+# PER ROW. A pair that fails is refused, never rounded into place.
+#
+# ⛔⛔ MEASURED, AND IT DECIDES WHICH SOURCE MAY WRITE (2026-08-30, 96 collected
+# sessions 2026-03-16..2026-08-04, each recomputed over that row's OWN stored
+# point-in-time `universe_list`):
+#
+#   source                                    reproduces adv_decline exactly
+#   ------------------------------------      ------------------------------
+#   bars.db recompute (this module's recon)     0 / 96      median |diff| 8.5
+#     …restricted to sessions where bars.db     0 / 61      median |diff| 6
+#       covered >= 99% of the PIT universe
+#   the collector's OWN cached price frame     91 / 98      median |diff| 0
+#     (uct-intelligence data/massive_cache/
+#      breadth_ohlcv_<date>.pkl)
+#
+# WHY, measured per name rather than guessed (2026-08-30 — see the module
+# docstring for the full table): it is COVERAGE, essentially alone. bars.db
+# cannot price 0.3-22% of the collector's point-in-time universe on a given
+# session, those names are distributed like the day rather than like a coin, and
+# a count therefore comes back scaled by the coverage fraction. Add the missing
+# names back and the recompute is EXACT on 64 of 114 sessions (median residual
+# 0). The basis difference everyone reaches for first — the collector reads
+# yfinance `auto_adjust=True` while bars.db is split-only — moves this number by
+# almost nothing: 5 ex-dividend sign flips in 114 sessions across 2,190
+# comparable ex-dividend names. It matters enormously for the LONG-lookback
+# metrics (see `breadth_dividends`); it does not matter for a one-day change.
+#
+# ⛔ 0/61 at >=99% coverage is the sentence that decides this. The residual
+# error is proportional, not additive, so it does not shrink with a better
+# bars.db unless coverage reaches 100% — and `adv_decline` is an exact integer
+# identity, which has no tolerance to spend. That is why `breadth_live._ACCURACY`
+# grades `adv_decline` "tight" (abs 3 / rel 3%) rather than "exact". Tight is
+# fine for a live read shown beside a stored number; it is NOT fine for
+# MANUFACTURING the two numbers a stored row will be read as having measured —
+# a row whose `advancing - declining` disagrees with its own `adv_decline` is a
+# row that says two different things about one session.
+#
+# So `backfill_adv_dec_from_recon` exists, runs the same gate, and — on today's
+# data — writes NOTHING. That is the honest outcome, not a bug: run
+# `validate_adv_dec_recon` on the pod and read its `verdict`. The source that
+# passes the gate is delivered as `scripts/backfill_adv_dec_counts.py`, which
+# reads the collector's own frames on the machine the collector runs on and
+# POSTs the pairs to `apply_adv_dec_counts` — which re-runs the identity gate
+# server-side, so the store's guarantee never depends on the client.
+
+# Mirrors `app/src/pages/breadth/views/breadthEvents.js`. The JS file is the
+# authority (it is what refuses on screen); `test_breadth_adv_dec_backfill.py`
+# reads the constants back out of it and fails if these drift.
+ZWEIG_PERIOD = 10
+ZWEIG_MIN_SESSIONS = ZWEIG_PERIOD + 1
+
+
+def zweig_ad_coverage(rows) -> int:
+    """`scanEvents`' coverage arithmetic, in Python.
+
+    The JS builds one ratio per session and counts the non-null ones:
+
+        const a = r?.advancing, d = r?.declining
+        if (a == null || d == null || (Number(a) + Number(d)) === 0) return null
+        return Number(a) / (Number(a) + Number(d))
+        ...
+        const adCoverage = ratios.filter(v => v != null).length
+
+    ⛔ Note what it is NOT: it is not a run of CONSECUTIVE sessions. Zweig's
+    EMA skips a null session without resetting, so the lens only asks whether
+    the loaded window holds `ZWEIG_MIN_SESSIONS` measurable ones.
+    """
+    n = 0
+    for r in (rows or ()):
+        if not isinstance(r, dict):
+            continue
+        a, d = r.get("advancing"), r.get("declining")
+        if a is None or d is None:
+            continue
+        af, df = _f(a), _f(d)
+        if af is None or df is None or (af + df) == 0:
+            continue
+        n += 1
+    return n
+
+
+def adv_dec_status(days: int = 90) -> dict:
+    """What the Event Ledger would say about Zweig over the last `days` rows.
+
+    Read-only. `covered` is the number the refusal sentence prints; `zweig_ok`
+    is whether the lens evaluates instead of refusing.
+    """
+    from api.services import breadth_monitor as bm
+    rows = bm.get_history(int(days)) or []
+    covered = zweig_ad_coverage(rows)
+    with_ad = sum(1 for r in rows
+                  if isinstance(r, dict) and r.get("adv_decline") is not None)
+    return {
+        "days_requested": int(days),
+        "sessions": len(rows),
+        "covered": covered,
+        "needs": ZWEIG_MIN_SESSIONS,
+        "zweig_ok": covered >= ZWEIG_MIN_SESSIONS,
+        "sessions_with_adv_decline": with_ad,
+        "backfillable": with_ad - covered,
+        "newest": rows[0].get("date") if rows else None,
+        "oldest": rows[-1].get("date") if rows else None,
+    }
+
+
+def pit_universe(date: str) -> list:
+    """The POINT-IN-TIME universe for a COLLECTED session.
+
+    ⭐ For a date the collector wrote, the point-in-time universe is not
+    something to reconstruct — it is stored. `universe_list` is literally the
+    names that had a close that day (`closes.iloc[-1].dropna().index` in
+    `breadth_collector.py`), recorded on the day, delistings and all. So it
+    carries no survivorship bias by construction, and it is strictly better
+    than the `breadth_pit_universe` price/liquidity PROXY, which exists for the
+    dates BEFORE collection started, where no such list was ever written.
+
+    ⛔ Do NOT substitute `breadth_live.universe()` here. That returns the
+    NEWEST snapshot's universe — today's ticker list — which against an April
+    session is exactly the survivorship bias this avoids. Measured over the
+    validation window the collector's universe moved between 2,637 and 3,759
+    names; using one date's list for another is a different population, and a
+    different population is a different metric.
+    """
+    from api.services import breadth_monitor as bm
+    return sorted(_tickers_of(bm.get_drill_list(date, "universe_list")))
+
+
+def _as_pair(value):
+    """`(advancing, declining)` from a tuple/list or an {advancing,declining}
+    dict — or None when it is neither, or either side is not a whole count."""
+    if isinstance(value, dict):
+        a, d = value.get("advancing"), value.get("declining")
+    elif isinstance(value, (list, tuple)) and len(value) == 2:
+        a, d = value
+    else:
+        return None
+    af, df = _f(a), _f(d)
+    if af is None or df is None:
+        return None
+    if af != int(af) or df != int(df) or af < 0 or df < 0:
+        return None
+    return int(af), int(df)
+
+
+def _row_metrics(date: str):
+    """The raw stored metrics blob for one date, or None. Read straight from
+    the table rather than through `get_history`, which strips `_list` keys and
+    layers derived fields on top — this gate must see what is STORED."""
+    import json as _j
+    from api.services import breadth_monitor as bm
+    with bm._conn() as c:
+        r = c.execute(
+            "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date,)
+        ).fetchone()
+    return _j.loads(r["metrics"]) if r else None
+
+
+def apply_adv_dec_counts(pairs: dict, dry_run: bool = True,
+                         source: str = "unspecified") -> dict:
+    """Write `advancing`/`declining` onto stored rows — and NOTHING else.
+
+    THE GATE, per row, all of which must hold before a single byte is written:
+
+      1. a snapshot exists for that date;
+      2. it stores an `adv_decline`;
+      3. both counts are absent (additive-only — it never overwrites a
+         collected value, which is what makes re-running it a no-op);
+      4. `advancing - declining == adv_decline` EXACTLY.
+
+    (4) is the whole safety argument. It is the collector's own arithmetic on
+    the collector's own session, so a pair that satisfies it cannot be a
+    plausible-looking guess: to pass while being wrong, a source would have to
+    be wrong by the same amount in advancers and decliners at once.
+
+    ⛔ Only the two keys are written (`breadth_monitor.patch_fields`, one
+    transaction). `adv_decline` and every other collected metric are read and
+    never assigned — including the derived ones, which `get_history` recomputes
+    from the stored row on every read anyway.
+
+    `dry_run=True` (the DEFAULT) evaluates the whole gate and writes nothing,
+    so the report is a measurement you can read before committing to it.
+    """
+    from api.services import breadth_monitor as bm
+    report = {
+        "ok": True, "dry_run": bool(dry_run), "source": source,
+        "considered": len(pairs or {}),
+        "written": [], "already_present": [], "partial_present": [],
+        "refused_identity": [], "refused_no_row": [],
+        "refused_no_adv_decline": [], "refused_malformed": [],
+        "write_failed": [],
+    }
+    report["coverage_before"] = adv_dec_status(90)
+
+    for date in sorted(pairs or {}):
+        pair = _as_pair(pairs[date])
+        if pair is None:
+            report["refused_malformed"].append(date)
+            continue
+        adv, dec = pair
+
+        try:
+            row = _row_metrics(date)
+        except Exception as e:
+            report["write_failed"].append({"date": date, "reason": f"read: {e}"})
+            continue
+        if row is None:
+            report["refused_no_row"].append(date)
+            continue
+
+        stored = _f(row.get("adv_decline"))
+        if stored is None:
+            report["refused_no_adv_decline"].append(date)
+            continue
+
+        have_a = row.get("advancing") is not None
+        have_d = row.get("declining") is not None
+        if have_a and have_d:
+            report["already_present"].append(date)
+            continue
+        if have_a or have_d:
+            # One side alone is not a measurement. Say so rather than healing
+            # it silently: it should be impossible, so its existence means
+            # something else has written here and that is worth surfacing.
+            report["partial_present"].append(date)
+            continue
+
+        if (adv - dec) != int(stored):
+            report["refused_identity"].append({
+                "date": date, "advancing": adv, "declining": dec,
+                "net": adv - dec, "stored_adv_decline": int(stored),
+                "diff": (adv - dec) - int(stored),
+            })
+            continue
+
+        if dry_run:
+            report["written"].append(date)
+            continue
+        if bm.patch_fields(date, {"advancing": adv, "declining": dec}):
+            report["written"].append(date)
+        else:
+            report["write_failed"].append(
+                {"date": date, "reason": "patch_fields returned False"})
+
+    if dry_run:
+        report["coverage_after"] = report["coverage_before"]
+    else:
+        # `patch_fields` already drops the cached history on every write; this
+        # is the belt for the run as a whole. A dry run must NOT clear it —
+        # dropping a cache is a side effect, and "writes nothing" includes that.
+        try:
+            from api.services.cache import cache
+            cache.delete_prefix("breadth_history_")
+        except Exception:
+            pass
+        report["coverage_after"] = adv_dec_status(90)
+
+    for k in ("written", "already_present", "partial_present", "refused_identity",
+              "refused_no_row", "refused_no_adv_decline", "refused_malformed",
+              "write_failed"):
+        report["n_" + k] = len(report[k])
+    return report
+
+
+def recompute_adv_dec(date: str, tickers=None) -> dict:
+    """Recompute one session's `advancing`/`declining` through the EXISTING
+    recon (`recompute_close` -> `breadth_live._metrics_at_close` ->
+    `compute_metrics`), over that row's own point-in-time universe.
+
+    Returns `{ok, advancing, declining, net, universe, measured, coverage}` or
+    `{ok: False, reason}`. Never writes.
+    """
+    from datetime import date as _date
+    from api.services import breadth_live as bl
+    if tickers is None:
+        tickers = pit_universe(date)
+    if not tickers:
+        return {"ok": False, "reason": "no stored universe_list for " + str(date)}
+    try:
+        ts = bl._ts_int(_date.fromisoformat(date))
+    except ValueError:
+        return {"ok": False, "reason": "bad date " + repr(date)}
+    m = recompute_close(ts, tickers)
+    if not m:
+        return {"ok": False,
+                "reason": "recompute produced nothing (no bars / <221 prior sessions)"}
+    adv, dec = _f(m.get("advancing")), _f(m.get("declining"))
+    if adv is None or dec is None:
+        return {"ok": False, "reason": "recompute produced no advancing/declining"}
+    measured = int(_f(m.get("universe_count")) or 0)
+    return {"ok": True, "date": date, "advancing": int(adv), "declining": int(dec),
+            "net": int(adv) - int(dec), "universe": len(tickers),
+            "measured": measured,
+            "coverage": round(measured / len(tickers), 4) if tickers else None}
+
+
+def validate_adv_dec_recon(days: int = 20, limit: int = 0) -> dict:
+    """⭐ THE VALIDATION THAT MUST COME FIRST. Read-only; writes nothing.
+
+    For every stored session in the window that has an `adv_decline`, recompute
+    the pair through the recon over that row's own point-in-time universe and
+    check the identity the backfill gates on:
+    `advancing - declining == adv_decline`.
+
+    `verdict` is the go/no-go:
+      * `"pass"`  — every checked session reproduced EXACTLY; the recon source
+                    may be used to backfill.
+      * `"fail"`  — at least one did not. Do not backfill from the recon; use a
+                    source that does reproduce.
+      * `"empty"` — nothing to check.
+
+    ⛔ There is no tolerance parameter, deliberately. "Close enough" is what
+    puts a number people read next to a number it contradicts.
+    """
+    from api.services import breadth_monitor as bm
+    hist = bm.get_history(int(days)) or []
+    per_day, exact, checked = [], 0, 0
+    for row in hist:
+        date = row.get("date")
+        stored = _f(row.get("adv_decline"))
+        if not date or stored is None:
+            continue
+        if limit and checked >= int(limit):
+            break
+        uni = pit_universe(date)
+        if not uni:
+            per_day.append({"date": date, "skipped": "no stored universe_list"})
+            continue
+        r = recompute_adv_dec(date, uni)
+        if not r.get("ok"):
+            per_day.append({"date": date, "skipped": r.get("reason")})
+            continue
+        checked += 1
+        diff = r["net"] - int(stored)
+        if diff == 0:
+            exact += 1
+        per_day.append({"date": date, "advancing": r["advancing"],
+                        "declining": r["declining"], "net": r["net"],
+                        "stored_adv_decline": int(stored), "diff": diff,
+                        "universe": r["universe"], "measured": r["measured"],
+                        "coverage": r["coverage"]})
+    graded = [d for d in per_day if "diff" in d]
+    diffs = sorted(abs(d["diff"]) for d in graded)
+    covs = sorted(d["coverage"] for d in graded if d.get("coverage") is not None)
+    verdict = "empty" if not graded else ("pass" if exact == len(graded) else "fail")
+    return {
+        "ok": True, "verdict": verdict,
+        "sessions_checked": len(graded), "exact_matches": exact,
+        "match_rate": round(exact / len(graded), 4) if graded else None,
+        "median_abs_diff": diffs[len(diffs) // 2] if diffs else None,
+        "max_abs_diff": diffs[-1] if diffs else None,
+        "median_universe_coverage": covs[len(covs) // 2] if covs else None,
+        "min_universe_coverage": covs[0] if covs else None,
+        "per_day": per_day,
+        "note": ("The recon reconstructs the METHOD, not the collector's POPULATION: "
+                 "bars.db cannot price 0.3-22% of each session's point-in-time "
+                 "universe, and the missing names are distributed like the day, so "
+                 "every count comes back scaled by `coverage` (reported per day "
+                 "above). Measured per name, that accounts for the whole gap; "
+                 "dividend basis contributes ~nothing to a one-day change (5 "
+                 "ex-dividend sign flips in 114 sessions). The error is therefore "
+                 "proportional, not additive, and `adv_decline` is an exact "
+                 "identity with no tolerance to spend. Anything but verdict=pass "
+                 "means this source must not write."),
+    }
+
+
+def backfill_adv_dec_from_recon(days: int = 90, dry_run: bool = True,
+                                limit: int = 0) -> dict:
+    """Backfill from the recon source, through the SAME per-row gate.
+
+    Validate first, then feed only the pairs the recon produced into
+    `apply_adv_dec_counts`, which re-checks the identity itself. As measured
+    (see the header), the recon reproduces `adv_decline` on 0 of 96 sessions,
+    so this is expected to write nothing today — and that refusal is the
+    feature. One gate, two possible sources; a source earns the right to write
+    by reproducing the number the collector already stored.
+    """
+    val = validate_adv_dec_recon(days=days, limit=limit)
+    pairs = {d["date"]: (d["advancing"], d["declining"])
+             for d in val.get("per_day", []) if "advancing" in d}
+    out = apply_adv_dec_counts(pairs, dry_run=dry_run, source="recon")
+    out["validation"] = {k: v for k, v in val.items() if k != "per_day"}
+    return out

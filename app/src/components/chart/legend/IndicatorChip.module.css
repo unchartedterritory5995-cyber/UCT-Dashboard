@@ -130,6 +130,12 @@
    gray intentional). A hidden indicator is not an error. */
 .chipHidden { opacity: 0.45; }
 
+/* ⭐ A VISIBLE indicator that computed nothing on these bars. Distinct from
+   `.chipHidden` — that one is the member's own choice, this one is a fact
+   about the data — so it is dashed rather than dimmed, and it keeps full
+   opacity because it is a thing to NOTICE, not a thing to recede. */
+.chipEmpty { border-bottom: 1px dashed currentColor; }
+
 /* ── THE PER-PLOT REPAINT MARK ─────────────────────────────────────────────
  *
  * AMBER = degraded, spec §6's colour language — this line is drawable and

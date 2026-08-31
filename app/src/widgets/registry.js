@@ -31,8 +31,8 @@
 //                    'periodsort' is intentionally in NEITHER: it's reachable
 //                    only from Tools → Custom-Period Sort (dock / add-as-tab).
 //                    It stays registered so docked instances render.
-// - menus.mobile   — membership in MobileWorkspace's add menu (the 5 types
-//                    that are usable at 375px).
+// - menus.mobile   — membership in the phone shell's add menu (the types
+//                    that are usable at 375px; MobileChartsApp's More sheet).
 // - menus.journal  — offered by the notebook's slash menu / insert palette.
 //                    Chart only: it's the type whose params are TYPEABLE
 //                    (symbol + tf). Every other live-rendering type embeds

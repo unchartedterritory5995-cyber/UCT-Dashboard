@@ -20,22 +20,25 @@ function renderAt(path) {
   )
 }
 
-test('/theme-tracker redirects to /charts', () => {
+test('/theme-tracker redirects to /charts asking for the themes widget', () => {
+  // Theme Tracker is reachable ONLY as the `themes` widget inside /charts —
+  // a bare redirect could land on a saved workspace missing it entirely.
   renderAt('/theme-tracker')
-  expect(screen.getByTestId('url').textContent).toBe('/charts')
+  expect(screen.getByTestId('url').textContent).toBe('/charts?ensure=themes')
 })
 
-test('preserves non-tab query params from the legacy URL', () => {
+test('preserves non-tab query params from the legacy URL and adds the ensure intent', () => {
   renderAt('/watchlists?id=42&filter=tech')
-  expect(screen.getByTestId('url').textContent).toBe('/charts?id=42&filter=tech')
+  expect(screen.getByTestId('url').textContent).toBe('/charts?id=42&filter=tech&ensure=watchlist')
 })
 
 test('strips legacy ?tab= param entirely', () => {
+  // /multi-chart has no widget-ensure counterpart — only tab= is stripped.
   renderAt('/multi-chart?tab=multichart&keep=me')
   expect(screen.getByTestId('url').textContent).toBe('/charts?keep=me')
 })
 
-test('redirects with empty query when only ?tab= was present', () => {
+test('/theme-tracker?tab= drops the legacy tab param but still carries ensure=themes', () => {
   renderAt('/theme-tracker?tab=themes')
-  expect(screen.getByTestId('url').textContent).toBe('/charts')
+  expect(screen.getByTestId('url').textContent).toBe('/charts?ensure=themes')
 })

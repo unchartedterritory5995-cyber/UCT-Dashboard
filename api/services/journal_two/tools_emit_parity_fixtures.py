@@ -67,6 +67,50 @@ OPTION_CASES = [
 # Python authority: broker/composition.py; JS mirror: brokerLiveSummary
 # (marketValue + netLiq only — Today has its own tests). Case 0 is the
 # 2026-08-26 incident book, pinned with its real numbers.
+# ── VINTAGE cases ───────────────────────────────────────────────────────────
+# The composition now reports WHICH MOMENT its parts came from. Both lanes must
+# agree on that verdict too, or a member sees "as of Friday's close" on one
+# surface and "live" on another. Schwab-shaped rows are here deliberately: 7 of
+# 11 live accounts are Schwab and every defect this month was found on the one
+# Robinhood account.
+_VINTAGE_CASES = [
+    {   # silent intraday blend — one row falls back to its broker mark
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [
+            {"symbol": "LIQUID", "side": "Long", "shares": 10, "brokerPrice": 9,
+             "brokerPriceSession": "2026-08-28", "source": "broker"},
+            {"symbol": "THIN", "side": "Long", "shares": 5, "brokerPrice": 20,
+             "brokerPriceSession": "2026-08-28", "source": "broker"},
+        ],
+        "strategies": [], "prices": {"LIQUID": {"price": 10}}, "optionMarks": {},
+    },
+    {   # two broker sessions in one book — the stale one must be NAMED
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [
+            {"symbol": "FRESH", "side": "Long", "shares": 10, "brokerPrice": 9,
+             "brokerPriceSession": "2026-08-28", "source": "broker"},
+            {"symbol": "STALE", "side": "Long", "shares": 5, "brokerPrice": 20,
+             "brokerPriceSession": "2026-08-21", "source": "broker"},
+        ],
+        "strategies": [], "prices": {}, "optionMarks": {}, "preferBroker": True,
+    },
+    {   # undated broker marks — vintage unknown, every component named
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [
+            {"symbol": "A", "side": "Long", "shares": 10, "brokerPrice": 9,
+             "source": "broker"},
+        ],
+        "strategies": [], "prices": {}, "optionMarks": {}, "preferBroker": True,
+    },
+    {   # a just-filled option valued at COST is its own basis
+        "account": {"balanceSource": "broker", "brokerCash": 0.0},
+        "positions": [],
+        "strategies": [{"id": "s1", "netEntry": 610.0, "source": "broker"}],
+        "prices": {}, "optionMarks": {},
+    },
+]
+
+
 # The 2026-08-29 book as measured in prod. broker marks (brokerPrice) are
 # Robinhood's own; prices are our vendor's Friday closes. Every one differs.
 _AUG29_POSITIONS = [
@@ -86,7 +130,7 @@ _AUG29_PRICES = {
     "SPY": {"price": 769.35}, "TH": {"price": 18.55},
 }
 
-COMPOSITION_CASES = [
+COMPOSITION_CASES = _VINTAGE_CASES + [
     {   # incident book: fill-derived cash + live marks → the true ~$10.9k
         "account": {"balanceSource": "broker", "brokerCash": -18760.66,
                      "brokerCashLive": -29750.66},

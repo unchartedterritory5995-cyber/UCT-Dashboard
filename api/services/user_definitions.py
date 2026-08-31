@@ -229,6 +229,18 @@ CREATE INDEX IF NOT EXISTS idx_definition_shares_token
   ON definition_shares(token, id DESC);
 CREATE INDEX IF NOT EXISTS idx_definition_shares_owner
   ON definition_shares(user_id, def_id, id DESC);
+
+CREATE TABLE IF NOT EXISTS definition_listings (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  listed     INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_listings_owner
+  ON definition_listings(user_id, def_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_definition_listings_feed
+  ON definition_listings(id DESC);
 """
 
 
@@ -1397,6 +1409,196 @@ def install_share(user_id: Any, token: str, limits: Any = None) -> dict:
     out = save(user_id, def_id, doc, limits=limits)
     out["origin"] = doc["origin"]
     return out
+
+
+# ═══ the public library ═══════════════════════════════════════════════════
+#
+# ⛔⛔ A LINK IS NOT A PUBLICATION, AND THIS IS THE WHOLE REASON THE LISTING IS ITS
+# OWN TABLE. Every share token in this store was minted by somebody who pressed
+# Share to send a link to a person they chose. Reading those rows as a public
+# directory would retroactively publish every one of them — a consent nobody gave,
+# and unrecoverable the moment the page renders. Listing is therefore a SECOND,
+# ADDITIONAL opt-in: a definition appears in the library only because its owner
+# asked for that separately, and un-listing leaves their link working.
+#
+# ⛔ AND THE LISTING NEVER RESTATES WHETHER THE SHARE IS LIVE — IT ASKS.
+# `definition_listings` carries no token and no revoked flag. A row is live only
+# when `share_status` still answers, so revoking the link removes the entry with no
+# second write and no chance of the two disagreeing
+# (`lesson_a_second_authority_over_one_value`: derive, never restate).
+#
+# ⚠️ APPEND-ONLY, like both tables above it. `test_the_MODULE_ISSUES_NO_UPDATE_
+# STATEMENT` walks this module by AST, and it is right to: a listing row records
+# that a member published something at a moment in time, and rewriting it would
+# erase the fact rather than end it.
+
+
+def _newest_listing(c: sqlite3.Connection, user_id: Any, def_id: str):
+    """The last thing this owner said about listing this definition."""
+    return c.execute(
+        "SELECT * FROM definition_listings WHERE user_id=? AND def_id=?"
+        " ORDER BY id DESC LIMIT 1",
+        (str(user_id), def_id),
+    ).fetchone()
+
+
+def publish(user_id: Any, def_id: str) -> Optional[dict]:
+    """List one of my definitions in the public library. ``None`` if there is
+    nothing live to publish.
+
+    ⭐ IT MINTS THE SHARE IF THERE ISN'T ONE, because a listing nobody can open is
+    a broken row. That is not a hidden side effect: publishing to a library IS
+    making it openable, and the return value says which token now serves it.
+
+    ⛔ IDEMPOTENT. Publishing twice appends a second `listed=1` row and changes
+    nothing a reader sees — the newest row wins — so a double-click cannot produce
+    two entries.
+    """
+    _check_def_id(def_id)
+    shared = share(user_id, def_id)
+    if shared is None:
+        return None
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        with c:
+            c.execute(
+                "INSERT INTO definition_listings (user_id, def_id, listed, created_at)"
+                " VALUES (?,?,1,?)",
+                (str(user_id), def_id, int(time.time())),
+            )
+    return {"def_id": def_id, "listed": True, "token": shared["token"],
+            "version": shared["version"], "table_version": shared["table_version"]}
+
+
+def unpublish(user_id: Any, def_id: str) -> bool:
+    """Take one of my definitions out of the library. ``True`` if it was in it.
+
+    ⛔⛔ THE LINK KEEPS WORKING. Withdrawing from a directory and revoking a link
+    somebody already holds are different decisions, and collapsing them would
+    break a recipient's saved link as a side effect of an unrelated choice. A
+    member who wants both calls `unshare` too, and that one removes the listing on
+    its own because a listing is only live while its share is.
+    """
+    _check_def_id(def_id)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        with c:
+            row = _newest_listing(c, user_id, def_id)
+            if row is None or not row["listed"]:
+                return False
+            c.execute(
+                "INSERT INTO definition_listings (user_id, def_id, listed, created_at)"
+                " VALUES (?,?,0,?)",
+                (str(user_id), def_id, int(time.time())),
+            )
+    return True
+
+
+def listing_status(user_id: Any, def_id: str) -> dict:
+    """Is this definition in the library right now? ⛔ DERIVED FROM BOTH FACTS —
+    the owner's own last word AND whether the share it rides on is still live."""
+    _check_def_id(def_id)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        row = _newest_listing(c, user_id, def_id)
+    asked = bool(row is not None and row["listed"])
+    share_live = share_status(user_id, def_id) is not None
+    return {"def_id": def_id, "listed": asked and share_live,
+            "requested": asked, "shared": share_live}
+
+
+#: How many library entries one page returns. ⚠️ A CAP, NOT A DEFAULT A CALLER MAY
+#: RAISE: this route is unauthenticated-adjacent (any paid member) and the rows
+#: cost a JSON parse each, so an unbounded `limit` is a way to make the pod do
+#: arbitrary work for one request.
+LIBRARY_PAGE_MAX = 60
+
+
+def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
+    """The library: every definition whose owner asked for it to be listed, newest
+    first, with the token that opens each one.
+
+    ⛔⛔ FOUR THINGS MUST ALL STILL BE TRUE, and every one is asked rather than
+    assumed, because each can stop being true without anybody touching a listing
+    row: the owner's last word is `listed`, the SHARE is still live, the
+    definition is not a tombstone, and the grammar has not moved under it. The
+    last is the same acceptance criterion `resolve_share` enforces — an entry the
+    library offers and the install door then refuses is worse than one it never
+    showed, because the member has already chosen it.
+
+    ⚠️ NO AUTHOR IS RETURNED, AND THAT IS A DECISION RATHER THAN AN OMISSION.
+    Members published a formula, not their name; putting an identity on a public
+    page they cannot see beforehand is not ours to assume. Attribution is additive
+    later — and cannot be taken back once it has shipped, which is why the default
+    is the reversible one. `author_id` still rides on an INSTALL, where the
+    recipient was handed the link deliberately.
+    """
+    try:
+        n = int(limit)
+    except (TypeError, ValueError):
+        n = 24
+    n = max(1, min(LIBRARY_PAGE_MAX, n))
+    cursor = None
+    if after is not None:
+        try:
+            cursor = int(after)
+        except (TypeError, ValueError):
+            cursor = None
+
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        # ⭐ THE NEWEST WORD PER (owner, definition), and only the ones that say
+        # `listed`. A GROUP BY over the max id is what makes the append-only table
+        # readable as a current state without a second table holding that state.
+        rows = c.execute(
+            "SELECT l.* FROM definition_listings l"
+            " JOIN (SELECT user_id, def_id, MAX(id) AS top FROM definition_listings"
+            "        GROUP BY user_id, def_id) m"
+            "   ON m.user_id=l.user_id AND m.def_id=l.def_id AND m.top=l.id"
+            " WHERE l.listed=1"
+            + (" AND l.id < ?" if cursor is not None else "")
+            + " ORDER BY l.id DESC LIMIT ?",
+            ((cursor, n + 1) if cursor is not None else (n + 1,)),
+        ).fetchall()
+
+    now_version = _current_table_version()
+    entries: list[dict] = []
+    last_id = None
+    for row in rows:
+        if len(entries) >= n:
+            break
+        last_id = row["id"]
+        live = share_status(row["user_id"], row["def_id"])
+        if live is None:
+            continue
+        if int(live["table_version"]) != now_version:
+            continue
+        doc = get(row["user_id"], row["def_id"])
+        if doc is None or doc.get("deleted_at") is not None:
+            continue
+        pinned = get(row["user_id"], row["def_id"], version=live["version"])
+        if pinned is None:
+            continue
+        definition = pinned["definition"]
+        meta = definition.get("meta") or {}
+        entries.append({
+            "token": live["token"],
+            "name": meta.get("name") or "Untitled",
+            "shortName": meta.get("shortName"),
+            "description": meta.get("description"),
+            "repaint": meta.get("repaint"),
+            "placement": (definition.get("placement") or {}).get("target"),
+            "inputs": len(definition.get("inputs") or []),
+            "published_at": row["created_at"],
+            "ast_hash": live["ast_hash"],
+        })
+    # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
+    # drop out for four reasons above, and paging from the last SURVIVOR would
+    # re-walk every one of the skipped rows on the next page — forever, if a
+    # revoked entry sits at the boundary.
+    more = len(rows) > n
+    return {"entries": entries, "next": (last_id if more else None),
+            "table_version": now_version}
 
 
 def share_history(user_id: Any, def_id: str) -> list[dict]:

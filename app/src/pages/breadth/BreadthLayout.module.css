@@ -40,3 +40,34 @@
   color: #94a3b8;
   border-bottom: 1px dotted rgba(148, 163, 184, 0.5);
 }
+
+/* The day stepper's two arrows and its LATEST escape. On desktop they keep the
+   app's default button styling — these classes carry nothing but the phone
+   hook, and `touch-action` is the one property that is right at every width. */
+.step { touch-action: manipulation; }
+.latest { touch-action: manipulation; }
+
+/* ⛔ PHONE — MEASURED, NOT ASSUMED. Rendered at 390×844 in Chromium, the tab
+   had NO horizontal overflow (the switcher's own scroll strip already handles
+   sixteen buttons) but almost nothing on it could be TAPPED: the two day arrows
+   measured 17×19px against this repo's own `--tap-min: 44px`, and the layout
+   toggle 22px tall. A control that is on screen and cannot be hit is the same
+   defect as one that is missing, and the two arrows are how a reader moves the
+   cursor one session at a time — the tab's primary action.
+   Nothing here changes a pixel above 640px. */
+@media (max-width: 640px) {
+  .btn,
+  .step,
+  .latest {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn { padding: 0 14px; }
+  /* The pointer to the per-pane gear, and the refused `?date=` — both are
+     sentences, and both wrap rather than pushing the row wide. */
+  .note,
+  .refusal { flex-basis: 100%; }
+}

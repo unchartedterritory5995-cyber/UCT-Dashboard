@@ -39,6 +39,43 @@
 
 ---
 
+## STATUS 2026-08-30 — 7 of 8 tasks DONE
+
+| task | state |
+|---|---|
+| 1 readiness probes every pack | ✅ `ce4e99367` |
+| 2 fast-lane gates for refusal questions | ✅ `ce4e99367` |
+| 3 timeout: 18s → 30s + one bounded retry | ✅ `f33bd8637` |
+| 4 S1-07 short interest | ✅ declared as a gap (`f33bd8637`) — the row's `short_float_pct` is NULL, so the honest fix was to SAY so, not to render it |
+| 4b written dates | ✅ `f33bd8637` — live: NVDA 2016-03-03 close $0.8163 |
+| 5 per-ticker desk gaps | ✅ `ce4e99367` |
+| 6 measure back-to-back | ✅ retrieval **16/30 → 25/30**; all 5 residual misses named |
+| 7 agent auto-route | ✅ measured, **NOT ARMED** — three A/Bs, no win. The fast lane caught up once the clamps came off. |
+| **8 set the ratchet** | ⛔ **DELIBERATELY NOT DONE — do not do it on a weekend.** |
+
+### Why Task 8 is still open
+
+2026-08-30 is a **Sunday**. `movers` and `earnings` are legitimately empty, the
+flow-worker is unreachable and the brain index is cold. Writing today's per-rung
+numbers into `SEARCH_RUNG_PASS_BARS` would set a permanent floor from the
+worst-case environment, and honestly-good weekday work would fail against it
+forever. That is the same defect as lowering a bar to green a run, in the other
+direction.
+
+**Do it on a warm weekday**, desk WARM in the pre-flight, median of 3 repeats,
+bars + label + the gate-test pin in ONE commit.
+
+### Also open, and NOT this plan's to fix
+
+`tests/test_definition_concierge.py::test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other`
+is RED on master: the `user_definitions` router grew **12 → 16 routes**
+(`fede36788`, the library/sharing initiative) and neither count pin moved. ⛔ Do
+NOT bump the number to green it — the pin exists so new routes get auth
+coverage. Whoever added the four routes should confirm each is auth-gated, then
+move both pins together.
+
+---
+
 ### Task 1: The readiness probe must name every cold pack, not just `quote`
 
 Tonight the probe checked one pack. `movers`, `flow` and the brain index were cold and their questions read as product failures. An exam that cannot tell "we don't hold this here" from "the product is broken" will keep producing wrong verdicts.

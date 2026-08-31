@@ -9,7 +9,8 @@ vi.mock('./breadthEvents', async (importOriginal) => {
   return { ...actual, scanEvents: vi.fn(actual.scanEvents) }
 })
 
-import EventLedgerView, { firedAccent } from './EventLedgerView'
+import EventLedgerView from './EventLedgerView'
+import { firedAccent } from './eventLedger'
 import { scanEvents, EVENT_DEFS, EVENT_FAMILIES } from './breadthEvents'
 import { optionLabel } from './viewMetricConfig'
 import { PALETTES, resolveViewColors } from './breadthViewShared'
@@ -27,6 +28,44 @@ const rows = Array.from({ length: 40 }, (_, i) => ({
 const paintOf = (card) => [card.style.border, ...[...card.querySelectorAll('*')]
   .flatMap(el => [el.style.color, el.style.background, el.style.backgroundColor])]
   .filter(Boolean).join(' ').toLowerCase()
+
+/**
+ * 🔴 THE LEDGER OVERLAPPED ITSELF AT COMPARE-PANE SIZE.
+ *
+ * A family section carried `minHeight: 0`, which let it be squeezed shorter
+ * than the rows inside it — and a row CANNOT shrink (it has a floor), so the
+ * rows spilled out of their section and were painted straight over the next
+ * family's heading. Rendered in Chromium at 740×241 the lens was five
+ * overlapping blocks of illegible text; the scroller built for exactly this
+ * case never saw the overflow, because the sections had absorbed it.
+ *
+ * jsdom cannot lay this out, so the rail asserts the DECLARATION that caused
+ * it: no family may declare a minimum below its own content.
+ */
+describe('a family section never shrinks below the rows inside it', () => {
+  const sections = (c) => [...c.querySelectorAll('[data-testid^="events-family-"]')]
+
+  it('declares no explicit minimum, so its automatic one is its content', () => {
+    const { container } = render(<EventLedgerView rows={rows} rowIdx={0} options={{}} />)
+    expect(sections(container).length).toBeGreaterThan(1)
+    for (const s of sections(container)) {
+      expect(s.style.minHeight,
+        `${s.dataset.testid}: a px minimum below the rows it holds is how they spill over the next family`)
+        .toBe('')
+    }
+  })
+
+  it('spaces BETWEEN families and not after the last one', () => {
+    // The trailing margin was dead space the strip could not use — the gap
+    // between the last row and the bottom of the box, measured at 12px.
+    const { container } = render(<EventLedgerView rows={rows} rowIdx={0} options={{}} />)
+    const all = sections(container)
+    for (const s of all.slice(0, -1)) {
+      expect(Number.parseFloat(s.style.marginBottom)).toBeGreaterThan(0)
+    }
+    expect(all[all.length - 1].style.marginBottom).toBe('0px')
+  })
+})
 
 // jsdom re-serialises an inline hex as rgb(); assert against both forms so the
 // test pins the COLOUR rather than one engine's spelling of it.

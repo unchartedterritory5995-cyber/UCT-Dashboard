@@ -482,6 +482,10 @@ Shipped from it (all in `9876bebc3`…this commit):
 - **Per-member throttle** — `DISCORD_CHART_USER_RATE` (6/60). A member asked
   for 5/day to stop "chart spam"; the owner ruled it "better than the
   nonsense", so the limit protects the renderer, not the channel.
+  **Raised to 12/60 on 2026-08-30** (owner), together with the render slots
+  (4 → 8 on both `web` and `chart-renderer`). Same reasoning, followed through:
+  if the number is there to protect the renderer, then the renderer getting
+  bigger is what licenses the number getting bigger.
 - **Intraday zoom** — `INTRADAY_VISIBLE_BARS` (5→110, 15→90, 30→80) via the
   page's `?bars=`; ~60% of a live intraday payload is extended hours.
 - **Per-call `mas` / `volume` options** on `/chart` and `/c`, layered over the

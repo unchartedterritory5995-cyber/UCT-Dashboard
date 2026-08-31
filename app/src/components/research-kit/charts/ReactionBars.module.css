@@ -44,7 +44,7 @@
      (identical hex, every theme) — gold stays unique to the implied bracket (§3.1) */
   fill: var(--score-weak);
   font-family: var(--font-sans);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 /* The ONE gold data-highlight on this canvas: tonight's implied +/- (§3.1). */
@@ -58,16 +58,18 @@
 .qlabel {
   fill: var(--text-muted);
   font-family: var(--font-sans);
-  font-size: 8px;
+  /* viewBox units ARE CSS pixels now that the box tracks the container, so
+     these are literal sizes. 8px was below anything readable. */
+  font-size: 11px;
   letter-spacing: var(--ls-normal);
 }
 
-/* PHONE — fewer, larger marks read better than the same density shrunk. */
+/* PHONE — fewer, larger marks read better than the same density shrunk.
+   The label SIZE no longer changes here: charts/format.js::labelStep thins the
+   axis to every other quarter once the slot is too narrow, which is what this
+   comment always described. A 9px override lived here and did the opposite. */
 @media (max-width: 640px) {
   .wrap {
     gap: 2px;
-  }
-  .qlabel {
-    font-size: 7px;
   }
 }

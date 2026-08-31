@@ -40,7 +40,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('calls onSave with canonical payload on Save Settings click', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     const onClose = vi.fn()
     render(
@@ -57,7 +57,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('shareJournalData toggle ships in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -72,7 +72,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('calls onClose without onSave on Cancel', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn()
     const onClose = vi.fn()
     render(
@@ -84,7 +84,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('switching stop mode to fixed_dollar_risk reveals the amount input', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
     )
@@ -94,7 +94,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('adds a new setup chip and includes it in the saved payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -115,7 +115,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('removes a setup chip when × is clicked', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={vi.fn()} />,
     )
@@ -151,7 +151,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('clicking the backdrop closes the modal', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onClose = vi.fn()
     const { container } = render(
       <PortfolioSettingsModal settings={baseSettings} onSave={vi.fn()} onClose={onClose} />,
@@ -162,7 +162,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase A guard inputs ship in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -189,7 +189,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase B guard inputs ship in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -220,7 +220,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase C A+ inputs ship in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     const settingsWithSetups = { ...baseSettings, setups: ['Bull Flag', 'Pullback'] }
     render(
@@ -246,7 +246,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase D regime multipliers ship in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -268,7 +268,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase E seeded mistake taxonomy ships in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -290,7 +290,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('Phase F nudge thresholds ship in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -314,7 +314,7 @@ describe('PortfolioSettingsModal', () => {
 
   // ── P5-A2: per-setup rules (setupRules) ──────────────────────────────
   it('adds a rule to a setup and includes setupRules in the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     render(
       <PortfolioSettingsModal settings={baseSettings} onSave={onSave} onClose={vi.fn()} />,
@@ -336,7 +336,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('seeds existing setupRules and ships them unchanged on save', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     const withRules = {
       ...baseSettings,
@@ -351,7 +351,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('removing a setup drops its setupRules entry from the save payload', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     const withRules = {
       ...baseSettings,
@@ -368,7 +368,7 @@ describe('PortfolioSettingsModal', () => {
   })
 
   it('removes an individual rule via its × button', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup({ delay: null })
     const onSave = vi.fn().mockResolvedValue({})
     const withRules = {
       ...baseSettings,

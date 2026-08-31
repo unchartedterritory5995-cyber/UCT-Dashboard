@@ -70,11 +70,18 @@ export default function DivergenceView({
   const line = (zs) => zs.map((z, i) => (z == null ? null : `${X(i).toFixed(2)},${Y(z).toFixed(2)}`))
     .filter(Boolean).join(' ')
 
+  // ⛔ THE HEADLINE IS ABOUT TODAY; THE SHADING IS ABOUT THE WINDOW — and saying
+  // only the first beside a chart that draws the second reads as a contradiction.
+  // "In step — no sustained divergence" sat above two large shaded blocks
+  // captioned "shaded where the gap held ≥5 sessions", so the lens appeared to
+  // deny what it was drawing. The clause names the count it is NOT talking about.
   const verdict = active
     ? (active.dir === 'price-leads'
         ? `Price leading breadth — ${active.end - active.start + 1} sessions and counting`
         : `Breadth leading price — ${active.end - active.start + 1} sessions and counting`)
-    : 'In step — no sustained divergence'
+    : (runs.length
+        ? `In step — no divergence running now, ${runs.length} earlier in this window`
+        : 'In step — no sustained divergence')
 
   // ⛔ THE COLOUR IS THE DIRECTION, NOT THE PRESENCE OF A DIVERGENCE. Painting
   // any active run bearish called "Breadth leading price" — the bullish half of

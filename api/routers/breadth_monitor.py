@@ -312,6 +312,73 @@ def validate_breadth_history_recon(request: Request, days: int = Query(default=1
     return breadth_history_recon.validate_recent(days)
 
 
+@router.get("/api/breadth-monitor/history/adv-dec-coverage")
+def adv_dec_coverage():
+    """How many of the last `days` sessions carry BOTH advance/decline counts —
+    i.e. the number the Event Ledger's Zweig refusal prints, computed by
+    `scanEvents`' own arithmetic. Read-only metadata (counts, no tickers), same
+    posture as `/ohlc/status`, so the owner can check the backfill landed
+    without a bearer token."""
+    from api.services import breadth_history_recon as r
+    return r.adv_dec_status(90)
+
+
+@router.post("/api/breadth-monitor/history/adv-dec-validate")
+def validate_adv_dec(request: Request, days: int = Query(default=20, ge=1, le=90),
+                     limit: int = Query(default=0, ge=0, le=90)):
+    """⭐ RUN THIS BEFORE ANY adv/dec BACKFILL. Recomputes `advancing`/`declining`
+    for stored sessions through the recon, over each row's OWN point-in-time
+    universe, and reports how often `advancing - declining` reproduces the
+    `adv_decline` the collector stored. `verdict: "pass"` (every session exact)
+    is the only result that licenses `backfill_adv_dec_from_recon` to write.
+    Read-only. PUSH_SECRET-gated — a full recompute per session is heavy, so
+    keep `days` small on the prod pod."""
+    _check_auth(request)
+    from api.services import breadth_history_recon as r
+    return r.validate_adv_dec_recon(days=days, limit=limit)
+
+
+@router.post("/api/breadth-monitor/history/adv-dec-apply")
+async def apply_adv_dec(request: Request, dry_run: bool = Query(default=True)):
+    """Write `advancing`/`declining` onto stored rows that lack them.
+
+    Body: `{"rows": {"2026-08-04": [1955, 737], ...}, "source": "collector_cache"}`
+    (a `{"advancing":…, "declining":…}` object per date is accepted too).
+
+    ⛔ The identity gate runs HERE, server-side, per row — a pair is written
+    only if `advancing - declining` equals that row's stored `adv_decline`
+    exactly, both counts are currently absent, and nothing else is touched. So
+    the store's guarantee never depends on the client that posted the numbers.
+    `dry_run` defaults to TRUE: it evaluates the whole gate, writes nothing, and
+    returns the same report. PUSH_SECRET-gated."""
+    _check_auth(request)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="body must be JSON")
+    rows = (body or {}).get("rows")
+    if not isinstance(rows, dict):
+        raise HTTPException(status_code=400, detail="body.rows must be an object keyed by date")
+    for d in rows:
+        _require_iso_date(str(d))
+    from api.services import breadth_history_recon as r
+    return r.apply_adv_dec_counts(rows, dry_run=bool(dry_run),
+                                  source=str((body or {}).get("source") or "http"))
+
+
+@router.post("/api/breadth-monitor/history/adv-dec-backfill-recon")
+def backfill_adv_dec_recon(request: Request, days: int = Query(default=90, ge=1, le=365),
+                           dry_run: bool = Query(default=True),
+                           limit: int = Query(default=0, ge=0, le=90)):
+    """Backfill the counts FROM THE RECON, through the same per-row gate. As
+    measured (0 of 96 sessions reproduce `adv_decline` from bars.db), this is
+    expected to refuse everything — the refusal is the point, and its report
+    names every session and by how much it missed. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_history_recon as r
+    return r.backfill_adv_dec_from_recon(days=days, dry_run=bool(dry_run), limit=limit)
+
+
 @router.post("/api/breadth-monitor/history/member-diff")
 def diff_breadth_members(request: Request, date: str = Query(...), metric: str = Query(...)):
     """Phase 0 diagnostic: diff the recomputed member set for one day+metric against the

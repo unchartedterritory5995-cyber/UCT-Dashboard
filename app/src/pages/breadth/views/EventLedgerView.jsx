@@ -6,11 +6,17 @@
 import { fillsRow, resolveViewColors } from './breadthViewShared'
 import SeekDate from './SeekDate'
 import { scanEvents } from './breadthEvents'
+// The neutral fired accent, and the ruling behind it, live in a pure module so
+// this one stays a component module.
+import { firedAccent } from './eventLedger'
 // ⛔ THE FAMILY NAMES ARE NOT RE-TYPED HERE. `EVENT_DEFS` owns the roster and
 // the option schema owns the words the Customize dropdown shows for each one, so
 // the section headings below read the SAME label the filter offers. A local map
 // would be a third spelling of a list that already has two authorities too many.
 import { optionLabel } from './viewMetricConfig'
+// The row's column track + the phone rule that drops the note column. Why it is
+// a stylesheet and not an inline style is stated at the top of that file.
+import styles from './EventLedgerView.module.css'
 
 const BASIS_LABEL = {
   tier: 'metric tier', formula: 'published formula',
@@ -43,32 +49,6 @@ function byFamily(events) {
   return [...out.entries()]
 }
 
-/**
- * THE FIRED ACCENT IS NEUTRAL, AND THAT IS THE WHOLE POINT OF THIS LENS.
- *
- * It reports that a NAMED thing happened; it does not grade the thing. Painting
- * every fired event with the palette's bull colour drew *90% Down Volume Day*,
- * *McClellan Oversold* and *New-Low Washout* green, with a green border — a
- * washout day rendered as good news. Tinting each event by an invented
- * directional opinion would be worse: McClellan oversold, an HVC surge and ATR
- * froth are all genuinely arguable, and those are the owner's calls, not this
- * file's.
- *
- * ⭐ SO THE ACCENT IS `colors.tier.a` — THE PALETTE'S OWN CAUTION TONE.
- *
- * The first fix for the green-washout bug hardcoded the UT gold, which held the
- * neutrality but left `options.palette` INERT in this lens: the Customize
- * control was on screen, offered four choices, and moved nothing. A control
- * that cannot change anything is a lie about the product, and it had to be
- * parked behind an exemption in the palette rail to keep that rail green.
- *
- * `tier.a` keeps the property the neutral ruling was actually protecting — the
- * caution band is the one tone a palette carries that reads as neither bull nor
- * bear — while moving with the palette like every other themed view. The
- * exemption is gone; `viewRegistry.test.jsx` now covers this lens with the
- * rest, and pins that the accent is never the bull or bear colour.
- */
-export const firedAccent = (colors) => colors.tier.a
 
 export default function EventLedgerView({
   rows = [], rowIdx = 0, onSeek, canSeek, options = {},
@@ -123,7 +103,7 @@ export default function EventLedgerView({
           is stretched or re-ranked to fill space. */}
       <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto',
                     display: 'flex', flexDirection: 'column' }}>
-      {byFamily(events).map(([family, list]) => {
+      {byFamily(events).map(([family, list], fi, fam) => {
         const firedHere = list.filter(e => e.firedToday).length
         return (
         <section key={family} data-testid={`events-family-${family}`}
@@ -131,8 +111,26 @@ export default function EventLedgerView({
                     hands a one-event family the same slack as a four-event one,
                     so the sections stop lining up and the ledger reads as five
                     unrelated blocks. Weighted by rows, every row in the lens
-                    ends up the same height whichever family it sits under. */
-                 style={{ marginBottom: 12, flex: `${list.length} 1 auto`, minHeight: 0,
+                    ends up the same height whichever family it sits under.
+
+                    🔴 AND THE SECTION MAY NOT SHRINK BELOW ITS OWN ROWS. This
+                    carried `minHeight: 0`, which let a squeezed section become
+                    shorter than the rows inside it — and the rows CANNOT shrink
+                    (they have a floor), so they spilled out of it and were
+                    painted straight over the next family's heading and rows. In
+                    a quarter-size compare pane the ledger rendered as five
+                    overlapping blocks of illegible text; the scroller that was
+                    built for exactly this case never saw the overflow, because
+                    the sections had absorbed it. With the automatic minimum
+                    back, the surplus reaches the scroller and the ledger
+                    scrolls — which is what a ten-row ledger in a 240px pane is
+                    supposed to do.
+
+                    The last family carries no bottom margin: it is spacing
+                    BETWEEN sections, and on the end of the list it was simply
+                    dead space the strip could not use. */
+                 style={{ marginBottom: fi === fam.length - 1 ? 0 : 12,
+                          flex: `${list.length} 1 auto`,
                           display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
                         flex: '0 0 auto' }}>
@@ -168,10 +166,9 @@ export default function EventLedgerView({
 
           return (
             <div key={e.key} data-testid={`events-card-${e.key}`}
+                 className={styles.row}
                  title={`${e.note} · ${BASIS_LABEL[e.basis]}`}
-                 style={{ display: 'grid', alignItems: 'center', gap: 8,
-                          gridTemplateColumns: '7px minmax(104px, 1.3fr) minmax(110px, 1.5fr) 58px minmax(0, 2.4fr)',
-                          ...fillsRow(ROW_MIN_H, ROW_MAX_H),
+                 style={{ ...fillsRow(ROW_MIN_H, ROW_MAX_H),
                           padding: '0 8px 0 6px',
                           borderLeft: `2px solid ${e.firedToday ? accent : 'transparent'}`,
                           borderBottom: '1px solid rgba(255,255,255,0.04)',
@@ -198,7 +195,8 @@ export default function EventLedgerView({
                              padding: '2px 0' }}>
                 {BASIS_CHIP[e.basis]}
               </span>
-              <span style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569',
+              <span className={styles.note}
+                    style={{ font: '500 9px \'Instrument Sans\', sans-serif', color: '#475569',
                              minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
                              whiteSpace: 'nowrap' }}>
                 {e.note}

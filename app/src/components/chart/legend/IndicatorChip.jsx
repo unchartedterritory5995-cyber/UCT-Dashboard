@@ -102,7 +102,8 @@ export default function IndicatorChip({
   }
   const longPress = useLongPress(openMenu)
 
-  const cls = [styles.chip, chip.hidden ? styles.chipHidden : null, className]
+  const cls = [styles.chip, chip.hidden ? styles.chipHidden : null,
+    chip.computed === false ? styles.chipEmpty : null, className]
     .filter(Boolean).join(' ')
 
   // ⛔ `stopPropagation` ON EVERY CONTROL. The chip is the long-press surface; a
@@ -119,7 +120,21 @@ export default function IndicatorChip({
       /* The state, readable without a colour comparison — the DOM half of the
          `hidden` contract `legendChips` produces. */
       data-hidden={chip.hidden ? 'true' : 'false'}
-      title={interactive ? `${chip.label} — right-click for options` : undefined}
+      /* ⭐⭐ AND WHETHER IT COMPUTED ANYTHING. MEASURED: a visible indicator that
+         computed NOTHING and a visible one with the cursor off the chart produced
+         byte-identical chips — same label, same null value, same `hidden: false`.
+         The all-NaN one draws no line and takes no pane (`pool.js` trap #4), so
+         the legend said exactly what it says when you are simply not hovering, and
+         the far commoner cause is the second one. A member reading the ambiguous
+         chip reaches for the mouse instead of for the length.
+         ⛔ ABSENT MEANS NOT ASKED. `computed` is undefined for a hidden plot,
+         because `binder.js` skips a hidden instance before computing it — so this
+         renders the attribute only when the question was actually put. */
+      data-computed={chip.computed === false ? 'false' : undefined}
+      title={chip.computed === false
+        ? `${chip.label} — no value on these bars. Its window reaches back further `
+          + 'than the history loaded here; try a longer timeframe or a shorter length.'
+        : (interactive ? `${chip.label} — right-click for options` : undefined)}
       {...(interactive ? longPress : null)}
     >
       {chip.text}

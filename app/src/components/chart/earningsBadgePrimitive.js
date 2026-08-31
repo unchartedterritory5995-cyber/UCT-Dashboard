@@ -44,6 +44,9 @@ export function createEarningsBadgePrimitive(initial) {
   // WHOLE pill instead of the exact reporting-bar time (which, zoomed out, is a
   // sub-pixel target — the "must click dead-center of the E" complaint).
   let lastHitRects = []
+  // The upcoming/estimate ("next earnings") badge's rect from the last frame, so a
+  // caller can anchor to the GREY box specifically (not a historical beat/miss one).
+  let lastEstimateRect = null
 
   function colorFor(p) {
     if (p && p.estimate) return opts.estimateColor  // upcoming report — grey, no result yet
@@ -64,7 +67,9 @@ export function createEarningsBadgePrimitive(initial) {
     zOrder: () => 'top',
     renderer: () => ({
       draw: (target) => {
-        if (!opts.enabled || !opts.points.length || !chart || !series) return
+        // Disabled / no points (e.g. an ETF): clear last-frame rects so a caller never
+        // reads a STALE badge position carried over from the previous symbol.
+        if (!opts.enabled || !opts.points.length || !chart || !series) { lastHitRects = []; lastEstimateRect = null; return }
         const ts = chart.timeScale()
         target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
           ctx.save()
@@ -83,6 +88,7 @@ export function createEarningsBadgePrimitive(initial) {
           const rowTop = mediaSize.height - ROW_BOTTOM - h
           const drawn = []
           const hits = []
+          let estRect = null
           for (const p of opts.points) {
             let x
             if (p.estimate) {
@@ -100,6 +106,7 @@ export function createEarningsBadgePrimitive(initial) {
             if (!p.estimate && intersects(rect, drawn)) continue
             drawn.push(rect)
             hits.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h, time: p.time })
+            if (p.estimate) estRect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h }
             // Pill
             ctx.fillStyle = colorFor(p)
             ctx.beginPath()
@@ -111,6 +118,7 @@ export function createEarningsBadgePrimitive(initial) {
             ctx.fillText(glyph, x, rect.y + rect.h / 2 + 0.5)
           }
           lastHitRects = hits
+          lastEstimateRect = estRect
           ctx.restore()
         })
       },
@@ -145,10 +153,17 @@ export function createEarningsBadgePrimitive(initial) {
     return lastHitRects.length ? { ...lastHitRects[0] } : null
   }
 
+  // The upcoming/estimate ("next earnings") badge's pill rect, or null if there is no
+  // upcoming report drawn this frame. Lets a caller anchor to the GREY box only.
+  function estimateRect() {
+    return lastEstimateRect ? { ...lastEstimateRect } : null
+  }
+
   return {
     primitive,
     hitTest,
     pointRect,
+    estimateRect,
     setPoints(points) { opts.points = Array.isArray(points) ? points : []; redraw() },
     setOptions(patch) { opts = { ...opts, ...patch }; redraw() },
   }

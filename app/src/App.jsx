@@ -33,7 +33,7 @@ import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // button in `SharePanel` builds its URL from this same module. Before it existed
 // the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
 // every link a member sent resolved to the catch-all 404 below.
-import { SHARED_FORMULA_ROUTE } from './pages/formulas/formulaShareLink'
+import { SHARED_FORMULA_ROUTE, FORMULA_LIBRARY_PATH } from './pages/formulas/formulaShareLink'
 
 // ─── Route chunk prefetch ────────────────────────────────────────────────────
 // React.lazy only begins downloading a page's chunk when that component first
@@ -75,6 +75,7 @@ const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
 const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
 const FormulaReference = lazy(() => import('./pages/formulas/FormulaReference'))
+const FormulaLibrary = lazy(() => import('./pages/formulas/FormulaLibrary'))
 const AiSearchPage = lazyPage('/ai-search', () => import('./pages/AiSearchPage'))
 const OptionsFlow = lazyPage('/options-flow', () => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazyPage('/flow-scoreboard', () => import('./pages/FlowScoreboard'))
@@ -444,6 +445,30 @@ export default function App() {
                     is a marketing decision rather than an engineering one.
                     Rail: `pages/formulas/formulaReference.route.test.jsx`. */}
                 <Route path="/formulas/reference" element={<FormulaReference />} />
+                {/* ⭐⭐ THE LIBRARY. Inside `Layout` and `AuthGuard` like the
+                    reference page, and for the same reason: it is a product
+                    surface rather than a shared link.
+                    ⛔⛔ IT STAYS BEHIND THE PAYWALL, AND THAT IS A RULING RATHER
+                    THAN AN UNANSWERED QUESTION (2026-08-30). It was left open as
+                    "the best shop window this product has", which is true and is
+                    not the deciding fact. Members publish under the sentence
+                    `SharePanel` actually shows them — "any member can find and
+                    install it" — and widening that audience to the open web
+                    afterwards is the same retroactive consent the whole feature
+                    was built to refuse: a link is not a publication, and a
+                    members' library is not a public one. A public shop window is
+                    a THIRD opt-in ("show this outside the members' area"), never
+                    a re-reading of the second.
+                    ⭐ AND THE DIRECTION IS THE REVERSIBLE ONE. Opening this later
+                    is a decision somebody can make; un-publishing a member's
+                    formula from the open web after it has been indexed is not.
+                    Rail: `formulaLibrary.route.test.jsx` asserts the route is not
+                    in `FREE_PAGES` and is not registered outside `AuthGuard`.
+                    ⛔ THE PATH IS DERIVED, never retyped: `formulaShareLink.js`
+                    records what happened the last time a formula path was
+                    hand-typed on one side and registered on neither.
+                    Rail: `pages/formulas/formulaLibrary.route.test.jsx`. */}
+                <Route path={FORMULA_LIBRARY_PATH} element={<FormulaLibrary />} />
                 <Route path="/ai-search" element={<AiSearchPage />} />
                 {/* ?view=scoreboard forwards to /flow-scoreboard — see
                     OptionsFlowRoute above for why it cannot live in the page. */}

@@ -126,6 +126,9 @@ if args.lane == "fast" and not args.offline:
           f"the canary: {', '.join(_ready['sources']) or 'none'}"
           + (f" | MISSING: {', '.join(_ready['missing'])}" if _ready["missing"] else "")
           + (f" | probe error: {_ready['error']}" if _ready.get("error") else ""))
+    if _ready.get("cold_packs"):
+        print(f"          COLD PACKS (their questions measure this BOX, not the "
+              f"product): {', '.join(_ready['cold_packs'])}")
     if not _ready["warm"] and not args.allow_cold_desk:
         print()
         print("!! THE DESK IS COLD - refusing to report a fast-lane result.")

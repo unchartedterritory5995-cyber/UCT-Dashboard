@@ -5,8 +5,8 @@
  * anywhere — the last 30 sessions of Health stand in). Each register must be
  * honest about which it is.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import DailyOverview from './DailyOverview'
 

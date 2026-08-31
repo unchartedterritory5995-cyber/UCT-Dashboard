@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import useMobileSWR from '../hooks/useMobileSWR'
 import useBatchTweetCounts from '../hooks/useBatchTweetCounts'
 import useTickerTweets from '../hooks/useTickerTweets'
+import useTweetFeed from '../hooks/useTweetFeed'
 import { timeAgo } from '../utils/timeAgo'
 import TickerPopup from './TickerPopup'
 import CompanyLogo from './CompanyLogo'
@@ -48,6 +49,28 @@ function TweetExpand({ sym }) {
             style={t.is_retweet ? { fontSize: '90%', opacity: 0.75 } : undefined}
           >
             {t.is_retweet ? 'RT: ' : ''}{renderTweetText(t.text)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// TapeFeed (components/tiles/TapeFeed.jsx) has no route of its own — the
+// Movers rail is its home. Mirrors TapeFeed's own convention: content only,
+// author handles intentionally not shown.
+function TapeList({ items }) {
+  if (!items || items.length === 0) {
+    return <p className={styles.tapeEmpty}>Nothing on the tape yet</p>
+  }
+  return (
+    <div className={styles.tapeRows}>
+      {items.slice(0, 12).map((t) => (
+        <div key={t.id} className={styles.tapeRow}>
+          <div className={styles.tweetText}>{renderTweetText(t.text)}</div>
+          <div className={styles.tapeRowMeta}>
+            <span className={styles.tweetTime}>{timeAgo(t.created_at)}</span>
+            <a className={styles.tweetLink} href={t.url} target="_blank" rel="noreferrer" title="open on X">↗</a>
           </div>
         </div>
       ))}
@@ -117,6 +140,11 @@ export default function MoversSidebar({ data: propData }) {
   }, [data])
 
   const { data: tweetCounts } = useBatchTweetCounts(UI_ENABLED ? allMoverSymbols : [])
+  // ON THE TAPE: the chronological curated-account feed. TapeFeed
+  // (components/tiles/TapeFeed.jsx) has no route of its own — this rail is
+  // its home now. useTweetFeed wraps useMobileSWR/useSWR, so its return
+  // shape is `{ data, error, ... }`, not `{ tweets }`.
+  const { data: tweets } = useTweetFeed()
 
   return (
     <div className={styles.tile}>
@@ -136,6 +164,14 @@ export default function MoversSidebar({ data: propData }) {
                 <MoverSection label="RIPPING" items={data.ripping ?? []} positive tweetCounts={tweetCounts} />
                 <MoverSection label="DRILLING" items={data.drilling ?? []} positive={false} tweetCounts={tweetCounts} />
               </div>
+              {/* TapeFeed has no route of its own; the rail is its home. Full
+                  width, below both mover columns (not a 3rd grid cell). */}
+              {UI_ENABLED && (
+                <div className={styles.tapeSection}>
+                  <span className={styles.tapeLabel}>ON THE TAPE</span>
+                  <TapeList items={tweets ?? []} />
+                </div>
+              )}
             </div>
           )}
         </div>

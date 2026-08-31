@@ -1,0 +1,152 @@
+/* Time Navigator date box — lives in the timeframe bar between the TF buttons and
+   the info fields. Chrome matches .tfBtn (muted app token, 11px, gold accent on
+   interaction); the dropdown popover matches the chart menus via --menu-* vars. */
+.nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  margin: 0 6px;
+  padding: 0 6px;
+  /* Matching hairline dividers on BOTH sides — between the timeframes and the box,
+     and between the box and the info fields. */
+  border-left: 1px solid var(--widget-divider, var(--border, #1f2937));
+  border-right: 1px solid var(--widget-divider, var(--border, #1f2937));
+}
+
+/* ◀ / ▶ one-bar steppers — same feel as .tfBtn */
+.step {
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.step:hover { color: var(--accent, #dcbb5e); border-color: var(--border, #1f2937); }
+
+/* The date field — reads the right-edge date; type + Enter to jump */
+.field {
+  width: 92px;
+  background: transparent;
+  color: var(--text, #e5e7eb);
+  border: 1px solid var(--border, #1f2937);
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: 0 1px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+.field::placeholder { color: var(--text-muted, #6b7280); font-weight: 500; letter-spacing: 0.2px; }
+.field:hover { border-color: var(--text-muted, #6b7280); }
+.field:focus { border-color: var(--accent, #dcbb5e); color: var(--text-bright, #f3f4f6); }
+
+/* ▾ dropdown trigger — mirrors the TF ▾ chevron button */
+.caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.caret:hover, .caret[aria-expanded='true'] { color: var(--accent, #dcbb5e); border-color: var(--border, #1f2937); }
+
+/* ── Dropdown popover (portaled to body, positioned by anchor) ── */
+.pop {
+  position: fixed;
+  z-index: 9200;
+  background: var(--menu-surface, var(--menu-bg, #0c0c0e));
+  border: 1px solid var(--menu-border, #26262a);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  color: var(--menu-text, #e6e6e8);
+  overflow: hidden;
+  animation: dnavIn 110ms ease-out;
+}
+@keyframes dnavIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.popBody { display: flex; }
+
+/* Calendar column */
+.cal { padding: 8px 8px 10px; flex: 1; min-width: 0; }
+.calHead {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.calTitle { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: var(--menu-text, #e6e6e8); }
+.calNav {
+  background: transparent; border: none; cursor: pointer;
+  color: var(--menu-text-faint, #6c6c70); font-size: 16px; line-height: 1; padding: 2px 8px; border-radius: var(--radius-md);
+}
+.calNav:hover { color: var(--menu-accent, #dcbb5e); background: var(--menu-hover, #16161a); }
+.calDow {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+  margin-bottom: 2px;
+}
+.calDow span {
+  text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--menu-text-faint, #6c6c70); padding: 2px 0;
+}
+.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.calEmpty { height: 24px; }
+.calDay {
+  height: 24px;
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+  color: var(--menu-text, #d4d4d6); font-size: 11px; font-variant-numeric: tabular-nums;
+  cursor: pointer; padding: 0;
+}
+.calDay:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
+.calDay:disabled { color: var(--menu-text-faint, #4a4a50); cursor: default; opacity: 0.4; }
+.calDay:disabled:hover { background: transparent; border-color: transparent; color: var(--menu-text-faint, #4a4a50); }
+/* The currently-framed date — gold TEXT only (no fill/outline). */
+.calDaySel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+
+/* Year list column */
+.years {
+  width: 74px;
+  border-left: 1px solid var(--menu-divider, #1c1c1f);
+  display: flex; flex-direction: column;
+  padding: 8px 8px 8px 8px;
+}
+.yearsLabel {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--menu-text, #e6e6e8); padding: 0 0 4px;
+  text-align: center;
+}
+/* Hide the year-list scrollbar chrome so the (centered) year buttons use the full
+   column width and line up perfectly under the centered YEAR label. Wheel/touch
+   scroll still works. */
+.yearsScroll {
+  overflow-y: auto; max-height: 216px; display: flex; flex-direction: column; gap: 1px;
+  scrollbar-width: none;
+}
+.yearsScroll::-webkit-scrollbar { width: 0; height: 0; }
+.yearsHint { font-size: 10px; color: var(--menu-text-faint, #6c6c70); padding: 4px 2px; text-align: center; }
+.yearBtn {
+  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+  color: var(--menu-text, #d4d4d6); font-size: 12px; font-variant-numeric: tabular-nums;
+  text-align: center; padding: 4px 8px; cursor: pointer;
+}
+.yearBtn:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
+/* The year of the currently-framed date — gold TEXT only (no fill/outline). */
+.yearBtnSel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+
+/* Sunrise (light) chart theme */
+:global([data-charts-theme='sunrise']) .step,
+:global([data-charts-theme='sunrise']) .caret { color: #45515f; }
+:global([data-charts-theme='sunrise']) .field { color: #12202c; border-color: rgba(28, 40, 54, 0.24); }

@@ -142,6 +142,17 @@ const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
   { val: 'horizontal', label: 'Horizontal' },
 ]
+
+// Location-aware right-click "… settings" → the settings tab to open on. Watermark
+// and axis are deeper Canvas sections (scrolled to); the rest are tab-tops.
+const SETTINGS_TARGET_TAB = {
+  candles: 'price',
+  canvas: 'canvas',
+  watermark: 'canvas',
+  axis: 'canvas',
+  ma: 'indicators',
+  volume: 'indicators',
+}
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
 // its one-line explanation. A hand-typed value list beside the module that owns
@@ -173,12 +184,18 @@ export default function ChartSettingsModal({
   onAdjustWatermark = null,
   onResetWatermark = null,
   watermarkCustomized = false,
+  // Optional section to reveal on open, e.g. 'watermark' (right-click "Adjust
+  // watermark") → open on the Canvas tab and scroll the Watermark section in.
+  scrollTo = null,
   // Reason string when the SURFACE that opened this modal fixes the volume pane
   // itself (charts workspace / multi-chart grid — see VOLUME_PANE_SURFACE_FIXED).
   // Renders the separate-pane toggle inert rather than letting it look live.
   volumePaneFixed = null,
 }) {
   const panelRef = useRef(null)
+  const watermarkRef = useRef(null)   // Watermark section (Canvas) — scrolled in for scrollTo='watermark'
+  const axisRef = useRef(null)        // Axis Labels section (Canvas) — for scrollTo='axis'
+  const volumeRef = useRef(null)      // Volume group (Indicators) — for scrollTo='volume'
   const dragRef = useRef(null)
   const [activeTab, setActiveTab] = useState('price') // 'price' | 'canvas'
   const [activeTarget, setActiveTarget] = useState(null) // { target, label }
@@ -317,7 +334,23 @@ export default function ChartSettingsModal({
   }, [open, onClose, activeTarget])
 
   useEffect(() => { if (!open) setActiveTarget(null) }, [open])
-  useEffect(() => { if (open) setActiveTab('price') }, [open]) // always open on Price Style
+  // Location-aware right-click targets → which settings tab to open on. 'candles',
+  // 'canvas', 'ma' are tab-tops (no scroll — fresh DOM opens at scrollTop 0);
+  // 'watermark'/'axis' are deeper Canvas sections that get scrolled in below. Both
+  // effects are LAYOUT effects so the tab + scroll land BEFORE paint (no flash).
+  const didScrollRef = useRef(false)
+  useLayoutEffect(() => {
+    if (!open) { didScrollRef.current = false; return }
+    setActiveTab(SETTINGS_TARGET_TAB[scrollTo] || 'price')
+  }, [open, scrollTo])
+  useLayoutEffect(() => {
+    if (!open || didScrollRef.current) return
+    const tab = SETTINGS_TARGET_TAB[scrollTo]
+    if (!tab || activeTab !== tab) return
+    const ref = scrollTo === 'watermark' ? watermarkRef : scrollTo === 'axis' ? axisRef : scrollTo === 'volume' ? volumeRef : null
+    if (ref) { try { ref.current?.scrollIntoView({ block: 'start', behavior: 'auto' }) } catch { /* noop */ } }
+    didScrollRef.current = true
+  }, [open, scrollTo, activeTab])
   useEffect(() => { setActiveTarget(null) }, [activeTab])
 
   // Position the pop-out color panel to the RIGHT of the modal (flip left if tight).
@@ -797,7 +830,7 @@ export default function ChartSettingsModal({
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Axis Labels</div>
+            <div className={styles.sectionLabel} ref={axisRef}>Axis Labels</div>
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Price labels</span>
@@ -825,7 +858,7 @@ export default function ChartSettingsModal({
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Watermark</div>
+            <div className={styles.sectionLabel} ref={watermarkRef}>Watermark</div>
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Show watermark</span>
@@ -936,7 +969,7 @@ export default function ChartSettingsModal({
             if (!rows.length) return null
             return (
               <section key={group} className={styles.section}>
-                <div className={styles.sectionLabel}>{group}</div>
+                <div className={styles.sectionLabel} ref={/volume/i.test(group) ? volumeRef : undefined}>{group}</div>
                 {rows.map((row) => {
                   const on = readEnabled(row)
                   const enabledKey = row.enabledKey || 'enabled'

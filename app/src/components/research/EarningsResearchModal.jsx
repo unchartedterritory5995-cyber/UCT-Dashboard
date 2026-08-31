@@ -262,6 +262,11 @@ export default function EarningsResearchModal({
   const banner = (
     <IdentityBanner
       as="div"
+      // Reserves the corner the modal's own absolutely-positioned close button
+      // occupies. Without it the 44x44 button sits ON TOP of the trailing
+      // stepper chevron — the "next reporter" control was unreachable in the
+      // corner, which is why only one chevron appeared to exist.
+      className={styles.banner}
       logo={<CompanyLogo sym={sym} size={34} tile />}
       sym={sym}
       company={row?.company}
@@ -291,6 +296,11 @@ export default function EarningsResearchModal({
           onSelect={onSectionChange}
           idPrefix="erm-rail"
           ariaLabel="Report sections"
+          // 12 sections at the 44px touch floor is ~570px of rail beside a
+          // canvas that is mostly dense numbers. Opt-in per surface: the two
+          // other SectionRail consumers keep their own geometry, and touch
+          // keeps the full floor here regardless (the rule is pointer:fine).
+          dense
           className={styles.rail}
         />
         <div
@@ -322,6 +332,13 @@ export default function EarningsResearchModal({
           />
         </div>
       </div>
+      {/* §12: the standing line was a SEPARATE full-width band under the
+          actions, so the modal ended in two stacked strips of chrome. The
+          original reasoning was that the line "can never compete with the CTAs
+          for the pinned row's horizontal space" — written when there were two
+          CTAs. There is one now, and it occupies ~90px of a ~900px row, so the
+          line sits in the same band, pushed right, and the modal ends in one
+          strip instead of two. */}
       <PinnedFooter as="div" ariaLabel="Actions" className={styles.footer}>
         <span data-testid="erm-footer" className={styles.footerInner}>
           <TickerPopup sym={sym} as="button" className={styles.btnChart}>View Chart</TickerPopup>
@@ -331,11 +348,8 @@ export default function EarningsResearchModal({
               there is nothing left to open. `/research/:sym` still exists as a
               route — it is simply no longer a place this modal sends anyone. */}
         </span>
+        <p className={styles.notAdvice} data-testid="erm-not-advice">{NOT_ADVICE}</p>
       </PinnedFooter>
-      {/* §12: the standing line lives BELOW the actions, as the modal's own
-          sub-line rather than a PinnedFooter child, so it can never compete
-          with the CTAs for the pinned row's horizontal space. */}
-      <p className={styles.notAdvice} data-testid="erm-not-advice">{NOT_ADVICE}</p>
     </>
   )
 

@@ -36,3 +36,33 @@ export function toNum(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
+
+/** Roughly the width of a "Q3 24" label at the 11px axis size, plus breathing
+ *  room. Below this a nine-quarter axis cannot show every label legibly. */
+export const MIN_LABEL_SLOT_PX = 38
+
+/**
+ * How many quarter labels to SKIP on a dense axis: 1 = draw every label,
+ * 2 = every other one.
+ *
+ * Both SVG charts in this kit label nine quarters along the bottom. On a phone
+ * that axis is ~270-330px wide, so each slot is ~30-37px while "Q3 24" needs
+ * ~32px at the 11px label size — the labels collide. The previous answer was a
+ * phone media query shrinking the label to 9px, which is BELOW the smallest
+ * type token (--text-xs is 10px, and 11px under the phone comfort scale) and
+ * made the axis the smallest text in the modal.
+ *
+ * ReactionBars' own phone block already said the right thing — "fewer, larger
+ * marks read better than the same density shrunk" — and then shrank the marks
+ * anyway. This implements the sentence: thin the labels instead, and let them
+ * keep a readable size at every width.
+ *
+ * Driven by the MEASURED slot, not a breakpoint: the same chart is narrow in
+ * the phone sheet AND in EarningsHistorySection's 58px-inset strip, and a
+ * `max-width` query cannot see the second one.
+ */
+export function labelStep(slot, { min = MIN_LABEL_SLOT_PX } = {}) {
+  const n = Number(slot)
+  if (!Number.isFinite(n) || n <= 0) return 1
+  return n < min ? 2 : 1
+}

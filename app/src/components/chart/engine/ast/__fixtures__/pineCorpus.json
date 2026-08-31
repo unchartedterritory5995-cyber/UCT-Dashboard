@@ -14,28 +14,25 @@
  },
  "02-ict-retracement-to-order-block-screener.pine": {
   "version": 5,
-  "translates": false,
+  "translates": true,
   "outputs": 10,
-  "usable": 0,
-  "selectedFormula": null,
-  "downstream": null,
-  "refusal": {
-   "guard": "pine:state",
-   "line": 88,
-   "column": 41,
-   "token": "["
+  "usable": 2,
+  "selectedFormula": "accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250) != accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250)[1] && accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250) == 1",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:state": 4,
    "pine:function": 4
   },
-  "hiddenScaffolding": 2
+  "hiddenScaffolding": 4
  },
  "03-rsi-directional-momentum-scanner.pine": {
   "version": 6,
   "translates": true,
   "outputs": 20,
-  "usable": 12,
+  "usable": 4,
   "selectedFormula": "crossUnder(rsi(close, 14), 40) && rsi(close, 14) < sma(rsi(close, 14), 14) && (accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) == 0 || accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) >= 4 && accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) <= 5)",
   "downstream": {
    "ok": true,
@@ -45,7 +42,7 @@
   "perOutputRefusals": {
    "pine:function": 2
   },
-  "hiddenScaffolding": 6
+  "hiddenScaffolding": 14
  },
  "04-superguppy-supertrend-screener.pine": {
   "version": 4,
@@ -86,7 +83,7 @@
   "translates": true,
   "outputs": 16,
   "usable": 13,
-  "selectedFormula": "(!1 || 1) && crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
+  "selectedFormula": "crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
   "downstream": {
    "ok": true,
    "guard": null,
@@ -184,10 +181,9 @@
   },
   "perOutputRefusals": {
    "pine:plot-offset": 3,
-   "pine:arity": 1,
    "pine:function": 4
   },
-  "hiddenScaffolding": 15
+  "hiddenScaffolding": 16
  },
  "13-average-true-range.pine": {
   "version": 3,
@@ -222,20 +218,17 @@
  },
  "15-anchored-vwap.pine": {
   "version": 6,
-  "translates": false,
+  "translates": true,
   "outputs": 11,
-  "usable": 0,
-  "selectedFormula": null,
-  "downstream": null,
-  "refusal": {
-   "guard": "pine:builtin",
-   "line": 92,
-   "column": 46,
-   "token": "time"
+  "usable": 1,
+  "selectedFormula": "!na(pivothigh(high, 5, 5)[5]) || !na(pivotlow(low, 5, 5)[5])",
+  "downstream": {
+   "ok": true,
+   "guard": null,
+   "repaint": "non-repainting"
   },
   "perOutputRefusals": {
-   "pine:builtin": 10,
-   "pine:state": 1
+   "pine:state": 10
   }
  },
  "16-smacd.pine": {

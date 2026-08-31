@@ -156,8 +156,8 @@ describe('paste a real screener script and get a working scan', () => {
     mount()
     await flush()
     await paste(SCREEN_SCRIPT)
-    const rsi = screen.getByTestId('pine-length-rsiLen')
-    const ma = screen.getByTestId('pine-length-maLen')
+    const rsi = screen.getByTestId('pine-input-rsiLen')
+    const ma = screen.getByTestId('pine-input-maLen')
     expect(rsi.placeholder).toBe('14')
     expect(ma.placeholder).toBe('200')
     // ⛔ THE AUTHOR'S OWN BOUND RIDES ALONG. `rsiLen` declares `minval=1` and

@@ -1,27 +1,36 @@
+/* On the token scale and the theme's own colour vars.
+   ⛔ `--color-text` / `--color-text-muted` are NEVER DEFINED anywhere in this
+   codebase (grep it), so every rule here was rendering its hardcoded hex
+   fallback. That is not merely inconsistent, it is THEME-BLIND: the design
+   system's --text-muted is #cfcac0 on dark and #57606a on light, while
+   #8a8f98 stayed #8a8f98 in both. This surface was a different grey from the
+   rest of the modal in dark mode, and unreadably wrong in light mode. */
 .list { list-style: none; margin: 0; padding: 0; }
 .item {
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--glass-border-neutral);
 }
 .meta {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 3px;
-  font-size: 10.5px; color: var(--color-text-muted, #8a8f98);
+  display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);
+  font-size: var(--text-sm); color: var(--text-muted);
 }
 .wire, .release {
-  padding: 1px 5px; border-radius: 3px; font-weight: 700; letter-spacing: .06em;
-  font-size: 9.5px;
+  padding: 1px 5px; border-radius: var(--radius-sm); font-weight: 700; letter-spacing: var(--ls-label);
+  font-size: var(--text-xs);
 }
 .wire { background: rgba(90, 169, 230, .18); color: #5aa9e6; }
-.release { background: rgba(220, 187, 94, .18); color: var(--ut-gold, #dcbb5e); }
+.release { background: var(--ut-gold-dim); color: var(--ut-gold); }
 .pub { font-weight: 600; }
 .when { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* A headline is the thing you read; it gets the largest body size here, not a
+   fractional 13.5px that belonged to no scale. */
 .title {
-  display: block; font-size: 13.5px; line-height: 1.45; font-weight: 600;
-  color: var(--color-text, #d8dade); text-decoration: none;
+  display: block; font-size: var(--text-lg); line-height: var(--lh-snug); font-weight: 600;
+  color: var(--text-bright); text-decoration: none;
 }
-.title:hover { color: var(--ut-gold, #dcbb5e); text-decoration: underline; }
+.title:hover { color: var(--ut-gold); text-decoration: underline; }
 .summary {
-  margin: 3px 0 0; font-size: 12px; line-height: 1.55;
-  color: var(--color-text-muted, #8a8f98);
+  margin: var(--space-xs) 0 0; font-size: var(--text-md); line-height: 1.55;
+  color: var(--text-muted);
 }
-.note { margin: 0; font-size: 12px; color: var(--color-text-muted, #8a8f98); }
+.note { margin: 0; font-size: var(--text-md); color: var(--text-muted); }

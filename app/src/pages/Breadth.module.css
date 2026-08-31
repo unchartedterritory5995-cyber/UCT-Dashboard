@@ -1083,11 +1083,22 @@ tbody tr { cursor: pointer; }
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .page { padding: 14px 10px; overflow: visible; height: auto; }
+  /* ⛔ `PageHeader`'s full-bleed negative margin reads `--page-pad-top`/
+     `--page-pad-x` off THIS element (see PageHeader.module.css's header
+     comment) — changing `padding` here without also moving those two custom
+     properties leaves the header pulling back by the DESKTOP inset (24px)
+     while the page itself is only inset 10px, so the header overhangs the
+     viewport by the 14px difference on both edges. Measured in real Chromium
+     (throwaway harness): 700x900 and 800x900 both showed a 14px/side
+     `documentElement.scrollWidth` overflow before this line existed. */
+  .page { padding: 14px 10px; overflow: visible; height: auto; --page-pad-top: 14px; --page-pad-x: 10px; }
   .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 @media (max-width: 640px) {
-  .page { padding: 8px; }
+  /* Same defect, phone tier: PageHeader falls back to ITS OWN `-m`-suffixed
+     vars (default 16px) below 640px, so it has to be told this page's actual
+     8px inset here too — an 8px/side overflow at 390x844 otherwise. */
+  .page { padding: 8px; --page-pad-top-m: 8px; --page-pad-x-m: 8px; }
   .header {
     flex-direction: column;
     align-items: flex-start;

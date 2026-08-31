@@ -73,6 +73,45 @@ export const isBrokerPlaceholderStop = (p) => {
 }
 
 /**
+ * 🔴 THE STOP A POSITION IS ACTUALLY PROTECTED BY, or `null` when it has none.
+ * **This is the predicate every surface should ask.** `isBrokerPlaceholderStop`
+ * above answers a narrower question — "is this the broker's NOT-NULL seed" —
+ * and three surfaces were asking it as though it were this one.
+ *
+ * Three ways a stored `stopPrice` is not a stop:
+ *   1. The BROKER PLACEHOLDER (`stop === entry` on a broker row).
+ *   2. NOT FINITE — null / undefined / NaN.
+ *   3. 🔴 ZERO OR NEGATIVE. `api/services/journal_two/positions.py` stores
+ *      `stop_price = 0.0` when `stopPrice` is omitted at create (it is
+ *      optional), and that is a MANUAL row, so rule 1 never fires on it.
+ *      Left through, a $0 stop renders as real protection and books the ENTIRE
+ *      NOTIONAL as risk: 100 shares at $100 read "stop $0.00" and
+ *      "$10,000.00 risk", twenty times the truth.
+ *
+ * ⭐ WHY IT LIVES HERE AND NOT ON ONE TILE. The rule shipped on the dashboard
+ * cockpit first, and for one round the SAME position read "no stop, $0 risk"
+ * there and "stop $0.00, full notional at risk" on the Journal's Positions tab
+ * — the client holding two answers about one position's protection. The server
+ * has had this rule the whole time (`api/services/portfolio_heat.py`:
+ * `if stop <= 0: return True`).
+ *
+ * ⚠️ The client and server tolerance FORMS still differ (relative vs absolute
+ * for rule 1); unifying them is separate, scoped work.
+ * @param {Position} p
+ * @returns {number|null}
+ */
+export const realStop = (p) => {
+  if (isBrokerPlaceholderStop(p)) return null
+  const s = activeStop(p)
+  if (!Number.isFinite(s) || s <= 0) return null
+  return s
+}
+
+/** True when a position has NO usable stop. The inverse of `realStop`, named
+ *  for the question call sites actually ask. @param {Position} p */
+export const hasNoRealStop = (p) => realStop(p) === null
+
+/**
  * Did this position genuinely OPEN today? True only when the entry date is
  * today AND the entry is real. Broker holdings-as-truth seeds unknown entries
  * with a sync-time placeholder date + entryEstimated flag — a reconnect
@@ -236,10 +275,14 @@ export const portfolioAggregates = (openPositions, prices, accountSize) => {
     if (current == null) continue
     value += current * p.shares
     unrealized += positionPnlDollar(p, current)
-    // Broker imports carry entry_price as a NOT-NULL stop placeholder — that
-    // is "no stop set", not a real stop at breakeven. Counting it made HEAT
-    // equal the whole unrealized P&L for every broker position.
-    if (!isBrokerPlaceholderStop(p)) {
+    // ⛔ STOP-DERIVED FIGURES NEED A REAL STOP. Broker imports carry
+    // entry_price as a NOT-NULL placeholder ("no stop set", not a stop at
+    // breakeven) — counting it made HEAT equal the whole unrealized P&L for
+    // every broker position. A MANUAL row created without a stop carries 0.0
+    // for the same NOT-NULL reason, and counting THAT booked the entire
+    // notional as risk. `realStop` covers both; asking
+    // `isBrokerPlaceholderStop` here only covered the first.
+    if (!hasNoRealStop(p)) {
       risk += positionRiskDollar(p)
       heat += positionHeatDollar(p, current)
     }
@@ -401,6 +444,40 @@ export const todayReferenceFor = (position, snap, todayIso, preferBroker = false
 }
 
 /**
+ * Resolve collected per-component vintages into one verdict. Mirror of
+ * `_finish_vintage` in the Python authority (broker/composition.py) — the two
+ * lanes are held together by parity-fixtures.json.
+ */
+const finishVintage = (v, brokerSessions) => {
+  const c = v.components
+  const present = ['live', 'broker', 'cost'].filter((k) => c[k] > 0)
+  v.basis = present.length === 1 ? present[0] : (present.length ? 'mixed' : null)
+  if (!brokerSessions.length) return v
+  const known = brokerSessions.filter(([, sess]) => sess != null)
+  const distinct = new Set(known.map(([, sess]) => sess))
+  if (known.length === brokerSessions.length && distinct.size === 1) {
+    v.session = known[0][1]
+    return v
+  }
+  // Reference = the NEWEST session anyone reports, ties broken by date so the
+  // verdict is deterministic. A mark with NO session can never be certified as
+  // sharing one, so when nothing is dated every component is named.
+  let ref = null
+  if (known.length) {
+    const counts = new Map()
+    for (const [, sess] of known) counts.set(sess, (counts.get(sess) || 0) + 1)
+    for (const [sess, n] of counts) {
+      if (ref == null || n > counts.get(ref) || (n === counts.get(ref) && sess > ref)) ref = sess
+    }
+  }
+  v.session = null
+  v.conflicts = brokerSessions
+    .filter(([, sess]) => ref == null || sess !== ref)
+    .map(([symbol, session]) => ({ symbol, session: session ?? null }))
+  return v
+}
+
+/**
  * Live broker net-liquidation summary, computed the way Robinhood does — cash
  * plus the live market value of holdings — so it matches the broker's actual
  * number and reflects today's intraday move. This SUPERSEDES anchoring on the
@@ -440,6 +517,11 @@ export const todayReferenceFor = (position, snap, todayIso, preferBroker = false
 export const brokerLiveSummary = (account, positions, optionStrategies, prices, todayIso, optionMarks, preferBroker = false) => {
   let marketValue = 0
   let today = 0
+  // WHICH MOMENT each part came from — reported, never enforced. Mixing is
+  // often correct; being unable to SEE the mix is what cost us this month.
+  const vintage = { basis: null, session: null, conflicts: [],
+                    components: { live: 0, broker: 0, cost: 0 } }
+  const brokerSessions = []
   // MIRROR PURITY: a broker-linked account's hero mirrors THE BROKER — only
   // broker-sourced rows participate. A manual row added into a broker account
   // must not move a number labeled as the broker's (its cash knows nothing of
@@ -455,6 +537,15 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     if (!Number.isFinite(px)) continue
     const signed = p.side === 'Short' ? -p.shares : p.shares
     marketValue += px * signed
+    const usedBroker = preferBroker
+      ? Number.isFinite(p?.brokerPrice)
+      : !Number.isFinite(live)
+    if (usedBroker) {
+      vintage.components.broker += 1
+      brokerSessions.push([p.symbol, p?.brokerPriceSession ?? null])
+    } else {
+      vintage.components.live += 1
+    }
     // Today is measured on the SAME price the row was valued at — pairing a
     // broker-marked value with a live-marked move would make (netLiq − today)
     // a previous-close equity from neither vintage. Without a live tick and
@@ -481,8 +572,12 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
     const liveCur = live?.currentValue
     const bcv = s?.brokerCurrentValue
     let cur = Number.isFinite(liveCur) ? liveCur : bcv
-    if (!Number.isFinite(cur) && s?.source === 'broker') cur = s?.netEntry
-    if (Number.isFinite(cur)) marketValue += cur
+    let kind = Number.isFinite(liveCur) ? 'live' : 'broker'
+    if (!Number.isFinite(cur) && s?.source === 'broker') {
+      cur = s?.netEntry
+      kind = 'cost'   // neither a live nor a broker mark; never let it pose as one
+    }
+    if (Number.isFinite(cur)) { marketValue += cur; vintage.components[kind] += 1 }
     if (Number.isFinite(liveCur) && Number.isFinite(live?.prevCloseValue)) {
       // Today for options mirrors the equity rule: measured from the prior
       // session close, or from the entry (netEntry) for a strategy genuinely
@@ -502,7 +597,8 @@ export const brokerLiveSummary = (account, positions, optionStrategies, prices, 
   const prevCloseEquity = netLiq != null ? netLiq - today : null
   const todayPct =
     prevCloseEquity != null && prevCloseEquity !== 0 ? today / prevCloseEquity : null
-  return { netLiq, marketValue, today, todayPct }
+  return { netLiq, marketValue, today, todayPct,
+           vintage: finishVintage(vintage, brokerSessions) }
 }
 
 /**
@@ -698,4 +794,58 @@ export const summaryStats = (trades) => {
     maxConsecWins,
     maxConsecLosses,
   }
+}
+
+/**
+ * One honest line saying WHICH MOMENT the hero's number is from.
+ *
+ * The owner's words on 2026-08-29 were "no matter what it is unreliable" — about
+ * a $19.96 gap they could not account for. The gap was real and is now 2c, but
+ * the lesson outlives it: a difference you cannot explain reads as broken, and
+ * the same difference, labelled, reads as precise. The data to label it always
+ * existed; nothing surfaced it.
+ *
+ * Returns null when there is nothing worth saying (an all-live book already
+ * says LIVE) — a label on every screen is noise, and noise is what gets
+ * ignored on the day it matters.
+ */
+export const vintageLabel = (vintage) => {
+  if (!vintage || !vintage.basis) return null
+  const { basis, session, components } = vintage
+  const total = components.live + components.broker + components.cost
+  if (basis === 'live') return null
+  if (basis === 'cost') return 'At cost — no marks yet'
+  if (basis === 'broker') {
+    return session ? `As of ${sessionLabel(session)} close` : "At your broker's last marks"
+  }
+  const bits = []
+  if (components.broker) {
+    bits.push(`${components.broker} of ${total} at your broker's ${
+      session ? `${sessionLabel(session)} close` : 'last marks'}`)
+  }
+  if (components.cost) bits.push(`${components.cost} at cost`)
+  return bits.length ? bits.join(' · ') : null
+}
+
+/**
+ * 'YYYY-MM-DD' → 'Fri Aug 28'.
+ *
+ * ⛔ Built from the date PARTS at local noon, never `new Date(iso)`. Parsing a
+ * bare date as UTC midnight and rendering it locally slips it a day for anyone
+ * west of Greenwich — this repo has paid for that exact bug four separate times
+ * (the calendar, the replay marker, the option excursion window, the trading-day
+ * spine). Noon cannot cross a day boundary under any offset.
+ */
+export const sessionLabel = (session) => {
+  const parts = String(session || '').split('-').map(Number)
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return String(session || '')
+  const [y, m, d] = parts
+  const dt = new Date(y, m - 1, d, 12)
+  // Built from fixed names rather than toLocaleDateString: the label is product
+  // copy, and a rail whose expected string depends on the test runner's locale
+  // fails for the wrong reason.
+  const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${WD[dt.getDay()]} ${MO[dt.getMonth()]} ${dt.getDate()}`
 }

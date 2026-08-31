@@ -14,7 +14,7 @@
  * is measured on the same price the row was valued at.
  */
 import { describe, it, expect } from 'vitest'
-import { preferBrokerMarks, brokerLiveSummary, currentPriceFor, todayReferenceFor } from './calculations'
+import { preferBrokerMarks, brokerLiveSummary, currentPriceFor, todayReferenceFor, vintageLabel, sessionLabel } from './calculations'
 import { buildEquityRows } from '../../pages/journal-2-0/lib/holdingsRows'
 
 const LAST_CLOSE = '2026-08-28' // Friday
@@ -196,5 +196,51 @@ describe('the Today reference under broker marks', () => {
     const rows = buildEquityRows(withPrev, PRICES, '2026-08-29', true)
     const hero = brokerLiveSummary(ACCOUNT, withPrev, [], PRICES, '2026-08-29', {}, true)
     expect(rows.reduce((s, r) => s + r.todayDollar, 0)).toBeCloseTo(hero.today, 6)
+  })
+})
+
+// ── the label a member actually reads ───────────────────────────────────────
+describe('vintageLabel', () => {
+  const V = (over) => ({ basis: null, session: null, conflicts: [],
+                         components: { live: 0, broker: 0, cost: 0 }, ...over })
+
+  it('says nothing when everything is live — the LIVE chip already does', () => {
+    expect(vintageLabel(V({ basis: 'live', components: { live: 5, broker: 0, cost: 0 } })))
+      .toBeNull()
+  })
+
+  it('names the session when the whole book is on broker marks', () => {
+    expect(vintageLabel(V({ basis: 'broker', session: '2026-08-28',
+                            components: { live: 0, broker: 5, cost: 0 } })))
+      .toBe('As of Fri Aug 28 close')
+  })
+
+  it('admits when the broker marks are undated rather than inventing a day', () => {
+    expect(vintageLabel(V({ basis: 'broker',
+                            components: { live: 0, broker: 5, cost: 0 } })))
+      .toBe("At your broker's last marks")
+  })
+
+  it('quantifies a blend instead of picking one side to claim', () => {
+    expect(vintageLabel(V({ basis: 'mixed', session: '2026-08-28',
+                            components: { live: 4, broker: 2, cost: 0 } })))
+      .toBe("2 of 6 at your broker's Fri Aug 28 close")
+  })
+
+  it('calls a just-filled option what it is', () => {
+    expect(vintageLabel(V({ basis: 'cost', components: { live: 0, broker: 0, cost: 1 } })))
+      .toBe('At cost — no marks yet')
+  })
+
+  it('never slips the session a day, at any UTC offset', () => {
+    // `new Date('2026-08-28')` is UTC midnight and renders as Aug 27 for anyone
+    // west of Greenwich. This repo has paid for that bug four times.
+    expect(sessionLabel('2026-08-28')).toBe('Fri Aug 28')
+    expect(sessionLabel('2026-01-01')).toBe('Thu Jan 1')
+  })
+
+  it('returns the raw string rather than throwing on junk', () => {
+    expect(sessionLabel('')).toBe('')
+    expect(sessionLabel('not-a-date')).toBe('not-a-date')
   })
 })

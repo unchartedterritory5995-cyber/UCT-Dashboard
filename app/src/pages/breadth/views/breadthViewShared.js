@@ -192,6 +192,84 @@ export const fillsRow = (min, max) => ({
   flexGrow: 1, flexShrink: 1, flexBasis: 0, minHeight: min, maxHeight: max,
 })
 
+/**
+ * ⭐ ONE SENTENCE FOR THE 0–100 SCALE FIVE BOARDS DRAW AGAINST, AND ONE TICK SET.
+ *
+ * 🔴 Rings drew an arc at 70% beside the number 342 and said nothing about what
+ * the arc measured, so it read as though 342 were a percentage of something.
+ * Radar drew a polygon against unlabelled rings. Levels drew full-height bars
+ * against no axis at all. All three — and Meters, and the Tug's posture bar —
+ * encode exactly ONE thing: `normalizeMetric`, "where does this reading sit on a
+ * scale every metric shares". A shape drawn against nothing is not a reading.
+ *
+ * ⛔ SO THE SENTENCE HAS ONE AUTHOR, beside `normalizeMetric` itself. Five
+ * hand-typed copies is how four boards come to describe a scale the fifth
+ * stopped drawing — and the ticks are here for the same reason: an axis printed
+ * 0/25/50/75/100 in one view and 0/30/50/70/100 in the next teaches the reader
+ * that the tab's scales are per-view guesses.
+ */
+export const NORM_TICKS = [0, 25, 50, 75, 100]
+export const NORM_SCALE_NOTE =
+  'rank 0–100 — each metric against its own history in the loaded window, or its native %'
+export const normBasis = (sessions) =>
+  (sessions ? `${sessions} sessions · ` : '') + NORM_SCALE_NOTE
+
+/**
+ * ⭐ INK THAT SURVIVES ITS OWN BACKGROUND — chrome, derived, never a palette choice.
+ *
+ * The Timeline prints a reading INSIDE a tier-coloured cell, and the tier
+ * colours run from `#86efac` (pale mint) to `#370606`-dark: one fixed text
+ * colour is unreadable on half of them, in every palette. So the ink is derived
+ * from the fill it sits on rather than picked — which is also why it is not a
+ * palette value: it is not saying anything, it is staying legible.
+ *
+ * ⛔ NOT `#fff` / `#000`: pure white on a mid-green vibrates and pure black on a
+ * dark tier disappears. Two near-neutrals off this tab's own ground.
+ */
+export function inkOn(hex) {
+  const h = typeof hex === 'string' && hex.length >= 7 ? hex : '#000000'
+  const r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16)
+  if ([r, g, b].some(Number.isNaN)) return '#eef2f7'
+  // Rec. 601 luma — good enough for a two-way pick, and cheap per cell.
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#0a0f1a' : '#eef2f7'
+}
+
+/**
+ * ⭐ ONE GRAMMAR FOR "THIS MARK OPENS THE NAMES BEHIND IT".
+ *
+ * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH. Ten hand-written
+ * copies of `role="button"` + `aria-label` + `onClick`, and not one of them
+ * carried `tabIndex` or a key handler — so every drill affordance on this tab
+ * ANNOUNCED itself to assistive tech as a button and then could not be focused,
+ * let alone pressed. A `<div role="button">` with no tab stop is worse than a
+ * plain div: it promises an action to exactly the users who cannot take it.
+ *
+ * ⛔ AND IT IS NOT A SIBLING OF THE DENSE MARKS. A ribbon cell, a timeline
+ * column, a clock dot and a divergence point all do ONE thing — move the date
+ * cursor — and the scrubber plus the arrow keys already reach every session in
+ * the window, in order, with the date announced on each step. Drill is the
+ * action with NO keyboard equivalent anywhere on the tab, which is why it is
+ * the one that gets tab stops here. (`lesson_one_grammar_four_hand_written_copies`.)
+ *
+ * Returns `{}` — not a disabled button — when the metric carries no `drillKey`:
+ * a metric with no list behind it must not read as an affordance at all.
+ */
+export function drillProps(metric, onDrill) {
+  if (!metric?.drillKey || typeof onDrill !== 'function') return {}
+  const open = () => onDrill(metric)
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': `${metric.label} details`,
+    onClick: open,
+    // Space scrolls the page by default, and Enter/Space are what a native
+    // button answers to — the two keys this element is claiming to be.
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
+    },
+  }
+}
+
 export function metricColor(metric, row, tierMap = VIEW_TIER_COLOR) {
   const tier = metric.getTier ? (metric.getTier(row) || '') : ''
   return tierMap[tier] ?? tierMap[''] ?? VIEW_TIER_COLOR['']

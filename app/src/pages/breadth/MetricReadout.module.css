@@ -2,7 +2,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 14px;
-  padding: 2px 0 10px;
+  /* Sits inside the chart panel, above the plot, so it carries the panel's
+     own inset — the wrap has no padding of its own. */
+  padding: 12px 16px 8px;
 }
 
 .item {

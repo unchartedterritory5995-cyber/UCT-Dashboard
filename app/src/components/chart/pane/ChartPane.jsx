@@ -485,7 +485,13 @@ function ChartPane({
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const openSettings = useCallback(() => setSettingsOpen(true), [])
+  // Optional section to reveal on open (e.g. 'watermark' from the right-click
+  // "Adjust watermark"). Callers like onClick pass an event — ignore non-strings.
+  const [settingsTarget, setSettingsTarget] = useState(null)
+  const openSettings = useCallback((target = null) => {
+    setSettingsTarget(typeof target === 'string' ? target : null)
+    setSettingsOpen(true)
+  }, [])
   const updateChartSettings = useCallback((next) => {
     writeActiveSettings(next)
   }, [writeActiveSettings])
@@ -542,6 +548,8 @@ function ChartPane({
   // chart to the journal exactly as shown") can freeze the window the user
   // was actually looking at.
   const viewRangeRef = useRef(null)
+  // StockChart publishes its imperative date-nav API here (Time Navigator box).
+  const dateNavApiRef = useRef(null)
 
   // Null-safe for the TF BAR only. StockChart keeps the raw prop: several of its
   // behaviors key off whether an onTfChange exists at all, and a surface that
@@ -619,6 +627,12 @@ function ChartPane({
     // The visible time-range at this instant (null before the first report) —
     // the journal-capture read-out.
     getViewState: () => ({ range: viewRangeRef.current }),
+    // Time Navigator (top-bar date box) — delegate to StockChart's published API.
+    goToDate: (ms) => dateNavApiRef.current?.goToDate?.(ms),
+    goToYear: (y) => dateNavApiRef.current?.goToYear?.(y),
+    stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
+    ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
+    getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
   return (
@@ -675,8 +689,13 @@ function ChartPane({
           }}
           styles={styles}
         >
+          {/* Host slot injected AFTER the timeframe buttons and BEFORE the meta
+              fields (MARKET CAP / NEXT EARNINGS / …) — the Time Navigator seat. */}
+          {slots?.tfBarAfterTf}
           {!compact && !mini && (
-            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} styles={styles} />
+            /* tight: when the Time Navigator sits before the fields, drop the wide
+               left margin so MARKET CAP hugs the box's divider (matches its left gap). */
+            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
@@ -745,6 +764,9 @@ function ChartPane({
             liveUpdates: false,
             watermark: sym,
             watermarkName: breadthRec.name,
+            // UCT pseudo-ticker — its watermark logo is the UCT compass brand mark,
+            // not a (wrong) company-logo lookup on the synthetic symbol.
+            watermarkBrandMark: true,
             // Breadth indicators have no volume — the synthetic bars carry vol=0, which
             // otherwise paints a flat line pinned at 0 (plus a "0" axis tag and a
             // "$ Vol $0" legend) in the volume pane. Render the volume pane EMPTY: it
@@ -759,6 +781,7 @@ function ChartPane({
             watermark: themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
+            watermarkBrandMark: true,   // UCT compass mark, not a company-logo lookup
           } : {})}
           {...(!themeIdx.isIndex && isDelisted ? {
             // DELISTED (never a theme index): freeze live updates + curated watermark
@@ -872,6 +895,7 @@ function ChartPane({
              subscription effect re-run, which self-heals a lost subscription
              if the underlying chart instance is ever recreated. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
+          onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
         />
         {flagToast && (
           <div className={styles.flagToast}>
@@ -883,6 +907,7 @@ function ChartPane({
       <ChartSettingsModal
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}
         onChange={updateChartSettings}
         onApplyThemeAll={onApplyThemeAll}

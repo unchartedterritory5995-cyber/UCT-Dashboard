@@ -547,6 +547,31 @@ def build_levels(tickers: list[str], closes: np.ndarray, volumes: np.ndarray,
     # one-bar difference in a 252-bar extreme.
     n52 = min(252, n_dates + 1)
     n20 = min(20, n_dates + 1)
+    # 🔴 `nath` IS NOT AN ALL-TIME WINDOW. `_FRAME_SESSIONS` is 380, so
+    # n_dates >= 252 always and this reduces to 252 — the same width as `n52`.
+    # `max52` and `maxath` below are therefore byte-identical arrays (measured,
+    # `tests/test_breadth_new_ath_definition.py`). Kept computed anyway: they
+    # are still an honest 52-week reference, and the test file pins the
+    # equality as the reason `compute_metrics` must never publish `maxath`
+    # under the `new_ath` key (it doesn't — see the comment there, 2026-08-30).
+    #
+    # This is the defect the COLLECTOR removed on 2026-08-06 (uct-intelligence
+    # `506d8ad` "new_ath was never an all-time high — source it from full
+    # history", hardened by `4aeb6`/`5ecd5f6`, stored history repaired by
+    # `--repair-ath`). It survived here because a one-year frame cannot hold an
+    # all-time high: the collector had to download full history per ticker to
+    # get one, and this module never did — and still doesn't; a real live ATH
+    # is Option B in the 2026-08-30 breadth data report (a per-session scan of
+    # the 3.1 GB daily table, plus a dividend-basis decision of its own), not
+    # done here.
+    #
+    # ⛔ The STORED `new_ath` is a real all-time-high count since that repair;
+    # this module's `new_ath` key is `None` (2026-08-30 fix) rather than a
+    # 52-week count wearing the ATH label. `reconcile`'s "new_ath: close" grade
+    # in `_ACCURACY` predates the repair and no longer grades anything live —
+    # every session now reports that field `"skipped"` (value is `None`). Do
+    # not backfill `new_ath` from this module (`sweep_history` writes every key
+    # it is handed) — there is nothing honest here to backfill with.
     nath = min(252, n_dates)
 
     lv: dict = {
@@ -794,7 +819,19 @@ def compute_metrics(levels: dict, prices: dict[str, float],
     m["new_52w_lows"] = _lo("new_52w_lows", "min52", "min52_ok")
     m["new_20d_highs"] = _hi("new_20d_highs", "max20", "max20_ok")
     m["new_20d_lows"] = _lo("new_20d_lows", "min20", "min20_ok")
-    m["new_ath"] = _hi("new_ath", "maxath", "maxath_ok")
+    # 🔴 DELIBERATELY NOT `_hi("new_ath", "maxath", "maxath_ok")`. `maxath` is
+    # byte-identical to `max52` on this frame (see the comment on `nath` in
+    # `build_levels`), so calling `_hi` here would publish `new_52w_highs` a
+    # second time under the ATH's name — the exact defect
+    # `tests/test_breadth_new_ath_definition.py` was written to pin. The stored
+    # `new_ath` has been a genuine all-time-high count since 2026-08-06
+    # (uct-intelligence `506d8ad`) and this module cannot derive that live
+    # without downloading full per-ticker history (Option B in the 2026-08-30
+    # breadth data report — a 3.1 GB scan per session, and a basis decision of
+    # its own). So the live payload reports NOT COMPUTED rather than a wrong
+    # number wearing the right label. `live_drill` below refuses this cell by
+    # name instead of returning a silently-empty list.
+    m["new_ath"] = None
 
     # near_52w_high: distance from the 52-week high, which includes today.
     hi52, ok52 = levels["max52"], levels["max52_ok"]
@@ -1355,6 +1392,23 @@ def _metric_key_of(drill_key: str) -> str:
     return drill_key[:-5] if drill_key.endswith("_list") else drill_key
 
 
+# A metric can be DRILLABLE by shape (its cell has a `drillKey` and a live mask
+# COULD back it) yet still publish `None` on a given read — `new_ath` always
+# (2026-08-30: the live path cannot derive a true all-time high, see the
+# comment on `nath` in `build_levels`), `up_from_open`/`down_from_open` before
+# the session's open prints. `_keep` is only ever called on a computed mask
+# (see `compute_metrics`), so `members` never gets a key for those — falling
+# through to `members.get(key) or []` would answer "zero names," a claim
+# nobody made, instead of "not computed." Named per-metric so a reader gets
+# the REASON, not a copy of the generic carried-field sentence below, which
+# would say something untrue (`new_ath` isn't carried from anywhere).
+_NOT_COMPUTED_LIVE_REASON = {
+    "new_ath": ("new_ath needs each name's full price history to find a true "
+                "all-time high, which this session's snapshot does not carry "
+                "— the stored end-of-day row has the real count"),
+}
+
+
 def live_drill(metric_key: str) -> dict:
     """The names behind one live cell, in the recorded drill's item shape.
 
@@ -1372,6 +1426,11 @@ def live_drill(metric_key: str) -> dict:
     if key not in DRILLABLE:
         return {"ok": False, "items": [],
                 "reason": f"{key} is carried from a prior session, not measured live",
+                "as_of": payload.get("as_of")}
+    if key not in members:
+        return {"ok": False, "items": [],
+                "reason": _NOT_COMPUTED_LIVE_REASON.get(
+                    key, f"{key} is not computed on the live path"),
                 "as_of": payload.get("as_of")}
 
     names = members.get(key) or []

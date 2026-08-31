@@ -69,3 +69,8 @@ test('renders nothing when closed', () => {
   render(<MemoryRouter><MoreSheet open={false} onClose={vi.fn()} /></MemoryRouter>)
   expect(screen.queryByText('Settings')).toBeNull()
 })
+
+test('Flow Scoreboard is reachable from the mobile More menu too, not only the desktop nav', () => {
+  renderSheet()
+  expect(screen.getByText('Flow Record')).toBeInTheDocument()
+})

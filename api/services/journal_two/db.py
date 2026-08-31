@@ -739,6 +739,25 @@ CREATE TABLE IF NOT EXISTS j2_broker_mirror_checks (
     PRIMARY KEY (user_id, broker_account_id)
 );
 
+-- Append-only history of composed-vs-reported drift.
+--
+-- j2_broker_mirror_checks keeps ONE row per account and pages on a threshold,
+-- which finds breakage and is blind to BIAS: the 2026-08-29 $19.96 gap sat
+-- under every tolerance, every day, for weeks, and was found only because the
+-- owner looked at two screens side by side. A series makes a persistent offset
+-- read as the flat band it is. Never upserted — the point is the shape.
+CREATE TABLE IF NOT EXISTS j2_broker_drift_series (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id            TEXT NOT NULL,
+    broker_account_id  TEXT NOT NULL,
+    checked_at         TEXT NOT NULL,
+    drift_dollar       REAL,
+    drift_pct          REAL,
+    ok                 INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_drift_series_acct
+    ON j2_broker_drift_series (broker_account_id, checked_at);
+
 -- Precise execution times for date-only brokers (Schwab stamps every
 -- activity at midnight): the Recent Orders rail SAW the true execution
 -- time in its provisional row; when the midnight-stamped real activity

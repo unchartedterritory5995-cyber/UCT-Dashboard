@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { fileURLToPath } from 'node:url'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
+import { render, cleanup, fireEvent } from '@testing-library/react'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
@@ -106,7 +107,12 @@ const propsFor = (style) => {
 // ⛔ AN AST, NOT A GREP (`lesson_probe_names_must_be_derived_not_typed`): a grep
 // for `rowIdx` in that file matches the state hook, the keyboard handler and
 // three memo deps before it reaches the bundle.
-const CONTAINER = path.join(__dirname, '..', 'BreadthViews.jsx')
+// `__dirname` does not exist in an ES module — this file is one, and the bare
+// reference only ever resolved because vitest's transform happened to leave a
+// CJS shim in scope. Derived from `import.meta.url`, which is the module's own
+// authority on where it lives.
+const HERE = path.dirname(fileURLToPath(import.meta.url))
+const CONTAINER = path.join(HERE, '..', 'BreadthViews.jsx')
 
 function bundlesFromContainer() {
   const src = fs.readFileSync(CONTAINER, 'utf8').replace(/\r\n/g, '\n')
@@ -145,35 +151,6 @@ describe('view registry', () => {
     for (const s of STYLES) expect(['board', 'lens']).toContain(VIEW_CONFIG[s].kind)
   })
 
-  it('every style renders with the props bundle its kind receives', () => {
-    for (const s of STYLES) {
-      const Component = VIEW_COMPONENTS[s]
-      expect(() => render(<Component {...propsFor(s)} />), `"${s}" threw on render`).not.toThrow()
-    }
-  })
-
-  /**
-   * ⭐ THE CHEAPEST POSSIBLE STAND-IN FOR OPENING THE PAGE.
-   *
-   * These are hand-rolled SVG: a coordinate that comes out `NaN` (a null value
-   * reaching a scale, a divide by a zero-length window) does not throw, does not
-   * warn, and does not fail any assertion about testids or colours — the element
-   * is simply not drawn. Every geometry change on this tab risks exactly that,
-   * and a blank shape inside a correct-looking panel is the hardest defect here
-   * to notice from a test suite.
-   */
-  it('draws no NaN coordinate into any view', () => {
-    swrState.data = SERVED
-    const bad = []
-    for (const style of STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container } = render(<Component {...propsFor(style)} />)
-      if (/\bNaN\b/.test(container.innerHTML)) bad.push(style)
-      cleanup()
-    }
-    expect(bad, 'these views put a NaN in their markup — something is not drawn').toEqual([])
-  })
-
   it('groups styles by kind, preserving STYLES order', () => {
     const { board, lens } = viewsByKind()
     expect(board.length + lens.length).toBe(STYLES.length)
@@ -203,18 +180,167 @@ describe('view registry', () => {
  * like that is exactly what goes stale, and it would have to grow an exemption
  * the day a ninth view lands.
  */
-describe('no two views claim the same test id', () => {
-  afterEach(() => { swrState.data = null })
+/**
+ * ⏱️⭐ ONE RENDER MATRIX, READ BY FIVE SWEEPS — the same trick the palette suite
+ * below already plays, applied to the structural ones.
+ *
+ * Five sweeps used to render all sixteen registered styles against the FULL
+ * metric board, once EACH: eighty real view trees to ask five questions, and
+ * this was the slowest file in the suite by a distance. The renders are the
+ * expensive part and they are IDENTICAL between the sweeps — what differs is the
+ * question, and a question is a string read.
+ *
+ * ⛔ THE MATRIX IS RENDERED TWICE PER STYLE, NOT ONCE, AND THAT IS NOT WASTE.
+ * The two SWR lenses have a refusal branch and a served branch, and the sweeps
+ * genuinely disagreed about which one they wanted: "renders without throwing"
+ * and the keyboard rails ran against NO server (the refusal shape — which is
+ * exactly the render most likely to divide by a missing number), while the NaN
+ * and test-id sweeps ran against a served body. Collapsing to one pass would
+ * have made this file faster by making it prove less, which is the one thing it
+ * must not do. Every question below is now asked of the pass it was asked of
+ * before — and the keyboard rails, which cost nothing extra here, are asked of
+ * BOTH, so a button that only exists once the server answers is covered too.
+ *
+ * ⛔ AND THE PER-ELEMENT `expect` CALLS ARE GONE, replaced by the collect-then-
+ * assert-once shape the rest of this file uses. Sixteen boards × ~forty drill
+ * targets was ~1,300 assertions to answer one yes/no question, and a failing
+ * one names its style and its element either way.
+ *
+ * ⛔ `cleanup()` INSIDE the loop: live view trees left in one document make
+ * every later render slower, for no assertion's benefit.
+ */
+const NO_SERVER = new Map()
+const SERVED_PASS = new Map()
+
+function sweepInto(into) {
+  for (const style of STYLES) {
+    const Component = VIEW_COMPONENTS[style]
+    const fired = []
+    const props = { ...propsFor(style), onDrill: (m) => fired.push(m?.key ?? true) }
+    const rec = { error: null, html: '', ids: [], buttons: [], fired: null }
+    try {
+      const { container } = render(<Component {...props} />)
+      rec.html = container.innerHTML
+      rec.ids = [...container.querySelectorAll('[data-testid]')]
+        .map(el => el.getAttribute('data-testid'))
+      rec.buttons = [...container.querySelectorAll('[role="button"]')].map(el => ({
+        // ⛔ THE ATTRIBUTE'S PRESENCE IS RECORDED SEPARATELY FROM ITS VALUE.
+        // `Number(getAttribute(...))` on a MISSING attribute is `Number(null)`
+        // === 0, which sails past `>= 0` — this rail passed with every
+        // `tabIndex` deleted until it asked the question that can be answered
+        // "no".
+        has: el.hasAttribute('tabindex'),
+        value: Number(el.getAttribute('tabindex')),
+      }))
+      const btn = container.querySelector('[role="button"]')
+      if (btn) {
+        fireEvent.keyDown(btn, { key: 'Enter' })
+        fireEvent.keyDown(btn, { key: ' ' })
+        rec.fired = fired.length
+      }
+    } catch (err) {
+      rec.error = err
+    }
+    cleanup()
+    into.set(style, rec)
+  }
+}
+
+describe('every registered style, rendered against both server states', () => {
+  beforeAll(() => {
+    swrState.data = null
+    sweepInto(NO_SERVER)
+    swrState.data = SERVED
+    sweepInto(SERVED_PASS)
+    swrState.data = null
+  }, 60000)
+
+  it('every style renders with the props bundle its kind receives', () => {
+    const threw = []
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const s of STYLES) {
+        const err = pass.get(s)?.error
+        if (err) threw.push(`${s} (${label}): ${err.message}`)
+      }
+    }
+    expect(threw, 'these styles threw on render').toEqual([])
+    expect(NO_SERVER.size, 'the matrix rendered nothing — this rail proves nothing')
+      .toBe(STYLES.length)
+  })
+
+  /**
+   * ⭐ THE CHEAPEST POSSIBLE STAND-IN FOR OPENING THE PAGE.
+   *
+   * These are hand-rolled SVG: a coordinate that comes out `NaN` (a null value
+   * reaching a scale, a divide by a zero-length window) does not throw, does not
+   * warn, and does not fail any assertion about testids or colours — the element
+   * is simply not drawn. Every geometry change on this tab risks exactly that,
+   * and a blank shape inside a correct-looking panel is the hardest defect here
+   * to notice from a test suite.
+   */
+  it('draws no NaN coordinate into any view', () => {
+    const bad = STYLES.filter(s => /\bNaN\b/.test(SERVED_PASS.get(s).html))
+    expect(bad, 'these views put a NaN in their markup — something is not drawn').toEqual([])
+  })
+
+  /**
+   * 🔴 NINE VIEWS DECLARED A BUTTON THAT NO KEYBOARD COULD REACH.
+   *
+   * Ten hand-written copies of `role="button"` + `aria-label` + `onClick`, and
+   * not one carried `tabIndex` or a key handler — so every drill affordance on
+   * this tab ANNOUNCED itself to assistive tech as a button and could not be
+   * focused, let alone pressed. A `<div role="button">` with no tab stop is
+   * worse than a plain div: it promises an action to exactly the users who
+   * cannot take it, and there is no OTHER keyboard path to a drill list
+   * anywhere on this tab.
+   *
+   * ⭐ DERIVED OVER EVERY REGISTERED STYLE, so the seventeenth view is covered
+   * on the day it lands rather than on the day someone remembers to add it
+   * here. `drillProps` in `breadthViewShared.js` is the one grammar; this
+   * asserts the PROPERTY, not the helper, so a view that hand-rolls a correct
+   * button still passes and one that hand-rolls the old broken shape does not.
+   */
+  it('gives every button a view declares a tab stop', () => {
+    const offenders = []
+    let seen = 0
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const style of STYLES) {
+        for (const b of pass.get(style).buttons) {
+          seen++
+          if (!b.has) offenders.push(`${style} (${label}): a role="button" with no tab stop`)
+          else if (!(b.value >= 0)) offenders.push(`${style} (${label}): tabindex ${b.value} — out of the tab order`)
+        }
+      }
+    }
+    expect(offenders, 'announced to assistive tech, unreachable by keyboard').toEqual([])
+    // ⛔ CONTROL: a sweep over zero buttons passes for the wrong reason.
+    expect(seen, 'no view rendered a button — this rail proved nothing').toBeGreaterThan(0)
+  })
+
+  it('activates on Enter and on Space, the two keys it claims', () => {
+    // ⛔ A TAB STOP ALONE IS HALF THE FIX: focusable and inert is still a
+    // button that does nothing. Driven through the container's own drill
+    // bridge, per style, so a view that added `tabIndex` and forgot the key
+    // handler fails by name.
+    const inert = []
+    let activated = 0
+    for (const [label, pass] of [['no server', NO_SERVER], ['served', SERVED_PASS]]) {
+      for (const style of STYLES) {
+        const { fired } = pass.get(style)
+        if (fired == null) continue
+        activated++
+        if (fired !== 2) inert.push(`${style} (${label}): a focusable button that answered ${fired} of 2 keys`)
+      }
+    }
+    expect(inert, 'these buttons take focus and do nothing').toEqual([])
+    expect(activated, 'no style exercised the key path').toBeGreaterThan(0)
+  })
 
   it('every rendered test id belongs to exactly one style', () => {
-    swrState.data = SERVED
     const owners = new Map()
     const clashes = []
     for (const style of STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container } = render(<Component {...propsFor(style)} />)
-      for (const el of container.querySelectorAll('[data-testid]')) {
-        const id = el.getAttribute('data-testid')
+      for (const id of SERVED_PASS.get(style).ids) {
         if (id === 'echart') continue          // the stub at the top of this file
         const prev = owners.get(id)
         if (prev && prev !== style) clashes.push(`${id}: "${prev}" and "${style}"`)
@@ -294,8 +420,44 @@ const PALETTE_STYLES = STYLES.filter(s => optionsSchema(s).some(o => o.name === 
  * ruling — that the accent is never the bull or bear colour.
  */
 
+const uniqueTo = (name) => {
+  const others = new Set(Object.entries(PALETTES)
+    .filter(([k]) => k !== name).flatMap(([, p]) => paletteColors(p)))
+  return paletteColors(PALETTES[name]).filter(c => !others.has(c))
+}
+
 describe('every palette-honoring view paints with the palette it was given', () => {
   afterEach(() => { swrState.data = null })
+
+  /**
+   * ⏱️ ONE RENDER PASS, READ BY EVERY SWEEP BELOW.
+   *
+   * Each sweep here is `PALETTE_STYLES x PALETTES` real renders of real view
+   * trees — sixty of them — and there are three questions to ask of that
+   * matrix. Rendering it once PER QUESTION put this file at ~42s and pushed an
+   * UNRELATED test in it past the 5s default timeout under a loaded fork pool:
+   * green alone, red in company. The matrix is built once; the questions are
+   * string reads.
+   *
+   * ⛔ `cleanup()` INSIDE the loop, not after it. Sixty live view trees left
+   * in one document make every later render slower, which is the same failure by
+   * a slower road.
+   */
+  const painted = new Map()
+  const key = (style, palette) => `${style}@${palette}`
+  beforeAll(() => {
+    swrState.data = SERVED
+    for (const palette of Object.keys(PALETTES)) {
+      for (const style of PALETTE_STYLES) {
+        const Component = VIEW_COMPONENTS[style]
+        const { container } = render(
+          <Component {...propsFor(style)} options={{ ...optionDefaults(style), palette }} />)
+        painted.set(key(style, palette), container.innerHTML.toLowerCase())
+        cleanup()
+      }
+    }
+    swrState.data = null
+  }, 60000)
 
   it('the ocean palette has colours no other palette can produce', () => {
     // Without this the loop below could pass on a colour every palette shares.
@@ -327,13 +489,10 @@ describe('every palette-honoring view paints with the palette it was given', () 
 
   it('renders an OCEAN colour for every view that offers the palette option', () => {
     expect(PALETTE_STYLES.length).toBeGreaterThan(10)
-    swrState.data = SERVED
     const blind = []
     for (const style of PALETTE_STYLES) {
-      const Component = VIEW_COMPONENTS[style]
-      const { container } = render(
-        <Component {...propsFor(style)} options={{ ...optionDefaults(style), palette: 'ocean' }} />)
-      const html = container.innerHTML.toLowerCase()
+      const html = painted.get(key(style, 'ocean'))
+      expect(html, `no render captured for ${style}@ocean`).toBeTruthy()
       const hit = OCEAN_ONLY.some(c => html.includes(c) || html.includes(hexToRgb(c)))
       if (!hit) blind.push(style)
     }
@@ -356,34 +515,122 @@ describe('every palette-honoring view paints with the palette it was given', () 
    * the view — and a palette that shared everything would fail the guard rather
    * than quietly make its row of the sweep vacuous.
    */
-  const uniqueTo = (name) => {
-    const others = new Set(Object.entries(PALETTES)
-      .filter(([k]) => k !== name).flatMap(([, p]) => paletteColors(p)))
-    return paletteColors(PALETTES[name]).filter(c => !others.has(c))
-  }
-
-  // ⏱️ 60 real renders. It cleans up between them — sixteen live view trees left
-  // in one document made every later render slower — and still asks for room:
-  // green alone and red in company is the failure this timeout prevents.
   it('paints in every palette, mono — which has no green and no red — included', () => {
-    swrState.data = SERVED
     const blind = []
     for (const palette of Object.keys(PALETTES)) {
       const own = uniqueTo(palette)
       expect(own.length, `"${palette}" shares every colour it has, so this sweep `
         + 'cannot tell whether a view read it').toBeGreaterThan(0)
       for (const style of PALETTE_STYLES) {
-        const Component = VIEW_COMPONENTS[style]
-        const { container } = render(
-          <Component {...propsFor(style)} options={{ ...optionDefaults(style), palette }} />)
-        const html = container.innerHTML.toLowerCase()
+        const html = painted.get(key(style, palette))
         if (!own.some(c => html.includes(c) || html.includes(hexToRgb(c)))) blind.push(`${style} @ ${palette}`)
-        cleanup()
       }
     }
     expect(blind, 'these views render nothing this palette can produce — a hardcoded '
       + 'colour, or a control that moves nothing').toEqual([])
-  }, 30000)
+  })
+
+  /**
+   * ⭐ AND THE OTHER HALF: NOT PAINTING A COLOUR THE PALETTE CANNOT PRODUCE.
+   *
+   * 🔴 The sweep above asks whether the chosen palette REACHED the view. It
+   * cannot see a view that reads the palette correctly in one place and paints a
+   * literal somewhere else — which is exactly what two boards were doing. The
+   * Meters track was a hardcoded `linear-gradient(90deg,#14532d,…,#7f1d1d)`, and
+   * the Tug's Net Posture line was `#34d399` / `#f87171`: classic's bull and
+   * bear, verbatim. Both rendered a green-and-red board under `mono`, a palette
+   * with neither colour in it, and both passed the sweep above because their
+   * OTHER elements did read the palette. Green alone, red in company.
+   *
+   * ⛔ THE FORBIDDEN SET IS DERIVED PER PALETTE, never typed: the colours that
+   * belong to some OTHER palette and to no other — so a hit cannot be a shared
+   * neutral (`tier['']` is `#475569` in all four and is therefore in nobody's
+   * set) and cannot be this tab's own chrome.
+   */
+  it('paints no colour belonging to a palette it was not given', () => {
+    const strays = []
+    for (const palette of Object.keys(PALETTES)) {
+      const foreign = Object.keys(PALETTES)
+        .filter(p => p !== palette)
+        .flatMap(p => uniqueTo(p).map(c => [p, c]))
+      expect(foreign.length, `nothing is unique to a palette other than "${palette}" — vacuous`)
+        .toBeGreaterThan(0)
+      for (const style of PALETTE_STYLES) {
+        const html = painted.get(key(style, palette))
+        for (const [owner, c] of foreign) {
+          if (html.includes(c) || html.includes(hexToRgb(c))) {
+            strays.push(`${style} @ ${palette} painted ${c} (${owner}'s)`)
+          }
+        }
+      }
+    }
+    expect(strays, 'these views painted a colour their palette does not own — a '
+      + 'hardcoded tint that survives every "does the palette reach it" check').toEqual([])
+  })
+
+  /**
+   * ⭐ THE GUARD WITH NO ROSTER AT ALL: under `mono`, NOTHING MAY BE GREEN OR RED.
+   *
+   * 🔴 The two sweeps above are both membership tests — "is this palette's
+   * colour present", "is another palette's colour present" — and a hardcode that
+   * belongs to NO palette sails through both. That is not hypothetical: the
+   * Meters track was `linear-gradient(90deg,#14532d,#3f6212,#713f12,#7f1d1d)`, an
+   * invented green-to-red ramp owned by nobody, and it painted a green-and-red
+   * board under a gold-and-grey palette while every colour rail stayed green.
+   * (Mutation-checked: restoring that gradient fails THIS test and no other.)
+   *
+   * ⛔ SO THE PROPERTY IS ABOUT HUE, NOT MEMBERSHIP. `mono` is the palette
+   * defined by what it does not have, which makes it the one palette where the
+   * absence of a colour FAMILY is checkable. Anything saturated, in the readable
+   * middle of the lightness range, sitting in the green or red arc, was painted
+   * by something that is not reading the palette — whatever hex it happens to be.
+   *
+   * The bounds are deliberately loose: near-black grounds, near-white ink and
+   * this tab's desaturated slate chrome are all excluded by construction rather
+   * than by being listed, and UT gold (hue ~45) is nowhere near either arc.
+   */
+  const parseColours = (html) => {
+    const out = []
+    for (const m of html.matchAll(/#([0-9a-f]{6})(?![0-9a-f]{1,2}[0-9a-f])/g)) {
+      const h = m[1]
+      out.push([m[0], parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)])
+    }
+    for (const m of html.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)) {
+      out.push([m[0], Number(m[1]), Number(m[2]), Number(m[3])])
+    }
+    return out
+  }
+  const hsl = (r, g, b) => {
+    const R = r / 255, G = g / 255, B = b / 255
+    const max = Math.max(R, G, B), min = Math.min(R, G, B), d = max - min
+    const l = (max + min) / 2
+    const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+    let h = 0
+    if (d !== 0) {
+      if (max === R) h = 60 * (((G - B) / d) % 6)
+      else if (max === G) h = 60 * ((B - R) / d + 2)
+      else h = 60 * ((R - G) / d + 4)
+    }
+    return [(h + 360) % 360, sat, l]
+  }
+  const GREEN = (h) => h >= 75 && h <= 165
+  const RED = (h) => h >= 335 || h <= 25
+
+  it('paints nothing green and nothing red under mono, which has neither', () => {
+    const offenders = []
+    for (const style of PALETTE_STYLES) {
+      const html = painted.get(key(style, 'mono'))
+      for (const [text, r, g, b] of parseColours(html)) {
+        const [h, sat, l] = hsl(r, g, b)
+        if (sat > 0.25 && l > 0.12 && l < 0.85 && (GREEN(h) || RED(h))) {
+          offenders.push(`${style}: ${text} (hue ${Math.round(h)})`)
+        }
+      }
+    }
+    expect(offenders, 'these views painted a green or a red under a palette that has '
+      + 'neither \u2014 a hardcoded tint that belongs to no palette, so no membership '
+      + 'check can see it').toEqual([])
+  })
 
   // The loop above is a sweep; this pins that the ledger is genuinely IN it
   // rather than passing because some other element happened to carry a colour.

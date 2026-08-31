@@ -83,7 +83,7 @@ function hexToRgb(hex) {
 // Factory → { primitive, setOptions, setArmed, getRect }.
 // opts: { lines:string[], color, opacity, sizeScale, x, y }
 export function createWatermarkPrimitive(initial) {
-  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, logoEnabled: false, logoImg: null, ...initial }
+  let opts = { lines: [], color: '#a8a290', opacity: 0.07, sizeScale: 1, weight: 700, x: 0.5, y: 0.5, padX: EDGE_PAD, padTop: 0, hardCenterXPx: null, align: 'center', custom: false, logoEnabled: false, logoImg: null, logoScale: 1, ...initial }
   let lastRect = null            // {x,y,w,h} in pane media px from last draw
   let lastMediaSize = null       // {width,height} of pane 0 in CSS px from last draw
   let armed = false              // hover/drag highlight
@@ -174,7 +174,10 @@ export function createWatermarkPrimitive(initial) {
                 ctx.save()
                 ctx.beginPath(); ctx.arc(ccx, ccy, rad, 0, Math.PI * 2); ctx.clip()
                 ctx.globalAlpha = alpha     // the image honours the watermark opacity
-                try { ctx.drawImage(opts.logoImg, ccx - rad, ccy - rad, lm.dia, lm.dia) } catch { /* broken/tainted */ }
+                // logoScale > 1 fills the circle for a mark with transparent margins
+                // (the UCT compass); it's clipped to the circle either way.
+                const isz = lm.dia * (opts.logoScale || 1)
+                try { ctx.drawImage(opts.logoImg, ccx - isz / 2, ccy - isz / 2, isz, isz) } catch { /* broken/tainted */ }
                 ctx.restore()               // restores globalAlpha + clip
               }
               ctx.fillText(line.text, lineLeft + lm.advance, cy)

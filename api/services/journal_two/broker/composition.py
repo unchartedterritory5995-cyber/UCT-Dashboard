@@ -24,6 +24,8 @@ Composition rules (both lanes MUST match):
   only — its `netEntry` (cost): a just-filled contract with no mark yet must
   show at cost, not vanish from net-liq (its cash already left).
 - netLiq = cash + marketValue; None when cash is unknown.
+- vintage: WHICH MOMENT the parts came from (see `_vintage`). Reported, never
+  enforced — mixing is often correct; being unable to SEE the mix is not.
 """
 
 from __future__ import annotations
@@ -102,6 +104,47 @@ def prefer_broker_marks(
     return day == last and hour is not None and hour >= _CLOSE_HOUR_ET
 
 
+def _blank_vintage() -> dict[str, Any]:
+    return {"basis": None, "session": None, "conflicts": [],
+            "components": {"live": 0, "broker": 0, "cost": 0}}
+
+
+def _finish_vintage(v: dict[str, Any], broker_sessions: list) -> dict[str, Any]:
+    """Resolve the collected per-component vintages into one verdict.
+
+    `basis` names what the number is made of — live ticks, the broker's own
+    marks, or (for a just-filled option) cost. `session` is filled ONLY when
+    every broker-marked component agrees; the moment they don't it is None and
+    the disagreeing components are NAMED, because a count tells you a problem
+    exists and a name tells you where to look
+    (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+    """
+    c = v["components"]
+    present = [k for k in ("live", "broker", "cost") if c[k]]
+    v["basis"] = present[0] if len(present) == 1 else ("mixed" if present else None)
+    if broker_sessions:
+        known = [(sym, s) for sym, s in broker_sessions if s is not None]
+        distinct = {s for _, s in known}
+        if len(known) == len(broker_sessions) and len(distinct) == 1:
+            v["session"] = next(iter(distinct))
+            return v
+        # No single answer. Reference = the NEWEST session anyone reports, with
+        # ties broken by date rather than dict order so the verdict is
+        # deterministic; a mark with NO session can never be certified as
+        # sharing one, so when nothing is dated every component is named.
+        ref = None
+        if known:
+            counts: dict = {}
+            for _, sess in known:
+                counts[sess] = counts.get(sess, 0) + 1
+            ref = max(counts, key=lambda k: (counts[k], k))
+        v["session"] = None
+        v["conflicts"] = [{"symbol": sym, "session": sess}
+                          for sym, sess in broker_sessions
+                          if ref is None or sess != ref]
+    return v
+
+
 def compose_net_liq(
     account: dict | None,
     positions: list[dict] | None,
@@ -118,6 +161,8 @@ def compose_net_liq(
     broker_only = (account or {}).get("balanceSource") == "broker"
 
     market_value = 0.0
+    vintage = _blank_vintage()
+    broker_sessions: list = []
     for p in positions or []:
         if broker_only and p.get("source") != "broker":
             continue
@@ -137,20 +182,34 @@ def compose_net_liq(
             continue
         signed = -shares if p.get("side") == "Short" else shares
         market_value += px * signed
+        # Which side actually priced this row — the thing nothing recorded.
+        if prefer_broker and broker is not None:
+            vintage["components"]["broker"] += 1
+            broker_sessions.append((p.get("symbol"), p.get("brokerPriceSession")))
+        elif live is not None:
+            vintage["components"]["live"] += 1
+        else:
+            vintage["components"]["broker"] += 1
+            broker_sessions.append((p.get("symbol"), p.get("brokerPriceSession")))
 
     for s in strategies or []:
         if broker_only and s.get("source") != "broker":
             continue
         mark = option_marks.get(s.get("id")) or {}
         cur = _f(mark.get("currentValue"))
+        kind = "live"
         if cur is None:
             cur = _f(s.get("brokerCurrentValue"))
+            kind = "broker"
         if cur is None and s.get("source") == "broker":
             cur = _f(s.get("netEntry"))
+            kind = "cost"   # neither a live nor a broker mark — never let it pose as one
         if cur is None:
             continue
         market_value += cur
+        vintage["components"][kind] += 1
 
     cash = effective_cash(account)
     net_liq = round(cash + market_value, 2) if cash is not None else None
-    return {"marketValue": round(market_value, 2), "netLiq": net_liq}
+    return {"marketValue": round(market_value, 2), "netLiq": net_liq,
+            "vintage": _finish_vintage(vintage, broker_sessions)}

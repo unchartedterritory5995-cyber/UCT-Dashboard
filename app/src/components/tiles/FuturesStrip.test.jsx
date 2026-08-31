@@ -87,3 +87,41 @@ test('clicking BTC cell opens chart modal', () => {
   fireEvent.click(screen.getByTestId('ticker-BTC'))
   expect(screen.getByTestId('chart-modal')).toBeInTheDocument()
 })
+
+// ─── hideQuote / compact — the two Zone A switches ──────────────────────────
+//
+// ⭐ BOTH DIRECTIONS, because "the quote is gone" is satisfied by a component
+// that can no longer render one at all. The default mount is the control.
+
+test('by default the Quote of the Day panel renders — the quote is not deleted', () => {
+  renderWithProviders(<FuturesStrip data={mockData} />)
+  expect(screen.getByText(/quote of the day/i)).toBeInTheDocument()
+})
+
+test('hideQuote drops the quote panel and keeps every index', () => {
+  // Zone A demotes the quote out of the top row: it is brand, not data, and it
+  // held roughly half of the most valuable region on the paid home.
+  renderWithProviders(<FuturesStrip data={mockData} hideQuote />)
+  expect(screen.queryByText(/quote of the day/i)).toBeNull()
+  for (const sym of ['QQQ', 'SPY', 'IWM', 'DIA', 'BTC', 'VIX']) {
+    expect(screen.getByText(sym)).toBeInTheDocument()
+  }
+})
+
+test('compact keeps all six indices — it is a layout switch, not a shorter list', () => {
+  // ⛔ The tempting way to fit 120px is to render fewer symbols. That would be
+  // a data change wearing a layout prop's name, so assert the set is intact.
+  renderWithProviders(<FuturesStrip data={mockData} compact hideQuote />)
+  for (const sym of ['QQQ', 'SPY', 'IWM', 'DIA', 'BTC', 'VIX']) {
+    expect(screen.getByText(sym)).toBeInTheDocument()
+  }
+})
+
+test('the loading state honours the same switches', () => {
+  // The early return has its own className path; without this it keeps the
+  // full-width quote layout for as long as the snapshot is in flight.
+  const { container } = renderWithProviders(<FuturesStrip data={null} compact hideQuote />)
+  const strip = container.querySelector('[class*="strip"]')
+  expect(strip.className).toMatch(/noQuote/)
+  expect(strip.className).toMatch(/compact/)
+})

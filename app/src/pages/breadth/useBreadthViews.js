@@ -337,10 +337,19 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     })
   }, [])
 
-  // Resolve a preset's current visible array (used when an edit materializes a
-  // migrated `hidden` preset into an explicit `visible` one). Editing Default is
-  // blocked by the callers, so this only runs for custom presets.
-  const materializeFor = (prev, style) => {
+  /**
+   * Resolve a preset's current visible array (used when an edit materializes a
+   * migrated `hidden` preset into an explicit `visible` one). Editing Default is
+   * blocked by the callers, so this only runs for custom presets.
+   *
+   * ⛔ IT IS A `useCallback`, AND THE MUTATORS BELOW DEPEND ON IT BY NAME. As a
+   * plain body function it was re-created every render while four mutators
+   * listed `[allMetrics]` and called it — three lint warnings saying the same
+   * thing: the dependency array named the value this function CLOSES OVER
+   * instead of the function. That is right by inspection today and silently
+   * wrong the day this reads a second piece of state.
+   */
+  const materializeFor = useCallback((prev, style) => {
     const s = targetStyle(prev, style)
     const v = prev.byView[s]
     // Saving / editing from Default starts from the view's curated default set,
@@ -352,7 +361,7 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
     if (p.visible) return p.visible.filter(k => eligible.has(k))
     const hidden = new Set(p.hidden ?? [])
     return [...eligible].filter(k => !hidden.has(k))
-  }
+  }, [allMetrics])
 
   const toggleVisible = useCallback((key, style) => {
     setState(prev => {
@@ -368,7 +377,7 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
         }
       })
     })
-  }, [allMetrics])
+  }, [materializeFor])
 
   const setOption = useCallback((name, value, style) => {
     setState(prev => {
@@ -382,7 +391,7 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
         }
       })
     })
-  }, [allMetrics])
+  }, [materializeFor])
 
   const savePreset = useCallback((name, style) => {
     const trimmed = (name ?? '').trim()
@@ -396,7 +405,7 @@ export default function useBreadthViews(allMetrics = [], usePrefs = usePreferenc
         presets: { ...vv.presets, [trimmed]: { visible, options } },
       }))
     })
-  }, [allMetrics])
+  }, [materializeFor])
 
   const renamePreset = useCallback((oldName, newName, style) => {
     const trimmed = (newName ?? '').trim()

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { renderWithProviders, screen } from '../test-utils'
 import NavBar from './NavBar'
 
@@ -23,4 +26,15 @@ test('active link has active class', () => {
   renderWithProviders(<NavBar />, { route: '/morning-wire' })
   const wireLink = screen.getByRole('link', { name: /morning wire/i })
   expect(wireLink.className).toMatch(/active/)
+})
+
+test('Flow Scoreboard is reachable from the nav, not only from a dashboard tile', () => {
+  // /flow-scoreboard has been a live, working route (restored 2026-08-09,
+  // railed by lostDoors.route.test.jsx) with no nav entry — the dashboard
+  // tile was its only discoverable path. readFileSync(new URL(...)) throws
+  // on this Windows/vitest setup, so use the established fileURLToPath +
+  // dirname/join pattern (see AlertBell.delivery.test.jsx).
+  const here = dirname(fileURLToPath(import.meta.url))
+  const src = readFileSync(join(here, 'NavBar.jsx'), 'utf8')
+  expect(src).toContain("to: '/flow-scoreboard'")
 })

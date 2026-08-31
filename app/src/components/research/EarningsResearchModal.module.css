@@ -1,10 +1,16 @@
 .backdrop { position: fixed; inset: 0; z-index: var(--z-modal, 1000); display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 6, .66); backdrop-filter: blur(3px); padding: 16px; }
 .modal { position: relative; width: min(960px, 100vw - 32px); max-height: min(88vh, 860px); display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--glass-border-accent); border-radius: var(--radius-xl); box-shadow: var(--shadow-popover); overflow: hidden; }
-.close { position: absolute; top: 6px; right: 8px; z-index: 2; min-width: var(--tap-min); min-height: var(--tap-min); background: none; border: 0; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+/* Offsets, NOT top:50% -- `.close` is absolute against `.modal`, so a
+   percentage centres it in the whole dialog rather than in the banner.
+   Overlap with the stepper is prevented by the `.banner.banner` rule
+   below, which reserves this button's corner, not by moving the button. */
+.close { position: absolute; top: 6px; right: var(--space-sm); z-index: 2; display: flex; align-items: center; justify-content: center; min-width: var(--tap-min); min-height: var(--tap-min); border-radius: var(--radius-md); background: none; border: 0; color: var(--text-muted); font-size: 20px; line-height: 1; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+.close:hover { color: var(--text-bright); }
 .close:focus-visible { outline: var(--focus-ring); }
 .panes { display: grid; grid-template-columns: 196px 1fr; flex: 1; min-height: 0; }
 .rail { border-right: 1px solid var(--glass-border-neutral); background: var(--glass-chrome); }
-.canvas { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-lg); }
+.banner.banner { padding-right: calc(var(--tap-min) + var(--space-sm)); }
+.canvas { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-xl); }
 .canvas:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
 /* Ask AI only — a CHAT, not a document (see the data-section note in the JSX).
    The canvas already ends up with a bounded height once the modal reaches its
@@ -25,14 +31,14 @@
    shape. Verified by scrolling the real sheet, not by reading this. */
 .canvas[data-section="ai"] { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
 .footer { background: var(--glass-chrome); }
-.footerInner { display: flex; gap: var(--space-sm); align-items: center; width: 100%; }
+.footerInner { display: flex; gap: var(--space-sm); align-items: center; min-width: 0; }
 .btnChart, .btnReport { min-height: var(--tap-min); border-radius: var(--radius-md); border: 1px solid var(--glass-border-neutral); background: var(--glass-surface); color: var(--text-bright); font-size: var(--text-sm); padding: 0 var(--space-md); cursor: pointer; }
 .btnReport { margin-left: auto; border-color: var(--glass-border-accent); }
 .btnChart:focus-visible, .btnReport:focus-visible, .stepBtn:focus-visible { outline: var(--focus-ring); }
 .stepBtn { min-width: var(--tap-min); min-height: var(--tap-min); background: none; border: 0; color: var(--text-muted); cursor: pointer; }
 .stepBtn[disabled] { opacity: .35; cursor: default; }
 .stepPrevIcon { transform: rotate(180deg); }
-.notAdvice { margin: 0; padding: var(--space-xs) var(--space-lg) var(--space-sm); font-size: var(--text-xs); color: var(--text-muted); background: var(--glass-chrome); }
+.notAdvice { margin: 0 0 0 auto; padding: 0; font-size: var(--text-sm); color: var(--text-muted); text-align: right; }
 .sheet { max-height: 92vh; }
 .phoneBody { display: flex; flex-direction: column; min-height: 0; }
 
@@ -46,7 +52,7 @@
   .panes { display: flex; flex-direction: column; }
   .rail { border-right: 0; border-bottom: 1px solid var(--glass-border-neutral); overflow-x: auto; -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
   .canvas { padding: var(--space-md); }
-  .btnReport { margin-left: 0; flex: 1; }
+  .notAdvice { flex-basis: 100%; margin-left: 0; text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) { .modal, .backdrop { transition: none; animation: none; } }

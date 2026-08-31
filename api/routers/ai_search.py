@@ -619,24 +619,48 @@ def _agent_autoroute_enabled() -> bool:
         "1", "true", "yes", "on")
 
 
+_MULTI_STEP_RE = re.compile(
+    r"\b(then|after that|and also|as well as|followed by|and give me)\b", re.I)
+
+
+def _intent_breadth(q: str) -> int:
+    """How many DISTINCT desk intents one question trips.
+
+    Derived by asking the gates that already exist — two lookups in one ask is
+    multi-step work by definition. A new regex meaning "this is complicated"
+    would be a second authority over a question the gates already answer.
+    """
+    gates = (_VERDICT_RE, _LEVELS_RE, _FLOW_RE, _FUNDAMENTALS_RE, _ANALYST_RE,
+             _INSIDER_RE, _EARNINGS_DEEP_RE, _CALL_RECAP_RE, _POSTURE_RE,
+             _MACRO_CAL_RE, _COT_RE, _SHORT_INT_RE)
+    return sum(1 for rx in gates if rx.search(q or ""))
+
+
 def _wants_agent(query: str, client_mode) -> bool:
     """Should an UNPINNED ask go to the tool-calling lane?
 
-    Measured 2026-08-29: the capture log reads by_mode = fast 49 / agent 1 — the
-    only lane that can iterate and call the desk's 16 tools is hidden behind a
-    pill — while the exam scores it 19/30 against the single-shot lane's 13/30,
-    with the gap concentrated in rung 3: "give me the desk's call".
+    MEASURED, back-to-back, rung 3, 3 repeats each (2026-08-30):
+      S3-02 COMPOUND — "pull the desk verdict AND the street's reaction, THEN
+                        the swing view"      FAIL c1 -> PASS c4   agent WINS
+      S3-01 SIMPLE   — "what's the desk read on NVDA"
+                                             PASS   -> FAIL c2 g1 agent LOSES
 
-    ⛔ The trigger is `_VERDICT_RE`, the gate that ALREADY decides a question is
-    a request for the desk's call. A second regex meaning the same thing is this
-    repo's most repeated defect. Everything else stays on one fast shot, which
-    answers it well and costs half as much.
+    So the agent's value is MULTI-STEP work, not the word "verdict". The first
+    trigger routed every desk-call ask at it, which made simple questions WORSE
+    and left the median unchanged — which is why this flag was not armed.
+
+    Still anchored on `_VERDICT_RE` (a compound ask that is not a desk call has
+    no business burning 2 units), then requires genuine multi-step shape: two
+    distinct desk intents, or an explicit sequencing step.
     """
     if client_mode in ("fast", "reasoning"):
         return False                      # a stated choice is never overridden
     if not _agent_autoroute_enabled():
         return False
-    return bool(_VERDICT_RE.search(query or ""))
+    q = query or ""
+    if not _VERDICT_RE.search(q):
+        return False
+    return _intent_breadth(q) >= 2 or bool(_MULTI_STEP_RE.search(q))
 
 
 # ── UCT grounding: inject the desk's own numbers (regime + live quotes for
@@ -1168,6 +1192,16 @@ def _ctx_posture(sym: str) -> str:
             bits.append(f"{row[col]:+.1f}% vs {label}")
     if row.get("dist_52w_high_pct") is not None:
         bits.append(f"{row['dist_52w_high_pct']:+.1f}% vs 52w high")
+    # Real DOLLAR levels. Everything else here is a percentage, so a member
+    # asking "where's the entry" got no price to anchor on and the model
+    # computed one — which is why `price_without_tool` kept firing on answers
+    # the judge rated 4/4/4/4. These are also the levels this desk's own
+    # playbook trades off ("PREV DAY HIGH BREAK"). Rendered independently:
+    # a break level is useful even when the low is missing.
+    if row.get("prev_day_high") is not None:
+        bits.append(f"prev day high ${row['prev_day_high']:g}")
+    if row.get("prev_day_low") is not None:
+        bits.append(f"prev day low ${row['prev_day_low']:g}")
     if row.get("rsi14") is not None:
         bits.append(f"RSI {row['rsi14']:.0f}")
     if row.get("adr_pct") is not None:
@@ -1256,7 +1290,69 @@ def _ctx_levels(sym: str) -> str:
                 bits.append("gamma: " + ", ".join(segs) + spot)
     except Exception:
         pass
+    # The desk's OWN playbook entry is a prev-day-high break, and this pack —
+    # the one whose entire job is price levels — carried only dark-pool and
+    # gamma prices. "Where's the entry?" routes here, not to posture, so the
+    # model had no desk level to anchor on and computed one.
+    try:
+        from api.services.screener import snapshot_db
+        row = snapshot_db.get_row(sym) or {}
+        if row.get("prev_day_high") is not None:
+            bits.append(f"prev day high ${row['prev_day_high']:g}")
+        if row.get("prev_day_low") is not None:
+            bits.append(f"prev day low ${row['prev_day_low']:g}")
+    except Exception:
+        pass
     return f"{sym} key levels (UCT desk): " + "; ".join(bits) if bits else ""
+
+
+# "Which of today's candidates has the best setup?" — a question about a desk
+# LIST, naming no ticker, so the per-ticker packs never run and the model picks
+# a name and justifies it from nothing. Both halves are required: a ranking word
+# AND a list the desk actually owns.
+_LIST_SCOPE_RE = re.compile(
+    r"\b(scanner|candidates?|the scan|on the scan|watch ?list|uct ?20)\b", re.I)
+_RANK_RE = re.compile(
+    r"\b(best|which (?:one|of)|rank(?:ed|ing)?|top (?:pick|name|setup)"
+    r"|strongest|most compelling)\b", re.I)
+_LIST_VERDICT_MAX = 3          # grade_ticker is a real computation per symbol
+
+
+def _candidate_symbols(limit: int) -> list[str]:
+    """Top scanner symbols, newest scan. ⛔ The buckets are NESTED and the key is
+    `ticker` — see _ctx_candidates for the history of getting that wrong."""
+    try:
+        from api.services.engine import get_candidates
+        buckets = (get_candidates() or {}).get("candidates") or {}
+    except Exception:
+        return []
+    out: list[str] = []
+    for rows in buckets.values():
+        for r in (rows or []):
+            t = str((r or {}).get("ticker") or "").upper().strip()
+            if t and t not in out:
+                out.append(t)
+            if len(out) >= limit:
+                return out
+    return out
+
+
+def _ctx_list_verdict(query: str, syms: list[str]) -> str:
+    """The desk's read on the top names of a list the member asked to rank."""
+    if syms:                       # named a ticker → per-ticker packs own it
+        return ""
+    q = query or ""
+    if not (_LIST_SCOPE_RE.search(q) and _RANK_RE.search(q)):
+        return ""
+    segs = []
+    for sym in _candidate_symbols(_LIST_VERDICT_MAX):
+        try:
+            line = _ctx_verdict(sym)
+        except Exception:
+            line = ""
+        if line:
+            segs.append(line)
+    return ("Desk read on the top scan names: " + " || ".join(segs)) if segs else ""
 
 
 _SHORT_INT_RE = re.compile(r"\bshort (?:interest|float)\b|\bsqueeze\b", re.I)
@@ -1700,6 +1796,133 @@ _ANSWER_MAX_TOKENS = 1800
 _PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
 
 
+#: Own cost surface, so synthesis spend is separable from the Perplexity leg in
+#: `llm_route_cost_log` and cappable on its own.
+_SYNTH_SURFACE = "ai_search_synth"
+_SYNTH_CAP_ENV = "AI_SEARCH_SYNTH_DAILY_CAP"
+_SYNTH_CAP_DEFAULT = 5.0          # USD/ET-day; ~135 asks at the measured $0.037
+
+
+def _claude_synth_enabled() -> bool:
+    """OFF by default. Adds one Anthropic call per ask — a spend decision, so a
+    Railway var rather than a code default."""
+    return os.environ.get("AI_SEARCH_CLAUDE_SYNTH", "0").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+_SYNTH_NOTE = (
+    "\n\nWEB FINDINGS (a live web search already ran for this question; its "
+    "answer and numbered sources follow). Treat them as RETRIEVAL, not as your "
+    "answer: reason over them together with the UCT desk data above, and prefer "
+    "a desk figure over a web one whenever both exist. If the two disagree, say "
+    "so.\n"
+    "CITATION RULE — every FIGURE you take from the web findings carries its "
+    "[n] marker IMMEDIATELY after it, in the same sentence, reusing the SAME "
+    "numbering. A desk figure needs no [n]; attribute it to 'UCT desk data' "
+    "instead. A number with neither an [n] nor a desk attribution reads as "
+    "invented — if you cannot source it either way, leave it out.\n")
+
+
+def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | None:
+    """Perplexity retrieves; Claude thinks. Returns None to leave `web` standing.
+
+    The fast lane synthesises with `sonar-pro`, so on open-ended reasoning a
+    member was getting a Perplexity-model answer while our whole advantage — the
+    desk data — was already in the prompt. This keeps Perplexity for what it is
+    genuinely good at (searching the live web, returning cited sources) and
+    hands the SYNTHESIS to Claude over the desk context plus those findings.
+
+    ⛔ Never raises and never swallows a member's answer: any failure returns
+    None and the caller ships the Perplexity result unchanged.
+    """
+    web = web or {}
+    if web.get("error"):
+        return None                    # a provider error belongs to the outage ladder
+    web_answer = (web.get("answer") or "").strip()
+    if not web_answer and not (system or "").strip():
+        return None                    # nothing to reason over
+    try:
+        # Bounded and visible. This lane called Anthropic directly and recorded
+        # NOTHING — invisible to /admin/stats.spend_today_usd and capped by
+        # nothing. Over budget we skip Claude entirely and the member still gets
+        # the Perplexity answer: degrade, never fail.
+        from api.services import narrative_cost_guard as _guard
+        if _guard.over_budget(_SYNTH_SURFACE, _SYNTH_CAP_ENV, _SYNTH_CAP_DEFAULT):
+            return None
+    except Exception:
+        pass                      # a guard fault must not silence the lane
+    try:
+        from api.services.engine import _get_anthropic_client
+        client = _get_anthropic_client()
+        if client is None:
+            return None
+        model = os.environ.get("AI_SEARCH_SYNTH_MODEL", "claude-sonnet-5").strip()
+        cites = [str(c) for c in (web.get("citations") or [])][:20]
+        block = _SYNTH_NOTE + web_answer
+        if cites:
+            block += "\n\nSOURCES: " + " ".join(
+                f"[{i}] {c}" for i, c in enumerate(cites, start=1))
+        msgs: list[dict] = []
+        for h in (history or []):
+            q, a = (h.get("q") or "").strip(), (h.get("a") or "").strip()
+            if q and a:
+                msgs.append({"role": "user", "content": q})
+                msgs.append({"role": "assistant", "content": a})
+        msgs.append({"role": "user", "content": query})
+        # Prompt caching. `_WIDGET_SYSTEM` is byte-identical on EVERY request
+        # (intro + safety blocks + formatting) and measured 1299 tokens, above
+        # Sonnet 5's 1024 minimum. Caching is a PREFIX match, so the breakpoint
+        # goes at the end of the stable text and every volatile thing — the desk
+        # quote, the playbook, the web findings — must sit AFTER it, or each
+        # request writes a fresh entry and reads nothing back.
+        #
+        # ⚠️ HONEST ECONOMICS: a 5-minute write bills 1.25x and a read 0.1x, so
+        # break-even is TWO requests sharing the prefix. At the logged ~1.7
+        # asks/day nearly every call is a cold write and this costs ~$0.03/MONTH
+        # more; at bursty member volume the reads dominate and it saves ~$70/mo
+        # at 30k asks. Kept because the structure is right and the downside is
+        # noise. ⛔ Do NOT "fix" this with ttl:"1h" — that doubles the write to
+        # 2x and only pays off for 5-60 minute gaps; ours are hours or seconds.
+        full = (system or "")
+        if full.startswith(_WIDGET_SYSTEM):
+            sys_param: object = [
+                {"type": "text", "text": _WIDGET_SYSTEM,
+                 "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": full[len(_WIDGET_SYSTEM):] + block},
+            ]
+        else:
+            sys_param = full + block      # unexpected shape → answer uncached
+        resp = client.with_options(timeout=30).messages.create(
+            model=model, max_tokens=_ANSWER_MAX_TOKENS,
+            system=sys_param, messages=msgs)
+        try:
+            # ⛔ record_from_response, not record(input_tokens=...): a cached
+            # prefix arrives as cache_read_input_tokens (0.1x) /
+            # cache_creation_input_tokens (1.25x) and NEVER as input_tokens, so
+            # a guard fed only input_tokens mis-bills every cached call.
+            from api.services import narrative_cost_guard as _g
+            _g.record_from_response(_SYNTH_SURFACE, model, resp)
+        except Exception:
+            pass                  # accounting is bookkeeping; the answer stands
+        text = "".join(
+            b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
+        ).strip()
+        if not text:
+            return None
+        out = dict(web)
+        out.update({"answer": text, "model": model, "synth": "claude"})
+        # Surfaced so a silent cache miss is observable rather than invisible:
+        # zero reads across repeated asks means an invalidator crept into the
+        # prefix.
+        u = getattr(resp, "usage", None)
+        if u is not None:
+            out["cache_read_tokens"] = getattr(u, "cache_read_input_tokens", None)
+            out["cache_write_tokens"] = getattr(u, "cache_creation_input_tokens", None)
+        return out
+    except Exception:
+        return None
+
+
 def fast_lane_answer(query: str, system: str, salt: str, *, mode: str = "fast",
                      history=None, cost_surface: str = "ai_search",
                      allow_stale: bool = True) -> dict:
@@ -1720,11 +1943,17 @@ def fast_lane_answer(query: str, system: str, salt: str, *, mode: str = "fast",
     THIS file to prove the router never opts into it, and a comment quoting it
     is indistinguishable from a call site to a text search.)
     """
-    return perplexity_search.web_search(
+    res = perplexity_search.web_search(
         query, max_tokens=_ANSWER_MAX_TOKENS, system=system, mode=mode,
         domain_pack="finance", recency=_auto_recency(query), related=True,
         cache_salt=salt, history=history, cost_surface=cost_surface,
         allow_stale=allow_stale)   # UI labels stale answers
+    # Perplexity retrieves; Claude thinks — when armed. Inside the helper on
+    # purpose, so the single shot, both stream fallbacks and the exam all get it
+    # from ONE place. Falls back to `res` on any failure.
+    if _claude_synth_enabled():
+        res = _claude_synthesis(query, system, res, history) or res
+    return res
 
 
 def _time_bucket() -> str:
@@ -1815,11 +2044,19 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         except Exception:
             pass
     if _FLOW_RE.search(query or ""):   # flow = HTTP hop to the flow-worker
+        _flow_any = False
         for s in syms[:2]:
             try:
-                _add("flow", _ctx_flow_ticker(s))
+                _line = _ctx_flow_ticker(s)
             except Exception:
-                pass
+                _line = ""
+            if _line:
+                _add("flow", _line)
+                _flow_any = True
+        # Asked for flow, desk has none → say so. Silence reads to the model as
+        # "the desk didn't mention it", and it invents flow.
+        if syms and not _flow_any:
+            meta["grounding_gaps"].append("flow")
     # Per-ticker fundamentals / analyst / insider — intent-gated cached reads.
     # Resolve each fn by NAME off the live module so a test/patch is honored.
     _this = sys.modules[__name__]
@@ -1843,11 +2080,22 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
         _perticker.append(("levels", "_ctx_levels"))
     for source, fn_name in _perticker:
         fn = getattr(_this, fn_name)
+        got_any = False
         for s in syms[:2]:
             try:
-                _add(source, fn(s))
+                line = fn(s)
             except Exception:
-                pass
+                line = ""
+            if line:
+                _add(source, line)
+                got_any = True
+        # Same rule as the market-level packs: a pack the QUESTION opened that
+        # comes back empty is a declared gap, not silence. ⛔ One symbol
+        # answering is enough — declaring a gap while handing over real data
+        # for the other name would tell the model the desk is empty when it is
+        # not.
+        if syms and not got_any and source not in meta["grounding_gaps"]:
+            meta["grounding_gaps"].append(source)
     # Why-is-it-moving asks with a silent tape: per-ticker news fallback so the
     # model isn't left guessing from the web alone (first symbol only).
     if meta["recency"] == "day" and syms and "tape" not in meta["grounding_sources"]:
@@ -1876,6 +2124,14 @@ def _uct_context(query: str) -> tuple[str, str, dict]:
             # NOT the same as leaking a null: "score None" reads as a data
             # VALUE, "no current data" reads as a stated gap.
             meta["grounding_gaps"].append(name)
+    # "Which of today's candidates is best?" names no ticker, so nothing above
+    # graded anything. Resolve the names from the desk's own list and read them.
+    try:
+        _lv = _ctx_list_verdict(query or "", syms)
+        if _lv:
+            _add("list_verdict", _lv)
+    except Exception:
+        pass
     # A pack can FIRE and still not answer what was asked. The posture gate is
     # broad (trend / RSI / stage 2 / short interest), so a short-interest ask
     # gets a TECHNICAL posture line back — and the model, seeing a confident

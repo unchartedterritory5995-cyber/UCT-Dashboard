@@ -254,3 +254,81 @@ def test_a_settlement_pinned_journal_is_faithful_not_drifted(env):
 
     assert out["structuralOk"] is True
     assert env["alerts"] == []
+
+
+# ── COST-BASIS parity ───────────────────────────────────────────────────────
+# Quantity parity checks how many shares; equity parity uses MARKS. Neither
+# touches what we PAID — so a wrong entry price is invisible to every other
+# rail while it silently drives unrealized P&L, total return %, R multiples,
+# win rate and the public track record. 5,760 closed broker trades rest on
+# reconstruction that nothing has ever compared to the broker's own numbers.
+
+def _raw_pos_with_cost(sym, units, price, avg_cost):
+    p = _raw_pos(sym, units, price)
+    p["average_purchase_price"] = avg_cost
+    return p
+
+
+def _basis(out):
+    return (out.get("detail") or {}).get("basis", [])
+
+
+def test_cost_basis_matching_the_broker_reports_nothing(env):
+    _seed_position(env, "AAPL", "Long", 10, 150.0)   # seeded entry_price = 100
+    raw = [_raw_pos_with_cost("AAPL", 10, 150.0, 100.0)]
+    out = mc.run_mirror_check("u1", env["ba"], raw, [], None)
+    conn = auth_db.get_connection()
+    row = conn.execute("SELECT detail_json FROM j2_broker_mirror_checks").fetchone()
+    conn.close()
+    assert row["detail_json"] is None, "a matching basis must not write a detail row"
+
+
+def test_a_diverging_cost_basis_is_NAMED_with_both_numbers(env):
+    # The journal says 100; the broker says 118.42. Nothing else can see this:
+    # share count agrees, and equity parity is computed from marks.
+    _seed_position(env, "AAPL", "Long", 10, 150.0)   # entry_price = 100
+    raw = [_raw_pos_with_cost("AAPL", 10, 150.0, 118.42)]
+    mc.run_mirror_check("u1", env["ba"], raw, [], None)
+    conn = auth_db.get_connection()
+    row = conn.execute("SELECT detail_json, ok FROM j2_broker_mirror_checks").fetchone()
+    conn.close()
+    import json as _json
+    basis = _json.loads(row["detail_json"])["basis"]
+    assert len(basis) == 1
+    assert "AAPL" in basis[0] and "100" in basis[0] and "118.42" in basis[0], \
+        "both numbers must be present — one of them tells you nothing"
+
+
+def test_a_basis_divergence_does_NOT_page(env):
+    # Brokers adjust basis for wash sales, corporate actions and transfers-in,
+    # so divergence is not automatically a defect. Paging on all of it would
+    # cry wolf and get the channel muted, which is worse than not looking.
+    _seed_position(env, "AAPL", "Long", 10, 150.0)
+    raw = [_raw_pos_with_cost("AAPL", 10, 150.0, 118.42)]
+    out = mc.run_mirror_check("u1", env["ba"], raw, [], None)
+    assert out["ok"] is True, "basis divergence is observed, never structural"
+    assert env["alerts"] == [], "and it must not alert"
+
+
+def test_rounding_and_fee_convention_are_inside_the_band(env):
+    _seed_position(env, "AAPL", "Long", 10, 150.0)   # entry_price = 100
+    raw = [_raw_pos_with_cost("AAPL", 10, 150.0, 100.30)]   # 0.3% — under 0.5%
+    mc.run_mirror_check("u1", env["ba"], raw, [], None)
+    conn = auth_db.get_connection()
+    row = conn.execute("SELECT detail_json FROM j2_broker_mirror_checks").fetchone()
+    conn.close()
+    assert row["detail_json"] is None
+
+
+def test_a_payload_without_a_cost_basis_is_skipped_not_flagged(env):
+    # Absent data is not a divergence — inventing one would be the crying-wolf
+    # failure in its purest form.
+    _seed_position(env, "AAPL", "Long", 10, 150.0)
+    bare = _raw_pos("AAPL", 10, 150.0)
+    bare.pop("average_purchase_price")    # the helper supplies one by default
+    assert "average_purchase_price" not in bare, "otherwise this test proves nothing"
+    out = mc.run_mirror_check("u1", env["ba"], [bare], [], None)
+    conn = auth_db.get_connection()
+    row = conn.execute("SELECT detail_json FROM j2_broker_mirror_checks").fetchone()
+    conn.close()
+    assert row["detail_json"] is None

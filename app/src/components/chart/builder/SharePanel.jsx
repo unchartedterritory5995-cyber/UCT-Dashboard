@@ -19,6 +19,7 @@ import {
   readShareLink, createShareLink, revokeShareLink,
   previewSharedDefinition, installSharedDefinition,
   fetchDefinitionHistory,
+  readListing, publishToLibrary, withdrawFromLibrary,
 } from '../../../hooks/useUserDefinitions'
 import {
   sharedFormulaUrl, tokenFromShareInput,
@@ -51,6 +52,13 @@ export default function SharePanel({ defId, defName, onInstalled }) {
 
   const [versions, setVersions] = useState(null)
 
+  // ⛔⛔ THE LIBRARY IS A SECOND CONSENT, AND ITS OWN STATE. Sharing sends a link
+  // to a person the member chose; listing puts the formula on a page every member
+  // can browse. Reading one from the other — "shared, therefore listed" — would
+  // have published every link any member ever sent, retroactively, the day this
+  // shipped. `listing` is READ on mount and only written by the button.
+  const [listing, setListing] = useState(null)
+
   // ── the current state, READ, never minted ─────────────────────────────────
   useEffect(() => {
     let live = true
@@ -60,6 +68,17 @@ export default function SharePanel({ defId, defName, onInstalled }) {
       if (r.ok) setToken(r.token)
       else setError(r.error)
     })
+    return () => { live = false }
+  }, [defId])
+
+  // ⛔ READ, NEVER PUBLISHED ON OPEN — the same split the share state holds one
+  // effect up, and for the same reason: a panel that listed on open would publish a
+  // formula as a side effect of curiosity. The server enforces it too (`GET
+  // {id}/list` is read-only); this is the second lock.
+  useEffect(() => {
+    let live = true
+    if (!defId) { setListing(null); return undefined }
+    readListing(defId).then((r) => { if (live && r.ok) setListing(r) })
     return () => { live = false }
   }, [defId])
 
@@ -77,6 +96,29 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     setBusy(false)
     if (r.ok) { setToken(null); setCopied(false) } else setError(r.error)
   }, [defId])
+
+  const publish = useCallback(async () => {
+    setBusy(true); setError('')
+    const r = await publishToLibrary(defId)
+    setBusy(false)
+    if (!r.ok) { setError(r.error); return }
+    setListing({ listed: true, requested: true, shared: true })
+    // ⭐ PUBLISHING MINTS THE LINK WHEN THERE ISN'T ONE — a listing nobody can
+    // open is a broken row — so the share half of this panel has to learn about it
+    // here, or it would keep saying "This formula is private" about something now
+    // on a public page.
+    if (r.token) setToken(r.token)
+  }, [defId])
+
+  const withdraw = useCallback(async () => {
+    setBusy(true); setError('')
+    const r = await withdrawFromLibrary(defId)
+    setBusy(false)
+    if (!r.ok) { setError(r.error); return }
+    // ⛔ THE LINK IS UNTOUCHED. Withdrawing from a directory and revoking a link
+    // somebody already saved are different decisions; `token` deliberately stays.
+    setListing({ listed: false, requested: false, shared: !!token })
+  }, [defId, token])
 
   const copy = useCallback(async () => {
     // ⚠️ CLIPBOARD ACCESS CAN REFUSE — an insecure origin, a denied permission,
@@ -159,6 +201,50 @@ export default function SharePanel({ defId, defName, onInstalled }) {
           </>
         )}
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
+      </section>
+
+      <section className={styles.block} data-testid="library-block">
+        <h3 className={styles.heading}>Put it in the library</h3>
+        {listing && listing.listed ? (
+          <>
+            <p className={styles.note}>
+              This is in the public library, where any member can find and install it.
+              {' '}Taking it out leaves your share link working.
+            </p>
+            <button
+              type="button"
+              className={styles.quiet}
+              data-testid="library-withdraw"
+              onClick={withdraw}
+              disabled={busy}
+            >
+              Take it out of the library
+            </button>
+          </>
+        ) : (
+          <>
+            <p className={styles.note}>
+              {/* ⛔⛔ THE SENTENCE THAT MAKES THE CONSENT LEGIBLE. A member who
+                  already pressed Share has to be able to see that they are NOT in
+                  the library — otherwise "shared" and "published" blur together in
+                  their head, which is the same conflation the schema refuses to
+                  make. And it says what publishing will do to the link, because
+                  publishing mints one. */}
+              {listing && listing.requested && !listing.shared
+                ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
+                : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
+            </p>
+            <button
+              type="button"
+              className={styles.btn}
+              data-testid="library-publish"
+              onClick={publish}
+              disabled={busy || !defId}
+            >
+              <UIcon name="upload" size={14} /> Publish to the library
+            </button>
+          </>
+        )}
       </section>
 
       <section className={styles.block}>

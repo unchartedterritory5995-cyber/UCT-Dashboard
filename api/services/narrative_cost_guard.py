@@ -54,11 +54,18 @@ logger = logging.getLogger(__name__)
 # to shape normal use, it is there to bound a cache bypass.
 DEFAULT_CAP_USD = 5.0
 
-# $ per million tokens.
+# $ per million tokens. ⛔ Published rates — `tests/test_narrative_cost_guard_prices.py`
+# pins them. `claude-sonnet-5` sat at (3.0, 15.0) — Sonnet 4.6's rate — until
+# 2026-08-30, so EVERY lane on Sonnet 5 over-reported spend by 50%: caps fired
+# early and the admin spend figure was wrong in the direction nobody
+# investigates. `claude-opus-5` was absent and priced correctly only by
+# ACCIDENT (an unknown model falls back to the priciest known rate, which
+# happened to equal Opus's) — the COT narrative lane defaults to it.
 _PRICES = {
+    "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),
-    "claude-sonnet-5": (3.0, 15.0),
+    "claude-sonnet-5": (2.0, 10.0),
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
 }

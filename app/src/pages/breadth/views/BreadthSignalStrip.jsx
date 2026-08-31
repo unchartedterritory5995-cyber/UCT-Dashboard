@@ -4,6 +4,7 @@
  * are clickable when the metric supports drill-down. Renders null if neither
  * signal resolved.
  */
+import { drillProps } from './breadthViewShared'
 import styles from './signals.module.css'
 import UIcon from '../../../components/ui/UIcon'
 
@@ -13,9 +14,7 @@ function Chip({ kicker, kickerClass, metric, currentRow, reason, pulse, onDrill 
   return (
     <span
       className={`${styles.chip} ${clickable ? styles.chipClickable : ''} ${pulse ? styles.pulse : ''}`}
-      role={clickable ? 'button' : undefined}
-      aria-label={clickable ? `${metric.label} details` : undefined}
-      onClick={clickable ? () => onDrill(metric) : undefined}
+      {...drillProps(metric, onDrill)}
     >
       <span className={`${styles.kicker} ${kickerClass}`}>{kicker}</span>
       <span className={styles.chipLabel}>{metric.label}</span>

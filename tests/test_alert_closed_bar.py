@@ -882,3 +882,41 @@ def test_the_measured_closed_lane_dead_set_is_exactly_chikou_today():
     # everything through.
     assert ias.closed_lane_pad("rsi", instant, {}) == 0
     assert len(ev.all_addresses()) == 31
+
+def test_the_docstring_cannot_contradict_the_constant():
+    """⛔⛔ PROSE ABOUT A SAFETY SWITCH, RAILED AGAINST THE SWITCH ITSELF.
+
+    ⚰️⚰️ THIS HAS ALREADY COST SOMETHING, TWICE. `alert_conditions.py`'s docstring
+    records the first: its lane labels read *"forming (live today)"* and *"closed
+    (spec §8, dark)"* long after the cutover, and *"an agent reading this file in
+    2026-08 concluded from these two lines that member alerts fire on the FORMING
+    bar — under a brand whose stated non-negotiable is closed-bar alerts — and
+    raised it as a live defect."* That file was corrected and the IDENTICAL stale
+    claim was left standing in `indicator_alert_evaluator.py`, the module that
+    actually owns the constant, where it asserted ``"forming"`` three times.
+
+    ⭐ SO THE CLAIM IS DERIVED, NOT PROOFREAD. Any sentence in the module docstring
+    of the form ``ALERT_EVAL_MODE`` is ``"X"`` must name the value the constant
+    actually holds. Prose that describes the OTHER lane is untouched — the check is
+    on assertions about what the mode IS, which is the only kind that has ever
+    misled anybody.
+    """
+    import re
+
+    doc = ev.__doc__ or ""
+    claims = re.findall(r"``ALERT_EVAL_MODE``\s+is\s+``\"([a-z]+)\"``", doc)
+    for claimed in claims:
+        assert claimed == ev.ALERT_EVAL_MODE, (
+            "the module docstring says ALERT_EVAL_MODE is %r; the constant is %r"
+            % (claimed, ev.ALERT_EVAL_MODE))
+
+    # ⛔ THE CONTROL. With no claims to check the loop above is vacuous, so this
+    # asserts the pattern CAN match — against the exact sentence that was wrong.
+    stale = 'the ``ALERT_EVAL_MODE`` is ``"forming"`` today'
+    assert re.findall(r"``ALERT_EVAL_MODE``\s+is\s+``\"([a-z]+)\"``", stale) == ["forming"]
+
+    # ⭐ AND THE VALUE ITSELF, stated once so a reader of this file learns it:
+    # closed-bar evaluation is the shipped behaviour, and production sets no
+    # override (verified 2026-08-30 — no ALERT_EVAL_MODE on the web service).
+    assert ev.ALERT_EVAL_MODE == "closed"
+    assert ev.ALERT_EVAL_MODE in ev.EVAL_MODES

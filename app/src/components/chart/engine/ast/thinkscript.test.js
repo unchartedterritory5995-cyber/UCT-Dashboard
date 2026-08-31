@@ -374,10 +374,19 @@ describe('the empty and the unreadable', () => {
     expect(translateThinkScript('plot x = TTM_Squeeze(close, 20);').selected).toBe(-1)
   })
 
-  it('an output ROW carries the eight keys `ImportBox` and the corpus both read', () => {
+  it('an output ROW carries the keys `ImportBox` and the corpus both read', () => {
+    // ⚰️ THIS SAID "the eight keys" OVER A LIST OF NINE, in the one file whose
+    // whole argument is that a shape is a contract. The count is gone rather than
+    // corrected to ten: a number typed beside the list it describes is the defect,
+    // not the number — the list IS the assertion.
+    // ⭐ `hiddenReason` JOINED 2026-08-30. `hidden` deliberately merges "the author
+    // hid this plot" with "this reads no bar"; a member looking at a row that
+    // offers no radio button needs to know WHICH, and deriving it at the renderer
+    // would be a third authority on a question the row has already answered.
     const row = translateThinkScript('plot x = close;').outputs[0]
     expect(Object.keys(row).sort()).toEqual(
-      ['ast', 'column', 'formula', 'hidden', 'inputsFolded', 'kind', 'line', 'refusal', 'title'])
+      ['ast', 'column', 'formula', 'hidden', 'hiddenReason', 'inputsFolded', 'kind',
+        'line', 'refusal', 'title'])
     expect(row.line).toBe(1)
     expect(row.column).toBe(1)
   })

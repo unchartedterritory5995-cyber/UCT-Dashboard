@@ -4,9 +4,11 @@
  * A metric with too few readings says so rather than ranking against noise.
  */
 import {
-  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, fillsRow, medianOf, metricValue,
-  percentileRank, resolveViewColors,
+  ALL_METRICS_HIDDEN, LADDER_MIN_READINGS as MIN_READINGS, drillProps, fillsRow, medianOf,
+  metricValue, percentileRank, resolveViewColors,
 } from './breadthViewShared'
+// The marker's geometry — a pure module so this one stays a component module.
+import { MARKER_W, markerX } from './percentileLadder'
 
 /**
  * ⭐ 24 SLICES, DRAWN AS AN OUTLINE — because the thing this lens exists to show
@@ -27,8 +29,6 @@ import {
  */
 const BINS = 24
 // The marker's own width, and the viewBox it must stay inside.
-const MARKER_W = 1.4
-const TRACK_W = 100
 /**
  * The row's own box: the distribution fills TOP..FLOOR, the marker overhangs it
  * slightly so a reading is legible against a slice that reaches the ceiling.
@@ -54,19 +54,6 @@ const FLOOR = 30
 const ROW_MIN_H = ROW_H
 const ROW_MAX_H = 62
 
-/**
- * 🔴 THE 100th-PERCENTILE MARKER USED TO DRAW NOTHING AT ALL.
- *
- * `x={pct}` inside `viewBox="0 0 100 26"` puts a reading at the top of its own
- * distribution at x ∈ [100, 101.4] — entirely outside the box, so the svg
- * clipped it — and 96-99 were progressively half-clipped. A reading at the very
- * top of its distribution is exactly what this lens exists to surface, so the
- * one position that mattered most was the one that rendered blank.
- *
- * The marker is centred on its percentile and then clamped into the track.
- */
-export const markerX = (pct) =>
-  Math.min(Math.max(pct - MARKER_W / 2, 0), TRACK_W - MARKER_W)
 
 /**
  * ⭐ THE SEEKABLE MARK HERE IS THE HISTOGRAM BAND, NOT THE TODAY-MARKER.
@@ -186,9 +173,7 @@ export default function PercentileLadderView({
                         textTransform: 'uppercase', color: '#94a3b8',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         cursor: m.drillKey ? 'pointer' : 'default' }}
-               role={m.drillKey ? 'button' : undefined}
-               aria-label={m.drillKey ? `${m.label} details` : undefined}
-               onClick={m.drillKey ? () => onDrill(m) : undefined}>
+               {...drillProps(m, onDrill)}>
             {m.label}
           </div>
 

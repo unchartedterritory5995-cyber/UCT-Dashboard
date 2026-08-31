@@ -1,11 +1,22 @@
 // app/src/components/research/QuoteStrip.jsx
 //
-// The session line, directly under the identity row: price, change, and the
-// OHLC/volume context that says whether today is ordinary or not.
+// The session line, directly under the identity row: the OHLC/volume context
+// that says whether today is ordinary or not.
 //
-// The banner already carries a live price. This is the surrounding numbers —
-// a +2% that opened at the high and faded is a different day from a +2% that
-// closed on it, and the single number cannot tell you which.
+// ⛔ THIS STRIP DOES NOT PRINT THE PRICE. The banner does, and it is the one
+// authority — its `useLivePrices` read is deliberately un-debounced so the
+// header number never lags the header name (see the shell's §4.4 amendment
+// note). This component reads a DIFFERENT endpoint (/api/research/quote), so
+// when it also rendered price + change the modal showed the same quote twice,
+// 20px apart, rounded two ways: the banner's "▼8.1%" directly above this
+// strip's "▼$1.56 (-8.07%)". Two authorities over one value, and it read as a
+// disagreement. The strip keeps only what the banner CANNOT say: a +2% that
+// opened at the high and faded is a different day from a +2% that closed on
+// it, and a single number cannot tell you which.
+//
+// The 52-week position track also lived here (an 86px rail, a 7px dot, a
+// 10.5px caption) directly above SetupSection's own labelled 52-week
+// RangeSlider. Removed in favour of the labelled one — see that section.
 import useMobileSWR from '../../hooks/useMobileSWR'
 import { toNum } from '../research-kit'
 import styles from './QuoteStrip.module.css'
@@ -30,13 +41,6 @@ export function fmtVol(v) {
   return String(Math.round(x))
 }
 
-/** Where today's price sits in the 52-week range, 0-100, or null. */
-export function rangePct(price, low, high) {
-  const p = n(price); const lo = n(low); const hi = n(high)
-  if (p == null || lo == null || hi == null || hi <= lo) return null
-  return Math.max(0, Math.min(100, ((p - lo) / (hi - lo)) * 100))
-}
-
 export default function QuoteStrip({ sym }) {
   // useMobileSWR, not bare useSWR: this polls, and the opt-in wrapper is what
   // backs off when the tab is hidden, stretches the interval 10x once the
@@ -48,37 +52,20 @@ export default function QuoteStrip({ sym }) {
     marketHoursOnly: true,
     revalidateOnFocus: false,
   })
+  // `data.price` still gates the render even though the price is no longer
+  // DRAWN: it is the field that says this payload is a real quote rather than
+  // an empty shell, and OHLC without it is not worth a row of chrome.
   if (!sym || !data || data.price == null) return null
-
-  const chg = n(data.change)
-  const pct = n(data.change_pct)
-  const dir = chg == null ? '' : chg > 0 ? styles.up : chg < 0 ? styles.down : ''
-  const pos = rangePct(data.price, data.year_low, data.year_high)
 
   return (
     <div className={styles.strip} data-testid="quote-strip">
-      <span className={styles.price}>{fmtPrice(data.price)}</span>
-      {chg != null && (
-        <span className={`${styles.chg} ${dir}`}>
-          {chg > 0 ? '▲' : chg < 0 ? '▼' : '·'} {fmtPrice(Math.abs(chg))}
-          {pct != null ? ` (${pct > 0 ? '+' : ''}${pct.toFixed(2)}%)` : ''}
-        </span>
-      )}
       <span className={styles.cells}>
-        <b>O</b> {fmtPrice(data.open)}
-        <b>H</b> {fmtPrice(data.high)}
-        <b>L</b> {fmtPrice(data.low)}
-        <b>PC</b> {fmtPrice(data.prev_close)}
-        <b>VOL</b> {fmtVol(data.volume)}
+        <span className={styles.cell}><b>O</b> {fmtPrice(data.open)}</span>
+        <span className={styles.cell}><b>H</b> {fmtPrice(data.high)}</span>
+        <span className={styles.cell}><b>L</b> {fmtPrice(data.low)}</span>
+        <span className={styles.cell}><b>PC</b> {fmtPrice(data.prev_close)}</span>
+        <span className={styles.cell}><b>VOL</b> {fmtVol(data.volume)}</span>
       </span>
-      {pos != null && (
-        <span className={styles.range} title={`52-week ${fmtPrice(data.year_low)} – ${fmtPrice(data.year_high)}`}>
-          <span className={styles.rangeTrack}>
-            <span className={styles.rangeDot} style={{ left: `${pos}%` }} />
-          </span>
-          <span className={styles.rangeCap}>{Math.round(pos)}% of 52w range</span>
-        </span>
-      )}
     </div>
   )
 }

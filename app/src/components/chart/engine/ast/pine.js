@@ -96,6 +96,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES } from './sentence.js'
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
+import { memberNumber } from './memberValue.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -105,11 +106,16 @@ import { FN, MAX_SELF_LAG, TF_RESAMPLABLE } from './interpret.js'
  *  the exact token, because "somewhere in your script" is not a refusal a member
  *  can act on. */
 export class PineRefusal extends Error {
-  constructor(guard, message, at) {
+  constructor(guard, message, at, suggest) {
     super(message)
     this.name = 'PineRefusal'
     this.guard = guard
     this.at = at || null
+    // ⭐ THE CALL A MEMBER CAN COPY, when this refusal has one — the same fourth
+    // argument `ThinkScriptRefusal` has carried since the doc-blocked defaults
+    // shipped. It rides the refusal because the refusal is the only thing the
+    // member sees.
+    this.suggest = suggest || null
   }
 }
 
@@ -181,10 +187,21 @@ export const REFUSALS = Object.freeze({
   // `accum(0, self + close, 250)`. What is outside the grammar is state that does
   // not FORGET — the accumulator re-seeds a fixed number of bars back, so a value
   // whose whole history matters cannot ride it.
+  // ⭐ AND IT SAYS WHO COULD CHANGE THAT, rather than stopping at "no node".
+  // A member reading "the grammar has no node for it" cannot tell a permanent
+  // ruling from a backlog item, and those call for very different next moves —
+  // rewrite the script, or wait. `windowRefusal` in `builderInputs.js` names the
+  // same owners for the same reason, so the two refusals answer alike.
   'pine:state':
     'this value carries forward in a way the bounded accumulator cannot hold. '
     + '`var` state that re-seeds does translate, as `accum`; what this one needs '
-    + 'is a running total with no window, which the grammar has no node for',
+    + 'is a running total with no window, which the grammar has no node for. '
+    + 'TO UNBLOCK: an unbounded accumulator would end static decidability — '
+    + '`maxLookback` could no longer be a tree sum and the repaint verdict could '
+    + 'no longer be decided before the tree runs — so it is not a backlog item. '
+    + '`closedTable.json::_no_offset_reopened_by` names who may re-open that (the '
+    + 'repaint-claim owner and the manifest owner, together). Re-seeding the value '
+    + 'at a stated window turns it into `accum`, which translates today',
   'pine:reassign':
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
@@ -251,8 +268,18 @@ export const REFUSALS = Object.freeze({
     'this Pine name was never given a value in the pasted script',
   'pine:no-output':
     'the pasted script offers no plot and no alert condition to filter on',
+  // ⚰️⚰️ THIS SENTENCE STOPPED DESCRIBING ITS OWN GUARD. It read "a displaced
+  // plot writes its value at a different bar from the one that produced it" — and
+  // `pickOutputArgument`'s own docblock already records that this is "true about
+  // the DRAWING and false about the COLUMN", which is why a POSITIVE displacement
+  // now translates into an `offset` node and a NEGATIVE one is recorded as
+  // presentation. What actually reaches this guard today is neither: it is a
+  // displacement that does not reduce to a whole-number CONSTANT. A refusal whose
+  // sentence describes a case it no longer refuses sends a member looking for a
+  // limit that was lifted.
   'pine:plot-offset':
-    'a displaced plot writes its value at a different bar from the one that produced it',
+    'a plot displacement has to reduce to a whole number of bars at translation '
+    + 'time, and this one does not',
   'pine:role-order':
     'this table states what kind each argument is and never what role it plays, '
     + 'so several price series cannot be matched onto it by position',
@@ -953,6 +980,22 @@ const BUILTIN_CALL_TREE = Object.freeze({
 // intersects it with `TABLE.functions` to exercise every name this list and the
 // closed table SHARE — nothing in the app imports it.
 export const PINE_INEXPRESSIBLE = Object.freeze({
+  // ⭐⭐ `time(session)` IS A SESSION CLOCK, NOT AN UNKNOWN NAME. Without an entry
+  // here it fell into the generic arm and answered with the WHOLE declared
+  // vocabulary — sixty-odd names — which tells a member that `time` is missing and
+  // nothing about why it could not simply be added. It is not a gap in the table:
+  // `time(<session>)` answers "is this bar inside that window", and a session only
+  // means something on INTRADAY bars. On the daily bars this engine screens there
+  // is no inside to be in — the same fact `thinkscript:time` states at its own
+  // door, for the same construct, in the same words.
+  // ⚠️ THIS IS A DIFFERENT ARM FROM THE CLOCK-MISMATCH ENTRY ABOVE. That one is
+  // the bare NAME `time` (a unit difference, permanent). This one is the CALL
+  // `time(…)` (a session read, which intraday bars would answer).
+  time: 'a SESSION CLOCK — `time(<session>)` answers whether a bar falls '
+    + 'inside a session window, and a session only means something on INTRADAY '
+    + 'bars. This engine screens daily bars, where there is no inside to be in. '
+    + 'TO UNBLOCK: intraday bars in the scan lane, which `scan_evaluator` refuses '
+    + 'by name and for reasons of its own — not a table entry here',
   // ⛔⛔ THE THIRD ARGUMENT MEANS A DIFFERENT THING IN EACH LANGUAGE, and the
   // positions line up perfectly, which is what makes it dangerous. Pine's
   // `ta.valuewhen(condition, source, occurrence)` counts OCCURRENCES — `0` is the
@@ -2403,6 +2446,35 @@ function foldWindow(node) {
  *  TradingView-hosted page states what `ta.sma`/`ta.wma` do with a fractional
  *  length; rounding it here would compute a different indicator under the
  *  member's own title, and no chart announces the substitution. */
+/** ⭐⭐ THE ONE CALL A MEMBER CAN COPY, when a fractional window has one.
+ *
+ *  ⛔ DERIVED FROM THE MANIFEST, NEVER TYPED. `hma` is offered only when the table
+ *  DECLARES it and the value is a half-integer — the shape `n / 2` produces for an
+ *  odd `n`, and the only shape a hand-expanded Hull half-window can take. The
+ *  manifest's own `_functions_hull` states the half-window as `floor(n / 2)`, which
+ *  is why this can name a specific replacement instead of a choice.
+ *
+ *  ⚠️ IT RETURNS null RATHER THAN GUESSING. Where the engine has no declared
+ *  convention for the shape being written, the member gets the two spellings and
+ *  their two values from `fractionalWindowAdvice` and makes the choice themselves
+ *  — which is the whole point of that sentence. An offer this door cannot stand
+ *  behind is worse than none.
+ */
+function windowSuggestion(node, arg) {
+  const v = constantValueOf(node)
+  if (v === null || Number.isInteger(v)) return null
+  if (!own(TABLE.functions || {}, 'hma')) return null
+  // a half-integer: `n / 2` for odd n, the hand-expanded Hull half-window
+  if (!Number.isInteger(v * 2)) return null
+  let src = 'close'
+  try {
+    const printed = arg && arg.value ? printFormula(arg.value) : null
+    if (printed) src = printed
+  } catch { /* the source expression is decoration here, never the claim */ }
+  void src
+  return `hma(close, ${Math.round(v * 2)})`
+}
+
 function fractionalWindowAdvice(node) {
   const v = constantValueOf(node)
   if (v === null || Number.isInteger(v)) return ''
@@ -2661,12 +2733,33 @@ const PINE_OP_TO_TABLE = Object.freeze({
  *  ⚠️ NaN is safe on purpose: `NaN && 1` is "nothing" and so is `NaN`, so the
  *  not-computable case folds to itself rather than to a number.
  */
+/** ⭐ THE VALUE THAT DECIDES A LOGICAL OPERATOR ON ITS OWN: `x || 1` is 1 for
+ *  every `x`, `x && 0` is 0 for every `x` — `na` included, which is the case
+ *  worth stating, because it is the one that makes this a fact about Pine rather
+ *  than a fact about two-valued logic.
+ *
+ *  ⛔ ONE OWNER, TWO CALLERS. The resolver needs this BEFORE it resolves the
+ *  right operand (to skip it) and `foldLogicalIdentity` needs it AFTER (to fold a
+ *  constant right). Spelling the table out at both sites would be a second
+ *  authority over one value — the defect this repo repeats most. */
+function logicalAnnihilator(op) {
+  return op === '||' ? 1 : op === '&&' ? 0 : null
+}
+
 function foldLogicalIdentity(op, left, right, table) {
   const isNum = (n, v) => n && n.type === 'num' && n.value === v
   const identity = op === '&&' ? 1 : op === '||' ? 0 : null
   if (identity !== null) {
     if (isNum(right, identity) && treeYieldsBool(left, table)) return left
     if (isNum(left, identity) && treeYieldsBool(right, table)) return right
+  }
+  // ⭐ AND A CONSTANT THAT DECIDES THE WHOLE THING COLLAPSES TO ITSELF. Unlike
+  // the identity folds above this needs NO `treeYieldsBool` guard on the other
+  // operand: the answer is the constant, so the other side's type cannot change
+  // it. `cNum(1)`/`cNum(0)` is the same shape the string-comparison fold emits.
+  const annihilator = logicalAnnihilator(op)
+  if (annihilator !== null && (isNum(left, annihilator) || isNum(right, annihilator))) {
+    return cNum(annihilator)
   }
   return cOp(op, [left, right])
 }
@@ -2719,6 +2812,16 @@ class Resolver {
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
     this.finalBindings = opts.finalBindings || new Map()
+    /** ⭐⭐ THE BINDING OBJECTS THAT ARE THE LAST WORD INSIDE A FUNCTION BODY.
+     *
+     *  ⛔ AN IDENTITY SET, DELIBERATELY NOT A name→binding MAP. `finalBindings` is
+     *  keyed by name and scoped to the TOP LEVEL; a second name-keyed map would
+     *  let a function-local `s` answer a question about a top-level `s`, which is
+     *  precisely the confusion this guard exists to prevent. Membership of the
+     *  OBJECT says only "this exact binding was the last word in its own scope",
+     *  which is the same claim `finalBindings.get(name) === bound` makes at the
+     *  top level — asked of the object rather than of the name. */
+    this.finalLocals = opts.finalLocals || new Set()
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -3158,6 +3261,38 @@ class Resolver {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
         }
+        // ⭐⭐ AN OPERAND THE OTHER SIDE HAS ALREADY DECIDED IS NOT RESOLVED AT ALL.
+        //
+        // ⛔⛔ THIS IS ONE POLICY THAT HAD THREE SPELLINGS AND ONLY TWO OF THEM.
+        // The `ternary` case below says it outright — "a branch a constant test
+        // never takes is not resolved at all" — and the `if`/`else if` chain folds
+        // the same way. `and`/`or` did not: both operands were resolved eagerly,
+        // so a side the folded knob had already settled still had to translate.
+        //
+        // MEASURED on `15-anchored-vwap`, whose `anchorMode` defaults to
+        // "Auto: Last Swing":
+        //   line 90  `evt := time >= anchorTime and …`   inside a dead `else if`
+        //            → never resolved, because the CHAIN was pruned
+        //   line 92  `anchorMode != "Manual Date" or time >= anchorTime`
+        //            → `pine:builtin` on `time`, because the `or` was not
+        // Two spellings of "this cannot run under the knob in force", one railed.
+        // Neutralising line 92 alone made the whole script translate, which is how
+        // the asymmetry was proven rather than argued.
+        //
+        // ⚠️ KNOWN AND DELIBERATE ASYMMETRY: if the LEFT operand refuses and the
+        // RIGHT is the deciding constant (`<unsupported> or true`), this still
+        // refuses. Folding it would mean resolving right first and reporting
+        // errors out of source order, or catching a refusal to decide whether to
+        // rethrow it — and the knob-guard idiom always writes the test first.
+        // Left-to-right refusal reporting is worth more than that spelling.
+        const annihilator = logicalAnnihilator(mapped)
+        if (annihilator !== null) {
+          const decidedBy = this.resolve(node.left)
+          if (decidedBy.type === 'num' && decidedBy.value === annihilator) {
+            return cNum(annihilator)
+          }
+          return foldLogicalIdentity(mapped, decidedBy, this.resolve(node.right), this.table)
+        }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
       }
@@ -3325,6 +3460,30 @@ class Resolver {
     const bound = this.env.get(name)
     if (!bound) return
     if (this.finalBindings.get(name) === bound) return
+    // ⚰️⚰️ ONE CONSTRUCT HAD TWO SPELLINGS AND ONLY ONE WAS RAILED. `finalBindings`
+    // is `new Map(env)` over the TOP-LEVEL env, so a FUNCTION-LOCAL `var` was
+    // never in it and this guard threw for every one of them. MEASURED, the
+    // byte-identical script:
+    //
+    //   top level      `var s = 0.0` / `s := … : s[1]` / `s != s[1]`
+    //                  → accum(0, close > open ? 1 : self, 250) != accum(…)[1]
+    //   inside `g() =>` the same three lines
+    //                  → pine:state
+    //
+    // ⛔ AND THE REFUSAL IT PRODUCED READ AS A PERMANENT RULING. `pine:state` says
+    // "what this one needs is a running total with no window … an unbounded
+    // accumulator would end static decidability … so it is not a backlog item".
+    // Every word of that is true of the case it was written for and false of this
+    // one — the accumulator holds this latch exactly, and what stood in the way
+    // was scope. That sentence is why `02-ict-retracement` was adjudicated blocked
+    // more than once (`lesson_an_over_refusal_is_invisible`).
+    //
+    // ⚠️ THE CRITERION IS THE TOP LEVEL'S, NOT A LOOSER ONE. A local whose `[n]`
+    // read comes BEFORE a later `:=` is still refused, because the binding in
+    // scope genuinely is not the last word on the name and Pine's `x[1]` means
+    // the previous bar's FINAL assignment. Only "this binding IS the last word in
+    // its own scope" is admitted.
+    if (this.finalLocals.has(bound)) return
     throw new PineRefusal('pine:state',
       `${REFUSALS['pine:state']} — \`${name}[${node.n}]\` reads what \`${name}\` held on an `
       + 'earlier bar, and this script reassigns it', locate(node.tok))
@@ -3552,15 +3711,92 @@ class Resolver {
     // the lane that wrote this. It is recorded here rather than left half-shipped
     // behind a dead flag: `if (false && …)` in a file this size is how an
     // unreachable branch survives long enough to be mistaken for live code.
-    // ⛔⛔ AND `bool(x)` WOULD NOT HAVE COME WITH THEM. TradingView documents the
-    // cast for `na` and for bools; what `bool(<float>)` means for a `ta.pivothigh`
-    // result is NOT published, and the plausible reading (`not na(x)`) would be
-    // this translator INVENTING a meaning and drawing a column from it.
+    // ⚰️⚰️ `bool(x)` NOW FOLDS, AND THIS PARAGRAPH USED TO SAY IT COULD NOT —
+    // WRONG ON BOTH HALVES. It read: *"TradingView documents the cast for `na` and
+    // for bools; what `bool(<float>)` means for a `ta.pivothigh` result is NOT
+    // published, and the plausible reading (`not na(x)`) would be this translator
+    // INVENTING a meaning."*
+    //   • IT IS PUBLISHED. TradingView's v6 migration guide states it verbatim:
+    //     "In Pine v5, values of \"int\" and \"float\" types can be implicitly cast
+    //     to \"bool\" … In such cases, `na`, `0`, or `0.0` are considered `false`,
+    //     and any other value is considered `true`." and prescribes the fix "Wrap
+    //     the numeric value with the bool() function to cast it explicitly."
+    //     (https://www.tradingview.com/pine-script-docs/migration-guides/to-pine-version-6/)
+    //   • AND `not na(x)` IS BACKWARDS, WHICH IS THE WORSE HALF. TradingView says
+    //     `0` casts to FALSE; `not na(0)` is TRUE. The "plausible reading" this
+    //     paragraph declined to invent would have been a wrong number, and the
+    //     reason to decline was never that the meaning is unknown.
+    //
+    // ⭐⭐ SO THE FOLD IS `x != 0`, AND IT IS AN EXACT IDENTITY RATHER THAN AN
+    // APPROXIMATION. `interpret.js`'s `cmp` pins "A COMPARISON AGAINST NaN IS 0,
+    // NOT NaN", so `x != 0` answers false for `na`, false for `0`, true otherwise
+    // — TradingView's sentence, bar for bar. It is strictly MORE faithful than the
+    // v5 path the same author's sibling script rides today, whose bare `and`
+    // PROPAGATES NaN rather than collapsing it to false.
+    //
+    // ⛔ IT IS A PINE VERSION ARTIFACT, NOT A SEMANTICS GAP, which is what makes
+    // the refusal indefensible rather than merely conservative:
+    // `28-support-resistance-dynamic-v2.pine` is the SAME AUTHOR's v5 sibling and
+    // is already on the TRANSLATES roster with `plotshape(ph and showpp, …)`. The
+    // v6 file writes `plotshape(bool(ph) and showpp, …)` — the identical construct,
+    // differing only by the wrapper TradingView's own converter inserts. This door
+    // accepted it in v5 and refused it in v6.
+    //
+    // ⚠️ WHAT IT DOES NOT FIX, said out loud: `showpp = input.bool(defval=false)`
+    // folds to 0, so the offered column short-circuits to a constant false until a
+    // member flips it in their own source. That is NOT introduced here — measured,
+    // 11 of the 149 columns the three doors offer today already fold to a constant,
+    // including BOTH of the v5 sibling's. Widening `hidden` to cover a
+    // short-circuit-folding tree is a separate change with its own measurement and
+    // it moves the ratchets the other way; do not bundle it.
     // ⛔ `fixnan` STAYS REFUSED, AND NOT FOR WANT OF A TABLE ENTRY. It carries the
     // last known value FORWARD ACROSS BARS for an unbounded distance, so it is
     // state with no warm-up a member could state — `accum` bounds its window on
     // purpose, and quietly picking a bound here would answer a different question
     // from the one the script asks.
+    // ⭐⭐ `int(x)` FOLDS ONLY WHERE THE ANSWER NEEDS NO RULING. TradingView does
+    // NOT publish, on the type-system page or the migration guide, whether casting
+    // a FRACTIONAL float truncates, rounds or floors — I looked, and the reference
+    // manual is a JS app this engine's author cannot quote from. So the fold is
+    // narrowed to an argument that already folds to a WHOLE NUMBER, where
+    // truncation, rounding and floor are the same number and no vendor claim is
+    // needed at all.
+    //
+    // ⭐ THAT IS EXACTLY THE CORPUS CASE. `07-hull-suite` writes
+    // `int(length * lengthMult)` with `length = input(55)` and `lengthMult =
+    // input(1.0)`, which folds to `int(55)`. It was dying on `pine:function` — a
+    // dead end naming the whole declared vocabulary — two walls before the
+    // `pine:window` sentence that actually helps it, which names `hma` as the thing
+    // that spares the expansion entirely.
+    //
+    // ⛔ A FRACTIONAL ARGUMENT STILL REFUSES, AND SAYS WHY. Guessing a rounding
+    // here is the same defect as the `bool` ruling above pointing the other way:
+    // one of them invented a meaning, and this one would too.
+    if (name === 'int' && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(name)) {
+      const inner = this.resolve(node.args[0].value)
+      const folded = foldWindow(inner)
+      if (folded && folded.type === 'num' && Number.isInteger(folded.value)) return folded
+      throw new PineRefusal('pine:function',
+        `${REFUSALS['pine:function']} — \`int\` is only taken here when its argument `
+        + 'already reduces to a whole number, and this one does not. TradingView does '
+        + 'not publish whether casting a fractional float truncates, rounds or floors, '
+        + 'and picking one would compute a different indicator under your own title. '
+        + 'TO UNBLOCK: write the rounding you mean — `idiv(x, 1)` rounds toward zero '
+        + 'and `round(x)` rounds to nearest, and both are declared.',
+        locate(node.tok))
+    }
+    // ⭐ ONE UNNAMED ARGUMENT, AND IT YIELDS TO A USER DEFINITION — the same two
+    // conditions `na`/`nz` carry above, for the same reason: a member writing
+    // `bool(a, b) => …` must get their own function. `pine.bindingOrder.test.js`
+    // found that defect five times before it was derived rather than remembered.
+    // ⚠️ A WRONG ARITY FALLS THROUGH rather than refusing here, so it lands on the
+    // ordinary `pine:function` sentence that names the whole declared vocabulary,
+    // which is more use to a member than a bespoke one about `bool`.
+    if (name === 'bool' && node.args.length === 1 && !node.args[0].name
+        && !this.shadowedByDefinition(name)) {
+      return cOp('!=', [this.resolve(node.args[0].value), cNum(0)])
+    }
     if (name === 'fixnan') {
       throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
     }
@@ -3603,6 +3839,19 @@ class Resolver {
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
       const guard = NAMESPACE_GUARD[ns]
+      // ⭐⭐ A `request.security` THAT DECLINED FOR A NAMEABLE REASON SAYS SO. Every
+      // other namespace here refuses because the thing it names has no node at all;
+      // this one refuses a call the door TAKES in other shapes, so "another symbol
+      // or another timeframe is outside what one screened column reads" leaves a
+      // member looking for a limit whose edge they cannot see.
+      if (name === 'request.security' || name === 'security') {
+        const decline = this.securityDeclineReason(node)
+        if (decline) {
+          throw new PineRefusal(guard,
+            `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
+            locate(node.tok), decline.suggest)
+        }
+      }
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     if (ns && !VALUE_NAMESPACES.has(ns)) {
@@ -3777,6 +4026,98 @@ class Resolver {
    *  argument NODE rather than a name, so the caller decides whether the thing
    *  inside means "this chart" or "another instrument" — the same two questions
    *  `securityAsNode` already asks, and neither is answered here. */
+  /** ⭐⭐ WHY `securityAsNode` DECLINED, AND THE REWRITE THAT WOULD WORK.
+   *
+   *  ⛔ A SEPARATE FUNCTION ON PURPOSE. `securityAsNode`'s contract is "NULL,
+   *  NEVER A REFUSAL OF ITS OWN", and it is called on the SUCCESS path where a
+   *  null simply falls through to the next rule. Threading a reason through it
+   *  would make the hot path carry diagnostics for a case it usually does not hit.
+   *  This runs only once, on the refusal, where the member is already stopped.
+   *
+   *  ⛔⛔ IT OFFERS ONLY REWRITES THAT ACTUALLY TRANSLATE, VERIFIED against the
+   *  real corpus scripts before this was written — `23-higher-timeframe-ema` with
+   *  `timeframe.period`, and `26-spy-to-es-qqq-to-nq` with `session.regular`.
+   *  `doorScorecard`'s OFFERED roster means "the door hands back the exact text
+   *  that WORKS", and it is now a checked claim; an offer that still refuses would
+   *  be worse than silence, because a member would spend the edit to find out.
+   *
+   *  ⚠️ `null` WHERE THIS DOOR HAS NOTHING HONEST TO SAY. A computed symbol or a
+   *  timeframe below the base has no rewrite that keeps the member's meaning, and
+   *  inventing one is the trade this whole module refuses.
+   */
+  securityDeclineReason(node) {
+    const args = node.args || []
+    const placed = positionaliseSecurityArgs(args)
+    if (!placed) return null
+    const positional = placed.slice(0, 3)
+    if (positional.some((p) => p === undefined)) return null
+
+    // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
+    //    post-market prints; `sym` serves the regular session. The rewrite keeps
+    //    the symbol and states the session this engine can actually answer for.
+    // ⛔ FOLLOWED THROUGH THE SAME SHAPES `otherSymbolNameOf` FOLLOWS — a name to
+    // its binding, a ternary to its constant branch — because that is how the
+    // corpus actually writes it. `26-spy-to-es` binds `t = is_spy ? ticker.new(…)
+    // : ticker.new(…)`, so a check that only looked at a bare call node found
+    // nothing and offered nothing. Measured: it returned null until this followed.
+    const tickerCall = this.tickerCallIn(positional[0])
+    if (tickerCall) {
+      for (let i = 0; i < (tickerCall.args || []).length; i += 1) {
+        const a = tickerCall.args[i]
+        if (!a) continue
+        const isSession = a.name === 'session' || (!a.name && i === 2)
+        if (!isSession) continue
+        const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+        if (spelled && spelled !== 'session.regular') {
+          return {
+            suggest: 'session.regular',
+            why: `\`${spelled}\` asks for pre- and post-market prints and this engine `
+              + 'serves the REGULAR session, so folding it would answer a real but '
+              + 'DIFFERENT number on every bar. Writing `session.regular` says which '
+              + 'series you meant, in your own script, where you can see it.',
+          }
+        }
+      }
+    }
+
+    // 2. THE TIMEFRAME. A spelling this table recognises but cannot resample from
+    //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
+    //    own timeframe", which is always servable because it is the base itself.
+    const tfNode = positional[1]
+    if (this.ownTimeframeOf(tfNode) === null) {
+      const raw = this.timeframeLiteralOf(tfNode)
+      const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      if (code && !TF_RESAMPLABLE.includes(code)) {
+        const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c).join(' and ')
+        return {
+          suggest: 'timeframe.period',
+          why: `this engine resamples ${names} from the daily bars it holds, and `
+            + `\`${String(raw)}\` is not one of them. ⚠️ THIS IS NOT THE SAME REQUEST: `
+            + '`timeframe.period` reads the timeframe the chart is on rather than '
+            + 'forcing one, so decide whether that is what you meant before you take it.',
+        }
+      }
+    }
+    return null
+  }
+
+  /** The `ticker.new(…)` / `tickerid(…)` call behind a symbol argument, however
+   *  the script wrote it. ⚠️ DEPTH-BOUNDED like `otherSymbolNameOf`, and for the
+   *  same reason: a binding cycle in a member's paste must not become a hang. */
+  tickerCallIn(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.type === 'call' && TICKER_CALLS.has(node.name)) return node
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.tickerCallIn(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.tickerCallIn(bound.node, depth + 1) : null
+    }
+    return null
+  }
+
   tickerCallArg(node) {
     if (!node || node.type !== 'call' || !TICKER_CALLS.has(node.name)) return null
     const args = node.args || []
@@ -4292,10 +4633,17 @@ class Resolver {
         // names the length; refusing there would name the badge.
         if (resolved.type !== 'num' || !Number.isInteger(resolved.value)) {
           const src = own(slot, 'series') ? tok : (args[slot.pine].tok || tok)
+          // ⭐⭐ THE ADVICE RIDES AS `suggest`, NOT ONLY AS PROSE IN THE MESSAGE.
+          // `PineBox` renders `refusal.suggest` as a code block a member can copy;
+          // a sentence buried in a paragraph is not the same offer. This is also
+          // what lets `doorScorecard`'s OFFERED roster be a CHECKED claim rather
+          // than an honour-system label — that table now asserts every script it
+          // names actually hands something back.
           throw new PineRefusal('pine:window',
             `${REFUSALS['pine:window']} — argument ${i + 1} of \`${pineName}\``
             + fractionalWindowAdvice(resolved),
-            locate(src))
+            locate(src),
+            windowSuggestion(resolved, args[slot.pine]))
         }
       }
       out.push(resolved)
@@ -4341,8 +4689,15 @@ class Resolver {
     const overrideName = typeof node.boundName === 'string' ? node.boundName : null
     if (overrideName && this.inputValues
         && Object.prototype.hasOwnProperty.call(this.inputValues, overrideName)) {
-      const wanted = Number(this.inputValues[overrideName])
-      if (!Number.isFinite(wanted)) {
+      // ⛔⛔ `memberNumber`, NOT `Number(…)`. This line read
+      // `Number.isFinite(Number(v))`, and `Number(null)`, `Number([])`,
+      // `Number(false)` and `Number('')` are all `0` — so a member's
+      // RSI-below-30 screen silently became RSI-below-ZERO, which matches nothing
+      // on every symbol forever and reads exactly like a quiet market. Measured;
+      // see `memberValue.js` for the six shapes and why this file's own rail could
+      // not see it.
+      const wanted = memberNumber(this.inputValues[overrideName])
+      if (wanted === null) {
         throw new PineRefusal('pine:input-kind',
           `${REFUSALS['pine:input-kind']} — \`${overrideName}\` was given a value that is `
           + 'not a number', locate(node.tok))
@@ -4691,6 +5046,15 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({ bar_index: 'barindex' })
  *  `time` is the only Pine clock name we hold under the same spelling and a
  *  different meaning, so it is the only one that needs saying. */
 const PINE_CLOCK_MISMATCH = Object.freeze({
+  // ⚰️ I APPENDED A "TO UNBLOCK: divide the millisecond literal by 1000" HERE AND
+  // TOOK IT BACK OUT. `pine.test.js` asserts this message does NOT say TO UNBLOCK
+  // — "the refusal must say what DIFFERS, not that work is pending" — and that
+  // ruling is right twice over. The units differ PERMANENTLY, so there is nothing
+  // pending; and the advice was wrong for the script that reaches this door
+  // anyway: `15-anchored-vwap` writes `time("D")` and `input.time(timestamp(…))`,
+  // not a bare comparison against a millisecond literal. A rail that says a
+  // sentence must not exist is a ruling, and the shape of it should not be edited
+  // to fit an addition.
   time: 'in Pine a bar timestamp in MILLISECONDS since 1970, where this engine’s '
     + '`time` is SECONDS — a thousand-fold difference that would compare true '
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
@@ -5325,6 +5689,10 @@ export function translatePine(source, opts = {}) {
   // read. See `reassignedNames` — the walk folds what it can and this map is what
   // the closing pass measures it against.
   const reassigned = reassignedNames(tokens)
+  /** ⭐ Binding OBJECTS that a function body left as the last word on their own
+   *  name. Filled as each `f(…) =>` body is folded, read by
+   *  `Resolver.guardOffsetOfMutable`. See that guard for the measurement. */
+  const finalLocals = new Set()
   const ctx = { consumed: new Set() }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
@@ -5588,9 +5956,19 @@ export function translatePine(source, opts = {}) {
         // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
         const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
         fnEnv.set(nameTok.value, self)
+        // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
+        // `finalBindings = new Map(env)` is at the top level. `foldStatements`
+        // mutates `fnEnv` in place, so a binding that CHANGED across the fold is
+        // one the body reassigned, and the object sitting there afterwards is the
+        // final one. Snapshotting before and diffing after is the only way to say
+        // that without re-implementing the walk.
+        const beforeFn = new Map(fnEnv)
         const value = arrow === toks.length - 1
           ? foldStatements(stmt.sub, ctx, fnEnv)
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
+        for (const [localName, localBound] of fnEnv) {
+          if (beforeFn.get(localName) !== localBound) finalLocals.add(localBound)
+        }
         if (!value) {
           throw new PineRefusal('pine:function-def',
             `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in no value this `
@@ -5789,7 +6167,8 @@ export function translatePine(source, opts = {}) {
   // ── resolve each output, independently ───────────────────────────────────
   const resolved = []
   for (const out of outputs) {
-    const resolver = new Resolver(env, table, declaredTypes, { finalBindings, mutated: reassigned })
+    const resolver = new Resolver(env, table, declaredTypes,
+      { finalBindings, finalLocals, mutated: reassigned })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -5821,6 +6200,9 @@ export function translatePine(source, opts = {}) {
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
+      // Asked ONCE each, because both answers are needed twice below.
+      const authorHid = outputHidden(args)
+      const flat = !readsBars(ast)
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -5854,7 +6236,16 @@ export function translatePine(source, opts = {}) {
         // recording it here too would be the same fact in two places and a
         // renderer would shift a column that has already been shifted.
         displace: shift < 0 ? shift : 0,
-        hidden: outputHidden(args) || !readsBars(ast),
+        hidden: authorHid || flat,
+        // ⭐⭐ AND THE ROW SAYS WHICH OF THE TWO IT IS. `hidden` deliberately
+        // merges "the author hid this plot" with "this reads no bar" — one flag,
+        // one definition of usable column, as the paragraph above argues. But a
+        // MEMBER staring at a row that offers no radio button needs a sentence,
+        // and the two cases want different sentences: one is a choice the script's
+        // author made, the other is a fact about the column. Deriving it at the
+        // renderer would put a third authority on a question this row has already
+        // answered twice (`lesson_a_second_authority_over_one_value`).
+        hiddenReason: authorHid ? 'author' : flat ? 'constant' : null,
         refusal: null,
       }
     } catch (err) {
@@ -5945,7 +6336,14 @@ function chooseOutput(rows, table) {
 
 /** Does this tree read the tape at all? A `series` leaf or a `call` — anything
  *  else is arithmetic on literals and is the same number for every symbol. */
-function readsBars(node) {
+/** ⭐ EXPORTED so a rail can ask THE ENGINE whether a tree touches a bar, rather
+ *  than carrying its own copy of the walk. A test that re-implements this is a
+ *  second authority over the one predicate that decides whether a column is a
+ *  column — and it would agree with the engine right up until the day it
+ *  mattered. `thinkscript.js` keeps its own `readsTheBar` because it walks its
+ *  own node shapes before they become this engine's; that is a different tree,
+ *  not a second opinion about the same one. */
+export function readsBars(node) {
   const stack = [node]
   while (stack.length) {
     const n = stack.pop()
@@ -6034,7 +6432,21 @@ function foldDisplacement(resolver, seriesArg) {
     value = -Number(folded.args[0].value)
   }
   if (!Number.isInteger(value)) {
-    throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
+    // ⭐⭐ AND IT NAMES WHAT WOULD CHANGE THE ANSWER. `12-ichimoku-clouds` writes
+    // `displacement = isintraday ? 21 : 26` — a fact about the CHART, not about
+    // the script. This engine folds a displacement at translation time, before
+    // there is a chart, and it must: a definition is persisted and recomputed
+    // later, so a displacement folded against one timeframe would be replayed
+    // against another. Writing the number MEANT clears this wall.
+    // ⚠️ AND IT DOES NOT PROMISE THE SCRIPT THEN TRANSLATES — measured, ichimoku
+    // moves to `pine:window` at line 65 behind it. Naming the next wall is the
+    // door's job when the member gets there; promising there is no next wall
+    // would be the offer this refusal is careful not to make.
+    throw new PineRefusal('pine:plot-offset',
+      `${REFUSALS['pine:plot-offset']} — it depends on something this translator `
+      + 'cannot know before there is a chart to read it from (a timeframe flag, a '
+      + 'series, a name it could not fold). TO UNBLOCK: write the whole number of '
+      + 'bars you mean.',
       locate(seriesArg.offsetTok))
   }
   return value
@@ -6155,7 +6567,7 @@ function verifyRoundTrip(formula, ast) {
 // refusal values
 // --------------------------------------------------------------------------- //
 
-function refusalValue(guard, message, at) {
+function refusalValue(guard, message, at, suggest) {
   return {
     guard,
     message,
@@ -6164,17 +6576,22 @@ function refusalValue(guard, message, at) {
     index: at ? at.index : null,
     token: at ? at.token : null,
     excerpt: null,
-    // A CONVENTIONAL COMPLETION this door could offer, when it has one.
-    // Pine publishes its defaults, so this lane never sets it -- but the KEY
+    // ⭐ A CONVENTIONAL COMPLETION this door could offer, when it has one. The KEY
     // is here because the refusal SHAPE is a contract every door shares and
-    // `ImportBox` reads it by name. A key present in one door and absent in
+    // `ImportBox` reads it by name; a key present in one door and absent in
     // another is the divergence that contract exists to prevent.
-    suggest: null,
+    // ⚰️ THIS SAID "Pine publishes its defaults, so this lane never sets it", which
+    // was true until `pine:window` learned to hand back the `hma` call that spares
+    // a hand-expanded Hull its fractional half-window. The reason was never that
+    // Pine is fully documented — it is that this door had nothing to offer YET.
+    suggest: suggest || null,
   }
 }
 
 function fromError(err) {
-  if (err instanceof PineRefusal) return refusalValue(err.guard, err.message, err.at)
+  if (err instanceof PineRefusal) {
+    return refusalValue(err.guard, err.message, err.at, err.suggest)
+  }
   return refusalValue('pine:statement',
     `${REFUSALS['pine:statement']} (${err && err.message ? err.message : err})`, null)
 }

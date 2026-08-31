@@ -21,6 +21,34 @@
  * it is also the only shape in which a debounced writer is safe: a live read
  * would turn every settled write into a state change, and the scrubber would
  * fight its own URL.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⛔ BROWSER BACK DOES NOT RE-APPLY THE LINK, AND THAT IS A DECISION.
+ *
+ * It reads at first like an omission — a shareable-link feature where Back does
+ * nothing is a surprise — so here is the reasoning, in the file that owns it.
+ *
+ *  1. **There is nothing to go back TO.** Every write above is `replace: true`,
+ *     so scrubbing, switching a lens and opening Compare create no history
+ *     entries at all. Back therefore leaves the Breadth page, which is what a
+ *     reader who never "navigated" expects, and it is pinned by the "REPLACES
+ *     — one history entry" rail in this hook's test.
+ *  2. **The alternative is the loop this hook exists to avoid.** Making Back
+ *     re-apply means reading the query LIVE, and a live read beside a debounced
+ *     writer turns each settled write back into input: the cursor would fight
+ *     its own URL 300ms after every step of playback. Half-fixing it — a
+ *     `popstate` listener that re-parses only on a real pop — is a SECOND
+ *     authority on "what does the link say", beside `initial`, and this repo's
+ *     most repeated defect is two authorities over one value.
+ *  3. **Pushing an entry per state change is worse than either.** Sixteen
+ *     sessions a second of playback would bury whatever the reader was on
+ *     before under a hundred entries of the same page.
+ *
+ * The link is an ENTRY condition for a page visit (see the block in
+ * `pages/Breadth.jsx` that spends it), and Back is how you leave the visit.
+ * Changing that is a product decision, not a bug fix: the rail named
+ * "the link is an ENTRY condition" in this hook's test fails if `initial` ever
+ * starts tracking the query, so the next person to try it has to say so.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'

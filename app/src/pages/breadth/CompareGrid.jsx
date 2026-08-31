@@ -31,6 +31,7 @@
 import { useState } from 'react'
 import { viewsByKind, VIEW_COMPONENTS } from './views/viewRegistry'
 import BreadthViewsCustomizePanel from './BreadthViewsCustomizePanel'
+import { anchorProps } from './customizeAnchor'
 import UIcon from '../../components/ui/UIcon'
 import customizeStyles from './CustomizePanel.module.css'
 import styles from './CompareGrid.module.css'
@@ -75,7 +76,7 @@ export default function CompareGrid({ quad = [], propsForStyle, customizeForStyl
                 ))}
               </select>
               {custom && (
-                <div className={`${customizeStyles.anchor} ${styles.gearAnchor}`}>
+                <div className={`${customizeStyles.anchor} ${styles.gearAnchor}`} {...anchorProps()}>
                   <button type="button" className={styles.gear}
                           data-testid={`compare-customize-${i}`}
                           aria-expanded={openPane === i}
@@ -95,7 +96,13 @@ export default function CompareGrid({ quad = [], propsForStyle, customizeForStyl
                 </div>
               )}
             </header>
-            <div className={styles.body}>
+            {/* ⭐ `data-compare-pane` IS THE PANE'S ONE PUBLIC FACT ABOUT
+                ITSELF: "the view below me is rendering at a quarter of a
+                screen". A lens whose fixed chrome does not fit that box reads
+                it from its OWN stylesheet (see `RotationView.module.css`), so
+                the trim lives beside the numbers it trims and this file still
+                holds no per-style knowledge. */}
+            <div className={styles.body} data-compare-pane>
               {View && <View {...propsForStyle(style)} />}
             </div>
           </section>

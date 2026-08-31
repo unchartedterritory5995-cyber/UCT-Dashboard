@@ -1,0 +1,93 @@
+/* app/src/pages/dashboard/TheWeek.module.css */
+
+/* ── THE AIRY-WEEKEND FIX LIVES HERE, NOT IN THE ZONE ARITHMETIC ──────────
+   Zone B is a fixed 440px because `CatalystTable` needs it on a weekday. On a
+   weekend this hero's five panels are short, so on a WIDE desktop `auto-fit`
+   fitted all five into ONE row and the rest of the zone read as void. The
+   grid CONTAINER stretches (card 440px, ink 439px), so this was never the
+   "90% empty" defect shape — it was five thin panels strung across a very
+   wide row.
+
+   ⛔ THE HEIGHT IS DELIBERATELY NOT TOUCHED. `--zone-b` feeds BOTH `.main`'s
+   middle track AND `--zone-stack`, which is `.cockpit`'s only definite row and
+   therefore the thing that makes `.rail > * { max-height: 100% }` resolve at
+   all (see Dashboard.module.css). `--zone-b: auto` is not an option — `auto`
+   inside `calc()` makes the whole declaration invalid at computed-value time,
+   which drops `grid-template-rows` to `none` and reinstates defect #1 (an
+   uncapped rail) on every weekend. And a smaller FIXED number would be a guess
+   that clips on the narrower desktops where these panels wrap tallest. There
+   is also no budget to win: the one-viewport measurement is taken on a weekday
+   composition this hero never renders in.
+
+   ⭐ SO THE CONTENT USES THE HEIGHT IT ALREADY HAS. Each track is at least a
+   THIRD of the row, so five panels wrap to two rows on a wide screen, and the
+   scan headline and the quote get real width instead of a sliver.
+
+   MEASURED in Chromium at the real Zone-B inner widths (viewport − 240px rail
+   − gap − padding), because jsdom computes no layout and no vitest assertion
+   can see any of this:
+     1829px (2133 vp) — 7 cols/1 row/205px  →  3 cols/2 rows/320px (47% → 73% of 440)
+      973px (1277 vp) — 4 cols/2 rows/328px  →  3 cols/2 rows/320px
+      772px (tablet)  — 3 cols/2 rows/328px  →  IDENTICAL
+      358px (phone)   — 1 col /5 rows/610px  →  IDENTICAL
+   Still well under 440px at every width, so no scroll-in-a-card is introduced.
+
+   `max(220px, …)` is what keeps the old behaviour wherever a third of the row
+   is smaller than 220px — which is why the bottom two rows above are byte
+   -identical and this is a NO-OP at and below the 1024 breakpoint. No new
+   breakpoint, no new literal, and the zone still owns the height. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(220px, (100% - 2 * var(--space-md)) / 3), 1fr)
+  );
+  gap: var(--space-md);
+}
+.panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.h { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin: 0; }
+.lead { font-size: 15px; font-weight: 600; color: var(--text-bright); text-decoration: none; }
+.list { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text); }
+.list a { color: inherit; text-decoration: none; }
+.list a:hover { color: var(--ut-gold, #dcbb5e); }
+
+/* ── Compass Weekly Review — the one PERSONAL panel on the weekend hero ──── */
+.excerpt {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.panelLink {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #dcbb5e);
+  text-decoration: none;
+  opacity: 0.85;
+}
+.panelLink:hover { opacity: 1; }
+
+/* ── Quote of the Day — first-class on the WEEKEND state (spec, Zone A) ──── */
+.quotePanel { gap: 6px; }
+.quoteText {
+  margin: 0;
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.55;
+  color: var(--text-bright);
+  opacity: 0.92;
+}
+.quoteAuthor {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--ut-gold, #dcbb5e);
+  opacity: 0.75;
+}
+.quoteSrc { color: var(--text-muted, #9a978f); font-size: 10px; }

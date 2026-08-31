@@ -1,0 +1,75 @@
+/**
+ * The Rotation lens's CHROME — its outer box and its panels' padding. Nothing
+ * else about this lens leaves the inline styles, and these two left for one
+ * reason: they are the only numbers that should be different in a quarter-size
+ * compare pane, and a media query cannot reach an inline style.
+ *
+ * 🔴 WHAT THIS DOES AND DOES NOT CLOSE — measured in Chromium, not assumed.
+ * Three stacked panels at 740px wide demand ~282px once a verdict line wraps to
+ * two rows. A 1512-wide desktop's compare pane is 746×318 and holds them with
+ * room to spare (0px of scroll, measured); a 1440×772 laptop's pane is 710×245
+ * and does not. The ~31px this recovers is real and it costs the full-size view
+ * nothing, but it is NOT what makes the lens fit — the lens fits when its
+ * content fits, and scrolls in its own `overflow: auto` root when it does not.
+ * That is the honest outcome: what shipped before was not a fit either, it was a
+ * 66px panel floor holding content that needed 88, with the overflow — the
+ * "measured from X on DATE" line, the panel's own stated basis — painted over
+ * the header of the panel beneath it.
+ *
+ * ⛔ NO TYPE SIZE APPEARS BELOW. Only padding and gaps, so the full-size view
+ * renders byte-identically; that is the whole point of the second rule being a
+ * DESCENDANT of `[data-compare-pane]` rather than an edit to the constants.
+ *
+ * `[data-compare-pane]` is set by `CompareGrid.jsx` on the pane body. A plain
+ * attribute rather than a CSS-module class on purpose: a hashed class from
+ * `CompareGrid.module.css` cannot be named from this file, and the alternative —
+ * an `!important` override sitting in the grid's stylesheet reaching into a
+ * lens's inline styles — puts a second authority on this box's padding.
+ */
+.root {
+  padding: 9px 16px 10px;
+  gap: 8px;
+}
+
+.panel {
+  padding: 6px 12px 5px;
+}
+
+[data-compare-pane] .root {
+  padding: 5px 12px 0;
+  gap: 3px;
+}
+
+[data-compare-pane] .panel {
+  padding: 2px 10px;
+}
+
+/**
+ * 🔴 AND THE TYPE SCALE IS A PANE LEVER TOO — measured, after the padding above
+ * had done what it could. Three panels in a 1440×772 laptop's 710×245 compare
+ * pane demanded 276px: the headline value is 22px on a panel whose whole height
+ * there is 72px, and the trace band's 18px floor is drawn at a width of 620.
+ * The lens scrolled by 31px, which cut the third panel's verdict — the one
+ * sentence a panel exists to state.
+ *
+ * ⛔ THE COMMENT ABOVE USED TO SAY "NO TYPE SIZE APPEARS BELOW", and that rule
+ * is kept where it matters: nothing here is a plain `.value` / `.trace` rule, so
+ * the full-size view still renders byte-identically. What changed is the claim
+ * that padding alone could close a 31px gap on a 245px pane — it could not, and
+ * a panel proportioned for a 200px box is not the right panel for a 72px one.
+ */
+.value {
+  font: 800 22px 'Instrument Sans', sans-serif;
+}
+
+.trace {
+  min-height: 18px;
+}
+
+[data-compare-pane] .value {
+  font-size: 17px;
+}
+
+[data-compare-pane] .trace {
+  min-height: 12px;
+}

@@ -259,3 +259,62 @@ describe('PositionsTable — sortable headers', () => {
     expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument()
   })
 })
+
+// ─── 🔴 THE OTHER SURFACE THAT HELD THE SECOND ANSWER ───────────────────────
+//
+// This tab asked `isBrokerPlaceholderStop`, which answers only "is this the
+// broker's NOT-NULL seed". A MANUAL row created without a stop carries
+// `stopPrice = 0.0` (positions.py seeds it, the column is NOT NULL), so it
+// sailed through: this table rendered `stop $0.00` and booked the full notional
+// as Risk $, while the dashboard cockpit — which had the rule — called the same
+// position unstopped. The client held two answers about one position's
+// protection. Both now ask `hasNoRealStop`.
+describe('PositionsTable — a manual position with no stop', () => {
+  const NO_STOP = {
+    ...YSS, id: 'nostop-1', symbol: 'TSLA',
+    shares: 100, entryPrice: 100, stopPrice: 0, source: 'manual',
+  }
+
+  it('blanks the stop column instead of rendering $0.00 as protection', () => {
+    render(
+      <PositionsTable
+        positions={[NO_STOP]}
+        prices={{ TSLA: { price: 110 } }}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(screen.queryByText('$0.00'),
+      'a $0.00 stop rendered as a real stop on the Positions tab').toBeNull()
+  })
+
+  it('blanks Risk $ instead of booking the entire notional', () => {
+    render(
+      <PositionsTable
+        positions={[NO_STOP]}
+        prices={{ TSLA: { price: 110 } }}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    // (entry 100 − stop 0) × 100 shares = $10,000 — the whole position.
+    expect(screen.queryByText('$10,000.00'),
+      'the full notional was booked as Risk $ because a 0 stop was treated as real')
+      .toBeNull()
+  })
+
+  it('CONTROL: a REAL stop still renders its stop and its risk', () => {
+    // Without this, the two assertions above are satisfied by a table that
+    // blanks these columns for every position.
+    render(
+      <PositionsTable
+        positions={[{ ...NO_STOP, stopPrice: 95 }]}
+        prices={{ TSLA: { price: 110 } }}
+        accountSize={ACCOUNT}
+        visibleColumns={POSITIONS_COLUMNS}
+      />,
+    )
+    expect(screen.getByText('$95.00')).toBeInTheDocument()
+    expect(screen.getByText('$500.00')).toBeInTheDocument()   // (100−95)×100
+  })
+})

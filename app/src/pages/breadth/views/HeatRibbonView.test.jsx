@@ -152,6 +152,64 @@ describe('HeatRibbonView', () => {
     })
   })
 
+  /**
+   * 🔴 THE PLAYHEAD RAN ~90px PAST THE LAST BAND, INTO EMPTY BLACK.
+   *
+   * The line is `top: 0; bottom: 0` of the strip box, and bands stop growing at
+   * `RIBBON_MAX_H` while that box kept every leftover pixel — so on a tall panel
+   * with few metrics the strip's ceiling and the bands' ceiling were different
+   * numbers, and the line marked "which session" over rows that do not exist.
+   *
+   * ⛔ DERIVED, NOT TYPED. The ceiling asserted here is recomputed from the same
+   * two facts the bands lay out with — the count on screen and the band's own
+   * declared maximum — so tuning either moves this with it. A literal here would
+   * be the second authority that put the foot off the last row in the first
+   * place. (Longhands, not the `flex` shorthand: jsdom drops the shorthand.)
+   */
+  /**
+   * ⭐ SWEPT OVER BOTH DENSITIES AND TWO METRIC COUNTS, NOT ONE FIXTURE.
+   *
+   * `RIBBON_MAX_H` (and so the strip's derived ceiling) is a different number
+   * under `density: 'compact'` — a single normal-density case could not tell
+   * "the strip derives its ceiling from the band's own" apart from "the strip
+   * happens to equal 162 today". A real-Chromium sweep (throwaway harness,
+   * deleted before commit) confirmed the SAME relationship holds with zero
+   * playhead overhang at 112 (viewport-height × metric-count × density)
+   * combinations from 600px to 2000px tall and 1 to 30 metrics — this jsdom
+   * rail is the cheap, permanent proxy for that real-layout fact: CSS
+   * `max-height` is a hard clamp by spec, so a correctly DERIVED value here is
+   * sufficient to guarantee the real render never overhangs.
+   */
+  it.each([
+    ['few metrics, normal density', ['a', 'b', 'c'], {}],
+    ['many metrics, normal density', ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'], {}],
+    ['few metrics, compact density', ['a', 'b', 'c'], { density: 'compact' }],
+    ['many metrics, compact density', ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'], { density: 'compact' }],
+  ])('caps the strip at what its bands can occupy, so the playhead ends on the last one (%s)',
+    (_label, keys, options) => {
+      const many = keys.map(k => mk(k, r => (r.a >= 50 ? 'g3' : 'r3')))
+      const { container, unmount } = render(<HeatRibbonView rows={rows} rowIdx={0} currentRow={rows[0]}
+        metrics={many} onDrill={() => {}} options={options} />)
+      const playhead = container.querySelector('[data-testid="ribbon-playhead"]')
+      const strip = playhead.parentElement
+      const band = container.querySelector('[data-testid="ribbon-cell-a-0"]')
+        .parentElement.parentElement
+
+      const bandMax = Number.parseFloat(band.style.maxHeight)
+      const gap = Number.parseFloat(getComputedStyle(strip).gap) || 0
+      expect(bandMax, 'the band declares no ceiling, so the strip cannot derive one')
+        .toBeGreaterThan(0)
+      // ⭐ THE RELATIONSHIP, NOT A NUMBER: the strip's declared ceiling must
+      // equal the rows' own extent — every band at ITS ceiling plus the gaps
+      // between them — derived from the SAME two facts the bands render with.
+      // A threshold ("overhang < 10px") would have passed against the actual
+      // bug at some viewport; this is exact, at any size, by construction.
+      expect(Number.parseFloat(strip.style.maxHeight),
+        'the strip may grow past every band at its ceiling — the playhead overhangs by the difference')
+        .toBe(many.length * bandMax + (many.length - 1) * gap)
+      unmount()
+    })
+
   // 🔴 EVERY METRIC UNCHECKED USED TO RENDER `null`: a blank panel with nothing
   // to read, which looks exactly like a broken view.
   it('explains an empty board instead of going blank', () => {

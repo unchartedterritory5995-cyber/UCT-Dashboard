@@ -78,6 +78,13 @@ describe('JS↔Python net-liq composition parity', () => {
       else expect(r.marketValue).toBeCloseTo(f.expected.marketValue, 2)
       if (f.expected.netLiq === null) expect(r.netLiq).toBeNull()
       else expect(r.netLiq).toBeCloseTo(f.expected.netLiq, 2)
+      // The VINTAGE verdict is part of the contract: if the lanes disagree, a
+      // member reads "as of Friday's close" on one surface and "live" on
+      // another. Conflicts are compared as a set of names, never a count.
+      expect(r.vintage.basis).toBe(f.expected.vintage.basis)
+      expect(r.vintage.session).toBe(f.expected.vintage.session)
+      expect(r.vintage.components).toEqual(f.expected.vintage.components)
+      expect(r.vintage.conflicts).toEqual(f.expected.vintage.conflicts)
     })
   })
 })

@@ -25,41 +25,63 @@ string is the proof it is reaching the gate rather than never being called.
 
 ---
 
-## ⛔ Gate 1 — the pre-flight CANNOT be done outside market hours
+## ✅ Gate 1 — CLEARED 2026-08-30 (and it did not need market hours)
 
 ```
-GET /api/flow-gap-fill/rest-backfill-probe      # read-only, no writes
+GET /api/flow-gap-fill/rest-backfill-probe?window_sec=180000    # read-only
 ```
-
-Run 2026-08-29 23:20 ET (market closed) returned:
 
 ```json
-{"ok": true, "ticker": "O:SPY260918C00600000", "window_sec": 300,
- "trades_returned": 0, "sample_keys": [], "sample": null}
+{"ok": true, "trades_returned": 3,
+ "sample_keys": ["conditions","decimal_size","exchange","id","price",
+                 "sequence_number","sip_timestamp","size","ticker"],
+ "sample": {"sip_timestamp": 1787931328677098981, "price": 175.79,
+            "size": 1, "conditions": [233], "exchange": 302}}
 ```
 
-⛔ **`ok: true` here means "the call did not error", NOT "the path works".**
-With `trades_returned: 0` the shape check is vacuous — it validated nothing.
-The probe's whole purpose is to confirm the response SHAPE, and there is no
-response to check when the market is shut.
+Every field `backfill_window` consumes is present — `ticker`, `price`, `size`,
+`exchange`, `conditions`, `sip_timestamp`. That is the shape check this gate
+exists to perform. **Satisfied; do not re-run it as a blocker.**
 
-**Proceed only when the probe returns `trades_returned > 0` and a `sample` whose
-`sample_keys` carry the trade fields (price/size/timestamp/conditions).**
+### ⭐ The trick: widen the window, don't wait for the open
 
-## Gate 2 — a manual window, verified by row counts
+`probe()` computes `start_ns = now - window_sec * 1e9` and **caps nothing**, so a
+window reaching back into the LAST session returns real trades whenever you run
+it. The `180000` above is ~50 h, spanning Friday 8/29 from a Sunday.
 
-During a session, pick a small window you can check (2–5 minutes), then:
+⚠️ **The DEFAULT `window_sec=300` is a trap outside market hours.** Run bare at
+2026-08-29 23:20 ET it returned `{"ok": true, "trades_returned": 0, "sample":
+null}` — and `ok: true` there means only "the call did not error". With no
+trades the shape check is vacuous: it validated NOTHING. If you ever see that,
+widen the window; do not conclude anything from it.
+
+## ⛔ Gate 2 — blocked outside a session, and not by effort
+
+Attempted 2026-08-30 00:47 ET. `GET /api/live/massive/status` returned
+`connected: false` with no subscriptions: **the OPRA consumer does not hold a
+connection outside market hours, so `_q_subscribed` is EMPTY.** A manual run
+with `use_qpool=true` would execute against ZERO contracts, fetch nothing,
+insert nothing, and return a clean-looking result proving nothing — the same
+vacuous pass the bare probe gave.
+
+`backfill_window` also returns `{"status": "disabled"}` while the flag is unset,
+so Gate 2 needs arming FIRST. Arming an unvalidated write path against an empty
+contract set is precisely what this runbook exists to prevent.
+
+**Run it during a session**, against a window the tape is known to be COMPLETE
+for:
 
 ```
 POST /api/flow-gap-fill/rest-backfill?start_ns=<...>&end_ns=<...>&use_qpool=true
 GET  /api/flow-gap-fill/rest-backfill-status
 ```
 
-Confirm `last_trades_fetched > 0`, `last_inserted > 0`, and that
-`last_skipped_dupes` is non-zero on a SECOND run of the same window — that is
-the idempotency proof. Re-running must not double-count; `dedup_key` is what
-makes overlap harmless, and a second run inserting the same rows again means
-something is wrong with the key, not with the window.
+⭐ On a complete window the expected result is `last_trades_fetched > 0` with
+`last_inserted: 0` and `last_skipped_dupes > 0` — which proves the path works
+AND that `dedup_key` makes overlap harmless, **without adding a single row**.
+A second run inserting the same rows again means the key is wrong, not the
+window. Keep the span small (2-5 min; `MAX_WINDOW_SEC` is 1800).
+
 
 ## Gate 3 — arm it
 

@@ -162,7 +162,21 @@ export function Cell({ sym, price, chg, css }) {
   )
 }
 
-export default function FuturesStrip({ data: propData }) {
+/**
+ * @param {object}  props
+ * @param {object}  [props.data]      pre-fetched snapshot (skips the poll)
+ * @param {boolean} [props.hideQuote] drop the Quote of the Day panel and let
+ *   the index grid span the full width. ⭐ REVERSIBLE BY DESIGN: the quote is
+ *   brand, not data, and on the paid home it occupied roughly half of the most
+ *   valuable region on the page. Zone A passes this; every other mount (the
+ *   mobile stack, and any future one) keeps the quote by default.
+ * @param {boolean} [props.compact]   tighten the strip for a 120px zone —
+ *   ⛔ ONE ROW OF SIX, not two rows of three. The default 3-column grid is
+ *   two rows tall, which does not fit Zone A's declared 120px beside a pill
+ *   and an exposure number; `compact` is what makes the budget achievable
+ *   rather than a number the layout quietly overruns.
+ */
+export default function FuturesStrip({ data: propData, hideQuote = false, compact = false }) {
   const { data: fetched } = useMobileSWR(
     propData !== undefined ? null : '/api/snapshot',
     fetcher,
@@ -170,12 +184,18 @@ export default function FuturesStrip({ data: propData }) {
   )
   const data = propData !== undefined ? propData : fetched
 
+  const stripClass = [
+    styles.strip,
+    hideQuote ? styles.noQuote : '',
+    compact ? styles.compact : '',
+  ].filter(Boolean).join(' ')
+
   if (!data) {
-    return <div className={styles.strip}><p className={styles.loading}>Loading prices…</p></div>
+    return <div className={stripClass}><p className={styles.loading}>Loading prices…</p></div>
   }
 
   return (
-    <div className={styles.strip}>
+    <div className={stripClass}>
       <div className={styles.indexSide}>
         <div className={styles.grid}>
           {ORDER.map(sym => {
@@ -186,9 +206,11 @@ export default function FuturesStrip({ data: propData }) {
           })}
         </div>
       </div>
-      <div className={styles.quoteSide}>
-        <QuoteOfTheDay />
-      </div>
+      {!hideQuote && (
+        <div className={styles.quoteSide}>
+          <QuoteOfTheDay />
+        </div>
+      )}
     </div>
   )
 }

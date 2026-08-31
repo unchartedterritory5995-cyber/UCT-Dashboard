@@ -103,19 +103,6 @@ describe('RotationView', () => {
     expect(reference).not.toBeCloseTo(value, 3)   // the fixture actually moved
   })
 
-  it('gives the trace a scale the reading can be placed on', () => {
-    const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
-      onDrill={() => {}} options={{ lookback: 20 }} />)
-    const bounds = [...getByTestId('rotation-range-rsp_spy_ratio').querySelectorAll('span')]
-      .map(s => Number(s.textContent))
-    expect(bounds).toHaveLength(2)
-    const value = Number(getByTestId('rotation-value-rsp_spy_ratio').textContent)
-    const [max, min] = bounds
-    expect(max).toBeGreaterThan(min)              // a real range, not a repeat
-    expect(value).toBeLessThanOrEqual(max)
-    expect(value).toBeGreaterThanOrEqual(min)
-  })
-
   it('carries the basis line every sibling lens carries', () => {
     const { getByTestId } = render(<RotationView rows={rows} rowIdx={0} currentRow={rows[0]}
       onDrill={() => {}} options={{ lookback: 20 }} />)
@@ -238,6 +225,44 @@ describe('RotationView', () => {
       expect(traceDomain(todaySpike.map(r => r.rsp_spy_ratio)).hi).toBeLessThan(value)
     })
 
+    /**
+     * ⛔ THIS TEST REPLACED ONE THAT COULD NOT FAIL.
+     *
+     * Its predecessor — "gives the trace a scale the reading can be placed on"
+     * — asserted that the printed reading sits between the two printed bounds,
+     * on the ordinary fixture at the top of this file. That fixture holds no
+     * outlier, so the fence never trims and `hi`/`lo` ARE `max`/`min`: pinned
+     * or unpinned, the assertion had the same answer. It read as coverage for
+     * the pin it could not see, which is worse than no test at all. Rather than
+     * delete it, it is rewritten into the half that genuinely had NO rail: the
+     * test above covers `now`; dropping `prior` from the call site's
+     * `traceDomain(vals, [now, prior])` left every rail in this file green.
+     */
+    it('widens the axis to hold the REFERENCE too, when the session it measures from is the extreme', () => {
+      const REF = 20                                   // == `measured` for lookback 20
+      const priorSpike = rows.map((r, i) => (
+        { ...r, rsp_spy_ratio: i === REF ? 2.5 : band(i) }))
+      const { getByTestId } = render(<RotationView rows={priorSpike} rowIdx={0}
+        currentRow={priorSpike[0]} onDrill={() => {}} options={{ lookback: 20 }} />)
+
+      const reference = Number(getByTestId('rotation-reference-rsp_spy_ratio')
+        .textContent.match(/-?\d+\.\d+/)[0])
+      expect(reference).toBe(2.5)                      // the fixture put it there
+      const [hi, lo] = [...getByTestId('rotation-range-rsp_spy_ratio').querySelectorAll('span')]
+        .map(s => Number(s.textContent))
+      expect(hi).toBeGreaterThanOrEqual(reference)
+      expect(lo).toBeLessThanOrEqual(reference)
+
+      // …and the reading printed in 22px type is still on that same axis.
+      const value = Number(getByTestId('rotation-value-rsp_spy_ratio').textContent)
+      expect(value).toBeGreaterThanOrEqual(lo)
+      expect(value).toBeLessThanOrEqual(hi)
+
+      // CONTROL: the fence WOULD have excluded the reference — this fixture can
+      // tell a pinned domain from an unpinned one.
+      expect(traceDomain(priorSpike.map(r => r.rsp_spy_ratio)).hi).toBeLessThan(reference)
+    })
+
     it('prints the DRAWN bounds beside the trace, not the window extremes', () => {
       // The two numbers are an axis. When the fence has moved, an axis labelled
       // with the window's extremes describes a plot that was never drawn.
@@ -269,14 +294,22 @@ describe('RotationView', () => {
     const panels = [...container.querySelectorAll('[data-testid^="rotation-panel-"]')]
     expect(panels).toHaveLength(3)
 
-    const demanded = panels.reduce((sum, el) => sum + Number.parseFloat(el.style.minHeight || 0), 0)
+    const demanded = panels.reduce((sum, el) => sum + Number.parseFloat(el.style.flexBasis || 0), 0)
     // 240 leaves the basis line and the gaps inside 270. The shipped defect
     // demanded 396 here and would fail this line.
     expect(demanded).toBeLessThanOrEqual(240)
     for (const el of panels) {
       expect(Number(el.style.flexGrow)).toBe(1)
-      expect(Number.parseFloat(el.style.flexBasis)).toBe(0)
+      expect(Number(el.style.flexShrink)).toBe(1)
       expect(el.style.height, 'a panel that declares a height cannot take the one it is offered').toBe('')
+      // 🔴 AND NO EXPLICIT `min-height`. It used to declare one (66px), which
+      // is a floor BELOW the panel's own content whenever the verdict line
+      // wraps — at a phone's compare-pane width the footer takes two lines, the
+      // panel stayed pinned at 66, and `overflow: visible` painted the spill
+      // over the header of the panel beneath it. The flex default (`auto`) is
+      // the content itself, so a squeezed lens scrolls instead of overlapping.
+      expect(el.style.minHeight,
+        'an explicit px floor lets a wrapped panel spill over the one below it').toBe('')
     }
   })
 

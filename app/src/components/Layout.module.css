@@ -26,6 +26,16 @@
   }
 }
 
+/* Landscape immersive charting: both fixed bars hide themselves while the
+   phone chart shell is mounted (html[data-mobile-chart-shell] — see
+   MobileNav / MobileTabBar modules), so the reservation for them goes too. */
+@media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  :global(html[data-mobile-chart-shell]) .main {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .main {
     padding-top: calc(36px + env(safe-area-inset-top));

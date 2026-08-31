@@ -74,10 +74,42 @@ describe('the member sets the length, within the AUTHOR\'s bounds', () => {
     }
   })
 
-  it('⛔ a non-number refuses rather than becoming NaN in a window', () => {
-    for (const bad of ['fifty', null, {}, NaN]) {
-      const out = translatePine(SRC, { inputValues: { length: bad } })
-      expect(out.ok, JSON.stringify(bad)).toBe(false)
+  it('⛔⛔ a non-number refuses — over a THRESHOLD, where nothing downstream saves it', () => {
+    // ⚰⚰ THIS TEST WAS GREEN AND THE GUARD IT NAMES NEVER FIRED. It ran over
+    // `SRC`, whose input is a WINDOW, so `windowLiteral` refused the zero-bar
+    // window downstream and the pass proved only that. Measured against a
+    // THRESHOLD, the shipped door answered:
+    //
+    //     { th: null }  ->  `rsi(close, 14) < 0`   ok: TRUE
+    //     { th: [] }    ->  `rsi(close, 14) < 0`   ok: TRUE
+    //     { th: false } ->  `rsi(close, 14) < 0`   ok: TRUE
+    //     { th: '' }    ->  `rsi(close, 14) < 0`   ok: TRUE
+    //     { th: true }  ->  `rsi(close, 14) < 1`   ok: TRUE
+    //
+    // `Number(null)`, `Number([])`, `Number(false)` and `Number('')` are all `0`,
+    // and `0` is finite. A member's RSI-below-30 screen became RSI-below-ZERO:
+    // matches nothing, on every symbol, forever, and looks exactly like a quiet
+    // market. A fixture that cannot distinguish is not a rail.
+    const TH = ['//@version=5', 'indicator("t")', 'th = input.int(30, "Level")',
+      'plot(ta.rsi(close, 14) < th ? 1 : 0)', ''].join('\n')
+    for (const bad of ['fifty', null, {}, NaN, undefined, [], false, true, '', '   ']) {
+      const out = translatePine(TH, { inputValues: { th: bad } })
+      expect(out.ok, `${JSON.stringify(String(bad))} was ACCEPTED as a number`).toBe(false)
+      expect(out.refusal.guard).toBe('pine:input-kind')
+    }
+    // ⛔ AND IT DISCRIMINATES: a real zero is a real threshold and must pass.
+    expect(formulaOf(translatePine(TH, { inputValues: { th: 0 } })))
+      .toBe('rsi(close, 14) < 0 ? 1 : 0')
+    expect(formulaOf(translatePine(TH, { inputValues: { th: '0' } })))
+      .toBe('rsi(close, 14) < 0 ? 1 : 0')
+  })
+
+  it('⛔ …and the same non-numbers still refuse in a WINDOW', () => {
+    // The original assertion, kept: it covers the other slot kind, and now it is
+    // paired with one that can actually see the guard.
+    for (const bad of ['fifty', null, {}, NaN, [], false, '']) {
+      expect(translatePine(SRC, { inputValues: { length: bad } }).ok,
+        JSON.stringify(String(bad))).toBe(false)
     }
   })
 
