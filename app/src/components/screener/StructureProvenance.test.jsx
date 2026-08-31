@@ -167,6 +167,28 @@ describe('StructureCard', () => {
   })
 })
 
+describe('the UCT-original badge — ours vs a published classic', () => {
+  it('says so, in words, when nothing in the structure traces to a house', () => {
+    render(<StructureCard entry={entry({ origin: 'uct' })} />)
+    expect(screen.getByText(/UCT original/i)).toBeInTheDocument()
+    expect(screen.getByText(/not a published pattern/i)).toBeInTheDocument()
+  })
+
+  it('⛔ stays SILENT on a published classic that merely contains our numbers', () => {
+    // Darvas Box carries `origin="uct"` criteria and is still Darvas' pattern.
+    // A badge that fired on the per-criterion tag would mislabel every classic
+    // in the library.
+    render(<StructureCard entry={entry({ origin: 'published' })} />)
+    expect(screen.queryByText(/UCT original/i)).not.toBeInTheDocument()
+  })
+
+  it('and is absent, not broken, when the route sends no origin at all', () => {
+    render(<StructureCard entry={entry({ origin: undefined })} />)
+    expect(screen.queryByText(/UCT original/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Darvas Box')).toBeInTheDocument()
+  })
+})
+
 describe('StructureProvenance', () => {
   it('renders every structure the route returns', async () => {
     const two = [entry(), entry({ key: 'flat-base', label: 'Flat Base' })]
@@ -179,6 +201,22 @@ describe('StructureProvenance', () => {
     render(<StructureProvenance fetcher={okFetch(payload([entry()]))} />)
     await waitFor(() =>
       expect(screen.getByText(/the sources never published/i)).toBeInTheDocument())
+  })
+
+  it('summarises how many of the structures are OURS, when any are', async () => {
+    const body = payload([entry()])
+    body.counts.uct_originals = 5
+    render(<StructureProvenance fetcher={okFetch(body)} />)
+    await waitFor(() =>
+      expect(screen.getByText(/are ours, not classics/i)).toBeInTheDocument())
+  })
+
+  it('and says nothing about it when none are — no "0 of the structures"', async () => {
+    const body = payload([entry()])
+    body.counts.uct_originals = 0
+    render(<StructureProvenance fetcher={okFetch(body)} />)
+    await waitFor(() => expect(screen.getByText('Darvas Box')).toBeInTheDocument())
+    expect(screen.queryByText(/are ours, not classics/i)).not.toBeInTheDocument()
   })
 
   it('⛔ reports a failed fetch instead of rendering an EMPTY library', async () => {

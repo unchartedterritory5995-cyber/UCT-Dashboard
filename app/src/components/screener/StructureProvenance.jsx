@@ -86,6 +86,17 @@ export function StructureCard({ entry }) {
       <header className={styles.head}>
         <h3 className={styles.label}>{entry.label}</h3>
         <span className={styles.bias} data-bias={entry.bias}>{entry.bias}</span>
+        {/* ⭐ WHOSE STRUCTURE THIS IS, at the structure level. A per-criterion
+            "ours" tag cannot say it: Darvas Box carries several of our own
+            numbers and is still Darvas' pattern. This badge fires only when
+            NOTHING in the structure traces to a house -- and it already found
+            five shipping structures nobody had labelled (the shape-axis
+            partition: advancing/declining/contracting/expanding/undefined),
+            which we invented and which rendered indistinguishably from the
+            published classics beside them. */}
+        {entry.origin === 'uct' && (
+          <span className={styles.uctOriginal}>UCT original — not a published pattern</span>
+        )}
         {entry.coverage_pct != null && (
           <span className={styles.coverage}>
             fires on {entry.coverage_pct}% of the universe
@@ -166,6 +177,9 @@ export default function StructureProvenance({ fetcher = fetch }) {
         <strong>{counts.sourced ?? 0}</strong> criteria published by a source ·{' '}
         <strong>{counts.ours ?? 0}</strong> supplied by us ·{' '}
         <strong>{counts.refused ?? 0}</strong> the sources never published
+        {counts.uct_originals > 0 && (
+          <> · <strong>{counts.uct_originals}</strong> of the structures are ours, not classics</>
+        )}
       </header>
       {entries.map(e => <StructureCard key={e.key} entry={e} />)}
     </div>

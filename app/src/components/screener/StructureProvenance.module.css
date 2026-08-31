@@ -36,6 +36,15 @@
 .bias[data-bias='neutral'] { color: #9aa0a6; }
 
 .coverage { font-size: 12px; color: var(--color-text-muted, #9aa0a6); }
+
+/* The UCT-original badge. Deliberately WORDS, not a colour or an icon: "this
+   is ours, not a published pattern" is a claim a reader must be able to read,
+   and it is the one distinction the whole provenance grammar exists to keep. */
+.uctOriginal {
+  font-size: 11px; letter-spacing: .02em;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px dashed #c9a84c; color: #c9a84c;
+}
 .desc { margin: 8px 0 12px; font-size: 13px; line-height: 1.6; }
 
 .evidence {
