@@ -13,11 +13,20 @@ describe('bars-history split-fetch flag', () => {
     localStorage.clear()
   })
 
-  it('defaults OFF (rollout pct is 0 = byte-identical to the pre-Phase-5 path)', () => {
-    expect(BARS_HISTORY_SPLIT_ROLLOUT_PCT).toBe(0)
-    // Force the bucket below any conceivable rollout so ONLY the pct gates it.
-    localStorage.setItem('uct.barsHistory.bucket', '0')
-    expect(_barsHistorySplitEnabled()).toBe(false)
+  it('rollout pct is a sane staged value in [0,100]', () => {
+    expect(BARS_HISTORY_SPLIT_ROLLOUT_PCT).toBeGreaterThanOrEqual(0)
+    expect(BARS_HISTORY_SPLIT_ROLLOUT_PCT).toBeLessThanOrEqual(100)
+  })
+
+  it('a bucket AT/ABOVE the rollout pct is OFF; a bucket BELOW it is ON (staged %)', () => {
+    localStorage.setItem('uct.barsHistory.bucket', String(BARS_HISTORY_SPLIT_ROLLOUT_PCT))
+    expect(_barsHistorySplitEnabled()).toBe(false)                 // exactly at the boundary = out
+    localStorage.setItem('uct.barsHistory.bucket', '100')
+    expect(_barsHistorySplitEnabled()).toBe(false)                 // above = out
+    if (BARS_HISTORY_SPLIT_ROLLOUT_PCT > 0) {
+      localStorage.setItem('uct.barsHistory.bucket', '0')
+      expect(_barsHistorySplitEnabled()).toBe(true)                // below = in
+    }
   })
 
   it('explicit localStorage "1" force-enables (canary opt-in)', () => {

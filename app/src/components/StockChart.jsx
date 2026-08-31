@@ -878,8 +878,12 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // history a user pans to is offloaded to the edge — so the origin serves small live tails,
 // not multi-thousand-bar history fetches. Mirrors the bars-push rollout idiom exactly:
 // explicit localStorage '1'/'0' wins, else a staged % by a stable per-browser bucket.
-// DEFAULT 0 = fully off (byte-identical to the pre-Phase-5 load path) until canaried.
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 0
+// Canaried end-to-end on prod 2026-08-31: D + W split-fetch fires correctly (primary
+// /api/bars capped to the 600 tail + /api/bars-history served from the CDN edge with
+// cf-cache-status: HIT), charts render seamlessly with no sealed/tail boundary gaps.
+// Ramping under monitoring (10 → …), mirroring the bars-push 0→25→100 rollout. Instant
+// per-browser revert: localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false).
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 10
 
 function _barsHistoryBucket() {
   try {
