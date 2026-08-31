@@ -159,10 +159,23 @@ file is being rewritten, so all four snap to the canonical set.
 
 ## Session states
 
-The page resolves exactly one state per render, from existing market-session
-logic (`useMarketOpen`). Only **Zone B** varies; A, C and D are constant.
+The page resolves exactly one state per render, from
+`pages/dashboard/useSessionState.js` — **not** `useMarketOpen`, which this
+document said until 2026-08-30 and which cannot express `WEEKEND` at all (its
+shape is `{isOpen, isPremarket, isExtended}`; see that hook's own note on why it
+is a deliberate sibling rather than an extension). Only **Zone B** varies; A, C
+and D are constant.
 
-| State | When | Zone B content |
+⚠️ **The first column is `heroState`, not `resolveSession`.** They are the same
+value on ~250 of ~260 trading days and differ on the ~10 that this table's last
+row is about, so read the column label before reading the row:
+`heroState = holidayToday === true ? 'WEEKEND' : session` (`Dashboard.jsx`,
+where `session` is `useSessionState()`'s `resolveSession` read). `resolveSession`
+**never** returns `WEEKEND` on a holiday — see the note under the table. The
+last row therefore takes precedence: read the first three as "…and the served
+calendar does not say today is a closure".
+
+| `heroState` | When | Zone B content |
 |---|---|---|
 | `PREMARKET` | weekday before 09:30 ET | Today's catalysts (as scored overnight) |
 | `LIVE` | weekday 09:30–16:00 ET | Today's catalysts, live prices overlaid |
