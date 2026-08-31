@@ -80,6 +80,13 @@ def compute_board() -> dict:
         if d5.get("ok"):
             flow5.update(d5.get("names") or {})
 
+    # If the flow leg produced nothing (both bands failed / timed out), this is a
+    # DEGRADED compute — return ok:false so get_board keeps the last-good board
+    # instead of caching an empty 0-row result over it (the 2026-08-31 regression).
+    if not flow:
+        return {"ok": False, "status": "flow_unavailable", "rows": [],
+                "reason": "; ".join(warnings) or "flow leg empty"}
+
     # dark-pool 30d aggregate — local (web owns darkpool.db)
     if not dpa.is_window_warm(days=DAYS):
         dpa.build_window_background(days=DAYS)

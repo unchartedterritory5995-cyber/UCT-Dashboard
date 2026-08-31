@@ -87,7 +87,17 @@ describe('the authoring door', () => {
     mount(); openMenu()
     expect(screen.queryByTestId('builder-sheet-mock')).toBeNull()      // control: closed until asked
     fireEvent.click(screen.getByRole('button', { name: 'New scan' }))
-    expect(await screen.findByTestId('builder-sheet-mock')).toBeInTheDocument()
+    // ⛔ AN EXPLICIT TIMEOUT, AND IT IS MEASURED RATHER THAN GUESSED. This is
+    // the FIRST mount in the file, so it pays module init plus the first jsdom
+    // render: 451ms on an idle machine, against testing-library's 1000ms
+    // default. Every later test in this file runs in 11-62ms because the
+    // modules are warm. 2.2x headroom is too thin for a cold first mount, and
+    // it is why this one test — never any of its siblings — went red twice
+    // under concurrent CPU load and passed on five consecutive idle runs.
+    // Raising it does not paper over a hang: a genuinely broken door still
+    // fails, it just fails after 5s instead of 1s.
+    expect(await screen.findByTestId('builder-sheet-mock', {}, { timeout: 5000 }))
+      .toBeInTheDocument()
     const props = sheetProps()
     expect(props.open).toBe(true)
     expect(props.initialMode).toBe(NEW_SCAN_MODE)

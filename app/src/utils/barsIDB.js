@@ -49,7 +49,17 @@ const STORE      = 'bars'
 // delta, so the corrected pack never overwrote the old values. This forces one clean
 // full re-ingest of the (correct, sanitized) pack. Paired with the heal-on-mismatch
 // guard in _importBatch (below) so FUTURE corrections self-heal without another bump.
-const CACHE_LOGIC_VERSION = 6
+//
+// Bumped 6→7 (2026-08-31): today's bars.db corruption incident forced a resync-from-R2
+// that RE-BASED many tickers' served prices (SOXL cached ~$293 vs the correct ~$111 —
+// a serve-time re-adjustment applied AFTER browsers cached the old basis). Same failure
+// mode as the 5→6 WYFI/HIVE case: the pack never-downgrades a deep-enough entry and an
+// up-to-date browser only takes the tail delta, so the wrong basis rendered a blank /
+// broken chart. This bump clears every poisoned entry in one clean refetch. Paired this
+// time with a heal-on-mismatch guard in the RENDER path too (StockChart _idbBasisMismatch),
+// not just the pack importer — so a chart rendering straight from IDB before any pack
+// re-ingest also self-heals a future re-basis without another bump.
+const CACHE_LOGIC_VERSION = 7
 
 // Intraday freshness is judged by BAR-DATA age against the last CLOSED trading session
 // (weekend/holiday-aware) via marketSession.isIntradayTailStale — NOT a flat wall-clock
@@ -268,6 +278,28 @@ export async function idbPut(sym, tf, bars) {
     })
   } catch {
     // IDB writes are best-effort — never let them crash the chart
+  }
+}
+
+/**
+ * Delete the cached entry for (sym, tf). Used by the render-path basis-mismatch
+ * heal: when a browser holds a stale WRONG-BASIS series (a serve-time split /
+ * re-adjustment applied AFTER this browser cached the old prices), we drop the
+ * poisoned entry so the next fetch is a clean full refetch — not a `since=` delta
+ * merged onto the wrong basis (which would keep the bad deep history forever).
+ * Best-effort; never throws.
+ */
+export async function idbDelete(sym, tf) {
+  try {
+    const db = await _open()
+    await new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      tx.objectStore(STORE).delete(_key(sym, tf))
+      tx.oncomplete = resolve
+      tx.onerror    = () => resolve()
+    })
+  } catch {
+    // best-effort
   }
 }
 

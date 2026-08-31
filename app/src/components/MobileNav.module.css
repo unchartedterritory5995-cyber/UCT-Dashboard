@@ -342,3 +342,12 @@
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .topBar { display: none; }
 }
+
+/* Portrait full-height charting (Phase 9): the chart page gives this row to
+   candles — the active tab already says "Charts", and the bottom bar's More
+   sheet carries everything the hamburger did. The shell's symbol strip absorbs
+   the notch safe-area (MobileCharts.module.css). Phone width only — tablets
+   keep the top bar; other routes never carry the attribute. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .topBar { display: none; }
+}

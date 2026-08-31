@@ -1562,3 +1562,35 @@
   padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
 }
 .addColItem:hover { background: var(--ut-gold-dim); color: var(--ut-gold); }
+
+/* Long-press on the sym cell opens the row menu (Watchlists.jsx WatchRow) —
+   iOS's text loupe / copy callout must not fight the press. Coarse only. */
+@media (pointer: coarse) {
+  .symCell {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Phase 11 crawl — phone tap targets in the lists chrome: the MY LISTS /
+   PREBUILT / COMMUNITY rail measured 21px tall, "New watchlist" 21px, the
+   header action buttons 19x19, and list rows 31px. Coarse pointers get the
+   44px standard (rows a touch denser at 44 exactly); desktop keeps its
+   compact metrics. */
+@media (pointer: coarse) {
+  .tabBtn,
+  .newListBtn {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+  .wlActionBtn {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .listRow { min-height: var(--tap-min, 44px); }
+}

@@ -788,6 +788,15 @@ def main():
     _start_deep_history_warm()
     _start_massive_ws()
     _start_keepwarm()
+    # Global history pre-warm (instant-charts Phase 5): sweep every symbol's sealed D/W/M
+    # history through the public Cloudflare domain so Cache Reserve serves it worldwide and
+    # no first-time user in any region hits the origin. Gated HISTORY_PREWARM_ENABLED (OFF
+    # until Cloudflare Tiered Cache + Cache Reserve are on). Gentle daemon thread.
+    try:
+        from api.services.history_prewarm import start_history_prewarm
+        start_history_prewarm()
+    except Exception:
+        logging.getLogger(__name__).exception("[worker] history_prewarm start failed")
     # Live-flow outage monitor + daily scorecard (deploy-survival P3).
     # Independent oracle: watches the WEB pod's OPRA write freshness from
     # this separate process/volume. Gated by LIVEFLOW_MONITOR_ENABLED=1 +

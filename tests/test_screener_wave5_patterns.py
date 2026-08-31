@@ -99,7 +99,7 @@ def test_two_active_detections_ids_conf_dir_from_best(monkeypatch, tmp_path):
 
     out = pj.read_pattern_fields(["AAPL"])
     row = out["AAPL"]
-    assert row["pattern_engine_ids"] == "cup_handle,bull_flag"
+    assert row["pattern_engine_ids"] == ",cup_handle,bull_flag,"
     assert row["pattern_engine_conf"] == 80.0
     # best = cup_handle (highest confidence, has both entry+stop) -> bearish
     assert row["pattern_engine_dir"] == -1
@@ -133,7 +133,7 @@ def test_missing_stop_skipped_for_best_but_counted_in_ids(monkeypatch, tmp_path)
 
     out = pj.read_pattern_fields(["MSFT"])
     row = out["MSFT"]
-    assert row["pattern_engine_ids"] == "vcp,flat_base"  # confidence-desc, both counted
+    assert row["pattern_engine_ids"] == ",vcp,flat_base,"  # confidence-desc, both counted
     assert row["pattern_engine_conf"] == 90.0
     # best-with-levels is flat_base despite lower confidence
     assert row["pattern_engine_dir"] == 0
@@ -293,12 +293,21 @@ def test_a_measured_expectancy_of_exactly_zero_is_still_reported(
     )
 
 
-def test_more_than_ten_active_ids_capped_at_ten(monkeypatch, tmp_path):
+def test_more_ids_than_the_cap_are_capped_at_the_cap(monkeypatch, tmp_path):
+    """⛔ DERIVED FROM `_MAX_IDS`, NOT FROM ITS VALUE. This was
+    `..._capped_at_ten` with a fixture of 12 and `assert len(ids) == 10` — a
+    hand-typed count beside the constant it describes, which went stale the
+    moment the cap was raised 10 -> 20 on measurement (median 6, max 17, 0%
+    truncated). The property under test is that the cap BITES, and it survives
+    the number changing.
+    """
+
     _fresh(monkeypatch, tmp_path)
     from api.services.pattern_engine import memory
     from api.services.screener import pattern_join as pj
 
-    pattern_ids = [f"pat_{i}" for i in range(12)]
+    from api.services.screener import pattern_join as _pj
+    pattern_ids = [f"pat_{i}" for i in range(_pj._MAX_IDS + 2)]
     for i, pid in enumerate(pattern_ids):
         memory.store_detection(_detection(
             id=f"d{i}", sym="MANY", pattern_id=pid,
@@ -308,9 +317,9 @@ def test_more_than_ten_active_ids_capped_at_ten(monkeypatch, tmp_path):
         ))
 
     out = pj.read_pattern_fields(["MANY"])
-    ids = out["MANY"]["pattern_engine_ids"].split(",")
-    assert len(ids) == 10
-    assert ids == pattern_ids[:10]  # highest-confidence 10, in order
+    ids = [k for k in out["MANY"]["pattern_engine_ids"].split(",") if k]
+    assert len(ids) == pj._MAX_IDS
+    assert ids == pattern_ids[:pj._MAX_IDS]  # highest-confidence, in order
     assert out["MANY"]["pattern_engine_conf"] == 100.0
 
 
@@ -391,7 +400,7 @@ def test_malformed_levels_json_survives_and_stays_honest(monkeypatch, tmp_path):
     row = out["AAPL"]
     # The read SURVIVES; ids/conf still populate; nothing level-derived is
     # fabricated off a row whose levels cannot be parsed.
-    assert row["pattern_engine_ids"] == "bull_flag"
+    assert row["pattern_engine_ids"] == ",bull_flag,"
     assert row["pattern_engine_conf"] == 75.0
     assert "pattern_engine_dir" not in row
     assert "pattern_entry_px" not in row
@@ -433,7 +442,7 @@ def test_the_id_cap_keeps_the_DISTINCTIVE_detectors_not_the_universal_ones(
         start_t=1, end_t=2, detected_at=_NOW, last_seen_at=_NOW))
 
     out = pj.read_pattern_fields(["ALPHA", "BETA"])
-    ids = out["ALPHA"]["pattern_engine_ids"].split(",")
+    ids = [k for k in out["ALPHA"]["pattern_engine_ids"].split(",") if k]
 
     assert len(ids) <= pj._MAX_IDS, "the cap itself must still hold"
     assert ids[0] == "cup_handle", (

@@ -93,11 +93,27 @@ def _is_carried(ticker: str) -> bool:
     failed) would make *every* symbol look uncarried and silently turn every
     transient 503 into "no data" — a derived reference with no sanity bound. So
     an unreadable universe answers "carried" and the 503 stands."""
+    t = (ticker or "").strip().upper()
     syms = _carried_symbols()
     if not syms:
         return True
-    if (ticker or "").strip().upper() in syms:
+    if t in syms:
         return True
+    # ⭐ The Symbol Search modal offers a MUCH wider universe than cap_universe — the
+    # name-bearing index built from Massive's /v3/reference/tickers (every US ETF/ETN
+    # + leveraged/inverse product). If Search offers it, /api/bars MUST serve it: a
+    # searchable-but-cold symbol has to keep its retryable "warming" 503 so the cold
+    # fetch warms it, NOT get permanently downgraded to no_data:symbol_not_carried.
+    # That downgrade was the 2026-08-31 "GDX / SILJ / EWZ / EWT never load, infinite
+    # skeleton" bug — liquid ETFs that are simply outside cap_universe. contains()
+    # answers False until the index snapshot loads (a few seconds post-boot), so the
+    # cap_universe check above still governs during that window — no regression.
+    try:
+        from api.services import ticker_search_index as _tsi
+        if _tsi.contains(t):
+            return True
+    except Exception:
+        pass
     try:
         from api.services import delisted_registry as _dr
         # A registered dead entity is deliberately kept OUT of cap_universe, but
@@ -378,10 +394,32 @@ def get_bars(
             elif to:
                 # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
                 response = _get_bars_to_response(ticker, tf, bars, to, warm=bool(warm))
-            elif since:
-                response = _get_bars_since_response(ticker, tf, bars, since)
             else:
-                response = _get_bars_inner(ticker, tf, bars)
+                # Best-effort background warm (theme/watchlist prefetch, `warm=1`)
+                # de-prioritizes under load: when the warm-serve slots are full it SHEDS
+                # fast (a 503 the client re-tries), so it can never starve the chart the
+                # user actually CLICKED — a non-warm request that always serves. This is
+                # the fix for "open a theme → the stock you click takes 5-6s" (the flood
+                # of ~20 holding warms was queueing ahead of the click on the shared pool).
+                _warm_slot = False
+                if warm:
+                    _warm_slot = _bars_fetch._warm_serve_sem.acquire(blocking=False)
+                    if not _warm_slot:
+                        _mark_serve("warm-shed")
+                        response = JSONResponse(
+                            status_code=503,
+                            content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
+                        )
+                        response.headers["Retry-After"] = "4"
+                if response is None:
+                    try:
+                        if since:
+                            response = _get_bars_since_response(ticker, tf, bars, since)
+                        else:
+                            response = _get_bars_inner(ticker, tf, bars)
+                    finally:
+                        if _warm_slot:
+                            _bars_fetch._warm_serve_sem.release()
         except Exception as e:
             crashed = True
             _log.error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
@@ -467,6 +505,120 @@ def get_bars(
         fallback.headers["Retry-After"] = "5"
         fallback.headers["Cache-Control"] = "no-store, must-revalidate"
         return fallback
+
+
+# ── SEALED HISTORY (instant-charts Phase 5 — edge-cacheable) ──────────────────
+# `/api/bars` must stay `no-store` because its last bar is TODAY's developing candle,
+# and a stale copy after a corruption fix would show a wrong price. `/api/bars-history`
+# serves ONLY the SEALED past (every bar whose period has fully closed) — which does not
+# change intraday — so it can be cached at the CDN edge and in the browser. The client
+# (a later step) fetches deep history from here (edge-served, ~instant everywhere) and the
+# small live tail from `/api/bars` (origin, always fresh), then stitches them.
+#
+# This endpoint is ADDITIVE and dark: nothing calls it yet, so it cannot affect any
+# current chart. It reuses `get_bars`'s full serve path (all the index/breadth/delisted
+# intercepts + crash handling), then strips the developing period and re-stamps a public,
+# self-healing cache header. v1 scope: D/W/M with date-string timestamps (the deep-history
+# payloads that benefit most). Anything else (intraday, unix-ts index series, or a
+# non-200) falls back to `no-store` so it is never edge-cached — safe by construction.
+_HISTORY_LOGIC_VERSION = "1"   # bump to invalidate every cached history URL at once
+
+
+def _period_start_iso(tf: str) -> str:
+    """ISO date of the start of the CURRENT (still-developing) period for `tf`. A bar is
+    'sealed' iff its date string is < this — i.e. its whole period has closed."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    if tf == "W":
+        return (today - timedelta(days=today.weekday())).isoformat()   # Monday of this week
+    if tf == "M":
+        return today.replace(day=1).isoformat()
+    return today.isoformat()
+
+
+def _is_iso_date(t) -> bool:
+    return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
+
+
+@router.get("/api/bars-history/{ticker}")
+def get_bars_history(
+    ticker: str,
+    tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
+    bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
+    v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
+    d: str = Query(default="", description="Last-sealed date (YYYY-MM-DD). When it matches the current sealed boundary, the response is IMMUTABLE (cached ~1y) — a new trading day mints a fresh d → a fresh URL, so it self-refreshes with no purge. Used by the client + the global pre-warm sweep to stock Cloudflare Cache Reserve."),
+):
+    """Edge-cacheable SEALED history for a symbol (Phase 5). D/W/M only in v1."""
+    import orjson as _orjson
+    tfu = (tf or "D").upper()
+
+    def _no_store(resp):
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    if tfu not in ("D", "W", "M"):
+        return _no_store(JSONResponse(content={
+            "ticker": (ticker or "").upper(), "tf": tf, "bars": [], "sealed": False,
+            "note": "history endpoint serves D/W/M only in v1 — use /api/bars for intraday",
+        }))
+
+    # 🔴 READ-ONLY — serve only what is ALREADY STORED; NEVER trigger a provider fetch/write.
+    # Requesting deep history through the live serve path (get_bars) kicks a deep backfill
+    # WRITE per symbol; a global pre-warm sweep of that would storm the single memory-tight
+    # pod into an OOM mid-write → SQLite corruption (the 2026-08-31 incident). The WORKER
+    # warms the deep D/W/M history into bars.db on its own volume; this endpoint only reads
+    # it and lets Cloudflare cache it. An un-warmed symbol serves whatever depth is stored
+    # (the client's live /api/bars tail still covers the recent range) — never a fetch.
+    sym = (ticker or "").strip().upper()
+    try:
+        from api.services import breadth_symbols as _bsym
+        if _bsym.is_breadth_symbol(sym):
+            all_bars = (_bsym.build_breadth_bars(sym, tfu, bars) or {}).get("bars") or []  # cache-first, no provider
+        elif is_index(sym):
+            # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
+            return _no_store(JSONResponse(content={
+                "ticker": sym, "tf": tfu, "bars": [], "sealed": False,
+                "note": "index history not served by /api/bars-history",
+            }))
+        else:
+            rows = _bars_fetch._sqlite.get_bars(sym, tfu, bars)   # PURE read — no fetch, no write
+            all_bars = _fmt_sqlite_bars(rows, tfu, sym) if rows else []
+    except Exception:
+        return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": [], "sealed": False}))
+
+    # Only date-string series (stocks/ETFs/breadth D/W/M) get the date-based sealed cut.
+    # A non-iso last bar (or nothing stored) serves uncacheable rather than mis-slice.
+    if all_bars and not _is_iso_date(all_bars[-1].get("t")):
+        return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": all_bars, "sealed": False}))
+
+    cutoff = _period_start_iso(tfu)
+    sealed = [b for b in all_bars if _is_iso_date(b.get("t")) and b["t"] < cutoff]
+    last_sealed = sealed[-1]["t"] if sealed else ""
+    version = f"{_HISTORY_LOGIC_VERSION}.{last_sealed}"
+
+    out = JSONResponse(content={
+        "ticker": sym,
+        "tf": tfu, "bars": sealed, "sealed": True,
+        "version": version, "last_sealed": last_sealed, "count": len(sealed),
+    })
+    # Cache policy:
+    #  • d matches the CURRENT sealed boundary  → IMMUTABLE, ~1 year. Safe because the date
+    #    makes each day's URL unique: when a new trading day seals, the client (and the
+    #    pre-warm sweep) request a NEW d → a NEW URL, so the cache self-refreshes with NO
+    #    purge. Recent corrections are covered by the always-fresh /api/bars tail that the
+    #    client merges over this history (the tail wins the overlap), so a stale sealed bar
+    #    inside the tail window never reaches the user. This is what lets a global pre-warm
+    #    stock Cloudflare Cache Reserve so no first-time user in any region hits the origin.
+    #  • no d / stale d (the boundary moved since the client's tail)  → short public cache,
+    #    so current data is never frozen for a year under a mismatched date. Backward-compat:
+    #    older clients that don't send d keep the original 1h self-healing behavior.
+    if d and last_sealed and d == last_sealed:
+        out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    out.headers["Server-Timing"] = f'bars;desc="history-read";dur={len(sealed)}'
+    return out
 
 
 @router.post("/api/admin/warm-universe")

@@ -712,7 +712,7 @@ export default function ChartSettingsModal({
             className={`${styles.tplBtn} ${styles.themesBarBtn}`}
             onClick={() => setThemesOpen(true)}
             title="Browse UCT chart themes — one-click looks for this chart"
-          >🎨 UCT Chart Themes</button>
+          ><UIcon name="sun" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 5 }} />UCT Chart Themes</button>
         </div>
 
         <div className={styles.tabs} role="tablist">

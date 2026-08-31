@@ -183,7 +183,6 @@ export const COLUMN_DEFS = {
     desc: 'The average distance from open to close over the 15 completed sessions BEFORE the newest bar — in dollars, not percent. This is the baseline the candle vocabulary measures today’s bar against: a body over 1.5× this is a long candle, under half of it a short one. The newest bar is excluded on purpose, so a bar can never move the threshold that judges it. Blank when the baseline came out at zero — a stock that did not move for fifteen sessions has no scale to compare against, and a 0 there would call every bar long.' },
   avg_range: { label: 'Avg Range', fmt: usd,
     desc: 'The average high-to-low range over the 20 completed sessions BEFORE the newest bar — in dollars, not percent. It is the scale behind the long-range readings in the Candle column, and the newest bar is excluded so it cannot set its own benchmark. ⚠️ NOT the same as ATR%, which is Wilder’s gap-INCLUSIVE range as a percentage of price: this one ignores overnight gaps and stays in dollars. Blank when the baseline came out at zero.' },
-  patterns: { label: 'Pattern', fmt: v => v ? v.split(',')[0] : '—' },
   // exposed-existing (previously filterable-but-undisplayable or dark)
   beta: { label: 'Beta', fmt: num(2),
     desc: 'Sensitivity to the broad market: 1.0 moves with it, above 1.0 amplifies it, below 1.0 dampens it. Supplied by the fundamentals provider, not recomputed here.' },
@@ -197,7 +196,6 @@ export const COLUMN_DEFS = {
   dist_52w_low_pct: { label: '52WL', fmt: pct },
   inst_pct: { label: 'Inst%', fmt: pctPlain(0) },
   industry: { label: 'Industry', fmt: v => v || '—' },
-  pattern_conf_max: { label: 'Pat Conf', fmt: num(2) },
   consecutive_down: { label: 'Down Run', fmt: num(0) },
   body_pct: { label: 'Body', fmt: num(2),
     desc: 'How much of the bar’s high-to-low range the body (open to close) takes up: 1.0 is a bar with no wicks, near 0 is a doji. Together with the two wick fractions it sums to 1. Blank on a bar with no range, where all three are undefined.' },
@@ -373,10 +371,15 @@ export const COLUMN_DEFS = {
   // classified-only denominator. A blank cell is an em dash, never a zero —
   // NULL here means "no active detection / no qualifying print / not in the
   // aggregate", three facts a fabricated 0 would silently overwrite.
-  pattern_engine_ids: { label: 'Engine Pat', fmt: v => v ? v.split(',')[0] : '—',
+  // ⚠️ The value is DELIMITER-WRAPPED (`,a,b,`), so a bare split yields an
+  // empty first element. Detector ids collide as substrings
+  // (`head_shoulders` inside `inverse_head_shoulders`), which is why the
+  // column is wrapped and why the filter's `contains` is exact.
+  pattern_engine_ids: { label: 'Engine Pat',
+    fmt: v => { const k = String(v || '').split(',').filter(Boolean); return k.length ? k[0] : '—' },
     desc: 'Active pattern-engine detections (daily timeframe, 7-day window) from the 85-detector engine — a different instrument from the always-on patterns heuristic column, though five pattern names exist in both vocabularies. ⚠️ Capped at 10 ids and ordered MOST DISTINCTIVE FIRST, because the median symbol carries about 14: a detector that fires on nearly every stock tells you nothing and is ranked last. The cap still truncates, so this column is "the most distinctive detections", not the complete set — the per-pattern flag columns are the complete answer.' },
   pattern_engine_conf: { label: 'Eng Conf', fmt: num(0),
-    desc: 'Confidence of the best active pattern-engine detection on a 0-100 scale — NOT the 0-1 scale of Pattern Confidence (pattern_conf_max) beside the cheap patterns column; the two engines share five pattern names but are different instruments. Blank = no active detection.' },
+    desc: 'Confidence of the best active pattern-engine detection, on the engine’s own 0-100 scale. ⚠️ It is a RAW detector confidence, not measured evidence: the engine’s precision was measured at 15.7%. For whether a named structure actually beat the market’s base rate, see the measured lift on the Base Structure filter. Blank = no active detection.' },
   pattern_engine_dir: { label: 'Eng Dir',
     fmt: v => v == null ? '—' : v > 0 ? 'Bull' : v < 0 ? 'Bear' : 'Neut',
     desc: 'Direction of the best active engine detection, encoded +1 bullish / -1 bearish / 0 neutral. Only detections carrying both entry and stop levels qualify as "best"; blank = none do.' },
@@ -422,6 +425,30 @@ export const COLUMN_DEFS = {
     desc: 'ANALYST ESTIMATE — projected long-term annual EPS growth over the next 5 years, a forecast rather than a measurement. From the nightly Finviz pull.' },
   sales_past_5y_growth: { label: 'Sales 5Y', fmt: pct,
     desc: 'Annualized sales growth over the past 5 years, from the nightly Finviz pull.' },
+  // ── multi-week BASE structure ──
+  // ⭐ A DIFFERENT QUESTION FROM EVERY CANDLE COLUMN. Those ask what TODAY's
+  // bar is; these ask what the last several WEEKS built. Same two-axis grammar:
+  // `base_shape` is a total partition (every row has exactly one) and the
+  // named structures are sparse on top of it.
+  // 🔴 THE `_label` COMPANIONS MUST BE SELECTED OR THE RICH LABEL NEVER
+  // RENDERS — the key column's formatter reads `row.<col>_label`, exactly as
+  // the candle columns do.
+  base_render: { label: 'Structure', fmt: v => v || '—',
+    desc: 'The multi-week structure this symbol is in, rendered as primary (secondary) +N — "Darvas Box (Declining Structure)". Named structures lead because they are more specific than a trend reading; the trend reading is still carried in Shape. DESCRIPTIVE ONLY: it names what the chart is doing and forecasts nothing. Every threshold behind it is either quoted from a published source or explicitly marked as ours — see api/services/screener/base_catalog.py.' },
+  base_shape: { label: 'Shape', fmt: (v, row) => row?.base_shape_label || (v || '—'),
+    desc: 'The trend structure read off the confirmed swing sequence — advancing, declining, contracting, expanding, or undefined when there are too few swings to say. A TOTAL partition: every symbol with enough history gets exactly one, so a blank means we refused for want of bars, never that the answer was nothing.' },
+  base_shape_label: { label: 'Shape Label', fmt: v => v || '—',
+    desc: 'The display text behind the Shape column. Select this one directly to keep it where Shape itself is not also in the view.' },
+  base_matches: { label: 'Matched Structures',
+    fmt: (v, row) => {
+      if (!v) return '—'
+      if (row?.base_render) return row.base_render
+      const keys = String(v).split(',').filter(Boolean)
+      return keys.length ? keys.join(', ') : '—'
+    },
+    desc: 'EVERY structure this symbol satisfied — its one shape plus any named structures — not just the one that renders. ⛔ This is the column the Base Structure FILTER queries, because screening the rendered head would silently drop every symbol whose structure was ALSO a Darvas box. Stored delimiter-wrapped so a search for one key cannot match a longer key that contains it: measured on real rows, a bare "range" search matched 122 rows where the wrapped form matched 64.' },
+  base_relation_count: { label: 'Named', fmt: num(0),
+    desc: 'How many NAMED structures fired on this symbol beyond its shape — a Darvas box, a Green Line Breakout, a Pocket Pivot, a Power Play. Zero is a real answer (we looked and none fired); a blank means the row was not classified at all.' },
   // ── Wave 6: per-pattern engine flags ──
   // `tri`, not `bool`, the `optionable`/`shortable` precedent: ✓ the engine
   // detected this pattern, ✗ the engine has active detections on this symbol

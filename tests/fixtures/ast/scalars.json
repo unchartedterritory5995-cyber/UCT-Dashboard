@@ -1,8 +1,8 @@
 {
   "_": "THE SCALAR FLOOR AND THE FRESHNESS CORPUS. `cases` carries ONE ENTRY PER DECLARED SCALAR and is the coverage floor `tools/ast_conformance.py --coverage` enforces; `trees` carries hand-derived formulas whose freshness verdict is asserted in BOTH LANES against the `freshness` field below.",
-  "_why_its_own_file": "\u26d4 A SCALAR HAS NO BAR BEHAVIOUR, SO IT DOES NOT BELONG IN THE BAR CORPUS. `assert_corpus_covers_the_table` demands a corpus case per declared name and ABORTS the recorder otherwise; folding 54 scalars into that floor would force 54 new bar-corpus cases, move every one of the 17 frozen per-ast digests, and re-freeze a cross-lane oracle for a reason that has nothing to do with bars. Two floors, two fixtures, two things measured.",
+  "_why_its_own_file": "⛔ A SCALAR HAS NO BAR BEHAVIOUR, SO IT DOES NOT BELONG IN THE BAR CORPUS. `assert_corpus_covers_the_table` demands a corpus case per declared name and ABORTS the recorder otherwise; folding 54 scalars into that floor would force 54 new bar-corpus cases, move every one of the 17 frozen per-ast digests, and re-freeze a cross-lane oracle for a reason that has nothing to do with bars. Two floors, two fixtures, two things measured.",
   "_shape": "`cases[]` is `{id, scalar, ast, value, asOf, cadence, yields}` -- `ast` is the CANONICAL tree (a bare `series` node, because a scalar rides that node type and the canonical vocabulary stays four). `value` is a distinct sample so a mis-seeded name is visible rather than plausible. `trees[]` is `{id, ast, freshness, repaint, scalars, why}` and every entry states its own reason.",
-  "_both_verdicts": "\u2b50 EVERY `trees` ENTRY DECLARES BOTH `repaint` AND `freshness`, ON THE SAME TREE, ON PURPOSE. The repaint linter answers a true 0 for a scalar and brands it `non-repainting`; that is correct and it is why a second verdict exists. Asserting them together is what makes the pair impossible to obtain one at a time.",
+  "_both_verdicts": "⭐ EVERY `trees` ENTRY DECLARES BOTH `repaint` AND `freshness`, ON THE SAME TREE, ON PURPOSE. The repaint linter answers a true 0 for a scalar and brands it `non-repainting`; that is correct and it is why a second verdict exists. Asserting them together is what makes the pair impossible to obtain one at a time.",
   "bars": 6,
   "cases": [
     {
@@ -661,18 +661,6 @@
         "name": "consecutive_down"
       },
       "value": 53.5,
-      "asOf": "bars_asof",
-      "cadence": "nightly",
-      "yields": "num"
-    },
-    {
-      "id": "pattern_conf_max",
-      "scalar": "pattern_conf_max",
-      "ast": {
-        "type": "series",
-        "name": "pattern_conf_max"
-      },
-      "value": 54.5,
       "asOf": "bars_asof",
       "cadence": "nightly",
       "yields": "num"
@@ -1391,7 +1379,7 @@
       "scalars": [
         "market_cap"
       ],
-      "why": "\u2b50\u2b50 THE POINT OF THE WHOLE TASK, AND THE ZERO IS THE POINT. `astReach` answers (0, 0) for a scalar leaf, so the repaint gate brands this `non-repainting` -- CORRECTLY, because a per-symbol number depends on no later bar. Which means the repaint gate PASSES a value that is up to a day old and nothing else fires. Both verdicts are asserted on the same tree here so neither can be obtained without the other."
+      "why": "⭐⭐ THE POINT OF THE WHOLE TASK, AND THE ZERO IS THE POINT. `astReach` answers (0, 0) for a scalar leaf, so the repaint gate brands this `non-repainting` -- CORRECTLY, because a per-symbol number depends on no later bar. Which means the repaint gate PASSES a value that is up to a day old and nothing else fires. Both verdicts are asserted on the same tree here so neither can be obtained without the other."
     },
     {
       "id": "one_scalar_anywhere_in_the_tree_dates_the_whole_formula",

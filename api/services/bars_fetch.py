@@ -159,6 +159,17 @@ _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 _COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
 _cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
 
+# 🟡 Global cap on CONCURRENT best-effort WARM serves (background prefetch: opening a
+# theme/watchlist warms ~20 holdings at once, across MANY browsers = a lot of concurrent
+# warm=1 requests). Each warm serve holds an anyio-pool worker while it reads+formats from
+# SQLite; unbounded, they queue AHEAD of the chart the user actually CLICKED (which is NOT
+# a warm request) and drag it to seconds — the theme-flood symptom. When the cap is full a
+# warm request SHEDS instantly (fast 503 → the client re-warms on its next poll, or the
+# real click fetches it), so the shared threadpool stays available for real chart requests.
+# The click's own request never sheds. Tune via BARS_WARM_SERVE_MAX.
+_WARM_SERVE_MAX = max(1, int(_os.environ.get("BARS_WARM_SERVE_MAX", "6")))
+_warm_serve_sem = _threading.Semaphore(_WARM_SERVE_MAX)
+
 
 def _depth_tier(bars: int) -> int:
     """Coarse depth bucket for the deep-fill throttle marker, so a shallow view
@@ -2274,6 +2285,63 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
 from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
 _bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
 
+# ── Never-block cold fetch (instant-charts Phase 4) ──────────────────────────
+# A truly-cold symbol's provider fetch can take ~15-22s; holding a REQUEST thread
+# that long is the pool-exhaustion / HAR-outage class. So a cold miss kicks a
+# bounded, deduped BACKGROUND fetch that warms bars.db and the request returns a
+# fast "warming" 503 (below) — the client re-polls in ~3s and reads the SQLite
+# layer the moment the bg fetch lands. No request thread is ever held on a provider.
+_cold_bg_pool = _BarsWarmExecutor(max_workers=_COLD_FETCH_CONCURRENCY,
+                                  thread_name_prefix="bars-cold-bg")
+_cold_bg_inflight: set[str] = set()
+_cold_bg_lock = _threading.Lock()
+_COLD_BG_QUEUE_MAX = _COLD_FETCH_CONCURRENCY * 4   # running + a small queue; drop beyond
+
+
+def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
+    """The cold provider fetch, run OFF the request thread → warms bars.db so the
+    client's next poll is a SQLite hit. Same fetch + persist as the old inline path."""
+    import logging as _log
+    _lg = _log.getLogger(__name__)
+    try:
+        _deep = _is_deep_request(bars)
+        if tf in ("1", "5", "15", "30", "60"):
+            raw = _fetch_intraday(ticker_up, tf, bars)
+        elif tf == "W":
+            raw = _fetch_weekly(ticker_up, bars, deep=_deep)
+        elif tf == "M":
+            raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+        else:
+            raw = _fetch_daily(ticker_up, bars, deep=_deep)
+        if raw and (date_tf or not _is_intraday_stale(raw)):
+            _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
+            if _deep:
+                _mark_history_complete(ticker_up, tf)
+    except Exception as e:
+        _lg.warning("[bars] cold bg fetch failed %s tf=%s: %s", ticker_up, tf, e)
+
+
+def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
+    """Submit a deduped cold fetch to the bounded bg pool (drop past the queue cap so a
+    fresh-browser scan of obscure tickers can't pile up unbounded work)."""
+    key = f"{ticker_up}_{tf}"
+    with _cold_bg_lock:
+        if key in _cold_bg_inflight or len(_cold_bg_inflight) >= _COLD_BG_QUEUE_MAX:
+            return
+        _cold_bg_inflight.add(key)
+
+    def _job():
+        try:
+            _do_cold_fetch(ticker_up, tf, bars, date_tf)
+        finally:
+            with _cold_bg_lock:
+                _cold_bg_inflight.discard(key)
+    try:
+        _cold_bg_pool.submit(_job)
+    except Exception:
+        with _cold_bg_lock:
+            _cold_bg_inflight.discard(key)
+
 
 def warm_bars_async(tickers: list[str], tf: str = "D", bars: int = 8000) -> None:
     """Fire-and-forget cache warmer. Submits one task per ticker to a bounded
@@ -2813,7 +2881,12 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                                 new = _delta_intraday(_sym, _tf, _last_ts)
                             if new:
                                 _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
-                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars)
+                        # Re-read only when the delta actually advanced the store. When
+                        # `new` is empty the SQLite rows are unchanged, so reuse the rows
+                        # the serve already read — this skips a redundant multi-thousand-row
+                        # get_bars().fetchall() (SQLite-C holds the GIL) on every idle poll,
+                        # which is the dominant bg-delta contention under a warm flood.
+                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars) if new else _stored
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
                             "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf, _sym),
@@ -2939,33 +3012,19 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
 
         else:
             # ── Full fetch: first time we see this ticker/tf ──────────────────
-            # 🔴 POOL PROTECTION (see _cold_fetch_sem): a truly-cold provider fetch
-            # can hold this worker thread ~20s. Cap how many run at once so a fresh
-            # browser scanning obscure tickers can't exhaust the anyio pool and drag
-            # every warm chart to 5-20s (the measured HAR outage). When the cap is
-            # full, SHED — skip the 20s fetch, serve empty, and return 503+Retry-After
-            # below so the client re-polls in ~3s once a slot frees.
-            _deep = False
-            _cold_shed = not _cold_fetch_sem.acquire(blocking=False)
-            try:
-                if _cold_shed:
-                    _mark_serve("cold-shed")
-                    raw = None
-                else:
-                    # A deep request (above the shallow first-paint window) wants the
-                    # whole history — pull the yfinance pre-2003 IPO tail for D/W/M.
-                    _deep = _is_deep_request(bars)
-                    if tf in ("1", "5", "15", "30", "60"):
-                        raw = _fetch_intraday(ticker_up, tf, bars)
-                    elif tf == "W":
-                        raw = _fetch_weekly(ticker_up, bars, deep=_deep)
-                    elif tf == "M":
-                        raw = _fetch_monthly(ticker_up, bars, deep=_deep)
-                    else:
-                        raw = _fetch_daily(ticker_up, bars, deep=_deep)
-            finally:
-                if not _cold_shed:
-                    _cold_fetch_sem.release()
+            # 🔴 NEVER BLOCK THE REQUEST ON A COLD PROVIDER FETCH (instant-charts
+            # Phase 4). A truly-cold provider fetch can hold this worker thread ~20s;
+            # that is the pool-exhaustion / HAR-outage class (a fresh browser scanning
+            # obscure tickers drags every warm chart to 5-20s). So instead of fetching
+            # inline, kick a BOUNDED, DEDUPED background fetch that warms bars.db, and
+            # return the fast "warming" 503+Retry-After below (via _cold_shed) — the
+            # client re-polls in ~3s and reads the fresh SQLite rows the moment the bg
+            # fetch lands. After the Phase-3 universe warm, cold misses are rare (a
+            # brand-new listing); this keeps even those off the request thread entirely.
+            _mark_serve("cold-bg")
+            _kick_cold_fetch(ticker_up, tf, bars, date_tf)
+            _cold_shed = True   # reuse the warming-503 return path below
+            raw = None
 
             try:
                 if raw:

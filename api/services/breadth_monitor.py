@@ -279,30 +279,82 @@ def score_components(date: str, days: int = 90) -> dict:
 _ROLLING_WARMUP = 15
 
 
-def get_history(days: int = 90) -> list:
-    """Return last N trading days, newest first. Ratios computed from stored data.
+def _resolve_anchor_date(c: sqlite3.Connection, end: str, anchor: str) -> Optional[str]:
+    """The stored date the returned window's NEWEST row should be.
+
+    `end` is a target the caller typed / picked; the window ENDS on a real
+    trading day, so we snap to the nearest one:
+      • anchor 'le' (a specific date / typed date): the last session on-or-before
+        `end` — the chosen day, or the trading day just before it.
+      • anchor 'ge' (a year jump → "start of that year"): the first session
+        on-or-after `end` — so `end=YYYY-01-01` lands on that year's first bar.
+    A target past the ends of the data clamps to the nearest edge rather than
+    returning nothing (an out-of-range jump should still show real rows).
+    """
+    if anchor == "ge":
+        row = c.execute(
+            "SELECT MIN(date) FROM breadth_snapshots WHERE date >= ?", (end,)
+        ).fetchone()
+        d = row[0] if row else None
+        if d:
+            return d
+        # `end` is past the newest data → clamp to the latest stored session.
+        row = c.execute("SELECT MAX(date) FROM breadth_snapshots").fetchone()
+        return row[0] if row else None
+    row = c.execute(
+        "SELECT MAX(date) FROM breadth_snapshots WHERE date <= ?", (end,)
+    ).fetchone()
+    d = row[0] if row else None
+    if d:
+        return d
+    # `end` is before the oldest data → clamp to the earliest stored session.
+    row = c.execute("SELECT MIN(date) FROM breadth_snapshots").fetchone()
+    return row[0] if row else None
+
+
+def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -> list:
+    """Return N trading days, newest first. Ratios computed from stored data.
 
     Fetches `days + _ROLLING_WARMUP` rows, derives over all of them, and returns
     only the newest `days`. The warm-up rows exist to be looked back AT, never
     to be returned — that is what makes a derived value a property of its date
     rather than of the request.
 
-    Cached (5 min) keyed by `days`: breadth data updates once daily (afternoon
-    push), so this recomputed the full rolling-metric pass on EVERY request for
-    no benefit — costly under load and the reason the /api/breadth-monitor cold
-    hit was slow. 5-min staleness is imperceptible for daily data.
+    `end` (YYYY-MM-DD) moves the window so its NEWEST row is the session at/near
+    that date (see `_resolve_anchor_date` for the `anchor` snap rule) instead of
+    the latest — this is what lets the Monitor "teleport" back in time. The
+    rolling windows still look BACKWARD from each returned row, so an `end`
+    window is derived identically to the same span reached by scrolling.
+
+    Cached (5 min) keyed by `days`+`end`+`anchor`: breadth data updates once
+    daily (afternoon push), so this recomputed the full rolling-metric pass on
+    EVERY request for no benefit — costly under load and the reason the
+    /api/breadth-monitor cold hit was slow. 5-min staleness is imperceptible for
+    daily data. The `breadth_history_` prefix keeps it in the set every write
+    invalidates.
     """
     from api.services.cache import cache
-    ck = f"breadth_history_{days}"
+    # The latest window keeps its historical key (`breadth_history_{days}`) so the
+    # common read and everything keyed to it are unchanged; a teleported window
+    # gets a distinct key under the SAME prefix every write already invalidates.
+    ck = f"breadth_history_{days}" if not end else f"breadth_history_{days}_{end}_{anchor}"
     hit = cache.get(ck)
     if hit is not None:
         return hit
     try:
         with _conn() as c:
-            rows = c.execute(
-                "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
-                (days + _ROLLING_WARMUP,),
-            ).fetchall()
+            anchor_date = _resolve_anchor_date(c, end, anchor) if end else None
+            if anchor_date is not None:
+                rows = c.execute(
+                    "SELECT date, metrics, created_at FROM breadth_snapshots "
+                    "WHERE date <= ? ORDER BY date DESC LIMIT ?",
+                    (anchor_date, days + _ROLLING_WARMUP),
+                ).fetchall()
+            else:
+                rows = c.execute(
+                    "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
+                    (days + _ROLLING_WARMUP,),
+                ).fetchall()
             # The cumulative A/D line has no window — it is a running total from
             # the first snapshot ever stored. Seeding it at 0 at whatever row the
             # fetch happened to start on made it disagree with itself on all 30
@@ -412,6 +464,52 @@ def get_history(days: int = 90) -> list:
     out = list(reversed(result_asc))[:days]
     cache.set(ck, out, ttl=300)
     return out
+
+
+def date_bounds() -> dict:
+    """The first/last stored session dates (YYYY-MM-DD), or None when empty.
+
+    The Time Navigator needs the full span to bound its calendar + build its
+    year list, independent of whichever window is on screen. Cheap MIN/MAX and
+    rarely-changing, so it lives under the same `breadth_history_` prefix every
+    write already invalidates.
+    """
+    from api.services.cache import cache
+    ck = "breadth_history_bounds"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    out = {"min": None, "max": None}
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT MIN(date), MAX(date) FROM breadth_snapshots"
+            ).fetchone()
+            if row:
+                out = {"min": row[0], "max": row[1]}
+    except Exception as e:
+        print(f"[breadth_monitor] date_bounds error: {e}")
+    cache.set(ck, out, ttl=300)
+    return out
+
+
+def next_trading_day(date_str: Optional[str]) -> Optional[str]:
+    """The stored session immediately AFTER `date_str` (newer), or None.
+
+    Feeds the Time Navigator's ▶ one-day step forward: the older neighbour of a
+    shown window is already in that window, but the newer one sits outside it.
+    """
+    if not date_str:
+        return None
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT MIN(date) FROM breadth_snapshots WHERE date > ?", (date_str,)
+            ).fetchone()
+            return row[0] if row and row[0] else None
+    except Exception as e:
+        print(f"[breadth_monitor] next_trading_day error: {e}")
+        return None
 
 
 def derive_live_row(metrics: dict, recent: list) -> dict:

@@ -9,20 +9,61 @@ Uses least-squares regression. Returns a `Trendline` typed dict with:
 """
 from __future__ import annotations
 
+import math
 from typing import List, Tuple
 
 from api.services.pattern_engine.types import Pivot, Trendline
 
 
-def fit_trendline(pivots: List[Pivot], touch_tolerance_pct: float = 0.5) -> Trendline:
+def _empty_trendline() -> Trendline:
+    """An unusable line.
+
+    Returned ONLY when log-space is requested on data that has no logarithm.
+    It is NOT a general error path: `fit_trendline` still raises on fewer
+    than 2 pivots and existing callers depend on that. `validity: 0.0` is the
+    caller's signal to discard; every numeric field is zeroed rather than
+    left absent so the TypedDict stays total.
+    """
+    return {
+        "p1": {"t": 0, "price": 0.0},
+        "p2": {"t": 0, "price": 0.0},
+        "slope": 0.0,
+        "r_squared": 0.0,
+        "touches": 0,
+        "validity": 0.0,
+    }
+
+
+def fit_trendline(pivots: List[Pivot], touch_tolerance_pct: float = 0.5,
+                  log_space: bool = False) -> Trendline:
     """Fit a least-squares line to the pivots' (t, price) points.
+
+    ⛔ PASS `log_space=True` FOR ANY CONVERGENCE OR DIVERGENCE JUDGEMENT.
+    Edwards & Magee: a constant-percentage decline converges in POINTS by
+    construction (a 5% drop from 100 is 5 points, from 50 it is 2.5), so an
+    arithmetic fit reports a falling wedge on essentially any sustained
+    uniform downtrend. They prescribe log-space fitting; Murphy gives no
+    scaling caveat at all, which is why the arithmetic version is the one
+    that propagated into every implementation including this one.
+    Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+
+    The default stays `False` so every existing caller is byte-for-byte
+    unchanged; wedge, triangle and channel detectors must opt in.
+
+    ⚠️ With `log_space=True` the returned `slope` stays in LOG UNITS per unit
+    `t` — a fractional-growth rate, which is exactly the quantity a
+    convergence test needs. Only `p1`/`p2` are exponentiated back into price
+    space, for drawing.
 
     Args:
       pivots: ≥2 pivots
       touch_tolerance_pct: percentage of fitted price within which a pivot counts as a "touch"
+      log_space: fit on log(price) instead of price
 
     Returns:
       Trendline dict; validity is min(r², touches/4) for a soft cap on weak lines.
+      An all-zero Trendline with `validity == 0.0` when `log_space` is requested
+      on a series containing a non-positive price.
 
     Raises:
       ValueError: if fewer than 2 pivots.
@@ -30,6 +71,30 @@ def fit_trendline(pivots: List[Pivot], touch_tolerance_pct: float = 0.5) -> Tren
     if len(pivots) < 2:
         raise ValueError("need at least 2 pivots to fit a trendline")
 
+    if log_space:
+        if any((p.get("price") or 0) <= 0 for p in pivots):
+            # log(x <= 0) is undefined. A fabricated slope here would be a
+            # confident wrong answer; an unusable line is the honest one.
+            return _empty_trendline()
+        pivots = [{**p, "price": math.log(float(p["price"]))} for p in pivots]
+
+    line = _fit_arithmetic(pivots, touch_tolerance_pct)
+
+    if log_space:
+        line = {
+            **line,
+            "p1": {**line["p1"], "price": float(math.exp(line["p1"]["price"]))},
+            "p2": {**line["p2"], "price": float(math.exp(line["p2"]["price"]))},
+        }
+    return line
+
+
+def _fit_arithmetic(pivots: List[Pivot], touch_tolerance_pct: float = 0.5) -> Trendline:
+    """The least-squares fit itself, in whatever space the caller hands it.
+
+    Extracted from `fit_trendline` verbatim — do not change its arithmetic
+    here; that would silently move every existing caller's answer.
+    """
     ts     = [float(p["t"]) for p in pivots]
     prices = [float(p["price"]) for p in pivots]
     n = len(pivots)

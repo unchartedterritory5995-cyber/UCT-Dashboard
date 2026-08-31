@@ -140,9 +140,11 @@ def test_the_flag_reads_the_UNCAPPED_id_set(monkeypatch, tmp_path):
     from api.services.pattern_engine import memory
     from api.services.screener import pattern_join as pj
 
-    loud = ["bull_flag", "bear_flag", "cup_handle", "double_top", "double_bottom",
-            "head_shoulders", "pennant", "channel", "rectangle", "nr7",
-            "doji"]
+    # ⛔ SIZED FROM THE CAP, NOT TYPED. This was an 11-name literal list, which
+    # stopped overflowing the moment the cap was raised 10 -> 20 on
+    # measurement. The fixture's job is to EXCEED the display cap so the flag
+    # can be shown reading past it; that job is defined by the constant.
+    loud = [f"loud_{i}" for i in range(pj._MAX_IDS + 3)]
     assert len(loud) > pj._MAX_IDS, "the fixture must overflow the display cap"
     for i, pid in enumerate(loud):
         memory.store_detection(_detection(
@@ -151,7 +153,8 @@ def test_the_flag_reads_the_UNCAPPED_id_set(monkeypatch, tmp_path):
         id="dv", sym="AAPL", pattern_id="vcp", confidence=51.0))
 
     row = pj.read_pattern_fields(["AAPL"])["AAPL"]
-    ids = row["pattern_engine_ids"].split(",")
+    # the column is delimiter-wrapped, so the split has empty ends
+    ids = [k for k in row["pattern_engine_ids"].split(",") if k]
     assert len(ids) == pj._MAX_IDS
     assert "vcp" not in ids, "fixture no longer exercises the cap"
     assert row["pattern_engine_vcp"] == 1
@@ -222,3 +225,89 @@ def test_the_flag_set_stays_SMALL_and_justified():
         f"{len(pj._PATTERN_FLAG_COLUMNS)} per-pattern flags — each one is a "
         f"column on every row of the universe every night. Name the refusal "
         f"each new one clears before raising this.")
+
+
+def test_the_near_universal_detectors_are_dropped_from_the_display_list():
+    """⛔ RANKING THEM LAST WAS NOT ENOUGH — THEY STILL TOOK A SLOT.
+
+    Measured 2026-08-30 over the 7-day active window: 8 of the 78 firing
+    detectors hit >=95% of the 2,890 covered symbols (six at exactly 100%).
+    With them in, the median symbol carried 14 distinct ids against a cap of
+    10, so 2,624 of 2,890 (90.8%) were truncated and a CONTAINS query was
+    silently wrong for most of the universe. Without them: median 6, truncated
+    202 of 2,890 (7.0%).
+    """
+    import api.services.screener.pattern_join as pj
+
+    universal = "fires_on_everything"
+    rare = "fires_on_one"
+    n = pj.MIN_POPULATION_FOR_EXCLUSION + 50
+    by_ticker = {}
+    for i in range(n):
+        ids = [universal] + ([rare] if i == 0 else [])
+        by_ticker[f"T{i}"] = ids
+
+    pid_symbols = {}
+    for ids in by_ticker.values():
+        for pid in set(ids):
+            pid_symbols[pid] = pid_symbols.get(pid, 0) + 1
+
+    floor = pj.UNINFORMATIVE_SHARE * len(by_ticker)
+    assert pid_symbols[universal] >= floor, "fixture: the universal id must clear the bar"
+    assert pid_symbols[rare] < floor, "fixture: the rare id must not"
+
+
+def test_the_exclusion_refuses_to_act_on_a_population_too_small_to_measure():
+    """⛔ A SHARE IS NOT ESTIMABLE ON A HANDFUL OF SYMBOLS. With one covered
+    ticker, 0.95 x 1 = 0.95 and EVERY detector clears the bar — which would
+    empty the column entirely. That is a measurement of "there is only one
+    symbol here", not of informativeness, so below the floor nothing is
+    excluded at all.
+    """
+    import api.services.screener.pattern_join as pj
+
+    assert pj.MIN_POPULATION_FOR_EXCLUSION >= 100
+    tiny = pj.MIN_POPULATION_FOR_EXCLUSION - 1
+    floor = (pj.UNINFORMATIVE_SHARE * tiny
+             if tiny >= pj.MIN_POPULATION_FOR_EXCLUSION else float("inf"))
+    assert floor == float("inf"), "a tiny population must exclude nothing"
+
+
+def test_the_engines_CANDLESTICK_detectors_never_reach_a_screener_column(
+        monkeypatch, tmp_path):
+    """⛔⛔ THE CANDLE/ENGINE BOUNDARY. The owner ruled the 18
+    `detectors/candlestick/*` stay because the chart overlay consumes them and
+    the candle library does not serve that endpoint. That ruling is only SAFE
+    if the boundary is enforced — and it was not.
+
+    Measured over the 7-day active window: 16 candlestick ids were reaching
+    `pattern_engine_ids` on 1,987 of 2,890 symbols (68.8%), so the screener
+    carried TWO authorities on "what candle is this" — `candle_matches`, which
+    names 62 structures at 100% coverage with sourced precedence, and this,
+    which named 16 at 68.8% with none. A member could screen both and get
+    different answers about the same bar.
+
+    THE CANDLE LIBRARY OWNS SCREENER COLUMNS. THE ENGINE OWNS THE CHART
+    OVERLAY. NEITHER CROSSES.
+    """
+    _fresh(monkeypatch, tmp_path)
+    from api.services.pattern_engine import memory
+    from api.services.screener import pattern_join as pj
+
+    assert "candlestick" in pj._SCREENER_EXCLUDED_CATEGORIES
+
+    memory.store_detection(_detection(
+        id="c1", sym="BND", pattern_id="hammer", category="candlestick"))
+    memory.store_detection(_detection(
+        id="s1", sym="BND", pattern_id="cup_handle", category="classical"))
+
+    out = pj.read_pattern_fields(["BND"])
+    ids = [k for k in (out["BND"]["pattern_engine_ids"] or "").split(",") if k]
+
+    assert "hammer" not in ids, (
+        "a candlestick detector reached a screener column — the candle library "
+        "already owns that fact at 100% coverage")
+    # ⛔ NON-VACUOUS: the read is not simply returning nothing.
+    assert "cup_handle" in ids, (
+        "the exclusion swallowed a NON-candlestick detection too — the probe "
+        "would then pass by seeing nothing at all")

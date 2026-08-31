@@ -111,6 +111,43 @@ describe('.mobileWorkspace subtracts BOTH bars, via the tokens', () => {
   })
 })
 
+describe('portrait full-height charting — three files hide ONE bar together', () => {
+  // Phase 9: on the phone chart shell (html[data-mobile-chart-shell], ≤640px)
+  // the TOP bar hides and its reservation returns to the chart; the tab bar
+  // stays. Three declarations in three files must agree — precisely the
+  // multi-file drift this rail exists to catch.
+  const ATTR = 'html[data-mobile-chart-shell]'
+  const PORTRAIT = /@media \(pointer: coarse\) and \(max-width: 640px\)/
+
+  const blockFor = (css, name) => {
+    const m = css.match(PORTRAIT)
+    expect(m, `${name}: portrait phone block missing`).not.toBeNull()
+    // From the FIRST portrait media query containing the attr — search forward.
+    const from = css.indexOf(m[0])
+    const scoped = css.slice(from)
+    expect(scoped, `${name}: portrait block does not scope to the shell attribute`).toContain(ATTR)
+    return scoped.slice(0, scoped.indexOf('}', scoped.indexOf(ATTR)) + 1)
+  }
+
+  test('MobileNav hides the top bar under the attr, phone-width only', () => {
+    expect(blockFor(topbarCss, 'MobileNav.module.css')).toMatch(/display\s*:\s*none/)
+  })
+
+  test('Layout releases ONLY the top reservation (tab bar stays)', () => {
+    const b = blockFor(layoutCss, 'Layout.module.css')
+    expect(b).toMatch(/padding-top\s*:\s*0/)
+    expect(b, 'portrait block must NOT zero padding-bottom — the tab bar is still there').not.toMatch(/padding-bottom/)
+  })
+
+  test('the workspace override subtracts the tab bar token and NOT the hidden top bar', () => {
+    const from = wsCss.search(PORTRAIT)
+    expect(from, 'ChartsWorkspace.module.css: portrait override missing').toBeGreaterThan(-1)
+    const b = wsCss.slice(from, wsCss.indexOf('}', wsCss.indexOf('height', from)) + 1)
+    expect(b).toContain(`var(${BOTTOM})`)
+    expect(b, 'the top bar is hidden — subtracting its token would re-bury a row of chart').not.toContain(`var(${TOP})`)
+  })
+})
+
 describe('Layout and the tab bar agree with the workspace', () => {
   test('Layout reserves with the same two tokens the workspace subtracts', () => {
     expect(mainBody === null ? layoutCss : layoutCss).toContain(`var(${TOP})`)

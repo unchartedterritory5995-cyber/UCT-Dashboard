@@ -688,3 +688,35 @@
 }
 .fieldItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
 .fieldCheck { width: 12px; display: flex; color: var(--menu-accent, #dcbb5e); flex-shrink: 0; }
+
+/* Phone (discovery journey `settings-dialog`): the templates row and the tab
+   strip both run wider than a 375-393px modal — the UCT Chart Themes button
+   was clipped mid-word with no scroll affordance. One-row momentum scroll. */
+@media (max-width: 640px) {
+  .tplBar,
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tplBar::-webkit-scrollbar,
+  .tabs::-webkit-scrollbar { display: none; }
+  .tplBar > *,
+  .tabs > * { flex: 0 0 auto; }
+}
+
+/* Phase 11 crawl — the modal's own chrome measured under target on phone
+   (tabs 37px, ✕ 29px, template buttons ~25px). Coarse pointers get real hit
+   heights; desktop metrics unchanged. */
+@media (pointer: coarse) {
+  .tab { min-height: var(--tap-min, 44px); }
+  .close {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tplBtn { min-height: 40px; display: inline-flex; align-items: center; }
+}
