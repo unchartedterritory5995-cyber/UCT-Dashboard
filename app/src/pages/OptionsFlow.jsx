@@ -46,6 +46,7 @@ import "./OptionsFlow.mobile.css";  // phone layer — rides on .of-mroot, @medi
 // never blank the page around it, only the box it renders into.
 const ChartPaneLazy = lazy(() => import("../components/chart/pane/ChartPane"));
 const DarkPoolLazy = lazy(() => import("./DarkPool"));
+const ConfluenceLazy = lazy(() => import("./Confluence"));  // Confluence tab (dark-pool × LEAP flow)
 
 // Fills the parent's box while the chunk lands. Every ChartPane call site sits
 // in a parent with an explicit height, so a plain filler holds the layout.
@@ -531,7 +532,7 @@ function expToISO(expStr) {
 
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist"];
+const TABS = ["Market Read","Top Flow","Leaderboard","Search","OI Check","Tracker","Watchlist","Confluence"];
 
 export default function OptionsFlowDashboard() {
   const { user } = useAuth();
@@ -7013,6 +7014,13 @@ export default function OptionsFlowDashboard() {
           </div>
           );
         })()}
+
+        {/* Confluence — dark-pool accumulation × LEAP/size-with-time flow (own component) */}
+        {tab==="Confluence" && (
+          <Suspense fallback={<div style={{ padding:40, textAlign:"center", color:P.mt, fontSize:12 }}>Loading Confluence…</div>}>
+            <ConfluenceLazy />
+          </Suspense>
+        )}
 
         {/* Search */}
         {tab==="Search" && (

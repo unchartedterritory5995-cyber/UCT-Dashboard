@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import useConfluence from '../hooks/useConfluence'
 import TickerPopup from '../components/TickerPopup'
-import UIcon from '../components/ui/UIcon'
 import s from './Confluence.module.css'
 
 const BAND_ORDER = ['L', 'M', 'S']
@@ -51,8 +50,8 @@ export default function Confluence() {
     <div className={s.page}>
       <div className={s.head}>
         <div className={s.titleWrap}>
-          <div className={s.eyebrow}><UIcon name="magnet" size={14} /> Confluence Radar</div>
-          <h1 className={s.title}>Confluence Radar</h1>
+          <div className={s.eyebrow}>Confluence Radar</div>
+          <h1 className={s.title}>Dark Pool × LEAP Flow</h1>
           <p className={s.sub}>
             Where institutional <span className={s.dp}>dark-pool accumulation</span> and{' '}
             <span className={s.fl}>LEAP / size-with-time options flow</span> point the same way.
