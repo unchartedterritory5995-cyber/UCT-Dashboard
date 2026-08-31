@@ -86,6 +86,8 @@ WINDOWS = {
     "low-cheat":           500,
     # A saucer may run a year or more, so a shorter window would redefine it.
     "saucer":              500,
+    # A 40-bar ATR plus the doubling lookback behind the gap.
+    "buyable-gap-up":      400,
     "green-line-breakout": 1500,
     "pocket-pivot":        300,
     "power-play":          200,

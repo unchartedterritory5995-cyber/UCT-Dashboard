@@ -734,4 +734,28 @@ def test_a_note_is_STAMPED_with_the_measurement_it_describes():
             "re-measurement left the prose behind" % (key, list(stamp), current))
         stamped += 1
 
-    assert stamped > 0, "no notes are stamped -- this rail would pass vacuously"
+    # ⚠️ NO `stamped > 0` GUARD HERE, deliberately. A ledger with no notes is a
+    # legitimate state -- it is what the runner leaves behind after dropping
+    # stale ones -- so demanding at least one stamp would make this rail red
+    # for a correct artifact. The vacuity concern belongs to the rail below,
+    # which asks the question that actually matters: does every PUBLISHED
+    # number carry an explanation?
+    _ = stamped
+
+
+def test_every_PUBLISHED_number_carries_an_explanation():
+    """⛔ A published number with no note is the thing this ledger exists to
+    prevent. The refused rows can stand on their `reasons` -- those are
+    generated and always current -- but a number we put in front of a member
+    needs prose saying what it is and what it is not, and that prose must be
+    stamped so it cannot outlive the measurement.
+    """
+    entries = (ll.load().get("structures") or {})
+    published = {k: v for k, v in entries.items() if v.get("published")}
+    assert published, "no published rows -- this rail would pass vacuously"
+    for key, e in published.items():
+        assert e.get("note"), (
+            "%s is PUBLISHED with no note. A number a member sees needs an "
+            "explanation beside it." % key)
+        assert e.get("note_measured"), (
+            "%s has a note with no stamp" % key)

@@ -3951,6 +3951,228 @@ SAUCER = Structure(
 )
 
 
+# -- Buyable Gap-Up (Morales & Kacher) --------------------------------------
+# ⛔⛔ ONE OF ITS GATES IS DELIBERATELY NOT IMPLEMENTED, ON THE CORPUS'S OWN
+# INSTRUCTION. The volume rule is published in two phrasings that are not the
+# same claim -- "1.5 times the 50-day SMA" and "150% ABOVE the 50-day moving
+# average" -- which differ by a factor of ~1.67 (1.5x vs 2.5x). The research
+# note says outright: "Do not implement until resolved -- the ambiguity is a
+# factor of 1.67 on the gate." Picking either would be inventing the authors'
+# threshold, and picking the looser would quietly widen the structure by two
+# thirds. So the volume gate is a refusal, and this detector is explicitly a
+# SUBSET of their rule.
+
+_MORALES_BGU = "morales_kacher_bgu"
+
+#: "At least 0.75 times the stock's 40-day Average True Range of the day
+#: BEFORE the gap-up day." High confidence on the 40-day ATR anchored to the
+#: prior day; med on the 0.75 multiplier itself.
+BGU_ATR_MULT = 0.75
+BGU_ATR_BARS = 40
+
+#: "A stock should normally have doubled before a BGU to make the BGU more
+#: likely to succeed." Primary FAQ, high confidence -- and the corpus calls it
+#: "exact, computable, and frequently-omitted".
+BGU_PRIOR_DOUBLE = 1.00
+BGU_DOUBLE_LOOKBACK = 250
+
+#: Ours: how recent the gap must be for this to be a setup rather than history.
+BGU_MAX_AGE_BARS = 10
+
+
+def _atr(bars, n, end) -> Optional[float]:
+    """Average true range over the `n` bars ending at `end` (exclusive)."""
+    seg = bars[max(1, end - n):end]
+    if len(seg) < 2:
+        return None
+    trs = []
+    for i, b in enumerate(seg):
+        prev_c = bars[max(0, end - len(seg) + i - 1)].get("c") or 0
+        h, l = b.get("h") or 0, b.get("l") or 0
+        if h <= 0 or l <= 0:
+            continue
+        tr = max(h - l, abs(h - prev_c), abs(l - prev_c)) if prev_c > 0 else h - l
+        trs.append(tr)
+    return (sum(trs) / len(trs)) if trs else None
+
+
+def buyable_gap_up_state(bars) -> Optional[dict]:
+    """A recent gap-up large enough against the prior day's 40-day ATR.
+
+    ⛔ THE ATR IS ANCHORED TO THE DAY BEFORE THE GAP, not to the gap day. The
+    gap day's own range is enormous by construction, so including it would
+    inflate the denominator and make every gap look ordinary. The authors are
+    explicit ("ATR based on yesterday's close") and a primary report confirms
+    the anchoring independently.
+    """
+    n = len(bars)
+    if n < BGU_ATR_BARS + 10:
+        return None
+
+    best = None
+    for i in range(max(1, n - BGU_MAX_AGE_BARS), n):
+        prev, cur = bars[i - 1], bars[i]
+        pc, ph = prev.get("c") or 0, prev.get("h") or 0
+        co, cl = cur.get("o") or 0, cur.get("l") or 0
+        if pc <= 0 or ph <= 0 or co <= 0 or cl <= 0:
+            continue
+        if cl <= ph:
+            continue                      # not a true gap: ranges overlap
+        gap = co - pc
+        if gap <= 0:
+            continue
+        atr = _atr(bars, BGU_ATR_BARS, i)   # the day BEFORE the gap
+        if not atr or atr <= 0:
+            continue
+        if gap < BGU_ATR_MULT * atr:
+            continue
+
+        # "truly powerful buyable gap ups do not close their gap"
+        last = bars[-1].get("c") or 0
+        if last <= pc:
+            continue
+
+        cand = {"gap": gap, "atr": atr, "gap_atr": gap / atr,
+                "gap_low": cl, "bars_ago": (n - 1) - i, "close": last}
+        if best is None or cand["gap_atr"] > best["gap_atr"]:
+            best = cand
+    if best is None:
+        return None
+
+    # "A stock should normally have doubled before a BGU."
+    idx = n - 1 - best["bars_ago"]
+    pre = bars[max(0, idx - BGU_DOUBLE_LOOKBACK):idx]
+    lows = [b.get("l") or 0 for b in pre if (b.get("l") or 0) > 0]
+    entry = bars[idx].get("o") or 0
+    if not lows or entry <= 0:
+        return None
+    doubled = (entry - min(lows)) / min(lows)
+    if doubled < BGU_PRIOR_DOUBLE:
+        return None
+    best["prior_advance"] = doubled
+    return best
+
+
+def _detect_bgu(ctx) -> bool:
+    return buyable_gap_up_state(ctx.bars) is not None
+
+
+BUYABLE_GAP_UP = Structure(
+    key="buyable-gap-up",
+    label="Buyable Gap-Up",
+    axis="relation",
+    family="Gap & Catalyst",
+    bias="bullish",
+    rank=18,
+    min_bars=BGU_ATR_BARS + 10,
+    desc=("A gap-up at least three-quarters of the prior day's 40-day ATR, in "
+          "a stock that has already doubled, with the gap still unfilled."),
+    criteria=(
+        Criterion(
+            condition="Gap magnitude against the PRIOR DAY's 40-day ATR",
+            value=BGU_ATR_MULT,
+            quote=("At least 0.75 times the stock's 40-day Average True Range "
+                   "of the day before the gap-up day."),
+            source_id=_MORALES_BGU, confidence="med",
+        ),
+        Criterion(
+            condition=("The ATR is anchored to the day BEFORE the gap, "
+                       "confirmed independently by a primary report"),
+            value="prior-day-anchored",
+            quote="ATR based on yesterday's close",
+            source_id=_MORALES_BGU, confidence="high",
+        ),
+        Criterion(
+            condition=("Prior advance -- the stock should normally have "
+                       "DOUBLED. Exact, computable, and frequently omitted by "
+                       "implementations."),
+            value=BGU_PRIOR_DOUBLE,
+            quote=("A stock should normally have doubled before a BGU to make "
+                   "the BGU more likely to succeed."),
+            source_id=_MORALES_BGU, confidence="high",
+        ),
+        Criterion(
+            condition="The gap must not close",
+            value="gap-stays-open",
+            quote=("truly powerful buyable gap ups do not close their gap but "
+                   "continue higher from the gap up point"),
+            source_id=_MORALES_BGU, confidence="high",
+        ),
+        Criterion(
+            condition=("⛔⛔ VOLUME GATE: DELIBERATELY NOT IMPLEMENTED. Two "
+                       "published phrasings are not the same claim -- '1.5 "
+                       "times the 50-day SMA' versus '150% ABOVE the 50-day "
+                       "moving average' -- differing by a factor of ~1.67. The "
+                       "research note instructs: do not implement until "
+                       "resolved. Choosing either would invent the authors' "
+                       "threshold, and choosing the looser would widen this "
+                       "structure by two thirds."),
+            value=None,
+            quote="Volume is 1.5 times the 50-day SMA of daily trading volume.",
+            source_id=_MORALES_BGU, confidence="med",
+            missing=("The book's exact sentence, to settle 1.5x the average "
+                     "versus 150% above it. Until then this detector is an "
+                     "explicit SUBSET of their rule and will fire on gap-ups "
+                     "their volume gate would reject."),
+        ),
+        Criterion(
+            condition=("⭐ TENSION BETWEEN TWO OF THEIR OWN CRITERIA, recorded "
+                       "not resolved. They require the stock to have DOUBLED "
+                       "beforehand, and separately refuse a gap as 'extended' "
+                       "because it came 'after a nearly 4-month uptrend' -- a "
+                       "refusal they apply EVEN WHEN the mechanical criteria "
+                       "are met. A stock that has doubled has almost always "
+                       "been rising for months, so the two pull opposite ways. "
+                       "We implement the doubling, which is the primary-source "
+                       "criterion, and do not implement the extension "
+                       "judgement."),
+            value="doubled-vs-extended",
+            quote=("the LVS gap up strikes us as extended because it occurred "
+                   "after a nearly 4-month uptrend in the stock"),
+            source_id=_MORALES_BGU, confidence="high",
+        ),
+        Criterion(
+            condition="Porosity below the gap-day low",
+            value=None,
+            quote="A 1-2% undercut can be permitted in some cases.",
+            source_id=_MORALES_BGU, confidence="high",
+            missing=("The authors publish BOTH 1-2% and 2-3% and do not "
+                     "reconcile them. It is a stop-management rule rather than "
+                     "a detection rule, so nothing here depends on it."),
+        ),
+        Criterion(
+            condition="The BGU is not confirmed until the CLOSE -- an intraday gate",
+            value=None,
+            quote=("The risk in buying at the open is that the stock closes "
+                   "the gap or the stock does not trade sufficient volume to "
+                   "qualify as a BGU."),
+            source_id=_MORALES_BGU, confidence="high",
+            missing=("Confirmation depends on intraday volume accumulating "
+                     "through the session. This is a daily-bar detector, so it "
+                     "reads the completed day and cannot express the "
+                     "not-yet-confirmed state the authors describe."),
+        ),
+        Criterion(
+            condition="Measured performance",
+            value=None,
+            source_id=_MORALES_BGU, confidence="high",
+            missing=("None published -- no win rate, average gain or failure "
+                     "rate in any fetched source. The nearest claim is that a "
+                     "perception of higher risk 'is not valid' when analysing "
+                     "actual statistical outcomes, stated with NO statistics "
+                     "and no base rate shown."),
+        ),
+        Criterion(
+            condition="Maximum age of the gap for this to be a live setup",
+            value=BGU_MAX_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+    ),
+    coverage_pct=1.9,
+    detect=_detect_bgu,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -3998,7 +4220,8 @@ SHAPES = [
     ),
 ]
 
-RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, CHEAT_3C, CLIMAX_TOP,
+RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
+             CLIMAX_TOP,
              LOW_CHEAT,
              CUP_WITH_HANDLE,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,

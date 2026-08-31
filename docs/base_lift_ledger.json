@@ -16,9 +16,9 @@
       "n": 24428,
       "rate": 0.3401,
       "baseline": 0.2666,
-      "null_max": 0.0098,
-      "null_trials": 5,
-      "note": "The only structure of the four that clears every gate. Its null was deliberately re-run at 30 trials rather than 5 to try to break it: min -2.06pp, median +0.73pp, max +2.10pp, mean +0.60 with stdev 0.88 -- and ZERO of the 30 trials reached the CI's lower bound of +5.56pp, which sits ~5.6 standard deviations above the null mean. The moving-block null was built specifically to strip out a volatility premium (a box detector selects a quiet stretch) and removed nothing: the null max moved only +2.31 -> +2.10pp when clustering was preserved."
+      "null_max": 0.011,
+      "null_trials": 30,
+      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
     },
     "green-line-breakout": {
       "published": false,
@@ -34,7 +34,7 @@
       "reasons": [
         "the lift's CI lower bound -0.0649 does not exceed the random-data null (max of 5 trials = +0.0007) at n=6924"
       ],
-      "note": "Measurably NEGATIVE, not merely unproven. Breaking above a multi-year high underperformed its own pattern-free baseline by ~5 percentage points. This independently replicates Grimes, who measured buying 50-day highs and found significant underperformance against a ~15%/yr base rate -- a different dataset and a different definition arriving at the same sign, and the opposite of what the momentum literature asserts."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "pocket-pivot": {
       "published": false,
@@ -50,7 +50,7 @@
       "reasons": [
         "the lift's CI lower bound -0.0467 does not exceed the random-data null (max of 5 trials = +0.0013) at n=5348"
       ],
-      "note": "Also measurably negative. Kacher asserts 'about half of high quality stocks showing pocket pivots will work' -- published with no sample size, no date range, no universe and no benchmark, and elsewhere the same authors call asking for aggregate performance 'silly at best'. On our universe the daily-computable half of his rule resolved BELOW its own baseline. Note the honest caveat: the fundamentals gate and the 'constructive base' requirement are not computable from bars and were not applied, so this measures our implementable subset, not his complete method."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "power-play": {
       "published": false,
@@ -66,7 +66,7 @@
       "reasons": [
         "the lift's CI lower bound +0.1035 does not exceed the random-data null (max of 5 trials = +0.1386) at n=163"
       ],
-      "note": "The largest point estimate and the least evidence. n=13 gives a cluster CI 61 percentage points wide, and the structure's own moving-block null reached +26.41pp -- so the result is entirely consistent with the detector's mechanical behaviour on data where it cannot be right. This is the structure that PUBLISHED on the first run, when the gate compared the point estimate rather than the interval's lower bound. It is also why gate 3 works without anyone choosing a minimum n: a thin sample widens the interval, the lower bound sinks under the null, and the refusal happens on its own."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "stage-2-breakout": {
       "published": false,
@@ -94,7 +94,7 @@
       "baseline": 0.2647,
       "null_max": 0.0173,
       "null_trials": 5,
-      "note": "⭐ THE ESCALATION RULE EARNING ITS KEEP. This structure PASSED its 5-trial screen (+8.35pp, CI [+5.45, +11.03], n=1146 against a null max of +2.82pp) and would have been published on the spot. The plan requires a structure that passes the screen to be re-run at 30 trials, because the null's UPPER TAIL is what the verdict turns on and five draws barely sample it. At 30 trials the null max rose to +5.54pp -- past the CI's lower bound of +5.45pp -- and the refusal happened on its own. The three 10-trial chunks came in at +4.34, +5.54 and +4.42, so the single trial that decided this sat in the middle chunk; a 20-trial run using only the outer two would have published it. That is the whole argument for escalating in one direction only: fewer trials means a lower null maximum, which makes the gate EASIER, so trial count can never be tuned toward a result. Compare Darvas, which was pushed to the same 30 trials to try to break it and did not bend: null max +2.10pp against a CI lower bound of +5.56pp, with zero of 30 trials coming close."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "flat-base": {
       "published": false,
@@ -110,7 +110,7 @@
       "reasons": [
         "the lift's CI lower bound -0.1132 does not exceed the random-data null (max of 5 trials = -0.1000) at n=21634"
       ],
-      "note": "⭐ NEGATIVE, BUT NOT THE SAME FINDING AS GREEN LINE BREAKOUT OR POCKET PIVOT -- and the difference is the whole reason the null exists. Those two came in far BELOW their own nulls (-4.96pp against a null max of +3.32pp; -6.55pp against +1.50pp), which is evidence about the structures. This one measured -6.89pp against a null max of -7.02pp: the detector produces almost exactly the same negative number on moving-block resampled data where the structure cannot be present. So the sign is a mechanical property of what the predicate SELECTS -- a tight, quiet, low-range consolidation, which resolves +10%-before-8% less often than the average anchor for reasons that have nothing to do with O'Neil -- rather than evidence that flat bases underperform. Reporting this as 'flat bases lose money' would be the mirror of reporting a raw hit rate as an edge. It earns no number either way: the CI's lower bound (-10.33pp) does not clear the null, so nothing is published, and that refusal is the honest end of it."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "base-on-base": {
       "published": false,
@@ -126,7 +126,7 @@
       "reasons": [
         "the lift's CI lower bound -0.1057 does not exceed the random-data null (max of 5 trials = -0.0844) at n=3445"
       ],
-      "note": "Refused on width, not on sign. -3.24pp with a CI of [-10.07, +3.94] at n=173 -- the interval straddles zero, so there is no finding either way. That is the expected outcome for a structure this rare (0.62% of the universe, 23 symbols): it requires TWO stacked qualifying bases, so anchors are scarce and the interval is wide. Its value is not a lift number anyway -- it is `base_stage_count`, which stops the base count incrementing and is what tells a reader whether a setup is early or late in an advance."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "cup-with-handle": {
       "published": false,
@@ -143,7 +143,7 @@
         "95% CI [-0.0248, +0.0186] includes zero at n=1888",
         "the lift's CI lower bound -0.0248 does not exceed the random-data null (max of 5 trials = -0.0011) at n=1888"
       ],
-      "note": "The most recognised base in the industry, and it earns no number here. -7.18pp with a cluster CI of [-12.74, -0.40] at n=153, against a null whose maximum reached +4.24pp -- so unlike the flat base, this one sits BELOW its own null rather than at it. ⚠️ TWO CAVEATS THAT MATTER. First, this measures the CORRECTED detector: an earlier version omitted the prior-uptrend and volume-ease rules and measured -8.47pp on 1.97% of the universe, but that detector was not implementing the published pattern -- a cup with no advance in front of it is a stock that fell and recovered, which is mean reversion. Adding the two sourced rules cut coverage to 0.57% and is the number reported here. Second, even now the implementation is a SUBSET: IBD's accumulation-versus-distribution week requirement publishes no ratio and no OHLCV definition (recorded as a refusal), the smoothness rule is approximated by roundness, and nothing here reads market context or fundamentals. So this is evidence about the daily-computable core of the rule on our universe, not a verdict on O'Neil's method."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "high-tight-flag": {
       "published": false,
@@ -159,7 +159,7 @@
       "reasons": [
         "the lift's CI lower bound +0.1031 does not exceed the random-data null (max of 5 trials = +0.1344) at n=661"
       ],
-      "note": "The largest point estimate of any structure measured on a real sample (+19.89pp, versus Power Play's +32.97pp on n=13), and still refused: the CI's lower bound is +4.11pp against a null maximum of +15.52pp at n=53. The thin sample is not a defect -- IBD calls this pattern rare and the corpus warns that a screener emitting high tight flags at any meaningful rate is mis-detecting. Measured coverage is 0.08% (3 of 3,705 symbols), every hit inside the published bands (+112%/23%, +104%/17%, +105%/21%). So the structure is almost certainly detected CORRECTLY and simply cannot be measured to the standard this ledger requires -- a limitation of the evidence, not a finding against the pattern. It is also where the temptation to publish is strongest, which is exactly why the gate is mechanical rather than a judgement call."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "double-bottom": {
       "published": false,
@@ -190,7 +190,7 @@
       "reasons": [
         "the lift's CI lower bound +0.0327 does not exceed the random-data null (max of 5 trials = +0.0392) at n=8305"
       ],
-      "note": "The flagship modern setup, and the narrowest miss in the ledger: +3.59pp with a CI of [-0.26, +7.82] at n=613. The interval includes zero by a QUARTER of a percentage point, and its lower bound also has to clear a null that reached +4.92pp. Both gates fail, so nothing is published -- but this is the structure most likely to change verdict on a wider sample, because the sample here is 279 tickers rather than the full 3,707 and widening it can only tighten the interval. ⚠️ That cuts both ways and is not a promise: a tighter interval around a point estimate of +3.59pp still has to clear a ~+5pp null, so 'more data would fix it' is a hypothesis, not a forecast. ⛔ It is also exactly the structure where the temptation to widen the sample UNTIL the answer changes is strongest, which would be p-hacking with extra steps: if it is re-measured, it is re-measured once, on the full universe, and whatever comes back is the answer.\n\nTwo limitations belong beside the number. The contraction COUNT is a lower bound -- pullbacks tighter than the segmenter's confirmation threshold never register, and Minervini's own 25/15/8 example yields two confirmed contractions rather than three -- so this measures bases whose contractions are large enough to confirm. And his market-relative depth rule (avoid corrections more than 2.5-3x the index decline) is not applied at all: it needs the index decline over the same window, which a per-symbol detector is not given."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "ascending-base": {
       "published": false,
@@ -207,7 +207,7 @@
         "95% CI [-0.0139, +0.0531] includes zero at n=799",
         "the lift's CI lower bound -0.0139 does not exceed the random-data null (max of 5 trials = +0.0455) at n=799"
       ],
-      "note": "The only structure in the taxonomy with NO published conflicts: IBD editorial, its O'Neil quote, MarketSmith and the base-counting column all give the same numbers (three pullbacks, 10-20%, 9-16 weeks). Every other base needed a 'CONFLICT, recorded not resolved' criterion. It is also the thinnest real structure measured: 4 of 3,705 symbols (0.11%), n=69, and a CI of [-11.14, +12.78] that is 24 points wide. Nothing can be concluded from that in either direction, and the sourced 9-16 week window is why -- the median staircase on our universe runs 104 bars (~21 weeks), well outside what IBD publishes. We honour the published range rather than widening it to gather evidence, which would be measuring a different pattern and calling it his.\n\n⚠️ It nearly shipped measuring almost nothing: the 9-16 week span was computed from the base's START TO TODAY, which folds 'time since the base finished' into 'how long the base took' and refuses any staircase that completed a few weeks ago. Measured base-start to base-END, the same 87 candidates yield 16 rather than 3."
+      "note_dropped": "A note written against the 279-ticker measurement was dropped when the full-universe run moved this row. Re-write it against the numbers above, and stamp it with `note_measured`."
     },
     "square-box": {
       "published": true,
@@ -218,9 +218,9 @@
       "n": 33851,
       "rate": 0.2804,
       "baseline": 0.2705,
-      "null_max": -0.009,
-      "null_trials": 5,
-      "note": "⭐ THE CLEANEST NULL RESULT IN THE LEDGER, and worth reading as evidence rather than absence. On the largest sample of any structure here (n=2,709) the lift is +1.07pp with a CI of [-1.03, +3.06] -- straddling zero -- against a null maximum of +0.02pp. That near-zero null is the notable part: unlike the double bottom, whose detector finds +6.39pp on pure noise because a W is two lows with a high between them, this detector has essentially NO mechanical edge on random data. So the measurement is unusually trustworthy and what it says is that the structure does not distinguish itself from its own base rate. A wide interval on a thin sample would be 'we cannot tell'; this is closer to 'we can tell, and there is nothing here'.\n\n⚠️ The detector needed two corrections before it measured the right thing. The published rules alone matched 46.7% of the universe -- the NOISE band -- exactly as the corpus warned ('without the tilt test, this detector will fire constantly'). The tilt test existed but was an ABSOLUTE drift bound borrowed from the flat base, and an absolute bound is scale-dependent: 10% of price across a 4-7 week box is a visible trend, while the same 10% across a 52-week base is flat. Measuring drift against the box's own depth is scale-free (46.7% -> 16.8%), and the sourced placement rule -- it forms after a prior advance -- took it to 8.0%."
+      "null_max": -0.0081,
+      "null_trials": 30,
+      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
     }
   }
 }
