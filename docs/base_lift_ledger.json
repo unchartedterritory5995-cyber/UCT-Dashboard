@@ -348,6 +348,14 @@
       "null_trials": 5,
       "reasons": [
         "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      ],
+      "note": "+2.80pp, CI [+0.83, +4.56] at n=2,856, against a 5-trial null whose maximum reached -0.86pp.\n\n⛔ REFUSED FOR A REASON THAT IS ABOUT PROCESS, NOT THE MARKET: it has only been SCREENED. It cleared the 5-trial screen comfortably -- the interval excludes zero and its lower bound sits well above a negative null -- and a published row requires 30 trials, because the gate compares against the null's MAXIMUM and a maximum can only grow with more draws. Its escalation is running and may take it either way: the buyable gap-up passed the same screen at +12.56pp and FAILED at 30 when its null climbed from +10.42pp to +11.40pp.\n\n⚠️ Read it with its known gap. Minervini intends the low cheat for \"larger cap names\" and publishes NO cap floor -- a third party's \">$10B\" is theirs, not his -- so this detector filters by size not at all and fires on small caps he would never apply it to. That biases the measurement, not merely the label.",
+      "note_measured": [
+        0.028,
+        0.0083,
+        0.0456,
+        2856,
+        -0.0086
       ]
     },
     "saucer": {
