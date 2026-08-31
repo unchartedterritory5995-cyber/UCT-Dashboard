@@ -525,7 +525,13 @@ def _detect_pocket_pivot(ctx) -> bool:
         return False
 
     closes = [b.get("c") or 0 for b in bars]
-    sma10, sma50, sma200 = _sma(closes, 10), _sma(closes, 50), _sma(closes, 200)
+    # ⛔ `_sma` takes BARS, not closes. Passing `closes` raised AttributeError
+    # on every symbol that reached this line, and `bases._collect_relations`
+    # catches per-predicate exceptions by design ("one bad predicate costs that
+    # predicate, never the row") -- so this structure could NEVER fire and
+    # nothing said so. Measured 2026-08-31: 0 hits on 2,811 tickers, while the
+    # catalog entry below claimed coverage_pct=1.5.
+    sma10, sma50, sma200 = _sma(bars, 10), _sma(bars, 50), _sma(bars, 200)
     if not sma10 or not sma50 or not sma200:
         return False
 
@@ -4112,8 +4118,23 @@ BUYABLE_GAP_UP = Structure(
             source_id=_MORALES_BGU, confidence="med",
             missing=("The book's exact sentence, to settle 1.5x the average "
                      "versus 150% above it. Until then this detector is an "
-                     "explicit SUBSET of their rule and will fire on gap-ups "
-                     "their volume gate would reject."),
+                     "explicit SUPERSET of their rule and will fire on gap-ups "
+                     "their volume gate would reject. "
+                     "⭐ MEASURED 2026-08-31 over 3,461 tickers carrying "
+                     ">=400 daily bars, so the cost of the ambiguity is a "
+                     "number rather than a worry. The detector fires on 67 "
+                     "(1.94%); of the 66 with a usable 50-session volume "
+                     "window, the LOOSER reading (>=1.5x the average) keeps 43 "
+                     "(65.2%) and the STRICTER (>=2.5x, i.e. 150% above) keeps "
+                     "26 (39.4%). The two published phrasings therefore "
+                     "disagree about 17 of 66 hits -- 25.8% of the structure "
+                     "-- and the looser admits 65% more gap-ups than the "
+                     "stricter. We apply NEITHER, so 23 of 66 (35%) of what we "
+                     "report would be rejected even by the more permissive "
+                     "reading. ⚠ A 1,125-ticker sample put the "
+                     "disagreement at 19.2%; the full universe says 25.8%, "
+                     "which is why the figure here is the full one and not the "
+                     "first one measured."),
         ),
         Criterion(
             condition=("⭐ TENSION BETWEEN TWO OF THEIR OWN CRITERIA, recorded "
