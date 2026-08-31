@@ -449,7 +449,15 @@ my changes, never WHY they fail. Finish the job.
       work and cache pressure. Time the real build before shipping; the weekly
       and monthly candle passes cost 9.1s and are documented, so this belongs
       in the same ledger.
-- [ ] **H3** Merge and push per `lesson_uct_dashboard_shared_worktree`:
+- [x] **H3 — SHIPPED 2026-08-31.** `fetch -> merge -> re-verify -> push`, twice:
+      master had advanced 195 commits at the first merge and another 26 by the
+      second, both clean, each followed by a re-verification rather than
+      preceded by one. `push origin HEAD:master`, never forced, never
+      `git add -A`.
+      Verified before shipping: ~14,650 backend tests green with every
+      remaining failure REPRODUCED at `origin/master`, and 3,975 frontend
+      tests green across the screener and the chart engine.
+      *(original:)* Merge and push per `lesson_uct_dashboard_shared_worktree`:
       never `git add -A`, `push origin <branch>:master`, fetch → merge →
       re-verify → push, never force.
 
