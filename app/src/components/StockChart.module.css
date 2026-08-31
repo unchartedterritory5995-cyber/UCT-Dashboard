@@ -739,3 +739,33 @@
     gap: 4px 12px;
   }
 }
+
+/* "Back to live" chip (the `showGoLive` prop — phone/tablet chart shell).
+   40px round tap target floated just left of the price axis (76px minimum
+   axis width + gap) and above the time axis; palette mirrors the
+   originLoading pill so overlay chrome reads as one family. */
+.goLivePill {
+  position: absolute;
+  right: 86px;
+  /* Above the FAB band: the phone shell raises the voice-orb cluster and the
+     feedback "?" over the chart toolbar (html[data-mobile-chart-shell]), and
+     their row sweeps the chart's bottom ~90px — a pill parked at bottom: 42px
+     was tap-intercepted by the orb cluster (caught by the touch rig, and a
+     thumb would hit the same wall). 96px clears the band. */
+  bottom: 96px;
+  z-index: 30;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 22, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e6e2d8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 90ms ease;
+}
+.goLivePill:active { transform: scale(0.92); }

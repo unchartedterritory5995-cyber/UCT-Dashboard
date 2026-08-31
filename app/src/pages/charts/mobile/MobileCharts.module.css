@@ -666,3 +666,73 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ── Phase 8: the feel layer ─────────────────────────────────────────────── */
+
+/* iOS Safari exposes no haptics to web pages, so the "thunk" is visual: tap
+   targets compress slightly under the finger, the way TradingView/Deepvue
+   fake it. Coarse-pointer only — a mouse click never squishes. The bg-change
+   :active rules above still apply; this adds the motion. */
+@media (pointer: coarse) {
+  .tbBtn, .tbTf, .tfCell, .typeCell, .alertBtn,
+  .screenBack, .screenAction, .emptyBtn, .cancelBtn, .switch {
+    transition: transform 90ms ease, background-color 90ms ease;
+  }
+  .tbBtn:active, .tbTf:active, .tfCell:active, .typeCell:active,
+  .alertBtn:active, .screenBack:active, .screenAction:active,
+  .emptyBtn:active, .cancelBtn:active {
+    transform: scale(0.94);
+  }
+  .row, .resultRow, .symBtn, .indRow {
+    transition: background-color 90ms ease;
+  }
+  .row:active, .resultRow:active, .symBtn:active {
+    background: var(--bg-hover);
+  }
+}
+
+/* Long-press on the chart summons the crosshair (LWC tracking mode, sticks
+   until the next tap) — never iOS's text loupe / copy callout. Chrome only:
+   sheets portal to <body> and keep normal selection, so inputs are unaffected. */
+@media (pointer: coarse) {
+  .chartArea, .symStrip {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Live-price tick flash: the price takes the tick's direction color, holds a
+   beat, and eases back. The keyframes deliberately OMIT the `to` frame — the
+   browser fills it from the element's base style, so the resting color needs
+   no duplicate here. The strip remounts the span per tick (React key), which
+   is what restarts the animation on consecutive same-direction ticks. */
+.priceFlashUp { animation: priceFlashUp 0.7s ease-out; }
+.priceFlashDown { animation: priceFlashDown 0.7s ease-out; }
+@keyframes priceFlashUp { 0%, 40% { color: var(--gain); } }
+@keyframes priceFlashDown { 0%, 40% { color: var(--loss); } }
+
+/* Active-indicator count badge on the toolbar's ƒx button — chart state
+   visible without opening the sheet. */
+.tbIconWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tbBadge {
+  position: absolute;
+  top: -7px;
+  right: -11px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--ut-gold);
+  color: #14161c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+}

@@ -1611,6 +1611,11 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  // "Back to live" chip: while the newest bar is off the right edge, a small »
+  // button floats above the time axis; one tap snaps back to realtime. Only
+  // the phone/tablet chart shell passes this — desktop surfaces already have
+  // the range bar + double-click resets and stay byte-identical.
+  showGoLive = false,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3522,9 +3527,28 @@ export default function StockChart({
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
       },
+      // Chart snapshot as a PNG blob — the same takeScreenshot() recipe the bar
+      // context menu's "Save to Notebook" path uses (LWC canvases only; DOM
+      // overlays like the legend are not captured). Reads chartRef at call
+      // time, so it binds whatever chart instance is live.
+      getSnapshotBlob: () => new Promise((resolve, reject) => {
+        try {
+          const c = chartRef.current?.takeScreenshot?.()
+          if (!c) return reject(new Error('chart not ready'))
+          c.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png')
+        } catch (err) { reject(err) }
+      }),
     }
     return () => { toolbarApiRef.current = null }
   }, [toolbarApiRef])
+
+  // ── "Back to live" chip (showGoLive surfaces) ────────────────────────────
+  // No state of its own: the pill renders off `lastBarOff` — the SAME
+  // rAF-throttled visible-range state the desktop "Scroll to present" button
+  // and the label-suppression effect already maintain. A second subscription
+  // computing "newest bar off-screen" would be a second authority on one
+  // value (this repo's most-documented defect class); the render sites below
+  // are mutually exclusive on `showGoLive` instead.
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
@@ -14649,8 +14673,10 @@ export default function StockChart({
       {/* "Scroll to present" — appears at the right edge only when today's / the most
           recent bar is scrolled off-screen. A quick-access "Reset view": jumps back to
           the default present-day window. Disappears once the latest bar is in frame.
-          Not shown on pinned (Model Book) / replay charts, where there is no "present". */}
-      {lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
+          Not shown on pinned (Model Book) / replay charts, where there is no "present".
+          `!showGoLive`: a surface that opted into the thumb-sized » pill below (the
+          phone/tablet shell) gets exactly ONE back-to-now affordance, not two. */}
+      {!showGoLive && lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
         <button
           ref={presentBtnElRef}
           type="button"
@@ -14680,6 +14706,23 @@ export default function StockChart({
           <span className={styles.originSpinner} aria-hidden="true" />
           Loading chart history…
         </div>
+      )}
+      {/* "Back to live" (showGoLive surfaces — the phone/tablet chart shell):
+          the toPresentBtn's thumb-sized sibling, same `lastBarOff` state and
+          the same no-"present" guards, mutually exclusive with it on
+          `showGoLive`. One tap scrolls back to the developing bar — via
+          scrollToRealTime(), which KEEPS the user's pinch zoom (the
+          TradingView-mobile behavior), where the desktop button resets the
+          whole view. */}
+      {showGoLive && lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
+        <button
+          type="button"
+          className={styles.goLivePill}
+          aria-label="Back to latest bar"
+          onClick={() => { try { chartRef.current?.timeScale().scrollToRealTime() } catch { /* torn down */ } }}
+        >
+          <UIcon name="skipForward" size={16} gold={false} />
+        </button>
       )}
       {/* blankVolume (breadth): a plain "Volume" label so the empty pane still reads
           as the volume pane (TC2000-style), with no $ Vol / Avg values. */}
