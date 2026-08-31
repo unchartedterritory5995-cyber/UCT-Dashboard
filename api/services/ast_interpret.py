@@ -2718,6 +2718,58 @@ def node_count(ast: Any) -> int:
 # interpret
 # --------------------------------------------------------------------------- #
 
+#: Clock-name sets already checked. The wiring question is asked ONCE per distinct
+#: VOCABULARY, not once per interpret.
+#: ⛔ KEYED ON THE NAMES, NOT ON ``id(TABLE)``. An id-keyed memo is wrong in a way
+#: that would almost never show: CPython recycles ids, so a planted table that has
+#: been garbage-collected can hand its id to a later dict, which would then read as
+#: "already checked" and skip the guard. The frozenset IS the thing being
+#: validated, so two tables declaring the same clock names genuinely share an
+#: answer, and nothing has to stay alive for the key to remain meaningful.
+_CLOCK_WIRING_OK: set = set()
+
+
+def _clock_wiring_error(name: str, produced) -> ValueError:
+    """The one sentence, so the eager check and the seeding loop cannot drift."""
+    return ValueError(
+        f"interpret: the table declares the clock name {name!r} and "
+        f"`indicator_compute.compute_clock` produces no such column "
+        f"(it produces {', '.join(sorted(produced))}). The manifest is "
+        "the authority over WHICH clock names exist and the maths over "
+        "what each MEANS; seeding NaN here would make a declared name "
+        "read `not computable` on every bar forever.")
+
+
+def _assert_clock_wiring() -> None:
+    """⭐ THE MANIFEST AND THE MATHS AGREE ON WHICH CLOCK NAMES EXIST — asked of
+    the TABLE, never of the tree.
+
+    ⛔ THIS IS WHY IT IS NOT INSIDE ``if _reads_clock(ast)``. A manifest edited
+    without the maths is a WIRING defect that exists whether or not the formula in
+    hand happens to name a clock column, and the overwhelming majority do not.
+    Guarding it behind the tree meant the check ran almost never
+    (``lesson_gate_that_cannot_fail``).
+
+    ⚠️ AND IT COSTS ALMOST NOTHING, which is what lets it be unconditional: it
+    runs ``compute_clock`` over a TWO-BAR stub once per distinct table and
+    remembers the answer. The lazy seed's real saving — thirteen calendar columns
+    over five thousand bars — is untouched.
+    """
+    declared = TABLE.get(CLOCK_SECTION) or {}
+    key = frozenset(declared)
+    if key in _CLOCK_WIRING_OK:
+        return
+    if declared:
+        # Two bars, a day apart, so every column has something to compute from.
+        stub = [{"t": 1735689600, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0},
+                {"t": 1735776000, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}]
+        produced = compute_clock(stub, None)
+        for name in declared:
+            if produced.get(name) is None:
+                raise _clock_wiring_error(name, produced)
+    _CLOCK_WIRING_OK.add(key)
+
+
 def _reads_clock(ast: Any) -> bool:
     """Does this tree read any name the manifest declares as a clock entry?
 
@@ -2881,18 +2933,24 @@ def interpret(ast: Any, bars: List[dict],
     # ⭐ A TREE THAT DOES READ THE CLOCK IS UNCHANGED: same ``compute_clock``, same
     # thirteen columns, same validation. What is skipped is skipped only when the
     # answer could not have depended on it.
+    # ⚰️⚰️ THE WIRING GUARD USED TO LIVE INSIDE THIS `if` AND THAT TURNED IT OFF.
+    # The lazy seed is a correct optimisation — a tree that names no clock column
+    # cannot depend on one — but the manifest-vs-maths check is NOT a property of
+    # the tree, it is a property of the TABLE, and moving it behind
+    # `_reads_clock` made it run only for formulas that happen to read a clock.
+    # The paragraph justifying the optimisation says so itself: "of the 167 columns
+    # the committed corpora translate, exactly ZERO read any of the thirteen clock
+    # names". So the guard fired for nothing, and a manifest edited without the
+    # maths would have seeded no NaN and raised no error — it would simply never
+    # have been checked. `test_the_manifest_is_the_authority_over_WHICH_names_exist`
+    # is what caught it: it interprets `close`, a leaf that reads no clock.
+    _assert_clock_wiring()
     if _reads_clock(ast):
         clock_cols = compute_clock(bars, (opts or {}).get("tf"))
         for name in TABLE.get(CLOCK_SECTION) or {}:
             col = clock_cols.get(name)
             if col is None:
-                raise ValueError(
-                    f"interpret: the table declares the clock name {name!r} and "
-                    f"`indicator_compute.compute_clock` produces no such column "
-                    f"(it produces {', '.join(sorted(clock_cols))}). The manifest is "
-                    "the authority over WHICH clock names exist and the maths over "
-                    "what each MEANS; seeding NaN here would make a declared name "
-                    "read `not computable` on every bar forever.")
+                raise _clock_wiring_error(name, clock_cols)
             scope[name] = [NAN if v is None else float(v) for v in col]
 
     # ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name

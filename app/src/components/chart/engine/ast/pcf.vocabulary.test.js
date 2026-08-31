@@ -17,7 +17,8 @@
 // the reader stands, never as a target to maximise.
 
 import { describe, it, expect } from 'vitest'
-import { parsePcf, detectDialect, pcfCoverage, PCF_DIFFERENT_FORMULA, PCF_DIALOG_INDICATORS } from './pcf.js'
+import { parsePcf, detectDialect, pcfCoverage, PCF_DIFFERENT_FORMULA,
+  PCF_DIALOG_INDICATORS, PCF_FUSED, PCF_CALLS } from './pcf.js'
 import { astHash } from './parse.js'
 import TABLE from './closedTable.json'
 import { maxLookback } from './interpret.js'
@@ -369,5 +370,71 @@ describe('the coverage map does not disagree with the reader', () => {
     const cov = pcfCoverage(without)
     expect(cov.blocked.map((b) => b.spelling).join(' | ')).toContain('STOC')
     expect(reads('STOC14.3 < 20')).toBe(true)
+  })
+})
+
+describe('the family shape says what it does, and `fixed` has not shipped', () => {
+  const FAMILIES = [...Object.entries(PCF_FUSED), ...Object.entries(PCF_DIFFERENT_FORMULA),
+    ...Object.entries(PCF_CALLS)]
+
+  // ⚰️⚰️ `v && v.fixed` IS NOT A TEST FOR A DECLARED FIELD, and this rail
+  // caught its own author with it. `PCF_DIFFERENT_FORMULA` maps a name to a PROSE
+  // STRING, and `'some prose'.fixed` is `String.prototype.fixed` — a legacy HTML
+  // wrapper (it returns `<tt>…</tt>`), and a FUNCTION, and therefore truthy. So
+  // the naive filter reported six families declaring `fixed`: RSI, FAVG, WSTOC,
+  // OBV, MS and TSV — every string in the map, none of them declaring anything.
+  // ⛔ `String.prototype` CARRIES A DOZEN OF THESE (`bold`, `link`, `small`,
+  // `sub`, `sup`, `anchor`, `big`, `blink`, `italics`, `strike`, `fontcolor`,
+  // `fontsize`), so any \"does an entry declare X\" sweep over a heterogeneous map
+  // can match a builtin instead of the data. An OWN-property check cannot.
+  const declares = (v, key) => v !== null && typeof v === 'object'
+    && Object.prototype.hasOwnProperty.call(v, key)
+
+  it('⭐⭐ STOC14.3 TRANSLATES — the smoothing is expressed, not refused', () => {
+    // ⚰️ THE `fixed` DOCBLOCK CLAIMED THE OPPOSITE, using this exact call:
+    // "`STOC14.3` … so `3` refuses rather than being dropped". It does not refuse.
+    // `smoothParam` was added to wrap the call in `sma`, and the paragraph
+    // explaining the NEIGHBOURING field kept the old behaviour as its example.
+    const r = parsePcf('STOC14.3 < 20')
+    expect(r.ok, r.error).toBe(true)
+    expect(JSON.stringify(r.ast)).toContain('\"sma\"')
+    expect(JSON.stringify(r.ast)).toContain('\"stoch\"')
+  })
+
+  it('⛔ `smoothParam` is the mechanism behind it, and STOC is its only user', () => {
+    // Pins WHICH field does the work, so the docblock cannot drift back onto the
+    // wrong one. If a second family takes it, this fails and the count is re-read.
+    const smoothing = FAMILIES.filter(([, v]) => declares(v, 'smoothParam')).map(([k]) => k)
+    expect(smoothing).toEqual(['STOC'])
+  })
+
+  it('⛔⛔ THE CONTROL — the naive predicate really does lie on this data', () => {
+    // ⭐ WITHOUT THIS, `declares()` looks like fussy defensiveness and the next
+    // reader simplifies it back to `v && v.fixed`. It is not defensiveness: on THIS
+    // map the naive form is wrong, and this measures by how much.
+    const naive = FAMILIES.filter(([, v]) => v && v.fixed).map(([k]) => k)
+    expect(naive.length, 'the String.prototype trap has stopped firing — if the map no '
+      + 'longer holds prose strings this control is obsolete, but do NOT simplify '
+      + '`declares()` away without checking why').toBeGreaterThan(0)
+    // Every one of them is a STRING, not a family declaring anything.
+    for (const k of naive) {
+      const v = PCF_DIFFERENT_FORMULA[k] ?? PCF_FUSED[k] ?? PCF_CALLS[k]
+      expect(typeof v, `${k} was matched by the naive filter`).toBe('string')
+    }
+    // …and the honest predicate finds none of them.
+    expect(FAMILIES.filter(([, v]) => declares(v, 'fixed'))).toEqual([])
+  })
+
+  it('⛔⛔ no shipped family declares `fixed` — and the day one does, it owes a rail', () => {
+    // ⭐ THIS IS A RATCHET, NOT A PREFERENCE. `fixed` has two call sites and zero
+    // users, so neither has ever run against real data. Failing here is the
+    // CORRECT outcome for whoever adds the first one: they delete this case and
+    // replace it with one that reaches the guard, which is the whole point — a
+    // guard's first user is exactly when it stops being theoretical.
+    const withFixed = FAMILIES.filter(([, v]) => declares(v, 'fixed')).map(([k]) => k)
+    expect(withFixed, 'a family now declares `fixed`: give its refusal a test that '
+      + 'REACHES the guard, then replace this case').toEqual([])
+    // ⛔ NON-VACUITY: the sweep really did look at the families.
+    expect(FAMILIES.length).toBeGreaterThanOrEqual(40)
   })
 })

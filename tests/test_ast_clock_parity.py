@@ -388,6 +388,67 @@ def test_the_manifest_is_the_authority_over_WHICH_names_exist(monkeypatch):
     ai.interpret(_leaf("close"), doc["bars"], opts={"tf": "5"})
 
 
+def test_the_wiring_guard_runs_WITHOUT_paying_for_the_lazy_seed(monkeypatch):
+    """⭐⭐ BOTH HALVES OF ONE TRADE, PINNED TOGETHER, because trading either away
+    silently is exactly what happened.
+
+    The lazy seed (``interpret 454ms -> 46ms``) is correct: a tree naming no clock
+    column cannot depend on one, so the thirteen calendar columns over five
+    thousand bars are pure waste for it. But the manifest-vs-maths WIRING check
+    was inside that same ``if``, and moving it there turned it off — the very
+    comment justifying the optimisation records that "of the 167 columns the
+    committed corpora translate, exactly ZERO read any of the thirteen clock
+    names", so the guard fired for essentially nothing.
+
+    ⛔ THE NEXT PERSON CAN BREAK THIS IN EITHER DIRECTION and only one of them has
+    a test today. Restoring the guard by making the SEED eager again passes
+    ``test_the_manifest_is_the_authority_over_WHICH_names_exist`` and brings the
+    454ms straight back. So this measures the seam itself: the check runs, and the
+    full-bar computation does not.
+    """
+    doc = _doc()
+    bars = doc["bars"]
+    # Only needs to be big enough that a 2-bar probe is DISTINGUISHABLE from a
+    # full seed; the shared fixture is 21 bars, which is plenty.
+    assert len(bars) > 5, "a series this short cannot tell a probe from a full seed"
+
+    # ⚰️⚰️ THIS RAIL WAS GREEN ALONE AND RED IN COMPANY, which is the whole
+    # reason the clear is here and not a tidy-up. `_CLOCK_WIRING_OK` is module
+    # state: once any earlier test in this file interprets anything, the shipped
+    # vocabulary is memoised and `_assert_clock_wiring` returns without calling
+    # `compute_clock` at all — so "the guard ran" becomes unobservable and the
+    # assertion below reads as a regression. Run the file and it failed; run the
+    # test alone and it passed (`lesson_a_rail_can_be_green_alone_and_red_in_company`).
+    # ⭐ CLEARING IT MEASURES THE FIRST CALL, which is the one that does the work.
+    # The memo itself is covered by the mutation that makes its key constant.
+    ai._CLOCK_WIRING_OK.clear()
+
+    seen = []
+    real = compute_clock
+
+    def counted(passed, tf=None):
+        seen.append(len(passed))
+        return real(passed, tf)
+
+    monkeypatch.setattr(ai, "compute_clock", counted)
+
+    # A tree that reads NO clock name.
+    ai.interpret(_leaf("close"), bars, opts={"tf": "5"})
+    assert seen, ("`compute_clock` was not called at all for a non-clock tree — the "
+                  "wiring guard is not running, which is the regression this pins")
+    assert all(n < len(bars) for n in seen), (
+        f"a non-clock tree paid for the full seed: called with {seen} against "
+        f"{len(bars)} bars. The guard must not drag the calendar maths back in.")
+
+    # ⭐ AND THE CONTROL: a tree that DOES read the clock still gets the real thing,
+    # over the real bars. Without this the assertion above is satisfied by an
+    # interpreter that never seeds the clock for anybody.
+    seen.clear()
+    ai.interpret(_leaf("hour"), bars, opts={"tf": "5"})
+    assert len(bars) in seen, (
+        f"a clock-reading tree did not get the full seed: called with {seen}")
+
+
 def test_compute_clock_produces_EXACTLY_the_declared_names():
     """The seam from the other side: a column the maths produces that the table
     never declared is a vocabulary nobody granted, and one the table declares
