@@ -143,21 +143,50 @@ def touch_walk(ctx, page):
         cdp = ctx.new_cdp_session(page)
     except Exception:
         print('  (no CDP on this engine — using tap fallback)')
+    def touch(kind, points):
+        cdp.send('Input.dispatchTouchEvent', {
+            'type': kind,
+            'touchPoints': [{'x': x, 'y': y, 'id': 1} for x, y in points],
+        })
+
     def tap(x, y):
         if cdp:
-            cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y, 'id': 1}]})
-            cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+            touch('touchStart', [(x, y)])
+            touch('touchEnd', [])
         else:
             page.touchscreen.tap(x, y)
         page.wait_for_timeout(400)
 
+    # The one-time coach chip should be up before the first anchor…
+    hint_before = page.get_by_test_id('tap-tap-hint').count() > 0
+    print('  tap-tap hint shown:', hint_before)
     tap(120, 500)   # anchor 1 — clean canvas, clear of legend/range bar/popovers
     tap(330, 300)   # anchor 2 commits (TAP-TAP placement, the TradingView model)
     shot(page, '21-trendline-drawn')
+    # …and retired for good by the completed placement.
+    hint_after = page.get_by_test_id('tap-tap-hint').count() == 0
+    print('  hint retired after placement:', hint_after)
     stored = page.evaluate("() => localStorage.getItem('uct-chart-drawings') || ''")
     ok = '"trendline"' in stored
     print('  drawing persisted:', ok)
-    return ok
+    if not ok:
+        return False
+
+    # ── RESHAPE BY TOUCH: select the line, drag anchor 2 to a new spot, and
+    # assert the persisted points MOVED. This is the grab-handle gate — it
+    # fails if the coarse hit zone or the drag path regresses.
+    tap(225, 400)                    # tap the line body → select (handles show)
+    shot(page, '22-handles-selected', wait=600)
+    touch('touchStart', [(330, 300)])
+    for xy in [(330, 280), (330, 255), (330, 235)]:
+        touch('touchMove', [xy])
+        page.wait_for_timeout(60)
+    touch('touchEnd', [])
+    page.wait_for_timeout(500)
+    moved = page.evaluate("() => localStorage.getItem('uct-chart-drawings') || ''")
+    reshaped = moved != stored and '"trendline"' in moved
+    print('  reshape persisted:', reshaped)
+    return reshaped
 
 
 def main():
@@ -252,9 +281,9 @@ def main():
 
     print(f'done -> {OUT}')
     if not drew:
-        print('FAIL: the touch trendline did not persist — the drawing pipeline regressed on touch')
+        print('FAIL: touch place/reshape did not persist — the phone drawing pipeline regressed')
         return 1
-    print('PASS: touch drawing verified end-to-end')
+    print('PASS: touch place + reshape verified end-to-end')
     return 0
 
 

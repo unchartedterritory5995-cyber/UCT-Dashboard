@@ -191,11 +191,27 @@ Chromium's genuine `pointerType:'touch'` path) against a seeded chart:
   context menu; a second finger aborts placement in favor of pinch-zoom —
   both already built into the overlay.
 
-## Deliberately deferred (Phase 6+)
+## Phase 6 — touch reshape + the tap-tap hint (2026-08-31)
 
-- **Touch drawing polish** — the pipeline works (Phase 5); remaining polish is
-  per-tool: bigger touch handles for reshaping, a first-use "tap two points"
-  hint, and an on-device iOS Safari pass.
+- **Finger-visible handles**: the reshape hit zone was already coarse-aware
+  (`HIT_THRESHOLD` 15px on touch) but the painted dot stayed 4px — invisible
+  affordance. On coarse pointers the dot grows (`HANDLE_R` 7px) and gets a
+  soft gold halo sized to the REAL grab zone, so a finger sees exactly how
+  close is close enough.
+- **One-time "Tap 2 points to place" chip** for multi-point tools on touch
+  (bottom-center, thumb-adjacent; text flips to "Now tap the next point"
+  after the first anchor). Retired forever by the first completed placement
+  or its ✕ (`uct.drawings.tapHintSeen` — the voice.dictation.hintSeen idiom;
+  a storage-read failure counts as seen, never nag in private mode).
+- **The rig now gates the whole finger lifecycle**: `tools/iphone_walk.py`
+  asserts hint shown → placement → hint retired → line SELECTED by body tap →
+  anchor DRAGGED by touch → reshaped points persisted. Exit 1 on any break.
+
+## Deliberately deferred (Phase 7+)
+
+- **On-device iOS Safari pass** — Phase 6 closed the reshape/hint polish; the
+  remaining verification (WebKit quirks, safe-areas, scroll feel) is real
+  glass's to give, or `tools/iphone_walk.py --engine webkit` on a Mac.
 - **Price + interval in the top app bar** (reclaim MobileNav's title row on
   /charts), long-press crosshair inspect card, per-widget mobile headers.
 - **Tablet (641–1024px portrait)** still renders the RGL workspace.
