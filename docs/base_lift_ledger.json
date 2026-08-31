@@ -398,7 +398,7 @@
       "direction": "long"
     },
     "climax-top": {
-      "published": false,
+      "published": true,
       "sample_tickers": 3461,
       "direction": "short",
       "lift": 0.203,
@@ -407,10 +407,15 @@
       "n": 7463,
       "rate": 0.4411,
       "baseline": 0.2381,
-      "null_max": 0.1592,
-      "null_trials": 5,
-      "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      "null_max": 0.1606,
+      "null_trials": 30,
+      "note": "+20.30pp, CI [+19.08, +21.65] at n=7,463, against a 30-trial null whose maximum reached +16.06pp. Graded SHORT.\n\n⭐ THIS NUMBER EXISTS ONLY BECAUSE THE METRIC WAS FIXED. Graded on the LONG metric -- as every structure was until now -- it measured +14.24pp. Graded in the direction it actually claims, it is what you see above. The detector never changed; the question did.\n\n⚠️ A published SHORT lift is not a trade. It says the structure resolved downward more often than its pattern-free baseline over the same years. For the parabolic extension in particular, neither Kullamagi nor we hold borrow data, so a name this labels may be untradeable short -- and his entry and stop are intraday, which a daily-bar detector cannot express.",
+      "note_measured": [
+        0.203,
+        0.1908,
+        0.2165,
+        7463,
+        0.1606
       ]
     },
     "wyckoff-spring": {
@@ -431,7 +436,7 @@
       "direction": "long"
     },
     "parabolic-extension": {
-      "published": false,
+      "published": true,
       "sample_tickers": 3461,
       "direction": "short",
       "lift": 0.3121,
@@ -440,10 +445,15 @@
       "n": 2077,
       "rate": 0.5546,
       "baseline": 0.2425,
-      "null_max": 0.1842,
-      "null_trials": 5,
-      "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      "null_max": 0.1892,
+      "null_trials": 30,
+      "note": "+31.21pp, CI [+29.14, +33.61] at n=2,077, against a 30-trial null whose maximum reached +18.92pp. Graded SHORT.\n\n⭐ THIS NUMBER EXISTS ONLY BECAUSE THE METRIC WAS FIXED. Graded on the LONG metric -- as every structure was until now -- it measured +3.32pp, which looked like nothing at all. Graded in the direction it actually claims, it is what you see above. The detector never changed; the question did.\n\n⚠️ A published SHORT lift is not a trade. It says the structure resolved downward more often than its pattern-free baseline over the same years. For the parabolic extension in particular, neither Kullamagi nor we hold borrow data, so a name this labels may be untradeable short -- and his entry and stop are intraday, which a daily-bar detector cannot express.",
+      "note_measured": [
+        0.3121,
+        0.2914,
+        0.3361,
+        2077,
+        0.1892
       ]
     }
   }
