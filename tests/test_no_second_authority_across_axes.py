@@ -17,7 +17,7 @@ Nothing in a unit test can see it, because neither side is wrong on its own.
 labels goes stale the day someone adds one, which is precisely when this rail
 needs to fire.
 """
-import sys, pathlib
+import sys, pathlib, re
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import pytest
@@ -43,6 +43,42 @@ ALLOWED: dict = {
     # defect. An exemption list nobody prunes is where exemptions go to be
     # forgotten.
 }
+
+
+#: ⛔ THE PATTERN ENGINE IS A FOURTH AXIS, AND IT IS COMPARED BY KEY, NOT LABEL.
+#: Its ~85 detectors register by `pattern_id`; their display names live in
+#: per-detector maps (`kell_cycle._STAGE_NAMES` and friends), so there is no
+#: uniform label to sweep. Comparing the normalised KEY is the honest thing this
+#: file CAN derive -- and it is enough, because a shared key is a shared concept.
+#: ⚠️ STATED LIMIT: a pattern-engine STAGE label ("Wedge Pop", inside
+#: `kell_cycle`) is invisible to this sweep. That is how "Wedge Pop" was nearly
+#: rebuilt as a base structure on 2026-08-31 when it already shipped as Kell
+#: stage 2 -- found by hand, not by this rail.
+_ENGINE_DIR = pathlib.Path(__file__).resolve().parents[1] /     "api/services/pattern_engine/detectors"
+
+
+def _engine_pattern_ids() -> set:
+    """Derived by reading the declarations, never imported and never typed.
+
+    An import would drag the whole engine (and its registry side effects) into
+    a test that only needs the names."""
+    out = set()
+    for f in _ENGINE_DIR.rglob("*.py"):
+        for m in re.finditer(r'^_PATTERN_ID\s*=\s*"([^"]+)"',
+                             f.read_text(encoding="utf-8"), re.M):
+            out.add(m.group(1))
+    return out
+
+
+def _norm(s: str) -> str:
+    return str(s).replace("-", "_").replace(" ", "_").lower()
+
+
+def _engine_collisions() -> dict:
+    """Base structures that share a concept with a pattern-engine detector."""
+    ids = {_norm(i) for i in _engine_pattern_ids()}
+    return {st.key: f"pattern engine `{_norm(st.key)}`"
+            for st in bc.ALL_STRUCTURES if _norm(st.key) in ids}
 
 
 def _index():
@@ -135,6 +171,64 @@ def test_every_allowance_still_collides():
         f"ALLOWED records {stale} as a live cross-axis collision, but the sweep "
         f"no longer finds it. Delete the entry — it has been fixed."
     )
+
+
+#: ⭐ FIVE CONCEPTS ARE IMPLEMENTED TWICE, BY TWO ENGINES, AND BOTH ARE LIVE.
+#: `base_catalog` answers through the screener's `base_matches` column; the
+#: pattern engine answers through `pattern_detections`, which Compass reads via
+#: `find_patterns_on_ticker` / `scan_active_patterns`. Measured 2026-08-31 over
+#: 744 tickers, counting only symbols either engine names:
+#:
+#:     concept            both  struct-only  engine-only   agreement
+#:     double-bottom        25       31          293           7%
+#:     flat-base             7       23           22          13%
+#:     vcp                   3       12           85           3%
+#:     wyckoff-spring        2       21            6           7%
+#:     high-tight-flag       0        0            2           0%
+#:
+#: ⛔ THE OBVIOUS CONFOUND WAS CHECKED AND RULED OUT. A stale-history engine
+#: would explain the gap innocently, so the detections' own `end_t` was
+#: measured: 100% of them end on the LAST bar, and their `start_t`..`end_t`
+#: spans are real (VCP 12-47 bars over 15 distinct values; double-bottom 14-100
+#: over 56), so `end_t` is a measurement and not a stamped constant. Both
+#: engines are answering "right now", and they disagree.
+#:
+#: ⚠️ `double_bottom` fires on 117 of 279 tickers (42%) -- past this repo's own
+#: NOISE_PCT of 35%, the criterion that deleted the NR4 label ("a label a third
+#: of the market carries is not information").
+#:
+#: This is an OWNER decision, not a rename: two engines, two surfaces, two
+#: contracts (the engine emits entry/stop/target, the catalog emits a label and
+#: its provenance). Recorded so it cannot be rediscovered as a surprise.
+ENGINE_ALLOWED = {
+    "double-bottom", "flat-base", "high-tight-flag", "vcp", "wyckoff-spring",
+}
+
+
+def test_the_engine_sweep_is_not_vacuous():
+    ids = _engine_pattern_ids()
+    assert len(ids) > 50, (
+        f"only {len(ids)} pattern ids were derived from {_ENGINE_DIR} — the "
+        f"sweep is not reading the detectors, so its verdict means nothing")
+
+
+def test_no_unrecorded_concept_is_implemented_by_both_engines():
+    live = _engine_collisions()
+    unrecorded = {k: v for k, v in live.items() if k not in ENGINE_ALLOWED}
+    assert not unrecorded, (
+        "these concepts are implemented by BOTH `base_catalog` and the pattern "
+        "engine, so the screener and Compass can give a member different "
+        "answers to one question:\n"
+        + "\n".join(f"  {k}  <->  {v}" for k, v in sorted(unrecorded.items()))
+        + "\n\nMeasure the agreement before deciding — see ENGINE_ALLOWED.")
+
+
+def test_every_engine_allowance_still_collides():
+    live = set(_engine_collisions())
+    stale = sorted(ENGINE_ALLOWED - live)
+    assert not stale, (
+        f"ENGINE_ALLOWED records {stale} as implemented by both engines, but "
+        f"the sweep no longer finds them. Delete the entries.")
 
 
 def test_every_allowance_carries_its_reasoning():
