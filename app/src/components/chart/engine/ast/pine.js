@@ -3575,8 +3575,20 @@ class Resolver {
       // `barstate.islast` to the constant map contradicts itself here rather than
       // silently shipping a number that changes with the bar count.
       if (own(BUILTIN_REQUEST_DEPENDENT, name)) {
+        // ⚰️⚰️ THE GENERIC PREFIX WAS INTERPOLATED HERE AND THIS FILE ALREADY
+        // CALLED IT FALSE. `BUILTIN_REQUEST_DEPENDENT`'s own docblock, forty lines
+        // up, reads: "⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE.
+        // 'This engine has no home for that name' is false: it has a home for its
+        // three siblings." And `REFUSALS['pine:builtin']` is exactly that sentence.
+        // MEASURED: `barstate.islast` refused with "the engine grammar does not
+        // hold" while `barstate.isconfirmed` translates to `close` on the same run.
+        // ⭐ THE TRUE REASON WAS ALREADY IN THE TAIL. It is now the whole sentence,
+        // and it says what the docblock says it should: not that the name is
+        // unknown, but that its answer moves with the request — which tells a
+        // member to rewrite rather than wait for us to add it.
         throw new PineRefusal('pine:builtin',
-          `${REFUSALS['pine:builtin']} — \`${name}\`: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
+          `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
+          + `holds its siblings: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
           locate(node.tok))
       }
       if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
@@ -4597,10 +4609,23 @@ class Resolver {
           + `${declaredArgs.length} — ${signatureOf(key, spec)}`, locate(tok))
       }
       if (args.length !== shape.pineArity) {
+        // ⚰️⚰️ THE PREFIX CONTRADICTED THE TAIL, IN ONE SENTENCE. It read "the
+        // engine grammar declares a different signature for that name — `atr` was
+        // given 4 arguments and Pine's own signature takes 1". On THIS branch the
+        // engine grammar declares the same shape the member wrote: measured,
+        // `ta.atr(14)` reads back as `atr(high, low, close, 14)`, a four-argument
+        // call. What differs is PINE's arity, which the tail already named.
+        // ⛔ THE AUTHORITY MATTERS BECAUSE IT DECIDES WHERE THE MEMBER LOOKS. Sent
+        // to the manifest they find their own call declared and nothing to fix;
+        // told it is Pine's signature they can count the arguments in their script.
+        // The OTHER arity branch below keeps the shared prefix and is right to —
+        // there the mismatch really is against this table.
         throw new PineRefusal('pine:arity',
-          `${REFUSALS['pine:arity']} — \`${pineName}\` was given ${args.length} `
+          `\`${pineName}\` was given ${args.length} `
           + `argument${args.length === 1 ? '' : 's'} and Pine's own signature takes `
-          + `${shape.pineArity}`, locate(tok))
+          + `${shape.pineArity} — this engine reads the call in Pine's shape before `
+          + `mapping it onto the table, so the count has to match Pine first`,
+          locate(tok))
       }
       plan = shape.build
     } else {
