@@ -3627,15 +3627,26 @@ export default function StockChart({
       const oRect = op ? op.getBoundingClientRect() : cRect
       const offX = cRect.left - oRect.left
       const offY = cRect.top - oRect.top
+      // Anchor to the UPCOMING/estimate ("next earnings") grey badge specifically —
+      // NOT a historical beat/miss one. It pins to the right edge at the bottom of the
+      // price pane while today is off-screen, so the button hugs the price scale there.
       let rect = null
-      try { rect = earnBadgeRef.current?.pointRect?.() } catch { /* */ }
+      try { rect = earnBadgeRef.current?.estimateRect?.() } catch { /* */ }
       let left, top
       if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
-        left = rect.x + rect.w / 2 - BTN / 2   // centered horizontally on the badge
+        left = rect.x + rect.w / 2 - BTN / 2   // centered horizontally on the grey badge
         top = rect.y - BTN - GAP               // just above it
       } else {
-        left = contW - axisW - BTN - 10        // no earnings badge → bottom-right of the plot
-        top = contH * 0.78 - BTN - 18
+        // No upcoming-earnings badge (e.g. an ETF): compute the EXACT spot the grey
+        // badge WOULD occupy — pinned to the right edge, bottom row of the price pane
+        // (mirrors earningsBadgePrimitive: x = plotW - w/2 - 4, rowTop = paneH - 6 - h)
+        // — so the button sits identically whether or not a symbol has earnings.
+        const PILL_W = 20, PILL_H = 17, ROW_BOTTOM = 6
+        let paneH = contH
+        try { const panes = chart.panes?.(); if (panes && panes[0]?.getHeight) paneH = panes[0].getHeight() } catch { /* */ }
+        const plotW = contW - axisW
+        left = (plotW - PILL_W / 2 - 4) - BTN / 2
+        top = (paneH - ROW_BOTTOM - PILL_H) - BTN - GAP
       }
       left = Math.max(0, Math.min(left, contW - axisW - BTN - 2)) + offX
       top = Math.max(0, Math.min(top, contH - BTN - 4)) + offY
