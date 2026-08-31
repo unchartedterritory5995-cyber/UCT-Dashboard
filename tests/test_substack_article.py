@@ -285,6 +285,13 @@ def test_prose_source_accepts_etfs_the_equity_screen_refuses(art):
         assert etf in art.tickers, f"{etf} is named in the body but was refused"
 
 
+def test_a_watchlist_marked_up_as_a_heading_is_still_read():
+    """2026-08-30 put "Honorable mention: ..." inside an <h6>. Skipping
+    heading text lost every name that appeared only there -- 9 that issue."""
+    body = "<h6><strong>Honorable mention: HPE FTNT CRSP APPS</strong></h6>"
+    assert sa.convert(body).tickers == ["HPE", "FTNT", "CRSP", "APPS"]
+
+
 def test_indices_are_not_tagged():
     """Owner call: an index is not a tradeable symbol, so a chip that opens a
     chart for one is a dead end. ETFs carry this exposure instead."""
