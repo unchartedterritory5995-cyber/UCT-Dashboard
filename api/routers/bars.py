@@ -469,6 +469,98 @@ def get_bars(
         return fallback
 
 
+# ── SEALED HISTORY (instant-charts Phase 5 — edge-cacheable) ──────────────────
+# `/api/bars` must stay `no-store` because its last bar is TODAY's developing candle,
+# and a stale copy after a corruption fix would show a wrong price. `/api/bars-history`
+# serves ONLY the SEALED past (every bar whose period has fully closed) — which does not
+# change intraday — so it can be cached at the CDN edge and in the browser. The client
+# (a later step) fetches deep history from here (edge-served, ~instant everywhere) and the
+# small live tail from `/api/bars` (origin, always fresh), then stitches them.
+#
+# This endpoint is ADDITIVE and dark: nothing calls it yet, so it cannot affect any
+# current chart. It reuses `get_bars`'s full serve path (all the index/breadth/delisted
+# intercepts + crash handling), then strips the developing period and re-stamps a public,
+# self-healing cache header. v1 scope: D/W/M with date-string timestamps (the deep-history
+# payloads that benefit most). Anything else (intraday, unix-ts index series, or a
+# non-200) falls back to `no-store` so it is never edge-cached — safe by construction.
+_HISTORY_LOGIC_VERSION = "1"   # bump to invalidate every cached history URL at once
+
+
+def _period_start_iso(tf: str) -> str:
+    """ISO date of the start of the CURRENT (still-developing) period for `tf`. A bar is
+    'sealed' iff its date string is < this — i.e. its whole period has closed."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    if tf == "W":
+        return (today - timedelta(days=today.weekday())).isoformat()   # Monday of this week
+    if tf == "M":
+        return today.replace(day=1).isoformat()
+    return today.isoformat()
+
+
+def _is_iso_date(t) -> bool:
+    return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
+
+
+@router.get("/api/bars-history/{ticker}")
+def get_bars_history(
+    ticker: str,
+    tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
+    bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
+    v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
+):
+    """Edge-cacheable SEALED history for a symbol (Phase 5). D/W/M only in v1."""
+    import orjson as _orjson
+    tfu = (tf or "D").upper()
+
+    def _no_store(resp):
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    if tfu not in ("D", "W", "M"):
+        return _no_store(JSONResponse(content={
+            "ticker": (ticker or "").upper(), "tf": tf, "bars": [], "sealed": False,
+            "note": "history endpoint serves D/W/M only in v1 — use /api/bars for intraday",
+        }))
+
+    # Reuse the ENTIRE live serve path (intercepts + crash handling) to get full bars.
+    inner = get_bars(ticker, tf=tfu, bars=bars)
+    if getattr(inner, "status_code", 200) != 200:
+        return _no_store(inner)     # never cache a 503/transient/no-data
+    try:
+        payload = _orjson.loads(inner.body)
+        all_bars = payload.get("bars") or []
+    except Exception:
+        return _no_store(inner)
+
+    # Only date-string series (stocks/ETFs/breadth D/W/M) get the date-based sealed cut.
+    # Unix-ts series (cash-settled indexes) are already instant from a warm disk cache and
+    # aren't handled by v1 — serve them uncacheable rather than mis-slice them.
+    if all_bars and not _is_iso_date(all_bars[-1].get("t")):
+        return _no_store(inner)
+
+    cutoff = _period_start_iso(tfu)
+    sealed = [b for b in all_bars if _is_iso_date(b.get("t")) and b["t"] < cutoff]
+    last_sealed = sealed[-1]["t"] if sealed else ""
+    version = f"{_HISTORY_LOGIC_VERSION}.{last_sealed}"
+
+    out = JSONResponse(content={
+        "ticker": payload.get("ticker", (ticker or "").upper()),
+        "tf": tfu, "bars": sealed, "sealed": True,
+        "version": version, "last_sealed": last_sealed, "count": len(sealed),
+    })
+    # PUBLIC + self-healing: 1h fresh, then serve-stale up to a day while revalidating.
+    # A rare correction to sealed history self-heals within the hour; the immutable +
+    # content-versioned-URL upgrade (max-age=1y) is a later Phase-5 step once the CDN
+    # cache rule + client split-fetch are in place.
+    out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    st = inner.headers.get("Server-Timing")
+    if st:
+        out.headers["Server-Timing"] = st
+    return out
+
+
 @router.post("/api/admin/warm-universe")
 def warm_universe(request: Request, tf: str = None, bars: int = 5000, tfs: str = None):
     """Kick off a background warm of the full ticker universe.
