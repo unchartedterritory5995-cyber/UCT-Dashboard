@@ -785,10 +785,14 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
             </div>
           )}
           {/* ⭐⭐ THE COLUMN IS A NUMBER — OFFER TO MAKE IT A SCREEN. This is the
-              single biggest measured gap in the paste path: 41 scripts translate
-              and save, only 19 can be scanned, and every refusal is the `yields`
-              gate. The gate is right; what was missing is the one thing the
-              member has to say. */}
+              single biggest measured gap in the paste path, and it is the one
+              thing the member has to say. ⚰️ THE NUMBERS HERE READ "41 scripts
+              translate and save, only 19 can be scanned" and both had moved — it
+              is 43 and 18 as of 2026-08-31, and the door now delivers all 43 to
+              the screener because of this control. `doorScorecard.test.js` owns
+              those counts and prints them on every run; a copy typed here can
+              only go stale, which is what it did. The gate is right and the
+              affordance is what closed the gap. */}
           {numericColumn && (
             <div className={styles.toScreen} data-testid="pine-to-screen">
               <span className={styles.toScreenLead}>

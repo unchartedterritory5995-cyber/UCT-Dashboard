@@ -146,7 +146,9 @@ def test_massive_avg_dollar_volume_reaches_yfinance_through_the_guard(spy):
 
 def test_index_bars_reaches_yfinance_through_the_guard(spy):
     from api import index_bars
-    assert index_bars._fetch_yf("^GSPC", "1d", "5d", 1.0, None) == []
+    # _fetch_yf now returns the FULL series (since-filtering moved to the cache-backed
+    # serve layer in the 2026-08-31 instant-charts rewrite), so it takes no `since`.
+    assert index_bars._fetch_yf("^GSPC", "1d", "5d", 1.0) == []
     assert spy.fired
 
 

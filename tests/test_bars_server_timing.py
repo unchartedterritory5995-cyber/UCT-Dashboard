@@ -75,12 +75,12 @@ def test_layer_stale_swr_on_daily_rows(fresh):
     assert bars_fetch.get_serve_layer() == "stale-swr"
 
 
-def test_layer_fetch_on_cold_ticker(fresh):
-    with patch.object(bars_fetch, "_fetch_daily", return_value=[
-        {"t": "2026-07-01", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}
-    ]):
+def test_layer_cold_bg_on_cold_ticker(fresh):
+    # Instant-charts Phase 4: a cold ticker no longer fetches inline (which held the
+    # request thread ~20s) — it kicks a background warm and reports the "cold-bg" tier.
+    with patch.object(bars_fetch, "_kick_cold_fetch", lambda *a, **k: None):
         bars_fetch._get_bars_inner("COLDCO", "D", 200)
-    assert bars_fetch.get_serve_layer() == "fetch"
+    assert bars_fetch.get_serve_layer() == "cold-bg"
 
 
 def test_layer_delta_on_since_request(fresh):

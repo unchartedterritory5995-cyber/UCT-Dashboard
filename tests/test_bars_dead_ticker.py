@@ -108,6 +108,29 @@ def test_a_REGISTERED_delisted_entity_is_carried(monkeypatch, nothing_anywhere):
     assert _get("SQ").status_code == 200
 
 
+def test_a_SEARCHABLE_etf_outside_cap_universe_keeps_its_503(
+        monkeypatch, nothing_anywhere):
+    """⭐ THE 2026-08-31 REGRESSION. The Symbol Search modal offers a far wider
+    universe than cap_universe — every US ETF/ETN via Massive's reference feed.
+    GDX/SILJ/EWZ are liquid ETFs that live in that index but NOT in cap_universe,
+    so the naive downgrade turned their retryable "warming" 503 into a PERMANENT
+    no_data:symbol_not_carried — an infinite loading skeleton on popular ETFs. A
+    symbol Search will offer MUST keep its 503 so the cold fetch warms it."""
+    from api.services import ticker_search_index as tsi
+    with tsi._LOCK:
+        tsi._BY_SYM = {"GDX": {"sym": "GDX"}}
+    try:
+        r = _get("GDX")   # not in the planted cap_universe {XYZ, AAPL}
+        assert r.status_code == 503, (
+            "a searchable, liquid ETF was permanently marked 'no data' instead of "
+            "warming — the infinite-skeleton bug")
+        # and a symbol in NEITHER cap_universe NOR the search index still downgrades
+        assert _get("SQ").status_code == 200
+    finally:
+        with tsi._LOCK:
+            tsi._BY_SYM = {}
+
+
 def test_the_membership_answer_comes_from_the_ONE_universe_loader():
     """⛔ Never a second read of `cap_universe.json`. The set is derived from the
     loader that already owns it — `ticker_search._UNIVERSE`, the same list the

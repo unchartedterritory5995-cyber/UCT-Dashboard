@@ -546,7 +546,38 @@ const leadingBlankBars = (startMs, firstBarMs, tf) => {
 // route now returns 503 during transient SQLite-swap windows precisely
 // so this retry loop can heal automatically. Also enforces a client-side
 // timeout so a hung cold Massive fetch can't tie up the chart indefinitely.
+// ─── Global concurrency gate for chart bars fetches ──────────────────────────
+// A big scan/watchlist mounts dozens of charts at once; each fires its own /api/bars
+// SWR. Beyond ~20-30 concurrent, the SINGLE web pod's SQLite/threadpool saturates and a
+// large share return a transient 503 — the "half (or all) of a big scan fails to load"
+// symptom. Measured on prod 2026-08-31: a 20-chart burst = 0% fail, a 50-chart burst =
+// 40% fail. Gating every bars fetch through a bounded queue keeps concurrency under that
+// ceiling, so a scan of ANY size loads fully — just slightly staggered — instead of
+// half-failing. A single clicked chart never waits: the gate only queues once it's full.
+// Tunable at runtime for canary/rollback: localStorage 'uct.barsFetchMax' or the default.
+export function _barsFetchMax() {
+  try {
+    const v = parseInt(localStorage.getItem('uct.barsFetchMax'), 10)
+    if (Number.isFinite(v) && v >= 1 && v <= 200) return v
+  } catch { /* ignore */ }
+  return 16
+}
+let _barsFetchActive = 0
+const _barsFetchWaiters = []
+function _acquireBarsSlot() {
+  if (_barsFetchActive < _barsFetchMax()) { _barsFetchActive++; return Promise.resolve() }
+  return new Promise((resolve) => { _barsFetchWaiters.push(resolve) })
+}
+function _releaseBarsSlot() {
+  const next = _barsFetchWaiters.shift()
+  if (next) next()                 // hand the slot straight to the next waiter (count holds)
+  else _barsFetchActive = Math.max(0, _barsFetchActive - 1)
+}
+// Test/observability hook.
+export function _barsFetchStats() { return { active: _barsFetchActive, waiting: _barsFetchWaiters.length, max: _barsFetchMax() } }
+
 const fetcher = async (url) => {
+  await _acquireBarsSlot()
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), 25000)
   try {
@@ -554,11 +585,24 @@ const fetcher = async (url) => {
     if (!r.ok) {
       const err = new Error(`HTTP ${r.status}`)
       err.status = r.status
+      // A cold "warming" 503 (the server kicked a background fetch and told us when
+      // to re-poll) is NOT a failure — it's a chart still loading. Surface that so
+      // the retry loop polls fast (Retry-After ~3s) and the UI keeps its skeleton
+      // instead of flashing "Failed to load". Body form: {error:"warming"} | {warming:true}.
+      if (r.status === 503) {
+        const ra = parseInt(r.headers.get('Retry-After') || '', 10)
+        if (Number.isFinite(ra) && ra > 0) err.retryAfterMs = ra * 1000
+        try {
+          const b = await r.clone().json()
+          if (b && (b.warming === true || b.error === 'warming')) err.warming = true
+        } catch { /* non-JSON body → treat as a generic 5xx */ }
+      }
       throw err
     }
     return await r.json()
   } finally {
     clearTimeout(timer)
+    _releaseBarsSlot()             // ALWAYS release — even on error/abort — so the gate can't deadlock
   }
 }
 
@@ -572,6 +616,17 @@ const fetcher = async (url) => {
 const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) => {
   const status = error?.status
   if (status && status >= 400 && status < 500) return
+  // A cold "warming" 503 means the server is fetching this ticker off the request
+  // thread and told us (Retry-After) when to re-poll — honor it so a cold symbol
+  // loads in a few seconds, not the 15s generic-5xx backoff below. More attempts,
+  // too: a truly-cold provider fetch can take a couple of polls to land in SQLite.
+  if (error?.warming) {
+    if (retryCount >= 12) return
+    const base = error.retryAfterMs || 3000
+    const delay = Math.min(base * Math.pow(1.25, retryCount), 12000)
+    setTimeout(() => revalidate({ retryCount }), delay)
+    return
+  }
   if (retryCount >= 4) return
   const delay = Math.min(15000 * Math.pow(1.5, retryCount), 60000)
   setTimeout(() => revalidate({ retryCount }), delay)
@@ -869,6 +924,64 @@ export function setBarsPushEnabled(on) {
   } catch { /* ignore */ }
 }
 if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
+
+// ─── Bars-history split-fetch gate (instant-charts Phase 5, edge caching) ─────
+// When ON (and the chart is a standard native D/W/M path), the DEEP sealed history is
+// fetched from the edge-cacheable /api/bars-history endpoint (served from Cloudflare's
+// nearest PoP, never touching the origin) while the recent+live tail keeps coming from
+// /api/bars. First paint is unchanged (the ~600-bar tail from /api/bars); only the deep
+// history a user pans to is offloaded to the edge — so the origin serves small live tails,
+// not multi-thousand-bar history fetches. Mirrors the bars-push rollout idiom exactly:
+// explicit localStorage '1'/'0' wins, else a staged % by a stable per-browser bucket.
+// Canaried end-to-end on prod 2026-08-31: D + W split-fetch fires correctly (primary
+// /api/bars capped to the 600 tail + /api/bars-history served from the CDN edge with
+// cf-cache-status: HIT), charts render seamlessly with no sealed/tail boundary gaps.
+// Ramping under monitoring (10 → …), mirroring the bars-push 0→25→100 rollout. Instant
+// per-browser revert: localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false).
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 10
+
+function _barsHistoryBucket() {
+  try {
+    let b = localStorage.getItem('uct.barsHistory.bucket')
+    if (b == null) { b = String(Math.floor(Math.random() * 100)); localStorage.setItem('uct.barsHistory.bucket', b) }
+    const n = parseInt(b, 10)
+    return Number.isFinite(n) ? n : 100
+  } catch { return 100 }  // no storage → out of rollout (safe default-off)
+}
+
+export function _barsHistorySplitEnabled() {
+  try {
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.barsHistory.enabled') : null
+    if (ls === '1') return true     // explicit opt-in (canary)
+    if (ls === '0') return false    // explicit opt-out
+    return _barsHistoryBucket() < BARS_HISTORY_SPLIT_ROLLOUT_PCT
+  } catch { return false }
+}
+
+export function setBarsHistorySplitEnabled(on) {
+  try {
+    if (on) localStorage.setItem('uct.barsHistory.enabled', '1')
+    else localStorage.removeItem('uct.barsHistory.enabled')
+    window.dispatchEvent(new Event('uct-barshistory-change'))
+  } catch { /* ignore */ }
+}
+if (typeof window !== 'undefined') window.__uctBarsHistory = setBarsHistorySplitEnabled
+
+// Client mirror of the server's sealed-period cutoff (api/routers/bars.py `_period_start_iso`),
+// in ET. Used to compute `d=<last-sealed-date>` on the history URL so it matches the server's
+// sealed boundary — a match makes the response IMMUTABLE (cached ~1y, self-refreshing when a
+// new day seals) AND makes every user + the nightly pre-warm sweep request the SAME URL, so
+// Cloudflare Cache Reserve serves it globally and no first-time user hits the origin. A miss
+// (rare tz edge case) just degrades to the short cache — never wrong data.
+function _etPeriodStartISO(tf) {
+  try {
+    const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    if (tf === 'W') { const back = (et.getDay() + 6) % 7; et.setDate(et.getDate() - back) }
+    else if (tf === 'M') { et.setDate(1) }
+    const y = et.getFullYear(), m = String(et.getMonth() + 1).padStart(2, '0'), d = String(et.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  } catch { return '' }
+}
 
 // ─── Bar period computation (for real-time new candle creation) ──────────────
 
@@ -4638,12 +4751,44 @@ export default function StockChart({
   // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
   // the previous ticker" bug). `to` implies a full window (no `since`).
   const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
+  // Phase 5 split-fetch: for a STANDARD native D/W/M chart, cap the /api/bars fetch to the
+  // live tail (~first-paint depth) and pull the DEEP sealed history from the edge-cacheable
+  // /api/bars-history endpoint instead. First paint is unchanged (the tail); only the older
+  // history a user pans to is offloaded from the origin to the CDN edge. Excludes replay
+  // (`to`), custom TFs, overrides, and pinned/entryDate charts (they need one full fetch).
+  const _splitOn = _barsHistorySplitEnabled() && !!sym && !isIntraday && !_isCustomTf
+    && !_hasOverride && !replayCutoff && !_pinnedFull
+    && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
+  const _primaryBars = _splitOn ? Math.min(barCount, FIRST_PAINT_BARS) : barCount
+  // Deep sealed history from the edge — only once the user has panned PAST the first-paint
+  // tail (fetchDepth grows). On first paint the tail alone fills the viewport, so no history
+  // request fires. bars=fetchDepth mirrors the same viewport-first deepening the origin used.
+  const _histFire = _splitOn && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`
+    && fetchDepth > FIRST_PAINT_BARS
+  // Standardize the history URL: always the FULL sealed depth (`_fullTarget`, fixed per tf)
+  // + `d=<last sealed date>` derived from the bars we already hold. Fixed URL = every user +
+  // the pre-warm sweep hit the SAME cache object (globally warm via Cache Reserve); the date
+  // makes it immutable + self-refreshing. Falls back to no `d` (short cache) if we can't yet
+  // read a sealed bar — still correct, just not immutable for that one request.
+  let _histSealedDate = ''
+  if (_histFire && Array.isArray(idbBars) && idbBars.length) {
+    const _cut = _etPeriodStartISO(resolvedTf)
+    if (_cut) {
+      for (let i = idbBars.length - 1; i >= 0; i--) {
+        const _t = idbBars[i]?.t
+        if (typeof _t === 'string' && _t.length === 10 && _t < _cut) { _histSealedDate = _t; break }
+      }
+    }
+  }
+  const histUrl = _histFire
+    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_fullTarget}${_histSealedDate ? `&d=${_histSealedDate}` : ''}`
+    : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
         ? (_toParam != null
-            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}&to=${encodeURIComponent(_toParam)}`
-            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_primaryBars}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -4673,6 +4818,18 @@ export default function StockChart({
   // even when refreshInterval polling is paused (hidden/popped-out window), which is
   // exactly the stall it recovers from.
   barsMutateRef.current = mutate
+
+  // ── Phase 5: deep SEALED history from the CDN edge (/api/bars-history) ──
+  // Static within the session (sealed bars don't change intraday), so no refreshInterval —
+  // the primary /api/bars tail SWR above owns freshness + the live bar. Fires only on a deep
+  // pan (histUrl is null on first paint), and is edge-served (never hits the origin on a HIT).
+  const { data: histData } = useSWR(histUrl, fetcher, {
+    dedupingInterval: 60_000,
+    revalidateOnFocus: false,
+    refreshInterval: 0,
+    refreshWhenHidden: false,
+    onErrorRetry: barsSwrOnErrorRetry,
+  })
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -4775,6 +4932,26 @@ export default function StockChart({
       memPut(sym, resolvedTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Phase 5 split-fetch: fold the edge-served DEEP SEALED history into idbBars ──
+  // The /api/bars tail (recent + today + live) is merged by the effect above; this prepends
+  // the older sealed bars a user panned to, fetched from the CDN edge instead of the origin.
+  // Same cross-ticker guards as the tail path. mergeDelta(deepSealed, currentTail) keeps the
+  // fresher tail winning on the overlap (today + live close) while filling the older range.
+  useEffect(() => {
+    if (!histData?.bars?.length || !sym || !resolvedTf) return
+    if (!histData.sealed) return                                   // only the sealed endpoint's shape
+    if (histData.ticker && histData.ticker !== sym.toUpperCase()) return   // stale-closure guard
+    if (idbReadyForRef.current !== `${sym}_${resolvedTf}`) return  // cross-ticker guard
+    const cur = idbBarsRef.current
+    if (!cur?.length) return                                       // wait for the tail to establish the series
+    const merged = mergeDelta(histData.bars, cur)
+    if (merged.length === cur.length) return                       // no older bars added — nothing to repaint
+    idbBarsRef.current = merged
+    setIdbBars(merged)
+    idbPut(sym, resolvedTf, merged)
+    memPut(sym, resolvedTf, merged)
+  }, [histData])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Background prefetch — all other timeframes when sym changes ───────────
   // After the primary chart loads, fetch every other TF into IDB so switching
@@ -4943,7 +5120,14 @@ export default function StockChart({
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
   const drawBarsRef = useRef(null)
   drawBarsRef.current = bars
-  const loading = !bars && !error
+  // A cold "warming" 503 is still LOADING, not an error — keep the skeleton up and
+  // let the fast retry (barsSwrOnErrorRetry) re-poll until the bg fetch lands. And a
+  // 200 {no_data:true} is a SETTLED empty answer for a genuinely-uncarried symbol —
+  // NOT an infinite load: it must stop the skeleton and show an honest "no data" note
+  // (the 2026-08-31 bug: no_data rendered as a forever-spinner for off-cap-universe ETFs).
+  const _warming = !!error && error.warming === true && !bars?.length
+  const _serverNoData = !!(data && data.no_data) && !bars?.length && !error
+  const loading = (!bars && !error && !_serverNoData) || _warming
   // Delay the loading skeleton: a fast cache hit (pack / IDB / mem — ~tens of
   // ms) swaps chart→chart before this fires, so there's NO grey flash between
   // symbols. The skeleton appears only if a load genuinely drags (a cold
@@ -4976,7 +5160,10 @@ export default function StockChart({
   // recover silently. Otherwise a transient backend 5xx pins the chart at
   // a hard-fail state for the user even though usable history is sitting
   // in IndexedDB. The retry button below still mutate()'s on click.
-  const showFatalError = !!error && !bars?.length
+  const showFatalError = !!error && !bars?.length && !_warming
+  // Honest settled empty-state for a symbol the provider genuinely doesn't carry
+  // (a real 200 no_data), so it reads "no data" rather than spinning forever.
+  const showNoData = _serverNoData && !showFatalError
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
@@ -13941,6 +14128,15 @@ export default function StockChart({
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}
+      {showNoData && (
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
+          <span>No chart data available for {sym}.</span>
+          <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+            The data provider doesn't carry this symbol. It may be delisted, an index
+            with no OHLC series, or not a tradable ticker.
+          </span>
+        </div>
+      )}
       {!loading && !showFatalError && selectedRangeEmpty && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No {sym} chart data for the selected dates.</span>
@@ -13955,7 +14151,7 @@ export default function StockChart({
         ref={containerRef}
         className={styles.chart}
         style={{
-          display: (showFatalError || selectedRangeEmpty) ? 'none' : 'block',
+          display: (showFatalError || showNoData || selectedRangeEmpty) ? 'none' : 'block',
           // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
           // the transparent LWC canvas, so it flows unbroken through the price + volume
           // panes. The user gradient (Canvas settings) works the same way. For a SOLID

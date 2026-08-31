@@ -20,9 +20,15 @@ The registry here is the SINGLE SOURCE OF TRUTH consumed by:
 """
 from __future__ import annotations
 
+import logging
 import math
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date as _date, datetime, timedelta
 from typing import Optional
+
+_log = logging.getLogger("breadth_symbols")
 
 # ── Registry ────────────────────────────────────────────────────────────────
 # symbol → (metric_key, display name, group). `group` drives both the search
@@ -228,7 +234,12 @@ def _live_map() -> dict:
     try:
         from api.services import breadth_live
         if breadth_live.enabled() and breadth_live._session_started():
-            payload = breadth_live.compute_live() or {}
+            # CACHE-ONLY: a chart serve must never trigger compute_live's ~12-16s
+            # full-universe snapshot recompute. Read the warm cache (kept fresh by the
+            # dashboard live-breadth poll) or omit today's live tick. This is the fix
+            # for breadth pseudo-tickers cold-building 12-16s on every request — the
+            # recompute was baked into the (cached) series build, defeating the cache.
+            payload = breadth_live.compute_live(cached_only=True) or {}
             if not payload.get("anchored") or payload.get("degraded"):
                 return {}
             m = payload.get("metrics")
@@ -293,26 +304,35 @@ def latest_quotes(syms: list[str]) -> dict:
     return out
 
 
-def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
-    """Serve close-to-close OHLC candles for a breadth pseudo-ticker.
+# ── Serve-time cache (instant-charts) ────────────────────────────────────────
+# The SEALED daily history (one EOD value per day back to ~2008) and the DEVELOPING
+# today candle are DECOUPLED, because they change on completely different clocks:
+#   • Sealed history changes once a day (the 4:30pm EOD push). It is expensive to
+#     rebuild (get_history + the reconstructed-OHLC merge), so it is cached per SYMBOL
+#     for hours. The warm loop rebuilds a symbol only when a NEW sealed day has landed,
+#     so after one boot pass it goes quiet — it does NOT perpetually rebuild.
+#   • The today candle is cheap and must stay live, so it is appended at SERVE time from
+#     a CACHE-ONLY live read (never triggers compute_live's ~12-16s universe recompute).
+# The earlier design baked the live value INTO the cached series, which forced a 60s TTL
+# (to keep the candle fresh) — but a full warm pass takes minutes, so entries expired
+# mid-pass and the loop rebuilt all ~40 symbols forever, a CPU-bound churn that starved
+# the single pod. Decoupling fixes both: long-lived sealed cache + always-live candle.
+_SEALED_TTL = 21600      # 6h; sealed history changes only at EOD — the warm loop's
+                         # new-day check refreshes it promptly, this is just the ceiling.
+_WARM_GAP = 0.4          # seconds slept between warm builds so a cold pass never bursts
+_bg_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="breadth-bars-refresh")
+_bg_inflight: set[str] = set()
+_bg_lock = threading.Lock()
 
-    Returns the standard bars payload: {ticker, tf, bars:[{t,o,h,l,c,v}]} with `t`
-    a 'YYYY-MM-DD' string (D/W/M are all daily-basis). Built directly (NOT through
-    _fmt_sqlite_bars) so a legitimately-zero reading is never dropped by the
-    ``<= 0`` garbage guard.
-    """
-    sym = (sym or "").strip().upper()
-    tf = (tf or "D").upper()
-    if tf not in ("D", "W", "M"):
-        tf = "D"  # breadth is daily-basis; intraday requests collapse to daily
-    metric = _METRIC_OF.get(sym)
-    if not metric:
-        return {"ticker": sym, "tf": tf, "bars": []}
 
+def _build_breadth_series(sym: str, metric: str) -> list[dict]:
+    """Compute the SEALED close-to-close DAILY candle series for `metric` — the expensive
+    part (DB reads + reconstructed-OHLC merge). No live value, no resample, no slice: the
+    serve fn appends the developing today candle, resamples to the requested tf, and
+    slices. Keeping the live value OUT is what lets this be cached for hours (the warm
+    loop then converges instead of rebuilding every minute)."""
     from api.services import breadth_monitor
-    # Pull a generous daily window (cheap, cached) then resample + trim. Weekly /
-    # monthly need many more daily rows to form `bars` candles.
-    want_daily = min(6000, max(bars * (32 if tf == "M" else 8 if tf == "W" else 1) + 40, 120))
+    want_daily = 6000   # full history (breadth starts ~2008; 6000 daily covers it)
     try:
         history = breadth_monitor.get_history(want_daily)  # newest-first
     except Exception:
@@ -362,26 +382,164 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
                       "l": round(l, 4), "c": round(c, 4), "v": 0})
         prev = v
 
-    # DEVELOPING today candle (today isn't a stored EOD row yet). Base the wick on the
-    # store's today row (real intraday high/low from the accumulator / a same-day
-    # reconstruction) when present; ALWAYS fold in the freshest LIVE value as the close so
-    # the candle keeps ticking instead of freezing at the last reconstruction. Open = the
-    # store's open, else the prior session's close.
-    today = _et_today()
-    if today and daily and daily[-1]["t"] < today:
-        trow = ohlc_map.get(today) or {}
-        live_val = _finite(_live_map().get(metric))
-        so = _finite(trow.get("o")); sh = _finite(trow.get("h"))
-        sl = _finite(trow.get("l")); sc = _finite(trow.get("c"))
-        c = live_val if live_val is not None else sc
-        o = so if so is not None else daily[-1]["c"]
-        if c is not None:
-            h = max([x for x in (sh, o, c) if x is not None])
-            l = min([x for x in (sl, o, c) if x is not None])
-            daily.append({"t": today, "o": round(o, 4), "h": round(h, 4),
-                          "l": round(l, 4), "c": round(c, 4), "v": 0})
+    return daily   # SEALED days only; today's developing candle is a serve-time append
 
-    out = _resample(daily, tf)
+
+def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
+    """Return `daily` with a developing today candle appended, or unchanged. CHEAP +
+    serve-time: reads the CACHE-ONLY live value (never triggers compute_live's universe
+    recompute — see _live_map) so the candle stays live (≤ the live-cache TTL, kept warm
+    by the per-minute breadth-live sampler) without the sealed series ever recomputing.
+
+    Close-to-close body: open = the prior session's close, close = the live value. This is
+    intentionally simpler than the old baked-in candle (which also merged the store's
+    intraday high/low wick) — breadth history is close-to-close by nature, and the wick
+    would have been build-time-stale under the long sealed-cache TTL anyway. Never mutates
+    the cached list (returns a new one)."""
+    today = _et_today()
+    if not (today and daily and daily[-1]["t"] < today):
+        return daily
+    live_val = _finite(_live_map().get(metric))
+    if live_val is None:
+        return daily
+    o = daily[-1]["c"]
+    c = live_val
+    h, l = max(o, c), min(o, c)
+    return daily + [{"t": today, "o": round(o, 4), "h": round(h, 4),
+                     "l": round(l, 4), "c": round(c, 4), "v": 0}]
+
+
+def _refresh_series(sym: str, metric: str) -> list[dict]:
+    """Recompute + cache the SEALED daily series for `sym`. Returns it ([] on failure).
+    One daily build serves D/W/M (the serve fn resamples), so this is keyed per symbol."""
+    from api.services.cache import cache
+    try:
+        series = _build_breadth_series(sym, metric)
+    except Exception as e:
+        _log.warning("[breadth_symbols] series build failed %s: %s", sym, e)
+        return []
+    cache.set(f"breadthdaily_{sym}", {"saved_at": time.time(), "series": series},
+              ttl=_SEALED_TTL)
+    return series
+
+
+def _kick_series_refresh(sym: str, metric: str) -> None:
+    key = sym
+    with _bg_lock:
+        if key in _bg_inflight or len(_bg_inflight) >= 8:
+            return
+        _bg_inflight.add(key)
+
+    def _job():
+        try:
+            _refresh_series(sym, metric)
+        finally:
+            with _bg_lock:
+                _bg_inflight.discard(key)
+    try:
+        _bg_pool.submit(_job)
+    except Exception:
+        with _bg_lock:
+            _bg_inflight.discard(key)
+
+
+def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
+    """Serve close-to-close OHLC candles for a breadth pseudo-ticker — CACHE-FIRST.
+
+    Returns {ticker, tf, bars:[{t,o,h,l,c,v}]} with `t` a 'YYYY-MM-DD' string. The SEALED
+    daily history is cached per symbol (hours); a warm request appends the live today
+    candle + resamples to `tf` (a few ms) instead of rebuilding. Stale cache is served
+    immediately + a background refresh is kicked, so a request never rebuilds inline when
+    a cached series exists.
+    """
+    sym = (sym or "").strip().upper()
+    tf = (tf or "D").upper()
+    if tf not in ("D", "W", "M"):
+        tf = "D"  # breadth is daily-basis; intraday requests collapse to daily
+    metric = _METRIC_OF.get(sym)
+    if not metric:
+        return {"ticker": sym, "tf": tf, "bars": []}
+
+    from api.services.cache import cache
+    now = time.time()
+    hit = cache.get(f"breadthdaily_{sym}")
+    tier = "breadth-build"
+    if hit and hit.get("series") is not None:
+        daily = hit["series"]
+        if now - hit.get("saved_at", 0) <= _SEALED_TTL:
+            tier = "breadth-cache"
+        else:
+            _kick_series_refresh(sym, metric)   # stale → serve + revalidate
+            tier = "breadth-cache-stale"
+    else:
+        daily = _refresh_series(sym, metric)    # cold miss — the one slow request
+
+    # Serve-time: append the live developing candle (cheap, cache-only) then resample.
+    series = _resample(_append_today_candle(daily or [], metric), tf)
+
+    try:
+        from api.services.bars_fetch import _mark_serve
+        _mark_serve(tier)
+    except Exception:
+        pass
+
+    out = series or []
     if bars and len(out) > bars:
         out = out[-bars:]
     return {"ticker": sym, "tf": tf, "bars": out}
+
+
+# ── Web-side warm loop (keeps the ~40 breadth series hot in the cache) ────────
+def warm_breadth() -> dict:
+    """Warm each breadth symbol's SEALED daily series so the first request after a deploy
+    is a cache hit. CONVERGES: a symbol is rebuilt only when its cache is missing/expired
+    OR a NEW sealed day has landed (the 4:30pm EOD push), so after one boot pass this goes
+    quiet instead of perpetually rebuilding. Builds are throttled (`_WARM_GAP`) so a cold
+    pass never bursts and starves the pod's bars path."""
+    from api.services import breadth_monitor
+    from api.services.cache import cache
+    # Latest sealed date, shared across all metrics (get_history is cached). When a new EOD
+    # day lands this advances, so even a still-fresh cache is rebuilt to include it.
+    latest = None
+    try:
+        h = breadth_monitor.get_history(1)  # newest-first
+        latest = h[0].get("date") if h else None
+    except Exception:
+        latest = None
+
+    stats = {"refreshed": 0, "fresh": 0}
+    now = time.time()
+    for sym, metric in _METRIC_OF.items():
+        hit = cache.get(f"breadthdaily_{sym}")
+        fresh = bool(hit and hit.get("series") is not None
+                     and now - hit.get("saved_at", 0) <= _SEALED_TTL)
+        up_to_date = True
+        if fresh and latest:
+            ser = hit["series"]
+            # A non-empty series is stale only if it lacks the latest sealed day. An empty
+            # series stays empty on rebuild, so treat it as up-to-date — never churn it.
+            up_to_date = (not ser) or ser[-1].get("t", "") >= latest
+        if fresh and up_to_date:
+            stats["fresh"] += 1
+            continue
+        _refresh_series(sym, metric)
+        stats["refreshed"] += 1
+        time.sleep(_WARM_GAP)   # yield between cold builds — gentle on the single pod
+    _log.info("[breadth_symbols] warm pass done: %s", stats)
+    return stats
+
+
+def start_breadth_warm(interval_seconds: int = 90) -> None:
+    """Boot warm + periodic refresh on a daemon thread. ~40 symbols, one sealed daily build
+    each, throttled by `_WARM_GAP` and skipped once fresh + up-to-date — so the loop
+    converges after the boot pass and only rebuilds when the 4:30pm EOD push lands a new
+    day. (Was ~40×3 TFs rebuilt every cycle, which never converged.)"""
+    def _loop():
+        time.sleep(20)   # let boot settle
+        while True:
+            try:
+                warm_breadth()
+            except Exception:
+                _log.exception("[breadth_symbols] warm loop error")
+            time.sleep(interval_seconds)
+    threading.Thread(target=_loop, name="breadth-bars-warm", daemon=True).start()

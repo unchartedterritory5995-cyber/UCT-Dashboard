@@ -68,7 +68,7 @@ vi.mock('swr', () => ({
   },
 }))
 
-import Breadth, { OTHER_DAY_CHOICES } from '../Breadth'
+import Breadth, { VIEWS_DAY_CHOICES } from '../Breadth'
 
 const render90 = () => render(<MemoryRouter><Breadth /></MemoryRouter>)
 const metaText = () => document.querySelector('[class*="meta"]')?.textContent ?? ''
@@ -76,13 +76,16 @@ const dayPill = (label) => screen.getAllByRole('button').find(b => b.textContent
 
 beforeEach(() => { localStorage.clear() })
 
+// The width pills now live on the VIEWS tab (the Monitor sheet swapped its pills
+// for the Time Navigator date box), so this pairing is exercised there — the meta
+// line is the SAME shared PageHeader row for both tabs.
 describe('the meta line never pairs a stale count with a fresh pill', () => {
-  it('sanity: OTHER_DAY_CHOICES still offers a window besides the settled 90d', () => {
-    // Control on the fixture itself — if this ever stops holding, the "60d"
+  it('sanity: VIEWS_DAY_CHOICES still offers a window besides the settled 90d', () => {
+    // Control on the fixture itself — if this ever stops holding, the "180d"
     // click below no longer exercises a real window change and every
     // assertion under it would pass vacuously.
-    expect(OTHER_DAY_CHOICES).toContain(60)
-    expect(OTHER_DAY_CHOICES).not.toContain(90 + 1)
+    expect(VIEWS_DAY_CHOICES).toContain(180)
+    expect(VIEWS_DAY_CHOICES[0]).toBe(90)
   })
 
   it('shows the true count for the settled window on first render', () => {
@@ -95,15 +98,16 @@ describe('the meta line never pairs a stale count with a fresh pill', () => {
     // Before the click: the settled 90d state, printing the true count.
     expect(metaText()).toMatch(/^40 trading days/)
 
-    fireEvent.click(dayPill('60d'))
+    fireEvent.click(screen.getByRole('button', { name: 'Views' }))
+    fireEvent.click(dayPill('180d'))
 
     // The pill relit immediately (synchronous state) …
-    expect(dayPill('60d').className).toMatch(/daysPillActive/)
+    expect(dayPill('180d').className).toMatch(/daysPillActive/)
     expect(dayPill('90d').className).not.toMatch(/daysPillActive/)
 
-    // … but the fetch for 60d never resolves in this mock (isValidating stays
+    // … but the fetch for 180d never resolves in this mock (isValidating stays
     // true, data stays the 90d payload) — exactly the window this bug lived
-    // in. The header must not caption the lit 60d pill with the 90d count.
+    // in. The header must not caption the lit 180d pill with the 90d count.
     expect(metaText()).not.toMatch(/^40 trading days/)
     expect(metaText()).not.toBe('')
   })
