@@ -475,6 +475,31 @@ def run_prewarmer_forever():
             print(f"[prewarm] Loaded {len(cap_tickers)} tickers from cap_universe.json")
     except Exception:
         pass
+    # ── Full ETF universe (instant-charts Phase 3) ──────────────────────────
+    # cap_universe.json is an EQUITY screen — leveraged/inverse/long-tail ETFs
+    # (TQQQ, SOXL, SPXL, UVXY, and thousands more) aren't in it, so they paid a
+    # 15-22s cold Massive fetch on first view. Warm the WHOLE active-ETF universe
+    # (from Massive's reference feed — the same source as the search index, incl.
+    # leveraged/inverse) into the D/W/M set so ANY ETF's first server fetch is a
+    # bars.db hit. Intraday stays scoped to the active set (long-tail ETF intraday
+    # is on-demand, like the equity long tail). Best-effort; the ref feed is 24h-cached.
+    try:
+        from api.services import massive as _massive
+        from api import ticker_types as _tt
+        _etfs = set()
+        for _r in _massive.list_reference_tickers(active=True, market="stocks"):
+            _s = (_r.get("ticker") or "").strip().upper()
+            if not _s or _s.startswith("I:"):
+                continue
+            if _tt.normalize_type((_r.get("type") or ""), "stocks") == "ETF":
+                _etfs.add(_s)
+        if _etfs:
+            _new_etfs = _etfs - tickers
+            tickers.update(_etfs)
+            print(f"[prewarm] Loaded {len(_etfs)} active ETFs from Massive reference "
+                  f"for D/W/M warm ({len(_new_etfs)} beyond cap_universe)")
+    except Exception as e:
+        print(f"[prewarm] ETF universe fetch failed (non-fatal): {e}")
     try:
         taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "themes_taxonomy.json")
         if os.path.exists(taxonomy_path):

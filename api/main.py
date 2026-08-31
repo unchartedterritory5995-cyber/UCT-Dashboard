@@ -3539,6 +3539,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] index-bars warm scheduling failed (non-fatal): {e}")
 
+    # Breadth bars warm loop — keeps the ~44 UCT breadth candle series (UCTA50, UCTNH…)
+    # cached so breadth charts serve from cache instead of recomputing the full series
+    # (get_history + reconstructed-OHLC merge + resample) on every poll. Local reads →
+    # cheap web-side; the periodic pass also picks up the 4:30pm EOD breadth push.
+    try:
+        from api.services import breadth_symbols as _bsym
+        _bsym.start_breadth_warm()
+        print("[startup] breadth-bars warm loop scheduled")
+    except Exception as e:
+        print(f"[startup] breadth-bars warm scheduling failed (non-fatal): {e}")
+
     # One-shot hi-res logo upgrade: re-cache ~3,600 existing 96px logos at 256px.
     # Flag-gated so it runs exactly once; background + low-concurrency so it never
     # hammers upstream. Mirrors the .fmp_tz_heal_v1 startup-heal pattern.

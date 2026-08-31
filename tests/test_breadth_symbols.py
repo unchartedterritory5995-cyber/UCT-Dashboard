@@ -12,8 +12,17 @@ from api.services import breadth_symbols as bs
 def _isolate_ohlc_store(monkeypatch):
     """These tests assert the close-to-close / live-candle behavior, so keep the shared
     session OHLC (wick) store from bleeding real wick rows into their fixed-value asserts.
-    The store's own use is covered in test_breadth_daily_ohlc.py."""
+    The store's own use is covered in test_breadth_daily_ohlc.py.
+
+    build_breadth_bars now CACHES the computed series per (sym, tf) (the instant-charts
+    fix), so clear that cache before each test — otherwise the first test's mock data
+    would be served to every later test that uses the same symbol."""
     monkeypatch.setattr("api.services.breadth_daily_ohlc.history", lambda *a, **k: {})
+    try:
+        from api.services.cache import cache
+        cache.delete_prefix("breadthbars_")
+    except Exception:
+        pass
 
 
 def test_registry_symbols_unique_and_grouped():
