@@ -2733,12 +2733,33 @@ const PINE_OP_TO_TABLE = Object.freeze({
  *  ⚠️ NaN is safe on purpose: `NaN && 1` is "nothing" and so is `NaN`, so the
  *  not-computable case folds to itself rather than to a number.
  */
+/** ⭐ THE VALUE THAT DECIDES A LOGICAL OPERATOR ON ITS OWN: `x || 1` is 1 for
+ *  every `x`, `x && 0` is 0 for every `x` — `na` included, which is the case
+ *  worth stating, because it is the one that makes this a fact about Pine rather
+ *  than a fact about two-valued logic.
+ *
+ *  ⛔ ONE OWNER, TWO CALLERS. The resolver needs this BEFORE it resolves the
+ *  right operand (to skip it) and `foldLogicalIdentity` needs it AFTER (to fold a
+ *  constant right). Spelling the table out at both sites would be a second
+ *  authority over one value — the defect this repo repeats most. */
+function logicalAnnihilator(op) {
+  return op === '||' ? 1 : op === '&&' ? 0 : null
+}
+
 function foldLogicalIdentity(op, left, right, table) {
   const isNum = (n, v) => n && n.type === 'num' && n.value === v
   const identity = op === '&&' ? 1 : op === '||' ? 0 : null
   if (identity !== null) {
     if (isNum(right, identity) && treeYieldsBool(left, table)) return left
     if (isNum(left, identity) && treeYieldsBool(right, table)) return right
+  }
+  // ⭐ AND A CONSTANT THAT DECIDES THE WHOLE THING COLLAPSES TO ITSELF. Unlike
+  // the identity folds above this needs NO `treeYieldsBool` guard on the other
+  // operand: the answer is the constant, so the other side's type cannot change
+  // it. `cNum(1)`/`cNum(0)` is the same shape the string-comparison fold emits.
+  const annihilator = logicalAnnihilator(op)
+  if (annihilator !== null && (isNum(left, annihilator) || isNum(right, annihilator))) {
+    return cNum(annihilator)
   }
   return cOp(op, [left, right])
 }
@@ -2791,6 +2812,16 @@ class Resolver {
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
     this.finalBindings = opts.finalBindings || new Map()
+    /** ⭐⭐ THE BINDING OBJECTS THAT ARE THE LAST WORD INSIDE A FUNCTION BODY.
+     *
+     *  ⛔ AN IDENTITY SET, DELIBERATELY NOT A name→binding MAP. `finalBindings` is
+     *  keyed by name and scoped to the TOP LEVEL; a second name-keyed map would
+     *  let a function-local `s` answer a question about a top-level `s`, which is
+     *  precisely the confusion this guard exists to prevent. Membership of the
+     *  OBJECT says only "this exact binding was the last word in its own scope",
+     *  which is the same claim `finalBindings.get(name) === bound` makes at the
+     *  top level — asked of the object rather than of the name. */
+    this.finalLocals = opts.finalLocals || new Set()
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -3230,6 +3261,38 @@ class Resolver {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
         }
+        // ⭐⭐ AN OPERAND THE OTHER SIDE HAS ALREADY DECIDED IS NOT RESOLVED AT ALL.
+        //
+        // ⛔⛔ THIS IS ONE POLICY THAT HAD THREE SPELLINGS AND ONLY TWO OF THEM.
+        // The `ternary` case below says it outright — "a branch a constant test
+        // never takes is not resolved at all" — and the `if`/`else if` chain folds
+        // the same way. `and`/`or` did not: both operands were resolved eagerly,
+        // so a side the folded knob had already settled still had to translate.
+        //
+        // MEASURED on `15-anchored-vwap`, whose `anchorMode` defaults to
+        // "Auto: Last Swing":
+        //   line 90  `evt := time >= anchorTime and …`   inside a dead `else if`
+        //            → never resolved, because the CHAIN was pruned
+        //   line 92  `anchorMode != "Manual Date" or time >= anchorTime`
+        //            → `pine:builtin` on `time`, because the `or` was not
+        // Two spellings of "this cannot run under the knob in force", one railed.
+        // Neutralising line 92 alone made the whole script translate, which is how
+        // the asymmetry was proven rather than argued.
+        //
+        // ⚠️ KNOWN AND DELIBERATE ASYMMETRY: if the LEFT operand refuses and the
+        // RIGHT is the deciding constant (`<unsupported> or true`), this still
+        // refuses. Folding it would mean resolving right first and reporting
+        // errors out of source order, or catching a refusal to decide whether to
+        // rethrow it — and the knob-guard idiom always writes the test first.
+        // Left-to-right refusal reporting is worth more than that spelling.
+        const annihilator = logicalAnnihilator(mapped)
+        if (annihilator !== null) {
+          const decidedBy = this.resolve(node.left)
+          if (decidedBy.type === 'num' && decidedBy.value === annihilator) {
+            return cNum(annihilator)
+          }
+          return foldLogicalIdentity(mapped, decidedBy, this.resolve(node.right), this.table)
+        }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
       }
@@ -3397,6 +3460,30 @@ class Resolver {
     const bound = this.env.get(name)
     if (!bound) return
     if (this.finalBindings.get(name) === bound) return
+    // ⚰️⚰️ ONE CONSTRUCT HAD TWO SPELLINGS AND ONLY ONE WAS RAILED. `finalBindings`
+    // is `new Map(env)` over the TOP-LEVEL env, so a FUNCTION-LOCAL `var` was
+    // never in it and this guard threw for every one of them. MEASURED, the
+    // byte-identical script:
+    //
+    //   top level      `var s = 0.0` / `s := … : s[1]` / `s != s[1]`
+    //                  → accum(0, close > open ? 1 : self, 250) != accum(…)[1]
+    //   inside `g() =>` the same three lines
+    //                  → pine:state
+    //
+    // ⛔ AND THE REFUSAL IT PRODUCED READ AS A PERMANENT RULING. `pine:state` says
+    // "what this one needs is a running total with no window … an unbounded
+    // accumulator would end static decidability … so it is not a backlog item".
+    // Every word of that is true of the case it was written for and false of this
+    // one — the accumulator holds this latch exactly, and what stood in the way
+    // was scope. That sentence is why `02-ict-retracement` was adjudicated blocked
+    // more than once (`lesson_an_over_refusal_is_invisible`).
+    //
+    // ⚠️ THE CRITERION IS THE TOP LEVEL'S, NOT A LOOSER ONE. A local whose `[n]`
+    // read comes BEFORE a later `:=` is still refused, because the binding in
+    // scope genuinely is not the last word on the name and Pine's `x[1]` means
+    // the previous bar's FINAL assignment. Only "this binding IS the last word in
+    // its own scope" is admitted.
+    if (this.finalLocals.has(bound)) return
     throw new PineRefusal('pine:state',
       `${REFUSALS['pine:state']} — \`${name}[${node.n}]\` reads what \`${name}\` held on an `
       + 'earlier bar, and this script reassigns it', locate(node.tok))
@@ -5602,6 +5689,10 @@ export function translatePine(source, opts = {}) {
   // read. See `reassignedNames` — the walk folds what it can and this map is what
   // the closing pass measures it against.
   const reassigned = reassignedNames(tokens)
+  /** ⭐ Binding OBJECTS that a function body left as the last word on their own
+   *  name. Filled as each `f(…) =>` body is folded, read by
+   *  `Resolver.guardOffsetOfMutable`. See that guard for the measurement. */
+  const finalLocals = new Set()
   const ctx = { consumed: new Set() }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
@@ -5865,9 +5956,19 @@ export function translatePine(source, opts = {}) {
         // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
         const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
         fnEnv.set(nameTok.value, self)
+        // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
+        // `finalBindings = new Map(env)` is at the top level. `foldStatements`
+        // mutates `fnEnv` in place, so a binding that CHANGED across the fold is
+        // one the body reassigned, and the object sitting there afterwards is the
+        // final one. Snapshotting before and diffing after is the only way to say
+        // that without re-implementing the walk.
+        const beforeFn = new Map(fnEnv)
         const value = arrow === toks.length - 1
           ? foldStatements(stmt.sub, ctx, fnEnv)
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
+        for (const [localName, localBound] of fnEnv) {
+          if (beforeFn.get(localName) !== localBound) finalLocals.add(localBound)
+        }
         if (!value) {
           throw new PineRefusal('pine:function-def',
             `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in no value this `
@@ -6066,7 +6167,8 @@ export function translatePine(source, opts = {}) {
   // ── resolve each output, independently ───────────────────────────────────
   const resolved = []
   for (const out of outputs) {
-    const resolver = new Resolver(env, table, declaredTypes, { finalBindings, mutated: reassigned })
+    const resolver = new Resolver(env, table, declaredTypes,
+      { finalBindings, finalLocals, mutated: reassigned })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.

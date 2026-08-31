@@ -154,14 +154,45 @@ describe('bool(x) is x != 0, which is what TradingView publishes', () => {
     expect(formulaOf(translatePine(own))).toBe('close + 1')
   })
 
-  it('⭐ the real corpus script it unblocks translates, saves and screens', () => {
-    // ⚠️ THROUGH THE SHIPPED DOOR, not a re-description of it.
+  it('⚰️⭐ the corpus script it was built for is RULED, and the fold still fires inside it', () => {
+    // ⚰️⚰️ WHAT THIS CASE ASSERTED UNTIL 2026-08-30: that
+    // `27-support-resistance-channels` "translates, saves and screens", pinning
+    // its first column as `pivothigh(high, 10, 10)[10] != 0 && 0`.
+    //
+    // ⛔ READ THAT FORMULA. It ends in `&& 0`. It is FALSE ON EVERY BAR — the
+    // fold had unblocked `plotshape(bool(ph) and showpp, …)` where the script's
+    // own `showpp = input.bool(defval = false)` switches the shape off. The column
+    // was pinned, asserted, counted toward coverage, and could never fire. The
+    // constant was written in the expected value the whole time.
+    //
+    // ⭐ THE FOLD IS STILL RIGHT, AND THAT IS THE POINT WORTH SEPARATING. Every
+    // case above this one measures `bool(x)` against TradingView's published
+    // sentence and they all still pass. What was wrong was the CLAIM ABOUT WHAT IT
+    // BOUGHT: 27 is now RULED (it decides its answer by walking a runtime array
+    // with `for` + `array.get`), and grepping the corpus, `bool(x)` appears in
+    // exactly two scripts — 27 and `29-zigzag-plus-plus`, which is RULED for
+    // importing another script. So NO corpus script is unblocked by this fold
+    // today. It is kept because a member can paste one tomorrow, which is a
+    // different and honest reason (`lesson_a_corpus_is_blind_beside_what_it_measures`).
+    //
+    // ⭐ SO THIS CASE NOW MEASURES THE ONE THING THAT IS TRUE: the fold FIRES
+    // inside the real script. If `bool` regressed to a refusal, 27 would stop at
+    // line 37 instead of reaching its actual wall 146 lines later — which is a
+    // sharper probe than `ok === true` ever was, because it names WHERE.
     const fs = require('node:fs')
     const path = require('node:path')
     const src = fs.readFileSync(path.resolve(process.cwd(),
       '../tests/fixtures/pine_community/27-support-resistance-channels.pine'), 'utf8')
     const out = translatePine(src)
-    expect(out.ok).toBe(true)
-    expect(out.outputs[out.selected].formula).toBe('pivothigh(high, 10, 10)[10] != 0 && 0')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:reassign')
+    expect(out.refusal.line).toBe(183)
+    // ⛔ THE NON-VACUITY HALF. Without this, deleting the whole `bool` fold would
+    // still leave a refusal and a plausible-looking test; the point is that it is
+    // no longer THIS one, and no longer at line 37.
+    expect(out.refusal.guard).not.toBe('pine:function')
+    // …and the construct really is in there, so this is not passing because
+    // the fixture drifted out from under the claim.
+    expect(src).toMatch(/plotshape\(bool\(ph\) and showpp/)
   })
 })

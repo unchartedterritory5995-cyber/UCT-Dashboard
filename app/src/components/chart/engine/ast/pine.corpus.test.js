@@ -315,7 +315,21 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // this whole door: a refusal count going UP can mean the translator got more
     // honest, not less capable, and only reading WHICH guard moved can tell the
     // two apart.
-    expect(fired.size).toBe(10)
+    // ⭐⭐ 10 → 9 ON 2026-08-30, AND IT IS THE SAME MOVEMENT AS THE PARAGRAPH
+    // ABOVE, RUN BACKWARDS. `pine:arity` left this set. Its only published source
+    // was 12-ichimoku's line 116:
+    //     plot(showvwap and isintraday ? vwap(realC) : na, …)
+    // and line 24 is `showvwap = input(false, title="Show VWAP?")`. The arity
+    // error is REAL — `vwap` takes no argument here — and it sits in a ternary
+    // branch the script's own default never takes. This module already forbids
+    // resolving such a branch ("a branch a constant test never takes is not
+    // resolved at all"); it simply could not SEE that `false and isintraday` is
+    // false, because `and` resolved both operands before anything folded.
+    // ⛔ SO A REFUSAL LEAVING IS NOT ALWAYS A GUARD GOING STALE, and it is not
+    // always a win either. Here it is an OVER-REFUSAL being withdrawn: the door
+    // was reporting an error inside a plot the member cannot see. The guard is
+    // still live and still right for a `vwap(x)` on a plot that is switched ON.
+    expect(fired.size).toBe(9)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -467,8 +481,52 @@ describe('the whole corpus, in one number', () => {
     // the value ON DISPLAY there would be a future bar's while the author's
     // COMPUTED value is untouched. Eight columns inside scripts that already
     // translated — the script count could never have shown it.
-    expect(translating).toBe(12)
-    expect(columns).toBe(58)
+    // ⭐⭐ 12/58 → 13/60 ON 2026-08-30, AND THE THIRTEENTH CAME FROM A SCOPE BUG
+    // RATHER THAN A NEW CAPABILITY. `02-ict-retracement` wrote its `exrem` latch
+    // inside a function, and `Resolver.guardOffsetOfMutable` asked
+    // `finalBindings.get(name) === bound` — a map built over the TOP-LEVEL env, so
+    // a function-local `var` was never in it and the guard threw for every one.
+    // MEASURED: the byte-identical construct at top level folded to
+    // `accum(0, …, 250) != accum(…)[1]` and refused `pine:state` the moment it moved
+    // inside `g() =>`. Two spellings of one construct, one railed.
+    // ⚠️ AND THE REFUSAL READ AS A PERMANENT RULING — "an unbounded accumulator
+    // would end static decidability … not a backlog item" — which is why this
+    // script was adjudicated blocked twice. The accumulator held it exactly.
+    // ⭐ 13 → 14 ON 2026-08-30 with `15-anchored-vwap`, and this one came from
+    // the SAME one-line policy gap as 12's withdrawn arity refusal above. Its
+    // line 92 reads
+    //     bool active = anchorMode != "Manual Date" or time >= anchorTime
+    // and `anchorMode` defaults to "Auto: Last Swing", so the left side is true
+    // and the `time` on the right can never decide anything. The `if`/`else if`
+    // chain twenty lines earlier was ALREADY pruned on the same knob — which is
+    // how the asymmetry was proven rather than argued: neutralising line 92 alone
+    // made the whole script translate, so line 90's identical `time` was never
+    // the wall. One policy, three spellings, and `and`/`or` was the one missing.
+    expect(translating).toBe(14)
+    // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
+    // The count went DOWN while a script was ADDED, which is the only reason
+    // anybody looked: −8 from `03-rsi-directional-momentum-scanner`, +1 from 15.
+    //
+    // MEASURED, all eight of 03's lost columns had this shape:
+    //     0 && !na(pivotlow(rsi(close, 14), 5, 5)[5]) ? rsi(close, 14)[5] : 0
+    // The leading `0` is a folded `input.bool` the script ships switched OFF, so
+    // the test is false on every bar, the ternary always takes `: 0`, and the
+    // column is IDENTICALLY ZERO for every symbol and every session. Eight of
+    // them. Counted as columns a member could screen on.
+    //
+    // ⛔ THE ENGINE ALREADY HAD THE RULE AND COULD NOT SEE THE CASE. `readsBars`
+    // hides a column that reads no bars, "worth nothing to a screen" in this
+    // module's own words about `hline`. But `0 && pivotlow(…)` LOOKS like it
+    // reads bars — it contains calls — so it walked straight past. Only once
+    // `and`/`or` folded a deciding constant did the tree collapse to `0` and the
+    // existing rule get to fire. Two community scripts died the same way the same
+    // day, on four more columns of exactly this shape.
+    //
+    // ⭐ SO A COVERAGE NUMBER FALLING IS NOT ALWAYS A LOSS, and the pin being
+    // two-directional is what forced the question instead of letting 60 stand.
+    // If this ever climbs back toward 60 without a named script, suspect the
+    // blind spot reopened rather than that coverage grew.
+    expect(columns).toBe(53)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus
@@ -491,10 +549,19 @@ describe('the whole corpus, in one number', () => {
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
     // ⚠️ 12 → 11 with `12-ichimoku-clouds` (fifteen NaN columns, covered above),
-    // then 11 → 12 with `20-smc-toolkit-udt` clearing on the pivot identity.
+    // then 11 → 12 with `20-smc-toolkit-udt` clearing on the pivot identity, and
+    // 12 → 13 with `02-ict-retracement` on the function-local scope fix.
     // `translating` and `saveable` remain the SAME SET, which is the property
-    // this case exists to hold — through both movements.
-    expect(saveable.length).toBe(12)
+    // this case exists to hold — through all three movements. ⭐ THE THIRD ONE IS
+    // THE POINT: 02 did not merely translate, it went through the budget, the
+    // linter and the read-back with a MEASURED downstream, so the set did not
+    // split. A script that translates and then cannot be saved is named by the
+    // `blocked` case above rather than quietly leaving this number behind.
+    // ⭐ 13 → 14 with `15-anchored-vwap`, whose `downstream` was MEASURED through
+    // `evaluateFormula` + `canSaveFormula` before being written to the fixture —
+    // the regenerator deliberately carries that field through rather than
+    // re-deciding it, so a new entry arrives as `null` and must be walked by hand.
+    expect(saveable.length).toBe(14)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }
@@ -576,6 +643,25 @@ describe('the snapshot can be REGENERATED, and regenerating changes nothing', ()
     for (const k of Object.keys(SNAPSHOT)) {
       if (k.startsWith('_')) regenerated[k] = SNAPSHOT[k]
     }
+    // ⚰️⚰️ THE WRITE MOVED ABOVE THE ASSERTIONS, AND IT HAD TO. It sat below
+    // them, so `PINE_CORPUS_WRITE=1` could only ever write when the fixture
+    // ALREADY matched — a regenerator that works in exactly the case where you do
+    // not need it, and throws in the only case where you do. Found by using it:
+    // `02-ict-retracement` started translating, the per-file assertion threw on
+    // the way past, and the write below never ran.
+    //
+    // ⭐ THE CONTROL THIS FILE WAS BUILT AROUND IS UNTOUCHED. On an ordinary run
+    // (no env var) the assertions still fire first and still fail field by field,
+    // so "a writer nobody has watched produce a clean no-op" is still watched.
+    // The env var is a deliberate act by somebody who has read the diff, which is
+    // what the paragraph above asks of them.
+    if (process.env.PINE_CORPUS_WRITE) {
+      const ordered = {}
+      for (const k of Object.keys(SNAPSHOT)) ordered[k] = regenerated[k]
+      for (const f of FILES) if (!(f in ordered)) ordered[f] = regenerated[f]
+      fs.writeFileSync(FIXTURE_PATH, `${JSON.stringify(ordered, null, 1)}\n`, 'utf8')
+    }
+
     // ⛔ FIELD BY FIELD, NAMED. A whole-object compare reports "objects differ"
     // and sends the reader to diff 21 entries by eye.
     for (const f of FILES) {
@@ -583,12 +669,6 @@ describe('the snapshot can be REGENERATED, and regenerating changes nothing', ()
         .toEqual(SNAPSHOT[f])
     }
     expect(Object.keys(regenerated).sort()).toEqual(Object.keys(SNAPSHOT).sort())
-
-    if (process.env.PINE_CORPUS_WRITE) {
-      const ordered = {}
-      for (const k of Object.keys(SNAPSHOT)) ordered[k] = regenerated[k]
-      fs.writeFileSync(FIXTURE_PATH, `${JSON.stringify(ordered, null, 1)}\n`, 'utf8')
-    }
   })
 
   it('⛔ the writer measures something — a no-op over an empty set is not a no-op', () => {

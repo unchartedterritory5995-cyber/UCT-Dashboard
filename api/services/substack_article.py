@@ -40,6 +40,7 @@ from __future__ import annotations
 import html as _html
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from html.parser import HTMLParser
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -56,11 +57,14 @@ from api.services import cap_universe
 #   4 -> 5: prose mentions are a THIRD ticker source -- a symbol named in the
 #           body but never charted (a guest section, or any post carrying
 #           neither a "Charts Covered" heading nor chart labels) now surfaces.
+#   5 -> 6: the prose source also accepts ETFs -- the liquid-ETF watchlist
+#           plus this desk's thematic funds. cap_universe is an equity
+#           screen, so CIBR/TQQQ/LABU/SKYY were being refused.
 # ⛔ ANY change to what convert() EMITS needs a bump here. Shipping the furniture
 # drop without one left every stored row on the previous output and the
 # improvement applied to nothing -- silently, because a backfill with no version
 # change has no work to find.
-CONVERTER_VERSION = 5
+CONVERTER_VERSION = 6
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -182,6 +186,32 @@ _PROSE_STOPWORDS = frozenset(
     "FOR GAP GO IT KEY LOW MA NEXT NOW ON OPEN OR OUT PEG PLAY PM REAL RS "
     "RSI RUN SEE SMA SO UP WELL WTI YOU".split()
 )
+
+# ETFs this desk charts that NEITHER list carries: cap_universe is an EQUITY
+# screen, and the liquid-ETF watchlist is the 100 largest by dollar volume, so
+# leveraged and thematic funds fall through both. Measured across the archive
+# fixture and the W29-W35 drafts; CIBR alone appears 12 times.
+#
+# INDICES ARE DELIBERATELY ABSENT. SPX, NDX and DXY are named in the prose and
+# are owner-excluded: they are not tradeable symbols, and a chip that opens a
+# chart for one is a dead end.
+_DESK_ETFS = frozenset({"CIBR", "TQQQ", "LABU", "SKYY"})
+
+
+@lru_cache(maxsize=1)
+def _prose_universe() -> frozenset[str]:
+    """What a prose token is checked against: the equity universe, the liquid
+    ETF watchlist, and the desk's own thematic funds.
+
+    An empty BASE means the data file did not load, and the supplements alone
+    are not a universe -- returning them would tag four symbols and treat the
+    rest of the market as unknown. Empty has to keep meaning "cannot answer".
+    """
+    base = cap_universe.symbols()
+    if not base:
+        return frozenset()
+    return base | cap_universe.etf_symbols() | _DESK_ETFS
+
 
 # A srcset candidate boundary: a comma followed by whitespace, or a comma
 # immediately preceding the next absolute URL. See _safe_srcset.
@@ -479,7 +509,7 @@ class _Converter(HTMLParser):
         dropped subtrees (the subscribe form) and heading text -- and headings
         are where the all-caps false positives live ("WHAT WE WILL COVER
         TODAY")."""
-        universe = cap_universe.symbols()
+        universe = _prose_universe()
         if not universe:
             return                  # cannot answer; say nothing rather than guess
         for m in _PROSE_TOKEN_RE.finditer(text):

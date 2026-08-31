@@ -69,6 +69,28 @@ const RULED = {
   '07-ttm-squeeze-watchlist.ts':
     'thinkorswim publishes NO formula for the TTM Squeeze study — vendor-blocked, '
     + 'and a reconstruction from the description would be a different indicator',
+  // ⭐⭐ TWO ADDED 2026-08-30, AND THEY ARRIVED HERE FROM THE TRANSLATING SIDE.
+  // Both were counted as translating until the day they were measured. The only
+  // columns either offered were `… && 0` — a `plotshape` its own
+  // `input.bool(defval=false)` switches off — so each was false on every bar.
+  // Once `and`/`or` folded a deciding constant those columns collapsed to `0`,
+  // `readsBars` hid them as worth nothing to a screen (its long-standing rule),
+  // and what was left is the wall below, which was there the whole time.
+  // ⛔ THE RULING IS NOT ABOUT THE DEAD COLUMN. It is about the live one: both
+  // scripts decide their answer by walking a runtime ARRAY with `for` +
+  // `array.get`, folding N elements into one boolean. `pine:collection` already
+  // rules that arrays have no node in this grammar, and a loop whose trip count
+  // is a property of an array cannot become one expression over a fixed
+  // vocabulary. No amount of new functions retires that — it is the same
+  // decidability line the whole closed table is drawn on.
+  '27-support-resistance-channels.pine':
+    'decides `resistancebroken` by looping over a runtime array with `array.get`; '
+    + 'an array has no node in this grammar and a trip count that is a property of '
+    + 'one cannot fold into a single expression',
+  '28-support-resistance-dynamic-v2.pine':
+    'the same array-walking accumulator as 27, wrapped in `f_crossed_over()` so '
+    + 'the block guard reaches it first',
+
   '17-compoundvalue-vs-manual-fibonacci.ts':
     'x[1] + x[2] is Fibonacci: it grows without bound and genuinely never forgets '
     + 'its seed, so the bounded accumulator refuses it correctly',
@@ -312,12 +334,23 @@ describe('🔴 THE RATCHET — OPEN may only ever fall', () => {
   // Lower it when a gap closes; never raise it. ⚠️ And it can only be lowered by
   // making a script TRANSLATE — moving one into `RULED` is caught by the bucketing
   // assertion above needing a written reason, and by review of that reason.
-  it('no more than 10 scripts are OPEN', () => {
+  it('no more than 8 scripts are OPEN', () => {
     // ⭐ 20 → 18 on 2026-08-30: `27-support-resistance-channels` translates (the
     // `bool(x)` cast is published after all), and `18-fold-up-down-points-ratio`
     // before it. A ratchet that is not tightened when a gap closes lets the gain
     // regress in silence, which is the one thing a ratchet exists to stop.
-    expect(open.length).toBeLessThanOrEqual(10)
+    // ⭐ 10 → 9 the same day with `02-ict-retracement`, and ⚠️ IT STOOD AT 10
+    // WHILE THE MEASURED NUMBER WAS 9 — green, and carrying a script's worth of
+    // slack. A ratchet with slack in it does not ratchet: it would have absorbed
+    // 02 regressing back to `pine:state` without a word. Tighten it in the SAME
+    // change that closes the gap, or it is not a rail, it is a comment.
+    // ⭐ 9 → 8 the same day, and NOT by translating anything: 27 and 28 were
+    // adjudicated RULED once it was measured that neither had ever offered a
+    // column. ⚠️ A RULING IS THE ONE WAY THIS NUMBER FALLS WITHOUT A WIN, which
+    // is why the bucketing assertion above demands a written reason for every
+    // entry and why those two reasons name a decidability line rather than a
+    // difficulty. Read them before trusting this number.
+    expect(open.length).toBeLessThanOrEqual(8)
   })
 
   it('⭐ TC2000 has no open gaps, and that is a real result rather than an empty set', () => {

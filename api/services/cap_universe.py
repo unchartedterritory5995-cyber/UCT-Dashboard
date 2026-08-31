@@ -21,28 +21,49 @@ from functools import lru_cache
 _logger = logging.getLogger(__name__)
 
 _FILENAME = "cap_universe.json"
+_ETF_FILENAME = "prebuilt_etfs.json"
+
+
+def _data_path(filename: str) -> str:
+    """Resolve a data file relative to this package, then to the CWD."""
+    here = os.path.join(os.path.dirname(__file__), "..", "data", filename)
+    if os.path.exists(here):
+        return here
+    return os.path.join("api", "data", filename)
 
 
 def path() -> str:
-    """Resolve the data file relative to this package, then to the CWD."""
-    here = os.path.join(os.path.dirname(__file__), "..", "data", _FILENAME)
-    if os.path.exists(here):
-        return here
-    return os.path.join("api", "data", _FILENAME)
+    return _data_path(_FILENAME)
+
+
+def _load_list(filename: str, label: str) -> frozenset[str]:
+    try:
+        with open(_data_path(filename), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception as exc:                          # noqa: BLE001
+        _logger.warning("[%s] load failed: %s", label, exc)
+        return frozenset()
+    if not isinstance(data, list):
+        _logger.warning("[%s] expected a list, got %s", label, type(data).__name__)
+        return frozenset()
+    out = frozenset(str(t).upper() for t in data if t)
+    _logger.info("[%s] loaded %d symbols", label, len(out))
+    return out
 
 
 @lru_cache(maxsize=1)
 def symbols() -> frozenset[str]:
-    """Every symbol in the universe, upper-cased. Empty set on any failure."""
-    try:
-        with open(path(), "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-    except Exception as exc:                          # noqa: BLE001
-        _logger.warning("[cap-universe] load failed: %s", exc)
-        return frozenset()
-    if not isinstance(data, list):
-        _logger.warning("[cap-universe] expected a list, got %s", type(data).__name__)
-        return frozenset()
-    out = frozenset(str(t).upper() for t in data if t)
-    _logger.info("[cap-universe] loaded %d symbols", len(out))
-    return out
+    """Every symbol in the $300M+ equity universe. Empty set on any failure."""
+    return _load_list(_FILENAME, "cap-universe")
+
+
+@lru_cache(maxsize=1)
+def etf_symbols() -> frozenset[str]:
+    """The "Liquid Major ETFs" watchlist -- `watchlist_prebuilt_refresh` re-ranks
+    it from live dollar volume, so it stays current.
+
+    Disjoint from `symbols()` by 84 of its 100 names: the cap universe is an
+    EQUITY screen, so most ETFs never appear in it. Anything asking "is this a
+    symbol we know?" wants both.
+    """
+    return _load_list(_ETF_FILENAME, "cap-universe-etfs")

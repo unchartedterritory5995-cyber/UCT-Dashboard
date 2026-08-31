@@ -256,7 +256,7 @@ def test_house_vocabulary_is_not_read_as_a_symbol(art, word):
     """Every one of these is a real ticker in cap_universe AND a word this desk
     writes constantly -- RS is relative strength, PEG is the post-earnings-gap
     label, EMA/MA/GAP are chart vocabulary. Measured: all ten collide."""
-    assert word in cap_universe.symbols(), f"{word} left the universe -- rail is vacuous"
+    assert word in sa._prose_universe(), f"{word} left the universe -- rail is vacuous"
     assert word not in art.tickers
 
 
@@ -267,14 +267,28 @@ def test_single_letter_prose_mentions_are_ignored():
 
 
 def test_the_universe_filter_gates_only_the_prose_source(art):
-    """EROC and CBRS are charted in this fixture and are NOT in cap_universe
-    (it is $300M+ only). Applying the prose filter to the charted sources would
-    silently drop them -- so the filter must reach the prose source alone."""
-    universe = cap_universe.symbols()
-    assert universe, "cap_universe failed to load -- every rail here is vacuous"
+    """EROC and CBRS are charted in this fixture and are in NEITHER the equity
+    universe nor the ETF watchlist. Applying the prose filter to the charted
+    sources would silently drop them -- it must reach the prose source alone."""
+    universe = sa._prose_universe()
+    assert universe, "the prose universe failed to load -- every rail here is vacuous"
     for sym in ("EROC", "CBRS"):
         assert sym not in universe, f"{sym} joined the universe -- pick another rail"
         assert sym in art.tickers, f"{sym} was charted but the universe filter ate it"
+
+
+def test_prose_source_accepts_etfs_the_equity_screen_refuses(art):
+    """cap_universe screens EQUITIES, so leveraged and thematic funds are absent
+    from it -- these four are named in the body and were being refused."""
+    for etf in ("TQQQ", "LABU", "SKYY", "IGV"):
+        assert etf not in cap_universe.symbols(), f"{etf} joined the equity screen -- pick another rail"
+        assert etf in art.tickers, f"{etf} is named in the body but was refused"
+
+
+def test_indices_are_not_tagged():
+    """Owner call: an index is not a tradeable symbol, so a chip that opens a
+    chart for one is a dead end. ETFs carry this exposure instead."""
+    assert sa.convert("<p>SPX held while NDX lagged and DXY firmed.</p>").tickers == []
 
 
 def test_curated_symbols_still_lead(art):
