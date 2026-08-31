@@ -330,3 +330,34 @@ flushes pointerdown only at release, so a held CDP press can never reach
 450ms (a 2px nudge stays inside browser slop; more cancels by tolerance).
 Real browsers deliver immediately; the hook's timing + swallow are
 unit-tested (`useLongPress.test.jsx`, 3 new cases).
+
+## Phase 10 — the clean canvas (shipped)
+
+Owner verdict after using production: "still very much behind TradingView's
+ease of use." Diagnosis: the CHROME became iOS-grade in Phases 1–9, but the
+CANVAS still wore desktop clothes — an 8-row always-on legend, the TC2000
+range bar, the $-Vol strip, the A/L/% scale chips, the voice orb + "?" FABs
+on the volume pane, and a three-row drawing-toolbar wall. TV mobile shows
+NONE of that. This phase takes it all off the phone shell:
+
+- **Legend = crosshair inspection tool.** ChartPane force-enables
+  `verticalLegend` + `alwaysShowLegend` + `showRangeSelector` for the
+  desktop workspace; the shell overrides all three through
+  `stockChartProps` (spread after them — pinned by the landing rail's
+  `data-cleancanvas`). Idle canvas shows candles + the strip's live price;
+  long-press summons OHLC/MA values, horizontal row.
+- **`.volLegend` + `.scaleToggle` hidden** under the shell attribute
+  (settings sheet still owns log/percent).
+- **FABs off the chart page** (portrait now, matching landscape) — the orb
+  cluster sat ON the volume pane and once tap-blocked the go-live chip.
+  One tab away everywhere else.
+- **Actions wall slimmed by title selector** (zero logic): Share
+  (More-sheet owns it on phone), Keyboard shortcuts, Replay, Compare,
+  bar-close clock — hidden at ≤640. The indicator-alerts bell STAYS (only
+  door to that feature).
+- **Ghost chevron**: the collapsed-toolbar expander drops to opacity .4 on
+  transparent — an affordance, not furniture.
+
+Full rig PASS unchanged (all five gates). Every change is scoped to
+`html[data-mobile-chart-shell]` + phone width or to `stockChartProps` —
+desktop, grid, and iPad byte-identical.

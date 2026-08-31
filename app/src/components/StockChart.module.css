@@ -769,3 +769,15 @@
   transition: transform 90ms ease;
 }
 .goLivePill:active { transform: scale(0.92); }
+
+/* ── Phase 10: the clean phone canvas (the mobile chart shell only) ──────
+   The $-Vol strip and the A/L/% scale chips are desktop furniture — on a
+   393px canvas they cover candles to answer questions the settings sheet
+   already answers. Scoped to the shell attribute + phone width; every other
+   surface (desktop workspace, grid cells, iPad) is untouched. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .volLegend,
+  :global(html[data-mobile-chart-shell]) .scaleToggle {
+    display: none;
+  }
+}

@@ -50,6 +50,12 @@
   }
 }
 
+/* Phase 10 — the clean phone canvas: portrait phone chart too — the "?" sat on
+   the volume pane; it's on every other screen. (Same call as the orb.) */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .fab { display: none !important; }
+}
+
 /* Landscape immersive charting (html[data-mobile-chart-shell]): the rotated
    phone chart owns the whole screen — the "?" sits out; it's one rotation away
    in portrait. */

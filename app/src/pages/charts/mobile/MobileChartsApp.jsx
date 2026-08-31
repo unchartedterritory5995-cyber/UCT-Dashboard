@@ -220,6 +220,15 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     toolbarDefaultCollapsed: true,
     // The » back-to-live chip when panned into history (phone/tablet only).
     showGoLive: true,
+    // Phase 10 — the clean canvas. ChartPane force-enables these for the
+    // desktop workspace; the spread order lets the shell take them back:
+    // the symbol strip already shows the live price, so the legend becomes
+    // what it is on TradingView mobile — a crosshair INSPECTION tool, not
+    // permanent furniture — and the TC2000 range bar stays desktop (the TF
+    // sheet owns timeframes here).
+    verticalLegend: false,
+    alwaysShowLegend: false,
+    showRangeSelector: false,
   }), [chartWidget?.id])
 
   // The widget page's shared pieces (used by BOTH presentations):

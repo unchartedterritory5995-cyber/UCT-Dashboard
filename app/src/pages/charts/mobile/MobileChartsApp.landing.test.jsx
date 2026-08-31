@@ -35,6 +35,11 @@ vi.mock('../../../components/chart/pane/ChartPane', () => ({
         data-density={density}
         data-showtfbar={String(showTfBar)}
         data-golive={String(!!stockChartProps?.showGoLive)}
+        data-cleancanvas={String(
+          stockChartProps?.verticalLegend === false
+          && stockChartProps?.alwaysShowLegend === false
+          && stockChartProps?.showRangeSelector === false,
+        )}
       />
     )
   }),
@@ -334,6 +339,15 @@ describe('Phase 8 — the feel layer wires', () => {
   test('the shell asks its chart for the back-to-live chip', () => {
     renderApp(HYDRATED)
     expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-golive', 'true')
+  })
+
+  test('Phase 10: the shell takes back the desktop canvas furniture', () => {
+    // ChartPane force-enables verticalLegend / alwaysShowLegend /
+    // showRangeSelector for the desktop workspace; the shell's overrides ride
+    // stockChartProps (spread AFTER them). Legend = crosshair inspection tool;
+    // range bar stays desktop.
+    renderApp(HYDRATED)
+    expect(screen.getByTestId('chart-pane')).toHaveAttribute('data-cleancanvas', 'true')
   })
 
   test('the ƒx button carries the widget settings\' live-overlay count', () => {
