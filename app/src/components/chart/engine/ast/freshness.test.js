@@ -85,7 +85,24 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // `candle_recent*`, `candle_weekly*`, `candle_monthly*`) refused for
     // `candle_type`'s reason — a classification is not a magnitude — while its
     // three numerics were DECLARED (108 -> 111 above). Same Python mirror.
-    expect(Object.keys(excluded).length).toBe(89)
+    // 89 -> 92 on 2026-08-31: the BASE & STRUCTURE LIBRARY. ⚠️ And this
+    // comment's own warning came true in the same breath -- the Python lane
+    // was moved to 92 and this one was left at 89, so the JS rail went red on
+    // a table the Python rail had already accepted. Exactly the failure the
+    // paragraph above describes, committed by the person who read it.
+    //   excluded  89 - 1 + 4 = 92   `patterns` RETIRED with the cheap pattern
+    //                               vocabulary; `base_shape`,
+    //                               `base_shape_label`, `base_matches` and
+    //                               `base_render` EXCLUDED -- classifications,
+    //                               a delimiter-wrapped membership list and a
+    //                               display string, all for `candle_matches`'s
+    //                               reason.
+    //   declared 111 - 1 + 1 = 111  `pattern_conf_max` retired;
+    //                               `base_relation_count` declared. The
+    //                               declared side NETS TO A WASH, which is the
+    //                               shape that hides a mistake -- both halves
+    //                               moved and the total did not.
+    expect(Object.keys(excluded).length).toBe(92)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)
