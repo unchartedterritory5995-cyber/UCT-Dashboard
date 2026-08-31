@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import Sheet from '../../../components/mobile/Sheet'
+import StructureProvenance from '../../../components/screener/StructureProvenance'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import { prefetchBars } from '../../../utils/prefetchBars'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
@@ -73,6 +75,7 @@ export default function ScannerShell({ embedded = false }) {
   const onDensity = d => { setDensity(d); try { localStorage.setItem(densityKey, d) } catch { /* ok */ } }
   const [liveSortOn, setLiveSortOn] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [libOpen, setLibOpen] = useState(false)
   const [exportState, setExportState] = useState({})
 
   // ⛔⛔ THE SERVER'S OWN ANSWER OUTRANKS A FABRICATED ONE. `s.visibleColumns` is
@@ -150,6 +153,9 @@ export default function ScannerShell({ embedded = false }) {
           <button type="button" className={styles.railToggle} onClick={() => setSheetOpen(true)}>
             <UIcon name="gear" size={12} /> Filters{Object.keys(s.filters).length ? ` · ${Object.keys(s.filters).length}` : ''}
           </button>
+          <button type="button" className={styles.toolBtn} onClick={() => setLibOpen(true)}>
+            <UIcon name="book" size={11} /> Structure library
+          </button>
           <FilterChips meta={meta} activeFilters={s.filters}
             onRemove={key => s.setFilter(key, null)} onClear={s.clearFilters}
             scanJoins={result?.scan_joins} onReplace={(k, v) => s.setFilter(k, v)} />
@@ -196,6 +202,22 @@ export default function ScannerShell({ embedded = false }) {
             onLoadMore={s.loadMore} isLoading={isLoading} />
         )}
       </div>
+      {/* THE DOOR TO THE RESEARCH. The base library holds ~210 criteria across 26
+          structures -- verbatim source sentences, our own numbers labelled as
+          ours, and refusals naming what a house declined to publish. It reached
+          no screen until this button. Rendered only while open so a screener
+          load never pays for a fetch nobody asked for.
+
+          MEASURED, not assumed: `Sheet` already returns null while closed
+          (Sheet.jsx L120), so it is SHEET that keeps the panel unmounted, and
+          this `libOpen &&` is belt-and-braces -- deleting it changes no
+          behaviour today and no test reds. It stays because it makes the
+          intent local: if Sheet ever keeps children mounted to animate an
+          exit, the property survives here. Do not read it as the guard. */}
+      <Sheet open={libOpen} onClose={() => setLibOpen(false)} variant="auto"
+        title="Structure library">
+        {libOpen && <StructureProvenance />}
+      </Sheet>
       <FiltersSheet open={sheetOpen} onClose={() => setSheetOpen(false)}
         onClear={s.clearFilters} onApply={() => setSheetOpen(false)}
         title="Scan Filters" activeCount={Object.keys(s.filters).length}
