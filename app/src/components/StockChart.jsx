@@ -3567,6 +3567,88 @@ export default function StockChart({
     onRemove: handleChipRemove,
     onMenu: handleChipMenu,
   } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu])
+
+  // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
+  // to the component body so the right-click "Reset view" AND the floating
+  // "scroll to present" button (shown when today's bar is off-screen) share ONE impl.
+  const doResetView = () => {
+    try {
+      // VERTICAL first: clear any manual price-scale drag / locked placement + autoscale.
+      vertMarginsRef.current = null
+      focusPriceRangeRef.current = null
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
+      try {
+        mainPriceScale()?.applyOptions({
+          autoScale: true,
+          scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
+        })
+      } catch {}
+      // HORIZONTAL: reframe to the timeframe default (newest at LAST_CANDLE_POS).
+      const ts = chartRef.current?.timeScale(); if (!ts) return
+      const len = lastBarCountRef.current || 0
+      if (len > 1) {
+        const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chartRef.current, containerRef.current) })
+        ts.setVisibleLogicalRange({ from, to })
+      } else {
+        ts.resetTimeScale()
+      }
+      userViewMovedRef.current = false
+      replayViewLockedRef.current = false; replayLockedViewRef.current = null
+      userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock()
+    } catch { /* noop */ }
+  }
+  const resetViewRef = useRef(null)
+  resetViewRef.current = doResetView
+
+  // Position the floating "scroll to present" button JUST ABOVE the grey upcoming-
+  // earnings badge (which pins to the right edge at the bottom of the price pane when
+  // today is off-screen). Uses the badge primitive's live pixel rect; falls back to
+  // the bottom-right of the plot when a symbol has no earnings marker. Positioned
+  // imperatively (no React re-render) while the button is shown.
+  const presentBtnElRef = useRef(null)
+  useEffect(() => {
+    if (!lastBarOff || !chartReady) return undefined
+    let raf = 0, alive = true
+    const BTN = 26, GAP = 9
+    const position = () => {
+      const el = presentBtnElRef.current
+      const chart = chartRef.current
+      const cont = containerRef.current
+      if (!el || !chart || !cont) return
+      let axisW = 0
+      try { axisW = chart.priceScale('right').width() || 0 } catch { /* */ }
+      const contW = cont.clientWidth
+      const contH = cont.clientHeight
+      // The chart div (.chart) may be offset within the button's offsetParent (.wrapper)
+      // — measure it so pointRect's plot-media coords land in the right DOM spot.
+      const cRect = cont.getBoundingClientRect()
+      const op = el.offsetParent
+      const oRect = op ? op.getBoundingClientRect() : cRect
+      const offX = cRect.left - oRect.left
+      const offY = cRect.top - oRect.top
+      let rect = null
+      try { rect = earnBadgeRef.current?.pointRect?.() } catch { /* */ }
+      let left, top
+      if (rect && Number.isFinite(rect.x) && Number.isFinite(rect.y)) {
+        left = rect.x + rect.w / 2 - BTN / 2   // centered horizontally on the badge
+        top = rect.y - BTN - GAP               // just above it
+      } else {
+        left = contW - axisW - BTN - 10        // no earnings badge → bottom-right of the plot
+        top = contH * 0.78 - BTN - 18
+      }
+      left = Math.max(0, Math.min(left, contW - axisW - BTN - 2)) + offX
+      top = Math.max(0, Math.min(top, contH - BTN - 4)) + offY
+      el.style.left = `${Math.round(left)}px`
+      el.style.top = `${Math.round(top)}px`
+      el.style.right = 'auto'
+      el.style.bottom = 'auto'
+    }
+    const loop = () => { if (!alive) return; position(); raf = requestAnimationFrame(loop) }
+    loop()
+    return () => { alive = false; cancelAnimationFrame(raf) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastBarOff, chartReady])
   const buildRegionSections = useCallback((region, clickPrice) => {
     const setCs = (path, value) => {
       const next = { ...cs }
@@ -3593,45 +3675,9 @@ export default function StockChart({
     // = dailyDefaultBars ≈ 6 months), newest candle anchored at LAST_CANDLE_POS —
     // NOT LWC's resetTimeScale() (which fit-all-ed to ~1 year). Falls back to
     // resetTimeScale when there aren't enough bars to frame.
-    const resetView = () => {
-      try {
-        // VERTICAL first: clear any manual price-scale drag / locked placement and
-        // re-enable auto-scale so the candles are always re-framed. Dragging the price
-        // axis pins a fixed price range that the horizontal reframe alone can't undo —
-        // that's the "reset does nothing / candles gone off-screen" bug.
-        vertMarginsRef.current = null
-        focusPriceRangeRef.current = null
-        // Drop any manual price-axis DRAG pin too. A price-axis drag latches
-        // priceManualRef + priceManualRangeRef and installs an autoscaleInfoProvider
-        // that FORCES the dragged vertical range back even after autoScale:true — so
-        // without clearing these the reset re-fits horizontally but the vertical stays
-        // compressed. Mirrors the double-click axis reset (onDbl) and the sym-switch reset.
-        priceManualRef.current = false
-        priceManualRangeRef.current = null
-        try {
-          mainPriceScale()?.applyOptions({
-            autoScale: true,
-            scaleMargins: _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null),
-          })
-        } catch {}
-        // HORIZONTAL: reframe to the timeframe default.
-        const ts = chartRef.current?.timeScale(); if (!ts) return
-        const len = lastBarCountRef.current || 0
-        if (len > 1) {
-          const { from, to } = computeDefaultLogicalRange(len, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chartRef.current, containerRef.current) })
-          ts.setVisibleLogicalRange({ from, to })
-        } else {
-          ts.resetTimeScale()
-        }
-        // Explicit reset — the view is back at the canonical window, so the
-        // "user moved the view" latch is cleared and the pinned-right safety
-        // net is live again (see userViewMovedRef). Also release the replay view
-        // lock so the next replay ticker returns to the default replay frame.
-        userViewMovedRef.current = false
-        replayViewLockedRef.current = false; replayLockedViewRef.current = null
-        userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock()
-      } catch {}
-    }
+    // Same implementation as the floating "scroll to present" button (doResetView,
+    // lifted to the component body so both share ONE reset).
+    const resetView = () => resetViewRef.current?.()
     const autoScale = () => {
       try {
         // Clear any locked vertical placement and restore the default candle band.
@@ -14588,6 +14634,24 @@ export default function StockChart({
             >{label}</button>
           ))}
         </div>
+      )}
+      {/* "Scroll to present" — appears at the right edge only when today's / the most
+          recent bar is scrolled off-screen. A quick-access "Reset view": jumps back to
+          the default present-day window. Disappears once the latest bar is in frame.
+          Not shown on pinned (Model Book) / replay charts, where there is no "present". */}
+      {lastBarOff && chartReady && filteredBars?.length > 1 && !exactDateRange && !entryDate && !replayMode && !replayCutoff && (
+        <button
+          ref={presentBtnElRef}
+          type="button"
+          className={styles.toPresentBtn}
+          onClick={() => doResetView()}
+          title="Scroll to present"
+          aria-label="Scroll to present day"
+        >
+          <svg width="13" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6,3 11,8 6,13" />
+          </svg>
+        </button>
       )}
       {/* "Origin" range: while the full history is still loading, hold a centered pill
           so the user never mistakes the deepest-loaded-so-far bar for the true origin. */}
