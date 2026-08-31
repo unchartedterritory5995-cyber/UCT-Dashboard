@@ -282,3 +282,11 @@
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .orbCluster { display: none; }
 }
+
+/* Phase 10 — the clean phone canvas: on the PORTRAIT phone chart too, the orb
+   cluster was squatting on the volume pane of the one screen where every pixel
+   is candles (it also tap-blocked the back-to-live chip once). The orb is one
+   tab away on every other screen; the chart page belongs to the chart. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .orbCluster { display: none; }
+}

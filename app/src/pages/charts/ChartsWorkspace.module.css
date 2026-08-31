@@ -1483,6 +1483,16 @@
                - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   min-height: 0;
 }
+/* Portrait full-height charting (Phase 9): the phone chart shell hides the top
+   bar (MobileNav.module.css, same attribute + media), so its reservation and
+   the top safe-area come back to the chart — the shell's own symbol strip pads
+   for the notch instead. Same tokens as above; only the subtraction changes. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .mobileWorkspace {
+    height: calc(100vh - var(--mobile-tabbar-h) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--mobile-tabbar-h) - env(safe-area-inset-bottom, 0px));
+  }
+}
 /* ── Chart right-click context menu (workspace-only, new UCT theme) ── */
 .chartCtxBackdrop { position: fixed; inset: 0; z-index: 900; }
 /* Right-click menu — adapts to the chart canvas via --menu-* vars (set inline from

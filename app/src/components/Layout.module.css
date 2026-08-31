@@ -36,6 +36,15 @@
   }
 }
 
+/* Portrait full-height charting (Phase 9): only the TOP bar hides on the phone
+   chart shell (MobileNav.module.css) — the tab bar stays, so only the top
+   reservation goes. */
+@media (pointer: coarse) and (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .main {
+    padding-top: 0;
+  }
+}
+
 @media (max-width: 900px) and (orientation: landscape) {
   .main {
     padding-top: calc(36px + env(safe-area-inset-top));

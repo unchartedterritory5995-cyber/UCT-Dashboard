@@ -95,6 +95,51 @@ def shot(page, name, wait=1200):
     print('  shot', name)
 
 
+# ── JS-dispatched gestures ───────────────────────────────────────────────────
+# The sandbox's 2026-08-31 image swap changed headless Chromium's CDP touch
+# semantics: a dispatchTouchEvent STREAM (start → moves → end) now delivers
+# nothing to the page until release, so drags stopped driving LWC pans and the
+# overlay's reshape — while single taps kept working. Real browsers deliver
+# per-event; these JS dispatches are the deterministic stand-in (same call the
+# long-press step already made for the same reason). pointer* drives the
+# drawing overlay's pointer handlers; Touch* drives LWC's touch pan.
+
+def js_pointer_drag(page, x0, y0, x1, y1, steps=5):
+    page.evaluate('''([x0, y0, x1, y1, steps]) => {
+      const el = document.elementFromPoint(x0, y0)
+      if (!el) return
+      const fire = (type, x, y) => el.dispatchEvent(new PointerEvent(type, {
+        pointerType: 'touch', bubbles: true, cancelable: true,
+        clientX: x, clientY: y, pointerId: 9, isPrimary: true, buttons: 1,
+      }))
+      fire('pointerdown', x0, y0)
+      for (let i = 1; i <= steps; i++) {
+        fire('pointermove', x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps)
+      }
+      fire('pointerup', x1, y1)
+    }''', [x0, y0, x1, y1, steps])
+
+
+def js_touch_drag(page, x0, y0, x1, y1, steps=8):
+    page.evaluate('''([x0, y0, x1, y1, steps]) => {
+      const el = document.elementFromPoint(x0, y0)
+      if (!el) return
+      const mk = (x, y) => new Touch({ identifier: 9, target: el, clientX: x, clientY: y,
+                                       pageX: x, pageY: y, screenX: x, screenY: y })
+      const fire = (type, x, y, ended) => el.dispatchEvent(new TouchEvent(type, {
+        bubbles: true, cancelable: true,
+        touches: ended ? [] : [mk(x, y)],
+        targetTouches: ended ? [] : [mk(x, y)],
+        changedTouches: [mk(x, y)],
+      }))
+      fire('touchstart', x0, y0, false)
+      for (let i = 1; i <= steps; i++) {
+        fire('touchmove', x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps, false)
+      }
+      fire('touchend', x1, y1, true)
+    }''', [x0, y0, x1, y1, steps])
+
+
 def make_page(ctx, base, email, pw, viewport_note):
     page = ctx.new_page()
     page.request.post(f'{base}/api/auth/signup', data={'email': email, 'password': pw, 'display_name': 'x'})
@@ -150,11 +195,19 @@ def touch_walk(ctx, page):
         })
 
     def tap(x, y):
-        if cdp:
-            touch('touchStart', [(x, y)])
-            touch('touchEnd', [])
-        else:
-            page.touchscreen.tap(x, y)
+        # JS-dispatched down+up pair (see the js_* helpers' header): the
+        # 2026-08-31 headless Chromium delivers a CDP tap's pointerdown but
+        # SWALLOWS its pointerup, so every tap left a stale id in the
+        # overlay's activePointers set — and the reshape drag then bailed as
+        # "second finger". Balanced by construction this way.
+        page.evaluate('''([x, y]) => {
+          const el = document.elementFromPoint(x, y)
+          if (!el) return
+          const opts = { pointerType: 'touch', bubbles: true, cancelable: true,
+                         clientX: x, clientY: y, pointerId: 7, isPrimary: true }
+          el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, buttons: 1 }))
+          el.dispatchEvent(new PointerEvent('pointerup', opts))
+        }''', [x, y])
         page.wait_for_timeout(400)
 
     # The one-time coach chip should be up before the first anchor…
@@ -177,11 +230,7 @@ def touch_walk(ctx, page):
     # fails if the coarse hit zone or the drag path regresses.
     tap(225, 400)                    # tap the line body → select (handles show)
     shot(page, '22-handles-selected', wait=600)
-    touch('touchStart', [(330, 300)])
-    for xy in [(330, 280), (330, 255), (330, 235)]:
-        touch('touchMove', [xy])
-        page.wait_for_timeout(60)
-    touch('touchEnd', [])
+    js_pointer_drag(page, 330, 300, 330, 235, steps=4)
     page.wait_for_timeout(500)
     moved = page.evaluate("() => localStorage.getItem('uct-chart-drawings') || ''")
     reshaped = moved != stored and '"trendline"' in moved
@@ -219,11 +268,7 @@ def golive_walk(ctx, page):
     touch('touchStart', [(60, 300)])
     touch('touchEnd', [])
     page.wait_for_timeout(400)
-    touch('touchStart', [(150, 300)])
-    for x in range(170, 351, 20):
-        touch('touchMove', [(x, 300)])
-        page.wait_for_timeout(30)
-    touch('touchEnd', [])
+    js_touch_drag(page, 150, 300, 350, 300, steps=8)
     page.wait_for_timeout(700)
     if '/charts' not in page.url:
         print('  go-live: pan NAVIGATED AWAY (edge-gesture regression) — url', page.url)
@@ -239,7 +284,8 @@ def golive_walk(ctx, page):
         # A timeout here has meant a FAB intercepting the tap (the orb cluster
         # did exactly that at bottom: 42px) — that's a product bug, not rig
         # noise, so it fails the gate with the interceptor named.
-        print('  pill TAP FAILED (intercepted?):', str(e).splitlines()[-1][:120])
+        lines = [ln.strip() for ln in str(e).splitlines() if 'intercept' in ln or 'pointer events' in ln]
+        print('  pill TAP FAILED (intercepted?):', (lines[0] if lines else str(e).splitlines()[0])[:180])
         return False
     page.wait_for_timeout(900)  # scrollToRealTime glides back to the live edge
     gone = pill.count() == 0
@@ -281,7 +327,40 @@ def main():
         ctx = browser.new_context(viewport={'width': 393, 'height': 852}, device_scale_factor=2,
                                   is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
         page = make_page(ctx, args.base, args.email, args.password, 'portrait')
+        # Self-heal the symbol: color-group A persists SERVER-side, so another
+        # tool's run (discovery journeys picking BRK.B) leaves this account's
+        # chart on a symbol the IDB seed doesn't cover — every canvas gate then
+        # flakes against an error-state chart. Route back to SPY first.
+        strip = page.get_by_label(re.compile('^Change symbol'))
+        if 'SPY' not in (strip.text_content() or ''):
+            strip.click(timeout=4000)
+            page.wait_for_timeout(500)
+            page.get_by_role('textbox', name='Search symbol').fill('SPY')
+            page.wait_for_timeout(900)
+            page.get_by_role('button', name=re.compile('^SPY')).first.click(timeout=4000)
+            page.wait_for_timeout(1200)
+            if page.locator('[data-sheet-panel]').count():
+                page.keyboard.press('Escape')
+                page.wait_for_timeout(500)
+            print('  symbol self-heal: routed back to SPY —',
+                  'ok' if 'SPY' in (strip.text_content() or '') else 'STILL WRONG')
+        # Same for the timeframe: the widget's tf persists server-side too, and
+        # the IDB seed covers DAILY only — a leftover 1h (discovery's
+        # persistence journey) opens an honest no-data error chart and every
+        # canvas gate then fails against it.
+        tf_pill = page.get_by_role('button', name=re.compile('^Timeframe'))
+        if (tf_pill.text_content() or '').strip() != '1D':
+            tf_pill.click(timeout=4000)
+            page.wait_for_timeout(600)
+            page.get_by_role('option', name='1D').click(timeout=4000)
+            page.wait_for_timeout(1500)
+            print('  tf self-heal: routed back to 1D')
         shot(page, '01-chart')
+        # Phase 9: the app top bar steps aside on the phone chart shell — the
+        # hamburger is gone while the bottom tab bar (the control) stays.
+        topbar_gone = (not page.get_by_label('Open menu').is_visible()
+                       and page.get_by_role('link', name='Home').is_visible())
+        print('  top bar hidden on /charts phone (tab bar stays):', topbar_gone)
         for label, name in [('Timeframe', '02-tf-sheet'), ('Chart type', '03-type-sheet'),
                             ('Indicators', '04-indicators-sheet'), ('More tools', '05-more-sheet')]:
             try:
@@ -295,6 +374,7 @@ def main():
         # page detour — page navigation must not be a variable under the walk.
         drew = touch_walk(ctx, page)
         golive = golive_walk(ctx, page)
+        longpress_ok = False
         step = 'star'
         try:
             open_sheets = page.evaluate("() => document.querySelectorAll('[data-sheet-panel]').length")
@@ -325,6 +405,65 @@ def main():
                         fl.nth(i).click(timeout=4000)
                         break
             shot(page, '06-watchlist-sparks', wait=1800)
+
+            # Phase 9: LONG-PRESS a row's sym cell → the row-action sheet
+            # (notes / alerts / remove — right-click's touch door). The hook
+            # swallows the release click, so the row must NOT also select and
+            # bounce the page back to the chart underneath the sheet.
+            # ⚠️ Row menus live on OWNER-LIST rows only — Flagged rows have
+            # none BY DESIGN (the star is their remove; same on desktop
+            # right-click) — so press in a real list: idempotent RigList.
+            step = 'make RigList'
+            wls = page.request.get(f'{args.base}/api/watchlists').json()
+            rig = next((w for w in wls if w.get('name') == 'RigList'), None)
+            if rig is None:
+                rig = page.request.post(f'{args.base}/api/watchlists', data={'name': 'RigList'}).json()
+                page.request.post(f"{args.base}/api/watchlists/{rig['id']}/items", data={'sym': 'AAPL'})
+            step = 'open RigList'
+            # Deterministic from either state: inside a list, ‹ Lists exists —
+            # go up; on the lists index it doesn't. Then tap the list.
+            lists_btn = page.get_by_role('button', name=re.compile('Lists'))
+            if lists_btn.count() and lists_btn.first.is_visible():
+                lists_btn.first.click(timeout=4000)
+                page.wait_for_timeout(600)
+            page.get_by_text('RigList', exact=True).first.click(timeout=4000)
+            page.wait_for_timeout(900)
+            step = 'long-press row'
+            row = page.locator('[data-watch-sym]').first
+            # Aim at the SYM CELL itself — the element carrying the binding.
+            # Guessed x-offsets missed twice (x+42 = the flag star, x+150 = the
+            # price cell; phone columns are narrower than they look).
+            cell = row.locator('[class*="symCell"]').first
+            box = cell.bounding_box() if cell.count() else row.bounding_box()
+            if box:
+                lx, ly = box['x'] + box['width'] * 0.55, box['y'] + box['height'] / 2
+                # ⚠️ NOT a CDP touch: headless Chromium holds a motionless
+                # dispatchTouchEvent press in tap-vs-scroll disambiguation and
+                # flushes pointerdown only AT RELEASE — the 450ms timer starts
+                # and dies in the same instant, so a held CDP press can never
+                # fire (a 2px nudge stays inside browser slop; a real move
+                # cancels by tolerance). Real browsers deliver pointerdown
+                # immediately, so a JS-dispatched pointerdown at the cell is
+                # the faithful stand-in; the hook's timing/swallow mechanics
+                # are unit-tested in useLongPress.test.jsx.
+                page.evaluate('''([x, y]) => {
+                  const el = document.elementFromPoint(x, y)
+                  el?.dispatchEvent(new PointerEvent('pointerdown', {
+                    pointerType: 'touch', bubbles: true, cancelable: true,
+                    clientX: x, clientY: y, pointerId: 7,
+                  }))
+                }''', [lx, ly])
+                page.wait_for_timeout(800)
+                row_sheet = page.locator('[data-sheet-panel]').count() > 0
+                print('  long-press row menu opened:', row_sheet)
+                shot(page, '07-row-menu', wait=300)
+                if row_sheet:
+                    page.keyboard.press('Escape')
+                    page.wait_for_timeout(400)
+                longpress_ok = row_sheet
+            else:
+                print('  long-press row menu: no row box — skipped')
+
             step = 'back to chart'
             page.get_by_role('button', name=re.compile('^Chart$')).click(timeout=4000)
             page.wait_for_timeout(500)
@@ -359,7 +498,13 @@ def main():
     if not golive:
         print('FAIL: back-to-live chip round trip failed — pan/pill/snap regressed')
         return 1
-    print('PASS: touch place + reshape + back-to-live verified end-to-end')
+    if not topbar_gone:
+        print('FAIL: app top bar still visible on the phone chart shell — full-height charting regressed')
+        return 1
+    if not longpress_ok:
+        print('FAIL: long-press row menu did not open — phone row actions regressed')
+        return 1
+    print('PASS: touch place + reshape + back-to-live + top-bar + long-press verified end-to-end')
     return 0
 
 
