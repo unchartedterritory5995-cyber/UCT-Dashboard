@@ -206,6 +206,30 @@ def _carry_note(prior: dict, row: dict) -> None:
             "row changed. Re-write it against the numbers above.")
 
 
+def _directions_of(st) -> list:
+    """Which metric(s) a structure must be graded on.
+
+    ⛔⛔ A NEUTRAL STRUCTURE IS GRADED BOTH WAYS, because grading it long is a
+    DIRECTIONAL CLAIM MADE ON ITS BEHALF. `darvas-box` and `square-box` both
+    publish on the long metric while declaring `bias="neutral"` -- a box is a
+    range, and Darvas's own words describe a frame rather than a forecast.
+    Defaulting such a structure to long is not neutral at all; it is an
+    undeclared bet, invisible precisely because the number looks like every
+    other number.
+
+    Measured both ways the row says something one number cannot: a structure
+    positive on ONE side marks direction, and one positive on BOTH marks
+    VOLATILITY -- price left the range either way, which is a different and
+    still useful fact.
+    """
+    bias = getattr(st, "bias", "")
+    if bias == "bearish":
+        return ["short"]
+    if bias == "neutral":
+        return ["long", "short"]
+    return ["long"]
+
+
 def _direction_of(st) -> str:
     """Which way a structure claims price will resolve.
 
@@ -216,7 +240,7 @@ def _direction_of(st) -> str:
     opposite of the claim its name makes, and `stage-4-breakdown` published
     +7.30pp under exactly that reading.
     """
-    return "short" if getattr(st, "bias", "") == "bearish" else "long"
+    return _directions_of(st)[0]
 
 
 def _run_grouped(args, bars_by, wanted, existing) -> int:
@@ -241,8 +265,9 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
     for st in bc.RELATIONS:
         if wanted and st.key not in wanted:
             continue
-        key = (WINDOWS.get(st.key, DEFAULT_WINDOW), _direction_of(st))
-        groups.setdefault(key, []).append(st)
+        for d in _directions_of(st):
+            groups.setdefault(
+                (WINDOWS.get(st.key, DEFAULT_WINDOW), d), []).append(st)
 
     measured = []
     for (window, direction), members in groups.items():
@@ -292,7 +317,31 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
                 row["null_trials"] = len(nl)
             if not verdict["published"]:
                 row["reasons"] = verdict.get("reasons", [])
-            _carry_note(structures.get(st.key) or {}, row)
+            prior = structures.get(st.key) or {}
+            _carry_note(prior, row)
+
+            # ⛔ A NEUTRAL STRUCTURE PRODUCES TWO ROWS, ONE PER DIRECTION, and
+            # the second must not silently overwrite the first. Both are kept
+            # under `by_direction`, and the top-level fields describe the
+            # STRONGER side -- with the other visible beside it, so the choice
+            # of which side to headline is auditable rather than implicit.
+            side = {k: row.get(k) for k in
+                    ("lift", "ci_low", "ci_high", "n", "null_max",
+                     "null_trials", "published")}
+            row["by_direction"] = dict(prior.get("by_direction") or {})
+            row["by_direction"][direction] = side
+
+            if len(_directions_of(st)) > 1 and prior.get("lift") is not None:
+                other = prior.get("lift")
+                if (other or -9) > (row.get("lift") or -9):
+                    # The side already on file is stronger: keep it as the
+                    # headline and record this one beside it.
+                    keep = dict(prior)
+                    keep["by_direction"] = row["by_direction"]
+                    structures[st.key] = keep
+                    measured.append(st.key)
+                    continue
+
             structures[st.key] = row
             measured.append(st.key)
 

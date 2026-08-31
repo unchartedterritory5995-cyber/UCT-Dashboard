@@ -151,6 +151,39 @@ def screener_methodology(column: str = "", user=Depends(require_paid)):
     return methodology.all_methods()
 
 
+@router.get("/api/screener/structures")
+def screener_structures(key: str = "", user=Depends(require_paid)):
+    """The base library with its PROVENANCE -- every criterion and its source.
+
+    ⭐ The competitor gap this closes is the same one `/methodology` closes for
+    the composite columns: we published the labels and not the reasoning.
+    A member can now see, for any structure, the verbatim sentence a house
+    published, the number we supplied ourselves and say so, and -- the part
+    nobody else ships -- exactly what a house DECLINED to publish, named.
+
+    `?key=` returns one structure; bare returns all, with counts derived from
+    the criteria rather than typed beside them.
+    """
+    from api.services.screener import base_catalog, lift_ledger
+
+    if key:
+        found = base_catalog.provenance(key)
+        if not found:
+            raise HTTPException(status_code=404,
+                                detail=f"no structure named {key!r}")
+        found["evidence"] = lift_ledger.for_structure(key)
+        return found
+
+    out = base_catalog.provenance()
+    for k, entry in out.items():
+        entry["evidence"] = lift_ledger.for_structure(k)
+    return {
+        "structures": out,
+        "counts": base_catalog.provenance_counts(),
+        "evidence_basis": lift_ledger.load().get("gates"),
+    }
+
+
 @router.get("/api/screener/alerts")
 def screener_alerts_list(user=Depends(require_paid)):
     from api.services.screener import screen_alerts
