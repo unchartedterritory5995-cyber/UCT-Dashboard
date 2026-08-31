@@ -426,6 +426,9 @@
 
 .indDot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; }
 .indName { flex: 1 1 auto; font-size: 14px; color: var(--text); }
+/* Study qualifier ("· intraday" on session-only rows like VWAP) — dim, so the
+   switch never reads as broken when the study can't draw on a daily chart. */
+.indNote { font-size: 11.5px; color: var(--text-dim); }
 
 /* iOS-style switch (pure CSS, driven by aria-checked on the button) */
 .switch {

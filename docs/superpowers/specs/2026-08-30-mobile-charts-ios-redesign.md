@@ -463,3 +463,50 @@ Shipped Phases 9–11w2 to production (master `67c8157d9`), then kept crawling:
 - Queued still: $IDX synthetic-symbol e2e needs real theme data (sandbox has
   none — verify on production once), VoiceOver semantics audit, and the
   VoiceInputButton bump (J2-owned).
+
+## Wave 4 — EASY and SIMPLE (taps-per-task pass)
+
+The owner's directive shifted from parity to simplicity ("incredible and
+EASY and SIMPLE to use"), so this wave audited steps-to-complete for the
+common tasks instead of element-level checks. Symbol switch (3 interactions,
+keyboard up, recents), TF (2 taps), chart type (2), MA toggle (2), alert
+(live-price seeded, direction-as-button) all already match TradingView
+mobile. Two flows didn't:
+
+- **Add-a-study cost 4–5 taps through a desktop dialog** (ƒx → Browse →
+  search → tap). Now the ƒx sheet has a **Studies section**: the six
+  reach-for-most studies (RSI · MACD · Bollinger · VWAP · ATR · Stoch) as
+  iOS switches — two taps, sheet stays open for stacking — **plus any other
+  running study unioned in** (library adds, member formulas, carved-out
+  rows), so the sheet always agrees with the ƒx badge. Session-only rows
+  carry a dim "· intraday" note (VWAP on a daily chart must not read as a
+  broken switch).
+  - ⛔ ONE WRITE DOOR: switches commit through `toggledRow` — exported from
+    `IndicatorLibraryDialog` and now shared by the dialog's own checkmarks —
+    so the two surfaces can never disagree about a toggle. `QUICK_STUDY_IDS`
+    is a declared enumeration site (`enumerationSites.test.js` LEDGER row,
+    SITE_COUNT 14→15): the curation is a product judgment nothing derives.
+  - **Badge honesty repaired in the same pass**: a toggled-off study leaves
+    a TOMBSTONE in `indicatorInstances` and the badge counted it (`.length`);
+    it now filters `isInstanceTombstone` and also counts carved-out rows
+    (Volume Profile draws with no instance). Rails in the landing test use
+    the real `instanceTombstone()` factory.
+  - Rig proof was a story, not just checks: the crawl account carried three
+    leftover live studies from wave 3 (CCI, Williams %R, and a
+    crawler-authored "Remount" user formula drawing an EMPTY pane — exactly
+    the confused-member scenario). The new sheet listed all three as ON,
+    three taps cleared them, badge 7→4, price pane 366→566px. The recovery
+    door works on the mess it was built for.
+
+- **Drawing was undiscoverable** — the drawbar starts collapsed behind a
+  40%-opacity chevron. The Tools sheet now has **"Draw on chart"**, which
+  expands it via a new `toolbarApi.expandDrawToolbar()` (the SAME persisting
+  setter the chevron uses, so the choice sticks). Rig-verified: collapsed →
+  Tools → row → tool buttons visible. ⚠️ Probe lesson: once the drawbar is
+  open there are TWO buttons named "Indicators" (drawbar + mobile toolbar) —
+  rig lookups scope via `get_by_test_id('mobile-chart-toolbar')`.
+
+Verification: wave4 probe 16/16 (relative badge asserts — the account's MA
+count is part of the baseline), five-gate walk PASS on the shipped dist,
+mobile suite 94/94, engine suite 3681 passed, dialog + builder-door + wire
+suites green.

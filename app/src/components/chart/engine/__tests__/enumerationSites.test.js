@@ -618,6 +618,18 @@ const LEDGER = [
   { file: 'app/src/components/chart/engine/ast/pine.js',
     region: 'PINE_ARG_NAMES — the parameter names Pine gives each function, each row carrying its evidence',
     anchor: 'export const PINE_ARG_NAMES', fate: 'keep' },
+  // ⭐ MOBILE WAVE 4 — the phone ƒx sheet's quick-study roster. "Which six
+  // studies does a trader reach for most" (the TradingView-mobile two-tap add:
+  // RSI, MACD, BB, VWAP, ATR, Stoch) is a PRODUCT judgment nothing can derive —
+  // deriving it from `listDefinitions()` order would make the curation registry
+  // order, which is no curation at all. The six ids are the ONLY hand-typed
+  // thing on that surface: rows resolve through `catalogRows(registry)`, state
+  // reads through `isRowOn`, and every write goes through `toggledRow` — the
+  // same door the library dialog commits with — so a renamed or deleted id
+  // yields a MISSING row (`.filter(Boolean)`), never a wrong toggle.
+  { file: 'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
+    region: 'QUICK_STUDY_IDS — the curated two-tap study roster on the phone ƒx sheet',
+    anchor: "const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']", fate: 'keep' },
 ]
 
 /** What Task 12 RETIRED OUTRIGHT — kept in the file because a retired site that
@@ -1128,7 +1140,10 @@ const RETIRED_BY_B4_ALERTS = [
 // TC2000 reader. It is the first site that enumerates our indicator names in
 // order to translate ANOTHER vendor's language into them, which is why it is
 // `keep` and why the row says what cannot be derived and what is.
-const SITE_COUNT = 14
+// ⭐ 14 -> 15 AT MOBILE WAVE 4: `MobileIndicatorSheet.jsx::QUICK_STUDY_IDS`,
+// the phone ƒx sheet's curated six — a product judgment about reach-for
+// frequency, not a registry fact. See its ledger row.
+const SITE_COUNT = 15
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1306,7 +1321,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // functions bound to maths the chart already ships — and both are `keep`,
     // because a walker has to spell a name somewhere. What makes them safe is a
     // two-way key-set equality against the manifest, not a hope; see their rows.
-    expect(counts).toEqual({ keep: 14 })
+    // ⭐ `{keep: 14}` -> `{keep: 15}` AT MOBILE WAVE 4: the phone ƒx sheet's
+    // `QUICK_STUDY_IDS` roster joins as a `keep`. See its LEDGER row.
+    expect(counts).toEqual({ keep: 15 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1404,6 +1421,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
       ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
       ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once","keep"],
+      ["app/src/pages/charts/mobile/MobileIndicatorSheet.jsx::QUICK_STUDY_IDS — the curated two-tap study roster on the phone ƒx sheet","keep"],
       ["tools/chart_parity_cases.json::the parity case list","keep"],
     ])
   })
@@ -1980,6 +1998,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'app/src/components/chart/engine/nativeRegistry.js',
       'app/src/components/chart/engine/registrySizes.js',
       'app/src/components/chart/keyboardShortcuts.js',
+      // ⭐ MOBILE WAVE 4 — QUICK_STUDY_IDS, the phone ƒx sheet's curated
+      // two-tap roster. Deliberate and ledgered; see its LEDGER row above.
+      'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
     ])
 
     const known = new Set(LEDGER.map(s => s.file))
@@ -2070,7 +2091,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
         'app/src/components/chart/engine/instances.js',
         'app/src/components/chart/engine/nativeRegistry.js',
         'app/src/components/chart/engine/registrySizes.js',
-        'app/src/components/chart/keyboardShortcuts.js'])
+        'app/src/components/chart/keyboardShortcuts.js',
+        // ⭐ MOBILE WAVE 4 — QUICK_STUDY_IDS; a `.jsx` under app/src, walkable.
+        'app/src/pages/charts/mobile/MobileIndicatorSheet.jsx'])
     expect(keepWalkable.length).toBeGreaterThan(0)
     expect(keepWalkable.filter(f => !found.includes(f)),
       'the discovery scan cannot see a file the LEDGER fates to `keep` — a region that is ' +

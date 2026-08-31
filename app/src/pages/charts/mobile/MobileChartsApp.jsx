@@ -14,6 +14,8 @@ import MobileIndicatorSheet from './MobileIndicatorSheet'
 import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import { pushRecent } from './mobileRecents'
+import { isInstanceTombstone } from '../../../components/chart/instanceShape'
+import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MobileCharts.module.css'
 
@@ -142,16 +144,27 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
 
   const openSettings = useCallback(() => paneRef.current?.openSettings(), [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
+  // Tools → "Draw on chart": the discoverable door onto the drawing toolbar,
+  // which starts collapsed on phone (clean canvas, a chevron nobody new would
+  // find). Expands through the toolbar's own persisting setter.
+  const drawOnChart = useCallback(() => { toolbarApiRef.current?.expandDrawToolbar?.() }, [])
 
   // Toolbar ƒx badge: live MA overlay slots (the `enabled` flag
   // MobileIndicatorSheet toggles) PLUS library indicators — an engine
   // instance's EXISTENCE is what "enabled" means there (chartDefaults's
-  // instance model), so the count is the array length. Wave-3 crawl found
-  // the badge undercounting a chart running RSI/MACD sub-panes.
+  // instance model). Wave-3 crawl found the badge undercounting a chart
+  // running RSI/MACD sub-panes. Wave 4: TOMBSTONES are not instances — a
+  // toggled-off study leaves its off-marker in the array, and counting it
+  // would show a badge for a study drawing nothing — and the carved-out
+  // rows (Volume Profile) draw with no instance at all, so they count off
+  // their settings slice.
   const indicatorCount = useMemo(() => {
     const mas = Array.isArray(cs?.overlays) ? cs.overlays.filter((o) => o?.enabled).length : 0
-    const studies = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances.length : 0
-    return mas + studies
+    const studies = Array.isArray(cs?.indicatorInstances)
+      ? cs.indicatorInstances.filter((i) => i && typeof i === 'object' && !isInstanceTombstone(i)).length
+      : 0
+    const carved = CARVED_OUT_ROWS.filter((r) => cs?.indicators?.[r.id]?.enabled === true).length
+    return mas + studies + carved
   }, [cs])
 
   // Share chart image — TradingView's camera button, through the native iOS
@@ -385,6 +398,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onOpenSettings={openSettings}
         onSetAlert={() => setSheet('alert')}
         onShareSnapshot={handleShareSnapshot}
+        onDrawOnChart={drawOnChart}
       />
     </div>
   )
