@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
 import UIcon from "../components/ui/UIcon";
 import useLongPress from "../components/mobile/useLongPress";
+import "./LiveFlowMassive.mobile.css";
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -900,7 +901,7 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
     onChange(next);
   };
   return (
-    <div style={{
+    <div className="lfm-chiprow" style={{
       display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
       padding: "10px 0", marginBottom: 12, borderBottom: `1px solid ${P.bd}`,
     }}>
@@ -1816,7 +1817,7 @@ function Header({ status, loadPending, warming, workerLive,
         </span>
       </div>
 
-      <div style={{
+      <div className="lfm-chiprow-wrap" style={{
         display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         marginTop: 10, paddingTop: 10, borderTop: `1px solid ${P.bd}`,
       }}>
@@ -4532,7 +4533,7 @@ export default function LiveFlowMassive() {
   }, [firstLoadPending]);
 
   return (
-    <div style={{
+    <div className="lfm-mroot" style={{
       background: P.bg, color: P.wh, minHeight: "100vh",
       fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums",
       padding: 16,
@@ -4596,6 +4597,7 @@ export default function LiveFlowMassive() {
                 fontFamily: "inherit", fontWeight: 700,
               }}
               title="Return to the live tape (empty until the market opens)"
+              className="lfm-backlive"
             >● Back to live</button>
           </div>
         ) : (
@@ -4649,7 +4651,7 @@ export default function LiveFlowMassive() {
           tier-filter chips + column headers. The Market Read above scrolls
           out of view as the user moves through alerts, freeing ~250px of
           viewport for visible rows. */}
-      <div style={{
+      <div className="lfm-sticky" style={{
         position: "sticky", top: 0, zIndex: 10,
         background: P.bg,  // must be opaque or scrolling alerts bleed through
         // Negative side margin lets the sticky background extend to the

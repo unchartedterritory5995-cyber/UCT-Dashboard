@@ -1,0 +1,115 @@
+/* LiveFlowMassive.mobile.css — additive phone layer (wave 15).
+ *
+ * Same species as OptionsFlow/DarkPool: ~4.9k lines, ~100% inline styles.
+ * className HOOKS added to the JSX (never editing an inline style object)
+ * + this additive layer under the canonical phone query with !important.
+ *
+ * Hooks: lfm-mroot (root) · lfm-chiprow-wrap (header control row; MUST keep
+ * wrapping — it hosts the DateRail's absolutely-positioned calendar popover)
+ * · lfm-chiprow (FilterChips row; no escaping popover, safe to clip-scroll)
+ * · lfm-sticky (the sticky header group). Reuses the JSX's own
+ * lf-alert-row / lf-contract-row / lf-chart-icon.
+ *
+ * ⛔ NO overflow-x:hidden AT THE ROOT — unlike of-mroot/dp-mroot. This page
+ * owns no scroller at all, so hidden here would (a) amputate 12 of 17 tape
+ * columns with no way to reach them and (b) force the root's overflow-y to
+ * compute to auto, making it its own scrollport — position:sticky on the
+ * header group would silently die. The tape's real phone answer (ONE shared
+ * scroller for column headers + rows) needs a small JSX restructure — the
+ * headers live inside the sticky group while rows are its siblings — and is
+ * a deliberate follow-up, not a css-only patch.
+ */
+@media (max-width: 640px) {
+
+  /* ── MarketReadCard: collapse the fixed multi-column inline grids. React
+     serializes grid templates into the style attribute; hedge both spacing
+     variants. This kills every reported width offender — all of them live
+     inside this card. (The top-10 expand rows' 5-track grid fits — left.) */
+  .lfm-mroot [style*="grid-template-columns:1fr 1.4fr"],
+  .lfm-mroot [style*="grid-template-columns: 1fr 1.4fr"],
+  .lfm-mroot [style*="grid-template-columns:1fr 1fr 1fr 1fr"],
+  .lfm-mroot [style*="grid-template-columns: 1fr 1fr 1fr 1fr"],
+  .lfm-mroot [style*="grid-template-columns:1fr 1fr"],
+  .lfm-mroot [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Header control row: keeps wrapping (calendar popover anchors here),
+     gains 44px targets. Depth-scoped so it never reaches the popover's own
+     day-cell buttons. */
+  .lfm-mroot .lfm-chiprow-wrap { flex-wrap: wrap !important; }
+  .lfm-mroot .lfm-chiprow-wrap > button,
+  .lfm-mroot .lfm-chiprow-wrap > span > button,   /* DateRail: ● LIVE + date */
+  .lfm-mroot .lfm-chiprow-wrap > div > button {   /* CURATED / ALL FLOW seg  */
+    min-height: var(--tap-min, 44px);
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  /* ── FilterChips: 5-6 wrapped rows inside the sticky header ate ~300px of
+     a 640px viewport → one swipeable strip. No absolute popover escapes this
+     row, so clipping is safe. */
+  .lfm-mroot .lfm-chiprow {
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .lfm-mroot .lfm-chiprow::-webkit-scrollbar { display: none; }
+  .lfm-mroot .lfm-chiprow > * { flex: 0 0 auto !important; }
+  .lfm-mroot .lfm-chiprow > button,
+  .lfm-mroot .lfm-chiprow > div > button {
+    min-height: var(--tap-min, 44px);
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  /* Ticker search — 16px or iOS Safari zooms on focus. */
+  .lfm-mroot input[type="text"] {
+    min-height: var(--tap-min, 44px) !important;
+    font-size: 16px !important;
+  }
+
+  /* ── Per-row chart icon: a 12px HOVER-reveal affordance (opacity .28 → 1
+     on :hover) on a device with no hover — and ~74 of the page's 103 audit
+     findings, one per distinct ticker. The same action is already bound to
+     the ticker via useLongPress (the house touch replacement for
+     right-click), so hide it rather than inflating thousands of tape rows. */
+  .lfm-mroot .lf-chart-icon { display: none !important; }
+
+  /* ── By-Contract rows ARE the tap target (role=button + onClick): grow the
+     ROW; its 16-18px inner chips are decoration and stay put. */
+  .lfm-mroot .lf-contract-row { min-height: var(--tap-min, 44px); }
+
+  /* ── Print rows are NOT tappable — they carry five separate 13px span
+     targets (ticker, strike, tier, alert name). Give the TARGETS height,
+     not the row: no scroll-height multiplication across thousands of rows. */
+  .lfm-mroot .lf-alert-row > span {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Sticky group: trim now that the chips are one strip. */
+  .lfm-mroot .lfm-sticky { padding-top: 2px !important; padding-bottom: 2px !important; }
+}
+
+/* "Back to live" (history view) — audited 90x20. */
+@media (max-width: 640px) {
+  .lfm-mroot .lfm-backlive {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex !important;
+    align-items: center;
+  }
+}

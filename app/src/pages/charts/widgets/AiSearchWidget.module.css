@@ -420,6 +420,6 @@
   .chip, .example { min-height: var(--tap-min); }
   .input { min-height: var(--tap-min); font-size: 16px; }
   .gearBtn, .clearBtn, .savedDel { min-width: var(--tap-min); min-height: var(--tap-min); }
-  .deepToggle, .actionBtn, .retryBtn, .copyBtn, .stopBtn, .proposalBtn, .continueBtn { min-height: var(--tap-min); }
+  .deepToggle, .actionBtn, .retryBtn, .copyBtn, .stopBtn, .proposalBtn, .continueBtn, .askBtn { min-height: var(--tap-min); }
   .follow { min-height: var(--tap-min); }
 }
