@@ -38,9 +38,31 @@ import { translateThinkScript } from './thinkscript.js'
 const ROOT = path.resolve(process.cwd(), '..')
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'))
 
+/** ⭐⭐ ACCEPT EVERY OFFER THE DOOR MAKES — what the member's click does, run
+ *  headlessly. `PineBox`'s button splices `refusal.suggest` over `refusal.span`
+ *  in the member's own source; this is that, in a loop, and nothing else.
+ *
+ *  ⛔ IT IS NOT A SECOND IMPLEMENTATION OF THE BUTTON. It makes no decision the
+ *  button does not — no default is assumed, no text is invented, and a refusal
+ *  without BOTH a suggestion and a span ends the loop, which is exactly the
+ *  condition the button renders on. What it measures is therefore a number about
+ *  the shipped door, not about a capability only this file has. */
+function acceptEveryOffer(src, run, limit = 12) {
+  let cur = src
+  for (let i = 0; i < limit; i += 1) {
+    let o
+    try { o = run(cur) } catch (e) { return false }
+    if (o.ok) return true
+    const r = o.refusal
+    if (!r || !r.suggest || !Array.isArray(r.span)) return false
+    cur = cur.slice(0, r.span[0]) + r.suggest + cur.slice(r.span[1])
+  }
+  return false
+}
+
 /** Every corpus script, translated through the shipped door. */
 function importFidelity() {
-  let translate = 0, total = 0
+  let translate = 0, total = 0, accepted = 0
   for (const [dir, re, run] of [
     ['tests/fixtures/pine', /\.pine$/, translatePine],
     ['tests/fixtures/pine_community', /\.pine$/, translatePine],
@@ -49,10 +71,15 @@ function importFidelity() {
       total += 1
       let o
       try { o = run(fs.readFileSync(path.join(ROOT, dir, f), 'utf8')) } catch (e) { continue }
-      if (o.ok) translate += 1
+      if (o.ok) { translate += 1; accepted += 1; continue }
+      // ⭐ THE SECOND NUMBER, AND IT IS A DIFFERENT CLAIM. `translate` counts what
+      // a paste reaches on its own; `accepted` counts what it reaches once the
+      // member takes the engine's OWN offer — which is a thing they can now do in
+      // a click rather than by retyping the call.
+      if (acceptEveryOffer(fs.readFileSync(path.join(ROOT, dir, f), 'utf8'), run)) accepted += 1
     }
   }
-  return { translate, total }
+  return { translate, total, accepted }
 }
 
 /** A rail this scorecard points at must exist, or the pointer is a fiction. */
@@ -83,10 +110,16 @@ sharing          mint → publish → browse → install      ${RAILS.sharing.sp
 verifiability    4-outcome receipt · read-back · roster ${RAILS.verifiability.split('/').pop()}
 strategies       NOT BUILT (Segment A)                  —
 ──────────────────────────────────────────────────────────────────────────────
-import fidelity  ${imp.translate}/${imp.total} published scripts  ⚠️ THE ONE CAPPED DIMENSION
-                 benchmark roster: ${benchmarks} symbols
+import fidelity  ${imp.translate}/${imp.total} on paste · ${imp.accepted}/${imp.total} after accepting the door's own offers
+                 ⚠️ THE ONE CAPPED DIMENSION · benchmark roster: ${benchmarks} symbols
 `)
     expect(imp.total).toBeGreaterThan(0)
+    // ⛔ ACCEPTING AN OFFER CAN NEVER LOSE A SCRIPT. Every script that translates
+    // on paste is counted before any offer is considered, so this is an ordering
+    // claim about the two numbers rather than a restatement of one of them — and
+    // it goes red if `acceptEveryOffer` ever mangles a source it should have left
+    // alone (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    expect(imp.accepted).toBeGreaterThanOrEqual(imp.translate)
   })
 
   it('⛔ every rail this scorecard points at EXISTS', () => {

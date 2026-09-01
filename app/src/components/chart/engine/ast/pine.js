@@ -6699,6 +6699,21 @@ function refusalValue(guard, message, at, suggest) {
     // a hand-expanded Hull its fractional half-window. The reason was never that
     // Pine is fully documented — it is that this door had nothing to offer YET.
     suggest: suggest || null,
+    /** ⭐ THE CHARACTERS A SUGGESTION WOULD REPLACE, `[from, to)` in the member's
+     *  own source — the key carried here for the same reason `suggest` is, and
+     *  with the same honesty about the value: this door does not name one YET.
+     *
+     *  ⛔ THAT IS A MISSING CAPABILITY, NOT A PROPERTY OF PINE. thinkScript's
+     *  reader stamps it because its call nodes remember their closing paren
+     *  (`parseCall`); Pine's do not, so this door can offer the text of a
+     *  completion but not the place to put it, and the member retypes it. Giving
+     *  Pine's call nodes an `endTok` is the whole of what would change this.
+     *
+     *  ⚠️ AND THE KEY IS HERE ANYWAY, because `a key present in one door and
+     *  absent in another is the divergence that contract exists to prevent` —
+     *  the sentence directly above, which this field is now the second instance
+     *  of rather than the first exception to. */
+    span: null,
   }
 }
 

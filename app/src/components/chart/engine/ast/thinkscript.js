@@ -322,7 +322,7 @@ function assertNote(code) {
  *  reason: one shared class lets one guard's deletion be covered by another
  *  guard's test. */
 export class ThinkScriptRefusal extends Error {
-  constructor(guard, message, at, suggest) {
+  constructor(guard, message, at, suggest, span) {
     super(message)
     assertDeclared(guard)
     this.name = 'ThinkScriptRefusal'
@@ -331,6 +331,9 @@ export class ThinkScriptRefusal extends Error {
     // ⭐ THE CONVENTIONAL CALL, when this refusal has one — see `TS_DOC_BLOCKED`.
     // It rides the refusal because the refusal is the only thing the member sees.
     this.suggest = suggest || null
+    /** ⭐ `[from, to)` IN THE MEMBER'S OWN SOURCE — the exact characters a
+     *  suggestion would replace. Present only where a door can name them. */
+    this.span = span || null
   }
 }
 
@@ -404,7 +407,7 @@ export const TS_STATE_WARMUP = 250
  *  in its own message that `assertDeclared` below is then the only check there
  *  is. The blindness was real; what was wrong was believing a wider regex could
  *  cure it. */
-function refusalValue(guard, message, at, suggest) {
+function refusalValue(guard, message, at, suggest, span) {
   assertDeclared(guard)
   return {
     guard,
@@ -415,6 +418,7 @@ function refusalValue(guard, message, at, suggest) {
     token: at ? at.token : null,
     excerpt: null,
     suggest: suggest || null,
+    span: span || null,
   }
 }
 
@@ -431,7 +435,7 @@ function refusalValue(guard, message, at, suggest) {
  *  bug is still legible in what the member is shown. */
 function fromError(err) {
   if (err instanceof ThinkScriptRefusal) {
-    return refusalValue(err.guard, err.message, err.at, err.suggest)
+    return refusalValue(err.guard, err.message, err.at, err.suggest, err.span)
   }
   return refusalValue('thinkscript:statement',
     `${REFUSALS['thinkscript:statement']} (${err && err.message ? err.message : err})`, null)
@@ -932,6 +936,37 @@ const cursorOf = (toks) => ({ toks, i: 0 })
 const peek = (c, k = 0) => c.toks[c.i + k] || null
 const take = (c) => c.toks[c.i++]
 
+/** ⭐⭐ A RUN OF TOKENS BACK IN THE MEMBER'S OWN SPELLING, rebuilt from the tokens
+ *  themselves rather than sliced out of a source string.
+ *
+ *  ⛔ THE SOURCE TEXT IS DELIBERATELY NOT THREADED HERE. `parseWhole` has six
+ *  callers and none of them holds the script; adding a parameter to all of them so
+ *  one refusal message could quote a substring would put the source on the parser's
+ *  signature forever, and a module-level register of “the script being read” is a
+ *  second authority over a value the tokens already carry
+ *  (`lesson_a_second_authority_over_one_value`).
+ *
+ *  ⭐ EVERY TOKEN KNOWS ITS OWN OFFSET AND ITS OWN TEXT, so the gap between two of
+ *  them says whether the member wrote whitespace there. Runs of spaces, newlines and
+ *  comments all collapse to ONE space, which is the right resolution for a
+ *  suggestion: `BB_Length` survives as `BB_Length`, which is the whole point, and
+ *  `close*2` coming back as `close * 2` changes nothing a member would object to.
+ *
+ *  ⚠️ THIS IS NOT A PRINTER AND MUST NOT BECOME ONE. It re-emits tokens that were
+ *  read; it never invents a spelling for a node. A printer would have to decide
+ *  precedence and parenthesisation, and a wrong decision there would hand back an
+ *  edit that changes what the member's own expression MEANS. */
+function spellTokens(toks) {
+  let out = ''
+  for (let i = 0; i < toks.length; i += 1) {
+    const t = toks[i]
+    const prev = i > 0 ? toks[i - 1] : null
+    if (prev && t.index > prev.index + String(prev.text).length) out += ' '
+    out += t.text
+  }
+  return out
+}
+
 const syntaxAt = (c, tok) => refuse('thinkscript:syntax', tok || c.toks[c.toks.length - 1] || null)
 
 /** The infix operator sitting at the cursor, WITHOUT consuming it — a symbol, or
@@ -1195,12 +1230,33 @@ function parsePostfix(c) {
       if (!nameTok || (nameTok.kind !== 'ident' && nameTok.kind !== 'string')) throw syntaxAt(c, nameTok || dot)
       take(c)
       node = isPunctTok(peek(c), '(')
-        ? { e: 'call', name: nameTok.value, base: node, args: parseArguments(c), tok: node.tok || dot }
+        ? (() => {
+          const { args, endTok } = parseCall(c)
+          return { e: 'call', name: nameTok.value, base: node, args, tok: node.tok || dot, endTok }
+        })()
         : { e: 'member', base: node, name: nameTok.value, tok: node.tok || dot }
       continue
     }
     return node
   }
+}
+
+/** ⭐⭐ A CALL THAT KNOWS WHERE IT ENDS, so a door can offer to replace exactly
+ *  it and nothing either side of it.
+ *
+ *  ⛔ THE CLOSING PAREN IS READ FROM THE CURSOR, NOT GUESSED FROM THE TEXT. A
+ *  member's call can nest calls, hold a string containing `)`, or be one of four
+ *  identical calls on two lines — `05-bollinger-rsi` is all three at once. The
+ *  parser has already decided which `)` closes this call; asking it is the only
+ *  reading that cannot disagree with the translation the refusal came from.
+ *
+ *  ⚠️ IT IS A SEPARATE FUNCTION RATHER THAN A PROPERTY ORDERED AFTER `args:` IN
+ *  THE OBJECT LITERAL. That would have worked — literal properties evaluate in
+ *  source order — and it would have broken silently the first time someone
+ *  reordered two lines for tidiness. */
+function parseCall(c) {
+  const args = parseArguments(c)
+  return { args, endTok: c.toks[c.i - 1] || null }
 }
 
 function parseArguments(c) {
@@ -1223,7 +1279,12 @@ function parseArguments(c) {
       take(c)
       take(c)
     }
-    args.push({ name, nameTok, value: parseExpression(c) })
+    // ⭐ THE SPAN IS TAKEN AROUND THE VALUE, not around the whole argument, so a
+    // named argument yields the member's expression WITHOUT the `name =` they
+    // already wrote — which is what a suggestion has to substitute in.
+    const vFrom = c.i
+    const value = parseExpression(c)
+    args.push({ name, nameTok, value, text: spellTokens(c.toks.slice(vFrom, c.i)) })
     if (isPunctTok(peek(c), ',')) { take(c); continue }
     break
   }
@@ -1269,7 +1330,8 @@ function parseAtom(c) {
     if (NOT_AN_ATOM.has(k)) throw syntaxAt(c, t)
     take(c)
     if (isPunctTok(peek(c), '(')) {
-      return { e: 'call', name: t.value, base: null, args: parseArguments(c), tok: t }
+      const { args, endTok } = parseCall(c)
+      return { e: 'call', name: t.value, base: null, args, tok: t, endTok }
     }
     // `yes` and `no` are thinkScript's two boolean literals, and the reference
     // is explicit that they are 1 and 0.
@@ -1566,6 +1628,72 @@ function docBlockedTail(name) {
   if (!d) return ''
   return ` — WHAT IS MISSING IS ${d.missing}, not a way to compute it; ${d.unblocks} would `
     + 'change this answer'
+}
+
+/** ⭐⭐ THE PUBLISHED SPELLING WITH THE MEMBER'S OWN ARGUMENTS KEPT IN IT.
+ *
+ *  ⚰️⚰️ WHAT THIS FIXES WAS MEASURED, AND IT WAS THE SILENT KIND.
+ *  `05-bollinger-rsi-buy-arrow` writes `BollingerBands(length = BB_Length)` against
+ *  its own `input BB_Length = 20`. The refusal correctly says a parameter has no
+ *  value — and then handed back the registry's static spelling,
+ *  `BollingerBands(price = close, length = 20, …)`. A member accepting that edit
+ *  loses `BB_Length`: their input still sits at the top of the script, still
+ *  adjustable, and no longer connected to anything. The band would quietly stop
+ *  moving when they moved it, and nothing would refuse.
+ *
+ *  ⭐ SO THE SUGGESTION IS BUILT FROM BOTH SIDES. The registry supplies the
+ *  parameters the member LEFT OUT; the member's own text fills every one they
+ *  WROTE, positional or named alike. Their `BB_Length` comes back as `BB_Length`.
+ *
+ *  ⛔ AND THE RULING ABOVE IS UNCHANGED — this narrows it, it does not soften it.
+ *  Nothing here is applied for the member and no unpublished default is assumed; a
+ *  suggestion still only ever spells out arguments they could have typed. What
+ *  changed is that it no longer overwrites the ones they DID type.
+ *
+ *  ⚠️ IT DEGRADES TO THE STATIC SPELLING RATHER THAN TO A GUESS. If the published
+ *  string does not parse, or the member supplied nothing, or the substitution would
+ *  change no argument, the registry's own text is returned untouched — so this can
+ *  only ever be the static suggestion or better, never a third thing. */
+function personalisedSuggest(suggest, shape, slots) {
+  if (!suggest) return null
+  let call = null
+  try {
+    call = parseWhole(lexThinkScript(suggest).tokens)
+  } catch (err) {
+    /* istanbul ignore next — `thinkscript.suggest.test.js` translates every entry,
+       so an unparseable one is red there long before it is silent here */
+    return suggest
+  }
+  if (!call || call.e !== 'call' || !Array.isArray(call.args)) return suggest
+  const mine = new Map()
+  shape.params.forEach((p, i) => {
+    if (slots[i] && slots[i].text) mine.set(key(p), slots[i].text)
+  })
+  if (!mine.size) return suggest
+  let changed = false
+  // ⚰️ A NAME-ONLY MATCH LEFT HALF THE REGISTRY UNFIXED, and the probe showed it:
+  // `SimpleMovingAvg(close, 20, 0)` is published POSITIONALLY, so no template
+  // argument carried a name to match on and a member's own length was still
+  // overwritten — the same silent defect, one spelling over.
+  // ⭐ THE RULE IS THE ENGINE'S OWN, not a second reading of it: the k-th
+  // positional fills the k-th parameter, which is exactly what the slot loop above
+  // does (`slots[k] = a; k += 1`). Writing a looser rule here — sliding a
+  // positional to the next free slot — is the mistranslation that loop refuses by
+  // name, and it would be reintroduced in the door that offers the fix.
+  let k = 0
+  const parts = call.args.map((a) => {
+    const param = a.name != null ? a.name : shape.params[k]
+    if (a.name == null) k += 1
+    const own = param != null ? mine.get(key(param)) : null
+    const val = own == null ? a.text : own
+    if (own != null && own !== a.text) changed = true
+    // ⭐ THE REGISTRY'S OWN LABEL IS REUSED VERBATIM, quotes and all, because
+    // `"average type"` is a quoted parameter name and re-spelling it bare would
+    // hand back an edit that does not parse.
+    return a.nameTok ? `${a.nameTok.text} = ${val}` : val
+  })
+  if (!changed) return suggest
+  return `${(call.tok && call.tok.text) || call.name}(${parts.join(', ')})`
 }
 
 /** ⛔ THE CALLS THIS ENGINE REFUSES BY NAME BECAUSE OF WHAT THEY READ, not
@@ -3659,7 +3787,14 @@ class Resolver {
           locate(n.tok),
           // ⭐ AND THE CONVENTIONAL SPELLING RIDES ALONG, so the member can accept
           // it into their own source rather than being told to go and look it up.
-          blocked ? (TS_DOC_BLOCKED[blocked].suggest || null) : null)
+          blocked
+            ? personalisedSuggest(TS_DOC_BLOCKED[blocked].suggest, shape, slots)
+            : null,
+          // ⭐ AND WHICH CHARACTERS IT WOULD REPLACE. Without this the member has
+          // to find the call themselves, and `05-bollinger-rsi` has FOUR identical
+          // ones across two lines — a text search would hit the wrong one three
+          // times out of four.
+          n.tok && n.endTok ? [n.tok.index, n.endTok.index + 1] : null)
       }
     })
 
