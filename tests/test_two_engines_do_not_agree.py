@@ -169,7 +169,28 @@ def _load_shipped_registry() -> set:
             for a in n.names:
                 importlib.import_module(n.module + "." + a.name)
     from api.services.pattern_engine.detectors import registry
-    return set(registry.list_pattern_ids())
+    # ⛔⛔ THE REGISTRY IS A PROCESS-GLOBAL DICT AND OTHER TESTS WRITE TO IT.
+    # This read `list_pattern_ids()` raw and passed alone, then failed in the
+    # FULL suite with `fake_pattern`, `another_fake`, `filter_test_a/b` and
+    # `all_test_1` in the set -- fakes registered by other test modules that had
+    # already run in the same process. Green alone, red in company: the shape
+    # this repo has a lesson for, shipped by the file that measures two engines
+    # for disagreeing.
+    #
+    # ⭐ FILTERED BY PROVENANCE, NOT BY NAME. A blocklist of known fakes
+    # would go stale the day someone adds another. Every SHIPPED detector is
+    # registered from a module under `pattern_engine.detectors`; a test fake is
+    # registered from the test module that made it, so `fn.__module__` separates
+    # them by construction and the guarantee -- "a registered id no file
+    # declares means the AST walk is reading the wrong thing" -- survives intact.
+    shipped = "api.services.pattern_engine.detectors"
+    out = set()
+    for pid in registry.list_pattern_ids():
+        fn = registry.get_detector(pid)
+        mod = getattr(fn, "__module__", "") or ""
+        if mod.startswith(shipped):
+            out.add(pid)
+    return out
 
 
 def _declared_pattern_ids() -> set:
