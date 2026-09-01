@@ -46,6 +46,15 @@ HOUSE_VOCAB = frozenset({
 # dead end. Counting a mention has no such dead end.
 INDEX_SYMBOLS = frozenset({"SPX", "NDX", "DJI", "RUT", "VIX", "DXY", "IXIC"})
 
+# Alias keys that are ALSO ordinary English words. An alias hit on one of these
+# demands the proper-noun form in the raw text, because "an apple a day" and
+# "the oracle of omaha" are things this room says constantly. Each entry is
+# justified by a false-positive fixture in tests/test_buzz_extract.py -- add one
+# only WITH its sentence, never on a hunch.
+AMBIGUOUS_ALIASES = frozenset({
+    "apple", "arm", "meta", "oracle", "affirm", "alphabet", "novo", "lilly", "nike",
+})
+
 # Ordinary conversational English. Kept short on purpose: every entry must be a
 # word this room actually uses non-financially. `tools/buzz_collisions.py`
 # (Task 5) re-derives this from the real corpus and reports anything missing.
@@ -59,6 +68,7 @@ CHAT_WORDS = frozenset({
     "ONE", "OPEN", "OR", "OUT", "OVER", "PLAY", "PLUS", "REAL", "RUN", "SAFE",
     "SEE", "SO", "SOME", "STAY", "TAKE", "TELL", "THE", "TO", "TURN", "UP",
     "US", "VERY", "WE", "WELL", "WHY", "WISH", "WORK", "YOU", "AI",
+    "NET", "ARM", "META", "LAB",
 })
 
 

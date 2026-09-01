@@ -108,5 +108,42 @@ def test_empty_and_none_are_safe():
     assert extract(None) == []
 
 
+@pytest.mark.parametrize("text", [
+    "did you sprain your arm at practice",
+    "that comment was very meta of you",
+    "an apple a day",
+    "he is the oracle of omaha",
+    "can you affirm that",
+    "my net worth took a hit",
+    "back to the lab tomorrow",
+    "learn the alphabet first",
+    "just do it like nike said",
+])
+def test_an_alias_that_is_an_ordinary_word_needs_the_proper_noun_form(text):
+    """Alias keys like arm/meta/apple/oracle are ordinary English. Matching them
+    case-insensitively booked mentions at ALIAS confidence -- stronger than the
+    gated tiers -- on sentences with nothing to do with the stock."""
+    assert tickers(text) == [], f"false positive: {extract(text)}"
+
+
+@pytest.mark.parametrize("text,want", [
+    ("Arm reports Tuesday", "ARM"),
+    ("Meta earnings tonight", "META"),
+    ("Apple event today", "AAPL"),
+    ("ORACLE cloud numbers", "ORCL"),
+    ("$NET breaking out", "NET"),
+    ("Cloudflare guidance", "NET"),
+    ("Rocket Lab launch", "RKLB"),
+])
+def test_the_gate_is_a_scalpel_real_mentions_still_count(text, want):
+    """CONTROL for the test above. Without this, blocking every ambiguous alias
+    outright would also pass -- and would delete real mentions permanently."""
+    assert want in tickers(text)
+
+
 def test_urls_do_not_produce_tickers():
-    assert tickers("https://example.com/AI/OPEN/ALL") == []
+    """Must use an UNAMBIGUOUS ticker. The original fixture used AI/OPEN/ALL,
+    which the ambiguity gate blocks regardless of URLs -- so it passed with
+    _URL.sub() deleted and pinned nothing."""
+    assert tickers("https://example.com/DELL/chart") == []
+    assert "DELL" in tickers("DELL chart looks good")   # control: not blanket-blocked

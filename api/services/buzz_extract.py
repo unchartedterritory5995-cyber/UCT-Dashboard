@@ -55,7 +55,14 @@ def extract(text: str | None) -> list[tuple[str, str]]:
     # Tier 2 -- company aliases. Longest first so "rocket lab" wins over "lab".
     low = text.lower()
     for name in sorted(aliases, key=len, reverse=True):
-        if re.search(r"\b" + re.escape(name) + r"\b", low):
+        if name in uni.AMBIGUOUS_ALIASES:
+            # An ordinary English word: demand the proper-noun form in the RAW
+            # text. "Arm reports Tuesday" counts; "sprain your arm" does not.
+            hit = re.search(r"\b(?:%s|%s)\b"
+                            % (re.escape(name.capitalize()), re.escape(name.upper())), text)
+        else:
+            hit = re.search(r"\b" + re.escape(name) + r"\b", low)
+        if hit:
             _strongest(found, aliases[name], "alias")
 
     # Tiers 3 and 4 -- bare words.
