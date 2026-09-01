@@ -4590,8 +4590,33 @@ class Resolver {
         + 'as a plain whole number', locate(tok))
     }
     if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
+      // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
+      // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
+      // and `time(timeframe, session)`, the session read. The entry describes the
+      // session read, so a member who wrote the ONE-ARGUMENT anchor was told they
+      // had written a session-window test.
+      // ⛔ IT IS NOT A NITPICK: `25-spy-expected-move-by-vix` writes
+      // `t = time(i_range_1)` and the very next line is
+      // `start = na(t[1]) or t > t[1]` — ordering the value with `>` to detect a
+      // new period, which is only meaningful on a TIMESTAMP. You cannot detect a
+      // new day by ordering session-membership answers. The refusal named a
+      // construct that is not in their script, so the one thing it is for —
+      // telling the member what to do next — pointed at the wrong thing.
+      // ⭐ ARITY IS THE DISCRIMINATOR and it is already in hand. The entry's own
+      // comment records that this arm was split from the bare-NAME arm so each
+      // construct gets its own true sentence; it stopped one notch short.
+      const anchorForm = bare === 'time' && args.length === 1
       throw new PineRefusal('pine:function',
-        `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
+        anchorForm
+          ? `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
+            + 'period — the anchor Pine scripts compare with `>` to detect a new day '
+            + 'or week. This engine holds the `time` of each bar and the period it '
+            + 'sits inside is a node this engine does not have, so there is nothing '
+            + 'to compare against. The clock it '
+            + 'does declare is `dayofweek`, `dayofmonth`, `month`, `year` and '
+            + '`sessionfirst` — and `sessionfirst` is the closest to what an anchor '
+            + 'comparison is usually asking'
+          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {
       throw new PineRefusal('pine:function',

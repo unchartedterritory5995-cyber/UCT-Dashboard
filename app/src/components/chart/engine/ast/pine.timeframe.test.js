@@ -156,3 +156,62 @@ describe('the servable list is spelled ONCE, and the spelling survives a third e
     expect(servableTimeframesText()).toBe(servableTimeframesText(TF_RESAMPLABLE))
   })
 })
+
+// ─── 🔴 `time` HAS TWO OVERLOADS AND HAD ONE SENTENCE ────────────────────────
+
+describe('time(timeframe) and time(timeframe, session) are different questions', () => {
+  const refusalFor = (call) => {
+    const out = translatePine(`//@version=5\nindicator("t")\nplot(${call})\n`)
+    expect(out.ok, `${call} was expected to refuse`).toBe(false)
+    return String(out.refusal.message)
+  }
+
+  it('⛔⛔ the ONE-ARGUMENT form is the period ANCHOR, not a session read', () => {
+    // ⚰️ BOTH FORMS GOT THE SESSION SENTENCE: "`time(<session>)` answers whether a
+    // bar falls inside a session window". Pine spells the overloads
+    // `time(timeframe)` — the opening TIMESTAMP of the enclosing period — and
+    // `time(timeframe, session)`. A member who wrote the anchor was told they had
+    // written a session-window test.
+    //
+    // ⛔ IT IS NOT A NITPICK. `25-spy-expected-move-by-vix.pine` writes
+    // `t = time(i_range_1)` and the next line is `start = na(t[1]) or t > t[1]` —
+    // ordering the value with `>` to detect a new period, which is only
+    // meaningful on a TIMESTAMP. You cannot detect a new day by ordering
+    // session-membership answers. The refusal described a construct that is not
+    // in the script, so the one thing it is for pointed at the wrong thing.
+    const anchor = refusalFor('time("D")')
+    expect(anchor).toMatch(/OPENING TIMESTAMP/)
+    expect(anchor).not.toMatch(/falls inside a session window/)
+    // …and it names what this engine DOES declare, so the member has somewhere to go.
+    expect(anchor).toMatch(/sessionfirst/)
+  })
+
+  it('⭐ the TWO-ARGUMENT form keeps the session sentence, because there it is true', () => {
+    // ⛔ THE CONTROL. Replacing the sentence for both forms would pass the case
+    // above and lose a correct, well-reasoned refusal: a session genuinely only
+    // means something on intraday bars, which is not what the anchor form is about.
+    const session = refusalFor('time("D", "0930-1600")')
+    expect(session).toMatch(/SESSION CLOCK/)
+    expect(session).toMatch(/falls inside a session window/)
+    expect(session).not.toMatch(/OPENING TIMESTAMP/)
+  })
+
+  it('⛔ the two sentences are genuinely DIFFERENT, not one string reworded', () => {
+    // A "split" that emitted the same text twice passes both cases above.
+    expect(refusalFor('time("D")')).not.toBe(refusalFor('time("D", "0930-1600")'))
+  })
+
+  it('⭐ and the real corpus script gets the anchor sentence', () => {
+    const fs = require('node:fs')
+    const path = require('node:path')
+    const src = fs.readFileSync(path.resolve(process.cwd(),
+      '../tests/fixtures/pine_community/25-spy-expected-move-by-vix.pine'), 'utf8')
+    // The shape that matters, asserted so the fixture cannot drift out from under
+    // the claim without saying so.
+    expect(src).toMatch(/t\s*=\s*time\(i_range_1\)/)
+    expect(src).toMatch(/na\(t\[1\]\)\s*or\s*t\s*>\s*t\[1\]/)
+    const out = translatePine(src)
+    expect(out.ok).toBe(false)
+    expect(String(out.refusal.message)).toMatch(/OPENING TIMESTAMP/)
+  })
+})
