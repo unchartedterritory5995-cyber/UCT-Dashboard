@@ -260,3 +260,8 @@
     justify-content: center;
   }
 }
+
+/* Touch (wave 14): the collapse header audited 36px. */
+@media (max-width: 1024px) {
+  .header { min-height: var(--tap-min); }
+}

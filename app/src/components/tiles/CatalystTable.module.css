@@ -894,3 +894,11 @@
     align-items: center;
   }
 }
+
+/* Touch (wave 14): date-nav chevrons audited 25x23, the date input 30px,
+   and the empty-state history link 16px tall. */
+@media (max-width: 1024px) {
+  .dateNavBtn { min-width: var(--tap-min); min-height: var(--tap-min); }
+  .dateInput { min-height: var(--tap-min); }
+  .emptyLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

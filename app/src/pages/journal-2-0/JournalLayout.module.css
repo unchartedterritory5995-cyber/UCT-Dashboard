@@ -379,3 +379,12 @@
   left: 0;
   right: auto;
 }
+
+/* Touch (wave 14): the header action cluster (?, report, settings, More)
+   audited 32px on phones. */
+@media (max-width: 1024px) {
+  .shortcutsBtn { min-width: var(--tap-min); min-height: var(--tap-min); }
+}
+@media (max-width: 1024px) {
+  .logTradeBtn { min-height: var(--tap-min); }
+}

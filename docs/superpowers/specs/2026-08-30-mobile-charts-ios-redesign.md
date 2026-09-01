@@ -805,3 +805,34 @@ roster parity suite + 2 tap-to-type tests + eight-gate walk green.
 
 Rails: wave12 probe 7/7 (armed → one tap → inked anchor · commit unchanged ·
 sunrise chip menu light 239) + eight-gate walk green.
+
+## Wave 14 (2026-09-01) — 44px everywhere the house owns
+
+The app-wide phone audit (wave 11's zero-overflow sweep) still counted ~140
+sub-44px tap targets. This wave cut them to **14** (mostly transient/deep-page
+singles), measured by the same harness before and after:
+
+- **The single most repeated finding was one component**: the voice-orb
+  cluster's three side buttons (Train Me · Attach · agent-picker ⋮, 28px) +
+  the coach-mark "Got it" (29×14) ride EVERY route. Four fixes cleared four
+  findings per page app-wide. The ⋮ took two passes — its class is `.toggle`,
+  not `.btn`; the audit re-run caught the miss.
+- **/setup-library is its own page**, not the modelbook Setups hub — the
+  family labels don't even match. First patch landed on the wrong file; the
+  re-audit caught that too. (Both files now carry touch rules.)
+- **DarkPool got the OptionsFlow treatment** (same species: 3.6k lines, 100%
+  inline styles, dead module.css): `DarkPool.mobile.css` + five one-token
+  className hooks (`dp-mroot`, `dp-chiprow`, `dp-chiprow-wrap` — keeps
+  wrapping, it anchors the calendar popover — `dp-scroll`, `dp-tabs`), never
+  touching an inline style object. The audit's "overflowX=0" there was
+  masking six sideways-draggable panels (Layout's `.main` computes
+  overflow-x:auto — zero overflow was the symptom, not the health check):
+  panels now stack 1-up on phones and scroll THEMSELVES.
+- House pages: ReadAloudButton (fixes Morning Wire + UCT-20 at once), UCT-20
+  method buttons, catalyst date-nav + history quick-jumps, journal tile +
+  J2 header cluster + Log Trade, movers collapse header, setup-library
+  family tabs + search (16px, iOS zoom rule), auth switch link, legal back
+  links — appended touch media blocks on the canonical 1024px boundary.
+
+Rails: audit re-run per pass (~140 → ~50 → 14; per-route mostly 0-1) +
+eight-gate walk green + orb/tile suites 29/29.

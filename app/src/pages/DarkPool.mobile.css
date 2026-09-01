@@ -1,0 +1,85 @@
+/* DarkPool.mobile.css — additive phone layer (wave 14).
+ *
+ * DarkPool.jsx is the OptionsFlow situation: ~3.6k lines, 100% inline styles,
+ * zero classNames (its .module.css is dead boilerplate nothing imports). So
+ * this follows the OptionsFlow.mobile.css contract verbatim (CLAUDE.md):
+ * className HOOKS added to the JSX (never editing an inline style object) +
+ * this additive layer, all under the canonical phone query with !important.
+ *
+ * The audit read "overflowX=0" on this page while listing six overflowing
+ * panels — Layout's .main computes overflow-x:auto, so the whole page could be
+ * DRAGGED sideways, header and all, without tripping the page-level check.
+ * Zero overflow was the symptom, not the health check (the OptionsFlow
+ * author's exact lesson): panels scroll THEMSELVES now, the page never.
+ *
+ * Hooks in use: dp-mroot (root) · dp-chiprow (category strip; no popover, safe
+ * to scroll-strip) · dp-chiprow-wrap (date row; MUST keep wrapping — it hosts
+ * the absolutely-positioned calendar popover) · dp-scroll (pattern-group list;
+ * one scroller for header + rows so they share a scroll position).
+ */
+@media (max-width: 640px) {
+  .dp-mroot { overflow-x: hidden; }
+
+  /* 2-up panel grids → 1-up; the 4-up stat row too. React serializes inline
+     grid templates into the style attribute — both spacing variants. */
+  .dp-mroot [style*="grid-template-columns:1fr 1fr"],
+  .dp-mroot [style*="grid-template-columns: 1fr 1fr"],
+  .dp-mroot [style*="repeat(4,"],
+  .dp-mroot [style*="repeat(4, "] { grid-template-columns: 1fr !important; }
+
+  /* Even full-width, the panels' min-content is ~492px — each scrolls itself. */
+  .dp-mroot [style*="grid-template-columns:1fr 1fr"] > div,
+  .dp-mroot [style*="grid-template-columns: 1fr 1fr"] > div {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Pattern group: scroller on the LIST, natural width on the rows. */
+  .dp-mroot .dp-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .dp-mroot .dp-scroll > div { min-width: max-content; }
+
+  /* Category row → single-row swipe strip. */
+  .dp-mroot .dp-chiprow {
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dp-mroot .dp-chiprow::-webkit-scrollbar { display: none; }
+  .dp-mroot .dp-chiprow > * { flex: 0 0 auto !important; }
+
+  /* Date row keeps wrapping — the absolute calendar popover anchors to it. */
+  .dp-mroot .dp-chiprow-wrap { flex-wrap: wrap !important; }
+
+  /* 44px targets on both rows; nowrap is what returns "Large Cap" from a
+     two-line 55x36 squeeze to a single line. */
+  .dp-mroot .dp-chiprow > button,
+  .dp-mroot .dp-chiprow-wrap > button {
+    min-height: var(--tap-min, 44px);
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+}
+
+/* Tab bar (Overview / By Category / zones / Records) + the Search button in
+   the same strip — audited 37px and 29px. Appended separately from the block
+   above: same wave, second audit pass. */
+@media (max-width: 640px) {
+  .dp-mroot .dp-tabs > button {
+    min-height: var(--tap-min);
+    display: inline-flex !important;
+    align-items: center;
+    white-space: nowrap;
+  }
+}

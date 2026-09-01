@@ -26,3 +26,8 @@
 }
 .icon { display: inline-block; min-width: 14px; text-align: center; }
 .text { letter-spacing: 0.5px; }
+
+/* Touch (wave 14): audited 27px (sm, Morning Wire) / 32px (md, UCT-20). */
+@media (max-width: 1024px) {
+  .btn { min-height: var(--tap-min); }
+}

@@ -629,3 +629,35 @@ describe('per-bar value labels', () => {
     expect(texts.some((t) => t.startsWith('-') || t.startsWith('\u2212'))).toBe(true)
   })
 })
+
+describe('the band needs something to reference', () => {
+  // Browser-found: on a name with NO accrued history the band was the only
+  // magnitude in the scale, so it expanded to ~87% of the plot (118px of 132)
+  // around a single hollow NOW mark. A reference line with nothing to compare
+  // against is not a reference, it is a big empty box.
+  const noHistory = [{ quarter: '±Q3 26', reported: false, reaction_pct: null }]
+
+  it('draws NO band when not one quarter has a realized move', () => {
+    const { container } = render(
+      <ImpliedVsRealized quarters={noHistory} impliedHistory={[]} live={LIVE}
+                         historySince="2026-08-01" />)
+    expect(container.querySelector('[data-testid="rk-ivr-band"]')).toBeNull()
+    // ...and the widget still draws — the current quarter's implied mark stays.
+    expect(container.querySelector('[data-testid="rk-ivr"]')).toBeTruthy()
+  })
+
+  it('draws it again as soon as ONE realized bar exists to read against', () => {
+    const oneBar = [{ quarter: 'Q2 26', reaction_pct: -4.1 }, ...noHistory]
+    const { container } = render(
+      <ImpliedVsRealized quarters={oneBar} impliedHistory={[]} live={LIVE}
+                         historySince="2026-08-01" />)
+    expect(container.querySelector('[data-testid="rk-ivr-band"]')).toBeTruthy()
+  })
+
+  it('drops the band LABEL with the band — never a caption for an absent rule', () => {
+    const { container } = render(
+      <ImpliedVsRealized quarters={noHistory} impliedHistory={[]} live={LIVE}
+                         historySince="2026-08-01" />)
+    expect(container.textContent).not.toMatch(/priced tonight/i)
+  })
+})

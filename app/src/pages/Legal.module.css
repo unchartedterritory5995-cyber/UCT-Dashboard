@@ -91,3 +91,8 @@
     font-size: 26px;
   }
 }
+
+/* Touch (wave 14): the back-to-home link audited 21px tall. */
+@media (max-width: 1024px) {
+  .backLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

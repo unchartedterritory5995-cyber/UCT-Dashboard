@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, Fragment, lazy, Suspense } from "
 import TickerPopup from "../components/TickerPopup";
 import UIcon from "../components/ui/UIcon";
 import { clusterDarkPoolPrints } from "../components/chart/darkPoolCluster";
+import "./DarkPool.mobile.css";
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -1802,7 +1803,7 @@ function OverviewPane({onJumpTo, filterByCat, mktcapData, fetchMktCap, mktcapLoa
                         <span title={meta.groupTip} style={{color:C.tx3, fontSize:11, cursor:"help", marginLeft:2}}>ⓘ</span>
                       </button>
                       {expanded && items.length > 0 && (
-                        <div style={{paddingLeft:6, paddingBottom:10}}>
+                        <div className="dp-scroll" style={{paddingLeft:6, paddingBottom:10}}>
                           {/* Column header strip — matches PatternTickerRow grid columns */}
                           <div style={{display:"grid", gridTemplateColumns:"56px 44px 60px 72px 44px 64px 76px 60px 1fr 20px",
                             gap:8, alignItems:"center", padding:"4px 6px",
@@ -3262,7 +3263,7 @@ export default function DarkPool({embedded}){
   const iwmItem = D.categories.find(c=>c.name==="Indexes")?.items.find(i=>i.t==="IWM");
 
   return (
-    <div style={{background:embedded?"transparent":C.bg,minHeight:embedded?"auto":"100vh",color:C.tx,
+    <div className="dp-mroot" style={{background:embedded?"transparent":C.bg,minHeight:embedded?"auto":"100vh",color:C.tx,
       fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",fontSize:13}}>
       {!embedded && <style>{`
         ::-webkit-scrollbar{width:6px;height:6px}
@@ -3341,7 +3342,7 @@ export default function DarkPool({embedded}){
       {availableDates.length > 0 && (
         <div style={{ display:"flex", justifyContent:"center", padding:"8px 20px", background:C.bg3, borderBottom:`1px solid ${C.bdr}` }}>
           <div style={{ maxWidth:1400, width:"100%", display:"flex", justifyContent:"center" }}>
-          <div style={{ display:"flex", gap:4, alignItems:"center", background:C.bg2, borderRadius:6, padding:4, border:`1px solid ${C.bdr}`, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
+          <div className="dp-chiprow-wrap" style={{ display:"flex", gap:4, alignItems:"center", background:C.bg2, borderRadius:6, padding:4, border:`1px solid ${C.bdr}`, flexWrap:"wrap", justifyContent:"center", position:"relative" }}>
             {[
               { key:"Last1", label:"1d", days:1 },
               { key:"Last5", label:"5d", days:5 },
@@ -3502,7 +3503,7 @@ export default function DarkPool({embedded}){
           filter with real market caps, so two rows would double up). */}
       {tab!=="records" && (
       <div style={{display:"flex",justifyContent:"center",padding:"8px 20px",background:C.bg2,borderBottom:`1px solid ${C.bdr}`}}>
-        <div style={{display:"flex",gap:4,alignItems:"center",background:C.bg3,borderRadius:6,padding:3,border:`1px solid ${C.bdr}`}}>
+        <div className="dp-chiprow" style={{display:"flex",gap:4,alignItems:"center",background:C.bg3,borderRadius:6,padding:3,border:`1px solid ${C.bdr}`}}>
           {[
             {id:"All",label:"All"},
             {id:"Indexes",label:"Indexes"},
@@ -3528,7 +3529,7 @@ export default function DarkPool({embedded}){
 
       {/* Tab bar */}
       <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,padding:"0 20px"}}>
-        <div style={{maxWidth:1400,margin:"0 auto",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
+        <div className="dp-tabs" style={{maxWidth:1400,margin:"0 auto",display:"flex",overflowX:"auto",gap:2,alignItems:"center"}}>
         {TABS.map(t=>{
           const on=t.id===tab;
           return (

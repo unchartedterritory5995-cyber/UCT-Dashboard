@@ -344,7 +344,15 @@ export default function ImpliedVsRealized({
   // stock has actually done. One horizontal band across the plot turns every
   // existing bar into an answer — cleared it, or didn't — and the sparse
   // historical series collapses into a single line instead of seven gaps.
-  const livePct = num(live?.pct) == null ? null : Math.abs(num(live.pct))
+  const livePctRaw = num(live?.pct) == null ? null : Math.abs(num(live.pct))
+  // ⛔ THE BAND IS A REFERENCE FOR BARS. With no realized bar to read against
+  // it, it references nothing — and it is then the ONLY magnitude in the
+  // scale, so it expands to ~87% of the plot and the canvas reads as a big
+  // empty ruled box. Seen in a browser on a name with no accrued history;
+  // measured: band 118px of a 132px plot, one hollow NOW mark, no bars.
+  // Drawing it needs at least one thing to compare.
+  const hasRealized = plotted.some((p) => p.realizedPct != null)
+  const livePct = hasRealized ? livePctRaw : null
   const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height, bandPct: livePct })
   // Thin the axis on a narrow chart rather than shrinking the type below the
   // smallest token — see labelStep's docblock.
