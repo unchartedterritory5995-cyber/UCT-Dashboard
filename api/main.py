@@ -1416,12 +1416,39 @@ def register_screener_jobs(scheduler):
             print(f"[scheduler] screener scan sweep error: {e}")
 
     if scan_evaluator.enabled():
+        # ⛔⛔ `misfire_grace_time` AND `coalesce` WERE MISSING HERE AND PRESENT ON
+        # THE LIVE SWEEP FORTY LINES BELOW — which spells out the hazard this job
+        # was exposed to: "apscheduler 3.11.2's `job_defaults` grace is 1 SECOND
+        # … a check loop delayed past it drops the run silently (EVENT_JOB_MISSED,
+        # the function never called)."
+        #
+        # For a five-minute overlay that is a five-minute hole. For a job that
+        # fires ONCE A DAY it is the WHOLE NIGHT, silently: a deploy, a restart or
+        # a busy loop spanning 05:00 ET and the sweep simply does not happen, with
+        # no receipt, no `unswept`, and nothing anywhere to read. Observed
+        # 2026-08-31: `SCAN_SWEEP_ENABLED=1` in production and
+        # `scan_hits` newest session stuck on FRIDAY, read on a Monday, with
+        # ~32 coverage rows across 6 definitions — about five sessions ever.
+        #
+        # ⭐ A GENEROUS GRACE IS SAFE HERE BY CONSTRUCTION, and that is the whole
+        # argument: `run_sweep` stops STARTING definitions at `sweep_deadline()`
+        # (market open − `SWEEP_STOP_BEFORE_OPEN`), and a run begun after that
+        # deadline stops immediately and says so. The DEADLINE is the guard, not
+        # the grace — so this number decides only how much of a restart window we
+        # cover, not how much risk we take. 05:00 ET to a 09:00 ET deadline is
+        # four hours of runway; one hour of grace covers a deploy comfortably and
+        # still leaves three.
+        #
+        # `coalesce=True`: several missed fires collapse into ONE run. Without it
+        # a pod that was down across two trigger times would queue two sweeps into
+        # a `max_instances=1` slot and the second would be dropped anyway.
         scheduler.add_job(
             _run_scan_sweep,
             trigger=CronTrigger(hour=scan_evaluator.SWEEP_HOUR_ET,
                                 minute=scan_evaluator.SWEEP_MINUTE_ET,
                                 timezone=_ET),
-            id="screener_scan_sweep", max_instances=1, replace_existing=True)
+            id="screener_scan_sweep", max_instances=1, replace_existing=True,
+            coalesce=True, misfire_grace_time=3600)
 
     # -- the LIVE scan sweep: every SCAN_LIVE_INTERVAL_S through the regular
     # session (spec §5.5, owner decision 1). The nightly answer above is a true
