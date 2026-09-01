@@ -95,21 +95,33 @@ _CONST_NAME = re.compile(r"^_?[A-Z][A-Z0-9_]*$")
 #  silently muted rule.
 # ─────────────────────────────────────────────────────────────────────────────
 ALLOWED: dict[str, dict[str, str]] = {
-    "api/services/screener/base_catalog.py": {
-        "_MINERVINI": (
-            "REAL DEFECT, NOT AN EXEMPTION — being fixed by the owner in the "
-            "main worktree as of 2026-08-31, together with two related "
-            "attribution defects in the same file, so this worktree must not "
-            "touch it and create a merge conflict over a one-line constant. "
-            "Line 674 says 'minervini_ttlac_2017' (\"Think & Trade Like a "
-            "Champion\"), line 2229 says 'minervini_ttlac' (\"Trade Like a "
-            "Stock Market Wizard\") — 8 criteria ship the first source_id and "
-            "13 ship the second purely because of where they sit in the file. "
-            "DELETE THIS ENTRY when the fix lands; "
+    "api/live_massive_router.py": {
+        "_parse_mdy": (
+            "REAL DEFECT AND A LIVE 500 — NOT AN EXEMPTION. This file is "
+            "PARTNER-OWNED (co-edited with Ravi, per the standing note that it "
+            "must not be touched without his ack), which is the ONLY reason the "
+            "fix is not in this commit. "
+            "Line 3515 returns a sortable (Y, M, D) tuple and (0,0,0) on "
+            "malformed input; the second definition returns `date | None` and "
+            "has ZERO callers of its own. Python keeps the second, so all SEVEN "
+            "call sites — every one written for the tuple — run the date "
+            "version. `_resolve_date` passes unrecognised input through "
+            "unchanged, so a query param reaches the comparison directly. "
+            "Executed repro: today='2026/08/31' gives ['2026/08/31'] under the "
+            "tuple version and `TypeError: '<=' not supported between instances "
+            "of 'datetime.date' and 'NoneType'` under the date one — a 500 on "
+            "the lookback_days>=2 paths of `_compute_recent_multiday` and "
+            "`_build_by_contract`, where the docstring promises zero rows. "
+            "THE FIX IS ONE DELETION (the caller-less definition) and is ready "
+            "on branch `rails`. DELETE THIS ENTRY once Ravi has acked it; "
             "test_no_allow_list_entry_has_gone_stale will demand it."
         ),
     },
 }
+# ⚰️ `base_catalog.py::_MINERVINI` was the first entry here and is GONE because
+# it was FIXED, not because it was forgiven — the staleness gate below is what
+# demanded its removal the moment the fix landed. That is the list working: an
+# exemption for a defect that no longer exists reads as coverage.
 
 
 def _module_files():
