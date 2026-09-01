@@ -175,6 +175,30 @@ def test_a_stale_low_coverage_heal_is_re_healed_when_bars_arrive(_iso):
     assert bm.raw_row("2026-08-31")["universe_count"] == 2560
 
 
+def test_universe_falls_back_past_a_row_with_no_list(tmp_path, monkeypatch):
+    # 🔴 REGRESSION: the newest snapshot (8/31) had its universe_list stripped, so a
+    # hard read of it returned [] → reference_levels empty → all live breadth 503'd.
+    # universe() must fall back to the most recent snapshot that has a real list.
+    from api.services import breadth_monitor as bm
+    from api.services import breadth_live as bl
+    monkeypatch.setattr(bm, "_db_path", lambda: str(tmp_path / "b.db"))
+
+    class _NoCache:
+        def get(self, *a, **k): return None
+        def set(self, *a, **k): pass
+        def delete_prefix(self, *a, **k): pass
+    import api.services.cache as cache_mod
+    monkeypatch.setattr(cache_mod, "cache", _NoCache())
+    bm.init_db()
+
+    good = [{"t": f"T{i}"} for i in range(2600)]
+    _put(bm, "2026-08-28", {"universe_count": 2606, "universe_list": good})
+    _put(bm, "2026-08-31", {"universe_count": 156, "_healed": True})   # NO universe_list
+
+    tickers, d = bl.universe()
+    assert len(tickers) == 2600 and d == "2026-08-28", "fell back to the good day's list"
+
+
 def test_heal_preserves_universe_list_the_live_path_reads(_iso):
     # 🔴 REGRESSION: a heal that stripped universe_list off the newest row collapsed
     # the whole live-breadth path (bl.universe() reads it). A heal must keep it.

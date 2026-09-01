@@ -983,18 +983,34 @@ def universe(snapshot_date: Optional[str] = None) -> tuple[list[str], Optional[s
     Taken from the newest stored snapshot's `universe_list` rather than from
     cap_universe.json, so a live read and the row it will be compared against
     cover exactly one population. A different universe is a different metric.
+
+    🔴 RESILIENT: if the newest snapshot's `universe_list` is missing or tiny
+    (a degraded collection, or a self-heal that overwrote the row without it), we
+    fall back to the most recent snapshot that DOES carry a real list. The
+    universe barely changes day to day, and one bad row must never collapse the
+    whole live path (`reference_levels` → live row → intraday chart data), which
+    is exactly what a hard read of an empty newest list did on 2026-09-01.
     """
     from api.services import breadth_monitor as bm
-    d = snapshot_date
-    if d is None:
-        hist = bm.get_history(1)
-        if not hist:
-            return [], None
-        d = hist[0].get("date")
-    items = bm.get_drill_list(d, "universe_list") or []
-    tickers = sorted({str(i.get("t")).upper() for i in items
-                      if isinstance(i, dict) and i.get("t")})
-    return tickers, d
+
+    def _tk(items):
+        return sorted({str(i.get("t")).upper() for i in (items or [])
+                       if isinstance(i, dict) and i.get("t")})
+
+    if snapshot_date is not None:
+        return _tk(bm.get_drill_list(snapshot_date, "universe_list")), snapshot_date
+
+    try:
+        hist = bm.get_history(20)
+    except Exception:
+        hist = []
+    newest_date = hist[0].get("date") if hist else None
+    for row in hist:
+        d = row.get("date")
+        tickers = _tk(bm.get_drill_list(d, "universe_list"))
+        if len(tickers) > 100:
+            return tickers, d
+    return [], newest_date
 
 
 def dividend_basis_enabled() -> bool:

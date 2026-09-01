@@ -267,12 +267,18 @@ def heal_recent(days: int = 10) -> dict:
         from api.services import breadth_monitor as bm
         expected = _expected_universe()
         results = []
+        repaired = []
         for d in _recent_dates(days):
+            # ALWAYS repair a stripped universe_list first — it's load-bearing for
+            # the live path and its absence otherwise HIDES the row from _needs_heal
+            # (an empty newest list drives _expected_universe to 0).
+            if ensure_universe_list(d):
+                repaired.append(d)
             m = bm.raw_row(d)
             if _needs_heal(m, expected):
                 results.append(heal_date(d))
-        return {"ok": True, "checked": days, "healed": [r for r in results if r.get("healed")],
-                "attempts": results}
+        return {"ok": True, "checked": days, "ul_repaired": repaired,
+                "healed": [r for r in results if r.get("healed")], "attempts": results}
     finally:
         _LOCK.release()
 
