@@ -274,6 +274,39 @@ def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bar
     return [(s, '5', bars) for s in ticker_list if s not in deep]
 
 
+def _after_close_daily_sweep_due(
+    sess: int, today_yyyymmdd: int, now_hour_et: int, last_swept: int,
+    *, enabled: bool, hour_et: int,
+) -> bool:
+    """True when the once-per-session after-close full-universe DAILY sweep should run.
+
+    ⭐ WHY THIS EXISTS. The steady refresh loop keeps only `ticker_list` (active +
+    cap_universe + ETFs) fresh; the ~22k reference long-tail dailies are warmed
+    BOOT-ONLY (`_instant_boot`). So after each close the long tail drifts a session
+    behind — and a force_resync wipe leaves it cold outright — and a first view of
+    such a symbol cold-bg sheds a "warming" 503 that blanks the chart until the
+    background fetch lands. This gate fires a once-per-session, after-close pass that
+    re-warms the WHOLE universe's DAILY to the session that just closed, off-peak.
+
+    Fires at most once per COMPLETED trading session:
+    - `sess != today` ⇒ today was not a completed session (weekend / holiday /
+      pre-open — `_expected_session()` trails to the prior trading day) ⇒ no sweep.
+    - `now_hour_et < hour_et` ⇒ too early; the provider may not have published the
+      closing daily bar yet (buffer past the 4pm ET close).
+    - `last_swept < sess` ⇒ not yet done for this session.
+    Idempotent across worker restarts: `last_swept` is in-memory (resets to 0 on a
+    restart, re-running the sweep), and `_scan_stale` skips anything already fresh,
+    so a re-run only fetches the day's stragglers.
+    """
+    if not enabled:
+        return False
+    if sess != today_yyyymmdd:
+        return False
+    if now_hour_et < hour_et:
+        return False
+    return last_swept < sess
+
+
 def prewarm_heartbeat() -> dict:
     """Snapshot of prewarmer liveness for the worker health endpoint + watchdog.
 
@@ -763,6 +796,11 @@ def run_prewarmer_forever():
         warmed, skipped = _run_boot_pass(
             ex.map(_warm_one, boot_jobs), len(boot_jobs), fast_path_size_jobs)
     print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(boot_jobs)} total")
+    # PERMANENT DAILY FRESHNESS: the ET session date of the last after-close
+    # full-universe daily sweep. In-memory (resets to 0 on restart → the sweep
+    # re-runs and _scan_stale skips whatever is already fresh). See the sweep block
+    # below and `_after_close_daily_sweep_due`.
+    _last_full_daily_session = 0
     while True:
         # Beat FIRST so liveness is proven every iteration; the whole body is then
         # GUARDED so a single stale-read / DB-locked raise can never kill warming
@@ -770,6 +808,47 @@ def run_prewarmer_forever():
         # loop and froze the universe for a week). On a body crash we log +
         # short-backoff + continue instead of letting the thread die.
         _beat()
+        # ── PERMANENT DAILY FRESHNESS — after-close full-universe DAILY sweep ─────
+        # Runs BEFORE the active-window idle gate below, because after the 4pm ET
+        # close we are typically OUTSIDE that window (the loop would otherwise sleep
+        # 1800s and never touch the long tail). Once per completed session it re-warms
+        # the WHOLE universe's DAILY (ticker_list ∪ _dwm_extra) to the session that
+        # just closed, off-peak. The worker writes bars.db → the whole-db R2 snapshot
+        # ships it → the web pod's newer-wins merge cold-populates every empty daily
+        # and advances every stale one, so a first view of ANY symbol serves instantly
+        # from SQLite instead of cold-bg shedding a "warming" 503. `_scan_stale` +
+        # `_boot_can_skip` make already-fresh dailies near-free (day-2+ = a 1-bar
+        # delta). Gated dark by PERMANENT_DAILY_FRESHNESS_ENABLED; the buffer hour past
+        # the close is PERMANENT_FRESHNESS_HOUR_ET (default 17 = 5pm ET). `_run_refresh_pass`
+        # beats on every job, so a long sweep never trips the liveness watchdog.
+        try:
+            if _IS_WORKER and _dwm_extra:
+                from datetime import datetime as _fdt
+                from zoneinfo import ZoneInfo as _fzi
+                _now_et = _fdt.now(_fzi("America/New_York"))
+                _sess = _expected_session()
+                if _after_close_daily_sweep_due(
+                    _sess, int(_now_et.strftime("%Y%m%d")), _now_et.hour,
+                    _last_full_daily_session,
+                    enabled=os.environ.get("PERMANENT_DAILY_FRESHNESS_ENABLED", "0") == "1",
+                    hour_et=int(os.environ.get("PERMANENT_FRESHNESS_HOUR_ET", "17")),
+                ):
+                    _full_daily = [(s, 'D', 5000) for s in (ticker_list + _dwm_extra)]
+                    _fd_stale = _scan_stale(_full_daily, _needs_fresh, _sqlite.get_last_ts)
+                    print(f"[prewarm] DAILY FRESHNESS: after-close full-universe sweep "
+                          f"for session {_sess} — {len(_fd_stale)} of {len(_full_daily)} "
+                          f"dailies stale")
+                    if _fd_stale:
+                        with _PrewarmTPE(max_workers=_PREWARM_WORKERS,
+                                         thread_name_prefix="prewarm-freshness") as _fx:
+                            _fd_done = _run_refresh_pass(
+                                _fx.map(_warm_one, _fd_stale), len(_fd_stale))
+                        print(f"[prewarm] DAILY FRESHNESS: refreshed {_fd_done} of "
+                              f"{len(_fd_stale)} dailies to session {_sess}")
+                    # Mark done even when 0 were stale (nothing to do this session).
+                    _last_full_daily_session = _sess
+        except Exception as _fresh_err:
+            print(f"[prewarm] daily-freshness sweep crashed (non-fatal): {_fresh_err}")
         try:
             # Market-hours gate: overnight + weekends, bars are static, so the
             # ~14k-job freshness scan below is pure SQLite-read churn (nothing is
