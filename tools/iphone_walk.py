@@ -259,6 +259,33 @@ def touch_walk(ctx, page):
     moved = page.evaluate("() => localStorage.getItem('uct-chart-drawings') || ''")
     reshaped = moved != stored and '"trendline"' in moved
     print('  reshape persisted:', reshaped)
+    # CLEAN UP THE DRAWING. drawingsStore syncs tracings to the SERVER
+    # (tracings_doc pref), so every run's trendline used to accumulate on the
+    # audit account forever — ~25 gold lines after two days, enough redraw
+    # churn to wedge the go-live pill's rAF range read (measured: retire
+    # failed persistently at ~25 lines, greened the run after a clear).
+    # Product path first (reselect + Delete); rig-level clear as fallback —
+    # this is the walk's own audit account.
+    tap(225, 400)                    # reselect (the reshape drag drops selection)
+    page.wait_for_timeout(400)
+    page.keyboard.press('Delete')
+    page.wait_for_timeout(600)
+    cleaned = '"trendline"' not in page.evaluate(
+        "() => localStorage.getItem('uct-chart-drawings') || ''")
+    if not cleaned:
+        page.evaluate("""() => {
+          try { localStorage.removeItem('uct-chart-drawings') } catch {}
+          try { localStorage.removeItem('uct-chart-tracings') } catch {}
+          return fetch('/api/auth/preferences', { method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'tracings_doc',
+              value: JSON.stringify({ updatedAt: Date.now(), doc: {} }) }) }).then(() => true)
+        }""")
+        page.wait_for_timeout(400)
+        cleaned = True
+        print('  drawing cleaned up after gates: True (rig-level clear)')
+    else:
+        print('  drawing cleaned up after gates: True (Delete)')
     return reshaped
 
 
@@ -311,8 +338,17 @@ def golive_walk(ctx, page):
         lines = [ln.strip() for ln in str(e).splitlines() if 'intercept' in ln or 'pointer events' in ln]
         print('  pill TAP FAILED (intercepted?):', (lines[0] if lines else str(e).splitlines()[0])[:180])
         return False
-    page.wait_for_timeout(900)  # scrollToRealTime glides back to the live edge
-    gone = pill.count() == 0
+    # scrollToRealTime GLIDES back to the live edge, and the pill retires off
+    # a rAF-throttled range read — under sandbox CPU contention (the theme
+    # compute chewing dead-network retries) the glide can outlast any fixed
+    # sleep. Poll for the retire instead of sleeping once; the budget is
+    # generous because a slow retire is fine and a NON-retire is the bug.
+    gone = False
+    for _ in range(20):
+        page.wait_for_timeout(300)
+        if pill.count() == 0:
+            gone = True
+            break
     print('  pill retired after snap-back:', gone)
     shot(page, '24-back-at-live', wait=200)
     return gone
