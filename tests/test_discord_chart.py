@@ -3031,3 +3031,128 @@ def test_the_heal_is_bounded_and_runs_off_the_reply_path(monkeypatch):
     assert di.schedule_stand_in_heal("1", "t", di.ChartRequest("OFF", "D"), "h", **args) is False
     assert spawned == []
 
+
+
+# -- 2026-08-31: three candle-less charts reached the PUBLIC #TSDR channel -------
+# The pixel judge was the only thing standing between an empty frame and members,
+# and it is a proxy. These pin BOTH halves: that the proxy genuinely cannot see
+# the defect (so nobody "fixes" this by nudging the threshold), and that the
+# page's own bar count does.
+
+def _png_resolved_but_empty(w=1296, h=698):
+    """The frame that actually shipped: chrome, grid, a big centred symbol
+    watermark, a last-price line - and NOT ONE CANDLE.
+
+    This is what /r/chart paints when it resolves a symbol but its own /api/bars
+    fetch comes back empty, which is what a cold pod serves."""
+    from PIL import Image, ImageDraw
+    im = Image.new("RGB", (w, h), (10, 10, 10))
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, w, 68], fill=(22, 22, 22))                 # header + stats strip
+    d.rectangle([0, h - 20, w, h], fill=(22, 22, 22))             # footer
+    for gy in range(90, h - 40, 46):                              # horizontal grid
+        d.line([0, gy, w, gy], fill=(44, 49, 40))
+    d.line([0, 430, w, 430], fill=(60, 184, 104))                 # last-price line
+    for i in range(9):                                            # the centred watermark
+        d.rectangle([420 + i * 52, 300, 420 + i * 52 + 34, 372], fill=(150, 150, 150))
+    d.rectangle([430, 392, 880, 410], fill=(120, 120, 120))       # the subtitle under it
+    import io
+    buf = io.BytesIO(); im.save(buf, format="PNG"); return buf.getvalue()
+
+
+def test_the_pixel_judge_passes_a_resolved_but_candleless_frame():
+    """WHY the guard was not enough. Ink is not data.
+
+    If this ever starts failing, the pixel judge got better and the comment in
+    discord_chart_house explaining why the probe exists needs revisiting - but do
+    NOT delete the probe on the strength of it. The threshold was measured once,
+    on a frame that had not resolved its symbol, and quietly stopped describing
+    the blank it was aimed at."""
+    from api.services.discord_chart_house import has_chart_content, _MIN_BODY_STDDEV
+    from PIL import Image, ImageStat
+    import io
+    im = Image.open(io.BytesIO(_png_resolved_but_empty())).convert("L")
+    w, h = im.size
+    body = im.crop((0, int(h * 0.11), w, int(h * 0.91)))
+    assert ImageStat.Stat(body).stddev[0] > _MIN_BODY_STDDEV
+    assert has_chart_content(_png_resolved_but_empty()) is True      # the defect, pinned
+
+
+def _house_env(monkeypatch):
+    monkeypatch.setenv("CHART_RENDERER_URL", "http://r")
+    monkeypatch.setenv("CHART_RENDERER_SECRET", "s")
+    monkeypatch.setenv("CHART_RENDER_TOKEN", "t")
+
+
+def test_a_frame_the_page_says_is_empty_is_discarded_even_when_the_pixels_pass(monkeypatch):
+    import httpx
+    from api.services import discord_chart_house as hs
+    _house_env(monkeypatch)
+    empty = _png_resolved_but_empty()
+    calls = []
+
+    def handler(request: httpx.Request):
+        calls.append(json.loads(request.content))
+        return httpx.Response(200, content=empty,
+                              headers={"content-type": "image/png", "X-Chart-Probe": "0"})
+    out = hs.render_house_chart("SMH", "D", {"close": 1},
+                                client=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert out is None                       # would have been POSTED before this change
+    assert len(calls) == 2                   # both attempts tried, both refused
+    assert calls[0]["probe_js"] == hs.PROBE_JS
+
+
+def test_one_bar_is_not_a_chart(monkeypatch):
+    """IWM shipped with exactly one candle at the right edge and an empty pane."""
+    import httpx
+    from api.services import discord_chart_house as hs
+    _house_env(monkeypatch)
+    drawn = _png_canvas(draw=True)
+
+    def one(request: httpx.Request):
+        return httpx.Response(200, content=drawn,
+                              headers={"content-type": "image/png", "X-Chart-Probe": "1"})
+    assert hs.render_house_chart("IWM", "D", {}, client=httpx.Client(transport=httpx.MockTransport(one))) is None
+
+    def many(request: httpx.Request):
+        return httpx.Response(200, content=drawn,
+                              headers={"content-type": "image/png", "X-Chart-Probe": "120"})
+    assert hs.render_house_chart("IWM", "D", {}, client=httpx.Client(transport=httpx.MockTransport(many))) == drawn
+
+
+def test_a_silent_page_falls_through_to_the_pixel_judge(monkeypatch):
+    """No header = an older renderer or an older bundle, NOT an empty chart.
+
+    web and chart-renderer are separate Railway services; between their two
+    deploys every response lacks the header. Treating that as "drew nothing"
+    would take the whole command down for the gap."""
+    import httpx
+    from api.services import discord_chart_house as hs
+    _house_env(monkeypatch)
+    drawn, blank = _png_canvas(draw=True), _png_canvas(draw=False)
+
+    def no_header(request: httpx.Request):
+        return httpx.Response(200, content=drawn, headers={"content-type": "image/png"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(no_header))) == drawn
+
+    def no_header_blank(request: httpx.Request):
+        return httpx.Response(200, content=blank, headers={"content-type": "image/png"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(no_header_blank))) is None
+
+    def junk(request: httpx.Request):
+        return httpx.Response(200, content=drawn,
+                              headers={"content-type": "image/png", "X-Chart-Probe": "not-json"})
+    assert hs.render_house_chart("NVDA", "D", {}, client=httpx.Client(transport=httpx.MockTransport(junk))) == drawn
+
+
+def test_drawn_bars_reads_only_an_integer_answer():
+    from api.services.discord_chart_house import drawn_bars
+
+    class R:
+        def __init__(self, h): self.headers = h
+    assert drawn_bars(R({})) is None
+    assert drawn_bars(R({"X-Chart-Probe": "0"})) == 0
+    assert drawn_bars(R({"X-Chart-Probe": "118"})) == 118
+    assert drawn_bars(R({"X-Chart-Probe": "null"})) is None
+    assert drawn_bars(R({"X-Chart-Probe": "true"})) is None     # a bool is not a count
+    assert drawn_bars(R({"X-Chart-Probe": "1.5"})) is None
