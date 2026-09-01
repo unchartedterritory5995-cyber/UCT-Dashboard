@@ -12,6 +12,7 @@ vi.mock('../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBar: () => {}, prefetchBars: () => {}, prefetchBarsToIDB: () => {},
   prefetchAllTimeframes: () => {}, prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {},
+  warmMemFromIDB: () => {},
 }))
 vi.mock('../components/chart/pane/ChartPane', () => ({ default: () => null }))
 vi.mock('../hooks/useMobileSWR', () => ({

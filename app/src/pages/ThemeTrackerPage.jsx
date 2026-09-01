@@ -10,7 +10,7 @@ import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -450,6 +450,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         // durable IDB so scrolling this theme is instant on 5m/30m/1h, not just
         // daily. Bounded/idle-deferred — never competes with the active chart.
         prefetchListAllTimeframes(syms)
+        // Promote the top rows straight to the sync mem cache so the first few
+        // fast scrolls paint in the SAME frame (no async idbGet hop) — the piece
+        // that closes the rapid-scroll flash. Top-first = what's on screen.
+        warmMemFromIDB(syms.slice(0, 40))
       }
       return ticker                      // opening a new one closes the previous
     })

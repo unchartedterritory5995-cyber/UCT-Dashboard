@@ -20,6 +20,7 @@ vi.mock('../components/CompanyLogo', () => ({ default: () => null }))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBars: () => {}, prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {},
   prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {}, warmMemFromIDB: () => {},
+  prewarmVisibleList: () => {},
 }))
 vi.mock('../lib/chartReadoutStore', () => ({
   subscribeChartReadouts: () => () => {}, getChartReadout: () => null, hasFreshReadouts: () => false,
