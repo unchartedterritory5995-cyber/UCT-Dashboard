@@ -628,6 +628,18 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
+      ['app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
+       '⭐ NEW AT MOBILE WAVE 8 — indicator editing on a phone. A second USE of '
+       + 'door eight rather than a second writer, and it is here because the phone has no '
+       + 'legend chip and no settings dialog: `IndicatorSettingsDialog` is the DESKTOP '
+       + 'surface for changing the length on THIS copy, and on a phone that surface does '
+       + 'not exist, so the sheet must address the instance itself. `writeStudyInput` '
+       + 'resolves defId through `liveInstanceOf` FIRST and returns early when there is '
+       + 'no live instance, so it can never mint or address a copy that is not on the '
+       + 'chart — the same discipline the chip Duplicate row uses. ⛔ It goes through '
+       + 'door eight and not doors 1-7 for the founding reason of this census: every one '
+       + 'of those takes legacyInstanceId(defId) and therefore always means the FIRST '
+       + 'copy, so two RSIs on a phone would silently edit the wrong one'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +
