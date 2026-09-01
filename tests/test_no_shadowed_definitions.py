@@ -42,10 +42,9 @@ The measurement, taken with the helper below BEFORE widening anything:
     everything else        0
 
 So the number was TWO and ONE, not forty, and the honest scope is EVERYTHING.
-Both definition offenders were real and are fixed; the constant offender is
-being fixed by the owner in the main worktree and carries the only allow-list
-entry, which has its own staleness gate below. Whole-repo sweep cost: 2,327
-modules parsed in ~5s.
+All three offenders were real and ALL THREE ARE NOW FIXED, so the allow-list is
+empty — see the note in it for what passed through and why each left. Whole-repo
+sweep cost: 2,327 modules parsed in ~5s.
 
 ⛔ MODULE-BODY ASSIGNMENTS ARE THE SAME DEFECT, AND THE SWEEP WAS BLIND TO THEM.
 `base_catalog.py` sets `_MINERVINI` at line 674 and again at line 2229. Python
@@ -95,33 +94,20 @@ _CONST_NAME = re.compile(r"^_?[A-Z][A-Z0-9_]*$")
 #  silently muted rule.
 # ─────────────────────────────────────────────────────────────────────────────
 ALLOWED: dict[str, dict[str, str]] = {
-    "api/live_massive_router.py": {
-        "_parse_mdy": (
-            "REAL DEFECT AND A LIVE 500 — NOT AN EXEMPTION. This file is "
-            "PARTNER-OWNED (co-edited with Ravi, per the standing note that it "
-            "must not be touched without his ack), which is the ONLY reason the "
-            "fix is not in this commit. "
-            "Line 3515 returns a sortable (Y, M, D) tuple and (0,0,0) on "
-            "malformed input; the second definition returns `date | None` and "
-            "has ZERO callers of its own. Python keeps the second, so all SEVEN "
-            "call sites — every one written for the tuple — run the date "
-            "version. `_resolve_date` passes unrecognised input through "
-            "unchanged, so a query param reaches the comparison directly. "
-            "Executed repro: today='2026/08/31' gives ['2026/08/31'] under the "
-            "tuple version and `TypeError: '<=' not supported between instances "
-            "of 'datetime.date' and 'NoneType'` under the date one — a 500 on "
-            "the lookback_days>=2 paths of `_compute_recent_multiday` and "
-            "`_build_by_contract`, where the docstring promises zero rows. "
-            "THE FIX IS ONE DELETION (the caller-less definition) and is ready "
-            "on branch `rails`. DELETE THIS ENTRY once Ravi has acked it; "
-            "test_no_allow_list_entry_has_gone_stale will demand it."
-        ),
-    },
+    # ⭐ EMPTY, AND THAT IS A RESULT RATHER THAN A DEFAULT. Two entries have
+    # passed through this list and BOTH were removed because the defect was
+    # FIXED, not because it was forgiven -- and in each case it was
+    # `test_no_allow_list_entry_has_gone_stale` that demanded the removal the
+    # moment the fix landed, not anybody remembering:
+    #   base_catalog.py::_MINERVINI  -- one constant with two values, shipping
+    #     two different provenance ids depending on where in a 4,000-line file
+    #     a criterion happened to sit.
+    #   live_massive_router.py::_parse_mdy -- a live 500. Four call sites
+    #     written for a sortable tuple were running a date-returning shadow
+    #     with no callers of its own.
+    # An exemption that outlives its defect reads as coverage and hides the
+    # next one, which is why this gate points both ways.
 }
-# ⚰️ `base_catalog.py::_MINERVINI` was the first entry here and is GONE because
-# it was FIXED, not because it was forgiven — the staleness gate below is what
-# demanded its removal the moment the fix landed. That is the list working: an
-# exemption for a defect that no longer exists reads as coverage.
 
 
 def _module_files():

@@ -3991,15 +3991,19 @@ def _er_cal_maybe_refresh():
     threading.Thread(target=_er_cal_do_refresh, daemon=True).start()
 
 
-def _parse_mdy(s):
-    """'M/D/YYYY' → date, else None."""
-    try:
-        p = str(s).strip().split("/")
-        if len(p) == 3:
-            return date(int(p[2]), int(p[0]), int(p[1]))
-    except (ValueError, IndexError):
-        pass
-    return None
+# ⚰️ A SECOND `_parse_mdy` LIVED HERE AND WAS A LIVE 500. It returned
+# `date | None` and had ZERO callers of its own, but Python keeps the LAST
+# top-level definition — so all four call sites, every one written for the
+# sortable `(Y, M, D)` tuple defined ~480 lines above, ran this one instead.
+# The sites do `_parse_mdy(d) <= today_key`: the tuple version answers `(0,0,0)`
+# on malformed input and sorts it first, this one answered `None` and raised
+# `TypeError: '<=' not supported between 'datetime.date' and 'NoneType'`.
+# `_resolve_date` passes unrecognised input through UNCHANGED, so a query param
+# reached the comparison directly — `today='2026/08/31'` gives a clean empty day
+# under the tuple version and a 500 under this one, on the `lookback_days >= 2`
+# paths of `_compute_recent_multiday` and `_build_by_contract`, where the
+# docstring promises zero rows. Found by `tests/test_no_shadowed_definitions.py`,
+# which sweeps the repo for a top-level name bound twice.
 
 
 def _earnings_line(ticker: str, exp=None) -> str:
