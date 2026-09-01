@@ -67,6 +67,11 @@ WINDOWS = {
     "cup-with-handle":     500,
     # The W plus the advance it rests, plus prior-uptrend history behind that.
     "double-bottom":       400,
+    # Two adjacent swing lows, the rally between them and the confirming close.
+    # Same window as its sibling above so the two are measured on one footing --
+    # they read the SAME pivot pair and require opposite things of it, and a
+    # different window would make that comparison meaningless.
+    "ugly-double-bottom":  400,
     # Pole (<=40) + flag (<=25) plus swing history to anchor the pole's origin.
     "high-tight-flag":     400,
     # The contraction sequence plus the advance it continues, plus the
