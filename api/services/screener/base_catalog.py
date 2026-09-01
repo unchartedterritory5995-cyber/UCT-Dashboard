@@ -863,24 +863,37 @@ def _iso_week_key(t):
     return d.isocalendar()[:2]
 
 
-def _weekly_closes(bars) -> list:
-    """The last close of each ISO week, oldest first.
+def _weekly_close_map(bars) -> dict:
+    """ISO week key -> that week's LAST close. THE one weekly-close authority.
+
+    ⛔⛔ ONE READER, TWO CONSUMERS. Weinstein's 30-week average wants an ordered
+    LIST of closes; Three Weeks Tight wants the closes AND the week keys the
+    last three of them came from (so its pivot can be read off the daily bars of
+    exactly those weeks). Two functions computing "the weekly closes" from the
+    same bars is `lesson_a_second_authority_over_one_value` in miniature -- so
+    the map is the authority and `_weekly_closes` is a view over it.
 
     ⚠️ CLOSES ONLY -- this is NOT a bar resample and does not pretend to be.
     `bars_fetch._resample_weekly_iso` owns what a weekly CANDLE is, and the
-    stable-Friday-key rationale that goes with it; this computes the input to a
-    moving average, so it is not a second authority on resampling.
-
-    ⛔ Weinstein's average is explicitly built on WEEKLY CLOSES, not a 150-day
-    average: "Based on Friday night closes only (not traditional 50-day or
-    150-day MAs)." The two are routinely treated as interchangeable and the
-    source says plainly that they are not.
+    stable-Friday-key rationale that goes with it.
     """
     seen = {}
     for b in bars:
         c = b.get("c") or 0
         if c > 0:
             seen[_iso_week_key(b["t"])] = c
+    return seen
+
+
+def _weekly_closes(bars) -> list:
+    """The last close of each ISO week, oldest first.
+
+    ⛔ Weinstein's average is explicitly built on WEEKLY CLOSES, not a 150-day
+    average: "Based on Friday night closes only (not traditional 50-day or
+    150-day MAs)." The two are routinely treated as interchangeable and the
+    source says plainly that they are not.
+    """
+    seen = _weekly_close_map(bars)
     return [seen[k] for k in sorted(seen)]
 
 
@@ -4241,6 +4254,357 @@ BUYABLE_GAP_UP = Structure(
 )
 
 
+# -- Three Weeks Tight (IBD) ------------------------------------------------
+# ⭐⭐ THE CORPUS PUBLISHES TWO IRRECONCILABLE READINGS OF ONE PATTERN, and it
+# says so in as many words: "No reading satisfies both, and an implementation
+# must name which sentence it implements." One IBD article measures CONSECUTIVE
+# weekly closes -- "the difference between each weekly close" must not exceed
+# 1.5%. The Nasdaq republication measures the CLUSTER SPAN -- "the width between
+# the highest close and the lowest close" must not exceed 1% to 2%. Closes of
+# 100.0 / 101.4 / 102.8 have pairwise steps of 1.4% (a pattern under the first
+# sentence) and a span of 2.8% (not a pattern under the second).
+#
+# ⛔ AND "TAKE THE LOOSER" IS NOT AVAILABLE HERE. The saucer's depth ceiling and
+# the double bottom's both resolve two published numbers for the SAME
+# measurement by taking the wider, so the gate refuses only what both sources
+# refuse. These are two different MEASUREMENTS and neither contains the other:
+# 100/102/101 passes the span test (2.0%) and fails the pairwise one (2.0% step).
+# So the choice has to be argued, and it is -- see the criterion below. We
+# implement the PAIRWISE sentence, measure the span anyway, and report it.
+#
+# ⭐ THIS IS NOT A BASE AND IBD SAYS SO: "One, two or three weeks do not get the
+# job done." It is an add-on point inside an advance the buyer is already in,
+# which is why it carries the Momentum Continuation family and why a LOW
+# coverage number is the expected result rather than a disappointing one.
+
+_IBD_3WT = "ibd_three_weeks_tight"        # IBD, "How The 3 Weeks Tight Pattern Gives You An Extra Buy Point"
+_IBD_3WT_SMART = "ibd_smart_chart_3wt"    # IBD, "Smart Chart Reading: Why Short Stroke, 3 Weeks Tight Give A Profit Opportunity"
+_IBD_3WT_NASDAQ = "ibd_3wt_nasdaq"        # the same IBD column republished by Nasdaq -- and NOT word for word
+_IBD_BASE_COUNT = "ibd_base_count"        # IBD, "Looking At A Great Chart Base? Make Sure To Count The Weeks"
+
+#: "at least three straight weeks" -- three weekly closes, i.e. two close-to-close
+#: comparisons. SOURCED.
+TWT_WEEKS = 3
+
+#: THE IMPLEMENTED READING. "If the difference between each weekly close exceeds
+#: 1.5%, the three-weeks-tight pattern likely has flaws." SOURCED, and published
+#: twice by IBD in two separate articles.
+#:
+#: ⭐⭐ SOURCED IS NOT AN EXCUSE NOT TO MEASURE. `MIN_ROUNDNESS = 0.30` was chosen
+#: by eye and refused every realistic instance, so both readings were swept over
+#: the real universe before either shipped -- 2026-08-31, 2,000 seeded-random
+#: tickers, 1,871 carrying 400 daily bars, measured through
+#: `bases.classify(bars)` and `base_matches` rather than the predicate alone
+#: (the two were cross-checked equal at 260 hits, so the shipped path adds no
+#: silent gate):
+#:
+#:     pairwise <=   0.50%  0.75%  1.00%  1.25%  1.50%  2.00%  2.50%  3.00%
+#:     % universe     3.4%   5.8%   8.0%  10.5%  13.9%  19.3%  26.1%  33.0%
+#:
+#:     span     <=   0.50%  1.00%  1.50%  2.00%  2.50%  3.00%  4.00%
+#:     % universe     3.0%   6.8%  11.4%  16.5%  21.3%  26.9%  39.8%
+#:
+#: The published 1.5% lands at **13.90%** (`ok`), on a smooth curve with no
+#: cliff either side -- so this is IBD's number doing IBD's work, not a number
+#: that happens to survive. The span reading at its looser published end lands
+#: at **16.52%** (`ok`). ⛔ AND THE TWO ARE NOT THE SAME 260 NAMES: they agree
+#: on 245, so 79 of the 324 symbols either reading names (24%) are named by
+#: exactly one of them. The conflict is not academic; it is a quarter of the
+#: population.
+TWT_MAX_PAIRWISE = 0.015
+
+#: ⚠️ THE READING WE DO **NOT** APPLY, kept so the other sentence can be
+#: MEASURED rather than merely mentioned. The published form is a RANGE ("1% to
+#: 2%"), so there is no single span threshold to ship -- this is its looser end,
+#: used only by `tools/base_coverage` to report what the span reading would have
+#: matched. It is deliberately not a gate, and the criterion below records the
+#: published range as a string rather than pretending 2% is IBD's number.
+TWT_MAX_SPAN = 0.02
+
+#: "at least a dime past the highest intraday price in the tight pattern".
+#: SOURCED -- and note the pattern is DEFINED on weekly closes and TRIGGERED on
+#: the intraday high, so this reads `h` where the tightness test reads `c`.
+TWT_PIVOT_PAD = 0.10
+
+#: Three ISO weeks of sessions with room for a short one. A structure that
+#: cannot see three weekly closes returns None anyway; this only keeps
+#: `_collect_relations` from calling it on a stub series. origin: uct.
+TWT_MIN_BARS = 15
+
+
+def three_weeks_tight_state(bars) -> Optional[dict]:
+    """The three most recent weekly closes and BOTH published readings of them.
+
+    Returns None when there are not three weekly closes to read.
+
+    ⭐ WEEK BOUNDARY CONVENTION, STATED RATHER THAN ASSUMED: weeks are ISO weeks
+    (Monday-Sunday) and a week's close is the LAST daily close inside it -- the
+    Friday close on a normal week, and the last session traded when Friday is a
+    holiday. That is `_weekly_close_map`'s convention, already shared with
+    Weinstein's 30-week average, and it is the same partition of the calendar as
+    the corpus's `W-FRI` resample. It is NOT reinvented here: a second reader of
+    "the weekly closes" is exactly the defect this file keeps paying for.
+
+    ⭐ BOTH READINGS ARE COMPUTED, ALWAYS. Only `pairwise` gates (see the
+    criteria), but a structure whose literature contains a live disagreement
+    should carry the losing measurement in its own output rather than discard
+    it -- otherwise the conflict is a comment instead of a number.
+
+    ⚠️ `week_settled` IS REPORTED AND NOT GATED. The newest ISO week may still be
+    in progress, in which case its "close" can still move -- the repainting
+    problem `BaseCtx` documents for provisional swings. It is not a gate because
+    gating on it would make the label a function of WHICH DAY THE SCAN RUNS: on
+    any snapshot that does not end on a Friday the structure would report zero
+    matches, and a coverage number that swings with the weekday is not a
+    measurement of the pattern. IBD publishes nothing either way (recorded as a
+    refusal), so the honest answer is to say which it is and let the reader gate.
+    """
+    if not bars:
+        return None
+    wk = _weekly_close_map(bars)
+    keys = sorted(wk)
+    if len(keys) < TWT_WEEKS:
+        return None
+
+    win_keys = keys[-TWT_WEEKS:]
+    closes = [wk[k] for k in win_keys]
+    if any(c <= 0 for c in closes):
+        return None
+
+    steps = [abs(closes[i] - closes[i - 1]) / closes[i - 1]
+             for i in range(1, len(closes))]
+    pairwise = max(steps)
+    lo, hi = min(closes), max(closes)
+    span = (hi - lo) / lo
+
+    # The bars belonging to those same three weeks -- the pivot is read off
+    # THEIR intraday highs, and the prior advance is measured behind them.
+    want = set(win_keys)
+    idx = [i for i, b in enumerate(bars) if _iso_week_key(b["t"]) in want]
+    if not idx:
+        return None
+    start = idx[0]
+    highs = [(bars[i].get("h") or 0) for i in idx]
+    highs = [h for h in highs if h > 0]
+    if not highs:
+        return None
+
+    last = bars[-1]
+    import datetime as _dt
+    v = int(last["t"])
+    d = (_dt.date(v // 10000, (v // 100) % 100, v % 100)
+         if 10_000_000 <= v <= 99_999_999 else _dt.date.fromtimestamp(v))
+
+    return {
+        "closes": closes,
+        "weeks": len(closes),
+        "pairwise": pairwise,          # max |C_w - C_{w-1}| / C_{w-1}
+        "span": span,                  # (max C - min C) / min C
+        "high": max(highs),
+        "pivot": max(highs) + TWT_PIVOT_PAD,
+        "bars": len(bars) - start,
+        "prior_advance": _prior_advance(bars, len(bars) - start,
+                                        look=FLAT_ADVANCE_LOOKBACK),
+        # reported, never gated -- see the docstring.
+        "week_settled": d.weekday() == 4,
+    }
+
+
+def _detect_three_weeks_tight(ctx) -> bool:
+    """Three weekly closes each within 1.5% of the one before it.
+
+    ⛔ ONE READING GATES. `span` is measured and carried; it does not decide.
+    """
+    st = three_weeks_tight_state(ctx.bars)
+    return st is not None and st["pairwise"] <= TWT_MAX_PAIRWISE
+
+
+THREE_WEEKS_TIGHT = Structure(
+    key="three-weeks-tight",
+    label="Three Weeks Tight",
+    axis="relation",
+    family="Momentum Continuation",
+    bias="bullish",
+    rank=24,
+    min_bars=TWT_MIN_BARS,
+    desc=("Three weekly closes finishing within 1.5% of each other -- a stock "
+          "that stopped going anywhere for three weeks without giving anything "
+          "back. IBD's add-on point, not a base."),
+    criteria=(
+        Criterion(
+            condition="Pattern length, minimum",
+            value=TWT_WEEKS,
+            quote="at least three straight weeks",
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("The pattern may run a week longer, and reading the LAST "
+                       "three weeks catches that case rather than missing it: "
+                       "if four consecutive closes are all tight, so are the "
+                       "last three of them."),
+            value="four-weeks-tight-is-a-superset",
+            quote=("some three-weeks-tight pattern stretch into a "
+                   "four-weeks-tight, and the same principle apply."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐⭐ THE READING WE IMPLEMENT, AND WHY THIS ONE. IBD "
+                       "publishes two incompatible MEASUREMENTS for this one "
+                       "pattern -- not two tolerances on one measurement -- and "
+                       "the corpus states the consequence outright: 'No reading "
+                       "satisfies both, and an implementation must name which "
+                       "sentence it implements.' We take the PAIRWISE sentence. "
+                       "Three reasons, none of them a coin toss. (1) It is "
+                       "published TWICE, in two separate primary IBD articles; "
+                       "the span sentence appears once, in a REPUBLICATION of "
+                       "the first of those two. (2) It is a single number; the "
+                       "span sentence is a RANGE, so shipping it would mean "
+                       "choosing 1% or 2% -- a third rule nobody published. "
+                       "(3) 'Take the looser', which settled the saucer's and "
+                       "the double bottom's depth ceilings, is NOT available: "
+                       "neither reading contains the other. 100.0/101.4/102.8 "
+                       "passes pairwise and fails span; 100/102/101 passes span "
+                       "and fails pairwise."),
+            value=TWT_MAX_PAIRWISE,
+            quote=("If the difference between each weekly close exceeds 1.5%, "
+                   "the three-weeks-tight pattern likely has flaws."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("The same 1.5%, the same pairwise measurement, "
+                       "independently restated by a second IBD article -- which "
+                       "is the corroboration the choice above rests on"),
+            value=TWT_MAX_PAIRWISE,
+            quote=("The three-weeks-tight pattern forms when a stock closes "
+                   "within 1.5% of the prior week's close for two straight "
+                   "weeks."),
+            source_id=_IBD_3WT_SMART, confidence="high",
+        ),
+        Criterion(
+            condition=("⚠️ THE LOSING READING, RECORDED AND MEASURED RATHER "
+                       "THAN DROPPED. The span test is carried in the state "
+                       "dict on every match and its real-universe coverage was "
+                       "measured beside the shipped one (see `coverage_pct`), "
+                       "so the disagreement is a number here and not an "
+                       "anecdote. The published value stays a RANGE because "
+                       "that is what the sentence says -- collapsing '1% to 2%' "
+                       "to a threshold would invent IBD's number."),
+            value="1% to 2% (span), recorded not applied",
+            quote=("If the width between the highest close and the lowest "
+                   "close exceeds 1% to 2%, it's probably not a "
+                   "three-weeks-tight."),
+            source_id=_IBD_3WT_NASDAQ, confidence="high",
+        ),
+        Criterion(
+            condition=("IBD's own worked example -- an ILLUSTRATION, not a "
+                       "threshold, and it reads the SPAN rather than the "
+                       "consecutive differences. Recorded because it is "
+                       "evidence AGAINST the sentence we chose, and evidence "
+                       "against your own choice belongs beside it."),
+            value="illustration-uses-the-span-reading",
+            quote=("It closed at 28.25, 28.25 and 28. The weekly spread "
+                   "between the closes was less than 1%. That's tight action."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("⛔ NOT A BASE, BY THE HOUSE'S OWN COUNT -- which is why "
+                       "this carries the Momentum Continuation family and not "
+                       "Base Structure, and why a small coverage number is the "
+                       "expected result rather than a disappointing one"),
+            value="add-on-point-not-a-base",
+            quote="One, two or three weeks do not get the job done",
+            source_id=_IBD_BASE_COUNT, confidence="high",
+        ),
+        Criterion(
+            condition=("Pivot -- and note the SWITCH OF PRICE FIELD. The "
+                       "pattern is defined on weekly CLOSES and triggered on "
+                       "the highest INTRADAY price of the same three weeks, so "
+                       "a correct implementation reads `c` to qualify and `h` "
+                       "to place the level."),
+            value=TWT_PIVOT_PAD,
+            quote=("The time to add shares usually is when the stock climbs at "
+                   "least a dime past the highest intraday price in the tight "
+                   "pattern, ideally in strong weekly volume."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition="Breakout volume for this pattern",
+            value=None,
+            source_id=_IBD_3WT, confidence="high",
+            missing=("The house asks for 'strong weekly volume' and never says "
+                     "how strong or against what average. A direction is not a "
+                     "threshold, and importing the general 40-50%-above-average "
+                     "breakout figure would be borrowing another pattern's "
+                     "number."),
+        ),
+        Criterion(
+            condition="Size of the follow-up buy",
+            value=None,
+            source_id=_IBD_3WT, confidence="high",
+            missing=("IBD's two three-weeks-tight articles give incompatible "
+                     "fractions for the IDENTICAL signal -- one-eighth to a "
+                     "quarter of a full position in one, 5% in the other, a "
+                     "factor of 2.5 to 5 apart. Neither is averaged and neither "
+                     "is chosen: position sizing is not this module's to "
+                     "decide, and a conflict of that width is a finding, not a "
+                     "default."),
+        ),
+        Criterion(
+            condition=("Whether the newest week must be a SETTLED week before "
+                       "the pattern counts"),
+            value=None,
+            source_id=_IBD_3WT, confidence="med",
+            missing=("Nothing published either way. The pattern is defined on "
+                     "weekly closes, and a week in progress has no close yet -- "
+                     "but IBD writes about three-weeks-tight patterns forming "
+                     "in real time and never says the current week must be "
+                     "finished. So `week_settled` is REPORTED on every match "
+                     "and gates nothing: gating on it would make the label a "
+                     "function of which weekday the scan ran, and report zero "
+                     "on any snapshot not ending on a Friday."),
+        ),
+        Criterion(
+            condition=("Where in a stock's advance the pattern must sit for the "
+                       "add-on to be valid"),
+            value=None,
+            source_id=_IBD_3WT, confidence="med",
+            missing=("The house frames this as adding to a position already "
+                     "held ('The time to add shares'), which implies a prior "
+                     "advance, but publishes no minimum gain, no lookback and "
+                     "no distance from a prior buy point. `prior_advance` is "
+                     "therefore MEASURED and carried on every match and gates "
+                     "nothing -- a number of ours in that slot would be our "
+                     "rule wearing IBD's name. The FLAT BASE does carry such a "
+                     "gate, and the difference is the measurement, not the "
+                     "taste: its sourced rules alone matched 41.1% of the "
+                     "universe, past the band at which a label stops being "
+                     "information. This one matches 13.9%, so an owned gate "
+                     "would have nothing to rescue. Over the same 1,871 names "
+                     "the 260 matches run p25=4.1% / p50=9.6% / p75=23.5% "
+                     "prior advance; a 10% floor would leave 6.7% of the "
+                     "universe and a 30% floor 2.6% -- the numbers to reach "
+                     "for IF a later measurement says this label is too broad."),
+        ),
+        Criterion(
+            condition=("The three weeks are the LAST three, so the label means "
+                       "'this is tight NOW' rather than 'this was tight once'. "
+                       "Same recency lesson darvas-box, green-line-breakout and "
+                       "double-bottom each had to learn."),
+            value="ends-at-the-last-bar",
+            origin="uct", confidence="high",
+        ),
+    ),
+    #: 260 of 1,871 (13.90%) -- `ok`, measured 2026-08-31 through
+    #: `bases.classify` + `base_matches`. ⭐ THE OTHER READING WAS MEASURED
+    #: BESIDE IT: the span sentence at its looser published end matches
+    #: 309 (16.52%), and only 245 names satisfy both -- so which sentence an
+    #: implementation picks decides a QUARTER of the population, not a rounding
+    #: error. Full sweep table beside `TWT_MAX_PAIRWISE`.
+    coverage_pct=13.9,
+    detect=_detect_three_weeks_tight,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -4632,7 +4996,7 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             SAUCER, VCP, WYCKOFF_SPRING,
+             SAUCER, THREE_WEEKS_TIGHT, VCP, WYCKOFF_SPRING,
              EMA_CROSSBACK, GO_SIGNAL]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
