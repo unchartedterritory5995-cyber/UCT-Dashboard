@@ -541,16 +541,14 @@ def _is_iso_date(t) -> bool:
     return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
 
 
-@router.get("/api/bars-history/{ticker}")
-def get_bars_history(
-    ticker: str,
-    tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
-    bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
-    v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
-    d: str = Query(default="", description="Last-sealed date (YYYY-MM-DD). When it matches the current sealed boundary, the response is IMMUTABLE (cached ~1y) — a new trading day mints a fresh d → a fresh URL, so it self-refreshes with no purge. Used by the client + the global pre-warm sweep to stock Cloudflare Cache Reserve."),
-):
-    """Edge-cacheable SEALED history for a symbol (Phase 5). D/W/M only in v1."""
-    import orjson as _orjson
+def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
+                       v: str = "", d: str = "") -> JSONResponse:
+    """Core serving logic for edge-cacheable SEALED history — SHARED by the web route
+    (below) and the WORKER's origin route (worker_main._build_app). It reads only what is
+    already stored in THIS process's bars.db (the worker's DEEP db when called there, the
+    web's shallow tail when called on the web) and stamps the immutable/short cache headers
+    so Cloudflare caches the deep response identically wherever the origin sits. READ-ONLY —
+    never a provider fetch/write (that write-storm is the 2026-08-31 OOM class)."""
     tfu = (tf or "D").upper()
 
     def _no_store(resp):
@@ -619,6 +617,61 @@ def get_bars_history(
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
     out.headers["Server-Timing"] = f'bars;desc="history-read";dur={len(sealed)}'
     return out
+
+
+# Lazy shared async client for the deep-history reverse-proxy (web → worker origin).
+# Created on the first proxied cache MISS (rare — the edge serves the HITs). See the spec:
+# docs/superpowers/specs/2026-08-31-edge-deep-history.
+_bars_history_proxy_client = None
+
+
+async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
+    """Forward a sealed-history request to the WORKER origin (its DEEP bars.db) and return the
+    response verbatim — body + the immutable/short Cache-Control — so Cloudflare caches the
+    DEEP response. The web pod never holds or fetches deep history; it only forwards a cache
+    MISS to the worker (Railway private networking). On upstream error the CALLER falls back
+    to the web's own shallow history — honest degradation, never a 5xx to the user/CDN."""
+    import httpx
+    from urllib.parse import quote as _quote
+    from starlette.responses import Response as _Response
+    global _bars_history_proxy_client
+    if _bars_history_proxy_client is None:
+        _bars_history_proxy_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(15.0, connect=3.0), follow_redirects=False)
+    url = f"{origin}/api/bars-history/{_quote(ticker)}"
+    r = await _bars_history_proxy_client.get(
+        url, params={"tf": tf, "bars": bars, "v": v, "d": d})
+    resp = _Response(content=r.content, status_code=r.status_code,
+                     media_type=r.headers.get("content-type", "application/json"))
+    # Preserve the cache directives so Cloudflare caches the worker's deep response identically.
+    for _h in ("cache-control", "server-timing"):
+        if _h in r.headers:
+            resp.headers[_h] = r.headers[_h]
+    return resp
+
+
+@router.get("/api/bars-history/{ticker}")
+async def get_bars_history(
+    ticker: str,
+    tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
+    bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
+    v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
+    d: str = Query(default="", description="Last-sealed date (YYYY-MM-DD). When it matches the current sealed boundary, the response is IMMUTABLE (cached ~1y) — a new trading day mints a fresh d → a fresh URL, so it self-refreshes with no purge. Used by the client + the global pre-warm sweep to stock Cloudflare Cache Reserve."),
+):
+    """Edge-cacheable SEALED history for a symbol (Phase 5). D/W/M only in v1.
+
+    EDGE ORIGIN ROUTING: when BARS_HISTORY_PROXY_ENABLED=1 and BARS_HISTORY_ORIGIN_URL is set
+    (the worker's private URL), forward to the worker's DEEP bars.db so Cloudflare caches deep
+    history worldwide without the web ever holding the 20 GB. Otherwise serve the web's own
+    (shallow tail) history via serve_bars_history — the unchanged, backward-compatible path.
+    See docs/superpowers/specs/2026-08-31-edge-deep-history."""
+    origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
+    if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1":
+        try:
+            return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+        except Exception:
+            pass  # worker unreachable/slow → fall back to the web's own shallow history
+    return serve_bars_history(ticker, tf, bars, v, d)
 
 
 @router.post("/api/admin/warm-universe")
