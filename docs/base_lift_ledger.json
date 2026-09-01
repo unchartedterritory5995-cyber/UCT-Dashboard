@@ -1,6 +1,6 @@
 {
   "_": "MEASURED LIFT PER NAMED STRUCTURE. This file is the ONLY authority on what a structure has been measured to do; `base_catalog.Structure` deliberately carries no lift field, so the catalog can never disagree with the harness. `published: false` means we have no number -- either it was never measured or it was measured and refused -- and `base_catalog.meta()` surfaces None for both, because to a member they say the same honest thing. The reasons stay here for anyone auditing.",
-  "measured_at": "2026-08-31",
+  "measured_at": "2026-09-01",
   "method": "Lift = conditional rate - pattern-free rate, where the pattern-free half is restricted to the YEARS the structure actually fired in (the baseline drifts: target-first ran 17.1% in 2018 and 35.7% in 2020). Anchors are stepped by the full 20-session horizon so no two observations share a forward window. The CI is a 400-draw CLUSTER BOOTSTRAP resampling tickers with replacement, because detections cluster by ticker and a two-proportion SE assumes that away. The null re-runs the IDENTICAL detector over MOVING-BLOCK resampled series (21-bar blocks) so local volatility clustering survives and only the long-range order is destroyed -- an iid shuffle would hand a quiet-regime detector a free volatility premium.",
   "gates": "FOUR gates, and all must pass or NO number is published. (0) THE LIFT MUST BE POSITIVE. This gate was missing and it FIRED: `cheat-3c` measured -1.10pp with a CI of [-2.16, -0.09] against a null max of -3.91pp and published, because its interval excludes zero (both bounds negative) and its lower bound clears a null that is even more negative. A structure that reliably UNDERPERFORMS its own baseline was surfaced to members as a measured edge. A negative result is a finding and stays here with its reasons; it is not a lift to put in front of anyone. (1) The lift's 95% CI excludes zero. (2) The CI's LOWER BOUND exceeds the random-data null's maximum -- not the point estimate, which let a +32.97pp lift on n=13 through on the first run. (3) n is whatever (1) requires, derived rather than typed. AND A PUBLISHED ROW MUST CARRY 30 NULL TRIALS, not the 5 used to screen: the null's maximum can only grow with more draws, so a small trial count is a strictly easier gate and would be a dial pointing at publication. The escalation has changed a verdict in BOTH directions -- stage-4-breakdown passed at 30 after failing at 5 on a narrower sample, and buyable-gap-up failed at 30 after passing at 5.",
   "sample": "Seeded-random draw from the screener universe, up to 3,000 daily bars per ticker. The size differs per structure and per run, so it is recorded on each row as `sample_tickers` rather than claimed once here; a row's window is `tools/run_lift_ledger.py::WINDOWS[key]`.",
@@ -129,21 +129,37 @@
       "direction": "long"
     },
     "stage-4-breakdown": {
-      "published": false,
+      "published": true,
       "sample_tickers": 3456,
+      "measured_at": "2026-09-01",
       "direction": "short",
       "lift": 0.033,
       "ci_low": 0.0278,
       "ci_high": 0.0379,
-      "n": 34220,
-      "rate": 0.2687,
-      "baseline": 0.2357,
-      "null_max": 0.0149,
-      "null_trials": 5,
-      "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
-      ],
-      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
+      "n": 34216,
+      "rate": 0.2686,
+      "baseline": 0.2355,
+      "null_max": 0.0172,
+      "null_trials": 30,
+      "by_direction": {
+        "short": {
+          "lift": 0.033,
+          "ci_low": 0.0278,
+          "ci_high": 0.0379,
+          "n": 34216,
+          "null_max": 0.0172,
+          "null_trials": 30,
+          "published": true
+        }
+      },
+      "note": "+3.30pp, CI [+2.78pp, +3.79pp] at n=34,216, against a 30-trial null whose maximum reached +1.72pp. Graded SHORT.\n\n⭐⭐ THIS ROW IS WHY THE METRIC WAS FIXED, AND IT IS THE CLEAREST EVIDENCE THE FIX MATTERED. It once published +7.30pp -- graded LONG, as every structure was until the direction correction. On a long metric a positive lift says price resolved UPWARD after the breakdown, which is the opposite of the claim the structure's own name makes, so the number was more than twice as large AND answered the wrong question. Graded in the direction it actually claims, the honest answer is +3.30pp. The detector never changed; the question did.\n\n⛔ A PUBLISHED SHORT LIFT IS NOT A TRADE. It says the structure resolved downward more often than its pattern-free baseline over the same years. It says nothing about borrow, about whether a name is shortable at all, or about the entry and stop -- and a stock in a Stage 4 breakdown is exactly the kind that can be hard to borrow.\n\n⚠️ AND ITS MARGIN IS THE THINNEST IN THE LEDGER: the CI's lower bound clears the null by 1.06pp, narrower than square-box's 1.16pp on a lift a third the size. The gates certify the margin, not the headline. What makes this one trustworthy despite the thin margin is n=34,216 -- the largest sample of any published short row by a factor of four.",
+      "note_measured": [
+        0.033,
+        0.0278,
+        0.0379,
+        34216,
+        0.0172
+      ]
     },
     "flat-base": {
       "published": false,
