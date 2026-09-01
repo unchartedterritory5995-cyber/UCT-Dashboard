@@ -145,3 +145,8 @@
 }
 
 .sortBtn[aria-pressed='true'] { color: var(--gold, #c9a84c); border-color: var(--gold, #c9a84c); }
+
+/* Touch (wave 15): result-row ticker buttons audited 22px tall. */
+@media (max-width: 1024px) {
+  .ticker { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

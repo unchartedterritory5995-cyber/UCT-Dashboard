@@ -366,6 +366,52 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
   }
 }
 
+// ── "A scrollable list just appeared" — warm the WHOLE list up front ─────────
+// One call, fired the instant a list of tickers becomes visible: a theme
+// expanded, a watchlist opened, a Breadth drill-down opened, scanner results.
+// The promise: open a list → its whole set warms → scroll it as fast as you like,
+// every chart instant. It composes the durable warmers above, so it inherits ALL
+// their guardrails — bounded concurrency (≤3), idle-deferral behind the active
+// chart, the pack-ingest hold, and the 503 backpressure backoff. Nothing here can
+// stampede the server or starve the chart the user is looking at.
+//
+//   1) The on-screen timeframe, durable + IMMEDIATE + priority — a click on one of
+//      these rows is imminent, so jump the queue and start the pump now (the chart
+//      being left is already painted, so the burst competes with no cold fetch).
+//   2) The remaining scan timeframes into durable IDB (bounded; capped inside).
+//   3) Promote the TOP rows straight to the sync mem cache so the first few scrolls
+//      paint in the SAME frame (no async idbGet hop), top-first = what's on screen.
+//
+// `cap` bounds the daily warm so a pathologically huge list can't flood the queue
+// (top-first, so the rows a user will actually reach soon are covered). Kill switch:
+// localStorage['uct.listprewarm.off'] = '1' disables it instantly, per browser.
+export function listPrewarmDisabled() {
+  try { return localStorage.getItem('uct.listprewarm.off') === '1' } catch { return false }
+}
+
+export function prewarmVisibleList(tickers, { chartTf = 'D', memTop = 24, cap = 500 } = {}) {
+  if (listPrewarmDisabled()) return
+  const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
+  if (!list.length) return
+  // Warm ONLY the on-screen timeframe(s) for the whole list — that's what's scrolled.
+  //
+  // ⛔ Do NOT warm all five timeframes here. A member HAR at MARKET OPEN (2026-09-01)
+  // proved that firing 5m/1h/30m/15m/daily × a 20-name list = ~100 `warm=1` fetches,
+  // which the loaded server 503-sheds en masse; the flood saturated the browser's
+  // 6-connection pool + added origin load, STARVING the chart the user actually
+  // clicked (blank charts + a cascade where one stuck fetch jammed siblings). The
+  // other timeframes warm on demand when the user switches TF (prefetchAllTimeframes
+  // on selection already covers the viewed symbol).
+  //
+  // priority (queue order, not extra concurrency) + NO `immediate` so the visible
+  // chart's own fetch always goes out first; the warm idle-defers behind it.
+  prefetchBarsToIDB(list, chartTf || 'D', { priority: true })
+  if (chartTf && chartTf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
+  // Promote only the on-screen TF (not all five) so the same-frame accelerator
+  // doesn't fire 5× the local IDB reads for the top rows.
+  warmMemFromIDB(list.slice(0, memTop), chartTf && chartTf !== 'D' ? [chartTf, 'D'] : ['D'])
+}
+
 // ── Deep-history prefetch (SWR + server-cache warm) ──────────────────────────
 // The warmers above cover only the shallow first-paint window (FIRST_PAINT_BARS).
 // DEEP history — the pre-2024 tail you see when a Weekly/Monthly chart is zoomed

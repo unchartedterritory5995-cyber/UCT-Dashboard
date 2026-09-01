@@ -3135,3 +3135,9 @@
   margin-top: 3px;
   white-space: nowrap;
 }
+
+/* Touch (wave 15): My Stocks hub back link (21px) + Sources gear (28px). */
+@media (max-width: 1024px) {
+  .hubBack { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+  .mystk { min-height: var(--tap-min); }
+}

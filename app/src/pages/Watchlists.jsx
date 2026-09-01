@@ -65,7 +65,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import { prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
@@ -1026,13 +1026,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Theme batch: only when the Theme column is shown.
   const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
 
-  // Pre-warm EVERY visible ticker across all scan timeframes (into durable IDB)
-  // so arrowing/scrolling the list is instant on intraday TFs (5m/30m/1h), not
-  // just the pre-warmed daily. Debounced + bounded (the shared IDB queue idles
-  // behind the active chart); already-warm pairs skip. Runs once the list settles.
+  // Broad, low-priority background DAILY warm of every ticker across ALL lists
+  // (incl. collapsed ones) so expanding another list is already warm. Daily-only +
+  // idle-deferred (prewarmVisibleList) — NOT all timeframes, which 503-floods the
+  // origin at market open (see prewarmVisibleList). Debounced so it settles first.
   useEffect(() => {
     if (!allTickers.length) return
-    const t = setTimeout(() => prefetchListAllTimeframes(allTickers), 1200)
+    const t = setTimeout(() => prewarmVisibleList(allTickers), 1200)
     return () => clearTimeout(t)
   }, [allTickers])
 
@@ -1197,14 +1197,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
   }, [selectedSym])
 
-  // Durable warm of the WHOLE visible list into IndexedDB, so arrowing through it
-  // with the keyboard (faster than hover-prefetch can react) is instant — and stays
-  // instant across page reloads. Bounded + idle-deferred inside prefetchBarsToIDB,
-  // and it skips already-warm tickers, so a big list doesn't hammer the network.
+  // Warm the WHOLE visible list up front the moment it opens/changes, so scrolling
+  // or arrowing through it is instant from the first row — daily IMMEDIATELY (the
+  // on-screen TF), the other scan TFs into durable IDB, and the top rows promoted to
+  // the sync mem cache for same-frame paint. Bounded/deferred/backpressure-guarded
+  // inside prewarmVisibleList; already-warm tickers skip, so a big list can't flood.
   useEffect(() => {
     if (!visibleSymsFlat.length) return
-    prefetchBarsToIDB(visibleSymsFlat, chartPeriod)
-    if (chartPeriod !== 'D') prefetchBarsToIDB(visibleSymsFlat, 'D')
+    prewarmVisibleList(visibleSymsFlat, { chartTf: chartPeriod })
   }, [visibleSymsFlat, chartPeriod])
 
   // Same-frame scan paint: promote the ±6 arrow-nav neighbors' cached bars from

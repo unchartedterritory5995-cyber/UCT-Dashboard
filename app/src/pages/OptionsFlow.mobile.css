@@ -195,3 +195,12 @@
     justify-content: center;
   }
 }
+
+/* Wave 15 — text inputs (the ticker search audited 220x36). Scoped under the
+   existing root hook; no JSX change, per the rebase-safe contract above. */
+@media (max-width: 640px) {
+  .of-mroot input[type="text"] {
+    min-height: var(--tap-min, 44px) !important;
+    font-size: 16px !important; /* or iOS Safari zooms on focus */
+  }
+}

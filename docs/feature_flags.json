@@ -681,12 +681,33 @@
       "note": ""
     },
     "HISTORY_PREWARM_ENABLED": {
-      "status": "pending",
-      "since": "2026-08-31",
+      "status": "dark",
       "where": [
         "(set on no service)"
       ],
-      "note": "Off by default with a REAL rationale on record, unlike the other pending entries: `api/services/history_prewarm.py`'s own module docstring says it is \"gated by HISTORY_PREWARM_ENABLED (default OFF -- activate once Cloudflare Tiered Cache + Cache Reserve are on)\". So it is not forgotten; it is waiting on a named infrastructure prerequisite. It runs on the WORKER, off the user request path, and the sweep is deliberately gentle and sequential so a pass overlapping market hours cannot load the web pod. DECIDE: arm it once Tiered Cache + Cache Reserve are enabled, or mark it dark if the plan changed. Declared here by a passer-by, not by its author -- the flag arrived in the 'instant-charts Phase 5' commit and tripped `test_every_off_by_default_gate_is_declared`, which is the rail working: a gate off by default and set nowhere is indistinguishable from one off by accident until somebody writes down which it is."
+      "note": "DELIBERATELY OFF, awaiting a NAMED prerequisite -- which is what makes this dark rather than pending. `api/services/history_prewarm.py`'s own module docstring states it: \"gated by HISTORY_PREWARM_ENABLED (default OFF -- activate once Cloudflare Tiered Cache + Cache Reserve are on)\". ARM IT ONLY AFTER CONFIRMING BOTH ARE ENABLED IN CLOUDFLARE. The sweep walks the whole symbol universe through the public domain to stock the edge; with Cache Reserve OFF that traffic reaches the ORIGIN instead of being absorbed, which is a universe-wide load against the single web pod rather than the cache-filling pass it is meant to be. It runs on the WORKER, off the user request path, and is gentle and sequential so an overlapping pass cannot load the pod -- but that bounds the rate, not the destination. ⚠️ Classified by a passer-by, not its author: the flag arrived in the 'instant-charts Phase 5' commit and tripped test_every_off_by_default_gate_is_declared. Cloudflare's dashboard state is not visible from the repo or from Railway, so the prerequisite could not be checked here -- which is precisely why the answer is 'off with a reason' and not 'on'."
+    },
+    "BARS_HISTORY_ORIGIN_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF UNTIL A NAMED CUTOVER, which is why this is dark rather than pending. `api/worker_main.py` states it: the worker serves the same edge-cacheable sealed history as the web's `/api/bars-history` but from the worker's deep store, \"so Cloudflare can cache deep history worldwide without the web ever holding or fetching the 20 GB (the 2026-08-31 OOM class)\", and it is \"Gated OFF + lazy-imported (boot path UNCHANGED until cutover)\". It is READ-ONLY -- `serve_bars_history` never fetches or writes -- so the risk of arming it is load and routing, not data. Arm it as part of the Phase 5 cutover, with `BARS_HISTORY_PROXY_ENABLED` below, not independently. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+    },
+    "BARS_HISTORY_PROXY_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF UNTIL THE SAME CUTOVER, and it is HALF A SWITCH: `api/routers/bars.py` routes to the worker origin only \"when BARS_HISTORY_PROXY_ENABLED=1 AND BARS_HISTORY_ORIGIN_URL is set\", so arming this alone changes nothing and arming it without the origin URL is the failure mode to watch for. It is the web-side half of the pair whose worker-side half is `BARS_HISTORY_ORIGIN_ENABLED`; the two are one decision, not two. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+    },
+    "INSTANT_UNIVERSE_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-01",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "PENDING, NOT DARK, AND THE DIFFERENCE IS DELIBERATE. Its two siblings above say WHY they are off -- 'until cutover'. This one's comment in `api/services/bars_prewarm.py` says only \"Gated OFF by default; flip INSTANT_UNIVERSE_ENABLED=1 on the worker\", which is an instruction for arming it, not a reason it is off. What the surrounding comment DOES explain is the design: the extra D/W/M universe is warmed as a separate boot-only pass rather than folded into `tickers`, so intraday warming stays bound to the active set (\"no 26k intraday blow-up\") and the 5-minute refresh loop is untouched. That is a rationale for the SHAPE, not for the OFF. DECIDE: arm it on the worker, or mark it dark with the reason it is waiting. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
     }
   }
 }

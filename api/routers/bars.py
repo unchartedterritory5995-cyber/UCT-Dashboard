@@ -405,12 +405,20 @@ def get_bars(
                 if warm:
                     _warm_slot = _bars_fetch._warm_serve_sem.acquire(blocking=False)
                     if not _warm_slot:
-                        _mark_serve("warm-shed")
-                        response = JSONResponse(
-                            status_code=503,
-                            content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
-                        )
-                        response.headers["Retry-After"] = "4"
+                        # Pool busy. Before shedding, try the CHEAP tiers (mem/SQLite):
+                        # a warm that's already in bars.db costs the pool ~nothing, and
+                        # shedding it defeats list pre-warming at MARKET OPEN — the
+                        # busiest, most important moment — when the bars are already warm
+                        # (the instant-symbol universe). Serve the cache hit; shed only a
+                        # warm that would need an expensive cold provider fetch.
+                        response = _bars_fetch.serve_warm_from_cache(ticker, tf, bars)
+                        if response is None:
+                            _mark_serve("warm-shed")
+                            response = JSONResponse(
+                                status_code=503,
+                                content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
+                            )
+                            response.headers["Retry-After"] = "4"
                 if response is None:
                     try:
                         if since:

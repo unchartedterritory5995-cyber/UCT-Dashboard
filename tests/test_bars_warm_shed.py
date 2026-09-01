@@ -32,14 +32,42 @@ def _drain_warm_slots(n):
         bars_fetch._warm_serve_sem.release()
 
 
-def test_warm_request_sheds_fast_when_slots_full():
+def test_a_COLD_warm_request_sheds_fast_when_slots_full():
+    # A COLD warm (a CARRIED ticker with nothing in mem OR SQLite → would need an
+    # expensive provider fetch) must still shed when the warm-serve slots are full.
+    # AAPL is carried (so it reaches the warm logic, not the not-carried empty state);
+    # clear its cache so serve_warm_from_cache finds nothing and the shed stands.
+    try:
+        cache.invalidate("bars_AAPL_D_200")
+    except Exception:
+        pass
     n = _fill_warm_slots()
     try:
         r = _client().get("/api/bars/AAPL?tf=D&bars=200&warm=1")
-        assert r.status_code == 503, "a warm request must shed when the warm-serve slots are full"
+        assert r.status_code == 503, "a COLD warm must shed when the warm-serve slots are full"
         assert r.headers.get("Retry-After") == "4"
         body = r.json()
         assert body.get("warming") is True and body.get("bars") == []
+    finally:
+        _drain_warm_slots(n)
+
+
+def test_a_cache_HIT_warm_SERVES_under_load__the_market_open_fix():
+    # THE MARKET-OPEN FIX (2026-09-01). A warm that's a CHEAP CACHE HIT costs the pool
+    # ~nothing, so it must be SERVED even when every warm slot is full — shedding a
+    # free-to-serve warm defeats list pre-warming at the open (busiest + most important
+    # moment), exactly when the bars are already warm. Only a cold warm sheds (above).
+    cache.set(
+        "bars_ZZWARMHIT_D_200",
+        {"ticker": "ZZWARMHIT", "tf": "D",
+         "bars": [{"t": "2026-08-31", "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]},
+        ttl=60,
+    )
+    n = _fill_warm_slots()
+    try:
+        r = _client().get("/api/bars/ZZWARMHIT?tf=D&bars=200&warm=1")
+        assert r.status_code == 200, "a cache-hit warm must SERVE under load, not shed"
+        assert r.json().get("bars"), "the served warm must carry the cached bars"
     finally:
         _drain_warm_slots(n)
 

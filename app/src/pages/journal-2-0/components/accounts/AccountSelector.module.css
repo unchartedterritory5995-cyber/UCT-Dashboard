@@ -151,3 +151,8 @@
     font-size: 14px;
   }
 }
+
+/* Touch (wave 15): the account pill audited 29px. */
+@media (max-width: 1024px) {
+  .pill { min-height: var(--tap-min); }
+}

@@ -34,9 +34,16 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 `app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
 At 2026-08-09 it reads:
 
-Dashboard · Morning Wire · UCT 20 · Breadth · **Charts** · Calendar · Screener ·
-**Patterns** · Options Flow · **Live Flow** (`/live-massive`) · Post Market ·
+Dashboard · Morning Wire · **Charts** · **AI Search** (`/ai-search`) · UCT 20 ·
+Breadth · Calendar · Screener · Options Flow · **Flow Record**
+(`/flow-scoreboard`) · **Live Flow** (`/live-massive`) · Post Market ·
 Model Book · **The Desk** · Journal · **Community** · Support
+
+⚰️ The 2026-08-09 reading of this line listed **Patterns** — there is no
+`/patterns` route and no such NAV entry (measured 2026-09-01); the string only
+survived in `tools/mobile_audit.py`'s hand-typed route list, where it made the
+harness audit the 404 page while `/ai-search`, `/flow-scoreboard`,
+`/live-massive`, `/desk` and `/community` were never audited at all.
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
 Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
@@ -2786,6 +2793,38 @@ this closes that gap.
   stable/earnings but lingers as a stale forward estimate card) — a real
   surfaced anomaly, not a false positive. Grace-window tightening in
   `earnings_table._UNREPORTED_GRACE_DAYS` (130d) is a possible follow-up.
+
+## ⚠️ FOR RAVI — a one-line change landed in `api/live_massive_router.py` (2026-09-01)
+
+**A non-partner change was made to a partner-owned file, with the owner's
+go-ahead, and you should know before your next edit.** It is one deletion plus a
+comment; nothing was refactored and nothing else in the file was touched.
+
+**What it was.** `_parse_mdy` was defined TWICE — line ~3515 returning a
+sortable `(Y, M, D)` tuple with `(0,0,0)` on malformed input, and a second
+definition ~480 lines later returning `date | None`. Python keeps the LAST
+top-level definition, so all four call sites — every one written for the tuple —
+were running the date version.
+
+**Why it mattered.** The call sites do `_parse_mdy(d) <= today_key`, and
+`_resolve_date` passes unrecognised input through UNCHANGED, so a query param
+reached that comparison directly. Reproduced before touching anything:
+
+    today='2026/08/31'   tuple -> []          (a clean empty day)
+                         date  -> TypeError: '<=' not supported between
+                                  instances of 'datetime.date' and 'NoneType'
+
+That is a 500 on the `lookback_days >= 2` paths of `_compute_recent_multiday`
+and `_build_by_contract`, where the docstring promises zero rows.
+
+**The fix** is the deletion of the caller-less date version. The surviving
+definition is the one every caller was already written against, so no call site
+changed. `tests/test_no_shadowed_definitions.py` (an AST sweep for a top-level
+name bound twice, whole-repo) now guards it, and all 10 suites importing this
+router are green.
+
+**If this conflicts with work in flight,** take your side and keep the deletion —
+the two definitions cannot both stand.
 
 ## Live Options Flow — Deploy Survival (2026-07-06 · LOCKED invariants; P5 CUTOVER DONE 2026-07-13)
 
