@@ -1151,26 +1151,39 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
                  force: bool = False) -> Optional[dict]:
     """`live − stored` at the last completed close, per metric.
 
-    Cached per session day: it costs a second level build, which is fine once a
-    day and unthinkable per refresh.
+    The expensive half — re-pricing the universe at the prior close (a second
+    level build) — depends only on (as_of_ts, tickers) and is cached per session
+    day. The STORED anchor row is re-read every call and coverage recomputed from
+    it: a completed session's row can still change during the day (a self-heal
+    overwrites a degraded/low-coverage row with the full one), and caching the
+    coverage would pin a stale denominator — e.g. an early low-coverage heal
+    (universe_count 156) leaves coverage ≈ 16.7 all day, which reads as `degraded`
+    and hides the live row even after the row is re-healed to the full ~2,600.
+    Re-reading `stored` (itself a cached `get_history`) is cheap and self-correcting.
     """
     key = (as_of_ts, len(tickers))
     with _anchor_lock:
-        if not force and _anchor_cache.get("key") == key:
-            return _anchor_cache["value"]
+        live_prev = _anchor_cache["value"] if (
+            not force and _anchor_cache.get("key") == key) else None
+
+    if live_prev is None:
+        with _anchor_build_lock:
+            with _anchor_lock:
+                live_prev = _anchor_cache["value"] if (
+                    not force and _anchor_cache.get("key") == key) else None
+            if live_prev is None:
+                live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                if live_prev is None:
+                    return None
+                with _anchor_lock:
+                    _anchor_cache["key"] = key
+                    _anchor_cache["value"] = live_prev
 
     from api.services import breadth_monitor as bm
     iso = _iso(as_of_ts)
-    with _anchor_build_lock:
-        with _anchor_lock:
-            if not force and _anchor_cache.get("key") == key:
-                return _anchor_cache["value"]
-        stored = next((r for r in bm.get_history(30) if r.get("date") == iso), None)
-        if stored is None:
-            return None
-        live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
-        if live_prev is None:
-            return None
+    stored = next((r for r in bm.get_history(30) if r.get("date") == iso), None)
+    if stored is None:
+        return None
 
     seen, expected = live_prev.get("universe_count"), stored.get("universe_count")
     coverage = (seen / expected) if seen and expected else None
@@ -1190,14 +1203,10 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
             continue
         shift[k] = round(float(lv) - float(sv), 3)
 
-    value = {"date": iso, "stored": stored, "live_prev": live_prev, "shift": shift,
-             "coverage": round(coverage, 4) if coverage is not None else None,
-             "counts_anchored": counts_ok, "ratios_anchored": ratios_ok,
-             "withheld": sorted(withheld)}
-    with _anchor_lock:
-        _anchor_cache["key"] = key
-        _anchor_cache["value"] = value
-    return value
+    return {"date": iso, "stored": stored, "live_prev": live_prev, "shift": shift,
+            "coverage": round(coverage, 4) if coverage is not None else None,
+            "counts_anchored": counts_ok, "ratios_anchored": ratios_ok,
+            "withheld": sorted(withheld)}
 
 
 def apply_anchor(metrics: dict, basis: Optional[dict]) -> dict:

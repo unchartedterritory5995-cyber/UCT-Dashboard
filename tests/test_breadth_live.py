@@ -638,6 +638,38 @@ def test_full_coverage_lets_counts_anchor(basis):
                            b)["stage2_count"] == 1220
 
 
+def test_anchor_reflects_a_reheal_of_the_stored_row_without_force(monkeypatch):
+    """Regression (2026-09-01): a completed session's stored row can change during
+    the day — the self-heal overwrites an early low-coverage row with the full one.
+    The anchor caches ONLY the expensive bars re-pricing (keyed on as_of_ts+tickers);
+    it must re-read `stored` every call so coverage tracks the CURRENT row. Freezing
+    coverage in the cache pinned an early `universe_count=156` as the denominator
+    (2602/156 ≈ 16.7 → degraded=true), which hid the live intraday row ALL DAY even
+    after 08-31 was re-healed to the full ~2,600.
+    """
+    from api.services import breadth_monitor as bm
+    bl._anchor_cache.clear()
+    # Bars price the full universe at the prior close on every call (unchanged).
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    monkeypatch.setattr(bl, "_metrics_at_close",
+                        lambda conn, tickers, ts: {"universe_count": 2602,
+                                                   "stage2_count": 470})
+    # First build: the stored 08-31 row is an early low-coverage sliver.
+    low = {"date": "2026-08-31", "universe_count": 156, "stage2_count": 30}
+    monkeypatch.setattr(bm, "get_history", lambda days=30: [low])
+    b1 = bl.anchor_basis(20260831, ["A", "B"])
+    assert b1["counts_anchored"] is False            # 2602/156 ≈ 16.7, far past the bound
+
+    # The self-heal overwrites 08-31 with the full row. A NON-force call must
+    # recompute coverage from it — the cached live_prev is reused, `stored` is re-read.
+    healed = {"date": "2026-08-31", "universe_count": 2602, "stage2_count": 470}
+    monkeypatch.setattr(bm, "get_history", lambda days=30: [healed])
+    b2 = bl.anchor_basis(20260831, ["A", "B"])       # no force
+    assert b2["coverage"] == 1.0
+    assert b2["counts_anchored"] is True
+    assert b2["withheld"] == []
+
+
 def test_a_missing_basis_leaves_the_numbers_untouched():
     today = {"pct_above_50sma": 58.4, "new_52w_highs": 12}
     assert bl.apply_anchor(today, None) == today
