@@ -154,14 +154,43 @@ def load_universe(sample: int, seed: int = 7) -> dict:
 
 
 def write_null_chunk(path: str, key: str, seed: int, trials: int,
-                     lifts: list) -> None:
-    payload = {"key": key, "seed": seed, "trials": trials, "lifts": lifts}
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
-        fh.write(chr(10))
+                     lifts: list, direction: str = None, sample: int = None,
+                     window: int = None) -> None:
+    """Persist one chunk of null trials, WITH the question it answers.
+
+    ⛔⛔ A CHUNK USED TO RECORD ONLY `{key, seed, trials, lifts}` — the numbers
+    and not the metric that produced them. Nulls are DIRECTION-SPECIFIC: a null
+    lift on the long metric answers "did price rise" and on the short metric
+    "did price fall". Recombining a long-metric chunk into a short-metric
+    adjudication is silent and produces a published number that answers the
+    wrong question.
+
+    ⚠️ THIS IS NOT HYPOTHETICAL. On 2026-08-31 two `stage-4-breakdown` chunks
+    (seeds 20260830/20260845, 15 trials each, contiguous and disjoint — a
+    textbook-valid pair by every check the loader then had) were found sitting
+    next to a row that had since been re-graded SHORT. They passed key,
+    contiguity and count. The only thing that caught them was a null_max of
+    0.0203 matching the OLD long-metric row exactly. A field would have caught
+    it; a coincidence did.
+
+    The window and sample go in for the same reason: nulls drawn from a
+    different universe or a different scan window are not interchangeable
+    either, and `sample_tickers` is already recorded per ROW for exactly this.
+    """
+    payload = {"key": key, "seed": seed, "trials": trials,
+               "direction": direction, "sample_tickers": sample,
+               "window": window, "written_at": time.strftime("%Y-%m-%d"),
+               "lifts": lifts}
+    blob = json.dumps(payload, indent=2) + chr(10)
+    fd, tmp = tempfile.mkstemp(
+        dir=os.path.dirname(os.path.abspath(path)) or ".", suffix=".tmp")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(blob)
+    os.replace(tmp, path)
 
 
-def load_null_chunks(paths: str, key: str) -> list:
+def load_null_chunks(paths: str, key: str,
+                     want_direction: str = None) -> list:
     """Recombine null chunks, refusing any set that is not a clean partition.
 
     ⛔⛔ THE CHECK IS THE POINT, NOT THE CONCATENATION. `null_lifts` seeds trial
@@ -188,6 +217,26 @@ def load_null_chunks(paths: str, key: str) -> list:
                 f"chunk {path}: {len(c.get('lifts') or [])} lifts for "
                 f"{c.get('trials')} trials -- a dropped trial breaks the "
                 f"seed partition; re-run this chunk")
+        # ⛔⛔ THE METRIC MUST MATCH, and a chunk that does not SAY which metric
+        # it used cannot be verified. A long-metric null answers "did price
+        # rise"; recombining it into a short-metric adjudication publishes a
+        # number that answers the wrong question, and every other check here
+        # (key, contiguity, count) passes cleanly while it happens. Two real
+        # `stage-4-breakdown` chunks did exactly that on 2026-08-31.
+        got = c.get("direction")
+        if want_direction is not None:
+            if got is None:
+                raise SystemExit(
+                    f"chunk {path} records no `direction`, so it cannot be "
+                    f"shown to answer the same question as this run "
+                    f"({want_direction!r}). Chunks written before that field "
+                    f"existed are NOT recombinable -- re-run them. A null is "
+                    f"specific to the metric it was drawn against.")
+            if got != want_direction:
+                raise SystemExit(
+                    f"chunk {path} was drawn on the {got!r} metric and this "
+                    f"run grades {want_direction!r}. These are different "
+                    f"questions and their nulls are not interchangeable.")
         chunks.append((int(c["seed"]), int(c["trials"]), list(c["lifts"]), path))
 
     chunks.sort()
@@ -501,7 +550,10 @@ def main() -> int:
             lifts = ll.null_lifts(det, usable, trials=args.null_trials,
                                   seed=args.null_seed, **kw)
             write_null_chunk(args.nulls_out, s.key, args.null_seed,
-                             args.null_trials, lifts)
+                             args.null_trials, lifts,
+                             direction=kw.get("direction"),
+                             sample=len(usable),
+                             window=WINDOWS.get(s.key, DEFAULT_WINDOW))
             print(f"=== {s.label} ({s.key}) NULL CHUNK ===")
             print(f"  seeds [{args.null_seed}, "
                   f"{args.null_seed + args.null_trials})  "
@@ -512,7 +564,8 @@ def main() -> int:
 
         obs = ll.measure(det, usable, bootstrap=args.bootstrap, **kw)
         if args.nulls_in:
-            nulls = load_null_chunks(args.nulls_in, s.key)
+            nulls = load_null_chunks(args.nulls_in, s.key,
+                                     want_direction=kw.get("direction"))
         else:
             nulls = ll.null_lifts(det, usable, trials=args.null_trials,
                                   seed=args.null_seed, **kw)

@@ -467,6 +467,22 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.post("/api/breadth-monitor/heal")
+def heal_breadth(request: Request, date: str = Query(default=""),
+                 days: int = Query(default=10, ge=1, le=60),
+                 force: bool = Query(default=False)):
+    """Self-heal degraded/failed-collection breadth days by recomputing them from
+    OUR bar data (the same reconstruction `validate_recent` uses). `date=YYYY-MM-DD`
+    heals one day (with `force=1` even a good one); otherwise the last `days`
+    collected sessions are scanned and any DEGRADED row is regenerated. PUSH_SECRET.
+    """
+    _check_auth(request)
+    from api.services import breadth_self_heal
+    if date:
+        return breadth_self_heal.heal_date(date, force=force)
+    return breadth_self_heal.heal_recent(days)
+
+
 @router.get("/api/breadth-monitor/dates")
 def get_breadth_dates(_user: dict = Depends(require_paid)):
     """The full merged session timeline (collector + reconstructed), NEWEST-FIRST.
@@ -744,6 +760,31 @@ async def push_breadth_snapshot(request: Request):
 
     if not date_str:
         raise HTTPException(status_code=400, detail="'date' field required")
+
+    # ⛔ COVERAGE GUARD: refuse a DEGRADED snapshot (a failed universe price pull —
+    # Stage-2≈0, no 4%-movers, no new highs/lows against a real universe). A bad
+    # collection must never overwrite a good/healed day. The self-heal recomputes
+    # the day from bars instead. Overridable with ?force=1 for a deliberate re-push.
+    force = request.query_params.get("force") in ("1", "true", "yes")
+    if not force and svc.snapshot_looks_degraded(metrics):
+        existing = svc.raw_row(date_str)
+        # Kick a heal so the day still ends up accurate (from our bars), unless the
+        # existing row is already good (then we just keep it).
+        try:
+            from api.services import breadth_self_heal
+            if existing is None or svc.snapshot_looks_degraded(existing):
+                import threading as _t
+                _t.Thread(target=breadth_self_heal.heal_date, args=(date_str,),
+                          daemon=True, name="breadth-heal-onpush").start()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=422,
+            detail=(f"Snapshot for {date_str} rejected: whole-market coverage "
+                    f"collapsed (universe={metrics.get('universe_count')}, "
+                    f"stage2={metrics.get('stage2_count')}, up4%={metrics.get('up_4pct_today')}). "
+                    "A degraded run is not stored; the day is healed from bars instead. "
+                    "Re-push with ?force=1 to override."))
 
     ok = svc.store_snapshot(date_str, metrics)
     if not ok:
