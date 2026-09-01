@@ -1092,8 +1092,15 @@ def _token() -> str:
     return os.environ.get("DISCORD_BOT_TOKEN", "").strip()
 
 
-def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAGE, http=None) -> list[dict]:
-    """One page of messages, newest first. Returns [] on any failure."""
+def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAGE, http=None) -> list[dict] | None:
+    """One page of messages, newest first.
+
+    ⛔ Returns None on FAILURE (rate limit, HTTP error, exception) and [] ONLY on
+    a genuinely empty page. `backfill` stops on [] and reports truncation on
+    None -- collapsing the two makes a single 429 read as "end of history",
+    silently short-reading a 30-day backfill while returning success. The owner
+    runs that once and trusts the number.
+    """
     import httpx
     params: dict = {"limit": limit}
     if after:
@@ -1106,15 +1113,17 @@ def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAG
         r = c.get(f"{API}/channels/{channel_id}/messages",
                   params=params, headers={"Authorization": f"Bot {_token()}"})
         if r.status_code == 429:
-            time.sleep(float(r.headers.get("retry-after", "1")))
-            return []
+            wait = float(r.headers.get("retry-after", "1"))
+            log.warning("[buzz] rate limited on %s, retry-after %.1fs", channel_id, wait)
+            time.sleep(wait)
+            return None
         if not r.is_success:
             log.warning("[buzz] fetch HTTP %s for %s: %s", r.status_code, channel_id, r.text[:160])
-            return []
+            return None
         return r.json()
     except Exception as e:  # noqa: BLE001
         log.warning("[buzz] fetch failed for %s: %s", channel_id, e)
-        return []
+        return None
     finally:
         if own:
             c.close()
@@ -1158,9 +1167,14 @@ def backfill(channel_id: str, days: int = 30, *, fetch_fn=None, progress=None) -
     before = None
     total = pages = fetched = 0
     newest_seen: int | None = None
+    truncated = False
     while True:
         msgs = fetch(channel_id, before=before, limit=PAGE)
-        if not msgs:
+        if msgs is None:                    # a FAILURE, not the end of history
+            truncated = True
+            log.warning("[buzz] backfill of %s truncated after %d page(s)", channel_id, pages)
+            break
+        if not msgs:                        # genuinely no more messages
             break
         pages += 1
         fetched += len(msgs)
@@ -1178,7 +1192,7 @@ def backfill(channel_id: str, days: int = 30, *, fetch_fn=None, progress=None) -
             time.sleep(BACKFILL_PAGE_PAUSE_S)
     if newest_seen and not buzz_store.get_cursor(channel_id):
         buzz_store.set_cursor(channel_id, str(newest_seen))
-    return {"pages": pages, "fetched": fetched, "rows": total}
+    return {"pages": pages, "fetched": fetched, "rows": total, "truncated": truncated}
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
