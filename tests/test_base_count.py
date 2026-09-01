@@ -217,3 +217,28 @@ def test_the_reset_actually_resets():
     assert seq[-1]["stage"] == 1, (
         f"a ~60% collapse did not reset the count: "
         f"{[e['stage'] for e in seq]}")
+
+
+# ─── the degradation curve, measured because IBD publishes none ─────────────
+
+def test_the_measured_curve_travels_with_the_numbers():
+    """⭐⭐ IBD ASSERTS THE STAGE PREFERENCE FOUR WAYS AND QUANTIFIES IT ZERO
+    TIMES. We measured it on our own universe and the answer is
+    STRUCTURE-DEPENDENT: ema-crossback degrades +18.5pp early-over-late, and
+    darvas-box shows -1.4pp — indistinguishable from zero, and pointing the
+    wrong way for a blanket rule.
+
+    ⛔ THE CONSEQUENCE IS A DECISION, NOT A NOTE: the stage filter is not
+    applied globally. This rail keeps the evidence attached to it."""
+    from api.services.screener import lift_ledger as ll
+    lim = ll.load().get("limitations") or ""
+    assert "DEGRADATION CURVE IBD NEVER PUBLISHED" in lim, (
+        "the measured stage curve is no longer recorded where the numbers are")
+    # ⛔ CASE-INSENSITIVE. A rail that pins the CASING of prose fails on a
+    # reword that changed nothing and trains its author to fight it rather than
+    # read it — the same fix this repo already made to the survivorship rail.
+    low = lim.lower()
+    for must in ("structure-dependent", "not applied globally", "biases stages low"):
+        assert must in low, (
+            f"the note lost {must!r}: it must carry the finding, the decision "
+            f"it supports, AND the limit that could hide a real effect")
