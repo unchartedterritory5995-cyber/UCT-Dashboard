@@ -502,6 +502,39 @@ def main():
         shot(lpage, '10-landscape')
         lctx.close()
 
+        # ── Sunrise sheets (gate 6) ──
+        # The pickers portal to <body>, OUTSIDE the shell's [data-charts-theme]
+        # token subtree — hard-dark sheets over the light canvas shipped once
+        # and only a themed walk would have seen it. Flip the pref, open the ƒx
+        # sheet, assert the PANEL itself went light, restore the pref.
+        sctx = browser.new_context(viewport={'width': 393, 'height': 852}, device_scale_factor=2,
+                                   is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
+        spage = make_page(sctx, args.base, args.email, args.password, 'sunrise')
+        spage.request.post(f'{args.base}/api/auth/preferences',
+                           data={'key': 'charts_theme', 'value': 'sunrise'})
+        spage.reload(wait_until='domcontentloaded')
+        spage.wait_for_timeout(2400); spage.keyboard.press('Escape'); spage.wait_for_timeout(2000)
+        sunrise_ok = False
+        try:
+            spage.get_by_test_id('mobile-chart-toolbar').get_by_role(
+                'button', name='Indicators').click(timeout=5000)
+            spage.wait_for_timeout(800)
+            lum = spage.evaluate("""() => {
+              const p = document.querySelector('[data-sheet-panel]')
+              if (!p) return -1
+              const m = getComputedStyle(p).backgroundColor.match(/\\d+/g)
+              if (!m) return -1
+              const [r, g, b] = m.map(Number)
+              return (r + g + b) / 3
+            }""")
+            sunrise_ok = lum > 140  # a LIGHT panel; the dark theme's is ~10
+            print(f'  sunrise sheet panel is light (avg rgb {lum:.0f}):', sunrise_ok)
+            shot(spage, '40-sunrise-fx-sheet', wait=300)
+        finally:
+            spage.request.post(f'{args.base}/api/auth/preferences',
+                               data={'key': 'charts_theme', 'value': 'default'})
+        sctx.close()
+
         # ── iPad two-pane (coarse-pointer tablet branch) ──
         tctx = browser.new_context(viewport={'width': 820, 'height': 1180}, device_scale_factor=2,
                                    is_mobile=(args.engine == 'chromium'), has_touch=True, user_agent=IOS_UA)
@@ -528,7 +561,10 @@ def main():
     if not longpress_ok:
         print('FAIL: long-press row menu did not open — phone row actions regressed')
         return 1
-    print('PASS: touch place + reshape + back-to-live + top-bar + long-press verified end-to-end')
+    if not sunrise_ok:
+        print('FAIL: sunrise sheets rendered dark — the picker theme scope regressed (portal escape)')
+        return 1
+    print('PASS: touch place + reshape + back-to-live + top-bar + long-press + sunrise-sheets verified end-to-end')
     return 0
 
 

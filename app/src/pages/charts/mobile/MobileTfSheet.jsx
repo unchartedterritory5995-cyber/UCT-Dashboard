@@ -9,12 +9,12 @@ import styles from './MobileCharts.module.css'
  * the same list; customs come from cs.header.customTimeframes). The active code
  * is gold. One tap commits + closes.
  */
-export default function MobileTfSheet({ open, onClose, tf, onTf, customTfs = [] }) {
+export default function MobileTfSheet({ open, onClose, tf, onTf, customTfs = [], className = '' }) {
   const codes = [...new Set([...TF_ORDER, ...customTfs, ...(tf ? [tf] : [])])]
     .sort((a, b) => tfSortKey(a) - tfSortKey(b))
 
   return (
-    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Timeframe" ariaLabel="Timeframe picker">
+    <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Timeframe" ariaLabel="Timeframe picker" className={className}>
       <div className={styles.tfGrid} role="listbox" aria-label="Timeframes">
         {codes.map((code) => (
           <button
