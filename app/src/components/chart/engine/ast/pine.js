@@ -1030,11 +1030,32 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
     + 'silently change what your script means. Write `valuewhen(condition, source, n)` '
     + 'with the number of BARS you want searched — and note that an occurrence older '
     + 'than the most recent one has no spelling here at all.',
-  cum: 'a running total from the first bar. This engine\'s only accumulator '
-    + 're-seeds a fixed number of bars back, so `cum` would silently become a '
-    + 'rolling sum — and a true cumulative would change value with how many bars '
-    + 'the chart requested, which this engine forbids by construction. '
-    + 'Use `sum(source, n)` when a fixed window is what you meant.',
+  // ⚰️⚰️ THIS SAID "this engine's ONLY accumulator re-seeds a fixed number of
+  // bars back" AND THAT STOPPED BEING TRUE. `cumFrom(source, anchor, window)` is
+  // declared in the manifest, implemented in BOTH lanes, carries eight
+  // conformance cases (a hole in the source, an anchor before the series, an
+  // anchor on the very first bar), and evaluates and SAVES through the shipped
+  // formula door — measured,
+  // `cumFrom(close > open ? volume : -volume, 1762189200, 600)` is an anchored
+  // OBV, precisely what both `cum`-blocked corpus scripts want. A refusal that
+  // denies a capability the engine ships is how a member stops looking, and this
+  // program has recorded that shape repeatedly — the launch plan amended two of
+  // its own rulings for it.
+  //
+  // ⭐ THE RULING ITSELF IS UNCHANGED AND STILL RIGHT. `cum` names NO anchor, and
+  // a translator that picked one would be inventing the single number the whole
+  // answer turns on — the value would then move with how many bars the chart
+  // requested, which is the request-dependence this engine refuses by
+  // construction. So `cum` still does not translate. What changes is that the
+  // door hands back the call that DOES work and leaves the anchor where it
+  // belongs: with the member, visible in their own script.
+  cum: 'a running total from the first bar, and `cum` names no anchor — a '
+    + 'translator that picked one would be inventing the single number the whole '
+    + 'answer turns on, and the value would then change with how many bars the '
+    + 'chart requested. This engine declares `cumFrom(source, anchor, window)`, '
+    + 'which is the same running total with the starting instant STATED: give it '
+    + 'a unix-second anchor and it translates. `sum(source, n)` is the other '
+    + 'answer when a fixed rolling window is what you meant.',
   // ⛔⛔ THE SIGN. `ta.highestbars`/`ta.lowestbars` return a NON-POSITIVE offset —
   // 0 on the current bar, -1 one bar back — and this table's `highestbars`
   // returns the POSITIVE distance. Ours is the NEGATION, so a member who pastes
