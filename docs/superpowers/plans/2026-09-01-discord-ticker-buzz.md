@@ -1953,20 +1953,35 @@ WINDOW_CHOICES = {
 }
 ```
 
-And inside `build_commands()`, append before the `GUILD_ONLY` stamp:
+Then add a builder function mirroring `build_settings_command()` — that file's house pattern is one `build_*_command()` per command, and `build_commands()` composes them. **Do not append an inline dict.**
 
 ```python
-    cmds.append({
-        "name": BUZZ_COMMAND,
-        "description": "What the room is talking about",
+def build_buzz_command() -> dict:
+    """`/buzz` - what the room is talking about.
+
+    ONE command, one picker row. Bare = the board; a ticker = that name's
+    numbers. v19 shrank this picker from 6 rows to 3 for exactly this reason,
+    so `/trending` and `/mentions` are deliberately not separate commands."""
+    return {
+        "name": BUZZ_COMMAND, "type": 1,
+        "description": "What the room is talking about - run it bare for the board, or name a ticker",
         "options": [
-            {"name": "ticker", "description": "One ticker (leave blank for the board)",
-             "type": 3, "required": False, "autocomplete": True},
-            {"name": "window", "description": "Time window", "type": 3, "required": False,
-             "choices": [{"name": v, "value": k} for k, v in WINDOW_CHOICES.items()]},
+            {"name": "ticker", "type": 3, "required": False, "autocomplete": True,
+             "description": "One ticker (leave blank for the board)"},
+            {"name": "window", "type": 3, "required": False, "description": "Time window",
+             "choices": [{"name": label, "value": value} for value, label in WINDOW_CHOICES.items()]},
         ],
-    })
+    }
 ```
+
+And add it to the existing list inside `build_commands()` — that is the whole change to that function:
+
+```python
+    cmds = [build_chart_command(), build_alias_command(),
+            build_settings_command(), build_buzz_command()]
+```
+
+⚠️ Note the choice shape: `build_settings_command`'s `ch()` helper maps `{value: label}`, so a `{"name": label, "value": value}` pair comes from iterating `.items()` as `(value, label)`. `WINDOW_CHOICES` is declared in that same `{value: label}` direction, so the comprehension above is right — reversing it silently registers the labels as the values Discord sends back.
 
 - [ ] **Step 4: Write the reply builder**
 
@@ -2040,13 +2055,35 @@ def buzz_ticker_choices(q: str, limit: int = 25) -> list[dict]:
         return []
 ```
 
-In the handler, before the chart dispatch (line ~217), add:
+**⛔ The autocomplete goes INSIDE the existing `itype == 4` block, not before the chart dispatch.** That block (around line 187) early-returns `_autocomplete([])` for any command name it does not recognise, so a buzz branch placed after it is unreachable and the picker would silently show "no options match" forever. The current block reads:
 
 ```python
-    if itype == 4 and name == di.BUZZ_COMMAND:
-        focused = di.focused_option(interaction) or ""
-        return _autocomplete(buzz_ticker_choices(focused))
+    if itype == 4:
+        if name not in di.CHART_COMMAND_NAMES:
+            return _autocomplete([])
+        q = di.parse_autocomplete(interaction)
+        return _autocomplete(fetch_ticker_choices(q) if q else [])
+```
 
+Change it to:
+
+```python
+    if itype == 4:
+        if name == di.BUZZ_COMMAND:
+            # Backed by what the room ACTUALLY said, so an empty query is still
+            # useful: it offers the most-mentioned names.
+            return _autocomplete(buzz_ticker_choices(di.parse_autocomplete(interaction)))
+        if name not in di.CHART_COMMAND_NAMES:
+            return _autocomplete([])
+        q = di.parse_autocomplete(interaction)
+        return _autocomplete(fetch_ticker_choices(q) if q else [])
+```
+
+**Use `di.parse_autocomplete(interaction)` — it already exists** (it returns the focused option's text, uppercased and clipped to 10 chars). Do **not** add a `focused_option` helper; a second reader of the same field is how the two drift apart.
+
+Then, for the command itself, before the chart dispatch (around line 217):
+
+```python
     if itype == 2 and name == di.BUZZ_COMMAND:
         import time as _t
         from api.services import buzz_reply
@@ -2062,16 +2099,6 @@ In the handler, before the chart dispatch (line ~217), add:
             logging.getLogger(__name__).warning("[buzz] reply failed: %s", e)
             return _ephemeral("Could not read the counts right now.")
         return {"type": 4, "data": {"content": text}}
-```
-
-If `di.focused_option` does not exist, add it to `api/services/discord_interactions.py`:
-
-```python
-def focused_option(interaction: dict) -> str:
-    for o in ((interaction.get("data") or {}).get("options") or []):
-        if o.get("focused"):
-            return str(o.get("value") or "")
-    return ""
 ```
 
 - [ ] **Step 6: Run tests to verify they pass**
