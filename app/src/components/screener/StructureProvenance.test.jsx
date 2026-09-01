@@ -5,6 +5,22 @@
 // a lift must never appear without its direction; and a failed fetch must not
 // render as an empty library, because "we have no structures" is a different
 // and false claim.
+//
+// ⛔⛔ THE ACCESSIBILITY CASES BELOW ASSERT ON THE ACCESSIBILITY TREE, NOT ON
+// THE DOM THAT HAPPENS TO PRODUCE IT. `getByRole(..., { name })` computes the
+// accessible name the way a screen reader does, so a case goes red when the
+// NAME breaks — an id that stops resolving, a heading that stops being a
+// heading, a separator that disappears — and stays green through any markup
+// change that leaves the announcement intact. A `querySelector` on a class
+// would have done neither.
+//
+// ⚠️ AND jsdom COMPUTES NO LAYOUT AND NO CASCADE. Nothing here can measure a
+// tap target, an overflow, or a contrast ratio; the three CSS cases at the end
+// read the stylesheet as TEXT and say so in their names. They are static
+// analysis wearing a test's clothes, which is worth having and is not worth
+// mistaking for a measurement.
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import StructureProvenance, {
@@ -374,5 +390,227 @@ describe('StructureProvenance', () => {
     render(<StructureProvenance fetcher={f} />)
     await waitFor(() => expect(f).toHaveBeenCalledTimes(1))
     expect(f).toHaveBeenCalledWith('/api/screener/structures')
+  })
+})
+
+// ─── ACCESSIBILITY ──────────────────────────────────────────────────────────
+//
+// The panel is opened inside `Sheet` from the screener toolbar. Everything
+// below renders the panel on its own; the one property that belongs to the
+// COMPOSITION — that the dialog has an accessible name at all — is pinned one
+// layer up in `Screener.structuremount.test.jsx`, because it is `ScannerShell`
+// that does or does not pass `ariaLabel`, and no amount of green here would say.
+
+describe('the panel announces itself — heading, list, and a position in it', () => {
+  const two = [entry(), entry({ key: 'flat-base', label: 'Flat Base' })]
+  const openPanel = async () => {
+    const view = render(<StructureProvenance fetcher={okFetch(payload(two))} />)
+    await waitFor(() => expect(screen.getByText('Darvas Box')).toBeInTheDocument())
+    return view
+  }
+
+  it('⛔ has a real heading of its own — Sheet renders its title as a <div>', async () => {
+    await openPanel()
+    expect(screen.getByRole('heading', { level: 2, name: 'Structure library' }))
+      .toBeInTheDocument()
+  })
+
+  it('⛔ skips no heading level on the way down into a card', async () => {
+    const { container } = await openPanel()
+    const levels = [...container.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+      .map(h => Number(h.tagName[1]))
+    expect(levels.length).toBeGreaterThan(2)
+    expect(levels[0]).toBe(2)
+    for (let i = 1; i < levels.length; i++) {
+      expect(levels[i], `${levels[i - 1]} -> ${levels[i]} skips a level`)
+        .toBeLessThanOrEqual(levels[i - 1] + 1)
+    }
+  })
+
+  it('⭐ the structures are a NAMED LIST, so "28 items" is announced', async () => {
+    await openPanel()
+    const list = screen.getByRole('list', { name: 'Structure library' })
+    // Own items only — the criteria lists inside each card are also listitems,
+    // and counting those would make this pass for the wrong reason.
+    const items = within(list).getAllByRole('listitem')
+      .filter(li => li.closest('ul') === list)
+    expect(items).toHaveLength(2)
+  })
+
+  it('each card carries its own structure as its accessible name', async () => {
+    await openPanel()
+    expect(screen.getByRole('article', { name: 'Darvas Box' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Flat Base' })).toBeInTheDocument()
+  })
+
+  it('⛔ the counts line is not a second BANNER over the app\'s own', async () => {
+    // <header> maps to the banner landmark unless it descends from
+    // article/aside/main/nav/section — and the sheet is a <div role="dialog">,
+    // which is none of those. The card's <header> is inside <article> and is
+    // fine; the counts line was inside nothing.
+    //
+    // ⛔ ASSERTED AS THE SECTIONING-ANCESTOR CONDITION, NOT VIA getByRole.
+    // Measured, not assumed: testing-library maps EVERY <header> to `banner`,
+    // card headers included, so `queryAllByRole('banner')` returns 2 both
+    // before and after the fix and cannot tell them apart. A rail that reports
+    // the same number either way is not a rail.
+    const { container } = await openPanel()
+    const headers = [...container.querySelectorAll('header')]
+    expect(headers.length).toBeGreaterThan(0)             // control
+    expect(headers.filter(h => !h.closest('article'))).toEqual([])
+  })
+
+  it('⭐ the empty first paint is a live region, not silence', () => {
+    // Sheet focuses the dialog before the fetch lands. Without a live region a
+    // screen-reader user is told the panel's name and then nothing at all —
+    // including when the structures arrive.
+    render(<StructureProvenance fetcher={vi.fn(() => new Promise(() => {}))} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/Loading structures/i)
+  })
+})
+
+describe('the three provenance states reach assistive tech, not just the eye', () => {
+  it('⛔⛔ each criteria list is NAMED by the state label that owns it', () => {
+    // The label was a sibling heading: a reader entering the list directly got
+    // the criteria with no statement of whose they were. This is the whole job
+    // of the panel, so it is the case that must not be able to pass by accident.
+    render(<StructureCard entry={entry()} />)
+    // ⚠️ The refused section's label changed from "The source did not publish
+    // this" — for several criteria that sentence was FALSE (Minervini states
+    // the market-depth rule outright and it renders in that section). What this
+    // case tests is the BINDING of label to list, which is unaffected.
+    for (const label of ['Published by the source', 'Our number, not theirs',
+                         'Published with no number we can use']) {
+      expect(screen.getByRole('list', { name: new RegExp(`^${label}`) }))
+        .toBeInTheDocument()
+    }
+  })
+
+  it('keeps a separator before the count, so the name is not "...source1"', () => {
+    render(<StructureCard entry={entry()} />)
+    expect(screen.getByRole('heading', { level: 4, name: 'Published by the source 1' }))
+      .toBeInTheDocument()
+  })
+
+  it('⭐ puts the state on the item as a VALUE, not only as a hashed class', () => {
+    const { container } = render(<StructureCard entry={entry()} />)
+    expect([...container.querySelectorAll('[data-state]')]
+      .map(el => el.getAttribute('data-state')))
+      .toEqual(['sourced', 'ours', 'refused'])
+  })
+
+  it('⛔ "not published" does not run into the sentence it tags', () => {
+    // The pill's margin is a VISUAL gap; the accessibility tree concatenates
+    // adjacent inline text, so this read as "not publishedDarvas publishes...".
+    // The tag's WORDS now depend on `missing_kind` (a source that published
+    // nothing reads differently from one we cannot compute); the separator this
+    // case exists for is the same either way.
+    const { container } = render(<StructureCard entry={entry()} />)
+    expect(container.querySelector('[data-state="refused"]').textContent)
+      .toMatch(/the source never published this\s+Darvas publishes/)
+  })
+})
+
+describe('the lift cannot be read without its direction', () => {
+  it('spells the unit out and carries the direction in ONE string', () => {
+    expect(formatLift({ published: true, lift: 0.3121, ci_low: 0.2914,
+                        ci_high: 0.3361, n: 2077, direction: 'short' }).spoken)
+      .toBe('+31.21 percentage points, resolving downward')
+    expect(formatLift({ published: true, lift: 0.0735, ci_low: 0.0678,
+                        ci_high: 0.0796, n: 24428, direction: 'long' }).spoken)
+      .toBe('+7.35 percentage points, resolving upward')
+  })
+
+  it('⛔⛔ the number and its direction are ONE node, not two adjacent ones', () => {
+    render(<StructureCard entry={entry({
+      key: 'parabolic-extension', label: 'Parabolic Extension', bias: 'bearish',
+      evidence: { published: true, lift: 0.3121, ci_low: 0.2914,
+                  ci_high: 0.3361, n: 2077, direction: 'short' },
+    })} />)
+    const shown = screen.getByText('+31.21pp')
+    expect(shown).toHaveAttribute('aria-hidden', 'true')
+    expect(shown.closest('strong'))
+      .toHaveTextContent(/\+31\.21 percentage points, resolving downward/)
+  })
+
+  it('does not announce the direction twice', () => {
+    render(<StructureCard entry={entry()} />)
+    expect(screen.getByText('resolves upward')).toHaveAttribute('aria-hidden', 'true')
+  })
+})
+
+describe('the bias pill', () => {
+  it('is labelled, so "neutral" is not a word floating beside a heading', () => {
+    const { container } = render(<StructureCard entry={entry()} />)
+    expect(container.querySelector('header').textContent).toMatch(/Bias:\s*neutral/)
+    // and the pill's own text is still exactly the bias — the shape every
+    // other reader of this element depends on.
+    expect(screen.getByText('neutral')).toBeInTheDocument()
+  })
+})
+
+// ─── THE STYLESHEET, READ AS TEXT ───────────────────────────────────────────
+//
+// ⚠️ STATIC ANALYSIS, NOT MEASUREMENT. jsdom applies no cascade and computes no
+// layout, so none of the cases below has seen a pixel. They assert that the
+// declaration a browser would need is PRESENT — which is the most a suite can
+// honestly say about overflow, tap targets and colour from here.
+describe('the stylesheet (static analysis — jsdom measures none of this)', () => {
+  // Resolved RELATIVE TO THIS FILE, not to a cwd: the suite is invoked from
+  // `app/` today and from the repo root by other runners, and a path that
+  // silently resolves nowhere would make these cases pass by not running.
+  const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const CSS = read('./StructureProvenance.module.css')
+  const TOKENS = read('../../styles/tokens.css')
+  /** The body of the first rule whose selector list contains `sel`. */
+  const rule = (sel) => {
+    const m = CSS.match(
+      new RegExp(`(^|[},])\\s*${sel.replace(/[.[\]='*]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'm'))
+    return m ? m[2] : null
+  }
+
+  it('⛔⛔ every custom property it paints with is DEFINED in tokens.css', () => {
+    // FOUR were not: --color-text-muted, --color-surface, --color-surface-2 and
+    // --color-border are declared nowhere in the app. A var() WITH a fallback is
+    // still a valid declaration, so the panel rendered from its fallbacks and
+    // nothing errored — while --color-text, the one name that IS defined,
+    // followed the theme. On the light theme that painted near-black ink on a
+    // hardcoded #16181c card at 1.13:1. The repo's own tokens.reachable rail
+    // cannot see this class: it only inspects var() calls with NO fallback.
+    const declared = new Set(
+      [...TOKENS.matchAll(/(--[a-zA-Z0-9_-]+)\s*:/g)].map(m => m[1]))
+    const used = [...new Set(
+      [...CSS.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)/g)].map(m => m[1]))]
+    expect(used.length).toBeGreaterThan(4)          // control: it found some
+    expect(used.filter(n => !declared.has(n))).toEqual([])
+  })
+
+  it('⛔ the three states differ in border STYLE, not only in hue', () => {
+    // The file header claims the states are told apart "by a LEFT BORDER and a
+    // label, never by colour alone". Every state carried the same `3px solid`
+    // and differed only in colour, so the border WAS colour alone.
+    const shapes = ['sourced', 'ours', 'refused'].map((s) => {
+      const body = rule(`.criterion.${s}`)
+      expect(body, `.criterion.${s} must exist`).toBeTruthy()
+      const m = body.match(/border-left-style:\s*([a-z]+)/)
+      expect(m, `.criterion.${s} must set a border-left-style`).toBeTruthy()
+      return m[1]
+    })
+    expect(new Set(shapes).size).toBe(3)
+  })
+
+  it('gives the panel\'s only control the 44px tap minimum on touch', () => {
+    // <summary> at 12px on one line is ~19px tall, and this panel is a BOTTOM
+    // SHEET at every touch width. Scoped to the canonical TOUCH breakpoint.
+    const touch = CSS.match(/@media \(max-width: 1024px\)\s*\{([\s\S]*?)\n\}/)
+    expect(touch, 'a touch-width block must exist').toBeTruthy()
+    expect(touch[1]).toMatch(/\.noteSummary[\s\S]*min-height:\s*var\(--tap-min\)/)
+  })
+
+  it('lets unbreakable source prose wrap instead of widening the card', () => {
+    // Verbatim quotes and refusal sentences arrive from the payload. overflow-wrap
+    // inherits, so one declaration on .wrap reaches every descendant.
+    expect(rule('.wrap')).toMatch(/overflow-wrap:\s*anywhere/)
   })
 })
