@@ -873,3 +873,30 @@ status), zero page overflow anywhere.
 
 Journey: ~140 measured → 14 → (harness corrected) +128 hidden → **1**.
 Rails: three audit passes + eight-gate walk green + Live Flow suites 15/15.
+
+## Wave 16 addendum (2026-09-01) — the Live Flow tape owns sideways
+
+Wave 15's one named follow-up, done. On phone, `/live-massive`'s 17-column
+tape panned only by scrolling the whole page sideways — headers lived in the
+sticky group, rows were loose siblings, nothing could own a shared scroller.
+
+- **`lfm-tape`** now wraps the tape in both view modes (print + contract).
+  Phone (`useIsPhone`, media-change-listening so rotation re-places):
+  ColumnHeaders/ContractColumnHeaders render INSIDE it beside the rows.
+  Desktop: headers stay in the sticky group; the wrapper is an unstyled
+  block (probe-pinned: `display:block`, `overflow-x:visible`, no dup headers).
+- **`display:grid` on the phone scroller is load-bearing** — the single
+  implicit column track sizes to the widest child and every child stretches
+  to it, so headers + all rows share ONE width and stay registered whatever
+  the `1fr` ALERT column or the admin extra columns do per row. Block
+  children in an overflowing container each size to their own min-content
+  and drift row-to-row. Banners/empty/footer sit OUTSIDE the tape at
+  viewport width.
+- Header comment in `LiveFlowMassive.mobile.css` updated — the "deliberate
+  follow-up, not a css-only patch" note now describes the shipped shape
+  (stale docs are this repo's recurring defect; don't leave the note behind).
+- Rig proof (`w16_tape_probe.py`, 21/21): tape self-pans 979px, header+rows
+  move in lockstep (dh=dr=250), page body h-overflow 0, `lfm-sticky` pins at
+  two scroll depths (rests below the 48px fixed top bar — correct, not a
+  failure), contract mode registered 1150==1150×4, desktop DOM unchanged.
+  Suites 15/15 · audit `/live-massive` overflowX=0 small=0.
