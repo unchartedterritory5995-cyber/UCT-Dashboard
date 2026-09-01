@@ -65,7 +65,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList } from '../utils/prefetchBars'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import styles from './Watchlists.module.css'
@@ -1026,13 +1026,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Theme batch: only when the Theme column is shown.
   const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
 
-  // Pre-warm EVERY visible ticker across all scan timeframes (into durable IDB)
-  // so arrowing/scrolling the list is instant on intraday TFs (5m/30m/1h), not
-  // just the pre-warmed daily. Debounced + bounded (the shared IDB queue idles
-  // behind the active chart); already-warm pairs skip. Runs once the list settles.
+  // Broad, low-priority background DAILY warm of every ticker across ALL lists
+  // (incl. collapsed ones) so expanding another list is already warm. Daily-only +
+  // idle-deferred (prewarmVisibleList) — NOT all timeframes, which 503-floods the
+  // origin at market open (see prewarmVisibleList). Debounced so it settles first.
   useEffect(() => {
     if (!allTickers.length) return
-    const t = setTimeout(() => prefetchListAllTimeframes(allTickers), 1200)
+    const t = setTimeout(() => prewarmVisibleList(allTickers), 1200)
     return () => clearTimeout(t)
   }, [allTickers])
 
