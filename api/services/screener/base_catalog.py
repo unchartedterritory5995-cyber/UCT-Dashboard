@@ -478,10 +478,13 @@ PP_TOP_HALF = 0.5       # sourced — "closes in the top half of its trading ran
 PP_DOWNTREND_BARS = 105  # ~5 months, ours; see the criterion below
 
 
-def _sma(closes, period):
-    if len(closes) < period:
-        return None
-    return sum(closes[-period:]) / period
+# ⚰️ `_sma(closes, period)` LIVED HERE AND WAS DEAD. A SECOND `_sma(bars, n,
+# end=None)` is defined ~2,900 lines below and SHADOWS it, so this one was
+# unreachable -- and its presence is what caused the pocket-pivot outage:
+# `_detect_pocket_pivot` was written against this signature, passed `closes`,
+# and raised AttributeError inside the OTHER `_sma` on every symbol. Two
+# definitions of one name is `lesson_a_second_authority_over_one_value` in
+# code. `tests/test_no_shadowed_definitions.py` is the standing rail.
 
 
 def _detect_pocket_pivot(ctx) -> bool:
@@ -525,7 +528,13 @@ def _detect_pocket_pivot(ctx) -> bool:
         return False
 
     closes = [b.get("c") or 0 for b in bars]
-    sma10, sma50, sma200 = _sma(closes, 10), _sma(closes, 50), _sma(closes, 200)
+    # ⛔ `_sma` takes BARS, not closes. Passing `closes` raised AttributeError
+    # on every symbol that reached this line, and `bases._collect_relations`
+    # catches per-predicate exceptions by design ("one bad predicate costs that
+    # predicate, never the row") -- so this structure could NEVER fire and
+    # nothing said so. Measured 2026-08-31: 0 hits on 2,811 tickers, while the
+    # catalog entry below claimed coverage_pct=1.5.
+    sma10, sma50, sma200 = _sma(bars, 10), _sma(bars, 50), _sma(bars, 200)
     if not sma10 or not sma50 or not sma200:
         return False
 
@@ -4112,8 +4121,23 @@ BUYABLE_GAP_UP = Structure(
             source_id=_MORALES_BGU, confidence="med",
             missing=("The book's exact sentence, to settle 1.5x the average "
                      "versus 150% above it. Until then this detector is an "
-                     "explicit SUBSET of their rule and will fire on gap-ups "
-                     "their volume gate would reject."),
+                     "explicit SUPERSET of their rule and will fire on gap-ups "
+                     "their volume gate would reject. "
+                     "⭐ MEASURED 2026-08-31 over 3,461 tickers carrying "
+                     ">=400 daily bars, so the cost of the ambiguity is a "
+                     "number rather than a worry. The detector fires on 67 "
+                     "(1.94%); of the 66 with a usable 50-session volume "
+                     "window, the LOOSER reading (>=1.5x the average) keeps 43 "
+                     "(65.2%) and the STRICTER (>=2.5x, i.e. 150% above) keeps "
+                     "26 (39.4%). The two published phrasings therefore "
+                     "disagree about 17 of 66 hits -- 25.8% of the structure "
+                     "-- and the looser admits 65% more gap-ups than the "
+                     "stricter. We apply NEITHER, so 23 of 66 (35%) of what we "
+                     "report would be rejected even by the more permissive "
+                     "reading. ⚠ A 1,125-ticker sample put the "
+                     "disagreement at 19.2%; the full universe says 25.8%, "
+                     "which is why the figure here is the full one and not the "
+                     "first one measured."),
         ),
         Criterion(
             condition=("⭐ TENSION BETWEEN TWO OF THEIR OWN CRITERIA, recorded "
@@ -4185,6 +4209,341 @@ def _uct(condition: str, value: object) -> Criterion:
 
 _SHAPE_MIN_BARS = 60
 
+# ---------------------------------------------------------------------------
+# EMA Crossback (OURS -- Oliver Kell's re-entry, as WE write it)
+#
+# ⭐@@STAR@ THE FIRST STRUCTURE IN THIS LIBRARY THAT IS OURS END TO END, and the
+# provenance grammar has to carry that honestly. Every criterion below is
+# `origin="uct"`: the 15-source corpus assembled specifically to find this
+# material contains NO Kell, so there is no published sentence to quote and no
+# published number to cite. What we do have is our OWN written playbook
+# (`app/src/pages/modelbook/setupPlaybooks.js`), and these criteria are read
+# from it rather than invented here -- which is why the two refusals at the end
+# matter more than usual.
+#
+# ⛔ THE `structure_origin` BADGE IS WHAT MAKES THIS SHIPPABLE. Without a
+# structure-level "ours, not a published pattern" label, this would render
+# beside Darvas Box and the O'Neil bases as though a house had published it.
+# It does not, and the panel says so.
+#
+# ⛔ AND THE RECLAIM MUST HAVE HAPPENED. Our own playbook names the mistake:
+# "anticipating the reclaim before price actually crosses back above the
+# averages." So the predicate requires price ABOVE both averages NOW, having
+# been below the 9 within the window -- never "approaching" them.
+
+CB_EXTENSION = 0.60      # ours -- swept; see the criterion
+CB_WINDOW = 30           # ours -- how far back the crossback may have begun
+CB_RECLAIM_BARS = 5      # ours -- the reclaim must be RECENT
+CB_FAST, CB_SLOW = 9, 20  # ours-by-selection: the playbook names the 9/20 pair
+
+
+def _ema_series(bars, n):
+    """EMA at every index; None until there are `n` usable closes.
+
+    ⛔ A SERIES, not a single value, because three of the criteria below are
+    about CROSSINGS -- and a crossing cannot be tested from one endpoint.
+    """
+    out, e, k, seed = [], None, 2.0 / (n + 1), []
+    for b in bars:
+        c = b.get("c") or 0
+        if c <= 0:
+            out.append(e)
+            continue
+        if e is None:
+            seed.append(c)
+            if len(seed) == n:
+                e = sum(seed) / n
+        else:
+            e = c * k + e * (1 - k)
+        out.append(e)
+    return out
+
+
+def ema_crossback_state(bars) -> Optional[dict]:
+    """Price left the 9/20 pair, the 9 crossed the 20, and price RECLAIMED both."""
+    n = len(bars)
+    if n < 120:
+        return None
+    fast, slow = _ema_series(bars, CB_FAST), _ema_series(bars, CB_SLOW)
+    if not fast[-1] or not slow[-1]:
+        return None
+
+    close = bars[-1].get("c") or 0
+    if close <= 0 or close <= fast[-1] or close <= slow[-1]:
+        return None                      # not reclaimed -- see the header note
+
+    lo = max(0, n - 1 - CB_WINDOW)
+    if not any((bars[i].get("c") or 0) < (fast[i] or 0)
+               for i in range(lo, n - 1) if fast[i]):
+        return None                      # it never crossed back down at all
+
+    below = [i for i in range(max(0, n - 1 - CB_RECLAIM_BARS), n)
+             if fast[i] and (bars[i].get("c") or 0) < fast[i]]
+    if not below:
+        return None                      # the reclaim is old news
+
+    crossed = any(
+        fast[i] and slow[i] and fast[i - 1] and slow[i - 1]
+        and fast[i - 1] <= slow[i - 1] and fast[i] > slow[i]
+        for i in range(lo, n))
+    if not crossed:
+        return None
+
+    pre = bars[max(0, lo - 120):lo]
+    lows = [b.get("l") or 0 for b in pre if (b.get("l") or 0) > 0]
+    if not lows:
+        return None
+    peak = max((b.get("h") or 0) for b in pre)
+    trough = min(lows)
+    if peak <= 0 or trough <= 0:
+        return None
+    advance = (peak - trough) / trough
+    if advance < CB_EXTENSION:
+        return None
+
+    return {"advance": advance, "reclaim_bars_ago": (n - 1) - max(below),
+            "fast": fast[-1], "slow": slow[-1]}
+
+
+def _detect_ema_crossback(ctx) -> bool:
+    return ema_crossback_state(ctx.bars) is not None
+
+
+EMA_CROSSBACK = Structure(
+    key="ema-crossback",
+    label="EMA Crossback",
+    axis="relation",
+    family="Momentum & Trend",
+    bias="bullish",
+    rank=62,
+    min_bars=120,
+    desc=("An extended stock pulls back through the 9- and 20-day EMAs, the 9 "
+          "crosses the 20, and price then reclaims both -- a re-entry into a "
+          "trend that is already running. Ours, not a published pattern."),
+    criteria=(
+        Criterion(
+            condition=("Prior advance before the pullback -- the setup is a "
+                       "RE-ENTRY, so there must be a trend to re-enter"),
+            value=CB_EXTENSION, origin="uct", confidence="med",
+            quote=None, source_id=None,
+        ),
+        Criterion(
+            condition=("Price crosses back down through the fast EMA, then "
+                       "closes above BOTH averages. Ours: the reclaim must "
+                       "have HAPPENED -- our own playbook names anticipating "
+                       "it as the mistake"),
+            value="reclaim-both", origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition="The fast EMA crosses the slow EMA within the window",
+            value=(CB_FAST, CB_SLOW), origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("How far back the crossback may have begun (trading "
+                       "days), and how recent the reclaim must be"),
+            value=(CB_WINDOW, CB_RECLAIM_BARS), origin="uct", confidence="low",
+        ),
+        # ⛔ THESE TWO ARE REFUSALS, NOT "ours" -- and the distinction is a
+        # rail, not a nicety. Both originally carried `origin="uct"` ALONGSIDE
+        # `value=None` + `missing`, which put them in two provenance states at
+        # once; `test_every_criterion_has_exactly_one_provenance_state` caught
+        # it on the first run. A refusal is a refusal whoever is declining, and
+        # the structure still reads as ours because `structure_origin` keys on
+        # `source_id`, which no criterion here carries.
+        Criterion(
+            condition=("⛔ THE SHORT LEG IS NOT IMPLEMENTED. Our playbook "
+                       "trades this both ways -- the short is price rallying "
+                       "into the UNDERSIDE of the averages 'or VWAP' and "
+                       "printing a rejection"),
+            value=None,
+            missing=("VWAP is an intraday measure and 'a rejection' is a "
+                     "same-session judgement; neither is expressible on a "
+                     "completed daily bar. Shipping the long leg alone is a "
+                     "SUBSET of our own setup, and this says so rather than "
+                     "approximating the short with a daily proxy."),
+            confidence="high",
+        ),
+        Criterion(
+            condition=("⛔@@STOP@ NO PRIMARY SOURCE EXISTS FOR ANY NUMBER HERE"),
+            value=None,
+            missing=("The 15-source research corpus contains no Kell material "
+                     "at all, so there is no published sentence to quote and "
+                     "no published threshold to cite. Every value above is "
+                     "OURS: the 60% prior advance, the 30-bar window and the "
+                     "5-bar reclaim recency were SWEPT on the real universe "
+                     "(837 tickers, 2026-08-31), not chosen by eye -- 40% "
+                     "extension fires on 10.75%, 60% on 7.53%, 80% on 4.54%, "
+                     "and dropping the 9/20 cross entirely widens 40% from "
+                     "10.75% to 16.61%, which is how that criterion was shown "
+                     "to be load-bearing. 60% was taken because it puts the "
+                     "structure in line with the measured relations beside it "
+                     "(stage-4 7.8%, double-bottom 7.1%) rather than because "
+                     "any authority published it."),
+            confidence="high",
+        ),
+    ),
+    detect=_detect_ema_crossback,
+    # Measured through the SHIPPED path (`bases.classify`, not the predicate in
+    # isolation): 201 of 2,811 tickers on 2026-08-31. The 837-ticker prototype
+    # sweep said 7.53%; the full universe says 7.15%, and the full one is what
+    # is recorded.
+    coverage_pct=7.2,
+)
+
+
+# ---------------------------------------------------------------------------
+# Go Signal (OURS -- from our own one-line essence, and that is the whole point)
+#
+# ⭐ OUR ESSENCE NAMES THE MECHANICS, NOT THE NUMBERS: "A catalyst gap digests
+# into the 9 EMA -- then one wide candle engulfs the pullback and closes above
+# the catalyst high." Four structural facts (a gap, a pullback that reaches the
+# 9 EMA, one wide candle, a close above the catalyst high) and zero thresholds.
+# So the SHAPE is ours-by-writing and every NUMBER is ours-by-sweep, and the
+# criteria below keep those two apart instead of presenting them as one claim.
+#
+# ⛔@@STOP@ "ENGULFS THE PULLBACK" IS READ AS RECOVERS IT, and the first reading was
+# wrong in a way worth recording. Read as "opens beneath the pullback's lowest
+# low", ZERO of 650 tickers satisfied it -- the detector was dead and looked
+# merely rare. The funnel showed 32 wide bars, 17 green, 6 with a catalyst gap
+# and 2 that digested, then 0. Our text does not say "opens below"; it says the
+# candle engulfs the pullback, which a close above the pullback's high expresses
+# without inventing a stricter rule. This is the `cup_handle_uct` failure caught
+# before shipping instead of months after.
+#
+# ⛔ IT IS AN INTRADAY-FAMILY SETUP SEEN ON DAILY BARS, so it names the day the
+# trigger completed and never the moment to act -- recorded as a refusal below.
+
+GS_GAP = 0.03            # ours -- swept; see the criterion
+GS_DIGEST_BARS = 20      # ours -- how long the gap may digest before the trigger
+GS_WIDE = 1.3            # ours -- trigger range vs the 30-bar average range
+GS_EMA = 9               # ours-by-selection: our essence names the 9 EMA
+GS_EMA_TOL = 1.02        # ours -- "into" the EMA, not exactly onto it
+
+
+def go_signal_state(bars) -> Optional[dict]:
+    """A catalyst gap, a digest into the 9 EMA, then one wide candle that
+    recovers the whole pullback and closes above the gap day's high."""
+    n = len(bars)
+    if n < 60:
+        return None
+    fast = _ema_series(bars, GS_EMA)
+    rng = [(b.get("h") or 0) - (b.get("l") or 0) for b in bars]
+    if len(rng) < 30:
+        return None
+    avg_rng = sum(rng[-30:]) / 30.0
+    if avg_rng <= 0:
+        return None
+
+    last = bars[-1]
+    lc, lh, ll, lo = (last.get("c") or 0), (last.get("h") or 0), \
+                     (last.get("l") or 0), (last.get("o") or 0)
+    if lc <= 0 or lh <= ll:
+        return None
+    if (lh - ll) < GS_WIDE * avg_rng or lc <= lo:
+        return None                      # not one WIDE candle, or not green
+
+    for g in range(n - 2, max(0, n - 2 - GS_DIGEST_BARS), -1):
+        prev, cur = bars[g - 1], bars[g]
+        pc, ph = (prev.get("c") or 0), (prev.get("h") or 0)
+        co, cl, ch = (cur.get("o") or 0), (cur.get("l") or 0), (cur.get("h") or 0)
+        if pc <= 0 or co <= 0 or cl <= ph:
+            continue                     # ranges overlap: not a true gap
+        if (co - pc) / pc < GS_GAP:
+            continue
+
+        seg = bars[g + 1:n - 1]
+        if not seg:
+            continue
+        if not any((b.get("l") or 0) <= (fast[g + 1 + i] or 0) * GS_EMA_TOL
+                   for i, b in enumerate(seg) if fast[g + 1 + i]):
+            continue                     # never digested into the 9 EMA
+        if lc <= ch:
+            continue                     # not above the CATALYST high
+        if lc <= max((b.get("h") or 0) for b in seg):
+            continue                     # did not recover the pullback
+
+        return {"gap_pct": (co - pc) / pc, "bars_since_gap": (n - 1) - g,
+                "catalyst_high": ch, "trigger_range_x": (lh - ll) / avg_rng}
+    return None
+
+
+def _detect_go_signal(ctx) -> bool:
+    return go_signal_state(ctx.bars) is not None
+
+
+GO_SIGNAL = Structure(
+    key="go-signal",
+    label="Go Signal",
+    axis="relation",
+    family="Gap & Catalyst",
+    bias="bullish",
+    rank=63,
+    min_bars=60,
+    desc=("A catalyst gap that digests back into the 9-day EMA, then one wide "
+          "candle recovers the whole pullback and closes above the gap day's "
+          "high. Ours, not a published pattern."),
+    criteria=(
+        Criterion(
+            condition="Minimum gap to count as a CATALYST gap",
+            value=GS_GAP, origin="uct", confidence="low",
+        ),
+        Criterion(
+            condition=("The gap must digest INTO the 9-day EMA before the "
+                       "trigger -- a pullback that never reaches it is not "
+                       "this setup"),
+            value=(GS_EMA, GS_EMA_TOL), origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Trigger candle width, against the 30-bar average "
+                       "range, and it must close green"),
+            value=GS_WIDE, origin="uct", confidence="low",
+        ),
+        Criterion(
+            condition=("Ours: 'engulfs the pullback' is read as RECOVERS it -- "
+                       "the trigger closes above the pullback's high AND above "
+                       "the catalyst high"),
+            value="recovers-pullback", origin="uct", confidence="med",
+        ),
+        Criterion(
+            condition="How long the gap may digest before the trigger (days)",
+            value=GS_DIGEST_BARS, origin="uct", confidence="low",
+        ),
+        Criterion(
+            condition=("⛔ THIS IS AN INTRADAY SETUP READ FROM DAILY BARS"),
+            value=None,
+            missing=("Our own catalog files Go Signal under the INTRADAY "
+                     "family. A completed daily bar can say the trigger "
+                     "happened; it cannot say when during the session it "
+                     "happened, so this names the day and never the moment to "
+                     "act. The intraday half is not approximated."),
+            confidence="high",
+        ),
+        Criterion(
+            condition=("⛔@@STOP@ NO SOURCE, AND NO THRESHOLD EVEN IN OUR OWN TEXT"),
+            value=None,
+            missing=("The 15-source corpus contains nothing for this setup, "
+                     "and unlike EMA Crossback it has no playbook here either "
+                     "-- only a one-line essence. That essence names the "
+                     "MECHANICS (a catalyst gap, a digest into the 9 EMA, one "
+                     "wide candle, a close above the catalyst high) and NO "
+                     "numbers, so every threshold above is ours by sweep. "
+                     "Measured over the full universe (3,461 tickers with "
+                     ">=400 daily bars, 2026-08-31): gap>=3%/digest<=20/"
+                     "wide>=1.3x fires on 12 (0.35%), gap>=3%/15/1.5x on 8 "
+                     "(0.23%), gap>=4%/15/1.5x on 5 (0.14%). The loosest was "
+                     "taken because tighter settings fall to a handful of "
+                     "symbols, where no lift could ever be measured. It is "
+                     "THIN by the coverage harness (<0.5%) and that is "
+                     "expected of a same-day trigger -- high-tight-flag ships "
+                     "at 0.11% and ascending-base at 0.14%."),
+            confidence="high",
+        ),
+    ),
+    detect=_detect_go_signal,
+    coverage_pct=0.35,
+)
+
+
 SHAPES = [
     Structure(
         key="advancing-structure", label="Advancing Structure", axis="shape",
@@ -4227,7 +4586,8 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             SAUCER, VCP, WYCKOFF_SPRING]
+             SAUCER, VCP, WYCKOFF_SPRING,
+             EMA_CROSSBACK, GO_SIGNAL]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
 _BY_KEY = {s.key: s for s in ALL_STRUCTURES}

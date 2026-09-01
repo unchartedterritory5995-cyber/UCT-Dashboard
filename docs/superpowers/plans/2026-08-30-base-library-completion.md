@@ -232,7 +232,43 @@ refused). No structure ships on the strength of its geometry alone.
       **⛔ FOUR OF THEM HAVE NO PUBLISHED SOURCE AT ALL.** `20EMA Hold`,
       `EMA Crossback`, `EMA Crossover` and `Stage 2 Momentum` appear NOWHERE
       in the 15-source corpus that was assembled specifically to find this
-      material. They come from our own `setupGroups.js` model-book taxonomy.
+      material.
+
+      ⚰️ **THE NEXT SENTENCE USED TO READ "They come from our own
+      `setupGroups.js` model-book taxonomy." THAT IS WRONG FOR THREE OF THE
+      FOUR**, measured 2026-08-31 by grepping the three files that hold our own
+      setup vocabulary (`app/src/constants/setupGroups.js`,
+      `app/src/pages/modelbook/setupCatalog.js`, `.../setupPlaybooks.js`):
+
+      - `20EMA Hold` — **appears in NONE of them.** Not in the corpus and not in
+        our own taxonomy either.
+      - `EMA Crossover` — **appears in NONE of them.** Same.
+      - `EMA Crossback` — real, but in `setupCatalog.js` + `setupPlaybooks.js`,
+        **not** `setupGroups.js`. It carries a written essence and a full
+        playbook, so it is genuinely ours and genuinely defined.
+      - `Stage 2 Momentum` — not an unsourced setup at all: it **duplicates the
+        shipped, fully-sourced `stage-2-breakout` structure**. Building it would
+        put a second authority on one value.
+
+      ⛔⛔ **WHY THIS CORRECTION MATTERS MORE THAN THE ORIGINAL FINDING.** The
+      original said these were ours, which made "ship them as `origin="uct"`"
+      sound like a labelling decision. For `20EMA Hold` and `EMA Crossover` it
+      is not: there is no definition anywhere to build from, so shipping them
+      means inventing the pattern AND attributing it to ourselves — a fabricated
+      provenance, which is worse than a fabricated number because it is
+      unfalsifiable. **They are not buildable and should be dropped from the
+      list, not relabelled.**
+
+      ⭐ **THE BUILDABLE SET IS THREE, NOT NINE** (2026-08-31, derived across
+      all three axes with a per-axis non-vacuity control —
+      `tests/test_no_second_authority_across_axes.py` is the standing rail):
+      **4 of 9 already ship elsewhere** (`HVC` → the `hvc_52w` filter;
+      `Stage 2 Momentum` → the `stage-2-breakout` structure; `Gap-and-Go` →
+      the `gap-up-and-go`/`gap-down-and-go` bar characters; `Red to Green` →
+      the `red-to-green` bar character), **2 exist nowhere at all**
+      (`20EMA Hold`, `EMA Crossover`), and **3 are genuinely ours and defined**
+      — `Go Signal`, `Wedge Pop` and `EMA Crossback`, each with a written
+      essence in the model book. Those three are the honest scope.
       The nearest real material is Qullamaggie's, and it is about EXIT
       management — "the rest of the position should be trailed with the 10- or
       the 20-day moving average" — plus a description of price "surfing" the

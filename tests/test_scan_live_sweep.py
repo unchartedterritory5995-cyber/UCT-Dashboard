@@ -1517,11 +1517,23 @@ def test_a_tf_other_than_D_is_REFUSED_BY_NAME_in_wave_1(store, live_clock, monke
     intraday = scan_evaluator._wrong_tf_reason("5")
     higher = scan_evaluator._wrong_tf_reason("W")
 
-    # ⛔⛔ THE INTRADAY SENTENCE NAMES THE TWO CORRECTNESS WALLS THAT OUTRANK THE
-    # COST, and names the cost LAST. Offering the ring's number as the blocker made
-    # this gate look one measurement away from opening when it is not — and the
-    # ring (`api/services/intraday_prewarm.py`) has never been written.
-    assert "unix seconds" in intraday
+    # ⛔⛔ THE INTRADAY SENTENCE NAMES THE CORRECTNESS WALL THAT OUTRANKS THE COST,
+    # and names the cost LAST. Offering the ring's number as the blocker made this
+    # gate look one measurement away from opening when it is not — and the ring
+    # (`api/services/intraday_prewarm.py`) has never been written.
+    #
+    # ✅ ONE OF THE TWO WALLS CLOSED ON 2026-08-31 and the sentence moved with it.
+    # `_last_confirmed_index` compared a YYYYMMDD session against an epoch `t`, so
+    # every symbol dropped `stale-bars` on any intraday timeframe; it now asks
+    # `_session_of_bar_time`. The count went THREE → TWO.
+    # ⛔ AND THE FIXED WALL MUST NOT STILL BE CLAIMED. A refusal that lists a
+    # blocker somebody already removed sends a member — or the next engineer — to
+    # work that is done, which is the same defect as naming the wrong blocker in
+    # the first place. This is the half that would rot silently.
+    assert "unix seconds" not in intraday, (
+        "the session-encoding wall is fixed (see tests/test_scan_session_encoding.py) "
+        "and the sentence must stop listing it")
+    assert "TWO things are missing" in intraday
     assert "forming bar has no owner" in intraday
     assert "does not exist yet" in intraday
 

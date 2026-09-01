@@ -495,11 +495,26 @@ CASCADE = [
               and _ge(f["clv"], 0.50) and f["pc"] is not None and f["c"] >= f["pc"],
               desc="Dipped under yesterday's low on light volume and closed back in "
                    "the upper half. The market probed for sellers and found none."),
-    Character("pocket-pivot", "Pocket Pivot", 4,
+    # ⛔ THE LABEL WAS "Pocket Pivot" AND THIS IS NOT ONE. Morales and
+    # Kacher's rule is this volume signature PLUS a top-half close, price above
+    # both the 50- and 200-day, an extension test and a five-month-downtrend
+    # disqualifier -- all of which `base_catalog.POCKET_PIVOT` implements and
+    # none of which is testable on a single bar. Two axes shipped the same
+    # member-facing name for two different rules, so a member could read
+    # "Pocket Pivot" here while the structure column declined to call it one,
+    # and nothing reported the contradiction (measured 2026-08-31: the
+    # character named 108 symbols the structure named none of).
+    # ⭐ The KEY is deliberately unchanged: it is persisted in the
+    # `bar_character` column for every stored row and referenced by a shipped
+    # saved screen, so renaming it would silently orphan both. A member reads
+    # the LABEL; that is what had to stop lying.
+    Character("pocket-pivot", "Up Day, Volume Tops Recent Selling", 4,
               detect=lambda f: _up(f) and f["v"] is not None
               and f["down_vol_max_10"] is not None and f["v"] > f["down_vol_max_10"],
               desc="An up day whose volume exceeds every DOWN day of the prior ten "
-                   "sessions. Accumulation showing up before a breakout does."),
+                   "sessions -- the volume half of a pocket pivot, without the "
+                   "trend and extension context the full rule requires. For that, "
+                   "screen the Pocket Pivot base structure."),
 
     # ── Tier 5: the terminal descriptive partition. Every remaining bar lands
     # here, and the last predicate is identically true.

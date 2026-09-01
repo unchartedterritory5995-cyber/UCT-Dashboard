@@ -207,11 +207,19 @@ def candle_starters():
              {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
           "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},
 
+        # ⛔ THIS SCREEN NOW USES THE STRUCTURE, NOT THE BAR CHARACTER.
+        # It read `bar_character == "pocket-pivot"`, which is the volume
+        # signature alone, and compensated with `above_50sma` -- a reasonable
+        # approximation while `base_catalog.POCKET_PIVOT` was crashing on every
+        # symbol and therefore matching nothing. That is fixed, so the screen
+        # can filter on the full published Morales/Kacher rule and its NAME is
+        # true. `above_50sma` is dropped as REDUNDANT, not as a loosening: the
+        # structure already requires price above both the 50- and 200-day, and
+        # leaving it would put a second authority on the same condition.
         {"id": "starter_pocket_pivot",
          "name": "Pocket pivot off a base",
          "spec": {"filters": [
-             {"key": "bar_character", "op": "eq", "value": "pocket-pivot"},
-             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "base_structure", "op": "contains", "value": ",pocket-pivot,"},
              {"key": "dist_52w_high_pct", "op": "gte", "min": -20},
              {"key": "dollar_vol_30d", "op": "gte", "min": 5_000_000}],
           "view": "candles", "sort": {"key": "rs_rank", "dir": "desc"}}},

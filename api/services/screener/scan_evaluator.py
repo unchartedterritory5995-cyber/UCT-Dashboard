@@ -789,17 +789,54 @@ def _last_confirmed_index(bars: Sequence[Mapping[str, Any]],
     `-1` is nearly right and fails the other way: the store can carry a partial
     bar for a session that is not yet confirmed, and reading it would publish an
     in-progress candle as a screen result. This looks the session up.
+
+    ⛔⛔ AND A BAR'S ``t`` DOES NOT ARRIVE IN ONE ENCODING. ``_normalize_bar_time``
+    collapses ISO onto YYYYMMDD but passes a YYYYMMDD int and an EPOCH int through
+    verbatim, in its own words, "already unambiguous" -- which is true of telling
+    them apart and false of comparing them. A daily bar keys 20260730; a five-minute
+    bar in that same session keys 1785439800. An epoch never equals a YYYYMMDD, so
+    on an intraday timeframe this returned ``None`` for EVERY symbol, the caller
+    filed ``stale-bars`` for each, and the receipt read as a market-wide blackout on
+    a day when every bar was present and correct. Measured, before the fix:
+    six 5-minute bars inside session 20260730 -> ``None``.
+
+    ⭐ THE TWO ENCODINGS ARE DISTINGUISHABLE, and ``scan_store`` already owns the
+    boundary rather than this function inventing one: ``_AS_OF_MIN``/``_AS_OF_MAX``
+    bracket the YYYYMMDD range, and its comment names what lies outside -- "unix
+    seconds, most likely, which ``_normalize_bar_time`` passes through verbatim
+    because for an INTRADAY signal that is the correct key". An epoch is therefore
+    mapped to the ET calendar date it falls in and compared as a session.
+
+    ⚠️ ET, BECAUSE A SESSION IS AN ET DAY. Comparing in UTC would file the last
+    fifty minutes of a New York afternoon under tomorrow, every day, for every
+    symbol -- a whole-session off-by-one that looks like sparse data rather than a
+    bug.
     """
     for i in range(len(bars) - 1, -1, -1):
         t = bars[i].get("t")
         if t is None:
             continue
         try:
-            if int(ledger._normalize_bar_time(t)) == int(as_of):
+            if _session_of_bar_time(t) == int(as_of):
                 return i
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OSError, OverflowError):
             continue
     return None
+
+
+def _session_of_bar_time(bar_time) -> int:
+    """A bar's timestamp as the YYYYMMDD ET session it belongs to.
+
+    ⛔ ONE PLACE ASKS "which session is this bar in", so the daily lane and the
+    intraday lane cannot answer it differently. The alternative -- a `tf` argument
+    threaded to every caller -- would make the answer depend on what the CALLER
+    believed the timeframe was, when the bar's own encoding already says.
+    """
+    n = int(ledger._normalize_bar_time(bar_time))
+    if scan_store._AS_OF_MIN <= n <= scan_store._AS_OF_MAX:
+        return n
+    moment = datetime.datetime.fromtimestamp(n, tz=_ET)
+    return moment.year * 10_000 + moment.month * 100 + moment.day
 
 
 # --------------------------------------------------------------------------- #
@@ -2132,18 +2169,20 @@ def _wrong_tf_reason(tf_code: str) -> str:
     defect rather than catching it (``lesson_rail_the_sentence_not_just_the_guard``).
 
     ⛔⛔ AND THE INTRADAY SENTENCE NAMED THE WRONG BLOCKER TOO. It offers the
-    prewarm ring's cost as the thing that is missing. Two CORRECTNESS walls stand in
+    prewarm ring's cost as the thing that is missing. Two CORRECTNESS walls stood in
     front of that cost, neither of them fixable by warming anything, and both free
     to find:
 
-      * ``_last_confirmed_index`` keys on a YYYYMMDD ``session`` while an intraday
-        bar's ``t`` is unix seconds, which ``ledger._normalize_bar_time`` passes
-        through verbatim. An epoch never equals a YYYYMMDD, so on ``tf='5'`` every
-        symbol would drop ``stale-bars`` and the receipt would read as a
-        market-wide blackout. ``scan_store`` already documents this exact hazard
-        against its own ``as_of`` column, in those words: *"unix seconds, most
-        likely … It is not the correct key here."*
-      * ``live_bars_for`` builds the forming bar from the 30-second full-market
+      * ✅ FIXED 2026-08-31. ``_last_confirmed_index`` compared a YYYYMMDD
+        ``session`` against a bar ``t`` that ``ledger._normalize_bar_time`` passes
+        through verbatim — an epoch on any intraday timeframe. An epoch never
+        equals a YYYYMMDD, so on ``tf='5'`` every symbol dropped ``stale-bars`` and
+        the receipt read as a market-wide blackout. It now asks
+        ``_session_of_bar_time``, which borrows ``scan_store``'s own
+        ``_AS_OF_MIN``/``_AS_OF_MAX`` boundary and maps an epoch to the ET calendar
+        day it falls in. Rail: ``tests/test_scan_session_encoding.py``, including
+        the UTC trap (20:30 ET is tomorrow in UTC).
+      * 🔴 STILL OPEN. ``live_bars_for`` builds the forming bar from the 30-second full-market
         snapshot's SESSION aggregates — its own docstring says "the confirmed DAILY
         bars … PLUS today's forming bar". There is no five-minute forming bucket
         in that snapshot, so an intraday forming bar has no owner.
@@ -2157,14 +2196,11 @@ def _wrong_tf_reason(tf_code: str) -> str:
     if tf_code in _intraday_codes():
         return (
             f"the live sweep evaluates {DEFAULT_TF!r} only in Wave 1, and {tf_code!r} "
-            "is intraday. THREE things are missing and the cost is the LAST of them: "
-            "(1) `_last_confirmed_index` keys on a YYYYMMDD session while an intraday "
-            "bar's `t` is unix seconds, so every symbol would drop `stale-bars` and "
-            "the receipt would read as a market-wide blackout (`scan_store` documents "
-            "the same hazard against its own `as_of`); (2) `live_bars_for` builds the "
+            "is intraday. TWO things are missing and the cost is the LAST of them: "
+            "(1) `live_bars_for` builds the "
             "forming bar from the 30-second snapshot's SESSION aggregates, which "
             "carry no five-minute bucket, so an intraday forming bar has no owner; "
-            "and only then (3) the prewarm ring's MEASURED per-symbol cost (spec "
+            "and only then (2) the prewarm ring's MEASURED per-symbol cost (spec "
             "5.5), which is never assumed — and whose ring, "
             "`api/services/intraday_prewarm.py`, does not exist yet.")
     return (
