@@ -71,8 +71,14 @@ const STRUCTURES = {
         { condition: 'Frame must be LIVE', value: 20, state: 'ours', quote: null,
           source_id: null, confidence: 'high', missing: null },
       ],
-      evidence: { lift_pp: 7.35, ci_pp: [6.78, 7.96], n: 24428,
-                  direction: 'long', resolves: 'upward' },
+      // ⛔ THE REAL LEDGER SHAPE. This fixture originally used `lift_pp` and
+      // `ci_pp`, which the route never sends — the same invented payload that
+      // let 26 green component tests stand over a panel rendering "No measured
+      // edge published" for every structure. `lift` is a FRACTION.
+      evidence: {
+        published: true, lift: 0.0735, ci_low: 0.0678, ci_high: 0.0796,
+        n: 24428, null_max: 0.011, null_trials: 30, direction: 'long',
+      },
     },
   },
   counts: { structures: 26, sourced: 141, refused: 44, ours: 25 },

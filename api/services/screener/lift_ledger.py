@@ -680,6 +680,46 @@ def for_structure(key: str, path: str = None) -> Optional[dict]:
     return entry
 
 
+def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
+    """What a MEMBER-FACING surface should say about a structure's measurement.
+
+    ⭐ THREE STATES, NOT TWO, AND THE THIRD IS THE INTERESTING ONE.
+    `for_structure` deliberately collapses "never measured" and "measured and
+    refused" into None, and its reasoning is right as far as it goes: a caller
+    must never render a refusal as a weak positive. But those two ARE different
+    facts -- "we looked and it did not clear the bar" is the ledger's actual
+    work, and hiding it behind the same sentence as "we never looked" throws
+    away the part of this project that is worth the most.
+
+    ⛔ SO THE REFUSAL CARRIES NO NUMERIC FIELD. Not `lift`, not the interval,
+    not `n` -- only `published: false` and the reasons the gates gave. That is
+    what makes rendering it as a weak positive STRUCTURALLY IMPOSSIBLE rather
+    than merely discouraged: a caller has nothing to headline. It is the same
+    concern `for_structure` documents, satisfied by construction instead of by
+    omission.
+
+    ⚠️ BE PRECISE ABOUT WHAT THAT DOES NOT SAY. A reason's PROSE may quote the
+    figure -- flat-base's reads "the measured lift -0.1056 is not positive" --
+    and that is fine and wanted: the sentence is explicitly a refusal, it reads
+    as one, and it cannot be mistaken for a published edge the way a bare
+    `lift` field can. The guarantee is about fields a caller can render, not
+    about digits never appearing.
+
+    ⛔ `for_structure` IS UNCHANGED. Three other callers depend on its
+    contract; this is an additional view for the provenance route, not a
+    redefinition of the old one.
+    """
+    entry = (load(path).get("structures") or {}).get(key)
+    if not entry:
+        return None
+    if entry.get("published"):
+        return entry
+    reasons = [r for r in (entry.get("reasons") or []) if isinstance(r, str) and r]
+    if not reasons:
+        return None
+    return {"published": False, "reasons": reasons}
+
+
 #: How long a measurement may stand before it must be re-taken. origin: uct —
 #: what this measures (whether a multi-week structure beats the market's own
 #: base rate) moves on a quarterly timescale, not a nightly one, so a quarter

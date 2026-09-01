@@ -171,12 +171,12 @@ def screener_structures(key: str = "", user=Depends(require_paid)):
         if not found:
             raise HTTPException(status_code=404,
                                 detail=f"no structure named {key!r}")
-        found["evidence"] = lift_ledger.for_structure(key)
+        found["evidence"] = lift_ledger.evidence_for_structure(key)
         return found
 
     out = base_catalog.provenance()
     for k, entry in out.items():
-        entry["evidence"] = lift_ledger.for_structure(k)
+        entry["evidence"] = lift_ledger.evidence_for_structure(k)
     return {
         "structures": out,
         "counts": base_catalog.provenance_counts(),

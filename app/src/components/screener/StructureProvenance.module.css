@@ -99,6 +99,29 @@
   border: 1px solid #e5707a; color: #e5707a;
 }
 
+.refusedMeasure { display: flex; flex-direction: column; gap: 6px; }
+.reasonList {
+  margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55;
+  color: var(--color-text-muted, #9aa0a6);
+}
+
+/* The ledger note. Collapsed by default -- these run to several paragraphs and
+   the card must stay scannable -- but never hidden behind a fetch: it arrives
+   with the row and one click opens it. */
+.noteWrap { margin: -4px 0 12px; }
+.noteSummary {
+  cursor: pointer; font-size: 12px; letter-spacing: .02em;
+  color: var(--color-text-muted, #9aa0a6);
+}
+.noteSummary:hover { color: var(--ut-gold, #c9a84c); }
+.note {
+  margin: 8px 0 0; padding: 10px 12px;
+  border-left: 3px solid var(--color-border, #2a2d31);
+  background: var(--color-surface-2, #1c1f24);
+  border-radius: 0 6px 6px 0;
+  font-size: 12.5px; line-height: 1.65; white-space: pre-wrap;
+}
+
 .loading, .error { font-size: 13px; padding: 12px; }
 .error { color: #e5707a; }
 

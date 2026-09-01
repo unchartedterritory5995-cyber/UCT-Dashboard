@@ -48,9 +48,15 @@ const entry = (over = {}) => ({
   bias: 'neutral',
   coverage_pct: 4.8,
   criteria: [SOURCED, REFUSED, OURS],
+  // The SHAPE `lift_ledger.for_structure()` actually returns -- copied from a
+  // real darvas-box row, not imagined. The previous fixture used `lift_pp` and
+  // `ci_pp`, which do not exist, and that is precisely why 26 green tests
+  // stood over a panel that rendered "No measured edge published" for every
+  // structure in the library.
   evidence: {
-    lift_pp: 7.35, ci_pp: [6.78, 7.96], n: 24428,
-    direction: 'long', resolves: 'upward',
+    published: true, lift: 0.0735, ci_low: 0.0678, ci_high: 0.0796,
+    n: 24428, null_max: 0.011, null_trials: 30, direction: 'long',
+    note: 'The moving-block null was built to strip the volatility premium.',
   },
   ...over,
 })
@@ -71,18 +77,41 @@ describe('formatLift — a number that cannot be read is worse than none', () =>
   })
 
   it('carries the DIRECTION, because +31.21pp short is not an upside edge', () => {
-    const short = formatLift({ lift_pp: 31.21, ci_pp: [29.14, 33.61], n: 2077,
-                               direction: 'short' })
+    const short = formatLift({ published: true, lift: 0.3121, ci_low: 0.2914,
+                               ci_high: 0.3361, n: 2077, direction: 'short' })
     expect(short.resolves).toBe('downward')
-    const long = formatLift({ lift_pp: 7.35, ci_pp: [6.78, 7.96], n: 24428,
-                              direction: 'long' })
+    expect(short.headline).toBe('+31.21pp')
+    const long = formatLift({ published: true, lift: 0.0735, ci_low: 0.0678,
+                              ci_high: 0.0796, n: 24428, direction: 'long' })
     expect(long.resolves).toBe('upward')
   })
 
+  it('⛔ converts FRACTIONS to percentage points — the ledger stores 0.0735', () => {
+    const f = formatLift({ published: true, lift: 0.0735, ci_low: 0.0678,
+                           ci_high: 0.0796, n: 1, direction: 'long' })
+    expect(f.headline).toBe('+7.35pp')
+    expect(f.headline).not.toBe('+0.07pp')
+  })
+
   it('signs both ends of the interval so a negative bound is unmistakable', () => {
-    const f = formatLift({ lift_pp: 3.3, ci_pp: [-1.45, 15.06], n: 153,
-                           direction: 'long' })
+    const f = formatLift({ published: true, lift: 0.033, ci_low: -0.0145,
+                           ci_high: 0.1506, n: 153, direction: 'long' })
     expect(f.interval).toBe('-1.45 to +15.06')
+  })
+
+  it('⛔⛔ REFUSES to headline a row the gates did not publish', () => {
+    // A row can carry a lift and still have failed a gate. Rendering it would
+    // publish exactly what the ledger refused.
+    expect(formatLift({ published: false, lift: 0.033, ci_low: 0.0278,
+                        ci_high: 0.0379, n: 34220, direction: 'short' })).toBeNull()
+  })
+
+  it('surfaces the null MAXIMUM, which is the gate that decides most rows', () => {
+    const f = formatLift({ published: true, lift: 0.0735, ci_low: 0.0678,
+                           ci_high: 0.0796, n: 1, null_max: 0.011,
+                           null_trials: 30, direction: 'long' })
+    expect(f.nullMax).toBe('+1.10pp')
+    expect(f.trials).toBe(30)
   })
 })
 
@@ -115,10 +144,31 @@ describe('StructureCard', () => {
   it('says DOWNWARD for a short-graded structure', () => {
     render(<StructureCard entry={entry({
       key: 'parabolic-extension', label: 'Parabolic Extension', bias: 'bearish',
-      evidence: { lift_pp: 31.21, ci_pp: [29.14, 33.61], n: 2077,
-                  direction: 'short', resolves: 'downward' },
+      evidence: { published: true, lift: 0.3121, ci_low: 0.2914,
+                  ci_high: 0.3361, n: 2077, direction: 'short' },
     })} />)
     expect(screen.getByText('resolves downward')).toBeInTheDocument()
+    expect(screen.getByText('+31.21pp')).toBeInTheDocument()
+  })
+
+  it('⭐ a MEASURED but unpublished row says so, and gives the reason', () => {
+    render(<StructureCard entry={entry({
+      evidence: {
+        published: false, lift: 0.033, ci_low: 0.0278, ci_high: 0.0379,
+        n: 34220, direction: 'short', null_trials: 5,
+        reasons: ['graded against only 5 null trials; a published row requires 30'],
+      },
+    })} />)
+    expect(screen.getByText('measured, not published')).toBeInTheDocument()
+    expect(screen.getByText(/only 5 null trials/)).toBeInTheDocument()
+    // and it must NOT render the refused number as an edge
+    expect(screen.queryByText('+3.30pp')).not.toBeInTheDocument()
+  })
+
+  it('⭐ carries the ledger NOTE — a number without its caveat is the defect', () => {
+    render(<StructureCard entry={entry()} />)
+    expect(screen.getByText(/How this number was arrived at/i)).toBeInTheDocument()
+    expect(screen.getByText(/moving-block null/i)).toBeInTheDocument()
   })
 
   it('⛔ renders an unmeasured structure in WORDS, never as +0.00pp', () => {
