@@ -1,4 +1,4 @@
-import { renderWithProviders, screen, within } from '../test-utils'
+import { renderWithProviders, screen } from '../test-utils'
 import Layout from './Layout'
 
 test('renders nav sidebar and outlet', () => {
@@ -11,21 +11,15 @@ test('renders nav sidebar and outlet', () => {
   expect(screen.getByTestId('child-content')).toBeInTheDocument()
 })
 
-test('renders the free-tier mobile tab bar (Wire/More)', () => {
+test('no bottom tab bar renders — the top-left menu is the ONE touch nav', () => {
   renderWithProviders(
     <Layout>
       <div>child</div>
     </Layout>
   )
-  // Scope to the bottom tab bar (role=navigation, aria-label="Primary") since
-  // the mobile drawer also renders some of these labels. Default render is the
-  // free tier (no paid plan): only Morning Wire is free, so every paid-only
-  // tab (Home/Markets/Charts/Journal) is hidden.
-  const tabBar = screen.getByRole('navigation', { name: 'Primary' })
-  ;['Wire', 'More'].forEach((label) =>
-    expect(within(tabBar).getByText(label)).toBeInTheDocument(),
-  )
-  ;['Home', 'Markets', 'Charts', 'Journal'].forEach((label) =>
-    expect(within(tabBar).queryByText(label)).not.toBeInTheDocument(),
-  )
+  // The bottom tab bar was removed 2026-09-01 (owner call — it duplicated the
+  // top-left menu route-for-route, and its 58px belonged to the chart). The
+  // touch shell's nav is MobileNav's menu button, opening the one MoreSheet.
+  expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull()
+  expect(screen.getByLabelText('Open menu')).toBeInTheDocument()
 })
