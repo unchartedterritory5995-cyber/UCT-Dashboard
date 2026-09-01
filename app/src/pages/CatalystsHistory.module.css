@@ -175,3 +175,9 @@
   .table { font-size: 11px; }
   .table td { padding: 8px 6px; }
 }
+
+/* Touch (wave 14): quick-jump chips audited 24px, the date input 36px. */
+@media (max-width: 1024px) {
+  .quickBtn { min-height: var(--tap-min); }
+  .dateInput { min-height: var(--tap-min); }
+}

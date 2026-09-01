@@ -142,3 +142,9 @@
   .spinner { animation: none; }
   .btn { transition: none; }
 }
+
+/* Touch (wave 14): 28px was the single most repeated sub-44px tap target in
+   the app-wide phone audit — the orb cluster rides every route. */
+@media (max-width: 1024px) {
+  .btn { width: var(--tap-min); height: var(--tap-min); }
+}

@@ -290,3 +290,9 @@
 @media (pointer: coarse) and (max-width: 640px) {
   :global(html[data-mobile-chart-shell]) .orbCluster { display: none; }
 }
+
+/* Touch (wave 14): the three side buttons audit at 28px on every route the
+   orb rides — thumb-sized on coarse pointers. */
+@media (max-width: 1024px) {
+  .trainBtn { width: var(--tap-min); height: var(--tap-min); }
+}
