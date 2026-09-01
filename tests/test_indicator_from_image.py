@@ -519,7 +519,15 @@ def test_the_route_is_MOUNTED_even_though_the_flag_is_off(client, monkeypatch):
     assert res.status_code == 200, "an off flag must not look like a routing bug"
     body = res.json()
     assert body["ok"] is False and body["gate"] == "vision:disabled"
-    assert "INDICATOR_VISION_ENABLED" in body["reason"]
+    # ⚰️ THIS ASSERTED `"INDICATOR_VISION_ENABLED" in body["reason"]` — it PINNED
+    # THE LEAK. `reason` is rendered verbatim to a member by `ImageBox`, so the
+    # rail was requiring that a paying customer be shown an internal environment
+    # variable and told to go find an admin. The subject of this case is the
+    # MOUNT, not the sentence: the gate below is what proves the flag was read.
+    # The sentence itself is owned by
+    # `test_the_disabled_refusal_does_not_hand_a_member_an_admin_instruction`.
+    assert "INDICATOR_VISION_ENABLED" not in body["reason"], (
+        "the member-facing reason must not name the env var")
 
 
 def test_the_flag_is_OFF_BY_DEFAULT(monkeypatch):
@@ -610,3 +618,54 @@ def test_the_rate_limit_WINDOW_rolls_off():
     for _ in range(route.VISION_MAX_PER_HOUR):
         route._charge("member-3", now=now)
     route._charge("member-3", now=now + route._WINDOW_SECONDS + 1)
+
+
+# ─── 🔴 A MEMBER-FACING SENTENCE IS NOT AN OPERATOR'S ────────────────────────
+
+def test_the_disabled_refusal_does_not_hand_a_member_an_admin_instruction():
+    """⛔⛔ IT TOLD A PAYING CUSTOMER TO SET AN ENVIRONMENT VARIABLE.
+
+    `disabled_refusal()` read "reading an indicator from a picture is not
+    switched on -- ask an admin to set INDICATOR_VISION_ENABLED=1", and
+    `ImageBox` renders `reason` verbatim. The Screenshot tab is offered
+    unconditionally, so that was not an edge case: it is what EVERY member saw
+    while the gate was off.
+
+    ⭐ A REFUSAL NAMES WHAT THE MEMBER CAN DO. The Import and Formula tabs reach
+    the same engine and are open, so the detail points there. `gate` keeps
+    `vision:disabled` because a support handle is not a member sentence.
+    """
+    out = svc.disabled_refusal()
+    assert out["ok"] is False
+    assert out["gate"] == "vision:disabled", "the support handle must survive"
+
+    reason = out["reason"]
+    assert "INDICATOR_VISION_ENABLED" not in reason, (
+        "the member-facing reason names an internal environment variable")
+    assert "admin" not in reason.lower(), (
+        "the member-facing reason tells the member to go and find an operator")
+    # …and it says where they CAN go instead.
+    assert "Import" in reason and "Formula" in reason
+
+
+def test_NO_vision_refusal_a_member_reads_leaks_an_internal_identifier():
+    """⛔ THE CLASS, NOT THE ONE SENTENCE.
+
+    Fixing `vision:disabled` alone would leave the next refusal free to do the
+    same thing. Every phrase in `REFUSALS` is rendered to a member by `ImageBox`,
+    so none of them may carry an env-var name, a module path, a flag, or an
+    instruction to contact an operator.
+
+    ⚠️ NON-VACUOUS BY CONSTRUCTION: the sweep asserts it actually looked at every
+    declared refusal, so an emptied `REFUSALS` cannot pass this silently.
+    """
+    banned = ("_ENABLED", "ENABLED=", "env", "environment variable", "admin",
+              "api/", ".py", "os.environ", "railway")
+    offenders = []
+    for gate, phrase in svc.REFUSALS.items():
+        low = phrase.lower()
+        for token in banned:
+            if token.lower() in low:
+                offenders.append(f"{gate}: {phrase!r} contains {token!r}")
+    assert offenders == [], "member-facing refusals leak operator detail:\n" + "\n".join(offenders)
+    assert len(svc.REFUSALS) >= 8, "the sweep did not see the real refusal table"
