@@ -478,6 +478,7 @@ def _reset_caches_for_tests() -> None:
     symbols.cache_clear()
     aliases.cache_clear()
     ambiguous.cache_clear()
+    chat_words.cache_clear()
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -560,20 +561,23 @@ HOUSE_VOCAB = frozenset({
 # dead end. Counting a mention has no such dead end.
 INDEX_SYMBOLS = frozenset({"SPX", "NDX", "DJI", "RUT", "VIX", "DXY", "IXIC"})
 
-# Ordinary conversational English. Kept short on purpose: every entry must be a
-# word this room actually uses non-financially. `tools/buzz_collisions.py`
-# (Task 5) re-derives this from the real corpus and reports anything missing.
-# Entries that are NOT in the universe are harmless -- ambiguous() intersects,
-# so they simply drop out. They are kept as a guard in case the universe grows.
-CHAT_WORDS = frozenset({
-    "A", "ALL", "AM", "AN", "AND", "ANY", "ARE", "AS", "AT", "BE", "BIG", "BUT",
-    "BY", "CAN", "CASH", "DO", "EACH", "EV", "FOR", "FROM", "GO", "GOOD", "HAS",
-    "HE", "HOME", "HOPE", "HOW", "IF", "IN", "IS", "IT", "JUST", "KEY", "LOVE",
-    "LOW", "MY", "NEW", "NEXT", "NICE", "NO", "NOW", "OF", "OK", "OLD", "ON",
-    "ONE", "OPEN", "OR", "OUT", "OVER", "PLAY", "PLUS", "REAL", "RUN", "SAFE",
-    "SEE", "SO", "SOME", "STAY", "TAKE", "TELL", "THE", "TO", "TURN", "UP",
-    "US", "VERY", "WE", "WELL", "WHY", "WISH", "WORK", "YOU", "AI",
-})
+# ⛔ DERIVED, NOT TYPED. Loaded from api/data/buzz_collisions.json, which is
+# produced by tools/buzz_derive_collisions.py measuring real chat: a token that
+# is a real ticker AND an ordinary word appears mostly in lowercase ("big spot
+# to breakout"), one used as a ticker appears mostly uppercase. 77 tokens as of
+# 2026-09-01, each carrying its own as_word/as_ticker counts.
+#
+# Applying it removed 1,927 false mentions from a 7,766-message corpus (16.1% of
+# everything booked; contextual tier 2,162 -> 316) while leaving the cashtag tier
+# untouched and costing 0.9% of `exact`.
+#
+# ⛔ DO NOT hand-edit this set or the JSON. An uppercase-by-convention ACRONYM
+# (AI, RS, EMA, SMA, MA, DD, OI, RSI, PEG) cannot be separated by casing and
+# belongs in HOUSE_VOCAB instead.
+@functools.lru_cache(maxsize=1)
+def chat_words() -> frozenset[str]:
+    payload = _load_json("buzz_collisions.json") or {}
+    return frozenset((payload.get("tokens") or {}).keys())
 
 
 def _load_json(name: str):
@@ -631,7 +635,7 @@ def aliases() -> dict[str, str]:
 def ambiguous() -> frozenset[str]:
     """Symbols that also read as ordinary chat. DERIVED by intersection, so it
     can only ever name things that are genuinely in the universe."""
-    return frozenset((CHAT_WORDS | HOUSE_VOCAB) & set(symbols()))
+    return frozenset((chat_words() | HOUSE_VOCAB) & set(symbols()))
 ```
 
 - [ ] **Step 5: Confirm the universe files (already located — do not go hunting)**
@@ -1256,7 +1260,50 @@ git commit -m "feat(buzz): gap-free ingest poller + scheduler job"
 - Consumes: `buzz_ingest.backfill`, `buzz_store`, `buzz_extract`, `buzz_universe`
 - Produces: three CLIs. No importable API.
 
-**⚠️ BLOCKED until the owner grants the `UCT Intelligence` role View Channel on `#main-chat`.** Measured 2026-09-01: the bot reads 3 of 70 channels and `#main-chat` is not one of them. **Run `tools/buzz_perms.py` first every time** — an empty backfill with no permission looks exactly like an empty backfill with a broken extractor, and that ambiguity will cost hours.
+**This task has TWO halves, and only the second is blocked.**
+
+### Half A — collision derivation. NOT blocked. Do this first.
+
+There is a real corpus on disk that needs no permission: `uct_intelligence/data/processed/processed_messages.json` — **7,766 genuine Discord messages** from this community's `#tsdr`. It is the wrong corpus for a *baseline* (one disciplined trader, not the room) but the right one for **precision**: any token it books that is not a stock is a genuine collision.
+
+**Measured 2026-09-01, and it changed the design.** Running the extractor over those 7,766 messages booked 11,967 mentions, of which the `contextual` tier alone contributed 2,162 — and its top entries were almost entirely English:
+
+```
+SPOT 277 ("big spot to breakout")   IMO 157   BIT 151 ("little bit of")
+LOT  150 ("lot of heavy moves")     WAY 149   POST 125   TWO 101   JAN 59
+```
+
+⛔ **A hand-written stopword list cannot fix this class.** Every common English word that is also a ticker will fire, and there are hundreds. The fix has to be derived.
+
+**The derivation rule — and it is fully measurable:** a token that is a real ticker *and* an ordinary word appears in chat mostly in **lowercase**; a token used as a ticker appears mostly **uppercase**. So for each symbol, count its uppercase vs non-uppercase occurrences in the corpus. Below 35% uppercase (with ≥8 occurrences) it is a word.
+
+That produced `api/data/buzz_collisions.json` — **77 tokens, each carrying its own evidence**:
+
+```json
+"SPOT": {"as_word": 308, "as_ticker": 39, "upper_pct": 11.2}
+"OPEN": {"as_word": 280, "as_ticker": 49, "upper_pct": 14.9}
+"GAP":  {"as_word": 355, "as_ticker":  7, "upper_pct":  1.9}
+```
+
+**Measured effect of applying it** (same corpus, before → after):
+
+| tier | before | after | |
+|---|---|---|---|
+| `contextual` | 2,162 | **316** | −85% |
+| `exact` | 9,205 | 9,124 | −0.9% |
+| `cashtag` | 258 | **258** | untouched |
+
+**1,927 false mentions removed — 16.1% of everything the extractor was booking**, with the cashtag tier not moved at all and under 1% collateral on `exact`.
+
+⭐ **This overturned an earlier ruling of mine.** I had ruled that `SPOT` must stay ungated because "Spotify is a name this room trades." The corpus says 11% uppercase. I was wrong, and only real data could show it — which is the whole argument for this half of the task.
+
+**What casing CANNOT separate:** uppercase-by-convention acronyms — `AI`, `RS`, `EMA`, `SMA`, `MA`, `DD`, `OI`, `RSI`, `PEG`. Those stay hand-curated in `HOUSE_VOCAB`. The derived file is for words; the hand list is for acronyms. Do not merge them.
+
+### Half B — the `#main-chat` backfill. BLOCKED.
+
+**Blocked until the owner grants the `UCT Intelligence` role View Channel on `#main-chat`.** Measured 2026-09-01: the bot reads 3 of 70 channels and `#main-chat` is not one of them. **Run `tools/buzz_perms.py` first every time** — an empty backfill with no permission looks exactly like an empty backfill with a broken extractor, and that ambiguity will cost hours.
+
+When it lands, re-run the derivation against main-chat and **regenerate `buzz_collisions.json` from that corpus instead** — `#main-chat` is casual where `#tsdr` is disciplined, so it will surface collisions this corpus cannot. Half A's output is the floor, not the ceiling.
 
 - [ ] **Step 1: Write the permission probe**
 
@@ -1490,36 +1537,9 @@ git commit -m "feat(buzz): perms probe, backfill CLI, corpus-derived collision t
   - `window_bounds(name: str, now: int, tz=_ET) -> tuple[int, int]` — names: `open` | `today` | `noon` | `week` | `month`
   - `top_board(window: str, now: int, limit: int = 5) -> list[dict]` — `{"ticker","people","mentions","spark":[int]}`
   - `full_board(window: str, now: int) -> list[dict]` — **every** ticker in the window, ranked, no limit (owner: "honestly want every ticker mentioned")
-  - `themed_groups(rows: list[dict], min_group: int = 3) -> list[tuple[str, list[dict]]]` — the tail grouped by theme; groups ordered by TOTAL mentions; anything below `min_group` folded into one trailing `"Scattered · one-offs"` bucket ordered by mentions
-  - `MIN_GROUP: int`
+  - `split_tail(rows: list[dict]) -> tuple[list[dict], list[str]]` — the tail after the ranked head, split into `(multi, singles)`: names mentioned 2+ times keep their counts, names mentioned exactly once return as bare tickers for a compressed final line
 
-**⛔ `min_group` is load-bearing and was found by rendering, not reasoning.** Grouping 77 tickers across the 112-theme taxonomy with no floor produced **41 groups, most of size one** (`Japan (1): MUFG`, `Silver (1): AG`) — a shredded list, strictly worse than no grouping. A theme has to carry at least 3 names to earn a heading. Order groups by summed mentions, not member count: three loud names beat six quiet ones.
-
-⚠️ `MIN_GROUP = 3` is a **guess pending the real corpus** (Task 5). Once 30 days of real mentions exist, check the actual group-size distribution and re-set it from data. Record what you measured beside the constant.
-
-**Theme map — Task 6 also adds `ticker_themes()` to `api/services/buzz_universe.py`:**
-
-```python
-@functools.lru_cache(maxsize=1)
-def ticker_themes() -> dict[str, str]:
-    """ticker -> theme name, from themes_taxonomy.json (1,336 tickers across 112
-    themes, measured 2026-09-01). Fails soft to {} like every other loader here:
-    the boards import this on the /buzz query path."""
-    payload = _load_json("themes_taxonomy.json") or {}
-    out: dict[str, str] = {}
-    themes = payload.get("themes") or payload
-    for t in (themes if isinstance(themes, list) else themes.values()):
-        if not isinstance(t, dict):
-            continue
-        name = t.get("name") or t.get("theme")
-        for h in (t.get("holdings") or []):
-            sym = h if isinstance(h, str) else (h.get("sym") or h.get("ticker"))
-            if sym and name:
-                out.setdefault(str(sym).upper(), str(name))
-    return out
-```
-
-⚠️ **`themes_taxonomy.json` lives at the REPO ROOT, which `_load_json` does not currently search** — it looks in `api/data`, `<repo>/data` and `UCT_DATA_DIR`. Add `_HERE.parent` to that tuple. Verified 2026-09-01. Add `ticker_themes.cache_clear()` to `_reset_caches_for_tests()`, and keep Task 2's existing rails green — this is an addition to that module, not a change to it.
+**⛔ The tail is RANKED, not grouped.** Theme grouping was built, rendered and rejected — see Task 8. Rank order needs no taxonomy join, no threshold constant, and cannot fragment. `split_tail` exists only to keep the once-mentioned names from occupying a third of the image.
   - `heat_board(now: int, limit: int = 4, sessions: int = 30) -> list[dict]` — `{"ticker","mentions","ratio"}`
   - `ticker_detail(ticker: str, window: str, now: int) -> dict`
   - `coverage(now: int) -> str` — e.g. `"counted through 3:58p"`
@@ -2227,21 +2247,23 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 {
   "window": "open", "label": "since the open",
   "rows":   [ {"ticker","people","mentions","spark":[int],"hot": 6.3|null} ],  // top 14, full treatment
-  "groups": [ {"name": "Semiconductors",
-               "tickers": [ {"ticker","mentions","hot": 2.2|null} ]} ],        // the ENTIRE tail, themed
+  "tail":    [ {"ticker","mentions","hot": 2.2|null} ],                          // the tail, ranked
+  "singles": ["ABCD","EFGH"],                                                  // mentioned once, compressed
   "heat":   [ {"ticker","ratio"} ],
   "totals": {"messages": 318, "members": 63, "tickers": 77},
   "coverage": "counted through 4:08p", "asOf": 1788303268
 }
 ```
 
-The page sets `window.__buzzReady = true` once every row **and** every group chip has laid out.
+The page sets `window.__buzzReady = true` once every row **and** every tail chip has laid out.
 
 **⭐ OWNER DIRECTION 2026-09-01: the board shows EVERY ticker, not a top 5.** *"I think we can significantly improve that rendered image to be much more detailed and longer and more insightful. Honestly want every ticker mentioned."*
 
 Layout, validated by rendering a 77-ticker mockup at 1400px:
 - **Left column (~560px):** the top 14 with the full treatment — bar, count, people, sparkline, inline heat multiplier.
-- **Right column:** the whole remaining tail as compact `TICKER n` chips, grouped by theme via `buzz_boards.themed_groups`, in a 3-column CSS `columns:3` flow with `break-inside:avoid` per group. Chips for names on the heat board get a gold outline, so the two boards fuse instead of needing a second image.
+- **Right column:** the whole remaining tail as compact `TICKER n` chips, **ranked by mentions**, flowing across 4 CSS columns. Names mentioned exactly once collapse into one final de-emphasised line of bare symbols, no counts — that is the least interesting third of any day and it should not occupy a third of the image. Chips for names on the heat board get a gold outline, so the two boards fuse instead of needing a second image.
+
+⛔ **NOT grouped by theme.** Owner decision 2026-09-01 after seeing it rendered: *"I don't like the theme groups exactly, but I do want to see everything mentioned."* Theme grouping was built and measured first — it needed a taxonomy join, a `min_group` floor that was a guess, and it fragmented into 41 groups of size one before that floor was added. Rank order needs none of that and cannot fragment. `themed_groups` and `ticker_themes` are **dropped from this plan**; the taxonomy join is recorded in the deferred section if it is ever wanted back.
 - **Header:** totals (`318 messages · 63 members · 77 tickers`).
 
 ⛔ **The tail MUST NOT be an ungrouped list, and grouping MUST use the `min_group` floor** — see Task 6. Rendering the ungrouped/unfloored version is what proved this: 41 groups of size one is worse than no grouping at all.
@@ -2316,6 +2338,7 @@ def buzz_panel(token: str = "", window: str = "open"):
     now = int(time.time())
     every = buzz_boards.full_board(window, now)        # EVERY ticker, ranked
     head, tail = every[:14], every[14:]
+    multi, singles = buzz_boards.split_tail(tail)
     hot = {h["ticker"]: h["ratio"] for h in buzz_boards.heat_board(now, limit=12)}
     for r in head:
         r["hot"] = hot.get(r["ticker"])
@@ -2323,12 +2346,9 @@ def buzz_panel(token: str = "", window: str = "open"):
         "window": window,
         "label": buzz_boards.WINDOW_LABEL.get(window, window),
         "rows": head,
-        "groups": [
-            {"name": name,
-             "tickers": [{"ticker": t["ticker"], "mentions": t["mentions"],
-                          "hot": hot.get(t["ticker"])} for t in items]}
-            for name, items in buzz_boards.themed_groups(tail)
-        ],
+        "tail":    [{"ticker": t["ticker"], "mentions": t["mentions"],
+                     "hot": hot.get(t["ticker"])} for t in multi],
+        "singles": singles,
         "heat": buzz_boards.heat_board(now),
         "totals": buzz_boards.totals(window, now),
         "coverage": buzz_boards.coverage(now),
