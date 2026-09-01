@@ -1489,9 +1489,41 @@ git commit -m "feat(buzz): perms probe, backfill CLI, corpus-derived collision t
 - Produces:
   - `window_bounds(name: str, now: int, tz=_ET) -> tuple[int, int]` — names: `open` | `today` | `noon` | `week` | `month`
   - `top_board(window: str, now: int, limit: int = 5) -> list[dict]` — `{"ticker","people","mentions","spark":[int]}`
+  - `full_board(window: str, now: int) -> list[dict]` — **every** ticker in the window, ranked, no limit (owner: "honestly want every ticker mentioned")
+  - `themed_groups(rows: list[dict], min_group: int = 3) -> list[tuple[str, list[dict]]]` — the tail grouped by theme; groups ordered by TOTAL mentions; anything below `min_group` folded into one trailing `"Scattered · one-offs"` bucket ordered by mentions
+  - `MIN_GROUP: int`
+
+**⛔ `min_group` is load-bearing and was found by rendering, not reasoning.** Grouping 77 tickers across the 112-theme taxonomy with no floor produced **41 groups, most of size one** (`Japan (1): MUFG`, `Silver (1): AG`) — a shredded list, strictly worse than no grouping. A theme has to carry at least 3 names to earn a heading. Order groups by summed mentions, not member count: three loud names beat six quiet ones.
+
+⚠️ `MIN_GROUP = 3` is a **guess pending the real corpus** (Task 5). Once 30 days of real mentions exist, check the actual group-size distribution and re-set it from data. Record what you measured beside the constant.
+
+**Theme map — Task 6 also adds `ticker_themes()` to `api/services/buzz_universe.py`:**
+
+```python
+@functools.lru_cache(maxsize=1)
+def ticker_themes() -> dict[str, str]:
+    """ticker -> theme name, from themes_taxonomy.json (1,336 tickers across 112
+    themes, measured 2026-09-01). Fails soft to {} like every other loader here:
+    the boards import this on the /buzz query path."""
+    payload = _load_json("themes_taxonomy.json") or {}
+    out: dict[str, str] = {}
+    themes = payload.get("themes") or payload
+    for t in (themes if isinstance(themes, list) else themes.values()):
+        if not isinstance(t, dict):
+            continue
+        name = t.get("name") or t.get("theme")
+        for h in (t.get("holdings") or []):
+            sym = h if isinstance(h, str) else (h.get("sym") or h.get("ticker"))
+            if sym and name:
+                out.setdefault(str(sym).upper(), str(name))
+    return out
+```
+
+⚠️ **`themes_taxonomy.json` lives at the REPO ROOT, which `_load_json` does not currently search** — it looks in `api/data`, `<repo>/data` and `UCT_DATA_DIR`. Add `_HERE.parent` to that tuple. Verified 2026-09-01. Add `ticker_themes.cache_clear()` to `_reset_caches_for_tests()`, and keep Task 2's existing rails green — this is an addition to that module, not a change to it.
   - `heat_board(now: int, limit: int = 4, sessions: int = 30) -> list[dict]` — `{"ticker","mentions","ratio"}`
   - `ticker_detail(ticker: str, window: str, now: int) -> dict`
   - `coverage(now: int) -> str` — e.g. `"counted through 3:58p"`
+  - `totals(window: str, now: int) -> dict` — `{"messages", "members", "tickers"}` for the board header
   - `MIN_CURRENT: int`, `MIN_BASELINE: float`
 
 **The two things that decide whether this board is trusted:**
@@ -2189,7 +2221,30 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 
 **Interfaces:**
 - Consumes: `buzz_boards.top_board`, `.heat_board`, `.coverage`
-- Produces: `GET /api/r/buzz?token=...&window=open` → `{"window","label","rows":[{ticker,people,mentions,spark}],"heat":[{ticker,ratio}],"coverage","asOf"}`; the page sets `window.__buzzReady = true` once every row has laid out.
+- Produces: `GET /api/r/buzz?token=...&window=open` →
+
+```jsonc
+{
+  "window": "open", "label": "since the open",
+  "rows":   [ {"ticker","people","mentions","spark":[int],"hot": 6.3|null} ],  // top 14, full treatment
+  "groups": [ {"name": "Semiconductors",
+               "tickers": [ {"ticker","mentions","hot": 2.2|null} ]} ],        // the ENTIRE tail, themed
+  "heat":   [ {"ticker","ratio"} ],
+  "totals": {"messages": 318, "members": 63, "tickers": 77},
+  "coverage": "counted through 4:08p", "asOf": 1788303268
+}
+```
+
+The page sets `window.__buzzReady = true` once every row **and** every group chip has laid out.
+
+**⭐ OWNER DIRECTION 2026-09-01: the board shows EVERY ticker, not a top 5.** *"I think we can significantly improve that rendered image to be much more detailed and longer and more insightful. Honestly want every ticker mentioned."*
+
+Layout, validated by rendering a 77-ticker mockup at 1400px:
+- **Left column (~560px):** the top 14 with the full treatment — bar, count, people, sparkline, inline heat multiplier.
+- **Right column:** the whole remaining tail as compact `TICKER n` chips, grouped by theme via `buzz_boards.themed_groups`, in a 3-column CSS `columns:3` flow with `break-inside:avoid` per group. Chips for names on the heat board get a gold outline, so the two boards fuse instead of needing a second image.
+- **Header:** totals (`318 messages · 63 members · 77 tickers`).
+
+⛔ **The tail MUST NOT be an ungrouped list, and grouping MUST use the `min_group` floor** — see Task 6. Rendering the ungrouped/unfloored version is what proved this: 41 groups of size one is worse than no grouping at all.
 
 **Readiness matters here.** `⛔ A SIZED CANVAS IS NOT A DRAWN CHART` — the chart work shipped blank images twice because "an element exists" was satisfied before content arrived. The flag must be set from real laid-out rows, not from mount.
 
@@ -2259,12 +2314,23 @@ def buzz_panel(token: str = "", window: str = "open"):
     import time
     from api.services import buzz_boards
     now = int(time.time())
-    rows = buzz_boards.top_board(window, now, limit=5)
+    every = buzz_boards.full_board(window, now)        # EVERY ticker, ranked
+    head, tail = every[:14], every[14:]
+    hot = {h["ticker"]: h["ratio"] for h in buzz_boards.heat_board(now, limit=12)}
+    for r in head:
+        r["hot"] = hot.get(r["ticker"])
     return {
         "window": window,
         "label": buzz_boards.WINDOW_LABEL.get(window, window),
-        "rows": rows,
+        "rows": head,
+        "groups": [
+            {"name": name,
+             "tickers": [{"ticker": t["ticker"], "mentions": t["mentions"],
+                          "hot": hot.get(t["ticker"])} for t in items]}
+            for name, items in buzz_boards.themed_groups(tail)
+        ],
         "heat": buzz_boards.heat_board(now),
+        "totals": buzz_boards.totals(window, now),
         "coverage": buzz_boards.coverage(now),
         "asOf": now,
     }
@@ -2597,7 +2663,11 @@ import os
 
 log = logging.getLogger(__name__)
 
-BOARD_W, BOARD_H, SCALE = 900, 520, 2
+# 1400 wide because the board carries EVERY ticker: a ranked column plus the
+# themed tail in three sub-columns. Height is a generous VIEWPORT -- the
+# renderer screenshots the #buzz-export element's own box, so a day with more
+# tickers simply produces a taller PNG.
+BOARD_W, BOARD_H, SCALE = 1400, 1400, 2
 RENDER_TIMEOUT_S = 45.0
 
 READY_JS = "() => window.__buzzReady === true"
@@ -2626,6 +2696,9 @@ def render_board_png(window: str = "open", *, client=None) -> bytes | None:
                 "url": url, "selector": "#buzz-export",
                 "width": BOARD_W, "height": BOARD_H, "scale": SCALE,
                 "settle_ms": 400, "ready_js": READY_JS, "ready_timeout_ms": 15000,
+                # Count the artifact, do not trust the flag. Comes back as the
+                # X-Chart-Probe header; 0 rows means "ready but empty" -> discard.
+                "probe_js": "document.querySelectorAll('[data-buzz-row]').length",
             })
             if not r.is_success:
                 log.warning("[buzz] render HTTP %s: %s", r.status_code, r.text[:160])
