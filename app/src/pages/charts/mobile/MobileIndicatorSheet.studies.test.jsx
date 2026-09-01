@@ -96,3 +96,47 @@ describe('badge ↔ sheet agreement', () => {
     expect(screen.queryByRole('switch', { name: 'Ichimoku Cloud' })).toBeNull()
   })
 })
+
+describe('wave 8 — tap a row name to edit params (no desktop modal)', () => {
+  test('RSI name-tap opens the stacked editor; the + stepper writes period through setInstanceInput', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ indicatorInstances: [liveInstance('rsi')] })
+    await user.click(screen.getByRole('button', { name: 'Edit Relative Strength Index' }))
+    // The definition's declared default (14) shows even though the instance
+    // carries no explicit inputs — the editor reads decl defaults.
+    expect(await screen.findByText('14')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Increase Period' }))
+    const next = onWrite.mock.calls.at(-1)[0]
+    const rsi = (next.indicatorInstances || []).find((i) => i && i.defId === 'rsi' && !isInstanceTombstone(i))
+    expect(rsi?.inputs?.period).toBe(15)
+  })
+
+  test('an OFF study name-tap just turns it on (same door as the switch)', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({})
+    await user.click(screen.getByRole('button', { name: 'MACD' }))
+    const next = onWrite.mock.calls[0][0]
+    const live = (next.indicatorInstances || []).filter((i) => i && i.defId === 'macd' && !isInstanceTombstone(i))
+    expect(live).toHaveLength(1)
+  })
+
+  test('MA name-tap edits the slot: period stepper writes the positional overlays array', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ overlays: [{ enabled: true, type: 'EMA', period: 9, color: '#38bdf8' }] })
+    await user.click(screen.getByRole('button', { name: 'Edit EMA 9' }))
+    await user.click(screen.getByRole('button', { name: 'Increase Period' }))
+    const next = onWrite.mock.calls.at(-1)[0]
+    expect(next.overlays[0].period).toBe(10)
+    expect(next.overlays[0].type).toBe('EMA')
+  })
+
+  test('the editor offers Remove from chart, and it tombstones like the switch', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ indicatorInstances: [liveInstance('rsi')] })
+    await user.click(screen.getByRole('button', { name: 'Edit Relative Strength Index' }))
+    await user.click(await screen.findByRole('button', { name: /remove from chart/i }))
+    const next = onWrite.mock.calls.at(-1)[0]
+    const live = (next.indicatorInstances || []).filter((i) => i && i.defId === 'rsi' && !isInstanceTombstone(i))
+    expect(live).toHaveLength(0)
+  })
+})

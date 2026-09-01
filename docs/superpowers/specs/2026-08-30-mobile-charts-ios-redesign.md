@@ -618,3 +618,38 @@ Removed APP-WIDE:
   `navGroups` rails repointed at the living consumers; walk gains **gate 8**
   (nav absent + toolbar bottom-edge) and its top-bar gate's control is now
   the strip Menu button.
+
+## Wave 8 — TradingView-smooth drawing + indicator editing (owner ask, 2026-09-01)
+
+"Make the indicator and drawing tools a lot more accessible and usable —
+very clunky when TradingView is very very smooth." Two rebuilds:
+
+- **MobileDrawBar** (`components/chart/MobileDrawBar.jsx`): the phone
+  presentation of the drawing tools — the desktop ChartToolbar wrapped ~20
+  unlabeled 40px squares into three rows here. Now: one bottom strip docked
+  to the chart, LABELED thumb tiles in a horizontal scroll row (Trend ·
+  Horizontal · Ray · Rectangle · Fib · Channel · AVWAP · …), pinned gold
+  **Done**, pinned Eraser/Undo/Redo/Magnet. It presents state it does not
+  own — activeTool/undo/magnet are StockChart's, the SAME state the overlay
+  draws with (one arming machinery, two presentations); glyphs come from
+  ChartToolbar's exported `TOOL_ICONS` (a copied set would drift).
+  `toolbarApi.expandDrawToolbar()` opens the drawer on this shell, so the
+  Tools→Draw door needed zero changes. The desktop strip hides via inline
+  `display:none` (⚠️ the `hidden` attribute LOSES to the class's
+  `display:flex` — first probe caught it) with its dialogs still portaled
+  and its ref API still serving. Eraser is `activeTool='eraser'` — the
+  overlay always supported it; it never had a desktop button.
+- **ƒx param editors**: tap a row's NAME (chevroned) to edit in a STACKED
+  bottom sheet — MA slots get SMA/EMA segment + period stepper + swatches;
+  engine studies render their definition's declared inputs (int/float →
+  stepper clamped to declared min/max, color → swatches, bool → switch) and
+  a red "Remove from chart". Every write goes through the ONE door
+  (`setInstanceInput` — identity-refusal respected, so a value the engine
+  would drop never persists) or the positional overlays array. An OFF
+  study's name-tap simply turns it on (the switch's door). Rig-proved
+  end-to-end: period 14→17 via the stepper, **persisted server-side into
+  the widget's instance inputs**, then removed through the editor.
+
+Rails: 10 studies-sheet tests (editors through real doors) + wave8 probe
+11/11 + eight-gate walk green (the drawing gate now walks Tools→Draw→
+MobileDrawBar — the member's actual path).

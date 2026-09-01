@@ -56,6 +56,7 @@ import { ThinVolumeSeries } from './chart/thinVolumeSeries'
 import PatternOverlay from './chart/PatternOverlay'
 import PatternSidePanel from './chart/PatternSidePanel'
 import ChartToolbar from './chart/ChartToolbar'
+import MobileDrawBar from './chart/MobileDrawBar'
 import { VOLUME_PANE_SURFACE_FIXED } from './chart/indicatorRegistry'
 import { resolveChartRegion, resolveChartRegionFromPanes } from './chart/chartRegion'
 import { clampVolPct, resolveVolPanePct, latchOnDrag } from './chart/volumePaneDrag'
@@ -1725,6 +1726,11 @@ export default function StockChart({
   // explicit user choice always wins over this. The phone shell passes true so
   // the canvas opens clean; the chevron (and the toolbarApiRef doors) remain.
   toolbarDefaultCollapsed = false,
+  // Phone chart shell (wave 8): present the drawing tools as MobileDrawBar —
+  // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
+  // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
+  // ref API still serves). expandDrawToolbar() then opens the drawer.
+  mobileDrawBar = false,
   // "Back to live" chip: while the newest bar is off the right edge, a small »
   // button floats above the time axis; one tap snaps back to realtime. Only
   // the phone/tablet chart shell passes this — desktop surfaces already have
@@ -2518,6 +2524,12 @@ export default function StockChart({
     } catch { /* private mode — fall through to the host default */ }
     return !!toolbarDefaultCollapsed
   })
+  // MobileDrawBar open state (phone shell only). A ref mirrors the prop so the
+  // toolbarApi effect (deps: [toolbarApiRef]) reads the live value at call time.
+  const [mobileDrawOpen, setMobileDrawOpen] = useState(false)
+  const mobileDrawBarRef = useRef(mobileDrawBar)
+  mobileDrawBarRef.current = mobileDrawBar
+
   const setToolbarCollapsedPersist = useCallback((v) => {
     setToolbarCollapsed(v)
     try { localStorage.setItem(TOOLBAR_COLLAPSED_LS, v ? '1' : '0') } catch { /* private mode — non-fatal */ }
@@ -3652,11 +3664,14 @@ export default function StockChart({
           c.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png')
         } catch (err) { reject(err) }
       }),
-      // The phone shell starts the drawing toolbar collapsed (clean canvas);
-      // this is the discoverable door — Tools sheet "Draw on chart" expands it
-      // through the SAME persisting setter the chevron uses, so the choice
-      // sticks exactly as if the user had tapped the chevron.
-      expandDrawToolbar: () => { setToolbarCollapsedPersist(false); return true },
+      // The discoverable door — Tools sheet "Draw on chart". On the phone
+      // shell it opens MobileDrawBar; elsewhere it expands the desktop strip
+      // through the SAME persisting setter the chevron uses.
+      expandDrawToolbar: () => {
+        if (mobileDrawBarRef.current) { setMobileDrawOpen(true); return true }
+        setToolbarCollapsedPersist(false)
+        return true
+      },
     }
     return () => { toolbarApiRef.current = null }
   }, [toolbarApiRef, setToolbarCollapsedPersist])
@@ -15079,8 +15094,23 @@ export default function StockChart({
             onDeleteColor={onDeleteColor}
           />
           )}
+          {mobileDrawBar && (
+            <MobileDrawBar
+              open={mobileDrawOpen}
+              onClose={() => setMobileDrawOpen(false)}
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              magnet={magnet}
+              setMagnet={setMagnet}
+            />
+          )}
           <ChartToolbar
             ref={toolbarRef}
+            hiddenHost={mobileDrawBar}
             favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
                the column, the API field, the label and the deletion guard and
