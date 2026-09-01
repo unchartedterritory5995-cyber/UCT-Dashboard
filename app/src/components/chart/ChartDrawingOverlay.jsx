@@ -1724,6 +1724,40 @@ export default function ChartDrawingOverlay({
       ctx.restore()
     }
 
+    // Placed-but-uncommitted anchors are ALWAYS visible (wave 12). The preview
+    // below is mouseCoords-gated, and on touch the finger LIFTS between taps —
+    // so tap 1 of a tap-tap placement drew nothing at all and looked like it
+    // didn't register (the coach chip says "tap 2 points", the canvas said
+    // nothing). A dot + soft halo at every pending anchor, and a dashed ghost
+    // polyline once two are down (a 3-point tool's first segment). Desktop is
+    // unchanged in practice: the mouse is always moving, so the live preview
+    // draws right over these.
+    if (activeTool && pendingPoints.length > 0) {
+      const anchorPts = resolvePixels(pendingPoints)
+      if (anchorPts.length) {
+        ctx.save()
+        const ink = brightenAnnotationColor(color)
+        ctx.strokeStyle = ink
+        ctx.fillStyle = ink
+        if (anchorPts.length > 1) {
+          ctx.setLineDash([4, 4])
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(anchorPts[0].x, anchorPts[0].y)
+          for (let i = 1; i < anchorPts.length; i++) ctx.lineTo(anchorPts[i].x, anchorPts[i].y)
+          ctx.stroke()
+          ctx.setLineDash([])
+        }
+        for (const p of anchorPts) {
+          ctx.globalAlpha = 0.25
+          ctx.beginPath(); ctx.arc(p.x, p.y, 9, 0, Math.PI * 2); ctx.fill()
+          ctx.globalAlpha = 1
+          ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2); ctx.fill()
+        }
+        ctx.restore()
+      }
+    }
+
     // Draw in-progress preview
     if (activeTool && pendingPoints.length > 0 && mouseCoords) {
       const previewPts = resolvePixels([...pendingPoints, mouseCoords])

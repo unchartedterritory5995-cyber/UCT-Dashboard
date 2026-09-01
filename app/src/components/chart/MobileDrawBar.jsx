@@ -1,4 +1,5 @@
 import UIcon from '../ui/UIcon'
+import haptics from '../mobile/haptics'
 import { TOOL_ICONS } from './ChartToolbar'
 import styles from './MobileDrawBar.module.css'
 
@@ -57,7 +58,9 @@ export default function MobileDrawBar({
 }) {
   if (!open) return null
 
-  const arm = (id) => setActiveTool(activeTool === id ? null : id)
+  // The same tick the ƒx switches give — arming a tool is a mode change worth
+  // feeling (Android; iOS Safari ignores vibrate and loses nothing).
+  const arm = (id) => { haptics.tap(); setActiveTool(activeTool === id ? null : id) }
 
   return (
     <div className={styles.bar} role="toolbar" aria-label="Drawing tools" data-testid="mobile-draw-bar">
@@ -106,7 +109,7 @@ export default function MobileDrawBar({
         <button
           type="button"
           className={`${styles.ctl} ${magnet ? styles.ctlOn : ''}`}
-          onClick={() => setMagnet(!magnet)}
+          onClick={() => { haptics.tap(); setMagnet(!magnet) }}
           aria-label="Snap to price"
           aria-pressed={!!magnet}
           title="Snap to OHLC"

@@ -783,3 +783,25 @@ focus-steal · 16px search · sunrise library light) + eight-gate walk green.
 Rails: wave11 probe 14/14 (19 armable tiles · Advance %/Cup arm · tap-to-type
 persisted server-side · long-press→Settings leaves measured 44px/16px) +
 roster parity suite + 2 tap-to-type tests + eight-gate walk green.
+
+## Wave 12 (2026-09-01) — the anchor you can see, and the last two theme leaks
+
+- **Pending anchors are always visible.** The in-progress preview was
+  `mouseCoords`-gated, and on touch the finger LIFTS between taps — so tap 1
+  of the tap-tap placement drew NOTHING (the coach chip said "tap 2 points";
+  the canvas said nothing happened). Every placed-but-uncommitted anchor now
+  renders as a dot + soft halo in the drawing color, with a dashed ghost
+  polyline once two are down (a 3-point tool's first segment). Desktop is
+  unchanged in practice — the mouse always moves, so the live preview draws
+  over it. Rig-proved by canvas-pixel sampling: 0 → 1069 inked pixels at the
+  anchor after one tap (the first sampler read client coords against
+  canvas-local pixels and measured 0 — fixed, then measured).
+- **Chip menu + About follow Sunrise**: `ContextPopover` grew the same
+  `sheetClassName` passthrough as the dialogs (its touch branch is a portaled
+  Sheet — the same scope-escape leak, third and fourth instances). The
+  desktop anchored menu stays menu-dark by design.
+- **Arming haptics**: the drawbar's tool tiles and magnet give the same
+  `haptics.tap()` tick the ƒx switches do (Android; iOS ignores vibrate).
+
+Rails: wave12 probe 7/7 (armed → one tap → inked anchor · commit unchanged ·
+sunrise chip menu light 239) + eight-gate walk green.

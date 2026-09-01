@@ -25,6 +25,10 @@ export default function ContextPopover({
   title,
   children,
   width = 220,
+  // Theme class forwarded to the touch bottom-sheet — it portals to <body>,
+  // escaping any scoped theme tokens (the chart's Sunrise), exactly like every
+  // other Sheet. Desktop's anchored menu ignores it (menu-dark by design).
+  sheetClassName = '',
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
@@ -81,7 +85,7 @@ export default function ContextPopover({
   // Touch → bottom sheet
   if (isTouch) {
     return (
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title}>
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
         <div className={styles.sheetList}>
           {children ?? renderItems()}
         </div>
