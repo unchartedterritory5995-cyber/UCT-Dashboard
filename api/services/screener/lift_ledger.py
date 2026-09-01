@@ -747,7 +747,14 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
     reasons = [r for r in (entry.get("reasons") or []) if isinstance(r, str) and r]
     if not reasons:
         return None
-    return {"published": False, "reasons": reasons}
+    # ⛔ "WE LOOKED AND IT DID NOT CLEAR THE BAR" AND "WE HAVE NOT LOOKED YET"
+    # ARE DIFFERENT CLAIMS, and flattening them puts a false one on screen: the
+    # panel labelled a never-run structure "measured, not published", which
+    # credits us with work we have not done. The tell is whether the row
+    # carries a `lift` at all — a run always writes one, even when every gate
+    # refuses it.
+    return {"published": False, "reasons": reasons,
+            "measured": entry.get("lift") is not None}
 
 
 #: How long a measurement may stand before it must be re-taken. origin: uct —
