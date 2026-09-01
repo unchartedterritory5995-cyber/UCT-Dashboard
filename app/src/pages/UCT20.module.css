@@ -273,3 +273,8 @@
   .expanded { padding: 6px 2px 16px 6px; }
   .expandedSide { flex-direction: column; }
 }
+
+/* Touch (wave 14): Copy tickers / How it's built audited 30px. */
+@media (max-width: 1024px) {
+  .methodBtn { min-height: var(--tap-min); }
+}

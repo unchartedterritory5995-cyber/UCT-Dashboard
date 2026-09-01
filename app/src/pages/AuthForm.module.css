@@ -182,3 +182,8 @@
     padding: 24px 20px;
   }
 }
+
+/* Touch (wave 14): the login/signup switch link audited 16px tall. */
+@media (max-width: 1024px) {
+  .switchLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

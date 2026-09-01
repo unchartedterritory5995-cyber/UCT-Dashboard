@@ -346,9 +346,12 @@ export default function FloatingOrb({ context = 'global' }) {
             type="button"
             onClick={(e) => { e.stopPropagation(); dismissCoachmark() }}
             style={{
-              display: 'block', marginTop: 8, marginLeft: 'auto',
+              display: 'block', marginTop: 4, marginLeft: 'auto',
               background: 'transparent', border: 'none', color: '#a1a1aa',
               cursor: 'pointer', fontSize: 12,
+              /* a dismiss too small to hit keeps the coach-mark up forever —
+                 audited at 29x14 on every route (wave 14) */
+              minHeight: 'var(--tap-min)', padding: '0 10px',
             }}
           >
             Got it
