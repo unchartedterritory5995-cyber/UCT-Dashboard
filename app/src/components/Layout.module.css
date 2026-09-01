@@ -17,18 +17,19 @@
     flex-direction: column;
   }
   .main {
-    /* Space for the fixed top header bar and the fixed bottom tab bar.
-       Heights come from tokens.css (--mobile-topbar-h / --mobile-tabbar-h) so a
-       route that must size itself against this shell subtracts the SAME values
-       rather than retyping them. */
+    /* Space for the fixed top header bar (height from tokens.css
+       --mobile-topbar-h, so a route that sizes itself against this shell
+       subtracts the SAME value rather than retyping it). The bottom tab bar
+       was removed 2026-09-01 (owner call — it duplicated the top-left menu),
+       so the bottom reserves only the home-indicator safe area. */
     padding-top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
-/* Landscape immersive charting: both fixed bars hide themselves while the
-   phone chart shell is mounted (html[data-mobile-chart-shell] — see
-   MobileNav / MobileTabBar modules), so the reservation for them goes too. */
+/* Landscape immersive charting: the top bar hides itself while the phone
+   chart shell is mounted (html[data-mobile-chart-shell] — MobileNav.module.css),
+   so its reservation goes too; the chart toolbar pads the safe areas itself. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .main {
     padding-top: 0;
@@ -36,12 +37,13 @@
   }
 }
 
-/* Portrait full-height charting (Phase 9): only the TOP bar hides on the phone
-   chart shell (MobileNav.module.css) — the tab bar stays, so only the top
-   reservation goes. */
+/* Portrait full-height charting (Phase 9): the TOP bar hides on the phone
+   chart shell (MobileNav.module.css), so its reservation goes; the chart
+   toolbar owns the bottom safe area itself. */
 @media (pointer: coarse) and (max-width: 640px) {
   :global(html[data-mobile-chart-shell]) .main {
     padding-top: 0;
+    padding-bottom: 0;
   }
 }
 

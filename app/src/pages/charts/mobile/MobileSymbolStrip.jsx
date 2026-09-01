@@ -4,6 +4,7 @@ import UIcon from '../../../components/ui/UIcon'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
+import { useOpenMoreSheet } from '../../../components/mobile/MoreSheetContext'
 import styles from './MobileCharts.module.css'
 
 const fmtPrice = (p) => (p >= 1000 ? p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p >= 1 ? p.toFixed(2) : p.toFixed(4))
@@ -18,6 +19,12 @@ const fmtPrice = (p) => (p >= 1000 ? p.toLocaleString('en-US', { minimumFraction
  * the quote subscription entirely (mirrors ChartPane's wantsQuote gate).
  */
 export default function MobileSymbolStrip({ sym, onOpenSearch }) {
+  // The app-menu door on the chart screen. The top bar (and its hamburger)
+  // hides itself while the chart shell is mounted, and the bottom tab bar is
+  // gone app-wide — so this top-left button is how a member LEAVES /charts.
+  // Same MoreSheet as the hamburger everywhere else; null outside Layout
+  // (tests) hides the trigger rather than rendering a dead door.
+  const openMoreSheet = useOpenMoreSheet()
   const breadth = useBreadthSymbols()
   const isThemeIdx = typeof sym === 'string' && sym.startsWith('$IDX:')
   const breadthRec = breadth?.get?.(sym)
@@ -60,6 +67,17 @@ export default function MobileSymbolStrip({ sym, onOpenSearch }) {
 
   return (
     <div className={styles.symStrip}>
+      {openMoreSheet && (
+        <button
+          type="button"
+          className={styles.stripMenuBtn}
+          onClick={openMoreSheet}
+          aria-label="Menu"
+          aria-haspopup="dialog"
+        >
+          <UIcon name="menu" size={19} gold={false} />
+        </button>
+      )}
       <button
         type="button"
         className={styles.symBtn}
