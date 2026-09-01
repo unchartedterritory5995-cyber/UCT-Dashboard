@@ -1,7 +1,19 @@
 """chart-renderer: a tiny headless-Chromium screenshot service (Railway).
 
-POST /render  {url, selector?, width?, height?, scale?, settle_ms?, ready_js?}
-  → image/png of `selector` (default "#chart-export") on `url`.
+POST /render  {url, selector?, width?, height?, scale?, settle_ms?, ready_js?, probe_js?}
+  → image/png of `selector` (default "#chart-export") on `url`, plus
+    X-Chart-Ready (did `ready_js` ever pass?) and X-Chart-Probe (the JSON value
+    of `probe_js`, read from the page at capture time).
+
+⭐ The two report headers exist because a screenshot cannot be judged from its
+pixels alone. This service used to swallow the readiness timeout — "a timeout is
+not a verdict; the caller judges the image" — and the caller judged it by the
+grey-level variance of the chart body. On 2026-08-31 that judgement passed three
+charts with NO CANDLES IN THEM to a public channel: once /r/chart resolves a
+symbol it paints a large centred watermark, a subtitle, grid lines and a stats
+strip, which is 8-17 std-dev of ink with no data in it. Ink is not data. So the
+page now STAMPS what it drew and this service carries that answer back, instead
+of discarding the one fact it had. See `discord_chart_house.render_house_chart`.
 
 Exists because the house chart image is a screenshot of the dashboard's own
 /r/chart page (the same thing the Sunday Scans / Substack renderers do from
@@ -13,6 +25,7 @@ Listens on :: so Railway's IPv6-only private network can reach it.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from urllib.parse import urlparse
@@ -49,6 +62,11 @@ class RenderRequest(BaseModel):
     settle_ms: int = Field(1600, ge=0, le=10000)
     ready_timeout_ms: int = Field(34000, ge=1000, le=60000)
     ready_js: str | None = None
+    # Read from the page AFTER the capture and returned in X-Chart-Probe. The
+    # caller uses it to ask the page a question the pixels cannot answer -
+    # "how many bars did you actually draw?". Optional: an older caller that
+    # sends none simply gets no header.
+    probe_js: str | None = None
 
 
 def check_url(url: str) -> None:
@@ -83,9 +101,17 @@ async def _get_browser():
     return _browser
 
 
-async def render_png(req: RenderRequest) -> bytes:
+async def render_png(req: RenderRequest) -> tuple[bytes, dict]:
+    """(png, meta) where meta = {"ready": bool, "probe": <json-able or None>}.
+
+    `ready` is whether `ready_js` ever passed — a timed-out predicate still gets
+    screenshotted (a slow-but-fine chart should not be thrown away), but the fact
+    that it timed out travels with the image now instead of being swallowed.
+    `probe` is whatever `probe_js` evaluated to on the page, read after the
+    capture so it describes the frame that was actually taken."""
     browser = await _get_browser()
     ready_js = (req.ready_js or DEFAULT_READY_JS).replace("SEL", repr(req.selector))
+    meta = {"ready": False, "probe": None}
     async with _slots:
         ctx = await browser.new_context(viewport={"width": req.width, "height": req.height},
                                         device_scale_factor=req.scale)
@@ -95,13 +121,24 @@ async def render_png(req: RenderRequest) -> bytes:
             await page.goto(req.url, wait_until="load")
             try:
                 await page.wait_for_function(ready_js, timeout=req.ready_timeout_ms)
-            except Exception:  # noqa: BLE001 — a timeout is not a verdict; the caller judges the image
+                meta["ready"] = True
+            except Exception:  # noqa: BLE001 — not fatal, but no longer silent: it rides back in X-Chart-Ready
                 log.warning("ready predicate timed out for %s", req.url.split("?")[0])
             await page.wait_for_timeout(req.settle_ms)
             el = page.locator(req.selector)
             if await el.count() == 0:
                 raise HTTPException(422, f"selector not found: {req.selector}")
-            return await el.first.screenshot(type="png")
+            png = await el.first.screenshot(type="png")
+            if req.probe_js:
+                # After the shot, so it reports the frame we took. A page that
+                # never defined the value yields None, which the caller reads as
+                # "unknown" and not as "empty" — an older page must not start
+                # failing renders the moment this service ships.
+                try:
+                    meta["probe"] = await page.evaluate(req.probe_js)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("probe_js failed for %s: %s", req.url.split("?")[0], e)
+            return png, meta
         finally:
             await ctx.close()
 
@@ -116,14 +153,22 @@ async def render(req: RenderRequest, request: Request, x_render_secret: str | No
     check_secret(x_render_secret)
     check_url(req.url)
     try:
-        png = await render_png(req)
+        png, meta = await render_png(req)
     except HTTPException:
         raise
     except Exception as e:  # noqa: BLE001
         log.exception("render failed")
         raise HTTPException(502, f"render failed: {type(e).__name__}: {e}")
-    return Response(content=png, media_type="image/png",
-                    headers={"X-Render-Bytes": str(len(png))})
+    headers = {"X-Render-Bytes": str(len(png)),
+               "X-Chart-Ready": "true" if meta.get("ready") else "false"}
+    if meta.get("probe") is not None:
+        # Compact JSON on one line: a header cannot carry a newline, and the
+        # caller parses it with json.loads.
+        try:
+            headers["X-Chart-Probe"] = json.dumps(meta["probe"], separators=(",", ":"))[:512]
+        except (TypeError, ValueError):
+            pass
+    return Response(content=png, media_type="image/png", headers=headers)
 
 
 @app.on_event("shutdown")
