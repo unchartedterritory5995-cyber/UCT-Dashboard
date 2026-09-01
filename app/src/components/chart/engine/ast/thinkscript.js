@@ -2694,6 +2694,20 @@ export const TS_CALL_SHAPES = Object.freeze({
   },
 
   // ── the expansions ────────────────────────────────────────────────────────
+  inertia: {
+    expand: 'inertia',
+    engines: ['wma', 'sma'],
+    params: ['data', 'length'],
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Inertia: "Draws the linear regression curve using the '
+      + 'least-squares method to approximate data for each set of bars defined by the length '
+      + 'parameter", plotted as "y = a * current_bar + b". The page publishes both '
+      + 'coefficients in a manual reimplementation printed beside the built-in: '
+      + 'a = (n*Sum(x*y,n) - Sum(x,n)*Sum(y,n)) / (n*Sum(Sqr(x),n) - Sqr(Sum(x,n))) and '
+      + 'b = (Sum(Sqr(x),n)*Sum(y,n) - Sum(x,n)*Sum(x*y,n)) / the same denominator, with '
+      + '`def x = x[1] + 1`. See `TS_EXPANSIONS.inertia` for why that is the '
+      + '`3*wma - 2*sma` and where the arithmetic was already checked',
+  },
   truerange: {
     expand: 'truerange',
     engines: ['max', 'min'],
@@ -3091,6 +3105,54 @@ const TS_EXPANSIONS = Object.freeze({
     return cOp('-', [
       R.engineCall('max', [{ node: prevClose, tok }, high], tok),
       R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
+  },
+
+  /** `Inertia(data, length)` → `3 * wma(data, length) - 2 * sma(data, length)`.
+   *
+   *  ⭐⭐ IT COSTS THIS TABLE ZERO NEW VOCABULARY, and that is the point rather
+   *  than a convenience. The reflex is to declare a `linreg` function — and
+   *  `pine.js::EXPANSIONS.vwma` already wrote down why that is the wrong one:
+   *  *"A table entry would have been the reflex and it would have added a name to
+   *  the sayable vocabulary, the picker, the plain-language door and both
+   *  interpreters, to express something the table can already say."*
+   *
+   *  ⭐⭐ THE ARITHMETIC WAS ALREADY CHECKED, ONE DOOR OVER. `pine.js` maps
+   *  `ta.linreg(src, n, offset)` onto the closed form
+   *
+   *      linreg = sum(src,n)/n + (n·wma(src,n) − sum(src,n)) · C
+   *      C      = 6·((n−1)/2 − offset) / (n·(n−1))
+   *
+   *  and states it was *"verified against a direct least-squares fit over 600
+   *  random windows (n ∈ 2…200, offset ∈ 0…5): max relative error 6.0e-14"*.
+   *  `Inertia` is that value at the CURRENT bar, so offset = 0 and C collapses:
+   *
+   *      C = 6·((n−1)/2) / (n·(n−1)) = 3/n
+   *      ⇒ sum/n + 3·wma − 3·sum/n = 3·wma − 2·sum/n = 3·wma − 2·sma
+   *
+   *  — the least-squares endpoint identity. So this door inherits a measured
+   *  result instead of asserting a second one about the same maths, and the rail
+   *  checks the two doors against each other on real bars rather than re-deriving.
+   *
+   *  ⚠️ AND IT INHERITS THE WEIGHTING DEPENDENCY WITH IT. The identity holds only
+   *  if `wma` weights the NEWEST bar heaviest; the other way round the line leans
+   *  backwards on every chart and still plots. `pine.js` measured this engine's
+   *  `wma(close,3)` on a 1…5 ramp at 4.333 rather than 3.667, and the rail asserts
+   *  that direction rather than trusting the note.
+   *
+   *  ⛔ `length < 2` HAS NO LINE. Two points define one, one point does not, and
+   *  thinkorswim publishes no answer for a one-bar window. `3·wma − 2·sma` would
+   *  quietly return the bar's own value there — a number with no regression in it
+   *  — where Pine's spelling of the same maths divides by `n−1` and refuses. The
+   *  two doors say the same thing about the same window because the fact is about
+   *  the arithmetic, not about a vendor. */
+  inertia: (args, R, tok) => {
+    const [data, length] = args
+    const n = literalInteger(length.node)
+    if (n === null || n < 2) throw refuse('thinkscript:window', length.tok || tok)
+    return cOp('-', [
+      cOp('*', [{ type: 'num', value: 3 }, R.engineCall('wma', [data, length], tok)]),
+      cOp('*', [{ type: 'num', value: 2 }, R.engineCall('sma', [data, length], tok)]),
     ])
   },
 
