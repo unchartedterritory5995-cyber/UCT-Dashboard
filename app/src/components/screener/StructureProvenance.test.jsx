@@ -233,6 +233,26 @@ describe('StructureCard', () => {
     expect(screen.queryByText('+3.30pp')).not.toBeInTheDocument()
   })
 
+  it('⛔ says NOT MEASURED YET for a structure no run has touched', () => {
+    // "we looked and it did not clear the bar" is not "we have not looked".
+    // Four structures shipped with a ledger row and no lift run against them;
+    // calling that "measured, not published" credits us with work not done.
+    render(<StructureCard entry={entry({
+      evidence: { published: false, measured: false,
+                  reasons: ['shipped 2026-08-31 and NOT YET MEASURED'] },
+    })} />)
+    expect(screen.getByText('not measured yet')).toBeInTheDocument()
+    expect(screen.queryByText('measured, not published')).not.toBeInTheDocument()
+  })
+
+  it('and still says MEASURED for a row a run actually refused', () => {
+    render(<StructureCard entry={entry({
+      evidence: { published: false, measured: true,
+                  reasons: ['the measured lift -0.1056 is not positive'] },
+    })} />)
+    expect(screen.getByText('measured, not published')).toBeInTheDocument()
+  })
+
   it('⭐ carries the ledger NOTE — a number without its caveat is the defect', () => {
     render(<StructureCard entry={entry()} />)
     expect(screen.getByText(/How this number was arrived at/i)).toBeInTheDocument()

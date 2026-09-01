@@ -246,7 +246,16 @@ export function StructureCard({ entry }) {
           // is a different claim from "we never looked", and collapsing them
           // would hide the ledger's actual work behind the same sentence.
           <div className={styles.refusedMeasure}>
-            <span className={styles.missingTag}>measured, not published</span>
+            {/* ⛔ "WE LOOKED AND IT DID NOT CLEAR THE BAR" IS NOT "WE HAVE
+                NOT LOOKED YET". This said "measured, not published" for every
+                refused row, including four structures with no lift run against
+                them at all -- crediting us with work we had not done. The
+                ledger row's own `measured` flag decides the wording. */}
+            <span className={styles.missingTag}>
+              {entry.evidence?.measured === false
+                ? 'not measured yet'
+                : 'measured, not published'}
+            </span>
             <ul className={styles.reasonList}>
               {reasons.map((r, i) => <li key={i}>{r}</li>)}
             </ul>
