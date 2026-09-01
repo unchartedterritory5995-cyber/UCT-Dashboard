@@ -2252,6 +2252,21 @@ def register_discord_index_close_job(scheduler):
         _run,
         trigger=CronTrigger(day_of_week="mon-fri", hour=15, minute=45, timezone=_ET),
         id="discord_index_close", replace_existing=True, max_instances=1)
+    # ⭐ A SECOND PASS, BECAUSE A DEPLOY KILLS THE FIRST ONE SILENTLY. This pod
+    # redeploys many times a day and a restart takes in-flight background work with
+    # it: on 2026-08-31 a deploy landed 6 minutes before the 15:45 fire, and two
+    # dry runs that evening were killed mid-render by unrelated pushes. The job
+    # fails CLOSED, so that outcome is total silence on a daily member-facing post
+    # with nothing reporting it.
+    # Safe to re-fire because it is idempotent TWICE OVER: the marker records the
+    # session as soon as anything posts, and `_RUN_LOCK` in the service refuses a
+    # second run while the first is still going (the 15:45 run can hold the warm
+    # gate until ~15:50, so the two CAN overlap - 13 minutes of clearance plus the
+    # lock, not one or the other).
+    scheduler.add_job(
+        _run,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=15, minute=58, timezone=_ET),
+        id="discord_index_close_retry", replace_existing=True, max_instances=1)
     return True
 
 
@@ -5147,7 +5162,15 @@ async def lifespan(app: FastAPI):
             if register_discord_index_close_job(_scheduler):
                 import os as _os
                 _armed = _os.environ.get("DISCORD_INDEX_CLOSE_ENABLED", "0").strip().lower() in ("1", "true", "on", "yes")
-                print("[startup] discord-index-close: 15:45 ET mon-fri "
+                # ⭐ READ THE SCHEDULE BACK OUT OF THE SCHEDULER. This line used to
+                # hand-type "15:45 ET mon-fri", which was already wrong the moment the
+                # 15:58 retry was added - the exact drift this repo keeps paying for
+                # (a typed claim standing beside the source that owns it). Printing
+                # the triggers means the boot artifact cannot disagree with the jobs.
+                _sched_desc = " + ".join(
+                    f"{_jid}={_j.trigger}" for _jid in ("discord_index_close", "discord_index_close_retry")
+                    for _j in [_scheduler.get_job(_jid)] if _j is not None) or "NO JOBS REGISTERED"
+                print(f"[startup] discord-index-close: {_sched_desc} "
                       f"armed={'on' if _armed else 'off'} "
                       f"webhook={'set' if _os.environ.get('DISCORD_TSDR_WEBHOOK_URL', '').strip() else 'UNSET(posts nothing)'}")
         except Exception as e:

@@ -653,3 +653,50 @@ very clunky when TradingView is very very smooth." Two rebuilds:
 Rails: 10 studies-sheet tests (editors through real doors) + wave8 probe
 11/11 + eight-gate walk green (the drawing gate now walks Tools→Draw→
 MobileDrawBar — the member's actual path).
+
+## Wave 9 (2026-09-01) — the quick-action bar: a visible door onto a selected drawing
+
+TradingView mobile's beat after you draw or tap a line: a compact floating
+action bar appears. Ours had the full editor (DrawingContextMenu, sheet mode)
+behind LONG-PRESS ONLY — a hidden gesture; a tap-selected drawing showed
+handles and zero visible actions (desktop's Delete key / right-click don't
+exist on a phone).
+
+- **`DrawingQuickBar`** (inside `ChartDrawingOverlay.jsx`, the file's inline-
+  style idiom): a bottom-center pill on coarse-pointer devices while a drawing
+  is selected — current-color **Style dot** (opens the SAME DrawingContextMenu
+  sheet the long-press opens: one editing authority), **Duplicate**, **Lock**,
+  red **Delete**. Renders only when `!activeTool && !isDragging && !ctxMenu &&
+  !textInput && !readOnly`. `quickBarInset` prop lifts it above the phone
+  shell's open MobileDrawBar (62px) vs 10px elsewhere.
+- **Post-draw auto-select (touch, repeat OFF)**: a completed placement now
+  comes up selected, so the bar appears at the exact moment you most want to
+  restyle/delete what you just placed. Mouse keeps the unselected finish.
+- **Capture-listener exemptions are the load-bearing wiring**: both the
+  document-level deselect-on-tap-away listener and the wrapper's touch-routing
+  pointerdown are CAPTURE phase — the bar's own stopPropagation runs too late
+  to save it. Each got an explicit `[data-uct-qbar]` closest() bail, and the
+  deselect listener also bails while the ctx sheet is open (so dismissing the
+  sheet no longer strips the selection — on desktop too, where menu clicks
+  used to silently drop the handles mid-edit).
+
+### The bug the rig flushed out — stale-closure drag gates (REAL, latent)
+
+`handlePointerUp` gated its cleanup on the `isDragging` CLOSURE and
+`handlePointerMove` gated its drag-apply the same way. State needs a render to
+reach a callback's closure; `dragRef` is written synchronously on pointerdown.
+A tap or drag whose events land inside ONE render window (busy phone main
+thread; the rig's synchronous dispatch) hit both: the tap's drag stuck armed
+(cursor 'grabbing', selection UI suppressed until the next tap), and a drag's
+first moves silently dropped. **Both now gate on `dragRef.current`;
+`isDragging` is the render signal only.** The kicker: the walk's reshape gate
+had been passing BY RIDING the up-bug — the pre-drag tap left `isDragging`
+stuck true, which is what let the synchronous drag's moves apply. Fixing the
+tap-stick exposed the move-gate within the same walk run. Two stale closures,
+one masking the other — the rig's synchronous dispatch is deliberately kept
+harsher than real fingers so this class stays visible.
+
+Rails: wave9 probe 16/16 (post-draw bar · above-drawbar geometry · Style→sheet
+· sheet-dismiss keeps selection · Duplicate/Lock/Delete against storage ·
+select-existing · deselect) + the walk's touch gate now REQUIRES the bar after
+placement (returns `reshaped and quick_bar`).

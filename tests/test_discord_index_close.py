@@ -518,3 +518,59 @@ def test_the_stats_strip_stamps_the_session_it_describes():
     assert st["as_of"] == "2026-08-28"
     assert compute_stats([])  == {}
     assert compute_stats(_dated([20260831]))["as_of"] == "2026-08-31"
+
+
+# -- a deploy must not be able to silence the day's post ------------------------
+# The pod redeploys many times a day and a restart takes in-flight background work
+# with it. On 2026-08-31 a deploy landed 6 minutes before the 15:45 fire; two dry
+# runs that evening were killed mid-render by unrelated pushes. The job fails
+# CLOSED, so that reads as total silence on a daily member-facing post.
+
+def test_a_second_run_cannot_overlap_the_first():
+    """⛔ The marker is written only AFTER a post lands, so two overlapping runs
+    both read "not posted yet" and both post to a PUBLIC channel. The warm gate
+    can hold a run for five minutes before it renders anything, so the window is
+    wide and real."""
+    import threading
+    idx._RUN_LOCK.acquire()
+    try:
+        rep = idx.run_close_post(**_kit(), post_fn=lambda *a: True,
+                                 now_et=_dt.datetime(2026, 8, 31, 15, 58), force=True)
+        assert rep["skipped"] == "a run is already in flight"
+        assert rep["posted"] == 0
+    finally:
+        idx._RUN_LOCK.release()
+    # released again afterwards: the guard must not wedge the job for the day
+    assert idx._RUN_LOCK.acquire(blocking=False)
+    idx._RUN_LOCK.release()
+
+
+def test_the_lock_is_released_even_when_a_gate_skips_early():
+    """Every early return is inside the lock; one that leaked would wedge the
+    retry AND every later session."""
+    for kw in ({}, {"now_et": _dt.datetime(2026, 8, 29, 15, 45)}):
+        idx.run_close_post(**_kit(), post_fn=lambda *a: True, **kw)
+        assert idx._RUN_LOCK.acquire(blocking=False), "lock leaked on an early skip"
+        idx._RUN_LOCK.release()
+
+
+def test_a_retry_pass_is_registered_and_lands_after_the_first_can_finish():
+    """The first run can hold the warm gate until ~15:50 and then render; the
+    retry has to clear that, and the marker + lock cover the rest."""
+    from apscheduler.schedulers.background import BackgroundScheduler
+    import api.main as m
+
+    sched = BackgroundScheduler(timezone=m._ET)
+    assert m.register_discord_index_close_job(sched) is True
+    first, retry = sched.get_job("discord_index_close"), sched.get_job("discord_index_close_retry")
+    assert first is not None and retry is not None, "both in APScheduler's registry"
+
+    noon = _dt.datetime(2026, 8, 28, 12, 0, tzinfo=m._ET)
+    t1 = first.trigger.get_next_fire_time(None, noon)
+    t2 = retry.trigger.get_next_fire_time(None, noon)
+    assert (t1.hour, t1.minute) == (15, 45)
+    assert t2.date() == t1.date(), "the retry is the SAME session, not tomorrow's"
+    gap = (t2 - t1).total_seconds()
+    # clear of the worst-case first run: the full warm wait plus its renders
+    assert gap > idx.WARM_MIN_UPTIME_S, f"retry only {gap}s after the first"
+    assert gap < 30 * 60, "still into the close, not after it"

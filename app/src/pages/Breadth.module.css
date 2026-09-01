@@ -147,6 +147,12 @@
 /* ── Body cells ──────────────────────────────────────────────────────────────── */
 .td {
   padding: 6px 12px;
+  /* FIXED height (border-box) — every Monitor row is exactly 32px so the virtual
+     scroller's scroll-to-index is pixel-exact across all ~4,700 sessions. Content
+     is single-line (the table is white-space:nowrap), so nothing pushes past it.
+     Must match MONITOR_ROW_H in Breadth.jsx. */
+  height: 32px;
+  box-sizing: border-box;
   /* Centered: each cell is a coloured heatmap tile, so the value reads best
      sitting in the middle of its tile rather than hugging the right edge. */
   text-align: center;
@@ -1580,6 +1586,15 @@ tbody tr { cursor: pointer; }
   font-weight: 700;
 }
 .reconRow .dateCell { opacity: 0.9; }
+
+/* A row whose metrics haven't been fetched yet — the date is known from the
+   timeline index, the values fill in when its block lands. A faint centered dot
+   keeps the grid from flickering as blocks load during a scroll. */
+.skeletonRow .dateCell { opacity: 0.6; }
+.skelDot {
+  color: var(--text-muted, #6b7280);
+  opacity: 0.35;
+}
 
 /* A value carried from last night is NOT a live reading. Same treatment as a
    stale AAII survey, because it is the same fact about the number. */

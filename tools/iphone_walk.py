@@ -253,6 +253,12 @@ def touch_walk(ctx, page):
     print('  drawing persisted:', ok)
     if not ok:
         return False
+    # Wave 9: a completed drawing comes up SELECTED on touch, so the floating
+    # quick-action bar (Style/Duplicate/Lock/Delete) appears — TradingView's
+    # post-draw beat. Part of this gate: no bar = the visible editing door on
+    # phones has regressed to long-press-only.
+    quick_bar = page.locator('[data-uct-qbar]').count() == 1
+    print('  quick-action bar after placement:', quick_bar)
 
     # ── RESHAPE BY TOUCH: select the line, drag anchor 2 to a new spot, and
     # assert the persisted points MOVED. This is the grab-handle gate — it
@@ -291,7 +297,7 @@ def touch_walk(ctx, page):
         print('  drawing cleaned up after gates: True (rig-level clear)')
     else:
         print('  drawing cleaned up after gates: True (Delete)')
-    return reshaped
+    return reshaped and quick_bar
 
 
 def golive_walk(ctx, page):
