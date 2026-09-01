@@ -94,6 +94,76 @@ def may_synthesize(market_date: str) -> bool:
     return True
 
 
+#: The lanes a MEMBER triggers, by the `ticker` prefix each one records under.
+#: ⛔ SIX LANES SHARE ONE DAILY BUDGET and two of them are member-triggered:
+#: `definition_concierge` (English → a scan, SHIPPED AND UNFLAGGED) and
+#: `indicator_from_image` (a screenshot → a formula). The other four — synthesis,
+#: hunter, curator, rule_learner — are SCHEDULED: they run on a cron, nobody asks
+#: for them, and if they do not run the member-facing product silently loses its
+#: morning catalyst table.
+MEMBER_LANE_PREFIXES = ("concierge:", "indicator-vision:")
+
+
+def scheduled_reserve_usd() -> float:
+    """The slice of the daily cap that member-triggered lanes may NOT consume."""
+    return float(os.environ.get("SCHEDULED_LANE_RESERVE_USD", "6.00"))
+
+
+def may_member_spend(market_date: str) -> bool:
+    """The gate a MEMBER-TRIGGERED lane asks. Tighter than `may_synthesize`.
+
+    ⛔⛔ MEASURED, NOT FEARED: with the concierge's own per-user cap at $0.75/day,
+    **20 members** using their allowance take the shared spend from $0 to the
+    $15 hard cap, at which point `may_synthesize` returns False and the SCHEDULED
+    catalyst lanes stop for the rest of the day. Fewer than 20 in practice, since
+    the catalyst engine itself spends $2-4. The morning catalyst table then does
+    not get built, for a reason with nothing to do with catalysts, and nothing
+    anywhere connects the two.
+
+    ⭐ A PER-USER CAP DOES NOT BOUND A POPULATION. The concierge already caps ONE
+    member at $0.75; what was missing is any bound on N members together. This is
+    that bound, and it is expressed as a FLOOR FOR THE SCHEDULED LANES rather than
+    a ceiling for members, because the floor is the property actually wanted:
+    stopping member lanes once total spend reaches ``hard - reserve`` leaves
+    ``reserve`` for the lanes nobody asked for, whatever order the spending
+    arrives in.
+
+    ⚠️ THE FLOOR IS ``reserve`` MINUS ONE IN-FLIGHT CALL, and saying "by
+    construction" would be an overclaim — a rail written for this caught it. The
+    gate is asked BEFORE a call and the call then spends, so the last admitted
+    member crosses the line by their own call's cost: measured, a $4 scheduled day
+    plus members at $0.75 each leaves $5.75 against a $6 reserve. That is why the
+    reserve is set well above any single call rather than trimmed to the expected
+    catalyst spend — the overshoot is bounded by one call, and $6 against a $0.75
+    member call absorbs it with room to spare. Checking after the spend would
+    close the gap and would mean billing for a call in order to discover it was
+    not allowed.
+
+    ⭐ AND THE TOTAL CEILING DOES NOT MOVE. The product already chose $15/day as
+    its AI ceiling; this changes who may spend the last $6 of it, not how much
+    exists. Giving member lanes their own separate budget would have been the
+    other obvious design and it doubles worst-case spend — a money decision, not
+    a correctness one, so it is not taken here.
+
+    ⚠️ IT COUNTS TOTAL SPEND, NOT MEMBER SPEND, and that is deliberate: the
+    guarantee is about what REMAINS for the scheduled lanes, which only a total
+    can answer. The cost is that a heavy catalyst day leaves members less room —
+    acceptable, because the catalyst engine's measured $2-4 sits well inside the
+    reserve and the member lanes still have the rest.
+    """
+    hard = float(os.environ.get("CATALYST_COST_HARD_CAP", "15.00"))
+    ceiling = max(0.0, hard - scheduled_reserve_usd())
+    spent = store.cost_stats_for_date(market_date).get("total_cost_usd", 0.0)
+    if spent >= ceiling:
+        logger.warning(
+            "[cost_guard] member-lane ceiling reached for %s: $%.2f >= $%.2f "
+            "(hard $%.2f minus a $%.2f reserve the scheduled lanes keep). "
+            "Member-triggered AI is paused; scheduled jobs continue.",
+            market_date, spent, ceiling, hard, scheduled_reserve_usd())
+        return False
+    return True
+
+
 def record(market_date: str, ticker: str, model: str,
            input_tokens: int, output_tokens: int,
            was_cached: bool = False, search_requests: int = 0,

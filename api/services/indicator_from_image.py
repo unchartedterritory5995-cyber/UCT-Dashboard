@@ -468,7 +468,11 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
     # ⭐ THE SAME DAY KEY THE OTHER AI DOOR FILES UNDER. Two spellings of "today"
     # would file two doors' spend under two dates and quietly double the cap.
     market_date = concierge._market_date()
-    if not cost_guard.may_synthesize(market_date):
+    # ⛔ THE MEMBER-LANE GATE. This door is member-triggered and unbounded in
+    # frequency — a member can upload as many pictures as they like — so asking
+    # the SCHEDULED lanes' gate would let uploads consume the budget the catalyst
+    # engine needs. See `cost_guard.may_member_spend`.
+    if not cost_guard.may_member_spend(market_date):
         return _refusal("vision:spend-cap")
 
     try:
