@@ -644,8 +644,24 @@ describe('focus is trapped inside the panel', () => {
     .querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
       + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
 
-  it('`Sheet` itself ships no trap — the premise, asserted rather than assumed', () => {
-    expect(/Tab/.test(read('app/src/components/mobile/Sheet.jsx'))).toBe(false)
+  it('⚰️ `Sheet` NOW SHIPS A TRAP — this premise has been overtaken', () => {
+    // This case asserted `Sheet` contained no 'Tab' at all, which was true and
+    // was the reason BuilderSheet rolled its own. `Sheet` gained a real trap on
+    // 2026-09-01 (nesting-aware, mutation-verified, 6 cases of its own), so the
+    // premise is now the opposite and the assertion is inverted rather than
+    // deleted — a stale premise quietly removed is how the next reader inherits
+    // a duplicate nobody can explain.
+    //
+    // ⚠️ BUILDER'S OWN `trapTab` IS THEREFORE REDUNDANT and is deliberately
+    // still here. Both fire (Sheet's on document during CAPTURE, Builder's on
+    // the element) and compute the same ring, so they agree — but that is two
+    // authorities over one behaviour. SIX components rolled their own trap
+    // while the primitive had none: BuilderSheet, IndicatorSettingsDialog,
+    // SymbolSearch, EarningsResearchModal, StatementPanels and ColumnDesc.
+    // Removing them belongs in its own change with its own sweep across all
+    // six, not tacked onto the primitive's fix.
+    expect(/e\.key !== 'Tab'/.test(read('app/src/components/mobile/Sheet.jsx')))
+      .toBe(true)
   })
 
   it('Tab from the LAST control wraps to the first, and Shift+Tab from the first to the last', async () => {
