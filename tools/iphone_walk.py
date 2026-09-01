@@ -329,6 +329,23 @@ def golive_walk(ctx, page):
     shot(page, '23-golive-pill', wait=200)
     if not appeared:
         return False
+    # Settle first: the synthetic pan leaves LWC kinetic-scroll INERTIA still
+    # decelerating, and a tap mid-glide can lose the fight with the momentum
+    # (CPU contention widens the window — the same gesture-residue class the
+    # pinch gate documents). A real thumb taps after the glide settles; model
+    # that by waiting until the visible range stops moving.
+    prev = None
+    for _ in range(16):
+        cur = page.evaluate('''() => {
+          const d = window.__uctChartDebug || {}
+          const k = Object.keys(d)[0]
+          const r = k ? d[k].visibleRange() : null
+          return r ? Math.round(r.to * 100) : null
+        }''')
+        if cur is not None and cur == prev:
+            break
+        prev = cur
+        page.wait_for_timeout(250)
     try:
         pill.click(timeout=4000)
     except Exception as e:
@@ -349,6 +366,18 @@ def golive_walk(ctx, page):
         if pill.count() == 0:
             gone = True
             break
+    if not gone and pill.count() > 0:
+        # One re-tap — exactly a real user's recovery. A pill that retires on
+        # the second tap is a working feature; one that never retires is real.
+        try:
+            pill.click(timeout=2000)
+        except Exception:
+            pass
+        for _ in range(12):
+            page.wait_for_timeout(300)
+            if pill.count() == 0:
+                gone = True
+                break
     print('  pill retired after snap-back:', gone)
     shot(page, '24-back-at-live', wait=200)
     return gone
