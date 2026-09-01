@@ -68,17 +68,75 @@ export default function Sheet({
   useEffect(() => {
     if (!open) return
     restoreFocusRef.current = document.activeElement
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      // Only the topmost open Sheet answers Escape. Sheets nest (a chart
-      // pop-out inside the phone earnings modal), every one listens here on
-      // the same node, and stopPropagation cannot stop a sibling listener —
-      // the OUTER sheet, registered first, would close the whole report. The
-      // portals append to <body> in mount order, so the last panel is the top.
+    // ⛔ THE TOPMOST OPEN SHEET ANSWERS, AND ONLY IT. Sheets nest (a chart
+    // pop-out inside the phone earnings modal), every one listens here on the
+    // same node, and stopPropagation cannot stop a sibling listener — the
+    // OUTER sheet, registered first, would close the whole report. The portals
+    // append to <body> in mount order, so the last panel is the top. Both the
+    // Escape close and the Tab trap below share this test; two copies of it is
+    // how they would drift apart.
+    const isTopmost = () => {
       const panels = document.querySelectorAll('[data-sheet-panel]')
-      if (panels.length && panels[panels.length - 1] !== panelRef.current) return
-      e.stopPropagation()
-      onClose?.()
+      return !panels.length || panels[panels.length - 1] === panelRef.current
+    }
+
+    const FOCUSABLE = [
+      'a[href]', 'button:not([disabled])', 'input:not([disabled])',
+      'select:not([disabled])', 'textarea:not([disabled])', 'summary',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',')
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (!isTopmost()) return
+        e.stopPropagation()
+        onClose?.()
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      // ⛔⛔ WITHOUT THIS, TAB WALKS OUT OF THE DIALOG INTO THE PAGE BEHIND IT.
+      // `aria-modal="true"` constrains a screen reader's virtual cursor and
+      // does NOT constrain Tab — a keyboard user tabbed straight out of the
+      // panel into content the modal is covering, with no way back but
+      // Shift+Tab through everything. This file's own header and CLAUDE.md
+      // both claimed a "focus-trap" that did not exist.
+      const panel = panelRef.current
+      if (!panel || !isTopmost()) return
+      // ⛔ NOT `offsetParent !== null`. That is the obvious visibility test and
+      // it is ALWAYS null in jsdom, which computes no layout — so the filter
+      // removed every candidate, the "nothing focusable" branch fired, and the
+      // trap did nothing while its tests said otherwise. Explicit hiding is
+      // what actually matters here and is readable without a layout pass.
+      const hidden = (n) =>
+        n.hasAttribute('hidden') ||
+        n.getAttribute('aria-hidden') === 'true' ||
+        n.closest('[hidden],[aria-hidden="true"]') !== null ||
+        n.style.display === 'none' ||
+        n.style.visibility === 'hidden'
+      const nodes = [...panel.querySelectorAll(FOCUSABLE)].filter(n => !hidden(n))
+      if (!nodes.length) {
+        // Nothing focusable inside: keep focus on the panel rather than
+        // letting Tab escape to the page underneath.
+        e.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      const active = document.activeElement
+      if (!panel.contains(active)) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+        return
+      }
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', onKey, true)
     // Focus the panel for screen readers / Escape handling
