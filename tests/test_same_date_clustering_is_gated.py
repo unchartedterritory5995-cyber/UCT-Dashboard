@@ -489,3 +489,75 @@ def test_rho_and_its_interval_are_a_coherent_measurement():
         f"the widest rho interval is {max(widths):.4f} — the bootstrap has "
         f"collapsed and the conservative gate is the point gate wearing a "
         f"different name")
+
+
+# ── hits_real / hits_simulated: does the SHAPE mean anything? ───────────────
+
+NOISE_FIRING = ROOT / "docs/noise_firing_rate.json"
+
+
+def _noise():
+    return json.loads(NOISE_FIRING.read_text(encoding="utf-8"))
+
+
+def test_every_published_row_declares_how_often_it_fires_on_noise():
+    """⭐⭐ THE RESEARCH ASKED FOR THIS BY NAME. `12-academic-algorithmic-
+    detection.md` calls it "the highest-value non-obvious build in the whole
+    file": *for every pattern you ship, publish hits_real / hits_simulated*.
+    The ledger's null compared OUTCOMES and never FIRING RATES, so a detector
+    could clear every gate while naming a shape a random walk produces just as
+    often."""
+    naked = [k for k, v in _published().items()
+             if not isinstance(v.get("noise_firing_ratio"), (int, float))]
+    assert not naked, (
+        f"published without a noise firing ratio: {naked}. Re-run "
+        f"tools/measure_noise_firing_rate.py — a shipped pattern must say how "
+        f"often it fires on a series with no long-range order.")
+
+
+def test_the_finding_is_recorded_where_the_numbers_are():
+    lim = ll.load().get("limitations") or ""
+    assert "hits_real / hits_simulated" in lim, (
+        "the ledger no longer carries the firing-rate finding")
+    for must in ("NOT RARE", "does NOT invalidate"):
+        assert must in lim, (
+            f"the note lost {must!r}: it must carry BOTH that the shapes are "
+            f"common AND the precise limit of what that overturns — one "
+            f"without the other is either alarmism or a whitewash")
+
+
+def test_the_ratios_on_the_rows_match_the_artifact():
+    """⛔ TWO FILES, ONE VALUE."""
+    art = _noise()["structures"]
+    for key, row in _published().items():
+        if key not in art:
+            continue
+        assert row["noise_firing_ratio"] == pytest.approx(art[key]["ratio"]), (
+            f"{key}: the ledger says {row['noise_firing_ratio']} and the "
+            f"measurement says {art[key]['ratio']}")
+
+
+def test_a_ratio_is_never_claimed_without_a_denominator():
+    """⛔ An unmeasurable result must not wear a measured one's clothes. If a
+    detector never fired on ANY shuffled series the ratio is not infinite — it
+    is unmeasured at that sample size, and the artifact must say null."""
+    for key, m in _noise()["structures"].items():
+        if m["noise_fired"] == 0:
+            assert m["ratio"] is None, (
+                f"{key} never fired on noise yet carries a ratio of "
+                f"{m['ratio']} — that number has no denominator")
+        else:
+            assert m["ratio"] is not None
+
+
+def test_the_null_here_is_the_one_the_gates_use():
+    """⭐ A DIFFERENTLY-WRONG NULL WOULD MAKE THIS UNCOMPARABLE to the lift
+    gates. The firing rates must come from the same moving-block shuffle, at
+    the same seed, that `null_lifts` grades outcomes against."""
+    art = _noise()
+    assert art["null_seed"] == ll.NULL_SEED, (
+        f"the firing-rate null used seed {art['null_seed']} and the ledger "
+        f"grades against {ll.NULL_SEED} — two different nulls")
+    assert art["step_bars"] == ll.HORIZON_BARS, (
+        "the firing-rate measurement walked a different anchor grid than the "
+        "ledger's own")
