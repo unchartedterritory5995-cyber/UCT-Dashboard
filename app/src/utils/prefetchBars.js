@@ -366,6 +366,41 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
   }
 }
 
+// ── "A scrollable list just appeared" — warm the WHOLE list up front ─────────
+// One call, fired the instant a list of tickers becomes visible: a theme
+// expanded, a watchlist opened, a Breadth drill-down opened, scanner results.
+// The promise: open a list → its whole set warms → scroll it as fast as you like,
+// every chart instant. It composes the durable warmers above, so it inherits ALL
+// their guardrails — bounded concurrency (≤3), idle-deferral behind the active
+// chart, the pack-ingest hold, and the 503 backpressure backoff. Nothing here can
+// stampede the server or starve the chart the user is looking at.
+//
+//   1) The on-screen timeframe, durable + IMMEDIATE + priority — a click on one of
+//      these rows is imminent, so jump the queue and start the pump now (the chart
+//      being left is already painted, so the burst competes with no cold fetch).
+//   2) The remaining scan timeframes into durable IDB (bounded; capped inside).
+//   3) Promote the TOP rows straight to the sync mem cache so the first few scrolls
+//      paint in the SAME frame (no async idbGet hop), top-first = what's on screen.
+//
+// `cap` bounds the daily warm so a pathologically huge list can't flood the queue
+// (top-first, so the rows a user will actually reach soon are covered). Kill switch:
+// localStorage['uct.listprewarm.off'] = '1' disables it instantly, per browser.
+export function listPrewarmDisabled() {
+  try { return localStorage.getItem('uct.listprewarm.off') === '1' } catch { return false }
+}
+
+export function prewarmVisibleList(tickers, { chartTf = 'D', memTop = 40, cap = 500 } = {}) {
+  if (listPrewarmDisabled()) return
+  const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
+  if (!list.length) return
+  prefetchBarsToIDB(list, 'D', { priority: true, immediate: true })
+  if (chartTf && chartTf !== 'D') {
+    prefetchBarsToIDB(list, chartTf, { priority: true, immediate: true })
+  }
+  prefetchListAllTimeframes(list)
+  warmMemFromIDB(list.slice(0, memTop))
+}
+
 // ── Deep-history prefetch (SWR + server-cache warm) ──────────────────────────
 // The warmers above cover only the shallow first-paint window (FIRST_PAINT_BARS).
 // DEEP history — the pre-2024 tail you see when a Weekly/Monthly chart is zoomed

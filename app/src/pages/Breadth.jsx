@@ -9,7 +9,7 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent, SkeletonTable } from '../components/Skeleton'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
-import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
+import { prefetchBars, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
 import { formatETFull } from '../utils/timeAgo'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
@@ -380,16 +380,17 @@ function DrillModal({ drill, latestDate, onClose }) {
   // Reset the cursor whenever the view shape changes.
   useEffect(() => { setSelectedIdx(0) }, [viewMode, dimension])
 
-  // When the drill list first loads, immediately prefetch ALL tickers into the
-  // browser's SWR cache. For tickers already in server SQLite (the vast majority),
-  // each request returns in <5ms via stale-while-revalidate. This means all 95+
-  // items are client-cached before the user clicks any of them → zero spinner.
+  // When the drill list first loads, warm the WHOLE list up front into durable IDB
+  // (daily immediately + the other scan TFs + the top rows into mem) so scrolling
+  // this list — often hundreds of names — is instant from the first row, and stays
+  // instant across reloads. Bounded/deferred/backpressure-guarded inside
+  // prewarmVisibleList; already-warm tickers skip. (Was a mem-only daily warm.)
   const prefetchedListRef = useRef(null)
   useEffect(() => {
     if (!items.length || prefetchedListRef.current === items) return
     prefetchedListRef.current = items
-    prefetchBars(items.map(i => i.t), 'D')
-  }, [items])
+    prewarmVisibleList(items.map(i => i.t), { chartTf: chartPeriod })
+  }, [items, chartPeriod])
 
   // Sliding window ahead of cursor for arrow-key scanning (keeps adjacent tickers hot).
   useEffect(() => {

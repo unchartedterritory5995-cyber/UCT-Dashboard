@@ -24,6 +24,7 @@ vi.mock('../components/chart/pane/ChartPane', () => ({ default: () => null }))
 vi.mock('../utils/prefetchBars', () => ({
   prefetchBars: () => {}, prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {},
   prefetchBarOnIntent: () => {}, prefetchListAllTimeframes: () => {}, warmMemFromIDB: () => {},
+  prewarmVisibleList: () => {},
 }))
 vi.mock('../lib/chartReadoutStore', () => ({
   subscribeChartReadouts: () => () => {}, getChartReadout: () => null, hasFreshReadouts: () => false,
