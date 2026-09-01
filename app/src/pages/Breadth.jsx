@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
 import useSWR from 'swr'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
 import BreadthCharts from './BreadthCharts'
@@ -867,14 +868,6 @@ export default function Breadth() {
   const [viewsDays, setViewsDays] = useState(urlInitial.days ?? 90)
   const isViewsTab = activeTab === 'heatmap'
   const effectiveDays = isViewsTab ? viewsDays : MONITOR_WINDOW
-  // Monitor Time Navigator: the window is a fixed span (MONITOR_WINDOW); this is
-  // the date it ENDS on. null = the latest window (with today's live row on top).
-  // `anchor` is the backend snap rule — 'le' for a picked/typed date, 'ge' for a
-  // year jump (→ that year's first session). Only applied on the Monitor tab, so
-  // switching tabs never carries a back-in-time window onto Views/Overview.
-  const [monitorEndDate, setMonitorEndDate] = useState(null)
-  const [monitorAnchor, setMonitorAnchor] = useState('le')
-  const monitorEnd = activeTab === 'breadth' ? monitorEndDate : null
 
   /**
    * 🔴 THE LINK IS AN ENTRY CONDITION FOR THE PAGE VISIT — NOT FOR EVERY MOUNT.
@@ -954,10 +947,24 @@ export default function Breadth() {
    * is read at all, so they cannot see this either way.
    */
   const { data, isLoading, isValidating, error } = useSWR(
-    `/api/breadth-monitor?days=${effectiveDays}${monitorEnd ? `&end=${monitorEnd}&anchor=${monitorAnchor}` : ''}`,
+    `/api/breadth-monitor?days=${effectiveDays}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
+
+  // ── Monitor tab: the whole timeline, for an infinitely-scrollable sheet ──────
+  // The Monitor is a virtualized grid over EVERY session back to the reconstructed
+  // floor (~2008). A small recent window paints instantly; the full history loads
+  // right behind it so a teleport to any date is an instant scroll-to-index (no
+  // per-jump fetch). Both only fire on the Monitor tab.
+  const monitorRecent = useSWR(
+    activeTab === 'breadth' ? '/api/breadth-monitor?days=250' : null,
+    fetcher, { refreshInterval: 5 * 60 * 1000, keepPreviousData: true })
+  const monitorFull = useSWR(
+    activeTab === 'breadth' ? '/api/breadth-monitor?days=8000' : null,
+    fetcher, { revalidateOnFocus: false, keepPreviousData: true })
+  const monitorData = monitorFull.data ?? monitorRecent.data ?? null
+  const monitorFullLoaded = !!monitorFull.data
   /**
    * ⛔ `isLoading` (`!data && isValidating`) is permanently false here once any
    * window has loaded once this session — `keepPreviousData` means `data` is
@@ -1017,45 +1024,56 @@ export default function Breadth() {
   // The backend withholds the live read the moment the 4:15 collector writes
   // today's row, so an estimate never sits beside the number it estimated.
   const liveBreadth = useLiveBreadth({ enabled: activeTab === 'breadth' || activeTab === 'heatmap' || activeTab === 'overview' })
-  // Today's provisional row only belongs on top when we're at the LATEST window.
-  // Once the Time Navigator has teleported back in time (`monitorEnd` set), the
-  // top row is a finished past session — prepending today would misdate it.
+  // Views/Overview read the latest window, today's live row on top.
   const rows = useMemo(
-    () => (liveBreadth.row && !monitorEnd ? [liveBreadth.row, ...storedRows] : storedRows),
-    [liveBreadth.row, storedRows, monitorEnd],
+    () => (liveBreadth.row ? [liveBreadth.row, ...storedRows] : storedRows),
+    [liveBreadth.row, storedRows],
   )
 
-  // ── Time Navigator handlers (Monitor tab) ─────────────────────────────────
-  // Each sets where the fixed window ENDS. The window is derived backward from
-  // that top row, so the sheet "teleports" without changing how much it shows.
-  const onDateStep = useCallback((dir) => {
-    if (dir < 0) {
-      // The top row's OLDER neighbour is already in the window (rows[1]).
-      const older = rows[1]?.date
-      if (older) { setMonitorAnchor('le'); setMonitorEndDate(older) }
-    } else {
-      // The NEWER neighbour sits outside the window — the backend named it. At
-      // the newest day, step back to the live window (null).
-      const nd = data?.next_date
-      if (!nd || (data?.max_date && nd >= data.max_date)) setMonitorEndDate(null)
-      else { setMonitorAnchor('le'); setMonitorEndDate(nd) }
-    }
-  }, [rows, data])
+  // ── Monitor grid: the FULL timeline, virtualized + infinitely scrollable ──
+  const monitorStored = useMemo(() => monitorData?.rows ?? [], [monitorData])
+  const monitorRows = useMemo(
+    () => (liveBreadth.row ? [liveBreadth.row, ...monitorStored] : monitorStored),
+    [liveBreadth.row, monitorStored],
+  )
+  const tableWrapRef = useRef(null)
+  const rowVirtualizer = useVirtualizer({
+    count: monitorRows.length,
+    getScrollElement: () => tableWrapRef.current,
+    estimateSize: () => 33,
+    overscan: 16,
+  })
+  const virtualItems = rowVirtualizer.getVirtualItems()
+  const monitorTopIndex = virtualItems[0]?.index ?? 0
+  const monitorTopDate = monitorRows[monitorTopIndex]?.date ?? null
 
+  const monitorScrollTo = useCallback((idx, align = 'start') => {
+    if (idx == null || idx < 0 || !monitorRows.length) return
+    rowVirtualizer.scrollToIndex(Math.min(idx, monitorRows.length - 1), { align })
+  }, [rowVirtualizer, monitorRows.length])
+
+  // Teleport = an instant scroll-to-index over the loaded timeline (no fetch).
   const onDatePick = useCallback((iso) => {
-    setMonitorAnchor('le')
-    // Picking the newest day or later returns to the live window.
-    if (data?.max_date && iso >= data.max_date) setMonitorEndDate(null)
-    else setMonitorEndDate(iso)
-  }, [data])
+    let idx = monitorRows.findIndex(r => r.date === iso)
+    if (idx < 0) idx = monitorRows.findIndex(r => r.date <= iso)   // nearest session on/before
+    monitorScrollTo(idx < 0 ? monitorRows.length - 1 : idx)
+  }, [monitorRows, monitorScrollTo])
 
   const onYearPick = useCallback((y) => {
     const jan1 = `${y}-01-01`
-    // The current year lands on the live window if it has no room to look back.
-    if (data?.max_date && jan1 >= data.max_date) { setMonitorEndDate(null); return }
-    // 'ge' snaps to that year's FIRST session — the start of the year.
-    setMonitorAnchor('ge'); setMonitorEndDate(jan1)
-  }, [data])
+    // "Start of that year" = its first session = the oldest date ≥ Jan 1 (the
+    // highest index in this newest-first list whose date is still in/after the year).
+    let idx = -1
+    for (let i = monitorRows.length - 1; i >= 0; i--) {
+      if (monitorRows[i].date >= jan1) { idx = i; break }
+    }
+    monitorScrollTo(idx < 0 ? 0 : idx)
+  }, [monitorRows, monitorScrollTo])
+
+  const onDateStep = useCallback((dir) => {
+    // ◀ (dir<0) steps to an OLDER day = one row down; ▶ steps newer = one row up.
+    monitorScrollTo(Math.max(0, monitorTopIndex + (dir < 0 ? 1 : -1)))
+  }, [monitorTopIndex, monitorScrollTo])
 
   const lastUpdated = storedRows[0]?._created_at
     ? formatETFull(storedRows[0]._created_at + 'Z')
@@ -1081,16 +1099,18 @@ export default function Breadth() {
     return keys
   }, [visibleCols])
 
+  // Sparkline trails for the Monitor table — built over the full (monitor) set so
+  // a reconstructed row's 10-day trail is complete, not truncated at a window edge.
   const sparkData = useMemo(() => {
     const out = {}
     const sparkCols = COLS.filter(c => c.type === 'sparkline')
     if (!sparkCols.length) return out
-    // rows is newest-first; reverse to get oldest-first
-    const asc = [...rows].reverse()
+    // monitorRows is newest-first; reverse to get oldest-first
+    const asc = [...monitorRows].reverse()
     const dateToIdx = Object.fromEntries(asc.map((r, i) => [r.date, i]))
     for (const col of sparkCols) {
       out[col.key] = {}
-      for (const row of rows) {
+      for (const row of monitorRows) {
         const idx = dateToIdx[row.date]
         if (idx != null) {
           out[col.key][row.date] = asc
@@ -1100,7 +1120,7 @@ export default function Breadth() {
       }
     }
     return out
-  }, [rows])
+  }, [monitorRows])
 
   if (activeTab === 'overview') {
     return (
@@ -1156,15 +1176,19 @@ export default function Breadth() {
       <PageHeader icon="breadth" title="Breadth">
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         <span className={styles.meta}>
-          {rows.length > 0
-            ? (windowMismatch
-                ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
-            : isLoading ? 'Loading…' : 'No data'}
+          {isViewsTab
+            ? (rows.length > 0
+                ? (windowMismatch
+                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
+                : isLoading ? 'Loading…' : 'No data')
+            : (monitorRows.length > 0
+                ? `${monitorRows.length.toLocaleString()} sessions${monitorFullLoaded ? '' : ' · loading history…'}${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : monitorRecent.isLoading ? 'Loading…' : 'No data')}
         </span>
         {isViewsTab ? (
           // Views keeps its window pills (a lens is defined by how many sessions
-          // it spans). The Monitor sheet instead teleports to any date in time.
+          // it spans). The Monitor sheet instead scrolls freely across all time.
           <div className={styles.daysPills}>
             {VIEWS_DAY_CHOICES.map(d => (
               <button
@@ -1178,10 +1202,10 @@ export default function Breadth() {
           </div>
         ) : (
           <BreadthDateNav
-            topDate={rows[0]?.date ?? null}
-            minDate={data?.min_date ?? null}
-            maxDate={data?.max_date ?? null}
-            canForward={!!monitorEnd}
+            topDate={monitorTopDate}
+            minDate={monitorData?.min_date ?? null}
+            maxDate={monitorData?.max_date ?? null}
+            canForward={monitorTopIndex > 0}
             onStep={onDateStep}
             onPickDate={onDatePick}
             onPickYear={onYearPick}
@@ -1251,7 +1275,7 @@ export default function Breadth() {
         </UnmountReporter>
       )}
 
-      {rows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
+      {monitorRows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
           All metrics hidden — open <strong>Customize</strong> to show some.
         </div>
@@ -1262,10 +1286,10 @@ export default function Breadth() {
           and it disappears the moment the 4:15 collector makes it one. It only
           belongs above the LATEST window; teleported back in time, "today" has
           no business sitting over a historical sheet. */}
-      {activeTab === 'breadth' && !monitorEnd && <LiveSessionStrip live={liveBreadth} />}
+      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
 
-      {rows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
-        <div className={styles.tableWrap}>
+      {monitorRows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
+        <div className={styles.tableWrap} ref={tableWrapRef}>
           <table className={styles.table}>
             <thead>
               {/* Single column-label row — the colored group-header strip was
@@ -1294,8 +1318,19 @@ export default function Breadth() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, ri) => (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
+              {/* Virtualized: only the visible slice of the full timeline is in
+                  the DOM, so scrolling 18 years of sessions stays smooth. Spacer
+                  rows hold the scroll height above and below the rendered window. */}
+              {virtualItems.length > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={visibleCols.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
+                </tr>
+              )}
+              {virtualItems.map((vi) => {
+                const row = monitorRows[vi.index]
+                const ri = vi.index
+                return (
+                <tr key={row.date} ref={rowVirtualizer.measureElement} data-index={ri} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
                     {row._live
                       ? (
@@ -1412,7 +1447,13 @@ export default function Breadth() {
                     )
                   })}
                 </tr>
-              ))}
+                )
+              })}
+              {virtualItems.length > 0 && (
+                <tr aria-hidden="true">
+                  <td colSpan={visibleCols.length + 1} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
