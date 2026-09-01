@@ -932,6 +932,11 @@ function ChartToolbar({
   // this strip hides ENTIRELY (its dialogs still portal out, its imperative
   // ref API still serves — only the desktop presentation goes).
   hiddenHost = false,
+  // Theme class for the Sheet-hosted dialogs this toolbar mounts (the indicator
+  // library) — the Sheet portals to <body>, escaping the workspace's scoped
+  // theme tokens, so a Sunrise chart otherwise gets a hard-dark library while
+  // every sibling sheet flips. StockChart derives it from canvasTheme.
+  sheetClassName = '',
   activeTool, setActiveTool,
   color, setColor,
   lineWidth, setLineWidth,
@@ -1522,6 +1527,7 @@ function ChartToolbar({
             settings={cs}
             onChange={onUpdateSettings}
             registry={engineRegistry}
+            sheetClassName={sheetClassName}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry

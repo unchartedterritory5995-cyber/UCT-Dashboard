@@ -63,6 +63,13 @@ import styles from './IndicatorChip.module.css'
  *   the menu's title, its `Hide <label>` row and the alert address it opens on
  *   are all per-PLOT. The row is already in hand here; the caller would otherwise
  *   have to look it up and pick the first, which is a guess.
+ * @param {Function} [onBodyTap]      (chip) => void — a plain tap/click on the chip
+ *   BODY (TradingView's tap-the-legend-name → settings). Passed only by mounts
+ *   that have somewhere native to send it (the phone shell's editor sheet);
+ *   absent, the body stays inert exactly as Task 4 shipped it. Like `onMenu` it
+ *   takes THE ROW — the tapped chip names the exact instance, which is the
+ *   whole point over a first-live lookup. `useLongPress`'s click-capture
+ *   swallow keeps a fired long-press from also counting as a tap.
  * @param {object}   [repaint]        `engine/repaintVerdict.plotRepaintNotice` for
  *   THIS chip's plot, or null. `{mode, label, sentence, forward}`.
  *
@@ -81,7 +88,7 @@ import styles from './IndicatorChip.module.css'
  *   measured problem, and nothing at all otherwise.
  */
 export default function IndicatorChip({
-  chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu, repaint,
+  chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu, onBodyTap, repaint,
 }) {
   const interactive = typeof onToggleHidden === 'function'
     && typeof onOpenSettings === 'function'
@@ -136,6 +143,13 @@ export default function IndicatorChip({
           + 'than the history loaded here; try a longer timeframe or a shorter length.'
         : (interactive ? `${chip.label} — right-click for options` : undefined)}
       {...(interactive ? longPress : null)}
+      /* The body tap short-circuits like `openMenu`, and stops propagation for
+         the same reason the controls do — a tap on the chip must not also reach
+         the wrapper underneath. The controls' own stopPropagation keeps their
+         clicks from ever arriving here. */
+      onClick={typeof onBodyTap === 'function'
+        ? (e) => { e.stopPropagation(); onBodyTap(chip) }
+        : undefined}
     >
       {chip.text}
       {repaint && (

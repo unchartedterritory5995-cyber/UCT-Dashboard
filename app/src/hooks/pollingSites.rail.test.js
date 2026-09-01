@@ -287,19 +287,13 @@ const BARE_POLL_SITES = {
   'app/src/hooks/useWatchlistMeta.js': 1,
   'app/src/hooks/useWatchlistPerformance.js': 1,
   'app/src/hooks/useWatchlistThemes.js': 1,
-  // ⭐ 2 → 3 with the infinitely-scrollable Monitor (84dd966ac). `monitorRecent`
-  // is a THIRD bare site and it takes the same decision the two above it already
-  // took, for reasons that hold on its own terms:
-  //   • it is TAB-GATED — `activeTab === 'breadth' ? url : null` — so it does not
-  //     tick at all unless the Monitor is the tab on screen;
-  //   • it matches its sibling two lines above EXACTLY (5 min, keepPreviousData),
-  //     and two pollers of one endpoint on two cadences is the drift worth avoiding;
-  //   • the Monitor is a virtualized desktop grid and phones land on the Daily tab,
-  //     so `useMobileSWR` halving the tick would buy a touch client nothing.
-  // ⛔ Its companion `monitorFull` (~8000 days) deliberately carries NO
-  // `refreshInterval` and so is not a site at all — reconstructed history does not
-  // change under you.
-  'app/src/pages/Breadth.jsx': 3,
+  // ⚰️ A THIRD SITE LIVED HERE FOR EXACTLY ONE COMMIT. The infinitely-
+  // scrollable Monitor (84dd966ac) added `monitorRecent`, a tab-gated 5-minute
+  // poll; the very next commit (427af1787) virtualized over the timeline index and
+  // loads rows on demand, which removed it again. Recorded rather than silently
+  // reverted, because the SHRINK half of this rail is what caught the removal —
+  // a census that only ever grows would still be claiming a poller that is gone.
+  'app/src/pages/Breadth.jsx': 2,
   'app/src/pages/FlowScoreboard.jsx': 1,
   'app/src/pages/ModelBook.jsx': 3,
   'app/src/pages/MorningWire.jsx': 1,

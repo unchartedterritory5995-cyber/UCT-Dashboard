@@ -235,3 +235,26 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(container.querySelectorAll('button')).toHaveLength(0)
   })
 })
+
+describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
+  it('fires onBodyTap with THE ROW on a body click, and the controls never do', () => {
+    const h = handlers()
+    const onBodyTap = vi.fn()
+    const { container } = render(<IndicatorChip chip={CHIP} {...h} onBodyTap={onBodyTap} />)
+    const chip = container.querySelector('[data-instance-id="legacy:rsi"]')
+    fireEvent.click(chip)
+    expect(onBodyTap).toHaveBeenCalledTimes(1)
+    expect(onBodyTap.mock.calls[0][0]).toMatchObject({ defId: 'rsi', instanceId: 'legacy:rsi' })
+    // a control click stops propagation — it must not ALSO count as a body tap
+    fireEvent.click(container.querySelector('[aria-label="Hide RSI(14)"]'))
+    expect(onBodyTap).toHaveBeenCalledTimes(1)
+    expect(h.onToggleHidden).toHaveBeenCalledTimes(1)
+  })
+
+  it('without the prop the body stays inert — no onClick, exactly the Task-4 chip', () => {
+    const { container } = render(<IndicatorChip chip={CHIP} {...handlers()} />)
+    const chip = container.querySelector('[data-instance-id="legacy:rsi"]')
+    fireEvent.click(chip)   // must not throw, and nothing to assert fired
+    expect(chip).toBeTruthy()
+  })
+})

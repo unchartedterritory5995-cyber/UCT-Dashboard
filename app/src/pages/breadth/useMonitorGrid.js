@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import useSWR from 'swr'
 
+import jsonFetcher from '../../utils/jsonFetcher'
+
 // Windowed data source for the Monitor's virtualized, infinitely-scrollable sheet.
 //
 // The whole point: the virtual scroller renders over the FULL timeline index (a
@@ -10,7 +12,15 @@ import useSWR from 'swr'
 // as their block lands; the date column is known for every row from the index, so
 // even un-loaded rows show their date (metrics skeleton in until the block loads).
 
-const fetcher = (url) => fetch(url).then((r) => r.json())
+// ⛔⛔ `jsonFetcher`, NOT a bare `fetch().then(r => r.json())`. A 402 (or any
+// non-ok) answers JSON too, and its `{detail}` body is TRUTHY — so an unchecked
+// parse hands the refusal downstream as if it were data and every `!data` loading
+// guard below is skipped. The shared fetcher THROWS on a non-ok answer, which
+// leaves SWR's `data` undefined and lets those guards do their job.
+// ⭐ It matters most HERE: `fetchBlock` writes whatever it gets into the row
+// cache, so a refusal body would be cached as a block of rows and rendered as
+// blank metrics that never resolve. Rail: `src/utils/jsonFetcher.test.js`.
+const fetcher = jsonFetcher
 const BLOCK = 150               // rows per fetch/window block
 const SETTLE_MS = 90            // debounce so a fast fling doesn't fetch every block it flies past
 

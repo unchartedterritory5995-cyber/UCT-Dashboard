@@ -140,3 +140,64 @@ describe('wave 8 — tap a row name to edit params (no desktop modal)', () => {
     expect(live).toHaveLength(0)
   })
 })
+
+/* WAVE 10 — enum inputs + the legend-chip door.
+ *
+ * `enum` was the ONE engine input type the phone editor dropped silently —
+ * worst of them AVWAP's `anchor`, the input that defines what the indicator
+ * IS. Options flow through the desktop's own `fieldFromInput` normalizer
+ * (indicatorRegistry), never a copied list, and the write is the RAW typed
+ * value. The legend-chip tap opens the sheet ALREADY INSIDE the tapped
+ * study's editor, targeted by instanceId — with two of the same study, the
+ * tapped one is the one that edits. */
+describe('wave 10 — enum chips + initialEditing', () => {
+  test('VWAP editor renders the Line style enum as chips and writes the raw value', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ indicatorInstances: [liveInstance('vwap')] })
+    await user.click(screen.getByRole('button', { name: 'Edit Session VWAP' }))
+    const dashed = await screen.findByRole('button', { name: 'Dashed' })
+    expect(dashed).toHaveAttribute('aria-pressed', 'false')
+    await user.click(dashed)
+    const next = onWrite.mock.calls.at(-1)[0]
+    const inst = (next.indicatorInstances || []).find((i) => i.defId === 'vwap' && !isInstanceTombstone(i))
+    expect(inst.inputs.lineStyle).toBe('dashed')
+  })
+
+  test('initialEditing opens the sheet already inside the study editor', () => {
+    render(
+      <MobileIndicatorSheet
+        open
+        onClose={vi.fn()}
+        cs={{ indicatorInstances: [liveInstance('rsi')] }}
+        onWrite={vi.fn()}
+        onBrowseLibrary={vi.fn()}
+        onOpenSettings={vi.fn()}
+        initialEditing={{ kind: 'study', defId: 'rsi' }}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Increase Period' })).toBeInTheDocument()
+  })
+
+  test('initialEditing.instanceId edits the EXACT instance, not the first live one', async () => {
+    const user = userEvent.setup()
+    const a = { instanceId: 'rsi-a', defId: 'rsi', inputs: { period: 14 }, hidden: false }
+    const b = { instanceId: 'rsi-b', defId: 'rsi', inputs: { period: 21 }, hidden: false }
+    const onWrite = vi.fn()
+    render(
+      <MobileIndicatorSheet
+        open
+        onClose={vi.fn()}
+        cs={{ indicatorInstances: [a, b] }}
+        onWrite={onWrite}
+        onBrowseLibrary={vi.fn()}
+        onOpenSettings={vi.fn()}
+        initialEditing={{ kind: 'study', defId: 'rsi', instanceId: 'rsi-b' }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Increase Period' }))
+    const next = onWrite.mock.calls.at(-1)[0]
+    const byId = Object.fromEntries(next.indicatorInstances.map((i) => [i.instanceId, i]))
+    expect(byId['rsi-b'].inputs.period).toBe(22)
+    expect(byId['rsi-a'].inputs.period).toBe(14)
+  })
+})

@@ -700,3 +700,45 @@ Rails: wave9 probe 16/16 (post-draw bar · above-drawbar geometry · Style→she
 · sheet-dismiss keeps selection · Duplicate/Lock/Delete against storage ·
 select-existing · deselect) + the walk's touch gate now REQUIRES the bar after
 placement (returns `reshaped and quick_bar`).
+
+## Wave 10 (2026-09-01) — the legend door, the last input type, the library polish
+
+Three parallel audits (library internals · legend wiring · registry input
+census) turned the "make indicators smoother" backlog into exact work:
+
+- **Legend-chip tap → editor** (TradingView's tap-the-legend-name): the study
+  chips were ALREADY interactive (Task-4 controls, pointer-events re-enabled,
+  containment-gated), so the body tap is a zero-new-surface addition —
+  `IndicatorChip onBodyTap(chip)` → StockChart `onLegendStudyTap` (spread via
+  the ONE `chipHandlers` object, so the parity-pinned three-branch JSX is
+  untouched) → the shell opens `MobileIndicatorSheet` seeded with
+  `initialEditing={kind:'study', defId, instanceId}`. The editor and its write
+  door share `editInstanceOf`, so with two RSIs the TAPPED one edits (ledgered
+  in `controlDoorCensus` door eight). ⛔ MA-label taps were REJECTED, not
+  missed: the legend's MA rows lose their overlay index across three remaps
+  (filter → synthetic SMA-5 prepend → sort), and making them interactive adds
+  a new pointer-events surface that swallows the crosshair — the ƒx sheet
+  already edits them in two taps.
+- **`enum` inputs render as chips** in the phone editor — the census proved
+  enum is the ONLY engine input type the editor dropped (silently: `return
+  null`), across `vwap.lineStyle`, `avwap.anchor` + `lineStyle`,
+  `rsLine.benchmark` — AVWAP's anchor being the input that defines what the
+  indicator IS. Options flow through the desktop's own
+  `indicatorRegistry.fieldFromInput` (one type-vocabulary authority; a copied
+  option list is how a pickable value the compute refuses ships), and the
+  write is the RAW typed value through `setInstanceInput`.
+- **Library polish**: it was already the mobile Sheet with 44px rows — the
+  real phone defects were autofocus (iOS zooms any focused input under 16px
+  AND the keyboard ate half the sheet on open; now desktop-only, gated on the
+  canonical ≤1024px touch query — jsdom's matchMedia stub returns false, so
+  the desktop focus test still holds), a 14px search font (16px under 640px),
+  the Sunrise leak (the Sheet portals past the workspace token scope;
+  `sheetClassName` threads StockChart's canvasTheme → ChartToolbar → dialog →
+  Sheet), a missing `ariaLabel`, and `.addAnother` crowding (row wraps under
+  640px). The phone media block is APPENDED at file end — the dialog's test
+  slices the CSS textually from `.addAnother {`.
+
+Rails: 13 studies-sheet tests (enum write, initialEditing, exact-instance
+targeting) + 2 chip body-tap tests + the door-eight census row + wave10 probe
+10/10 (enum→server persist · chip tap→editor · stale-editor cleared · no
+focus-steal · 16px search · sunrise library light) + eight-gate walk green.

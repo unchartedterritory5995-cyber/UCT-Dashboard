@@ -907,6 +907,35 @@
   background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
 }
 
+/* Enum inputs (wave 10): wrap-friendly option chips — 3 line styles or the
+   7 AVWAP anchors alike, right-aligned under the row label. */
+.chipsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  max-width: 70%;
+}
+.chipOpt {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.chipOpt:active { background: var(--bg-hover); }
+.chipOptOn {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
+
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .swatch {
   width: 30px;
