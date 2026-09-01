@@ -23,11 +23,8 @@ test('four groups, every route unique across them', () => {
   expect(new Set(all).size).toBe(all.length)
 })
 
-test('MobileTabBar derives from the shared module, it does not restate it', () => {
-  const src = readFileSync(join(HERE, 'mobile', 'MobileTabBar.jsx'), 'utf8')
-  expect(src).toContain('navGroups')
-  expect(src).not.toMatch(/match:\s*\['\/breadth'/)   // the old inline list
-})
+// (The MobileTabBar derivation case lived here until the bar's removal,
+// 2026-09-01 — NavBar below and navGroups.route.test.jsx carry the rail.)
 
 test('NavBar derives its group headings from the shared module too', () => {
   const src = readFileSync(join(HERE, 'NavBar.jsx'), 'utf8')

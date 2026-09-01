@@ -1,18 +1,18 @@
-/* CHART-CLIPPED-BY-TABBAR — the "subtract BOTH bars" rail.
+/* CHART-CLIPPED-BY-FIXED-CHROME — the "subtract what Layout reserves" rail.
  *
- * `.mobileWorkspace` sized itself with `calc(100dvh - 48px - safe-area-top)`:
- * it subtracted the fixed 48px top bar and forgot the fixed bottom tab bar.
- * Both bars are `position: fixed` and therefore invisible to a viewport-anchored
- * calc, so the workspace ran to y=812 against a bar top of 757 — 54px of chart
- * (volume pane, `3M 6M YTD 1Y 5Y` range bar, `A L %` scale toggles) buried under
- * the nav, and STILL buried after scrolling the container to its end. It was the
- * only route in the app where that was true.
+ * History, in two acts. Act 1: `.mobileWorkspace` sized itself with
+ * `calc(100dvh - 48px - safe-area-top)` — it hand-retyped the top bar and
+ * FORGOT the bottom tab bar entirely, burying 54px of chart under the nav on
+ * the one route where scrolling could never free it. The fix declared both
+ * heights ONCE (tokens.css) and made every consumer subtract the tokens.
  *
- * The real defect was a SECOND AUTHORITY: `Layout.module.css` already reserved
- * space for both bars, and `.mobileWorkspace` restated one of the two numbers by
- * hand. This rail asserts the heights are declared ONCE (tokens.css) and that
- * every consumer subtracts the tokens rather than a literal — so the next
- * viewport-locked route physically cannot forget a bar.
+ * Act 2 (2026-09-01, owner call): the bottom tab bar was REMOVED app-wide —
+ * it duplicated the top-left menu route-for-route — and its height went back
+ * to the chart. The rail's shape survives the bar it was written about: the
+ * contract is still "Layout reserves with tokens; viewport-locked routes
+ * subtract the SAME tokens; nobody retypes a px" — now for ONE bar — plus a
+ * RESURRECTION GUARD: the tab-bar token may not quietly come back, because a
+ * token with no bar behind it re-buries a strip of chart in whitespace.
  *
  * jsdom does no layout, so the declarations are the artifact under test.
  */
@@ -25,7 +25,7 @@ const SRC = resolve(HERE, '../..')
 const read = (rel) => readFileSync(resolve(SRC, rel), 'utf8')
 
 const TOP = '--mobile-topbar-h'
-const BOTTOM = '--mobile-tabbar-h'
+const BOTTOM = '--mobile-tabbar-h'   // retired — guarded against resurrection
 
 /** Body of the first rule whose selector line starts with `selector`. */
 function ruleBody(css, selector) {
@@ -40,11 +40,9 @@ function ruleBody(css, selector) {
 const tokensCss = read('styles/tokens.css')
 const layoutCss = read('components/Layout.module.css')
 const wsCss = read('pages/charts/ChartsWorkspace.module.css')
-const tabbarCss = read('components/mobile/MobileTabBar.module.css')
 const topbarCss = read('components/MobileNav.module.css')
 
 const wsBody = ruleBody(wsCss, '.mobileWorkspace')
-const mainBody = ruleBody(layoutCss, '.main')
 
 describe('CONTROL — the rules this test reasons about were actually found', () => {
   test('.mobileWorkspace exists and declares a height', () => {
@@ -52,7 +50,7 @@ describe('CONTROL — the rules this test reasons about were actually found', ()
     expect(wsBody).toMatch(/height\s*:/)
   })
 
-  test('Layout still reserves space for both bars on the touch shell', () => {
+  test('Layout still reserves space for the top bar on the touch shell', () => {
     // `.main` under @media (max-width: 1024px) — the second `.main` block.
     const touch = layoutCss.slice(layoutCss.indexOf('@media (max-width: 1024px)'))
     expect(touch).toMatch(/padding-top\s*:/)
@@ -60,45 +58,61 @@ describe('CONTROL — the rules this test reasons about were actually found', ()
   })
 })
 
-describe('the two chrome heights are declared exactly once', () => {
-  test('both tokens exist in tokens.css', () => {
+describe('the top-bar height is declared exactly once', () => {
+  test('the token exists in tokens.css', () => {
     expect(tokensCss).toMatch(new RegExp(`${TOP}\\s*:\\s*\\d+px\\s*;`))
-    expect(tokensCss).toMatch(new RegExp(`${BOTTOM}\\s*:\\s*\\d+px\\s*;`))
   })
 
   test('tokens.css is the ONLY declaration site — consumers may not redeclare', () => {
     for (const [name, css] of [
       ['Layout.module.css', layoutCss],
       ['ChartsWorkspace.module.css', wsCss],
-      ['MobileTabBar.module.css', tabbarCss],
       ['MobileNav.module.css', topbarCss],
     ]) {
-      for (const tok of [TOP, BOTTOM]) {
-        expect(
-          new RegExp(`${tok}\\s*:\\s*\\d`).test(css),
-          `${name} redeclares ${tok} — that is the second authority this fix removed`,
-        ).toBe(false)
-      }
+      expect(
+        new RegExp(`${TOP}\\s*:\\s*\\d`).test(css),
+        `${name} redeclares ${TOP} — that is the second authority this rail removed`,
+      ).toBe(false)
+    }
+  })
+
+  test('the top bar is sized from its token too', () => {
+    // Otherwise the bar's intrinsic height and the space reserved for it drift,
+    // and a route sizing off the viewport has to guess which one to trust.
+    expect(topbarCss).toContain(`var(${TOP})`)
+  })
+})
+
+describe('RESURRECTION GUARD — the retired tab-bar token stays dead', () => {
+  test('no source declares or consumes the tab-bar height token', () => {
+    for (const [name, css] of [
+      ['styles/tokens.css', tokensCss],
+      ['components/Layout.module.css', layoutCss],
+      ['pages/charts/ChartsWorkspace.module.css', wsCss],
+      ['components/MobileNav.module.css', topbarCss],
+    ]) {
+      expect(
+        css.includes(BOTTOM),
+        `${name} references ${BOTTOM} — the bar it measured was removed 2026-09-01; `
+          + 'a token with no bar behind it re-buries a strip of chart in whitespace. '
+          + 'If the bar is deliberately coming back, restore the full two-bar '
+          + 'contract from git history rather than patching one file.',
+      ).toBe(false)
     }
   })
 })
 
-describe('.mobileWorkspace subtracts BOTH bars, via the tokens', () => {
+describe('.mobileWorkspace subtracts exactly what Layout reserves, via the token', () => {
   test('it subtracts the top bar token', () => {
     expect(wsBody).toContain(`var(${TOP})`)
   })
 
-  test('it subtracts the bottom tab-bar token — the 54px that was buried', () => {
-    expect(wsBody).toContain(`var(${BOTTOM})`)
-  })
-
-  test('every viewport unit it uses is paired with both subtractions', () => {
-    // Two declarations (100vh fallback + 100dvh). Neither may forget a bar.
+  test('every viewport unit it uses is paired with the subtraction', () => {
+    // Two declarations (100vh fallback + 100dvh). Neither may forget the bar.
     const heights = [...wsBody.matchAll(/height\s*:\s*calc\(([^;]*)\)\s*;/g)].map(m => m[1])
     expect(heights.length).toBeGreaterThanOrEqual(2)
     for (const h of heights) {
       expect(h, `height calc missing ${TOP}: ${h}`).toContain(`var(${TOP})`)
-      expect(h, `height calc missing ${BOTTOM}: ${h}`).toContain(`var(${BOTTOM})`)
     }
   })
 
@@ -111,11 +125,10 @@ describe('.mobileWorkspace subtracts BOTH bars, via the tokens', () => {
   })
 })
 
-describe('portrait full-height charting — three files hide ONE bar together', () => {
-  // Phase 9: on the phone chart shell (html[data-mobile-chart-shell], ≤640px)
-  // the TOP bar hides and its reservation returns to the chart; the tab bar
-  // stays. Three declarations in three files must agree — precisely the
-  // multi-file drift this rail exists to catch.
+describe('portrait full-height charting — three files agree the shell owns the viewport', () => {
+  // Phase 9 hid the TOP bar on the phone chart shell; with the tab bar gone
+  // the shell owns the FULL dynamic viewport. Three declarations in three
+  // files must agree — precisely the multi-file drift this rail catches.
   const ATTR = 'html[data-mobile-chart-shell]'
   const PORTRAIT = /@media \(pointer: coarse\) and \(max-width: 640px\)/
 
@@ -133,34 +146,17 @@ describe('portrait full-height charting — three files hide ONE bar together', 
     expect(blockFor(topbarCss, 'MobileNav.module.css')).toMatch(/display\s*:\s*none/)
   })
 
-  test('Layout releases ONLY the top reservation (tab bar stays)', () => {
+  test('Layout releases BOTH reservations (nothing fixed remains on either edge)', () => {
     const b = blockFor(layoutCss, 'Layout.module.css')
     expect(b).toMatch(/padding-top\s*:\s*0/)
-    expect(b, 'portrait block must NOT zero padding-bottom — the tab bar is still there').not.toMatch(/padding-bottom/)
+    expect(b).toMatch(/padding-bottom\s*:\s*0/)
   })
 
-  test('the workspace override subtracts the tab bar token and NOT the hidden top bar', () => {
+  test('the workspace override takes the full dynamic viewport, no token subtractions', () => {
     const from = wsCss.search(PORTRAIT)
     expect(from, 'ChartsWorkspace.module.css: portrait override missing').toBeGreaterThan(-1)
     const b = wsCss.slice(from, wsCss.indexOf('}', wsCss.indexOf('height', from)) + 1)
-    expect(b).toContain(`var(${BOTTOM})`)
-    expect(b, 'the top bar is hidden — subtracting its token would re-bury a row of chart').not.toContain(`var(${TOP})`)
-  })
-})
-
-describe('Layout and the tab bar agree with the workspace', () => {
-  test('Layout reserves with the same two tokens the workspace subtracts', () => {
-    expect(mainBody === null ? layoutCss : layoutCss).toContain(`var(${TOP})`)
-    expect(layoutCss).toContain(`var(${BOTTOM})`)
-  })
-
-  test('the tab bar itself is sized from the reservation token', () => {
-    // Otherwise the bar's intrinsic height and the space reserved for it drift,
-    // and a route sizing off the viewport has to guess which one to trust.
-    expect(tabbarCss).toContain(`var(${BOTTOM})`)
-  })
-
-  test('the top bar is sized from its token too', () => {
-    expect(topbarCss).toContain(`var(${TOP})`)
+    expect(b).toMatch(/height\s*:\s*100dvh/)
+    expect(b, 'the top bar is hidden here — subtracting its token would re-bury a row of chart').not.toContain(`var(${TOP})`)
   })
 })

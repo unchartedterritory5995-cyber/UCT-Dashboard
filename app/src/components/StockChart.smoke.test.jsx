@@ -116,6 +116,35 @@ describe('StockChart render smoke', () => {
     )).not.toThrow()
   })
 
+  // -- the export contract the Discord renderer reads back --------------------
+  // `onDrawnBarCount` -> ChartRender publishes it as `window.__chartBarCount` ->
+  // chart_renderer returns it in X-Chart-Probe -> render_house_chart discards a
+  // frame that drew nothing. The ChartRender tests MOCK this component, so they
+  // prove the page's half and nothing about whether the REAL StockChart ever
+  // fires the callback. Without this, the whole chain could be green and inert -
+  // and inert means the 2026-08-31 failure (three candle-less charts posted to a
+  // public channel) is back, silently, because a missing header reads as
+  // "unknown" and falls through to the pixel judge that let them out.
+  it('reports the drawn bar count to onDrawnBarCount', async () => {
+    const seen = []
+    const bars = Array.from({ length: 40 }, (_, i) => ({
+      t: `2026-0${i < 30 ? '7' : '8'}-${String((i % 28) + 1).padStart(2, '0')}`,
+      o: 10, h: 11, l: 9, c: 10.5, v: 1000,
+    }))
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(String(url).includes('/api/bars') ? { bars } : {}),
+    })))
+    render(<StockChart sym="AAPL" tf="D" onDrawnBarCount={(n) => seen.push(n)} />)
+    // Called at all = the effect and the prop are wired in the real component.
+    await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0), { timeout: 4000 })
+    expect(seen.every(n => typeof n === 'number')).toBe(true)
+    // And it reports the DRAWN series, not a constant: once bars land the count
+    // is their length. (jsdom has no IndexedDB, so the first report can be 0 -
+    // that is the honest "nothing drawn yet" this whole mechanism depends on.)
+    await vi.waitFor(() => expect(seen[seen.length - 1]).toBe(bars.length), { timeout: 4000 })
+  })
+
   it('unmounts cleanly', () => {
     const { unmount } = render(<StockChart sym="AAPL" tf="D" />)
     expect(() => unmount()).not.toThrow()

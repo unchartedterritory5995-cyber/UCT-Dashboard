@@ -1,8 +1,8 @@
 // app/src/components/navGroups.js
 //
 // ⭐ ONE AUTHORITY for the app's route taxonomy. It already existed, inline,
-// inside MobileTabBar — desktop kept 16 unlabeled icons in a flat rail and
-// the two surfaces could drift. Both now derive from here: MobileTabBar.jsx
+// inside the retired MobileTabBar — desktop kept 16 unlabeled icons in a flat rail and
+// the two surfaces could drift. Consumers derive from here: MoreSheet.jsx
 // maps a group's `routes` to its tab's `match` prefixes (and `routes[0]` to
 // its `to`), NavBar.jsx groups `NAV_ITEMS` under a heading per group.
 //
@@ -28,8 +28,8 @@ export const NAV_GROUPS = [
 
 // The full set of `to` targets a consumer actually navigates a user to,
 // derived from NAV_GROUPS rather than hand-typed. Every group contributes
-// its first route (the rule MobileTabBar.jsx's tab-building map follows);
-// `home` additionally contributes its SECOND route because MobileTabBar
+// its first route (the rule the retired tab bar's map followed);
+// `home` additionally contributes its SECOND route because the tab bar
 // splits it into two mutually-exclusive tabs — paid users get `/dashboard`,
 // free users get `/morning-wire` (the free tier's only page) — never both at
 // once, but both are real navigation targets across the two tiers. Every
