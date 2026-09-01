@@ -2129,7 +2129,7 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 ### Task 8: The `/r/buzz` render page
 
 **Files:**
-- Modify: `api/routers/render_panels.py` (add the token-gated `GET /r/buzz` data endpoint)
+- Modify: `api/routers/render_panels.py` (add the token-gated data endpoint — declared `@router.get("/r/buzz")`, but that router carries `prefix="/api"`, so the real path is **`/api/r/buzz`**)
 - Create: `app/src/pages/BuzzRender.jsx`
 - Modify: `app/src/App.jsx` (lazy import, route, and the logged-out route list at line ~285)
 - Test: `tests/api/test_buzz_render_panel.py`  ← **`tests/api/`, not `tests/`** — that is where every router test that builds a `TestClient` from `api.main` lives (see `tests/api/test_cot_endpoints.py`)
@@ -2137,7 +2137,7 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 
 **Interfaces:**
 - Consumes: `buzz_boards.top_board`, `.heat_board`, `.coverage`
-- Produces: `GET /r/buzz?token=...&window=open` → `{"window","label","rows":[{ticker,people,mentions,spark}],"heat":[{ticker,ratio}],"coverage","asOf"}`; the page sets `window.__buzzReady = true` once every row has laid out.
+- Produces: `GET /api/r/buzz?token=...&window=open` → `{"window","label","rows":[{ticker,people,mentions,spark}],"heat":[{ticker,ratio}],"coverage","asOf"}`; the page sets `window.__buzzReady = true` once every row has laid out.
 
 **Readiness matters here.** `⛔ A SIZED CANVAS IS NOT A DRAWN CHART` — the chart work shipped blank images twice because "an element exists" was satisfied before content arrived. The flag must be set from real laid-out rows, not from mount.
 
@@ -2166,8 +2166,8 @@ def client(tmp_path, monkeypatch):
 
 def test_requires_the_render_token(client):
     c, _ = client
-    assert c.get("/r/buzz").status_code in (401, 403)
-    assert c.get("/r/buzz", params={"token": "wrong"}).status_code in (401, 403)
+    assert c.get("/api/r/buzz").status_code in (401, 403)
+    assert c.get("/api/r/buzz", params={"token": "wrong"}).status_code in (401, 403)
 
 
 def test_returns_rows_and_coverage(client):
@@ -2175,7 +2175,7 @@ def test_returns_rows_and_coverage(client):
     import time
     ts = int(time.time()) - 60
     store.record_mentions([(str(1000 + i), "CH1", f"u{i}", "NVDA", ts, "exact") for i in range(4)])
-    r = c.get("/r/buzz", params={"token": "secret-token", "window": "today"})
+    r = c.get("/api/r/buzz", params={"token": "secret-token", "window": "today"})
     assert r.status_code == 200
     body = r.json()
     assert body["rows"][0]["ticker"] == "NVDA"
@@ -2186,14 +2186,14 @@ def test_returns_rows_and_coverage(client):
 
 def test_empty_store_returns_an_empty_list_not_an_error(client):
     c, _ = client
-    r = c.get("/r/buzz", params={"token": "secret-token"})
+    r = c.get("/api/r/buzz", params={"token": "secret-token"})
     assert r.status_code == 200 and r.json()["rows"] == []
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/api/test_buzz_render_panel.py -v`
-Expected: FAIL — 404 on `/r/buzz`.
+Expected: FAIL — 404 on `/api/r/buzz`.
 
 - [ ] **Step 3: Add the data endpoint**
 
@@ -2254,7 +2254,7 @@ export default function BuzzRender() {
       token: params.get('token') || '',
       window: params.get('window') || 'open',
     })
-    fetch(`/r/buzz?${qs}`)
+    fetch(`/api/r/buzz?${qs}`)
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(setData)
       .catch(() => setFailed(true))
