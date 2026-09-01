@@ -118,10 +118,10 @@
     right: 0;
     left: 0;
     top: auto;
-    /* Clear the opaque MobileTabBar (its own height token + safe area) — a
+    /* Clear the bottom safe area (the app tab bar was removed 2026-09-01) — a
        bottom:0 sheet buried the Insert button under it, unreachable on the
        exact form factor this block targets (review finding). */
-    bottom: calc(var(--mobile-tabbar-h, 58px) + env(safe-area-inset-bottom, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     width: auto;
     max-height: 60vh;
     border-radius: 12px 12px 0 0;

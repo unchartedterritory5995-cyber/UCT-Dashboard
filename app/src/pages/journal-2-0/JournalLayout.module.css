@@ -330,9 +330,9 @@
 
 /* ── Mobile quick-log FAB (B5) — phone only ───────────────────────────────────
    Desktop: hidden (the header "+ Log Trade" pill serves). Phone: a fixed FAB in
-   the bottom-LEFT column, ABOVE the app-wide MobileTabBar (bottom:0, z ~300) and
-   the feedback "?" widget (docks bottom-left ~70px on touch). The voice orb is
-   bottom-RIGHT, so this left column above feedback is clear of all three. */
+   the bottom-LEFT column, ABOVE the feedback "?" widget (docks bottom-left
+   ~16px on touch — the app tab bar was removed 2026-09-01). The voice orb is
+   bottom-RIGHT, so this left column above feedback is clear of both. */
 .logFab {
   display: none;
 }
@@ -342,9 +342,9 @@
     display: block;
     position: fixed;
     left: 14px;
-    /* 70px feedback dock + its 40px height + a gap, all above the tab bar. */
-    bottom: calc(124px + env(safe-area-inset-bottom, 0px));
-    z-index: 450; /* above content + tab bar (300); below the voice orb (8000) */
+    /* 16px feedback dock + its 40px height + a gap. */
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    z-index: 450; /* above content; below the voice orb (8000) */
   }
 }
 

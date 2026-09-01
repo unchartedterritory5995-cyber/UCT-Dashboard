@@ -16,8 +16,14 @@ Schema:
 import json
 import os
 import sqlite3
+from bisect import bisect_left, bisect_right
 from pathlib import Path
 from typing import Optional
+
+# Deep history (reconstructed pre-2026 rows merged in from breadth_daily_ohlc +
+# imported sentiment). On by default; set BREADTH_DEEP_HISTORY=0 to make the
+# Monitor fall back to the collector-only window with no rebuild.
+_DEEP_ENABLED = os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0"
 
 # ── DB path ───────────────────────────────────────────────────────────────────
 
@@ -382,7 +388,26 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
 
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
+    _derive_ascending(result_asc, adv_decline_seed)
 
+    # Return newest-first, dropping the warm-up rows off the OLD end. They were
+    # fetched to be looked back at, not to be served.
+    out = list(reversed(result_asc))[:days]
+    cache.set(ck, out, ttl=300)
+    return out
+
+
+def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
+    """Add the derived block to an OLDEST-FIRST list of raw-metric rows, in place.
+
+    The single source of truth for every value the Monitor computes rather than
+    stores: the 5/10-day up-down ratios, the 10-day put/call average, hi/lo
+    ratios, QQQ/SPY day %, the cumulative A/D line (seeded so it is absolute, not
+    window-relative), the Follow-Through-Day flag, and the composite breadth
+    score. Both the collector read (`get_history`) and the deep-history merge
+    (`get_history_deep`) run rows through this, so a reconstructed date is derived
+    identically to a collected one.
+    """
     adv_decline_cum = adv_decline_seed  # running total from the FIRST snapshot
 
     for i, row in enumerate(result_asc):
@@ -459,8 +484,141 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
 
         row["breadth_score"] = _compute_breadth_score(row)
 
-    # Return newest-first, dropping the warm-up rows off the OLD end. They were
-    # fetched to be looked back at, not to be served.
+
+def _resolve_anchor_merged(all_dates: list, end: str, anchor: str) -> Optional[str]:
+    """The window's newest date, chosen from the merged (collector+reconstructed)
+    date list. `le` snaps down to the last session ≤ end; `ge` snaps up to the
+    first ≥ end; out-of-range clamps to the nearest edge (never empty)."""
+    if not all_dates:
+        return None
+    if anchor == "ge":
+        i = bisect_left(all_dates, end)
+        return all_dates[i] if i < len(all_dates) else all_dates[-1]
+    i = bisect_right(all_dates, end) - 1
+    return all_dates[i] if i >= 0 else all_dates[0]
+
+
+def _adv_decline_seed_before(oldest: str) -> float:
+    """Cumulative-A/D seed for a deep window: the running total of `adv_decline`
+    over every merged session before `oldest` (collector value wins where both
+    stores have the date), so the A/D line stays absolute across the boundary."""
+    coll: dict = {}
+    try:
+        with _conn() as c:
+            for (d, v) in c.execute(
+                "SELECT date, json_extract(metrics, '$.adv_decline') "
+                "FROM breadth_snapshots WHERE date < ?", (oldest,),
+            ).fetchall():
+                if v is not None:
+                    coll[d] = v
+    except Exception:
+        pass
+    recon: dict = {}
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        recon = ohlc.metric_before("adv_decline", oldest)
+    except Exception:
+        recon = {}
+    merged = {**recon, **coll}   # collector wins on any shared date
+    return sum(v for v in merged.values() if v is not None)
+
+
+def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "le") -> list:
+    """Monitor history that reaches BEFORE the collector floor (2026-01-02).
+
+    A window lying entirely within the collector range delegates to `get_history`
+    unchanged — so the live/default Monitor view is byte-for-byte what it was;
+    only a teleport into the past engages the merge. For dates the collector never
+    saw, a row is reassembled from the reconstructed close-basis history in
+    `breadth_daily_ohlc` (the same store the breadth charts read) with imported
+    historical sentiment (`breadth_sentiment_history`) overlaid where public
+    archives have it, then run through the SAME derivation as a collected row.
+
+    Reconstructed rows carry `_reconstructed: True` so the UI can mark them (their
+    percentage metrics are exact; their COUNT metrics are coverage-scaled
+    estimates, and survey/exposure fields are present only where imported).
+    """
+    if not _DEEP_ENABLED:
+        return get_history(days, end, anchor)
+
+    from api.services.cache import cache
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+
+    # Merged date universe (collector snapshots + reconstructed history), ASC.
+    try:
+        with _conn() as c:
+            coll_dates = [r[0] for r in c.execute(
+                "SELECT date FROM breadth_snapshots ORDER BY date ASC").fetchall()]
+    except Exception:
+        coll_dates = []
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        recon_dates = ohlc.distinct_dates()
+    except Exception:
+        recon_dates = []
+    all_dates = sorted(set(coll_dates) | set(recon_dates))
+    if not all_dates:
+        return get_history(days, end, anchor)
+    collector_floor = coll_dates[0] if coll_dates else None
+
+    anchor_date = _resolve_anchor_merged(all_dates, end, anchor) if end else all_dates[-1]
+    idx = bisect_right(all_dates, anchor_date) - 1
+    if idx < 0:
+        return []
+    lo = max(0, idx - (days + _ROLLING_WARMUP) + 1)
+    window = all_dates[lo:idx + 1]                     # oldest-first
+    if not window:
+        return []
+
+    # Whole window inside the collector range → the plain read is exact (and keeps
+    # its own cache key / behaviour).
+    if collector_floor is not None and window[0] >= collector_floor:
+        return get_history(days, end, anchor)
+
+    # Collector rows for any collected dates in the window (they win on overlap).
+    coll_rows: dict = {}
+    try:
+        with _conn() as c:
+            dq = ",".join("?" * len(window))
+            for (d, mj) in c.execute(
+                f"SELECT date, metrics FROM breadth_snapshots WHERE date IN ({dq})", window,
+            ).fetchall():
+                m = json.loads(mj)
+                for k in [k for k in list(m.keys()) if k.endswith("_list")]:
+                    del m[k]
+                coll_rows[d] = m
+    except Exception:
+        coll_rows = {}
+
+    recon_needed = [d for d in window if d not in coll_rows]
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        recon_closes = ohlc.closes_for_dates(recon_needed)
+    except Exception:
+        recon_closes = {}
+    try:
+        from api.services import breadth_sentiment_history as sent
+        sent_map = sent.values_asof(recon_needed)
+    except Exception:
+        sent_map = {}
+
+    result_asc = []
+    for d in window:
+        if d in coll_rows:
+            row = dict(coll_rows[d])
+        else:
+            row = dict(recon_closes.get(d, {}))
+            if sent_map.get(d):
+                row.update(sent_map[d])          # survey/exposure where archives have it
+            row["_reconstructed"] = True         # provenance for the UI
+        row["date"] = d
+        result_asc.append(row)
+
+    _derive_ascending(result_asc, _adv_decline_seed_before(window[0]))
+
     out = list(reversed(result_asc))[:days]
     cache.set(ck, out, ttl=300)
     return out
@@ -489,27 +647,55 @@ def date_bounds() -> dict:
                 out = {"min": row[0], "max": row[1]}
     except Exception as e:
         print(f"[breadth_monitor] date_bounds error: {e}")
+    # Extend the floor with the reconstructed history so the Time Navigator's
+    # calendar + year list reach back to it (e.g. ~2008). Additive: the max stays
+    # whatever the collector last wrote.
+    if _DEEP_ENABLED:
+        try:
+            from api.services import breadth_daily_ohlc as ohlc
+            s = ohlc.stats()
+            fmn, fmx = s.get("first"), s.get("last")
+            if fmn and (out["min"] is None or fmn < out["min"]):
+                out["min"] = fmn
+            if fmx and (out["max"] is None or fmx > out["max"]):
+                out["max"] = fmx
+        except Exception:
+            pass
     cache.set(ck, out, ttl=300)
     return out
 
 
 def next_trading_day(date_str: Optional[str]) -> Optional[str]:
-    """The stored session immediately AFTER `date_str` (newer), or None.
+    """The merged session immediately AFTER `date_str` (newer), or None.
 
     Feeds the Time Navigator's ▶ one-day step forward: the older neighbour of a
     shown window is already in that window, but the newer one sits outside it.
+    Considers both the collector snapshots and the reconstructed history so a step
+    forward works anywhere in deep time.
     """
     if not date_str:
         return None
+    nxt = None
     try:
         with _conn() as c:
             row = c.execute(
                 "SELECT MIN(date) FROM breadth_snapshots WHERE date > ?", (date_str,)
             ).fetchone()
-            return row[0] if row and row[0] else None
+            nxt = row[0] if row and row[0] else None
     except Exception as e:
         print(f"[breadth_monitor] next_trading_day error: {e}")
-        return None
+    if _DEEP_ENABLED:
+        try:
+            from api.services import breadth_daily_ohlc as ohlc
+            ds = ohlc.distinct_dates()
+            i = bisect_right(ds, date_str)
+            if i < len(ds):
+                cand = ds[i]
+                if nxt is None or cand < nxt:
+                    nxt = cand
+        except Exception:
+            pass
+    return nxt
 
 
 def derive_live_row(metrics: dict, recent: list) -> dict:

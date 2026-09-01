@@ -93,6 +93,27 @@
 }
 .symBtn:active { background: var(--bg-hover); }
 
+/* Top-left app-menu door (opens the ONE MoreSheet). The top bar hides on this
+   shell and the bottom tab bar is gone app-wide (2026-09-01), so this button
+   is how a member leaves /charts — it must never shrink below a thumb. */
+.stripMenuBtn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin-left: -6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: var(--radius-md);
+}
+.stripMenuBtn:active { background: var(--bg-hover); color: var(--text-bright); }
+
 .symLogo { flex: 0 0 auto; display: flex; align-items: center; }
 
 .symMain { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -171,7 +192,9 @@
   align-items: stretch;
   gap: 6px;
   min-height: calc(var(--tap-min) + 6px);
-  padding: 5px 8px;
+  /* The toolbar is the BOTTOMMOST element since the app tab bar's removal
+     (2026-09-01) — it owns the home-indicator safe area itself. */
+  padding: 5px 8px max(5px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
@@ -625,11 +648,11 @@
 
 /* ── Landscape immersive (phone rotated) ───────────────────────────────────
  * TradingView's rotate-to-fullscreen: while the chart shell is mounted, a
- * coarse-pointer landscape short screen hides the app chrome (MobileNav /
- * MobileTabBar hide themselves via the same attribute — see their modules) and
- * the shell takes the whole dynamic viewport, with slimmer strip + toolbar and
- * notch-safe side padding. Scoped to html[data-mobile-chart-shell] so no other
- * route is touched. */
+ * coarse-pointer landscape short screen hides the app top bar (MobileNav
+ * hides itself via the same attribute — see its module) and the shell takes
+ * the whole dynamic viewport, with slimmer strip + toolbar and notch-safe
+ * side padding. Scoped to html[data-mobile-chart-shell] so no other route is
+ * touched. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .shell {
     height: 100vh;

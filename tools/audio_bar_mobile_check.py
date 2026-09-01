@@ -1,7 +1,7 @@
 """Phone-viewport geometry check for the read-aloud AudioPlayerBar.
 
 The player bar is the ONLY stop control for read-aloud, so on a phone it must be
-fully on screen, clear of the bottom tab bar, and actually tappable. That is a
+fully on screen, above the bottom safe area, and actually tappable. That is a
 pure-CSS property (the JS cancellation logic has no viewport branching), and
 jsdom applies no CSS — so it is untestable in vitest. This renders the real
 AudioPlayerBar.module.css at real phone viewports and asserts the geometry.
@@ -17,9 +17,11 @@ from playwright.sync_api import sync_playwright
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CSS = ROOT / "app/src/components/voice/AudioPlayerBar.module.css"
 
-# Real MobileTabBar facts (app/src/components/mobile/MobileTabBar.module.css +
-# tokens.css): pinned to bottom:0, z-index var(--z-nav)=300, min-height 44px.
-TAB_BAR_H = 44
+# The app bottom tab bar was REMOVED 2026-09-01 (owner call): nothing fixed
+# owns the bottom edge any more. The stand-in strip below models the worst-case
+# home-indicator safe area instead, so the geometry claim stays: the bar's
+# controls must clear the bottom inset on every phone.
+TAB_BAR_H = 34  # iOS home-indicator inset, worst case
 Z_NAV = 300
 
 VIEWPORTS = [
@@ -86,11 +88,11 @@ def check(page, name, w, h):
             f"x={s['x']:.0f} right={s['x'] + s['width']:.0f} viewport={w}"
         )
 
-    # 3. The bar must clear the bottom tab bar entirely.
+    # 3. The bar must clear the bottom safe area entirely.
     if b["y"] + b["height"] > h - TAB_BAR_H + 0.5:
         fails.append(
-            f"{name} ({w}x{h}): bar overlaps the {TAB_BAR_H}px tab bar — "
-            f"bar bottom={b['y'] + b['height']:.0f}, tab bar top={h - TAB_BAR_H}"
+            f"{name} ({w}x{h}): bar intrudes on the {TAB_BAR_H}px bottom inset — "
+            f"bar bottom={b['y'] + b['height']:.0f}, inset top={h - TAB_BAR_H}"
         )
 
     # 4. Hit-test: a real tap on Stop must land inside the Stop button.
@@ -120,10 +122,20 @@ def check(page, name, w, h):
 
 def main():
     css = CSS.read_text(encoding="utf-8")
+    # jsdom-style harness: env(safe-area-inset-bottom) computes to 0 here, but
+    # the whole claim is about a notch device — substitute the worst-case inset
+    # so the geometry under test matches the device the rule protects.
+    css = css.replace("env(safe-area-inset-bottom, 0px)", f"{TAB_BAR_H}px")
     html = PAGE.format(css=css, tab_h=TAB_BAR_H, z_nav=Z_NAV)
     all_fails = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        try:
+            browser = p.chromium.launch()
+        except Exception:
+            import glob, os
+            exe = next((c for pat in ('/opt/pw-browsers/chromium', '/opt/pw-browsers/chromium-*/chrome-linux/chrome')
+                        for c in sorted(glob.glob(pat)) if os.path.isfile(c) and os.access(c, os.X_OK)), None)
+            browser = p.chromium.launch(executable_path=exe)
         for name, w, h in VIEWPORTS:
             page = browser.new_page(viewport={"width": w, "height": h}, is_mobile=True, has_touch=True)
             page.set_content(html)

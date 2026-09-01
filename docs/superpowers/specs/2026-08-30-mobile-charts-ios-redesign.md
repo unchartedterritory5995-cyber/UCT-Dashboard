@@ -591,3 +591,30 @@ Rig physics learned, for the next engineer:
   two-finger pinch (fresh chart 140→63; after golive_walk 63→63). Gate 7
   therefore runs FIRST on the untouched chart — the state a user actually
   pinches in.
+
+## Wave 7 — the bottom tab bar is gone (owner call, 2026-09-01)
+
+The owner spotted what the parity work preserved without questioning: the
+app tab bar (Home · Markets · Charts · Journal · More) duplicated the
+top-left menu route-for-route, and its 58px band belonged to the chart.
+Removed APP-WIDE:
+
+- `MobileTabBar` deleted; `--mobile-tabbar-h` deleted from tokens.css;
+  every consumer rebased (Layout reserve → safe-area only; workspace calcs;
+  FloatingOrb / FeedbackWidget / AudioPlayerBar / J2 log-FAB / notebook
+  WidgetPalette offsets all −58px; `audio_bar_mobile_check` now models the
+  worst-case home-indicator inset instead, with env() substituted so the
+  simulation matches a notch device).
+- **The phone chart shell now owns the FULL dynamic viewport** (100dvh) —
+  strip pads the notch, chart toolbar pads the home indicator and sits on
+  the bottom edge (rig: gap 0px).
+- **The menu door on /charts** (where the top bar also hides): a Menu
+  button in the symbol strip, opening the SAME `MoreSheet` via the new
+  `MoreSheetContext` — one menu, every trigger opens that. Rig-proved the
+  full loop: Charts → Menu → Journal (hamburger there, no bar there) →
+  Menu → Charts.
+- `mobileShellHeight.test.js` rewritten to the one-bar contract **plus a
+  resurrection guard** (any file referencing the dead token fails by name);
+  `navGroups` rails repointed at the living consumers; walk gains **gate 8**
+  (nav absent + toolbar bottom-edge) and its top-bar gate's control is now
+  the strip Menu button.
