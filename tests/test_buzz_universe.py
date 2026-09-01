@@ -66,3 +66,39 @@ def test_alias_keys_are_lowercase():
 def test_ambiguous_is_a_subset_of_the_universe():
     # A collision set listing things that are not symbols is not measuring collisions.
     assert u.ambiguous() <= u.symbols()
+
+
+def test_an_unrecognised_dict_shape_contributes_no_symbols():
+    """A universe file restructured into metadata must yield NOTHING, never its
+    keys. 'count' and 'version' are short enough to pass the length filter and
+    are in no vocabulary set, so they would become invisible phantom tickers."""
+    assert u._syms_from({"version": "1.0", "count": 3742, "generated": "x"}) == set()
+    assert u._syms_from({"symbols": ["NVDA", "AMD"]}) == {"NVDA", "AMD"}
+
+
+def test_SPOT_is_deliberately_countable_despite_colliding_with_spot_price():
+    """SPOT came out of the same derived chart-vocabulary intersection as LINE,
+    BAND, BULL, GAIN and PUMP, and is deliberately NOT gated: Spotify is traded
+    here, and banishing a traded symbol deletes real mentions permanently while
+    a false positive is visible and cheap. If a future edit adds SPOT to
+    HOUSE_VOCAB, this must fail."""
+    assert "SPOT" in u.symbols()
+    assert "SPOT" not in u.ambiguous()
+    assert "SPOT" not in u.HOUSE_VOCAB
+    # control: the siblings it was derived alongside ARE gated
+    for gated in ("LINE", "BAND", "BULL", "GAIN", "PUMP"):
+        assert gated in u.HOUSE_VOCAB
+
+
+def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path, monkeypatch):
+    """buzz_boards imports this transitively on the /buzz query path. A raise
+    here takes the command down; an empty set only makes it quiet."""
+    bad = tmp_path / "cap_universe.json"
+    bad.write_text("{not json at all", encoding="utf-8")
+    monkeypatch.setattr(u, "_DATA", tmp_path)
+    u._reset_caches_for_tests()
+    try:
+        assert u._load_json("cap_universe.json") is None
+        assert isinstance(u.symbols(), frozenset)      # must not raise
+    finally:
+        u._reset_caches_for_tests()                    # leave no poisoned cache

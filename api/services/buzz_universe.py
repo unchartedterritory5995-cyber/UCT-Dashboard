@@ -80,7 +80,7 @@ def _syms_from(payload) -> set[str]:
     of dicts keyed by sym/ticker/symbol."""
     out: set[str] = set()
     if isinstance(payload, dict):
-        payload = payload.get("symbols") or payload.get("tickers") or list(payload.keys())
+        payload = payload.get("symbols") or payload.get("tickers") or []
     for item in payload or []:
         if isinstance(item, str):
             out.add(item.strip().upper())
@@ -111,3 +111,10 @@ def ambiguous() -> frozenset[str]:
     """Symbols that also read as ordinary chat. DERIVED by intersection, so it
     can only ever name things that are genuinely in the universe."""
     return frozenset((CHAT_WORDS | HOUSE_VOCAB) & set(symbols()))
+
+
+def _reset_caches_for_tests() -> None:
+    """Drop the lru_caches so a test can change what the loaders see."""
+    symbols.cache_clear()
+    aliases.cache_clear()
+    ambiguous.cache_clear()
