@@ -1,0 +1,71 @@
+{
+  "measured_at": "2026-09-01",
+  "sample_tickers": 417,
+  "target_pct": 0.1,
+  "stop_pct": 0.08,
+  "horizon_bars": 20,
+  "bars_per_year": 252,
+  "universe_years": 4182.1,
+  "structures": {
+    "climax-top": {
+      "n": 910,
+      "target": 375,
+      "stop": 501,
+      "unresolved": 34,
+      "win_rate": 0.4121,
+      "expectancy_pct": -0.00287,
+      "expectancy_r": -0.0358,
+      "trades_per_year": 0.22,
+      "breakeven_roundtrip_pct": -0.00287,
+      "direction": "short"
+    },
+    "darvas-box": {
+      "n": 2908,
+      "target": 1001,
+      "stop": 1132,
+      "unresolved": 775,
+      "win_rate": 0.3442,
+      "expectancy_pct": 0.00649,
+      "expectancy_r": 0.0811,
+      "trades_per_year": 0.7,
+      "breakeven_roundtrip_pct": 0.00649,
+      "direction": "long"
+    },
+    "ema-crossback": {
+      "n": 2328,
+      "target": 945,
+      "stop": 1092,
+      "unresolved": 291,
+      "win_rate": 0.4059,
+      "expectancy_pct": 0.0037,
+      "expectancy_r": 0.0463,
+      "trades_per_year": 0.56,
+      "breakeven_roundtrip_pct": 0.0037,
+      "direction": "long"
+    },
+    "parabolic-extension": {
+      "n": 246,
+      "target": 153,
+      "stop": 84,
+      "unresolved": 9,
+      "win_rate": 0.622,
+      "expectancy_pct": 0.03491,
+      "expectancy_r": 0.4364,
+      "trades_per_year": 0.06,
+      "breakeven_roundtrip_pct": 0.03491,
+      "direction": "short"
+    },
+    "stage-4-breakdown": {
+      "n": 4049,
+      "target": 1088,
+      "stop": 1798,
+      "unresolved": 1163,
+      "win_rate": 0.2687,
+      "expectancy_pct": -0.00791,
+      "expectancy_r": -0.0988,
+      "trades_per_year": 0.97,
+      "breakeven_roundtrip_pct": -0.00791,
+      "direction": "short"
+    }
+  }
+}

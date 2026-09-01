@@ -149,7 +149,7 @@ def test_the_same_row_publishes_once_its_clustering_is_measured():
     """⭐ THE CONTROL. Without this, the test above passes for a gate that
     refuses everything — which is not a gate."""
     v = ll.adjudicate(_passing_result(), [0.01] * ll.ESCALATED_NULL_TRIALS,
-                      deff=1.0)
+                      deff=1.0, expectancy_r=0.5)
     assert v["published"], v.get("reasons")
 
 
@@ -157,8 +157,10 @@ def test_a_large_design_effect_can_take_a_row_below_its_null():
     """⛔ THE GATE HAS TO BITE. A correction that never changes a verdict is a
     comment."""
     nulls = [0.13] * ll.ESCALATED_NULL_TRIALS
-    assert ll.adjudicate(_passing_result(), nulls, deff=1.0)["published"]
-    assert not ll.adjudicate(_passing_result(), nulls, deff=9.0)["published"]
+    assert ll.adjudicate(_passing_result(), nulls, deff=1.0,
+                         expectancy_r=0.5)["published"]
+    assert not ll.adjudicate(_passing_result(), nulls, deff=9.0,
+                             expectancy_r=0.5)["published"]
 
 
 def test_synthetic_nulls_answer_the_gates_identically():
@@ -375,7 +377,7 @@ def test_the_completeness_claim_travels_with_the_numbers():
 #: `reasons.append` sites inside `adjudicate` when the prose below was last
 #: written. NOT the gate count — several gates emit more than one refusal
 #: sentence — but a number that MOVES whenever a gate is added or removed.
-ADJUDICATE_REFUSAL_SITES = 7
+ADJUDICATE_REFUSAL_SITES = 9
 
 
 def _adjudicate_appends():
@@ -561,3 +563,55 @@ def test_the_null_here_is_the_one_the_gates_use():
     assert art["step_bars"] == ll.HORIZON_BARS, (
         "the firing-rate measurement walked a different anchor grid than the "
         "ledger's own")
+
+
+# ── gate 5: the structure must make money on the metric it is graded with ───
+
+def test_a_row_with_no_measured_expectancy_is_refused():
+    """⛔ FAIL CLOSED, like gate 4. A lift whose expectancy was never measured
+    cannot be shown to correspond to a trade worth taking."""
+    v = ll.adjudicate(_passing_result(), [0.01] * ll.ESCALATED_NULL_TRIALS,
+                      deff=1.0)
+    assert not v["published"]
+    assert any("expectancy" in r for r in v["reasons"]), v["reasons"]
+
+
+def test_a_NEGATIVE_expectancy_is_refused_however_good_the_lift():
+    """⛔⛔ THE GATE THAT FIRED. A structure can beat its pattern-free
+    baseline's WIN RATE and still lose money on the bracket the lift is
+    measured with — Grimes and Brandt independently call the win rate the wrong
+    headline number, and two published rows proved them right."""
+    nulls = [0.01] * ll.ESCALATED_NULL_TRIALS
+    assert ll.adjudicate(_passing_result(), nulls, deff=1.0,
+                         expectancy_r=0.05)["published"]
+    v = ll.adjudicate(_passing_result(), nulls, deff=1.0, expectancy_r=-0.05)
+    assert not v["published"]
+    assert any("loses money" in r for r in v["reasons"]), v["reasons"]
+
+
+def test_the_two_rows_that_fell_to_it_are_named_and_say_why():
+    rows = _rows()
+    for key in ("climax-top", "stage-4-breakdown"):
+        row = rows.get(key)
+        assert row, f"{key} vanished"
+        assert not row.get("published"), (
+            f"{key} publishes again. Its measured expectancy was "
+            f"{row.get('expectancy_r')}R — if a re-measurement rescued it, "
+            f"update this rail deliberately.")
+        assert row.get("expectancy_r") is not None and row["expectancy_r"] <= 0
+        assert any("loses money" in r for r in row.get("reasons") or []), (
+            f"{key} is refused but its reasons do not name the expectancy")
+
+
+def test_every_published_row_makes_money_on_its_own_bracket():
+    """⭐ THE POSITIVE FORM. Without this the gate could be satisfied by
+    refusing everything."""
+    pub = _published()
+    assert pub, "nothing publishes — gate 5 has become a mute"
+    for key, row in pub.items():
+        assert row.get("expectancy_r", 0) > 0, (
+            f"{key} publishes with expectancy {row.get('expectancy_r')}R")
+        assert row.get("breakeven_roundtrip_pct") is not None, (
+            f"{key} publishes without a break-even cost — the corpus asks for "
+            f"trades/year and break-even cost alongside every return number")
+        assert row.get("trades_per_year") is not None
