@@ -1440,10 +1440,16 @@ def main() -> int:
 
         if args.dry_run:
             page = buzz_ingest.fetch_messages(ch, limit=5)
-            print(f"   dry run: {len(page)} message(s) readable")
+            if page is None:
+                print("   dry run: fetch FAILED (permission, rate limit or API error)")
+            else:
+                print(f"   dry run: {len(page)} message(s) readable")
             continue
         out = buzz_ingest.backfill(ch, days=args.days, progress=progress)
         print(f"\n   {out['pages']} pages, {out['fetched']} messages, {out['rows']} mentions")
+        if out.get("truncated"):
+            print("   ⚠️  TRUNCATED — hit a rate limit or an API error before reaching the "
+                  "cutoff.\n       This is NOT the end of the channel's history. Re-run to continue.")
     print(f"done in {time.time() - t0:.1f}s")
     return 0
 
