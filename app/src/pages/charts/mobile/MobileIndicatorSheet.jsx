@@ -5,6 +5,7 @@ import haptics from '../../../components/mobile/haptics'
 import * as engineRegistry from '../../../components/chart/engine/nativeRegistry'
 import { catalogRows, userCatalogRows, catalogGeneration } from '../../../components/chart/indicatorCatalog'
 import { isRowOn, toggledRow } from '../../../components/chart/IndicatorLibraryDialog'
+import { fieldFromInput } from '../../../components/chart/indicatorRegistry'
 import { setInstanceInput } from '../../../components/chart/engine/instanceControls'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import styles from './MobileCharts.module.css'
@@ -33,6 +34,30 @@ function StepRow({ label, value, min, max, step = 1, onChange }) {
         <button type="button" className={styles.stepBtn} onClick={dec} aria-label={`Decrease ${label}`}>−</button>
         <span className={styles.stepVal}>{value}</span>
         <button type="button" className={styles.stepBtn} onClick={inc} aria-label={`Increase ${label}`}>+</button>
+      </div>
+    </div>
+  )
+}
+
+/** Enum input as wrap-friendly chips — covers 3-option line styles and the
+ *  7-anchor AVWAP list alike. Options are `[value, label]` pairs normalized by
+ *  the desktop's own `fieldFromInput` (one type-vocabulary authority — a
+ *  hand-copied option list here is how a pickable value the compute refuses
+ *  gets shipped). Writes the RAW typed value, never the label. */
+function ChipRow({ label, value, options, onChange }) {
+  return (
+    <div className={styles.paramRow}>
+      <span className={styles.indName}>{label}</span>
+      <div className={styles.chipsWrap}>
+        {options.map(([val, lab]) => (
+          <button
+            key={String(val)}
+            type="button"
+            className={`${styles.chipOpt} ${value === val ? styles.chipOptOn : ''}`}
+            onClick={() => onChange(val)}
+            aria-pressed={value === val}
+          >{lab}</button>
+        ))}
       </div>
     </div>
   )
@@ -76,12 +101,21 @@ function SwatchRow({ label, value, onChange }) {
  * study the sheet hides would read as a badge counting ghosts. */
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
-export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '' }) {
+export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null }) {
   const overlays = Array.isArray(cs?.overlays) ? cs.overlays : []
   // Wave 8: tap a row's NAME to edit its parameters in a stacked mini-sheet —
   // period/color without the trip through the desktop settings modal.
-  // null | {kind:'ma', idx} | {kind:'study', defId}
+  // null | {kind:'ma', idx} | {kind:'study', defId, instanceId?}
   const [editing, setEditing] = useState(null)
+  // Wave 10: a legend-chip tap opens this sheet ALREADY INSIDE the tapped
+  // study's editor. The sheet stays mounted across opens (visibility is the
+  // `open` prop), so a bare useState seed would fire once ever — this is the
+  // codebase's render-time prop-change adjustment instead of an effect.
+  const [seenInitial, setSeenInitial] = useState(null)
+  if (initialEditing !== seenInitial) {
+    setSeenInitial(initialEditing)
+    if (initialEditing) setEditing(initialEditing)
+  }
 
   const toggle = (idx) => {
     haptics.tap()
@@ -94,11 +128,23 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     onWrite({ ...cs, overlays: next, preset: 'custom' })
   }
 
+  // The instance an edit lands on. A legend-chip tap names the EXACT instance
+  // (two MACDs → the tapped one); name-taps from this sheet's own rows fall
+  // back to the first live instance. editTarget and the write door MUST share
+  // this — resolving them differently writes one instance while showing another.
+  const editInstanceOf = (defId, instanceId) => {
+    const list = Array.isArray(cs?.indicatorInstances) ? cs.indicatorInstances : []
+    const byId = instanceId
+      ? list.find((i) => i && typeof i === 'object' && !isInstanceTombstone(i) && i.instanceId === instanceId && i.defId === defId)
+      : null
+    return byId || liveInstanceOf(cs, defId)
+  }
+
   // ONE write door per param — instanceControls' setInstanceInput validates
   // against the definition and refuses (identity return) anything the engine
   // would drop, so a bad value can never vanish an indicator.
   const writeStudyInput = (defId, key, value) => {
-    const inst = liveInstanceOf(cs, defId)
+    const inst = editInstanceOf(defId, editing?.instanceId)
     if (!inst) return
     const next = setInstanceInput(cs, inst.instanceId, key, value, engineRegistry)
     if (next !== cs) onWrite({ ...next, preset: 'custom' })
@@ -137,7 +183,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
       return o ? { title: `${o.type || 'MA'} ${o.period}`, o } : null
     }
     const def = engineRegistry.getDefinition(editing.defId)
-    const inst = liveInstanceOf(cs, editing.defId)
+    const inst = editInstanceOf(editing.defId, editing.instanceId)
     return def && inst ? { title: def.meta?.name || def.id, def, inst } : null
   })()
 
@@ -309,6 +355,24 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
                       <span className={styles.knob} />
                     </button>
                   </div>
+                )
+              }
+              // Anything else goes through the desktop's own type→field mapper
+              // (indicatorRegistry.fieldFromInput) rather than a fourth hand-
+              // written copy of the type vocabulary. Today that catches `enum`
+              // (AVWAP's anchor, VWAP/AVWAP line style, RS Line's benchmark) —
+              // inputs this editor silently DROPPED before, worst of them the
+              // anchor that defines what AVWAP is.
+              const field = fieldFromInput(inp)
+              if (field?.type === 'select') {
+                return (
+                  <ChipRow
+                    key={inp.key}
+                    label={field.label}
+                    value={cur}
+                    options={field.options}
+                    onChange={(v) => writeStudyInput(editing.defId, inp.key, v)}
+                  />
                 )
               }
               return null

@@ -145,7 +145,7 @@ export function toggledRow(row, settings, registry) {
 // reaches the builder through the settings panel, so the launcher renders only
 // where a host asks for it rather than appearing twice on the surfaces that
 // already have one.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula }) {
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '' }) {
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
 
@@ -165,7 +165,12 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   useEffect(() => {
     if (!open) return
     setQuery('')
-    searchRef.current?.focus()
+    // Desktop only: type-to-filter the moment the dialog opens. On touch the
+    // autofocus is a double bug — iOS Safari zooms the viewport for any
+    // focused input under 16px, and the software keyboard eats half the sheet
+    // before the member sees a single row. (max-width: 1024px) is the
+    // canonical TOUCH boundary (styles/breakpoints.css).
+    if (!window.matchMedia?.('(max-width: 1024px)').matches) searchRef.current?.focus()
   }, [open])
 
   // ─── THE MEMBER'S STORED FORMULAS: WHAT INSTALLED, AND WHAT DID NOT ───────
@@ -272,7 +277,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   if (!open) return null
 
   return (
-    <Sheet open={open} onClose={onClose} variant="auto" title="Indicators" maxWidth={640}>
+    <Sheet open={open} onClose={onClose} variant="auto" title="Indicators" ariaLabel="Indicator library" maxWidth={640} className={sheetClassName}>
       {/* The portal exemption. See the header. */}
       <div className={styles.body} {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
         <input

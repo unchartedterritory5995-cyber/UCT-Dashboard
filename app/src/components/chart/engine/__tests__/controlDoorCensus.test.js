@@ -679,6 +679,15 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'setIndicatorInput, because cs.indicators.<defId> is the mirror the migrator ' +
        'projects into exactly that id, so routing it away would leave the mirror stale ' +
        'beside a live instance that moved, for every user who has only one copy'],
+      ['app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
+       '⭐ NEW AT MOBILE WAVE 10 — the phone param editor writes setInstanceInput, and a ' +
+       'LEGEND-CHIP tap seeds it with the tapped chip\'s instanceId (initialEditing), so ' +
+       'with two RSIs on the chart the tapped one is the one that edits. Its ' +
+       'editInstanceOf resolves that id (falling back to the first live instance for ' +
+       'name-taps from the sheet\'s own rows, which are one-per-definition like the ' +
+       'wave-8 quick six), and editTarget and the write door SHARE the resolver — ' +
+       'resolving them separately would show one instance while writing another, the ' +
+       'exact defect this door exists to make sayable'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')
