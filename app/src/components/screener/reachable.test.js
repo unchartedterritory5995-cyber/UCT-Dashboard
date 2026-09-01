@@ -424,6 +424,8 @@ const AWAITING_A_DECISION = {
     + 'builds it into app/dist/cot-facts.cjs (npm run build), and api/services/cot_prewarm.py '
     + 'runs that bundle by subprocess for the Friday pre-warm. A walk from App.jsx cannot see a '
     + 'build-script entry, so it is recorded here; it was red on master since the 8/21 COT v3 ship.',
+    'app/src/components/chart/engine/ast/formulaDocs.js':
+    'NOT dead, and the THIRD of this shape after the two facts bundles above - the GENERATOR of the member-facing grammar reference. formulaDocs.test.js renders it on every run and diffs the result against docs/formulas/GRAMMAR.md, and FORMULA_DOCS_WRITE=1 rewrites that page from it, so the manifest and the page cannot drift apart. Its consumer is a rail and a committed artifact, not a route: a walk from App.jsx cannot see it and never will. Arrived with 37930ad22 (Segment G6) and was red on master until 2026-09-01. If the page is ever retired, delete this module, its test and this entry together.',
     'app/src/pages/optionsFlow/flowFactsEntry.js':
     'NOT dead, and the SAME SHAPE as cotFactsEntry above — the ENTRY POINT of the flow facts bundle: app/scripts/build-flow-facts.mjs builds it into app/dist/flow-facts.cjs (npm run build), and api/services/flow_aggregate.py runs that bundle by subprocess to serve GET /api/flow/aggregate. It exists so the SERVER can run the browser own parseCSV + processFlowData rather than a Python port of them, which would put a second authority on the numbers members trade on. A walk from App.jsx cannot see a build-script entry, so it is recorded here.',
   // ⚰️ `app/src/components/chart/engine/ast/thinkscript.js` LIVED HERE UNTIL W3.7
