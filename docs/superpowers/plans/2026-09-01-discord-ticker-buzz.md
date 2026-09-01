@@ -1493,46 +1493,107 @@ def test_top_board_carries_a_sparkline(mods):
     assert sum(row["spark"]) == 2
 
 
+# ── heat-score fixtures ──────────────────────────────────────────────────────
+#
+# ⛔ These seed the WEEKDAYS heat_board actually walks, not calendar days. An
+# earlier draft of this plan seeded Sept 1-20 (14 weekdays) against a 30-session
+# baseline reaching back to Aug 10, giving base = 14/30 = 0.47 -- below
+# MIN_BASELINE -- while today's 4 mentions sat below MIN_CURRENT=5. It failed
+# BOTH gates and could never have passed. Compute the arithmetic, don't eyeball it.
+
+def _prior_weekdays(now_dt, n):
+    """The same days `_prior_session_days` walks: weekdays only, going back."""
+    out, d = [], now_dt
+    while len(out) < n:
+        d = d - dt.timedelta(days=1)
+        if d.weekday() < 5:
+            out.append(d)
+    return out
+
+
+def _seed_baseline(store, now_dt, ticker, per_session, sessions=30,
+                   at_hour=9, at_min=40, mid=100000):
+    """`per_session` mentions just after the open on each of the last
+    `sessions` weekdays -> baseline == per_session exactly."""
+    for d in _prior_weekdays(now_dt, sessions):
+        ts = int(d.replace(hour=at_hour, minute=at_min, second=0,
+                           microsecond=0).timestamp())
+        for _ in range(per_session):
+            _put(store, ts, ticker, f"u{mid}", mid)
+            mid += 1
+    return mid
+
+
 def test_heat_uses_a_MATCHED_denominator_not_a_daily_average(mods):
-    """The trap: at 09:45 a ticker with 4 mentions is HOT if it normally has 1
-    by that time -- even though its full-day average is 20. A daily-average
-    denominator calls it stone cold."""
+    """THE trap. PLTR normally has 2 mentions by 09:45 and ~32 across a full
+    day. Today it has 8 by 09:45.
+
+      matched denominator (correct): 8 / 2   = 4.0x  -> HOT
+      daily-average denominator     : 8 / 32  = 0.25x -> reads stone cold
+
+    The afternoon mentions exist purely to make those two answers disagree.
+    """
     store, boards = mods
-    now = _at(21, 9, 45)                    # 15 min after the open
-    mid = 1
-    for d in range(1, 21):                  # 20 prior sessions
-        _put(store, _at(d, 9, 40), "PLTR", f"u{d}", mid); mid += 1     # 1 early
-        for k in range(19):                 # 19 more later in the day
-            _put(store, _at(d, 14, 0), "PLTR", f"v{d}{k}", mid); mid += 1
-    for k in range(4):                      # today: 4 already, before 9:45
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)   # Monday, 15 min in
+    now = int(now_dt.timestamp())
+
+    mid = _seed_baseline(store, now_dt, "PLTR", per_session=2)   # 2 by 09:45
+    for d in _prior_weekdays(now_dt, 30):                        # +30 each afternoon
+        ts = int(d.replace(hour=14, minute=0, second=0, microsecond=0).timestamp())
+        for _ in range(30):
+            _put(store, ts, "PLTR", f"v{mid}", mid); mid += 1
+
+    for k in range(8):                                           # today: 8 by 09:45
         _put(store, _at(21, 9, 40), "PLTR", f"t{k}", mid); mid += 1
 
     rows = {r["ticker"]: r for r in boards.heat_board(now, sessions=30)}
-    assert "PLTR" in rows, "matched denominator must see this as hot"
-    assert rows["PLTR"]["ratio"] >= 3.0, rows["PLTR"]
+    assert "PLTR" in rows, "a matched denominator must see this as hot"
+    assert rows["PLTR"]["ratio"] == 4.0, rows["PLTR"]
 
 
-def test_heat_control_a_normal_day_is_not_flagged(mods):
-    """Control -- proves the test above can fail. Same shape, but today's early
-    count matches the baseline exactly, so nothing should be hot."""
+def test_heat_control_a_busy_but_NORMAL_name_is_not_flagged(mods):
+    """The control that proves the test above can fail. Same volume as a hot
+    name (6 today, clears MIN_CURRENT), but 6 is exactly its normal -> ratio
+    1.0, so it must NOT appear. If this ever passes trivially, the heat board
+    is measuring volume, not surprise."""
     store, boards = mods
-    now = _at(21, 9, 45)
-    mid = 1
-    for d in range(1, 21):
-        _put(store, _at(d, 9, 40), "CALM", f"u{d}", mid); mid += 1
-    _put(store, _at(21, 9, 40), "CALM", "t0", mid)
-    rows = {r["ticker"] for r in boards.heat_board(now, sessions=30)}
-    assert "CALM" not in rows
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
+    now = int(now_dt.timestamp())
+
+    mid = _seed_baseline(store, now_dt, "CALM", per_session=6)
+    for k in range(6):
+        _put(store, _at(21, 9, 40), "CALM", f"t{k}", mid); mid += 1
+
+    assert "CALM" not in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
 
 
-def test_heat_floor_rejects_a_tiny_sample(mods):
-    """1 mention in 30 days then 3 today is '3x normal' and means nothing."""
+def test_heat_volume_floor_rejects_a_loud_ratio_on_a_tiny_count(mods):
+    """1 mention on each of 30 sessions, then 3 today, is 'below normal' -- but
+    even a 10x on 3 mentions is noise. cur < MIN_CURRENT excludes it."""
     store, boards = mods
-    now = _at(21, 15)
-    _put(store, _at(2, 10), "NOISE", "a", 1)
-    for k in range(3):
-        _put(store, _at(21, 10), "NOISE", f"b{k}", 100 + k)
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
+    now = int(now_dt.timestamp())
+
+    mid = _seed_baseline(store, now_dt, "NOISE", per_session=1)
+    for k in range(3):                                   # 3 < MIN_CURRENT (5)
+        _put(store, _at(21, 9, 40), "NOISE", f"t{k}", mid); mid += 1
+
     assert "NOISE" not in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
+
+
+def test_heat_baseline_floor_rejects_a_name_with_no_real_history(mods):
+    """Clears the volume gate (8 today) but has almost no baseline: seen on
+    only 6 of the last 30 sessions -> base 0.2, under MIN_BASELINE. '40x normal'
+    off a base that thin is an artifact, not a signal."""
+    store, boards = mods
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
+    now = int(now_dt.timestamp())
+
+    mid = _seed_baseline(store, now_dt, "THIN", per_session=1, sessions=6)
+    for k in range(8):
+        _put(store, _at(21, 9, 40), "THIN", f"t{k}", mid); mid += 1
+
+    assert "THIN" not in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
 
 
 def test_window_bounds_open_starts_at_the_market_open(mods):
