@@ -20,6 +20,105 @@
  * `className` lands in the same specificity bucket as the child's own class,
  * so source order would otherwise decide the winner. */
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE THEME ISLAND — every theme-variant token, pinned to its :root default.
+   ══════════════════════════════════════════════════════════════════════════
+   ⛔⛔ THIS IS NOT DECORATION. WITHOUT IT THE MODAL IS UNREADABLE ON A LIGHT
+   THEME, AND THAT IS A REGRESSION THIS FILE ITSELF CAUSED.
+
+   `--menu-*` is theme-INVARIANT by design (tokens.css: "a menu is app
+   chrome"), so pinning the shell to it made the panel dark under every theme
+   — correct, and what every chart dialog does. But the CONTENT inside still
+   resolved `--text` / `--text-bright` / `--glass-*` from `:root`, and the
+   light theme flips those to near-BLACK. Measured in a real browser with
+   `data-theme="light"`: **20 of 20 sampled text nodes at contrast 1.00** —
+   rgb(11,14,17) ink on the rgb(14,14,16) panel. Invisible, not merely dim.
+
+   So the modal declares its own island. Everything inside — IdentityBanner,
+   the eleven panels, every research-kit component, every foreign widget the
+   panels compose — resolves against the dark chrome it is actually drawn on,
+   whatever theme the page is wearing.
+
+   ⛔ THE BRIDGE ALIASES ARE RE-DECLARED TOO, and that is load-bearing, not
+   belt-and-braces. tokens.css says it in its own words: "AN ALIAS DOES NOT
+   FOLLOW A *NESTED* SCOPE — a custom property that references another is
+   substituted using the REFERENCING element's own computed value, then
+   inherited as a finished value." So a descendant reading `var(--text-primary)`
+   would get the ROOT's light-theme near-black even inside this island. Only
+   the ten aliases whose TARGET is theme-variant are listed; `--grade-*` and
+   `--control-*` point at tokens no theme block touches.
+
+   ⛔ DERIVED, NOT TYPED. `EarningsResearchModal.themeIsland.test.js` re-reads
+   tokens.css every run, computes the union of properties any `[data-theme=…]`
+   block overrides, and fails BY NAME on the first one missing here or holding
+   a value that has drifted from `:root`. Add a themed token tomorrow and that
+   test names it. Do not hand-maintain this list.
+   (`--tick-up-bg`/`--tick-down-bg` are deliberately absent: they exist ONLY in
+   theme blocks, so the default theme leaves them undefined and this island
+   matches the default.) */
+.modal,
+.sheet {
+  --bg: #101012;
+  --bg-elevated: #1d1f23;
+  --bg-hover: #24262b;
+  --bg-surface: #17181b;
+  --border: #2a2c31;
+  --border-accent: #383b41;
+  --gain: #2faf68;
+  --gain-bg: #2faf6815;
+  --gain-border: #2faf6835;
+  --glass-border-neutral: rgba(224, 218, 200, 0.10);
+  --glass-chrome: rgba(20, 22, 18, 0.94);
+  --glass-elevated: rgba(42, 45, 36, 0.58);
+  --glass-surface: rgba(34, 37, 30, 0.55);
+  --header-line: rgba(255, 255, 255, 0.11);
+  --header-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.55);
+  --ind-warn: #ff8100;
+  --ind-warn-bg: #ff810015;
+  --ind-warn-border: #ff810035;
+  --info: #5ea8f7;
+  --info-bg: #5ea8f712;
+  --info-border: #5ea8f730;
+  --loss: #df4646;
+  --loss-bg: #df464615;
+  --loss-border: #df464635;
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
+  --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --text: #f0efea;
+  --text-bright: #f8f7f3;
+  --text-heading: #ffffff;
+  --text-muted: #cfcac0;
+  --ut-cream: #d4c9a8;
+  --ut-gold: #dcbb5e;
+  --ut-gold-dim: #dcbb5e15;
+  --ut-gold-glow: #dcbb5e35;
+  --ut-green: #2d8c4e;
+  --ut-green-bright: #34d17c;
+  --ut-green-dim: #2d8c4e18;
+  --ut-green-glow: #2d8c4e40;
+  --ut-red: #c0392b;
+  --ut-red-bright: #f24b42;
+  --ut-red-dim: #c0392b18;
+  --warn: #dcbb5e;
+  --warn-bg: #dcbb5e15;
+  --warn-border: #dcbb5e35;
+
+  /* The bridge aliases whose target is re-pointed above. */
+  --accent: var(--ut-gold);
+  --bg-base: var(--bg);
+  --color-danger: var(--loss);
+  --color-success: var(--gain);
+  --color-text: var(--text);
+  --color-warning: var(--warn);
+  --text-dim: var(--text-muted);
+  --text-faint: var(--text-muted);
+  --text-primary: var(--text-bright);
+  --text-secondary: var(--text-muted);
+}
+
 .backdrop {
   position: fixed;
   inset: 0;
