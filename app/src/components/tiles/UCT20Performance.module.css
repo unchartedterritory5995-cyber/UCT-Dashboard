@@ -121,6 +121,30 @@
   font-family: var(--font-sans);
   font-size: 10px; color: var(--loss); opacity: 0.75; flex: 1;
 }
+/* Takes the same slot the bare stop price used to occupy, so the row keeps its
+   column rhythm. Colour comes from .gain/.loss on the element -- the Book's
+   outcome can be positive, which the old fixed --loss stop label could not
+   express. */
+.openBook {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px; font-weight: 600;
+  flex: 1 1 auto; white-space: nowrap;
+}
+.openNoFill {
+  font-family: var(--font-sans);
+  font-size: 10px; color: var(--text-muted); opacity: 0.75;
+  flex: 1 1 auto; white-space: nowrap;
+}
+/* The entry price is the row's most expendable field: it is also on the card
+   above. Let IT compress so the Book verdict never wraps the row to two lines
+   on a phone. */
+.openEntry { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.openHeaderNote {
+  display: block; margin-top: 3px;
+  font-weight: 400; font-size: 9px; letter-spacing: 0;
+  text-transform: none; color: var(--text-muted); opacity: 0.8;
+}
 .openDays {
   font-family: var(--font-sans);
   font-size: 10px; color: var(--text-muted); min-width: 28px; text-align: right;
@@ -217,6 +241,9 @@
   .openEntry { font-size: 10px; }
   .openPct { font-size: 10px; min-width: 48px; }
   .openStop { font-size: 9px; }
+  .openBook { font-size: 9px; }
+  .openNoFill { font-size: 9px; }
+  .openHeaderNote { font-size: 8px; }
   .openDays { font-size: 9px; }
   .tradesTableScroll {
     overflow-x: auto;
