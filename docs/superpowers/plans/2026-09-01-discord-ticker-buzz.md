@@ -433,6 +433,51 @@ def test_alias_keys_are_lowercase():
 def test_ambiguous_is_a_subset_of_the_universe():
     # A collision set listing things that are not symbols is not measuring collisions.
     assert u.ambiguous() <= u.symbols()
+
+
+def test_SPOT_is_deliberately_countable_despite_colliding_with_spot_price():
+    """SPOT came out of the same derived chart-vocabulary intersection as LINE,
+    BAND, BULL, GAIN and PUMP and is deliberately NOT gated: Spotify is traded
+    here, and banishing a traded symbol deletes real mentions permanently while
+    a false positive is visible and cheap. The second half is a CONTROL -- without
+    it this passes against an emptied HOUSE_VOCAB."""
+    assert "SPOT" in u.symbols()
+    assert "SPOT" not in u.ambiguous()
+    assert "SPOT" not in u.HOUSE_VOCAB
+    for gated in ("LINE", "BAND", "BULL", "GAIN", "PUMP"):
+        assert gated in u.HOUSE_VOCAB
+
+
+def test_an_unrecognised_dict_shape_contributes_no_symbols():
+    """These files are maintained in another repo, so a shape change is a matter
+    of when. Falling back to a dict's KEYS would make 'count' and 'version'
+    phantom tickers -- short enough to pass the length filter, absent from every
+    vocabulary set, so ambiguous() could never flag them."""
+    assert u._syms_from({"version": "1.0", "count": 3742, "generated": "x"}) == set()
+    assert u._syms_from({"symbols": ["NVDA", "AMD"]}) == {"NVDA", "AMD"}
+
+
+def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path, monkeypatch):
+    """buzz_boards imports this transitively on the /buzz query path, so a raise
+    here takes the command down while an empty set only makes it quiet."""
+    (tmp_path / "cap_universe.json").write_text("{not json at all", encoding="utf-8")
+    monkeypatch.setattr(u, "_DATA", tmp_path)
+    u._reset_caches_for_tests()
+    try:
+        assert u._load_json("cap_universe.json") is None
+        assert isinstance(u.symbols(), frozenset)      # must not raise
+    finally:
+        u._reset_caches_for_tests()                    # leave no poisoned cache
+```
+
+⚠️ **The fail-soft test is only possible with a cache reset.** `symbols()`/`aliases()`/`ambiguous()` are `lru_cache`d for the process lifetime, so a test that points the loader at a bad file otherwise reads whatever was cached first — and would pass vacuously. Add:
+
+```python
+def _reset_caches_for_tests() -> None:
+    """Drop the lru_caches so a test can change what the loaders see."""
+    symbols.cache_clear()
+    aliases.cache_clear()
+    ambiguous.cache_clear()
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -549,7 +594,14 @@ def _syms_from(payload) -> set[str]:
     of dicts keyed by sym/ticker/symbol."""
     out: set[str] = set()
     if isinstance(payload, dict):
-        payload = payload.get("symbols") or payload.get("tickers") or list(payload.keys())
+        # ⛔ NO `or list(payload.keys())` fallback. These files are maintained in
+        # another repo; if one ever ships as metadata (`{"version":…, "count":…}`)
+        # its KEYS would become phantom symbols -- short enough to pass the length
+        # filter, absent from every vocabulary set, so ambiguous() could never
+        # flag them, and the extractor would book "count" as a ticker mention.
+        # An unrecognised shape yields nothing, which fails LOUDLY (universe size
+        # collapses, every extractor rail goes red) instead of silently.
+        payload = payload.get("symbols") or payload.get("tickers") or []
     for item in payload or []:
         if isinstance(item, str):
             out.add(item.strip().upper())
