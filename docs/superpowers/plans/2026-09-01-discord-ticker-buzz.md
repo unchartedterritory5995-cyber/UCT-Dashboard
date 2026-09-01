@@ -2105,7 +2105,7 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 - Modify: `api/routers/render_panels.py` (add the token-gated `GET /r/buzz` data endpoint)
 - Create: `app/src/pages/BuzzRender.jsx`
 - Modify: `app/src/App.jsx` (lazy import, route, and the logged-out route list at line ~285)
-- Test: `tests/test_buzz_render_panel.py`
+- Test: `tests/api/test_buzz_render_panel.py`  ← **`tests/api/`, not `tests/`** — that is where every router test that builds a `TestClient` from `api.main` lives (see `tests/api/test_cot_endpoints.py`)
 - Test: `app/src/pages/__tests__/BuzzRender.test.jsx`
 
 **Interfaces:**
@@ -2117,7 +2117,7 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 - [ ] **Step 1: Write the failing backend test**
 
 ```python
-# tests/test_buzz_render_panel.py
+# tests/api/test_buzz_render_panel.py
 """/r/buzz data endpoint: token gate and payload shape."""
 from __future__ import annotations
 
@@ -2165,7 +2165,7 @@ def test_empty_store_returns_an_empty_list_not_an_error(client):
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/test_buzz_render_panel.py -v`
+Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/api/test_buzz_render_panel.py -v`
 Expected: FAIL — 404 on `/r/buzz`.
 
 - [ ] **Step 3: Add the data endpoint**
@@ -2341,7 +2341,7 @@ describe('BuzzRender', () => {
 
 - [ ] **Step 7: Run both suites**
 
-Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/test_buzz_render_panel.py -v`
+Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/api/test_buzz_render_panel.py -v`
 Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz/app && npx vitest run src/pages/__tests__/BuzzRender.test.jsx`
 Expected: both green.
 
@@ -2356,7 +2356,7 @@ Expected: both green.
 cd /c/Users/Patrick/uct-worktrees/discord-buzz && \
 git add api/routers/render_panels.py app/src/pages/BuzzRender.jsx \
         app/src/pages/BuzzRender.module.css app/src/App.jsx \
-        tests/test_buzz_render_panel.py app/src/pages/__tests__/BuzzRender.test.jsx && \
+        tests/api/test_buzz_render_panel.py app/src/pages/__tests__/BuzzRender.test.jsx && \
 git commit -m "feat(buzz): /r/buzz data endpoint + headless board render page"
 ```
 
@@ -2689,7 +2689,7 @@ Expected: 6 passed.
 
 - [ ] **Step 8: Run the whole buzz suite plus the chart suite**
 
-Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/test_buzz_store.py tests/test_buzz_universe.py tests/test_buzz_extract.py tests/test_buzz_ingest.py tests/test_buzz_boards.py tests/test_buzz_command.py tests/test_buzz_render_panel.py tests/test_buzz_digest.py tests/test_discord_chart.py -v`
+Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/test_buzz_store.py tests/test_buzz_universe.py tests/test_buzz_extract.py tests/test_buzz_ingest.py tests/test_buzz_boards.py tests/test_buzz_command.py tests/api/test_buzz_render_panel.py tests/test_buzz_digest.py tests/test_discord_chart.py -v`
 Expected: all green. **Read the summary line** — no pipe, gate on `$?`.
 
 - [ ] **Step 9: Commit and push**
