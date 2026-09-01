@@ -226,7 +226,17 @@ describe('the refusal vocabulary', () => {
       //   * `:block` was the `if … { y = 1 } else { y = 2 }` shape, which now
       //     READS as a ternary; a block assigning two DIFFERENT names does not.
       'Frobnicate(close, 1);\nplot p = close > 0;',
-      'plot p = Inertia(close, 20);',
+      // ⏳ A FOURTH PROBE MOVED, AND FOR THE SAME REASON THE OTHER THREE DID:
+      // `:function` was `Inertia(close, 20)`, which this engine now EXPANDS into
+      // `3*wma - 2*sma` — so it stopped being a wall and this set lost its only
+      // way to reach `:function`. That is the rail working: a guard nothing
+      // reaches any more must be re-aimed or retired, never left looking covered.
+      // ⚠️ `Median` IS THE PROBE NOW BECAUSE IT IS A WALL FOR A STATED REASON.
+      // It is an ORDER STATISTIC — the closed grammar has no sort and no way to
+      // say "the middle one" — and thinkorswim's page for it is not one this lane
+      // could reach to check a definition against. If a later task declares a
+      // `median` and maps it, this probe moves again and says so.
+      'plot p = Median(close, 20);',
       'def y;\ndef z;\nif close > open then { y = 1; } else { z = 2; }\nplot p = close;',
       // W3.6 — the five constructs that are outside a screen's world.
       // ⚰️ THIS PROBE WAS `close(symbol = "SPY")` AND IT STOPPED MEASURING

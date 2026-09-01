@@ -2694,6 +2694,44 @@ export const TS_CALL_SHAPES = Object.freeze({
   },
 
   // ── the expansions ────────────────────────────────────────────────────────
+  covariance: {
+    expand: 'covariance',
+    engines: ['sma'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Covariance: "Returns the covariance coefficient between the '
+      + 'data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes the implementation outright — Average(data1 * data2, length) - '
+      + 'Average(data1, length) * Average(data2, length) — and this table already maps '
+      + 'Average onto `sma`, so the expansion is the page formula with one substitution',
+  },
+  correlation: {
+    expand: 'correlation',
+    engines: ['sma', 'stdev'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Correlation: "Returns the correlation coefficient between '
+      + 'the data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes it as Covariance(data1, data2, length) / (StDev(data1, length) * '
+      + 'StDev(data2, length)) — both of which this table maps, so the expansion is the '
+      + 'page formula composed of the page own pieces',
+  },
+  inertia: {
+    expand: 'inertia',
+    engines: ['wma', 'sma'],
+    params: ['data', 'length'],
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Inertia: "Draws the linear regression curve using the '
+      + 'least-squares method to approximate data for each set of bars defined by the length '
+      + 'parameter", plotted as "y = a * current_bar + b". The page publishes both '
+      + 'coefficients in a manual reimplementation printed beside the built-in: '
+      + 'a = (n*Sum(x*y,n) - Sum(x,n)*Sum(y,n)) / (n*Sum(Sqr(x),n) - Sqr(Sum(x,n))) and '
+      + 'b = (Sum(Sqr(x),n)*Sum(y,n) - Sum(x,n)*Sum(x*y,n)) / the same denominator, with '
+      + '`def x = x[1] + 1`. See `TS_EXPANSIONS.inertia` for why that is the '
+      + '`3*wma - 2*sma` and where the arithmetic was already checked',
+  },
   truerange: {
     expand: 'truerange',
     engines: ['max', 'min'],
@@ -3065,6 +3103,20 @@ export function argumentPlan(shape, table = TABLE) {
  *
  *  ⛔ EVERY ENGINE NAME INSIDE ONE STILL GOES THROUGH `engineCall`, which is the
  *  module header's promise: the lookup happens at translation time. */
+/** The published covariance tree, built once and used by BOTH callers — because
+ *  thinkorswim own page defines `Correlation` in terms of `Covariance`, and a
+ *  second hand-written copy is how the two would come to disagree. */
+function covarianceTree(args, R, tok) {
+  const [a, b, length] = args
+  return cOp('-', [
+    R.engineCall('sma', [{ node: cOp('*', [a.node, b.node]), tok }, length], tok),
+    cOp('*', [
+      R.engineCall('sma', [a, length], tok),
+      R.engineCall('sma', [b, length], tok),
+    ]),
+  ])
+}
+
 const TS_EXPANSIONS = Object.freeze({
   /** `TrueRange(high, close, low)` → `Max(close[1], high) - Min(close[1], low)`.
    *
@@ -3091,6 +3143,95 @@ const TS_EXPANSIONS = Object.freeze({
     return cOp('-', [
       R.engineCall('max', [{ node: prevClose, tok }, high], tok),
       R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
+  },
+
+  /** `Covariance(a, b, n)` → `sma(a * b, n) - sma(a, n) * sma(b, n)`.
+   *
+   *  ⭐⭐ THAT IS THE PAGE FORMULA WITH ONE SUBSTITUTION. thinkorswim publishes
+   *  the implementation outright — *"Average(data1 * data2, length) -
+   *  Average(data1, length) * Average(data2, length)"* — and this table already
+   *  maps `Average` onto `sma` with its own citation. Nothing here is derived, so
+   *  there is nothing here to get wrong.
+   *
+   *  ⭐ AND IT SETTLES THE DIVISOR, which is the only thing a covariance can be
+   *  silently wrong about. The page spells it with `Average`, so the divisor is
+   *  `n` rather than `n-1` — the same population convention `interpret.js`
+   *  already pins for `stdev`. Two functions that disagree about that produce a
+   *  correlation off by a factor of n/(n-1) with no refusal anywhere. */
+  covariance: (args, R, tok) => covarianceTree(args, R, tok),
+
+  /** `Correlation(a, b, n)` → `covariance(a, b, n) / (stdev(a, n) * stdev(b, n))`.
+   *
+   *  ⭐⭐ THE PAGE DEFINES IT IN TERMS OF THE ONE ABOVE — *"Covariance(data1,
+   *  data2, length) / (StDev(data1, length) * StDev(data2, length))"* — so this
+   *  builds the SAME `covarianceTree` rather than a second spelling of it. Two
+   *  hand-written copies of one formula is how the pair drifts
+   *  (`lesson_one_grammar_four_hand_written_copies`); here the vendor already
+   *  said they are one thing, and the code says it the same way.
+   *
+   *  ⭐ THE POPULATION CONVENTION IS WHAT MAKES THIS PEARSON. `covarianceTree`
+   *  divides by `n` because the page spells it with `Average`, and this engine
+   *  `stdev` divides by `n` for its own documented reason; the ratio is therefore
+   *  the ordinary correlation coefficient, bounded in [-1, 1]. Had the two sides
+   *  disagreed the answer would still plot, still be smooth, and quietly leave
+   *  that range — which is why the rail asserts the bound on real bars. */
+  correlation: (args, R, tok) => {
+    const [a, b, length] = args
+    return cOp('/', [
+      covarianceTree(args, R, tok),
+      cOp('*', [
+        R.engineCall('stdev', [a, length], tok),
+        R.engineCall('stdev', [b, length], tok),
+      ]),
+    ])
+  },
+
+  /** `Inertia(data, length)` → `3 * wma(data, length) - 2 * sma(data, length)`.
+   *
+   *  ⭐⭐ IT COSTS THIS TABLE ZERO NEW VOCABULARY, and that is the point rather
+   *  than a convenience. The reflex is to declare a `linreg` function — and
+   *  `pine.js::EXPANSIONS.vwma` already wrote down why that is the wrong one:
+   *  *"A table entry would have been the reflex and it would have added a name to
+   *  the sayable vocabulary, the picker, the plain-language door and both
+   *  interpreters, to express something the table can already say."*
+   *
+   *  ⭐⭐ THE ARITHMETIC WAS ALREADY CHECKED, ONE DOOR OVER. `pine.js` maps
+   *  `ta.linreg(src, n, offset)` onto the closed form
+   *
+   *      linreg = sum(src,n)/n + (n·wma(src,n) − sum(src,n)) · C
+   *      C      = 6·((n−1)/2 − offset) / (n·(n−1))
+   *
+   *  and states it was *"verified against a direct least-squares fit over 600
+   *  random windows (n ∈ 2…200, offset ∈ 0…5): max relative error 6.0e-14"*.
+   *  `Inertia` is that value at the CURRENT bar, so offset = 0 and C collapses:
+   *
+   *      C = 6·((n−1)/2) / (n·(n−1)) = 3/n
+   *      ⇒ sum/n + 3·wma − 3·sum/n = 3·wma − 2·sum/n = 3·wma − 2·sma
+   *
+   *  — the least-squares endpoint identity. So this door inherits a measured
+   *  result instead of asserting a second one about the same maths, and the rail
+   *  checks the two doors against each other on real bars rather than re-deriving.
+   *
+   *  ⚠️ AND IT INHERITS THE WEIGHTING DEPENDENCY WITH IT. The identity holds only
+   *  if `wma` weights the NEWEST bar heaviest; the other way round the line leans
+   *  backwards on every chart and still plots. `pine.js` measured this engine's
+   *  `wma(close,3)` on a 1…5 ramp at 4.333 rather than 3.667, and the rail asserts
+   *  that direction rather than trusting the note.
+   *
+   *  ⛔ `length < 2` HAS NO LINE. Two points define one, one point does not, and
+   *  thinkorswim publishes no answer for a one-bar window. `3·wma − 2·sma` would
+   *  quietly return the bar's own value there — a number with no regression in it
+   *  — where Pine's spelling of the same maths divides by `n−1` and refuses. The
+   *  two doors say the same thing about the same window because the fact is about
+   *  the arithmetic, not about a vendor. */
+  inertia: (args, R, tok) => {
+    const [data, length] = args
+    const n = literalInteger(length.node)
+    if (n === null || n < 2) throw refuse('thinkscript:window', length.tok || tok)
+    return cOp('-', [
+      cOp('*', [{ type: 'num', value: 3 }, R.engineCall('wma', [data, length], tok)]),
+      cOp('*', [{ type: 'num', value: 2 }, R.engineCall('sma', [data, length], tok)]),
     ])
   },
 
