@@ -220,7 +220,7 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
   }
 }
 
-function Refusal({ refusal, testId }) {
+function Refusal({ refusal, testId, dialect }) {
   if (!refusal) return null
   return (
     <div className={styles.refusal} role="alert" data-testid={testId} data-guard={refusal.guard}>
@@ -240,16 +240,47 @@ function Refusal({ refusal, testId }) {
           the conventional call is shown and the MEMBER applies it: typed into
           their own script the value is visible in the read-back, which is the
           whole difference between their choice and our silent guess. */}
+      {/* ⚰️⚰️ THIS FRAME NAMED THINKORSWIM TO EVERY MEMBER WHO SAW IT, and the
+          Pine door emits suggestions too. Measured THROUGH `inspectSource` — the
+          door a member actually types at, not `translatePine` directly:
+            plot(ta.wma(close, 27.5))                     → pine:window,
+                                                            suggest hma(close, 55)
+            request.security(syminfo.tickerid, "240", …)  → pine:request,
+                                                            suggest timeframe.period
+          Ordinary Pine, and both read a sentence about thinkorswim plus a reason
+          ("these defaults are not published") that is false of each: `hma` is
+          offered because this engine DECLARES it and it spares a hand-expansion,
+          and `timeframe.period` is not a default in any sense.
+          ⚠️ NO COMMITTED FIXTURE REACHES IT. A first pass "measured" four corpus
+          Pine scripts carrying a suggest — true of `translatePine`, FALSE of the
+          door: the member-input translation lands all four on an earlier wall.
+          The bug is real and the corpus cannot show it, which is why the rail
+          uses constructed scripts (`lesson_a_projection_drops_what_it_does_not_name`
+          in spirit — measure through the shipping reader, not the engine).
+          ⭐ THE FILE ALREADY RULED ON THIS SHAPE, for the heading: "a heading that
+          still said 'Pine' over a thinkScript paste would be a sentence that is
+          false about the text on screen." Same fix, same source of truth — the
+          DETECTED dialect.
+          ⚠️ THE PINE LEAD DELIBERATELY EXPLAINS NOTHING. Its four cases have
+          different reasons and the refusal message directly above already carries
+          each one; a lead that tried to cover both `hma` and `timeframe.period`
+          would have to be vague enough to be false about one of them. If the
+          reasons ever need to differ WITHIN a dialect, the lead belongs on the
+          refusal object beside the guard that chose it, not here. */}
       {refusal.suggest && (
         <div className={styles.suggest} data-testid="import-suggest">
           <span className={styles.suggestLead}>
-            thinkorswim doesn’t publish these defaults, so this engine won’t assume
-            them. The conventional call is:
+            {dialect === 'thinkscript'
+              ? 'thinkorswim doesn’t publish these defaults, so this engine won’t '
+                + 'assume them. The conventional call is:'
+              : 'This engine declares a call that does translate:'}
           </span>
           <code className={styles.suggestCall}>{refusal.suggest}</code>
           <span className={styles.suggestWhy}>
-            Write the arguments into your own call and it translates — and because
-            they are in your script, you can see what was assumed.
+            {dialect === 'thinkscript'
+              ? 'Write the arguments into your own call and it translates — and '
+                + 'because they are in your script, you can see what was assumed.'
+              : 'Write it into your own script and what it says stays visible there.'}
           </span>
         </div>
       )}
@@ -507,7 +538,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
               translated" hid the refusal for a `strategy()` script whose plot
               DID translate — the script was correctly blocked, `Use` was
               correctly disabled, and the screen said nothing at all about why. */}
-          {report.refusal && <Refusal refusal={report.refusal} testId="pine-refusal" />}
+          {report.refusal && <Refusal refusal={report.refusal} testId="pine-refusal" dialect={seen} />}
 
           {report.ok && usable.length > 0 && (
             <fieldset className={styles.outputs}>
@@ -544,7 +575,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                     <div key={`bad-${out.line}-${i}`} className={styles.outputRow}>
                       <span className={styles.outKind}>{out.kind}</span>
                       <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
-                      <Refusal refusal={out.refusal} testId={`pine-output-refusal-${i}`} />
+                      <Refusal refusal={out.refusal} testId={`pine-output-refusal-${i}`} dialect={seen} />
                     </div>
                   )
                 }
