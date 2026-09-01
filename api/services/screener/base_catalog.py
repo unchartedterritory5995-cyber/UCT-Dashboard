@@ -863,24 +863,37 @@ def _iso_week_key(t):
     return d.isocalendar()[:2]
 
 
-def _weekly_closes(bars) -> list:
-    """The last close of each ISO week, oldest first.
+def _weekly_close_map(bars) -> dict:
+    """ISO week key -> that week's LAST close. THE one weekly-close authority.
+
+    ⛔⛔ ONE READER, TWO CONSUMERS. Weinstein's 30-week average wants an ordered
+    LIST of closes; Three Weeks Tight wants the closes AND the week keys the
+    last three of them came from (so its pivot can be read off the daily bars of
+    exactly those weeks). Two functions computing "the weekly closes" from the
+    same bars is `lesson_a_second_authority_over_one_value` in miniature -- so
+    the map is the authority and `_weekly_closes` is a view over it.
 
     ⚠️ CLOSES ONLY -- this is NOT a bar resample and does not pretend to be.
     `bars_fetch._resample_weekly_iso` owns what a weekly CANDLE is, and the
-    stable-Friday-key rationale that goes with it; this computes the input to a
-    moving average, so it is not a second authority on resampling.
-
-    ⛔ Weinstein's average is explicitly built on WEEKLY CLOSES, not a 150-day
-    average: "Based on Friday night closes only (not traditional 50-day or
-    150-day MAs)." The two are routinely treated as interchangeable and the
-    source says plainly that they are not.
+    stable-Friday-key rationale that goes with it.
     """
     seen = {}
     for b in bars:
         c = b.get("c") or 0
         if c > 0:
             seen[_iso_week_key(b["t"])] = c
+    return seen
+
+
+def _weekly_closes(bars) -> list:
+    """The last close of each ISO week, oldest first.
+
+    ⛔ Weinstein's average is explicitly built on WEEKLY CLOSES, not a 150-day
+    average: "Based on Friday night closes only (not traditional 50-day or
+    150-day MAs)." The two are routinely treated as interchangeable and the
+    source says plainly that they are not.
+    """
+    seen = _weekly_close_map(bars)
     return [seen[k] for k in sorted(seen)]
 
 
@@ -2036,6 +2049,329 @@ DOUBLE_BOTTOM = Structure(
     ),
     coverage_pct=6.9,
     detect=_detect_double_bottom,
+)
+
+
+# -- Ugly Double Bottom (Thomas Bulkowski's own coinage) --------------------
+# ⭐⭐ NOT A LOOSER DOUBLE BOTTOM. A SHAPE BOTH SHIPPED ENGINES REFUSE BY
+# CONSTRUCTION, WHICH IS THE ONLY REASON IT EARNS A KEY.
+#
+#   - `double_bottom_state` above refuses on `if p2 >= p1: return None`. IBD's W
+#     REQUIRES the second low to UNDERCUT the first -- that shakeout is the
+#     pattern's purpose -- so a second bottom sitting 5-15% HIGHER is rejected
+#     on the defining feature, not on a tolerance.
+#   - The pattern engine's `detectors/classical/double_bottom.py` refuses on
+#     `abs(t1_price - t2_price) / t1_price >= _MAX_TROUGH_SIMILARITY` with
+#     `_MAX_TROUGH_SIMILARITY = 0.04`. It rejects the same shape from the other
+#     side: this pattern's MINIMUM separation is 5%, already outside its band.
+#
+# Both were re-read before this was written, and the overlap was then MEASURED
+# rather than argued (see `coverage_pct` and the note below). ⛔ The wrong fix
+# would have been to widen one of those two numbers: `p2 >= p1` is IBD's
+# definition and 0.04 is the engine's similarity band, and loosening either
+# would silently relabel one house's pattern as another's -- the second
+# authority over one value this library is built to refuse.
+#
+# ⛔⛔ HIS PERFORMANCE FIGURES ARE HIS, MEASURED ON HIS UNIVERSE, WITH HIS
+# DEFINITIONS -- AND THEY ARE NOT OUR EDGE. The udb.html page publishes a 41%
+# average rise, a 15% failure rate and a 64% throwback rate over 4,376
+# hand-vetted "perfect trades". Those are recorded below as SOURCED criteria,
+# verbatim and under his id, because they are things he published. They are NOT
+# in `coverage_pct` (which is OUR hit rate on OUR universe) and they are NOT a
+# lift: `lift_ledger` publishes a number only when it beats OUR base rate on OUR
+# data, and until that run is done this structure has no lift at all. Importing
+# a vendor's win rate as our evidence is exactly what `lift_ledger`'s header was
+# written to stop -- head-and-shoulders resolved 42.0% against a 42.0% baseline,
+# and the raw rate alone would have shipped it as an edge.
+
+_BULK_UDB = "bulkowski_ugly_double_bottom"   # thepatternsite.com/udb.html
+
+#: "5-15% higher than first" -- the defining numeric gate, and the corpus notes
+#: it is unusually specific for this family. Stated a second time as an
+#: INVALIDATION ("more than 15% above it, or less than 5% above it"), so it is a
+#: hard band and not a preference.
+UDB_MIN_RISE = 0.05
+UDB_MAX_RISE = 0.15
+
+#: OURS, AND SWEPT RATHER THAN CHOSEN BY EYE. Bulkowski's confirmation is an
+#: EVENT -- the first close above the highest high between the two bottoms --
+#: and an event that happened once, months ago, is history rather than a setup.
+#: This is the bound `darvas-box` and `green-line-breakout` each had to learn:
+#: without one, a walk simply reports wherever it happened to end.
+#:
+#: Measured 2026-08-31 over a seeded 2,000-ticker draw from the screener
+#: universe, 1,871 of which carry the 400 daily bars the window needs:
+#:
+#:     max confirm age (bars)    5     10     20     30     40     60     90   none
+#:     % of universe          0.86%  1.98%  4.28%  5.72%  6.95%  9.35% 10.32% 10.58%
+#:
+#: 20 sessions (~4 weeks) is the choice: it keeps the label meaning "this base
+#: confirmed recently" at an informative 4.28% rather than "a UDB confirmed here
+#: at some point in the last two years" at 10.58%. origin: uct.
+#:
+#: ⭐ AND THE SOURCED CONFIRMATION GATE IS DOING MOST OF THE WORK, WHICH IS THE
+#: RIGHT WAY ROUND. On the same sample, the published band plus the intervening
+#: rally alone matched 305 symbols (16.30%); requiring his confirming close cut
+#: that to 198 (10.58%); our recency bound cut it to 80 (4.28%). A structure
+#: whose own number did the heavy lifting would be ours wearing his name.
+UDB_MAX_AGE_BARS = 20
+
+#: OURS. Bulkowski publishes no minimum length for this pattern -- the family's
+#: published separations belong to the Adam/Eve variants, not this one -- so a
+#: length here would be his number with our value in it. This is what the SHAPE
+#: structurally needs: two confirmed lows, the rally between them, and the
+#: confirming close. Declared once and read by both the `Structure` and the
+#: criterion that records it, so the two can never disagree.
+UDB_MIN_BARS = 40
+
+
+def _udb_geometry(bars, lows, highs) -> Optional[dict]:
+    """The UDB in a bar series, given swings it is HANDED.
+
+    ⛔ ONE PIVOT AUTHORITY. This never finds its own swings: both entry points
+    below pass in the confirmed pivots the pipeline's segmenter already
+    produced. A detector that re-derived them would be a second authority on
+    what a swing low IS, and the two would drift the first time `zigzag` moved.
+    """
+    if not bars or len(lows) < 2:
+        return None
+
+    low1, low2 = lows[-2], lows[-1]
+    if low2["bar_index"] <= low1["bar_index"]:
+        return None
+
+    p1, p2 = low1["price"], low2["price"]
+    if p1 <= 0 or p2 <= 0:
+        return None
+
+    # ⛔ THE DEFINING FEATURE, AND THE EXACT INVERSE OF THE W ABOVE. Bulkowski:
+    # "a double bottom in which the second bottom is significantly higher than
+    # the first". `double_bottom_state` returns None on this same comparison
+    # with the sign flipped.
+    if p2 <= p1:
+        return None
+    rise = (p2 - p1) / p1
+    if rise < UDB_MIN_RISE or rise > UDB_MAX_RISE:
+        return None
+
+    # A real rally must separate the two bottoms -- a confirmed swing high
+    # between them, not merely a gap in the swing list. ("consecutive minor
+    # low" is already satisfied by reading `lows[-2]` and `lows[-1]` above.)
+    mid = [h for h in highs
+           if low1["bar_index"] < h["bar_index"] < low2["bar_index"]]
+    if not mid:
+        return None
+
+    # ⛔ "highest high between two bottoms" -- the BARS' highs, exactly as
+    # written, and NOT the intervening pivot's price. A pivot's price is that
+    # bar's high, so the two agree only when the tallest bar in the span happens
+    # to be the pivot; otherwise the pivot is LOWER and confirming against it
+    # would pass a close that never cleared the high a member reads off the
+    # chart. Confirmation is the gate that makes the pattern valid at all, so
+    # the looser of two readings is the wrong one to take.
+    span = bars[low1["bar_index"] + 1:low2["bar_index"]]
+    peak = max((b["h"] for b in span if (b.get("h") or 0) > 0), default=0.0)
+    if peak <= 0:
+        return None
+
+    n = len(bars)
+    confirm_at = None
+    for i in range(low2["bar_index"] + 1, n):
+        if (bars[i].get("c") or 0) > peak:
+            confirm_at = i
+            break
+    if confirm_at is None:
+        return None            # "No close above the intervening high" -- unconfirmed
+    age = (n - 1) - confirm_at
+    if age > UDB_MAX_AGE_BARS:
+        return None            # ours: confirmed once, long ago, is not a setup
+
+    return {"low1": p1, "low2": p2, "rise": rise, "peak": peak,
+            "confirm_index": confirm_at, "confirm_age_bars": age,
+            "bars": (n - 1) - low1["bar_index"]}
+
+
+def ugly_double_bottom_state(bars) -> Optional[dict]:
+    """The current Ugly Double Bottom in `bars`, or None.
+
+    The pivots come from `bases`' own lazily-segmented context -- the same
+    confirmed-only swing list every other structure reads -- so this reader and
+    the predicate below can never disagree about where the bottoms are. The
+    import is function-local because `bases` imports THIS module; `meta()`
+    already does the same with `lift_ledger`.
+    """
+    from api.services.screener import bases
+
+    ctx = bases._context(bars, bars)
+    return _udb_geometry(ctx.bars, ctx.lows, ctx.highs)
+
+
+def _detect_ugly_double_bottom(ctx) -> bool:
+    """Reads the context's ALREADY-confirmed swings -- no re-segmentation.
+
+    `zigzag.segment` costs 8.48 ms against a detector's 0.3 ms, and the lift
+    harness rebuilds a context per anchor, so a predicate that segmented again
+    would dominate its own measurement.
+    """
+    return _udb_geometry(ctx.bars, ctx.lows, ctx.highs) is not None
+
+
+UGLY_DOUBLE_BOTTOM = Structure(
+    key="ugly-double-bottom",
+    label="Ugly Double Bottom",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=26,
+    min_bars=UDB_MIN_BARS,
+    desc=("Two consecutive swing lows where the second sits 5% to 15% ABOVE "
+          "the first, then a close above the highest high between them. The "
+          "opposite requirement to the W, whose second low must undercut."),
+    criteria=(
+        Criterion(
+            condition=("The defining shape: the second bottom is HIGHER than "
+                       "the first -- the exact inverse of the W above"),
+            value="second-bottom-higher",
+            quote=("a double bottom in which the second bottom is "
+                   "significantly higher than the first"),
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="How much higher the second bottom must sit",
+            value=(UDB_MIN_RISE, UDB_MAX_RISE),
+            quote="5-15% higher than first",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("The band is stated a SECOND time as an invalidation, "
+                       "so it is a hard gate and not a preference"),
+            value="outside-5-to-15-is-not-this-pattern",
+            quote=("second bottom below the first, or more than 15% above it, "
+                   "or less than 5% above it"),
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="The two bottoms are adjacent lows, not any two in the base",
+            value="consecutive",
+            quote="consecutive minor low",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Confirmation -- what makes the pattern valid at all",
+            value="close-above-highest-high-between-the-bottoms",
+            quote="Price must close above highest high between two bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("Volume through the pattern -- DESCRIPTIVE FREQUENCY, "
+                       "never a gate. He reports how often it happens, not a "
+                       "condition he applied; the same reading Darvas's box "
+                       "heights get."),
+            value=0.80,
+            quote="Recedes 80% of the time",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Prior trend length",
+            value=None,
+            quote="Short-term (0-3 months) trends show best performance",
+            source_id=_BULK_UDB, confidence="high",
+            missing=("This is a PERFORMANCE finding, not an identification "
+                     "gate -- the corpus labels it so in as many words. He does "
+                     "not say a longer-trended stock is not an ugly double "
+                     "bottom, only that those he measured did worse. Turning a "
+                     "reported result into a filter would invent a rule and "
+                     "then select the sample it was measured on."),
+        ),
+        Criterion(
+            condition=("HIS sample, and its provenance -- hand-vetted 'perfect' "
+                       "trades, which is a selected population by his own "
+                       "description"),
+            value=4376,
+            quote="Based on 4,376 perfect trades from July 1991 to July 2025",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("HIS measured average rise, against HIS own benchmark. "
+                       "⛔ NOT OUR EDGE and not a lift: it is measured on his "
+                       "universe with his definitions and his 'perfect' "
+                       "selection. Our number for this structure is whatever "
+                       "`lift_ledger` measures against OUR base rate, and until "
+                       "that run happens there is none."),
+            value="41% versus 37%",
+            quote="41% versus 37% for regular double bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("HIS measured failure rate, against HIS own benchmark -- "
+                       "recorded on the same terms as the rise above, and for "
+                       "the same reason it is not ours to republish as evidence"),
+            value="15% versus 16%",
+            quote="15% versus 16% for all double bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Throwback rate",
+            value=None,
+            # ⛔ NO QUOTE, DELIBERATELY. A refusal may carry one, but there is no
+            # verbatim sentence here to carry -- and borrowing a nearby one to
+            # fill the field would attribute words to a claim they were not
+            # written about.
+            source_id=_BULK_UDB, confidence="med",
+            missing=("The corpus records 64% for this page, but only as an "
+                     "unquoted prose figure -- there is no verbatim published "
+                     "sentence to attach, and this library does not paraphrase "
+                     "a number into a quote. It would also be his rate on his "
+                     "population; a throwback rate we could show a member would "
+                     "have to be measured on our universe."),
+        ),
+        Criterion(
+            condition=("Overall rank -- recorded as NOT comparable to the other "
+                       "Bulkowski pages in this corpus"),
+            value=None,
+            quote="Rank denominator and date range differ from every other page.",
+            source_id=_BULK_UDB, confidence="high",
+            missing=("Rank 23 of 41 on data through July 2025, while every "
+                     "other page in the sweep ranks out of 39 or 36 on data "
+                     "stamped 8/26/2020. A rank only means something against a "
+                     "fixed denominator and window, so placing this one beside "
+                     "the others would compare two different measurements. The "
+                     "whole family re-ranked on one window is what would be "
+                     "needed."),
+        ),
+        Criterion(
+            condition=("Maximum age of the confirming close, so the label means "
+                       "a breakout and not a state entered months ago"),
+            value=UDB_MAX_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Minimum history. Bulkowski publishes no length for this "
+                       "pattern; this is what the shape structurally needs -- "
+                       "two confirmed lows, the rally between them, and the "
+                       "confirming close."),
+            value=UDB_MIN_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("A real rally must separate the two bottoms: a confirmed "
+                       "swing high between them, not merely a gap in the swing "
+                       "list"),
+            value=True,
+            origin="uct", confidence="high",
+        ),
+    ),
+    #: Measured through the SHIPPED path (`bases.classify` -> `base_matches`),
+    #: not the predicate alone: 80 of 1,871 usable tickers, 2026-08-31.
+    #: ⭐ THE OVERLAP WITH `double-bottom` WAS MEASURED ON THE SAME SAMPLE AND IS
+    #: **ZERO** -- 80 carry this, 137 carry the W, none carry both. That is not
+    #: luck: both structures read the SAME pivot pair (`lows[-2]`, `lows[-1]`)
+    #: and then require opposite things of it, so the two labels are disjoint by
+    #: construction and the measurement says the construction holds on real
+    #: data. Had it come back non-zero, one of the two detectors would not have
+    #: been reading what its comment claims.
+    coverage_pct=4.28,
+    detect=_detect_ugly_double_bottom,
 )
 
 
@@ -4241,6 +4577,357 @@ BUYABLE_GAP_UP = Structure(
 )
 
 
+# -- Three Weeks Tight (IBD) ------------------------------------------------
+# ⭐⭐ THE CORPUS PUBLISHES TWO IRRECONCILABLE READINGS OF ONE PATTERN, and it
+# says so in as many words: "No reading satisfies both, and an implementation
+# must name which sentence it implements." One IBD article measures CONSECUTIVE
+# weekly closes -- "the difference between each weekly close" must not exceed
+# 1.5%. The Nasdaq republication measures the CLUSTER SPAN -- "the width between
+# the highest close and the lowest close" must not exceed 1% to 2%. Closes of
+# 100.0 / 101.4 / 102.8 have pairwise steps of 1.4% (a pattern under the first
+# sentence) and a span of 2.8% (not a pattern under the second).
+#
+# ⛔ AND "TAKE THE LOOSER" IS NOT AVAILABLE HERE. The saucer's depth ceiling and
+# the double bottom's both resolve two published numbers for the SAME
+# measurement by taking the wider, so the gate refuses only what both sources
+# refuse. These are two different MEASUREMENTS and neither contains the other:
+# 100/102/101 passes the span test (2.0%) and fails the pairwise one (2.0% step).
+# So the choice has to be argued, and it is -- see the criterion below. We
+# implement the PAIRWISE sentence, measure the span anyway, and report it.
+#
+# ⭐ THIS IS NOT A BASE AND IBD SAYS SO: "One, two or three weeks do not get the
+# job done." It is an add-on point inside an advance the buyer is already in,
+# which is why it carries the Momentum Continuation family and why a LOW
+# coverage number is the expected result rather than a disappointing one.
+
+_IBD_3WT = "ibd_three_weeks_tight"        # IBD, "How The 3 Weeks Tight Pattern Gives You An Extra Buy Point"
+_IBD_3WT_SMART = "ibd_smart_chart_3wt"    # IBD, "Smart Chart Reading: Why Short Stroke, 3 Weeks Tight Give A Profit Opportunity"
+_IBD_3WT_NASDAQ = "ibd_3wt_nasdaq"        # the same IBD column republished by Nasdaq -- and NOT word for word
+_IBD_BASE_COUNT = "ibd_base_count"        # IBD, "Looking At A Great Chart Base? Make Sure To Count The Weeks"
+
+#: "at least three straight weeks" -- three weekly closes, i.e. two close-to-close
+#: comparisons. SOURCED.
+TWT_WEEKS = 3
+
+#: THE IMPLEMENTED READING. "If the difference between each weekly close exceeds
+#: 1.5%, the three-weeks-tight pattern likely has flaws." SOURCED, and published
+#: twice by IBD in two separate articles.
+#:
+#: ⭐⭐ SOURCED IS NOT AN EXCUSE NOT TO MEASURE. `MIN_ROUNDNESS = 0.30` was chosen
+#: by eye and refused every realistic instance, so both readings were swept over
+#: the real universe before either shipped -- 2026-08-31, 2,000 seeded-random
+#: tickers, 1,871 carrying 400 daily bars, measured through
+#: `bases.classify(bars)` and `base_matches` rather than the predicate alone
+#: (the two were cross-checked equal at 260 hits, so the shipped path adds no
+#: silent gate):
+#:
+#:     pairwise <=   0.50%  0.75%  1.00%  1.25%  1.50%  2.00%  2.50%  3.00%
+#:     % universe     3.4%   5.8%   8.0%  10.5%  13.9%  19.3%  26.1%  33.0%
+#:
+#:     span     <=   0.50%  1.00%  1.50%  2.00%  2.50%  3.00%  4.00%
+#:     % universe     3.0%   6.8%  11.4%  16.5%  21.3%  26.9%  39.8%
+#:
+#: The published 1.5% lands at **13.90%** (`ok`), on a smooth curve with no
+#: cliff either side -- so this is IBD's number doing IBD's work, not a number
+#: that happens to survive. The span reading at its looser published end lands
+#: at **16.52%** (`ok`). ⛔ AND THE TWO ARE NOT THE SAME 260 NAMES: they agree
+#: on 245, so 79 of the 324 symbols either reading names (24%) are named by
+#: exactly one of them. The conflict is not academic; it is a quarter of the
+#: population.
+TWT_MAX_PAIRWISE = 0.015
+
+#: ⚠️ THE READING WE DO **NOT** APPLY, kept so the other sentence can be
+#: MEASURED rather than merely mentioned. The published form is a RANGE ("1% to
+#: 2%"), so there is no single span threshold to ship -- this is its looser end,
+#: used only by `tools/base_coverage` to report what the span reading would have
+#: matched. It is deliberately not a gate, and the criterion below records the
+#: published range as a string rather than pretending 2% is IBD's number.
+TWT_MAX_SPAN = 0.02
+
+#: "at least a dime past the highest intraday price in the tight pattern".
+#: SOURCED -- and note the pattern is DEFINED on weekly closes and TRIGGERED on
+#: the intraday high, so this reads `h` where the tightness test reads `c`.
+TWT_PIVOT_PAD = 0.10
+
+#: Three ISO weeks of sessions with room for a short one. A structure that
+#: cannot see three weekly closes returns None anyway; this only keeps
+#: `_collect_relations` from calling it on a stub series. origin: uct.
+TWT_MIN_BARS = 15
+
+
+def three_weeks_tight_state(bars) -> Optional[dict]:
+    """The three most recent weekly closes and BOTH published readings of them.
+
+    Returns None when there are not three weekly closes to read.
+
+    ⭐ WEEK BOUNDARY CONVENTION, STATED RATHER THAN ASSUMED: weeks are ISO weeks
+    (Monday-Sunday) and a week's close is the LAST daily close inside it -- the
+    Friday close on a normal week, and the last session traded when Friday is a
+    holiday. That is `_weekly_close_map`'s convention, already shared with
+    Weinstein's 30-week average, and it is the same partition of the calendar as
+    the corpus's `W-FRI` resample. It is NOT reinvented here: a second reader of
+    "the weekly closes" is exactly the defect this file keeps paying for.
+
+    ⭐ BOTH READINGS ARE COMPUTED, ALWAYS. Only `pairwise` gates (see the
+    criteria), but a structure whose literature contains a live disagreement
+    should carry the losing measurement in its own output rather than discard
+    it -- otherwise the conflict is a comment instead of a number.
+
+    ⚠️ `week_settled` IS REPORTED AND NOT GATED. The newest ISO week may still be
+    in progress, in which case its "close" can still move -- the repainting
+    problem `BaseCtx` documents for provisional swings. It is not a gate because
+    gating on it would make the label a function of WHICH DAY THE SCAN RUNS: on
+    any snapshot that does not end on a Friday the structure would report zero
+    matches, and a coverage number that swings with the weekday is not a
+    measurement of the pattern. IBD publishes nothing either way (recorded as a
+    refusal), so the honest answer is to say which it is and let the reader gate.
+    """
+    if not bars:
+        return None
+    wk = _weekly_close_map(bars)
+    keys = sorted(wk)
+    if len(keys) < TWT_WEEKS:
+        return None
+
+    win_keys = keys[-TWT_WEEKS:]
+    closes = [wk[k] for k in win_keys]
+    if any(c <= 0 for c in closes):
+        return None
+
+    steps = [abs(closes[i] - closes[i - 1]) / closes[i - 1]
+             for i in range(1, len(closes))]
+    pairwise = max(steps)
+    lo, hi = min(closes), max(closes)
+    span = (hi - lo) / lo
+
+    # The bars belonging to those same three weeks -- the pivot is read off
+    # THEIR intraday highs, and the prior advance is measured behind them.
+    want = set(win_keys)
+    idx = [i for i, b in enumerate(bars) if _iso_week_key(b["t"]) in want]
+    if not idx:
+        return None
+    start = idx[0]
+    highs = [(bars[i].get("h") or 0) for i in idx]
+    highs = [h for h in highs if h > 0]
+    if not highs:
+        return None
+
+    last = bars[-1]
+    import datetime as _dt
+    v = int(last["t"])
+    d = (_dt.date(v // 10000, (v // 100) % 100, v % 100)
+         if 10_000_000 <= v <= 99_999_999 else _dt.date.fromtimestamp(v))
+
+    return {
+        "closes": closes,
+        "weeks": len(closes),
+        "pairwise": pairwise,          # max |C_w - C_{w-1}| / C_{w-1}
+        "span": span,                  # (max C - min C) / min C
+        "high": max(highs),
+        "pivot": max(highs) + TWT_PIVOT_PAD,
+        "bars": len(bars) - start,
+        "prior_advance": _prior_advance(bars, len(bars) - start,
+                                        look=FLAT_ADVANCE_LOOKBACK),
+        # reported, never gated -- see the docstring.
+        "week_settled": d.weekday() == 4,
+    }
+
+
+def _detect_three_weeks_tight(ctx) -> bool:
+    """Three weekly closes each within 1.5% of the one before it.
+
+    ⛔ ONE READING GATES. `span` is measured and carried; it does not decide.
+    """
+    st = three_weeks_tight_state(ctx.bars)
+    return st is not None and st["pairwise"] <= TWT_MAX_PAIRWISE
+
+
+THREE_WEEKS_TIGHT = Structure(
+    key="three-weeks-tight",
+    label="Three Weeks Tight",
+    axis="relation",
+    family="Momentum Continuation",
+    bias="bullish",
+    rank=24,
+    min_bars=TWT_MIN_BARS,
+    desc=("Three weekly closes finishing within 1.5% of each other -- a stock "
+          "that stopped going anywhere for three weeks without giving anything "
+          "back. IBD's add-on point, not a base."),
+    criteria=(
+        Criterion(
+            condition="Pattern length, minimum",
+            value=TWT_WEEKS,
+            quote="at least three straight weeks",
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("The pattern may run a week longer, and reading the LAST "
+                       "three weeks catches that case rather than missing it: "
+                       "if four consecutive closes are all tight, so are the "
+                       "last three of them."),
+            value="four-weeks-tight-is-a-superset",
+            quote=("some three-weeks-tight pattern stretch into a "
+                   "four-weeks-tight, and the same principle apply."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("⭐⭐ THE READING WE IMPLEMENT, AND WHY THIS ONE. IBD "
+                       "publishes two incompatible MEASUREMENTS for this one "
+                       "pattern -- not two tolerances on one measurement -- and "
+                       "the corpus states the consequence outright: 'No reading "
+                       "satisfies both, and an implementation must name which "
+                       "sentence it implements.' We take the PAIRWISE sentence. "
+                       "Three reasons, none of them a coin toss. (1) It is "
+                       "published TWICE, in two separate primary IBD articles; "
+                       "the span sentence appears once, in a REPUBLICATION of "
+                       "the first of those two. (2) It is a single number; the "
+                       "span sentence is a RANGE, so shipping it would mean "
+                       "choosing 1% or 2% -- a third rule nobody published. "
+                       "(3) 'Take the looser', which settled the saucer's and "
+                       "the double bottom's depth ceilings, is NOT available: "
+                       "neither reading contains the other. 100.0/101.4/102.8 "
+                       "passes pairwise and fails span; 100/102/101 passes span "
+                       "and fails pairwise."),
+            value=TWT_MAX_PAIRWISE,
+            quote=("If the difference between each weekly close exceeds 1.5%, "
+                   "the three-weeks-tight pattern likely has flaws."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("The same 1.5%, the same pairwise measurement, "
+                       "independently restated by a second IBD article -- which "
+                       "is the corroboration the choice above rests on"),
+            value=TWT_MAX_PAIRWISE,
+            quote=("The three-weeks-tight pattern forms when a stock closes "
+                   "within 1.5% of the prior week's close for two straight "
+                   "weeks."),
+            source_id=_IBD_3WT_SMART, confidence="high",
+        ),
+        Criterion(
+            condition=("⚠️ THE LOSING READING, RECORDED AND MEASURED RATHER "
+                       "THAN DROPPED. The span test is carried in the state "
+                       "dict on every match and its real-universe coverage was "
+                       "measured beside the shipped one (see `coverage_pct`), "
+                       "so the disagreement is a number here and not an "
+                       "anecdote. The published value stays a RANGE because "
+                       "that is what the sentence says -- collapsing '1% to 2%' "
+                       "to a threshold would invent IBD's number."),
+            value="1% to 2% (span), recorded not applied",
+            quote=("If the width between the highest close and the lowest "
+                   "close exceeds 1% to 2%, it's probably not a "
+                   "three-weeks-tight."),
+            source_id=_IBD_3WT_NASDAQ, confidence="high",
+        ),
+        Criterion(
+            condition=("IBD's own worked example -- an ILLUSTRATION, not a "
+                       "threshold, and it reads the SPAN rather than the "
+                       "consecutive differences. Recorded because it is "
+                       "evidence AGAINST the sentence we chose, and evidence "
+                       "against your own choice belongs beside it."),
+            value="illustration-uses-the-span-reading",
+            quote=("It closed at 28.25, 28.25 and 28. The weekly spread "
+                   "between the closes was less than 1%. That's tight action."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition=("⛔ NOT A BASE, BY THE HOUSE'S OWN COUNT -- which is why "
+                       "this carries the Momentum Continuation family and not "
+                       "Base Structure, and why a small coverage number is the "
+                       "expected result rather than a disappointing one"),
+            value="add-on-point-not-a-base",
+            quote="One, two or three weeks do not get the job done",
+            source_id=_IBD_BASE_COUNT, confidence="high",
+        ),
+        Criterion(
+            condition=("Pivot -- and note the SWITCH OF PRICE FIELD. The "
+                       "pattern is defined on weekly CLOSES and triggered on "
+                       "the highest INTRADAY price of the same three weeks, so "
+                       "a correct implementation reads `c` to qualify and `h` "
+                       "to place the level."),
+            value=TWT_PIVOT_PAD,
+            quote=("The time to add shares usually is when the stock climbs at "
+                   "least a dime past the highest intraday price in the tight "
+                   "pattern, ideally in strong weekly volume."),
+            source_id=_IBD_3WT, confidence="high",
+        ),
+        Criterion(
+            condition="Breakout volume for this pattern",
+            value=None,
+            source_id=_IBD_3WT, confidence="high",
+            missing=("The house asks for 'strong weekly volume' and never says "
+                     "how strong or against what average. A direction is not a "
+                     "threshold, and importing the general 40-50%-above-average "
+                     "breakout figure would be borrowing another pattern's "
+                     "number."),
+        ),
+        Criterion(
+            condition="Size of the follow-up buy",
+            value=None,
+            source_id=_IBD_3WT, confidence="high",
+            missing=("IBD's two three-weeks-tight articles give incompatible "
+                     "fractions for the IDENTICAL signal -- one-eighth to a "
+                     "quarter of a full position in one, 5% in the other, a "
+                     "factor of 2.5 to 5 apart. Neither is averaged and neither "
+                     "is chosen: position sizing is not this module's to "
+                     "decide, and a conflict of that width is a finding, not a "
+                     "default."),
+        ),
+        Criterion(
+            condition=("Whether the newest week must be a SETTLED week before "
+                       "the pattern counts"),
+            value=None,
+            source_id=_IBD_3WT, confidence="med",
+            missing=("Nothing published either way. The pattern is defined on "
+                     "weekly closes, and a week in progress has no close yet -- "
+                     "but IBD writes about three-weeks-tight patterns forming "
+                     "in real time and never says the current week must be "
+                     "finished. So `week_settled` is REPORTED on every match "
+                     "and gates nothing: gating on it would make the label a "
+                     "function of which weekday the scan ran, and report zero "
+                     "on any snapshot not ending on a Friday."),
+        ),
+        Criterion(
+            condition=("Where in a stock's advance the pattern must sit for the "
+                       "add-on to be valid"),
+            value=None,
+            source_id=_IBD_3WT, confidence="med",
+            missing=("The house frames this as adding to a position already "
+                     "held ('The time to add shares'), which implies a prior "
+                     "advance, but publishes no minimum gain, no lookback and "
+                     "no distance from a prior buy point. `prior_advance` is "
+                     "therefore MEASURED and carried on every match and gates "
+                     "nothing -- a number of ours in that slot would be our "
+                     "rule wearing IBD's name. The FLAT BASE does carry such a "
+                     "gate, and the difference is the measurement, not the "
+                     "taste: its sourced rules alone matched 41.1% of the "
+                     "universe, past the band at which a label stops being "
+                     "information. This one matches 13.9%, so an owned gate "
+                     "would have nothing to rescue. Over the same 1,871 names "
+                     "the 260 matches run p25=4.1% / p50=9.6% / p75=23.5% "
+                     "prior advance; a 10% floor would leave 6.7% of the "
+                     "universe and a 30% floor 2.6% -- the numbers to reach "
+                     "for IF a later measurement says this label is too broad."),
+        ),
+        Criterion(
+            condition=("The three weeks are the LAST three, so the label means "
+                       "'this is tight NOW' rather than 'this was tight once'. "
+                       "Same recency lesson darvas-box, green-line-breakout and "
+                       "double-bottom each had to learn."),
+            value="ends-at-the-last-bar",
+            origin="uct", confidence="high",
+        ),
+    ),
+    #: 260 of 1,871 (13.90%) -- `ok`, measured 2026-08-31 through
+    #: `bases.classify` + `base_matches`. ⭐ THE OTHER READING WAS MEASURED
+    #: BESIDE IT: the span sentence at its looser published end matches
+    #: 309 (16.52%), and only 245 names satisfy both -- so which sentence an
+    #: implementation picks decides a QUARTER of the population, not a rounding
+    #: error. Full sweep table beside `TWT_MAX_PAIRWISE`.
+    coverage_pct=13.9,
+    detect=_detect_three_weeks_tight,
+)
+
+
 # ── SHAPES — a TOTAL partition over the swing sequence ─────────────────────
 # ⭐ Every symbol gets exactly one. These are structural readings of the
 # confirmed swing sequence, so no house publishes them and every criterion is
@@ -4632,7 +5319,8 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             SAUCER, VCP, WYCKOFF_SPRING,
+             SAUCER, THREE_WEEKS_TIGHT, UGLY_DOUBLE_BOTTOM, VCP,
+             WYCKOFF_SPRING,
              EMA_CROSSBACK, GO_SIGNAL]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
