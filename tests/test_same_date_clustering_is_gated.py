@@ -298,3 +298,73 @@ def test_the_old_carrier_name_is_gone():
     assert "_carry_forward" in [n.name for n in ast.walk(tree)
                                 if isinstance(n, ast.FunctionDef)], (
         "the successor is gone too — nothing carries the clustering forward")
+
+
+# ── is the ledger finished? ─────────────────────────────────────────────────
+
+def test_no_null_escalation_can_change_any_verdict():
+    """⭐⭐ THE COMPLETENESS CLAIM, RE-DERIVED RATHER THAN TRUSTED.
+
+    Most rows were graded against 5 null trials, far under the 30 a published
+    row needs, so escalating them looks like the obvious remaining work. It is
+    futile by construction: a null MAXIMUM only grows with trials, so gate 2
+    gets strictly harder, and gates 0 and 1 never read the null at all.
+
+    ⛔ This is checked row by row rather than argued, because "the argument is
+    sound" is how a completeness claim survives the day it stops being true.
+    """
+    rescuable = []
+    for key, row in _rows().items():
+        if row.get("published") or row.get("lift") is None:
+            continue
+        if row["lift"] <= 0:
+            continue                                   # gate 0
+        deff = row.get("cluster_deff")
+        lo = (ll.clustered_bounds(row["lift"], row["ci_low"], row["ci_high"],
+                                  float(deff))[0]
+              if isinstance(deff, (int, float)) else row["ci_low"])
+        if lo <= 0:
+            continue                                   # gate 1
+        nm = row.get("null_max")
+        if nm is not None and lo <= nm:
+            continue                                   # gate 2, monotone
+        if (row.get("null_trials") or 0) >= ll.ESCALATED_NULL_TRIALS:
+            continue                                   # already at the ceiling
+        rescuable.append((key, row["lift"], lo, nm, row.get("null_trials")))
+    assert not rescuable, (
+        f"these rows COULD publish if their nulls were escalated: {rescuable}. "
+        f"The ledger's completeness note says none can — escalate them or "
+        f"correct the note.")
+
+
+def test_the_claim_is_not_vacuous_because_rows_ARE_below_the_ceiling():
+    """⛔ NON-VACUITY. If every row already had 30 trials, "no escalation can
+    help" would be trivially true and would say nothing about this library."""
+    below = [k for k, v in _rows().items()
+             if (v.get("null_trials") or 0) < ll.ESCALATED_NULL_TRIALS]
+    assert len(below) >= 10, (
+        f"only {len(below)} rows sit below the {ll.ESCALATED_NULL_TRIALS}-trial "
+        f"ceiling; the futility argument no longer describes this ledger")
+
+
+def test_the_monotonicity_the_argument_rests_on_actually_holds():
+    """⛔ THE LOAD-BEARING PREMISE, TESTED. Everything above rests on a null
+    maximum being non-decreasing in trial count. That is obvious — which is
+    exactly the kind of premise that goes unchecked."""
+    import random
+    rng = random.Random(11)
+    draws = [rng.gauss(0, 1) for _ in range(200)]
+    maxima = [max(draws[:n]) for n in range(1, len(draws) + 1)]
+    assert all(b >= a for a, b in zip(maxima, maxima[1:])), (
+        "a running maximum decreased — the futility argument is unsound")
+
+
+def test_the_completeness_claim_travels_with_the_numbers():
+    lim = ll.load().get("limitations") or ""
+    assert "IS THIS LEDGER FINISHED?" in lim, (
+        "the ledger no longer states whether its remaining 5-trial rows are "
+        "worth escalating — the next reader will spend a day finding out")
+    for must in ("only GROW", "not more DATA"):
+        assert must in lim, (
+            f"the completeness note lost {must!r}: it must carry BOTH why "
+            f"escalation is futile AND what it does not foreclose")
