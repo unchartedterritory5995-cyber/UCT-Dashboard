@@ -368,3 +368,69 @@ def test_the_completeness_claim_travels_with_the_numbers():
         assert must in lim, (
             f"the completeness note lost {must!r}: it must carry BOTH why "
             f"escalation is futile AND what it does not foreclose")
+
+
+# ── the member-facing gate description must not go stale ────────────────────
+
+#: `reasons.append` sites inside `adjudicate` when the prose below was last
+#: written. NOT the gate count — several gates emit more than one refusal
+#: sentence — but a number that MOVES whenever a gate is added or removed.
+ADJUDICATE_REFUSAL_SITES = 7
+
+
+def _adjudicate_appends():
+    import ast
+    src = (ROOT / "api/services/screener/lift_ledger.py").read_text(encoding="utf-8")
+    fn = [n for n in ast.walk(ast.parse(src))
+          if isinstance(n, ast.FunctionDef) and n.name == "adjudicate"]
+    assert fn, "`adjudicate` is gone or renamed — this rail is looking at nothing"
+    return [n for n in ast.walk(fn[0])
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "append"]
+
+
+def test_the_gate_prose_still_describes_the_gates_that_exist():
+    """⛔⛔ A HAND-TYPED COUNT BESIDE THE THING IT DESCRIBES — the defect this
+    repo has shipped more often than any other, and it shipped again here.
+    `GET /api/screener/structures` serves this text to members as
+    `evidence_basis`, and it opened with "FOUR gates" for as long as it took to
+    read it aloud after a fifth was added.
+
+    ⭐ SO THE COUNT IS DERIVED, TWICE OVER: the leading word must match the
+    enumerated `(n)` markers in the prose itself, and the number of refusal
+    sites in `adjudicate` must not have moved since the prose was written.
+    """
+    import re
+    gates = ll.load().get("gates") or ""
+    assert gates, "the ledger no longer describes its gates at all"
+
+    words = {"THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6, "SEVEN": 7}
+    lead = gates.split()[0]
+    assert lead in words, (
+        f"the gate prose opens with {lead!r}, which this rail cannot check. "
+        f"Open it with a spelled number so the claim stays falsifiable.")
+    enumerated = sorted({int(m) for m in re.findall(r"\((\d)\)", gates)})
+    assert enumerated == list(range(len(enumerated))), (
+        f"the gate markers are not a contiguous run from 0: {enumerated}")
+    assert words[lead] == len(enumerated), (
+        f"the prose says {lead} ({words[lead]}) gates and enumerates "
+        f"{len(enumerated)}: {enumerated}")
+
+
+def test_a_new_gate_forces_the_prose_to_be_rewritten():
+    """⭐ THE HALF THAT ACTUALLY CATCHES IT. Counting the prose against itself
+    cannot notice a gate added in code and never described. This can."""
+    n = len(_adjudicate_appends())
+    assert n == ADJUDICATE_REFUSAL_SITES, (
+        f"`adjudicate` now has {n} refusal sites, not "
+        f"{ADJUDICATE_REFUSAL_SITES}. A gate was added or removed: update the "
+        f"`gates` prose in docs/base_lift_ledger.json — members read it as "
+        f"`evidence_basis` — then update this constant.")
+
+
+def test_the_clustering_gate_is_actually_described_to_members():
+    gates = (ll.load().get("gates") or "").lower()
+    for must in ("clustering", "design effect", "refused"):
+        assert must in gates, (
+            f"the gate description never mentions {must!r}; a member reading "
+            f"it would not learn why two structures stopped publishing")
