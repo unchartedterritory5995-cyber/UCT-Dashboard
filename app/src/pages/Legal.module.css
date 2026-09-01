@@ -96,3 +96,9 @@
 @media (max-width: 1024px) {
   .backLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
 }
+
+/* Touch (wave 15): prose mailto links audited 18px tall. Inline-block keeps
+   the sentence flow; the padding grows the hit box, not the text. */
+@media (max-width: 1024px) {
+  .prose a { display: inline-block; padding: 12px 0; margin: -12px 0; }
+}

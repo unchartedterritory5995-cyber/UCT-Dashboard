@@ -34,9 +34,16 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 `app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
 At 2026-08-09 it reads:
 
-Dashboard · Morning Wire · UCT 20 · Breadth · **Charts** · Calendar · Screener ·
-**Patterns** · Options Flow · **Live Flow** (`/live-massive`) · Post Market ·
+Dashboard · Morning Wire · **Charts** · **AI Search** (`/ai-search`) · UCT 20 ·
+Breadth · Calendar · Screener · Options Flow · **Flow Record**
+(`/flow-scoreboard`) · **Live Flow** (`/live-massive`) · Post Market ·
 Model Book · **The Desk** · Journal · **Community** · Support
+
+⚰️ The 2026-08-09 reading of this line listed **Patterns** — there is no
+`/patterns` route and no such NAV entry (measured 2026-09-01); the string only
+survived in `tools/mobile_audit.py`'s hand-typed route list, where it made the
+harness audit the 404 page while `/ai-search`, `/flow-scoreboard`,
+`/live-massive`, `/desk` and `/community` were never audited at all.
 
 Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
 Monitor · Views · Daily · COT Data · Data Charts, **+ Analogues appended for
