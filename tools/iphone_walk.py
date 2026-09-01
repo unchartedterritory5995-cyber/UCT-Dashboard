@@ -509,9 +509,23 @@ def main():
         pinch_ok = pinch_zoom_gate(page)
         # Phase 9: the app top bar steps aside on the phone chart shell — the
         # hamburger is gone while the bottom tab bar (the control) stays.
+        # Control is the strip's Menu door (the app menu ON the chart screen)
+        # — the bottom tab bar that used to serve as the control was removed
+        # app-wide 2026-09-01.
         topbar_gone = (not page.get_by_label('Open menu').is_visible()
-                       and page.get_by_role('link', name='Home').is_visible())
-        print('  top bar hidden on /charts phone (tab bar stays):', topbar_gone)
+                       and page.get_by_role('button', name='Menu').is_visible())
+        print('  top bar hidden on /charts phone (Menu door present):', topbar_gone)
+        # Gate 8 — the app tab bar stays REMOVED (owner call 2026-09-01) and
+        # the chart toolbar owns the bottom edge; a resurrected bar would eat
+        # ~58px of chart on every phone.
+        geo = page.evaluate('''() => {
+          const nav = document.querySelector('nav[aria-label="Primary"]')
+          const tb = document.querySelector('[data-testid="mobile-chart-toolbar"]')
+          const r = tb && tb.getBoundingClientRect()
+          return { navGone: !nav, gap: r ? Math.abs(r.bottom - innerHeight) : 999 }
+        }''')
+        no_tabbar = geo['navGone'] and geo['gap'] <= 1
+        print(f"  tab bar gone + toolbar owns the bottom edge (gap {geo['gap']}px):", no_tabbar)
         for label, name in [('Timeframe', '02-tf-sheet'), ('Chart type', '03-type-sheet'),
                             ('Indicators', '04-indicators-sheet'), ('More tools', '05-more-sheet')]:
             try:
@@ -688,13 +702,16 @@ def main():
     if not longpress_ok:
         print('FAIL: long-press row menu did not open — phone row actions regressed')
         return 1
+    if not no_tabbar:
+        print('FAIL: the bottom tab bar is back (or the chart toolbar no longer reaches the bottom edge)')
+        return 1
     if not sunrise_ok:
         print('FAIL: sunrise sheets rendered dark — the picker theme scope regressed (portal escape)')
         return 1
     if not pinch_ok:
         print('FAIL: pinch-zoom did not change the visible range (or unpinned the right edge)')
         return 1
-    print('PASS: touch place + reshape + back-to-live + pinch-zoom + top-bar + long-press + sunrise-sheets verified end-to-end')
+    print('PASS: touch place + reshape + back-to-live + pinch-zoom + top-bar + no-tabbar + long-press + sunrise-sheets verified end-to-end')
     return 0
 
 

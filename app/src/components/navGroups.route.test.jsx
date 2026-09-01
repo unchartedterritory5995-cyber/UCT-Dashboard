@@ -16,9 +16,11 @@
 //
 // ⭐ SO THIS FILE RENDERS THE REAL `App` AT THE URLS THE SHARED MODULE
 // ACTUALLY PRODUCES — never a typed URL for a POSITIVE resolution claim.
-// `navigableTargets()` (navGroups.js) is the one formula both consumers
+// `navigableTargets()` (navGroups.js) is the one formula nav consumers
 // follow (routes[0] per group, plus home's routes[1] for the free-tier Wire
-// tab); this rail resolves exactly that set against App's route table, and
+// entry — NavBar's rail and the MoreSheet directory since the bottom tab
+// bar's removal, 2026-09-01); this rail resolves exactly that set against
+// App's route table, and
 // separately proves `/catalysts` on its own does NOT resolve — turning the
 // known gap into a verified, standing fact instead of a landmine.
 //
@@ -31,10 +33,8 @@
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import fs from 'node:fs'
-import { MemoryRouter } from 'react-router-dom'
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { AuthProvider } from '../context/AuthContext'
 import { NAV_GROUPS, navigableTargets } from './navGroups'
 
 // The one off-path stub — identical reasoning to doors.route.test.jsx: a
@@ -43,7 +43,6 @@ import { NAV_GROUPS, navigableTargets } from './navGroups'
 vi.mock('../components/voice/GlobalVoiceLayer', () => ({ default: () => null }))
 
 const App = (await import('../App')).default
-const MobileTabBar = (await import('./mobile/MobileTabBar')).default
 
 const NOT_FOUND_MARK = 'Page not found'
 
@@ -55,11 +54,6 @@ const PAID_AUTH = {
   user: { id: 1, email: 'rail@local', name: 'Rail', role: 'admin', email_verified: true },
   plan: 'lifetime',
 }
-const FREE_AUTH = {
-  user: { id: 2, email: 'free@local', name: 'Free', role: 'member', email_verified: true },
-  plan: 'free',
-}
-
 let authResponse = PAID_AUTH
 
 beforeEach(() => {
@@ -95,54 +89,6 @@ function open(url) {
   window.history.pushState({}, '', url)
   return render(<App />)
 }
-
-/** The hrefs the SHIPPED MobileTabBar renders for one auth tier, read off the
- *  DOM — never typed. `useIsPaid()` falls back to `true` with no
- *  `AuthProvider` mounted (see AuthContext.jsx), which is what the isolated
- *  paid-tier extraction below relies on; the free tier needs a real
- *  `AuthProvider` fed a stubbed free `/api/auth/me` so `isPaid` genuinely
- *  resolves to `false` before the hrefs are read. */
-async function hrefsFromMobileTabBar({ paid }) {
-  authResponse = paid ? PAID_AUTH : FREE_AUTH
-  const utils = paid
-    ? render(<MemoryRouter><MobileTabBar onMore={() => {}} /></MemoryRouter>)
-    : render(
-      <MemoryRouter>
-        <AuthProvider>
-          <MobileTabBar onMore={() => {}} />
-        </AuthProvider>
-      </MemoryRouter>,
-    )
-  // Wait for the tier-specific tab to actually be there — for the free tier
-  // this means waiting on AuthProvider's fetch to resolve; for the paid tier
-  // (no AuthProvider, no fetch) it resolves on the first render.
-  await waitFor(() => expect(screen.getByText(paid ? 'Home' : 'Wire')).toBeInTheDocument())
-  const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
-  utils.unmount()
-  cleanup()
-  return hrefs
-}
-
-const HOME_GROUP = NAV_GROUPS.find((g) => g.key === 'home')
-
-describe('🔴 MobileTabBar renders exactly navigableTargets(), split by tier', () => {
-  it("paid tier: Home + every non-home group's first route — never the free-only Wire target", async () => {
-    const hrefs = await hrefsFromMobileTabBar({ paid: true })
-    const expected = navigableTargets().filter((t) => t !== HOME_GROUP.routes[1])
-    expect(hrefs.sort()).toEqual(expected.sort())
-  })
-
-  it('free tier: ONLY the Wire tab — every other group stays paidOnly', async () => {
-    // Every non-home group's tab is paidOnly (mirrors the original TABS
-    // array MobileTabBar had before this task: Home/Markets/Charts/Journal
-    // were ALL paidOnly, Wire alone was freeOnly — the free tier's single
-    // page is Morning Wire). navGroups.js only carries the taxonomy, not
-    // per-tier gating, so this stays asserted against the rendered
-    // component rather than derived from the shared module.
-    const hrefs = await hrefsFromMobileTabBar({ paid: false })
-    expect(hrefs).toEqual([HOME_GROUP.routes[1]])
-  })
-})
 
 describe('🔴 every navigable target resolves against App\'s route table', () => {
   for (const to of navigableTargets()) {
@@ -207,7 +153,7 @@ describe('the controls that keep the rail honest', () => {
     const mocked = [...src.matchAll(/vi\.(?:mock|doMock|mockObject)\(\s*['"]([^'"]+)['"]/g)]
       .map((m) => m[1])
     expect(mocked,
-      'a mock for App, its route table, AuthGuard, Layout, MobileTabBar or '
+      'a mock for App, its route table, AuthGuard, Layout or '
       + 'NavBar would let every assertion above pass with the routes deleted')
       .toEqual(['../components/voice/GlobalVoiceLayer'])
   })

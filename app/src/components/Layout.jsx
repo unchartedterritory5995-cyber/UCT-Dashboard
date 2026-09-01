@@ -3,8 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MobileNav from './MobileNav'
 import FeedbackWidget from './FeedbackWidget'
-import MobileTabBar from './mobile/MobileTabBar'
 import MoreSheet from './mobile/MoreSheet'
+import { MoreSheetContext } from './mobile/MoreSheetContext'
 import { TickerHubProvider } from './mobile/TickerHubContext'
 import TickerHubSheet from './mobile/TickerHubSheet'
 import usePreferences from '../hooks/usePreferences'
@@ -81,24 +81,29 @@ export default function Layout({ children }) {
   }, [])
 
   const [moreOpen, setMoreOpen] = useState(false)
+  const openMore = () => setMoreOpen(true)
 
   return (
     <TickerHubProvider>
-      <div className={styles.shell}>
-        {/* Desktop sidebar — hidden at <=1024px via CSS */}
-        <NavBar />
-        {/* Mobile top bar — shown at <=1024px via CSS. Its menu button opens
-            the same unified MoreSheet as the bottom tab bar's "More". */}
-        <MobileNav onMenu={() => setMoreOpen(true)} />
-        <main className={styles.main}>
-          {children ?? <Outlet />}
-        </main>
-        <FeedbackWidget />
-        {/* Mobile primary nav + global hosts (self-hide on desktop) */}
-        <MobileTabBar onMore={() => setMoreOpen(true)} />
-        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
-        <TickerHubSheet />
-      </div>
+      <MoreSheetContext.Provider value={openMore}>
+        <div className={styles.shell}>
+          {/* Desktop sidebar — hidden at <=1024px via CSS */}
+          <NavBar />
+          {/* Mobile top bar — shown at <=1024px via CSS. Its top-left menu
+              button opens the ONE unified MoreSheet. The bottom tab bar that
+              duplicated it route-for-route was removed 2026-09-01 (owner
+              call): on touch, the hamburger is the app menu everywhere, and
+              the phone chart shell — which hides this top bar — carries its
+              own Menu trigger in the symbol strip via MoreSheetContext. */}
+          <MobileNav onMenu={openMore} />
+          <main className={styles.main}>
+            {children ?? <Outlet />}
+          </main>
+          <FeedbackWidget />
+          <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+          <TickerHubSheet />
+        </div>
+      </MoreSheetContext.Provider>
     </TickerHubProvider>
   )
 }

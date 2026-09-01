@@ -14,7 +14,6 @@ import Layout from './Layout'
 vi.mock('./NavBar', () => ({ default: () => null }))
 vi.mock('./MobileNav', () => ({ default: () => null }))
 vi.mock('./FeedbackWidget', () => ({ default: () => null }))
-vi.mock('./mobile/MobileTabBar', () => ({ default: () => null }))
 vi.mock('./mobile/MoreSheet', () => ({ default: () => null }))
 vi.mock('./mobile/TickerHubSheet', () => ({ default: () => null }))
 vi.mock('../hooks/usePreferences', () => ({ default: () => ({ prefs: {} }) }))
