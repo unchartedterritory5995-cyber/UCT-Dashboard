@@ -1295,7 +1295,7 @@ export default function Breadth() {
             </thead>
             <tbody>
               {rows.map((row, ri) => (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
                     {row._live
                       ? (
@@ -1304,7 +1304,17 @@ export default function Breadth() {
                           {liveClock}
                         </span>
                       )
-                      : row.date}
+                      : row._reconstructed
+                        ? (
+                          <span
+                            className={styles.reconStamp}
+                            title="Reconstructed from historical price data (before the daily collector began, 2026-01-02). Percentage breadth is exact; count metrics are model estimates; sentiment/exposure appear only where a public archive covers this date."
+                          >
+                            <span className={styles.reconMark} aria-hidden="true">≈</span>
+                            {row.date}
+                          </span>
+                        )
+                        : row.date}
                   </td>
                   {visibleCols.map(col => {
                     const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
