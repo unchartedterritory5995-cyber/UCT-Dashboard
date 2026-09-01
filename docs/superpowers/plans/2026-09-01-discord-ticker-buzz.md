@@ -386,9 +386,30 @@ def test_house_vocabulary_is_marked_ambiguous_even_though_it_is_real_tickers():
 
 
 def test_ordinary_chat_words_that_are_real_tickers_are_ambiguous():
+    # Every token here was VERIFIED present in api/data/cap_universe.json on
+    # 2026-09-01. Do not add a word without checking it is in the universe --
+    # ambiguous() is an intersection, so a non-symbol can never appear in it
+    # and the assertion would fail for a reason that has nothing to do with
+    # the code under test.
     amb = u.ambiguous()
-    for token in ("ALL", "OPEN", "PLAY", "REAL", "CASH", "BIG", "NOW", "AI"):
+    for token in ("ALL", "OPEN", "PLAY", "REAL", "CASH", "NOW", "AI", "KEY", "RUN", "LOW"):
         assert token in amb
+
+
+def test_index_symbols_are_countable_and_unambiguous():
+    # The owner named SPX explicitly in the brief. Indices are absent from
+    # cap_universe (an EQUITY screen), so they must be added deliberately.
+    s, amb = u.symbols(), u.ambiguous()
+    for token in ("SPX", "NDX", "VIX"):
+        assert token in s
+        assert token not in amb
+
+
+def test_single_letter_symbols_exist_but_are_not_extractable():
+    # cap_universe genuinely contains A, B, C ... Z. They are real tickers, so
+    # they stay in the universe; the EXTRACTOR floors token length at 2, which
+    # kills them structurally rather than by listing each one.
+    assert "A" in u.symbols()
 
 
 def test_unambiguous_names_are_not_in_the_collision_set():
@@ -471,14 +492,34 @@ _HERE = pathlib.Path(__file__).resolve().parents[1]      # api/
 _DATA = _HERE / "data"
 
 # Chart / setup / desk vocabulary that is ALSO a listed symbol.
+# The second row was DERIVED on 2026-09-01 by intersecting a chart-vocabulary
+# candidate list against the real universe -- not typed from memory. Without
+# LINE, "RS line reclaiming the EMA" books a mention of LINE (a genuine ticker).
+#
+# ⛔ SPOT was in that derived intersection and is DELIBERATELY NOT HERE.
+# Spotify is a name this room actually trades; "spot" as a word is comparatively
+# rare in equity chat. Banishing a symbol members discuss deletes real mentions
+# permanently, which is the exact failure mode this whole module exists to
+# avoid. When a genuine name collides, tighten tier 4's context requirement --
+# never remove the symbol.
 HOUSE_VOCAB = frozenset({
     "RS", "EMA", "SMA", "MA", "GAP", "PEG", "EP", "ATH", "ATL", "IPO", "ETF",
     "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI", "DD",
+    "LINE", "BAND", "BULL", "GAIN", "PUMP",
 })
+
+# Indices. cap_universe.json is an EQUITY SCREEN, so none of these are in it --
+# and the owner named SPX explicitly in the brief. They are countable (people
+# discuss them constantly) even though they are not tradeable; the earlier
+# "indices no" ruling was about CHART CHIPS, where tapping an index opened a
+# dead end. Counting a mention has no such dead end.
+INDEX_SYMBOLS = frozenset({"SPX", "NDX", "DJI", "RUT", "VIX", "DXY", "IXIC"})
 
 # Ordinary conversational English. Kept short on purpose: every entry must be a
 # word this room actually uses non-financially. `tools/buzz_collisions.py`
 # (Task 5) re-derives this from the real corpus and reports anything missing.
+# Entries that are NOT in the universe are harmless -- ambiguous() intersects,
+# so they simply drop out. They are kept as a guard in case the universe grows.
 CHAT_WORDS = frozenset({
     "A", "ALL", "AM", "AN", "AND", "ANY", "ARE", "AS", "AT", "BE", "BIG", "BUT",
     "BY", "CAN", "CASH", "DO", "EACH", "EV", "FOR", "FROM", "GO", "GOOD", "HAS",
@@ -521,9 +562,10 @@ def _syms_from(payload) -> set[str]:
 
 @functools.lru_cache(maxsize=1)
 def symbols() -> frozenset[str]:
-    s = _syms_from(_load_json("cap_universe.json"))
-    s |= _syms_from(_load_json("prebuilt_etfs.json"))
-    s |= set(aliases().values())          # a name we alias is a name we know
+    s = _syms_from(_load_json("cap_universe.json"))      # 3,742 equities, $300M+
+    s |= _syms_from(_load_json("prebuilt_etfs.json"))    # 100 liquid ETFs
+    s |= set(INDEX_SYMBOLS)                              # not in either source
+    s |= set(aliases().values())                         # a name we alias is a name we know
     return frozenset(s)
 
 
@@ -540,11 +582,20 @@ def ambiguous() -> frozenset[str]:
     return frozenset((CHAT_WORDS | HOUSE_VOCAB) & set(symbols()))
 ```
 
-- [ ] **Step 5: Locate the two universe files and point the loader at them**
+- [ ] **Step 5: Confirm the universe files (already located — do not go hunting)**
 
-Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && find . -name "cap_universe.json" -o -name "prebuilt_etfs.json" | grep -v node_modules | head`
+Both files are at `api/data/`, exactly where `_DATA` points. **Measured 2026-09-01, do not re-derive:**
 
-If they are not under `api/data/`, add the directory you find to the `_load_json` search list. Do **not** copy the files — they are maintained elsewhere and a copy would drift.
+| File | Shape | Count |
+|---|---|---|
+| `api/data/cap_universe.json` | flat JSON list of strings, first element `"A"` | 3,742 |
+| `api/data/prebuilt_etfs.json` | flat JSON list of strings, first element `"SPY"` | 100 |
+| merged + indices + alias values | — | ~3,833 |
+
+Verified present in the merged universe: `RS EMA SMA MA GAP PEG ALL OPEN PLAY REAL CASH NOW AI KEY RUN LOW GO A` and `NVDA TSLA AMZN PLTR SMCI DELL SPY MRNA RKLB`.
+Verified **absent**: `BIG EV HOME ONE TQQQ` and every index (`SPX NDX VIX` …) — which is why `INDEX_SYMBOLS` exists and why those words are not asserted into the collision set.
+
+Do **not** copy either file anywhere; they are maintained elsewhere and a copy would drift.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -656,7 +707,16 @@ def test_uppercase_ambiguous_word_is_still_not_a_ticker_without_a_cashtag():
 
 
 def test_house_vocabulary_is_never_a_ticker():
+    # "line" matters here: LINE is a genuine listed symbol, so without it in
+    # HOUSE_VOCAB this sentence books a LINE mention. Verified 2026-09-01.
     assert tickers("RS line reclaiming the EMA after that GAP") == []
+
+
+def test_a_real_name_that_collides_with_a_word_is_still_counted():
+    # Control for the test above -- it proves the vocabulary gate is a scalpel,
+    # not a hammer. SPOT (Spotify) collides with "spot price" and is
+    # deliberately NOT gated, because members trade it.
+    assert "SPOT" in tickers("SPOT breaking out of the base")
 
 
 def test_confidence_is_reported_per_tier():
