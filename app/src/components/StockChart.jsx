@@ -7952,6 +7952,19 @@ export default function StockChart({
         hoveredSeriesOnTop: false,
       })
       chartRef.current = chart
+      // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
+      // the mobile pinch gate needs the visible logical range and every
+      // pixel/UI side-channel for it proved unreliable (gridlines light every
+      // column; rightBarStaysOnScroll pins the pill away). Reads chartRef at
+      // CALL time; keyed by chartId so multi-chart pages don't collide.
+      if (typeof window !== 'undefined') {
+        window.__uctChartDebug = window.__uctChartDebug || {}
+        window.__uctChartDebug[chartId || 'main'] = {
+          visibleRange: () => {
+            try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+          },
+        }
+      }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
       // `pages/ChartRender.jsx` publishes `window.__paneManifest` for the parity
@@ -13365,6 +13378,7 @@ export default function StockChart({
       try { unregisterManifestRef.current?.() } catch {}
       unregisterManifestRef.current = null
       if (chartRef.current) {
+        try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
         chartRef.current.remove()
         chartRef.current = null
         candleSeriesRef.current = null

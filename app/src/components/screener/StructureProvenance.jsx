@@ -31,8 +31,16 @@ import styles from './StructureProvenance.module.css'
 
 const STATE_LABEL = {
   sourced: 'Published by the source',
-  refused: 'The source did not publish this',
+  refused: 'Published with no number we can use',
   ours: 'Our number, not theirs',
+}
+
+/** Why a criterion has no value. The section header cannot say it, because one
+ *  section holds all three kinds — so the tag on each row does. */
+const MISSING_TAG = {
+  source_silent: 'the source never published this',
+  not_computable: 'published, but we cannot compute it',
+  our_scope: 'we have not implemented this',
 }
 
 const pp = (x) => `${x > 0 ? '+' : ''}${(x * 100).toFixed(2)}`
@@ -130,7 +138,15 @@ function Criterion({ c }) {
       {c.quote && <blockquote className={styles.quote}>“{c.quote}”</blockquote>}
       {c.missing && (
         <div className={styles.missing}>
-          <span className={styles.missingTag}>not published</span>
+          {/* ⛔ THE TAG MUST NOT SAY "not published" WHEN THE SOURCE DID PUBLISH
+              IT. The section header reads "The source did not publish this",
+              and for a handful of criteria that sentence is false: Minervini
+              states the 2.5-3x market-depth rule in the verbatim quote directly
+              above, and the value is blank only because a per-symbol detector
+              holds no index series. Telling a member a real author was silent
+              when he was not is the exact class of claim this library exists to
+              prevent, so the refusal says which KIND it is. */}
+          <span className={styles.missingTag}>{MISSING_TAG[c.missing_kind] || MISSING_TAG.source_silent}</span>
           {c.missing}
         </div>
       )}

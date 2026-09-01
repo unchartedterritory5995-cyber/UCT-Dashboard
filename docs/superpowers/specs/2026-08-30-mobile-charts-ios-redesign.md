@@ -551,3 +551,43 @@ Also this wave, from the ship itself: master's `CACHE_LOGIC_VERSION` 6→7
 bump broke the walk's IDB seeds (hand-typed `v: 6`) — the walk now derives
 the constant from `barsIDB.js` at import, refusing loudly when unparseable
 (the same interpolation `api/main.py`'s startup fingerprint uses).
+
+## Wave 6 — "mock it up and verify everything the best"
+
+The owner asked for the deferred real-device dimensions to be mocked to the
+sandbox's ceiling. All four now measured, via `tools/mobile_deep_probe.py`
+(the deep layer over the walk — run after big chart changes, not per-push;
+its header documents the $IDX seeding recipe):
+
+- **$IDX theme index, END TO END, both doors** — backend seeded (4 holdings
+  × 260 daily bars into ohlcv + a minimal wire_data.json; `resolve_theme`
+  reads WIRE, not the taxonomy) → the pipeline (pref-injected group sym)
+  AND the user door (Tools → Theme Tracker → search auto-expands → tap
+  "<name> Index" row) both land on a chart reading "… · Theme Index" with
+  painted candles. ⚠️ The header row TOGGLES the group; the `$IDX` publisher
+  is the Index row inside it — and search already auto-expands, so a second
+  header tap CLOSES it (the probe's first bug).
+- **Old-phone performance (4x CPU + Fast-3G via CDP)** — first visit 19.9s
+  (bandwidth-dominated: 2.97MB JS — the known echarts-shrink backlog item,
+  not a mobile-shell defect), **repeat visit 1.8s** (HTTP cache + IDB),
+  sheet-open 280–320ms, pan frame times **avg 17ms / p95 17ms** — a locked
+  60fps even throttled. Zero page errors.
+- **Pinch-zoom, genuinely measured** — 140 → 36 bars with the right edge
+  pinned EXACTLY (rightBarStaysOnScroll honored). Now walk **gate 7**.
+  Instrument: `window.__uctChartDebug[chartId].visibleRange()` — a read-only
+  handle StockChart registers at chart-create (the `__uctBarsPush` idiom),
+  because every pixel/UI side-channel failed honestly first (gridlines light
+  every column; the watermark bridges runs; the go-live pill can't fire on
+  zoom BY DESIGN with a pinned right edge).
+- **Screen-reader tree + focus** — all four sheets expose complete
+  role/name trees (every node named) and hold focus inside the dialog.
+
+Rig physics learned, for the next engineer:
+- A constructed `Touch` needs `pageX/pageY/screenX/screenY`, not just
+  clientX — LWC's gesture math read the missing fields as 0 and pinched by
+  zero. Dispatch on `document.elementFromPoint` (the topmost element), the
+  same recipe `js_touch_drag` proved.
+- Synthetic drags leave LWC gesture-state residue that no-ops a LATER
+  two-finger pinch (fresh chart 140→63; after golive_walk 63→63). Gate 7
+  therefore runs FIRST on the untouched chart — the state a user actually
+  pinches in.

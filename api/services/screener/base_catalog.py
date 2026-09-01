@@ -86,6 +86,18 @@ class Criterion:
     confidence: str = "med"
     missing: Optional[str] = None
     origin: str = "source"
+    #: WHY a refused criterion has no value. ⛔ THE PANEL LABELS THE WHOLE
+    #: REFUSED SECTION "The source did not publish this", and for 7 of 58
+    #: refusals that sentence is FALSE: the house published the rule and WE
+    #: cannot compute it, or the gap is our own scope decision. A member reading
+    #: "the source did not publish this" beside a criterion that carries the
+    #: source's own verbatim quote is being told something untrue about a real
+    #: author. The three states stay three -- this says which KIND of refusal it
+    #: is, and the surface labels accordingly.
+    #:   "source_silent"  -- the house published nothing (the default, 51 of 58)
+    #:   "not_computable" -- published, but not derivable from what we hold
+    #:   "our_scope"      -- our own decision not to implement it
+    missing_kind: str = "source_silent"
 
 
 @dataclass(frozen=True)
@@ -2514,6 +2526,12 @@ VCP = Structure(
                      "over the same window, which this per-symbol detector is "
                      "not given. Recorded so the gap is visible rather than "
                      "forgotten."),
+            # ⛔ MINERVINI PUBLISHED THIS NUMBER -- it is in the quote above.
+            # The value is None because a per-symbol detector holds no index
+            # series, NOT because the house was silent. The panel labels the
+            # whole refused section "The source did not publish this", which
+            # for this criterion is simply untrue about a real author.
+            missing_kind="not_computable",
         ),
         Criterion(
             condition=("The book's per-name outcomes (465%, 118%, 525%, 75%) "
@@ -4200,6 +4218,7 @@ BUYABLE_GAP_UP = Structure(
                      "through the session. This is a daily-bar detector, so it "
                      "reads the completed day and cannot express the "
                      "not-yet-confirmed state the authors describe."),
+            missing_kind="not_computable",
         ),
         Criterion(
             condition="Measured performance",
@@ -4387,6 +4406,7 @@ EMA_CROSSBACK = Structure(
                      "SUBSET of our own setup, and this says so rather than "
                      "approximating the short with a daily proxy."),
             confidence="high",
+            missing_kind="our_scope",
         ),
         Criterion(
             condition=("⛔@@STOP@ NO PRIMARY SOURCE EXISTS FOR ANY NUMBER HERE"),
@@ -4542,6 +4562,7 @@ GO_SIGNAL = Structure(
                      "happened, so this names the day and never the moment to "
                      "act. The intraday half is not approximated."),
             confidence="high",
+            missing_kind="our_scope",
         ),
         Criterion(
             condition=("⛔@@STOP@ NO SOURCE, AND NO THRESHOLD EVEN IN OUR OWN TEXT"),
@@ -4694,6 +4715,7 @@ def provenance(key: str = "") -> dict:
                 "source_id": c.source_id,
                 "confidence": c.confidence,
                 "missing": c.missing,
+                "missing_kind": c.missing_kind if (c.value is None and c.missing) else None,
             } for c in st.criteria],
         }
 

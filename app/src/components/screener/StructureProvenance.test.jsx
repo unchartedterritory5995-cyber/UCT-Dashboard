@@ -28,6 +28,7 @@ const REFUSED = {
   source_id: 'darvas_1960',
   confidence: 'high',
   missing: 'Darvas publishes no minimum or maximum box length, so any dwell bound is ours.',
+  missing_kind: 'source_silent',
 }
 const OURS = {
   condition: 'Frame must be LIVE',
@@ -230,9 +231,39 @@ describe('StructureCard', () => {
 
   it('⭐ gives the refusal its own section with what was NOT published', () => {
     render(<StructureCard entry={entry()} />)
-    expect(screen.getByText(/The source did not publish this/i)).toBeInTheDocument()
+    expect(screen.getByText(/Published with no number we can use/i)).toBeInTheDocument()
     expect(screen.getByText(/no minimum or maximum box length/i)).toBeInTheDocument()
-    expect(screen.getByText('not published')).toBeInTheDocument()
+    expect(screen.getByText('the source never published this')).toBeInTheDocument()
+  })
+
+  it('⛔⛔ never claims a source was SILENT when it published the rule', () => {
+    // Minervini states the 2.5-3x market-depth rule outright; the value is
+    // blank only because a per-symbol detector holds no index series. Telling a
+    // member he said nothing is a false claim about a real author.
+    render(<StructureCard entry={entry({
+      criteria: [{ ...REFUSED,
+        condition: 'Depth relative to the general market',
+        quote: 'stocks that correct more than two and a half or three times',
+        missing: 'needs the index decline over the same window',
+        missing_kind: 'not_computable' }],
+    })} />)
+    expect(screen.getByText('published, but we cannot compute it')).toBeInTheDocument()
+    expect(screen.queryByText('the source never published this')).not.toBeInTheDocument()
+  })
+
+  it('distinguishes OUR scope decision from either of the above', () => {
+    render(<StructureCard entry={entry({
+      criteria: [{ ...REFUSED, missing_kind: 'our_scope',
+                   missing: 'the short leg needs VWAP' }],
+    })} />)
+    expect(screen.getByText('we have not implemented this')).toBeInTheDocument()
+  })
+
+  it('falls back to source-silent for a row with no kind at all', () => {
+    render(<StructureCard entry={entry({
+      criteria: [{ ...REFUSED, missing_kind: undefined }],
+    })} />)
+    expect(screen.getByText('the source never published this')).toBeInTheDocument()
   })
 
   it('prints the verbatim quote for a sourced criterion', () => {
