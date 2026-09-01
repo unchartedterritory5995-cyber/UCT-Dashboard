@@ -1736,6 +1736,11 @@ export default function StockChart({
   // the phone/tablet chart shell passes this — desktop surfaces already have
   // the range bar + double-click resets and stay byte-identical.
   showGoLive = false,
+  // Legend study-chip body tap (wave 10): ({kind:'study', defId, instanceId})
+  // => void. Only the phone shell passes this — it opens the tapped study's
+  // MOBILE editor sheet. Absent (every desktop surface), chip bodies stay
+  // inert and only the Task-4 controls respond.
+  onLegendStudyTap = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -3724,7 +3729,13 @@ export default function StockChart({
     onOpenSettings: setSettingsInstanceId,
     onRemove: handleChipRemove,
     onMenu: handleChipMenu,
-  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu])
+    // Additive, phone-shell-only (prop null everywhere else): a tap on the chip
+    // BODY opens the study's mobile editor. Spread at all three legend branches
+    // through this one object, so the parity-pinned JSX stays untouched.
+    onBodyTap: onLegendStudyTap
+      ? (chip) => onLegendStudyTap({ kind: 'study', defId: chip.defId, instanceId: chip.instanceId })
+      : undefined,
+  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu, onLegendStudyTap])
 
   // Reset to the default present-day view (newest bar at LAST_CANDLE_POS). Extracted
   // to the component body so the right-click "Reset view" AND the floating
@@ -15112,6 +15123,7 @@ export default function StockChart({
           <ChartToolbar
             ref={toolbarRef}
             hiddenHost={mobileDrawBar}
+            sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
             favBoundsRef={containerRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
                the column, the API field, the label and the deletion guard and

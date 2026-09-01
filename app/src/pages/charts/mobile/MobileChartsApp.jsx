@@ -55,7 +55,15 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
 
   // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more'
   const [sheet, setSheet] = useState(null)
-  const closeSheet = useCallback(() => setSheet(null), [])
+  // Wave 10: a legend-chip tap opens the indicator sheet ALREADY INSIDE that
+  // study's editor — {kind:'study', defId, instanceId}. Cleared with the sheet
+  // so the next plain ƒx open starts at the list, not a stale editor.
+  const [sheetEditing, setSheetEditing] = useState(null)
+  const closeSheet = useCallback(() => { setSheet(null); setSheetEditing(null) }, [])
+  const legendStudyTap = useCallback((target) => {
+    setSheetEditing(target)
+    setSheet('indicators')
+  }, [])
   // A non-chart widget opened as a full-screen page. Stored WITH the chart's
   // symbol at open time ({id, symAtOpen}) so the tap-to-chart loop below can
   // tell "this page retargeted the chart" from "nothing happened". Keyed by id,
@@ -255,7 +263,10 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     verticalLegend: false,
     alwaysShowLegend: false,
     showRangeSelector: false,
-  }), [chartWidget?.id])
+    // Wave 10: tap a study's legend chip → its mobile editor (TradingView's
+    // tap-the-legend-name). Stable callback, so the memo key stays the widget.
+    onLegendStudyTap: legendStudyTap,
+  }), [chartWidget?.id, legendStudyTap])
 
   // The widget page's shared pieces (used by BOTH presentations):
   // phone = full-screen overlay with a back button; tablet = docked panel with
@@ -399,6 +410,7 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
         onBrowseLibrary={browseLibrary}
         onOpenSettings={openSettings}
         className={sheetTheme}
+        initialEditing={sheetEditing}
       />
       <MobileAlertSheet open={sheet === 'alert'} onClose={closeSheet} sym={sym} className={sheetTheme} />
       <MobileMoreSheet

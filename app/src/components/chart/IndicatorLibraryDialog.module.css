@@ -299,3 +299,17 @@
   border-color: var(--border-accent);
   outline: none;
 }
+
+/* ── Phone (≤640px) ─────────────────────────────────────────────────────────
+   Appended at the END on purpose: IndicatorLibraryDialog.test.jsx slices this
+   file textually from `.addAnother {` to `.addAnother:hover` — an override
+   placed above those rules would corrupt the slice it asserts on. */
+@media (max-width: 640px) {
+  /* ≥16px or iOS Safari zooms the page on focus (house rule — see
+     MobileCharts.module.css). */
+  .search { font-size: 16px; }
+  /* At 393px the name + badges + "Add another" can't share one line; let the
+     button wrap under the text, aligned past the 16px check + its gap. */
+  .row { flex-wrap: wrap; }
+  .addAnother { margin-left: 26px; }
+}
