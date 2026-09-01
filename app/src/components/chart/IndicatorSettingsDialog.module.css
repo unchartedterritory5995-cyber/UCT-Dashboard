@@ -93,10 +93,13 @@
 }
 
 /* Phone: the Sheet is already fullscreen there, so the 70vh cap would fight the
-   sheet's own height rather than help. Copied from `styles/breakpoints.css`. */
+   sheet's own height rather than help. Copied from `styles/breakpoints.css`.
+   (The phone LEAF-control overrides live in the media block at the END of this
+   file — equal-specificity rules cascade by source order, so an override here
+   would silently lose to the base .num/.sel/.toggle rules declared below.) */
 @media (max-width: 640px) {
   .body { max-height: none; }
-  .root { --fld-label-w: 40%; }
+  .root { --fld-label-w: 40%; --fld-num-w: 104px; --fld-sel-w: 152px; }
 }
 
 /* ── groups ───────────────────────────────────────────────────────────────── */
@@ -297,3 +300,25 @@
 .btn:hover { border-color: var(--border-accent); }
 .btnPrimary { border-color: var(--border-accent); }
 .empty { padding: 14px 2px; color: var(--text); font-weight: 500; font-size: 13px; }
+
+/* ── Phone leaf controls (wave 11) — MUST STAY AT THE END OF THE FILE ───────
+   The rows always cleared 44px, but the number/select/toggle inside them were
+   30px/20px — a correct container around an unhittable target. Equal
+   specificity means source order decides: these overrides only beat the base
+   .num/.sel/.toggle rules above BY BEING LAST (the first draft sat above them
+   and silently lost min-height while the Sheet's own 16px input rule masked
+   the font half — measured, not guessed). 16px also stops iOS zoom-on-focus. */
+@media (max-width: 640px) {
+  .num, .sel {
+    min-height: var(--tap-min);
+    font-size: 16px;
+  }
+  .toggle {
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+  }
+  /* Knob geometry follows the grown track: 24px knob, 2px inset, 22px throw. */
+  .toggleKnob { width: 24px; height: 24px; }
+  .toggleOn .toggleKnob { transform: translateX(22px); }
+}

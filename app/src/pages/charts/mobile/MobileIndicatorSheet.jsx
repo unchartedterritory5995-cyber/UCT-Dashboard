@@ -22,17 +22,55 @@ function liveInstanceOf(cs, defId) {
 }
 
 /** Stepper row for an int/float input — the TradingView-mobile idiom: big −/+
- *  around the value, clamped to the definition's declared range. */
+ *  around the value, clamped to the definition's declared range. The VALUE is
+ *  tappable (wave 11): it opens an inline numeric input, because a stepper
+ *  alone made period 20→200 a 180-tap trip. Commit on Enter/blur clamps to the
+ *  declared range; Escape abandons the draft. */
 function StepRow({ label, value, min, max, step = 1, onChange }) {
   const v = Number(value)
+  const [draft, setDraft] = useState(null)   // null = showing the value, string = typing
   const dec = () => onChange(Math.max(min ?? -Infinity, +(v - step).toFixed(4)))
   const inc = () => onChange(Math.min(max ?? Infinity, +(v + step).toFixed(4)))
+  const commit = () => {
+    if (draft == null) return
+    const n = parseFloat(draft)
+    setDraft(null)
+    if (!Number.isFinite(n)) return
+    onChange(Math.max(min ?? -Infinity, Math.min(max ?? Infinity, n)))
+  }
   return (
     <div className={styles.paramRow}>
       <span className={styles.indName}>{label}</span>
       <div className={styles.stepper}>
         <button type="button" className={styles.stepBtn} onClick={dec} aria-label={`Decrease ${label}`}>−</button>
-        <span className={styles.stepVal}>{value}</span>
+        {draft == null ? (
+          <button
+            type="button"
+            className={styles.stepVal}
+            onClick={() => setDraft(String(value))}
+            aria-label={`Type ${label}`}
+          >{value}</button>
+        ) : (
+          <input
+            className={styles.stepInput}
+            type="number"
+            inputMode="decimal"
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              // Enter commits. Escape clears the draft — the topmost Sheet
+              // ALSO answers Escape on its own document listener (sibling
+              // listeners are unstoppable by design — see Sheet.jsx), so the
+              // editor closes too: draft abandoned, nothing written. Phones
+              // have no Escape key; this is desktop-keyboard courtesy only.
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') setDraft(null)
+            }}
+            aria-label={label}
+          />
+        )}
         <button type="button" className={styles.stepBtn} onClick={inc} aria-label={`Increase ${label}`}>+</button>
       </div>
     </div>

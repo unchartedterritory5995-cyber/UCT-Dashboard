@@ -69,6 +69,9 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setattr(bl, "_bars_conn", lambda: _FakeConn(), raising=False)
     # every fake SPY ts maps to the one date under test (single-date heals in these tests)
     monkeypatch.setattr(bl, "_iso", lambda ts: "2026-08-31", raising=False)
+    # deterministic expected-universe (~2,600) for the coverage floor
+    monkeypatch.setattr(bl, "universe", lambda *a, **k: ([f"T{i}" for i in range(2600)], None),
+                        raising=False)
     return {"bm": bm, "recon": recon, "monkeypatch": monkeypatch}
 
 
@@ -143,6 +146,33 @@ def test_heal_refuses_to_overwrite_when_the_recompute_is_also_degraded(_iso):
     assert not res["ok"] and "degraded" in res["reason"]
     # the original row is untouched (no worse), not replaced by a second bad one.
     assert bm.raw_row("2026-08-31")["stage2_count"] == 2
+
+
+def test_heal_refuses_a_low_coverage_recompute(_iso):
+    # Today's daily bars aren't all ingested → recompute prices only 156/2600.
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    _put(bm, "2026-08-31", DEGRADED)
+    mp.setattr(recon, "recompute_close",
+               lambda ts, tickers=None: {"universe_count": 156, "stage2_count": 50,
+                                          "up_4pct_today": 8, "down_4pct_today": 11,
+                                          "new_52w_highs": 8, "new_52w_lows": 3,
+                                          "new_20d_highs": 20, "new_20d_lows": 5})
+    from api.services import breadth_self_heal as heal
+    res = heal.heal_date("2026-08-31")
+    assert not res["ok"] and "coverage too low" in res["reason"]
+    assert bm.raw_row("2026-08-31")["stage2_count"] == 2, "the bad-coverage row is NOT stored"
+
+
+def test_a_stale_low_coverage_heal_is_re_healed_when_bars_arrive(_iso):
+    # A row WE healed earlier off few bars must be picked up again by the loop.
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    _put(bm, "2026-08-31", {"universe_count": 156, "stage2_count": 50,
+                            "up_4pct_today": 8, "_healed": True})
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(GOOD_RECON))
+    from api.services import breadth_self_heal as heal
+    res = heal.heal_recent(10)
+    assert [h["date"] for h in res["healed"]] == ["2026-08-31"]
+    assert bm.raw_row("2026-08-31")["universe_count"] == 2560
 
 
 def test_heal_recent_only_touches_degraded_rows(_iso):

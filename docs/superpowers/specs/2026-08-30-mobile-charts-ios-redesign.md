@@ -742,3 +742,44 @@ Rails: 13 studies-sheet tests (enum write, initialEditing, exact-instance
 targeting) + 2 chip body-tap tests + the door-eight census row + wave10 probe
 10/10 (enum→server persist · chip tap→editor · stale-editor cleared · no
 focus-steal · 16px search · sunrise library light) + eight-gate walk green.
+
+## Wave 11 (2026-09-01) — parity rails, tap-to-type, and the settings dialog's leaves
+
+- **Two tools were UNREACHABLE on phones** — `advance` (the UCT advance-%
+  label, an owner-facing tool) and `cup` had desktop buttons but no drawbar
+  tile, and the phone shell hides the desktop toolbar and has no keyboard.
+  Both are plain tap-tap placements; they now sit in the roster (Advance %
+  after AVWAP, Cup at the tail), "Ray" became "H Ray" (a distinct diagonal
+  `ray` type exists in the overlay), and fib/fibext + channel/pitchfork are
+  adjacent (only ~3 tiles fit on screen — ordering is ergonomics).
+  **`MobileDrawBar.roster.test.js` pins set-equality with ChartToolbar's
+  TOOLS** so the next drift fails by name in either direction — the roster was
+  a hand-copy whose header only pinned the GLYPHS as shared.
+- **Stepper tap-to-type**: the ƒx editor's value is now a button that opens an
+  inline numeric input (16px — iOS zoom rule), committing through the same
+  write door with range clamping. A stepper alone made period 20→200 a
+  180-tap trip. Escape clears the draft AND closes the editor sheet — the
+  topmost Sheet answers Escape on a document listener no field can stop
+  (Sheet.jsx's own sibling-listener design); phones have no Escape key, so
+  the honest contract is "nothing written", asserted as such.
+- **IndicatorSettingsDialog phone pass** (the gear/long-press door — NOT
+  re-routed to the mobile editor, which would lose Hide/Move-to-pane/Cancel
+  rollback/direct entry/hex colors): the rows always cleared 44px but the
+  number/select/toggle LEAVES were 30px/20px. Grown to 44px + 16px font +
+  a 52×30 toggle — in a media block APPENDED AT FILE END, because the first
+  draft sat above the base rules and silently lost the min-height at equal
+  specificity while the Sheet's own 16px input rule masked the font half
+  (measured, then moved). Its Sheet also gets `sheetClassName` so Sunrise
+  reaches it (same portal-escape leak the library had).
+- **Census note**: two parallel sessions ledgered MobileIndicatorSheet in
+  controlDoorCensus independently (wave-8 prose in one, wave-10 in the other);
+  the merge carried both rows and the census failed on its own duplicate —
+  exactly as designed. Merged into one row carrying both truths.
+- **Full-app phone audit sweep** (first since the tab-bar removal): **zero
+  horizontal overflow on every route**. Remaining sub-44px tap-target counts
+  live on partner-owned pages (options-flow, dark-pool) outside this
+  initiative.
+
+Rails: wave11 probe 14/14 (19 armable tiles · Advance %/Cup arm · tap-to-type
+persisted server-side · long-press→Settings leaves measured 44px/16px) +
+roster parity suite + 2 tap-to-type tests + eight-gate walk green.

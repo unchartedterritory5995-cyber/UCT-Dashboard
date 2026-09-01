@@ -13985,6 +13985,7 @@ export default function StockChart({
           registry={engineRegistry}
           onChange={(next) => { if (next !== cs) handleUpdateChartSettings(next) }}
           onClose={() => setSettingsInstanceId(null)}
+          sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
         />
       )}
       {/* ─── chart-UX-walls TASK 4 — THE CHIP MENU (spec §6) ──────────────────

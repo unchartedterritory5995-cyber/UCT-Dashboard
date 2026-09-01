@@ -120,7 +120,10 @@ const chorded = (id, name) => {
 const ICONS = TOOL_ICONS
 
 
-const TOOLS = [
+// Exported for MobileDrawBar.roster.test.js — the phone drawbar must expose
+// every one of these (its shell hides this toolbar entirely and has no
+// keyboard, so a tool missing there is unreachable, not demoted).
+export const TOOLS = [
   // Select/cursor button removed — you can hover-and-drag annotations with no tool
   // armed (the default), so a dedicated Select mode is redundant.
   { id: 'trendline',  label: chorded('trendline', 'Trendline') },
