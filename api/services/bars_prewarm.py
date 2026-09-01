@@ -197,6 +197,23 @@ def _expected_session() -> int:
     return _expected_latest_session_yyyymmdd()
 
 
+def _last_completed_session() -> int:
+    """ET date (YYYYMMDD) of the most recent COMPLETED session (yesterday during RTH,
+    today after close). `_expected_session()` returns TODAY during market hours — whose
+    daily bar is still evolving — so grading the boot against it forces a re-fetch of
+    every warm daily on a mid-session restart (the 68k churn that competed with the web
+    and reset the re-warm to a slow crawl). A daily that already has the last COMPLETED
+    session is warm enough for the boot; the steady refresh loop + the on-demand serve
+    own today's evolving bar. Computed by evaluating the session authority as-if
+    pre-open, which rolls to the prior trading day (holiday/weekend-aware)."""
+    from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    pre_open = datetime.now(ZoneInfo("America/New_York")).replace(
+        hour=8, minute=0, second=0, microsecond=0)
+    return _expected_latest_session_yyyymmdd(pre_open)
+
+
 _BOOT_SETTLED_TFS = ("D", "W", "M")
 
 
@@ -221,7 +238,15 @@ def _boot_can_skip(last_ts, tf) -> bool:
         return False
     try:
         if _in_active_data_window():
-            return False
+            # DURING market hours: still skip a D/W/M whose newest bar already has the
+            # last COMPLETED session. The boot's job is the HISTORY, not today's
+            # evolving bar (the refresh loop + on-demand serve own that). Without this,
+            # a mid-session worker restart re-fetches the WHOLE warm universe (~68k, 0
+            # cached) — the churn that resets the re-warm to a slow crawl and competes
+            # with the web serving users. A genuinely stale bar (missing a completed
+            # session) still re-fetches. This never over-skips: it skips only bars that
+            # already hold the last completed session.
+            return int(last_ts) >= _last_completed_session()
         return int(last_ts) >= _expected_session()
     except Exception:
         # Never fail CLOSED into "skip" — under-skipping costs a redundant fetch,

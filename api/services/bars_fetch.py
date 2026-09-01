@@ -2617,6 +2617,54 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
 _DEFAULT_WARM_TFS = ["D", "W", "M", "60", "30", "15", "5", "1"]
 
 
+def serve_warm_from_cache(ticker: str, tf: str, bars: int):
+    """A `warm=1` prefetch served from the CHEAP tiers ONLY (mem → SQLite), never the
+    provider. Returns a JSONResponse on a cache hit, or None when nothing usable is
+    cached (the caller then sheds a 503).
+
+    ⭐ WHY (market-open HAR, 2026-09-01). The warm-serve semaphore sheds ALL warm
+    prefetches under load. But a warm that's already in bars.db costs the pool almost
+    nothing to serve, and shedding it defeats list pre-warming at the single MOST
+    IMPORTANT moment — the open — when the pool is busiest AND the bars are already
+    warm (the instant-symbol universe). So serve a cache hit even when every warm slot
+    is full; reserve the shed for a warm that would need an expensive cold provider
+    fetch. Freshness is the VISIBLE chart's own (non-warm) fetch's job — this only
+    seeds the browser's cache so the click paints instantly, then refreshes.
+
+    Never touches provider/index/breadth/delisted paths — pure cheap probe. Never
+    raises (returns None on any error → the caller sheds cleanly).
+    """
+    try:
+        ticker_up = ticker.upper()
+        cache_key = f"bars_{ticker_up}_{tf}_{bars}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            _mark_serve("warm-mem")
+            return JSONResponse(
+                content=cached,
+                headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+            )
+        last_ts = _sqlite.get_last_ts(ticker_up, tf)
+        if last_ts is None:
+            return None
+        stored_rows = _sqlite.get_bars(ticker_up, tf, bars)
+        # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
+        # seeds the browser a truncated series that the chart would then have to refill.
+        if not stored_rows or not (
+            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf)
+        ):
+            return None
+        payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
+        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+        _mark_serve("warm-sqlite")
+        return JSONResponse(
+            content=payload,
+            headers={"Cache-Control": f"public, max-age={_CACHE_TTL.get(tf, 300)}"},
+        )
+    except Exception:
+        return None
+
+
 def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _mark_serve("miss")  # default; each serve path below overwrites it
     ticker_up = ticker.upper()

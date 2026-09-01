@@ -5036,7 +5036,14 @@ export default function StockChart({
               && Date.now() - (entry.savedAt || 0) < maxAge) continue
           const bc    = FIRST_PAINT_BARS  // viewport-first: warm the shallow window; backfill loads deep history on pan
           const since = entryStaleIntraday ? null : entry?.lastT
-          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}`
+          // &warm=1: this all-TF chain is SPECULATIVE (warming timeframes the user
+          // isn't viewing), so it MUST shed under load. Without it, at MARKET OPEN
+          // these fire cold intraday PROVIDER fetches that saturate the threadpool and
+          // 503-starve the daily chart the user is actually looking at (the 9:30 flood,
+          // 2026-09-01). With it, a busy server sheds them fast (a cache-hit warm still
+          // serves — the server checks the cache first); switching to a TF for real is
+          // a non-warm fetch that always serves.
+          const url   = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bc}${since != null ? `&since=${encodeURIComponent(String(since))}` : ''}&warm=1`
           const r = await fetch(url)
           if (cancelled || !r.ok) continue
           const d = await r.json()
