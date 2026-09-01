@@ -315,6 +315,54 @@ def _direction_of(st) -> str:
     return _directions_of(st)[0]
 
 
+def _warn_futile_escalations(args, wanted, rows) -> None:
+    """Say so BEFORE spending hours on a re-run that cannot change a verdict.
+
+    ⭐ THE NULL'S MAXIMUM IS MONOTONIC IN TRIAL COUNT. `null_max` is the maximum
+    lift across trials, so drawing more trials can only raise it or leave it
+    alone — never lower it. Gate 2 asks whether the CI's LOWER bound clears that
+    maximum. So a row that already fails gate 2 at N trials fails it at any
+    M > N as well: escalation makes the bar strictly higher, never easier.
+
+    ⛔ MEASURED, AND IT IS NOT A CORNER CASE. `go-signal` screened at +8.52pp
+    with a CI low of +3.92pp against a 5-trial null max of +6.54pp. Escalating
+    it to 30 trials would have cost hours and could only have moved the bar
+    further out of reach. `ema-crossback` on the same screen cleared it
+    (+11.93 vs +10.09) and is the one that earned the re-run.
+
+    ⚠️ IT WARNS, IT DOES NOT SKIP. A different `--sample` re-measures the LIFT
+    too, so the CI can move and the conclusion may not carry. The check only
+    claims certainty when the sample matches the one already on the row; where
+    it differs it still says so, because a person who reads this and continues
+    has made a decision, and one who never saw it has not.
+    """
+    futile = []
+    for st in wanted:
+        row = rows.get(st.key) or {}
+        prior = row.get("null_trials")
+        lo, nmax = row.get("ci_low"), row.get("null_max")
+        if not prior or prior >= args.null_trials:
+            continue                       # not an escalation
+        if lo is None or nmax is None or lo > nmax:
+            continue                       # gate 2 passes, or unknown
+        same = row.get("sample_tickers") == args.sample
+        futile.append((st.key, prior, lo, nmax, same))
+    if not futile:
+        return
+    print("\n" + "=" * 72)
+    print("⚠️  ESCALATION THAT CANNOT CHANGE A VERDICT")
+    print("    The null's maximum only GROWS with more trials, so a row that")
+    print("    already fails gate 2 fails it harder at a higher trial count.")
+    for key, prior, lo, nmax, same in futile:
+        certainty = ("the sample is unchanged, so this is certain" if same
+                     else "the sample DIFFERS, so the lift will be re-measured "
+                          "and the CI may move")
+        print(f"    - {key}: CI low {lo*100:+.2f}pp does not clear the "
+              f"{prior}-trial null max {nmax*100:+.2f}pp — {certainty}")
+    print("    Drop them from --only, or continue deliberately.")
+    print("=" * 72 + "\n", flush=True)
+
+
 def _run_grouped(args, bars_by, wanted, existing) -> int:
     """Measure every requested structure, one pass per WINDOW group.
 
@@ -327,6 +375,7 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
     import collections
 
     structures = dict((existing.get("structures") or {}))
+    _warn_futile_escalations(args, wanted, structures)
     # ⛔ GROUPED BY (WINDOW, DIRECTION), NOT WINDOW ALONE. Two structures may
     # share a scan only if they see the same bars per anchor AND grade the
     # same outcome. A bearish structure is graded on the MIRRORED metric, so
