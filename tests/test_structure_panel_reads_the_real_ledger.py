@@ -89,7 +89,16 @@ def test_a_refusal_carries_no_numeric_field_to_headline():
         assert banned not in row, (
             f"a refused row exposes {banned!r}; a caller could headline it, "
             f"which is exactly what collapsing refusals was protecting against")
-    assert set(row) == {"published", "reasons"}
+    # ⛔ THE RULE IS "NO NUMBER TO HEADLINE", NOT "NO FIELDS". `measured` is a
+    # BOOLEAN and carries no magnitude, so it cannot be rendered as an edge —
+    # and it is load-bearing: without it the panel says "measured, not
+    # published" about a structure no run has ever touched. Widening this set
+    # is allowed only for fields that cannot be mistaken for a result; a
+    # numeric one belongs in the banned list above.
+    assert set(row) <= {"published", "reasons", "measured"}
+    assert isinstance(row.get("measured"), bool), (
+        "`measured` must stay a boolean — a count or a date here would be a "
+        "number on a row that is supposed to carry none")
 
 
 # ─── controls, first ────────────────────────────────────────────────────────
