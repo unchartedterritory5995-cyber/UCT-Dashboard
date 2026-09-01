@@ -35,6 +35,32 @@ def test_bot_messages_are_skipped(mods):
     assert rows == 0
 
 
+def test_a_page_of_only_bot_messages_still_advances_the_cursor(mods):
+    """Bot messages ARE processed -- they simply write no rows -- so the cursor
+    must move past them. `newest` is computed BEFORE the bot check for exactly
+    this reason. If it moved below the `continue`, a bot-heavy channel would
+    re-fetch the same window forever and nothing else here would notice."""
+    store, ing = mods
+    rows, newest = ing.ingest_messages("CH1", [
+        _msg(5000, "botty", "$NVDA", bot=True),
+        _msg(5001, "botty", "$AMD", bot=True),
+    ])
+    assert rows == 0
+    assert newest == "5001"
+
+
+def test_poll_once_advances_past_an_all_bot_page(mods):
+    """The same property through the real entry point, not just the helper."""
+    store, ing = mods
+
+    def fake_fetch(channel_id, **kw):
+        return [_msg(7000, "botty", "$NVDA", bot=True)] if kw.get("after") is None else []
+
+    out = ing.poll_once("CH1", fetch_fn=fake_fetch)
+    assert out["rows"] == 0
+    assert store.get_cursor("CH1") == "7000"
+
+
 def test_empty_content_is_skipped(mods):
     store, ing = mods
     rows, _ = ing.ingest_messages("CH1", [_msg(1000, "alice", "")])
@@ -95,6 +121,13 @@ def test_a_write_failure_leaves_the_cursor_untouched(mods):
     assert store.get_cursor("CH1") is None
 
 
+def test_a_failed_fetch_leaves_the_cursor_untouched(mods):
+    store, ing = mods
+    out = ing.poll_once("CH1", fetch_fn=lambda c, **kw: None)
+    assert out["rows"] == 0
+    assert store.get_cursor("CH1") is None
+
+
 def test_backfill_walks_backwards_and_stops_at_the_cutoff(mods):
     store, ing = mods
     # snowflakes descending; the oldest is far outside the window
@@ -109,6 +142,31 @@ def test_backfill_walks_backwards_and_stops_at_the_cutoff(mods):
     out = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
     assert out["rows"] >= 1
     assert out["pages"] <= 3, "must stop once messages fall outside the window"
+
+
+def test_backfill_reports_truncation_when_a_fetch_fails(mods):
+    """A 429 must not read as 'end of history'. The owner runs this once and
+    trusts the number; a silent short-read is the worst failure shape here."""
+    store, ing = mods
+    pages = {None: [_msg(1544451055910129726, "a", "$NVDA")]}
+
+    def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
+        return pages.get(before, None)          # anything past page 1 "fails"
+
+    out = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
+    assert out["truncated"] is True
+    assert out["rows"] == 1
+
+
+def test_backfill_does_NOT_report_truncation_on_a_genuine_end(mods):
+    """CONTROL. Without this, always returning truncated=True would also pass."""
+    store, ing = mods
+    pages = {None: [_msg(1544451055910129726, "a", "$NVDA")]}
+
+    def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
+        return pages.get(before, [])            # genuine empty
+    out = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
+    assert out["truncated"] is False
 
 
 def test_channels_reads_the_env(mods, monkeypatch):
