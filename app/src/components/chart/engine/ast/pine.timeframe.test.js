@@ -28,6 +28,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { TF_RESAMPLABLE, TF_LADDER } from './interpret.js'
 import { servableTimeframesText } from './pine.js'
+import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 
 /** A v5 request for the same symbol at `code`, which is the shape `securityAsNode`
  *  folds to a `tf` node. */
@@ -213,5 +215,57 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     const out = translatePine(src)
     expect(out.ok).toBe(false)
     expect(String(out.refusal.message)).toMatch(/OPENING TIMESTAMP/)
+  })
+})
+
+// ─── 🔴 A REFUSAL THAT DENIED A SHIPPED ACCUMULATOR ──────────────────────────
+
+describe('`cum` refuses on the ANCHOR, and names the call that has one', () => {
+  const cumRefusal = () => {
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.cum(volume))\n')
+    expect(out.ok).toBe(false)
+    return String(out.refusal.message)
+  }
+
+  it('⛔⛔ it no longer claims this engine has only a re-seeding accumulator', () => {
+    // ⚰️ IT SAID "This engine's ONLY accumulator re-seeds a fixed number of bars
+    // back" — and `cumFrom(source, anchor, window)` is declared in the manifest,
+    // implemented in BOTH lanes, and carries eight conformance cases. The clause
+    // denied a capability that ships, which is how a member stops looking.
+    const msg = cumRefusal()
+    expect(msg).not.toMatch(/only accumulator/i)
+    expect(msg).toMatch(/cumFrom\(source, anchor, window\)/)
+  })
+
+  it('⭐ the RULING is unchanged — `cum` still does not translate', () => {
+    // ⛔ THE HALF THAT MUST NOT MOVE. `cum` names no anchor; picking one would
+    // invent the number the whole answer turns on, and the value would then change
+    // with how many bars the chart requested. Naming `cumFrom` is an OFFER, never
+    // a silent substitution.
+    const out = translatePine('//@version=5\nindicator("t")\nplot(ta.cum(volume))\n')
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('pine:function')
+    expect(cumRefusal()).toMatch(/names no anchor/)
+  })
+
+  it('⭐⭐ and the offered call actually works — evaluated, not asserted', () => {
+    // ⛔ AN OFFER NOBODY RAN IS A CLAIM. This is the anchored OBV both
+    // `cum`-blocked corpus scripts are reaching for, pushed through the SAME
+    // downstream door the member's formula box uses.
+    const anchoredObv = 'cumFrom(close > open ? volume : -volume, 1762189200, 600)'
+    const down = evaluateFormula(anchoredObv, BUILDER_INPUT_SCOPE)
+    expect(down.ok, down.guard + ' ' + down.error).toBe(true)
+    expect(canSaveFormula(down, false)).toBe(true)
+    expect(down.readback).toMatch(/running total/)
+  })
+
+  it('⛔ a DATE-shaped anchor is still refused, and says why', () => {
+    // The guard that caught the author of this very test: `20260101` is not a
+    // unix instant, and read as seconds it anchors in 1970. Naming `cumFrom` in a
+    // refusal is only useful if the member also learns what an anchor IS.
+    const bad = evaluateFormula('cumFrom(volume, 20260101, 250)', BUILDER_INPUT_SCOPE)
+    expect(bad.ok).toBe(false)
+    expect(String(bad.error)).toMatch(/unix-second instant/)
+    expect(String(bad.error)).toMatch(/1970/)
   })
 })
