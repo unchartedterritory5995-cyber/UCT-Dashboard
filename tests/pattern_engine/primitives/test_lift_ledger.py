@@ -197,7 +197,8 @@ def test_a_ci_that_includes_zero_is_refused():
            "rate": 0.3, "baseline": 0.28, "years": ["2021"]}
     # padded to the escalated trial count: this test is about the other
     # gates, not about trial depth, and publication now requires 30.
-    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS)
+    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS,
+                        deff=1.0)
     assert out["published"] is False
     assert any("includes zero" in r for r in out["reasons"])
 
@@ -221,12 +222,23 @@ def test_a_missing_null_is_a_refusal_never_a_pass():
     assert out["published"] is False
 
 
+# ⛔ WHY THESE PASS `deff=1.0`. `adjudicate` gained a fourth input on
+# 2026-09-01: the MEASURED same-date design effect. It fails CLOSED -- a row
+# whose anchor clustering was never measured is refused rather than published
+# on the ticker-only bootstrap's bound, which is known to be too narrow by an
+# unknown factor. `deff=1.0` is the neutral element ("measured, and it was
+# negligible"), so every test below still tests exactly the gate it names and
+# nothing else. The fail-closed default itself is pinned in
+# `tests/test_same_date_clustering_is_gated.py`, with a control proving the
+# same row publishes once a design effect is supplied.
+
+
 def test_all_gates_passing_publishes_the_lift():
     res = {"lift": 0.09, "ci_low": 0.05, "ci_high": 0.13, "n": 900,
            "rate": 0.37, "baseline": 0.28, "years": ["2021"]}
     # 30 trials, same three values repeated: this test is about the other
     # gates, and publication now requires an ESCALATED null.
-    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0] * 10)
+    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0] * 10, deff=1.0)
     assert out["published"] is True
     assert out["lift"] == 0.09
 
@@ -249,7 +261,8 @@ def test_a_negative_lift_whose_ci_excludes_zero_is_still_refused():
            "rate": 0.22, "baseline": 0.28, "years": ["2021"]}
     # padded to the escalated trial count: this test is about the other
     # gates, not about trial depth, and publication now requires 30.
-    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS)
+    out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS,
+                        deff=1.0)
     assert out["published"] is False
     assert any("random-data null" in r for r in out["reasons"])
 
@@ -281,7 +294,8 @@ def test_a_well_powered_lift_still_clears_the_same_null():
     """
     strong = {"lift": 0.0765, "ci_low": 0.0578, "ci_high": 0.0953, "n": 2625,
               "rate": 0.3467, "baseline": 0.2701, "years": ["2014", "2015"]}
-    out = ll.adjudicate(strong, nulls=([-0.0057, 0.0231, 0.010, 0.0, 0.008]
+    out = ll.adjudicate(strong, deff=1.0,
+                        nulls=([-0.0057, 0.0231, 0.010, 0.0, 0.008]
                                        * 6))   # 30 trials, same values
     assert out["published"] is True
     assert out["lift"] == 0.0765
@@ -795,7 +809,8 @@ def test_the_sign_gate_does_not_block_a_genuine_positive():
     verdict = ll.adjudicate(
         {"lift": 0.0735, "ci_low": 0.0678, "ci_high": 0.0796, "n": 24428,
          "rate": 0.3467, "baseline": 0.2732, "years": ["2020", "2021"]},
-        [0.0110, 0.0090] * 15)   # 30 trials
+        [0.0110, 0.0090] * 15,   # 30 trials
+        deff=1.0)
     assert verdict["published"] is True
 
 
@@ -842,7 +857,8 @@ def test_a_FIVE_trial_screen_can_screen_but_cannot_publish():
     assert screened["published"] is False
     assert any("only 5 null trials" in r for r in screened["reasons"])
 
-    escalated = ll.adjudicate(strong, [0.0110] * ll.ESCALATED_NULL_TRIALS)
+    escalated = ll.adjudicate(strong, [0.0110] * ll.ESCALATED_NULL_TRIALS,
+                              deff=1.0)
     assert escalated["published"] is True, (
         "the same result must publish once it has been escalated, or the gate "
         "is refusing on trial count alone")
