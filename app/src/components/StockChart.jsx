@@ -14042,6 +14042,7 @@ export default function StockChart({
             title={c.label}
             width={260}
             items={page.map(chipMenuRowToPopoverRow)}
+            sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
           />
         )
       })()}
@@ -14083,6 +14084,7 @@ export default function StockChart({
             anchor={chipAbout.anchor}
             title={meta.name || chipAbout.chip.defId}
             width={280}
+            sheetClassName={canvasTheme === 'sunrise' ? 'uctSunSheet' : ''}
           >
             <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
               {meta.description || 'This indicator declares no description.'}
