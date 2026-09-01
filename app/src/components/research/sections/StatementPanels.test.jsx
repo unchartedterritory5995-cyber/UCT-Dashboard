@@ -257,6 +257,10 @@ describe('expand — any panel pops out into a larger modal', () => {
   })
 
   it('Tab wraps inside the pop-out instead of walking out behind two backdrops', () => {
+    // ⚰️ THIS FILE NO LONGER SHIPS ITS OWN TRAP — the pop-out IS a `Sheet` and
+    // `Sheet` traps its own panel (one copy, `components/mobile/useFocusTrap`).
+    // The requirement is unchanged, so the case is unchanged: it is now a
+    // measurement of the SHARED wrap, and no-op'ing `trapTabKey` turns it red.
     const dlg = openIncome()
     const focusables = [...dlg.querySelectorAll('button, input')]
     const first = focusables[0]
@@ -267,6 +271,19 @@ describe('expand — any panel pops out into a larger modal', () => {
     expect(document.activeElement).toBe(first)
     fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
     expect(document.activeElement).toBe(last)
+  })
+
+  it('⭐ POSITIVE CONTROL: a MIDDLE control keeps its Tab — the pop-out is a ring, not a cage', () => {
+    // Without this, a trap that swallowed every Tab would satisfy the case
+    // above while making the pop-out impossible to walk through.
+    const dlg = openIncome()
+    const focusables = [...dlg.querySelectorAll('button, input')]
+    const mid = focusables[1]
+    expect(mid).not.toBe(focusables[0])
+    expect(mid).not.toBe(focusables.at(-1))
+    mid.focus()
+    expect(fireEvent.keyDown(mid, { key: 'Tab' })).toBe(true)
+    expect(document.activeElement).toBe(mid)
   })
 
   it('the page behind is inert while the pop-out is open, and live again after', () => {

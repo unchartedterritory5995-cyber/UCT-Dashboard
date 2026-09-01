@@ -141,3 +141,22 @@
 .yearBtn:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
 /* The year of the currently-framed date — gold TEXT only (no fill/outline). */
 .yearBtnSel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+
+/* TOUCH TIER (<=1024px) -- nav/toolbar ---------------------------------------
+   The date scrubber: step-a-day arrows measured 20x17, the field 96x22 and the caret 21x16 at 820px.
+   `--tap-min` is 44px and breakpoints.css calls EVERYTHING at or below 1024px
+   TOUCH -- phone AND tablet. These are chrome a finger aims at, so they take
+   the floor on the whole touch tier.
+
+   ⛔ NOT APPLIED to dense in-table affordances or chart-overlay micro-toggles
+   elsewhere on this app: a 44px floor on a data grid's inline controls
+   destroys the density the grid exists to provide. That is a per-surface
+   design call, not something to sweep. Rail: app/src/styles/tapFloor.test.js. */
+@media (max-width: 1024px) {
+  .step,
+  .field,
+  .caret {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

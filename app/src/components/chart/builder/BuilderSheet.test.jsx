@@ -644,24 +644,29 @@ describe('focus is trapped inside the panel', () => {
     .querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
       + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
 
-  it('⚰️ `Sheet` NOW SHIPS A TRAP — this premise has been overtaken', () => {
-    // This case asserted `Sheet` contained no 'Tab' at all, which was true and
-    // was the reason BuilderSheet rolled its own. `Sheet` gained a real trap on
-    // 2026-09-01 (nesting-aware, mutation-verified, 6 cases of its own), so the
-    // premise is now the opposite and the assertion is inverted rather than
-    // deleted — a stale premise quietly removed is how the next reader inherits
-    // a duplicate nobody can explain.
+  it('⚰️ THE TRAP IS SHEET’S NOW, AND THIS FILE HOLDS NO COPY OF IT', () => {
+    // This case has been wrong twice, in opposite directions, which is why it
+    // is still here rather than deleted:
+    //   v1 asserted `Sheet` contained no 'Tab' at all — true, and the reason
+    //       BuilderSheet rolled its own.
+    //   v2 asserted `Sheet` DOES trap, and then said Builder's copy was
+    //       "deliberately still here" pending a sweep across "SIX components".
+    // The sweep ran (2026-09-01). It found FOUR real duplicates, not six —
+    // `SymbolSearch` cycles category chips on Tab and `ColumnDesc` deliberately
+    // NEVER traps ("Two Tabs always leave"), so neither was one. All four are
+    // gone; the wrap lives in `components/mobile/useFocusTrap.js` and `Sheet`
+    // consumes it.
     //
-    // ⚠️ BUILDER'S OWN `trapTab` IS THEREFORE REDUNDANT and is deliberately
-    // still here. Both fire (Sheet's on document during CAPTURE, Builder's on
-    // the element) and compute the same ring, so they agree — but that is two
-    // authorities over one behaviour. SIX components rolled their own trap
-    // while the primitive had none: BuilderSheet, IndicatorSettingsDialog,
-    // SymbolSearch, EarningsResearchModal, StatementPanels and ColumnDesc.
-    // Removing them belongs in its own change with its own sweep across all
-    // six, not tacked onto the primitive's fix.
-    expect(/e\.key !== 'Tab'/.test(read('app/src/components/mobile/Sheet.jsx')))
-      .toBe(true)
+    // ⭐ A source assertion is cheap and blind, so it is paired with the
+    // behavioural cases below: this one says "no second copy exists", those say
+    // "the wrap still happens". Neither alone is evidence.
+    const sheetSrc = read('app/src/components/mobile/Sheet.jsx')
+    const builderSrc = read('app/src/components/chart/builder/BuilderSheet.jsx')
+    expect(/trapTabKey\(e, panel\)/.test(sheetSrc)).toBe(true)
+    expect(/const FOCUSABLE|querySelectorAll\(FOCUSABLE\)/.test(builderSrc)).toBe(false)
+    expect(/e\.key !== 'Tab'/.test(builderSrc)).toBe(false)
+    // …and the one copy is where we say it is.
+    expect(read('app/src/components/mobile/useFocusTrap.js')).toMatch(/export function trapTabKey/)
   })
 
   it('Tab from the LAST control wraps to the first, and Shift+Tab from the first to the last', async () => {
@@ -699,13 +704,39 @@ describe('focus is trapped inside the panel', () => {
     expect(document.activeElement).toBe(middle)
   })
 
-  it('Tab from the PANEL itself enters the ring rather than leaving the modal', async () => {
+  // ── Tab FROM THE PANEL ITSELF — the state right after open, since `Sheet`
+  //    focuses its tabIndex=-1 panel on an rAF. The two directions are NOT
+  //    symmetric and this pair says why, because the asymmetry is deliberate.
+  it('Shift+Tab from the PANEL enters the ring at the END rather than leaving the modal', async () => {
+    // ⛔ THIS IS THE DIRECTION THAT ACTUALLY LEAKS. Backward from the panel,
+    // the browser's own document-order Tab walks to whatever precedes the
+    // portal — the page behind the modal — so the trap has to intercept it.
     mount()
     await typeFormula('sma(close, 20)')
     const panel = document.querySelector('[role="dialog"]')
     panel.focus()
-    fireEvent.keyDown(panel, { key: 'Tab' })
-    expect(ring()).toContain(document.activeElement)
+    const items = ring()
+    expect(fireEvent.keyDown(panel, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(document.activeElement).toBe(items[items.length - 1])
+  })
+
+  it('forward Tab from the PANEL is left to the browser — and that is not a gap', async () => {
+    // ⚰️ THE PREDECESSOR OF THIS CASE ASSERTED AN INTERCEPTION, and passed only
+    // because BuilderSheet's own copy of the trap had one. `Sheet`'s does not,
+    // deliberately: the panel is the ring's own parent, so forward document
+    // order from it IS `items[0]` and the browser gets there unaided. jsdom
+    // implements no native Tab, which is the only reason "focus did not move"
+    // looks like a leak here — in a browser nothing leaked.
+    //
+    // So the honest assertion is about the DECISION (no preventDefault), not
+    // about a focus move jsdom will never make. Rewriting it to expect the old
+    // interception would have meant re-adding a second trap to satisfy a test
+    // rather than a requirement.
+    mount()
+    await typeFormula('sma(close, 20)')
+    const panel = document.querySelector('[role="dialog"]')
+    panel.focus()
+    expect(fireEvent.keyDown(panel, { key: 'Tab' })).toBe(true)
   })
 })
 

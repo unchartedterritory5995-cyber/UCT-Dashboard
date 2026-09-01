@@ -28,7 +28,6 @@ import styles from './StatementPanels.module.css'
 const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
 const NO_HISTORY = 'Statement history is unavailable for this ticker.'
-const FOCUSABLE = 'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
 
 /** Year-ago + Quarterly/Annual. Rendered above the grid AND inside the
  *  pop-out, bound to the same state, so a flip in either place is one flip. */
@@ -146,16 +145,13 @@ export default function StatementPanels({ sym }) {
     // the company under the title; stop them here (stopPropagation from
     // React's root never lets the event reach the host's window listener).
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.stopPropagation(); return }
-    if (e.key !== 'Tab') return
-    // Sheet focuses its panel but does not trap. Without this, Tab walks out
-    // of the portal into the page behind two backdrops.
-    const items = [...panel.querySelectorAll(FOCUSABLE)]
-    if (!items.length) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    const active = document.activeElement
-    if (e.shiftKey && (active === first || active === panel)) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
+    // ⚰️ NO TAB TRAP HERE ANY MORE, AND THAT IS THE FIX. This handler used to
+    // carry one, under a comment reading "Sheet focuses its panel but does not
+    // trap" — true when written, false since 2026-09-01. The pop-out IS a
+    // `Sheet`, and `Sheet` now traps its own panel via the one implementation
+    // in `components/mobile/useFocusTrap.js`. Keeping a copy here made two
+    // authorities over one wrap, and this copy's selector was the loosest of
+    // the four (`input` with no `:not([disabled])`, no hidden filter).
   }, [])
 
   if (!sym) return null

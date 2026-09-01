@@ -181,3 +181,26 @@
   }
   .lfm-mroot .lfm-tape::-webkit-scrollbar { display: none; }
 }
+
+/* TOUCH TIER (<=1024px) -- the chart-icon HIDE, extended -----------------------
+   ⛔ THIS FILE ALREADY DECIDED THIS, and the decision was phone-only. The
+   phone block above hides `.lf-chart-icon` outright, with the reasoning
+   written out: it is a 12px HOVER-REVEAL affordance on a device with no
+   hover, and the same action is already bound to the ticker via
+   `useLongPress` -- "hide it rather than inflating thousands of tape rows".
+
+   That decision is just as true on a tablet, which also has no hover and no
+   right-click. It simply stopped at 640px, so at 820px the tape still
+   rendered ~118 of them at 12x12 -- the smallest targets in the product.
+
+   ⭐ THE FIX IS THE AUTHOR'S OWN ANSWER, EXTENDED TO THE TIER IT MISSED --
+   not a 44px floor. A floor is impossible here anyway: measured at 820px the
+   tape row is 21px tall, so a 44px target would overlap two neighbouring rows
+   in each direction and steal taps for a DIFFERENT contract. That is a
+   correctness hazard, not a layout one.
+
+   (The generated block above could not catch this: it copies `min-*` tap
+   declarations, and this rule is a `display: none`.) */
+@media (max-width: 1024px) {
+  .lfm-mroot .lf-chart-icon { display: none !important; }
+}
