@@ -100,12 +100,12 @@
   .stopBtn { margin-left: auto; }
 }
 
-/* Keep the player ABOVE the mobile bottom tab bar (shown ≤1024px) instead of
-   overlapping it whenever Compass speaks. Mirrors the FloatingOrb's safe-area
-   offset so controls stay tappable on phones/tablets. */
+/* Touch shells (≤1024px): dock just above the bottom safe area (the app tab
+   bar was removed 2026-09-01). Mirrors the FloatingOrb's offset so controls
+   stay tappable on phones/tablets. */
 @media (max-width: 1024px) {
   .bar {
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 

@@ -257,7 +257,6 @@
      `.mobileWorkspace` came to subtract the top bar and forget the tab bar,
      burying 54px of the chart under the nav. */
   --mobile-topbar-h: 48px;
-  --mobile-tabbar-h: 58px;
 
   /* Mobile tap target minimum */
   --tap-min: 44px;

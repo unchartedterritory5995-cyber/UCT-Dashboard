@@ -12,15 +12,16 @@
 }
 
 /* The button + panels are inline-styled (desktop: top-right). On touch shells
-   the top bar owns the top-right corner, so dock the widget bottom-left above
-   the tab bar (mirroring the voice orb on the right). !important is required to
+   the top bar owns the top-right corner, so dock the widget bottom-left
+   (mirroring the voice orb on the right; the bottom tab bar was removed
+   2026-09-01, so only the safe area is cleared). !important is required to
    override the component's inline positioning. */
 @media (max-width: 1024px) {
   .fab {
     top: auto !important;
     right: auto !important;
     left: 14px !important;
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
     width: 40px !important;
     height: 40px !important;
     font-size: 18px !important;
@@ -29,7 +30,7 @@
     top: auto !important;
     right: auto !important;
     left: 14px !important;
-    bottom: calc(118px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
     width: min(300px, calc(100vw - 28px)) !important;
   }
   .menuItem {
@@ -37,16 +38,16 @@
   }
 }
 
-/* Chart shell (phone AND coarse tablet ≤1024px): MobileChartsApp's bottom chart
-   toolbar occupies the strip just above the tab bar (it stamps
-   html[data-mobile-chart-shell] while mounted), so the "?" and its panel step up
-   over it instead of covering the timeframe pill. */
+/* Chart shell (phone AND coarse tablet ≤1024px): MobileChartsApp's bottom
+   chart toolbar owns the bottom edge (it stamps html[data-mobile-chart-shell]
+   while mounted), so the "?" and its panel step up over it instead of
+   covering the timeframe pill. */
 @media (max-width: 1024px) {
   :global(html[data-mobile-chart-shell]) .fab {
-    bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
   }
   :global(html[data-mobile-chart-shell]) .panel {
-    bottom: calc(174px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(116px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 

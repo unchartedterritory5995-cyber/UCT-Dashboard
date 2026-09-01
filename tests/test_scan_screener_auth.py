@@ -82,8 +82,24 @@ ROOT = Path(__file__).resolve().parents[1]
 #: rubber stamp: the verification that preceded it was an AST walk over both
 #: routers printing every route with its gate status, and it is the only reason
 #: bumping this number is honest rather than a way to make a red test quiet.
+#: ⭐ 2026-08-31 — 19 → 20, AND THE RAIL CAUGHT ITS OWN AUTHOR. `GET
+#: /api/screener/structures` (the base-library provenance route) was added
+#: earlier the same day and this pin was NOT updated, so the file sat RED on
+#: master for hours — found by a sweep, not by the person who added the route.
+#: That is the pin doing precisely its job: a new route on an auth-relevant
+#: router does not get to arrive unnoticed.
+#:
+#: The deliberate verification this message demands, run before the bump — a
+#: walk over both routers printing every route with its resolved gate:
+#:     scans:    16 routes, UNGATED == 0
+#:     screener: 20 routes, UNGATED == 1
+#: The single open route is `GET /api/screener/shared/{share_token}`, open BY
+#: DESIGN and pre-existing — a share link has to resolve without a session
+#: because the unguessable token IS the credential. The new route resolves to
+#: `paid`, which is what it must be: it returns the full criteria library
+#: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 19  # +1 2026-08-23: POST /api/screener/finviz-refresh
+EXPECTED_SCREENER_ROUTES = 20  # +1 2026-08-31: GET /api/screener/structures
 #                              # +1 2026-08-24: POST /api/screener/count — the
 #   pre-run match count (benchmark metric 450). ⛔ It is PAID like /scan and
 #   takes the SAME ScanSpec, which is the reason it belongs behind the same

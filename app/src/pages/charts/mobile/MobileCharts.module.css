@@ -93,6 +93,27 @@
 }
 .symBtn:active { background: var(--bg-hover); }
 
+/* Top-left app-menu door (opens the ONE MoreSheet). The top bar hides on this
+   shell and the bottom tab bar is gone app-wide (2026-09-01), so this button
+   is how a member leaves /charts — it must never shrink below a thumb. */
+.stripMenuBtn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin-left: -6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: var(--radius-md);
+}
+.stripMenuBtn:active { background: var(--bg-hover); color: var(--text-bright); }
+
 .symLogo { flex: 0 0 auto; display: flex; align-items: center; }
 
 .symMain { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -171,7 +192,9 @@
   align-items: stretch;
   gap: 6px;
   min-height: calc(var(--tap-min) + 6px);
-  padding: 5px 8px;
+  /* The toolbar is the BOTTOMMOST element since the app tab bar's removal
+     (2026-09-01) — it owns the home-indicator safe area itself. */
+  padding: 5px 8px max(5px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
@@ -625,11 +648,11 @@
 
 /* ── Landscape immersive (phone rotated) ───────────────────────────────────
  * TradingView's rotate-to-fullscreen: while the chart shell is mounted, a
- * coarse-pointer landscape short screen hides the app chrome (MobileNav /
- * MobileTabBar hide themselves via the same attribute — see their modules) and
- * the shell takes the whole dynamic viewport, with slimmer strip + toolbar and
- * notch-safe side padding. Scoped to html[data-mobile-chart-shell] so no other
- * route is touched. */
+ * coarse-pointer landscape short screen hides the app top bar (MobileNav
+ * hides itself via the same attribute — see its module) and the shell takes
+ * the whole dynamic viewport, with slimmer strip + toolbar and notch-safe
+ * side padding. Scoped to html[data-mobile-chart-shell] so no other route is
+ * touched. */
 @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   :global(html[data-mobile-chart-shell]) .shell {
     height: 100vh;
@@ -807,3 +830,93 @@
   .switch { position: relative; }
   .switch::after { content: ''; position: absolute; inset: -8px -6px; }
 }
+
+/* ── Wave 8: fx param editors (tap a row name to edit) ─────────────────── */
+.indNameBtn {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.indNameBtn:active { background: var(--bg-hover); border-radius: var(--radius-md); }
+
+.paramRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: calc(var(--tap-min) + 8px);
+  padding: 4px 16px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+.stepBtn {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border: none;
+  background: none;
+  color: var(--text-bright);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.stepBtn:active { background: var(--bg-hover); }
+.stepVal {
+  min-width: 46px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-bright);
+}
+
+.segRow { display: flex; gap: 4px; }
+.segBtn {
+  min-width: 56px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.segBtnOn {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
+
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.swatchOn { border-color: var(--text-bright); box-shadow: 0 0 0 2px var(--bg-surface); }
+
+.removeRow .rowLabel { color: var(--loss); }

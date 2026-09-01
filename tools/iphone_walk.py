@@ -192,19 +192,24 @@ def make_page(ctx, base, email, pw, viewport_note):
 
 
 def touch_walk(ctx, page):
-    """Arm Trendline, place two touch anchors, return True if it persisted."""
-    # Expand the drawing toolbar (the phone default is collapsed). Never swallow
-    # this silently: report which state was found so a failure names itself.
-    if page.get_by_label('Show toolbar').count() > 0:
-        page.get_by_label('Show toolbar').click(timeout=5000)
-        print('  toolbar: expanded from collapsed')
-    elif page.get_by_label('Hide toolbar').count() > 0:
-        print('  toolbar: already expanded')
+    """Arm Trend in the MobileDrawBar, place two touch anchors, return True
+    if the drawing persisted.
+
+    Wave 8: the phone shell presents drawing as MobileDrawBar (labeled bottom
+    strip) opened through the PRODUCT door — Tools sheet -> "Draw on chart" —
+    so the gate walks the same path a member's thumb does. The desktop
+    'Show toolbar' chevron no longer exists on this shell."""
+    tb = page.get_by_test_id('mobile-chart-toolbar')
+    tb.get_by_role('button', name='More tools').click(timeout=5000)
+    page.wait_for_timeout(700)
+    page.get_by_role('button', name='Draw on chart').click(timeout=5000)
+    page.wait_for_timeout(700)
+    if page.get_by_test_id('mobile-draw-bar').count() > 0:
+        print('  draw bar: opened via Tools -> Draw on chart')
     else:
-        print('  toolbar: NO toggle found — is the chart mounted?')
-    page.wait_for_timeout(500)
+        print('  draw bar: DID NOT OPEN — the Draw door or MobileDrawBar regressed')
     shot(page, '20-toolbar-expanded')
-    page.get_by_title(re.compile('^Trendline')).click(timeout=5000)
+    page.get_by_role('button', name='Trend', exact=True).click(timeout=5000)
     page.wait_for_timeout(400)
 
     cdp = None
@@ -329,6 +334,23 @@ def golive_walk(ctx, page):
     shot(page, '23-golive-pill', wait=200)
     if not appeared:
         return False
+    # Settle first: the synthetic pan leaves LWC kinetic-scroll INERTIA still
+    # decelerating, and a tap mid-glide can lose the fight with the momentum
+    # (CPU contention widens the window — the same gesture-residue class the
+    # pinch gate documents). A real thumb taps after the glide settles; model
+    # that by waiting until the visible range stops moving.
+    prev = None
+    for _ in range(16):
+        cur = page.evaluate('''() => {
+          const d = window.__uctChartDebug || {}
+          const k = Object.keys(d)[0]
+          const r = k ? d[k].visibleRange() : null
+          return r ? Math.round(r.to * 100) : null
+        }''')
+        if cur is not None and cur == prev:
+            break
+        prev = cur
+        page.wait_for_timeout(250)
     try:
         pill.click(timeout=4000)
     except Exception as e:
@@ -349,6 +371,18 @@ def golive_walk(ctx, page):
         if pill.count() == 0:
             gone = True
             break
+    if not gone and pill.count() > 0:
+        # One re-tap — exactly a real user's recovery. A pill that retires on
+        # the second tap is a working feature; one that never retires is real.
+        try:
+            pill.click(timeout=2000)
+        except Exception:
+            pass
+        for _ in range(12):
+            page.wait_for_timeout(300)
+            if pill.count() == 0:
+                gone = True
+                break
     print('  pill retired after snap-back:', gone)
     shot(page, '24-back-at-live', wait=200)
     return gone
@@ -509,9 +543,23 @@ def main():
         pinch_ok = pinch_zoom_gate(page)
         # Phase 9: the app top bar steps aside on the phone chart shell — the
         # hamburger is gone while the bottom tab bar (the control) stays.
+        # Control is the strip's Menu door (the app menu ON the chart screen)
+        # — the bottom tab bar that used to serve as the control was removed
+        # app-wide 2026-09-01.
         topbar_gone = (not page.get_by_label('Open menu').is_visible()
-                       and page.get_by_role('link', name='Home').is_visible())
-        print('  top bar hidden on /charts phone (tab bar stays):', topbar_gone)
+                       and page.get_by_role('button', name='Menu').is_visible())
+        print('  top bar hidden on /charts phone (Menu door present):', topbar_gone)
+        # Gate 8 — the app tab bar stays REMOVED (owner call 2026-09-01) and
+        # the chart toolbar owns the bottom edge; a resurrected bar would eat
+        # ~58px of chart on every phone.
+        geo = page.evaluate('''() => {
+          const nav = document.querySelector('nav[aria-label="Primary"]')
+          const tb = document.querySelector('[data-testid="mobile-chart-toolbar"]')
+          const r = tb && tb.getBoundingClientRect()
+          return { navGone: !nav, gap: r ? Math.abs(r.bottom - innerHeight) : 999 }
+        }''')
+        no_tabbar = geo['navGone'] and geo['gap'] <= 1
+        print(f"  tab bar gone + toolbar owns the bottom edge (gap {geo['gap']}px):", no_tabbar)
         for label, name in [('Timeframe', '02-tf-sheet'), ('Chart type', '03-type-sheet'),
                             ('Indicators', '04-indicators-sheet'), ('More tools', '05-more-sheet')]:
             try:
@@ -688,13 +736,16 @@ def main():
     if not longpress_ok:
         print('FAIL: long-press row menu did not open — phone row actions regressed')
         return 1
+    if not no_tabbar:
+        print('FAIL: the bottom tab bar is back (or the chart toolbar no longer reaches the bottom edge)')
+        return 1
     if not sunrise_ok:
         print('FAIL: sunrise sheets rendered dark — the picker theme scope regressed (portal escape)')
         return 1
     if not pinch_ok:
         print('FAIL: pinch-zoom did not change the visible range (or unpinned the right edge)')
         return 1
-    print('PASS: touch place + reshape + back-to-live + pinch-zoom + top-bar + long-press + sunrise-sheets verified end-to-end')
+    print('PASS: touch place + reshape + back-to-live + pinch-zoom + top-bar + no-tabbar + long-press + sunrise-sheets verified end-to-end')
     return 0
 
 

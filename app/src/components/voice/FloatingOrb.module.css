@@ -187,23 +187,23 @@
   .orbCluster.tuckedLeft { transform: none; opacity: 0.3; }
 }
 
-/* Touch shells (≤1024px): the bottom tab bar owns the bottom edge, so the
-   default orb position must clear it instead of colliding with the nav. */
+/* Touch shells (≤1024px): dock just above the bottom safe area (the bottom
+   tab bar was removed 2026-09-01 — nothing else owns the bottom edge). */
 @media (max-width: 1024px) {
   .orbCluster {
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     right: 14px;
   }
   .trainBtn { width: 34px; height: 34px; }
 }
 
-/* Chart shell (phone AND coarse tablet ≤1024px): MobileChartsApp's bottom chart
-   toolbar occupies the strip just above the tab bar (it stamps
-   html[data-mobile-chart-shell] while mounted), so the orb steps up over it
-   instead of covering the More button. */
+/* Chart shell (phone AND coarse tablet ≤1024px): MobileChartsApp's bottom
+   chart toolbar owns the bottom edge (it stamps html[data-mobile-chart-shell]
+   while mounted), so the orb steps up over it instead of covering the More
+   button. */
 @media (max-width: 1024px) {
   :global(html[data-mobile-chart-shell]) .orbCluster {
-    bottom: calc(126px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 }
 .orbCluster.dragging .orb {

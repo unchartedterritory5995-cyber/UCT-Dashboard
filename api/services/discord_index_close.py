@@ -211,15 +211,38 @@ def pick_notable(exclude=(), n: int = NOTABLE_N, snapshot_fn=None) -> list[tuple
     return moves[:max(0, n)]
 
 
+def bar_session(t) -> str | None:
+    """The trading date a daily bar belongs to, YYYY-MM-DD, or None.
+
+    Uses `discord_chart_render.to_datetime` - the ONE parser for a bar time in
+    this family (it already handles "YYYY-MM-DD", YYYYMMDD, unix s and unix ms,
+    and treats a unix DAILY time as a UTC date key). A second copy here would
+    drift, and the thing it would drift on is which DAY a chart is about."""
+    try:
+        from api.services.discord_chart_render import to_datetime
+        return to_datetime(t, "D").strftime("%Y-%m-%d")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[index-close] unreadable bar time %r: %s", t, e)
+        return None
+
+
 def render_charts(symbols, *, bars_fn, house_fn, stats_fn, name_fn, options=None,
-                  sleep_fn=None) -> list[tuple[str, bytes, str]]:
+                  sleep_fn=None, session_date=None) -> list[tuple[str, bytes, str]]:
     """(symbol, png, filename) for each symbol that rendered, in the ORDER ASKED.
 
     The whole failed SET is retried together after a pause (see RENDER_PASSES). A
     symbol that still fails is DROPPED, not faked and not fatal - seven charts
     where one ticker's feed is late is still a good post, and a stand-in would
     put a chart in the community channel that does not match the one `/chart`
-    serves."""
+    serves.
+
+    ⛔ `session_date` (YYYY-MM-DD) REFUSES A CHART FROM ANOTHER SESSION. The
+    stats strip is computed from the last two daily bars with no notion of when
+    they are; one session of lag turns it into a confident, internally
+    consistent description of the wrong day, printed under a headline naming
+    today. On 2026-08-31 SMH went out reading Day -3.5% (Friday) beside an AI
+    read that correctly called it up on the Monday. A missing chart is a gap
+    anyone can see; a chart captioned with the wrong day's numbers is not."""
     sleep = sleep_fn or time.sleep
     got = {}
     pending = list(symbols)
@@ -236,6 +259,13 @@ def render_charts(symbols, *, bars_fn, house_fn, stats_fn, name_fn, options=None
                     log.warning("[index-close] no bars for %s (pass %d)", sym, attempt)
                     still.append(sym)
                     continue
+                if session_date:
+                    newest = bar_session(daily[-1].get("t"))
+                    if newest != session_date:
+                        log.warning("[index-close] STALE bars for %s: newest daily bar is %s, "
+                                    "posting for %s (pass %d)", sym, newest, session_date, attempt)
+                        still.append(sym)
+                        continue
                 png = house_fn(sym, CHART_TF, stats_fn(daily), dict(options or {}))
                 if not png:
                     log.warning("[index-close] house render empty for %s (pass %d)", sym, attempt)
@@ -386,7 +416,15 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
     etf_syms = list(CORE_ETFS) + [s for s, _ in notable]
 
     render = dict(bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
-                  name_fn=name_fn, options=options, sleep_fn=sleep_fn)
+                  name_fn=name_fn, options=options, sleep_fn=sleep_fn,
+                  # ⛔ Scheduled path only. On the 15:45 cron we KNOW it is a
+                  # trading day and that today's bar should exist, so a bar from
+                  # another session is a defect. `force` is the owner firing by
+                  # hand - after the window, on a weekend, whenever - where
+                  # "today" is not the session the bars should be from and
+                  # refusing would just make the override useless. force has
+                  # always meant "post anyway"; it keeps meaning that.
+                  session_date=None if force else day)
     index_charts = render_charts(INDEXES, **render)
     etf_charts = render_charts(etf_syms, **render)
     # Top up to four. Each reserve is drawn from the SAME ranked pool, so a
