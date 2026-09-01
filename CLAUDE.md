@@ -1034,6 +1034,16 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - **Repeat toggle**: keeps tool selected (repeat ON) or reverts to cursor after one drawing (repeat OFF), persisted in localStorage
 - `useChartDrawings.js` — localStorage persistence per symbol
 - Drawing defaults (color, width) configurable in chart settings
+- **Touch quick-action bar (2026-09-01)**: on coarse-pointer devices a selected
+  drawing (tap-select, or auto-select right after placing one with repeat OFF)
+  shows `DrawingQuickBar` — a floating pill (Style dot → the same
+  DrawingContextMenu sheet long-press opens · Duplicate · Lock · Delete). Both
+  the deselect-on-tap-away and wrapper touch-routing listeners are CAPTURE
+  phase and carry explicit `[data-uct-qbar]` exemptions — stopPropagation on
+  the bar cannot protect it. ⛔ Drag state gates on `dragRef.current`, never
+  the `isDragging` closure (state needs a render to reach a callback; the ref
+  is written synchronously — the stale closure stuck drags on fast taps and
+  dropped a drag's first moves).
 
 ### Chart Header — Consistent UI Across All Surfaces
 - **SymbolSearch** (`app/src/components/chart/SymbolSearch.jsx`): clickable ticker title that opens search dropdown with popular tickers + type-any-ticker
