@@ -25,6 +25,24 @@ def _seed_db(path, rows):
     c.close()
 
 
+class _FakeStreamingBody:
+    """Mimics boto3's StreamingBody: read(amt) yields up to `amt` bytes and b''
+    at EOF, so download_snapshot's chunked stream-to-disk terminates cleanly."""
+
+    def __init__(self, data):
+        self._data = data
+        self._pos = 0
+
+    def read(self, amt=None):
+        if amt is None:
+            chunk = self._data[self._pos:]
+            self._pos = len(self._data)
+            return chunk
+        chunk = self._data[self._pos:self._pos + amt]
+        self._pos += len(chunk)
+        return chunk
+
+
 class _FakeS3:
     """Minimal S3 double: dict-backed put/get/list/delete."""
 
@@ -43,8 +61,9 @@ class _FakeS3:
     def get_object(self, Bucket, Key):
         if Key not in self.objs:
             raise KeyError(Key)
-        blob = self.objs[Key]
-        return {"Body": type("B", (), {"read": staticmethod(lambda: blob)})()}
+        # Mirror boto3's StreamingBody: read(amt) returns up to `amt` bytes and
+        # b'' when exhausted, so download_snapshot's chunked stream-to-disk works.
+        return {"Body": _FakeStreamingBody(self.objs[Key])}
 
     def list_objects_v2(self, Bucket, Prefix):
         return {"Contents": [{"Key": k} for k in self.objs if k.startswith(Prefix)]}
