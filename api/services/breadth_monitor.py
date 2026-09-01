@@ -498,6 +498,53 @@ def _resolve_anchor_merged(all_dates: list, end: str, anchor: str) -> Optional[s
     return all_dates[i] if i >= 0 else all_dates[0]
 
 
+def merged_dates() -> list:
+    """Sorted-ASC union of collector + reconstructed session dates. CACHED — the
+    DISTINCT scan over the reconstructed OHLC store is the expensive part of a
+    teleport, and it only changes when the worker ships a new history chunk. Under
+    the `breadth_history_` prefix, so a collector write clears it too."""
+    from api.services.cache import cache
+    ck = "breadth_history_merged_dates"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    try:
+        with _conn() as c:
+            coll = [r[0] for r in c.execute(
+                "SELECT date FROM breadth_snapshots ORDER BY date ASC").fetchall()]
+    except Exception:
+        coll = []
+    recon = []
+    if _DEEP_ENABLED:
+        try:
+            from api.services import breadth_daily_ohlc as ohlc
+            recon = ohlc.distinct_dates()
+        except Exception:
+            recon = []
+    out = sorted(set(coll) | set(recon))
+    cache.set(ck, out, ttl=300)
+    return out
+
+
+def _collector_floor() -> Optional[str]:
+    """The earliest collector snapshot date (the boundary below which rows are
+    reconstructed). Cached alongside the date universe."""
+    from api.services.cache import cache
+    ck = "breadth_history_collector_floor"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit or None
+    d = None
+    try:
+        with _conn() as c:
+            row = c.execute("SELECT MIN(date) FROM breadth_snapshots").fetchone()
+            d = row[0] if row else None
+    except Exception:
+        d = None
+    cache.set(ck, d or "", ttl=300)
+    return d
+
+
 def _adv_decline_seed_before(oldest: str) -> float:
     """Cumulative-A/D seed for a deep window: the running total of `adv_decline`
     over every merged session before `oldest` (collector value wins where both
@@ -547,22 +594,13 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
     if hit is not None:
         return hit
 
-    # Merged date universe (collector snapshots + reconstructed history), ASC.
-    try:
-        with _conn() as c:
-            coll_dates = [r[0] for r in c.execute(
-                "SELECT date FROM breadth_snapshots ORDER BY date ASC").fetchall()]
-    except Exception:
-        coll_dates = []
-    try:
-        from api.services import breadth_daily_ohlc as ohlc
-        recon_dates = ohlc.distinct_dates()
-    except Exception:
-        recon_dates = []
-    all_dates = sorted(set(coll_dates) | set(recon_dates))
+    # Merged date universe (collector snapshots + reconstructed history), ASC —
+    # cached, because the DISTINCT scan over the ~170k-row OHLC store is the slow
+    # part of a teleport, and it only changes when the store grows (worker-side).
+    all_dates = merged_dates()
     if not all_dates:
         return get_history(days, end, anchor)
-    collector_floor = coll_dates[0] if coll_dates else None
+    collector_floor = _collector_floor()
 
     anchor_date = _resolve_anchor_merged(all_dates, end, anchor) if end else all_dates[-1]
     idx = bisect_right(all_dates, anchor_date) - 1
