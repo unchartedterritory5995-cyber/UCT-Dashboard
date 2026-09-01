@@ -86,6 +86,51 @@ def store_snapshot(date_str: str, metrics: dict) -> bool:
         return False
 
 
+def raw_row(date_str: str) -> Optional[dict]:
+    """The stored metrics blob for one date (no derivation, `_list` keys kept), or
+    None. Used by the self-heal to inspect / preserve a day's sentiment fields."""
+    try:
+        with _conn() as c:
+            row = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
+            ).fetchone()
+        return json.loads(row["metrics"]) if row else None
+    except Exception as e:
+        print(f"[breadth_monitor] raw_row error: {e}")
+        return None
+
+
+def snapshot_looks_degraded(m: dict) -> bool:
+    """True when a snapshot's WHOLE-MARKET price measurements collapsed against a
+    real universe — the signature of a failed universe price pull (only a handful
+    of names actually priced), as opposed to a genuinely quiet session.
+
+    On any real trading day a 2,000+ name universe has hundreds of stocks in a
+    Stage-2 uptrend and at least SOME 4%-movers and new highs/lows. All three
+    going to ~0 at once, while `universe_count` still reports the full list, is
+    the failure — e.g. 2026-08-31 stored Stage-2=2 / up4=dn4=0 / 52w+20w hi-lo≈0
+    on a universe of 2,581 (percentages came back as coarse 1/6, 1/3, 1/2 fractions).
+    Index closes + weekly sentiment ride a separate feed and are NOT judged here.
+    """
+    if not isinstance(m, dict):
+        return False
+
+    def g(k):
+        try:
+            return float(m.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    uni = g("universe_count")
+    if uni < 500:
+        return False   # small/unknown universe — not enough to judge coverage here
+    stage2 = g("stage2_count")
+    movers = g("up_4pct_today") + g("down_4pct_today")
+    hilo = (g("new_52w_highs") + g("new_52w_lows")
+            + g("new_20d_highs") + g("new_20d_lows"))
+    return stage2 < uni * 0.02 and movers < 6 and hilo < 8
+
+
 # ── Read ──────────────────────────────────────────────────────────────────────
 
 def _lerp(val, lo, hi, max_pts):

@@ -128,7 +128,7 @@ function sectionize(fields) {
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
   + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
 
-export default function IndicatorSettingsDialog({ open, instanceId, settings, onChange, onClose, registry }) {
+export default function IndicatorSettingsDialog({ open, instanceId, settings, onChange, onClose, registry, sheetClassName = '' }) {
   const uid = useId()
   const rootRef = useRef(null)
   const [tab, setTab] = useState('inputs')
@@ -529,7 +529,7 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   const placementTarget = instance.placement?.target || def.placement?.target || MOVE_TARGETS[0]
 
   return (
-    <Sheet open={open} onClose={handleDone} variant="auto" title={title} maxWidth={520}>
+    <Sheet open={open} onClose={handleDone} variant="auto" title={title} maxWidth={520} className={sheetClassName}>
       {/* The portal exemption — `ColorPicker`'s popup portals to <body>, and the
           toolbar's close-on-outside-mousedown would otherwise close the panel
           underneath on the very click that picks a colour. */}

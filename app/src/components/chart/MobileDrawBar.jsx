@@ -18,17 +18,27 @@ import styles from './MobileDrawBar.module.css'
  * glyph set would drift the day a tool is added.
  */
 
-// The roster, in reach-for order. Labels are the accessible names the rig arms
-// tools by — keep them stable. `eraser` is real (ChartDrawingOverlay deletes
-// whatever an armed-eraser tap hits) — it never had a desktop button.
-const DRAW_TOOLS = [
+// The roster, in reach-for order — related tools adjacent (fib beside fibext,
+// channel beside pitchfork) because only ~3 tiles fit on screen at 393px and
+// the rest is a swipe. Labels are the accessible names the rig arms tools by —
+// "Trend" is the one the walk looks up verbatim; keep it stable. `eraser` is
+// real but lives OUTSIDE this array (the pinned tile) — it never had a desktop
+// button. ⛔ THIS MUST COVER EVERY DESKTOP TOOL: on this shell the desktop
+// toolbar is display:none and there is no keyboard, so a tool missing here is
+// UNREACHABLE, not merely demoted — `advance` and `cup` shipped that way for
+// two waves. MobileDrawBar.roster.test.js pins set-equality with
+// ChartToolbar's DRAW_TOOL_LIST so the next drift fails by name.
+export const DRAW_TOOLS = [
   { id: 'trendline',  label: 'Trend' },
   { id: 'horizontal', label: 'Horizontal' },
-  { id: 'hray',       label: 'Ray' },
+  { id: 'hray',       label: 'H Ray' },
   { id: 'rect',       label: 'Rectangle' },
   { id: 'fib',        label: 'Fib' },
+  { id: 'fibext',     label: 'Fib Ext' },
   { id: 'channel',    label: 'Channel' },
+  { id: 'pitchfork',  label: 'Pitchfork' },
   { id: 'avwap',      label: 'AVWAP' },
+  { id: 'advance',    label: 'Advance %' },
   { id: 'vertical',   label: 'Vertical' },
   { id: 'extended',   label: 'Extended' },
   { id: 'arrow',      label: 'Arrow' },
@@ -36,8 +46,7 @@ const DRAW_TOOLS = [
   { id: 'text',       label: 'Text' },
   { id: 'measure',    label: 'Measure' },
   { id: 'position',   label: 'Position' },
-  { id: 'fibext',     label: 'Fib Ext' },
-  { id: 'pitchfork',  label: 'Pitchfork' },
+  { id: 'cup',        label: 'Cup' },
 ]
 
 export default function MobileDrawBar({
