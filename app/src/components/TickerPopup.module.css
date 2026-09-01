@@ -582,3 +582,14 @@
   .insiderAmt { flex: 0 0 auto; }
   .insiderDate { flex: 0 0 auto; }
 }
+
+/* Touch (wave 15): the universal inline ticker trigger audits ~22px. It sits
+   inside dense tiles everywhere (movers, theme chips, scan cards), so the box
+   must NOT grow — expand the HIT AREA only: padding grows the target to
+   ~44px, the negative margin gives every pixel back to the layout. */
+@media (max-width: 1024px) {
+  .trigger {
+    padding: 11px 6px;
+    margin: -11px -6px;
+  }
+}

@@ -545,3 +545,11 @@
   opacity: 0.6; cursor: pointer; display: inline-flex; padding: 2px;
 }
 .avatarNudge button:hover { opacity: 1; }
+
+/* Touch (wave 15): the floor's Search + Mentions bells audited 33x30; the
+   profile-pic nudge link 14px and its dismiss 12px. */
+@media (max-width: 1024px) {
+  .bellBtn { min-width: var(--tap-min); min-height: var(--tap-min); }
+  .avatarNudge a { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+  .avatarNudge button { min-width: var(--tap-min); min-height: var(--tap-min); }
+}

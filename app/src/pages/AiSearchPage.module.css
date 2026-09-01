@@ -80,3 +80,8 @@
   border-left: 2px solid rgba(234, 179, 8, 0.5);
   margin-bottom: 4px;
 }
+
+/* Touch (wave 15): the page's Deep-research disclosure audited 22px. */
+@media (max-width: 1024px) {
+  .historyToggle { min-height: var(--tap-min); }
+}

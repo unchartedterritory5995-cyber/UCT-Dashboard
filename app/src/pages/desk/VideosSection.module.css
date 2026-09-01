@@ -896,3 +896,8 @@
 }
 
 /* The ?path course view lives in PathView.jsx + PathView.module.css. */
+
+/* Touch (wave 15): shelf + category scroll arrows audited 40px/28px. */
+@media (max-width: 1024px) {
+  .shelfNav, .chipNav { min-width: var(--tap-min); min-height: var(--tap-min); }
+}

@@ -46,11 +46,19 @@ HEIGHT_BUDGETS = {("/dashboard", "desktop"): 1.05}
 
 PUBLIC_ROUTES = ["/", "/login", "/signup", "/terms", "/privacy"]
 
+# ⚠️ HAND-TYPED BESIDE THE THING THAT OWNS IT (the NAV array in
+# app/src/components/NavBar.jsx + App.jsx's route table) — the CLAUDE.md
+# defect class, and it bit this file: "/patterns" sat here for weeks with no
+# such route, so the harness audited the 404 page there, while FIVE live nav
+# routes (/ai-search, /flow-scoreboard, /live-massive, /desk, /community)
+# were never audited at all. When the nav moves, MEASURE NavBar.jsx and remake
+# this list; do not trust it.
 PROTECTED_ROUTES = [
     "/dashboard", "/morning-wire", "/uct-20", "/breadth", "/charts",
-    "/calendar", "/calendar/mystocks", "/screener", "/options-flow",
-    "/dark-pool", "/post-market", "/model-book", "/setup-library",
-    "/journal", "/patterns", "/watchlists", "/catalysts/history",
+    "/ai-search", "/calendar", "/calendar/mystocks", "/screener",
+    "/options-flow", "/flow-scoreboard", "/live-massive", "/dark-pool",
+    "/post-market", "/model-book", "/setup-library", "/desk",
+    "/journal", "/community", "/watchlists", "/catalysts/history",
     "/settings", "/support",
 ]
 

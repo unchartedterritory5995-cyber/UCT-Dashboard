@@ -235,10 +235,13 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
             aria-label="Dismiss tip"
             onClick={dismissHint}
             style={{
-              position: 'absolute', top: 2, right: 4,
+              position: 'absolute', top: -6, right: -4,
               background: 'transparent', border: 'none',
               color: 'var(--text-muted)', cursor: 'pointer',
               fontSize: 13, lineHeight: 1, padding: 2,
+              // audited 17x19 — an unhittable dismiss keeps the tip up forever
+              minWidth: 'var(--tap-min)', minHeight: 'var(--tap-min)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
             <UIcon name="x" size={13} />
@@ -264,6 +267,10 @@ export default function VoiceInputButton({ onTranscript, disabled = false, clean
           cursor: (disabled || uploading) ? 'not-allowed' : 'pointer',
           animation: recording ? 'compass-pulse 1.2s ease-in-out infinite' : 'none',
           opacity: uploading ? 0.6 : 1,
+          // Inline styles can't media-query; the tap-min rides everywhere.
+          // Audited 36x31 on every dictation surface (app-wide sweep).
+          minWidth: 'var(--tap-min)', minHeight: 'var(--tap-min)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
         {recording ? <UIcon name="noEntry" size={14} /> : <UIcon name="mic" size={14} />}

@@ -798,3 +798,11 @@
   font-size: 12px;
   letter-spacing: 0.04em;
 }
+
+/* Touch (wave 15): rail search (38px + iOS zoom rule) and the session
+   Revoke button (31px). */
+@media (max-width: 1024px) {
+  .railSearch { min-height: var(--tap-min); font-size: 16px; }
+  .btnMuted { min-height: var(--tap-min); }
+  .inlineBtn { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

@@ -936,3 +936,8 @@
   .replyWrap { flex-direction: column; align-items: stretch; }
   .replyBtn { width: 100%; }
 }
+
+/* Touch (wave 15): the footer mailto audited 18px. */
+@media (max-width: 1024px) {
+  .metaMail { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

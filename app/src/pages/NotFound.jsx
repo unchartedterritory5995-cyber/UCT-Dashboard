@@ -58,6 +58,9 @@ export default function NotFound() {
             fontSize: '13px',
             color: 'var(--text-muted, #a8a290)',
             textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            minHeight: 'var(--tap-min)',
           }}
         >
           Go to Home

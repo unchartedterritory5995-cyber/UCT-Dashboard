@@ -836,3 +836,40 @@ singles), measured by the same harness before and after:
 
 Rails: audit re-run per pass (~140 → ~50 → 14; per-route mostly 0-1) +
 eight-gate walk green + orb/tile suites 29/29.
+
+## Wave 15 (2026-09-01) — the harness lie, and the number going honest
+
+Clearing wave 14's "14 residual" stragglers exposed that the audit harness's
+hand-typed route list was itself lying: it carried `/patterns` (no such route
+— it audited the 404 page for weeks) and had NEVER audited five live nav
+pages (`/ai-search`, `/flow-scoreboard`, `/live-massive`, `/desk`,
+`/community`). The corrected list surfaced ~128 hidden findings — 103 on
+Live Flow alone. End state, measured on the honest 23-route list:
+**1 remaining sub-44px target app-wide** (dark-pool's transient "Fetching…"
+status), zero page overflow anywhere.
+
+- **LiveFlowMassive got the third flow-family treatment**
+  (`LiveFlowMassive.mobile.css` + 5 one-token hooks). 74 of its 103 findings
+  were ONE element: a 12px hover-reveal chart icon — a :hover affordance
+  permanently stuck at 28% opacity on devices with no hover — hidden on
+  phones because the ticker long-press already carries the action. Print
+  rows keep their density (their five inline targets grew, not the row ×
+  thousands); By-Contract rows ARE buttons and grew to 44px.
+  ⛔ **Its root must NOT get the siblings' `overflow-x: hidden`**: this page
+  owns no scroller, so hidden would amputate 12 of 17 tape columns AND kill
+  the sticky header (overflow-y computing to auto makes the root its own
+  scrollport). The real tape scroller needs a small JSX restructure (move
+  ColumnHeaders out of the sticky group into a shared wrapper) — a named
+  follow-up, not a CSS patch.
+- **The universal TickerPopup trigger** (inline ticker chips everywhere) got
+  hit-box expansion (padding + negative margin) — 44px target, zero layout
+  shift in dense tiles.
+- **The parked J2 item landed**: VoiceInputButton's mic (36×31) and tip
+  dismiss (17×19) — inline-styled, tap-min everywhere.
+- Also: ai-search page + widget controls, desk shelf arrows, Live Flow's
+  Back-to-live, CLAUDE.md's nav snapshot corrected (Patterns never an entry;
+  AI Search + Flow Record are), and a warning on the harness route list
+  naming the defect.
+
+Journey: ~140 measured → 14 → (harness corrected) +128 hidden → **1**.
+Rails: three audit passes + eight-gate walk green + Live Flow suites 15/15.
