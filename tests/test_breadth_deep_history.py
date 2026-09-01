@@ -151,6 +151,31 @@ def test_bounds_and_next_day_span_the_merged_history(_isolated):
     assert bm.next_trading_day("2015-06-25") == "2026-01-02", "steps across the gap to the collector era"
 
 
+def test_a_developing_ohlc_bar_above_the_collector_max_never_leaks_into_the_index(_isolated):
+    """Regression (2026-09-01): the breadth CHART store (`breadth_daily_ohlc`) carries
+    a DEVELOPING bar for TODAY, one session past the last collected day. Unioning it
+    into the timeline index put a `today` slot into `/dates` + pushed `date_bounds.max`
+    to today, but `get_history` (breadth_snapshots) has no row for it — so the Monitor
+    rendered a permanent all-dashes top row whenever the client's live row was withheld
+    (superseded / a slow /live fetch). The reconstructed store must supply ONLY the deep
+    past (below the collector floor); today's row is owned solely by the live row.
+    """
+    bm, ohlc = _isolated["bm"], _isolated["ohlc"]
+    _seed_collector(bm, COLL)                       # ...through 2026-01-15
+    _seed_recon(ohlc, RECON)                        # 2015 deep history
+    # A single developing chart bar for "today" = one day past the collector max.
+    ohlc.write_bulk([("2026-01-16", "pct_above_50sma", 50, 50, 50, 50)],
+                    source="close_recon")
+
+    assert "2026-01-16" not in bm.merged_dates(), "a developing today-bar must not enter the index"
+    assert bm.date_bounds()["max"] == "2026-01-15", "the ceiling stays the last COLLECTED day"
+    assert bm.next_trading_day("2026-01-15") is None, "no ▶ step onto the developing bar"
+    # The deep floor is still reached (recon below the collector floor is untouched).
+    assert bm.date_bounds()["min"] == "2015-06-01"
+    # The latest Monitor window still tops at the last collected day, unchanged.
+    assert bm.get_history_deep(10)[0]["date"] == "2026-01-15"
+
+
 def test_deep_flag_off_falls_back_to_collector_only(_isolated, monkeypatch):
     bm, ohlc = _isolated["bm"], _isolated["ohlc"]
     _seed_collector(bm, COLL)

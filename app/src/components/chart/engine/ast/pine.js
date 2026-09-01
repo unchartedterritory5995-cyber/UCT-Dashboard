@@ -134,9 +134,18 @@ const TF_ENGLISH = Object.freeze({
   60: 'hourly', 240: 'four-hour', D: 'daily', W: 'weekly', M: 'monthly',
 })
 
-/** The servable timeframes, in English, DERIVED from the engine's own list. */
-function servableTimeframesText() {
-  const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c)
+/** The servable timeframes, in English, DERIVED from the engine's own list.
+ *
+ *  ⛔ THE LIST IS A PARAMETER SO THE JOIN CAN BE TESTED AT N=3. It defaults to
+ *  `TF_RESAMPLABLE` and every caller uses the default — the argument exists
+ *  because `TF_RESAMPLABLE` holds exactly TWO entries today, and at two entries
+ *  a correct join and a naive `.join(' and ')` produce the SAME string. A rail
+ *  driven only by the real list therefore cannot tell them apart
+ *  (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), which is how a
+ *  second copy of this helper sat at the `request.security` decline site reading
+ *  correctly by accident. Pass three names and the two disagree at once. */
+export function servableTimeframesText(codes = TF_RESAMPLABLE) {
+  const names = codes.map((c) => TF_ENGLISH[c] || c)
   if (names.length === 0) return 'no higher timeframe'
   if (names.length === 1) return names[0]
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
@@ -4126,7 +4135,15 @@ class Resolver {
       const raw = this.timeframeLiteralOf(tfNode)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       if (code && !TF_RESAMPLABLE.includes(code)) {
-        const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c).join(' and ')
+        // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
+        // was only ever correct by accident: `.join(' and ')` reads right for the
+        // TWO entries `TF_RESAMPLABLE` holds today and would say "daily and weekly
+        // and monthly" the moment a third lands — which is exactly when somebody
+        // is changing this area and least likely to re-read a sentence that has
+        // always looked fine. The helper sits five lines above the REFUSALS table,
+        // handles 0, 1 and N, and is already what the shared `pine:request`
+        // sentence uses (`lesson_a_second_authority_over_one_value`).
+        const names = servableTimeframesText()
         return {
           suggest: 'timeframe.period',
           why: `this engine resamples ${names} from the daily bars it holds, and `
@@ -4573,8 +4590,33 @@ class Resolver {
         + 'as a plain whole number', locate(tok))
     }
     if ((pineName !== base || !key) && own(PINE_INEXPRESSIBLE, bare)) {
+      // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
+      // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
+      // and `time(timeframe, session)`, the session read. The entry describes the
+      // session read, so a member who wrote the ONE-ARGUMENT anchor was told they
+      // had written a session-window test.
+      // ⛔ IT IS NOT A NITPICK: `25-spy-expected-move-by-vix` writes
+      // `t = time(i_range_1)` and the very next line is
+      // `start = na(t[1]) or t > t[1]` — ordering the value with `>` to detect a
+      // new period, which is only meaningful on a TIMESTAMP. You cannot detect a
+      // new day by ordering session-membership answers. The refusal named a
+      // construct that is not in their script, so the one thing it is for —
+      // telling the member what to do next — pointed at the wrong thing.
+      // ⭐ ARITY IS THE DISCRIMINATOR and it is already in hand. The entry's own
+      // comment records that this arm was split from the bare-NAME arm so each
+      // construct gets its own true sentence; it stopped one notch short.
+      const anchorForm = bare === 'time' && args.length === 1
       throw new PineRefusal('pine:function',
-        `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
+        anchorForm
+          ? `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
+            + 'period — the anchor Pine scripts compare with `>` to detect a new day '
+            + 'or week. This engine holds the `time` of each bar and the period it '
+            + 'sits inside is a node this engine does not have, so there is nothing '
+            + 'to compare against. The clock it '
+            + 'does declare is `dayofweek`, `dayofmonth`, `month`, `year` and '
+            + '`sessionfirst` — and `sessionfirst` is the closest to what an anchor '
+            + 'comparison is usually asking'
+          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {
       throw new PineRefusal('pine:function',
