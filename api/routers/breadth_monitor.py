@@ -436,7 +436,7 @@ def get_breadth_symbols():
 
 
 @router.get("/api/breadth-monitor")
-def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
+def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
                         end: str = Query(default=""),
                         anchor: str = Query(default="le"),
                         _user: dict = Depends(require_paid)):
@@ -462,6 +462,26 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
             # Only needed when the window is held back in time; at the latest
             # window there is nothing newer to step to.
             "next_date": svc.next_trading_day(top) if end else None,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/api/breadth-monitor/dates")
+def get_breadth_dates(_user: dict = Depends(require_paid)):
+    """The full merged session timeline (collector + reconstructed), NEWEST-FIRST.
+
+    Tiny (~5k date strings) and cached — this is the index the Monitor's virtual
+    scroller renders over, so a teleport is an instant scroll-to-index and only
+    the visible rows fetch. `min`/`max` bound the navigator's calendar + year list.
+    """
+    try:
+        asc = svc.merged_dates()           # oldest-first
+        return {
+            "dates": list(reversed(asc)),  # newest-first for the table
+            "count": len(asc),
+            "min": asc[0] if asc else None,
+            "max": asc[-1] if asc else None,
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
