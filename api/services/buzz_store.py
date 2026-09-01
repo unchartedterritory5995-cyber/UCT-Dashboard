@@ -143,11 +143,10 @@ def series(ticker: str, start_ts: int, end_ts: int, buckets: int, channels) -> l
     out = [0] * buckets
     if end_ts <= start_ts or buckets <= 0:
         return out
-    width = (end_ts - start_ts) / buckets
     cl, params = _chan_clause(channels)
     sql = "SELECT ts FROM mentions WHERE ticker=? AND ts >= ? AND ts < ?" + cl
     for r in connect().execute(sql, [ticker, start_ts, end_ts, *params]):
-        i = min(buckets - 1, int((r["ts"] - start_ts) / width))
+        i = min(buckets - 1, ((r["ts"] - start_ts) * buckets) // (end_ts - start_ts))
         out[i] += 1
     return out
 

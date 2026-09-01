@@ -94,3 +94,33 @@ def test_channel_filter_excludes_other_channels(store):
         ("2", "9999", "b", "NVDA", 2, "exact"),
     ])
     assert store.count("NVDA", 0, 99, [CH]) == 1
+
+
+def test_series_bucket_boundaries_are_exact_not_float_rounded(store):
+    """buckets=14 over an 18s span: ts=9 must land in bucket 7. Float division
+    gives 6.999999999999999 -> bucket 6. Regression guard for a boundary
+    mention silently shifting one bucket left in the sparkline."""
+    store.record_mentions([("1", CH, "a", "NVDA", 9, "exact")])
+    assert store.series("NVDA", 0, 18, buckets=14, channels=[CH])[7] == 1
+
+
+def test_latest_ts_returns_the_newest_mention(store):
+    store.record_mentions([
+        ("1", CH, "a", "NVDA", 100, "exact"),
+        ("2", CH, "b", "AMD",  300, "exact"),
+        ("3", CH, "c", "SPY",  200, "exact"),
+    ])
+    assert store.latest_ts([CH]) == 300
+
+
+def test_latest_ts_is_None_on_an_empty_store(store):
+    # MAX() over an empty table returns one row containing NULL, not zero rows
+    assert store.latest_ts([CH]) is None
+
+
+def test_latest_ts_respects_the_channel_filter(store):
+    store.record_mentions([
+        ("1", CH,     "a", "NVDA", 100, "exact"),
+        ("2", "OTHER", "b", "NVDA", 999, "exact"),
+    ])
+    assert store.latest_ts([CH]) == 100
