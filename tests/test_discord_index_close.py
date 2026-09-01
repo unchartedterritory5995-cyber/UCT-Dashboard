@@ -30,8 +30,11 @@ def _kit(fail_on=(), house=None):
     def house_fn(sym, tf, stats, opts):
         return house(sym) if house else PNG + sym.encode()
 
+    # sleep_fn everywhere: the retry passes and the cold-pod warm gate both wait,
+    # and no test should pay for either in wall-clock.
     return dict(bars_fn=bars_fn, house_fn=house_fn, stats_fn=lambda b: {"last": 1},
-                name_fn=lambda s, tf, t: f"{s}_{tf}_2026-08-27_Chart.png")
+                name_fn=lambda s, tf, t: f"{s}_{tf}_2026-08-27_Chart.png",
+                sleep_fn=lambda s: None)
 
 
 def _render_kit(**kw):
@@ -336,3 +339,102 @@ def test_the_manual_trigger_returns_at_once_and_reports_what_it_did(monkeypatch)
                         lambda **k: (_ for _ in ()).throw(RuntimeError("renderer down")))
     r._index_close_worker(True, False)
     assert r.index_close_status(_Req())["last_run"]["state"] == "error"
+
+
+# -- 2026-08-31: a deploy landed 121 s before the cron and the post went out anyway
+# Boot completed 19:42:59 UTC, the job fired at 19:45:00. IGV returned no bars on
+# both looks and was dropped (three ETFs, not four); SMH, TAN and IWM rendered
+# with no candles. The owner's manual recipe for this job had always been "wait
+# for uptime > 180 s, dry-run, then post while warm" - it lived in a scratchpad
+# script and was never railed into the scheduled path.
+
+def test_a_cold_pod_is_waited_out_before_a_single_chart_is_rendered():
+    waits = []
+    assert idx.wait_until_warm(sleep_fn=waits.append, uptime_fn=lambda: 121.0) > 0
+    assert waits == [idx.WARM_MIN_UPTIME_S - 121.0]
+
+    waits.clear()
+    assert idx.wait_until_warm(sleep_fn=waits.append, uptime_fn=lambda: 900.0) == 0.0
+    assert waits == []                       # a warm pod waits for nothing
+
+    waits.clear()
+    # An unreadable clock must never SILENCE a scheduled public post - unknown
+    # proceeds, it does not block.
+    assert idx.wait_until_warm(sleep_fn=waits.append, uptime_fn=lambda: None) == 0.0
+    assert waits == []
+
+    waits.clear()
+    # Worst case is a pod that just booted, and even that still posts "into the
+    # close": the wait cannot exceed the floor itself, because uptime is never
+    # negative. That is the bound - there is no second constant to check.
+    assert idx.wait_until_warm(sleep_fn=waits.append, uptime_fn=lambda: 0.0) == idx.WARM_MIN_UPTIME_S
+    assert waits == [idx.WARM_MIN_UPTIME_S] and idx.WARM_MIN_UPTIME_S < 15 * 60
+
+
+def test_the_wait_happens_before_any_render(monkeypatch):
+    """Order is the whole point: waiting AFTER rendering warms nothing."""
+    monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+    monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://hook")
+    monkeypatch.setattr(idx, "uptime_seconds", lambda: 60.0)
+    monkeypatch.setattr(idx, "pick_notable", lambda **kw: [("XME", 2.2), ("TAN", -2.0)])
+    order = []
+    k = _kit()
+    inner_bars = k["bars_fn"]
+    k["bars_fn"] = lambda *a: (order.append("render"), inner_bars(*a))[1]
+    k["sleep_fn"] = lambda s: order.append("wait")
+    rep = idx.run_close_post(**k, post_fn=lambda *a: True, note_fn=lambda m: "",
+                             now_et=_dt.datetime(2026, 8, 31, 15, 45))
+    assert order[0] == "wait"
+    assert rep["warm_waited_s"] > 0
+
+
+def test_a_failed_symbol_is_retried_with_the_whole_set_not_re_asked_immediately():
+    """The cold pod fails every symbol for the SAME reason at the same moment.
+    Re-asking one ticker twice in six seconds re-asks the same cold cache; the
+    pause between passes is what lets the seeder land."""
+    looks = {"IGV": 0}
+
+    def bars_fn(sym, tf, n):
+        if sym == "IGV":
+            looks["IGV"] += 1
+            return [] if looks["IGV"] <= 2 else _bars()
+        return _bars()
+    k = _render_kit(); k["bars_fn"] = bars_fn
+    charts = idx.render_charts(("SMH", "IGV", "TAN"), **k)
+    assert [s for s, _, _ in charts] == ["SMH", "IGV", "TAN"]      # order asked, not order finished
+    assert looks["IGV"] == 3                                       # three passes, not two
+
+
+def test_the_post_carries_four_etfs_by_topping_up_from_the_same_ranked_pool(monkeypatch):
+    """IGV would not render. The owner asked for four and noticed the day he got
+    three, so the next mover down stands in - and is NAMED, because a chart on
+    the post whose move is unstated is the same defect as a move stated with no
+    chart beside it."""
+    monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+    monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://hook")
+    monkeypatch.setattr(idx, "uptime_seconds", lambda: 9999.0)
+    monkeypatch.setattr(idx, "pick_notable",
+                        lambda **kw: [("TAN", -2.2), ("JETS", -2.2), ("XME", 1.9), ("GLD", 1.4)])
+    sent = []
+    idx.run_close_post(**_kit(fail_on=("IGV",)), post_fn=lambda u, p, f: sent.append(p) or True,
+                       note_fn=lambda m: "", now_et=_dt.datetime(2026, 8, 31, 15, 45))
+    etf_msg = sent[1]["content"]
+    assert "SMH" in etf_msg and "IGV" not in etf_msg
+    assert "TAN" in etf_msg and "JETS" in etf_msg and "XME" in etf_msg
+    assert len(sent[1]["attachments"]) == idx.TARGET_ETFS
+    assert "**XME** +1.9%" in etf_msg            # the substitute is named like any other mover
+    assert "GLD" not in etf_msg                  # topped up to four, not five
+
+
+def test_a_short_post_is_reported_rather_than_hidden(monkeypatch):
+    """Silence at 15:45 is worse than three good charts, so it still posts - but
+    the shortfall is in the report, not only in a log line nobody reads."""
+    monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+    monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://hook")
+    monkeypatch.setattr(idx, "uptime_seconds", lambda: 9999.0)
+    monkeypatch.setattr(idx, "pick_notable", lambda **kw: [("TAN", -2.2), ("JETS", -2.2)])
+    rep = idx.run_close_post(**_kit(fail_on=("IWM", "IGV")), post_fn=lambda *a: True,
+                             note_fn=lambda m: "", now_et=_dt.datetime(2026, 8, 31, 15, 45))
+    assert rep["short"] == {"indexes": 1, "etfs": 1}
+    assert "IWM" not in rep["symbols"] and "IGV" not in rep["symbols"]
+    assert rep["posted"] == 2

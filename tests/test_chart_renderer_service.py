@@ -34,7 +34,7 @@ def test_render_requires_the_secret_and_an_allowlisted_https_host(monkeypatch):
 
     async def fake_render(req):
         calls.append(req)
-        return b"\x89PNG\r\n\x1a\nfake"
+        return b"\x89PNG\r\n\x1a\nfake", {"ready": True, "probe": 118}
     monkeypatch.setattr(mod, "render_png", fake_render)
     c = _client(mod)
     body = {"url": "https://uctintelligence.com/r/chart?sym=NVDA&tf=D"}
@@ -53,6 +53,56 @@ def test_render_requires_the_secret_and_an_allowlisted_https_host(monkeypatch):
     assert r.headers["content-type"].startswith("image/png")
     assert r.content.startswith(b"\x89PNG")
     assert len(calls) == 1 and calls[0].scale == 2 and calls[0].selector == "#chart-export"
+    # The two report headers: what the caller judges the frame by. The image alone
+    # cannot say whether the chart drew (2026-08-31 - see the module docstring).
+    assert r.headers["X-Chart-Ready"] == "true"
+    assert r.headers["X-Chart-Probe"] == "118"
+
+
+def test_readiness_and_probe_are_reported_and_a_silent_page_is_not_reported_as_zero(monkeypatch):
+    """The probe header must be ABSENT - not "0" - when the page did not answer.
+
+    An older /r/chart bundle defines no `window.__chartBarCount`, so `page.evaluate`
+    yields None. Emitting a 0 there would tell the caller "this chart drew nothing"
+    about a perfectly good chart, and EVERY render would fail for the minutes
+    between the web and chart-renderer deploys - the two are separate Railway
+    services and never swap together."""
+    mod = _load(monkeypatch)
+    c = _client(mod)
+    hdr = {"X-Render-Secret": "s3cret"}
+    body = {"url": "https://uctintelligence.com/r/chart?sym=NVDA"}
+    png = bytes([0x89]) + b"PNG-fake"
+
+    async def silent(req):
+        return png, {"ready": False, "probe": None}
+    monkeypatch.setattr(mod, "render_png", silent)
+    r = c.post("/render", json=body, headers=hdr)
+    assert r.status_code == 200
+    assert r.headers["X-Chart-Ready"] == "false"      # the timeout is reported, no longer swallowed
+    assert "X-Chart-Probe" not in r.headers           # silence is not zero
+
+    async def empty(req):
+        return png, {"ready": True, "probe": 0}
+    monkeypatch.setattr(mod, "render_png", empty)
+    r = c.post("/render", json=body, headers=hdr)
+    assert r.headers["X-Chart-Probe"] == "0"          # an ANSWER of zero does travel
+
+
+def test_probe_js_is_forwarded_to_the_page_and_is_optional(monkeypatch):
+    """A caller that sends no probe_js still renders - the field is additive."""
+    mod = _load(monkeypatch)
+    seen = []
+
+    async def cap(req):
+        seen.append(req.probe_js)
+        return bytes([0x89]) + b"PNG-fake", {"ready": True, "probe": None}
+    monkeypatch.setattr(mod, "render_png", cap)
+    c = _client(mod)
+    hdr = {"X-Render-Secret": "s3cret"}
+    url = "https://uctintelligence.com/r/chart?sym=NVDA"
+    assert c.post("/render", json={"url": url}, headers=hdr).status_code == 200
+    assert c.post("/render", json={"url": url, "probe_js": "() => 7"}, headers=hdr).status_code == 200
+    assert seen == [None, "() => 7"]
 
 
 def test_render_reports_a_browser_failure_as_502_and_missing_selector_as_422(monkeypatch):

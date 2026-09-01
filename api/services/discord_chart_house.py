@@ -44,6 +44,20 @@ HOUSE_READY_JS = "() => window.__chartBarsReady === true && window.__chartReady 
 # grayscale std-dev of the chart body with the chrome bands dropped. Measured
 # 2026-08-25: blank body ≈ 1.3, drawn body ≈ 30+.
 _MIN_BODY_STDDEV = 6.0
+# ⭐ THE PAGE'S OWN COUNT OF WHAT IT DREW, and the thing that actually decides.
+# `has_chart_content` below is a PROXY for this question, and on 2026-08-31 the
+# proxy was wrong in the direction that reaches members: SMH, TAN and IWM went to
+# the public #TSDR channel with no candles in them, measuring 10.8 / 8.4 / 16.7
+# against the 6.0 threshold. Nothing was broken about the measurement - once
+# /r/chart resolves a symbol it paints a large centred watermark, a subtitle, grid
+# lines and (with ?stats=) a full stats strip, and that ink alone clears the bar.
+# A blank frame is not low-variance; it is a frame missing ONE THING, and only the
+# page can say whether that thing is there. So it stamps `window.__chartBarCount`
+# and we read it back out of X-Chart-Probe. Ink is not data.
+PROBE_JS = "() => (typeof window.__chartBarCount === 'number' ? window.__chartBarCount : null)"
+# Two, not one: IWM shipped that day with exactly ONE candle at the right edge and
+# an otherwise empty pane. One bar is a data point, not a chart.
+MIN_DRAWN_BARS = 2
 # (settle_ms, ready_timeout_ms) per attempt; the retry gives late bars time.
 # Measured 2026-08-26 in the pod: a healthy chart reaches full readiness in
 # 1.9-2.7 s. The first attempt's 30 s ceiling therefore only ever bought
@@ -94,9 +108,33 @@ def house_ready_js(sym: str) -> str:
     )
 
 
+def drawn_bars(resp) -> int | None:
+    """Candles the page says it drew, or None when it did not say.
+
+    ⛔ None is UNKNOWN, never zero. An older renderer sends no X-Chart-Probe and
+    an older /r/chart bundle defines no `__chartBarCount`; neither may start
+    failing renders the moment this ships, because web and chart-renderer are
+    separate Railway services that deploy minutes apart. Unknown falls through to
+    the pixel judge, which is exactly the behaviour that existed before."""
+    raw = resp.headers.get("X-Chart-Probe")
+    if raw is None:
+        return None
+    try:
+        v = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+
 def has_chart_content(png: bytes) -> bool:
     """False for a frame whose chart body is near-uniform (nothing drew) or for
-    bytes that are not an image; True for a body with real variance."""
+    bytes that are not an image; True for a body with real variance.
+
+    ⚠ SECONDARY. This catches a frame that never resolved its symbol (the case it
+    was measured on, 2026-08-25: blank body ≈ 1.3). It does NOT catch a frame that
+    resolved everything except the candles - see `PROBE_JS` above. Keep both: the
+    probe is exact but silent on an old bundle, and this still judges the pixels
+    when the page says nothing."""
     try:
         import io
         from PIL import Image, ImageStat
@@ -242,6 +280,7 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                     "width": HOUSE_W + _VIEWPORT_PAD, "height": HOUSE_H + STATS_STRIP_H + _VIEWPORT_PAD,
                     "scale": HOUSE_SCALE, "settle_ms": settle_ms,
                     "ready_js": house_ready_js(sym), "ready_timeout_ms": ready_timeout_ms,
+                    "probe_js": PROBE_JS,
                 }
                 r = c.post(f"{renderer}/render", json=body, headers={"X-Render-Secret": secret})
                 if not r.is_success:
@@ -250,6 +289,11 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                     continue
                 if not r.content.startswith(b"\x89PNG"):
                     log.warning("[discord-chart] house render returned non-PNG for %s %s (attempt %d)", sym, tf, attempt)
+                    continue
+                bars_drawn = drawn_bars(r)
+                if bars_drawn is not None and bars_drawn < MIN_DRAWN_BARS:
+                    log.warning("[discord-chart] house render drew %d bar(s) for %s %s (attempt %d) - discarding",
+                                bars_drawn, sym, tf, attempt)
                     continue
                 if not has_chart_content(r.content):
                     log.warning("[discord-chart] house render body BLANK for %s %s (attempt %d)", sym, tf, attempt)
