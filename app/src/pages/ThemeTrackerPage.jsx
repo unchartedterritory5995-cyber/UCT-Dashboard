@@ -10,7 +10,7 @@ import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchBarsToIDB, prefetchAllTimeframes, prefetchBarOnIntent, prefetchListAllTimeframes, warmMemFromIDB } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
 import UIcon from '../components/ui/UIcon'
 import { useChartsSym } from './charts/ChartsSymContext'
@@ -435,25 +435,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
-        // Daily is the TF a click lands on. Warm it for the WHOLE just-opened group
-        // at HIGH priority and START immediately (no idle defer) — this is the fix
-        // for the black-screen flash while arrowing fast through a group: by the
-        // time the first click commits, every holding's Daily bars are already in
-        // IDB, so the chart paints instantly instead of cold-fetching on black.
-        prefetchBarsToIDB(syms, 'D', { priority: true, immediate: true })
-        prefetchBars(syms, chartPeriod)
-        // Durable warm of the WHOLE group into IndexedDB so arrowing through it
-        // (even with the keyboard, faster than hover) is instant — and survives a
-        // page reload, unlike the in-memory prefetch above.
-        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, chartPeriod)
-        // Warm the whole group across ALL scan timeframes (intraday too) into
-        // durable IDB so scrolling this theme is instant on 5m/30m/1h, not just
-        // daily. Bounded/idle-deferred — never competes with the active chart.
-        prefetchListAllTimeframes(syms)
-        // Promote the top rows straight to the sync mem cache so the first few
-        // fast scrolls paint in the SAME frame (no async idbGet hop) — the piece
-        // that closes the rapid-scroll flash. Top-first = what's on screen.
-        warmMemFromIDB(syms.slice(0, 40))
+        // Warm the WHOLE just-opened group so arrowing/scrolling it is instant.
+        // Daily-only + idle-deferred via the shared helper — NOT all timeframes,
+        // which 503-floods the origin at market open and starves the visible chart
+        // (see prewarmVisibleList). Intraday warms on-demand per clicked symbol.
+        prewarmVisibleList(syms, { chartTf: chartPeriod })
       }
       return ticker                      // opening a new one closes the previous
     })

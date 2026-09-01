@@ -35,16 +35,20 @@ describe('prewarmVisibleList — warm a whole list the moment it opens', () => {
     expect(() => prewarmVisibleList(undefined)).not.toThrow()
   })
 
-  it('warms every ticker in the list into durable IDB, across multiple timeframes', async () => {
+  it('warms every ticker DAILY only — NOT all timeframes (the market-open anti-flood fix)', async () => {
     prewarmVisibleList(['PWVLA', 'PWVLB'], { chartTf: 'D' })
     await vi.advanceTimersByTimeAsync(3000)
-    // Both names warmed…
+    // Both names warmed on the on-screen (daily) timeframe…
     expect(urlsFor('PWVLA').length).toBeGreaterThan(0)
     expect(urlsFor('PWVLB').length).toBeGreaterThan(0)
-    // …and across more than just daily (the shared list-warm covers 5/60/30/15 too).
     const tfs = new Set(urlsFor('PWVLA').map(u => new URL(u, 'http://x').searchParams.get('tf')))
     expect(tfs.has('D')).toBe(true)
-    expect(tfs.size).toBeGreaterThan(1)
+    // ⛔ …and must NOT fan out to intraday TFs on list-open. Firing 5m/1h/etc for a
+    // whole list = the ~100-request warm=1 flood the loaded server 503-sheds at
+    // market open, starving the visible chart. Intraday warms on-demand per symbol.
+    expect(tfs.has('5')).toBe(false)
+    expect(tfs.has('60')).toBe(false)
+    expect(tfs.has('15')).toBe(false)
   })
 
   it('the localStorage kill-switch disables it entirely', async () => {
