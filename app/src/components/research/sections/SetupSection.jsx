@@ -21,6 +21,7 @@ import { SkeletonBlock } from '../../Skeleton'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { moveIsUnavailable, moveUnavailableTitle } from '../../../constants/expectedMoveOutcome'
 import { buildQuarters } from '../earningsHistoryModel'
+import SectionLead from '../SectionLead'
 import styles from './SetupSection.module.css'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -230,11 +231,9 @@ export default function SetupSection({ sym, row, reportDate, expectedMove, liveP
           far corner of the banner. Two derived sentences state the question
           this modal is opened to answer, and the hero below is the picture of
           the second one. */}
-      {priced && (
-        <p className={styles.lead} data-testid="setup-lead">
-          {priced}{record ? ` ${record}` : ''}
-        </p>
-      )}
+      <SectionLead testId="setup-lead">
+        {priced ? `${priced}${record ? ` ${record}` : ''}` : null}
+      </SectionLead>
 
       {/* HERO — the one instrument this canvas leads with. `recordedCount` is
           the endpoint's STORED snapshot array length: the "n/8 recorded"

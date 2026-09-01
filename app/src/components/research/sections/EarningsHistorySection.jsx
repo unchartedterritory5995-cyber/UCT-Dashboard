@@ -17,6 +17,8 @@ import {
 } from '../../research-kit'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { buildQuarters, historyBasis } from '../earningsHistoryModel'
+import SectionLead from '../SectionLead'
+import { historyLead } from '../sectionLeads'
 import styles from './EarningsHistorySection.module.css'
 
 // `Number(null) === 0` — the phantom-zero trap that has bitten this branch
@@ -49,7 +51,7 @@ function rev(v) {
   return n >= 1000 ? `$${(n / 1000).toFixed(2)}B` : `$${Math.round(n)}M`
 }
 
-export default function EarningsHistorySection({ row, reportDate, expectedMove, enrichReady = true }) {
+export default function EarningsHistorySection({ sym, row, reportDate, expectedMove, enrichReady = true }) {
   const quarters = useMemo(() => buildQuarters({
     beatHistory: row?.beat_history, histStats: row?.hist_stats, reportDate, row,
   }), [row, reportDate])
@@ -139,6 +141,13 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove, 
 
   return (
     <div className={styles.wrap}>
+      {/* The canvas draws the EPS story above and the price story below on one
+          axis and left the reader to COMBINE them. That combination is the
+          whole point of this panel: a name that beats constantly and still
+          sells off is the most useful thing here, and it is invisible while
+          the two series are read separately. Derived from `quarters` — the
+          same array both charts plot. */}
+      <SectionLead testId="history-lead">{historyLead(sym, quarters)}</SectionLead>
       {hasRevenue && (
         <div className={styles.metricToggle} role="group" aria-label="Chart metric">
           {[['eps', 'EPS'], ['revenue', 'Revenue']].map(([k, lbl]) => (

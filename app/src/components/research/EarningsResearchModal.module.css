@@ -330,6 +330,17 @@
 .sheet { max-height: 92vh; }
 .phoneBody { display: flex; flex-direction: column; min-height: 0; }
 
+/* DESKTOP — the canvas is ~958px here, where RatingsTab's seven sub-scores
+   fall 5 + 2 under `auto-fill` and strand the last two beside three dead
+   tracks. Four tracks give 4 + 3, one empty cell instead of three.
+   ⛔ DESKTOP ONLY, and that bound is load-bearing: `repeat(4, minmax(140px,
+   1fr))` needs 560px plus gaps, so applying it at every width would overflow
+   the ~350px phone canvas horizontally — trading a ragged row for the one
+   objective mobile bug. Below 1025px the fallback `auto-fill` still governs. */
+@media (min-width: 1025px) {
+  .canvas { --rating-cols: 4; }
+}
+
 /* TABLET */
 @media (min-width: 641px) and (max-width: 1024px) {
   .canvas { padding: var(--space-md) var(--space-lg); }

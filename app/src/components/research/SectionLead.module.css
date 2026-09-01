@@ -1,0 +1,19 @@
+/* app/src/components/research/SectionLead.module.css
+ *
+ * Lifted verbatim from SetupSection's own `.lead` so the four canvases that
+ * carry a lead cannot drift into four sizes. Measured against the modal's own
+ * scale rather than given a private one: --text-lg (14px) is the step above
+ * the body copy these canvases already use (--text-md), which is the smallest
+ * step that reads as a LEAD rather than as one more caption.
+ *
+ * Capped near 62 characters so it stays one or two lines at 958px of canvas
+ * instead of running the full width as a single grey band. */
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--text-lg);
+  line-height: var(--lh-snug);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
