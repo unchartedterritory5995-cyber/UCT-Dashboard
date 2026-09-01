@@ -176,26 +176,30 @@ def test_every_allowance_still_collides():
 #: ⭐ FIVE CONCEPTS ARE IMPLEMENTED TWICE, BY TWO ENGINES, AND BOTH ARE LIVE.
 #: `base_catalog` answers through the screener's `base_matches` column; the
 #: pattern engine answers through `pattern_detections`, which Compass reads via
-#: `find_patterns_on_ticker` / `scan_active_patterns`. Measured 2026-08-31 over
-#: 744 tickers, counting only symbols either engine names:
+#: `find_patterns_on_ticker` / `scan_active_patterns`.
 #:
-#:     concept            both  struct-only  engine-only   agreement
-#:     double-bottom        25       31          293           7%
-#:     flat-base             7       23           22          13%
-#:     vcp                   3       12           85           3%
-#:     wyckoff-spring        2       21            6           7%
-#:     high-tight-flag       0        0            2           0%
+#: ⛔⛔ THE MEASUREMENT LIVES IN `tests/test_two_engines_do_not_agree.py`, NOT
+#: HERE. This comment used to carry the 2026-08-31 table (744 tickers:
+#: double-bottom 7%, flat-base 13%, vcp 3%, wyckoff-spring 7%, high-tight-flag
+#: 0% agreement). It has been re-measured on 1,397 tickers with both arms on the
+#: SAME bar array, and a comment beside an allow-list is the wrong home for a
+#: number anyway: nothing here fails when it stops describing the code, which is
+#: how the table survived a threshold change it no longer described. Keeping a
+#: second copy is `lesson_a_second_authority_over_one_value` applied to our own
+#: evidence. Read that file; re-run `tools/two_engine_agreement.py`.
 #:
-#: ⛔ THE OBVIOUS CONFOUND WAS CHECKED AND RULED OUT. A stale-history engine
-#: would explain the gap innocently, so the detections' own `end_t` was
-#: measured: 100% of them end on the LAST bar, and their `start_t`..`end_t`
-#: spans are real (VCP 12-47 bars over 15 distinct values; double-bottom 14-100
-#: over 56), so `end_t` is a measurement and not a stamped constant. Both
-#: engines are answering "right now", and they disagree.
-#:
-#: ⚠️ `double_bottom` fires on 117 of 279 tickers (42%) -- past this repo's own
-#: NOISE_PCT of 35%, the criterion that deleted the NR4 label ("a label a third
-#: of the market carries is not information").
+#: ⚠️ TWO THINGS THAT FILE FOUND WHICH THIS SWEEP STRUCTURALLY CANNOT.
+#:   1. The raw agreement rate is the wrong statistic — it is ceilinged by the
+#:      two engines' different base rates. Chance-corrected (Cohen's kappa),
+#:      `double-bottom` scores 0.010 and `vcp` 0.003: the two verdicts are
+#:      statistically INDEPENDENT, not merely divergent.
+#:   2. There is a SIXTH pair this sweep cannot see, because it compares
+#:      normalised KEYS and the two spellings differ: the catalog's
+#:      `cup-with-handle` and the engine's `cup_handle`. The stated limit above
+#:      ("a pattern-engine STAGE label is invisible") has a second half — so is
+#:      a synonym. Widening the comparison past key equality needs a rule for
+#:      what counts as the same concept, which is why it is named rather than
+#:      guessed at here.
 #:
 #: This is an OWNER decision, not a rename: two engines, two surfaces, two
 #: contracts (the engine emits entry/stop/target, the catalog emits a label and
