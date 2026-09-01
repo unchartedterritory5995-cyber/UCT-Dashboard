@@ -463,6 +463,16 @@
       ],
       "sample_tickers": null,
       "sample_tickers_missing": "never measured, so there is no sample to state. The structure shipped 2026-08-31; a lift run has not been performed for it."
+    },
+    "ugly-double-bottom": {
+      "published": false,
+      "reasons": [
+        "shipped 2026-08-31 and NOT YET MEASURED -- no lift has been run for this structure. This row exists so the absence is visible rather than silent: an omitted structure reads as 'fine' when it means 'unknown'.",
+        "Bulkowski publishes a 41% average rise and a 15% failure rate for this pattern over 4,376 hand-vetted 'perfect trades' (July 1991 - July 2025). Those figures are recorded on the structure's criteria, verbatim and under his source id, and they are NOT this row's lift: they are his measurement, on his universe, with his definitions and his selection of what counts as a clean instance. A lift here is `conditional - pattern_free` on OUR universe against OUR base rate, and nothing about his number can stand in for it.",
+        "the structure's real-universe COVERAGE is measured (80 of 1,871 usable tickers = 4.28%, through `bases.classify` -> `base_matches`, 2026-08-31) -- but coverage is how often the label fires, not whether it pays. Publishing a hit rate as an edge is the exact substitution `lift_ledger`'s header was written to refuse."
+      ],
+      "sample_tickers": null,
+      "sample_tickers_missing": "never measured, so there is no sample to state. The 1,871 tickers behind the coverage figure are a COVERAGE sample, not a lift sample: they say how often the label appears, and nothing about the forward outcome the ledger measures. Reusing that number here would state a sample this row was never drawn on. Run `python tools/run_lift_ledger.py --only ugly-double-bottom --null-trials 30`."
     }
   }
 }

@@ -2027,6 +2027,329 @@ DOUBLE_BOTTOM = Structure(
 )
 
 
+# -- Ugly Double Bottom (Thomas Bulkowski's own coinage) --------------------
+# ⭐⭐ NOT A LOOSER DOUBLE BOTTOM. A SHAPE BOTH SHIPPED ENGINES REFUSE BY
+# CONSTRUCTION, WHICH IS THE ONLY REASON IT EARNS A KEY.
+#
+#   - `double_bottom_state` above refuses on `if p2 >= p1: return None`. IBD's W
+#     REQUIRES the second low to UNDERCUT the first -- that shakeout is the
+#     pattern's purpose -- so a second bottom sitting 5-15% HIGHER is rejected
+#     on the defining feature, not on a tolerance.
+#   - The pattern engine's `detectors/classical/double_bottom.py` refuses on
+#     `abs(t1_price - t2_price) / t1_price >= _MAX_TROUGH_SIMILARITY` with
+#     `_MAX_TROUGH_SIMILARITY = 0.04`. It rejects the same shape from the other
+#     side: this pattern's MINIMUM separation is 5%, already outside its band.
+#
+# Both were re-read before this was written, and the overlap was then MEASURED
+# rather than argued (see `coverage_pct` and the note below). ⛔ The wrong fix
+# would have been to widen one of those two numbers: `p2 >= p1` is IBD's
+# definition and 0.04 is the engine's similarity band, and loosening either
+# would silently relabel one house's pattern as another's -- the second
+# authority over one value this library is built to refuse.
+#
+# ⛔⛔ HIS PERFORMANCE FIGURES ARE HIS, MEASURED ON HIS UNIVERSE, WITH HIS
+# DEFINITIONS -- AND THEY ARE NOT OUR EDGE. The udb.html page publishes a 41%
+# average rise, a 15% failure rate and a 64% throwback rate over 4,376
+# hand-vetted "perfect trades". Those are recorded below as SOURCED criteria,
+# verbatim and under his id, because they are things he published. They are NOT
+# in `coverage_pct` (which is OUR hit rate on OUR universe) and they are NOT a
+# lift: `lift_ledger` publishes a number only when it beats OUR base rate on OUR
+# data, and until that run is done this structure has no lift at all. Importing
+# a vendor's win rate as our evidence is exactly what `lift_ledger`'s header was
+# written to stop -- head-and-shoulders resolved 42.0% against a 42.0% baseline,
+# and the raw rate alone would have shipped it as an edge.
+
+_BULK_UDB = "bulkowski_ugly_double_bottom"   # thepatternsite.com/udb.html
+
+#: "5-15% higher than first" -- the defining numeric gate, and the corpus notes
+#: it is unusually specific for this family. Stated a second time as an
+#: INVALIDATION ("more than 15% above it, or less than 5% above it"), so it is a
+#: hard band and not a preference.
+UDB_MIN_RISE = 0.05
+UDB_MAX_RISE = 0.15
+
+#: OURS, AND SWEPT RATHER THAN CHOSEN BY EYE. Bulkowski's confirmation is an
+#: EVENT -- the first close above the highest high between the two bottoms --
+#: and an event that happened once, months ago, is history rather than a setup.
+#: This is the bound `darvas-box` and `green-line-breakout` each had to learn:
+#: without one, a walk simply reports wherever it happened to end.
+#:
+#: Measured 2026-08-31 over a seeded 2,000-ticker draw from the screener
+#: universe, 1,871 of which carry the 400 daily bars the window needs:
+#:
+#:     max confirm age (bars)    5     10     20     30     40     60     90   none
+#:     % of universe          0.86%  1.98%  4.28%  5.72%  6.95%  9.35% 10.32% 10.58%
+#:
+#: 20 sessions (~4 weeks) is the choice: it keeps the label meaning "this base
+#: confirmed recently" at an informative 4.28% rather than "a UDB confirmed here
+#: at some point in the last two years" at 10.58%. origin: uct.
+#:
+#: ⭐ AND THE SOURCED CONFIRMATION GATE IS DOING MOST OF THE WORK, WHICH IS THE
+#: RIGHT WAY ROUND. On the same sample, the published band plus the intervening
+#: rally alone matched 305 symbols (16.30%); requiring his confirming close cut
+#: that to 198 (10.58%); our recency bound cut it to 80 (4.28%). A structure
+#: whose own number did the heavy lifting would be ours wearing his name.
+UDB_MAX_AGE_BARS = 20
+
+#: OURS. Bulkowski publishes no minimum length for this pattern -- the family's
+#: published separations belong to the Adam/Eve variants, not this one -- so a
+#: length here would be his number with our value in it. This is what the SHAPE
+#: structurally needs: two confirmed lows, the rally between them, and the
+#: confirming close. Declared once and read by both the `Structure` and the
+#: criterion that records it, so the two can never disagree.
+UDB_MIN_BARS = 40
+
+
+def _udb_geometry(bars, lows, highs) -> Optional[dict]:
+    """The UDB in a bar series, given swings it is HANDED.
+
+    ⛔ ONE PIVOT AUTHORITY. This never finds its own swings: both entry points
+    below pass in the confirmed pivots the pipeline's segmenter already
+    produced. A detector that re-derived them would be a second authority on
+    what a swing low IS, and the two would drift the first time `zigzag` moved.
+    """
+    if not bars or len(lows) < 2:
+        return None
+
+    low1, low2 = lows[-2], lows[-1]
+    if low2["bar_index"] <= low1["bar_index"]:
+        return None
+
+    p1, p2 = low1["price"], low2["price"]
+    if p1 <= 0 or p2 <= 0:
+        return None
+
+    # ⛔ THE DEFINING FEATURE, AND THE EXACT INVERSE OF THE W ABOVE. Bulkowski:
+    # "a double bottom in which the second bottom is significantly higher than
+    # the first". `double_bottom_state` returns None on this same comparison
+    # with the sign flipped.
+    if p2 <= p1:
+        return None
+    rise = (p2 - p1) / p1
+    if rise < UDB_MIN_RISE or rise > UDB_MAX_RISE:
+        return None
+
+    # A real rally must separate the two bottoms -- a confirmed swing high
+    # between them, not merely a gap in the swing list. ("consecutive minor
+    # low" is already satisfied by reading `lows[-2]` and `lows[-1]` above.)
+    mid = [h for h in highs
+           if low1["bar_index"] < h["bar_index"] < low2["bar_index"]]
+    if not mid:
+        return None
+
+    # ⛔ "highest high between two bottoms" -- the BARS' highs, exactly as
+    # written, and NOT the intervening pivot's price. A pivot's price is that
+    # bar's high, so the two agree only when the tallest bar in the span happens
+    # to be the pivot; otherwise the pivot is LOWER and confirming against it
+    # would pass a close that never cleared the high a member reads off the
+    # chart. Confirmation is the gate that makes the pattern valid at all, so
+    # the looser of two readings is the wrong one to take.
+    span = bars[low1["bar_index"] + 1:low2["bar_index"]]
+    peak = max((b["h"] for b in span if (b.get("h") or 0) > 0), default=0.0)
+    if peak <= 0:
+        return None
+
+    n = len(bars)
+    confirm_at = None
+    for i in range(low2["bar_index"] + 1, n):
+        if (bars[i].get("c") or 0) > peak:
+            confirm_at = i
+            break
+    if confirm_at is None:
+        return None            # "No close above the intervening high" -- unconfirmed
+    age = (n - 1) - confirm_at
+    if age > UDB_MAX_AGE_BARS:
+        return None            # ours: confirmed once, long ago, is not a setup
+
+    return {"low1": p1, "low2": p2, "rise": rise, "peak": peak,
+            "confirm_index": confirm_at, "confirm_age_bars": age,
+            "bars": (n - 1) - low1["bar_index"]}
+
+
+def ugly_double_bottom_state(bars) -> Optional[dict]:
+    """The current Ugly Double Bottom in `bars`, or None.
+
+    The pivots come from `bases`' own lazily-segmented context -- the same
+    confirmed-only swing list every other structure reads -- so this reader and
+    the predicate below can never disagree about where the bottoms are. The
+    import is function-local because `bases` imports THIS module; `meta()`
+    already does the same with `lift_ledger`.
+    """
+    from api.services.screener import bases
+
+    ctx = bases._context(bars, bars)
+    return _udb_geometry(ctx.bars, ctx.lows, ctx.highs)
+
+
+def _detect_ugly_double_bottom(ctx) -> bool:
+    """Reads the context's ALREADY-confirmed swings -- no re-segmentation.
+
+    `zigzag.segment` costs 8.48 ms against a detector's 0.3 ms, and the lift
+    harness rebuilds a context per anchor, so a predicate that segmented again
+    would dominate its own measurement.
+    """
+    return _udb_geometry(ctx.bars, ctx.lows, ctx.highs) is not None
+
+
+UGLY_DOUBLE_BOTTOM = Structure(
+    key="ugly-double-bottom",
+    label="Ugly Double Bottom",
+    axis="relation",
+    family="Base Structure",
+    bias="bullish",
+    rank=24,
+    min_bars=UDB_MIN_BARS,
+    desc=("Two consecutive swing lows where the second sits 5% to 15% ABOVE "
+          "the first, then a close above the highest high between them. The "
+          "opposite requirement to the W, whose second low must undercut."),
+    criteria=(
+        Criterion(
+            condition=("The defining shape: the second bottom is HIGHER than "
+                       "the first -- the exact inverse of the W above"),
+            value="second-bottom-higher",
+            quote=("a double bottom in which the second bottom is "
+                   "significantly higher than the first"),
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="How much higher the second bottom must sit",
+            value=(UDB_MIN_RISE, UDB_MAX_RISE),
+            quote="5-15% higher than first",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("The band is stated a SECOND time as an invalidation, "
+                       "so it is a hard gate and not a preference"),
+            value="outside-5-to-15-is-not-this-pattern",
+            quote=("second bottom below the first, or more than 15% above it, "
+                   "or less than 5% above it"),
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="The two bottoms are adjacent lows, not any two in the base",
+            value="consecutive",
+            quote="consecutive minor low",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Confirmation -- what makes the pattern valid at all",
+            value="close-above-highest-high-between-the-bottoms",
+            quote="Price must close above highest high between two bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("Volume through the pattern -- DESCRIPTIVE FREQUENCY, "
+                       "never a gate. He reports how often it happens, not a "
+                       "condition he applied; the same reading Darvas's box "
+                       "heights get."),
+            value=0.80,
+            quote="Recedes 80% of the time",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Prior trend length",
+            value=None,
+            quote="Short-term (0-3 months) trends show best performance",
+            source_id=_BULK_UDB, confidence="high",
+            missing=("This is a PERFORMANCE finding, not an identification "
+                     "gate -- the corpus labels it so in as many words. He does "
+                     "not say a longer-trended stock is not an ugly double "
+                     "bottom, only that those he measured did worse. Turning a "
+                     "reported result into a filter would invent a rule and "
+                     "then select the sample it was measured on."),
+        ),
+        Criterion(
+            condition=("HIS sample, and its provenance -- hand-vetted 'perfect' "
+                       "trades, which is a selected population by his own "
+                       "description"),
+            value=4376,
+            quote="Based on 4,376 perfect trades from July 1991 to July 2025",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("HIS measured average rise, against HIS own benchmark. "
+                       "⛔ NOT OUR EDGE and not a lift: it is measured on his "
+                       "universe with his definitions and his 'perfect' "
+                       "selection. Our number for this structure is whatever "
+                       "`lift_ledger` measures against OUR base rate, and until "
+                       "that run happens there is none."),
+            value="41% versus 37%",
+            quote="41% versus 37% for regular double bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition=("HIS measured failure rate, against HIS own benchmark -- "
+                       "recorded on the same terms as the rise above, and for "
+                       "the same reason it is not ours to republish as evidence"),
+            value="15% versus 16%",
+            quote="15% versus 16% for all double bottoms",
+            source_id=_BULK_UDB, confidence="high",
+        ),
+        Criterion(
+            condition="Throwback rate",
+            value=None,
+            # ⛔ NO QUOTE, DELIBERATELY. A refusal may carry one, but there is no
+            # verbatim sentence here to carry -- and borrowing a nearby one to
+            # fill the field would attribute words to a claim they were not
+            # written about.
+            source_id=_BULK_UDB, confidence="med",
+            missing=("The corpus records 64% for this page, but only as an "
+                     "unquoted prose figure -- there is no verbatim published "
+                     "sentence to attach, and this library does not paraphrase "
+                     "a number into a quote. It would also be his rate on his "
+                     "population; a throwback rate we could show a member would "
+                     "have to be measured on our universe."),
+        ),
+        Criterion(
+            condition=("Overall rank -- recorded as NOT comparable to the other "
+                       "Bulkowski pages in this corpus"),
+            value=None,
+            quote="Rank denominator and date range differ from every other page.",
+            source_id=_BULK_UDB, confidence="high",
+            missing=("Rank 23 of 41 on data through July 2025, while every "
+                     "other page in the sweep ranks out of 39 or 36 on data "
+                     "stamped 8/26/2020. A rank only means something against a "
+                     "fixed denominator and window, so placing this one beside "
+                     "the others would compare two different measurements. The "
+                     "whole family re-ranked on one window is what would be "
+                     "needed."),
+        ),
+        Criterion(
+            condition=("Maximum age of the confirming close, so the label means "
+                       "a breakout and not a state entered months ago"),
+            value=UDB_MAX_AGE_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("Minimum history. Bulkowski publishes no length for this "
+                       "pattern; this is what the shape structurally needs -- "
+                       "two confirmed lows, the rally between them, and the "
+                       "confirming close."),
+            value=UDB_MIN_BARS,
+            origin="uct", confidence="high",
+        ),
+        Criterion(
+            condition=("A real rally must separate the two bottoms: a confirmed "
+                       "swing high between them, not merely a gap in the swing "
+                       "list"),
+            value=True,
+            origin="uct", confidence="high",
+        ),
+    ),
+    #: Measured through the SHIPPED path (`bases.classify` -> `base_matches`),
+    #: not the predicate alone: 80 of 1,871 usable tickers, 2026-08-31.
+    #: ⭐ THE OVERLAP WITH `double-bottom` WAS MEASURED ON THE SAME SAMPLE AND IS
+    #: **ZERO** -- 80 carry this, 137 carry the W, none carry both. That is not
+    #: luck: both structures read the SAME pivot pair (`lows[-2]`, `lows[-1]`)
+    #: and then require opposite things of it, so the two labels are disjoint by
+    #: construction and the measurement says the construction holds on real
+    #: data. Had it come back non-zero, one of the two detectors would not have
+    #: been reading what its comment claims.
+    coverage_pct=4.28,
+    detect=_detect_ugly_double_bottom,
+)
+
+
 # -- High, Tight Flag (William J. O'Neil / IBD) -----------------------------
 # ⚠️ THE HOUSE ITSELF SAYS "MANY FAIL". Every performance figure IBD publishes
 # for this base -- 200%, 450%, 1,300% -- is a named winner, and by its own
@@ -4611,7 +4934,7 @@ RELATIONS = [ASCENDING_BASE, BASE_ON_BASE, BUYABLE_GAP_UP, CHEAT_3C,
              DARVAS_BOX, DOUBLE_BOTTOM, FLAT_BASE, GREEN_LINE_BREAKOUT,
              HIGH_TIGHT_FLAG, PARABOLIC_EXTENSION, POCKET_PIVOT,
              POWER_PLAY, SQUARE_BOX, STAGE2_BREAKOUT, STAGE4_BREAKDOWN,
-             SAUCER, VCP, WYCKOFF_SPRING,
+             SAUCER, UGLY_DOUBLE_BOTTOM, VCP, WYCKOFF_SPRING,
              EMA_CROSSBACK, GO_SIGNAL]
 
 ALL_STRUCTURES = SHAPES + RELATIONS
