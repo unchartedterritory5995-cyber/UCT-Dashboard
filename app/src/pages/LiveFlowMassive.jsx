@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
 import UIcon from "../components/ui/UIcon";
 import useLongPress from "../components/mobile/useLongPress";
+import { useIsPhone } from "../hooks/useBreakpoint";
 import "./LiveFlowMassive.mobile.css";
 
 /**
@@ -3163,6 +3164,12 @@ function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState
 // ─── Main ─────────────────────────────────────────────────────────────────
 export default function LiveFlowMassive() {
   const [searchParams, setSearchParams] = useSearchParams();
+  // Phone moves the column headers OUT of the sticky group and INTO the
+  // `lfm-tape` scroller beside the rows, so the 17-column tape pans as one
+  // unit instead of the whole page panning sideways (headers left in the
+  // sticky group would de-register from the columns the moment the tape
+  // scrolls). Media-change-listening hook, so rotation re-places them.
+  const isPhone = useIsPhone();
   // Date picker driven via ?date= URL param so views are bookmarkable
   // and the page can deep-link to historical days (matches the existing
   // history-mode convention used in LiveFlow.jsx for /live-flow).
@@ -4725,9 +4732,11 @@ export default function LiveFlowMassive() {
           </div>
         )}
 
-        {viewMode === "print"
+        {/* Phone: headers render inside the lfm-tape scroller below instead,
+            so they pan with the columns they label. */}
+        {!isPhone && (viewMode === "print"
           ? <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />
-          : <ContractColumnHeaders isAdmin={isTuneMode} sortCol={cSortCol} sortDir={cSortDir} onSort={onContractSort} />}
+          : <ContractColumnHeaders isAdmin={isTuneMode} sortCol={cSortCol} sortDir={cSortDir} onSort={onContractSort} />)}
       </div>
 
       {/* TuningPanel — admin-only, shown when ?tune=1 in URL. Sits below the
@@ -4774,6 +4783,13 @@ export default function LiveFlowMassive() {
           </div>
         );
       })()}
+      {/* lfm-tape — the tape's own scroller. Desktop: an unstyled block
+          wrapper (layout-neutral). Phone: a single-column grid with
+          overflow-x:auto, holding the column headers AND the rows so they
+          share one width and pan together; banners/empty/footer stay
+          outside at viewport width. */}
+      <div className="lfm-tape">
+      {isPhone && <ColumnHeaders sortCol={sortCol} sortDir={sortDir} onSort={handleSortColumn} isAdmin={isTuneMode} />}
       {visibleAlerts.map(a => {
         const ck = (a.cp && a.strike != null && a.exp)
           ? `${a.ticker}|${a.cp}|${a.strike}|${a.exp}`
@@ -4796,6 +4812,7 @@ export default function LiveFlowMassive() {
           />
         );
       })}
+      </div>
 
       {visibleAlerts.length === 0 && !error && (
         <div style={{
@@ -4841,6 +4858,9 @@ export default function LiveFlowMassive() {
       </>)}
 
       {viewMode === "contract" && (<>
+        {/* Same lfm-tape contract as print mode above. */}
+        <div className="lfm-tape">
+        {isPhone && <ContractColumnHeaders isAdmin={isTuneMode} sortCol={cSortCol} sortDir={cSortDir} onSort={onContractSort} />}
         {visibleContracts.map(c => (
           <ContractRow
             key={`${c.ticker}|${c.cp}|${c.strike}|${c.exp}`}
@@ -4854,6 +4874,7 @@ export default function LiveFlowMassive() {
             expired={_isExpired(c)}
           />
         ))}
+        </div>
         {visibleContracts.length === 0 && !error && (
           <div style={{
             padding: 30, textAlign: "center", color: P.dm,
