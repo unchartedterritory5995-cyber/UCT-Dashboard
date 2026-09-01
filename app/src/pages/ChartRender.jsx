@@ -91,6 +91,22 @@ const fmtNum = (v) => {
 const fmtPct = (v) => (v == null || !Number.isFinite(Number(v))) ? '—' : `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(1)}%`
 const dirColor = (v, fallback) => (v == null || !Number.isFinite(Number(v))) ? fallback : (Number(v) >= 0 ? '#22c55e' : '#ef4444')
 
+/** "Aug 28" for an ISO date, in ET, or "" for anything unparseable. */
+function shortET(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  if (!m) return ''
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12))   // noon UTC: no tz can roll the day
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(d)
+}
+
+/** Today's date in ET as YYYY-MM-DD — the session a chart rendered NOW should be about. */
+function todayET() {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+  return p
+}
+
 /** One-line price-action / volume strip under the header. Pure layout: every
  *  number arrives pre-computed in `?stats=` (see `statsParam`). Missing keys
  *  print as an em dash rather than dropping the cell, so the strip's shape is
@@ -744,6 +760,12 @@ export default function ChartRender() {
 
   // 40px header + 20px footer (+ the optional stats strip, whose height the
   // caller adds to ?h= so the chart canvas keeps the house proportions).
+  // The data's vintage, but ONLY when it is worth saying: not today's session, and
+  // parseable. An unformattable value yields "" and stays silent — a dangling
+  // "data as of " under a chart is its own small lie about what we know.
+  const dataVintage = (!fixedBars && statsParam?.as_of && statsParam.as_of !== todayET())
+    ? shortET(statsParam.as_of)
+    : ''
   const chartH = h - 60 - (statsParam ? STATS_STRIP_H : 0)
 
   // Chrome follows the chart's own canvas colour, exactly as composeScreenshot
@@ -847,6 +869,17 @@ export default function ChartRender() {
               unchanged chart differ. This is the one dynamic element in the
               export, and it is why the parity gate needs a mode at all rather
               than just a fixture. */}
+          {/* ⭐ THE CLOCK IS NOT THE VINTAGE. This stamp says when the picture was
+              TAKEN, which is always "now" — so it can never disagree with the
+              numbers beside it, however old they are. On 2026-08-31 a chart went
+              to the public channel stamped with Monday's time while its stats
+              strip described Friday's session (SMH: Day -3.5% off a 573.00 prior
+              close — 8/27's close — while SMH was actually +0.6% that Monday).
+              The strip now travels with `as_of`, so when the data is not today's
+              the footer SAYS SO. Silent when they agree: a normal chart is
+              unchanged, and the disclosure only ever appears when there is
+              something to disclose.
+              Not in fixture mode — that span is frozen for the parity gate. */}
           <span>
             {fixedBars
               ? `parity fixture · ${fixedBars}`
@@ -854,6 +887,7 @@ export default function ChartRender() {
                 timeZone: 'America/New_York', month: 'short', day: 'numeric',
                 hour: 'numeric', minute: '2-digit',
               }).format(new Date())} ET`}
+            {dataVintage ? ` · data as of ${dataVintage}` : ''}
           </span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
