@@ -1,0 +1,112 @@
+"""Buzz extractor, measured against REAL #main-chat messages captured 2026-09-01.
+
+The six `_REAL_*` cases below are verbatim from the channel. The extractor this
+replaces scored 0/6 on them.
+"""
+from __future__ import annotations
+
+import pytest
+
+from api.services.buzz_extract import extract
+
+
+def tickers(text):
+    return [t for t, _ in extract(text)]
+
+
+# ── the six real messages that broke the old extractor ───────────────────────
+
+def test_real_mixed_case_bare_name():
+    assert "DELL" in tickers("Dell u ok")
+
+
+def test_real_company_name_in_a_sentence():
+    assert "DELL" in tickers("Hold Michael Dell")
+
+
+def test_real_all_caps_with_no_trading_keyword():
+    # The old extractor dropped this: its caps branch required a word like
+    # "chart"/"setup"/"breakout" to be present somewhere in the message.
+    assert "DELL" in tickers("If DELL doesn't hold, probably means sellers are showing up")
+
+
+def test_real_prose_with_no_ticker_finds_nothing():
+    assert tickers("very different PA from last earnings same great report") == []
+
+
+def test_real_macro_chatter_finds_nothing():
+    got = tickers("Who are these sellers selling to is my broader question. "
+                  "Granted volume has been abysmal, HFs are the most deleveraged "
+                  "they've been since 2025 April tariff lows")
+    assert got == [], f"false positives: {got}"
+
+
+def test_real_meme_line_finds_nothing():
+    assert tickers("i blame the globalists") == []
+
+
+# ── the owner's own examples from the brief ──────────────────────────────────
+
+@pytest.mark.parametrize("text,want", [
+    ("watching Dell here",     "DELL"),
+    ("Spy looking heavy",      "SPY"),
+    ("Amazon reports tonight", "AMZN"),
+    ("mRNA squeezing",         "MRNA"),
+    ("SPX 6100 tag",           "SPX"),
+])
+def test_owner_examples(text, want):
+    assert want in tickers(text)
+
+
+# ── tiers ────────────────────────────────────────────────────────────────────
+
+def test_cashtag_always_wins_even_for_an_ambiguous_symbol():
+    assert extract("$OPEN ripping") == [("OPEN", "cashtag")]
+
+
+def test_bare_lowercase_ambiguous_word_is_never_a_ticker():
+    assert tickers("keep it open for now") == []
+    assert tickers("that was a big play all day") == []
+
+
+def test_uppercase_ambiguous_word_is_still_not_a_ticker_without_a_cashtag():
+    # People shout in chat. "ALL IN" must not book an Allstate mention.
+    assert tickers("I AM ALL IN NOW") == []
+
+
+def test_house_vocabulary_is_never_a_ticker():
+    # "line" matters here: LINE is a genuine listed symbol, so without it in
+    # HOUSE_VOCAB this sentence books a LINE mention. Verified 2026-09-01.
+    assert tickers("RS line reclaiming the EMA after that GAP") == []
+
+
+def test_a_real_name_that_collides_with_a_word_is_still_counted():
+    # Control for the test above -- it proves the vocabulary gate is a scalpel,
+    # not a hammer. SPOT (Spotify) collides with "spot price" and is
+    # deliberately NOT gated, because members trade it.
+    assert "SPOT" in tickers("SPOT breaking out of the base")
+
+
+def test_confidence_is_reported_per_tier():
+    assert dict(extract("$NVDA")) == {"NVDA": "cashtag"}
+    assert dict(extract("Amazon earnings")) == {"AMZN": "alias"}
+    assert dict(extract("NVDA breaking out")) == {"NVDA": "exact"}
+    assert dict(extract("nvda breaking out")) == {"NVDA": "contextual"}
+
+
+def test_dedupes_within_one_message_keeping_the_strongest_tier():
+    got = dict(extract("$NVDA and NVDA and nvda"))
+    assert got == {"NVDA": "cashtag"}
+
+
+def test_multiple_tickers_in_one_message():
+    assert tickers("$NVDA vs AMD today") == ["AMD", "NVDA"]
+
+
+def test_empty_and_none_are_safe():
+    assert extract("") == []
+    assert extract(None) == []
+
+
+def test_urls_do_not_produce_tickers():
+    assert tickers("https://example.com/AI/OPEN/ALL") == []
