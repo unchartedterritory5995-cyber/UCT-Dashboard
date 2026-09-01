@@ -152,12 +152,17 @@ export default function TraderProfileEditor({
 
 function btn(color) {
   return {
-    padding: '4px 10px',
+    padding: '4px 12px',
     fontSize: 11,
     background: 'transparent',
     color: color || 'var(--text-bright)',
     border: `1px solid ${color || 'var(--border)'}`,
     borderRadius: 6,
     cursor: 'pointer',
+    // Inline styles can't media-query, so the tap-min rides everywhere —
+    // audited 31x16 on the Settings Compass card (wave 15).
+    minHeight: 'var(--tap-min)',
+    display: 'inline-flex',
+    alignItems: 'center',
   }
 }

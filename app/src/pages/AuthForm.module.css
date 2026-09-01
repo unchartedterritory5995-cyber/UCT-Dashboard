@@ -187,3 +187,7 @@
 @media (max-width: 1024px) {
   .switchLink { display: inline-flex; align-items: center; min-height: var(--tap-min); }
 }
+/* Touch (wave 15): the UCT wordmark link audited 29px. */
+@media (max-width: 1024px) {
+  .brand { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}

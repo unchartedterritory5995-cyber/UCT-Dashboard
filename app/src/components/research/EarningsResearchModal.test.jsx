@@ -469,6 +469,35 @@ describe('keyboard + stepping', () => {
     input.remove()
   })
 
+  it('a tab keeps its OWN arrow keys — moving tab never steps the reporter', () => {
+    // ⛔ LIVE-VERIFIED DEFECT. The tablist's roving tabindex moves on
+    // ArrowLeft/Right and this modal steps to a different REPORTER on the same
+    // keys; the tab handler's preventDefault() does not stop the event
+    // reaching window, so both fired on one press. Measured in a browser
+    // before the fix: → on the focused Setup tab moved the modal from DELL to
+    // CRDO — a different company — while the reader was only changing tab.
+    const onStepNext = vi.fn(); const onStepPrev = vi.fn()
+    renderModal({ onStepNext, onStepPrev })
+    const tab = screen.getAllByRole('tab')[0]
+    tab.focus()
+    fireEvent.keyDown(tab, { key: 'ArrowRight', bubbles: true })
+    fireEvent.keyDown(tab, { key: 'ArrowLeft', bubbles: true })
+    expect(onStepNext).not.toHaveBeenCalled()
+    expect(onStepPrev).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL: the guard is scoped to tablists, not to every button', () => {
+    // Without this the fix could be "ignore all buttons", which would silently
+    // kill arrow-stepping for a reader whose focus is on the close button or
+    // View chart — i.e. most of the time.
+    const onStepNext = vi.fn()
+    renderModal({ onStepNext, onStepPrev: vi.fn() })
+    const close = screen.getByRole('button', { name: /close/i })
+    close.focus()
+    fireEvent.keyDown(close, { key: 'ArrowRight', bubbles: true })
+    expect(onStepNext).toHaveBeenCalledTimes(1)
+  })
+
   it('renders banner chevrons when stepping is available', () => {
     renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
     const stepper = screen.getByTestId('rk-banner-stepper')

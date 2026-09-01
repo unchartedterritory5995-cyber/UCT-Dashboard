@@ -388,3 +388,6 @@
 @media (max-width: 1024px) {
   .logTradeBtn { min-height: var(--tap-min); }
 }
+@media (max-width: 1024px) {
+  .settingsPill { min-width: var(--tap-min); min-height: var(--tap-min); }
+}

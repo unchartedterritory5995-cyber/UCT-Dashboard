@@ -199,6 +199,19 @@ export default function EarningsResearchModal({
       const t = e.target
       const tag = (t?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return
+      // ⛔ A TABLIST OWNS ITS OWN ARROW KEYS. The roving tabindex moves between
+      // tabs on ArrowLeft/Right, and this listener steps to a different
+      // REPORTER on the same keys — so both fired on one press. The tab
+      // handler calls preventDefault(), which does not stop the event reaching
+      // window. Verified live: → on the focused Setup tab moved DELL to CRDO,
+      // a different company, while the reader was only trying to change tab.
+      //
+      // Latent while the navigator was a VERTICAL rail (nextIndex has always
+      // accepted Left/Right), and made reachable the day it became a
+      // horizontal tab row, where ←/→ is the natural key. This guard belongs
+      // in the same list as the fields above: it is the same rule — an element
+      // that owns these keys keeps them.
+      if (typeof t?.closest === 'function' && t.closest('[role="tablist"]')) return
       if (e.key === 'ArrowRight' && onStepNext) { e.preventDefault(); onStepNext() }
       if (e.key === 'ArrowLeft' && onStepPrev) { e.preventDefault(); onStepPrev() }
     }
