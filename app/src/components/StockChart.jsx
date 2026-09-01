@@ -937,9 +937,14 @@ if (typeof window !== 'undefined') window.__uctBarsPush = setBarsPushEnabled
 // Canaried end-to-end on prod 2026-08-31: D + W split-fetch fires correctly (primary
 // /api/bars capped to the 600 tail + /api/bars-history served from the CDN edge with
 // cf-cache-status: HIT), charts render seamlessly with no sealed/tail boundary gaps.
-// Ramping under monitoring (10 → …), mirroring the bars-push 0→25→100 rollout. Instant
-// per-browser revert: localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false).
-export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 10
+// RAMPED 10 → 100 (2026-08-31, later same day): the edge deep-history architecture is now
+// live — /api/bars-history is served from the WORKER's deep 20 GB db (web reverse-proxies
+// to it; the web pod never holds deep) and cached at Cloudflare's edge worldwide. Validated:
+// GOOGL history back to 2004 via the public endpoint, cf-cache-status MISS→HIT, web RSS flat.
+// So EVERY chart now gets full history from the nearest edge PoP. Instant per-browser revert:
+// localStorage 'uct.barsHistory.enabled'='0' or window.__uctBarsHistory(false); dial the
+// cohort back by lowering this constant + redeploying. Spec: docs/superpowers/specs/2026-08-31-edge-deep-history.
+export const BARS_HISTORY_SPLIT_ROLLOUT_PCT = 100
 
 function _barsHistoryBucket() {
   try {
