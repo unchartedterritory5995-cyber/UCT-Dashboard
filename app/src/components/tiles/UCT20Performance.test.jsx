@@ -31,7 +31,13 @@ const mockData = {
   avg_loss_pct: -8.1,
   open_count: 14,
   avg_hold_days: 18,
-  open_positions: [],
+  open_positions: [
+    // HPE is the case the owner kept pointing at: the tracker rode it well
+    // past the published stop, and the row printed that stop right beside it.
+    { symbol: 'HPE',  entry_price: 55.75, stop_price: 53.40, pct_return: -6.17, days_held: 4 },
+    { symbol: 'NET',  entry_price: 290.0, stop_price: 281.3, pct_return: 3.29,  days_held: 4 },
+    { symbol: 'MRVL', entry_price: 253.4, stop_price: 245.2, pct_return: -14.5, days_held: 4 },
+  ],
   tracking_since: '2026-06-22',
   as_of: '2026-08-17',
   trades: [
@@ -146,4 +152,65 @@ test('a Book with a usable sample reports its numbers', () => {
   expect(screen.getByText('+2.41%')).toBeInTheDocument()
   expect(screen.getByText('EXPECTANCY / TRADE')).toBeInTheDocument()
   expect(screen.queryByText('RECORDING')).not.toBeInTheDocument()
+})
+
+
+/* ── Per-name Book verdicts on the open rows ───────────────────────────────
+   The row draws the NO-STOPS tracker and used to print the published
+   "stop $X" beside a return that ignored it. Owner, three times (8/26, 8/27,
+   8/29): "I already see large negative losses that surpass those stops."
+   Both numbers are true of different arms; the row now says which is which. */
+
+const verdictBook = {
+  ...recordingBook,
+  positions_by_symbol: {
+    HPE: { state: 'closed', pct_return: -4.3131, exit_reason: 'stop',
+           entry_px: 55.75, exit_px: 53.40 },
+    NET: { state: 'open', pct_return: 3.29, exit_reason: null,
+           entry_px: 290.0, exit_px: null },
+  },
+}
+
+test('a name the Book stopped says so, with the Book own exit', () => {
+  hoisted.book = verdictBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText(/book: stopped -4\.3%/)).toBeInTheDocument()
+})
+
+test('the tracker percentage is still shown beside it, unchanged', () => {
+  hoisted.book = verdictBook
+  renderWithProviders(<UCT20Performance />)
+  // -6.17% is the no-stops number. Both must be on screen or the row is a
+  // half-truth in whichever direction it dropped.
+  expect(screen.getByText('-6.2%')).toBeInTheDocument()
+})
+
+test('a name the Book still holds shows the Book mark, not the stop price', () => {
+  hoisted.book = verdictBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText(/book: \+3\.3%/)).toBeInTheDocument()
+  expect(screen.queryByText('stop $281.3')).not.toBeInTheDocument()
+})
+
+test('a name the Book never filled says no fill rather than inventing one', () => {
+  // MRVL gapped 3.4% past its entry and rules.py refused the fill. The tracker
+  // bought that open anyway and sits -14.5%.
+  hoisted.book = verdictBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText('book: no fill')).toBeInTheDocument()
+})
+
+test('the header names both arms so the columns cannot be conflated', () => {
+  hoisted.book = verdictBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText(/no-stops tracker/)).toBeInTheDocument()
+})
+
+test('an older payload without verdicts falls back to the stop price', () => {
+  // /api/uct20/book is cached for an hour; a pod mid-deploy can still serve
+  // the old shape. Claiming "no fill" for all 20 names would be a lie.
+  hoisted.book = recordingBook
+  renderWithProviders(<UCT20Performance />)
+  expect(screen.getByText('stop $53.4')).toBeInTheDocument()
+  expect(screen.queryByText('book: no fill')).not.toBeInTheDocument()
 })

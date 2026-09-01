@@ -15092,6 +15092,7 @@ export default function StockChart({
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
+            quickBarInset={mobileDrawBar && mobileDrawOpen ? 62 : 10}
           />
           )}
           {mobileDrawBar && (

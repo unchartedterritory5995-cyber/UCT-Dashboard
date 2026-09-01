@@ -1074,6 +1074,8 @@ export default function ChartDrawingOverlay({
   readOnly = false,          // display-only layer (multi-chart grid cells): skip the window
                              //   keydown handler entirely — a NOOP-wired instance would still
                              //   preventDefault Escape/Ctrl+Z/Ctrl+V app-wide, ×N cells.
+  quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
+                             //   bar — the phone shell raises it above its docked draw bar.
 }) {
   const canvasRef = useRef(null)
   const [pendingPoints, setPendingPoints] = useState([])
@@ -2108,12 +2110,19 @@ export default function ChartDrawingOverlay({
             }
           }
         }
-        addDrawing(drawingData)
+        const newId = addDrawing(drawingData)
         setPendingPoints([])
         // A completed placement is the proof the tap-tap model landed —
         // retire the touch coach chip for good. (Event context, not an effect.)
         markTapHintSeen()
-        if (!repeatMode) setActiveTool(null)
+        if (!repeatMode) {
+          setActiveTool(null)
+          // TradingView's post-draw beat on touch: the finished drawing comes up
+          // SELECTED, so the quick-action bar appears at the exact moment you
+          // most want to restyle or delete what you just placed. Mouse users
+          // keep the unselected finish (they have hover + right-click).
+          if (_COARSE_POINTER && newId) setSelectedId(newId)
+        }
       } else {
         setPendingPoints(newPending)
       }
@@ -2129,7 +2138,12 @@ export default function ChartDrawingOverlay({
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
 
     // ── DRAGGING ──
-    if (isDragging && dragRef.current && coords) {
+    // dragRef alone decides (NOT the isDragging closure): the ref is written
+    // synchronously on pointerdown, while the state needs a render to reach
+    // this callback's closure — a drag whose first moves land before that
+    // render (busy phone main thread; the rig's synchronous dispatch) would
+    // silently drop them. isDragging remains the RENDER signal only.
+    if (dragRef.current && coords) {
       const drag = dragRef.current
       const d = drawings.find(d => d.id === drag.drawingId)
       if (!d || !drag.startCoords) return
@@ -2224,16 +2238,22 @@ export default function ChartDrawingOverlay({
     // Standard preview for drawing tools — snap so the preview shows the magnet target
     setMouseCoords(snap(coords))
     requestRedraw()
-  }, [activeTool, isDragging, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
+  }, [activeTool, toChart, snap, requestRedraw, drawings, timeToIndex, nearestIndex, bars, updateDrawing, snapshotHistory, hitTestAll, hitTestHandle])
 
   const handlePointerUp = useCallback((e) => {
     if (e?.pointerId != null) activePointersRef.current.delete(e.pointerId)
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
-    if (isDragging) {
+    // Gate on dragRef, NOT the isDragging closure: a fast tap's down+up can both
+    // land inside one render window (a busy phone main thread; the rig's
+    // synchronous dispatch), where this callback still closes over the PRE-drag
+    // isDragging=false — the drag armed by the down then sticks (cursor stuck
+    // 'grabbing', selection UI suppressed) until the next tap. dragRef is
+    // written synchronously on down, so it can never be stale here.
+    if (dragRef.current) {
       dragRef.current = null
       setIsDragging(false)
     }
-  }, [isDragging])
+  }, [])
 
   // ── Touch / tablet direct manipulation ──
   // Touch has no hover, so the mouse pre-flip trick (hoverActive) can't work: the
@@ -2258,6 +2278,10 @@ export default function ChartDrawingOverlay({
     const onDown = (e) => {
       if (e.pointerType === 'mouse') return
       if (ctxMenuOpenRef.current) return       // menu/sheet open → let taps reach it
+      // The floating quick bar overlays the canvas — a tap on its buttons must
+      // never hit-test the drawing beneath it into a drag (capture phase: the
+      // bar's own stopPropagation runs too late to save it).
+      if (e.target.closest?.('[data-uct-qbar]')) return
       const g = hoverGuardRef.current
       if (g.activeTool) return                 // a tool is armed → the canvas React handlers own it
       // A 2nd finger means the user wants to pinch/pan — bail out of any drag we
@@ -2316,6 +2340,13 @@ export default function ChartDrawingOverlay({
     if (!selectedId) return
     const onDocDown = (e) => {
       if (e.target === canvasRef.current) return
+      // Interacting with the selection's own UI is not a tap-away: the quick
+      // bar's buttons act ON the selection, and while the style sheet is open
+      // its taps (and the tap that dismisses it) must not strip the selection.
+      // Both fire here first (this is a CAPTURE listener — the elements' own
+      // stopPropagation can never beat it), so exempt them explicitly.
+      if (ctxMenuOpenRef.current) return
+      if (e.target.closest?.('[data-uct-qbar]')) return
       setSelectedId(null)
     }
     document.addEventListener('pointerdown', onDocDown, true)
@@ -2614,6 +2645,35 @@ export default function ChartDrawingOverlay({
           onCancel={() => setTextInput(null)}
         />
       )}
+      {/* Touch selection quick actions — TradingView's floating bar. Tap-select
+          (or finish a drawing) → a visible door to editing; long-press alone
+          buried it. Style opens the SAME DrawingContextMenu sheet the long-press
+          opens (one editing authority); the rest reuse its exact handlers. */}
+      {_COARSE_POINTER && !readOnly && selectedId && !activeTool && !isDragging && !ctxMenu && !textInput && (() => {
+        const d = drawings.find(dd => dd.id === selectedId)
+        if (!d) return null
+        return (
+          <DrawingQuickBar
+            drawing={d}
+            bottomInset={quickBarInset}
+            onStyle={() => {
+              const rect = canvasRef.current?.getBoundingClientRect()
+              setCtxMenu({
+                x: rect ? rect.left + rect.width / 2 : 100,
+                y: rect ? rect.top + 40 : 100,
+                drawingId: d.id,
+              })
+            }}
+            onDuplicate={() => {
+              const { id: _id, ...rest } = d
+              const nid = addDrawing({ ...rest, points: offsetPoints(d.points), locked: false })
+              if (nid) setSelectedId(nid)
+            }}
+            onToggleLock={() => updateDrawing(d.id, { locked: !d.locked })}
+            onDelete={() => { removeDrawing(d.id); setSelectedId(null) }}
+          />
+        )
+      })()}
       {ctxMenu && (() => {
         const d = drawings.find(dd => dd.id === ctxMenu.drawingId)
         if (!d) return null
@@ -2788,6 +2848,74 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
       <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke={iconColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor, flexShrink: 0 }}>{icon}</svg>
       {label}
     </button>
+  )
+}
+
+// ─── Touch selection quick actions ──────────────────────────────────────────
+// The floating pill a tap-selected drawing gets on coarse-pointer devices —
+// TradingView mobile's idiom. Four 44px actions: the current-color Style dot
+// (opens the full DrawingContextMenu sheet), Duplicate, Lock, Delete. It owns
+// no state and invents no behavior: every handler is the context menu's own.
+function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete }) {
+  const locked = !!drawing.locked
+  const curColor = (drawing.type === 'advance' ? drawing.labelColor : drawing.color) || '#c9a84c'
+  const btn = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 44, minHeight: 44, border: 'none', background: 'none',
+    color: 'var(--menu-text, #ededed)', cursor: 'pointer', borderRadius: 9,
+    touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', padding: 0,
+  }
+  const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  return (
+    <div
+      data-uct-qbar="1"
+      role="toolbar"
+      aria-label="Drawing actions"
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+        bottom: bottomInset, zIndex: 41,
+        display: 'flex', alignItems: 'center', gap: 2, padding: '2px 5px',
+        background: 'var(--menu-surface, var(--menu-bg, #0e0e10))',
+        border: '1px solid var(--menu-border, #242426)', borderRadius: 13,
+        boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+        fontFamily: "'Instrument Sans', sans-serif", userSelect: 'none',
+      }}
+    >
+      <button type="button" style={btn} onClick={onStyle} aria-label="Style">
+        <span style={{
+          width: 20, height: 20, borderRadius: '50%', background: curColor,
+          border: '1px solid var(--menu-border, #2c2c30)',
+          boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)',
+        }} />
+      </button>
+      <button type="button" style={btn} onClick={onDuplicate} aria-label="Duplicate">
+        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+          <rect x="6" y="6" width="9" height="9" rx="1.5" />
+          <path d="M12 3.5H4.5A1.5 1.5 0 0 0 3 5v7.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        style={{ ...btn, color: locked ? 'var(--ut-gold, #c9a84c)' : btn.color }}
+        onClick={onToggleLock}
+        aria-label={locked ? 'Unlock' : 'Lock'}
+        aria-pressed={locked}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+          <rect x="4" y="8" width="10" height="7" rx="1.5" />
+          {locked
+            ? <path d="M6 8V6a3 3 0 0 1 6 0v2" />
+            : <path d="M6 8V6a3 3 0 0 1 5.6-1.5" />}
+        </svg>
+      </button>
+      <button type="button" style={{ ...btn, color: 'var(--loss, #ef4444)' }} onClick={onDelete} aria-label="Delete">
+        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+          <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.2A1.5 1.5 0 0 0 7.2 15.5h3.6a1.5 1.5 0 0 0 1.5-1.3L13 5" />
+          <path d="M7.5 8v4.5M10.5 8v4.5" />
+        </svg>
+      </button>
+    </div>
   )
 }
 
