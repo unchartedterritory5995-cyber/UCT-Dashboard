@@ -2694,6 +2694,30 @@ export const TS_CALL_SHAPES = Object.freeze({
   },
 
   // ── the expansions ────────────────────────────────────────────────────────
+  covariance: {
+    expand: 'covariance',
+    engines: ['sma'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Covariance: "Returns the covariance coefficient between the '
+      + 'data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes the implementation outright — Average(data1 * data2, length) - '
+      + 'Average(data1, length) * Average(data2, length) — and this table already maps '
+      + 'Average onto `sma`, so the expansion is the page formula with one substitution',
+  },
+  correlation: {
+    expand: 'correlation',
+    engines: ['sma', 'stdev'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Correlation: "Returns the correlation coefficient between '
+      + 'the data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes it as Covariance(data1, data2, length) / (StDev(data1, length) * '
+      + 'StDev(data2, length)) — both of which this table maps, so the expansion is the '
+      + 'page formula composed of the page own pieces',
+  },
   inertia: {
     expand: 'inertia',
     engines: ['wma', 'sma'],
@@ -3079,6 +3103,20 @@ export function argumentPlan(shape, table = TABLE) {
  *
  *  ⛔ EVERY ENGINE NAME INSIDE ONE STILL GOES THROUGH `engineCall`, which is the
  *  module header's promise: the lookup happens at translation time. */
+/** The published covariance tree, built once and used by BOTH callers — because
+ *  thinkorswim own page defines `Correlation` in terms of `Covariance`, and a
+ *  second hand-written copy is how the two would come to disagree. */
+function covarianceTree(args, R, tok) {
+  const [a, b, length] = args
+  return cOp('-', [
+    R.engineCall('sma', [{ node: cOp('*', [a.node, b.node]), tok }, length], tok),
+    cOp('*', [
+      R.engineCall('sma', [a, length], tok),
+      R.engineCall('sma', [b, length], tok),
+    ]),
+  ])
+}
+
 const TS_EXPANSIONS = Object.freeze({
   /** `TrueRange(high, close, low)` → `Max(close[1], high) - Min(close[1], low)`.
    *
@@ -3105,6 +3143,47 @@ const TS_EXPANSIONS = Object.freeze({
     return cOp('-', [
       R.engineCall('max', [{ node: prevClose, tok }, high], tok),
       R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
+  },
+
+  /** `Covariance(a, b, n)` → `sma(a * b, n) - sma(a, n) * sma(b, n)`.
+   *
+   *  ⭐⭐ THAT IS THE PAGE FORMULA WITH ONE SUBSTITUTION. thinkorswim publishes
+   *  the implementation outright — *"Average(data1 * data2, length) -
+   *  Average(data1, length) * Average(data2, length)"* — and this table already
+   *  maps `Average` onto `sma` with its own citation. Nothing here is derived, so
+   *  there is nothing here to get wrong.
+   *
+   *  ⭐ AND IT SETTLES THE DIVISOR, which is the only thing a covariance can be
+   *  silently wrong about. The page spells it with `Average`, so the divisor is
+   *  `n` rather than `n-1` — the same population convention `interpret.js`
+   *  already pins for `stdev`. Two functions that disagree about that produce a
+   *  correlation off by a factor of n/(n-1) with no refusal anywhere. */
+  covariance: (args, R, tok) => covarianceTree(args, R, tok),
+
+  /** `Correlation(a, b, n)` → `covariance(a, b, n) / (stdev(a, n) * stdev(b, n))`.
+   *
+   *  ⭐⭐ THE PAGE DEFINES IT IN TERMS OF THE ONE ABOVE — *"Covariance(data1,
+   *  data2, length) / (StDev(data1, length) * StDev(data2, length))"* — so this
+   *  builds the SAME `covarianceTree` rather than a second spelling of it. Two
+   *  hand-written copies of one formula is how the pair drifts
+   *  (`lesson_one_grammar_four_hand_written_copies`); here the vendor already
+   *  said they are one thing, and the code says it the same way.
+   *
+   *  ⭐ THE POPULATION CONVENTION IS WHAT MAKES THIS PEARSON. `covarianceTree`
+   *  divides by `n` because the page spells it with `Average`, and this engine
+   *  `stdev` divides by `n` for its own documented reason; the ratio is therefore
+   *  the ordinary correlation coefficient, bounded in [-1, 1]. Had the two sides
+   *  disagreed the answer would still plot, still be smooth, and quietly leave
+   *  that range — which is why the rail asserts the bound on real bars. */
+  correlation: (args, R, tok) => {
+    const [a, b, length] = args
+    return cOp('/', [
+      covarianceTree(args, R, tok),
+      cOp('*', [
+        R.engineCall('stdev', [a, length], tok),
+        R.engineCall('stdev', [b, length], tok),
+      ]),
     ])
   },
 
