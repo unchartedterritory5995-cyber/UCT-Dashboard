@@ -322,7 +322,7 @@ function assertNote(code) {
  *  reason: one shared class lets one guard's deletion be covered by another
  *  guard's test. */
 export class ThinkScriptRefusal extends Error {
-  constructor(guard, message, at, suggest) {
+  constructor(guard, message, at, suggest, span) {
     super(message)
     assertDeclared(guard)
     this.name = 'ThinkScriptRefusal'
@@ -331,6 +331,9 @@ export class ThinkScriptRefusal extends Error {
     // ⭐ THE CONVENTIONAL CALL, when this refusal has one — see `TS_DOC_BLOCKED`.
     // It rides the refusal because the refusal is the only thing the member sees.
     this.suggest = suggest || null
+    /** ⭐ `[from, to)` IN THE MEMBER'S OWN SOURCE — the exact characters a
+     *  suggestion would replace. Present only where a door can name them. */
+    this.span = span || null
   }
 }
 
@@ -404,7 +407,7 @@ export const TS_STATE_WARMUP = 250
  *  in its own message that `assertDeclared` below is then the only check there
  *  is. The blindness was real; what was wrong was believing a wider regex could
  *  cure it. */
-function refusalValue(guard, message, at, suggest) {
+function refusalValue(guard, message, at, suggest, span) {
   assertDeclared(guard)
   return {
     guard,
@@ -415,6 +418,7 @@ function refusalValue(guard, message, at, suggest) {
     token: at ? at.token : null,
     excerpt: null,
     suggest: suggest || null,
+    span: span || null,
   }
 }
 
@@ -431,7 +435,7 @@ function refusalValue(guard, message, at, suggest) {
  *  bug is still legible in what the member is shown. */
 function fromError(err) {
   if (err instanceof ThinkScriptRefusal) {
-    return refusalValue(err.guard, err.message, err.at, err.suggest)
+    return refusalValue(err.guard, err.message, err.at, err.suggest, err.span)
   }
   return refusalValue('thinkscript:statement',
     `${REFUSALS['thinkscript:statement']} (${err && err.message ? err.message : err})`, null)
@@ -1226,12 +1230,33 @@ function parsePostfix(c) {
       if (!nameTok || (nameTok.kind !== 'ident' && nameTok.kind !== 'string')) throw syntaxAt(c, nameTok || dot)
       take(c)
       node = isPunctTok(peek(c), '(')
-        ? { e: 'call', name: nameTok.value, base: node, args: parseArguments(c), tok: node.tok || dot }
+        ? (() => {
+          const { args, endTok } = parseCall(c)
+          return { e: 'call', name: nameTok.value, base: node, args, tok: node.tok || dot, endTok }
+        })()
         : { e: 'member', base: node, name: nameTok.value, tok: node.tok || dot }
       continue
     }
     return node
   }
+}
+
+/** ⭐⭐ A CALL THAT KNOWS WHERE IT ENDS, so a door can offer to replace exactly
+ *  it and nothing either side of it.
+ *
+ *  ⛔ THE CLOSING PAREN IS READ FROM THE CURSOR, NOT GUESSED FROM THE TEXT. A
+ *  member's call can nest calls, hold a string containing `)`, or be one of four
+ *  identical calls on two lines — `05-bollinger-rsi` is all three at once. The
+ *  parser has already decided which `)` closes this call; asking it is the only
+ *  reading that cannot disagree with the translation the refusal came from.
+ *
+ *  ⚠️ IT IS A SEPARATE FUNCTION RATHER THAN A PROPERTY ORDERED AFTER `args:` IN
+ *  THE OBJECT LITERAL. That would have worked — literal properties evaluate in
+ *  source order — and it would have broken silently the first time someone
+ *  reordered two lines for tidiness. */
+function parseCall(c) {
+  const args = parseArguments(c)
+  return { args, endTok: c.toks[c.i - 1] || null }
 }
 
 function parseArguments(c) {
@@ -1305,7 +1330,8 @@ function parseAtom(c) {
     if (NOT_AN_ATOM.has(k)) throw syntaxAt(c, t)
     take(c)
     if (isPunctTok(peek(c), '(')) {
-      return { e: 'call', name: t.value, base: null, args: parseArguments(c), tok: t }
+      const { args, endTok } = parseCall(c)
+      return { e: 'call', name: t.value, base: null, args, tok: t, endTok }
     }
     // `yes` and `no` are thinkScript's two boolean literals, and the reference
     // is explicit that they are 1 and 0.
@@ -3763,7 +3789,12 @@ class Resolver {
           // it into their own source rather than being told to go and look it up.
           blocked
             ? personalisedSuggest(TS_DOC_BLOCKED[blocked].suggest, shape, slots)
-            : null)
+            : null,
+          // ⭐ AND WHICH CHARACTERS IT WOULD REPLACE. Without this the member has
+          // to find the call themselves, and `05-bollinger-rsi` has FOUR identical
+          // ones across two lines — a text search would hit the wrong one three
+          // times out of four.
+          n.tok && n.endTok ? [n.tok.index, n.endTok.index + 1] : null)
       }
     })
 

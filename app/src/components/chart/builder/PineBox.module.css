@@ -230,6 +230,20 @@
 
 .suggestWhy { font-size: 11px; line-height: 1.5; color: var(--text-dim); }
 
+.suggestApply {
+  align-self: flex-start;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.45);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.suggestApply:hover { background: rgba(201, 168, 76, 0.18); color: var(--text-bright); }
+.suggestApply:disabled { opacity: 0.45; cursor: default; }
+
 /* ⭐ TURN A NUMERIC COLUMN INTO A SCREEN. A quiet inline row rather than a banner:
    the column is already usable for charting, so this is an offer, not an error. */
 .toScreen {

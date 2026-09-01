@@ -220,7 +220,7 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
   }
 }
 
-function Refusal({ refusal, testId, dialect }) {
+function Refusal({ refusal, testId, dialect, onApply = null }) {
   if (!refusal) return null
   return (
     <div className={styles.refusal} role="alert" data-testid={testId} data-guard={refusal.guard}>
@@ -276,10 +276,41 @@ function Refusal({ refusal, testId, dialect }) {
               : 'This engine declares a call that does translate:'}
           </span>
           <code className={styles.suggestCall}>{refusal.suggest}</code>
+          {/* ⭐⭐ THE ACCEPT, WHICH THE RULING ALWAYS DESCRIBED AND NOTHING OFFERED.
+              `TS_DOC_BLOCKED` says in as many words: *"the member applies it — they
+              accept it, it lands in the script, and the formula read-back shows
+              `length = 14, price = close` in their own text."* Until this button
+              there was no accepting it: the member read the call and retyped it,
+              which for `05-bollinger-rsi` is the same call four times over two
+              lines and then a fifth for its RSI.
+
+              ⛔ NOTHING ABOUT THE RULING MOVED. The edit is not applied FOR them —
+              it lands in the textarea they are looking at, in their own source, and
+              can be typed over or undone. What is refused is still assuming a value
+              they never saw; what is offered is still exactly the text above.
+
+              ⚠️ AND IT ONLY APPEARS WHERE THE ENGINE CAN NAME THE CHARACTERS. Pine
+              carries `span: null`, so this button is absent on that door rather
+              than guessing at a place to put the text — which, with four identical
+              calls in one script, would land it in the wrong one three times out
+              of four. */}
+          {onApply && refusal.span && (
+            <button
+              type="button"
+              className={styles.suggestApply}
+              data-testid="import-suggest-apply"
+              onClick={() => onApply(refusal)}
+            >
+              Put this in my script
+            </button>
+          )}
           <span className={styles.suggestWhy}>
             {dialect === 'thinkscript'
-              ? 'Write the arguments into your own call and it translates — and '
-                + 'because they are in your script, you can see what was assumed.'
+              ? (onApply && refusal.span
+                ? 'It lands in your own script, where you can see it and change it — '
+                  + 'so the numbers it reads are yours rather than ours.'
+                : 'Write the arguments into your own call and it translates — and '
+                  + 'because they are in your script, you can see what was assumed.')
               : 'Write it into your own script and what it says stays visible there.'}
           </span>
         </div>
@@ -481,6 +512,34 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   // is asked to read "whatever this is" and the member has to be told what it
   // decided — a heading that still said "Pine" over a thinkScript paste would be
   // a sentence that is false about the text on screen.
+  /** ⭐⭐ ACCEPT THE OFFERED CALL — splice it into the member's own source.
+   *
+   *  ⛔⛔ IT SPLICES `refusal.source`, NEVER `text`, AND THAT IS THE WHOLE SAFETY
+   *  OF IT. `report` is DEBOUNCED (`PINE_DEBOUNCE_MS`), so between a keystroke and
+   *  the next inspection the offsets on screen describe a script that is one edit
+   *  old. Applying those offsets to the CURRENT text would cut at the wrong
+   *  characters — silently, since any splice produces some string. `stamp` already
+   *  carries the exact source each refusal was computed from, so the edit is
+   *  applied to the text the engine actually read, and the two can never disagree.
+   *
+   *  ⚠️ AND IF THE MEMBER HAS TYPED SINCE, IT DECLINES RATHER THAN GUESSING.
+   *  Splicing the stale source would silently discard whatever they just wrote;
+   *  the next inspection is milliseconds away and the button comes back live.
+   *
+   *  ⭐ IT MIRRORS THE TEXTAREA'S OWN `onChange` (`setText` + `setSettings({})`)
+   *  rather than restating what a text change means — accepting a suggestion IS a
+   *  text change, and a second opinion about that would drift
+   *  (`lesson_a_second_authority_over_one_value`). */
+  const applySuggestion = useCallback((refusal) => {
+    if (!refusal || !refusal.suggest || !Array.isArray(refusal.span)) return
+    const src = refusal.source
+    if (typeof src !== 'string' || src !== text) return
+    const [from, to] = refusal.span
+    if (!(from >= 0 && to >= from && to <= src.length)) return
+    setText(src.slice(0, from) + refusal.suggest + src.slice(to))
+    setSettings({})
+  }, [text])
+
   const seen = report && report.dialect ? report.dialect : null
 
   return (
@@ -538,7 +597,14 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
               translated" hid the refusal for a `strategy()` script whose plot
               DID translate — the script was correctly blocked, `Use` was
               correctly disabled, and the screen said nothing at all about why. */}
-          {report.refusal && <Refusal refusal={report.refusal} testId="pine-refusal" dialect={seen} />}
+          {report.refusal && (
+            <Refusal
+              refusal={report.refusal}
+              testId="pine-refusal"
+              dialect={seen}
+              onApply={applySuggestion}
+            />
+          )}
 
           {report.ok && usable.length > 0 && (
             <fieldset className={styles.outputs}>
@@ -575,7 +641,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
                     <div key={`bad-${out.line}-${i}`} className={styles.outputRow}>
                       <span className={styles.outKind}>{out.kind}</span>
                       <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
-                      <Refusal refusal={out.refusal} testId={`pine-output-refusal-${i}`} dialect={seen} />
+                      <Refusal
+                        refusal={out.refusal}
+                        testId={`pine-output-refusal-${i}`}
+                        dialect={seen}
+                        onApply={applySuggestion}
+                      />
                     </div>
                   )
                 }

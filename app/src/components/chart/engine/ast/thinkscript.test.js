@@ -391,7 +391,7 @@ describe('the empty and the unreadable', () => {
     expect(row.column).toBe(1)
   })
 
-  it('a refusal value carries the eight keys every other door in this engine carries', () => {
+  it('a refusal value carries the nine keys every other door in this engine carries', () => {
     // ⭐ THE SHAPE IS A CONTRACT, NOT A CONVENIENCE. `ImportBox` and the corpus
     // fixture both read these by name; a missing `token` reads as "somewhere in
     // your script", which is not a refusal a member can act on.
@@ -401,8 +401,13 @@ describe('the empty and the unreadable', () => {
     // `null` here and on every Pine refusal -- the KEY is the contract, not the
     // value, and a door that carried it while another did not is exactly the
     // divergence this assertion exists to catch.
+    // ⭐ THE NINTH IS `span`: the `[from, to)` character range in the member's own
+    // source that `suggest` would replace, so a door can offer to make the edit
+    // rather than only to describe it. It follows `suggest`'s precedent exactly —
+    // thinkScript names one, Pine carries the key with `null` because its call
+    // nodes do not yet remember where they end, and the KEY is the contract.
     expect(Object.keys(r).sort()).toEqual(
-      ['column', 'excerpt', 'guard', 'index', 'line', 'message', 'suggest', 'token'])
+      ['column', 'excerpt', 'guard', 'index', 'line', 'message', 'span', 'suggest', 'token'])
   })
 })
 
