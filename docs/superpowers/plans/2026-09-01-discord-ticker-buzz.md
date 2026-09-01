@@ -2175,7 +2175,8 @@ In `api/routers/render_panels.py`, following the shape of the existing `/r/catal
 ```python
 @router.get("/r/buzz")
 def buzz_panel(token: str = "", window: str = "open"):
-    _require_token(token)          # same helper /r/catalysts uses
+    _check_token(token)
+    _rate_limit()
     import time
     from api.services import buzz_boards
     now = int(time.time())
@@ -2190,7 +2191,15 @@ def buzz_panel(token: str = "", window: str = "open"):
     }
 ```
 
-Use whatever the file's existing token helper is actually named — read `/r/catalysts` and copy it rather than inventing `_require_token`.
+**Verified 2026-09-01 — the helpers are named `_check_token(token)` and `_rate_limit()`**, both already defined in `api/routers/render_panels.py`; `/r/catalysts` calls `_check_token` the same way. Do not invent a new gate.
+
+⚠️ Read that file's module docstring before adding the route. It states the rule these endpoints live under: the render token is **inlined into the frontend JS bundle**, so `/r/*` is **effectively public** — return only fields safe to expose and rate-limit so it cannot drive unbounded provider calls.
+
+**Two consequences, and the second is an owner decision, not an engineering one:**
+
+1. **Never put member identity in this payload.** No `author_id`, no `message_id`, no jump links. Those belong in the `/buzz` command reply, which is authenticated and answered inside the member's own server. Here they would publish who said what from a paywalled community. The payload is aggregate counts and tickers only.
+
+2. **Even the aggregate board becomes effectively public through this endpoint** — anyone holding the bundled render token could poll "what is the paid Discord talking about today." That is a low-value leak (ticker counts, no names, no theses) and the same class of exposure the other `/r/*` panels already accept, so this plan proceeds with it. **If the owner would rather not publish that at all, the fix is small and there is a house pattern for it:** drop `/r/buzz` and hand the board to the page as a base64url query param the way `discord_chart_house.build_render_url` already passes `?stats=`. No public endpoint, no token, page renders from what the caller stamped. The cost is that the page can no longer refresh itself — irrelevant for a screenshot.
 
 - [ ] **Step 4: Write the React page**
 
