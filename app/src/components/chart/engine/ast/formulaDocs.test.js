@@ -204,7 +204,17 @@ describe('the formula reference is derived, and it is current', () => {
     expect(fs.existsSync(DOC),
       'docs/formulas/GRAMMAR.md is missing — regenerate with FORMULA_DOCS_WRITE=1').toBe(true)
     const onDisk = fs.readFileSync(DOC, 'utf8')
-    expect(onDisk === fresh,
+    // ⛔⛔ COMPARE CONTENT, NOT LINE ENDINGS. This read `onDisk === fresh` and
+    // could NEVER pass on a Windows checkout: this box has `core.autocrlf=true`,
+    // git stores the page LF and writes it out CRLF, and the generator emits
+    // LF, so the two differed by exactly one carriage return per line
+    // (22,461 vs 22,188 bytes, 273 lines) while the content was identical.
+    // The failure it reported, 'no longer matches the manifest', was FALSE,
+    // and the fix it prescribed - regenerate and commit - would have committed
+    // a whitespace-only diff and re-broken on the next checkout. A rail whose
+    // verdict depends on the reader's git config is not measuring the artifact.
+    const eol = (t) => t.replace(/\r\n/g, '\n')
+    expect(eol(onDisk) === eol(fresh),
       'the committed reference no longer matches the manifest. Regenerate with '
       + '`cd app && FORMULA_DOCS_WRITE=1 npx vitest run '
       + 'src/components/chart/engine/ast/formulaDocs.test.js` and read the diff.').toBe(true)
