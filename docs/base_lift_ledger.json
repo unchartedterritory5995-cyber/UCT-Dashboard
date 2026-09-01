@@ -519,32 +519,37 @@
       ]
     },
     "ema-crossback": {
-      "published": false,
-      "sample_tickers": 1123,
+      "published": true,
+      "sample_tickers": 3456,
       "measured_at": "2026-08-31",
       "direction": "long",
-      "lift": 0.1316,
-      "ci_low": 0.1193,
-      "ci_high": 0.1463,
-      "n": 5910,
-      "rate": 0.3927,
-      "baseline": 0.2611,
-      "null_max": 0.1009,
-      "null_trials": 5,
-      "reasons": [
-        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
-      ],
+      "lift": 0.1294,
+      "ci_low": 0.1212,
+      "ci_high": 0.1372,
+      "n": 18705,
+      "rate": 0.3944,
+      "baseline": 0.265,
+      "null_max": 0.0965,
+      "null_trials": 30,
       "by_direction": {
         "long": {
-          "lift": 0.1316,
-          "ci_low": 0.1193,
-          "ci_high": 0.1463,
-          "n": 5910,
-          "null_max": 0.1009,
-          "null_trials": 5,
-          "published": false
+          "lift": 0.1294,
+          "ci_low": 0.1212,
+          "ci_high": 0.1372,
+          "n": 18705,
+          "null_max": 0.0965,
+          "null_trials": 30,
+          "published": true
         }
-      }
+      },
+      "note": "+12.94pp, CI [+12.12pp, +13.72pp] at n=18,705, against a 30-trial null whose maximum reached +9.65pp.\n\n⭐⭐ THE FIRST PUBLISHED ROW IN THIS LIBRARY THAT NO HOUSE WROTE DOWN. Every other published structure traces to a published author; this one is ours end to end. The 15-source corpus contains no Kell material at all, so there is no sentence to quote and no threshold to cite -- the 60% prior advance, the 30-bar window and the 5-bar reclaim recency were SWEPT on the real universe, not chosen. It is held to exactly the same bar as Darvas and clears it.\n\n⛔⛔ READ THE NULL BEFORE THE LIFT. The null maximum here is +9.65pp -- by far the largest of any published row (Darvas +1.10pp, square-box -0.81pp). That means this detector reproduces roughly three-quarters of its headline number on RANDOM data: the mechanical edge of 'buy after a pullback in something that has already advanced 60%' is most of what +12.94pp measures. What the gates certify is the MARGIN -- the CI's lower bound clears the null by 2.47pp -- not the headline. A reader who takes +12.94pp as the edge has taken about four times the edge that was demonstrated.\n\n⚠️ AND IT IS ONE LEG OF A TWO-LEG SETUP. Our own playbook trades this both ways; the short leg needs a rejection at the underside of the averages 'or VWAP', which a completed daily bar cannot express. This number is for the long leg alone, on daily bars, and says nothing about the half we did not implement.",
+      "note_measured": [
+        0.1294,
+        0.1212,
+        0.1372,
+        18705,
+        0.0965
+      ]
     },
     "go-signal": {
       "published": false,
