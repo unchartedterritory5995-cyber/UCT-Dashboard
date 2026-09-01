@@ -1,12 +1,14 @@
-/* Confluence board — palette matched to OptionsFlow.jsx
-   (gold #dcbb5e · bull #2faf68 · bear #df4646 · cyan #00BCD4 · navy panels) */
+/* Confluence board — palette + font matched to OptionsFlow.jsx
+   (gold #dcbb5e · bull #2faf68 · bear #df4646 · cyan #00BCD4 · navy panels).
+   Type uses the app --font-mono token (Instrument Sans, per tokens.css) so it
+   reads identically to the other flow tabs — NOT a typewriter face. */
 .page {
   --c-gold: #dcbb5e;
   --c-gold-dim: #9a7f2e;
   --c-green: #2faf68;
-  --c-green-br: #3ed081;
+  --c-green-br: #2faf68;
   --c-red: #df4646;
-  --c-red-br: #ef5f5f;
+  --c-red-br: #df4646;
   --c-dp: #00BCD4;
   --c-dp-soft: rgba(0, 188, 212, .10);
   --c-dp-line: rgba(0, 188, 212, .34);
@@ -20,7 +22,7 @@
   color: var(--c-text);
   font-family: inherit;
 }
-.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* header */
 .head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
@@ -70,7 +72,7 @@
 .row { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.12fr); gap: 11px; align-items: stretch; padding: 11px 2px; border-bottom: 1px solid var(--c-border); }
 .anchor { display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .rank { font-size: 10px; color: var(--c-faint); font-weight: 600; }
-.tkr { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-family: "IBM Plex Mono", monospace; font-weight: 700; font-size: 17px; color: var(--c-gold); }
+.tkr { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-family: var(--font-mono); font-weight: 700; font-size: 17px; color: var(--c-gold); }
 .tkr:hover { text-decoration: underline; }
 .sector { font-size: 9.5px; color: var(--c-faint); line-height: 1.2; }
 
@@ -79,17 +81,17 @@
 .sig.fl { border-left: 2px solid var(--c-green); }
 .sig.bearfl { border-left: 2px solid var(--c-red); }
 .lab { font-size: 8.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--c-muted); font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.big { font-size: 20px; font-weight: 800; line-height: 1; font-family: "IBM Plex Mono", monospace; }
+.big { font-size: 20px; font-weight: 800; line-height: 1; font-family: var(--font-mono); }
 .sig.dp .big { color: var(--c-dp); }
 .sig.fl .big { color: var(--c-green-br); }
 .sig.bearfl .big { color: var(--c-red-br); }
 .meta { font-size: 10.5px; color: var(--c-muted); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
 .meta .mono { color: var(--c-text); }
-.pct { font-family: "IBM Plex Mono", monospace; font-weight: 700; font-size: 11px; }
+.pct { font-family: var(--font-mono); font-weight: 700; font-size: 11px; }
 .pct.bull { color: var(--c-green-br); } .pct.bear { color: var(--c-red-br); }
 
 /* chips */
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: .03em; font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: .03em; font-family: var(--font-mono); white-space: nowrap; }
 .chip.acc { color: var(--c-dp); background: var(--c-dp-soft); border: 1px solid var(--c-dp-line); }
 .chip.dist { color: var(--c-red-br); background: rgba(223, 70, 70, .10); border: 1px solid rgba(223, 70, 70, .34); }
 
@@ -98,10 +100,10 @@
 .leap .lb { font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--c-muted); min-width: 62px; }
 .leap .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--c-elev); overflow: hidden; }
 .leap .bar > i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--c-gold-dim), var(--c-gold)); }
-.leap .lv { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--c-gold); font-weight: 700; white-space: nowrap; }
+.leap .lv { font-family: var(--font-mono); font-size: 10.5px; color: var(--c-gold); font-weight: 700; white-space: nowrap; }
 
 /* status pill */
-.status { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 20px; font-size: 9px; font-weight: 800; letter-spacing: .06em; font-family: "IBM Plex Mono", monospace; }
+.status { display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 20px; font-size: 9px; font-weight: 800; letter-spacing: .06em; font-family: var(--font-mono); }
 .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
 .status.BUILDING { color: var(--c-green-br); background: rgba(47, 175, 104, .12); border: 1px solid rgba(47, 175, 104, .34); }
 .status.BUILDING::before { background: var(--c-green-br); animation: pulse 2s infinite; }
