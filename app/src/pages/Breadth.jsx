@@ -1036,7 +1036,12 @@ export default function Breadth() {
     overscan: 14,
   })
   const virtualItems = rowVirtualizer.getVirtualItems()
-  const monitorTopIndex = virtualItems[0]?.index ?? 0
+  // The row at the scroll top — derived from the scroll offset (fixed row height),
+  // NOT virtualItems[0], which is the first OVERSCAN row rendered above the
+  // viewport and would put the date box ~14 rows off.
+  const monitorTopIndex = grid.count
+    ? Math.min(grid.count - 1, Math.max(0, Math.round((rowVirtualizer.scrollOffset ?? 0) / MONITOR_ROW_H)))
+    : 0
   const monitorTopDate = grid.allDates[monitorTopIndex] ?? null
 
   // Keep the visible (and just-off-screen) rows loaded as the user scrolls.
