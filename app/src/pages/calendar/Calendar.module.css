@@ -1577,6 +1577,66 @@
 }
 .sheetRow .sel { flex: 1 1 45%; min-width: 0; }
 
+/* ── TOUCH (<=1024px) — the 44px floor on the CANONICAL touch bound ────────
+   ⛔⛔ THE PHONE BLOCK BELOW RESTORES THESE AT <=640px ONLY, so the TABLET
+   tier (641-1024) sat under the floor on nearly every control on this page.
+   Probed at 820px with the page confirmed rendered: 19 sub-44px targets
+   across 11 classes — the DAY TABS at 27px tall (the page's primary
+   navigation), the cap pills at 22px, the week arrows at 27x26, the week
+   picker at 27px, search at 28px, Filters at 25px, Hub at 29px.
+   At 390px the same page has 5. Tablet was not a smaller phone; it was
+   simply uncovered.
+
+   This is the author's OWN intent, extended to the tier it missed: every
+   class listed here is one the phone block already declares a finger target.
+   Nothing about phone LAYOUT is duplicated — the stacking, the 16px iOS
+   zoom-guard font-size, the agenda-list swap and the scroll strips all stay
+   phone-only where they belong. Placed BEFORE the phone block so a genuinely
+   phone-specific override still wins on equal specificity.
+
+   ⭐ `.wMore` ("+5 more") is the exception that was never in the author's
+   list: it is 24px tall on BOTH tiers, so it was under the floor on the
+   phone too. Measured, not assumed.
+
+   Rail: `Calendar.tapFloor.test.js` derives the phone block's tap-target
+   classes and fails if any of them lacks a <=1024px restore. */
+@media (max-width: 1024px) {
+  .capPill,
+  .dayTab,
+  .todayPill,
+  .wkBtn,
+  .filterBtn,
+  .hubLink,
+  .hubTab {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+  }
+  /* ⛔ BOTH AXES. `.capPill` cleared the floor on height and still measured
+     38x44 — "All" is a short enough label that its 11px padding leaves it
+     under 44 WIDE. A target that passes one axis and fails the other still
+     misses a thumb; SectionRail's module documents shipping exactly that
+     half-fix once already. Only pills narrower than the floor grow — "$1B+"
+     and friends already measure 51-63px. */
+  .capPill { min-width: var(--tap-min); justify-content: center; }
+  .monthNavBtn {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .view span {
+    min-height: var(--tap-min);
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Inputs keep their own display mode — inline-flex on an <input> is a
+     no-op at best and a layout change at worst. */
+  .searchInput { min-height: var(--tap-min); }
+  .wMore { min-height: var(--tap-min); }
+}
+
 @media (max-width: 640px) {
   .cards {
     grid-template-columns: 1fr;

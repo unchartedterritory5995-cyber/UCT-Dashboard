@@ -484,9 +484,24 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
                             "ci_high": round(o["ci_high"], 4),
                             "n": o["n"], "rate": round(o["rate"], 4),
                             "baseline": round(o["baseline"], 4)})
+                # ⛔⛔ KEEP THE WHOLE NULL VECTOR, NOT JUST ITS MAXIMUM.
+                # The maximum answers gate 2 for ONE structure. It cannot
+                # answer the FAMILY-WISE question -- ~28 structures are tested,
+                # several in both directions, each with its own CI, so "the
+                # interval excludes zero" means considerably less than it does
+                # for a single pre-registered test. A Westfall-Young style
+                # correction compares each observed statistic to the
+                # distribution of the MAXIMUM across the family, and that needs
+                # the per-trial vectors, standardised by each structure's own
+                # null -- because a raw max across detectors conflates "this
+                # detector has a large mechanical edge" with "the family had
+                # many chances to get lucky". Thirty floats per row is nothing;
+                # discarding them made the correction uncomputable without a
+                # full re-run.
             if nl:
                 row["null_max"] = round(max(nl), 4)
                 row["null_trials"] = len(nl)
+                row["null_lifts"] = [round(x, 5) for x in nl]
             if not verdict["published"]:
                 row["reasons"] = verdict.get("reasons", [])
             prior = structures.get(st.key) or {}
@@ -672,8 +687,11 @@ def main() -> int:
                 "baseline": round(obs["baseline"], 4),
             })
         if nulls:
+            # See the note at the grouped write site: the VECTOR is what makes
+            # a family-wise correction computable; the maximum alone is not.
             row["null_max"] = round(max(nulls), 4)
             row["null_trials"] = len(nulls)
+            row["null_lifts"] = [round(x, 5) for x in nulls]
         if not verdict["published"]:
             row["reasons"] = verdict.get("reasons", [])
         # ⛔ Keep any hand-written `note` — the artifact's prose records WHY a
