@@ -89,6 +89,16 @@ export function formatLift(evidence) {
     interval: ok(evidence.ci_low) && ok(evidence.ci_high)
       ? `${pp(evidence.ci_low)} to ${pp(evidence.ci_high)}`
       : null,
+    // ⭐ SAY WHICH INTERVAL THIS IS. The bootstrap resamples TICKERS and is
+    // blind to a structure firing on many names on the SAME DAY, so the route
+    // hands us an interval already widened by that structure's MEASURED
+    // same-date design effect. A member comparing this against the raw
+    // artifact would otherwise see two different intervals and have no way to
+    // learn which one is the honest one -- and two of the seven rows that
+    // once published fell to exactly this correction.
+    intervalBasis: evidence.ci_basis === 'clustered'
+      ? 'widened for same-day clustering'
+      : null,
     // ⭐ The null's maximum is the gate that decides most rows — a lift only
     // publishes when the CI's LOWER bound clears it — so it is shown, not
     // buried in the artifact.
@@ -230,7 +240,10 @@ export function StructureCard({ entry }) {
                 the same field. Two nodes, one claim, read once. */}
             <span className={styles.resolves} aria-hidden="true">resolves {lift.resolves}</span>
             {lift.interval && (
-              <span className={styles.ci}>95% CI {lift.interval}pp</span>
+              <span className={styles.ci}>
+                95% CI {lift.interval}pp
+                {lift.intervalBasis ? `, ${lift.intervalBasis}` : ''}
+              </span>
             )}
             {lift.nullMax && (
               <span className={styles.ci}>

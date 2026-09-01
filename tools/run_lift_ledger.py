@@ -265,8 +265,23 @@ def _note_stamp(row: dict) -> list:
     return [row.get(f) for f in ("lift", "ci_low", "ci_high", "n", "null_max")]
 
 
-def _carry_note(prior: dict, row: dict) -> None:
-    """Carry a hand-written note forward ONLY while it still describes the row.
+def _carry_forward(prior: dict, row: dict) -> None:
+    """Carry the prose and the clustering measurement across a re-run.
+
+    ⛔ RENAMED FROM `_carry_note` WHEN IT STARTED CARRYING A SECOND THING.
+    A helper whose name says "note" while it also moves the design effect
+    that decides whether a row may publish is the stale-name defect this
+    repo keeps paying for -- the next reader deletes the call believing it
+    only touches prose, and every published row silently unpublishes.
+
+    ⭐ THE CLUSTERING SURVIVES A RE-MEASURE BUT THE NOTE MAY NOT, and the
+    asymmetry is deliberate. `cluster_deff` describes HOW THE ANCHORS ARE
+    DISTRIBUTED IN TIME -- a property of the detector and the calendar, not
+    of the sample size or the null seed -- so it stays true across a re-run
+    that moves the lift. A note is prose about a specific number and does
+    not.
+
+    THE NOTE RULE, unchanged:
 
     ⛔ The harness rewrites the numbers and cannot rewrite the prose, so a
     note silently outlives the measurement it was written about -- that is how
@@ -276,6 +291,11 @@ def _carry_note(prior: dict, row: dict) -> None:
     than carried, because a missing explanation is recoverable and a wrong one
     is not.
     """
+    for k in ("cluster_rho", "cluster_m_eff", "cluster_deff",
+              "cluster_dates", "cluster_anchors", "cluster_measured_at"):
+        if k in prior:
+            row[k] = prior[k]
+
     note = prior.get("note")
     if not note:
         return
@@ -456,7 +476,7 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
 
         for st in members:
             o, nl = obs[st.key], nulls[st.key]
-            verdict = ll.adjudicate(o, nl)
+            verdict = ll.adjudicate(o, nl, deff=ll.stored_deff(st.key))
             print("  --- %s (%s)" % (st.label, st.key))
             print("      anchors %s  n %s" % (o.get("anchors"), o.get("n")))
             if o["lift"] is not None:
@@ -505,7 +525,7 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
             if not verdict["published"]:
                 row["reasons"] = verdict.get("reasons", [])
             prior = structures.get(st.key) or {}
-            _carry_note(prior, row)
+            _carry_forward(prior, row)
 
             # ⛔ A NEUTRAL STRUCTURE PRODUCES TWO ROWS, ONE PER DIRECTION, and
             # the second must not silently overwrite the first. Both are kept
@@ -643,7 +663,7 @@ def main() -> int:
         else:
             nulls = ll.null_lifts(det, usable, trials=args.null_trials,
                                   seed=args.null_seed, **kw)
-        verdict = ll.adjudicate(obs, nulls)
+        verdict = ll.adjudicate(obs, nulls, deff=ll.stored_deff(s.key))
 
         print(f"=== {s.label} ({s.key}) ===")
         print(f"  tickers {len(usable)}  anchors {obs['anchors']:,}  "
@@ -696,7 +716,7 @@ def main() -> int:
             row["reasons"] = verdict.get("reasons", [])
         # ⛔ Keep any hand-written `note` — the artifact's prose records WHY a
         # verdict landed where it did, and a re-run must not silently erase it.
-        _carry_note(structures.get(s.key) or {}, row)
+        _carry_forward(structures.get(s.key) or {}, row)
         structures[s.key] = row
         measured.append(s.key)
 

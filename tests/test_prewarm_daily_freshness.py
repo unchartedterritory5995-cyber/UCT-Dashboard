@@ -61,3 +61,50 @@ def test_custom_buffer_hour_is_honored():
         20260901, 20260901, 18, 0, enabled=True, hour_et=20) is False
     assert bp._after_close_daily_sweep_due(
         20260901, 20260901, 21, 0, enabled=True, hour_et=20) is True
+
+
+# ── daily-first boot ordering ────────────────────────────────────────────────
+# The long-tail warm is provider-bound; the DAILY is the instant-first-paint surface,
+# so every daily (active + long-tail) must warm BEFORE any W/M/intraday.
+
+_JOBS = [
+    ("AAPL", "D", 5000), ("MSFT", "D", 5000),          # active dailies
+    ("AAPL", "W", 5000), ("AAPL", "M", 5000),          # active W/M
+    ("AAPL", "60", 5000), ("AAPL", "5", 5000),         # active intraday
+]
+_DWM_EXTRA = ["CULP", "UFCS"]                            # reference long-tail
+
+
+def test_every_daily_leads_before_any_non_daily():
+    out = bp._daily_first_boot_jobs(_JOBS, [], _DWM_EXTRA)
+    first_non_daily = next(i for i, j in enumerate(out) if j[1] != "D")
+    # Everything before the first non-daily is a daily; nothing after is a daily.
+    assert all(out[i][1] == "D" for i in range(first_non_daily))
+    assert all(j[1] != "D" for j in out[first_non_daily:])
+
+
+def test_long_tail_dailies_are_present_and_after_active_dailies():
+    out = bp._daily_first_boot_jobs(_JOBS, [], _DWM_EXTRA)
+    dailies = [j for j in out if j[1] == "D"]
+    assert dailies == [
+        ("AAPL", "D", 5000), ("MSFT", "D", 5000),
+        ("CULP", "D", 5000), ("UFCS", "D", 5000),
+    ]
+
+
+def test_nothing_is_dropped_and_jobs_is_not_mutated():
+    jobs_copy = list(_JOBS)
+    shallow = [("ZZZZ", "5", 780)]
+    out = bp._daily_first_boot_jobs(_JOBS, shallow, _DWM_EXTRA)
+    # active jobs + shallow + long-tail D/W/M all accounted for, none duplicated/lost.
+    assert len(out) == len(_JOBS) + len(shallow) + 3 * len(_DWM_EXTRA)
+    assert set(out) == set(_JOBS) | set(shallow) | {
+        (s, tf, 5000) for s in _DWM_EXTRA for tf in ("D", "W", "M")}
+    assert _JOBS == jobs_copy, "jobs must not be mutated (the refresh loop reuses it)"
+
+
+def test_empty_long_tail_is_still_daily_first():
+    # Off-worker / flag-off: no long-tail, but active dailies still lead.
+    out = bp._daily_first_boot_jobs(_JOBS, [], [])
+    assert out[0][1] == "D" and out[1][1] == "D"
+    assert set(out) == set(_JOBS)

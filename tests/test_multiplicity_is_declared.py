@@ -91,3 +91,62 @@ def test_rows_measured_from_now_on_carry_their_vector():
     assert not bad, (
         f"null vector length disagrees with null_trials: {bad}. A partial "
         f"vector would silently understate the family maximum.")
+
+
+def test_the_family_bound_claim_is_derived_from_the_CLUSTERED_bounds():
+    """⛔⛔ TWO CORRECTIONS, ONE ARTIFACT, AND THEY INTERACT.
+
+    This note's arithmetic compares each published row's CI lower bound to the
+    family's largest null maximum. On 2026-09-01 the same-date clustering
+    correction moved every one of those lower bounds — and the note still
+    quoted the pre-clustering values, naming `climax-top` at +19.08pp as
+    clearing a +18.92pp bar it now misses at +18.61pp.
+
+    ⭐ TWO CORRECTIONS THAT ARE EACH INDIVIDUALLY SURVIVABLE ARE NOT JOINTLY
+    SURVIVABLE, and a note stating one of them in terms of a bound the other
+    has since moved is the stale-count defect this file keeps re-committing.
+    So the claim is re-derived here rather than re-read.
+    """
+    rows = _rows()
+    nulls = [v["null_max"] for v in rows.values() if v.get("null_max") is not None]
+    bound = max(nulls)
+    lim = ll.load().get("limitations") or ""
+
+    clears, falls = [], []
+    for key, v in rows.items():
+        if not v.get("published"):
+            continue
+        deff = v.get("cluster_deff")
+        assert isinstance(deff, (int, float)), (
+            f"{key} publishes with no measured design effect, so this "
+            f"comparison cannot be made honestly")
+        lo, _ = ll.clustered_bounds(v["lift"], v["ci_low"], v["ci_high"],
+                                    float(deff))
+        (clears if lo > bound else falls).append(key)
+
+    for key in clears:
+        assert key in lim, (
+            f"{key} clears the family-wise bound on its clustered interval and "
+            f"the note does not name it")
+    # ⛔ READ THE CLAUSE, NOT A CHARACTER WINDOW. The first version of this
+    # sliced 200 chars either side of the name and asked whether "fall"
+    # appeared -- and the slice cut "fall" in half, so a CORRECT note failed.
+    # A rail that fails on where a word lands trains its author to move words.
+    start = lim.find("cleared by")
+    assert start != -1, "the family-wise note no longer states what clears the bar"
+    # ⛔⛔ A SENTENCE DOES NOT END AT THE FIRST FULL STOP. `find(".")`
+    # stopped inside "+25.85pp" -- three characters in -- so the clause this
+    # rail examined was "cleared by only 1 of the 5 published rows -- parabolic
+    # -extension (clustered CI low +25", and a mutation appending "and
+    # climax-top." to the real clause PASSED. The rail read a number, not a
+    # sentence. Terminate on a full stop followed by whitespace or end.
+    import re
+    m = re.search(r"\.(?=\s|$)", lim[start:])
+    clause = lim[start:start + (m.end() if m else len(lim) - start)]
+    for key in falls:
+        assert key not in clause, (
+            f"{key} is listed as clearing the family-wise bound, but its "
+            f"clustered lower bound does not clear {bound:+.4f}")
+    for key in clears:
+        assert key in clause, (
+            f"{key} clears the bound and the clause does not name it")

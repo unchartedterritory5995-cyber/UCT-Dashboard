@@ -708,6 +708,13 @@
         "(set on no service)"
       ],
       "note": "PENDING, NOT DARK, AND THE DIFFERENCE IS DELIBERATE. Its two siblings above say WHY they are off -- 'until cutover'. This one's comment in `api/services/bars_prewarm.py` says only \"Gated OFF by default; flip INSTANT_UNIVERSE_ENABLED=1 on the worker\", which is an instruction for arming it, not a reason it is off. What the surrounding comment DOES explain is the design: the extra D/W/M universe is warmed as a separate boot-only pass rather than folded into `tickers`, so intraday warming stays bound to the active set (\"no 26k intraday blow-up\") and the 5-minute refresh loop is untouched. That is a rationale for the SHAPE, not for the OFF. DECIDE: arm it on the worker, or mark it dark with the reason it is waiting. ⚠️ Declared by a passer-by, not its author: the flag arrived in the Phase 5 edge-deep-history work and tripped test_every_off_by_default_gate_is_declared. The status reflects what the CODE says about itself, not a decision I am entitled to make."
+    },
+    "PERMANENT_DAILY_FRESHNESS_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF, and the author said so in two places rather than one: the commit that added it (b6338dce) is titled \"after-close full-universe DAILY freshness sweep (dark)\", and the block comment in `api/services/bars_prewarm.py` reads \"Gated dark by PERMANENT_DAILY_FRESHNESS_ENABLED\". That agreement is why this is `dark` and not `pending` -- the intent is recorded, not inferred by me. ⚠️ WHAT IT DOES WHEN ARMED, because the blast radius is the reason it ships off: once per completed session the WORKER re-warms the WHOLE universe's daily bars (ticker_list ∪ _dwm_extra) off-peak, which is a full-universe fetch pass, a bars.db rewrite and a whole-db R2 snapshot. `_scan_stale` + `_boot_can_skip` make day-2 onward near-free (a 1-bar delta), so the cost is concentrated in the FIRST armed run. Buffer hour past the close is PERMANENT_FRESHNESS_HOUR_ET (default 17 = 5pm ET). ⛔ DECLARED BY A THIRD PARTY 2026-09-01: this entry was added by the pattern-library branch because the flag arrived undeclared through a master merge and turned `test_every_off_by_default_gate_is_declared` red. It records the AUTHOR'S stated intent and the code's own behaviour -- nothing about whether it should be armed, which is not this branch's call to make."
     }
   }
 }

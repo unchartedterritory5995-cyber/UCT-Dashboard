@@ -572,8 +572,83 @@ def direction_is_wrong(key: str, row: dict) -> bool:
     return row["direction"] not in directions_for_bias(getattr(st, "bias", ""))
 
 
-def adjudicate(result: dict, nulls: List[float]) -> dict:
-    """Apply the three gates. A failure emits NO lift key.
+#: The date the same-date clustering was measured. A published row's interval
+#: is only honest relative to a clustering measurement, so this stamps when the
+#: rho behind every `cluster_deff` in the ledger was taken.
+CLUSTER_MEASURED_AT = "2026-09-01"
+
+
+def clustered_bounds(lift: float, ci_low: float, ci_high: float,
+                     deff: float) -> tuple:
+    """Widen a bootstrap interval for MEASURED same-date correlation.
+
+    ⛔⛔ THE HOLE THIS CLOSES, AND WHY IT WAS INVISIBLE. Every interval in
+    this ledger comes from a cluster bootstrap that resamples TICKERS. That is
+    correct for one axis -- one ticker's anchors are not independent of each
+    other -- and it is silent about the other: a structure that fires on
+    hundreds of DIFFERENT names on the SAME DAY has, on that day, one market
+    event and not hundreds of observations. Nothing in the bootstrap can see
+    that, so the interval it returns is too NARROW, and every gate below reads
+    an interval's bound.
+
+    ⭐ IT IS MEASURED, NOT ASSUMED. The tempting move is to bracket a plausible
+    correlation and publish a range. The outcomes are on file, so instead the
+    within-date intra-class correlation of the win/loss outcome is computed
+    directly (one-way random effects, unequal clusters) and
+
+        deff = 1 + (m_eff - 1) * rho
+
+    is the factor by which the true variance exceeds the bootstrap's. An
+    interval's half-width scales with its square root. Measured
+    2026-09-01 over 650 tickers, rho ran 0.129 to 0.351 across the
+    published rows -- large enough that two of the seven no longer clear their
+    gates.
+
+    ⛔ THE WIDENING IS ABOUT THE POINT ESTIMATE, NOT THE INTERVAL'S MIDPOINT.
+    A bootstrap interval is not symmetric about `lift`, and re-centring it here
+    would move the estimate as a side effect of a variance correction.
+    """
+    w = math.sqrt(deff)
+    return lift - (lift - ci_low) * w, lift + (ci_high - lift) * w
+
+
+def synthetic_nulls(row: dict) -> list:
+    """The null vector `adjudicate` needs, rebuilt from a stored row.
+
+    ⭐ EXACT, NOT APPROXIMATE. `adjudicate` reads exactly two things off the
+    null list -- `max(...)` for gate 2 and `len(...)` for the trial-count gate
+    -- so a list of `null_trials` copies of `null_max` produces byte-identical
+    verdicts to the original draws. That is what lets a row be re-adjudicated
+    under a new gate without re-measuring the whole library, and it is why this
+    returns a list rather than the two scalars: the ONE gate function stays the
+    only place the gates are written down.
+    """
+    if row.get("null_lifts"):
+        return list(row["null_lifts"])
+    nmax, trials = row.get("null_max"), row.get("null_trials")
+    if nmax is None or not trials:
+        return []
+    return [nmax] * int(trials)
+
+
+def readjudicate(row: dict, deff: Optional[float]) -> dict:
+    """Re-run the gates over a STORED row, adding the clustering correction."""
+    result = {k: row.get(k) for k in
+              ("lift", "ci_low", "ci_high", "n", "rate", "baseline", "years")}
+    return adjudicate(result, synthetic_nulls(row), deff=deff)
+
+
+def adjudicate(result: dict, nulls: List[float],
+               deff: Optional[float] = None) -> dict:
+    """Apply the gates. A failure emits NO lift key.
+
+    ⛔⛔ GATES 1 AND 2 TEST THE CLUSTERED BOUND, NOT THE BOOTSTRAP'S.
+    `deff` is the measured same-date design effect (see `clustered_bounds`).
+    Without it the interval understates its own width, so a row that has
+    never had its clustering measured is REFUSED rather than published on
+    the narrow bound -- a published number is a claim about noise, and
+    half the noise term missing is not a smaller claim, it is an unfounded
+    one. Refused rows need no `deff`: their bound is not load-bearing.
 
     ⛔ The return value carries `lift` ONLY when every gate passes. Callers must
     render a missing key as "not measured" and must never substitute 0.0 —
@@ -586,10 +661,24 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
         reasons.append("no detections, or no pattern-free anchors in the same years")
         return {"published": False, "reasons": reasons, "n": result.get("n", 0)}
 
-    if not (result["ci_low"] > 0 or result["ci_high"] < 0):
+    if deff is None:
         reasons.append(
-            f"95% CI [{result['ci_low']:+.4f}, {result['ci_high']:+.4f}] "
-            f"includes zero at n={result['n']}")
+            "the same-date clustering of this structure's anchors has not "
+            "been measured, so its interval is the ticker-only bootstrap's "
+            "and is known to be too narrow by an unknown factor "
+            "(`clustered_bounds`)")
+        lo, hi = result["ci_low"], result["ci_high"]
+    else:
+        lo, hi = clustered_bounds(lift, result["ci_low"],
+                                  result["ci_high"], deff)
+
+    if not (lo > 0 or hi < 0):
+        reasons.append(
+            f"95% CI [{lo:+.4f}, {hi:+.4f}] includes zero at "
+            f"n={result['n']} (widened for a measured same-date design "
+            f"effect of {deff:.2f})" if deff is not None else
+            f"95% CI [{lo:+.4f}, {hi:+.4f}] includes zero at "
+            f"n={result['n']}")
 
     # ⛔⛔ GATE ZERO: THE LIFT MUST BE POSITIVE. This was missing, and it is not
     # a theoretical hole -- it FIRED. `cheat-3c` measured -1.10pp with a CI of
@@ -631,12 +720,19 @@ def adjudicate(result: dict, nulls: List[float]) -> dict:
         # Comparing the lower bound asks the right question: does even the
         # unfavourable reading of our estimate beat noise? Darvas passes it
         # (+5.78 vs +2.31); the Power Play does not, and should not.
-        floor = result["ci_low"]
+        # ⛔ THE FLOOR IS THE CLUSTERED ONE. Comparing the bootstrap's
+        # narrower bound to the null asks whether an interval we know is
+        # too tight clears noise -- which is how `low-cheat` passed by
+        # 0.43pp on a bound that the measured design effect widens past
+        # its own null.
+        floor = lo
         if floor <= worst:
             reasons.append(
-                f"the lift's CI lower bound {floor:+.4f} does not exceed the "
-                f"random-data null (max of {len(nulls)} trials = {worst:+.4f})"
-                f" at n={result['n']}")
+                f"the lift's CI lower bound {floor:+.4f}"
+                + (f" (widened for a measured same-date design effect of "
+                   f"{deff:.2f})" if deff is not None else "")
+                + f" does not exceed the random-data null (max of "
+                  f"{len(nulls)} trials = {worst:+.4f}) at n={result['n']}")
     else:
         reasons.append("no random-data null could be computed")
 
@@ -743,7 +839,22 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
     if not entry:
         return None
     if entry.get("published"):
-        return entry
+        # ⛔⛔ THE MEMBER SEES THE CLUSTERED INTERVAL, DERIVED HERE AND
+        # STORED NOWHERE. The artifact keeps only MEASUREMENTS -- the
+        # bootstrap's bounds and the design effect -- because a widened
+        # bound written back beside its own input is a value that widens
+        # again on the next pass. Deriving it at the one surface that
+        # renders it makes double-application impossible rather than
+        # merely unlikely.
+        deff = entry.get("cluster_deff")
+        if not isinstance(deff, (int, float)) or entry.get("lift") is None:
+            return entry
+        lo, hi = clustered_bounds(entry["lift"], entry["ci_low"],
+                                  entry["ci_high"], float(deff))
+        out = dict(entry)
+        out["ci_low"], out["ci_high"] = round(lo, 4), round(hi, 4)
+        out["ci_basis"] = "clustered"
+        return out
     reasons = [r for r in (entry.get("reasons") or []) if isinstance(r, str) and r]
     if not reasons:
         return None
@@ -755,6 +866,21 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
     # refuses it.
     return {"published": False, "reasons": reasons,
             "measured": entry.get("lift") is not None}
+
+
+def stored_deff(key: str, path: str = None) -> Optional[float]:
+    """The measured same-date design effect for one structure, or None.
+
+    ⛔ A RE-RUN MUST NOT SILENTLY RELAX ITS OWN GATE. `adjudicate` refuses
+    a row with no `deff`, so a runner that simply omitted it would unpublish
+    the whole library on the next pass and read as a measurement result.
+    The clustering is a property of the anchors' distribution in time, so
+    the value already in the artifact remains the right input until the
+    clustering itself is re-measured.
+    """
+    entry = (load(path).get("structures") or {}).get(key) or {}
+    d = entry.get("cluster_deff")
+    return float(d) if isinstance(d, (int, float)) else None
 
 
 #: How long a measurement may stand before it must be re-taken. origin: uct —
