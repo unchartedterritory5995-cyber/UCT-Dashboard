@@ -5135,7 +5135,15 @@ async def lifespan(app: FastAPI):
             if register_discord_index_close_job(_scheduler):
                 import os as _os
                 _armed = _os.environ.get("DISCORD_INDEX_CLOSE_ENABLED", "0").strip().lower() in ("1", "true", "on", "yes")
-                print("[startup] discord-index-close: 15:45 ET mon-fri "
+                # ⭐ READ THE SCHEDULE BACK OUT OF THE SCHEDULER. This line used to
+                # hand-type "15:45 ET mon-fri", which was already wrong the moment the
+                # 15:58 retry was added - the exact drift this repo keeps paying for
+                # (a typed claim standing beside the source that owns it). Printing
+                # the triggers means the boot artifact cannot disagree with the jobs.
+                _sched_desc = " + ".join(
+                    f"{_jid}={_j.trigger}" for _jid in ("discord_index_close", "discord_index_close_retry")
+                    for _j in [_scheduler.get_job(_jid)] if _j is not None) or "NO JOBS REGISTERED"
+                print(f"[startup] discord-index-close: {_sched_desc} "
                       f"armed={'on' if _armed else 'off'} "
                       f"webhook={'set' if _os.environ.get('DISCORD_TSDR_WEBHOOK_URL', '').strip() else 'UNSET(posts nothing)'}")
         except Exception as e:
