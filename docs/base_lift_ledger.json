@@ -111,27 +111,19 @@
     "stage-4-breakdown": {
       "published": false,
       "sample_tickers": 3456,
-      "lift": 0.073,
-      "ci_low": 0.0678,
-      "ci_high": 0.0787,
+      "direction": "short",
+      "lift": 0.033,
+      "ci_low": 0.0278,
+      "ci_high": 0.0379,
       "n": 34220,
-      "rate": 0.3377,
-      "baseline": 0.2647,
-      "null_max": 0.0203,
-      "null_trials": 30,
-      "note": "+7.30pp, CI [+6.78pp, +7.87pp] at n=34,220, against a 30-trial null whose maximum reached +2.03pp.\n\n⭐ THE STRUCTURE THAT FAILED BY NINE BASIS POINTS. On 279 tickers it measured +8.35pp with a CI lower bound of +5.45pp against a 30-trial null of +5.54pp -- refused. Widening the sample to 3,456 tightened the interval from +/-2.8pp to +/-0.55pp AND collapsed the null from +5.54 to +2.03, because the null's spread shrinks with sample size too. That second half is the part I had not expected to matter as much as it did. ⚠️ READ THE DIRECTION CAREFULLY: this is a BEARISH structure measured on a LONG metric (P(+10% before -8%)), so a positive lift says stocks resolve UPWARD more often after a Stage 4 breakdown than the baseline -- an oversold-bounce reading, not a confirmation that breakdowns fall. The number is real; the interpretation is not the obvious one.",
-      "note_measured": [
-        0.073,
-        0.0678,
-        0.0787,
-        34220,
-        0.0203
-      ],
-      "direction": "long",
-      "direction_stale": "Graded on the LONG metric, which reads backwards for a bearish structure: a positive lift says price resolved UPWARD after it. Re-measurement on the mirrored metric is in flight; until it lands this row answers a question the structure does not ask.",
+      "rate": 0.2687,
+      "baseline": 0.2357,
+      "null_max": 0.0149,
+      "null_trials": 5,
       "reasons": [
-        "graded on the long metric, but a bearish structure must be graded short: a positive lift here would say price resolved in the OPPOSITE direction to the structure's own claim"
-      ]
+        "graded against only 5 null trials; a published row requires 30, because the null's maximum can only grow with more draws and a smaller count is a strictly easier bar (re-run with --null-trials 30)"
+      ],
+      "note_dropped": "A note written for a previous measurement was dropped when this row changed. Re-write it against the numbers above."
     },
     "flat-base": {
       "published": false,
@@ -455,6 +447,22 @@
         2077,
         0.1892
       ]
+    },
+    "ema-crossback": {
+      "published": false,
+      "reasons": [
+        "shipped 2026-08-31 and NOT YET MEASURED -- no lift has been run for this structure. This row exists so the absence is visible rather than silent: an omitted structure reads as 'fine' when it means 'unknown'."
+      ],
+      "sample_tickers": null,
+      "sample_tickers_missing": "never measured, so there is no sample to state. The structure shipped 2026-08-31; a lift run has not been performed for it."
+    },
+    "go-signal": {
+      "published": false,
+      "reasons": [
+        "shipped 2026-08-31 and NOT YET MEASURED -- no lift has been run for this structure. This row exists so the absence is visible rather than silent: an omitted structure reads as 'fine' when it means 'unknown'."
+      ],
+      "sample_tickers": null,
+      "sample_tickers_missing": "never measured, so there is no sample to state. The structure shipped 2026-08-31; a lift run has not been performed for it."
     }
   }
 }

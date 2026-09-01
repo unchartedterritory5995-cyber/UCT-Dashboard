@@ -35,19 +35,79 @@ const STATE_LABEL = {
   ours: 'Our number, not theirs',
 }
 
+const pp = (x) => `${x > 0 ? '+' : ''}${(x * 100).toFixed(2)}`
+
+/** Read a ledger row the way the ledger actually writes one.
+ *
+ * ⛔⛔ THIS FUNCTION SHIPPED READING FIELDS THAT DO NOT EXIST. It looked for
+ * `lift_pp` and `ci_pp`; `lift_ledger.for_structure()` returns `lift`,
+ * `ci_low` and `ci_high` — and as FRACTIONS, not percentage points. So it
+ * returned null for every structure and the panel rendered "No measured edge
+ * published" across the whole library, including the four rows that had
+ * cleared all four gates. 26 green tests did not catch it, because the fixture
+ * was written from my assumption about the payload instead of from the payload.
+ * `tests/test_structure_panel_reads_the_real_ledger.py` is the cross-lane rail
+ * that now pins the two together — the JS lane's field names are extracted from
+ * this file and checked against a real row.
+ *
+ * ⛔ AND AN UNPUBLISHED ROW IS NOT AN EDGE. A row can carry a `lift` and still
+ * have failed a gate — a negative sign, a CI touching zero, a CI lower bound
+ * under the null's maximum, or too few null trials. Rendering that number as a
+ * headline would publish what the gates refused, which is the whole thing the
+ * ledger exists to prevent. The reasons are shown instead. */
 export function formatLift(evidence) {
-  // ⛔ Absence is words, never a zero — see the header note.
-  if (!evidence || evidence.lift_pp == null) return null
-  const dir = evidence.direction === 'short' ? 'downward' : 'upward'
-  const ci = evidence.ci_pp || []
+  if (!evidence || evidence.lift == null) return null
+  if (!evidence.published) return null
+  const ok = (x) => typeof x === 'number'
   return {
-    headline: `${evidence.lift_pp > 0 ? '+' : ''}${evidence.lift_pp.toFixed(2)}pp`,
-    resolves: dir,
-    interval: ci.length === 2
-      ? `${ci[0] > 0 ? '+' : ''}${ci[0].toFixed(2)} to ${ci[1] > 0 ? '+' : ''}${ci[1].toFixed(2)}`
+    headline: `${pp(evidence.lift)}pp`,
+    resolves: evidence.direction === 'short' ? 'downward' : 'upward',
+    interval: ok(evidence.ci_low) && ok(evidence.ci_high)
+      ? `${pp(evidence.ci_low)} to ${pp(evidence.ci_high)}`
       : null,
+    // ⭐ The null's maximum is the gate that decides most rows — a lift only
+    // publishes when the CI's LOWER bound clears it — so it is shown, not
+    // buried in the artifact.
+    nullMax: ok(evidence.null_max) ? `${pp(evidence.null_max)}pp` : null,
+    trials: evidence.null_trials ?? null,
     n: evidence.n,
+    note: evidence.note || null,
   }
+}
+
+/** Why a measured structure is NOT publishing a number.
+ *
+ * ⭐ The refusals are the part nobody else ships, and that is as true of a
+ * refused MEASUREMENT as of a refused criterion. */
+export function refusalReasons(evidence) {
+  if (!evidence || evidence.published) return []
+  return evidence.reasons || []
+}
+
+/** The order a member should meet the library in.
+ *
+ * ⛔⛔ THE BROWSER FOUND THIS AND NO TEST COULD. Rendered in payload order, the
+ * panel opened on the five SHAPE-partition cards — `advancing-structure`,
+ * `declining-structure`, `contracting-range`… — which are ours, carry ONE
+ * criterion each, and have no measured edge. Darvas Box's +7.35pp and every
+ * sourced classic sat below them. 37 green tests said nothing about it, because
+ * order is not correctness and jsdom paints nothing: the defect only exists on
+ * a screen.
+ *
+ * The hierarchy is information, not taste: a MEASURED number outranks a
+ * published rule, which outranks a label we invented. Within a tier the
+ * payload's own order is kept — it is `ALL_STRUCTURES`, which is already
+ * grouped by family. */
+export function libraryOrder(entries) {
+  const tier = (e) => {
+    if (e.evidence?.published) return 0            // measured and published
+    if (e.origin !== 'uct') return 1               // a published rule
+    return 2                                       // ours
+  }
+  return [...entries]
+    .map((e, i) => [e, i])
+    .sort((a, b) => tier(a[0]) - tier(b[0]) || a[1] - b[1])
+    .map(([e]) => e)
 }
 
 export function groupCriteria(criteria) {
@@ -80,6 +140,7 @@ function Criterion({ c }) {
 
 export function StructureCard({ entry }) {
   const lift = formatLift(entry.evidence)
+  const reasons = refusalReasons(entry.evidence)
   const groups = useMemo(() => groupCriteria(entry.criteria), [entry.criteria])
   return (
     <article className={styles.card} data-structure={entry.key}>
@@ -113,8 +174,25 @@ export function StructureCard({ entry }) {
             {lift.interval && (
               <span className={styles.ci}>95% CI {lift.interval}pp</span>
             )}
+            {lift.nullMax && (
+              <span className={styles.ci}>
+                null max {lift.nullMax}
+                {lift.trials ? ` over ${lift.trials} trials` : ''}
+              </span>
+            )}
             <span className={styles.n}>n={lift.n.toLocaleString()}</span>
           </>
+        ) : reasons.length > 0 ? (
+          // ⭐ MEASURED AND REFUSED IS A THIRD STATE, and it is the most
+          // informative of the three. "We looked and it did not clear the bar"
+          // is a different claim from "we never looked", and collapsing them
+          // would hide the ledger's actual work behind the same sentence.
+          <div className={styles.refusedMeasure}>
+            <span className={styles.missingTag}>measured, not published</span>
+            <ul className={styles.reasonList}>
+              {reasons.map((r, i) => <li key={i}>{r}</li>)}
+            </ul>
+          </div>
         ) : (
           // Words, not a zero.
           <span className={styles.unmeasured}>
@@ -123,6 +201,20 @@ export function StructureCard({ entry }) {
           </span>
         )}
       </div>
+
+      {/* ⭐ THE NOTE IS THE MOST VALUABLE PROSE IN THE LEDGER and it was reaching
+          nobody. It is where "this number exists only because the metric was
+          fixed" lives, and the Darvas recency caveat, and the square-box
+          scale-dependence story. A number without its caveat is the thing this
+          whole library was built to stop shipping. */}
+      {lift?.note && (
+        <details className={styles.noteWrap}>
+          <summary className={styles.noteSummary}>
+            How this number was arrived at, and what it does not say
+          </summary>
+          <p className={styles.note}>{lift.note}</p>
+        </details>
+      )}
 
       {['sourced', 'ours', 'refused'].map(state => (
         groups[state].length > 0 && (
@@ -181,7 +273,7 @@ export default function StructureProvenance({ fetcher = fetch }) {
           <> · <strong>{counts.uct_originals}</strong> of the structures are ours, not classics</>
         )}
       </header>
-      {entries.map(e => <StructureCard key={e.key} entry={e} />)}
+      {libraryOrder(entries).map(e => <StructureCard key={e.key} entry={e} />)}
     </div>
   )
 }

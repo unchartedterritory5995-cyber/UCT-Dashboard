@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tempfile
 import os
 import random
 import sqlite3
@@ -97,6 +98,33 @@ WINDOWS = {
     "stage-4-breakdown":   400,
 }
 DEFAULT_WINDOW = 400
+
+
+def _write_ledger(path: str, data: dict) -> None:
+    """Publish the artifact atomically.
+
+    ⛔ ENCODE -> TMP -> REPLACE. Both write sites used `open(path, "w")`,
+    which TRUNCATES before `json.dump` can fail -- so a serialisation error
+    part-way through would leave the published ledger destroyed rather than
+    merely unchanged. This is `lesson_open_w_truncates_before_your_write_can_
+    fail`, and the artifact it protects is the one members' numbers come from.
+
+    ⭐ ONE writer, not two. The two sites were the same code with two
+    different spellings of the newline; keeping them separate is how they drift.
+    """
+    blob = json.dumps(data, indent=2, ensure_ascii=False) + chr(10)
+    fd, tmp = tempfile.mkstemp(
+        dir=os.path.dirname(os.path.abspath(path)) or ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(blob)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def load_universe(sample: int, seed: int = 7) -> dict:
@@ -305,6 +333,13 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
 
             row = {"published": bool(verdict["published"]),
                    "sample_tickers": len(usable),
+                   # ⛔ THE DATE IS A PROPERTY OF THE ROW, exactly as the
+                   # sample size is. The header's `measured_at` is rewritten
+                   # on EVERY run, so a `--only` re-measure of one structure
+                   # marked all the others freshly measured -- the same
+                   # defect already fixed for `sample`, left standing for its
+                   # twin.
+                   "measured_at": time.strftime("%Y-%m-%d"),
                    "direction": direction}
             if o["lift"] is not None:
                 row.update({"lift": round(o["lift"], 4),
@@ -356,9 +391,7 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
     data = dict(existing)
     data["structures"] = merged
     data["measured_at"] = time.strftime("%Y-%m-%d")
-    with open(args.out, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
-        fh.write(chr(10))
+    _write_ledger(args.out, data)
     print("wrote %s" % args.out)
     return 0
 
@@ -480,6 +513,13 @@ def main() -> int:
         # about most of the file.
         row = {"published": bool(verdict["published"]),
                "sample_tickers": len(usable),
+                   # ⛔ THE DATE IS A PROPERTY OF THE ROW, exactly as the
+                   # sample size is. The header's `measured_at` is rewritten
+                   # on EVERY run, so a `--only` re-measure of one structure
+                   # marked all the others freshly measured -- the same
+                   # defect already fixed for `sample`, left standing for its
+                   # twin.
+                   "measured_at": time.strftime("%Y-%m-%d"),
                "direction": _direction_of(s)}
         if obs["lift"] is not None:
             row.update({
@@ -537,9 +577,7 @@ def main() -> int:
         "per ticker. The size differs per structure and per run, so it is "
         "recorded on each row as `sample_tickers` rather than claimed once "
         "here; a row's window is `tools/run_lift_ledger.py::WINDOWS[key]`.")
-    with open(args.out, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
+    _write_ledger(args.out, data)
     print(f"wrote {args.out}")
     return 0
 
