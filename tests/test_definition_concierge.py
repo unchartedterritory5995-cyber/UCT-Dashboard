@@ -2183,7 +2183,14 @@ def test_the_cost_guard_is_CONSULTED_before_the_call_and_RECORDED_after(
     assert len(client.calls) == 1
 
     # …and the guard is asked BEFORE the spend.
-    monkeypatch.setattr(cost_guard, "may_synthesize", lambda market_date: False)
+    # ⚠️ `may_member_spend`, NOT `may_synthesize`. The concierge is MEMBER-
+    # TRIGGERED and shares one daily budget with four SCHEDULED catalyst lanes.
+    # Measured: 20 members at this lane's own $0.75 per-user cap take shared spend
+    # to the $15 hard cap, after which the scheduled lanes stop for the day and the
+    # morning catalyst table silently is not built. A per-user cap bounds ONE
+    # member and never bounded a population; the member gate stops at
+    # `hard - reserve` so the scheduled lanes keep a floor.
+    monkeypatch.setattr(cost_guard, "may_member_spend", lambda market_date: False)
     client = model([tool_use(windowed(20))])
     refused = concierge.propose("average it", user_id=USER, bars=bars())
     assert refused["ok"] is False and refused["gate"] == "cost:global"
@@ -2830,11 +2837,16 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     thing from the other side so neither file can be the only one that knows.
     """
     routes = [r for r in router_mod.router.routes if getattr(r, "methods", None)]
-    # ⚠️ 6 → 12 with W5b's sharing and version-history routes. This number is
-    # deliberately duplicated with `test_user_definitions.EXPECTED_ROUTE_COUNT`
-    # — the docstring above says why: neither file may be the only one that
-    # knows, so a route added while only one is updated stays red.
-    assert len(routes) == 12
+    # ⚠️ 6 → 12 with W5b's sharing and version-history routes, then 12 → 16 with
+    # the public library. This number is deliberately duplicated with
+    # `test_user_definitions.EXPECTED_ROUTE_COUNT` — the docstring above says why:
+    # neither file may be the only one that knows, so a route added while only one
+    # is updated stays red.
+    # ⭐ AND THAT IS EXACTLY WHAT HAPPENED. The library shipped four routes and
+    # updated the sibling to 16; this copy still read 12 and went red, which is the
+    # duplication paying for itself rather than a maintenance tax. Read as a
+    # cross-check it is working; read as a count it looks like a chore.
+    assert len(routes) == 16
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]

@@ -132,3 +132,92 @@ def test_hunter_reports_cache_tokens_to_the_guard():
     assert "cache_read_input_tokens" in src
     assert "cache_read_tokens=cr_tok" in src
     assert "cache_creation_tokens=cc_tok" in src
+
+
+# ─── 🔴 A POPULATION OF MEMBERS MUST NOT STARVE THE SCHEDULED LANES ──────────
+
+def _spend(date, who, usd):
+    """Record `usd` of spend under `who`, priced through the real estimator."""
+    cost_guard.record(date, who, "claude-opus-5",
+                      int(usd * 1_000_000 / 5.0), 0)
+
+
+def test_member_lanes_cannot_spend_the_scheduled_lanes_out_of_budget(s):
+    """⛔⛔ MEASURED BEFORE THE FIX: 20 members using the concierge's OWN per-user
+    allowance ($0.75/day) took shared spend from $0 to the $15 hard cap, and
+    `may_synthesize` — the gate the SCHEDULED catalyst lanes ask — then returned
+    False for the rest of the day. The morning catalyst table silently does not
+    get built, for a reason with nothing to do with catalysts.
+
+    ⭐ A PER-USER CAP DOES NOT BOUND A POPULATION. The concierge caps ONE member;
+    nothing capped N members together. The fix expresses the missing bound as a
+    FLOOR for the scheduled lanes, because that is the property actually wanted.
+    """
+    date = "2026-09-01"
+    per_user = 0.75          # CONCIERGE_USER_CAP_DAILY's default
+
+    fired = 0
+    while cost_guard.may_member_spend(date) and fired < 200:
+        fired += 1
+        _spend(date, f"concierge:user{fired}", per_user)
+
+    assert fired < 200, "the member gate never closed — it is not a bound at all"
+    # ⭐ THE ASSERTION THAT MATTERS: the scheduled lanes are still open.
+    assert cost_guard.may_synthesize(date) is True, (
+        "member-triggered lanes spent the scheduled lanes out of budget — this is "
+        "exactly the starve this reserve exists to prevent")
+
+    spent = store.cost_stats_for_date(date)["total_cost_usd"]
+    hard = 15.00
+    assert hard - spent >= cost_guard.scheduled_reserve_usd() - 0.01, (
+        f"only ${hard - spent:.2f} left for the scheduled lanes against a "
+        f"${cost_guard.scheduled_reserve_usd():.2f} reserve")
+
+
+def test_the_reserve_is_a_FLOOR_whatever_order_the_spending_arrives_in(s):
+    """⛔ THE GUARANTEE IS ORDER-INDEPENDENT, and that is why the gate counts
+    TOTAL spend rather than member spend. If it counted only member spend, a
+    heavy scheduled day plus a full member allowance could still cross the cap
+    together — each lane inside its own budget, the sum outside both."""
+    date = "2026-09-02"
+    _spend(date, "AAPL", 4.00)            # a heavy scheduled day, first
+    fired = 0
+    while cost_guard.may_member_spend(date) and fired < 200:
+        fired += 1
+        _spend(date, f"concierge:user{fired}", 0.75)
+
+    assert cost_guard.may_synthesize(date) is True
+    left = 15.00 - store.cost_stats_for_date(date)["total_cost_usd"]
+    # ⚠️ THE FLOOR IS `reserve` MINUS ONE IN-FLIGHT CALL, and this case is what
+    # established that. The gate is asked BEFORE a call and the call then spends,
+    # so the last admitted member crosses the line by their own cost — measured
+    # here, $5.75 against a $6 reserve. The docstring said "by construction" until
+    # this failed. The overshoot is bounded by ONE call, which is the reason the
+    # reserve is set well above any single call rather than trimmed to the
+    # catalyst engine's expected spend.
+    one_call = 0.75
+    assert left >= cost_guard.scheduled_reserve_usd() - one_call - 0.01, (
+        f"${left:.2f} left is more than one call below the "
+        f"${cost_guard.scheduled_reserve_usd():.2f} reserve")
+
+
+def test_the_scheduled_lanes_keep_the_WHOLE_cap_for_themselves(s):
+    """⛔ THE RESERVE IS NOT A SECOND CAP ON THE SCHEDULED LANES. They may still
+    use the full $15 — the reserve only says member lanes stop earlier. A fix
+    that tightened both would quietly cut the catalyst engine's own budget."""
+    date = "2026-09-03"
+    _spend(date, "MSFT", 10.00)           # scheduled spend, past the member line
+    assert cost_guard.may_member_spend(date) is False, (
+        "member lanes should already be paused at $10 of $15 with a $6 reserve")
+    assert cost_guard.may_synthesize(date) is True, (
+        "the scheduled lanes were cut off at the member line — they own the cap")
+
+
+def test_the_member_gate_is_STRICTLY_tighter_and_not_a_copy(s):
+    """⛔ NON-VACUITY. If `may_member_spend` were `may_synthesize` under another
+    name, every case above would still pass and nothing would be reserved."""
+    date = "2026-09-04"
+    _spend(date, "NVDA", 9.50)
+    assert cost_guard.may_member_spend(date) is False
+    assert cost_guard.may_synthesize(date) is True
+    assert cost_guard.scheduled_reserve_usd() > 0

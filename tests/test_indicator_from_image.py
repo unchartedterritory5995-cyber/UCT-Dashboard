@@ -165,7 +165,13 @@ def ledger(monkeypatch):
     than a way to keep the real ledger out of a test database.
     """
     calls = {"checked": [], "recorded": []}
-    monkeypatch.setattr(cost_guard, "may_synthesize",
+    # ⚠️ `may_member_spend`, NOT `may_synthesize`. This door is MEMBER-TRIGGERED
+    # and unbounded in frequency, so it asks the member-lane gate — which stops at
+    # `hard - reserve` and leaves the SCHEDULED catalyst lanes a floor. Stubbing the
+    # scheduled gate here would patch a function this door no longer calls, and the
+    # real one would reach an uninitialised ledger: the tests went RED on exactly
+    # that when the door was rewired, which is the fixture doing its job.
+    monkeypatch.setattr(cost_guard, "may_member_spend",
                         lambda d: (calls["checked"].append(d), True)[1])
     monkeypatch.setattr(cost_guard, "record",
                         lambda *a, **k: (calls["recorded"].append((a, k)), 0.0125)[1])
@@ -360,12 +366,37 @@ def test_a_tool_object_wrapped_in_PROSE_is_still_recovered():
 
 
 def test_the_SPEND_CAP_refuses_before_the_model_is_called(monkeypatch):
-    monkeypatch.setattr(cost_guard, "may_synthesize", lambda d: False)
+    monkeypatch.setattr(cost_guard, "may_member_spend", lambda d: False)
     client = StubClient(raises=AssertionError("the model must not be called"))
     out = svc.candidates_from_image(image_bytes=PIXEL, media_type="image/png",
                                     user_id="u1", client=client)
     assert out["gate"] == "vision:spend-cap"
     assert client.calls == []
+
+
+def test_the_vision_door_asks_the_MEMBER_gate_and_not_the_scheduled_one(monkeypatch):
+    """⛔⛔ THE WIRING, PINNED. Six lanes share one daily budget and four of them
+    are SCHEDULED — nobody asks for them, and if they do not run the member-facing
+    product silently loses its morning catalyst table. This door is member-
+    triggered and unbounded in frequency (upload as many pictures as you like),
+    so asking the scheduled lanes' gate would let uploads spend their budget.
+
+    A door that reverted to `may_synthesize` would still refuse at the cap and
+    every other case here would stay green — the difference is only WHOSE budget
+    it consumes, which no other assertion can see.
+    """
+    seen = []
+    monkeypatch.setattr(cost_guard, "may_member_spend",
+                        lambda d: (seen.append("member"), False)[1])
+    monkeypatch.setattr(cost_guard, "may_synthesize",
+                        lambda d: (seen.append("scheduled"), True)[1])
+    out = svc.candidates_from_image(image_bytes=PIXEL, media_type="image/png",
+                                    user_id="u1",
+                                    client=StubClient(raises=AssertionError("no call")))
+    assert out["gate"] == "vision:spend-cap"
+    assert seen == ["member"], (
+        f"the door asked {seen} — it must ask the member-lane gate and must not "
+        "reach the scheduled lanes' gate at all")
 
 
 def test_the_spend_is_RECORDED_even_when_the_answer_is_refused(ledger):

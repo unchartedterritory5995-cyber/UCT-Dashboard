@@ -2462,7 +2462,19 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         # ⭐ THE CAP IS CONSULTED BEFORE THE SPEND, EVERY TIME ROUND. A cap checked
         # after the call is not a cap, and a loop that checks only on the first
         # pass is not a cap on the second.
-        if not cost_guard.may_synthesize(market_date):
+        # ⛔ THE MEMBER-LANE GATE, NOT THE GLOBAL ONE. `may_synthesize` is the
+        # SCHEDULED lanes' gate and it opens the full $15; asking it here let a
+        # population of members spend the catalyst engine's budget — measured, 20
+        # members at this lane's own $0.75 per-user cap close it, and the morning
+        # catalyst table then does not get built for a reason with nothing to do
+        # with catalysts. `may_member_spend` stops at `hard - reserve` so the
+        # scheduled lanes keep a floor by construction.
+        # ⭐ AND IT MAKES THE SENTENCE BELOW TRUE. "the formula assistant has
+        # reached its spending limit for today" could fire when the formula
+        # assistant had spent NOTHING at all and the catalyst engine had used the
+        # money — a refusal blaming the door the member is standing at for another
+        # door's spending.
+        if not cost_guard.may_member_spend(market_date):
             return {"ok": False, "gate": "cost:global",
                     "reason": REFUSALS["cost:global"]}
         if spend_for(user_id, market_date) >= _user_cap_usd():
