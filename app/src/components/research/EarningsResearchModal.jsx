@@ -14,7 +14,7 @@ import TickerPopup from '../TickerPopup'
 import UIcon from '../ui/UIcon'
 import Sheet from '../mobile/Sheet'
 import { useIsPhone } from '../../hooks/useBreakpoint'
-import { IdentityBanner, PinnedFooter, SectionRail, VerdictChip } from '../research-kit'
+import { IdentityBanner, VerdictChip } from '../research-kit'
 import { NOT_ADVICE, SETUP_GRADE_INFO } from '../../constants/disclaimer'
 import useExpectedMove from '../../hooks/useExpectedMove'
 import useSettledSym from '../../hooks/useSettledSym'
@@ -22,7 +22,8 @@ import useLivePrices from '../../hooks/useLivePrices'
 import {
   ACTUALS_POLL_MS, computeLifecycle, countdownText, shouldPollActuals, windowStart,
 } from '../../pages/calendar/earningsLifecycle'
-import { SECTIONS, normalizeSection, railLinks } from './railSections'
+import { normalizeSection } from './railSections'
+import SectionTabs, { panelIdFor, panelLabelledBy } from './SectionTabs'
 import SetupSection from './sections/SetupSection'
 import EarningsHistorySection from './sections/EarningsHistorySection'
 import BriefSection from './sections/BriefSection'
@@ -151,7 +152,13 @@ export default function EarningsResearchModal({
   // so the header number changes in lockstep with the header name while the
   // user steps, instead of lagging 200ms behind like the section panels do.
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
-  const livePrice = fmtLivePrice(livePrices[sym])
+  // The RAW quote as well as the banner's formatted string: the Setup canvas
+  // draws a "now" marker on two range tracks and used to take it from the
+  // expected-move payload's `spot` — a different endpoint, a different
+  // vintage, and so a second number on screen claiming to be the same thing.
+  // Handed down rather than re-read so there is one authority per modal.
+  const liveQuote = livePrices[sym] ?? null
+  const livePrice = fmtLivePrice(liveQuote)
 
   // One tick per minute is enough for a countdown; nowMs may be injected.
   // This project's lint config forbids the ref-during-render escape hatch
@@ -284,72 +291,64 @@ export default function EarningsResearchModal({
   const body = (
     <>
       {banner}
-      {/* The session line under the identity row: a +2% that opened at the
-          high and faded is a different day from one that closed on it, and the
-          banner's single price cannot tell you which. */}
-      <QuoteStrip sym={settledSym} />
-      <div className={styles.panes}>
-        <SectionRail
-          sections={SECTIONS}
-          links={railLinks(sym)}
-          active={active}
-          onSelect={onSectionChange}
-          idPrefix="erm-rail"
-          ariaLabel="Report sections"
-          // 12 sections at the 44px touch floor is ~570px of rail beside a
-          // canvas that is mostly dense numbers. Opt-in per surface: the two
-          // other SectionRail consumers keep their own geometry, and touch
-          // keeps the full floor here regardless (the rule is pointer:fine).
-          dense
-          className={styles.rail}
-        />
-        <div
-          className={styles.canvas}
-          data-testid="erm-canvas"
-          // Every other section is a DOCUMENT: it grows and the canvas scrolls
-          // it. Ask AI is a chat — a scrolling body with the input pinned under
-          // it — so it has to be BOUNDED by the canvas instead of growing it,
-          // or the input ends up below the canvas's own scroll fold. The CSS
-          // hook is here rather than in the section because the canvas is the
-          // element that has to change, and this stylesheet owns it.
-          data-section={active}
-          role="tabpanel"
-          id={`erm-rail-panel-${active}`}
-          aria-labelledby={`erm-rail-tab-${active}`}
-          tabIndex={0}
-        >
-          {/* GATE c: the inactive panels are UNMOUNTED, never display:none —
-              an ECharts instance that mounts at zero width never recovers. */}
-          <Panel
-            sym={settledSym}
-            row={row}
-            reportDate={reportDate}
-            timing={timing}
-            lifecycle={lifecycle}
-            expectedMove={em}
-            stepping={stepping}
-            enrichReady={enrichReady}
-          />
-        </div>
+      {/* ONE sub-head band, not two. The session line and the chart action used
+          to be a strip and a 44px pinned footer at opposite ends of the modal,
+          which is two full-width bands of chrome for two small things. They
+          share a row now: both are about the IDENTITY above them, not about
+          whichever section happens to be open.
+
+          The row is rendered unconditionally and QuoteStrip returns null on a
+          symbol with no quote payload — so "View chart" survives an absent
+          quote, which it would not if it lived inside the strip. */}
+      <div className={styles.subhead} data-testid="erm-subhead">
+        {/* A +2% that opened at the high and faded is a different day from one
+            that closed on it, and the banner's single price cannot say which. */}
+        <QuoteStrip sym={settledSym} />
+        <TickerPopup sym={sym} as="button" className={styles.btnChart}>View chart</TickerPopup>
       </div>
-      {/* §12: the standing line was a SEPARATE full-width band under the
-          actions, so the modal ended in two stacked strips of chrome. The
-          original reasoning was that the line "can never compete with the CTAs
-          for the pinned row's horizontal space" — written when there were two
-          CTAs. There is one now, and it occupies ~90px of a ~900px row, so the
-          line sits in the same band, pushed right, and the modal ends in one
-          strip instead of two. */}
-      <PinnedFooter as="div" ariaLabel="Actions" className={styles.footer}>
-        <span data-testid="erm-footer" className={styles.footerInner}>
-          <TickerPopup sym={sym} as="button" className={styles.btnChart}>View Chart</TickerPopup>
-          {/* The "Open full report" button used to close the modal and push
-              /research. Owner: that dropped the reader onto a new page mid-read
-              and lost them. Every section it led to now lives in the rail, so
-              there is nothing left to open. `/research/:sym` still exists as a
-              route — it is simply no longer a place this modal sends anyone. */}
-        </span>
+
+      <SectionTabs active={active} onSelect={onSectionChange} idPrefix="erm-rail" />
+
+      <div
+        className={styles.canvas}
+        data-testid="erm-canvas"
+        // Every other section is a DOCUMENT: it grows and the canvas scrolls
+        // it. Ask AI is a chat — a scrolling body with the input pinned under
+        // it — so it has to be BOUNDED by the canvas instead of growing it,
+        // or the input ends up below the canvas's own scroll fold. The CSS
+        // hook is here rather than in the section because the canvas is the
+        // element that has to change, and this stylesheet owns it.
+        data-section={active}
+        role="tabpanel"
+        // ONE panel id, because there is only ever one panel mounted. The
+        // per-section id it used to carry had to be restated by every tab's
+        // `aria-controls`; deriving the LABEL from the tab rules instead
+        // (panelLabelledBy) leaves one authority over the naming scheme.
+        id={panelIdFor('erm-rail')}
+        aria-labelledby={panelLabelledBy(active, 'erm-rail')}
+        tabIndex={0}
+      >
+        {/* GATE c: the inactive panels are UNMOUNTED, never display:none —
+            an ECharts instance that mounts at zero width never recovers. */}
+        <Panel
+          sym={settledSym}
+          row={row}
+          reportDate={reportDate}
+          timing={timing}
+          lifecycle={lifecycle}
+          expectedMove={em}
+          livePrice={liveQuote}
+          stepping={stepping}
+          enrichReady={enrichReady}
+        />
+      </div>
+
+      {/* §12: the standing line, and nothing else. It was sharing a 44px
+          pinned row with the chart button; with the button moved up beside the
+          quote line this is a hairline caption instead of a fourth band. */}
+      <div className={styles.footer} data-testid="erm-footer">
         <p className={styles.notAdvice} data-testid="erm-not-advice">{NOT_ADVICE}</p>
-      </PinnedFooter>
+      </div>
     </>
   )
 

@@ -531,3 +531,101 @@ describe('viewBox tracks the measured container width', () => {
     expect(last.cx).toBeLessThan(604)
   })
 })
+
+// ─── Tonight's priced move, drawn across every quarter ───────────────────────
+// The widget spends its first two years COLD (one stored implied snapshot per
+// report, eight quarters of realized history), so the paired form it is named
+// for is not on screen for most symbols. Measured live on DELL: `1/8 recorded`.
+// The band is the comparison that IS available today.
+describe('the implied band', () => {
+  const cold = {
+    quarters: QUARTERS, impliedHistory: [], live: LIVE, historySince: '2026-08-01',
+  }
+
+  it('draws tonight’s priced move as a band, labelled with the percentage', () => {
+    const { container } = render(<ImpliedVsRealized {...cold} />)
+    const band = container.querySelector('[data-testid="rk-ivr-band"]')
+    expect(band).toBeTruthy()
+    expect(band.textContent).toMatch(/±6\.2%/)
+  })
+
+  it('draws NO band when nothing is priced — never a phantom ±0.0% rule', () => {
+    const { container } = render(<ImpliedVsRealized {...cold} live={null} />)
+    expect(container.querySelector('[data-testid="rk-ivr-band"]')).toBeNull()
+  })
+
+  it('draws a band for a genuine 0% priced move (degenerate, but real)', () => {
+    const { container } = render(<ImpliedVsRealized {...cold} live={{ pct: 0 }} />)
+    expect(container.querySelector('[data-testid="rk-ivr-band"]')).toBeTruthy()
+  })
+
+  it('is a magnitude — a negative live pct draws the same band, not an inverted one', () => {
+    const { container: neg } = render(<ImpliedVsRealized {...cold} live={{ pct: -6.2 }} />)
+    const { container: pos } = render(<ImpliedVsRealized {...cold} live={{ pct: 6.2 }} />)
+    const rect = (c) => c.querySelector('[data-testid="rk-ivr-band"] rect').getAttribute('height')
+    expect(rect(neg)).toBe(rect(pos))
+  })
+})
+
+describe('pairGeometry — the band shares the bars’ scale', () => {
+  const pairs = pairQuarters(QUARTERS, IMPLIED, LIVE)
+
+  it('a priced move LARGER than anything realized still fits inside the plot', () => {
+    // The case the band matters most in — the market pricing a move this name
+    // has never made. Left out of the magnitude set it would draw off the top.
+    const g = pairGeometry(pairs, { bandPct: 400 })
+    expect(g.band).toBeTruthy()
+    expect(g.band.y).toBeGreaterThanOrEqual(0)
+    expect(g.band.y + g.band.h).toBeLessThanOrEqual(VIEWBOX.height)
+    expect(g.scaleMax).toBeGreaterThanOrEqual(400)
+  })
+
+  it('is centred on the baseline — it is a ± range, not a one-sided level', () => {
+    const g = pairGeometry(pairs, { bandPct: 5 })
+    expect(g.baselineY - g.band.y).toBeCloseTo(g.band.y + g.band.h - g.baselineY, 6)
+  })
+
+  it('reports no band when none was asked for, and never coerces null to 0', () => {
+    expect(pairGeometry(pairs).band).toBeNull()
+    expect(pairGeometry(pairs, { bandPct: null }).band).toBeNull()
+  })
+})
+
+describe('the chart is named for what it DRAWS', () => {
+  it('says "move after each print" while the store is too cold to pair', () => {
+    render(<ImpliedVsRealized quarters={QUARTERS} impliedHistory={[]} live={LIVE}
+                              historySince="2026-08-01" />)
+    expect(screen.getByText(/move after each print/i)).toBeTruthy()
+    expect(screen.queryByText(/implied vs realized move/i)).toBeNull()
+  })
+
+  it('says "implied vs realized move" once the pairs are actually on screen', () => {
+    render(<ImpliedVsRealized quarters={QUARTERS} impliedHistory={IMPLIED} live={LIVE}
+                              historySince="2025-02-05" />)
+    expect(screen.getByText(/implied vs realized move/i)).toBeTruthy()
+  })
+
+  it('an explicit label still wins — the derivation is a default, not a rule', () => {
+    render(<ImpliedVsRealized quarters={QUARTERS} impliedHistory={[]} live={LIVE}
+                              historySince="2026-08-01" label="Pinned by the caller" />)
+    expect(screen.getByText('Pinned by the caller')).toBeTruthy()
+  })
+})
+
+describe('per-bar value labels', () => {
+  it('prints the realized move beside every bar it drew', () => {
+    const { container } = render(<ImpliedVsRealized quarters={QUARTERS} impliedHistory={IMPLIED}
+                                                    live={LIVE} historySince="2025-02-05" />)
+    const bars = container.querySelectorAll('[data-testid="rk-ivr-realized"]')
+    const values = container.querySelectorAll('[data-testid="rk-ivr-value"]')
+    expect(values).toHaveLength(bars.length)
+    expect([...values].map((v) => v.textContent)).toContain('+3.0%')
+  })
+
+  it('signs them — a down move reads as negative, never bare', () => {
+    const { container } = render(<ImpliedVsRealized quarters={QUARTERS} impliedHistory={IMPLIED}
+                                                    live={LIVE} historySince="2025-02-05" />)
+    const texts = [...container.querySelectorAll('[data-testid="rk-ivr-value"]')].map((v) => v.textContent)
+    expect(texts.some((t) => t.startsWith('-') || t.startsWith('\u2212'))).toBe(true)
+  })
+})

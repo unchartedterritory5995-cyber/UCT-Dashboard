@@ -253,7 +253,10 @@ describe('the modal must not freeze on an un-enriched row (Task 12)', () => {
 
     // Jump to the History section while still un-enriched — the exact click
     // sequence the controller ran live.
-    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // Earnings History is the first member of the "The Print" group, so the
+    // group tab lands on it directly (the sub-row is the second level, and
+    // clicking the group is what a reader does first).
+    fireEvent.click(screen.getByRole('tab', { name: 'The Print' }))
     // Characterizes the starting state: the enrichment batch has not landed,
     // so the section says it is LOADING — it must not assert 'no history' as
     // fact about a company that has ten years of it (see EarningsHistorySection).
@@ -315,7 +318,10 @@ describe('the modal must not freeze on an un-enriched row — REAL useWeekEnrich
     const dlg = await screen.findByRole('dialog')
     expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // Earnings History is the first member of the "The Print" group, so the
+    // group tab lands on it directly (the sub-row is the second level, and
+    // clicking the group is what a reader does first).
+    fireEvent.click(screen.getByRole('tab', { name: 'The Print' }))
     // Characterizes the starting state: the enrichment batch has not landed,
     // so the section says it is LOADING — it must not assert 'no history' as
     // fact about a company that has ten years of it (see EarningsHistorySection).
@@ -384,7 +390,10 @@ describe('independent enrichment fields must not freeze each other out (Task 12 
     fireEvent.click(await screen.findByRole('button', { name: /\+1 more/ }))
     fireEvent.click(await screen.findByText('NVDA'))
     await screen.findByRole('dialog')
-    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // Earnings History is the first member of the "The Print" group, so the
+    // group tab lands on it directly (the sub-row is the second level, and
+    // clicking the group is what a reader does first).
+    fireEvent.click(screen.getByRole('tab', { name: 'The Print' }))
     // Characterizes the starting state: the enrichment batch has not landed,
     // so the section says it is LOADING — it must not assert 'no history' as
     // fact about a company that has ten years of it (see EarningsHistorySection).

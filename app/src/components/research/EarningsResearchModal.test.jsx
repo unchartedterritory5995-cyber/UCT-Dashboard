@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
 import EarningsResearchModal, { resolveTrapTargets, PANELS } from './EarningsResearchModal'
-import { SECTIONS, SECTION_IDS, normalizeSection } from './railSections'
+import { GROUPS, SECTIONS, SECTION_IDS, normalizeSection } from './railSections'
 import { NOT_ADVICE } from '../../constants/disclaimer'
 import { countGoldHighlights } from '../research-kit/testing/restraint'
 
@@ -86,35 +86,56 @@ describe('shell structure', () => {
     expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
   })
 
-  it('renders every section as a TAB, derived from SECTIONS', () => {
+  it('renders every GROUP as a tab, derived from GROUPS', () => {
     renderModal()
     const tabs = screen.getAllByRole('tab').map(t => t.textContent.trim())
-    // Derived, never retyped: a hardcoded list here would pass against a rail
-    // that had silently dropped or reordered a section.
-    expect(tabs).toEqual(SECTIONS.map(s => s.label))
+    // Derived, never retyped: a hardcoded list here would pass against a
+    // navigator that had silently dropped or reordered a group.
+    expect(tabs).toEqual(GROUPS.map(g => g.label))
     expect(tabs).toContain('Setup')
-    expect(tabs).toContain('Call')
+    expect(tabs).toContain('Coverage')
   })
 
-  it('The Street and Filings are TABS, and nothing navigates away', () => {
+  it('every section belongs to exactly one group — none stranded, none doubled', () => {
+    // The rail carried twelve items; the tab row carries five. That trade is
+    // only honest if all twelve are still REACHABLE, so this asserts the
+    // partition rather than the tab count: a leaf in no group is a panel the
+    // user can no longer open, and a leaf in two is a tab that lights twice.
+    const homes = SECTION_IDS.map(id => GROUPS.filter(g => g.members.includes(id)).length)
+    const stranded = SECTION_IDS.filter((_, i) => homes[i] === 0)
+    const doubled = SECTION_IDS.filter((_, i) => homes[i] > 1)
+    expect(stranded, `sections in no group: ${stranded.join(', ')}`).toEqual([])
+    expect(doubled, `sections in more than one group: ${doubled.join(', ')}`).toEqual([])
+  })
+
+  it('The Street and Filings are reachable as sub-tabs, and nothing navigates away', () => {
     // These used to be links that CLOSED the modal and pushed /research — a
-    // context switch in the middle of reading one company. Analyst & Ownership
-    // has since merged into the broader Analysts section (relabeled "The
-    // Street", 2026-08-28, to match the chart pop-up's tab of the same name —
-    // the section id stays 'analysts').
-    renderModal()
+    // context switch in the middle of reading one company. They are now the
+    // third and fourth panels under Coverage; still tabs, one level down.
+    renderModal({ section: 'analysts' })
     expect(screen.getByRole('tab', { name: /^The Street$/i })).toBeTruthy()
     expect(screen.getByRole('tab', { name: /Filings/i })).toBeTruthy()
     expect(screen.queryByRole('link', { name: /The Street/i })).toBeNull()
     expect(screen.queryByRole('link', { name: /Filings/i })).toBeNull()
 
-    // The rail must contain NO link that leaves for /research. The explicit
-    // "Open full report" button in the footer is a separate, deliberate act
-    // and is not part of the rail.
-    const rail = screen.getByRole('tablist').closest('nav')
-    const escapes = [...rail.querySelectorAll('a[href]')]
+    // No tab row may contain a link that leaves for /research.
+    const escapes = screen.getAllByRole('tablist')
+      .flatMap(list => [...list.querySelectorAll('a[href]')])
       .filter(a => (a.getAttribute('href') || '').includes('/research'))
     expect(escapes.map(a => a.getAttribute('href'))).toEqual([])
+  })
+
+  it('a single-panel group shows NO sub-tab row, a branching one does', () => {
+    // A lone sub-tab under its own identical group tab is chrome that says
+    // nothing, and it would make Setup taller than the groups that branch.
+    // Scoped to each render's OWN container: `screen` queries the whole body,
+    // and both modals are still mounted (cleanup runs between TESTS, not
+    // between renders), so a body-wide count would sum the two.
+    const { container: single } = renderModal({ section: 'setup' })
+    expect(single.querySelectorAll('[role="tablist"]')).toHaveLength(1)
+
+    const { container: branching } = renderModal({ section: 'profile' })
+    expect(branching.querySelectorAll('[role="tablist"]')).toHaveLength(2)
   })
 
   it('routes to every panel it declares — none is orphaned', () => {
@@ -134,12 +155,18 @@ describe('shell structure', () => {
 // component tests are structurally blind to a severed wire. These render the
 // real chain and assert the SYMBOL survives it.
 describe('Ask AI section', () => {
-  it('is the last tab, under News and Filings', () => {
+  it('is the last tab, after the group that carries News and Filings', () => {
     renderModal()
     const tabs = screen.getAllByRole('tab').map(t => t.textContent.trim())
     expect(tabs[tabs.length - 1]).toBe('Ask AI')
-    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('News'))
-    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('Filings'))
+    // ⛔ Asserted against COVERAGE, not against 'News'/'Filings' directly.
+    // Those are sub-tabs now, so they are not in this row at all — and
+    // `indexOf` returns -1 for a missing label, which every "Ask AI is after
+    // it" comparison would then pass VACUOUSLY. Name the row's own member.
+    expect(tabs).toContain('Coverage')
+    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('Coverage'))
+    const coverage = GROUPS.find(g => g.id === 'coverage')
+    expect(coverage.members).toEqual(expect.arrayContaining(['news', 'filings']))
   })
 
   it('opens a company-scoped AI panel — the symbol reaches the ask box', () => {
@@ -245,7 +272,8 @@ describe('GATE c — inactive panels UNMOUNT', () => {
   it('switching sections unmounts the previous panel (never display:none)', () => {
     const onSectionChange = vi.fn()
     const { rerender } = renderModal({ onSectionChange })
-    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // A group tab selects its FIRST member — 'The Print' lands on 'history'.
+    fireEvent.click(screen.getByRole('tab', { name: 'The Print' }))
     expect(onSectionChange).toHaveBeenCalledWith('history')
     rerender(withProviders(
       <EarningsResearchModal
@@ -529,14 +557,27 @@ describe('resolveTrapTargets (pure)', () => {
 
 // ── footer + trust posture ───────────────────────────────────────────────────
 describe('footer + §12', () => {
-  it('pins View Chart, and no longer offers a way OUT of the modal', () => {
+  it('offers View chart beside the session line, and no way OUT of the modal', () => {
     // "Open full report" closed the modal and pushed /research. Owner: that
     // dropped the reader onto a new page mid-read. Every section it led to is
-    // in the rail now, so the control has nothing left to open.
+    // in the tab row now, so the control has nothing left to open.
+    //
+    // View chart moved OUT of the footer and into the sub-head: it is an action
+    // on the identity, not on whichever section is open, and the 44px pinned
+    // row it used to occupy alone was a whole band of chrome for one button.
+    renderModal()
+    const subhead = screen.getByTestId('erm-subhead')
+    expect(within(subhead).getByText(/View chart/i)).toBeTruthy()
+    expect(screen.queryByText(/full (report|research)/i)).toBeNull()
+  })
+
+  it('the standing line is the only thing left in the footer', () => {
+    // Guards the declutter itself: a control creeping back into this band is
+    // how the modal ends in two stacked strips of chrome again.
     renderModal()
     const footer = screen.getByTestId('erm-footer')
-    expect(within(footer).getByText(/View Chart/i)).toBeTruthy()
-    expect(within(footer).queryByText(/full (report|research)/i)).toBeNull()
+    expect(within(footer).queryByRole('button')).toBeNull()
+    expect(footer.textContent.trim()).toBe(NOT_ADVICE)
   })
 
   it('carries the standing not-advice line', () => {
@@ -721,12 +762,24 @@ describe('the whole report is reachable without leaving the modal', () => {
     // `section` is controlled by the parent, so the assertion is on what the
     // modal REQUESTS, not on aria-selected flipping under a no-op handler.
     const onSectionChange = vi.fn()
-    renderModal({ onSectionChange })
+    // Both live under Coverage, so the sub-tab row has to be on screen for
+    // them to be clickable — that is what `section: 'analysts'` puts there.
+    renderModal({ onSectionChange, section: 'analysts' })
     fireEvent.click(screen.getByRole('tab', { name: /^The Street$/i }))
     expect(onSectionChange).toHaveBeenCalledWith('analysts')
 
     fireEvent.click(screen.getByRole('tab', { name: /^Filings/i }))
     expect(onSectionChange).toHaveBeenCalledWith('filings')
+  })
+
+  it('the group tab reaches them in one click from anywhere', () => {
+    // The sub-tab is one level down, so the DOOR to it must be reachable from
+    // a cold open — otherwise "still reachable" is only true for a reader who
+    // already knew where to look.
+    const onSectionChange = vi.fn()
+    renderModal({ onSectionChange, section: 'setup' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Coverage' }))
+    expect(onSectionChange).toHaveBeenCalledWith('analysts')
   })
 
   it('renders the panel when the parent HAS selected one of them', () => {
@@ -774,11 +827,17 @@ describe('the rail opts INTO the dense row height', () => {
   // at the 44px touch floor is ~570px of rail). Without this assertion the
   // `dense` prop could be dropped from the call site and nothing would fail —
   // the CSS would simply stop applying, silently, on the one surface it is for.
-  it('passes dense, so the modal rail carries data-rk-dense', () => {
+  // ⛔ REPLACED, not deleted. `data-rk-dense` existed to tighten a 12-item
+  // VERTICAL rail that stood ~570px tall beside a dense canvas. The rail is
+  // gone, so asserting the prop would be asserting a workaround for a layout
+  // that no longer exists. What still needs guarding is the thing the prop was
+  // trying to buy: navigation must not eat a horizontal band of the canvas.
+  it('spends no side band on navigation — the canvas is full width', () => {
     const { container } = renderModal()
-    const rail = container.querySelector('nav[aria-label="Report sections"]')
-    expect(rail).toBeTruthy()
-    expect(rail.hasAttribute('data-rk-dense')).toBe(true)
+    expect(container.querySelector('nav[aria-label="Report sections"]')).toBeNull()
+    const tabs = container.querySelector('[role="tablist"][aria-label="Report sections"]')
+    expect(tabs).toBeTruthy()
+    expect(tabs.getAttribute('aria-orientation')).toBe('horizontal')
   })
 })
 
@@ -792,10 +851,20 @@ describe('the rail is curated, and old links still land', () => {
     // Profile and Catalysts earned the tenth and eleventh (owner, 2026-08-21):
     // "what does this company do / what is it worth" and "what actually moved
     // it this year" — neither was answered anywhere in the modal before.
+    // Order is now the GROUP reading order — Financials moved up beside
+    // Profile because the two together are "Company". Nothing was retired.
     expect(SECTIONS).toHaveLength(11)
     expect(SECTIONS.map(s => s.id)).toEqual(
-      ['setup', 'profile', 'history', 'brief', 'call', 'financials', 'analysts',
+      ['setup', 'profile', 'financials', 'history', 'brief', 'call', 'analysts',
        'catalysts', 'news', 'filings', 'ai'])
+  })
+
+  it('the leaf order is the group order flattened — one authority, not two', () => {
+    // SECTIONS and GROUPS are separate declarations, and a reader adding a
+    // panel will touch one of them. If they disagree the tab row and the
+    // reading order tell two different stories, which is exactly how the
+    // twelve-item rail drifted in the first place.
+    expect(SECTIONS.map(s => s.id)).toEqual(GROUPS.flatMap(g => g.members))
   })
 
   it('every id still has a panel', () => {

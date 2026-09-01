@@ -1,0 +1,127 @@
+/* app/src/components/research/SectionTabs.module.css
+ *
+ * Wears --menu-* , the palette every chart dialog in this app already uses
+ * (ChartSettingsModal, ChartThemesModal, the indicator dialogs, both context
+ * menus). Those tokens are theme-INVARIANT on purpose — a menu is app chrome,
+ * so it stays the same recognisable dark panel whatever the chart canvas is set
+ * to — which is exactly the property this modal needs and did not have. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--menu-bg);
+  border-bottom: 1px solid var(--menu-border);
+}
+
+.groups,
+.subs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.groups::-webkit-scrollbar,
+.subs::-webkit-scrollbar { display: none; }
+
+.groups {
+  gap: 2px;
+  padding: 0 var(--space-md);
+}
+
+/* The second level is quieter than the first by GEOMETRY as well as colour:
+   shorter row, smaller type, no underline. A sub-row styled like the group row
+   reads as ten peer tabs on two lines, which is the twelve-item rail again. */
+.subs {
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md) var(--space-sm);
+  border-top: 1px solid var(--menu-divider);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 0 0 auto;
+  padding: var(--space-sm) var(--space-md) 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: var(--ls-normal);
+  color: var(--menu-text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.tab:hover { color: var(--menu-text); }
+.tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.tabActive {
+  color: var(--text-bright);
+  border-bottom-color: var(--menu-accent);
+}
+
+.icon { flex: 0 0 auto; opacity: .8; }
+.tabActive .icon { opacity: 1; }
+
+/* Sub-row tabs are pills, not underlines — a second underline row directly
+   under the first reads as a broken border rather than a second level. */
+.subs .tab {
+  padding: 5px var(--space-sm);
+  border-bottom: 0;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.subs .tab:hover { background: var(--menu-hover); }
+.subs .tabActive {
+  background: var(--menu-accent-bg);
+  color: var(--menu-accent);
+}
+
+/* TOUCH — the 44px floor. `--tap-min` is a TOUCH target minimum, applied at the
+   canonical touch bound (<=1024px, breakpoints.css) rather than universally: on
+   a mouse a 44px tab row is simply oversized, and being oversized on desktop is
+   what the twelve-item rail was criticised for.
+
+   ⛔ THE SUB-ROW GETS THE SAME FLOOR, NOT A SMALLER ONE. It was 36px here for
+   one draft — measured in a real 386px frame, exactly the shortfall the
+   SectionRail module's own comment documents having shipped once already (its
+   chips came out 34px against the same 44px floor). A pill's SHORT axis is its
+   HEIGHT, so height is the axis that has to clear the floor; "it's the
+   secondary level" is not an exemption a thumb honours. Desktop keeps the
+   quieter 2px/5px padding above — this rule only fires on touch. */
+@media (max-width: 1024px) {
+  .tab { min-height: var(--tap-min); }
+}
+
+@media (max-width: 640px) {
+  .groups { padding: 0 var(--space-sm); }
+  .subs { padding: var(--space-xs) var(--space-sm) var(--space-sm); }
+  .tab { padding-left: var(--space-sm); padding-right: var(--space-sm); }
+  /* MEASURED in a 386px frame, not estimated: the FIVE GROUP TABS are 439px
+     against 347px of row — they scroll, and this fade is their affordance.
+     Coverage's four sub-pills are 245px and do NOT scroll.
+     ⚰️ A previous version of this comment asserted the exact opposite on both
+     counts ("the five tabs fit; the sub-row genuinely overflows"). Both halves
+     were wrong, which is what a number nobody put a ruler to looks like — the
+     mask is on both rows, so the styling was right and only the reasoning was
+     false, and a false reason is what stops the next person re-checking. */
+  .groups, .subs {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab { transition: none; }
+}

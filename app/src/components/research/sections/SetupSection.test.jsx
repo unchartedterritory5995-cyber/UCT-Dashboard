@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 
 import SetupSection, {
   money, compactCap, compactVol, fixedText, divYieldText, moveText, driftText,
+  pricedLine, recordLine,
 } from './SetupSection'
 import { countGoldHighlights } from '../../research-kit/testing/restraint'
 
@@ -417,7 +418,21 @@ describe('SetupSection — hero data wiring', () => {
   })
 
   it('renders the hero methodology info tip (§12)', () => {
+    // The tip's accessible name is `About ${heading}`, and the heading is
+    // DERIVED from coverage: while the implied store is cold the hero draws
+    // realized moves against tonight's band, so it is named for what it draws.
+    // This fixture is cold (MIN_PAIRED is 3).
     renderSetup()
+    expect(screen.getByRole('button', { name: /about move after each print/i })).toBeTruthy()
+  })
+
+  it('names the hero for the comparison once the store is warm enough to draw it', () => {
+    const history = [
+      { report_date: '2026-05-06', pct: 5.9 },
+      { report_date: '2026-02-05', pct: 7.2 },
+      { report_date: '2025-11-06', pct: 6.4 },
+    ]
+    renderSetup({ expectedMove: em({ history, history_since: '2025-11-06' }) })
     expect(screen.getByRole('button', { name: /about implied vs realized move/i })).toBeTruthy()
   })
 })
@@ -433,5 +448,125 @@ describe('SetupSection — estimates SWR key normalization', () => {
     const keys = mockUseSWR.mock.calls.map(([key]) => key)
     expect(keys).toContain('/api/research/estimates/NVDA')
     expect(keys).not.toContain('/api/research/estimates/ nvda ')
+  })
+})
+
+// ─── The canvas LEAD: two derived sentences, no model call ────────────────────
+// Both are pure functions of values already on this screen, which is the whole
+// argument for them: a generated sentence would need a cost guard, a cache, a
+// refusal path and a groundedness check to say something the payload already
+// knows. Prose about the company stays in the Brief tab, where it can be
+// checked against its sources.
+describe('pricedLine', () => {
+  it('states the priced move and the horizon the payload gave it', () => {
+    expect(pricedLine({ pct: 6.8, horizon: 'through 2026-08-07' }))
+      .toBe('Options price a ±6.8% move through 2026-08-07.')
+  })
+
+  it('builds the horizon from a bare expiry when no horizon string was sent', () => {
+    expect(pricedLine({ pct: 6.8, expiry: '2026-08-07' }))
+      .toBe('Options price a ±6.8% move through 2026-08-07.')
+  })
+
+  it('omits the horizon clause rather than inventing one', () => {
+    expect(pricedLine({ pct: 6.8 })).toBe('Options price a ±6.8% move.')
+  })
+
+  it('renders a genuine 0% move, and nothing at all for a missing one', () => {
+    expect(pricedLine({ pct: 0 })).toBe('Options price a ±0.0% move.')
+    expect(pricedLine({ pct: null })).toBeNull()
+    expect(pricedLine(null)).toBeNull()
+  })
+
+  it('never prints a negative implied move — a magnitude has no sign', () => {
+    expect(pricedLine({ pct: -6.8 })).toBe('Options price a ±6.8% move.')
+  })
+})
+
+describe('recordLine', () => {
+  // `reported: false` marks the CURRENT quarter; accrued history rows leave the
+  // flag off entirely, so the filter tests `!== false`, never `=== true`.
+  const past = (...pcts) => pcts.map((p) => ({ reaction_pct: p }))
+
+  it('counts only the quarters that cleared tonight’s implied move', () => {
+    expect(recordLine('NVDA', past(8.2, -4.1, 5.5), { pct: 6.8 }))
+      .toBe('NVDA has moved more than that after 1 of its last 3 prints.')
+  })
+
+  it('counts a DOWN move of sufficient size — the comparison is a magnitude', () => {
+    expect(recordLine('NVDA', past(-9.9, 1.0), { pct: 6.8 }))
+      .toBe('NVDA has moved more than that after 1 of its last 2 prints.')
+  })
+
+  it('says the zero case in plain words rather than "0 of its last 8"', () => {
+    expect(recordLine('NVDA', past(1.1, -2.2, 3.3), { pct: 6.8 }))
+      .toBe('NVDA has not moved that much after any of its last 3 prints.')
+  })
+
+  it('excludes the unreported current quarter from the denominator', () => {
+    const quarters = [...past(8.2, -4.1), { reaction_pct: null, reported: false }]
+    expect(recordLine('NVDA', quarters, { pct: 6.8 })).toMatch(/last 2 prints/)
+  })
+
+  it('does NOT filter on `reported === true` — accrued rows carry no flag', () => {
+    // The trap this pins: `q.reported === true` would drop every history row
+    // and report "0 of its last 0 prints" on every symbol in the product.
+    expect(recordLine('NVDA', [{ reaction_pct: 8.2 }], { pct: 6.8 }))
+      .toMatch(/1 of its last 1 print\./)
+  })
+
+  it('says nothing when there is no history, and nothing when nothing is priced', () => {
+    expect(recordLine('NVDA', [], { pct: 6.8 })).toBeNull()
+    expect(recordLine('NVDA', past(8.2), { pct: null })).toBeNull()
+  })
+})
+
+describe('SetupSection — the lead renders, and only when it can', () => {
+  it('opens on the priced sentence', () => {
+    renderSetup()
+    expect(screen.getByTestId('setup-lead').textContent)
+      .toMatch(/^Options price a ±6\.8% move through 2026-08-07\./)
+  })
+
+  it('omits the lead entirely when there is no live move to speak for', () => {
+    renderSetup({ expectedMove: em({ live: null }) })
+    expect(screen.queryByTestId('setup-lead')).toBeNull()
+  })
+
+  it('keeps the canvas inside the one-gold-highlight budget WITH the lead', () => {
+    const { container } = renderSetup()
+    expect(countGoldHighlights(container)).toBeLessThanOrEqual(1)
+  })
+})
+
+// ─── ONE price per modal ──────────────────────────────────────────────────────
+// Live-verified defect: the banner read $456.01 from useLivePrices while both
+// range markers read $459.88 from the expected-move payload's `spot` — a
+// different endpoint with a different vintage — and neither was labelled, so
+// three numbers on one screen claimed to be the current price.
+describe('SetupSection — the range markers follow the shell’s live price', () => {
+  it('prefers the shell’s quote over the expected-move payload’s spot', () => {
+    renderSetup({ livePrice: { price: 190.0, change_pct: 1.2 } })
+    const be = screen.getByTestId('setup-breakeven')
+    expect(be.textContent).toMatch(/Now \$190\.00/)
+    expect(be.textContent).not.toMatch(/Now \$184\.00/)
+  })
+
+  it('falls back to spot for a symbol the live pool has no quote for', () => {
+    renderSetup({ livePrice: null })
+    expect(screen.getByTestId('setup-breakeven').textContent).toMatch(/Now \$184\.00/)
+  })
+
+  it('labels the marker — an unlabelled number beside two others says nothing', () => {
+    renderSetup()
+    expect(screen.getByTestId('setup-52w').textContent).toMatch(/Now \$/)
+  })
+
+  it('a genuine $0 live price is used, never treated as absent', () => {
+    // Number(0) is falsy, so `livePrice?.price || spot` would silently show
+    // $184.00 for a symbol actually quoted at zero. This is the phantom-zero
+    // trap that has landed seven times on this branch, in its `||` form.
+    renderSetup({ livePrice: { price: 0 } })
+    expect(screen.getByTestId('setup-breakeven').textContent).toMatch(/Now \$0\.00/)
   })
 })

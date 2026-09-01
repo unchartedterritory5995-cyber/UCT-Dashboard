@@ -388,6 +388,35 @@ def _collect_watchlist_and_tag_tickers() -> set:
     return out
 
 
+def _partition_reference_universe(rows, *, instant_enabled: bool):
+    """Split Massive's stock-market reference feed into (etfs, instant_syms).
+
+    - `etfs`: every active ETF-typed symbol — ALWAYS collected (the unconditional
+      full-ETF D/W/M warm, instant-charts Phase 3).
+    - `instant_syms`: the full active STOCK+ETF universe (~26k) for the shallow
+      D/W/M "instant every symbol" warm — EMPTY unless `instant_enabled`, so the
+      feature is fully dark when the flag is off. Index rows (`I:`-prefixed) are
+      excluded from both (indices warm via `index_bars`, not this feed).
+
+    Pure + side-effect-free so the type-partition logic is testable without the
+    monolithic prewarm loop. Mirrors the search index's reference source, so the
+    instant set == the searchable stock/ETF set.
+    """
+    from api import ticker_types as _tt
+    etfs: set[str] = set()
+    instant: set[str] = set()
+    for r in rows:
+        s = (r.get("ticker") or "").strip().upper()
+        if not s or s.startswith("I:"):
+            continue
+        typ = _tt.normalize_type((r.get("type") or ""), "stocks")
+        if typ == "ETF":
+            etfs.add(s)
+        if instant_enabled and typ in ("STOCK", "ETF"):
+            instant.add(s)
+    return etfs, instant
+
+
 def run_prewarmer_forever():
     """Entry point: blocks forever, refreshing the cache every 5 minutes.
 
@@ -483,23 +512,31 @@ def run_prewarmer_forever():
     # leveraged/inverse) into the D/W/M set so ANY ETF's first server fetch is a
     # bars.db hit. Intraday stays scoped to the active set (long-tail ETF intraday
     # is on-demand, like the equity long tail). Best-effort; the ref feed is 24h-cached.
+    # `_instant_syms` (INSTANT EVERY SYMBOL): the full active stock+ETF universe
+    # (~26k) staged for a SHALLOW **D/W/M-only** warm so ANY symbol's first server
+    # fetch — even a small-cap outside cap_universe — is a bars.db hit, not a
+    # 15-22s cold Massive call. Collected here (same reference feed as the ETF warm
+    # + the search index) but warmed as a SEPARATE boot-only pass below (`_dwm_extra`
+    # → `_instant_boot`), NOT folded into `tickers`, so intraday warming stays bound
+    # to the active set (no 26k intraday blow-up) and the every-5-min refresh loop is
+    # untouched. Gated OFF by default; flip INSTANT_UNIVERSE_ENABLED=1 on the worker.
+    _instant_syms: set[str] = set()
     try:
         from api.services import massive as _massive
-        from api import ticker_types as _tt
-        _etfs = set()
-        for _r in _massive.list_reference_tickers(active=True, market="stocks"):
-            _s = (_r.get("ticker") or "").strip().upper()
-            if not _s or _s.startswith("I:"):
-                continue
-            if _tt.normalize_type((_r.get("type") or ""), "stocks") == "ETF":
-                _etfs.add(_s)
+        _instant_all = os.environ.get("INSTANT_UNIVERSE_ENABLED", "0") == "1"
+        _etfs, _instant_syms = _partition_reference_universe(
+            _massive.list_reference_tickers(active=True, market="stocks"),
+            instant_enabled=_instant_all)
         if _etfs:
             _new_etfs = _etfs - tickers
             tickers.update(_etfs)
             print(f"[prewarm] Loaded {len(_etfs)} active ETFs from Massive reference "
                   f"for D/W/M warm ({len(_new_etfs)} beyond cap_universe)")
+        if _instant_syms:
+            print(f"[prewarm] INSTANT UNIVERSE on: {len(_instant_syms)} active stock+ETF "
+                  f"symbols staged for shallow D/W/M warm (intraday unchanged)")
     except Exception as e:
-        print(f"[prewarm] ETF universe fetch failed (non-fatal): {e}")
+        print(f"[prewarm] ETF/instant universe fetch failed (non-fatal): {e}")
     try:
         taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "themes_taxonomy.json")
         if os.path.exists(taxonomy_path):
@@ -555,6 +592,18 @@ def run_prewarmer_forever():
     _active |= priority_set | fast_path_set
     rest = sorted(tickers - priority_set - fast_path_set)
     ticker_list = _PRIORITY + _FAST_PATH + rest
+    # INSTANT EVERY SYMBOL: the shallow D/W/M warm for the reference long-tail
+    # (stock+ETF symbols beyond the intraday-scoped `ticker_list`). `_dwm_extra` is
+    # warmed BOOT-ONLY (below) — NOT folded into the every-5-min refresh `jobs`.
+    # Why boot-only: during market hours `_scan_stale` marks every daily "stale"
+    # (a daily bar keeps drifting), so putting ~22k long-tail dailies in the refresh
+    # loop would triple the sustained market-hours fetch rate for symbols nobody is
+    # viewing. Warming the 5000-bar history ONCE is enough for an instant first
+    # paint; when a user later opens a long-tail chart whose daily has since gone
+    # stale, `_get_bars_inner`'s `_is_cold_stale_daily` path heals it with a fast
+    # synchronous delta at view time (the actively-viewed hot-set still refreshes
+    # every cycle). Empty when the flag is off — zero change to the refresh loop.
+    _dwm_extra = sorted(_instant_syms - set(ticker_list)) if _instant_syms else []
     # The ACTIVE intraday list = priority + breadth drill lists + wire/
     # watchlist/tag/theme tickers (everything EXCEPT the cap_universe-only
     # long tail). This is what gets proactive 5-TF intraday warming.
@@ -659,11 +708,24 @@ def run_prewarmer_forever():
         enabled=(_IS_WORKER and os.environ.get("PREWARM_5M_UNIVERSE", "0") == "1"),
         bars=int(os.environ.get("PREWARM_5M_SHALLOW_BARS", "780")),
     )
-    boot_jobs = jobs + _shallow_5m
+    # INSTANT EVERY SYMBOL: boot-only D/W/M for the reference long-tail (worker
+    # only; see `_dwm_extra` rationale above). Coldest symbols warmed once so any
+    # search resolves to a bars.db hit; NEVER added to the refresh `jobs`.
+    _instant_boot = []
+    if _IS_WORKER and _dwm_extra:
+        for _sym in _dwm_extra:
+            _instant_boot.append((_sym, 'D', 5000))
+            _instant_boot.append((_sym, 'W', 5000))
+            _instant_boot.append((_sym, 'M', 5000))
+    boot_jobs = jobs + _shallow_5m + _instant_boot
     if _shallow_5m:
         print(f"[prewarm] Phase-2 universe 5m: +{len(_shallow_5m)} shallow boot-only "
               f"jobs ({os.environ.get('PREWARM_5M_SHALLOW_BARS', '780')} bars each; "
               f"refresh loop breadth unchanged)")
+    if _instant_boot:
+        print(f"[prewarm] INSTANT UNIVERSE: +{len(_instant_boot)} boot-only D/W/M jobs "
+              f"for {len(_dwm_extra)} long-tail symbols (refresh loop unchanged; "
+              f"daily freshness healed on-demand at view)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
     # ⛔ BEFORE the executor exists. `ex.map(...)` is evaluated as an ARGUMENT and
     # ThreadPoolExecutor.map submits every job immediately, so workers are already

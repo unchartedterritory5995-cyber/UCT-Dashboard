@@ -1,58 +1,260 @@
-.backdrop { position: fixed; inset: 0; z-index: var(--z-modal, 1000); display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 6, .66); backdrop-filter: blur(3px); padding: 16px; }
-.modal { position: relative; width: min(960px, 100vw - 32px); max-height: min(88vh, 860px); display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--glass-border-accent); border-radius: var(--radius-xl); box-shadow: var(--shadow-popover); overflow: hidden; }
-/* Offsets, NOT top:50% -- `.close` is absolute against `.modal`, so a
-   percentage centres it in the whole dialog rather than in the banner.
-   Overlap with the stepper is prevented by the `.banner.banner` rule
-   below, which reserves this button's corner, not by moving the button. */
-.close { position: absolute; top: 6px; right: var(--space-sm); z-index: 2; display: flex; align-items: center; justify-content: center; min-width: var(--tap-min); min-height: var(--tap-min); border-radius: var(--radius-md); background: none; border: 0; color: var(--text-muted); font-size: 20px; line-height: 1; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
-.close:hover { color: var(--text-bright); }
-.close:focus-visible { outline: var(--focus-ring); }
-.panes { display: grid; grid-template-columns: 196px 1fr; flex: 1; min-height: 0; }
-.rail { border-right: 1px solid var(--glass-border-neutral); background: var(--glass-chrome); }
-.banner.banner { padding-right: calc(var(--tap-min) + var(--space-sm)); }
-.canvas { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-xl); }
-.canvas:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
-/* Ask AI only — a CHAT, not a document (see the data-section note in the JSX).
-   The canvas already ends up with a bounded height once the modal reaches its
-   max-height cap (measured: 452px at a 700px viewport rising to 700px at 1080),
-   but `overflow-y: auto` + an auto-height child means a long answer GROWS the
-   panel and scrolls the canvas instead — measured at 1288px of panel inside a
-   672px canvas, putting the ask bar 633px below the fold, with the widget's own
-   scrolling body never engaging. Making the canvas a flex column hands that
-   bound to the panel, so the chat body scrolls inside itself and the ask bar
-   stays put.
+/* app/src/components/research/EarningsResearchModal.module.css
+ *
+ * ⭐ THIS MODAL WEARS THE APP'S CHROME, NOT A PRIVATE ONE.
+ *
+ * It used to be the only surface in the product built on the research kit's
+ * `--glass-*` palette: `rgba(34, 37, 30, .55)` olive-tinted translucent
+ * surfaces behind a GOLD `rgba(201, 168, 76, .42)` border. Every other dialog
+ * in this app — ChartSettingsModal, ChartThemesModal, IndicatorSettingsDialog,
+ * IndicatorLibraryDialog, both context menus, the earnings-marker popover —
+ * wears `--menu-*`: neutral #0e0e10 behind a hairline rgba(255,255,255,.09).
+ * The mismatch is not a matter of taste; it is why this panel read as if it
+ * came from a different product. Those tokens are theme-invariant on purpose
+ * (see tokens.css: "a menu is app chrome"), which is the exact property a modal
+ * that opens over a themeable calendar needs.
+ *
+ * The kit components inside — IdentityBanner, QuoteStrip — are SHARED with
+ * /research/:sym, which still wants glass. They are re-skinned from HERE, by
+ * class override, so the research page is untouched. The doubled selectors
+ * (`.banner.banner`) are deliberate: a CSS-module class handed to a child via
+ * `className` lands in the same specificity bucket as the child's own class,
+ * so source order would otherwise decide the winner. */
 
-   ⚠️ This bounds the DESKTOP/TABLET panes only, and that is deliberate. On the
-   phone the chain breaks above here — `.phoneBody` is `flex: 0 1 auto` inside
-   Sheet's own scroll container — so the panel keeps growing and the SHEET
-   scrolls, exactly like every other section. Don't "fix" that: a fixed-height
-   internal scroller inside a scrolling sheet is a nested scroll trap on touch,
-   and the ask bar simply follows the answer, which is the ordinary mobile chat
-   shape. Verified by scrolling the real sheet, not by reading this. */
-.canvas[data-section="ai"] { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
-.footer { background: var(--glass-chrome); }
-.footerInner { display: flex; gap: var(--space-sm); align-items: center; min-width: 0; }
-.btnChart, .btnReport { min-height: var(--tap-min); border-radius: var(--radius-md); border: 1px solid var(--glass-border-neutral); background: var(--glass-surface); color: var(--text-bright); font-size: var(--text-sm); padding: 0 var(--space-md); cursor: pointer; }
-.btnReport { margin-left: auto; border-color: var(--glass-border-accent); }
-.btnChart:focus-visible, .btnReport:focus-visible, .stepBtn:focus-visible { outline: var(--focus-ring); }
-.stepBtn { min-width: var(--tap-min); min-height: var(--tap-min); background: none; border: 0; color: var(--text-muted); cursor: pointer; }
-.stepBtn[disabled] { opacity: .35; cursor: default; }
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal, 1000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* No backdrop-filter. A full-viewport blur layer is recomposited on every
+     paint behind it — including the calendar's own 15s live-price ticks — for
+     an effect that is invisible under a .72 dim. The chart dialogs use no
+     backdrop treatment at all; this keeps the dim (the calendar underneath is
+     dense and would compete) and drops the cost. */
+  background: rgba(4, 5, 6, .72);
+  padding: var(--space-lg);
+  animation: ermFade var(--duration-fast) var(--ease-out);
+}
+
+.modal {
+  position: relative;
+  width: min(960px, 100vw - 32px);
+  /* ⭐ FIXED, not max-height. The panel used to be sized `max-height:
+     min(88vh, 860px)`, so its height followed whatever section was open — it
+     visibly grew and shrank under the cursor as you moved between tabs, which
+     is most of what "clunky" meant mechanically. Every chart dialog in this app
+     pins its height and scrolls its body instead (ChartSettingsModal: "so the
+     modal doesn't resize between tabs"). Same rule here.
+     Still viewport-aware — it must not exceed a short window — but never
+     CONTENT-aware, which is the property that matters. */
+  height: min(720px, 88vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg);
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-xl);
+  box-shadow:
+    0 24px 70px var(--menu-shadow),
+    0 0 0 1px rgba(0, 0, 0, .5),
+    var(--glass-inner-glow);
+  overflow: hidden;
+  animation: ermPop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes ermFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ermPop {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Offsets, NOT top:50% — `.close` is absolute against `.modal`, so a
+   percentage centres it in the whole dialog rather than in the banner.
+   Overlap with the stepper is prevented by `.banner.banner` reserving this
+   button's corner, not by moving the button. */
+.close {
+  position: absolute;
+  top: 6px;
+  right: var(--space-sm);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  border-radius: var(--radius-md);
+  background: none;
+  border: 0;
+  color: var(--menu-text-faint);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.close:hover { color: var(--menu-text); background: var(--menu-hover); }
+.close:focus-visible { outline: var(--focus-ring); }
+
+/* ── Band 1: identity ─────────────────────────────────────────────────────
+   Re-skinned from glass to menu chrome. The gradient is the chart dialogs'
+   own header treatment (--menu-bg-top -> --menu-bg), which is what makes the
+   header read as a distinct surface without a second border line. */
+.banner.banner {
+  padding: var(--space-md) calc(var(--tap-min) + var(--space-sm)) var(--space-sm) var(--space-lg);
+  border-bottom: 0;
+  background: linear-gradient(180deg, var(--menu-bg-top) 0%, var(--menu-bg) 100%);
+}
+
+/* ── Band 2: session line + the chart action ─────────────────────────────
+   The 44px pinned footer that used to hold "View Chart" is gone; the button
+   sits here, next to the numbers it is about. */
+.subhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 0 var(--space-lg) var(--space-sm);
+  background: linear-gradient(180deg, var(--menu-bg-top) 0%, var(--menu-bg) 100%);
+}
+/* The strip carried its own inset and bottom border when it was a standalone
+   band; inside this row the parent owns both.
+   ⛔ Targeted by the strip's OWN attribute, never by `:first-child`. QuoteStrip
+   returns null for a symbol with no quote payload (a bond fund, a cold cache),
+   and a positional selector would then land on the button instead and zero its
+   padding. Specificity (0,2,0) also clears the strip's own `.strip` class
+   without needing source order to break the tie. */
+.subhead > [data-testid="quote-strip"] {
+  padding: 0;
+  border-bottom: 0;
+  min-width: 0;
+}
+
+.btnChart {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--menu-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--menu-text-dim);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.btnChart:hover { color: var(--menu-text); border-color: var(--menu-accent); }
+.btnChart:focus-visible, .stepBtn:focus-visible { outline: var(--focus-ring); }
+
+/* ── Band 3: the canvas ─────────────────────────────────────────────────── */
+.canvas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  /* The fixed panel height means this is the ONE element that scrolls, so it
+     is the one that needs a scrollbar that does not fight the chrome. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--menu-border) transparent;
+}
+.canvas:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+
+/* Ask AI only — a CHAT, not a document. The canvas is bounded by the panel's
+   fixed height, but `overflow-y: auto` + an auto-height child means a long
+   answer GROWS the panel and scrolls the canvas instead — measured at 1288px
+   of panel inside a 672px canvas, putting the ask bar 633px below the fold with
+   the widget's own scrolling body never engaging. Making the canvas a flex
+   column hands that bound to the panel, so the chat body scrolls inside itself
+   and the ask bar stays put.
+
+   ⚠️ DESKTOP/TABLET ONLY, deliberately. On the phone the chain breaks above
+   here — `.phoneBody` is `flex: 0 1 auto` inside Sheet's own scroll container —
+   so the panel keeps growing and the SHEET scrolls, like every other section.
+   Don't "fix" that: a fixed-height internal scroller inside a scrolling sheet
+   is a nested scroll trap on touch, and the ask bar simply follows the answer,
+   which is the ordinary mobile chat shape. Verified by scrolling the real
+   sheet, not by reading this. */
+.canvas[data-section="ai"] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+/* ── Band 4: the standing line ──────────────────────────────────────────── */
+.footer {
+  flex: 0 0 auto;
+  padding: 6px var(--space-lg);
+  border-top: 1px solid var(--menu-divider);
+  background: var(--menu-bg);
+}
+.notAdvice {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-snug);
+  color: var(--menu-text-faint);
+  text-align: right;
+}
+
+.stepBtn {
+  min-width: 26px;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: none;
+  border: 0;
+  color: var(--menu-text-faint);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.stepBtn:hover:not([disabled]) { color: var(--menu-text); background: var(--menu-hover); }
+.stepBtn[disabled] { opacity: .3; cursor: default; }
 .stepPrevIcon { transform: rotate(180deg); }
-.notAdvice { margin: 0 0 0 auto; padding: 0; font-size: var(--text-sm); color: var(--text-muted); text-align: right; }
+
 .sheet { max-height: 92vh; }
 .phoneBody { display: flex; flex-direction: column; min-height: 0; }
 
-/* TABLET: two-pane survives at a narrower rail. */
-@media (min-width: 641px) and (max-width: 1024px) { .panes { grid-template-columns: 152px 1fr; } .canvas { padding: var(--space-md); } }
-
-/* PHONE: the rail becomes a horizontal chip row with an edge-fade overflow
-   affordance; the canvas takes the full width. SectionRail's own module
-   already flips its axis at this breakpoint — only the grid changes here. */
-@media (max-width: 640px) {
-  .panes { display: flex; flex-direction: column; }
-  .rail { border-right: 0; border-bottom: 1px solid var(--glass-border-neutral); overflow-x: auto; -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); }
-  .canvas { padding: var(--space-md); }
-  .notAdvice { flex-basis: 100%; margin-left: 0; text-align: left; }
+/* TABLET */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .canvas { padding: var(--space-md) var(--space-lg); }
+  .banner.banner { padding-left: var(--space-md); }
+  .subhead { padding-left: var(--space-md); padding-right: var(--space-md); }
 }
 
-@media (prefers-reduced-motion: reduce) { .modal, .backdrop { transition: none; animation: none; } }
+/* PHONE — the Sheet owns the panel, so the fixed height above does not apply.
+   The tab rows flip to scrolling chip rows in SectionTabs' own module. */
+@media (max-width: 640px) {
+  .canvas { padding: var(--space-md); }
+  .banner.banner { padding-left: var(--space-md); padding-right: calc(var(--tap-min) + var(--space-xs)); }
+  .subhead {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+  .btnChart { min-height: var(--tap-min); }
+  .footer { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
+  .notAdvice { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal, .backdrop { animation: none; }
+  .close, .btnChart, .stepBtn { transition: none; }
+}

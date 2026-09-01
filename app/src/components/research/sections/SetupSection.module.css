@@ -11,12 +11,48 @@
    deliberately retired. */
 .block { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
 
+/* THE LEAD SENTENCE. The largest type on the canvas and the only thing above
+   the hero — everything below it is evidence for it. Measured against the
+   modal's own scale rather than given a private size: --text-lg (14px) is the
+   step above the body copy this canvas already uses (--text-md), which is the
+   smallest step that reads as a lead rather than as another caption.
+   Capped near 62 characters so it stays one or two lines at 908px of canvas
+   instead of running the full width as a single grey band. */
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--text-lg);
+  line-height: var(--lh-snug);
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+}
+
 .breakeven { display: flex; flex-direction: column; gap: var(--space-sm); }
 /* --text-xs is 10px. "Priced +/-12.9% through 2026-09-04" is a SENTENCE, not a
    label, and 10px is below where this modal's body copy is readable. */
 .horizon { font-size: var(--text-sm); color: var(--text-muted); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--space-md); }
-.drift { font-size: var(--text-sm); color: var(--text); }
+.drift {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--glass-border-neutral);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+/* The eyebrow idiom (§3.2), inline — this is one labelled reading, not a block
+   with a heading, so it borrows the vocabulary without the EyebrowLabel's own
+   block layout. */
+.driftKey {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 /* §3.1 gold budget: the hero's RICH/CHEAP chip is the one gold element on this
    canvas, so the "no expected move, and here is why" line is deliberately
    muted — it is a disclosure, not a highlight. Muted, not microscopic: it is
