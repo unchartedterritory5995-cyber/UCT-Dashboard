@@ -16,6 +16,8 @@ import { EmptyState } from '../../research-kit'
 import { SkeletonBlock } from '../../Skeleton'
 import { fmtDate, fmtMove } from '../../../utils/feedFormat'
 import { FETCH_FAILED, GENERATING_POLL_MS, paidFetcher } from './paidFetcher'
+import SectionLead from '../SectionLead'
+import { catalystsLead } from '../sectionLeads'
 import styles from './CatalystsSection.module.css'
 
 const SOURCE_ICON = { catalyst: 'bolt', earnings: 'calendar', breaking: 'bell' }
@@ -62,6 +64,12 @@ export default function CatalystsSection({ sym }) {
 
   return (
     <div className={styles.wrap} data-testid="catalysts-section">
+      {/* Above the filter bar on purpose: the bar is a control, and a control
+          is not what the reader came for. The feed is reverse-chronological,
+          so the BIGGEST mover sits wherever it falls in time — usually below
+          the fold. The lead is the only place it is guaranteed to be seen.
+          Derived from `events`, the same array the list renders. */}
+      <SectionLead testId="catalysts-lead">{catalystsLead(sym, events)}</SectionLead>
       <div className={styles.bar} role="group" aria-label="Catalyst direction">
         {FILTERS.map((f) => (
           <button

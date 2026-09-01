@@ -12,12 +12,23 @@
 import EstimatesTab from '../../../pages/research/tabs/EstimatesTab'
 import RatingsTab from '../../../pages/research/tabs/RatingsTab'
 import OwnershipTab from '../../../pages/research/tabs/OwnershipTab'
+import useRatings from '../../../pages/research/hooks/useRatings'
+import SectionLead from '../SectionLead'
+import { streetLead } from '../sectionLeads'
 import styles from './AnalystsSection.module.css'
 
 export default function AnalystsSection({ sym }) {
+  // ⛔ THE SAME SWR KEY `RatingsTab` ALREADY USES, deliberately — `useRatings`
+  // is a thin useMobileSWR wrapper, so reading it here costs no second request
+  // and the lead can never describe a different payload than the panel under
+  // it renders. Do not "optimise" this into a prop drilled through RatingsTab;
+  // the shared cache IS the mechanism.
+  const { data: ratings } = useRatings(sym)
+
   if (!sym) return null
   return (
     <div className={styles.streetSection}>
+      <SectionLead testId="street-lead">{streetLead(sym, ratings)}</SectionLead>
       <RatingsTab sym={sym} />
       <div className={styles.grid}>
         <EstimatesTab sym={sym} />

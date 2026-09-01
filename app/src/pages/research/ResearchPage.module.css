@@ -88,7 +88,18 @@
 /* ratings tab */
 .compHero { display: flex; align-items: center; gap: 16px; }
 .compNum { font-size: 46px; font-weight: 900; line-height: 1; }
-.ratingGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 14px; }
+/* `--rating-cols` lets a CONSUMER choose the track count without this file
+   knowing who is asking. It defaults to `auto-fill`, so /research is
+   byte-identical to before: at its full page width auto-fill takes all seven
+   sub-scores in ONE row, which is the best answer there and must not change.
+   The earnings modal has a narrower canvas where auto-fill lands on five and
+   strands the last two beside three dead tracks, so it sets 4 and gets 4+3.
+   ⛔ A `@container` query was the obvious alternative and was REJECTED:
+   `container-type` implies `contain: layout`, which makes the element a
+   containing block for absolutely/fixed-positioned descendants — every info
+   tip and popover inside that canvas. A cosmetic row split is not worth that
+   blast radius. A custom property has none. */
+.ratingGrid { display: grid; grid-template-columns: repeat(var(--rating-cols, auto-fill), minmax(140px, 1fr)); gap: 8px; margin-top: 14px; }
 .ratingCard { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
 .ratingLbl { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .ratingVal { font-size: 24px; font-weight: 800; line-height: 1.2; }

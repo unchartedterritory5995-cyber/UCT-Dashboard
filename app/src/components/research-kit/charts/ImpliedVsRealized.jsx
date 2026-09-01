@@ -28,6 +28,8 @@ const PAD_BOTTOM = 16
  *  relationship), so shortening the bars is the honest way to buy label room —
  *  it changes how tall a bar is drawn, never what it means. */
 const LABEL_ROOM = 11
+/** The box height when there is nothing to plot but tonight's implied mark. */
+const COMPACT_HEIGHT = 86
 /** §4.3.1a: below this many recorded implied quarters the paired form is a lie. */
 const MIN_PAIRED = 3
 /** The store keeps 8 quarters (implied_store.get_implied_history limit=8). */
@@ -216,7 +218,7 @@ export function impliedVerdict(pairs, live) {
  */
 export function pairGeometry(
   pairs,
-  { width = VIEWBOX.width, height = VIEWBOX.height, bandPct = null } = {},
+  { width = VIEWBOX.width, height = VIEWBOX.height, bandPct = null, labelRoom = LABEL_ROOM } = {},
 ) {
   const list = pairs || []
   const mags = []
@@ -234,8 +236,8 @@ export function pairGeometry(
   const scaleMax = (peak > 0 ? peak : 1) * 1.15
 
   const plotH = height - PAD_TOP - PAD_BOTTOM
-  const halfH = Math.max(1, plotH / 2 - LABEL_ROOM)
-  const baselineY = PAD_TOP + LABEL_ROOM + halfH
+  const halfH = Math.max(1, plotH / 2 - labelRoom)
+  const baselineY = PAD_TOP + labelRoom + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
   // The cap used to be 9 units, which was the RIGHT number when the viewBox was
@@ -353,7 +355,16 @@ export default function ImpliedVsRealized({
   // Drawing it needs at least one thing to compare.
   const hasRealized = plotted.some((p) => p.realizedPct != null)
   const livePct = hasRealized ? livePctRaw : null
-  const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height, bandPct: livePct })
+  // ⛔ A COMPACT BOX WHEN THERE ARE NO BARS. With no realized history the plot
+  // held one hollow NOW mark in 132px of ruled space and read as a chart that
+  // had failed to load — seen in a browser on two of three local names. The
+  // value labels are what LABEL_ROOM reserves height for, and there are no
+  // values to label here, so that reservation goes too.
+  const compact = !hasRealized
+  const boxH = compact ? COMPACT_HEIGHT : VIEWBOX.height
+  const geo = pairGeometry(plotted, {
+    width: vbWidth, height: boxH, bandPct: livePct, labelRoom: compact ? 0 : LABEL_ROOM,
+  })
   // Thin the axis on a narrow chart rather than shrinking the type below the
   // smallest token — see labelStep's docblock.
   const step = labelStep(geo.width / Math.max(geo.cols.length, 1))
@@ -383,9 +394,9 @@ export default function ImpliedVsRealized({
       <svg
         ref={wrapRef}
         className={styles.svg}
-        viewBox={`0 0 ${vbWidth} ${VIEWBOX.height}`}
+        viewBox={`0 0 ${vbWidth} ${boxH}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ height }}
+        style={{ height: compact ? boxH : height }}
         role="img"
         aria-label={built}
         data-testid="rk-ivr"
