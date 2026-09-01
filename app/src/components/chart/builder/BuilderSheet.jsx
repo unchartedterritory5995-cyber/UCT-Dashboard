@@ -117,9 +117,6 @@ import EvidenceTab from './EvidenceTab'
 import SharePanel from './SharePanel'
 import styles from './BuilderSheet.module.css'
 
-const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
-  + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
  *  the authority (`lint.REPAINT_MODES`); this only cases it. Informational
  *  styling for the clean value, warning styling for the other two — a factual
@@ -1309,46 +1306,23 @@ export default function BuilderSheet({
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
-  // ⚠️ `Sheet` SHIPS NO TRAP. It focuses the panel on open, handles Escape,
-  // locks body scroll and restores focus on close — and nothing stops Tab
-  // walking out of the modal into the page behind it. (The plan and this task's
-  // brief both say otherwise; Task 5 measured it and so did this one.)
-  // `ContextPopover` ships neither a trap nor focus movement into its
-  // `role="menu"`, which is a separate finding and not this surface's.
+  // ⚰️ THERE IS NO TRAP HERE ANY MORE, AND THAT IS THE FIX. This sheet rolled
+  // its own because `Sheet` shipped none — the comment that used to sit here
+  // said so, and it was true when written. `Sheet` gained a real one on
+  // 2026-09-01, and this body renders INSIDE that panel, so the copy became a
+  // second authority over one behaviour: both fired (Sheet's on document in
+  // CAPTURE, this one on the element), computed nearly-but-not-quite the same
+  // ring, and agreed only by luck. The wrap now lives in exactly one place,
+  // `components/mobile/useFocusTrap.js`, which `Sheet` consumes.
   //
-  // ⛔ BOUND TO THE PANEL, NOT TO THIS SUBTREE. `Sheet`'s header — and its ×
-  // button, the FIRST focusable in the ring — is a SIBLING of the body this
-  // component renders into, so a React `onKeyDown` here would never see the
-  // Shift+Tab that leaks out of the modal from the very element the ring starts
-  // at. Measured on `IndicatorSettingsDialog`: the forward wrap passed and the
-  // backward one walked to `body`.
-  const trapTab = useCallback((e) => {
-    if (e.key !== 'Tab') return
-    const panel = rootRef.current?.closest('[role="dialog"]') || rootRef.current
-    if (!panel) return
-    const items = [...panel.querySelectorAll(FOCUSABLE)]
-    if (items.length < 2) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    const active = document.activeElement
-    // Focus on the PANEL itself is the normal state right after open (`Sheet`
-    // focuses it on an rAF) and it is not in `items` (tabindex="-1"). Tab from
-    // there must ENTER the ring, not walk out of the modal.
-    if (items.indexOf(active) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return }
-    if (e.shiftKey && active === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
-  }, [])
-
-  const trapRef = useRef(trapTab)
-  trapRef.current = trapTab
-  useEffect(() => {
-    if (!open) return undefined
-    const panel = rootRef.current?.closest('[role="dialog"]')
-    if (!panel) return undefined
-    const h = (e) => trapRef.current(e)
-    panel.addEventListener('keydown', h)
-    return () => panel.removeEventListener('keydown', h)
-  }, [open])
+  // ⛔ STILL TRUE, AND WHY THE TRAP CANNOT LIVE IN THIS SUBTREE AT ALL:
+  // `Sheet`'s header — and its × button, the FIRST focusable in the ring — is
+  // a SIBLING of the body this component renders into, so a React `onKeyDown`
+  // here would never see the Shift+Tab that leaks out of the modal from the
+  // very element the ring starts at. Measured on `IndicatorSettingsDialog`:
+  // the forward wrap passed and the backward one walked to `body`.
+  // `ContextPopover` ships neither a trap nor focus movement into its
+  // `role="menu"` — a separate finding, still open, and not this surface's.
 
   /** Spec §6 state 4's "copy diagnostic" — the GUARD's name and the door's own
    *  sentence, so a support message names the gate rather than describing the

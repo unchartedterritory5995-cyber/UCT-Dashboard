@@ -514,27 +514,43 @@ describe('keyboard + stepping', () => {
   // integration test stubs `offsetParent` so the real visibility filter runs
   // and actually asserts WHERE focus lands, not just that it stayed put.
   it('wraps focus: Tab on the last focusable moves to the first, Shift+Tab on the first moves to the last', () => {
-    const offsetParentSpy = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get')
-      .mockReturnValue(document.body)
-    try {
-      renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
-      const dlg = screen.getByRole('dialog')
-      const targets = resolveTrapTargets(dlg, document.activeElement)
-      // Sanity: a real render has more than one focusable (close button,
-      // rail tabs, rail links, stepper chevrons, footer actions) — if this
-      // drops to 0-1 the wrap assertions below would pass vacuously again.
-      expect(targets.items.length).toBeGreaterThan(2)
+    // ⚰️ THIS USED TO STUB `HTMLElement.prototype.offsetParent`. It had to:
+    // the production filter was `offsetParent !== null`, which is ALWAYS null
+    // in jsdom, so without the stub the trap resolved nothing and did nothing
+    // — the test could only observe a wrap by faking away the very predicate
+    // that was broken. The predicate is gone (see `useFocusTrap`), so the stub
+    // is gone, and this case now watches the SHIPPED code path.
+    renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
+    const dlg = screen.getByRole('dialog')
+    const targets = resolveTrapTargets(dlg)
+    // Sanity: a real render has more than one focusable (close button,
+    // rail tabs, rail links, stepper chevrons, footer actions) — if this
+    // drops to 0-1 the wrap assertions below would pass vacuously again.
+    expect(targets.items.length).toBeGreaterThan(2)
 
-      targets.last.focus()
-      fireEvent.keyDown(dlg, { key: 'Tab' })
-      expect(document.activeElement).toBe(targets.first)
+    targets.last.focus()
+    // `fireEvent` returns false when a handler called `preventDefault` — the
+    // assertion that the trap INTERVENED, not merely that focus sat still.
+    expect(fireEvent.keyDown(dlg, { key: 'Tab' })).toBe(false)
+    expect(document.activeElement).toBe(targets.first)
 
-      targets.first.focus()
-      fireEvent.keyDown(dlg, { key: 'Tab', shiftKey: true })
-      expect(document.activeElement).toBe(targets.last)
-    } finally {
-      offsetParentSpy.mockRestore()
-    }
+    targets.first.focus()
+    expect(fireEvent.keyDown(dlg, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(document.activeElement).toBe(targets.last)
+  })
+
+  it('⭐ POSITIVE CONTROL: a MIDDLE control is left alone — the trap is a ring, not a cage', () => {
+    // Without this, a handler that swallowed EVERY Tab would pass the case
+    // above while making the whole modal impossible to walk through.
+    renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
+    const dlg = screen.getByRole('dialog')
+    const { items } = resolveTrapTargets(dlg)
+    const mid = items[1]
+    expect(mid).not.toBe(items[0])
+    expect(mid).not.toBe(items[items.length - 1])
+    mid.focus()
+    expect(fireEvent.keyDown(dlg, { key: 'Tab' })).toBe(true)
+    expect(document.activeElement).toBe(mid)
   })
 })
 
@@ -565,22 +581,42 @@ describe('resolveTrapTargets (pure)', () => {
     expect(resolveTrapTargets(container, null)).toBeNull()
   })
 
-  it('picks first/last from VISIBLE items only (offsetParent-gated)', () => {
+  it('picks first/last from every candidate in a plain container', () => {
+    // ⚰️ THE OLD VERSION OF THIS CASE WAS NAMED "(offsetParent-gated)" and
+    // stamped `offsetParent` onto two of four buttons to make them "visible".
+    // It asserted the broken predicate rather than the requirement, so it
+    // would have gone green against a trap that was inert in every real
+    // jsdom render — which is exactly what shipped.
     const { container, buttons } = makeButtons(4)
-    // Simulate real-browser layout: only buttons 0 and 3 are actually
-    // visible (offsetParent non-null); 1 and 2 stay at jsdom's null default.
-    Object.defineProperty(buttons[0], 'offsetParent', { value: document.body, configurable: true })
-    Object.defineProperty(buttons[3], 'offsetParent', { value: document.body, configurable: true })
-    const targets = resolveTrapTargets(container, null)
+    const targets = resolveTrapTargets(container)
+    expect(targets.items).toHaveLength(4)
     expect(targets.first).toBe(buttons[0])
     expect(targets.last).toBe(buttons[3])
   })
 
-  it('the currently-active element is eligible even with no offsetParent (jsdom fallback)', () => {
-    const { container, buttons } = makeButtons(2)
-    const targets = resolveTrapTargets(container, buttons[1])
-    expect(targets.first).toBe(buttons[1])
-    expect(targets.last).toBe(buttons[1])
+  it('skips EXPLICITLY hidden candidates — hidden, aria-hidden, display:none, visibility:hidden', () => {
+    // The replacement for the layout question, and the reason it can be asked
+    // at all without a layout engine: every one of these is readable from the
+    // DOM. A disabled control is already excluded by the selector itself.
+    const { container, buttons } = makeButtons(6)
+    buttons[0].setAttribute('hidden', '')
+    buttons[1].setAttribute('aria-hidden', 'true')
+    buttons[2].style.display = 'none'
+    buttons[5].style.visibility = 'hidden'
+    const targets = resolveTrapTargets(container)
+    expect(targets.items).toEqual([buttons[3], buttons[4]])
+    expect(targets.first).toBe(buttons[3])
+    expect(targets.last).toBe(buttons[4])
+  })
+
+  it('skips a candidate buried under an aria-hidden ANCESTOR', () => {
+    const { container, buttons } = makeButtons(3)
+    const shroud = document.createElement('div')
+    shroud.setAttribute('aria-hidden', 'true')
+    container.insertBefore(shroud, buttons[1])
+    shroud.appendChild(buttons[1])
+    const targets = resolveTrapTargets(container)
+    expect(targets.items).toEqual([buttons[0], buttons[2]])
   })
 })
 
@@ -747,25 +783,28 @@ describe('phone Sheet branch', () => {
     expect(within(dlg).getByTestId('erm-not-advice')).toBeTruthy()
   })
 
-  it('traps focus inside the sheet too', () => {
-    // The `onKeyDown` trap handler is on the shell's own inner panelRef div
-    // (`erm-phone-body`), a CHILD of Sheet's own role="dialog" panel — not on
-    // the dialog element itself. Firing Tab on the outer dialog (as the
-    // desktop version of this test does) would never reach it: React events
-    // bubble UP from where dispatched, not down into children.
-    const offsetParentSpy = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get')
-      .mockReturnValue(document.body)
-    try {
-      renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
-      const phoneBody = screen.getByTestId('erm-phone-body')
-      const targets = resolveTrapTargets(phoneBody, document.activeElement)
-      expect(targets.items.length).toBeGreaterThan(2)
-      targets.last.focus()
-      fireEvent.keyDown(phoneBody, { key: 'Tab' })
-      expect(document.activeElement).toBe(targets.first)
-    } finally {
-      offsetParentSpy.mockRestore()
-    }
+  it('traps focus inside the sheet too — and it is SHEET doing it, not a second copy here', () => {
+    // ⚰️ THIS FILE NO LONGER INSTALLS A TRAP ON THE PHONE BRANCH. It used to
+    // (an `onKeyDown` on `erm-phone-body`), from the era when `Sheet` shipped
+    // none. `Sheet` traps its own panel now, and this body is a CHILD of that
+    // panel, so a copy here was two authorities over one wrap. The wrap must
+    // still work — over the Sheet PANEL's ring, which includes anything Sheet
+    // itself renders — and mutating `trapTabKey` to a no-op turns this red,
+    // which is what proves Sheet is the one doing it.
+    //
+    // No `offsetParent` stub: the predicate that needed one is gone.
+    renderModal({ onStepPrev: vi.fn(), onStepNext: vi.fn() })
+    const dlg = screen.getByRole('dialog')
+    const targets = resolveTrapTargets(dlg)
+    expect(targets.items.length).toBeGreaterThan(2)
+
+    targets.last.focus()
+    fireEvent.keyDown(targets.last, { key: 'Tab' })
+    expect(document.activeElement).toBe(targets.first)
+
+    targets.first.focus()
+    fireEvent.keyDown(targets.first, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(targets.last)
   })
 })
 
