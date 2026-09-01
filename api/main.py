@@ -2225,6 +2225,21 @@ def register_discord_index_close_job(scheduler):
         _run,
         trigger=CronTrigger(day_of_week="mon-fri", hour=15, minute=45, timezone=_ET),
         id="discord_index_close", replace_existing=True, max_instances=1)
+    # ⭐ A SECOND PASS, BECAUSE A DEPLOY KILLS THE FIRST ONE SILENTLY. This pod
+    # redeploys many times a day and a restart takes in-flight background work with
+    # it: on 2026-08-31 a deploy landed 6 minutes before the 15:45 fire, and two
+    # dry runs that evening were killed mid-render by unrelated pushes. The job
+    # fails CLOSED, so that outcome is total silence on a daily member-facing post
+    # with nothing reporting it.
+    # Safe to re-fire because it is idempotent TWICE OVER: the marker records the
+    # session as soon as anything posts, and `_RUN_LOCK` in the service refuses a
+    # second run while the first is still going (the 15:45 run can hold the warm
+    # gate until ~15:50, so the two CAN overlap - 13 minutes of clearance plus the
+    # lock, not one or the other).
+    scheduler.add_job(
+        _run,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=15, minute=58, timezone=_ET),
+        id="discord_index_close_retry", replace_existing=True, max_instances=1)
     return True
 
 

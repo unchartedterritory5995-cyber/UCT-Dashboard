@@ -23,6 +23,7 @@ import logging
 import os
 import pathlib
 import tempfile
+import threading
 import time
 
 log = logging.getLogger(__name__)
@@ -79,6 +80,16 @@ CHART_TF = "D"                      # "post daily charts"
 # A mover has to actually have moved. Below this the "two notable ETFs" are just
 # the two least-flat ones, which is a claim the post should not make.
 MIN_NOTABLE_PCT = 0.75
+
+
+# ⛔ ONE RUN AT A TIME, ACROSS EVERY CALLER. The 15:45 job, the 15:58 retry and
+# the manual trigger all land here, and the marker that stops a double-post is only
+# written AFTER a post succeeds - so two runs that overlap both read "not posted
+# yet" and both post to a PUBLIC channel. The window is real and wide: the warm
+# gate can hold a run for 5 minutes before it renders anything. A lock in the
+# service is the one place that covers all three callers; a guard in the router
+# would protect the manual path only, which is the path least likely to race.
+_RUN_LOCK = threading.Lock()
 
 
 def enabled() -> bool:
@@ -391,6 +402,22 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
     now = now_et or _dt.datetime.now(_dt.timezone.utc).astimezone(_ET)
     day = now.strftime("%Y-%m-%d")
     report = {"day": day, "posted": 0, "dry_run": dry_run, "symbols": [], "notable": []}
+    if not _RUN_LOCK.acquire(blocking=False):
+        report["skipped"] = "a run is already in flight"
+        return report
+    try:
+        return _run_close_post_locked(report, now, day, bars_fn=bars_fn, house_fn=house_fn,
+                                      stats_fn=stats_fn, name_fn=name_fn, options=options,
+                                      post_fn=post_fn, note_fn=note_fn, sleep_fn=sleep_fn,
+                                      force=force, dry_run=dry_run)
+    finally:
+        _RUN_LOCK.release()
+
+
+def _run_close_post_locked(report, now, day, *, bars_fn, house_fn, stats_fn, name_fn, options,
+                           post_fn, note_fn, sleep_fn, force, dry_run) -> dict:
+    """The body of `run_close_post`, holding `_RUN_LOCK`. Split out so the lock is
+    released on EVERY path, including the early skips."""
     if not force and not enabled():
         report["skipped"] = "not enabled"
         return report
