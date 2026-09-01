@@ -1,0 +1,54 @@
+{
+  "measured_at": "2026-09-01",
+  "sample_tickers": 417,
+  "trials": 3,
+  "null_seed": 20260830,
+  "step_bars": 20,
+  "structures": {
+    "climax-top": {
+      "real_fired": 910,
+      "real_anchors": 46084,
+      "noise_fired": 2888,
+      "noise_anchors": 138252,
+      "real_rate": 0.019747,
+      "noise_rate": 0.020889,
+      "ratio": 0.945
+    },
+    "darvas-box": {
+      "real_fired": 2908,
+      "real_anchors": 44000,
+      "noise_fired": 10535,
+      "noise_anchors": 132000,
+      "real_rate": 0.066091,
+      "noise_rate": 0.079811,
+      "ratio": 0.828
+    },
+    "ema-crossback": {
+      "real_fired": 2328,
+      "real_anchors": 44000,
+      "noise_fired": 7659,
+      "noise_anchors": 132000,
+      "real_rate": 0.052909,
+      "noise_rate": 0.058023,
+      "ratio": 0.912
+    },
+    "parabolic-extension": {
+      "real_fired": 246,
+      "real_anchors": 48169,
+      "noise_fired": 533,
+      "noise_anchors": 144507,
+      "real_rate": 0.005107,
+      "noise_rate": 0.003688,
+      "ratio": 1.385
+    },
+    "stage-4-breakdown": {
+      "real_fired": 4049,
+      "real_anchors": 44000,
+      "noise_fired": 13537,
+      "noise_anchors": 132000,
+      "real_rate": 0.092023,
+      "noise_rate": 0.102553,
+      "ratio": 0.897
+    }
+  }
+}

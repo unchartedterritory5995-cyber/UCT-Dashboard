@@ -309,3 +309,64 @@ def test_the_switch_is_still_a_single_keyword_so_the_trap_stays_live():
     assert "log_space: bool = False" in src, (
         "the default changed. Every convergence detector just switched space "
         "without a single call site being edited — verify blockers 1-4 first.")
+
+
+# ─── the table above is an ARTIFACT, not prose ─────────────────────────────
+
+IMPACT = ROOT / "docs/logspace_impact.json"
+
+
+def _impact():
+    import json
+    return json.loads(IMPACT.read_text(encoding="utf-8"))
+
+
+def test_the_measurement_behind_the_table_is_reproducible():
+    """⛔⛔ A RAIL DEMANDING A RE-MEASUREMENT NOBODY CAN RUN IS AN INSTRUCTION
+    TO GUESS. Every blocker below says "re-derive the switch decision" — that
+    needs both the artifact and the harness that made it, in the repo.
+    """
+    assert IMPACT.exists(), (
+        "docs/logspace_impact.json is gone; the table in this file's docstring "
+        "now has no provenance")
+    tool = ROOT / "tools/measure_logspace_impact.py"
+    assert tool.exists(), (
+        "tools/measure_logspace_impact.py is gone — the table cannot be "
+        "re-derived, so every 're-derive the decision' instruction here is "
+        "an instruction to guess")
+
+
+def test_the_docstring_table_still_matches_the_artifact():
+    """⭐ DERIVED, NOT RETYPED. A hand-typed measurement beside the artifact
+    that owns it is the defect this repo has shipped more than any other. The
+    numbers quoted in the module docstring are re-read from the JSON here, so
+    a re-measurement that moves them fails rather than leaving prose behind."""
+    blob = _impact()
+    doc = __doc__ or ""
+    assert f"{blob['total_raw']}" in doc and f"{blob['total_log']}" in doc, (
+        f"the docstring quotes totals that are not the artifact's "
+        f"({blob['total_raw']} -> {blob['total_log']}). Re-measure with "
+        f"tools/measure_logspace_impact.py and update the table.")
+    for pid, m in blob["patterns"].items():
+        assert str(m["raw_hits"]) in doc and str(m["log_hits"]) in doc, (
+            f"{pid}'s hit counts ({m['raw_hits']} / {m['log_hits']}) are not "
+            f"in the docstring table — it describes a different measurement")
+
+
+def test_the_artifact_covers_exactly_the_detectors_this_file_judges():
+    """⛔ NON-VACUITY. An artifact measuring a different set would let the two
+    agree while describing different things."""
+    blob = _impact()
+    assert set(blob["patterns"]) == set(_CONVERGENCE), (
+        f"the artifact measures {sorted(blob['patterns'])} but this file "
+        f"judges {sorted(_CONVERGENCE)}")
+
+
+def test_log_space_still_ADDS_detections_which_is_the_surprising_half():
+    """⭐ THE CLAIM THAT REVERSED MY HYPOTHESIS, pinned. If a re-measurement
+    ever shows log space REMOVING detections, the docstring's central argument
+    is wrong and must be rewritten, not quietly inherited."""
+    blob = _impact()
+    assert blob["total_log"] > blob["total_raw"], (
+        f"log space now removes detections ({blob['total_raw']} -> "
+        f"{blob['total_log']}). This file argues the opposite at length.")

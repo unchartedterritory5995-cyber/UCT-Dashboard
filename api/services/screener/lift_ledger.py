@@ -107,66 +107,85 @@ BOOTSTRAP_TRIALS = 400
 NULL_BLOCK_BARS = 21
 
 
-def outcome(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
-            target: float = TARGET_PCT, stop: float = STOP_PCT,
-            direction: str = "long") -> Optional[bool]:
-    """Did the target come before the stop, starting from bar `i`?
+def outcome_detail(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
+                   target: float = TARGET_PCT, stop: float = STOP_PCT,
+                   direction: str = "long"):
+    """WHICH of three things happened, and the return when neither did.
 
-    `True` target-first · `False` stop-first or neither · `None` not evaluable
-    (no room left in the series, or an unusable anchor bar).
+    Returns `("target"|"stop"|"unresolved", realised_return)` in the trade's own
+    direction, or `None` when the anchor is not evaluable.
 
-    ⚠️ `False` deliberately merges stop-first with neither-resolved. The
-    question a member asks is "did this work", and an unresolved trade did not.
-    Splitting them is a different, also-valid metric; mixing the two
-    definitions between the conditional and the baseline would not be.
+    ⭐⭐ THIS IS THE ONE AUTHORITY AND `outcome()` IS DERIVED FROM IT. The
+    binary metric merges "stopped out" with "never resolved", which is the right
+    answer to "did this work" and the WRONG input to an expectancy: a trade that
+    drifted to +1% and a trade that hit -8% are both `False`, so treating the
+    loss rate as an 8% loss overstates the downside. Grimes and Brandt
+    independently say the win rate is the wrong headline number; computing the
+    right one needs the third state, and computing BOTH from one walk is what
+    stops them disagreeing.
 
-    ⭐⭐ `direction` MAKES "LIFT" MEAN THE SAME THING FOR EVERY STRUCTURE. The
-    metric was a LONG outcome applied to all of them regardless of bias, and
-    that made a bearish structure's number read backwards: `stage-4-breakdown`
-    published +7.30pp, which under a long metric says price resolved UPWARD
-    more often after a breakdown than baseline -- an oversold-bounce reading,
-    and the exact opposite of what a reader seeing "Stage 4 Breakdown: +7.30pp"
-    would assume. A number that requires a footnote to avoid being read as its
-    own negation is not a number worth publishing.
-
-    With `direction="short"` the same test runs mirrored: the target is a FALL
-    of `target`, the stop a RISE of `stop`. A positive lift then means the same
-    thing on both sides -- the structure resolved in ITS OWN direction more
-    often than its pattern-free baseline did.
-
-    ⛔ The baseline is measured with the SAME direction as the conditional
-    half; comparing a short-side rate against a long-side baseline would be
-    the definition mixing this docstring already warns about, one level up.
+    ⛔ THE UNRESOLVED RETURN IS MARKED TO THE HORIZON'S CLOSE, not carried
+    forward. The horizon IS the holding period; extending it for the trades that
+    have not resolved would measure a different, longer strategy for exactly the
+    subset that needed more time, which flatters it.
     """
     if i < 0 or i + horizon >= len(bars):
         return None
     entry = bars[i].get("c") or 0
     if entry <= 0:
         return None
-    if direction == "short":
+    short = direction == "short"
+    if short:
         hit, miss = entry * (1 - target), entry * (1 + stop)
-        for j in range(i + 1, i + 1 + horizon):
-            b = bars[j]
-            lo, hi = b.get("l") or 0, b.get("h") or 0
-            if lo <= 0 or hi <= 0:
-                continue
-            if hi >= miss:
-                return False
-            if lo <= hit:
-                return True
-        return False
+    else:
+        hit, miss = entry * (1 + target), entry * (1 - stop)
 
-    up, dn = entry * (1 + target), entry * (1 - stop)
     for j in range(i + 1, i + 1 + horizon):
         b = bars[j]
         lo, hi = b.get("l") or 0, b.get("h") or 0
         if lo <= 0 or hi <= 0:
             continue
-        if lo <= dn:
-            return False
-        if hi >= up:
-            return True
-    return False
+        # ⛔ THE STOP IS CHECKED FIRST, in both directions. A bar whose range
+        # spans both levels cannot be resolved from daily data, and crediting the
+        # target would be a look-ahead that only ever helps.
+        if (hi >= miss) if short else (lo <= miss):
+            return ("stop", -stop)
+        if (lo <= hit) if short else (hi >= hit):
+            return ("target", target)
+
+    last = bars[i + horizon].get("c") or 0
+    if last <= 0:
+        return ("unresolved", 0.0)
+    r = (last - entry) / entry
+    return ("unresolved", -r if short else r)
+
+
+def outcome(bars: List[dict], i: int, horizon: int = HORIZON_BARS,
+            target: float = TARGET_PCT, stop: float = STOP_PCT,
+            direction: str = "long") -> Optional[bool]:
+    """Did the target come before the stop, starting from bar `i`?
+
+    `True` target-first · `False` stop-first or neither · `None` not evaluable.
+
+    ⚠️ `False` deliberately merges stop-first with neither-resolved. The
+    question a member asks is "did this work", and an unresolved trade did not.
+    Splitting them is a different, also-valid metric -- see `outcome_detail`,
+    which this is now DERIVED from so the two can never drift apart.
+
+    ⭐⭐ `direction` MAKES "LIFT" MEAN THE SAME THING FOR EVERY STRUCTURE. The
+    metric was a LONG outcome applied to all of them regardless of bias, and
+    that made a bearish structure's number read backwards: `stage-4-breakdown`
+    published +7.30pp, which under a long metric says price resolved UPWARD more
+    often after a breakdown -- an oversold-bounce reading, and the exact opposite
+    of what a reader seeing "Stage 4 Breakdown: +7.30pp" would assume.
+
+    With `direction="short"` the same test runs mirrored: the target is a FALL
+    of `target`, the stop a RISE of `stop`. A positive lift then means the same
+    thing on both sides.
+    """
+    d = outcome_detail(bars, i, horizon=horizon, target=target, stop=stop,
+                       direction=direction)
+    return None if d is None else d[0] == "target"
 
 
 def _year_of(t) -> str:
@@ -635,11 +654,13 @@ def readjudicate(row: dict, deff: Optional[float]) -> dict:
     """Re-run the gates over a STORED row, adding the clustering correction."""
     result = {k: row.get(k) for k in
               ("lift", "ci_low", "ci_high", "n", "rate", "baseline", "years")}
-    return adjudicate(result, synthetic_nulls(row), deff=deff)
+    return adjudicate(result, synthetic_nulls(row), deff=deff,
+                      expectancy_r=row.get("expectancy_r"))
 
 
 def adjudicate(result: dict, nulls: List[float],
-               deff: Optional[float] = None) -> dict:
+               deff: Optional[float] = None,
+               expectancy_r: Optional[float] = None) -> dict:
     """Apply the gates. A failure emits NO lift key.
 
     ⛔⛔ GATES 1 AND 2 TEST THE CLUSTERED BOUND, NOT THE BOOTSTRAP'S.
@@ -700,6 +721,40 @@ def adjudicate(result: dict, nulls: List[float],
             f"the measured lift {lift:+.4f} is not positive: the structure "
             f"resolved no better than its own pattern-free baseline, so there "
             f"is no edge to publish (the result is kept as a finding)")
+
+    # ⛔⛔ GATE 5: THE STRUCTURE MUST MAKE MONEY ON THE METRIC IT IS GRADED
+    # WITH. Lift is a difference of WIN RATES against a pattern-free baseline,
+    # and Grimes and Brandt independently call the win rate the wrong headline
+    # number -- the corpus records that as their strongest point of agreement.
+    # They are right, and it FIRED: `stage-4-breakdown` cleared every other gate
+    # with a +3.30pp lift and an expectancy of -0.099R, and `climax-top` at
+    # -0.036R. Both beat their baseline's win rate and both LOSE MONEY on the
+    # 10%/8%/20-bar bracket this ledger grades on, gross of all costs.
+    #
+    # ⭐ THIS IS GATE 0'S OWN ARGUMENT ONE LEVEL UP. That gate exists because a
+    # structure underperforming its baseline "is not a lift to put in front of a
+    # member". A structure that beats its baseline and still loses money is the
+    # same harm reached by a different route: a member reading "+3.30pp" shorts
+    # it and loses.
+    #
+    # ⚠️ THE BRACKET IS OURS, and that is stated rather than hidden.
+    # TARGET_PCT/STOP_PCT/HORIZON_BARS are origin: uct, and a structure negative
+    # here could be positive on a different one. But this is the bracket the
+    # lift is measured on, so publishing a lift from a bracket the structure
+    # loses money on is incoherent -- the two numbers would describe different
+    # strategies.
+    if expectancy_r is None:
+        reasons.append(
+            "the expectancy of this structure has not been measured, so its "
+            "lift cannot be shown to correspond to a profitable trade on the "
+            "bracket it was measured with (`tools/measure_expectancy.py`)")
+    elif expectancy_r <= 0:
+        reasons.append(
+            f"the measured expectancy is {expectancy_r:+.3f}R per trade: the "
+            f"structure beats its pattern-free baseline's WIN RATE and still "
+            f"loses money on the {TARGET_PCT:.0%}/{STOP_PCT:.0%} bracket over "
+            f"{HORIZON_BARS} bars, gross of costs. A lift is not an edge if "
+            f"taking it loses")
 
     if nulls and len(nulls) < ESCALATED_NULL_TRIALS:
         reasons.append(
@@ -846,11 +901,11 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
         # again on the next pass. Deriving it at the one surface that
         # renders it makes double-application impossible rather than
         # merely unlikely.
-        deff = entry.get("cluster_deff")
-        if not isinstance(deff, (int, float)) or entry.get("lift") is None:
+        deff = gate_deff(entry)
+        if deff is None or entry.get("lift") is None:
             return entry
         lo, hi = clustered_bounds(entry["lift"], entry["ci_low"],
-                                  entry["ci_high"], float(deff))
+                                  entry["ci_high"], deff)
         out = dict(entry)
         out["ci_low"], out["ci_high"] = round(lo, 4), round(hi, 4)
         out["ci_basis"] = "clustered"
@@ -868,6 +923,32 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
             "measured": entry.get("lift") is not None}
 
 
+def gate_deff(entry: dict) -> Optional[float]:
+    """The design effect a GATE should widen by: rho's UPPER bound, not its point.
+
+    ⛔⛔ THE INCONSISTENCY THIS CLOSES WAS MINE. Gate 2 in this module
+    already refuses to compare a POINT estimate to the null -- it reads the CI's
+    lower bound, on the reasoning that the pessimistic end is the honest one.
+    Gate 4 then corrected for clustering using the POINT estimate of rho, which
+    understates the variance half the time. Exactly the same mistake, one level
+    up, written by the same hand a few hours later.
+
+    ⭐ IT CHANGED NO VERDICT, and that is the finding rather than a reason to
+    skip it: measured 2026-09-01, every published row clears its null on rho's
+    upper bound too, and both refused rows stay refused. The library is robust to
+    the estimate; the gate is now principled regardless.
+
+    Falls back to the point estimate for a row measured before rho carried an
+    interval -- a weaker bar, but a recorded one, and better than refusing a row
+    for the absence of a field its measurement predates.
+    """
+    for field in ("cluster_deff_conservative", "cluster_deff"):
+        v = entry.get(field)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return None
+
+
 def stored_deff(key: str, path: str = None) -> Optional[float]:
     """The measured same-date design effect for one structure, or None.
 
@@ -878,9 +959,7 @@ def stored_deff(key: str, path: str = None) -> Optional[float]:
     the value already in the artifact remains the right input until the
     clustering itself is re-measured.
     """
-    entry = (load(path).get("structures") or {}).get(key) or {}
-    d = entry.get("cluster_deff")
-    return float(d) if isinstance(d, (int, float)) else None
+    return gate_deff((load(path).get("structures") or {}).get(key) or {})
 
 
 #: How long a measurement may stand before it must be re-taken. origin: uct —

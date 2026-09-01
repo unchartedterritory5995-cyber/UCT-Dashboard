@@ -169,7 +169,28 @@ def _load_shipped_registry() -> set:
             for a in n.names:
                 importlib.import_module(n.module + "." + a.name)
     from api.services.pattern_engine.detectors import registry
-    return set(registry.list_pattern_ids())
+    # ⛔⛔ THE REGISTRY IS A PROCESS-GLOBAL DICT AND OTHER TESTS WRITE TO IT.
+    # This read `list_pattern_ids()` raw and passed alone, then failed in the
+    # FULL suite with `fake_pattern`, `another_fake`, `filter_test_a/b` and
+    # `all_test_1` in the set -- fakes registered by other test modules that had
+    # already run in the same process. Green alone, red in company: the shape
+    # this repo has a lesson for, shipped by the file that measures two engines
+    # for disagreeing.
+    #
+    # ⭐ FILTERED BY PROVENANCE, NOT BY NAME. A blocklist of known fakes
+    # would go stale the day someone adds another. Every SHIPPED detector is
+    # registered from a module under `pattern_engine.detectors`; a test fake is
+    # registered from the test module that made it, so `fn.__module__` separates
+    # them by construction and the guarantee -- "a registered id no file
+    # declares means the AST walk is reading the wrong thing" -- survives intact.
+    shipped = "api.services.pattern_engine.detectors"
+    out = set()
+    for pid in registry.list_pattern_ids():
+        fn = registry.get_detector(pid)
+        mod = getattr(fn, "__module__", "") or ""
+        if mod.startswith(shipped):
+            out.add(pid)
+    return out
 
 
 def _declared_pattern_ids() -> set:
@@ -776,3 +797,97 @@ def test_both_engines_still_answer_every_shared_name():
             f"screener has stopped answering this name")
         assert engine_id in registered
         assert callable(registry.get_detector(engine_id))
+
+
+# ─── the synonym finder: a SEVENTH pair must not wait to be noticed ─────────
+
+#: Words that carry no identity in a pattern name. `cup-with-handle` and
+#: `cup_handle` are one concept spelled two ways, and the ONLY difference is a
+#: preposition. origin: uct — derived from the two engines' own vocabularies,
+#: not from English: every token here appears in a name on one side and is
+#: absent from its counterpart on the other.
+_FILLER = frozenset({"with", "the", "a", "an", "and", "of", "to", "in", "on"})
+
+
+def _tokens(name: str) -> frozenset:
+    return frozenset(t for t in _norm(name).split("_") if t and t not in _FILLER)
+
+
+def derive_synonym_candidates() -> dict:
+    """{base key: engine id} for names that are ONE CONCEPT, TWO SPELLINGS.
+
+    ⛔⛔ DERIVED, NEVER TYPED. `MEASURED_NEAR_MISS` records the cup pair
+    because a human noticed it. A hand-listed set of synonyms goes stale the
+    day someone adds one — which is precisely the day this rail needs to fire,
+    and precisely the failure mode that let two engines answer `cup` under two
+    spellings for as long as they have.
+
+    The test is TOKEN-SET EQUALITY after dropping fillers, which is what
+    "one concept, two spellings" actually means: `cup-with-handle` -> {cup,
+    handle} and `cup_handle` -> {cup, handle}. It deliberately does NOT do
+    fuzzy string distance — `flat-base` and `flag-base` are one edit apart and
+    are different patterns, so an edit-distance rule would manufacture pairs
+    that do not exist.
+    """
+    engine_ids = _load_shipped_registry()
+    by_tokens = {}
+    for i in engine_ids:
+        by_tokens.setdefault(_tokens(i), []).append(i)
+    exact = _exact_key_overlap()
+    out = {}
+    for st in bc.ALL_STRUCTURES:
+        if st.key in exact:
+            continue                       # already an exact-key overlap
+        hit = by_tokens.get(_tokens(st.key))
+        if hit:
+            out[st.key] = sorted(hit)[0]
+    return out
+
+
+def test_the_synonym_finder_recovers_the_pair_a_human_found():
+    """⛔ NON-VACUITY, AND THE ONE THAT MATTERS. A deriver that returns nothing
+    would make the rail below pass forever. It must independently rediscover
+    the cup pair that was found by reading."""
+    found = derive_synonym_candidates()
+    for base_key, engine_id in MEASURED_NEAR_MISS.items():
+        assert found.get(base_key) == engine_id, (
+            f"the deriver no longer finds {base_key!r} -> {engine_id!r}; it "
+            f"returned {found.get(base_key)!r}. It cannot be trusted to find a "
+            f"pair nobody has noticed yet.")
+
+
+def test_the_finder_does_not_manufacture_pairs():
+    """⛔ THE OTHER HALF OF THE CONTROL. A rule loose enough to catch every
+    synonym also catches things that merely rhyme, and a sweep that flags
+    thirteen when two are real gets switched off."""
+    found = derive_synonym_candidates()
+    # `advancing-structure` is a catalog-only SHAPE with no engine counterpart
+    assert "advancing-structure" not in found, (
+        f"the finder paired a catalog-only structure with an engine detector: "
+        f"{found.get('advancing-structure')!r}")
+    # and every pair it DOES return must be two real, shipped names
+    keys = {st.key for st in bc.ALL_STRUCTURES}
+    registered = _load_shipped_registry()
+    for base_key, engine_id in found.items():
+        assert base_key in keys and engine_id in registered, (
+            f"the finder invented {base_key!r} -> {engine_id!r}")
+
+
+def test_no_UNRECORDED_synonym_pair_has_appeared():
+    """⭐⭐ THE RAIL ITSELF. A seventh shared concept — under any spelling —
+    fails here on the day it lands, instead of waiting for someone to read two
+    vocabularies side by side and notice.
+
+    ⛔ AND IT POINTS BOTH WAYS: a recorded pair that stops being a synonym (one
+    side renamed to match, or either side deleted) is caught by
+    `test_the_near_miss_pair_is_still_two_spellings_of_one_concept` above, so
+    the record cannot outlive the collision either.
+    """
+    unrecorded = {k: v for k, v in derive_synonym_candidates().items()
+                  if MEASURED_NEAR_MISS.get(k) != v}
+    assert not unrecorded, (
+        f"these are one concept under two spellings and are NOT measured: "
+        f"{unrecorded}. Two engines answering one member-facing name is the "
+        f"defect this file exists for — measure the pair with "
+        f"`tools/two_engine_agreement.py`, add it to MEASURED_NEAR_MISS and "
+        f"put its row in the docstring table.")
