@@ -134,9 +134,18 @@ const TF_ENGLISH = Object.freeze({
   60: 'hourly', 240: 'four-hour', D: 'daily', W: 'weekly', M: 'monthly',
 })
 
-/** The servable timeframes, in English, DERIVED from the engine's own list. */
-function servableTimeframesText() {
-  const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c)
+/** The servable timeframes, in English, DERIVED from the engine's own list.
+ *
+ *  ⛔ THE LIST IS A PARAMETER SO THE JOIN CAN BE TESTED AT N=3. It defaults to
+ *  `TF_RESAMPLABLE` and every caller uses the default — the argument exists
+ *  because `TF_RESAMPLABLE` holds exactly TWO entries today, and at two entries
+ *  a correct join and a naive `.join(' and ')` produce the SAME string. A rail
+ *  driven only by the real list therefore cannot tell them apart
+ *  (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`), which is how a
+ *  second copy of this helper sat at the `request.security` decline site reading
+ *  correctly by accident. Pass three names and the two disagree at once. */
+export function servableTimeframesText(codes = TF_RESAMPLABLE) {
+  const names = codes.map((c) => TF_ENGLISH[c] || c)
   if (names.length === 0) return 'no higher timeframe'
   if (names.length === 1) return names[0]
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
@@ -4126,7 +4135,15 @@ class Resolver {
       const raw = this.timeframeLiteralOf(tfNode)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       if (code && !TF_RESAMPLABLE.includes(code)) {
-        const names = TF_RESAMPLABLE.map((c) => TF_ENGLISH[c] || c).join(' and ')
+        // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
+        // was only ever correct by accident: `.join(' and ')` reads right for the
+        // TWO entries `TF_RESAMPLABLE` holds today and would say "daily and weekly
+        // and monthly" the moment a third lands — which is exactly when somebody
+        // is changing this area and least likely to re-read a sentence that has
+        // always looked fine. The helper sits five lines above the REFUSALS table,
+        // handles 0, 1 and N, and is already what the shared `pine:request`
+        // sentence uses (`lesson_a_second_authority_over_one_value`).
+        const names = servableTimeframesText()
         return {
           suggest: 'timeframe.period',
           why: `this engine resamples ${names} from the daily bars it holds, and `
