@@ -1165,8 +1165,18 @@ Then register it beside the other `scheduler.add_job` calls (follow the shape us
         _buzz_poll,
         trigger=_BuzzInterval(seconds=BUZZ_POLL_INTERVAL_S),
         id="buzz_poll", replace_existing=True, misfire_grace_time=60,
+        max_instances=1,
     )
 ```
+
+⛔ **`max_instances=1` is load-bearing, not decoration.** `buzz_store` caches ONE
+module-level connection, and `record_mentions` measures its insert count as a
+`total_changes` delta on that shared handle. Two overlapping poll runs would
+interleave on the same connection and corrupt each other's count. It is also the
+guard that keeps the poller the single sequential writer the store is designed
+around. The Task 1 reviewer flagged the unguarded delta; this is where it is
+actually solved — a lock inside the store would serialise the arithmetic but
+still allow two concurrent polls to double-fetch the same window.
 
 - [ ] **Step 6: Verify the job is registered**
 
