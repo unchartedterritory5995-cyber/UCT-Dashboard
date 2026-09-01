@@ -113,3 +113,8 @@
   color: var(--text-muted);
   line-height: 1.35;
 }
+
+/* Touch (wave 14): 44px like the rest of the orb cluster — see FloatingOrb. */
+@media (max-width: 1024px) {
+  .toggle { width: var(--tap-min); height: var(--tap-min); }
+}

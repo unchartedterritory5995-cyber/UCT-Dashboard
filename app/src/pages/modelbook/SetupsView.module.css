@@ -1266,3 +1266,11 @@
 @media (prefers-reduced-motion: reduce) {
   .rail, .stage, .detail { animation-duration: 0.001s; animation-delay: 0s; }
 }
+
+/* Touch (wave 14): the family pills audited 21px tall on phones. */
+@media (max-width: 1024px) {
+  .pill { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}
+@media (max-width: 1024px) {
+  .searchInput { min-height: var(--tap-min); font-size: 16px; }
+}

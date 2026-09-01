@@ -123,3 +123,10 @@
   .detailPanel { padding: 4px 0 24px; }
   .heading { font-size: 18px; letter-spacing: 3px; }
 }
+
+/* Touch (wave 14): family tabs audited 21px, the search input 38px (and
+   sub-16px inputs make iOS Safari zoom on focus). */
+@media (max-width: 1024px) {
+  .familyTab { min-height: var(--tap-min); }
+  .searchInput { min-height: var(--tap-min); font-size: 16px; }
+}

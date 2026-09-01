@@ -534,3 +534,8 @@
 
 .stop { color: var(--text-muted); }
 .noStop { color: var(--warning, #f5a623); opacity: 0.85; }
+
+/* Touch (wave 14): the manual-log fallback link audited 14px tall. */
+@media (max-width: 1024px) {
+  .ctaInline { display: inline-flex; align-items: center; min-height: var(--tap-min); }
+}
