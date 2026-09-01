@@ -134,10 +134,15 @@ def test_an_alias_that_is_an_ordinary_word_needs_the_proper_noun_form(text):
     ("$NET breaking out", "NET"),
     ("Cloudflare guidance", "NET"),
     ("Rocket Lab launch", "RKLB"),
+    ("novo up big today", "NVO"),
+    ("lilly reports tomorrow", "LLY"),
+    ("glp1 trade: novo and lilly both ripping", "NVO"),
 ])
 def test_the_gate_is_a_scalpel_real_mentions_still_count(text, want):
     """CONTROL for the test above. Without this, blocking every ambiguous alias
-    outright would also pass -- and would delete real mentions permanently."""
+    outright would also pass -- and would delete real mentions permanently.
+    novo and lilly are not ordinary English words, so they are never gated --
+    lowercase mentions count."""
     assert want in tickers(text)
 
 

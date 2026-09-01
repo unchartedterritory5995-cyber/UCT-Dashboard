@@ -52,7 +52,7 @@ INDEX_SYMBOLS = frozenset({"SPX", "NDX", "DJI", "RUT", "VIX", "DXY", "IXIC"})
 # justified by a false-positive fixture in tests/test_buzz_extract.py -- add one
 # only WITH its sentence, never on a hunch.
 AMBIGUOUS_ALIASES = frozenset({
-    "apple", "arm", "meta", "oracle", "affirm", "alphabet", "novo", "lilly", "nike",
+    "apple", "arm", "meta", "oracle", "affirm", "alphabet", "nike",
 })
 
 # Ordinary conversational English. Kept short on purpose: every entry must be a
