@@ -201,3 +201,40 @@ describe('wave 10 — enum chips + initialEditing', () => {
     expect(byId['rsi-a'].inputs.period).toBe(14)
   })
 })
+
+/* WAVE 11 — tap-to-type on the stepper. A stepper alone made period 20→200 a
+ * 180-tap trip; the value is now a button that opens an inline numeric input.
+ * Commit clamps to the declared range through the SAME write door; Escape
+ * abandons the draft and writes nothing. */
+describe('wave 11 — stepper tap-to-type', () => {
+  test('type a value, Enter — one clamped write through the write door', async () => {
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ indicatorInstances: [liveInstance('rsi')] })
+    await user.click(screen.getByRole('button', { name: 'Edit Relative Strength Index' }))
+    await user.click(screen.getByRole('button', { name: 'Type Period' }))
+    const box = screen.getByRole('spinbutton', { name: 'Period' })
+    await user.clear(box)
+    await user.type(box, '50{Enter}')
+    const next = onWrite.mock.calls.at(-1)[0]
+    const inst = next.indicatorInstances.find((i) => i.defId === 'rsi' && !isInstanceTombstone(i))
+    expect(inst.inputs.period).toBe(50)
+    // the input closes back to the tappable value
+    expect(screen.getByRole('button', { name: 'Type Period' })).toBeInTheDocument()
+  })
+
+  test('Escape abandons the draft — the editor closes, nothing written', async () => {
+    // The topmost Sheet answers Escape on a document listener no field can
+    // stop (Sheet.jsx's own design), so Escape while typing closes the editor
+    // sheet AND drops the draft. The load-bearing assertion is the write door
+    // staying silent; phones have no Escape key at all.
+    const user = userEvent.setup()
+    const onWrite = renderSheet({ indicatorInstances: [liveInstance('rsi')] })
+    await user.click(screen.getByRole('button', { name: 'Edit Relative Strength Index' }))
+    const before = onWrite.mock.calls.length
+    await user.click(screen.getByRole('button', { name: 'Type Period' }))
+    await user.type(screen.getByRole('spinbutton', { name: 'Period' }), '999')
+    await user.keyboard('{Escape}')
+    expect(onWrite.mock.calls.length).toBe(before)
+    expect(screen.queryByRole('spinbutton', { name: 'Period' })).toBeNull()
+  })
+})

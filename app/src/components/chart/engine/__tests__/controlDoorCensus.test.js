@@ -628,18 +628,6 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
-      ['app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
-       '⭐ NEW AT MOBILE WAVE 8 — indicator editing on a phone. A second USE of '
-       + 'door eight rather than a second writer, and it is here because the phone has no '
-       + 'legend chip and no settings dialog: `IndicatorSettingsDialog` is the DESKTOP '
-       + 'surface for changing the length on THIS copy, and on a phone that surface does '
-       + 'not exist, so the sheet must address the instance itself. `writeStudyInput` '
-       + 'resolves defId through `liveInstanceOf` FIRST and returns early when there is '
-       + 'no live instance, so it can never mint or address a copy that is not on the '
-       + 'chart — the same discipline the chip Duplicate row uses. ⛔ It goes through '
-       + 'door eight and not doors 1-7 for the founding reason of this census: every one '
-       + 'of those takes legacyInstanceId(defId) and therefore always means the FIRST '
-       + 'copy, so two RSIs on a phone would silently edit the wrong one'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +
@@ -680,12 +668,17 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'projects into exactly that id, so routing it away would leave the mirror stale ' +
        'beside a live instance that moved, for every user who has only one copy'],
       ['app/src/pages/charts/mobile/MobileIndicatorSheet.jsx',
-       '⭐ NEW AT MOBILE WAVE 10 — the phone param editor writes setInstanceInput, and a ' +
-       'LEGEND-CHIP tap seeds it with the tapped chip\'s instanceId (initialEditing), so ' +
-       'with two RSIs on the chart the tapped one is the one that edits. Its ' +
-       'editInstanceOf resolves that id (falling back to the first live instance for ' +
-       'name-taps from the sheet\'s own rows, which are one-per-definition like the ' +
-       'wave-8 quick six), and editTarget and the write door SHARE the resolver — ' +
+       '⭐ MOBILE WAVE 8, RE-SHAPED AT WAVE 10 — indicator editing on a phone (two ' +
+       'parallel sessions ledgered this file independently and a merge briefly carried ' +
+       'BOTH rows; the census failed on the duplicate exactly as designed, and this is ' +
+       'the merged row). It goes through door eight and not doors 1-7 for the founding ' +
+       'reason of this census: every one of those takes legacyInstanceId(defId) and ' +
+       'therefore always means the FIRST copy. Wave 10 made the addressing exact: a ' +
+       'LEGEND-CHIP tap seeds the editor with the tapped chip\'s instanceId ' +
+       '(initialEditing), and `editInstanceOf` resolves that id — falling back to the ' +
+       'first live instance for name-taps from the sheet\'s own one-per-definition rows ' +
+       '— returning early when nothing is live, so it can never mint or address a copy ' +
+       'that is not on the chart. editTarget and the write door SHARE the resolver: ' +
        'resolving them separately would show one instance while writing another, the ' +
        'exact defect this door exists to make sayable'],
     ]

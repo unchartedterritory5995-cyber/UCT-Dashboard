@@ -881,11 +881,33 @@
 .stepBtn:active { background: var(--bg-hover); }
 .stepVal {
   min-width: 46px;
+  min-height: 36px;
   text-align: center;
   font-family: var(--font-mono);
   font-size: 15px;
   color: var(--text-bright);
+  background: none;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Tap-to-type (wave 11): the stepper's value opens an inline numeric input —
+   period 20→200 was 180 taps without it. 16px or iOS zooms on focus. */
+.stepInput {
+  width: 72px;
+  min-height: 36px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--ut-gold);
+  border-radius: var(--radius-sm);
+}
+.stepInput:focus-visible { outline: none; }
 
 .segRow { display: flex; gap: 4px; }
 .segBtn {
