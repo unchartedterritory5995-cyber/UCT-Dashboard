@@ -67,7 +67,8 @@ const STRUCTURES = {
           source_id: 'darvas_1960', confidence: 'high', missing: null },
         { condition: 'Box duration', value: null, state: 'refused', quote: null,
           source_id: 'darvas_1960', confidence: 'high',
-          missing: 'Darvas publishes no minimum or maximum box length.' },
+          missing: 'Darvas publishes no minimum or maximum box length.',
+          missing_kind: 'source_silent' },
         { condition: 'Frame must be LIVE', value: 20, state: 'ours', quote: null,
           source_id: null, confidence: 'high', missing: null },
       ],
@@ -154,7 +155,7 @@ describe('🔴 the structure library reaches a member from /screener', () => {
     const user = userEvent.setup()
     renderScreenerPage()
     await user.click(await libraryButton())
-    expect(await screen.findByText(/The source did not publish this/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Published with no number we can use/i)).toBeInTheDocument()
     expect(screen.getByText(/no minimum or maximum box length/i)).toBeInTheDocument()
   })
 
