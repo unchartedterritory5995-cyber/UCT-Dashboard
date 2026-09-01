@@ -510,3 +510,17 @@
   }
   .fold[open] > summary::after { content: '\25BE'; }
 }
+
+/* TOUCH TIER (<=1024px) -- generated ------------------------------------------
+   These selectors are declared finger targets by the PHONE block(s)
+   in this file and nowhere else, so the TABLET tier (641-1024) -- which
+   breakpoints.css calls TOUCH -- sat under the 44px `--tap-min` floor.
+   Only the finger-target declarations are repeated here; the phone
+   LAYOUT (padding, font-size, flex, overflow) deliberately does not
+   travel. Rail: app/src/styles/tapFloor.test.js. */
+@media (max-width: 1024px) {
+  .fold > summary {
+    min-height: var(--tap-min, 44px);
+    align-items: center;
+  }
+}

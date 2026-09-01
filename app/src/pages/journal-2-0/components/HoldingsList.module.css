@@ -228,3 +228,16 @@ li:last-child > .row {
     transform: none;
   }
 }
+
+/* TOUCH TIER (<=1024px) -- generated ------------------------------------------
+   These selectors are declared finger targets by the PHONE block(s)
+   in this file and nowhere else, so the TABLET tier (641-1024) -- which
+   breakpoints.css calls TOUCH -- sat under the 44px `--tap-min` floor.
+   Only the finger-target declarations are repeated here; the phone
+   LAYOUT (padding, font-size, flex, overflow) deliberately does not
+   travel. Rail: app/src/styles/tapFloor.test.js. */
+@media (max-width: 1024px) {
+  .sortSelect {
+    min-height: var(--tap-min, 44px);
+  }
+}
