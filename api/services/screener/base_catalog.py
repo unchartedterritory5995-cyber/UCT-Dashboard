@@ -1626,6 +1626,9 @@ def _detect_cup_with_handle(ctx) -> bool:
     return cup.cup_with_handle_state(ctx.bars) is not None
 
 
+_ONEIL_SUMMARY = "stockbee_oneil_summary"   # third-party summary, not IBD
+
+
 CUP_WITH_HANDLE = Structure(
     key="cup-with-handle",
     label="Cup with Handle",
@@ -1771,7 +1774,14 @@ CUP_WITH_HANDLE = Structure(
                        "stock that fell and recovered."),
             value=cup.CUP_PRIOR_UPTREND,
             quote="first leg should be up at least 30%",
-            source_id=_IBD_HANDOUT, confidence="med",
+            # ⛔ THIS SENTENCE IS NOT IBD'S. The corpus attributes it to source
+            # 30, a third-party summary of O'Neil's book
+            # (`02-oneil-ibd-base-taxonomy.md:77`); the IBD handout's own wording
+            # is the DIFFERENT sentence "Prior uptrend of at least 30%". Filing a
+            # blog's paraphrase under the house's id is exactly the attribution
+            # error this library exists to prevent, and the catalog already
+            # carries the right id for it.
+            source_id=_ONEIL_SUMMARY, confidence="med",
         ),
         Criterion(
             condition=("Volume must EASE through the base and handle. A "
@@ -1963,7 +1973,13 @@ DOUBLE_BOTTOM = Structure(
                        "be the rule. We take the LOOSER so the gate refuses "
                        "only what both sources would refuse."),
             value=DBL_MAX_DEPTH,
-            quote="Max 30% ... 40% or less",
+            # ⛔ QUOTE ONE DOCUMENT'S WORDS. This read "Max 30% ... 40% or
+            # less", which splices source 26's handout and source 25's into a
+            # single quotation no one ever wrote. The conflict is real and stays
+            # disclosed in the condition above; the quote now carries only the
+            # sentence whose value we actually took (the looser), so a reader
+            # comparing our number to its source finds them agreeing.
+            quote="40% or less",
             source_id=_IBD_DBL, confidence="med",
         ),
         Criterion(
@@ -2024,7 +2040,6 @@ DOUBLE_BOTTOM = Structure(
 # edge -- otherwise the rule fires on any 40-day stretch inside a longer trend.
 
 _IBD_HTF = "ibd_high_tight_flag"
-_ONEIL_SUMMARY = "stockbee_oneil_summary"   # third-party summary, not IBD
 
 #: "The stock begins by climbing 100% to 120% in four to eight weeks."
 HTF_POLE_MIN_GAIN = 1.00
@@ -2226,7 +2241,17 @@ HIGH_TIGHT_FLAG = Structure(
 # from left to right" -- which is why it sits on the relation axis beside the
 # shapes rather than competing with them. A symbol can carry a cup AND a VCP.
 
-_MINERVINI = "minervini_ttlac"   # Mark Minervini, "Trade Like a Stock Market Wizard"
+# ⚰️ `_MINERVINI = "minervini_ttlac"` LIVED HERE AND WAS TWO DEFECTS AT ONCE.
+# (a) It SHADOWED the assignment ~1,550 lines above -- Python keeps the last,
+#     so structures built before this line got one id and those after got
+#     another, and the module worked only by accident of ordering. Same class
+#     as the `_sma` double definition that left pocket-pivot dead.
+# (b) Its comment named "Trade Like a Stock Market Wizard" (2013), a book
+#     `docs/superpowers/research/bases/03-minervini-vcp-powerplay.md:63`
+#     explicitly records as **NOT obtained**. Every quote filed under it is
+#     really from "Think & Trade Like a Champion" (2017) -- which is what the
+#     surviving `_MINERVINI` above already says. The words were always real;
+#     the work they were credited to was not the one they came from.
 
 #: "you will generally see a sequence of anywhere from two to six price
 #: contractions" -- the outer bound. "Typically ... two to four" is the typical

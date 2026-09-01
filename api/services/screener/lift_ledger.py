@@ -728,6 +728,64 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
 MAX_LEDGER_AGE_DAYS = 120
 
 
+def row_measured_at(key: str, path: str = None):
+    """When THIS row was measured -- not when the file was last written.
+
+    ⭐@@STAR@ WHY THIS EXISTS. `measured_at()` reads ONE header field, and
+    `tools/run_lift_ledger.py` rewrites it on every run including a `--only`
+    re-measure of a single structure. So measuring one row stamped today's date
+    on all of them, and `is_stale()` reported the whole ledger fresh while rows
+    measured weeks earlier sat untouched. That is precisely the defect already
+    fixed for `sample` -- whose rail says in its own words "The size is a
+    property of the row" -- left standing for its twin, the date.
+
+    ⛔ THE FALLBACK IS EXPLICIT, NEVER SILENT. Rows written before the
+    runner started stamping dates have none. Returning the header date for them
+    would rebuild the very lie this function exists to end, so the caller is
+    told the value was INHERITED and can decide what to do about it.
+
+    Returns `(date_or_None, inherited: bool)`.
+    """
+    data = load(path)
+    row = (data.get("structures") or {}).get(key) or {}
+    own = row.get("measured_at")
+    if own:
+        return _parse_day(own), False
+    return _parse_day(data.get("measured_at")), True
+
+
+def stale_rows(max_age_days: int = None, path: str = None, today=None):
+    """Every row whose OWN measurement is older than the bound.
+
+    ⛔ A row with no date of its own is reported as UNKNOWN rather than
+    assumed fresh -- absence of evidence is not evidence of freshness, and this
+    artifact's numbers are shown to paying members.
+    """
+    import datetime as _dt
+    max_age_days = MAX_LEDGER_AGE_DAYS if max_age_days is None else max_age_days
+    today = today or _dt.date.today()
+    out = {"stale": [], "unknown": [], "fresh": []}
+    for key in (load(path).get("structures") or {}):
+        when, inherited = row_measured_at(key, path)
+        if when is None or inherited:
+            out["unknown"].append(key)
+        elif (today - when).days > max_age_days:
+            out["stale"].append(key)
+        else:
+            out["fresh"].append(key)
+    return out
+
+
+def _parse_day(raw):
+    import datetime as _dt
+    if not raw:
+        return None
+    try:
+        return _dt.date.fromisoformat(str(raw)[:10])
+    except ValueError:
+        return None
+
+
 def measured_at(path: str = None):
     """The artifact's own date, or None if it does not record one."""
     import datetime as _dt
