@@ -43,17 +43,23 @@ test('renders skeleton (no crash) when no data', () => {
 // controls, not an inert-but-honest default. CatalystFlow now owns real
 // local `section` state (still no route hook — brief's reasoning about the
 // two live Dashboard instances is unaffected).
-test('the section rail is NOT inert — clicking a tab actually switches sections', () => {
+test('the section tabs are NOT inert — clicking one actually switches sections', () => {
   renderWithProviders(<CatalystFlow data={mockData} />)
   fireEvent.click(screen.getByText('CRH'))
 
+  // Earnings History is a SUB-tab under "The Print" now (the twelve-item rail
+  // became five grouped tabs). The group tab is the door; clicking it lands on
+  // the group's first member, which IS Earnings History.
   const setupTab = screen.getByRole('tab', { name: 'Setup' })
-  const historyTab = screen.getByRole('tab', { name: 'Earnings History' })
+  const printTab = screen.getByRole('tab', { name: 'The Print' })
   expect(setupTab.getAttribute('aria-selected')).toBe('true')
-  expect(historyTab.getAttribute('aria-selected')).toBe('false')
+  expect(printTab.getAttribute('aria-selected')).toBe('false')
 
-  fireEvent.click(historyTab)
+  fireEvent.click(printTab)
 
-  expect(historyTab.getAttribute('aria-selected')).toBe('true')
+  expect(printTab.getAttribute('aria-selected')).toBe('true')
   expect(setupTab.getAttribute('aria-selected')).toBe('false')
+  // …and the sub-row it opens actually offers the leaf, selected.
+  expect(screen.getByRole('tab', { name: 'Earnings History' })
+    .getAttribute('aria-selected')).toBe('true')
 })

@@ -21,6 +21,44 @@
   opacity: 0.55;
 }
 
+/* TONIGHT'S PRICED MOVE — the reference every bar is read against.
+   BRIGHT, NOT GOLD, for exactly the reason `.impliedNow` above is: the
+   RICH/CHEAP chip is this canvas's single gold element (§3.1), and the band
+   renders alongside it whenever history is warm AND a live quote exists —
+   `chip` is gated on `cold.cold`, the band on `live.pct`, and those two are
+   independent, so a warm canvas draws both. Gold here would be a second gold
+   highlight on that canvas, which is the budget the spec caps at one.
+   Faint by design either way: it is a rule, not a mark. */
+.band {
+  fill: var(--text-bright);
+  opacity: 0.05;
+}
+.bandEdge {
+  stroke: var(--text-bright);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.45;
+}
+.bandLabel {
+  fill: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+/* The realized number, at the bar's outer end. Same ink as the bar it labels
+   so the pairing needs no leader line. */
+.valueUp,
+.valueDown {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.valueUp { fill: var(--gain); }
+.valueDown { fill: var(--loss); }
+
 /* EXPECTATION — hollow, always (§3.3). Never filled, never green/red. */
 .implied {
   fill: none;

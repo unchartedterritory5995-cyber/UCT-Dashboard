@@ -273,7 +273,9 @@ describe('deep link lands on the week the symbol actually reports in (Task 14)',
     // minimal `{ row: { sym } }` fallback renders.
     const dlg = await screen.findByRole('dialog')
     expect(dlg.getAttribute('aria-label')).toMatch(/AMD/)
-    fireEvent.click(screen.getByRole('tab', { name: 'Earnings History' }))
+    // "The Print" is the group tab; Earnings History is its first member, so
+    // one click lands there.
+    fireEvent.click(screen.getByRole('tab', { name: 'The Print' }))
     expect(await screen.findByTestId('history-table')).toBeTruthy()
     expect(screen.queryByText('No reported quarters yet')).toBeNull()
   })

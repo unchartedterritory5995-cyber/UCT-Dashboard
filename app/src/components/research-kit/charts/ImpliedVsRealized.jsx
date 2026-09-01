@@ -22,6 +22,12 @@ export const SIZE = { width: '100%', height: VIEWBOX.height }
 
 const PAD_TOP = 12
 const PAD_BOTTOM = 16
+/** Vertical room reserved OUTSIDE the tallest bar for its own value label.
+ *  Taken out of the half-height rather than out of `scaleMax`: the scale is a
+ *  shared magnitude both series are measured against (and a test pins that
+ *  relationship), so shortening the bars is the honest way to buy label room —
+ *  it changes how tall a bar is drawn, never what it means. */
+const LABEL_ROOM = 11
 /** §4.3.1a: below this many recorded implied quarters the paired form is a lie. */
 const MIN_PAIRED = 3
 /** The store keeps 8 quarters (implied_store.get_implied_history limit=8). */
@@ -208,19 +214,28 @@ export function impliedVerdict(pairs, live) {
  * known yet (the current quarter) the hollow bar points up and its label
  * carries ±. Do not "fix" this into an unsigned pair.
  */
-export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.height } = {}) {
+export function pairGeometry(
+  pairs,
+  { width = VIEWBOX.width, height = VIEWBOX.height, bandPct = null } = {},
+) {
   const list = pairs || []
   const mags = []
   for (const p of list) {
     if (p.impliedPct != null) mags.push(Math.abs(p.impliedPct))
     if (p.realizedPct != null) mags.push(Math.abs(p.realizedPct))
   }
+  // The band is tonight's priced move drawn across every past quarter, so it
+  // has to be INSIDE the scale like any other magnitude. Left out, a print
+  // priced wider than anything the stock has ever done would draw its band off
+  // the top of the plot — the one case where the band matters most.
+  const band = num(bandPct) == null ? null : Math.abs(num(bandPct))
+  if (band != null) mags.push(band)
   const peak = Math.max(0, ...mags)
   const scaleMax = (peak > 0 ? peak : 1) * 1.15
 
   const plotH = height - PAD_TOP - PAD_BOTTOM
-  const halfH = plotH / 2
-  const baselineY = PAD_TOP + halfH
+  const halfH = Math.max(1, plotH / 2 - LABEL_ROOM)
+  const baselineY = PAD_TOP + LABEL_ROOM + halfH
   const n = Math.max(list.length, 1)
   const slot = width / n
   // The cap used to be 9 units, which was the RIGHT number when the viewBox was
@@ -247,12 +262,24 @@ export function pairGeometry(pairs, { width = VIEWBOX.width, height = VIEWBOX.he
       isCurrent: !!p.isCurrent,
       dir,
       cx,
+      value: p.realizedPct,
       implied: bar(p.impliedPct, -half),
       realized: bar(p.realizedPct, half),
     }
   })
 
-  return { cols, baselineY, scaleMax, width, height, labelY: height - 4 }
+  // Half-height of tonight's priced move, as a rect around the baseline.
+  const bandH = band == null ? null : Math.min(halfH, (band / scaleMax) * halfH)
+
+  return {
+    cols,
+    baselineY,
+    scaleMax,
+    width,
+    height,
+    labelY: height - 4,
+    band: bandH == null ? null : { pct: band, y: baselineY - bandH, h: bandH * 2 },
+  }
 }
 
 /**
@@ -270,7 +297,8 @@ export default function ImpliedVsRealized({
   impliedHistory,
   live,
   historySince,
-  label = 'Implied vs realized move',
+  // `null` means DERIVE (see below) — a caller may still pin a literal.
+  label = null,
   info,
   height = SIZE.height,
   className = '',
@@ -302,11 +330,31 @@ export default function ImpliedVsRealized({
     )
   }
 
-  const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height })
+  // ⭐ TONIGHT'S PRICED MOVE, DRAWN ACROSS EVERY QUARTER.
+  //
+  // The nightly implied store starts empty and fills one quarter per report, so
+  // for most symbols this widget spends its first two years COLD: it suppresses
+  // the historical hollow bars (they would be one bar in eight, which invites a
+  // false read) and draws realized moves alone — under a title promising a
+  // comparison. Measured live on DELL: `1/8 recorded`, seven quarters with no
+  // expectation to compare against, and a hero that answered nothing.
+  //
+  // The comparison the reader actually wants is available TODAY without waiting
+  // two years for the store to fill: what is priced RIGHT NOW, against what this
+  // stock has actually done. One horizontal band across the plot turns every
+  // existing bar into an answer — cleared it, or didn't — and the sparse
+  // historical series collapses into a single line instead of seven gaps.
+  const livePct = num(live?.pct) == null ? null : Math.abs(num(live.pct))
+  const geo = pairGeometry(plotted, { width: vbWidth, height: VIEWBOX.height, bandPct: livePct })
   // Thin the axis on a narrow chart rather than shrinking the type below the
   // smallest token — see labelStep's docblock.
   const step = labelStep(geo.width / Math.max(geo.cols.length, 1))
   const chip = cold.cold ? null : impliedVerdict(paired, live)
+  // Name the chart after what it DRAWS. While cold the hollow expectation bars
+  // are suppressed, so "Implied vs realized move" describes a comparison that
+  // is not on screen; the band is the expectation in that state, and the bars
+  // are the moves. A caller that passes `label` explicitly still wins.
+  const heading = label ?? (cold.cold ? 'Move after each print' : 'Implied vs realized move')
   // I2: coldStartState's `cold` flag counts the LIVE current quarter as
   // "recorded", so it can read warm (cold.cold === false, cold.caption ===
   // null) while impliedVerdict still refuses to speak (it needs 3 fully-paired
@@ -315,13 +363,14 @@ export default function ImpliedVsRealized({
   // not — the coverage disclosure renders instead, so the widget never shows
   // nothing.
   const coverageCaption = chip ? null : cold.coverageText
+  const bandText = livePct == null ? null : `±${livePct.toFixed(1)}% priced tonight`
   const built = ariaLabel || (chip
     ? `Implied versus realized move by quarter. ${chip.label}.`
-    : `Realized move by quarter. ${coverageCaption ?? ''}`.trim())
+    : `Realized move by quarter. ${bandText ? `${bandText}. ` : ''}${coverageCaption ?? ''}`.trim())
 
   return (
     <div className={`${styles.wrap} ${className}`}>
-      {label && <EyebrowLabel info={info}>{label}</EyebrowLabel>}
+      {heading && <EyebrowLabel info={info}>{heading}</EyebrowLabel>}
 
       <svg
         ref={wrapRef}
@@ -333,6 +382,25 @@ export default function ImpliedVsRealized({
         aria-label={built}
         data-testid="rk-ivr"
       >
+        {/* Drawn FIRST so every bar sits on top of it — the band is the
+            reference the bars are read against, not an overlay on them. */}
+        {geo.band && (
+          <g data-testid="rk-ivr-band">
+            <rect
+              className={styles.band}
+              x="0" y={geo.band.y} width={geo.width} height={geo.band.h}
+            />
+            <line className={styles.bandEdge} x1="0" y1={geo.band.y} x2={geo.width} y2={geo.band.y} />
+            <line
+              className={styles.bandEdge}
+              x1="0" y1={geo.band.y + geo.band.h} x2={geo.width} y2={geo.band.y + geo.band.h}
+            />
+            <text className={styles.bandLabel} x={geo.width} y={geo.band.y - 3} textAnchor="end">
+              {bandText}
+            </text>
+          </g>
+        )}
+
         <line className={styles.baseline} x1="0" y1={geo.baselineY} x2={geo.width} y2={geo.baselineY} />
 
         {geo.cols.map((c, i) => (
@@ -359,6 +427,21 @@ export default function ImpliedVsRealized({
                 textAnchor="middle"
               >
                 NOW
+              </text>
+            )}
+            {/* The number, at the bar's outer end — the room LABEL_ROOM
+                reserved. Only when the axis is not being thinned: at a width
+                where quarter labels have to skip, per-bar numbers would
+                collide with each other long before the labels do. */}
+            {step === 1 && c.realized && c.value != null && (
+              <text
+                className={c.dir > 0 ? styles.valueUp : styles.valueDown}
+                data-testid="rk-ivr-value"
+                x={c.cx + c.realized.w / 2 + 1}
+                y={c.dir > 0 ? c.realized.y - 4 : c.realized.y + c.realized.h + 10}
+                textAnchor="middle"
+              >
+                {`${c.value > 0 ? '+' : ''}${c.value.toFixed(1)}%`}
               </text>
             )}
             {(i % step === 0 || c.isCurrent) && (

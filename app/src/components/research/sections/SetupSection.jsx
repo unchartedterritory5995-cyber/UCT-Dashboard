@@ -85,6 +85,62 @@ export function moveText(pct) {
   return n == null ? '' : `Priced ±${Math.abs(n).toFixed(1)}% `
 }
 
+/** The horizon clause the payload can speak for, or '' — never invented. */
+function horizonOf(live) {
+  return live?.horizon || (live?.expiry ? `through ${live.expiry}` : '')
+}
+
+/**
+ * Sentence 1 of the canvas lead: what the options market is charging.
+ *
+ * DETERMINISTIC, and that is the point. Every value here is already on this
+ * screen — nothing is generated, nothing is inferred, and there is no model
+ * call to be slow or wrong. Prose about the company belongs in the Brief tab,
+ * which is where a generated sentence can be checked against its sources.
+ */
+export function pricedLine(live) {
+  const pct = num(live?.pct)
+  if (pct == null) return null
+  const horizon = horizonOf(live)
+  return `Options price a ±${Math.abs(pct).toFixed(1)}% move${horizon ? ` ${horizon}` : ''}.`
+}
+
+/**
+ * Sentence 2: how often this name has actually done that.
+ *
+ * Compares each PAST realized reaction against TONIGHT'S implied move — not
+ * against each quarter's own recorded implied. That is deliberate, and it is
+ * the only comparison the data supports today: the implied store keeps one
+ * snapshot per report and starts empty, so most symbols have one or two
+ * recorded quarters against eight of realized history. Waiting two years for
+ * the paired form is not a plan; measuring the eight quarters we DO have
+ * against the number that matters tonight is.
+ *
+ * ⛔ `q.reported !== false` — not `q.reported === true`. buildQuarters marks
+ * the CURRENT quarter with `reported: false` and leaves the flag off entirely
+ * on accrued history rows, so testing for a literal `true` would filter every
+ * past quarter out and report "0 of its last 0 prints".
+ */
+export function recordLine(sym, quarters, live) {
+  const pct = num(live?.pct)
+  if (pct == null) return null
+  const threshold = Math.abs(pct)
+  const past = (quarters || []).filter(
+    (q) => q?.reported !== false && num(q?.reaction_pct) != null,
+  )
+  if (!past.length) return null
+  const cleared = past.filter((q) => Math.abs(num(q.reaction_pct)) > threshold).length
+  const name = sym || 'This stock'
+  const n = past.length
+  const prints = `its last ${n} print${n === 1 ? '' : 's'}`
+  // "after 0 of its last 8 prints" is accurate and reads like a bug. The
+  // zero case is the most informative one on this canvas — the market is
+  // pricing a move the stock has never made — so it gets plain words.
+  return cleared === 0
+    ? `${name} has not moved that much after any of ${prints}.`
+    : `${name} has moved more than that after ${cleared} of ${prints}.`
+}
+
 // The server's own label for tonight's report-quarter row
 // (api/services/research/estimates.py `_PERIOD_LABEL["0q"] = "Current Qtr"`,
 // and `_PERIOD_ORDER` walks `["0q","+1q","0y","+1y"]`). This is the ONLY
@@ -113,7 +169,7 @@ export function driftText(revisions) {
   return `Est ${money(cur)} · ${sign}${Math.abs(cents)}¢ / 30d`
 }
 
-export default function SetupSection({ sym, row, reportDate, expectedMove }) {
+export default function SetupSection({ sym, row, reportDate, expectedMove, livePrice = null }) {
   const { data: fundamentals } = useFundamentals(sym)
   // Normalized the same way useEstimates.js/useExpectedMove.js key their SWR
   // calls — a non-canonical-case `sym` (lowercase, stray whitespace) must not
@@ -152,8 +208,34 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
   const lo52 = num(fundamentals?.week52_low)
   const hi52 = num(fundamentals?.week52_high)
 
+  // ⭐ ONE PRICE IN THIS MODAL. The banner reads `useLivePrices`; this canvas
+  // read `live.spot` off the expected-move payload — a DIFFERENT endpoint with
+  // a different vintage — and stamped it, unlabelled, on both range markers.
+  // Live-verified on DELL: banner $456.01, break-even marker $459.88, 52-week
+  // marker $459.88, and nothing on screen said which one was "now".
+  // The shell hands its own number down rather than this section opening a
+  // second read of the same quantity; `spot` remains the fallback for a symbol
+  // the live pool has no quote for.
+  const marker = num(livePrice?.price) ?? spot
+  const markerLabel = marker == null ? undefined : `Now ${money(marker)}`
+
+  const priced = pricedLine(live)
+  const record = recordLine(sym, quarters, live)
+
   return (
     <div className={styles.wrap}>
+      {/* THE LEAD. The canvas used to open on the chart and let the reader
+          assemble the read themselves; four instruments, no sentence, and the
+          one thing that IS a judgement (the Setup Grade) was a grey chip in the
+          far corner of the banner. Two derived sentences state the question
+          this modal is opened to answer, and the hero below is the picture of
+          the second one. */}
+      {priced && (
+        <p className={styles.lead} data-testid="setup-lead">
+          {priced}{record ? ` ${record}` : ''}
+        </p>
+      )}
+
       {/* HERO — the one instrument this canvas leads with. `recordedCount` is
           the endpoint's STORED snapshot array length: the "n/8 recorded"
           caption must never count tonight's live implied (P2 ruling). */}
@@ -188,15 +270,15 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
             label="Break-even range"
             min={spot - dollar}
             max={spot + dollar}
-            value={spot}
+            value={marker}
             minLabel={money(spot - dollar)}
             maxLabel={money(spot + dollar)}
-            valueLabel={money(spot)}
+            valueLabel={markerLabel}
             tone="neutral"
             info={IMPLIED_MOVE_INFO}
           />
           <div className={`${styles.horizon} t-num`}>
-            {moveText(live.pct)}{live.horizon || (live.expiry ? `through ${live.expiry}` : '')}
+            {moveText(live.pct)}{horizonOf(live)}
           </div>
         </div>
       )}
@@ -221,22 +303,31 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
             <StatTile label="Div yield" value={divYieldText(fundamentals.div_yield)} />
           </div>
         )}
+
+        {/* The consensus drift used to float unlabelled at the very bottom of
+            the canvas, below the 52-week range and attached to nothing — an
+            "Est $4.92 · +2¢ / 30d" with no word saying what it estimated. It is
+            a stat, so it lives with the stats, and it says which quarter it is
+            for. Still OUTSIDE the fundamentals gate above: it comes from a
+            different endpoint and must not vanish while fundamentals load. */}
+        {drift && (
+          <div className={`${styles.drift} t-num`} data-testid="setup-drift">
+            <span className={styles.driftKey}>Consensus, current quarter</span>
+            {drift}
+          </div>
+        )}
       </div>
 
       {lo52 != null && hi52 != null && (
         <div data-testid="setup-52w">
           <RangeSlider
             label="52-week range"
-            min={lo52} max={hi52} value={spot}
+            min={lo52} max={hi52} value={marker}
             minLabel={money(lo52)} maxLabel={money(hi52)}
-            valueLabel={spot != null ? money(spot) : undefined}
+            valueLabel={markerLabel}
             tone="neutral"
           />
         </div>
-      )}
-
-      {drift && (
-        <div className={`${styles.drift} t-num`} data-testid="setup-drift">{drift}</div>
       )}
     </div>
   )
