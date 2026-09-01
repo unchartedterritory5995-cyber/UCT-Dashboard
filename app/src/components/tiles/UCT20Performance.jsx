@@ -227,6 +227,41 @@ function EquityChart({ chartData }) {
    1,119-session backtest showing +2.44% would misinform far more effectively
    than showing nothing at all. */
 
+/* ── What the Book did with THIS name ─────────────────────────────────────
+   The row above draws the no-stops tracker and used to print the published
+   "stop $X" beside a return that ignored it -- a plan and an outcome that
+   contradict each other, which is what the owner kept asking about (8/26,
+   8/27, 8/29): "I already see large negative losses that surpass those stops."
+
+   Both numbers are true of different arms, so the row now names which is
+   which: the tracker's own percentage stays where it was, and this says what
+   the risk-managed Book did. HPE: tracker -6.17%, Book stopped -4.31%.
+
+   `verdicts` absent (an older cached /api/uct20/book payload) falls back to
+   the stop price rather than claiming the Book did nothing. */
+function BookVerdict({ verdicts, symbol, stopPrice }) {
+  if (!verdicts) {
+    return stopPrice != null
+      ? <span className={styles.openStop}>stop ${stopPrice}</span>
+      : null
+  }
+  const v = verdicts[symbol]
+  if (!v) return <span className={styles.openNoFill}>book: no fill</span>
+
+  // fmtPct, not a local formatter: this number sits directly beside the
+  // tracker's own percentage on the same row, and two precisions on one line
+  // read as two kinds of measurement rather than two arms of one list.
+  const pct  = v.pct_return
+  const num  = fmtPct(pct)
+  const tone = pct != null && pct >= 0 ? styles.gain : styles.loss
+
+  if (v.state === 'closed') {
+    const how = v.exit_reason === 'stop' ? 'stopped' : 'exited'
+    return <span className={`${styles.openBook} ${tone}`}>book: {how} {num}</span>
+  }
+  return <span className={`${styles.openBook} ${tone}`}>book: {num}</span>
+}
+
 function BookLane() {
   // useMobileSWR, like the rest of this file. The Book changes once a day,
   // so no market-hours polling.
@@ -288,6 +323,9 @@ function BookLane() {
 
 export default function UCT20Performance() {
   const { data, isLoading } = useMobileSWR('/api/uct20/portfolio', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
+  // Same key BookLane uses, so SWR dedupes it to a single request.
+  const { data: book } = useMobileSWR('/api/uct20/book', fetcher, { refreshInterval: 3600000 })
+  const verdicts = book?.positions_by_symbol ?? null
   const [period, setPeriod]       = useState('ALL')
   const [tradesOpen, setTradesOpen] = useState(false)
 
@@ -402,15 +440,21 @@ export default function UCT20Performance() {
           {/* ── Open positions ── */}
           {data.open_positions?.length > 0 && (
             <div className={styles.openWrap}>
-              <div className={styles.openHeader}>OPEN POSITIONS ({data.open_positions.length})</div>
+              <div className={styles.openHeader}>
+                OPEN POSITIONS ({data.open_positions.length})
+                {verdicts && (
+                  <span className={styles.openHeaderNote}>
+                    % is the no-stops tracker · book: is the same name traded with its stop
+                  </span>
+                )}
+              </div>
               <div className={styles.openList}>
                 {data.open_positions.map(pos => (
                   <div key={pos.symbol} className={styles.openRow}>
                     <span className={styles.openSym}>{pos.symbol}</span>
                     <span className={styles.openEntry}>${pos.entry_price}</span>
-                    {pos.stop_price != null && (
-                      <span className={styles.openStop}>stop ${pos.stop_price}</span>
-                    )}
+                    <BookVerdict verdicts={verdicts} symbol={pos.symbol}
+                                 stopPrice={pos.stop_price} />
                     <span className={`${styles.openPct} ${pos.pct_return >= 0 ? styles.gain : styles.loss}`}>
                       {fmtPct(pos.pct_return)}
                     </span>
