@@ -3513,7 +3513,27 @@ def _accumulation_grade(*, total_premium, qualifying_hits, swift_hits,
 
 
 def _parse_mdy(s):
-    """M/D/YYYY → sortable (Y,M,D) tuple. (0,0,0) on malformed."""
+    """M/D/YYYY → sortable (Y,M,D) tuple. (0,0,0) on malformed.
+
+    ⛔⛔ THE TUPLE AND THE `(0,0,0)` ARE BOTH LOAD-BEARING — do not "improve"
+    this into something that returns a `date` or `None`. A second `_parse_mdy`
+    returning `date | None` sat ~480 lines below this one until 2026-08-31,
+    with ZERO callers of its own, and Python keeps the LAST definition — so all
+    seven call sites written against this signature were running that one.
+
+    On well-formed dates the two agree. On a malformed one they do not, and
+    `_resolve_date` passes anything it does not recognise through UNCHANGED
+    ("Anything else is passed through unchanged"), so `today` can be malformed
+    from a query param. Measured against the real call site:
+
+        today='2026/08/31'  tuple → ['2026/08/31']   (a clean zero-row day)
+                            date  → TypeError: '<=' not supported between
+                                    instances of 'datetime.date' and 'NoneType'
+
+    i.e. the documented "else zero-rows" behaviour of `_resolve_date` was a 500
+    on the `lookback_days >= 2` paths in `_compute_recent_multiday` and
+    `_build_by_contract`. `tests/test_no_shadowed_definitions.py` now fails on
+    a re-introduction."""
     try:
         m, d, y = str(s).strip().split("/")
         return (int(y), int(m), int(d))
@@ -3991,15 +4011,14 @@ def _er_cal_maybe_refresh():
     threading.Thread(target=_er_cal_do_refresh, daemon=True).start()
 
 
-def _parse_mdy(s):
-    """'M/D/YYYY' → date, else None."""
-    try:
-        p = str(s).strip().split("/")
-        if len(p) == 3:
-            return date(int(p[2]), int(p[0]), int(p[1]))
-    except (ValueError, IndexError):
-        pass
-    return None
+# ⛔ A SECOND `_parse_mdy` STOOD HERE and was deleted 2026-08-31. It returned
+# `date | None` where the one at the top of this file returns a `(Y,M,D)` tuple,
+# it had NO callers of its own, and because Python keeps the last definition it
+# silently replaced the tuple version for all seven call sites above — turning
+# `_resolve_date`'s documented "unrecognised input → zero rows" into a
+# TypeError 500 on the multi-day lookback paths. See the note on the surviving
+# definition for the measurement. If something here ever needs a real `date`,
+# give it its OWN name (`_mdy_to_date`); do not re-add this one.
 
 
 def _earnings_line(ticker: str, exp=None) -> str:
