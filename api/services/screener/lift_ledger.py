@@ -846,11 +846,11 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
         # again on the next pass. Deriving it at the one surface that
         # renders it makes double-application impossible rather than
         # merely unlikely.
-        deff = entry.get("cluster_deff")
-        if not isinstance(deff, (int, float)) or entry.get("lift") is None:
+        deff = gate_deff(entry)
+        if deff is None or entry.get("lift") is None:
             return entry
         lo, hi = clustered_bounds(entry["lift"], entry["ci_low"],
-                                  entry["ci_high"], float(deff))
+                                  entry["ci_high"], deff)
         out = dict(entry)
         out["ci_low"], out["ci_high"] = round(lo, 4), round(hi, 4)
         out["ci_basis"] = "clustered"
@@ -868,6 +868,32 @@ def evidence_for_structure(key: str, path: str = None) -> Optional[dict]:
             "measured": entry.get("lift") is not None}
 
 
+def gate_deff(entry: dict) -> Optional[float]:
+    """The design effect a GATE should widen by: rho's UPPER bound, not its point.
+
+    ⛔⛔ THE INCONSISTENCY THIS CLOSES WAS MINE. Gate 2 in this module
+    already refuses to compare a POINT estimate to the null -- it reads the CI's
+    lower bound, on the reasoning that the pessimistic end is the honest one.
+    Gate 4 then corrected for clustering using the POINT estimate of rho, which
+    understates the variance half the time. Exactly the same mistake, one level
+    up, written by the same hand a few hours later.
+
+    ⭐ IT CHANGED NO VERDICT, and that is the finding rather than a reason to
+    skip it: measured 2026-09-01, every published row clears its null on rho's
+    upper bound too, and both refused rows stay refused. The library is robust to
+    the estimate; the gate is now principled regardless.
+
+    Falls back to the point estimate for a row measured before rho carried an
+    interval -- a weaker bar, but a recorded one, and better than refusing a row
+    for the absence of a field its measurement predates.
+    """
+    for field in ("cluster_deff_conservative", "cluster_deff"):
+        v = entry.get(field)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return None
+
+
 def stored_deff(key: str, path: str = None) -> Optional[float]:
     """The measured same-date design effect for one structure, or None.
 
@@ -878,9 +904,7 @@ def stored_deff(key: str, path: str = None) -> Optional[float]:
     the value already in the artifact remains the right input until the
     clustering itself is re-measured.
     """
-    entry = (load(path).get("structures") or {}).get(key) or {}
-    d = entry.get("cluster_deff")
-    return float(d) if isinstance(d, (int, float)) else None
+    return gate_deff((load(path).get("structures") or {}).get(key) or {})
 
 
 #: How long a measurement may stand before it must be re-taken. origin: uct —

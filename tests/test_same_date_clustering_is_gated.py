@@ -59,7 +59,7 @@ def test_the_published_set_is_what_readjudication_produces():
     for key, row in _rows().items():
         if row.get("lift") is None:
             continue                      # never measured; nothing to re-gate
-        verdict = ll.readjudicate(row, row.get("cluster_deff"))
+        verdict = ll.readjudicate(row, ll.gate_deff(row))
         if bool(verdict["published"]) != bool(row.get("published")):
             wrong.append((key, row.get("published"), verdict["published"],
                           verdict.get("reasons")))
@@ -115,7 +115,7 @@ def test_the_ledger_stores_measurements_only_so_it_cannot_widen_twice():
             f"{key}: the member-facing view is not the clustered interval")
         expect_lo, _ = ll.clustered_bounds(row["lift"], row["ci_low"],
                                            row["ci_high"],
-                                           float(row["cluster_deff"]))
+                                           ll.gate_deff(row))
         assert derived["ci_low"] == pytest.approx(round(expect_lo, 4)), (
             f"{key}: the rendered lower bound is not one application of the "
             f"widening to the stored bootstrap bound")
@@ -123,7 +123,7 @@ def test_the_ledger_stores_measurements_only_so_it_cannot_widen_twice():
         # the proof that the stored value is the un-widened one.
         again, _ = ll.clustered_bounds(derived["lift"], derived["ci_low"],
                                        derived["ci_high"],
-                                       float(row["cluster_deff"]))
+                                       ll.gate_deff(row))
         assert again < derived["ci_low"], (
             f"{key}: widening the rendered row again did not move it, so the "
             f"stored bound may already carry the correction")
@@ -319,10 +319,10 @@ def test_no_null_escalation_can_change_any_verdict():
             continue
         if row["lift"] <= 0:
             continue                                   # gate 0
-        deff = row.get("cluster_deff")
+        deff = ll.gate_deff(row)
         lo = (ll.clustered_bounds(row["lift"], row["ci_low"], row["ci_high"],
-                                  float(deff))[0]
-              if isinstance(deff, (int, float)) else row["ci_low"])
+                                  deff)[0]
+              if deff is not None else row["ci_low"])
         if lo <= 0:
             continue                                   # gate 1
         nm = row.get("null_max")
@@ -434,3 +434,58 @@ def test_the_clustering_gate_is_actually_described_to_members():
         assert must in gates, (
             f"the gate description never mentions {must!r}; a member reading "
             f"it would not learn why two structures stopped publishing")
+
+
+# ── the gate widens by rho's UPPER bound, not its point estimate ────────────
+
+def test_the_gate_uses_the_conservative_design_effect():
+    """⛔⛔ THE SAME MISTAKE GATE 2 ALREADY REFUSES, ONE LEVEL UP. Gate 2 reads
+    the CI's LOWER bound rather than the point estimate, because the pessimistic
+    end is the honest one. Gate 4 then corrected for clustering using the POINT
+    estimate of rho — understating the variance half the time — until this."""
+    for key, row in _published().items():
+        cons = row.get("cluster_deff_conservative")
+        assert isinstance(cons, (int, float)), (
+            f"{key} publishes without a conservative design effect; rho's "
+            f"interval was never measured for it")
+        assert ll.gate_deff(row) == cons, (
+            f"{key}: the gate is widening by {ll.gate_deff(row)}, not the "
+            f"conservative {cons}")
+        assert cons >= row["cluster_deff"], (
+            f"{key}: the conservative design effect {cons} is SMALLER than the "
+            f"point estimate {row['cluster_deff']} — rho's upper bound cannot "
+            f"be below rho")
+
+
+def test_the_conservative_gate_changed_no_verdict_and_that_is_the_finding():
+    """⭐ THE ROBUSTNESS RESULT. Every published row clears its null on rho's
+    UPPER bound too. If a future re-measure breaks this, a row is publishing
+    only because of where the point estimate happened to land, and that is
+    worth failing over rather than discovering later."""
+    fragile = []
+    for key, row in _published().items():
+        lo, _ = ll.clustered_bounds(row["lift"], row["ci_low"], row["ci_high"],
+                                    float(row["cluster_deff_conservative"]))
+        nm = row.get("null_max")
+        if not (lo > 0 and (nm is None or lo > nm)):
+            fragile.append((key, round(lo, 4), nm))
+    assert not fragile, (
+        f"these publish on the POINT estimate of rho but not on its upper "
+        f"bound: {fragile}. They are claims about where an estimate landed.")
+
+
+def test_rho_and_its_interval_are_a_coherent_measurement():
+    """⛔ NON-VACUITY on the interval itself. A bootstrap that collapsed to the
+    point estimate would make the test above pass for free."""
+    import json
+    blob = json.loads(CLUSTERING.read_text(encoding="utf-8"))
+    widths = []
+    for key, m in (blob.get("structures") or {}).items():
+        lo, hi, rho = m.get("rho_ci_low"), m.get("rho_ci_high"), m["rho"]
+        assert lo is not None and hi is not None, f"{key} has no rho interval"
+        assert lo <= rho <= hi, f"{key}: rho {rho} is outside [{lo}, {hi}]"
+        widths.append(hi - lo)
+    assert max(widths) > 0.01, (
+        f"the widest rho interval is {max(widths):.4f} — the bootstrap has "
+        f"collapsed and the conservative gate is the point gate wearing a "
+        f"different name")
