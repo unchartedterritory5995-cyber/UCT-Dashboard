@@ -116,18 +116,67 @@ def _carry_not_live(date_str: str, keys) -> dict:
     return out
 
 
+def _recent_universe_list(date_str: str):
+    """The newest real `universe_list` on-or-before `date_str` (the universe barely
+    changes day to day). Used to restore one a heal stripped."""
+    import json as _json
+    from api.services import breadth_monitor as bm
+    try:
+        with bm._conn() as c:
+            rows = c.execute(
+                "SELECT metrics FROM breadth_snapshots WHERE date <= ? ORDER BY date DESC LIMIT 15",
+                (date_str,)).fetchall()
+    except Exception:
+        return None
+    for r in rows:
+        try:
+            ul = _json.loads(r["metrics"]).get("universe_list")
+        except Exception:
+            continue
+        if ul and len(ul) > 100:
+            return ul
+    return None
+
+
+def ensure_universe_list(date_str: str) -> bool:
+    """🔴 `breadth_live.universe()` reads the NEWEST snapshot's `universe_list`; a
+    row without it collapses the ENTIRE live path (reference_levels → live row →
+    intraday chart data). If this date's row is missing a real one, patch it from a
+    recent good day. Cheap, and safe to run even when the metric heal can't (bars
+    not ready), so the live path is restored immediately. Returns True if it patched."""
+    from api.services import breadth_monitor as bm
+    stored = bm.raw_row(date_str)
+    if stored is None:
+        return False
+    ul = stored.get("universe_list")
+    if ul and len(ul) > 100:
+        return False
+    good = _recent_universe_list(date_str)
+    if good:
+        return bool(bm.patch_field(date_str, "universe_list", good))
+    return False
+
+
 def heal_date(date_str: str, force: bool = False) -> dict:
     """Recompute one session's breadth from bars and store it IF the current row is
-    missing or degraded (or `force`). Preserves the good index/sentiment fields.
-    Best-effort — returns a status dict, never raises."""
+    missing or degraded (or `force`). Preserves the good index/sentiment fields AND
+    the drill lists (esp. `universe_list`, which the live path reads). Best-effort —
+    returns a status dict, never raises."""
     from api.services import breadth_monitor as bm
     from api.services import breadth_history_recon as recon
     from api.services import breadth_live as bl
 
     stored = bm.raw_row(date_str)
     expected = _expected_universe()
+    # ALWAYS repair a stripped universe_list first — this unbreaks the live path
+    # even when the coverage floor below stops the metric heal from running.
+    ul_repaired = ensure_universe_list(date_str)
+    if ul_repaired:
+        stored = bm.raw_row(date_str)   # re-read: it now carries the list
+
     if stored is not None and not force and not _needs_heal(stored, expected):
-        return {"ok": True, "date": date_str, "skipped": "already accurate"}
+        return {"ok": True, "date": date_str, "skipped": "already accurate",
+                "ul_repaired": ul_repaired}
 
     # The recompute keys off the CANONICAL daily-bar timestamp — derive it from the
     # SPY bar for this ET date exactly as validate_recent does (a synthesized ts
@@ -171,7 +220,18 @@ def heal_date(date_str: str, force: bool = False) -> dict:
         return {"ok": False, "date": date_str,
                 "reason": (f"recompute coverage too low ({priced}/{expected}) — "
                            "daily bars not fully ingested yet; will retry"),
-                "priced": priced, "expected": expected}
+                "priced": priced, "expected": expected, "ul_repaired": ul_repaired}
+
+    # Preserve the collector's drill lists — the recompute produces scalars only, and
+    # `universe_list` in particular is load-bearing for `breadth_live.universe()`.
+    if stored:
+        for k, v in stored.items():
+            if k.endswith("_list") and v is not None:
+                metrics.setdefault(k, v)
+    if not (metrics.get("universe_list") and len(metrics["universe_list"]) > 100):
+        good_ul = _recent_universe_list(date_str)
+        if good_ul:
+            metrics["universe_list"] = good_ul
 
     keys = _not_live_keys()
     carried = _carry_not_live(date_str, keys)

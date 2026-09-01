@@ -175,6 +175,42 @@ def test_a_stale_low_coverage_heal_is_re_healed_when_bars_arrive(_iso):
     assert bm.raw_row("2026-08-31")["universe_count"] == 2560
 
 
+def test_heal_preserves_universe_list_the_live_path_reads(_iso):
+    # 🔴 REGRESSION: a heal that stripped universe_list off the newest row collapsed
+    # the whole live-breadth path (bl.universe() reads it). A heal must keep it.
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    uni = [{"t": f"T{i}"} for i in range(2600)]
+    _put(bm, "2026-08-31", {**DEGRADED, "universe_list": uni})
+    mp.setattr(recon, "recompute_close", lambda ts, tickers=None: dict(GOOD_RECON))
+    from api.services import breadth_self_heal as heal
+    assert heal.heal_date("2026-08-31")["healed"]
+    kept = bm.raw_row("2026-08-31").get("universe_list")
+    assert kept and len(kept) == 2600, "universe_list must survive a heal"
+
+
+def test_repair_restores_a_stripped_universe_list_even_when_bars_arent_ready(_iso):
+    # The exact broken state from prod: an earlier heal left 8/31 with no
+    # universe_list AND low coverage, and today's bars aren't in yet. The live path
+    # must still be repaired (universe_list carried from a good day) without waiting.
+    bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
+    good_uni = [{"t": f"T{i}"} for i in range(2600)]
+    _put(bm, "2026-08-28", {"universe_count": 2606, "stage2_count": 539,
+                            "up_4pct_today": 42, "universe_list": good_uni})
+    _put(bm, "2026-08-31", {"universe_count": 156, "stage2_count": 50,
+                            "up_4pct_today": 8, "_healed": True})   # no universe_list!
+    # recompute stays low-coverage (bars not ready) → metric heal is refused …
+    mp.setattr(recon, "recompute_close",
+               lambda ts, tickers=None: {"universe_count": 156, "stage2_count": 50,
+                                          "up_4pct_today": 8, "down_4pct_today": 5,
+                                          "new_52w_highs": 4, "new_52w_lows": 2,
+                                          "new_20d_highs": 10, "new_20d_lows": 3})
+    from api.services import breadth_self_heal as heal
+    res = heal.heal_date("2026-08-31")
+    assert not res["ok"] and res["ul_repaired"] is True   # metrics not stored, but live path fixed
+    restored = bm.raw_row("2026-08-31").get("universe_list")
+    assert restored and len(restored) == 2600, "universe_list restored from the good day"
+
+
 def test_heal_recent_only_touches_degraded_rows(_iso):
     bm, recon, mp = _iso["bm"], _iso["recon"], _iso["monkeypatch"]
     _put(bm, "2026-08-28", {"universe_count": 2606, "stage2_count": 539,
