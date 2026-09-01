@@ -336,9 +336,19 @@ def _warn_futile_escalations(args, wanted, rows) -> None:
     it differs it still says so, because a person who reads this and continues
     has made a decision, and one who never saw it has not.
     """
+    # ⛔ `wanted` IS A LIST OF KEY STRINGS, not Structure objects — see main():
+    # `wanted = [k.strip() for k in args.only.split(",")]`. The first version of
+    # this function assumed `st.key` and crashed the runner on its first real
+    # invocation, while its OWN TEST passed because the fixture handed it
+    # objects with a `.key`. That is the `lift_pp` defect a third time: a
+    # fixture written from an assumption about the input instead of from the
+    # caller. Both shapes are accepted now, and the tests exercise the REAL one.
     futile = []
-    for st in wanted:
-        row = rows.get(st.key) or {}
+    for st in wanted or ():
+        key = st if isinstance(st, str) else getattr(st, "key", None)
+        if not key:
+            continue
+        row = rows.get(key) or {}
         prior = row.get("null_trials")
         lo, nmax = row.get("ci_low"), row.get("null_max")
         if not prior or prior >= args.null_trials:
@@ -346,7 +356,7 @@ def _warn_futile_escalations(args, wanted, rows) -> None:
         if lo is None or nmax is None or lo > nmax:
             continue                       # gate 2 passes, or unknown
         same = row.get("sample_tickers") == args.sample
-        futile.append((st.key, prior, lo, nmax, same))
+        futile.append((key, prior, lo, nmax, same))
     if not futile:
         return
     print("\n" + "=" * 72)
