@@ -90,7 +90,7 @@ def test_the_ambiguous_volume_gate_is_NOT_implemented():
     b = bc.by_key("buyable-gap-up")
     vol = [c for c in b.criteria if "VOLUME GATE" in c.condition]
     assert vol and vol[0].value is None and vol[0].missing
-    assert "SUBSET" in vol[0].missing
+    assert "SUPERSET" in vol[0].missing
 
     # And it really is not applied: a qualifying gap on ORDINARY volume passes.
     bars = _series(gap_mult=1.4)

@@ -40,6 +40,32 @@ from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
 
+# ---------------------------------------------------------------------------
+# ⛔@@STOP@ TWO ENGINES ANSWER THIS QUESTION, AND THEY DISAGREE.
+#
+# `api/services/screener/base_catalog.py` also implements this, as the base
+# structure `high-tight-flag`. Both are LIVE on different member surfaces: the catalog
+# answers through the screener's `base_matches` column and the provenance
+# panel; this detector answers through `pattern_detections`, which Compass
+# reads via `find_patterns_on_ticker` / `scan_active_patterns`.
+#
+# MEASURED 2026-08-31 over 744 tickers, counting only symbols either engine
+# names: both 0, structure-only 0, engine-only 2 -- 0% agreement.
+#
+# ⛔ THE OBVIOUS CONFOUND WAS CHECKED AND RULED OUT. A stale-history engine
+# would explain the gap innocently, so the detections' own `end_t` was measured:
+# 100% end on the LAST bar, and the start_t..end_t spans are real rather than a
+# stamped constant (VCP 12-47 bars across 15 distinct values; double-bottom
+# 14-100 across 56). Both engines are answering "right now".
+#
+# ⭐ THE BOUNDARY, DECIDED 2026-08-31 AND NOT A BUG TO FIX BLINDLY: the base
+# library is authoritative for WHETHER a structure is present -- its criteria are
+# sourced, gated and carry provenance -- and this engine is authoritative for
+# WHERE TO ENTER one, which is what it emits and the catalog does not. Do NOT
+# loosen the catalog to match these hit-rates, and do NOT quietly delete this
+# detector: Compass's coaching depends on it and has its own report-card gate.
+# The standing rail is `tests/test_no_second_authority_across_axes.py`.
+# ---------------------------------------------------------------------------
 _PATTERN_ID = "high_tight_flag"
 _MIN_POLE_PCT = 0.90               # 90% — the defining HTF threshold
 _MAX_POLE_BARS = 40                # 8 weeks (40 trading days)

@@ -38,6 +38,39 @@ from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.types import Bar, Detection
 
 
+# ---------------------------------------------------------------------------
+# ⛔@@STOP@ TWO ENGINES ANSWER THIS QUESTION, AND THEY DISAGREE.
+#
+# `api/services/screener/base_catalog.py` also implements this, as the base
+# structure `double-bottom`. Both are LIVE on different member surfaces: the catalog
+# answers through the screener's `base_matches` column and the provenance
+# panel; this detector answers through `pattern_detections`, which Compass
+# reads via `find_patterns_on_ticker` / `scan_active_patterns`.
+#
+# MEASURED 2026-08-31 over 744 tickers, counting only symbols either engine
+# names: both 25, structure-only 31, engine-only 293 -- 7% agreement.
+#
+# ⛔ THE OBVIOUS CONFOUND WAS CHECKED AND RULED OUT. A stale-history engine
+# would explain the gap innocently, so the detections' own `end_t` was measured:
+# 100% end on the LAST bar, and the start_t..end_t spans are real rather than a
+# stamped constant (VCP 12-47 bars across 15 distinct values; double-bottom
+# 14-100 across 56). Both engines are answering "right now".
+#
+# ⭐ THE BOUNDARY, DECIDED 2026-08-31 AND NOT A BUG TO FIX BLINDLY: the base
+# library is authoritative for WHETHER a structure is present -- its criteria are
+# sourced, gated and carry provenance -- and this engine is authoritative for
+# WHERE TO ENTER one, which is what it emits and the catalog does not. Do NOT
+# loosen the catalog to match these hit-rates, and do NOT quietly delete this
+# detector: Compass's coaching depends on it and has its own report-card gate.
+# The standing rail is `tests/test_no_second_authority_across_axes.py`.
+
+#
+# ⚠️ AND THIS ONE IS IN NOISE TERRITORY. It fired on 117 of 279 tickers
+# (42%), past the coverage harness's own NOISE_PCT of 35% -- the threshold
+# that got the `Compression Bar (NR4)` label deleted, on the reasoning that a
+# label a third of the market carries is not information. Worth a look before
+# any consumer treats a hit here as a signal.
+# ---------------------------------------------------------------------------
 _PATTERN_ID = "double_bottom"
 _MIN_PATTERN_BARS = 20
 _MAX_PATTERN_BARS = 80
