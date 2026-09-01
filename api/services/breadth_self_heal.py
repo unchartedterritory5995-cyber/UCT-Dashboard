@@ -28,6 +28,40 @@ from typing import Optional
 _ENABLED = os.environ.get("BREADTH_SELF_HEAL", "1") != "0"
 _LOCK = threading.Lock()
 
+# A recompute must price at least this fraction of the universe to be stored — a
+# day's own daily bars land over the evening, so an early recompute prices only a
+# sliver and its counts are a gross undercount.
+_MIN_COVERAGE = float(os.environ.get("BREADTH_HEAL_MIN_COVERAGE", "0.6"))
+
+
+def _expected_universe() -> int:
+    """The size of the universe we SHOULD be measuring (the current list)."""
+    try:
+        from api.services.breadth_live import universe
+        tk, _ = universe()
+        return len(tk or [])
+    except Exception:
+        return 0
+
+
+def _is_low_coverage_heal(m: dict, expected: int) -> bool:
+    """A row WE healed earlier off too few bars — must be re-healed once the day's
+    full daily bars are in (the degradation detector won't catch it: its universe
+    is small, not large-with-collapsed-counts)."""
+    if not isinstance(m, dict) or not m.get("_healed"):
+        return False
+    priced = m.get("universe_count") or 0
+    return bool(expected) and priced < expected * _MIN_COVERAGE
+
+
+def _needs_heal(m: Optional[dict], expected: int) -> bool:
+    """A day needs (re)healing if the collector's row is degraded, or our own
+    earlier heal was low-coverage."""
+    from api.services import breadth_monitor as bm
+    if m is None:
+        return False   # a genuinely missing day is left to the collector / deep recon
+    return bm.snapshot_looks_degraded(m) or _is_low_coverage_heal(m, expected)
+
 # NOT_LIVE fields (index closes + sentiment + exposure) are not price-reconstructable
 # and ride a separate feed the collector usually gets right even on a bad price pull,
 # so a heal PRESERVES them from the existing row (falling back to the newest good row).
@@ -91,7 +125,8 @@ def heal_date(date_str: str, force: bool = False) -> dict:
     from api.services import breadth_live as bl
 
     stored = bm.raw_row(date_str)
-    if stored is not None and not force and not bm.snapshot_looks_degraded(stored):
+    expected = _expected_universe()
+    if stored is not None and not force and not _needs_heal(stored, expected):
         return {"ok": True, "date": date_str, "skipped": "already accurate"}
 
     # The recompute keys off the CANONICAL daily-bar timestamp — derive it from the
@@ -125,6 +160,19 @@ def heal_date(date_str: str, force: bool = False) -> dict:
     if bm.snapshot_looks_degraded(metrics):
         return {"ok": False, "date": date_str, "reason": "recompute also degraded"}
 
+    # COVERAGE FLOOR: only store a recompute that actually PRICED most of the
+    # universe. A day's own daily bars land over the evening, so a recompute run
+    # too early prices only a fraction (e.g. 156 of ~2,600) and its counts are a
+    # gross undercount that reads plausible. Below the floor we leave the day for
+    # the watch loop to retry once the bars are complete (a genuinely accurate
+    # same-day answer needs either the full daily bars or the collector's feed).
+    priced = metrics.get("universe_count") or 0
+    if expected and priced < expected * _MIN_COVERAGE:
+        return {"ok": False, "date": date_str,
+                "reason": (f"recompute coverage too low ({priced}/{expected}) — "
+                           "daily bars not fully ingested yet; will retry"),
+                "priced": priced, "expected": expected}
+
     keys = _not_live_keys()
     carried = _carry_not_live(date_str, keys)
     for k in keys:
@@ -156,11 +204,12 @@ def heal_recent(days: int = 10) -> dict:
     if not _LOCK.acquire(blocking=False):
         return {"ok": True, "busy": True}
     try:
+        from api.services import breadth_monitor as bm
+        expected = _expected_universe()
         results = []
         for d in _recent_dates(days):
-            from api.services import breadth_monitor as bm
             m = bm.raw_row(d)
-            if m is not None and bm.snapshot_looks_degraded(m):
+            if _needs_heal(m, expected):
                 results.append(heal_date(d))
         return {"ok": True, "checked": days, "healed": [r for r in results if r.get("healed")],
                 "attempts": results}
