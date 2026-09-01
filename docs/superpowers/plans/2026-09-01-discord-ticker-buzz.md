@@ -2801,6 +2801,31 @@ After the deploy reports SUCCESS (~2 min boot):
 
 ## Deferred to a follow-up plan
 
+Owner decision 2026-09-01, mid-build: *"let's just start basic here first with what we have, then move on to the additional stuff later."* Everything below is **designed and costed, not built.** It is recorded at this depth so picking it up is a read rather than a fresh brainstorm.
+
+### Extra metrics — the owner picked these three, then parked them with the rest
+
+| Metric | What it shows | Cost |
+|---|---|---|
+| **Silent movers** — "the room missed" | Names that moved hard today with zero or near-zero mentions | Joins `mentions` against the movers feed (`api.services.massive.get_movers`). One new dependency; the repo already owns it. |
+| **Cooling off + New today** | The inverse of Heating Up (loud names gone quiet), and first-timers unseen in 30 days | **Free** — the same window queries `heat_board` already runs, with the ratio inverted and a `NOT EXISTS` over the trailing window |
+| **First caller** | Who mentioned each name first today | **Free** — `author_id` and `ts` are already stored; it is `MIN(ts)` per ticker per day |
+
+⚠️ **First caller names individual members on a posted image.** The owner took that tradeoff knowingly after it was spelled out. If it ships, it needs an opt-out, and it should never appear on the `/r/buzz` payload (see Task 8's exposure note) — only in the authenticated command reply and the member-server digest.
+
+### Further ideas, ranked by how hard they are to copy
+
+1. **Room vs the Wire** — cross-reference chat against the Morning Wire Top 5 and UCT20. ⭐ The only item on this list a competitor structurally cannot build: it needs both the wire and the chat, and one party owns both. It is also feedback on the wire itself — "the room ignored 4 of 5 picks" is a product signal, not a vanity metric.
+2. **Lead or lag** — first-mention time vs the time of the price move, per name and as a running 30-day verdict on the room. The deepest thing derivable from this data. Needs weeks of history before the aggregate means anything.
+3. **Your personal buzz** — private per-member: names you hold or watch that are lit up today. Reuses watchlists + `j2_positions`. Ephemeral, so no privacy question, and the stickiest of the set because it makes the board about the reader.
+4. **Themes the room invented** — co-mention clustering, diffed against `themes_taxonomy.json` to catch a theme forming before the taxonomy names it. Most novel; needs a co-occurrence floor or it produces noise on thin days.
+5. **The scoreboard** — of the top 5 each day, how many were green the next session. A running hit rate that makes the bot honest about itself.
+6. **Room temperature** — distinct tickers today vs normal, and the share of chatter held by the top 3. Offered and declined; recorded because it is two aggregate queries and free.
+
+**Nothing here needs a schema change.** Every one is a query over `mentions` as it already exists, optionally joined to price or wire data. That is the payoff of storing one row per (message × ticker) with the author and timestamp rather than a pre-aggregated daily count.
+
+### Other deferrals
+
 - Trader-feed board (`#tsdr`, `#bracco`, …) as a separate "the desk" view
 - Weekly Friday wrap (the daily digest proves the mechanism first)
-- Sentiment, per-member stats, DM alerts, Discord↔dashboard account linking
+- Sentiment, DM alerts, Discord↔dashboard account linking
