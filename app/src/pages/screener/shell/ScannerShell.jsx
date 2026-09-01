@@ -215,7 +215,7 @@ export default function ScannerShell({ embedded = false }) {
           intent local: if Sheet ever keeps children mounted to animate an
           exit, the property survives here. Do not read it as the guard. */}
       <Sheet open={libOpen} onClose={() => setLibOpen(false)} variant="auto"
-        title="Structure library">
+        title="Structure library" maxWidth={880}>
         {libOpen && <StructureProvenance />}
       </Sheet>
       <FiltersSheet open={sheetOpen} onClose={() => setSheetOpen(false)}

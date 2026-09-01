@@ -84,6 +84,32 @@ export function refusalReasons(evidence) {
   return evidence.reasons || []
 }
 
+/** The order a member should meet the library in.
+ *
+ * ⛔⛔ THE BROWSER FOUND THIS AND NO TEST COULD. Rendered in payload order, the
+ * panel opened on the five SHAPE-partition cards — `advancing-structure`,
+ * `declining-structure`, `contracting-range`… — which are ours, carry ONE
+ * criterion each, and have no measured edge. Darvas Box's +7.35pp and every
+ * sourced classic sat below them. 37 green tests said nothing about it, because
+ * order is not correctness and jsdom paints nothing: the defect only exists on
+ * a screen.
+ *
+ * The hierarchy is information, not taste: a MEASURED number outranks a
+ * published rule, which outranks a label we invented. Within a tier the
+ * payload's own order is kept — it is `ALL_STRUCTURES`, which is already
+ * grouped by family. */
+export function libraryOrder(entries) {
+  const tier = (e) => {
+    if (e.evidence?.published) return 0            // measured and published
+    if (e.origin !== 'uct') return 1               // a published rule
+    return 2                                       // ours
+  }
+  return [...entries]
+    .map((e, i) => [e, i])
+    .sort((a, b) => tier(a[0]) - tier(b[0]) || a[1] - b[1])
+    .map(([e]) => e)
+}
+
 export function groupCriteria(criteria) {
   const out = { sourced: [], refused: [], ours: [] }
   for (const c of criteria || []) {
@@ -247,7 +273,7 @@ export default function StructureProvenance({ fetcher = fetch }) {
           <> · <strong>{counts.uct_originals}</strong> of the structures are ours, not classics</>
         )}
       </header>
-      {entries.map(e => <StructureCard key={e.key} entry={e} />)}
+      {libraryOrder(entries).map(e => <StructureCard key={e.key} entry={e} />)}
     </div>
   )
 }

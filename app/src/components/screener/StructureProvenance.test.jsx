@@ -8,7 +8,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import StructureProvenance, {
-  StructureCard, formatLift, groupCriteria,
+  StructureCard, formatLift, groupCriteria, libraryOrder, refusalReasons,
 } from './StructureProvenance'
 
 const SOURCED = {
@@ -112,6 +112,57 @@ describe('formatLift — a number that cannot be read is worse than none', () =>
                            null_trials: 30, direction: 'long' })
     expect(f.nullMax).toBe('+1.10pp')
     expect(f.trials).toBe(30)
+  })
+})
+
+describe('libraryOrder — the browser found this and no test could', () => {
+  // Rendered in payload order the panel opened on five near-empty cards we
+  // invented, with Darvas Box's +7.35pp below them. Order is not correctness,
+  // so nothing here was red; the defect existed only on a screen.
+  const measured = { key: 'darvas-box', origin: 'published',
+                     evidence: { published: true, lift: 0.0735 } }
+  const classic = { key: 'flat-base', origin: 'published',
+                    evidence: { published: false, reasons: ['negative'] } }
+  const ours = { key: 'advancing-structure', origin: 'uct', evidence: null }
+
+  it('puts a MEASURED structure above a published rule above one of ours', () => {
+    const out = libraryOrder([ours, classic, measured])
+    expect(out.map(e => e.key)).toEqual(
+      ['darvas-box', 'flat-base', 'advancing-structure'])
+  })
+
+  it('is stable inside a tier — payload order is already grouped by family', () => {
+    const a = { key: 'a', origin: 'published', evidence: null }
+    const b = { key: 'b', origin: 'published', evidence: null }
+    expect(libraryOrder([a, b]).map(e => e.key)).toEqual(['a', 'b'])
+    expect(libraryOrder([b, a]).map(e => e.key)).toEqual(['b', 'a'])
+  })
+
+  it('drops nothing and mutates nothing', () => {
+    const input = [ours, classic, measured]
+    const before = input.map(e => e.key)
+    expect(libraryOrder(input)).toHaveLength(3)
+    expect(input.map(e => e.key)).toEqual(before)
+  })
+
+  it('survives an empty library', () => {
+    expect(libraryOrder([])).toEqual([])
+  })
+})
+
+describe('refusalReasons', () => {
+  it('returns the reasons the gates gave for a refused row', () => {
+    expect(refusalReasons({ published: false, reasons: ['too few trials'] }))
+      .toEqual(['too few trials'])
+  })
+
+  it('⛔ says nothing for a PUBLISHED row — those reasons are spent', () => {
+    expect(refusalReasons({ published: true, reasons: ['stale'] })).toEqual([])
+  })
+
+  it('survives a row with no evidence at all', () => {
+    expect(refusalReasons(null)).toEqual([])
+    expect(refusalReasons({ published: false })).toEqual([])
   })
 })
 
