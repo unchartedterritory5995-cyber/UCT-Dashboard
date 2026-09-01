@@ -1,0 +1,121 @@
+/* MobileDrawBar — TradingView-shaped phone drawing strip (wave 8).
+   Docks to the bottom of the CHART (inside StockChart's container), one
+   labeled-tile scroll row between pinned Done and pinned controls. */
+
+.bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;                    /* over canvas + overlay, under sheets */
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 4px 5px;
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  border-top: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+  animation: drawbarUp 180ms var(--ease-out, ease-out);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .bar { background: var(--bg-surface); }
+}
+@keyframes drawbarUp {
+  from { transform: translateY(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; }
+}
+
+.done {
+  flex: 0 0 auto;
+  min-width: 54px;
+  min-height: var(--tap-min);
+  border: none;
+  border-right: 1px solid var(--border);
+  background: none;
+  color: var(--ut-gold);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.done:active { background: var(--bg-hover); }
+
+.tools {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tools::-webkit-scrollbar { display: none; }
+
+.tool {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 52px;
+  min-height: var(--tap-min);
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tool:active { background: var(--bg-hover); }
+.toolActive {
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
+}
+
+.glyph { display: flex; align-items: center; justify-content: center; }
+.glyph svg { width: 18px; height: 18px; }
+
+.label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  border-left: 1px solid var(--border);
+  padding-left: 2px;
+}
+
+.ctl {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: var(--tap-min);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ctl:active { background: var(--bg-hover); }
+.ctl:disabled { opacity: 0.35; cursor: default; }
+.ctl .glyph svg { width: 16px; height: 16px; }
+.ctlOn {
+  color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 14%, transparent);
+}
