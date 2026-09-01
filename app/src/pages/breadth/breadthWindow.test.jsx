@@ -127,7 +127,9 @@ describe('the page holds the previous window while the next one loads', () => {
       if (!n || typeof n.type !== 'string') return
       if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'useSWR') {
         const key = src.slice(n.arguments[0].start, n.arguments[0].end)
-        if (key.includes('/api/breadth-monitor')) found = n
+        // The windowed Views/Overview fetch — the one keyed by `effectiveDays`.
+        // (The Monitor tab now has its own separate full-timeline fetches.)
+        if (key.includes('/api/breadth-monitor') && key.includes('effectiveDays')) found = n
       }
       for (const k of Object.keys(n)) {
         const v = n[k]

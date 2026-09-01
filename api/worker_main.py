@@ -717,6 +717,30 @@ def _build_app() -> FastAPI:
         from api.flow_router_mount import mount_flow_routers
         mount_flow_routers(app)
 
+    # Edge deep-history ORIGIN (spec: docs/superpowers/specs/2026-08-31-edge-deep-history).
+    # The worker holds the FULL deep bars.db; the web pod does not. This serves the SAME
+    # edge-cacheable sealed history as the web's /api/bars-history, but from the worker's
+    # deep store — so Cloudflare can cache deep history worldwide without the web ever
+    # holding or fetching the 20 GB (the 2026-08-31 OOM class). READ-ONLY: serve_bars_history
+    # never fetches/writes. Gated OFF + lazy-imported (boot path UNCHANGED until cutover).
+    if os.environ.get("BARS_HISTORY_ORIGIN_ENABLED", "0") == "1":
+        from fastapi import Query as _Q
+        from api.routers.bars import serve_bars_history as _serve_hist
+
+        @app.get("/api/bars-history/{ticker}")
+        def _worker_bars_history(
+            ticker: str,
+            tf: str = "D",
+            bars: int = _Q(default=60000, ge=1, le=60000),
+            v: str = "",
+            d: str = "",
+        ):
+            return _serve_hist(ticker, tf, bars, v, d)
+
+        logging.getLogger("uvicorn.error").info(
+            "[worker] edge deep-history ORIGIN enabled — serving /api/bars-history "
+            "from the worker's deep bars.db")
+
     return app
 
 
