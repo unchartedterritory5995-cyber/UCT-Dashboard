@@ -92,9 +92,21 @@ except Exception as _e:
 
 @router.get("/api/breadth-monitor/ohlc/status")
 def get_breadth_ohlc_status():
-    """Coverage of the breadth candle-wick store (no auth — read-only metadata)."""
+    """Coverage of the breadth candle-wick store + the deep-history inputs the
+    Monitor now merges (reconstructed OHLC, imported sentiment, and the resulting
+    navigator date bounds). No auth — read-only metadata."""
     from api.services import breadth_daily_ohlc
-    return breadth_daily_ohlc.stats()
+    out = breadth_daily_ohlc.stats()
+    try:
+        from api.services import breadth_sentiment_history
+        out["sentiment"] = breadth_sentiment_history.stats()
+    except Exception as e:
+        out["sentiment"] = {"error": str(e)}
+    try:
+        out["monitor_bounds"] = svc.date_bounds()
+    except Exception:
+        pass
+    return out
 
 
 @router.get("/api/breadth-monitor/universe")
@@ -438,7 +450,7 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
     """
     anchor = anchor if anchor in ("le", "ge") else "le"
     try:
-        rows = svc.get_history(days, end=end or None, anchor=anchor)
+        rows = svc.get_history_deep(days, end=end or None, anchor=anchor)
         top = rows[0]["date"] if rows else None
         bounds = svc.date_bounds()
         return {

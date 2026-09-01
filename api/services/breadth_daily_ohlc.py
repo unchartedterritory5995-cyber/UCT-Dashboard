@@ -229,6 +229,71 @@ def history(metric: str, limit: int = 6000) -> dict:
     return out
 
 
+def distinct_dates() -> list:
+    """Sorted-ASC list of every session date carrying at least one TRUSTED-source
+    metric row. Feeds the Monitor's deep-history merge (which must know the full
+    set of reconstructed dates to build a window that reaches before the
+    collector floor). Empty on any error."""
+    _ensure_init()
+    qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
+    try:
+        with _conn() as c:
+            return [r[0] for r in c.execute(
+                f"SELECT DISTINCT date FROM breadth_daily_ohlc "
+                f"WHERE source IN ({qmarks}) ORDER BY date ASC",
+                _TRUSTED_SOURCES,
+            ).fetchall()]
+    except Exception:
+        return []
+
+
+def closes_for_dates(dates) -> dict:
+    """{ 'YYYY-MM-DD': {metric: close} } for the given dates — TRUSTED sources
+    only, the CLOSE value of each metric's daily body (the reconstructed EOD
+    reading). This is how a past Monitor row is reassembled: every metric the
+    deep sweep stored for that date, as one row. Empty on any error."""
+    if not dates:
+        return {}
+    _ensure_init()
+    out: dict = {}
+    ds = list(dates)
+    qs = ",".join("?" * len(_TRUSTED_SOURCES))
+    try:
+        with _conn() as c:
+            # Chunk the date IN-list well under SQLite's 999-variable limit.
+            for i in range(0, len(ds), 400):
+                chunk = ds[i:i + 400]
+                dq = ",".join("?" * len(chunk))
+                for (d, m, cl) in c.execute(
+                    f"SELECT date, metric, c FROM breadth_daily_ohlc "
+                    f"WHERE date IN ({dq}) AND source IN ({qs})",
+                    (*chunk, *_TRUSTED_SOURCES),
+                ).fetchall():
+                    out.setdefault(d, {})[m] = cl
+    except Exception:
+        return {}
+    return out
+
+
+def metric_before(metric: str, before: str) -> dict:
+    """{ 'YYYY-MM-DD': close } for one metric, every TRUSTED date strictly before
+    `before`. Used to seed the cumulative A/D line for a deep window from the
+    reconstructed history that precedes it."""
+    if not metric or not before:
+        return {}
+    _ensure_init()
+    qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
+    try:
+        with _conn() as c:
+            return {d: cl for (d, cl) in c.execute(
+                f"SELECT date, c FROM breadth_daily_ohlc "
+                f"WHERE metric=? AND date < ? AND source IN ({qmarks})",
+                (metric, before, *_TRUSTED_SOURCES),
+            ).fetchall()}
+    except Exception:
+        return {}
+
+
 def backfill_from_intraday(days: int = 8) -> dict:
     """Aggregate REAL intraday breadth samples into daily OHLC — the ACCURATE historical
     wick source. `breadth_intraday` stores the full-universe live snapshot (all metrics)

@@ -3761,6 +3761,23 @@ async def lifespan(app: FastAPI):
         print("[startup] breadth-ohlc R2 puller started (gap-fill, "
               f"{int(os.environ.get('BREADTH_OHLC_PULL_SECS', '600')) // 60}-min cadence)")
 
+    # Historical breadth-sentiment seed: load the versioned public-archive CSV
+    # (AAII/put-call/CNN F&G/NAAIM back to 1987) into breadth_sentiment_history so
+    # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,
+    # idempotent (row-count-guarded upsert), best-effort, and only fills dates the
+    # 4:15 collector never saw. Skippable via BREADTH_DEEP_HISTORY=0.
+    if os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0":
+        def _breadth_sentiment_seed():
+            try:
+                from api.services import breadth_sentiment_history as _bsh
+                res = _bsh.seed_from_bundled_csv()
+                print(f"[startup] breadth-sentiment seed: {res}")
+            except Exception as e:
+                print(f"[startup] breadth-sentiment seed error (non-fatal): {e}")
+
+        threading.Thread(target=_breadth_sentiment_seed, daemon=True,
+                         name="breadth_sentiment_seed").start()
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
