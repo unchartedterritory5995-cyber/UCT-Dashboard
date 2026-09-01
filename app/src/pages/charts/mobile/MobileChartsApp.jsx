@@ -243,6 +243,9 @@ export default function MobileChartsApp({ widgets, onRemove, onColorChange, onOp
     toolbarDefaultCollapsed: true,
     // The » back-to-live chip when panned into history (phone/tablet only).
     showGoLive: true,
+    // Wave 8: drawing tools present as MobileDrawBar (labeled bottom strip);
+    // the desktop ChartToolbar hides entirely on this shell.
+    mobileDrawBar: true,
     // Phase 10 — the clean canvas. ChartPane force-enables these for the
     // desktop workspace; the spread order lets the shell take them back:
     // the symbol strip already shows the live price, so the legend becomes

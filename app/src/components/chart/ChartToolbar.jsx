@@ -49,7 +49,7 @@ const I = (children) => (
   </svg>
 )
 
-const ICONS = {
+export const TOOL_ICONS = {
   repeat:     I(<><path d="M11.5 2.5L14 5l-2.5 2.5" fill="none" /><path d="M2 8V7a3 3 0 013-3h9" fill="none" /><path d="M4.5 13.5L2 11l2.5-2.5" fill="none" /><path d="M14 8v1a3 3 0 01-3 3H2" fill="none" /></>),
   settings:   I(<><circle cx="8" cy="8" r="2.5" /><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" /></>),
   cursor:     I(<path d="M4 2v11l2.5-2.5L9 14l1.5-1-2.5-3.5H12z" fill="currentColor" stroke="none" />),
@@ -116,6 +116,9 @@ const chorded = (id, name) => {
   const chord = chordForTool(id)
   return chord ? `${name} (${chord})` : name
 }
+// Internal alias — the map is exported for MobileDrawBar (one glyph set, never copied).
+const ICONS = TOOL_ICONS
+
 
 const TOOLS = [
   // Select/cursor button removed — you can hover-and-drag annotations with no tool
@@ -925,6 +928,10 @@ function formatReplayDate(t) {
 }
 
 function ChartToolbar({
+  // Phone chart shell: MobileDrawBar presents the drawing tools instead, so
+  // this strip hides ENTIRELY (its dialogs still portal out, its imperative
+  // ref API still serves — only the desktop presentation goes).
+  hiddenHost = false,
   activeTool, setActiveTool,
   color, setColor,
   lineWidth, setLineWidth,
@@ -1229,7 +1236,7 @@ function ChartToolbar({
 
   return (
     <>
-    <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={prominent ? { opacity: 1 } : undefined}>
+    <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={hiddenHost ? { display: 'none' } : prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
       {/* Separators removed — every button is evenly spaced by the flex `gap`. */}
       <div className={styles.tools}>

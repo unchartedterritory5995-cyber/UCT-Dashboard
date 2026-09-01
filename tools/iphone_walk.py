@@ -192,19 +192,24 @@ def make_page(ctx, base, email, pw, viewport_note):
 
 
 def touch_walk(ctx, page):
-    """Arm Trendline, place two touch anchors, return True if it persisted."""
-    # Expand the drawing toolbar (the phone default is collapsed). Never swallow
-    # this silently: report which state was found so a failure names itself.
-    if page.get_by_label('Show toolbar').count() > 0:
-        page.get_by_label('Show toolbar').click(timeout=5000)
-        print('  toolbar: expanded from collapsed')
-    elif page.get_by_label('Hide toolbar').count() > 0:
-        print('  toolbar: already expanded')
+    """Arm Trend in the MobileDrawBar, place two touch anchors, return True
+    if the drawing persisted.
+
+    Wave 8: the phone shell presents drawing as MobileDrawBar (labeled bottom
+    strip) opened through the PRODUCT door — Tools sheet -> "Draw on chart" —
+    so the gate walks the same path a member's thumb does. The desktop
+    'Show toolbar' chevron no longer exists on this shell."""
+    tb = page.get_by_test_id('mobile-chart-toolbar')
+    tb.get_by_role('button', name='More tools').click(timeout=5000)
+    page.wait_for_timeout(700)
+    page.get_by_role('button', name='Draw on chart').click(timeout=5000)
+    page.wait_for_timeout(700)
+    if page.get_by_test_id('mobile-draw-bar').count() > 0:
+        print('  draw bar: opened via Tools -> Draw on chart')
     else:
-        print('  toolbar: NO toggle found — is the chart mounted?')
-    page.wait_for_timeout(500)
+        print('  draw bar: DID NOT OPEN — the Draw door or MobileDrawBar regressed')
     shot(page, '20-toolbar-expanded')
-    page.get_by_title(re.compile('^Trendline')).click(timeout=5000)
+    page.get_by_role('button', name='Trend', exact=True).click(timeout=5000)
     page.wait_for_timeout(400)
 
     cdp = None

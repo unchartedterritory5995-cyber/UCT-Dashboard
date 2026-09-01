@@ -90,15 +90,18 @@ describe('the meta line never pairs a stale count with a fresh pill', () => {
 
   it('shows the true count for the settled window on first render', () => {
     render90()
+    // The windowed "N trading days" meta lives on the Views tab now (the Monitor
+    // scrolls the whole timeline and captions itself "N sessions" instead).
+    fireEvent.click(screen.getByRole('button', { name: 'Views' }))
     expect(metaText()).toMatch(/^40 trading days/)
   })
 
   it('does NOT state the old count once a different window is requested', () => {
     render90()
-    // Before the click: the settled 90d state, printing the true count.
+    fireEvent.click(screen.getByRole('button', { name: 'Views' }))
+    // On Views, the settled 90d state prints the true count.
     expect(metaText()).toMatch(/^40 trading days/)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Views' }))
     fireEvent.click(dayPill('180d'))
 
     // The pill relit immediately (synchronous state) …
