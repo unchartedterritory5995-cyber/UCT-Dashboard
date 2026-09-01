@@ -445,21 +445,42 @@ def test_the_structure_has_NO_lift_until_a_run_is_done():
     assert m["coverage_pct"] == 4.28
 
 
-def test_the_ledger_row_says_UNMEASURED_and_says_why():
+def test_the_ledger_row_is_refused_and_his_figures_never_became_our_lift():
+    """⭐ THE PREMISE MOVED. This pinned the row as UNMEASURED with the
+    source's own figures named in its refusal reasons. The structure has since
+    been measured on our universe and refused for a measured reason, so the
+    placeholder wording is gone — a strictly better state that turned this red.
+
+    ⛔ THE GUARANTEE THAT MATTERS IS UNCHANGED and is restated here in the
+    form that outlives the transition: the source's published figures may live
+    in the catalog as a SOURCED CRITERION, and must never become the ledger's
+    lift. That is the import this test exists to prevent.
+    """
     from api.services.screener import lift_ledger as ll
+    from api.services.screener import base_catalog as bc
 
     row = (ll.load().get("structures") or {}).get("ugly-double-bottom")
     assert row, "the structure has no ledger row — absence reads as 'fine'"
     assert row["published"] is False
     assert row["reasons"], "a refused row with no reason is a blank"
-    assert row["sample_tickers"] is None
-    assert row["sample_tickers_missing"], (
-        "an absent sample must say WHY it is absent, not merely be blank")
-    blob = " ".join(row["reasons"]).lower()
-    assert "not yet measured" in blob
-    assert "4,376" in " ".join(row["reasons"]) or "perfect trades" in blob, (
-        "the row must record that his published figures were considered and "
-        "refused as our evidence — otherwise the next reader re-imports them")
+
+    # his numbers are a QUOTED criterion, with a source
+    st = bc.by_key("ugly-double-bottom")
+    quoted = [c for c in st.criteria
+              if c.quote and "perfect trades" in c.quote.lower()]
+    assert quoted, (
+        "the source's own sample no longer appears as a sourced criterion — "
+        "if it was deleted, say so; if it moved, point this rail at it")
+    assert all(c.source_id for c in quoted), (
+        "a quoted figure with no source_id is an unattributed import")
+
+    # ⛔ AND IT IS NOT OUR MEASUREMENT. The ledger's lift, when there is one,
+    # must come from OUR universe — never from the number in that quote.
+    if row.get("lift") is not None:
+        assert isinstance(row.get("sample_tickers"), int), (
+            "a measured row must record the sample WE measured it on")
+        assert bc.meta()["ugly-double-bottom"]["lift_pp"] is None, (
+            "a refused row is surfacing a lift to members")
     assert ll.for_structure("ugly-double-bottom") is None
 
 

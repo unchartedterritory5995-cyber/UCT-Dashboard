@@ -368,10 +368,31 @@ def test_its_coverage_was_measured_and_lands_in_band():
     assert 0 < st.coverage_pct <= 35.0, st.coverage_pct
 
 
-def test_the_ledger_carries_an_honest_unmeasured_row():
+def test_the_ledger_carries_an_honest_refused_row():
+    """⭐ THE PREMISE MOVED, AND THAT IS THE GOOD DIRECTION.
+
+    This asserted `sample_tickers is None and sample_tickers_missing` — the
+    honest shape of a structure that had been SHIPPED BUT NEVER MEASURED. It
+    has since been measured on 1,123 tickers and refused with reasons that
+    quote real numbers, which is a strictly stronger state; the test went red
+    because it pinned the placeholder rather than the guarantee.
+
+    ⛔ THE GUARANTEE, restated so it survives the next transition: the row
+    must be VISIBLE, must be REFUSED, and its refusal must be MEASURED rather
+    than a placeholder — the failure this guards is a structure that quietly
+    carries no row at all, because absence reads as "fine".
+    """
     from api.services.screener import lift_ledger as ll
     e = (ll.load().get("structures") or {}).get("three-weeks-tight")
-    assert e is not None, "no ledger row — an unmeasured structure must be visible"
+    assert e is not None, "no ledger row — absence reads as 'fine'"
     assert e["published"] is False
-    assert e["reasons"]
-    assert e["sample_tickers"] is None and e["sample_tickers_missing"]
+    assert e["reasons"], "a refused row with no reason is a blank"
+    if e.get("lift") is None:
+        assert e.get("sample_tickers") is None and e["sample_tickers_missing"], (
+            "an unmeasured row must say WHY its sample is absent")
+    else:
+        assert isinstance(e.get("sample_tickers"), int) and e["sample_tickers"] > 0, (
+            "a measured row must record the sample it was measured on")
+        assert any(str(round(e["lift"], 4)) in r for r in e["reasons"]), (
+            "a measured refusal must quote the number it refused, or the next "
+            "reader cannot tell a real measurement from a placeholder")
