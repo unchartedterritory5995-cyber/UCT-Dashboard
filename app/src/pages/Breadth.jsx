@@ -16,6 +16,7 @@ import { useLiveBreadth, formatLiveClock } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
+import useMonitorGrid from './breadth/useMonitorGrid'
 import DailyOverview from './breadth/DailyOverview'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -123,6 +124,9 @@ export const VIEWS_DAY_CHOICES = [90, 180, 365]
 // (date box) drives WHERE the fixed window ends instead of how wide it is. This
 // is the fixed span it always shows (was the 90d default the pills topped out at).
 export const MONITOR_WINDOW = 90
+// Fixed Monitor row height in px — must match `.table td` height in Breadth.module.css.
+// A fixed height keeps virtual scroll-to-index pixel-exact across the whole timeline.
+export const MONITOR_ROW_H = 32
 
 export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
@@ -952,19 +956,6 @@ export default function Breadth() {
     { refreshInterval: 5 * 60 * 1000, keepPreviousData: true }
   )
 
-  // ── Monitor tab: the whole timeline, for an infinitely-scrollable sheet ──────
-  // The Monitor is a virtualized grid over EVERY session back to the reconstructed
-  // floor (~2008). A small recent window paints instantly; the full history loads
-  // right behind it so a teleport to any date is an instant scroll-to-index (no
-  // per-jump fetch). Both only fire on the Monitor tab.
-  const monitorRecent = useSWR(
-    activeTab === 'breadth' ? '/api/breadth-monitor?days=250' : null,
-    fetcher, { refreshInterval: 5 * 60 * 1000, keepPreviousData: true })
-  const monitorFull = useSWR(
-    activeTab === 'breadth' ? '/api/breadth-monitor?days=8000' : null,
-    fetcher, { revalidateOnFocus: false, keepPreviousData: true })
-  const monitorData = monitorFull.data ?? monitorRecent.data ?? null
-  const monitorFullLoaded = !!monitorFull.data
   /**
    * ⛔ `isLoading` (`!data && isValidating`) is permanently false here once any
    * window has loaded once this session — `keepPreviousData` means `data` is
@@ -1030,46 +1021,42 @@ export default function Breadth() {
     [liveBreadth.row, storedRows],
   )
 
-  // ── Monitor grid: the FULL timeline, virtualized + infinitely scrollable ──
-  const monitorStored = useMemo(() => monitorData?.rows ?? [], [monitorData])
-  const monitorRows = useMemo(
-    () => (liveBreadth.row ? [liveBreadth.row, ...monitorStored] : monitorStored),
-    [liveBreadth.row, monitorStored],
-  )
+  // ── Monitor grid: virtualized over the FULL timeline index, rows loaded on
+  //    demand in blocks (see useMonitorGrid). A teleport to any year is an instant
+  //    scroll-to-index; only the visible rows fetch, so scrolling stays light. ──
+  const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row })
   const tableWrapRef = useRef(null)
   const rowVirtualizer = useVirtualizer({
-    count: monitorRows.length,
+    count: grid.count,
     getScrollElement: () => tableWrapRef.current,
-    estimateSize: () => 33,
-    overscan: 16,
+    // FIXED row height (enforced in CSS: .table td is 32px border-box). No dynamic
+    // measurement — a fixed size makes scrollToIndex pixel-exact across all ~4,700
+    // rows, so a jump to any year lands on the right session with zero drift.
+    estimateSize: () => MONITOR_ROW_H,
+    overscan: 14,
   })
   const virtualItems = rowVirtualizer.getVirtualItems()
   const monitorTopIndex = virtualItems[0]?.index ?? 0
-  const monitorTopDate = monitorRows[monitorTopIndex]?.date ?? null
+  const monitorTopDate = grid.allDates[monitorTopIndex] ?? null
+
+  // Keep the visible (and just-off-screen) rows loaded as the user scrolls.
+  const visFirst = virtualItems[0]?.index ?? 0
+  const visLast = virtualItems[virtualItems.length - 1]?.index ?? 0
+  useEffect(() => {
+    if (activeTab === 'breadth') grid.ensureRange(visFirst, visLast)
+  }, [activeTab, visFirst, visLast, grid.ensureRange, grid.count]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const monitorScrollTo = useCallback((idx, align = 'start') => {
-    if (idx == null || idx < 0 || !monitorRows.length) return
-    rowVirtualizer.scrollToIndex(Math.min(idx, monitorRows.length - 1), { align })
-  }, [rowVirtualizer, monitorRows.length])
+    if (idx == null || idx < 0 || !grid.count) return
+    rowVirtualizer.scrollToIndex(Math.min(idx, grid.count - 1), { align })
+  }, [rowVirtualizer, grid.count])
 
-  // Teleport = an instant scroll-to-index over the loaded timeline (no fetch).
-  const onDatePick = useCallback((iso) => {
-    let idx = monitorRows.findIndex(r => r.date === iso)
-    if (idx < 0) idx = monitorRows.findIndex(r => r.date <= iso)   // nearest session on/before
-    monitorScrollTo(idx < 0 ? monitorRows.length - 1 : idx)
-  }, [monitorRows, monitorScrollTo])
-
-  const onYearPick = useCallback((y) => {
-    const jan1 = `${y}-01-01`
-    // "Start of that year" = its first session = the oldest date ≥ Jan 1 (the
-    // highest index in this newest-first list whose date is still in/after the year).
-    let idx = -1
-    for (let i = monitorRows.length - 1; i >= 0; i--) {
-      if (monitorRows[i].date >= jan1) { idx = i; break }
-    }
-    monitorScrollTo(idx < 0 ? 0 : idx)
-  }, [monitorRows, monitorScrollTo])
-
+  // Teleport = an instant scroll-to-index over the FULL timeline (rows fetch as
+  // they arrive on screen). Works for any date/year, loaded or not.
+  const onDatePick = useCallback((iso) => monitorScrollTo(grid.indexOfDate(iso)),
+    [grid, monitorScrollTo])
+  const onYearPick = useCallback((y) => monitorScrollTo(grid.indexOfYearStart(y)),
+    [grid, monitorScrollTo])
   const onDateStep = useCallback((dir) => {
     // ◀ (dir<0) steps to an OLDER day = one row down; ▶ steps newer = one row up.
     monitorScrollTo(Math.max(0, monitorTopIndex + (dir < 0 ? 1 : -1)))
@@ -1098,29 +1085,6 @@ export default function Breadth() {
     })
     return keys
   }, [visibleCols])
-
-  // Sparkline trails for the Monitor table — built over the full (monitor) set so
-  // a reconstructed row's 10-day trail is complete, not truncated at a window edge.
-  const sparkData = useMemo(() => {
-    const out = {}
-    const sparkCols = COLS.filter(c => c.type === 'sparkline')
-    if (!sparkCols.length) return out
-    // monitorRows is newest-first; reverse to get oldest-first
-    const asc = [...monitorRows].reverse()
-    const dateToIdx = Object.fromEntries(asc.map((r, i) => [r.date, i]))
-    for (const col of sparkCols) {
-      out[col.key] = {}
-      for (const row of monitorRows) {
-        const idx = dateToIdx[row.date]
-        if (idx != null) {
-          out[col.key][row.date] = asc
-            .slice(Math.max(0, idx - 9), idx + 1)
-            .map(r => r[col.key] ?? null)
-        }
-      }
-    }
-    return out
-  }, [monitorRows])
 
   if (activeTab === 'overview') {
     return (
@@ -1182,9 +1146,9 @@ export default function Breadth() {
                     ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
                     : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
                 : isLoading ? 'Loading…' : 'No data')
-            : (monitorRows.length > 0
-                ? `${monitorRows.length.toLocaleString()} sessions${monitorFullLoaded ? '' : ' · loading history…'}${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : monitorRecent.isLoading ? 'Loading…' : 'No data')}
+            : (grid.count > 0
+                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : grid.ready ? 'No data' : 'Loading…')}
         </span>
         {isViewsTab ? (
           // Views keeps its window pills (a lens is defined by how many sessions
@@ -1203,8 +1167,8 @@ export default function Breadth() {
         ) : (
           <BreadthDateNav
             topDate={monitorTopDate}
-            minDate={monitorData?.min_date ?? null}
-            maxDate={monitorData?.max_date ?? null}
+            minDate={grid.min}
+            maxDate={grid.max}
             canForward={monitorTopIndex > 0}
             onStep={onDateStep}
             onPickDate={onDatePick}
@@ -1275,7 +1239,7 @@ export default function Breadth() {
         </UnmountReporter>
       )}
 
-      {monitorRows.length > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
+      {grid.count > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
           All metrics hidden — open <strong>Customize</strong> to show some.
         </div>
@@ -1288,7 +1252,7 @@ export default function Breadth() {
           no business sitting over a historical sheet. */}
       {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
 
-      {monitorRows.length > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
+      {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
         <div className={styles.tableWrap} ref={tableWrapRef}>
           <table className={styles.table}>
             <thead>
@@ -1327,10 +1291,26 @@ export default function Breadth() {
                 </tr>
               )}
               {virtualItems.map((vi) => {
-                const row = monitorRows[vi.index]
                 const ri = vi.index
+                const row = grid.getRow(ri)
+                if (!row) {
+                  // Not fetched yet — the date is known from the timeline index;
+                  // the metric cells fill in the instant the block lands.
+                  const skelDate = grid.allDates[ri]
+                  return (
+                    <tr key={skelDate ?? ri}
+                        className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${styles.skeletonRow}`}>
+                      <td className={`${styles.td} ${styles.dateCell}`}>{skelDate}</td>
+                      {visibleCols.map(col => (
+                        <td key={col.key} className={`${styles.td} ${collapsedCols.has(col.key) ? styles.colCollapsedCell : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}>
+                          {!collapsedCols.has(col.key) && <span className={styles.skelDot} aria-hidden="true">·</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                }
                 return (
-                <tr key={row.date} ref={rowVirtualizer.measureElement} data-index={ri} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
                     {row._live
                       ? (
@@ -1358,7 +1338,7 @@ export default function Breadth() {
                     }
                     if (col.type === 'sparkline') {
                       const val = row[col.key]
-                      const last10 = sparkData[col.key]?.[row.date] ?? []
+                      const last10 = grid.trail(ri, col.key)
                       // Determine line color from cell color class
                       const colorResult = col.colorFn ? col.colorFn(val) : ''
                       const lineColor = colorResult === 'green' ? 'var(--ut-green-bright)'

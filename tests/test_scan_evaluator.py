@@ -1344,6 +1344,41 @@ def test_the_scan_sweep_is_its_OWN_job_at_a_LATER_hour_and_not_chained_to_run_bu
     assert sweep_hour > snap_hour, "the sweep runs BEFORE the snapshot it depends on"
     assert sweep["fn"] is not snap["fn"]
 
+    # ⛔⛔ A ONCE-A-DAY JOB MUST SURVIVE A RESTART AT ITS OWN TRIGGER TIME.
+    # apscheduler 3.11.2's default grace is ONE SECOND: a scheduler not running
+    # at the fire instant — a deploy, a restart, a busy loop — raises
+    # EVENT_JOB_MISSED and NEVER CALLS THE FUNCTION. For the five-minute live
+    # sweep that is a five-minute hole; for this one it is the whole night, with
+    # no receipt and no `unswept` to read. Observed in production 2026-08-31:
+    # `SCAN_SWEEP_ENABLED=1` and `scan_hits` newest session stuck on FRIDAY,
+    # read on a Monday.
+    #
+    # ⭐ THE GRACE IS SAFE BECAUSE THE DEADLINE IS THE GUARD. `run_sweep` stops
+    # starting definitions at `sweep_deadline()` and a run begun past it stops at
+    # once, so a late start cannot reach the open. This asserts a FLOOR, not an
+    # exact value — the number is a judgement about how much restart window to
+    # cover, and pinning it exactly would make a reasonable retune look like a
+    # regression.
+    assert sweep.get("misfire_grace_time"), (
+        "the nightly sweep has no misfire grace, so apscheduler's 1-second "
+        "default silently drops the whole night on any restart at 05:00 ET")
+    assert sweep["misfire_grace_time"] >= 600, (
+        f"a {sweep['misfire_grace_time']}s grace barely covers a restart; the "
+        "deadline already bounds a late run, so this can afford to be generous")
+    assert sweep.get("coalesce") is True, (
+        "without coalesce, two missed fires queue two sweeps into a "
+        "max_instances=1 slot and the second is dropped anyway")
+
+    # ⛔ AND THE GRACE MUST NOT OUTLAST THE RUNWAY IT IS SIZED AGAINST. 05:00 ET
+    # to `market_open - SWEEP_STOP_BEFORE_OPEN` is the whole window the sweep has;
+    # a grace longer than that would start runs that can only report `unswept`.
+    runway = ((9 - scan_evaluator.SWEEP_HOUR_ET) * 3600
+              - int(scan_evaluator.SWEEP_STOP_BEFORE_OPEN.total_seconds())
+              + 30 * 60)
+    assert sweep["misfire_grace_time"] <= runway, (
+        f"grace {sweep['misfire_grace_time']}s exceeds the {runway}s runway "
+        "between the trigger and the deadline")
+
 
 def test_the_scan_sweep_job_is_OFF_by_default(monkeypatch):
     """The sweep's code default stays OFF (=1 on Railway): a bare local run
