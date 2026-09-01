@@ -1,4 +1,4 @@
-"""No structure detector may RAISE. A crashing detector is a silent dead one.
+"""No SCREENER detector may RAISE. A crashing detector is a silent dead one.
 
 ⭐⭐ THE DEFECT THIS EXISTS FOR, MEASURED. `_detect_pocket_pivot` called
 `_sma(closes, 10)` where `_sma` takes BARS, so it raised `AttributeError` on
@@ -21,57 +21,52 @@ would be skipped into uselessness. Seeded random walks are deterministic, need
 no database, and drive the detectors deep: a walk that gaps, trends, reverses
 and expands its range hits the same later lines the universe does — which is
 the whole reason this rail reproduces the bug.
+
+─────────────────────────────────────────────────────────────────────────────
+WIDENED 2026-08-31 — the swallow has THREE consumers in the screener, not one.
+
+`bar_character.classify` catches `(TypeError, KeyError, ZeroDivisionError)` per
+cascade head and `continue`s. That swallow is WORSE than `_collect_relations`'s,
+not milder: `_collect_relations` loses one relation, but the CASCADE IS A STRICT
+PRIORITY ORDER — first match wins — so a head that raises does not merely lose
+its own label, it hands the bar to the NEXT, LOWER-PRIORITY head. The member
+does not see a missing label; they see a WRONG one, with nothing anywhere saying
+so. `bar_character` is now swept beside `base_catalog` and `bases.classify`.
+
+(The pattern engine's 85 detectors have the same shape behind
+`pattern_engine.detect_all`'s `except Exception: log.warning`. They are swept by
+`tests/test_no_pattern_detector_raises.py`, off the SAME fixtures.)
 """
-import sys, pathlib, random, datetime
+import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import pytest
 
 from api.services.screener import base_catalog as bc
+from api.services.screener import bar_character as bch
 from api.services.screener.bases import BaseCtx
 
-_DAY0 = datetime.date(2023, 1, 2)
+#: ⛔ ONE fixture authority, shared with the pattern-engine rail. See the header
+#: of `tests/detector_fixtures.py` for why this is an import and not a copy.
+from tests.detector_fixtures import walk as _walk, gap_walk, edge_series, BARS
 
 SERIES = 60          # seeded walks per run
-BARS = 620           # comfortably past the deepest `min_bars` (210) + 200-dma
+GAP_SERIES = 30      # seeded walks that actually GAP (see `gap_walk`)
 
 
-def _walk(seed: int, bars: int = BARS) -> list:
-    """A price series with trends, gaps, reversals and volume swings.
+def _series():
+    """Every synthetic series this file runs over, as `(name, bars)`.
 
-    ⛔ NOT a smooth line. A flat or monotonic series is rejected by nearly every
-    detector's early gates, so it would exercise none of the later arithmetic
-    where this bug class lives — a fixture that cannot reach the defect is not
-    a rail.
-    """
-    rng = random.Random(seed)
-    out, price = [], 20.0 + rng.random() * 180.0
-    drift = rng.uniform(-0.0015, 0.0025)
-    for i in range(bars):
-        if rng.random() < 0.03:                 # regime flip
-            drift = rng.uniform(-0.003, 0.004)
-        shock = rng.gauss(0, 0.022) + drift
-        if rng.random() < 0.02:                 # gap
-            shock += rng.choice([-1, 1]) * rng.uniform(0.03, 0.12)
-        o = price
-        price = max(0.5, price * (1.0 + shock))
-        c = price
-        spread = abs(c - o) + o * rng.uniform(0.002, 0.03)
-        h = max(o, c) + spread * rng.random()
-        l = max(0.01, min(o, c) - spread * rng.random())
-        v = int(abs(rng.gauss(1_000_000, 400_000))) + rng.randint(1, 50_000)
-        if rng.random() < 0.05:                 # volume spike
-            v *= rng.randint(3, 12)
-        # ⛔ REAL calendar dates. The first draft used `20240101 + i`, which
-        # produces 20240132 — and the Weinstein stage detectors parse `t` as a
-        # date, so they raised on every series. That was the FIXTURE lying, not
-        # the product, and it is worth recording: this rail is sensitive enough
-        # to catch a malformed timestamp, so a failure here is read carefully
-        # before anything in `api/` is touched.
-        d = _DAY0 + datetime.timedelta(days=i)
-        out.append({"t": int(d.strftime("%Y%m%d")),
-                    "o": o, "h": h, "l": l, "c": c, "v": v})
-    return out
+    ⛔ ONE list, consumed by the rule AND by both controls. A control that
+    builds its own series proves the control works, not the rail."""
+    for seed in range(SERIES):
+        yield f"walk/seed={seed}", _walk(seed)
+    for seed in range(GAP_SERIES):
+        yield f"gap/seed={seed}", gap_walk(seed)
+    yield from edge_series()
+
+
+SERIES_TOTAL = len(list(_series()))
 
 
 def _ctx(bars):
@@ -89,8 +84,8 @@ def test_the_fixture_actually_reaches_the_detectors():
     every detector rejects on its first line satisfies that trivially. This
     demands the walks be interesting enough that detectors actually FIRE."""
     fired = set()
-    for seed in range(SERIES):
-        ctx = _ctx(_walk(seed))
+    for _name, bars in _series():
+        ctx = _ctx(bars)
         for s in _detectors():
             if len(ctx.bars) < s.min_bars:
                 continue
@@ -99,10 +94,11 @@ def test_the_fixture_actually_reaches_the_detectors():
                     fired.add(s.key)
             except Exception:
                 pass
-    assert len(fired) >= 6, (
-        f"only {sorted(fired)} fired on {SERIES} synthetic series — the fixture "
-        f"is not driving the detectors deep enough for 'nothing raised' to mean "
-        f"anything"
+    # Measured 2026-08-31: 17 of 23 structures fire across these 96 series.
+    assert len(fired) >= 14, (
+        f"only {sorted(fired)} fired on {SERIES_TOTAL} synthetic series — the "
+        f"fixture is not driving the detectors deep enough for 'nothing raised' "
+        f"to mean anything"
     )
 
 
@@ -114,8 +110,7 @@ def _sweep(detectors) -> dict:
     `_render_order` probe in this repo made exactly that mistake and
     re-measured 56 twice."""
     failures = {}
-    for seed in range(SERIES):
-        bars = _walk(seed)
+    for name, bars in _series():
         ctx = _ctx(bars)
         for s in detectors:
             if len(bars) < s.min_bars:
@@ -124,7 +119,7 @@ def _sweep(detectors) -> dict:
                 s.detect(ctx)
             except Exception as e:                     # noqa: BLE001
                 failures.setdefault(s.key, []).append(
-                    f"seed={seed}: {type(e).__name__}: {e}")
+                    f"{name}: {type(e).__name__}: {e}")
     return failures
 
 
@@ -150,7 +145,7 @@ def test_the_sweep_reports_a_PLANTED_crashing_detector():
         "the sweep did not report a detector that raises on every series — it "
         "cannot see the defect this file exists to catch"
     )
-    assert len(found["planted-crash"]) == SERIES
+    assert len(found["planted-crash"]) == SERIES_TOTAL
 
 
 # ─── the rule ───────────────────────────────────────────────────────────────
@@ -162,23 +157,173 @@ def test_no_structure_detector_raises_on_any_synthetic_series():
         "exception per predicate, so in production each of these is a "
         "structure that can never fire while its catalog entry still "
         "advertises a coverage figure:\n"
-        + "\n".join(f"  {k}: {v[0]}  ({len(v)} of {SERIES} series)"
+        + "\n".join(f"  {k}: {v[0]}  ({len(v)} of {SERIES_TOTAL} series)"
                     for k, v in sorted(failures.items()))
     )
 
 
 def test_no_shape_classifier_raises_either():
     """The SHAPE axis is a total partition — a raise there does not lose one
-    label, it loses the symbol's only guaranteed answer."""
+    label, it loses the symbol's only guaranteed answer.
+
+    ⛔ TOTAL *ABOVE `MIN_HISTORY`*, and the refusal below it is its own
+    contract. `classify` returns `_NULL` — every key present, every value None —
+    for a series shorter than `MIN_HISTORY`, because "a missing key and a null
+    value are different facts to every consumer downstream" (its docstring).
+    Both halves are asserted, and neither number is typed here: the threshold
+    and the key set are read off `bases` itself, so moving either moves the
+    test with it."""
     from api.services.screener import bases
-    for seed in range(SERIES):
-        bars = _walk(seed)
+    answered = short = 0
+    for name, bars in _series():
         try:
             out = bases.classify(bars)
         except Exception as e:                          # noqa: BLE001
-            pytest.fail(f"bases.classify raised on seed={seed}: "
+            pytest.fail(f"bases.classify raised on {name}: "
                         f"{type(e).__name__}: {e}")
-        assert out.get("base_shape"), (
-            f"seed={seed} produced no shape, but the shape axis is a TOTAL "
-            f"partition — every symbol must get exactly one"
-        )
+        assert set(out) == set(bases._NULL), (
+            f"{name} returned key set {sorted(out)} — a consumer reading a "
+            f"missing key sees a different fact from one reading a null")
+        if len(bars) >= bases.MIN_HISTORY:
+            answered += 1
+            assert out.get("base_shape"), (
+                f"{name} has {len(bars)} bars (>= MIN_HISTORY="
+                f"{bases.MIN_HISTORY}) and produced no shape, but the shape "
+                f"axis is a TOTAL partition — every such symbol gets exactly one")
+        else:
+            short += 1
+            assert out == dict(bases._NULL), (
+                f"{name} has {len(bars)} bars (< MIN_HISTORY) so classify must "
+                f"refuse with the all-null row, not a partial answer: {out}")
+    # ⛔ NON-VACUITY on BOTH branches — a fixture with no short series would let
+    # the refusal contract rot untested, and one with no long series would let
+    # the totality claim pass on an empty set.
+    assert answered > 50 and short >= 2, (
+        f"the fixture exercised {answered} answering and {short} refusing "
+        f"series — both branches of classify must be driven")
+
+
+# ─── the bar-character cascade ──────────────────────────────────────────────
+#
+# ⛔ A RAISING HEAD HERE MISLABELS THE BAR, it does not blank it. `classify`
+# catches (TypeError, KeyError, ZeroDivisionError) and `continue`s to the next
+# head, and because the cascade is a strict priority order the bar then gets
+# whatever LOWER-priority head matches next. An Upthrust that raises is silently
+# reported as a Wide Range Down Bar. Nothing logs it and the row still looks
+# complete, which is why only running the predicates can find it.
+#
+# The cascade also needs SHORT and DEGENERATE history in a way the structures do
+# not: `no-trade` (`not f["v"]`) and `flat-bar` (`rng <= 0`) exist because the
+# universe delivers those bars, and half the cascade divides by `rng` or reads
+# `f["pc"]`, which is None on a one-bar series.
+
+#: Truncations, so every "short history" branch of `features()` is executed.
+_BC_LENGTHS = (BARS, 300, 60, 21, 8, 3, 2, 1)
+
+
+def _bar_character_series():
+    for seed in range(GAP_SERIES):
+        full = gap_walk(seed)
+        for n in _BC_LENGTHS:
+            yield f"gap/seed={seed}/n={n}", full[:n]
+    for seed in range(10):
+        full = _walk(seed)
+        for n in (BARS, 60, 3):
+            yield f"walk/seed={seed}/n={n}", full[:n]
+    yield from edge_series()
+
+
+BC_SERIES_TOTAL = len(list(_bar_character_series()))
+
+
+def _bar_character_sweep(cascade) -> dict:
+    """Run every cascade head over every series; return {key: [errors]}.
+
+    ⛔ ONE implementation, shared by the rule and by its planted control —
+    same reason as `_sweep` above."""
+    failures = {}
+    for name, bars in _bar_character_series():
+        f = bch.features(bars)
+        if f is None:                   # no bar to describe; nothing to run
+            continue
+        for ch in cascade:
+            try:
+                ch.detect(f)
+            except Exception as e:                     # noqa: BLE001
+                failures.setdefault(ch.key, []).append(
+                    f"{name}: {type(e).__name__}: {e}")
+    return failures
+
+
+def test_the_fixture_actually_MATCHES_bar_character_heads():
+    """⛔ NON-VACUITY, and the stricter half of it. "Nothing raised" over a
+    cascade is satisfied by a fixture that never gets past `features()`. This
+    demands heads actually MATCH — including the gap family, which the original
+    `_walk` could not reach at all because it opened every bar at the prior
+    close (see `gap_walk`'s docstring)."""
+    matched, saw_features = set(), 0
+    for _name, bars in _bar_character_series():
+        f = bch.features(bars)
+        if f is None:
+            continue
+        saw_features += 1
+        for ch in bch.CASCADE:
+            try:
+                if ch.detect(f):
+                    matched.add(ch.key)
+            except Exception:
+                pass
+    assert saw_features > 100, (
+        f"only {saw_features} series produced a feature vector — the fixture is "
+        f"not reaching the cascade at all")
+    # Measured 2026-08-31: 40 of 55 heads match across these 276 series.
+    assert len(matched) >= 35, (
+        f"only {len(matched)} of {len(bch.CASCADE)} cascade heads matched "
+        f"({sorted(matched)}) — 'nothing raised' says little about the "
+        f"{len(bch.CASCADE) - len(matched)} heads never evaluated to True")
+    # The gap family is the half `_walk` alone could never reach.
+    assert any(k.startswith("gap-") for k in matched), (
+        "no gap head matched — the fixture opens every bar at the prior close "
+        "again, which silently un-tests 12 of the 55 heads")
+
+
+def test_the_bar_character_sweep_reports_a_PLANTED_crashing_head():
+    """The planted-defect control, routed through the SAME
+    `_bar_character_sweep` the rule uses."""
+    planted = bch.Character(
+        key="planted-crash", label="Planted Crash", tier=5,
+        desc="always raises",
+        detect=lambda f: (_ for _ in ()).throw(
+            TypeError("'>=' not supported between 'NoneType' and 'float'")),
+    )
+    found = _bar_character_sweep([planted])
+    assert "planted-crash" in found, (
+        "the sweep did not report a cascade head that raises on every series")
+    assert len(found["planted-crash"]) > 100
+
+
+def test_no_bar_character_head_raises_on_any_synthetic_series():
+    failures = _bar_character_sweep(bch.CASCADE)
+    assert not failures, (
+        "these cascade heads RAISED. `bar_character.classify` catches "
+        "(TypeError, KeyError, ZeroDivisionError) and CONTINUES, and the "
+        "cascade is a strict priority order — so each of these silently hands "
+        "the bar to a LOWER-priority label and the member reads a WRONG "
+        "character, not a missing one:\n"
+        + "\n".join(f"  {k}: {v[0]}  ({len(v)} of {BC_SERIES_TOTAL} series)"
+                    for k, v in sorted(failures.items()))
+    )
+
+
+def test_bar_character_classify_always_answers():
+    """The cascade's terminal is identically true, so `classify` is a TOTAL
+    partition exactly like `bases.classify` — every bar gets a character."""
+    for name, bars in _bar_character_series():
+        try:
+            out = bch.classify(bars)
+        except Exception as e:                          # noqa: BLE001
+            pytest.fail(f"bar_character.classify raised on {name}: "
+                        f"{type(e).__name__}: {e}")
+        assert out.get("bar_character"), (
+            f"{name} produced no bar character, but the cascade ends in a "
+            f"terminal predicate that is identically true")
