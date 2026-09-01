@@ -27,15 +27,20 @@ class _Args:
         self.sample = sample
 
 
-class _St:
-    def __init__(self, key):
-        self.key = key
-
-
 def _run(rows, keys, trials=30, sample=1125):
+    """⛔ PASSES PLAIN STRINGS, BECAUSE THAT IS WHAT THE CALLER PASSES.
+    `main()` builds `wanted` as `[k.strip() for k in args.only.split(",")]`.
+    The first version of this file handed the function objects with a `.key`
+    attribute — an input no caller produces — so the tests were green while the
+    real runner crashed with `AttributeError: 'str' object has no attribute
+    'key'` on its first live invocation. Same defect as the panel reading
+    `lift_pp`: a fixture written from an assumption instead of the contract."""
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
-        _warn_futile_escalations(_Args(trials, sample), [_St(k) for k in keys], rows)
+        # pass `keys` THROUGH — `None` is a real input (no `--only`), and
+        # wrapping it in `list()` would test the helper rather than the function
+        _warn_futile_escalations(_Args(trials, sample),
+                                 list(keys) if keys is not None else None, rows)
     return buf.getvalue()
 
 
@@ -45,6 +50,19 @@ GO_SIGNAL = {"null_trials": 5, "ci_low": 0.0392, "null_max": 0.0654,
              "sample_tickers": 1125}
 EMA_CROSSBACK = {"null_trials": 5, "ci_low": 0.1193, "null_max": 0.1009,
                  "sample_tickers": 1125}
+
+
+def test_it_accepts_the_KEY_STRINGS_the_runner_actually_passes():
+    """The regression case. `main()` passes strings; anything else is a shape
+    no caller produces."""
+    out = _run({"go-signal": GO_SIGNAL}, ["go-signal"])
+    assert "go-signal" in out
+
+
+def test_it_survives_the_no_only_case():
+    """`--only` omitted leaves `wanted` empty, meaning "measure everything"."""
+    assert _run({"go-signal": GO_SIGNAL}, []).strip() == ""
+    assert _run({"go-signal": GO_SIGNAL}, None).strip() == ""
 
 
 def test_it_warns_on_the_row_that_cannot_be_rescued():
