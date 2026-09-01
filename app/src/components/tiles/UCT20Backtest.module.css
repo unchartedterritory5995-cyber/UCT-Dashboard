@@ -196,3 +196,14 @@
   flex-wrap: wrap; gap: 4px 12px;
   margin-bottom: 10px;
 }
+
+/* TOUCH TIER (<=1024px) -- nav/toolbar ---------------------------------------
+   The BACKTEST ANALYTICS section toggle, measured 706x38 at 820px: full width
+   already, so only the HEIGHT was under the 44px floor. `--tap-min` is a TOUCH
+   minimum and breakpoints.css calls everything at or below 1024px touch --
+   phone AND tablet. Rail: app/src/styles/tapFloor.test.js. */
+@media (max-width: 1024px) {
+  .toggle {
+    min-height: var(--tap-min);
+  }
+}

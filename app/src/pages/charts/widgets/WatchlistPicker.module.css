@@ -495,3 +495,24 @@
 :global([data-charts-theme='sunrise']) .createSelect { background: #fff; color: #243040; }
 :global([data-charts-theme='sunrise']) .deleteBtn { color: #8a94a2; }
 :global([data-charts-theme='sunrise']) .deleteBtn:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
+
+/* TOUCH TIER (<=1024px) -- nav/toolbar ---------------------------------------
+   My Lists / Prebuilt / Community tabs, New watchlist, the settings gear (19x19), search and list rows at 820px.
+   `--tap-min` is 44px and breakpoints.css calls EVERYTHING at or below 1024px
+   TOUCH -- phone AND tablet. These are chrome a finger aims at, so they take
+   the floor on the whole touch tier.
+
+   ⛔ NOT APPLIED to dense in-table affordances or chart-overlay micro-toggles
+   elsewhere on this app: a 44px floor on a data grid's inline controls
+   destroys the density the grid exists to provide. That is a per-surface
+   design call, not something to sweep. Rail: app/src/styles/tapFloor.test.js. */
+@media (max-width: 1024px) {
+  .tabFlat,
+  .newAction,
+  .gearBtn,
+  .searchBox,
+  .row {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

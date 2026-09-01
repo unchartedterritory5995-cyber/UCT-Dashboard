@@ -274,6 +274,31 @@ def shallow_5m_universe_jobs(ticker_list, deep_5m_tickers, *, enabled: bool, bar
     return [(s, '5', bars) for s in ticker_list if s not in deep]
 
 
+def _daily_first_boot_jobs(jobs, shallow_5m, dwm_extra) -> list:
+    """Order the boot pass so EVERY daily (active + reference long-tail) is warmed
+    BEFORE any W/M/intraday.
+
+    ⭐ WHY. The long-tail warm is provider-bound and slow (~cold-fetch rate). The
+    DAILY is what makes a first chart paint instant (charts open on D), so interleaving
+    D/W/M gives dailies only a THIRD of the throughput — universe-wide daily coverage
+    that could land in ~4-5h stretches to ~13h. Front-loading every daily makes daily
+    coverage of the whole universe complete ~3x sooner; W/M and intraday trail (they
+    don't gate the first paint). `jobs` is NOT mutated — the steady refresh loop still
+    consumes it exactly as built. Pure + order-preserving so it can be unit-tested
+    without a fetch.
+
+    - `jobs`: the steady job list (active D, then active W/M, then active intraday).
+    - `shallow_5m`: boot-only shallow 5m universe jobs (trail).
+    - `dwm_extra`: the reference long-tail symbols (empty off-worker / flag-off).
+    """
+    lt_D = [(s, 'D', 5000) for s in dwm_extra]
+    lt_WM = ([(s, 'W', 5000) for s in dwm_extra]
+             + [(s, 'M', 5000) for s in dwm_extra])
+    daily_first = [j for j in jobs if j[1] == 'D'] + lt_D
+    rest = [j for j in jobs if j[1] != 'D'] + list(shallow_5m) + lt_WM
+    return daily_first + rest
+
+
 def _after_close_daily_sweep_due(
     sess: int, today_yyyymmdd: int, now_hour_et: int, last_swept: int,
     *, enabled: bool, hour_et: int,
@@ -768,22 +793,20 @@ def run_prewarmer_forever():
     )
     # INSTANT EVERY SYMBOL: boot-only D/W/M for the reference long-tail (worker
     # only; see `_dwm_extra` rationale above). Coldest symbols warmed once so any
-    # search resolves to a bars.db hit; NEVER added to the refresh `jobs`.
-    _instant_boot = []
-    if _IS_WORKER and _dwm_extra:
-        for _sym in _dwm_extra:
-            _instant_boot.append((_sym, 'D', 5000))
-            _instant_boot.append((_sym, 'W', 5000))
-            _instant_boot.append((_sym, 'M', 5000))
-    boot_jobs = jobs + _shallow_5m + _instant_boot
+    # search resolves to a bars.db hit; NEVER added to the refresh `jobs`. Ordered
+    # DAILIES-FIRST across the whole boot (`_daily_first_boot_jobs`) so universe-wide
+    # daily coverage — the instant-first-paint surface — lands ~3x sooner; W/M/intraday
+    # trail. `jobs` is unchanged (the refresh loop consumes it as built).
+    _boot_dwm_extra = _dwm_extra if _IS_WORKER else []
+    boot_jobs = _daily_first_boot_jobs(jobs, _shallow_5m, _boot_dwm_extra)
     if _shallow_5m:
         print(f"[prewarm] Phase-2 universe 5m: +{len(_shallow_5m)} shallow boot-only "
               f"jobs ({os.environ.get('PREWARM_5M_SHALLOW_BARS', '780')} bars each; "
               f"refresh loop breadth unchanged)")
-    if _instant_boot:
-        print(f"[prewarm] INSTANT UNIVERSE: +{len(_instant_boot)} boot-only D/W/M jobs "
-              f"for {len(_dwm_extra)} long-tail symbols (refresh loop unchanged; "
-              f"daily freshness healed on-demand at view)")
+    if _boot_dwm_extra:
+        print(f"[prewarm] INSTANT UNIVERSE: +{3 * len(_boot_dwm_extra)} boot-only D/W/M "
+              f"jobs for {len(_boot_dwm_extra)} long-tail symbols (DAILIES FIRST; refresh "
+              f"loop unchanged; daily freshness healed on-demand at view)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
     # ⛔ BEFORE the executor exists. `ex.map(...)` is evaluated as an ARGUMENT and
     # ThreadPoolExecutor.map submits every job immediately, so workers are already
