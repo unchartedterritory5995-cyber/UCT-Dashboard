@@ -318,6 +318,90 @@ def golive_walk(ctx, page):
     return gone
 
 
+def pinch_zoom_gate(page):
+    """Gate 7 — two-finger pinch-out zooms the chart, right edge pinned.
+
+    Measured through StockChart's read-only window.__uctChartDebug range
+    handle — every pixel/UI side-channel proved unreliable (gridlines light
+    every column; rightBarStaysOnScroll keeps the go-live pill away by
+    design). The dispatch is the SAME proven recipe as js_touch_drag,
+    two-fingered: topmost element via elementFromPoint + full
+    page/screen/client coordinates — a Touch missing pageX pinches by zero.
+    """
+    # The drawing gates leave the drawbar EXPANDED, which puts its overlay on
+    # top — synthetic two-finger events then land on the overlay, not the
+    # chart. Collapse it (the clean-canvas DEFAULT this gate should test).
+    try:
+        hide = page.get_by_role('button', name='Hide toolbar')
+        if hide.count() > 0 and hide.first.is_visible():
+            hide.first.click(timeout=2000)
+            page.wait_for_timeout(600)
+    except Exception:
+        pass
+    range_js = '''() => {
+      const d = window.__uctChartDebug || {}
+      const k = Object.keys(d)[0]
+      const r = k ? d[k].visibleRange() : null
+      return r ? { from: r.from, to: r.to, w: r.to - r.from } : null
+    }'''
+    r0 = page.evaluate(range_js)
+    page.evaluate('''async () => {
+      const c = document.querySelector('.tv-lightweight-charts td:nth-child(2) canvas')
+      if (!c) return
+      const r = c.getBoundingClientRect()
+      const cy = r.top + r.height / 2, cx = r.left + r.width / 2
+      const el = document.elementFromPoint(cx, cy) || c
+      const mk = (id, x) => new Touch({ identifier: id, target: el, clientX: x, clientY: cy,
+                                        pageX: x, pageY: cy, screenX: x, screenY: cy })
+      const fire = (type, xs) => {
+        const ts = xs.map((x, i) => mk(i + 1, x))
+        el.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : ts,
+          changedTouches: ts, targetTouches: type === 'touchend' ? [] : ts,
+          bubbles: true, cancelable: true }))
+      }
+      const run = async (dir) => {
+        fire('touchstart', [cx - 40 * dir, cx + 40 * dir])
+        for (let i = 1; i <= 12; i++) {
+          fire('touchmove', [cx - (40 + i * 8) * dir, cx + (40 + i * 8) * dir])
+          await new Promise(res => setTimeout(res, 35))
+        }
+        fire('touchend', [cx - 136 * dir, cx + 136 * dir])
+      }
+      await run(1)
+      window.__uctPinchMid = true
+    }''')
+    page.wait_for_timeout(800)
+    r1 = page.evaluate(range_js)
+    ok = bool(r0 and r1 and r1['w'] < r0['w'] * 0.75
+              and abs(r1['to'] - r0['to']) < max(3, r0['w'] * 0.05))
+    print(f"  pinch-zoom: {r0 and round(r0['w'])} -> {r1 and round(r1['w'])} bars, "
+          f"right edge pinned: {ok}")
+    # roughly restore the framing for the gates that follow
+    page.evaluate('''async () => {
+      const c = document.querySelector('.tv-lightweight-charts td:nth-child(2) canvas')
+      if (!c) return
+      const r = c.getBoundingClientRect()
+      const cy = r.top + r.height / 2, cx = r.left + r.width / 2
+      const el = document.elementFromPoint(cx, cy) || c
+      const mk = (id, x) => new Touch({ identifier: id, target: el, clientX: x, clientY: cy,
+                                        pageX: x, pageY: cy, screenX: x, screenY: cy })
+      const fire = (type, xs) => {
+        const ts = xs.map((x, i) => mk(i + 1, x))
+        el.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : ts,
+          changedTouches: ts, targetTouches: type === 'touchend' ? [] : ts,
+          bubbles: true, cancelable: true }))
+      }
+      fire('touchstart', [cx - 136, cx + 136])
+      for (let i = 1; i <= 12; i++) {
+        fire('touchmove', [cx - 136 + i * 8, cx + 136 - i * 8])
+        await new Promise(res => setTimeout(res, 35))
+      }
+      fire('touchend', [cx - 40, cx + 40])
+    }''')
+    page.wait_for_timeout(600)
+    return ok
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--base', default=os.environ.get('MOBILE_AUDIT_BASE', 'http://localhost:8077'))
@@ -380,6 +464,13 @@ def main():
             page.wait_for_timeout(1500)
             print('  tf self-heal: routed back to 1D')
         shot(page, '01-chart')
+        # Gate 7 runs FIRST, on the untouched chart: after the drawing + pan
+        # phases, LWC's gesture state carries synthetic-touch residue that
+        # no-ops a subsequent two-finger pinch (measured: pinch passes on a
+        # fresh chart, 140 -> 63 bars; dies after golive_walk, 63 -> 63) —
+        # rig residue, not product truth, so the gate tests the state a user
+        # actually pinches in.
+        pinch_ok = pinch_zoom_gate(page)
         # Phase 9: the app top bar steps aside on the phone chart shell — the
         # hamburger is gone while the bottom tab bar (the control) stays.
         topbar_gone = (not page.get_by_label('Open menu').is_visible()
@@ -564,7 +655,10 @@ def main():
     if not sunrise_ok:
         print('FAIL: sunrise sheets rendered dark — the picker theme scope regressed (portal escape)')
         return 1
-    print('PASS: touch place + reshape + back-to-live + top-bar + long-press + sunrise-sheets verified end-to-end')
+    if not pinch_ok:
+        print('FAIL: pinch-zoom did not change the visible range (or unpinned the right edge)')
+        return 1
+    print('PASS: touch place + reshape + back-to-live + pinch-zoom + top-bar + long-press + sunrise-sheets verified end-to-end')
     return 0
 
 
