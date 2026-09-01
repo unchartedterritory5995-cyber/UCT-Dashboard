@@ -1,0 +1,65 @@
+{
+  "measured_at": "2026-09-01",
+  "sample_tickers": 744,
+  "seed": 7,
+  "total_raw": 273,
+  "total_log": 498,
+  "patterns": {
+    "falling_wedge": {
+      "raw_pct": 2.28,
+      "log_pct": 3.76,
+      "raw_hits": 17,
+      "log_hits": 28,
+      "kept_pct": 164.7
+    },
+    "rising_wedge": {
+      "raw_pct": 3.9,
+      "log_pct": 7.12,
+      "raw_hits": 29,
+      "log_hits": 53,
+      "kept_pct": 182.8
+    },
+    "symmetrical_triangle": {
+      "raw_pct": 4.44,
+      "log_pct": 6.05,
+      "raw_hits": 33,
+      "log_hits": 45,
+      "kept_pct": 136.4
+    },
+    "pennant": {
+      "raw_pct": 4.44,
+      "log_pct": 4.57,
+      "raw_hits": 34,
+      "log_hits": 35,
+      "kept_pct": 102.9
+    },
+    "ascending_triangle": {
+      "raw_pct": 11.69,
+      "log_pct": 15.46,
+      "raw_hits": 87,
+      "log_hits": 115,
+      "kept_pct": 132.2
+    },
+    "descending_triangle": {
+      "raw_pct": 6.59,
+      "log_pct": 8.74,
+      "raw_hits": 49,
+      "log_hits": 65,
+      "kept_pct": 132.7
+    },
+    "channel": {
+      "raw_pct": 1.21,
+      "log_pct": 19.09,
+      "raw_hits": 9,
+      "log_hits": 142,
+      "kept_pct": 1577.8
+    },
+    "rectangle": {
+      "raw_pct": 2.02,
+      "log_pct": 2.02,
+      "raw_hits": 15,
+      "log_hits": 15,
+      "kept_pct": 100.0
+    }
+  }
+}
