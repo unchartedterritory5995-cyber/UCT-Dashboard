@@ -4,46 +4,103 @@
  * label, never by colour alone: a reader who cannot separate the hues would
  * otherwise lose the difference between "a house published this" and "we
  * supplied it", which is the whole point of the panel.
+ *
+ * ⛔⛔ THAT CLAIM WAS HALF TRUE AND IS NOW WHOLE. Audited 2026-08-31: every
+ * state carried the SAME `border-left: 3px solid` and differed only in its
+ * hue, so the border was colour alone — the label was carrying the whole
+ * distinction by itself. The border now differs in STYLE as well as colour
+ * (sourced solid / ours dashed / refused dotted), which is a channel that
+ * survives greyscale, a monochrome print, and the deuteranopia that makes the
+ * gold and the red the hardest pair here. The dashed run for "ours" is not a
+ * new idiom: it is the same dashed edge `.uctOriginal` already wears at the
+ * structure level, so one visual language says "this is ours" at both scales.
+ * The label is still the primary channel and is now bound to the list it
+ * describes (`aria-labelledby` in the JSX) rather than merely sitting above it.
+ *
+ * ⛔⛔ AND THE PANEL WAS PAINTED IN VARIABLES THAT DO NOT EXIST.
+ * `--color-text-muted`, `--color-surface`, `--color-surface-2` and
+ * `--color-border` are defined NOWHERE in the app (`styles/tokens.css` defines
+ * `--color-text` and eight other bridge aliases; those four are not among
+ * them), so every surface here rendered from its hardcoded fallback while
+ * `--color-text` — the one name that IS defined — followed the theme. On the
+ * light theme that put near-black ink (#1f2328) on a hardcoded #16181c card:
+ * contrast 1.13:1, i.e. invisible. A `var()` WITH a fallback never errors and
+ * never logs, which is exactly why it survived. Every surface, border and
+ * muted ink below now names the canonical token, so the panel is one theme's
+ * worth of colour, not two. Ratios recomputed by hand after the swap (dark
+ * theme, each against the ground it actually sits on): muted ink 10.1:1, gold
+ * badge 9.6:1, bias pills 5.9–10.9:1, state borders 5.1–8.9:1. Every one of
+ * those is ARITHMETIC ON THE TOKEN VALUES, not a browser measurement — jsdom
+ * applies no cascade, so nothing in this repo can see a rendered colour.
  */
-.wrap { display: flex; flex-direction: column; gap: 14px; }
+.wrap {
+  display: flex; flex-direction: column; gap: 14px;
+  /* ⛔ THE PROSE HERE IS NOT OURS. Verbatim source sentences, refusal reasons
+     and ledger notes arrive from the payload, and one unbreakable run (a URL,
+     a source id, a hyphen-free compound) would push the card past the 880px
+     desktop modal or the phone sheet and scroll the whole panel sideways.
+     `overflow-wrap` INHERITS, so this one declaration reaches every
+     descendant. `anywhere` rather than `break-word` on purpose: only
+     `anywhere` also shrinks min-content, which is what lets the flex rows in
+     .head and .evidence actually narrow instead of forcing the row wide. */
+  overflow-wrap: anywhere;
+}
 
 .summary {
   font-size: 13px;
-  color: var(--color-text-muted, #9aa0a6);
+  color: var(--text-muted);
   padding: 10px 12px;
-  border: 1px solid var(--color-border, #2a2d31);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
-.summary strong { color: var(--color-text, #e8eaed); }
+.summary strong { color: var(--text); }
+
+/* The card list. Semantics (a list of 28, with positions) live in the JSX; this
+   only has to make a <ul> look like the bare column it replaced. */
+.cards {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 14px;
+}
 
 .card {
-  border: 1px solid var(--color-border, #2a2d31);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px 16px;
-  background: var(--color-surface, #16181c);
+  background: var(--bg-surface);
 }
 
 .head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
-.label { margin: 0; font-size: 16px; color: var(--color-text, #e8eaed); }
+.label { margin: 0; font-size: 16px; color: var(--text); }
 
 .bias {
   font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
   padding: 2px 7px; border-radius: 999px;
-  border: 1px solid var(--color-border, #2a2d31);
+  border: 1px solid var(--border);
 }
+/* ⚠️ THE TWO LITERALS HERE ARE A MEASURED DECISION, NOT AN OVERSIGHT — and
+   stylelint's `declaration-property-value-allowed-list` warns on both, so this
+   is why. The pill is 11px, i.e. normal text, so it needs 4.5:1. On the dark
+   card `--gain` (#2faf68) is 6.3:1 and would be fine, but `--loss` (#df4646)
+   is 4.31:1 — it FAILS at this size, while #e5707a is 5.87:1. Swapping to the
+   token to silence a lint warning would trade a warning for a real AA failure
+   on the bearish half of every card. The light theme, where these two are the
+   ones that fail, is handled by the override block at the foot of this file. */
 .bias[data-bias='bullish'] { color: #5dd39e; }
 .bias[data-bias='bearish'] { color: #e5707a; }
-.bias[data-bias='neutral'] { color: #9aa0a6; }
+.bias[data-bias='neutral'] { color: var(--text-muted); }
 
-.coverage { font-size: 12px; color: var(--color-text-muted, #9aa0a6); }
+.coverage { font-size: 12px; color: var(--text-muted); }
 
 /* The UCT-original badge. Deliberately WORDS, not a colour or an icon: "this
    is ours, not a published pattern" is a claim a reader must be able to read,
-   and it is the one distinction the whole provenance grammar exists to keep. */
+   and it is the one distinction the whole provenance grammar exists to keep.
+   The gold is the brand token now, not a copy of last year's hex: `--ut-gold`
+   is #dcbb5e on dark (9.6:1 here, up from the literal #c9a84c's 7.8:1) and the
+   darkened #7a5c16 on light, where the literal was 2.1:1 and unreadable. */
 .uctOriginal {
   font-size: 11px; letter-spacing: .02em;
   padding: 2px 8px; border-radius: 999px;
-  border: 1px dashed #c9a84c; color: #c9a84c;
+  border: 1px dashed var(--ut-gold); color: var(--ut-gold);
 }
 .desc { margin: 8px 0 12px; font-size: 13px; line-height: 1.6; }
 
@@ -51,21 +108,21 @@
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px;
   padding: 8px 10px; margin-bottom: 12px;
   border-radius: 8px;
-  background: var(--color-surface-2, #1c1f24);
+  background: var(--bg-elevated);
 }
-.lift { font-size: 18px; color: var(--color-text, #e8eaed); }
-.resolves, .ci, .n { font-size: 12px; color: var(--color-text-muted, #9aa0a6); }
-.unmeasured { font-size: 12.5px; color: var(--color-text-muted, #9aa0a6); }
+.lift { font-size: 18px; color: var(--text); }
+.resolves, .ci, .n { font-size: 12px; color: var(--text-muted); }
+.unmeasured { font-size: 12.5px; color: var(--text-muted); }
 
 .group { margin-top: 10px; }
 .groupHead {
   margin: 0 0 6px; font-size: 12px; letter-spacing: .04em;
-  text-transform: uppercase; color: var(--color-text-muted, #9aa0a6);
+  text-transform: uppercase; color: var(--text-muted);
   display: flex; align-items: center; gap: 8px;
 }
 .count {
   font-size: 11px; padding: 1px 6px; border-radius: 999px;
-  border: 1px solid var(--color-border, #2a2d31);
+  border: 1px solid var(--border);
 }
 
 .list { list-style: none; margin: 0; padding: 0;
@@ -73,25 +130,29 @@
 
 .criterion {
   padding: 8px 10px;
-  border-left: 3px solid var(--color-border, #2a2d31);
-  background: var(--color-surface-2, #1c1f24);
+  border-left: 3px solid var(--border);
+  background: var(--bg-elevated);
   border-radius: 0 6px 6px 0;
 }
-.criterion.sourced { border-left-color: #5b8def; }
-.criterion.ours    { border-left-color: #c9a84c; }
-.criterion.refused { border-left-color: #e5707a; }
+/* Hue AND style. See the header: the hue alone was the whole signal. */
+.criterion.sourced { border-left-color: #5b8def; border-left-style: solid; }
+.criterion.ours    { border-left-color: var(--ut-gold); border-left-style: dashed; }
+.criterion.refused { border-left-color: #e5707a; border-left-style: dotted; }
 
 .condition { font-size: 13px; line-height: 1.5; }
-.value { font-size: 12px; margin-top: 3px; color: var(--color-text-muted, #9aa0a6); }
+.value { font-size: 12px; margin-top: 3px; color: var(--text-muted); }
 
 .quote {
   margin: 6px 0 0; padding-left: 10px;
-  border-left: 2px solid var(--color-border, #2a2d31);
+  border-left: 2px solid var(--border);
   font-size: 12.5px; font-style: italic; line-height: 1.55;
-  color: var(--color-text-muted, #9aa0a6);
+  color: var(--text-muted);
 }
 
 .missing { margin-top: 6px; font-size: 12.5px; line-height: 1.55; }
+/* Same computed call as `.bias[data-bias='bearish']` above: at 10.5px this is
+   normal text, #e5707a is 5.45:1 on the criterion ground and `--loss` is
+   4.01:1. The literal stays; the light theme is re-pointed below. */
 .missingTag {
   display: inline-block; margin-right: 6px;
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
@@ -102,7 +163,7 @@
 .refusedMeasure { display: flex; flex-direction: column; gap: 6px; }
 .reasonList {
   margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55;
-  color: var(--color-text-muted, #9aa0a6);
+  color: var(--text-muted);
 }
 
 /* The ledger note. Collapsed by default -- these run to several paragraphs and
@@ -111,21 +172,49 @@
 .noteWrap { margin: -4px 0 12px; }
 .noteSummary {
   cursor: pointer; font-size: 12px; letter-spacing: .02em;
-  color: var(--color-text-muted, #9aa0a6);
+  color: var(--text-muted);
 }
-.noteSummary:hover { color: var(--ut-gold, #c9a84c); }
+.noteSummary:hover { color: var(--ut-gold); }
 .note {
   margin: 8px 0 0; padding: 10px 12px;
-  border-left: 3px solid var(--color-border, #2a2d31);
-  background: var(--color-surface-2, #1c1f24);
+  border-left: 3px solid var(--border);
+  background: var(--bg-elevated);
   border-radius: 0 6px 6px 0;
   font-size: 12.5px; line-height: 1.65; white-space: pre-wrap;
 }
 
 .loading, .error { font-size: 13px; padding: 12px; }
-.error { color: #e5707a; }
+.error { color: var(--loss); }
+
+/* ⛔ THE ONLY CONTROL IN THE PANEL IS THIS SUMMARY, and at 12px on one line it
+   was a ~19px tap target — under half of `--tap-min` (44px) on the phone sheet
+   and the tablet sheet, which is where this panel is a bottom sheet. Padding
+   rather than `display:flex`: flex on a <summary> drops the disclosure
+   triangle in Chromium, and the triangle is the only affordance saying the
+   note opens. TOUCH breakpoint (<=1024) per styles/breakpoints.css. */
+@media (max-width: 1024px) {
+  .noteSummary {
+    box-sizing: border-box;
+    min-height: var(--tap-min);
+    padding: 12px 2px;
+  }
+}
 
 @media (max-width: 640px) {
   .card { padding: 12px; }
   .evidence { gap: 6px; }
 }
+
+/* ── Light theme ─────────────────────────────────────────────────────────────
+ * The hand-picked hues above (#5dd39e, #e5707a, #5b8def) are the only literals
+ * left in this file. They are chosen for a dark ground and land at 1.7–3.0:1
+ * on the white canvas, so here they are re-pointed at the app's own semantic
+ * tokens, which already carry a light value derived against it: `--gain` 4.9:1,
+ * `--loss` 5.8:1, `--info` 6.6:1 on `--bg-surface`. Scoped to
+ * `[data-theme="light"]` so the dark palette is byte-identical to what shipped.
+ * These ratios are arithmetic, like every other number in this file. */
+:global([data-theme='light']) .bias[data-bias='bullish'] { color: var(--gain); }
+:global([data-theme='light']) .bias[data-bias='bearish'] { color: var(--loss); }
+:global([data-theme='light']) .criterion.sourced { border-left-color: var(--info); }
+:global([data-theme='light']) .criterion.refused { border-left-color: var(--loss); }
+:global([data-theme='light']) .missingTag { border-color: var(--loss); color: var(--loss); }

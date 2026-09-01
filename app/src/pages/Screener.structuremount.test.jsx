@@ -166,6 +166,23 @@ describe('🔴 the structure library reaches a member from /screener', () => {
     expect(screen.getByText('resolves upward')).toBeInTheDocument()
   })
 
+  it('⛔⛔ the dialog it opens HAS A NAME — "dialog" alone names nothing', async () => {
+    // This property belongs to the COMPOSITION and to nothing else, which is
+    // why it is pinned here rather than in StructureProvenance.test.jsx.
+    // `Sheet` renders `title` into a plain <div> and takes the dialog's name
+    // from `ariaLabel` ALONE (`aria-label={ariaLabel || undefined}`,
+    // Sheet.jsx L142 — no aria-labelledby wiring, exactly as its own header
+    // comment states). ScannerShell passed only `title`, so an `aria-modal`
+    // dialog opened with no accessible name at all: a screen reader announced
+    // "dialog" and stopped, on the one panel in the screener whose entire job
+    // is telling a member who said what.
+    const user = userEvent.setup()
+    renderScreenerPage()
+    await user.click(await libraryButton())
+    expect(await screen.findByRole('dialog', { name: 'Structure library' }))
+      .toBeInTheDocument()
+  })
+
   it('a failed route reports itself instead of rendering an EMPTY library', async () => {
     stubFetch(() => Promise.resolve({ ok: false, status: 503 }))
     const user = userEvent.setup()

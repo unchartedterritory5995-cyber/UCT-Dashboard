@@ -214,8 +214,16 @@ export default function ScannerShell({ embedded = false }) {
           behaviour today and no test reds. It stays because it makes the
           intent local: if Sheet ever keeps children mounted to animate an
           exit, the property survives here. Do not read it as the guard. */}
+      {/* ⛔ `ariaLabel` IS NOT A DUPLICATE OF `title`. Sheet renders `title`
+          into a plain <div> and names the dialog from `ariaLabel` ALONE —
+          `aria-label={ariaLabel || undefined}`, Sheet.jsx L142, with no
+          aria-labelledby wiring, exactly as its own header comment says. Passing
+          only `title` therefore opened an `aria-modal` dialog with NO accessible
+          name: a screen reader announced "dialog" and nothing else, on the one
+          panel in the screener whose entire job is telling a member who said
+          what. Verified against Sheet.jsx, not assumed. */}
       <Sheet open={libOpen} onClose={() => setLibOpen(false)} variant="auto"
-        title="Structure library" maxWidth={880}>
+        title="Structure library" ariaLabel="Structure library" maxWidth={880}>
         {libOpen && <StructureProvenance />}
       </Sheet>
       <FiltersSheet open={sheetOpen} onClose={() => setSheetOpen(false)}
