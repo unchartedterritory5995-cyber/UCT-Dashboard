@@ -67,6 +67,11 @@ WINDOWS = {
     "cup-with-handle":     500,
     # The W plus the advance it rests, plus prior-uptrend history behind that.
     "double-bottom":       400,
+    # Two adjacent swing lows, the rally between them and the confirming close.
+    # Same window as its sibling above so the two are measured on one footing --
+    # they read the SAME pivot pair and require opposite things of it, and a
+    # different window would make that comparison meaningless.
+    "ugly-double-bottom":  400,
     # Pole (<=40) + flag (<=25) plus swing history to anchor the pole's origin.
     "high-tight-flag":     400,
     # The contraction sequence plus the advance it continues, plus the
@@ -237,25 +242,15 @@ def _carry_note(prior: dict, row: dict) -> None:
 def _directions_of(st) -> list:
     """Which metric(s) a structure must be graded on.
 
-    ⛔⛔ A NEUTRAL STRUCTURE IS GRADED BOTH WAYS, because grading it long is a
-    DIRECTIONAL CLAIM MADE ON ITS BEHALF. `darvas-box` and `square-box` both
-    publish on the long metric while declaring `bias="neutral"` -- a box is a
-    range, and Darvas's own words describe a frame rather than a forecast.
-    Defaulting such a structure to long is not neutral at all; it is an
-    undeclared bet, invisible precisely because the number looks like every
-    other number.
-
-    Measured both ways the row says something one number cannot: a structure
-    positive on ONE side marks direction, and one positive on BOTH marks
-    VOLATILITY -- price left the range either way, which is a different and
-    still useful fact.
+    ⛔ THIS USED TO CARRY ITS OWN COPY OF THE MAPPING, and `lift_ledger`'s
+    docstring had already named this exact file as the place a second copy
+    would do damage: "ONE DEFINITION, READ BY THE RUNNER... A second copy of
+    this mapping is how a row ends up graded one way and checked another."
+    It mapped neutral to both directions while the module mapped it to long, so
+    a neutral structure measured on the short side would have been flagged
+    wrong by the very rail meant to protect it. Derived now, never restated.
     """
-    bias = getattr(st, "bias", "")
-    if bias == "bearish":
-        return ["short"]
-    if bias == "neutral":
-        return ["long", "short"]
-    return ["long"]
+    return ll.directions_for_bias(getattr(st, "bias", ""))
 
 
 def _direction_of(st) -> str:

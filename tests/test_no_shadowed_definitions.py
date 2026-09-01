@@ -17,35 +17,164 @@ the time, which is how the caller came to be written against a signature that
 does not exist at runtime.
 
 ⛔ WHY NO LINTER CAUGHT IT HERE: the repo runs no flake8/ruff gate over
-`api/**`, so F811 never fired. This rail is that check, scoped to the packages
-where the defect actually cost something, and derived by AST rather than grep.
+`api/**`, so F811 never fired. This rail is that check, derived by AST rather
+than grep.
+
+─────────────────────────────────────────────────────────────────────────────
+WIDENED 2026-08-31 — TO EVERYTHING, WITH THE MEASUREMENT IN HAND.
+
+This file used to say: "Scoped deliberately. Widening this to all of `api/**` is
+a one-line change, but it must be done with a measurement in hand — a sweep that
+lights up 40 pre-existing hits gets muted, and a muted rail is worse than none."
+
+The measurement, taken with the helper below BEFORE widening anything:
+
+    scope      modules   modules with a duplicate top-level DEFINITION
+    api          1033      1   (api/live_massive_router.py :: _parse_mdy)
+    tools         134      0
+    scripts        32      0
+    services        1      0
+    tests        1127      1   (tests/test_discord_chart.py, two dup tests)
+    root            2      0
+
+    scope      modules   modules with a duplicate CONSTANT assignment
+    api          1033      1   (api/services/screener/base_catalog.py::_MINERVINI)
+    everything else        0
+
+So the number was TWO and ONE, not forty, and the honest scope is EVERYTHING.
+Both definition offenders were real and are fixed; the constant offender is
+being fixed by the owner in the main worktree and carries the only allow-list
+entry, which has its own staleness gate below. Whole-repo sweep cost: 2,327
+modules parsed in ~5s.
+
+⛔ MODULE-BODY ASSIGNMENTS ARE THE SAME DEFECT, AND THE SWEEP WAS BLIND TO THEM.
+`base_catalog.py` sets `_MINERVINI` at line 674 and again at line 2229. Python
+keeps the second, but the Structures are CONSTRUCTED as the module body runs —
+so the 8 criteria declared between the two assignments carry
+`source_id="minervini_ttlac_2017"` and the 13 after carry `"minervini_ttlac"`.
+One constant, two shipped provenance ids, decided by nothing but where in a
+4,000-line file a criterion happens to sit. That is the `_sma` story in a
+constant, and a sweep that only inspected `FunctionDef`/`ClassDef` could not see
+it.
+
+⛔ BUT ONLY CONSTANT-STYLE NAMES (`^_?[A-Z][A-Z0-9_]*$`). Ordinary lowercase
+rebinding at module level is a legitimate idiom — accumulators, conditional
+config, `x = decorate(x)` — and flagging it is precisely how a rail gets muted.
+The regex is the line between "a constant with two values" and "a variable
+doing its job".
 """
-import sys, pathlib, ast
+import ast
+import pathlib
+import re
+import sys
+
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
-#: Scoped deliberately. Widening this to all of `api/**` is a one-line change,
-#: but it must be done with a measurement in hand — a sweep that lights up 40
-#: pre-existing hits gets muted, and a muted rail is worse than none.
+#: Every Python root in the repo. Measured clean before widening — see the
+#: header. `app/` holds the frontend and contains no Python.
 PACKAGES = [
-    "api/services/screener",
-    "api/services/pattern_engine",
+    "api",
+    "tools",
+    "scripts",
+    "services",
+    "tests",
 ]
+
+#: Module-level names that LOOK like constants. Anything else at module scope is
+#: a variable, and rebinding a variable is not a shadow.
+_CONST_NAME = re.compile(r"^_?[A-Z][A-Z0-9_]*$")
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  THE ALLOW-LIST — every entry carries a reason and an owner, and the rail
+#  fails when an entry goes STALE. A gate list drifts like any other artifact:
+#  an entry that outlives the defect it excuses is indistinguishable from a
+#  silently muted rule.
+# ─────────────────────────────────────────────────────────────────────────────
+ALLOWED: dict[str, dict[str, str]] = {
+    "api/live_massive_router.py": {
+        "_parse_mdy": (
+            "REAL DEFECT AND A LIVE 500 — NOT AN EXEMPTION. This file is "
+            "PARTNER-OWNED (co-edited with Ravi, per the standing note that it "
+            "must not be touched without his ack), which is the ONLY reason the "
+            "fix is not in this commit. "
+            "Line 3515 returns a sortable (Y, M, D) tuple and (0,0,0) on "
+            "malformed input; the second definition returns `date | None` and "
+            "has ZERO callers of its own. Python keeps the second, so all SEVEN "
+            "call sites — every one written for the tuple — run the date "
+            "version. `_resolve_date` passes unrecognised input through "
+            "unchanged, so a query param reaches the comparison directly. "
+            "Executed repro: today='2026/08/31' gives ['2026/08/31'] under the "
+            "tuple version and `TypeError: '<=' not supported between instances "
+            "of 'datetime.date' and 'NoneType'` under the date one — a 500 on "
+            "the lookback_days>=2 paths of `_compute_recent_multiday` and "
+            "`_build_by_contract`, where the docstring promises zero rows. "
+            "THE FIX IS ONE DELETION (the caller-less definition) and is ready "
+            "on branch `rails`. DELETE THIS ENTRY once Ravi has acked it; "
+            "test_no_allow_list_entry_has_gone_stale will demand it."
+        ),
+    },
+}
+# ⚰️ `base_catalog.py::_MINERVINI` was the first entry here and is GONE because
+# it was FIXED, not because it was forgiven — the staleness gate below is what
+# demanded its removal the moment the fix landed. That is the list working: an
+# exemption for a defect that no longer exists reads as coverage.
 
 
 def _module_files():
     for pkg in PACKAGES:
-        for f in sorted((ROOT / pkg).rglob("*.py")):
+        base = ROOT / pkg
+        if not base.exists():
+            continue
+        for f in sorted(base.rglob("*.py")):
             if "__pycache__" in f.parts:
                 continue
             yield f
+    for f in sorted(ROOT.glob("*.py")):          # conftest.py et al
+        yield f
+
+
+def _rel(path: pathlib.Path) -> str:
+    return str(path.relative_to(ROOT)).replace("\\", "/")
+
+
+def _is_singledispatch_impl(node) -> bool:
+    """`@foo.register` — functools.singledispatch's implementation idiom.
+
+    The canonical form names every implementation `_`, so a module with three
+    of them has three top-level `_`s ON PURPOSE and only the generic function's
+    name is ever looked up. Not currently used anywhere in this repo (measured
+    2026-08-31: 0 occurrences), but it is standard Python, and the first person
+    to reach for it would otherwise get a red rail for writing correct code —
+    which is how a rail earns its mute. `test_a_singledispatch_register_stack_
+    is_not_flagged` keeps this branch honest."""
+    return any(isinstance(d, ast.Attribute) and d.attr == "register"
+               for d in node.decorator_list)
+
+
+_AST_CACHE: dict = {}
+
+
+def _parse(path: pathlib.Path) -> ast.Module:
+    """Parse once per module per session. The sweep and its non-vacuity control
+    both walk every module in the repo; parsing twice doubled the rail's cost
+    for nothing."""
+    key = str(path)
+    if key not in _AST_CACHE:
+        try:
+            _AST_CACHE[key] = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError as e:                            # noqa: BLE001
+            pytest.fail(f"{path} does not parse: {e}")
+    return _AST_CACHE[key]
 
 
 def _top_level_dupes(path: pathlib.Path) -> dict:
-    """Names defined more than once directly in the module body.
+    """Names bound more than once directly in the module body.
+
+    Returns `{name: (kind, [line, line, ...])}`.
 
     ⛔ MODULE BODY ONLY — never a recursive walk. A method named `detect` on two
     different classes is not a shadow, and a nested helper redefined in two
@@ -53,36 +182,77 @@ def _top_level_dupes(path: pathlib.Path) -> dict:
     the failure mode that gets rails muted.
 
     ⛔ AND CONDITIONAL DEFINITIONS ARE NOT SHADOWS. A name defined inside an
-    `if`/`try` (the import-fallback idiom) is deliberate; only sibling
-    definitions at the same unconditional level shadow each other.
+    `if`/`try` (the import-fallback idiom, `if TYPE_CHECKING:`) is deliberate;
+    only sibling definitions at the same unconditional level shadow each other.
+    Those live inside `ast.If`/`ast.Try` nodes, so iterating `tree.body` excludes
+    them by construction rather than by a special case.
     """
-    try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except SyntaxError as e:                                # noqa: BLE001
-        pytest.fail(f"{path} does not parse: {e}")
+    tree = _parse(path)
     seen, dupes = {}, {}
+
+    def _bind(name, kind, lineno):
+        if name in seen:
+            dupes.setdefault(name, (kind, [seen[name]]))[1].append(lineno)
+        seen[name] = lineno
+
     for node in tree.body:
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
-                                 ast.ClassDef)):
-            continue
-        # `@overload` / `@typing.overload` stubs are a legitimate repetition.
-        decs = {getattr(d, "id", getattr(d, "attr", "")) for d in node.decorator_list}
-        if "overload" in decs:
-            continue
-        if node.name in seen:
-            dupes.setdefault(node.name, [seen[node.name]]).append(node.lineno)
-        seen[node.name] = node.lineno
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                             ast.ClassDef)):
+            # `@overload` / `@typing.overload` stubs are a legitimate repetition.
+            decs = {getattr(d, "id", getattr(d, "attr", ""))
+                    for d in node.decorator_list}
+            if "overload" in decs or _is_singledispatch_impl(node):
+                continue
+            kind = "class" if isinstance(node, ast.ClassDef) else "def"
+            _bind(node.name, kind, node.lineno)
+        elif isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and _CONST_NAME.match(t.id):
+                    _bind(t.id, "constant", node.lineno)
+        elif isinstance(node, ast.AnnAssign):
+            # A bare `NAME: T` annotation binds nothing; `NAME: T = v` does.
+            if (node.value is not None and isinstance(node.target, ast.Name)
+                    and _CONST_NAME.match(node.target.id)):
+                _bind(node.target.id, "constant", node.lineno)
+
     return dupes
 
 
-def test_the_sweep_actually_reads_modules():
+_SWEEP_CACHE = {}
+
+
+def _offenders() -> dict:
+    """`{relpath: {name: (kind, [lines])}}` for the whole repo, ONE parse pass.
+
+    ⛔ Shared by the rule and by every control — a control that re-implements
+    the sweep proves the control works, not the rail."""
+    if "o" not in _SWEEP_CACHE:
+        out = {}
+        for f in _module_files():
+            d = _top_level_dupes(f)
+            if d:
+                out[_rel(f)] = d
+        _SWEEP_CACHE["o"] = out
+    return _SWEEP_CACHE["o"]
+
+
+# ─── the controls ───────────────────────────────────────────────────────────
+
+def test_the_sweep_actually_reads_the_whole_repo():
     """⛔ NON-VACUITY. The rule asserts "no duplicates found"; a sweep pointed at
     an empty or wrong directory finds none and passes loudly."""
     files = list(_module_files())
-    assert len(files) > 20, (
+    # Measured 2026-08-31: 2,329 modules across api/tools/scripts/services/tests
+    # plus the repo root.
+    assert len(files) > 2000, (
         f"only {len(files)} modules found under {PACKAGES} — the sweep is not "
         f"reading the packages it claims to check")
-    defs = sum(len([n for n in ast.parse(f.read_text(encoding='utf-8')).body
+    seen_pkgs = {p for p in PACKAGES
+                 if any(_rel(f).startswith(p + "/") for f in files)}
+    assert seen_pkgs == set(PACKAGES), (
+        f"the sweep found no modules under {sorted(set(PACKAGES) - seen_pkgs)} "
+        f"— a scope entry that matches nothing is a rule that checks nothing")
+    defs = sum(len([n for n in _parse(f).body
                     if isinstance(n, (ast.FunctionDef, ast.ClassDef))])
                for f in files)
     assert defs > 200, (
@@ -101,7 +271,49 @@ def test_the_sweep_detects_a_planted_shadow(tmp_path):
         encoding="utf-8")
     dupes = _top_level_dupes(f)
     assert "_sma" in dupes, "the sweep cannot see a shadowed definition"
-    assert dupes["_sma"] == [1, 9]
+    assert dupes["_sma"] == ("def", [1, 9])
+
+
+def test_the_sweep_detects_a_planted_CONSTANT_shadow(tmp_path):
+    """⛔ THE PLANTED CONTROL FOR THE ASSIGNMENT HALF, through the SAME helper.
+
+    This is `_MINERVINI` reduced to eight lines: one constant, two values, and
+    two consumers that read different ones purely because of where they sit.
+    Without this case the whole `ast.Assign` branch could be deleted and every
+    other test in this file would still pass."""
+    f = tmp_path / "planted_const.py"
+    f.write_text(
+        '_MINERVINI = "minervini_ttlac_2017"\n'
+        'EARLY = {"source_id": _MINERVINI}\n'
+        'lowercase_rebind = 1\n'
+        '_MINERVINI = "minervini_ttlac"\n'
+        'LATE = {"source_id": _MINERVINI}\n'
+        'lowercase_rebind = 2\n',
+        encoding="utf-8")
+    dupes = _top_level_dupes(f)
+    assert "_MINERVINI" in dupes, (
+        "the sweep cannot see a shadowed module-level CONSTANT — the defect "
+        "class it was blind to until 2026-08-31")
+    assert dupes["_MINERVINI"] == ("constant", [1, 4])
+    # And the file really does ship two different values off one name:
+    ns = {}
+    exec(compile(f.read_text(encoding="utf-8"), "<planted>", "exec"), ns)
+    assert ns["EARLY"]["source_id"] != ns["LATE"]["source_id"], (
+        "the planted fixture does not actually demonstrate the defect")
+
+
+def test_ordinary_lowercase_rebinding_is_not_flagged(tmp_path):
+    """The control against over-reporting on the assignment half. `x = f(x)` at
+    module level is a normal idiom; a rail that flags it lights up half the repo
+    and gets muted within a week."""
+    f = tmp_path / "ok_assign.py"
+    f.write_text(
+        "rows = []\n"
+        "rows = [r for r in rows if r]\n"
+        "handler = None\n"
+        "handler = print\n",
+        encoding="utf-8")
+    assert _top_level_dupes(f) == {}
 
 
 def test_a_method_on_two_classes_is_not_flagged(tmp_path):
@@ -115,18 +327,112 @@ def test_a_method_on_two_classes_is_not_flagged(tmp_path):
     assert _top_level_dupes(f) == {}
 
 
+def test_a_conditional_import_fallback_is_not_flagged(tmp_path):
+    """`try: from x import y / except ImportError: def y(): ...` and
+    `if TYPE_CHECKING:` are deliberate. They are excluded BY CONSTRUCTION
+    (the definitions are not in `tree.body`), and this pins that."""
+    f = tmp_path / "ok_cond.py"
+    f.write_text(
+        "from typing import TYPE_CHECKING\n"
+        "try:\n    from fast import loads\nexcept ImportError:\n"
+        "    def loads(s):\n        return s\n"
+        "if TYPE_CHECKING:\n    class Bar: ...\n"
+        "else:\n    class Bar: ...\n"
+        "if 1:\n    TIMEOUT = 1\nelse:\n    TIMEOUT = 2\n",
+        encoding="utf-8")
+    assert _top_level_dupes(f) == {}
+
+
+def test_an_overload_stack_is_not_flagged(tmp_path):
+    f = tmp_path / "ok_overload.py"
+    f.write_text(
+        "from typing import overload\n"
+        "@overload\ndef f(x: int) -> int: ...\n"
+        "@overload\ndef f(x: str) -> str: ...\n"
+        "def f(x):\n    return x\n",
+        encoding="utf-8")
+    assert _top_level_dupes(f) == {}
+
+
+def test_a_singledispatch_register_stack_is_not_flagged(tmp_path):
+    """Pins the `@x.register` exclusion. It guards a standard idiom this repo
+    does not currently use (0 occurrences, measured), so without this case the
+    branch would be untested code claiming to be protection."""
+    f = tmp_path / "ok_singledispatch.py"
+    f.write_text(
+        "from functools import singledispatch\n"
+        "@singledispatch\ndef fmt(v):\n    return str(v)\n"
+        "@fmt.register\ndef _(v: int):\n    return 'int'\n"
+        "@fmt.register\ndef _(v: str):\n    return 'str'\n",
+        encoding="utf-8")
+    assert _top_level_dupes(f) == {}
+    # non-vacuity: the same file WITHOUT the decorators is flagged, so this is
+    # the exclusion doing the work and not the parse missing the functions.
+    g = tmp_path / "not_ok_singledispatch.py"
+    g.write_text(
+        "def _(v: int):\n    return 'int'\n"
+        "def _(v: str):\n    return 'str'\n",
+        encoding="utf-8")
+    assert "_" in _top_level_dupes(g)
+
+
+# ─── the allow-list's own gate ──────────────────────────────────────────────
+
+def test_no_allow_list_entry_has_gone_stale():
+    """⛔ AN EXEMPTION THAT OUTLIVES ITS DEFECT IS A SILENTLY DISABLED RULE.
+
+    Every allow-list entry must still name a real, still-present offender. When
+    the owner's `_MINERVINI` fix lands, this goes RED and says to delete the
+    entry — so the rail comes back on by itself instead of quietly staying off.
+    `lesson_a_gate_list_drifts_like_any_other_artifact`."""
+    offenders = _offenders()
+    stale = []
+    for mod, names in ALLOWED.items():
+        found = offenders.get(mod, {})
+        if not (ROOT / mod).exists():
+            stale.append(f"{mod}: allow-listed module no longer exists")
+            continue
+        for name in names:
+            if name not in found:
+                stale.append(
+                    f"{mod}::{name}: no longer shadowed — DELETE this "
+                    f"allow-list entry, the rail should be guarding it again")
+    assert not stale, (
+        "these allow-list entries are stale. An exemption for a defect that is "
+        "already fixed reads as coverage and hides the next one:\n  "
+        + "\n  ".join(stale))
+
+
+def test_the_allow_list_is_not_a_silent_blanket():
+    """The allow-list may only excuse SPECIFIC names in SPECIFIC modules, and
+    every entry must carry a reason a human wrote. An empty string, or a
+    module-wide exemption, would let a whole file go dark."""
+    for mod, names in ALLOWED.items():
+        assert isinstance(names, dict) and names, (
+            f"{mod} is allow-listed with no names — that exempts the entire "
+            f"module, which is indistinguishable from removing it from scope")
+        for name, reason in names.items():
+            assert len(reason.strip()) > 60, (
+                f"{mod}::{name} has no real justification: {reason!r}")
+
+
+# ─── the rule ───────────────────────────────────────────────────────────────
+
 def test_no_module_shadows_its_own_definitions():
     offenders = {}
-    for f in _module_files():
-        d = _top_level_dupes(f)
-        if d:
-            offenders[str(f.relative_to(ROOT))] = d
+    for mod, dd in _offenders().items():
+        allowed = ALLOWED.get(mod, {})
+        rest = {n: v for n, v in dd.items() if n not in allowed}
+        if rest:
+            offenders[mod] = rest
     assert not offenders, (
-        "these modules define a top-level name more than once. Python keeps the "
-        "LAST definition, so the earlier one is dead code that still reads as "
-        "authoritative — and any caller written against its signature is "
-        "calling a different function at runtime:\n"
-        + "\n".join(f"  {mod}: " + ", ".join(f"{n} at lines {ls}"
-                                             for n, ls in sorted(dd.items()))
-                    for mod, dd in sorted(offenders.items()))
+        "these modules bind a top-level name more than once. Python keeps the "
+        "LAST binding, so the earlier one is dead code that still reads as "
+        "authoritative — and any caller written against it (its signature, or "
+        "its value) is using a different one at runtime:\n"
+        + "\n".join(
+            f"  {mod}: " + ", ".join(
+                f"{n} ({kind}) at lines {lines}"
+                for n, (kind, lines) in sorted(dd.items()))
+            for mod, dd in sorted(offenders.items()))
     )

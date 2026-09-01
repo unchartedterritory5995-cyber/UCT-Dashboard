@@ -184,8 +184,20 @@ def disabled_refusal() -> Dict[str, Any]:
     exists in the source); the SENTENCE belongs here, with the other refusals, or
     the gate name would be spelled in two files and drift in one of them.
     """
+    # ⚰️⚰️ THIS TOLD A PAYING MEMBER TO "ask an admin to set
+    # INDICATOR_VISION_ENABLED=1". `reason` is rendered verbatim in `ImageBox`, so
+    # a customer who uploaded a screenshot read an OPERATOR INSTRUCTION naming an
+    # internal environment variable — a sentence written for whoever runs the pod,
+    # shown to the person paying to use it. The tab is offered unconditionally, so
+    # this is not a rare path: it is what EVERY member gets while the gate is off.
+    #
+    # ⭐ A REFUSAL NAMES WHAT THE MEMBER CAN DO, NOT WHAT AN ADMIN COULD. The two
+    # other doors into this same engine are open and take them to the same place,
+    # so the detail points at those instead. `gate` still carries
+    # `vision:disabled` for support — the handle stays, the instruction goes.
     return _refusal("vision:disabled",
-                    "ask an admin to set INDICATOR_VISION_ENABLED=1")
+                    "paste the script on the Import tab, or build it on the "
+                    "Formula tab — both reach the same engine")
 
 
 def _refusal(gate: str, detail: str = "", **extra: Any) -> Dict[str, Any]:

@@ -161,7 +161,18 @@ def compute_stats(daily_bars: list[dict]) -> dict:
     """Price-action + volume facts off the daily series. Every derived value
     is None when the history is too short for it; the strip prints — there.
     Volume averages use the 50 COMPLETED bars before the last one (the last
-    bar is usually today's developing session)."""
+    bar is usually today's developing session).
+
+    ⭐ `as_of` is the DATE OF THE LAST BAR, and it is the reason this returns a
+    vintage at all. Every other field here is computed from `b[-1]` vs `b[-2]`
+    with no idea how old either one is, so a series that is one session behind
+    yields a strip that is internally perfect and describes the WRONG DAY.
+    2026-08-31, on a public post: SMH printed Day -3.5% / Gap -0.7% off a prior
+    close of 573.00 — Friday's session — while SMH was actually +0.6% on the
+    Monday the post was captioned with, and the message's own AI read (computed
+    from live snapshots) correctly said it had gained. Two numbers for one value,
+    disagreeing in SIGN, in one message. A stamped vintage lets a caller ask
+    "is this today?"; without it there is nothing to ask."""
     if not daily_bars:
         return {}
     b = daily_bars
@@ -176,7 +187,12 @@ def compute_stats(daily_bars: list[dict]) -> dict:
     avg50 = (sum(float(x.get("v") or 0) for x in prior) / 50) if len(prior) == 50 else None
     adr_bars = b[-20:]
     adr = (sum((float(x["h"]) / float(x["l"]) - 1) * 100 for x in adr_bars if float(x["l"]) > 0) / len(adr_bars)) if len(adr_bars) == 20 else None
+    try:
+        as_of = to_datetime(last["t"], "D").strftime("%Y-%m-%d")
+    except Exception:  # noqa: BLE001 — an unparseable bar time must not cost the whole strip
+        as_of = None
     return {
+        "as_of": as_of,
         "open": o, "high": h, "low": l, "close": c,
         "day_pct": ((c / pc - 1) * 100) if pc else None,
         "gap_pct": ((o / pc - 1) * 100) if pc else None,

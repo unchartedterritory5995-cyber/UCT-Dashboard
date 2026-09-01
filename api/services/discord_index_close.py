@@ -45,13 +45,36 @@ CANDIDATE_ETFS = (
     "TLT", "HYG", "GLD",
 )
 NOTABLE_N = 2
-# One retry per symbol, after a pause. A member watching /chart wants an answer
-# now; this post is once a day and nobody is waiting, so completeness is worth
-# more than latency. Measured 2026-08-27: on a pod seconds out of a deploy, QQQ,
-# IWM and XME all came back empty and all three rendered in 2-13 s once it was
-# serving - exactly the deploy window that produced the stand-in that morning.
-RENDER_RETRIES = 1
-RENDER_RETRY_PAUSE_S = 6.0
+# "4 ETFs that are important" - the owner asked for four and noticed the day one
+# was missing. A core ETF that will not render is topped up from the next movers
+# down the same ranked pool, so the message is four charts even when a ticker's
+# feed is cold. The substitute is a REAL mover, named in the header like the
+# others; it is never a filler chart.
+TARGET_ETFS = 4
+ETF_TOPUP_MAX = 3
+# ⭐ PASSES, NOT PER-SYMBOL RETRIES. The failure this exists for is a COLD POD,
+# where every symbol is failing for the same reason at the same moment: bars not
+# yet warm. Retrying one symbol twice in 6 s re-asks the same cold cache; retrying
+# the whole failed SET after a pause gives the seeder time to land, and the
+# symbols that already succeeded warmed the page in the meantime. 2026-08-31: IGV
+# returned no bars twice inside 6 s and was dropped, while JETS - which failed the
+# same way - happened to succeed on its second look 23 s later.
+RENDER_PASSES = 3
+RENDER_RETRY_PAUSE_S = 20.0
+# ⛔ NEVER RENDER ON A COLD POD. On 2026-08-31 a deploy created at 19:38:52 UTC
+# finished booting at 19:42:59 and the 15:45 ET cron fired at 19:45:00 - 121 s of
+# uptime, with the bars seeder, the ticker-name prewarm and the every-minute chart
+# hot-warm all still fighting for the single pod. Three charts posted with no
+# candles and a fourth never rendered. The owner's own manual recipe for this job
+# has always been "wait for uptime > 180 s, dry-run, then post while warm"; it
+# lived in scratchpad/fire.sh and was never railed into the scheduled path, which
+# is the whole reason the scheduled path could do this. 300 s is that floor with
+# room for the startup warms observed that day (they ran to ~90 s past boot).
+# The wait needs no separate ceiling: uptime is never
+# negative, so it can never exceed this value, and 5 minutes of the 15 before the
+# close still posts "into the close". A second constant capping it would be a
+# bound that can never bind - reassurance, not a guard.
+WARM_MIN_UPTIME_S = 300.0
 CHART_TF = "D"                      # "post daily charts"
 # A mover has to actually have moved. Below this the "two notable ETFs" are just
 # the two least-flat ones, which is a claim the post should not make.
@@ -107,6 +130,36 @@ def mark_posted(day: str) -> None:
         log.warning("[index-close] could not record the post marker: %s", e)
 
 
+def uptime_seconds() -> float | None:
+    """Seconds since this process booted, or None if it cannot be established.
+
+    Reads `api.main._APP_BOOT_TS` - the SAME clock `/api/health` reports uptime
+    from, so "the pod is warm" means one thing here and in the health artifact.
+    None is UNKNOWN and never blocks the post: a missing clock must not be able
+    to silence a scheduled public message."""
+    try:
+        from api.main import _APP_BOOT_TS
+        return max(0.0, time.time() - float(_APP_BOOT_TS))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[index-close] uptime unavailable (%s); not waiting", e)
+        return None
+
+
+def wait_until_warm(sleep_fn=None, uptime_fn=None) -> float:
+    """Block until the pod has been up WARM_MIN_UPTIME_S. Returns seconds waited.
+
+    An unknown uptime waits NOTHING: a clock we cannot read must not be able to
+    silence a scheduled public post."""
+    sleep = sleep_fn or time.sleep
+    up = (uptime_fn or uptime_seconds)()
+    if up is None or up >= WARM_MIN_UPTIME_S:
+        return 0.0
+    wait = WARM_MIN_UPTIME_S - up
+    log.info("[index-close] pod is %.0fs old; waiting %.0fs for it to warm before rendering", up, wait)
+    sleep(wait)
+    return wait
+
+
 def is_trading_day(now_et: _dt.datetime | None = None) -> bool:
     """Weekday and not an NYSE full closure. Uses the SAME holiday table the
     bars layer uses - a second list would drift and post charts of a session
@@ -158,33 +211,76 @@ def pick_notable(exclude=(), n: int = NOTABLE_N, snapshot_fn=None) -> list[tuple
     return moves[:max(0, n)]
 
 
+def bar_session(t) -> str | None:
+    """The trading date a daily bar belongs to, YYYY-MM-DD, or None.
+
+    Uses `discord_chart_render.to_datetime` - the ONE parser for a bar time in
+    this family (it already handles "YYYY-MM-DD", YYYYMMDD, unix s and unix ms,
+    and treats a unix DAILY time as a UTC date key). A second copy here would
+    drift, and the thing it would drift on is which DAY a chart is about."""
+    try:
+        from api.services.discord_chart_render import to_datetime
+        return to_datetime(t, "D").strftime("%Y-%m-%d")
+    except Exception as e:  # noqa: BLE001
+        log.warning("[index-close] unreadable bar time %r: %s", t, e)
+        return None
+
+
 def render_charts(symbols, *, bars_fn, house_fn, stats_fn, name_fn, options=None,
-                  sleep_fn=None) -> list[tuple[str, bytes, str]]:
-    """(symbol, png, filename) for each symbol that rendered, RETRIED once. A
+                  sleep_fn=None, session_date=None) -> list[tuple[str, bytes, str]]:
+    """(symbol, png, filename) for each symbol that rendered, in the ORDER ASKED.
+
+    The whole failed SET is retried together after a pause (see RENDER_PASSES). A
     symbol that still fails is DROPPED, not faked and not fatal - seven charts
     where one ticker's feed is late is still a good post, and a stand-in would
     put a chart in the community channel that does not match the one `/chart`
-    serves."""
+    serves.
+
+    ⛔ `session_date` (YYYY-MM-DD) REFUSES A CHART FROM ANOTHER SESSION. The
+    stats strip is computed from the last two daily bars with no notion of when
+    they are; one session of lag turns it into a confident, internally
+    consistent description of the wrong day, printed under a headline naming
+    today. On 2026-08-31 SMH went out reading Day -3.5% (Friday) beside an AI
+    read that correctly called it up on the Monday. A missing chart is a gap
+    anyone can see; a chart captioned with the wrong day's numbers is not."""
     sleep = sleep_fn or time.sleep
-    out = []
-    for sym in symbols:
-        for attempt in range(RENDER_RETRIES + 1):
-            if attempt:
-                sleep(RENDER_RETRY_PAUSE_S)
+    got = {}
+    pending = list(symbols)
+    for attempt in range(1, RENDER_PASSES + 1):
+        if attempt > 1:
+            # Escalating: a cold seeder needs longer the second time it has
+            # already disappointed us.
+            sleep(RENDER_RETRY_PAUSE_S * (attempt - 1))
+        still = []
+        for sym in pending:
             try:
                 daily = bars_fn(sym, CHART_TF, 5000)
                 if not daily:
-                    log.warning("[index-close] no bars for %s (attempt %d)", sym, attempt + 1)
+                    log.warning("[index-close] no bars for %s (pass %d)", sym, attempt)
+                    still.append(sym)
                     continue
+                if session_date:
+                    newest = bar_session(daily[-1].get("t"))
+                    if newest != session_date:
+                        log.warning("[index-close] STALE bars for %s: newest daily bar is %s, "
+                                    "posting for %s (pass %d)", sym, newest, session_date, attempt)
+                        still.append(sym)
+                        continue
                 png = house_fn(sym, CHART_TF, stats_fn(daily), dict(options or {}))
                 if not png:
-                    log.warning("[index-close] house render empty for %s (attempt %d)", sym, attempt + 1)
+                    log.warning("[index-close] house render empty for %s (pass %d)", sym, attempt)
+                    still.append(sym)
                     continue
-                out.append((sym, png, name_fn(sym, CHART_TF, daily[-1]["t"])))
-                break
+                got[sym] = (sym, png, name_fn(sym, CHART_TF, daily[-1]["t"]))
             except Exception as e:  # noqa: BLE001
-                log.warning("[index-close] %s failed (attempt %d): %s", sym, attempt + 1, e)
-    return out
+                log.warning("[index-close] %s failed (pass %d): %s", sym, attempt, e)
+                still.append(sym)
+        pending = still
+        if not pending:
+            break
+    if pending:
+        log.warning("[index-close] gave up on %s after %d passes", ", ".join(pending), RENDER_PASSES)
+    return [got[s] for s in symbols if s in got]        # caller's order, not completion order
 
 
 def post_charts(url: str, content: str, charts, *, post_fn=None) -> bool:
@@ -309,14 +405,42 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
         report["skipped"] = "no webhook configured"
         return report
 
-    notable = pick_notable(exclude=list(INDEXES) + list(CORE_ETFS))
-    etf_syms = list(CORE_ETFS) + [s for s, _ in notable]
-    report["notable"] = [[s, round(p, 2)] for s, p in notable]
+    # ⛔ Warm FIRST, before a single render. Everything below judges charts; this
+    # is the one step that stops us judging charts nobody should have asked for yet.
+    report["warm_waited_s"] = round(wait_until_warm(sleep_fn=sleep_fn), 1)
 
-    index_charts = render_charts(INDEXES, bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
-                                 name_fn=name_fn, options=options, sleep_fn=sleep_fn)
-    etf_charts = render_charts(etf_syms, bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
-                               name_fn=name_fn, options=options, sleep_fn=sleep_fn)
+    # One ranked pool, deeper than we name: the top NOTABLE_N are the movers the
+    # header calls out, the rest stand by in case a core ETF cannot render.
+    pool = pick_notable(exclude=list(INDEXES) + list(CORE_ETFS), n=NOTABLE_N + ETF_TOPUP_MAX)
+    notable = pool[:NOTABLE_N]
+    etf_syms = list(CORE_ETFS) + [s for s, _ in notable]
+
+    render = dict(bars_fn=bars_fn, house_fn=house_fn, stats_fn=stats_fn,
+                  name_fn=name_fn, options=options, sleep_fn=sleep_fn,
+                  # ⛔ Scheduled path only. On the 15:45 cron we KNOW it is a
+                  # trading day and that today's bar should exist, so a bar from
+                  # another session is a defect. `force` is the owner firing by
+                  # hand - after the window, on a weekend, whenever - where
+                  # "today" is not the session the bars should be from and
+                  # refusing would just make the override useless. force has
+                  # always meant "post anyway"; it keeps meaning that.
+                  session_date=None if force else day)
+    index_charts = render_charts(INDEXES, **render)
+    etf_charts = render_charts(etf_syms, **render)
+    # Top up to four. Each reserve is drawn from the SAME ranked pool, so a
+    # substitute is the next most notable fund of the session - and because the
+    # header and the note both read the filtered `shown` list, it is named like
+    # any other mover rather than appearing unexplained.
+    for sym, _ in pool[NOTABLE_N:]:
+        if len(etf_charts) >= TARGET_ETFS:
+            break
+        etf_charts += render_charts([sym], **render)
+    if len(etf_charts) < TARGET_ETFS:
+        log.warning("[index-close] only %d of %d ETF charts rendered", len(etf_charts), TARGET_ETFS)
+    if len(index_charts) < len(INDEXES):
+        log.warning("[index-close] only %d of %d index charts rendered", len(index_charts), len(INDEXES))
+    report["short"] = {"indexes": len(INDEXES) - len(index_charts),
+                       "etfs": max(0, TARGET_ETFS - len(etf_charts))}
     shown = [s for s, _, _ in index_charts] + [s for s, _, _ in etf_charts]
     report["symbols"] = shown
     # ⭐ THE NOTE IS WRITTEN AFTER THE CHARTS, ABOUT THE CHARTS. Composing it
@@ -327,7 +451,11 @@ def run_close_post(*, bars_fn, house_fn, stats_fn, name_fn, options=None, now_et
     # notices until it is public.
     # ONE filtered list, used by both the note and the header: a mover named in
     # the text with no chart beside it is the same defect in a different place.
-    posted_movers = [sp for sp in notable if sp[0] in shown]
+    # The POOL, not the two we first named: a topped-up substitute is a mover that
+    # is on the post, and a chart on the post with its move unstated is the same
+    # defect as a move stated with no chart beside it.
+    posted_movers = [sp for sp in pool if sp[0] in shown]
+    report["notable"] = [[sym, round(pct, 2)] for sym, pct in posted_movers]
     note = write_note(shown, posted_movers, note_fn=note_fn)
     report["note"] = note
     messages = build_messages(now, index_charts, etf_charts, posted_movers, note)

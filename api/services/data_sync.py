@@ -586,16 +586,33 @@ def download_snapshot(ts: str) -> bool:
     if not (client and bucket):
         return False
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
+    tmpdir = tempfile.mkdtemp(prefix="data_sync_")
+    _tar_path = os.path.join(tmpdir, "_snapshot.tar.gz")
     try:
         resp = client.get_object(Bucket=bucket, Key=key)
-        data = resp["Body"].read()
+        # Stream the (multi-GB) tarball to DISK, not resp.read() into memory. A
+        # ~5 GB compressed base read whole into RAM spikes the single web pod toward
+        # OOM (it reached ~10 GB on 2026-08-31, and web-side bar warming has OOM'd
+        # the whole site before). 8 MB chunks keep the memory footprint flat, which
+        # is what makes a force_resync safe to run on the live/booting web pod.
+        body = resp["Body"]
+        with open(_tar_path, "wb") as _fh:
+            while True:
+                _chunk = body.read(8 * 1024 * 1024)
+                if not _chunk:
+                    break
+                _fh.write(_chunk)
     except Exception as e:
         logger.warning(f"[data_sync] download failed for {key}: {e}")
+        shutil.rmtree(tmpdir, ignore_errors=True)
         return False
-    tmpdir = tempfile.mkdtemp(prefix="data_sync_")
     try:
-        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+        with tarfile.open(_tar_path, mode="r:gz") as tar:
             tar.extractall(tmpdir)
+        try:
+            os.remove(_tar_path)   # free the ~5 GB tarball before the big DB move
+        except OSError:
+            pass
         os.makedirs(_DATA_DIR, exist_ok=True)
         # Replace bars.db
         src_db = os.path.join(tmpdir, "bars.db")

@@ -2947,6 +2947,40 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[startup] force_resync error (non-fatal): {e}")
 
+        # ── 0. Operator-forced resync (one-shot per token) ──
+        # A healthy bars.db never triggers the integrity-fail resync below, but the
+        # web can drift to PARTIAL coverage (it holds shallow rows for some tickers,
+        # so the newer-wins merge never backfills their deep history). To install the
+        # worker's complete base on purpose, set FORCE_RESYNC_ON_BOOT=<token>: the
+        # resync runs ONCE per distinct token (a marker in DATA_DIR dedupes it), so
+        # the flag can stay set across future deploys without re-pulling every boot.
+        # Bump the token to force again. Runs at boot (memory is low; an OOM here just
+        # fails the deploy and leaves the old pod serving) and streams the tarball to
+        # disk, so it is safe on the single pod.
+        try:
+            _force_tok = _os_ic.environ.get("FORCE_RESYNC_ON_BOOT", "").strip()
+            if _force_tok:
+                _ftok_marker = _os_ic.path.join(
+                    _os_ic.environ.get("DATA_DIR", "/data"), ".force_resync_done_token")
+                _prev_tok = None
+                try:
+                    if _os_ic.path.exists(_ftok_marker):
+                        with open(_ftok_marker) as _mf:
+                            _prev_tok = _mf.read().strip()
+                except Exception:
+                    _prev_tok = None
+                if _prev_tok != _force_tok:
+                    _resync(f"operator-forced resync (token={_force_tok})")
+                    try:
+                        with open(_ftok_marker, "w") as _mf:
+                            _mf.write(_force_tok)
+                    except Exception:
+                        pass
+                    return  # complete base just installed — skip the integrity passes this boot
+                print(f"[startup] FORCE_RESYNC_ON_BOOT token {_force_tok} already applied — skipping")
+        except Exception as e:
+            print(f"[startup] forced-resync gate error (non-fatal): {e}")
+
         # ── 1. Instant smoke probe — EVERY boot, off the hot path in ~ms ──
         try:
             _t0 = _ic_t.time()
@@ -3726,6 +3760,23 @@ async def lifespan(app: FastAPI):
                          name="breadth_ohlc_pull").start()
         print("[startup] breadth-ohlc R2 puller started (gap-fill, "
               f"{int(os.environ.get('BREADTH_OHLC_PULL_SECS', '600')) // 60}-min cadence)")
+
+    # Historical breadth-sentiment seed: load the versioned public-archive CSV
+    # (AAII/put-call/CNN F&G/NAAIM back to 1987) into breadth_sentiment_history so
+    # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,
+    # idempotent (row-count-guarded upsert), best-effort, and only fills dates the
+    # 4:15 collector never saw. Skippable via BREADTH_DEEP_HISTORY=0.
+    if os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0":
+        def _breadth_sentiment_seed():
+            try:
+                from api.services import breadth_sentiment_history as _bsh
+                res = _bsh.seed_from_bundled_csv()
+                print(f"[startup] breadth-sentiment seed: {res}")
+            except Exception as e:
+                print(f"[startup] breadth-sentiment seed error (non-fatal): {e}")
+
+        threading.Thread(target=_breadth_sentiment_seed, daemon=True,
+                         name="breadth_sentiment_seed").start()
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":

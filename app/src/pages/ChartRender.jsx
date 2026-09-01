@@ -555,12 +555,26 @@ export default function ChartRender() {
     barsKeyRef.current = barsKey
     readyPartsRef.current = { bars: false, comparisons: false }
     window.__chartBarsReady = false
+    // ⭐ `window.__chartBarCount` — how many candles are ON the chart right now.
+    // Readiness answers "did the bars question settle?"; this answers "was the
+    // answer empty?", and only the second one distinguishes a drawn chart from a
+    // frame carrying nothing but the watermark, the stats strip and the grid.
+    // The Discord renderer reads it back through X-Chart-Probe, because on
+    // 2026-08-31 the pixel judge that stood in for it (grey-level variance of the
+    // chart body) passed SMH, TAN and IWM — measured 8.4-16.7 against a
+    // threshold of 6.0 — with no candles in any of them, into a public channel.
+    // Reset to null, not 0: "the page has not said yet" and "the page says none"
+    // are different answers, and a probe must never read a previous render's
+    // count as this one's (`__chartBarsReady` carries the same stale-value
+    // hazard, which is why it is reset here too).
+    window.__chartBarCount = null
   }
   const publishBarsReady = () => {
     const r = readyPartsRef.current
     window.__chartBarsReady = r.bars && (compareSyms.length === 0 || r.comparisons)
   }
   const onBarsReady = () => { readyPartsRef.current.bars = true; publishBarsReady() }
+  const onDrawnBarCount = (n) => { window.__chartBarCount = Number.isFinite(n) ? n : null }
   const onComparisonsReady = () => { readyPartsRef.current.comparisons = true; publishBarsReady() }
 
   useEffect(() => {
@@ -798,6 +812,7 @@ export default function ChartRender() {
             priceLines={priceLines}
             visibleBarsOverride={barsOverride}
             onBarsReady={onBarsReady}
+            onDrawnBarCount={onDrawnBarCount}
             onComparisonsReady={onComparisonsReady}
             {...(toParam ? { replayCutoff: toParam } : {})}
             {...(breadthParam ? { breadthLine: true, blankVolume: true, watermark: sym, watermarkName: breadthName || undefined } : {})}

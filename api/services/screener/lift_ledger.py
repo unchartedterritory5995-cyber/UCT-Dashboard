@@ -516,14 +516,38 @@ def null_lifts(detect: Callable, bars_by_ticker: Dict[str, List[dict]],
     return out
 
 
-def direction_for_bias(bias: str) -> str:
-    """The metric direction a structure of this bias must be graded on.
+def directions_for_bias(bias: str) -> List[str]:
+    """EVERY metric direction a structure of this bias may be graded on.
 
     ⛔ ONE DEFINITION, READ BY THE RUNNER, THE RE-ADJUDICATION AND THE RAIL.
     A second copy of this mapping is how a row ends up graded one way and
     checked another.
+
+    ⛔⛔ AND THAT IS EXACTLY WHAT HAPPENED. `run_lift_ledger._directions_of`
+    grew its own copy mapping neutral -> ["long", "short"], while this module
+    mapped neutral -> "long" alone -- under the docstring above, in the runner
+    it names. The consequence was not cosmetic: `direction_is_wrong` would have
+    flagged a neutral structure published on the short side, so the runner's
+    documented "a neutral structure is graded BOTH ways" could not produce an
+    artifact that passed the suite. The list lives here now and the runner
+    reads it.
+
+    ⭐ A NEUTRAL STRUCTURE IS GRADED BOTH WAYS because grading it long is a
+    directional claim made on its behalf. A box is a range; its author
+    describes a frame, not a forecast. Measured both ways, a structure positive
+    on ONE side marks direction and one positive on BOTH marks volatility --
+    price left the range either way, which is a different and still useful fact.
     """
-    return "short" if bias == "bearish" else "long"
+    if bias == "bearish":
+        return ["short"]
+    if bias == "neutral":
+        return ["long", "short"]
+    return ["long"]
+
+
+def direction_for_bias(bias: str) -> str:
+    """The single direction a row is PUBLISHED on. Derived, never restated."""
+    return directions_for_bias(bias)[0]
 
 
 def direction_is_wrong(key: str, row: dict) -> bool:
@@ -539,7 +563,13 @@ def direction_is_wrong(key: str, row: dict) -> bool:
     st = _bc.by_key(key)
     if st is None or row.get("direction") is None:
         return False
-    return row["direction"] != direction_for_bias(getattr(st, "bias", ""))
+    # ⛔ MEMBERSHIP, NOT EQUALITY. A neutral structure is legitimately graded
+    # both ways, so testing against a single direction would refuse a correct
+    # short measurement of `darvas-box` or `square-box`. What makes a row wrong
+    # is being graded on a metric its structure does not ask -- a BEARISH
+    # structure on the long metric -- not being graded on the second of two
+    # legitimate ones.
+    return row["direction"] not in directions_for_bias(getattr(st, "bias", ""))
 
 
 def adjudicate(result: dict, nulls: List[float]) -> dict:
