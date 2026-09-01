@@ -2947,6 +2947,40 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[startup] force_resync error (non-fatal): {e}")
 
+        # ── 0. Operator-forced resync (one-shot per token) ──
+        # A healthy bars.db never triggers the integrity-fail resync below, but the
+        # web can drift to PARTIAL coverage (it holds shallow rows for some tickers,
+        # so the newer-wins merge never backfills their deep history). To install the
+        # worker's complete base on purpose, set FORCE_RESYNC_ON_BOOT=<token>: the
+        # resync runs ONCE per distinct token (a marker in DATA_DIR dedupes it), so
+        # the flag can stay set across future deploys without re-pulling every boot.
+        # Bump the token to force again. Runs at boot (memory is low; an OOM here just
+        # fails the deploy and leaves the old pod serving) and streams the tarball to
+        # disk, so it is safe on the single pod.
+        try:
+            _force_tok = _os_ic.environ.get("FORCE_RESYNC_ON_BOOT", "").strip()
+            if _force_tok:
+                _ftok_marker = _os_ic.path.join(
+                    _os_ic.environ.get("DATA_DIR", "/data"), ".force_resync_done_token")
+                _prev_tok = None
+                try:
+                    if _os_ic.path.exists(_ftok_marker):
+                        with open(_ftok_marker) as _mf:
+                            _prev_tok = _mf.read().strip()
+                except Exception:
+                    _prev_tok = None
+                if _prev_tok != _force_tok:
+                    _resync(f"operator-forced resync (token={_force_tok})")
+                    try:
+                        with open(_ftok_marker, "w") as _mf:
+                            _mf.write(_force_tok)
+                    except Exception:
+                        pass
+                    return  # complete base just installed — skip the integrity passes this boot
+                print(f"[startup] FORCE_RESYNC_ON_BOOT token {_force_tok} already applied — skipping")
+        except Exception as e:
+            print(f"[startup] forced-resync gate error (non-fatal): {e}")
+
         # ── 1. Instant smoke probe — EVERY boot, off the hot path in ~ms ──
         try:
             _t0 = _ic_t.time()
