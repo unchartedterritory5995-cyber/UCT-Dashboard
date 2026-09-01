@@ -306,9 +306,43 @@ def _run_grouped(args, bars_by, wanted, existing) -> int:
               % (window, direction, ", ".join(d.key for d in members)))
         obs = ll.measure_many(dets, usable, prepare=prep,
                               bootstrap=args.bootstrap, **kw)
-        nulls = ll.null_lifts_many(dets, usable, prepare=prep,
-                                   trials=args.null_trials,
-                                   seed=args.null_seed, **kw)
+
+        # ⛔⛔ DO NOT BUY NULLS A STRUCTURE CANNOT SPEND. Gates 0 and 1 read the
+        # OBSERVED result only — a non-positive lift, or a CI straddling zero,
+        # refuses the row whatever the null does. The nulls are the expensive
+        # half (one full re-scan of the universe PER TRIAL), so computing them
+        # for a row already refused is pure waste.
+        #
+        # MEASURED 2026-08-31: a 5.6-hour run at 30 trials covered four
+        # structures, two of them already published at 30 trials and two with
+        # lifts of -10.56pp and -9.12pp. Gate 0 refuses a negative lift at any
+        # trial count, so more than half that run could not have changed a
+        # single verdict. This is the check that would have said so in seconds.
+        #
+        # ⛔ THE SKIP IS PRINTED, NEVER SILENT. A structure that quietly got no
+        # nulls would be indistinguishable from one that passed them.
+        spend, skip = {}, {}
+        for st in members:
+            o = obs.get(st.key) or {}
+            lift, lo, hi = o.get("lift"), o.get("ci_low"), o.get("ci_high")
+            if lift is None:
+                skip[st.key] = "no measurable lift"
+            elif lift <= 0:
+                skip[st.key] = f"lift {lift:+.4f} is not positive (gate 0)"
+            elif lo is not None and hi is not None and not (lo > 0 or hi < 0):
+                skip[st.key] = (f"95% CI [{lo:+.4f}, {hi:+.4f}] includes zero "
+                                f"(gate 1)")
+            else:
+                spend[st.key] = dets[st.key]
+        for key, why in skip.items():
+            print(f"  ~ {key}: refused on the observed result — {why}; "
+                  f"skipping {args.null_trials} null trials that cannot change it")
+
+        nulls = {k: [] for k in skip}
+        if spend:
+            nulls.update(ll.null_lifts_many(spend, usable, prepare=prep,
+                                            trials=args.null_trials,
+                                            seed=args.null_seed, **kw))
         print("  %d tickers, %d structures, %.0fs"
               % (len(usable), len(members), time.time() - t0))
 
