@@ -308,6 +308,14 @@
   text-align: right;
 }
 
+/* ⛔ 26px IS A DESKTOP-ONLY SIZE. These were `var(--tap-min)` (44px) before the
+   chrome restyle and I shrank them for density, which quietly took a TOUCH
+   target 40% below the floor this repo sets. Found by the project's own
+   `tools/mobile_audit.py` (small=5 at 390px) and then NAMED by a probe —
+   `26x26 button 'Previous reporter'` / `'Next reporter'` — because a COUNT
+   tells you something is wrong and nothing about what to fix.
+   The floor is restored on touch below; desktop keeps the tighter 26px, where
+   `--tap-min` is genuinely oversized for a chevron beside a headline. */
 .stepBtn {
   min-width: 26px;
   min-height: 26px;
@@ -341,6 +349,21 @@
   .canvas { --rating-cols: 4; }
 }
 
+/* TOUCH — the 44px floor, on the canonical touch bound (breakpoints.css).
+   Both axes: a chevron is small in BOTH, so constraining one leaves a 26x44
+   sliver that still misses a thumb — the exact half-fix SectionRail's own
+   module documents having shipped once. */
+@media (max-width: 1024px) {
+  .stepBtn { min-width: var(--tap-min); min-height: var(--tap-min); }
+  /* Same regression, same cause: `.btnChart` was `var(--tap-min)` before the
+     restyle and I set it to 26px with a restore that only fired at <=640px —
+     so TABLET (641-1024) kept a 26px-tall touch target. Probed at 820px:
+     `85x26 button 'View chart for DELL'`. Both live on the touch bound now,
+     which is the one this repo calls touch (breakpoints.css), not the phone
+     bound. A floor restored at only one of the two touch tiers is not a floor. */
+  .btnChart { min-height: var(--tap-min); }
+}
+
 /* TABLET */
 @media (min-width: 641px) and (max-width: 1024px) {
   .canvas { padding: var(--space-md) var(--space-lg); }
@@ -359,7 +382,6 @@
     padding-left: var(--space-md);
     padding-right: var(--space-md);
   }
-  .btnChart { min-height: var(--tap-min); }
   .footer { padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); }
   .notAdvice { text-align: left; }
 }
