@@ -3820,6 +3820,35 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_breadth_sentiment_seed, daemon=True,
                          name="breadth_sentiment_seed").start()
 
+    # Self-healing breadth: refuse a degraded collector push (guard is in the push
+    # route) AND recompute any degraded recent day from OUR bars so the Monitor's
+    # current + prior days are always accurate. Boot pass fixes any leftover bad
+    # day now; a slow loop keeps watch (cheap — it only recomputes a day that is
+    # actually degraded). Web pod (breadth_snapshots is web-local). BREADTH_SELF_HEAL.
+    if os.environ.get("BREADTH_SELF_HEAL", "1") != "0":
+        try:
+            from api.services import breadth_self_heal
+            breadth_self_heal.start_background_heal(delay_seconds=45)
+
+            def _breadth_heal_loop():
+                interval = int(os.environ.get("BREADTH_SELF_HEAL_SECS", "1800"))
+                while True:
+                    time.sleep(interval)
+                    try:
+                        res = breadth_self_heal.heal_recent(10)
+                        healed = res.get("healed") or []
+                        if healed:
+                            print(f"[breadth-heal] loop healed {len(healed)}: "
+                                  f"{[h.get('date') for h in healed]}")
+                    except Exception as e:
+                        print(f"[breadth-heal] loop error (non-fatal): {e}")
+
+            threading.Thread(target=_breadth_heal_loop, daemon=True,
+                             name="breadth_self_heal_loop").start()
+            print("[startup] breadth self-heal armed (boot pass + watch loop)")
+        except Exception as e:
+            print(f"[startup] breadth self-heal wiring error (non-fatal): {e}")
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
