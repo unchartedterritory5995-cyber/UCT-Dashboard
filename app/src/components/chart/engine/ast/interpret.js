@@ -137,7 +137,37 @@ export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M
 
 /** Which of those can actually be RESAMPLED today. ⚠️ Deliberately smaller than
  *  the ladder: the ladder is what an ORDER can be taken over, this is what a
- *  value can be produced for. */
+ *  value can be produced for.
+ *
+ *  ⛔⛔ `D` IS ABSENT ON PURPOSE AND THIS IS THE RULING (2026-09-01), because an
+ *  omission with no stated reason cannot be told from an oversight and this one
+ *  looks like the easiest win on the list. `request.security(sym, "D", expr)` is
+ *  one of the most-written lines in Pine and it refuses today.
+ *
+ *  ⭐ IT WAS BUILT AND MEASURED BEFORE BEING REJECTED. Declaring `D` here, with
+ *  `TF_BASE_BARS.D = 1` and a `tfBucket` arm returning `YYYY-MM-DD`, works: the
+ *  corpus went 43 → 44 and `request.security(syminfo.tickerid, "D", ta.ema(close,
+ *  20))` translated. It was reverted anyway.
+ *
+ *  ⛔ THE REASON IS THE ONE-BAR STEP-BACK, WHICH IS NOT OPTIONAL. A `tf` node
+ *  reads "the last CLOSED period" — that is the `+ 1` in `maxLookback`'s `tf`
+ *  arm, and it is what keeps a higher-timeframe read free of lookahead. On a
+ *  DAILY base, `tf(close, 'D')` therefore answers YESTERDAY: measured,
+ *  `[null, 10, 11, 12, …]` against `close`'s `[10, 11, 12, 13, …]`. Meanwhile
+ *  `request.security(sym, timeframe.period, close)` folds to plain `close`. Two
+ *  spellings of the same thing on a daily chart, one bar apart, neither refusing.
+ *
+ *  ⚠️ AND `tf_live` IS NOT THE ANSWER EITHER, THOUGH IT LOOKS LIKE IT. It reads
+ *  the FORMING bucket, which IS the identity on a daily base — and is wrong on an
+ *  INTRADAY one, where the correct reading of `"D"` really is the last completed
+ *  session. The right node depends on the base timeframe, and `translatePine`
+ *  is not handed one; the screen is always daily but the chart lane is not.
+ *
+ *  ⭐⭐ SO WHAT WOULD UNBLOCK THIS IS A BASE, NOT A BUCKETING RULE: give the
+ *  translator the base timeframe it is translating for, and `D` becomes
+ *  `tf_live` at or below a daily base and `tf` above it. Until then a member
+ *  gets a refusal that names the ladder instead of a column that is smooth,
+ *  plausible and off by one bar forever. */
 export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
 /** How many BASE bars one higher-timeframe bar spans, for the lookback sum.

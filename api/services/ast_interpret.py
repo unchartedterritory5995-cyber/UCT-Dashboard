@@ -152,6 +152,16 @@ TF_LADDER = ("1", "5", "15", "30", "60", "D", "W", "M")
 #: the ladder: the ladder is what an ORDER can be taken over, this is what a
 #: value can be produced for. Conflating them would let `tf(close, '60')` parse,
 #: rank correctly and then answer nothing.
+#:
+#: ⛔⛔ `D` IS ABSENT ON PURPOSE — RULED 2026-09-01, and the reasoning lives in
+#: `interpret.js::TF_RESAMPLABLE` so the two lanes carry one ruling rather than
+#: two summaries of it. In short: a `tf` node reads the last CLOSED period, so on
+#: a daily base `tf(close, 'D')` answers YESTERDAY while
+#: `request.security(sym, timeframe.period, close)` folds to plain `close` —
+#: two spellings of one thing, one bar apart, neither refusing. `tf_live` is the
+#: identity on a daily base and wrong on an intraday one, so the correct node
+#: depends on a base timeframe the translator is not given. Measured before being
+#: rejected: declaring it took the corpus 43 → 44.
 TF_RESAMPLABLE = ("W", "M")
 
 #: How many BASE bars one higher-timeframe bar spans, for the lookback sum.
