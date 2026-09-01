@@ -566,6 +566,16 @@ def merged_dates() -> list:
             recon = ohlc.distinct_dates()
         except Exception:
             recon = []
+    # The reconstructed OHLC store supplies ONLY the deep past — the range BELOW the
+    # collector's earliest snapshot. Within (and above) the collector range, the
+    # collector is authoritative. Critically, the OHLC store carries a DEVELOPING
+    # bar for TODAY, and unioning it here injected a `today` slot into the timeline
+    # index that `get_history` (breadth_snapshots) can't fill → the Monitor showed a
+    # permanent all-dashes top row whenever the live row was withheld. Clamp recon to
+    # < floor so today's row is owned solely by the client-injected live row.
+    coll_min = min(coll) if coll else None
+    if coll_min:
+        recon = [d for d in recon if d < coll_min]
     out = sorted(set(coll) | set(recon))
     cache.set(ck, out, ttl=300)
     return out
@@ -730,9 +740,12 @@ def date_bounds() -> dict:
                 out = {"min": row[0], "max": row[1]}
     except Exception as e:
         print(f"[breadth_monitor] date_bounds error: {e}")
-    # Extend the floor with the reconstructed history so the Time Navigator's
-    # calendar + year list reach back to it (e.g. ~2008). Additive: the max stays
-    # whatever the collector last wrote.
+    # Extend ONLY the floor with the reconstructed history so the Time Navigator's
+    # calendar + year list reach back to it (e.g. ~2008). The max stays whatever the
+    # collector last wrote: the OHLC store carries a DEVELOPING today-bar, and letting
+    # it push `max` to today created a permanent empty top row in the Monitor (the
+    # live/today row is injected client-side from /live, never from this index). Fall
+    # back to the OHLC max only when the collector has nothing at all (dev/empty box).
     if _DEEP_ENABLED:
         try:
             from api.services import breadth_daily_ohlc as ohlc
@@ -740,7 +753,7 @@ def date_bounds() -> dict:
             fmn, fmx = s.get("first"), s.get("last")
             if fmn and (out["min"] is None or fmn < out["min"]):
                 out["min"] = fmn
-            if fmx and (out["max"] is None or fmx > out["max"]):
+            if fmx and out["max"] is None:
                 out["max"] = fmx
         except Exception:
             pass
@@ -770,7 +783,12 @@ def next_trading_day(date_str: Optional[str]) -> Optional[str]:
     if _DEEP_ENABLED:
         try:
             from api.services import breadth_daily_ohlc as ohlc
+            # Recon supplies only the deep past (below the collector floor); its
+            # developing today-bar must never be offered as the ▶ next step.
+            floor = _collector_floor()
             ds = ohlc.distinct_dates()
+            if floor:
+                ds = [d for d in ds if d < floor]
             i = bisect_right(ds, date_str)
             if i < len(ds):
                 cand = ds[i]

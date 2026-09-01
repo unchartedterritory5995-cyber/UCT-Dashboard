@@ -670,6 +670,39 @@ def test_anchor_reflects_a_reheal_of_the_stored_row_without_force(monkeypatch):
     assert b2["withheld"] == []
 
 
+def test_a_cold_anchor_build_is_not_cached_so_it_self_heals_when_bars_warm(monkeypatch):
+    """Regression (2026-09-01): right after a restart the web bars.db is mid-warm,
+    so `_metrics_at_close` prices only a sliver of the universe (e.g. 25 of ~2,600).
+    Caching that pins coverage ≈ 0.01 → degraded for the WHOLE session (the anchor's
+    cache key (as_of_ts, tickers) doesn't change intraday). A cold build must NOT be
+    cached, so the next call rebuilds once the bars finish warming.
+    """
+    from api.services import breadth_monitor as bm
+    bl._anchor_cache.clear()
+    monkeypatch.setattr(bl, "_bars_conn", lambda: None)
+    stored = {"date": "2026-08-31", "universe_count": 2602, "stage2_count": 470}
+    monkeypatch.setattr(bm, "get_history", lambda days=30: [stored])
+
+    calls = {"n": 0}
+    def _at_close(conn, tickers, ts):
+        calls["n"] += 1
+        cold = calls["n"] == 1
+        return {"universe_count": 25 if cold else 2602, "stage2_count": 5 if cold else 470}
+    monkeypatch.setattr(bl, "_metrics_at_close", _at_close)
+
+    b1 = bl.anchor_basis(20260831, ["A", "B"])       # cold: 25/2602 ≈ 0.0096
+    assert b1["counts_anchored"] is False
+    # The cold build was below the cache floor, so it was NOT stored → the next call
+    # (same key, no force) must rebuild and pick up the now-warm bars.
+    b2 = bl.anchor_basis(20260831, ["A", "B"])
+    assert calls["n"] == 2, "a cold live_prev must be recomputed, not served from cache"
+    assert b2["coverage"] == 1.0
+    assert b2["counts_anchored"] is True
+    # And once warm, it IS cached (no third build).
+    bl.anchor_basis(20260831, ["A", "B"])
+    assert calls["n"] == 2, "a warm live_prev is cached"
+
+
 def test_a_missing_basis_leaves_the_numbers_untouched():
     today = {"pct_above_50sma": 58.4, "new_52w_highs": 12}
     assert bl.apply_anchor(today, None) == today

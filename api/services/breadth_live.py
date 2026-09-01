@@ -257,6 +257,13 @@ MAX_COVERAGE_DRIFT = 0.03
 # is not a random sample. So percentages get a looser bound, not no bound.
 MAX_RATIO_COVERAGE_DRIFT = 0.05
 
+# Don't CACHE an anchor `live_prev` (the universe re-priced at the prior close)
+# that measured fewer than this — a healthy build prices ~2,600, so a count this
+# low means the web bars.db was mid-warm right after a restart. Caching it would
+# pin a near-zero coverage (→ degraded) for the whole session; below the floor we
+# recompute each call until the bars warm. Well under any real trading day.
+_ANCHOR_MIN_CACHE_UNIVERSE = 500
+
 # Below this the live read itself is measuring a different market. Published as
 # `degraded` rather than silently served.
 MIN_LIVE_COVERAGE = 0.95
@@ -1175,9 +1182,17 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
                 live_prev = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
                 if live_prev is None:
                     return None
-                with _anchor_lock:
-                    _anchor_cache["key"] = key
-                    _anchor_cache["value"] = live_prev
+                # Only cache a PLAUSIBLE build. Right after a restart the web
+                # bars.db can be mid-warm, so `_metrics_at_close` prices a sliver
+                # of the universe (e.g. 25 of ~2,600). Caching that pins a ~0.01
+                # coverage → degraded for the rest of the session (live_prev is
+                # keyed on (as_of_ts, tickers), which don't change intraday). Below
+                # the floor, return the basis for this call but DON'T cache — the
+                # next call rebuilds once the bars finish warming, self-healing.
+                if (live_prev.get("universe_count") or 0) >= _ANCHOR_MIN_CACHE_UNIVERSE:
+                    with _anchor_lock:
+                        _anchor_cache["key"] = key
+                        _anchor_cache["value"] = live_prev
 
     from api.services import breadth_monitor as bm
     iso = _iso(as_of_ts)

@@ -10,14 +10,20 @@
  * · lfm-sticky (the sticky header group). Reuses the JSX's own
  * lf-alert-row / lf-contract-row / lf-chart-icon.
  *
- * ⛔ NO overflow-x:hidden AT THE ROOT — unlike of-mroot/dp-mroot. This page
- * owns no scroller at all, so hidden here would (a) amputate 12 of 17 tape
- * columns with no way to reach them and (b) force the root's overflow-y to
- * compute to auto, making it its own scrollport — position:sticky on the
- * header group would silently die. The tape's real phone answer (ONE shared
- * scroller for column headers + rows) needs a small JSX restructure — the
- * headers live inside the sticky group while rows are its siblings — and is
- * a deliberate follow-up, not a css-only patch.
+ * ⛔ NO overflow-x:hidden AT THE ROOT — unlike of-mroot/dp-mroot. Hidden
+ * here would force the root's overflow-y to compute to auto, making it its
+ * own scrollport — position:sticky on the header group would silently die.
+ * (If a clamp is ever needed, overflow-x:clip is the sticky-safe form: clip
+ * does NOT create a scroll container.) Since wave 16 the tape owns its own
+ * sideways scrolling via `lfm-tape` (below), so nothing should exceed the
+ * viewport at the root anyway.
+ *
+ * lfm-tape (wave 16): ONE shared scroller for column headers + rows. On
+ * phone the JSX moves ColumnHeaders/ContractColumnHeaders out of the sticky
+ * group and into this wrapper beside the rows (headers left in the sticky
+ * group would de-register from the columns the moment the tape scrolls).
+ * Desktop: an unstyled block wrapper — nothing in this file touches it
+ * outside the phone query.
  */
 @media (max-width: 640px) {
 
@@ -112,4 +118,30 @@
     display: inline-flex !important;
     align-items: center;
   }
+}
+
+/* ── Wave 16: THE TAPE OWNS SIDEWAYS ──────────────────────────────────────
+   One scroller for the whole tape (phone-relocated column headers + every
+   row). `display: grid` is load-bearing: the single implicit column track
+   sizes to the WIDEST child and every child stretches to the track, so the
+   headers and all rows share ONE width and stay registered — whatever the
+   1fr ALERT column or the admin extra columns do per row. Without it, each
+   block child sizes to its own min-content in an overflowing container and
+   the columns drift row-to-row.
+
+   Negative side margins reclaim the root's 16px padding (full-bleed ≈ one
+   extra visible column); the rows' own 12px inner padding keeps content off
+   the screen edge. overscroll-behavior-x stops a tape pan from chaining
+   into the page / iOS back-swipe. */
+@media (max-width: 640px) {
+  .lfm-mroot .lfm-tape {
+    display: grid;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    margin-left: -16px;
+    margin-right: -16px;
+    scrollbar-width: none;
+  }
+  .lfm-mroot .lfm-tape::-webkit-scrollbar { display: none; }
 }
