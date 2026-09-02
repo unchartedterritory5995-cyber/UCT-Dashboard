@@ -238,11 +238,12 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | B-FC-01 | 1b | done | 11:58 | 12:50 (53 calls, 272k) | ACCEPT: Fiscal.ai (ex-FinChat) rebuilt as a data-provenance company (every figure click-throughs to the filing page; one entitlement check serves terminal, API, and MCP agents); no regime/breadth/options/real-time layer; pricing verified (Pro $49, Max $99 monthly); terminal never opened (card-gated trial) | `finchat/dossier.md` |
 | B-TV-01 | 1b | done | 11:50 | 13:05 (114 calls, 273k) | ACCEPT: "the chart is the workstation" (bare typing changes symbol; modifier+cursor chord places order/alert/level); its one shipped AI feature emits an inspectable screen configuration with an Explanation panel; its two empty workflows (D, G) are UCT's proprietary strengths; UX/perf 🔴 (no session, no practitioner voices) | `tradingview/dossier.md` |
 | B-KOY-01 | 1b | done | 11:52 | 13:15 (96 calls, 273k) | ACCEPT: Koyfin deliberately refuses the tape (no intraday candles, no options, no bid/ask), so it is complementary to UCT; transferable mechanics = 7 colour groups whose payload can be a symbol, a set, or a watchlist, and user-minted command shortcuts bound to saved artefacts; 50 sources | `koyfin/dossier.md` |
-| B-BZ-01 (Opus) | 1b | running (batch B) | 2026-09-02 11:55 | — | — | search fallback per preamble |
+| B-BZ-01 | 1b | done | 11:55 | 13:20 (58 calls, 296k) | ACCEPT: a catalyst-delivery pipe with tools attached (WIIM, a 3-rung editorial importance ladder, a published Signals taxonomy with cooldowns, silent-by-default squawk); embeds TradingView; 4-tool workspaces persisted to browser cache; live UI unobserved (403 + browser read denied), 35 official help articles | `benzinga-pro/dossier.md` |
+| B-DESK-04 | 1b | dispatched (Sonnet) | 2026-09-02 13:25 | — | — | `contracts/B-DESK.md` §B-DESK-04 |
 | B-DESK-03 | 1b | dispatched (Sonnet) | 2026-09-02 13:20 | — | — | `contracts/B-DESK.md` §B-DESK-03 |
 | B-DESK-02 | 1b | dispatched (Sonnet) | 2026-09-02 13:10 | — | — | `contracts/B-DESK.md` §B-DESK-02 |
 | B-DESK-01 | 1b | dispatched (Sonnet) | 2026-09-02 12:55 | — | — | `contracts/B-DESK.md` §B-DESK-01 |
 | B-ADJ-01 | 1b | dispatched (Sonnet) | 2026-09-02 12:45 | — | — | `contracts/B-DOSSIER.md` §B-ADJ-01 (light merged note) |
 | B-LSEG-01 | 1b | dispatched (Opus) | 2026-09-02 12:25 | — | — | `contracts/B-DOSSIER.md` §B-LSEG-01 |
 | B-FDS-01 | 1b | dispatched (Opus) | 2026-09-02 12:15 | — | — | `contracts/B-DOSSIER.md` §B-FDS-01 |
-| B-DESK-04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
