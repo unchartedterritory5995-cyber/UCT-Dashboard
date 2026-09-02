@@ -347,14 +347,27 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
     return resp
 
 
-def _bars_proxy_should_route(warm: int) -> bool:
+def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
     BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
     Fully dark at pct=0 (the default) — the code ships inert. warm=1 (background
     web-db warms) ALWAYS stays local: low-stakes + keeps the tier's load = real reads.
-    Env-tunable → ramp (0→5→25→100) and rollback with NO code deploy."""
+    Env-tunable → ramp (0→5→25→100) and rollback with NO code deploy.
+
+    ⛔ BREADTH pseudo-tickers (UCTA50/UCTNH/MMTW…) ALWAYS stay local: they are served
+    from the web pod's `breadth_snapshots` table, which the bars-serving tier does NOT
+    have (it holds only bars.db / OHLCV) — proxying them returns an empty chart. This
+    is the SAME `is_breadth_symbol` authority serve_bars uses to route them, so the
+    exclusion can never drift from the routing. (Indices DO serve correctly from the
+    tier — bars-api has the index path — so only breadth is excluded.)"""
     if warm:
         return False
+    try:
+        from api.services import breadth_symbols as _bsym
+        if _bsym.is_breadth_symbol(ticker):
+            return False
+    except Exception:
+        pass
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -387,7 +400,7 @@ async def get_bars(
     exactly as before. In-process callers (discord/cot_prewarm) call `serve_bars`
     directly — they must never hit the proxy path."""
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
-    if origin and _bars_proxy_should_route(warm):
+    if origin and _bars_proxy_should_route(ticker, warm):
         try:
             return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin)
         except Exception:

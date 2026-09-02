@@ -20,21 +20,21 @@ def _clear(mp):
 # ── the canary gate ───────────────────────────────────────────────────────────
 def test_gate_is_dark_by_default(monkeypatch):
     _clear(monkeypatch)
-    assert bars._bars_proxy_should_route(0) is False
+    assert bars._bars_proxy_should_route("NVDA", 0) is False
 
 
 def test_gate_off_when_enabled_but_pct_zero(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("BARS_PROXY_ENABLED", "1")
     monkeypatch.setenv("BARS_PROXY_PCT", "0")
-    assert bars._bars_proxy_should_route(0) is False
+    assert bars._bars_proxy_should_route("NVDA", 0) is False
 
 
 def test_gate_on_at_full_rollout(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("BARS_PROXY_ENABLED", "1")
     monkeypatch.setenv("BARS_PROXY_PCT", "100")
-    assert bars._bars_proxy_should_route(0) is True
+    assert bars._bars_proxy_should_route("NVDA", 0) is True
 
 
 def test_gate_requires_the_enable_flag(monkeypatch):
@@ -42,7 +42,7 @@ def test_gate_requires_the_enable_flag(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("BARS_PROXY_ENABLED", "0")
     monkeypatch.setenv("BARS_PROXY_PCT", "100")
-    assert bars._bars_proxy_should_route(0) is False
+    assert bars._bars_proxy_should_route("NVDA", 0) is False
 
 
 def test_warm_requests_never_proxy(monkeypatch):
@@ -50,14 +50,14 @@ def test_warm_requests_never_proxy(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("BARS_PROXY_ENABLED", "1")
     monkeypatch.setenv("BARS_PROXY_PCT", "100")
-    assert bars._bars_proxy_should_route(1) is False
+    assert bars._bars_proxy_should_route("NVDA", 1) is False
 
 
 def test_gate_bad_pct_value_is_dark(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("BARS_PROXY_ENABLED", "1")
     monkeypatch.setenv("BARS_PROXY_PCT", "not-a-number")
-    assert bars._bars_proxy_should_route(0) is False
+    assert bars._bars_proxy_should_route("NVDA", 0) is False
 
 
 # ── the async route ───────────────────────────────────────────────────────────
@@ -138,3 +138,16 @@ async def test_route_stays_local_when_origin_unset_even_if_flag_on(monkeypatch):
     monkeypatch.setattr(bars, "_proxy_bars_to_tier", _boom)
     r = await bars.get_bars("NVDA", tf="D", bars=200, since="", to="", warm=0)
     assert seen.get("hit") is True
+
+
+def test_breadth_pseudo_tickers_never_proxy(monkeypatch):
+    """Breadth symbols are served from the web pod's breadth_snapshots table, which the
+    tier does not have — they must stay local even at full rollout, or the chart is empty."""
+    from api.services.breadth_symbols import SYMBOLS
+    breadth_sym = next(iter(SYMBOLS))
+    _clear(monkeypatch)
+    monkeypatch.setenv("BARS_PROXY_ENABLED", "1")
+    monkeypatch.setenv("BARS_PROXY_PCT", "100")
+    assert bars._bars_proxy_should_route(breadth_sym, 0) is False
+    # a normal ticker at the same settings DOES route
+    assert bars._bars_proxy_should_route("NVDA", 0) is True
