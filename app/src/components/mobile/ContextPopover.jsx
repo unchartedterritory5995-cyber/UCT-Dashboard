@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import Sheet from './Sheet'
+import useFocusTrap, { focusableWithin } from './useFocusTrap'
 import styles from './ContextPopover.module.css'
 
 /* ContextPopover — action menu that adapts to input.
@@ -33,6 +34,7 @@ export default function ContextPopover({
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
   const [pos, setPos] = useState(null)
+  const focusedOnce = useRef(false)
 
   // Desktop: clamp the anchored menu inside the viewport after it mounts
   useEffect(() => {
@@ -47,6 +49,38 @@ export default function ContextPopover({
       top: Math.min(anchor.y, vh - h - 8),
     })
   }, [open, isTouch, anchor, width])
+
+  // Desktop: keyboard containment. The touch branch is a `Sheet`, which
+  // already traps, focuses its panel and restores — this is the OTHER branch,
+  // an anchored `role="menu"` portalled to <body> with no focus management at
+  // all: focus stayed on the trigger, so Tab walked the page BEHIND an open
+  // menu and a screen-reader user was never told the menu existed.
+  useFocusTrap(open && !isTouch, menuRef)
+
+  // ⛔ LATCHED, AND GATED ON `pos`. The menu renders `visibility: hidden` until
+  // it has been measured and clamped, and focusing a hidden node is a no-op
+  // that silently leaves focus on the trigger. But `pos` settling is a RENDER,
+  // so an unlatched effect would re-run, tear down, and hand focus back to the
+  // trigger the instant the menu finished positioning — the bug this shape
+  // exists to avoid.
+  useEffect(() => {
+    if (!open || isTouch) { focusedOnce.current = false; return undefined }
+    if (!pos || focusedOnce.current) return undefined
+    focusedOnce.current = true
+    const restoreTo = document.activeElement
+    const el = menuRef.current
+    const first = el ? focusableWithin(el)[0] : null
+    ;(first || el)?.focus?.()
+    // ⛔ NO `isConnected` CHECK, AND THAT IS MEASURED, NOT ASSUMED. The
+    // trigger can genuinely be gone by now (a menu whose action deleted the row
+    // it was opened from), and the obvious guard is to skip the restore for a
+    // detached node. Deleting that guard changes NOTHING — focusing a detached
+    // element is a silent no-op in jsdom and in browsers, not a throw — so the
+    // test written for it could not fail, and a test that cannot fail reads as
+    // coverage while providing none. Optional chaining is the whole guard: it
+    // handles `restoreTo` being null, which IS distinguishable.
+    return () => { restoreTo?.focus?.() }
+  }, [open, isTouch, pos])
 
   // Desktop: dismiss on outside click / Escape
   useEffect(() => {
@@ -105,6 +139,7 @@ export default function ContextPopover({
         visibility: pos ? 'visible' : 'hidden',
       }}
       role="menu"
+      tabIndex={-1}
     >
       {title != null && <div className={styles.menuTitle}>{title}</div>}
       {children ?? renderItems()}

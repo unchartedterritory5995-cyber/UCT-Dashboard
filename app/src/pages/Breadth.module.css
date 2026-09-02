@@ -321,6 +321,30 @@
 }
 .exportBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
+/* Small pill buttons in the Monitor header (Today jump + manual refresh) —
+   same language as .exportBtn. */
+.hdrBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hdrBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.refreshBtn { padding: 3px 7px; }
+.refreshBtn svg { display: block; }
+
+@keyframes hdrSpin { to { transform: rotate(360deg); } }
+.spinning svg { animation: hdrSpin 0.7s linear; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .spinning svg { animation: none; } }
+
 .sparkline { display: block; }
 .sparklineCell { padding: 2px 6px; text-align: center; min-width: 62px; }
 
@@ -1570,22 +1594,9 @@ tbody tr { cursor: pointer; }
   100% { box-shadow: 0 0 0 0 rgba(220, 187, 94, 0); }
 }
 
-/* Reconstructed (pre-collector) rows — historical breadth rebuilt from price
-   data. Marked, not hidden: percentages are exact, counts are estimates. The ≈
-   glyph + a slightly muted date carry the provenance without shouting. */
-.reconStamp {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-variant-numeric: tabular-nums;
-  cursor: help;
-}
-.reconMark {
-  color: var(--ut-gold, #dcbb5e);
-  opacity: 0.75;
-  font-weight: 700;
-}
-.reconRow .dateCell { opacity: 0.9; }
+/* (Reconstructed-row date styling removed 2026-09-01 — owner wanted every
+   historical date to read identically to a collected one; the `_reconstructed`
+   data flag is still set, just no longer visually distinguished.) */
 
 /* A row whose metrics haven't been fetched yet — the date is known from the
    timeline index, the values fill in when its block lands. A faint centered dot

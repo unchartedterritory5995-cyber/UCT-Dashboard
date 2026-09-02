@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.tr > 2 * ta.sma(ta.tr, 20) ? 1 : 0)

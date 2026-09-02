@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
+import { trapTabKey } from './useFocusTrap'
 import styles from './Sheet.module.css'
 
 /* Sheet — responsive modal / drawer primitive.
@@ -80,12 +81,6 @@ export default function Sheet({
       return !panels.length || panels[panels.length - 1] === panelRef.current
     }
 
-    const FOCUSABLE = [
-      'a[href]', 'button:not([disabled])', 'input:not([disabled])',
-      'select:not([disabled])', 'textarea:not([disabled])', 'summary',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',')
-
     const onKey = (e) => {
       if (e.key === 'Escape') {
         if (!isTopmost()) return
@@ -101,42 +96,16 @@ export default function Sheet({
       // panel into content the modal is covering, with no way back but
       // Shift+Tab through everything. This file's own header and CLAUDE.md
       // both claimed a "focus-trap" that did not exist.
+      //
+      // ⛔ THE WRAP ITSELF LIVES IN `./useFocusTrap`, NOT HERE. Four other
+      // components had hand-copied it (BuilderSheet, IndicatorSettingsDialog,
+      // EarningsResearchModal, StatementPanels) and the copies had already
+      // drifted — including one gated on `offsetParent`, which is always null
+      // in jsdom and silently disables the trap while its tests pass. One
+      // implementation, or they drift again.
       const panel = panelRef.current
       if (!panel || !isTopmost()) return
-      // ⛔ NOT `offsetParent !== null`. That is the obvious visibility test and
-      // it is ALWAYS null in jsdom, which computes no layout — so the filter
-      // removed every candidate, the "nothing focusable" branch fired, and the
-      // trap did nothing while its tests said otherwise. Explicit hiding is
-      // what actually matters here and is readable without a layout pass.
-      const hidden = (n) =>
-        n.hasAttribute('hidden') ||
-        n.getAttribute('aria-hidden') === 'true' ||
-        n.closest('[hidden],[aria-hidden="true"]') !== null ||
-        n.style.display === 'none' ||
-        n.style.visibility === 'hidden'
-      const nodes = [...panel.querySelectorAll(FOCUSABLE)].filter(n => !hidden(n))
-      if (!nodes.length) {
-        // Nothing focusable inside: keep focus on the panel rather than
-        // letting Tab escape to the page underneath.
-        e.preventDefault()
-        panel.focus()
-        return
-      }
-      const first = nodes[0]
-      const last = nodes[nodes.length - 1]
-      const active = document.activeElement
-      if (!panel.contains(active)) {
-        e.preventDefault()
-        ;(e.shiftKey ? last : first).focus()
-        return
-      }
-      if (e.shiftKey && (active === first || active === panel)) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      trapTabKey(e, panel)
     }
     document.addEventListener('keydown', onKey, true)
     // Focus the panel for screen readers / Escape handling

@@ -1,0 +1,4 @@
+//@version=6
+indicator("screen")
+[mid, up, lo] = ta.bb(close, 20, 2)
+plot(close > up ? 1 : 0)

@@ -5,7 +5,11 @@ Both lines slope the same direction (or are both flat); the channel's direction
 follows the slope:
   - Both slopes > 0 -> ascending channel (bullish trend channel)
   - Both slopes < 0 -> descending channel (bearish trend channel)
-  - Both |slope| < 0.001 * mid_price -> horizontal channel (range-bound)
+  - Both boundaries drifting < 0.1% per bar -> horizontal channel
+    (range-bound). ⛔ That is a FRACTION OF PRICE PER BAR, not a fraction
+    times a price: the boundaries are fitted in LOG space (see
+    `_LOG_SPACE` below) and the comparison goes through
+    `geometry.fractional_slope`, which reads both spaces in that unit.
 
 Geometric definition:
   - Window: 25-80 bars
@@ -40,7 +44,8 @@ from typing import List, Optional
 from api.services.pattern_engine.detectors.registry import register
 from api.services.pattern_engine.primitives.geometry import (
     channel_width_parallel_score,
-    line_at,
+    fractional_slope,
+    price_at,
 )
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
@@ -48,6 +53,15 @@ from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "channel"
+#: ⛔ EDWARDS & MAGEE: JUDGE PARALLELISM IN LOG SPACE, NOT IN POINTS. A channel
+#: that holds a constant PERCENTAGE width WIDENS in points as price rises and
+#: NARROWS as it falls, so an arithmetic fit calls genuine channels divergent
+#: and refuses them. `fit_trendline` returns a `space`-tagged line; read prices
+#: off it with `geometry.price_at` and compare its slope only through
+#: `geometry.fractional_slope`.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
+_TRENDLINE_SPACE = "log" if _LOG_SPACE else "price"
 _MIN_BARS = 25
 _MAX_BARS = 80
 _MIN_TOUCHES = 3
@@ -55,7 +69,17 @@ _MIN_LINE_VALIDITY = 0.4
 _MIN_PARALLEL_SCORE = 0.70
 _MIN_DEPTH_PCT = 0.05
 _MAX_DEPTH_PCT = 0.25
-_HORIZONTAL_SLOPE_FRACTION = 0.001  # |slope| < 0.001 * mid_price -> horizontal
+#: A channel reads as horizontal below this slope. ⛔ THE UNIT IS A FRACTION OF
+#: PRICE PER BAR (dimensionless): 0.001 == 0.1%/bar. It is compared against
+#: `fractional_slope`, which puts a price-space slope (dollars/bar) and a
+#: log-space slope (already a fractional rate) into that same unit.
+#: ⛔⛔ IT USED TO BE MULTIPLIED BY `mid_price` — a dimensionless fraction times
+#: dollars — which is the same test only while the slope is in dollars. Against
+#: a log slope that threshold is ~1/price times too permissive (~100x on a $100
+#: stock), so EVERY channel would read horizontal: the direction shown to
+#: members would collapse to "neutral", and the validity gate below — which
+#: runs only `if not is_horizontal` — would be skipped entirely.
+_HORIZONTAL_SLOPE_FRACTION = 0.001
 _CONFIDENCE_FLOOR = 50.0
 
 
@@ -124,8 +148,8 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                    "bar_index": p["bar_index"]} for p in low_pivots_raw]
 
     try:
-        upper_line = fit_trendline(high_pivots)
-        lower_line = fit_trendline(low_pivots)
+        upper_line = fit_trendline(high_pivots, log_space=_LOG_SPACE)
+        lower_line = fit_trendline(low_pivots, log_space=_LOG_SPACE)
     except ValueError:
         return None
 
@@ -133,10 +157,10 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         return None
 
     # Endpoint values at start/end bar indices
-    upper_at_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx)
-    upper_at_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx)
-    lower_at_start = line_at((lower_line["p1"], lower_line["p2"]), start_idx)
-    lower_at_end = line_at((lower_line["p1"], lower_line["p2"]), end_idx)
+    upper_at_start = price_at(upper_line, start_idx)
+    upper_at_end = price_at(upper_line, end_idx)
+    lower_at_start = price_at(lower_line, start_idx)
+    lower_at_end = price_at(lower_line, end_idx)
 
     if upper_at_start <= 0 or upper_at_end <= 0:
         return None
@@ -149,9 +173,13 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
 
     upper_slope = upper_line["slope"]
     lower_slope = lower_line["slope"]
-    horiz_threshold = _HORIZONTAL_SLOPE_FRACTION * mid_price
-    is_horizontal = (abs(upper_slope) < horiz_threshold
-                     and abs(lower_slope) < horiz_threshold)
+    # Both rates are a FRACTION OF PRICE PER BAR, the same unit as the
+    # threshold, whatever space the lines were fitted in. `mid_price > 0` is
+    # guaranteed by the guard above, so neither normalisation degenerates.
+    upper_rate = fractional_slope(upper_line, mid_price)
+    lower_rate = fractional_slope(lower_line, mid_price)
+    is_horizontal = (abs(upper_rate) < _HORIZONTAL_SLOPE_FRACTION
+                     and abs(lower_rate) < _HORIZONTAL_SLOPE_FRACTION)
 
     # Validity gate: regression r² is naturally low on near-flat data because
     # the signal-to-noise is small. Only enforce validity threshold for
@@ -196,8 +224,8 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
     bi_count = 0
     for offset, b in enumerate(pattern_bars):
         bi = start_idx + offset
-        upper_here = line_at((upper_line["p1"], upper_line["p2"]), bi)
-        lower_here = line_at((lower_line["p1"], lower_line["p2"]), bi)
+        upper_here = price_at(upper_line, bi)
+        lower_here = price_at(lower_line, bi)
         if upper_here <= 0:
             continue
         tol = 0.015 * upper_here  # 1.5% tolerance band
@@ -217,6 +245,10 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         "lower_line": lower_line,
         "upper_slope": upper_slope,
         "lower_slope": lower_slope,
+        # Fraction of price per bar — the unit the prose and the thresholds
+        # both speak, and the only one that means the same thing in both spaces.
+        "upper_rate": upper_rate,
+        "lower_rate": lower_rate,
         "upper_at_start": upper_at_start,
         "upper_at_end": upper_at_end,
         "lower_at_start": lower_at_start,
@@ -328,17 +360,26 @@ def _dcr_score_adjustment(context: dict, direction: str) -> float:
     return 0.0
 
 
-def _channel_type_phrase(channel_type: str, direction: str, upper_slope: float,
-                         lower_slope: float, mid_price: float) -> str:
+def _channel_type_phrase(channel_type: str, direction: str, upper_rate: float,
+                         lower_rate: float) -> str:
+    """⛔ THIS SENTENCE REACHES MEMBERS, so the number and the words around it
+    have to agree. It used to print the raw fitted slope as "slope 0.1234/bar",
+    an unlabelled quantity that means dollars per bar in price space and a
+    fractional rate per bar in log space — the same words over a number ~100x
+    different. Both callers now hand it a rate normalised by
+    `geometry.fractional_slope`, and it says "% per bar", which is true in
+    either space and is what a trader reads a channel in anyway.
+    """
     if channel_type == "ascending":
-        return (f"ascending channel (bullish trend channel - upper slope "
-                f"{upper_slope:.4f}/bar, lower slope {lower_slope:.4f}/bar)")
+        return (f"ascending channel (bullish trend channel - upper line rising "
+                f"{upper_rate * 100:.2f}% per bar, lower line rising "
+                f"{lower_rate * 100:.2f}% per bar)")
     if channel_type == "descending":
-        return (f"descending channel (bearish trend channel - upper slope "
-                f"{upper_slope:.4f}/bar, lower slope {lower_slope:.4f}/bar)")
-    return (f"horizontal channel (range-bound trading band - both slopes "
-            f"within {_HORIZONTAL_SLOPE_FRACTION:.4f} of mid-price "
-            f"${mid_price:.2f})")
+        return (f"descending channel (bearish trend channel - upper line falling "
+                f"{abs(upper_rate) * 100:.2f}% per bar, lower line falling "
+                f"{abs(lower_rate) * 100:.2f}% per bar)")
+    return (f"horizontal channel (range-bound trading band - neither line "
+            f"drifts more than {_HORIZONTAL_SLOPE_FRACTION * 100:.2f}% per bar)")
 
 
 # Custom variant - does not match shared narrative_helpers
@@ -425,8 +466,8 @@ def _build_detection(bars, c, confidence, context,
     # Project upper line +10 bars ahead for target reference
     upper_proj_idx = end_idx + 10
     lower_proj_idx = end_idx + 10
-    upper_proj = line_at((c["upper_line"]["p1"], c["upper_line"]["p2"]), upper_proj_idx)
-    lower_proj = line_at((c["lower_line"]["p1"], c["lower_line"]["p2"]), lower_proj_idx)
+    upper_proj = price_at(c["upper_line"], upper_proj_idx)
+    lower_proj = price_at(c["lower_line"], lower_proj_idx)
 
     # Levels per direction
     if direction == "bullish":
@@ -484,8 +525,8 @@ def _build_detection(bars, c, confidence, context,
     upper_r2 = c["upper_line"].get("r_squared", 0.0)
     lower_r2 = c["lower_line"].get("r_squared", 0.0)
 
-    channel_phrase = _channel_type_phrase(channel_type, direction, upper_slope,
-                                          lower_slope, mid_price)
+    channel_phrase = _channel_type_phrase(channel_type, direction,
+                                          c["upper_rate"], c["lower_rate"])
     ma_phrase = _ma_alignment_phrase(context, direction)
     stage_phrase = _trend_stage_description(context, direction)
     rs_phrase = _rs_trend_phrase(context)
@@ -726,8 +767,16 @@ def _build_detection(bars, c, confidence, context,
             "extras": {
                 "pattern_bars": c["pattern_count"],
                 "channel_type": channel_type,
+                # ⛔ `upper_slope`/`lower_slope` are RAW FITTED SLOPES and
+                # their unit follows `trendline_space`: dollars per bar under
+                # "price", log-units (a fractional rate) per bar under "log".
+                # The `*_pct_per_bar` pair is the space-independent reading and
+                # is what the narrative above quotes.
+                "trendline_space": _TRENDLINE_SPACE,
                 "upper_slope": round(float(upper_slope), 6),
                 "lower_slope": round(float(lower_slope), 6),
+                "upper_slope_pct_per_bar": round(float(c["upper_rate"]) * 100, 4),
+                "lower_slope_pct_per_bar": round(float(c["lower_rate"]) * 100, 4),
                 "r_squared_upper": round(float(upper_r2), 3),
                 "r_squared_lower": round(float(lower_r2), 3),
                 "touches_upper": int(upper_touches),

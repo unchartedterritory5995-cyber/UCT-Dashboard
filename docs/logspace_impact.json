@@ -1,0 +1,57 @@
+{
+  "measured_at": "2026-09-01",
+  "sample_tickers": 744,
+  "seed": 7,
+  "total_raw": 273,
+  "total_log": 263,
+  "patterns": {
+    "falling_wedge": {
+      "raw_pct": 2.28,
+      "log_pct": 1.48,
+      "raw_hits": 17,
+      "log_hits": 11
+    },
+    "rising_wedge": {
+      "raw_pct": 3.9,
+      "log_pct": 2.82,
+      "raw_hits": 29,
+      "log_hits": 21
+    },
+    "symmetrical_triangle": {
+      "raw_pct": 4.44,
+      "log_pct": 4.3,
+      "raw_hits": 33,
+      "log_hits": 32
+    },
+    "pennant": {
+      "raw_pct": 4.44,
+      "log_pct": 4.57,
+      "raw_hits": 34,
+      "log_hits": 35
+    },
+    "ascending_triangle": {
+      "raw_pct": 11.69,
+      "log_pct": 12.37,
+      "raw_hits": 87,
+      "log_hits": 92
+    },
+    "descending_triangle": {
+      "raw_pct": 6.59,
+      "log_pct": 6.72,
+      "raw_hits": 49,
+      "log_hits": 50
+    },
+    "channel": {
+      "raw_pct": 1.21,
+      "log_pct": 0.94,
+      "raw_hits": 9,
+      "log_hits": 7
+    },
+    "rectangle": {
+      "raw_pct": 2.02,
+      "log_pct": 2.02,
+      "raw_hits": 15,
+      "log_hits": 15
+    }
+  }
+}

@@ -24,10 +24,36 @@ const fetcher = jsonFetcher
 const BLOCK = 150               // rows per fetch/window block
 const SETTLE_MS = 90            // debounce so a fast fling doesn't fetch every block it flies past
 
+// ── Instant open (localStorage) ────────────────────────────────────────────────
+// Breadth history is IMMUTABLE — a past day's row never changes — so the recent
+// window and the timeline index are cached across page loads and rendered
+// instantly on open, then revalidated in the background (stale-while-revalidate).
+// The only thing that moves is a new day appearing at the top, which the
+// background refetch + the separate live row both pick up within a second.
+const LS_DATES = 'uct.breadth.dates.v1'   // timeline index (date strings)
+const LS_RECENT = 'uct.breadth.recent.v1' // the most-recent RECENT_N derived rows
+const RECENT_N = 160                       // ~7-8 months cached for an instant first paint
+
+function readLS(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null') } catch { return null }
+}
+function writeLS(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota / private mode */ }
+}
+
 export default function useMonitorGrid({ enabled, liveRow }) {
+  // Seed SWR from the cached index so `allDates` is populated on the FIRST paint
+  // (no wait for the /dates round-trip), then revalidate + rewrite the cache.
+  const datesFallbackRef = useRef(undefined)
+  if (datesFallbackRef.current === undefined) datesFallbackRef.current = readLS(LS_DATES) || undefined
   const { data: datesData } = useSWR(
     enabled ? '/api/breadth-monitor/dates' : null, fetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60_000,
+      fallbackData: datesFallbackRef.current,
+      onSuccess: (d) => { if (d?.dates?.length) writeLS(LS_DATES, d) },
+    },
   )
   const liveDate = liveRow?.date ?? null
 
@@ -38,7 +64,14 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     return d
   }, [datesData, liveDate])
 
-  const cacheRef = useRef(new Map())      // date -> row
+  // date -> row. Pre-hydrated ONCE from the cached recent window so those rows
+  // paint instantly on open (immutable history → always safe to trust the cache).
+  const cacheRef = useRef(null)           // date -> row
+  if (cacheRef.current === null) {
+    cacheRef.current = new Map()
+    const cached = readLS(LS_RECENT)
+    if (Array.isArray(cached)) for (const r of cached) if (r?.date) cacheRef.current.set(r.date, r)
+  }
   const loadedRef = useRef(new Set())     // block index -> loaded
   const loadingRef = useRef(new Set())    // block index -> in flight
   const [version, setVersion] = useState(0)
@@ -66,6 +99,12 @@ export default function useMonitorGrid({ enabled, liveRow }) {
       for (const row of res?.rows ?? []) cacheRef.current.set(row.date, row)
       loadedRef.current.add(k)
       setVersion((v) => v + 1)
+      // Persist the freshly-revalidated recent window for the next instant open.
+      if (k === 0) {
+        const recent = allDates.slice(0, RECENT_N)
+          .map((d) => cacheRef.current.get(d)).filter(Boolean)
+        if (recent.length) writeLS(LS_RECENT, recent)
+      }
     } catch {
       /* leave unloaded — it retries on the next range change */
     } finally {
@@ -75,8 +114,10 @@ export default function useMonitorGrid({ enabled, liveRow }) {
 
   // Debounced: load the visible blocks (+1 buffer each side) once the scroll settles.
   const settleRef = useRef(0)
+  const lastRangeRef = useRef([0, 0])       // most recent visible [first, last] index
   const ensureRange = useCallback((firstIdx, lastIdx) => {
     if (!allDates.length) return
+    lastRangeRef.current = [firstIdx, lastIdx]
     clearTimeout(settleRef.current)
     settleRef.current = setTimeout(() => {
       const b0 = Math.max(0, Math.floor(firstIdx / BLOCK) - 1)
@@ -84,6 +125,21 @@ export default function useMonitorGrid({ enabled, liveRow }) {
       for (let k = b0; k <= b1; k++) fetchBlock(k)
     }, SETTLE_MS)
   }, [allDates.length, fetchBlock])
+
+  // Manual refresh: drop the cached rows + block bookkeeping and re-fetch the
+  // currently visible range now (the row cache is normally sticky because rows
+  // are keyed by date and don't change — a manual refresh is the one time we
+  // want a completed day re-pulled, e.g. after the collector writes today).
+  const refresh = useCallback(() => {
+    cacheRef.current = new Map()
+    loadedRef.current = new Set()
+    loadingRef.current = new Set()
+    setVersion((v) => v + 1)
+    const [f, l] = lastRangeRef.current
+    const b0 = Math.max(0, Math.floor(f / BLOCK) - 1)
+    const b1 = Math.floor(l / BLOCK) + 1
+    for (let k = b0; k <= b1; k++) fetchBlock(k)
+  }, [fetchBlock])
 
   useEffect(() => () => clearTimeout(settleRef.current), [])
 
@@ -127,7 +183,7 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   }, [allDates])
 
   return {
-    allDates, getRow, trail, ensureRange, indexOfDate, indexOfYearStart,
+    allDates, getRow, trail, ensureRange, refresh, indexOfDate, indexOfYearStart,
     min: datesData?.min ?? null, max: datesData?.max ?? null,
     ready: !!datesData, count: allDates.length,
   }

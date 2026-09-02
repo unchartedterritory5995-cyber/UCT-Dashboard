@@ -4,61 +4,82 @@
   "seed": 7,
   "step_bars": 20,
   "structures": {
-    "darvas-box": {
-      "rho": 0.17918,
-      "m_eff": 25.977,
-      "deff": 5.475,
-      "anchors": 4641,
-      "dates": 1109,
-      "direction": "long"
-    },
-    "stage-4-breakdown": {
-      "rho": 0.22191,
-      "m_eff": 28.544,
-      "deff": 7.112,
-      "anchors": 6537,
-      "dates": 1317,
-      "direction": "short"
-    },
-    "square-box": {
-      "rho": 0.13313,
-      "m_eff": 23.549,
-      "deff": 4.002,
-      "anchors": 6379,
-      "dates": 1257,
-      "direction": "long"
-    },
-    "low-cheat": {
-      "rho": 0.17128,
-      "m_eff": 3.965,
-      "deff": 1.508,
-      "anchors": 547,
-      "dates": 270,
-      "direction": "long"
-    },
     "climax-top": {
       "rho": 0.14871,
+      "rho_ci_low": 0.04671,
+      "rho_ci_high": 0.25549,
       "m_eff": 7.22,
       "deff": 1.925,
+      "deff_conservative": 2.589,
       "anchors": 1506,
       "dates": 726,
       "direction": "short"
     },
+    "darvas-box": {
+      "rho": 0.17918,
+      "rho_ci_low": 0.14013,
+      "rho_ci_high": 0.21666,
+      "m_eff": 25.977,
+      "deff": 5.475,
+      "deff_conservative": 6.412,
+      "anchors": 4641,
+      "dates": 1109,
+      "direction": "long"
+    },
+    "ema-crossback": {
+      "rho": 0.1295,
+      "rho_ci_low": 0.08317,
+      "rho_ci_high": 0.17057,
+      "m_eff": 14.472,
+      "deff": 2.745,
+      "deff_conservative": 3.298,
+      "anchors": 3649,
+      "dates": 1149,
+      "direction": "long"
+    },
+    "low-cheat": {
+      "rho": 0.17128,
+      "rho_ci_low": 0.06995,
+      "rho_ci_high": 0.30153,
+      "m_eff": 3.965,
+      "deff": 1.508,
+      "deff_conservative": 1.894,
+      "anchors": 547,
+      "dates": 270,
+      "direction": "long"
+    },
     "parabolic-extension": {
       "rho": 0.35133,
+      "rho_ci_low": 0.0,
+      "rho_ci_high": 0.58198,
       "m_eff": 17.258,
       "deff": 6.712,
+      "deff_conservative": 10.462,
       "anchors": 434,
       "dates": 229,
       "direction": "short"
     },
-    "ema-crossback": {
-      "rho": 0.1295,
-      "m_eff": 14.472,
-      "deff": 2.745,
-      "anchors": 3649,
-      "dates": 1149,
+    "square-box": {
+      "rho": 0.13313,
+      "rho_ci_low": 0.10534,
+      "rho_ci_high": 0.16058,
+      "m_eff": 23.549,
+      "deff": 4.002,
+      "deff_conservative": 4.621,
+      "anchors": 6379,
+      "dates": 1257,
       "direction": "long"
+    },
+    "stage-4-breakdown": {
+      "rho": 0.22191,
+      "rho_ci_low": 0.1775,
+      "rho_ci_high": 0.27044,
+      "m_eff": 28.544,
+      "deff": 7.112,
+      "deff_conservative": 8.449,
+      "anchors": 6537,
+      "dates": 1317,
+      "direction": "short"
     }
   }
 }

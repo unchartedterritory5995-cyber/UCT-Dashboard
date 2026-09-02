@@ -12,7 +12,7 @@ Geometric definition:
   - Window: 20-60 bars
   - Upper trendline: slope < 0, r_squared >= 0.7, >=2 touches
   - Lower trendline: slope > 0, r_squared >= 0.7, >=2 touches
-  - Apex projection (via line_intersect): 1-30 bars ahead of current bar
+  - Apex projection (via geometry.intersect_at): 1-30 bars ahead of current bar
   - Volume: contracting through pattern (preferred)
 
 Levels (per spec):
@@ -31,13 +31,24 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
-from api.services.pattern_engine.primitives.geometry import line_at, line_intersect
+from api.services.pattern_engine.primitives.geometry import intersect_at, price_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "symmetrical_triangle"
+#: ⛔ EDWARDS & MAGEE: JUDGE CONVERGENCE IN LOG SPACE, NOT IN POINTS. A
+#: constant-PERCENTAGE swing shrinks in POINTS as price falls, so an arithmetic
+#: fit reports convergence on a series that is uniform in percentage terms, and
+#: refuses genuine convergence on one that is not. The fitted line carries
+#: `space`; read prices off it with `geometry.price_at` and solve the apex with
+#: `geometry.intersect_at` — both unconditionally-linear accessors read a CHORD
+#: across an exponential, exact at the two endpoints and wrong between them,
+#: which is precisely where a width and an apex are measured.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
+_TRENDLINE_SPACE = "log" if _LOG_SPACE else "price"
 _MIN_BARS = 20
 _MAX_BARS = 60
 _MIN_TOUCHES = 2
@@ -112,8 +123,8 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                    "bar_index": p["bar_index"]} for p in low_pivots_raw]
 
     try:
-        upper_line = fit_trendline(high_pivots)
-        lower_line = fit_trendline(low_pivots)
+        upper_line = fit_trendline(high_pivots, log_space=_LOG_SPACE)
+        lower_line = fit_trendline(low_pivots, log_space=_LOG_SPACE)
     except ValueError:
         return None
 
@@ -130,10 +141,10 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
     if upper_line["r_squared"] < _MIN_R_SQUARED or lower_line["r_squared"] < _MIN_R_SQUARED:
         return None
 
-    upper_at_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx)
-    upper_at_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx)
-    lower_at_start = line_at((lower_line["p1"], lower_line["p2"]), start_idx)
-    lower_at_end = line_at((lower_line["p1"], lower_line["p2"]), end_idx)
+    upper_at_start = price_at(upper_line, start_idx)
+    upper_at_end = price_at(upper_line, end_idx)
+    lower_at_start = price_at(lower_line, start_idx)
+    lower_at_end = price_at(lower_line, end_idx)
 
     width_start = upper_at_start - lower_at_start
     width_end = upper_at_end - lower_at_end
@@ -143,8 +154,7 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
     if convergence_ratio >= _MAX_CONVERGENCE_RATIO:
         return None
 
-    intersect = line_intersect((upper_line["p1"], upper_line["p2"]),
-                               (lower_line["p1"], lower_line["p2"]))
+    intersect = intersect_at(upper_line, lower_line)
     if intersect is None:
         return None
     apex_bars_ahead = intersect["t"] - end_idx
@@ -481,6 +491,10 @@ def _build_detection(bars, c, confidence, context,
             ],
             "extras": {
                 "pattern_bars": c["pattern_count"],
+                # ⛔ RAW FITTED SLOPES; the unit follows `trendline_space` —
+                # dollars per bar under "price", log-units (a fractional rate)
+                # per bar under "log".
+                "trendline_space": _TRENDLINE_SPACE,
                 "upper_slope": round(float(c["upper_slope"]), 6),
                 "lower_slope": round(float(c["lower_slope"]), 6),
                 "r_squared_upper": round(float(c["upper_line"]["r_squared"]), 3),

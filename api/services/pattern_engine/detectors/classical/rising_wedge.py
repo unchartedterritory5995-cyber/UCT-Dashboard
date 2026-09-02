@@ -29,7 +29,7 @@ import time
 from typing import List, Optional
 
 from api.services.pattern_engine.detectors.registry import register
-from api.services.pattern_engine.primitives.geometry import line_at
+from api.services.pattern_engine.primitives.geometry import price_at
 from api.services.pattern_engine.primitives.pivots import detect_pivots
 from api.services.pattern_engine.primitives.trendlines import fit_trendline
 from api.services.pattern_engine.primitives.volume import volume_signature
@@ -37,6 +37,17 @@ from api.services.pattern_engine.types import Bar, Detection
 
 
 _PATTERN_ID = "rising_wedge"
+#: ⛔ EDWARDS & MAGEE, THE MOST-IGNORED INSTRUCTION IN EITHER BOOK. A constant-
+#: PERCENTAGE swing shrinks in POINTS as price falls, so any extended decline
+#: plotted arithmetically CONVERGES BY CONSTRUCTION — a raw-price fit emits a
+#: wedge on essentially every sustained uniform trend, and they are artefacts.
+#: Fitted in log space, a uniform move is parallel or widening and only a
+#: genuine wedge converges. The fitted line carries `space`; read prices off it
+#: with `geometry.price_at`, never with the unconditionally-linear accessor it
+#: replaced, and compare slopes only through `geometry.fractional_slope`.
+#: Source: docs/superpowers/research/bases/06-edwards-magee-murphy-canon.md
+_LOG_SPACE = True
+_TRENDLINE_SPACE = "log" if _LOG_SPACE else "price"
 _MIN_WEDGE_BARS = 20
 _MAX_WEDGE_BARS = 60
 _MIN_DEPTH_PCT = 0.10
@@ -110,7 +121,7 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
 
     # Re-key pivots with bar_index as `t` so the fitted trendlines have
     # slope = price-per-bar (not price-per-second). All downstream geometry
-    # math (line_at, anchors) is bar-index based.
+    # math (price_at, anchors) is bar-index based.
     high_pivots = [{"t": p["bar_index"], "price": p["price"],
                     "type": "high", "strength": p["strength"],
                     "bar_index": p["bar_index"]} for p in high_pivots_raw]
@@ -119,8 +130,8 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
                    "bar_index": p["bar_index"]} for p in low_pivots_raw]
 
     try:
-        upper_line = fit_trendline(high_pivots)
-        lower_line = fit_trendline(low_pivots)
+        upper_line = fit_trendline(high_pivots, log_space=_LOG_SPACE)
+        lower_line = fit_trendline(low_pivots, log_space=_LOG_SPACE)
     except ValueError:
         return None
 
@@ -142,10 +153,10 @@ def _try_extract_pattern(bars, pivots, start_idx: int, end_idx: int) -> Optional
         return None
 
     # Depth: start_low vs end_high.
-    upper_at_start = line_at((upper_line["p1"], upper_line["p2"]), start_idx)
-    upper_at_end = line_at((upper_line["p1"], upper_line["p2"]), end_idx)
-    lower_at_start = line_at((lower_line["p1"], lower_line["p2"]), start_idx)
-    lower_at_end = line_at((lower_line["p1"], lower_line["p2"]), end_idx)
+    upper_at_start = price_at(upper_line, start_idx)
+    upper_at_end = price_at(upper_line, end_idx)
+    lower_at_start = price_at(lower_line, start_idx)
+    lower_at_end = price_at(lower_line, end_idx)
 
     start_low = lower_at_start
     end_high = upper_at_end
@@ -505,6 +516,10 @@ def _build_detection(bars, c, confidence, context,
                 "depth_pct": round(c["depth_pct"] * 100, 2),
                 "wedge_bars": c["wedge_count"],
                 "convergence_ratio": round(float(c["convergence_ratio"]), 3),
+                # ⛔ RAW FITTED SLOPES; the unit follows `trendline_space` —
+                # dollars per bar under "price", log-units (a fractional rate)
+                # per bar under "log".
+                "trendline_space": _TRENDLINE_SPACE,
                 "upper_slope": round(float(c["upper_slope"]), 6),
                 "lower_slope": round(float(c["lower_slope"]), 6),
                 "dcr_score_adj": round(_dcr_score_adjustment(context), 2),

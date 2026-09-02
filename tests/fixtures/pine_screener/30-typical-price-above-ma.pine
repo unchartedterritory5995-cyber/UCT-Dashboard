@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(hlc3 > ta.sma(hlc3, 50) ? 1 : 0)

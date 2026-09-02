@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(not na(ta.pivothigh(high, 5, 5)) ? 1 : 0)

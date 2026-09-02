@@ -59,7 +59,7 @@ def test_the_published_set_is_what_readjudication_produces():
     for key, row in _rows().items():
         if row.get("lift") is None:
             continue                      # never measured; nothing to re-gate
-        verdict = ll.readjudicate(row, row.get("cluster_deff"))
+        verdict = ll.readjudicate(row, ll.gate_deff(row))
         if bool(verdict["published"]) != bool(row.get("published")):
             wrong.append((key, row.get("published"), verdict["published"],
                           verdict.get("reasons")))
@@ -115,7 +115,7 @@ def test_the_ledger_stores_measurements_only_so_it_cannot_widen_twice():
             f"{key}: the member-facing view is not the clustered interval")
         expect_lo, _ = ll.clustered_bounds(row["lift"], row["ci_low"],
                                            row["ci_high"],
-                                           float(row["cluster_deff"]))
+                                           ll.gate_deff(row))
         assert derived["ci_low"] == pytest.approx(round(expect_lo, 4)), (
             f"{key}: the rendered lower bound is not one application of the "
             f"widening to the stored bootstrap bound")
@@ -123,7 +123,7 @@ def test_the_ledger_stores_measurements_only_so_it_cannot_widen_twice():
         # the proof that the stored value is the un-widened one.
         again, _ = ll.clustered_bounds(derived["lift"], derived["ci_low"],
                                        derived["ci_high"],
-                                       float(row["cluster_deff"]))
+                                       ll.gate_deff(row))
         assert again < derived["ci_low"], (
             f"{key}: widening the rendered row again did not move it, so the "
             f"stored bound may already carry the correction")
@@ -149,7 +149,7 @@ def test_the_same_row_publishes_once_its_clustering_is_measured():
     """⭐ THE CONTROL. Without this, the test above passes for a gate that
     refuses everything — which is not a gate."""
     v = ll.adjudicate(_passing_result(), [0.01] * ll.ESCALATED_NULL_TRIALS,
-                      deff=1.0)
+                      deff=1.0, expectancy_r=0.5)
     assert v["published"], v.get("reasons")
 
 
@@ -157,8 +157,10 @@ def test_a_large_design_effect_can_take_a_row_below_its_null():
     """⛔ THE GATE HAS TO BITE. A correction that never changes a verdict is a
     comment."""
     nulls = [0.13] * ll.ESCALATED_NULL_TRIALS
-    assert ll.adjudicate(_passing_result(), nulls, deff=1.0)["published"]
-    assert not ll.adjudicate(_passing_result(), nulls, deff=9.0)["published"]
+    assert ll.adjudicate(_passing_result(), nulls, deff=1.0,
+                         expectancy_r=0.5)["published"]
+    assert not ll.adjudicate(_passing_result(), nulls, deff=9.0,
+                             expectancy_r=0.5)["published"]
 
 
 def test_synthetic_nulls_answer_the_gates_identically():
@@ -298,3 +300,318 @@ def test_the_old_carrier_name_is_gone():
     assert "_carry_forward" in [n.name for n in ast.walk(tree)
                                 if isinstance(n, ast.FunctionDef)], (
         "the successor is gone too — nothing carries the clustering forward")
+
+
+# ── is the ledger finished? ─────────────────────────────────────────────────
+
+def test_no_null_escalation_can_change_any_verdict():
+    """⭐⭐ THE COMPLETENESS CLAIM, RE-DERIVED RATHER THAN TRUSTED.
+
+    Most rows were graded against 5 null trials, far under the 30 a published
+    row needs, so escalating them looks like the obvious remaining work. It is
+    futile by construction: a null MAXIMUM only grows with trials, so gate 2
+    gets strictly harder, and gates 0 and 1 never read the null at all.
+
+    ⛔ This is checked row by row rather than argued, because "the argument is
+    sound" is how a completeness claim survives the day it stops being true.
+    """
+    rescuable = []
+    for key, row in _rows().items():
+        if row.get("published") or row.get("lift") is None:
+            continue
+        if row["lift"] <= 0:
+            continue                                   # gate 0
+        deff = ll.gate_deff(row)
+        lo = (ll.clustered_bounds(row["lift"], row["ci_low"], row["ci_high"],
+                                  deff)[0]
+              if deff is not None else row["ci_low"])
+        if lo <= 0:
+            continue                                   # gate 1
+        nm = row.get("null_max")
+        if nm is not None and lo <= nm:
+            continue                                   # gate 2, monotone
+        if (row.get("null_trials") or 0) >= ll.ESCALATED_NULL_TRIALS:
+            continue                                   # already at the ceiling
+        rescuable.append((key, row["lift"], lo, nm, row.get("null_trials")))
+    assert not rescuable, (
+        f"these rows COULD publish if their nulls were escalated: {rescuable}. "
+        f"The ledger's completeness note says none can — escalate them or "
+        f"correct the note.")
+
+
+def test_the_claim_is_not_vacuous_because_rows_ARE_below_the_ceiling():
+    """⛔ NON-VACUITY. If every row already had 30 trials, "no escalation can
+    help" would be trivially true and would say nothing about this library."""
+    below = [k for k, v in _rows().items()
+             if (v.get("null_trials") or 0) < ll.ESCALATED_NULL_TRIALS]
+    assert len(below) >= 10, (
+        f"only {len(below)} rows sit below the {ll.ESCALATED_NULL_TRIALS}-trial "
+        f"ceiling; the futility argument no longer describes this ledger")
+
+
+def test_the_monotonicity_the_argument_rests_on_actually_holds():
+    """⛔ THE LOAD-BEARING PREMISE, TESTED. Everything above rests on a null
+    maximum being non-decreasing in trial count. That is obvious — which is
+    exactly the kind of premise that goes unchecked."""
+    import random
+    rng = random.Random(11)
+    draws = [rng.gauss(0, 1) for _ in range(200)]
+    maxima = [max(draws[:n]) for n in range(1, len(draws) + 1)]
+    assert all(b >= a for a, b in zip(maxima, maxima[1:])), (
+        "a running maximum decreased — the futility argument is unsound")
+
+
+def test_the_completeness_claim_travels_with_the_numbers():
+    lim = ll.load().get("limitations") or ""
+    assert "IS THIS LEDGER FINISHED?" in lim, (
+        "the ledger no longer states whether its remaining 5-trial rows are "
+        "worth escalating — the next reader will spend a day finding out")
+    for must in ("only GROW", "not more DATA"):
+        assert must in lim, (
+            f"the completeness note lost {must!r}: it must carry BOTH why "
+            f"escalation is futile AND what it does not foreclose")
+
+
+# ── the member-facing gate description must not go stale ────────────────────
+
+#: `reasons.append` sites inside `adjudicate` when the prose below was last
+#: written. NOT the gate count — several gates emit more than one refusal
+#: sentence — but a number that MOVES whenever a gate is added or removed.
+ADJUDICATE_REFUSAL_SITES = 9
+
+
+def _adjudicate_appends():
+    import ast
+    src = (ROOT / "api/services/screener/lift_ledger.py").read_text(encoding="utf-8")
+    fn = [n for n in ast.walk(ast.parse(src))
+          if isinstance(n, ast.FunctionDef) and n.name == "adjudicate"]
+    assert fn, "`adjudicate` is gone or renamed — this rail is looking at nothing"
+    return [n for n in ast.walk(fn[0])
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "append"]
+
+
+def test_the_gate_prose_still_describes_the_gates_that_exist():
+    """⛔⛔ A HAND-TYPED COUNT BESIDE THE THING IT DESCRIBES — the defect this
+    repo has shipped more often than any other, and it shipped again here.
+    `GET /api/screener/structures` serves this text to members as
+    `evidence_basis`, and it opened with "FOUR gates" for as long as it took to
+    read it aloud after a fifth was added.
+
+    ⭐ SO THE COUNT IS DERIVED, TWICE OVER: the leading word must match the
+    enumerated `(n)` markers in the prose itself, and the number of refusal
+    sites in `adjudicate` must not have moved since the prose was written.
+    """
+    import re
+    gates = ll.load().get("gates") or ""
+    assert gates, "the ledger no longer describes its gates at all"
+
+    words = {"THREE": 3, "FOUR": 4, "FIVE": 5, "SIX": 6, "SEVEN": 7}
+    lead = gates.split()[0]
+    assert lead in words, (
+        f"the gate prose opens with {lead!r}, which this rail cannot check. "
+        f"Open it with a spelled number so the claim stays falsifiable.")
+    enumerated = sorted({int(m) for m in re.findall(r"\((\d)\)", gates)})
+    assert enumerated == list(range(len(enumerated))), (
+        f"the gate markers are not a contiguous run from 0: {enumerated}")
+    assert words[lead] == len(enumerated), (
+        f"the prose says {lead} ({words[lead]}) gates and enumerates "
+        f"{len(enumerated)}: {enumerated}")
+
+
+def test_a_new_gate_forces_the_prose_to_be_rewritten():
+    """⭐ THE HALF THAT ACTUALLY CATCHES IT. Counting the prose against itself
+    cannot notice a gate added in code and never described. This can."""
+    n = len(_adjudicate_appends())
+    assert n == ADJUDICATE_REFUSAL_SITES, (
+        f"`adjudicate` now has {n} refusal sites, not "
+        f"{ADJUDICATE_REFUSAL_SITES}. A gate was added or removed: update the "
+        f"`gates` prose in docs/base_lift_ledger.json — members read it as "
+        f"`evidence_basis` — then update this constant.")
+
+
+def test_the_clustering_gate_is_actually_described_to_members():
+    gates = (ll.load().get("gates") or "").lower()
+    for must in ("clustering", "design effect", "refused"):
+        assert must in gates, (
+            f"the gate description never mentions {must!r}; a member reading "
+            f"it would not learn why two structures stopped publishing")
+
+
+# ── the gate widens by rho's UPPER bound, not its point estimate ────────────
+
+def test_the_gate_uses_the_conservative_design_effect():
+    """⛔⛔ THE SAME MISTAKE GATE 2 ALREADY REFUSES, ONE LEVEL UP. Gate 2 reads
+    the CI's LOWER bound rather than the point estimate, because the pessimistic
+    end is the honest one. Gate 4 then corrected for clustering using the POINT
+    estimate of rho — understating the variance half the time — until this."""
+    for key, row in _published().items():
+        cons = row.get("cluster_deff_conservative")
+        assert isinstance(cons, (int, float)), (
+            f"{key} publishes without a conservative design effect; rho's "
+            f"interval was never measured for it")
+        assert ll.gate_deff(row) == cons, (
+            f"{key}: the gate is widening by {ll.gate_deff(row)}, not the "
+            f"conservative {cons}")
+        assert cons >= row["cluster_deff"], (
+            f"{key}: the conservative design effect {cons} is SMALLER than the "
+            f"point estimate {row['cluster_deff']} — rho's upper bound cannot "
+            f"be below rho")
+
+
+def test_the_conservative_gate_changed_no_verdict_and_that_is_the_finding():
+    """⭐ THE ROBUSTNESS RESULT. Every published row clears its null on rho's
+    UPPER bound too. If a future re-measure breaks this, a row is publishing
+    only because of where the point estimate happened to land, and that is
+    worth failing over rather than discovering later."""
+    fragile = []
+    for key, row in _published().items():
+        lo, _ = ll.clustered_bounds(row["lift"], row["ci_low"], row["ci_high"],
+                                    float(row["cluster_deff_conservative"]))
+        nm = row.get("null_max")
+        if not (lo > 0 and (nm is None or lo > nm)):
+            fragile.append((key, round(lo, 4), nm))
+    assert not fragile, (
+        f"these publish on the POINT estimate of rho but not on its upper "
+        f"bound: {fragile}. They are claims about where an estimate landed.")
+
+
+def test_rho_and_its_interval_are_a_coherent_measurement():
+    """⛔ NON-VACUITY on the interval itself. A bootstrap that collapsed to the
+    point estimate would make the test above pass for free."""
+    import json
+    blob = json.loads(CLUSTERING.read_text(encoding="utf-8"))
+    widths = []
+    for key, m in (blob.get("structures") or {}).items():
+        lo, hi, rho = m.get("rho_ci_low"), m.get("rho_ci_high"), m["rho"]
+        assert lo is not None and hi is not None, f"{key} has no rho interval"
+        assert lo <= rho <= hi, f"{key}: rho {rho} is outside [{lo}, {hi}]"
+        widths.append(hi - lo)
+    assert max(widths) > 0.01, (
+        f"the widest rho interval is {max(widths):.4f} — the bootstrap has "
+        f"collapsed and the conservative gate is the point gate wearing a "
+        f"different name")
+
+
+# ── hits_real / hits_simulated: does the SHAPE mean anything? ───────────────
+
+NOISE_FIRING = ROOT / "docs/noise_firing_rate.json"
+
+
+def _noise():
+    return json.loads(NOISE_FIRING.read_text(encoding="utf-8"))
+
+
+def test_every_published_row_declares_how_often_it_fires_on_noise():
+    """⭐⭐ THE RESEARCH ASKED FOR THIS BY NAME. `12-academic-algorithmic-
+    detection.md` calls it "the highest-value non-obvious build in the whole
+    file": *for every pattern you ship, publish hits_real / hits_simulated*.
+    The ledger's null compared OUTCOMES and never FIRING RATES, so a detector
+    could clear every gate while naming a shape a random walk produces just as
+    often."""
+    naked = [k for k, v in _published().items()
+             if not isinstance(v.get("noise_firing_ratio"), (int, float))]
+    assert not naked, (
+        f"published without a noise firing ratio: {naked}. Re-run "
+        f"tools/measure_noise_firing_rate.py — a shipped pattern must say how "
+        f"often it fires on a series with no long-range order.")
+
+
+def test_the_finding_is_recorded_where_the_numbers_are():
+    lim = ll.load().get("limitations") or ""
+    assert "hits_real / hits_simulated" in lim, (
+        "the ledger no longer carries the firing-rate finding")
+    for must in ("NOT RARE", "does NOT invalidate"):
+        assert must in lim, (
+            f"the note lost {must!r}: it must carry BOTH that the shapes are "
+            f"common AND the precise limit of what that overturns — one "
+            f"without the other is either alarmism or a whitewash")
+
+
+def test_the_ratios_on_the_rows_match_the_artifact():
+    """⛔ TWO FILES, ONE VALUE."""
+    art = _noise()["structures"]
+    for key, row in _published().items():
+        if key not in art:
+            continue
+        assert row["noise_firing_ratio"] == pytest.approx(art[key]["ratio"]), (
+            f"{key}: the ledger says {row['noise_firing_ratio']} and the "
+            f"measurement says {art[key]['ratio']}")
+
+
+def test_a_ratio_is_never_claimed_without_a_denominator():
+    """⛔ An unmeasurable result must not wear a measured one's clothes. If a
+    detector never fired on ANY shuffled series the ratio is not infinite — it
+    is unmeasured at that sample size, and the artifact must say null."""
+    for key, m in _noise()["structures"].items():
+        if m["noise_fired"] == 0:
+            assert m["ratio"] is None, (
+                f"{key} never fired on noise yet carries a ratio of "
+                f"{m['ratio']} — that number has no denominator")
+        else:
+            assert m["ratio"] is not None
+
+
+def test_the_null_here_is_the_one_the_gates_use():
+    """⭐ A DIFFERENTLY-WRONG NULL WOULD MAKE THIS UNCOMPARABLE to the lift
+    gates. The firing rates must come from the same moving-block shuffle, at
+    the same seed, that `null_lifts` grades outcomes against."""
+    art = _noise()
+    assert art["null_seed"] == ll.NULL_SEED, (
+        f"the firing-rate null used seed {art['null_seed']} and the ledger "
+        f"grades against {ll.NULL_SEED} — two different nulls")
+    assert art["step_bars"] == ll.HORIZON_BARS, (
+        "the firing-rate measurement walked a different anchor grid than the "
+        "ledger's own")
+
+
+# ── gate 5: the structure must make money on the metric it is graded with ───
+
+def test_a_row_with_no_measured_expectancy_is_refused():
+    """⛔ FAIL CLOSED, like gate 4. A lift whose expectancy was never measured
+    cannot be shown to correspond to a trade worth taking."""
+    v = ll.adjudicate(_passing_result(), [0.01] * ll.ESCALATED_NULL_TRIALS,
+                      deff=1.0)
+    assert not v["published"]
+    assert any("expectancy" in r for r in v["reasons"]), v["reasons"]
+
+
+def test_a_NEGATIVE_expectancy_is_refused_however_good_the_lift():
+    """⛔⛔ THE GATE THAT FIRED. A structure can beat its pattern-free
+    baseline's WIN RATE and still lose money on the bracket the lift is
+    measured with — Grimes and Brandt independently call the win rate the wrong
+    headline number, and two published rows proved them right."""
+    nulls = [0.01] * ll.ESCALATED_NULL_TRIALS
+    assert ll.adjudicate(_passing_result(), nulls, deff=1.0,
+                         expectancy_r=0.05)["published"]
+    v = ll.adjudicate(_passing_result(), nulls, deff=1.0, expectancy_r=-0.05)
+    assert not v["published"]
+    assert any("loses money" in r for r in v["reasons"]), v["reasons"]
+
+
+def test_the_two_rows_that_fell_to_it_are_named_and_say_why():
+    rows = _rows()
+    for key in ("climax-top", "stage-4-breakdown"):
+        row = rows.get(key)
+        assert row, f"{key} vanished"
+        assert not row.get("published"), (
+            f"{key} publishes again. Its measured expectancy was "
+            f"{row.get('expectancy_r')}R — if a re-measurement rescued it, "
+            f"update this rail deliberately.")
+        assert row.get("expectancy_r") is not None and row["expectancy_r"] <= 0
+        assert any("loses money" in r for r in row.get("reasons") or []), (
+            f"{key} is refused but its reasons do not name the expectancy")
+
+
+def test_every_published_row_makes_money_on_its_own_bracket():
+    """⭐ THE POSITIVE FORM. Without this the gate could be satisfied by
+    refusing everything."""
+    pub = _published()
+    assert pub, "nothing publishes — gate 5 has become a mute"
+    for key, row in pub.items():
+        assert row.get("expectancy_r", 0) > 0, (
+            f"{key} publishes with expectancy {row.get('expectancy_r')}R")
+        assert row.get("breakeven_roundtrip_pct") is not None, (
+            f"{key} publishes without a break-even cost — the corpus asks for "
+            f"trades/year and break-even cost alongside every return number")
+        assert row.get("trades_per_year") is not None

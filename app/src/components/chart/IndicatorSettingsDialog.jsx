@@ -125,9 +125,6 @@ function sectionize(fields) {
   return order.map((g) => ({ group: g, items: packRows(byGroup.get(g)) }))
 }
 
-const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
-  + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
-
 export default function IndicatorSettingsDialog({ open, instanceId, settings, onChange, onClose, registry, sheetClassName = '' }) {
   const uid = useId()
   const rootRef = useRef(null)
@@ -315,45 +312,18 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
 
   // ── focus trap ────────────────────────────────────────────────────────────
   //
-  // ⚠️ `Sheet` does NOT ship one. It focuses the panel on open, handles Escape,
-  // locks body scroll and restores focus on close — but nothing stops Tab walking
-  // out of the modal into the page behind it. The trap is this dialog's, and it
-  // is computed over the whole `[role="dialog"]` panel so the Sheet's own close
-  // button is inside it rather than a leak on the first Shift+Tab.
+  // ⚰️ THERE IS NO TRAP HERE ANY MORE, AND THAT IS THE FIX. This dialog rolled
+  // its own because `Sheet` shipped none; `Sheet` gained a real one on
+  // 2026-09-01 (nesting-aware, computed over the whole `[data-sheet-panel]`),
+  // and this body renders INSIDE that panel — so the copy was a second
+  // authority computing the same ring, and the two selectors had already
+  // diverged (`[href]` vs `a[href]`, and only `Sheet`'s skips hidden nodes).
+  // The wrap lives in `components/mobile/useFocusTrap.js`; `Sheet` consumes it.
   //
-  // ⛔ AND IT IS BOUND TO THE PANEL, NOT TO THIS SUBTREE. `Sheet`'s header — and
-  // its × button, which is the FIRST focusable in the ring — is a SIBLING of the
-  // body this component renders into, so a React `onKeyDown` here never sees the
-  // Shift+Tab that leaks out of the modal from the very element the ring starts
-  // at. Measured: the forward wrap passed and the backward one walked to `body`.
-  const trapTab = useCallback((e) => {
-    if (e.key !== 'Tab') return
-    const panel = rootRef.current?.closest('[role="dialog"]') || rootRef.current
-    if (!panel) return
-    const items = [...panel.querySelectorAll(FOCUSABLE)]
-    if (items.length < 2) return
-    const first = items[0]
-    const last = items[items.length - 1]
-    const active = document.activeElement
-    // Focus sitting on the PANEL itself is the normal state right after open —
-    // `Sheet` focuses it on an rAF — and it is not in `items` (tabindex="-1").
-    // Tab from there must enter the trap, not walk out of the modal.
-    if (items.indexOf(active) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return }
-    if (e.shiftKey && active === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
-  }, [])
-
-  const trapRef = useRef(trapTab)
-  trapRef.current = trapTab
-  const trapMounted = !!(open && instance && def)
-  useEffect(() => {
-    if (!trapMounted) return undefined
-    const panel = rootRef.current?.closest('[role="dialog"]')
-    if (!panel) return undefined
-    const h = (e) => trapRef.current(e)
-    panel.addEventListener('keydown', h)
-    return () => panel.removeEventListener('keydown', h)
-  }, [trapMounted])
+  // The rail is this file's own "Tab from the last control returns to the
+  // first" case, which is mutation-checked against `trapTabKey`: no-op the
+  // shared wrap and it goes red, which is what proves `Sheet` is doing the
+  // trapping rather than nothing at all.
 
   const chip = useMemo(
     () => chipFacts(def, instanceId, shown, registry),

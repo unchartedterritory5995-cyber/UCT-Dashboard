@@ -322,7 +322,7 @@ function assertNote(code) {
  *  reason: one shared class lets one guard's deletion be covered by another
  *  guard's test. */
 export class ThinkScriptRefusal extends Error {
-  constructor(guard, message, at, suggest) {
+  constructor(guard, message, at, suggest, span) {
     super(message)
     assertDeclared(guard)
     this.name = 'ThinkScriptRefusal'
@@ -331,6 +331,9 @@ export class ThinkScriptRefusal extends Error {
     // ⭐ THE CONVENTIONAL CALL, when this refusal has one — see `TS_DOC_BLOCKED`.
     // It rides the refusal because the refusal is the only thing the member sees.
     this.suggest = suggest || null
+    /** ⭐ `[from, to)` IN THE MEMBER'S OWN SOURCE — the exact characters a
+     *  suggestion would replace. Present only where a door can name them. */
+    this.span = span || null
   }
 }
 
@@ -404,7 +407,7 @@ export const TS_STATE_WARMUP = 250
  *  in its own message that `assertDeclared` below is then the only check there
  *  is. The blindness was real; what was wrong was believing a wider regex could
  *  cure it. */
-function refusalValue(guard, message, at, suggest) {
+function refusalValue(guard, message, at, suggest, span) {
   assertDeclared(guard)
   return {
     guard,
@@ -415,6 +418,7 @@ function refusalValue(guard, message, at, suggest) {
     token: at ? at.token : null,
     excerpt: null,
     suggest: suggest || null,
+    span: span || null,
   }
 }
 
@@ -431,7 +435,7 @@ function refusalValue(guard, message, at, suggest) {
  *  bug is still legible in what the member is shown. */
 function fromError(err) {
   if (err instanceof ThinkScriptRefusal) {
-    return refusalValue(err.guard, err.message, err.at, err.suggest)
+    return refusalValue(err.guard, err.message, err.at, err.suggest, err.span)
   }
   return refusalValue('thinkscript:statement',
     `${REFUSALS['thinkscript:statement']} (${err && err.message ? err.message : err})`, null)
@@ -932,6 +936,37 @@ const cursorOf = (toks) => ({ toks, i: 0 })
 const peek = (c, k = 0) => c.toks[c.i + k] || null
 const take = (c) => c.toks[c.i++]
 
+/** ⭐⭐ A RUN OF TOKENS BACK IN THE MEMBER'S OWN SPELLING, rebuilt from the tokens
+ *  themselves rather than sliced out of a source string.
+ *
+ *  ⛔ THE SOURCE TEXT IS DELIBERATELY NOT THREADED HERE. `parseWhole` has six
+ *  callers and none of them holds the script; adding a parameter to all of them so
+ *  one refusal message could quote a substring would put the source on the parser's
+ *  signature forever, and a module-level register of “the script being read” is a
+ *  second authority over a value the tokens already carry
+ *  (`lesson_a_second_authority_over_one_value`).
+ *
+ *  ⭐ EVERY TOKEN KNOWS ITS OWN OFFSET AND ITS OWN TEXT, so the gap between two of
+ *  them says whether the member wrote whitespace there. Runs of spaces, newlines and
+ *  comments all collapse to ONE space, which is the right resolution for a
+ *  suggestion: `BB_Length` survives as `BB_Length`, which is the whole point, and
+ *  `close*2` coming back as `close * 2` changes nothing a member would object to.
+ *
+ *  ⚠️ THIS IS NOT A PRINTER AND MUST NOT BECOME ONE. It re-emits tokens that were
+ *  read; it never invents a spelling for a node. A printer would have to decide
+ *  precedence and parenthesisation, and a wrong decision there would hand back an
+ *  edit that changes what the member's own expression MEANS. */
+function spellTokens(toks) {
+  let out = ''
+  for (let i = 0; i < toks.length; i += 1) {
+    const t = toks[i]
+    const prev = i > 0 ? toks[i - 1] : null
+    if (prev && t.index > prev.index + String(prev.text).length) out += ' '
+    out += t.text
+  }
+  return out
+}
+
 const syntaxAt = (c, tok) => refuse('thinkscript:syntax', tok || c.toks[c.toks.length - 1] || null)
 
 /** The infix operator sitting at the cursor, WITHOUT consuming it — a symbol, or
@@ -1195,12 +1230,33 @@ function parsePostfix(c) {
       if (!nameTok || (nameTok.kind !== 'ident' && nameTok.kind !== 'string')) throw syntaxAt(c, nameTok || dot)
       take(c)
       node = isPunctTok(peek(c), '(')
-        ? { e: 'call', name: nameTok.value, base: node, args: parseArguments(c), tok: node.tok || dot }
+        ? (() => {
+          const { args, endTok } = parseCall(c)
+          return { e: 'call', name: nameTok.value, base: node, args, tok: node.tok || dot, endTok }
+        })()
         : { e: 'member', base: node, name: nameTok.value, tok: node.tok || dot }
       continue
     }
     return node
   }
+}
+
+/** ⭐⭐ A CALL THAT KNOWS WHERE IT ENDS, so a door can offer to replace exactly
+ *  it and nothing either side of it.
+ *
+ *  ⛔ THE CLOSING PAREN IS READ FROM THE CURSOR, NOT GUESSED FROM THE TEXT. A
+ *  member's call can nest calls, hold a string containing `)`, or be one of four
+ *  identical calls on two lines — `05-bollinger-rsi` is all three at once. The
+ *  parser has already decided which `)` closes this call; asking it is the only
+ *  reading that cannot disagree with the translation the refusal came from.
+ *
+ *  ⚠️ IT IS A SEPARATE FUNCTION RATHER THAN A PROPERTY ORDERED AFTER `args:` IN
+ *  THE OBJECT LITERAL. That would have worked — literal properties evaluate in
+ *  source order — and it would have broken silently the first time someone
+ *  reordered two lines for tidiness. */
+function parseCall(c) {
+  const args = parseArguments(c)
+  return { args, endTok: c.toks[c.i - 1] || null }
 }
 
 function parseArguments(c) {
@@ -1223,7 +1279,12 @@ function parseArguments(c) {
       take(c)
       take(c)
     }
-    args.push({ name, nameTok, value: parseExpression(c) })
+    // ⭐ THE SPAN IS TAKEN AROUND THE VALUE, not around the whole argument, so a
+    // named argument yields the member's expression WITHOUT the `name =` they
+    // already wrote — which is what a suggestion has to substitute in.
+    const vFrom = c.i
+    const value = parseExpression(c)
+    args.push({ name, nameTok, value, text: spellTokens(c.toks.slice(vFrom, c.i)) })
     if (isPunctTok(peek(c), ',')) { take(c); continue }
     break
   }
@@ -1269,7 +1330,8 @@ function parseAtom(c) {
     if (NOT_AN_ATOM.has(k)) throw syntaxAt(c, t)
     take(c)
     if (isPunctTok(peek(c), '(')) {
-      return { e: 'call', name: t.value, base: null, args: parseArguments(c), tok: t }
+      const { args, endTok } = parseCall(c)
+      return { e: 'call', name: t.value, base: null, args, tok: t, endTok }
     }
     // `yes` and `no` are thinkScript's two boolean literals, and the reference
     // is explicit that they are 1 and 0.
@@ -1566,6 +1628,72 @@ function docBlockedTail(name) {
   if (!d) return ''
   return ` — WHAT IS MISSING IS ${d.missing}, not a way to compute it; ${d.unblocks} would `
     + 'change this answer'
+}
+
+/** ⭐⭐ THE PUBLISHED SPELLING WITH THE MEMBER'S OWN ARGUMENTS KEPT IN IT.
+ *
+ *  ⚰️⚰️ WHAT THIS FIXES WAS MEASURED, AND IT WAS THE SILENT KIND.
+ *  `05-bollinger-rsi-buy-arrow` writes `BollingerBands(length = BB_Length)` against
+ *  its own `input BB_Length = 20`. The refusal correctly says a parameter has no
+ *  value — and then handed back the registry's static spelling,
+ *  `BollingerBands(price = close, length = 20, …)`. A member accepting that edit
+ *  loses `BB_Length`: their input still sits at the top of the script, still
+ *  adjustable, and no longer connected to anything. The band would quietly stop
+ *  moving when they moved it, and nothing would refuse.
+ *
+ *  ⭐ SO THE SUGGESTION IS BUILT FROM BOTH SIDES. The registry supplies the
+ *  parameters the member LEFT OUT; the member's own text fills every one they
+ *  WROTE, positional or named alike. Their `BB_Length` comes back as `BB_Length`.
+ *
+ *  ⛔ AND THE RULING ABOVE IS UNCHANGED — this narrows it, it does not soften it.
+ *  Nothing here is applied for the member and no unpublished default is assumed; a
+ *  suggestion still only ever spells out arguments they could have typed. What
+ *  changed is that it no longer overwrites the ones they DID type.
+ *
+ *  ⚠️ IT DEGRADES TO THE STATIC SPELLING RATHER THAN TO A GUESS. If the published
+ *  string does not parse, or the member supplied nothing, or the substitution would
+ *  change no argument, the registry's own text is returned untouched — so this can
+ *  only ever be the static suggestion or better, never a third thing. */
+function personalisedSuggest(suggest, shape, slots) {
+  if (!suggest) return null
+  let call = null
+  try {
+    call = parseWhole(lexThinkScript(suggest).tokens)
+  } catch (err) {
+    /* istanbul ignore next — `thinkscript.suggest.test.js` translates every entry,
+       so an unparseable one is red there long before it is silent here */
+    return suggest
+  }
+  if (!call || call.e !== 'call' || !Array.isArray(call.args)) return suggest
+  const mine = new Map()
+  shape.params.forEach((p, i) => {
+    if (slots[i] && slots[i].text) mine.set(key(p), slots[i].text)
+  })
+  if (!mine.size) return suggest
+  let changed = false
+  // ⚰️ A NAME-ONLY MATCH LEFT HALF THE REGISTRY UNFIXED, and the probe showed it:
+  // `SimpleMovingAvg(close, 20, 0)` is published POSITIONALLY, so no template
+  // argument carried a name to match on and a member's own length was still
+  // overwritten — the same silent defect, one spelling over.
+  // ⭐ THE RULE IS THE ENGINE'S OWN, not a second reading of it: the k-th
+  // positional fills the k-th parameter, which is exactly what the slot loop above
+  // does (`slots[k] = a; k += 1`). Writing a looser rule here — sliding a
+  // positional to the next free slot — is the mistranslation that loop refuses by
+  // name, and it would be reintroduced in the door that offers the fix.
+  let k = 0
+  const parts = call.args.map((a) => {
+    const param = a.name != null ? a.name : shape.params[k]
+    if (a.name == null) k += 1
+    const own = param != null ? mine.get(key(param)) : null
+    const val = own == null ? a.text : own
+    if (own != null && own !== a.text) changed = true
+    // ⭐ THE REGISTRY'S OWN LABEL IS REUSED VERBATIM, quotes and all, because
+    // `"average type"` is a quoted parameter name and re-spelling it bare would
+    // hand back an edit that does not parse.
+    return a.nameTok ? `${a.nameTok.text} = ${val}` : val
+  })
+  if (!changed) return suggest
+  return `${(call.tok && call.tok.text) || call.name}(${parts.join(', ')})`
 }
 
 /** ⛔ THE CALLS THIS ENGINE REFUSES BY NAME BECAUSE OF WHAT THEY READ, not
@@ -2566,6 +2694,44 @@ export const TS_CALL_SHAPES = Object.freeze({
   },
 
   // ── the expansions ────────────────────────────────────────────────────────
+  covariance: {
+    expand: 'covariance',
+    engines: ['sma'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Covariance: "Returns the covariance coefficient between the '
+      + 'data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes the implementation outright — Average(data1 * data2, length) - '
+      + 'Average(data1, length) * Average(data2, length) — and this table already maps '
+      + 'Average onto `sma`, so the expansion is the page formula with one substitution',
+  },
+  correlation: {
+    expand: 'correlation',
+    engines: ['sma', 'stdev'],
+    params: ['data1', 'data2', 'length'],
+    defaults: { length: 10 },
+    args: [{ from: 'data1' }, { from: 'data2' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Correlation: "Returns the correlation coefficient between '
+      + 'the data1 and data2 variables for the last length bars"; length default 10. The page '
+      + 'publishes it as Covariance(data1, data2, length) / (StDev(data1, length) * '
+      + 'StDev(data2, length)) — both of which this table maps, so the expansion is the '
+      + 'page formula composed of the page own pieces',
+  },
+  inertia: {
+    expand: 'inertia',
+    engines: ['wma', 'sma'],
+    params: ['data', 'length'],
+    args: [{ from: 'data' }, { from: 'length' }],
+    cite: 'Functions/Statistical/Inertia: "Draws the linear regression curve using the '
+      + 'least-squares method to approximate data for each set of bars defined by the length '
+      + 'parameter", plotted as "y = a * current_bar + b". The page publishes both '
+      + 'coefficients in a manual reimplementation printed beside the built-in: '
+      + 'a = (n*Sum(x*y,n) - Sum(x,n)*Sum(y,n)) / (n*Sum(Sqr(x),n) - Sqr(Sum(x,n))) and '
+      + 'b = (Sum(Sqr(x),n)*Sum(y,n) - Sum(x,n)*Sum(x*y,n)) / the same denominator, with '
+      + '`def x = x[1] + 1`. See `TS_EXPANSIONS.inertia` for why that is the '
+      + '`3*wma - 2*sma` and where the arithmetic was already checked',
+  },
   truerange: {
     expand: 'truerange',
     engines: ['max', 'min'],
@@ -2937,6 +3103,20 @@ export function argumentPlan(shape, table = TABLE) {
  *
  *  ⛔ EVERY ENGINE NAME INSIDE ONE STILL GOES THROUGH `engineCall`, which is the
  *  module header's promise: the lookup happens at translation time. */
+/** The published covariance tree, built once and used by BOTH callers — because
+ *  thinkorswim own page defines `Correlation` in terms of `Covariance`, and a
+ *  second hand-written copy is how the two would come to disagree. */
+function covarianceTree(args, R, tok) {
+  const [a, b, length] = args
+  return cOp('-', [
+    R.engineCall('sma', [{ node: cOp('*', [a.node, b.node]), tok }, length], tok),
+    cOp('*', [
+      R.engineCall('sma', [a, length], tok),
+      R.engineCall('sma', [b, length], tok),
+    ]),
+  ])
+}
+
 const TS_EXPANSIONS = Object.freeze({
   /** `TrueRange(high, close, low)` → `Max(close[1], high) - Min(close[1], low)`.
    *
@@ -2963,6 +3143,95 @@ const TS_EXPANSIONS = Object.freeze({
     return cOp('-', [
       R.engineCall('max', [{ node: prevClose, tok }, high], tok),
       R.engineCall('min', [{ node: prevClose, tok }, low], tok),
+    ])
+  },
+
+  /** `Covariance(a, b, n)` → `sma(a * b, n) - sma(a, n) * sma(b, n)`.
+   *
+   *  ⭐⭐ THAT IS THE PAGE FORMULA WITH ONE SUBSTITUTION. thinkorswim publishes
+   *  the implementation outright — *"Average(data1 * data2, length) -
+   *  Average(data1, length) * Average(data2, length)"* — and this table already
+   *  maps `Average` onto `sma` with its own citation. Nothing here is derived, so
+   *  there is nothing here to get wrong.
+   *
+   *  ⭐ AND IT SETTLES THE DIVISOR, which is the only thing a covariance can be
+   *  silently wrong about. The page spells it with `Average`, so the divisor is
+   *  `n` rather than `n-1` — the same population convention `interpret.js`
+   *  already pins for `stdev`. Two functions that disagree about that produce a
+   *  correlation off by a factor of n/(n-1) with no refusal anywhere. */
+  covariance: (args, R, tok) => covarianceTree(args, R, tok),
+
+  /** `Correlation(a, b, n)` → `covariance(a, b, n) / (stdev(a, n) * stdev(b, n))`.
+   *
+   *  ⭐⭐ THE PAGE DEFINES IT IN TERMS OF THE ONE ABOVE — *"Covariance(data1,
+   *  data2, length) / (StDev(data1, length) * StDev(data2, length))"* — so this
+   *  builds the SAME `covarianceTree` rather than a second spelling of it. Two
+   *  hand-written copies of one formula is how the pair drifts
+   *  (`lesson_one_grammar_four_hand_written_copies`); here the vendor already
+   *  said they are one thing, and the code says it the same way.
+   *
+   *  ⭐ THE POPULATION CONVENTION IS WHAT MAKES THIS PEARSON. `covarianceTree`
+   *  divides by `n` because the page spells it with `Average`, and this engine
+   *  `stdev` divides by `n` for its own documented reason; the ratio is therefore
+   *  the ordinary correlation coefficient, bounded in [-1, 1]. Had the two sides
+   *  disagreed the answer would still plot, still be smooth, and quietly leave
+   *  that range — which is why the rail asserts the bound on real bars. */
+  correlation: (args, R, tok) => {
+    const [a, b, length] = args
+    return cOp('/', [
+      covarianceTree(args, R, tok),
+      cOp('*', [
+        R.engineCall('stdev', [a, length], tok),
+        R.engineCall('stdev', [b, length], tok),
+      ]),
+    ])
+  },
+
+  /** `Inertia(data, length)` → `3 * wma(data, length) - 2 * sma(data, length)`.
+   *
+   *  ⭐⭐ IT COSTS THIS TABLE ZERO NEW VOCABULARY, and that is the point rather
+   *  than a convenience. The reflex is to declare a `linreg` function — and
+   *  `pine.js::EXPANSIONS.vwma` already wrote down why that is the wrong one:
+   *  *"A table entry would have been the reflex and it would have added a name to
+   *  the sayable vocabulary, the picker, the plain-language door and both
+   *  interpreters, to express something the table can already say."*
+   *
+   *  ⭐⭐ THE ARITHMETIC WAS ALREADY CHECKED, ONE DOOR OVER. `pine.js` maps
+   *  `ta.linreg(src, n, offset)` onto the closed form
+   *
+   *      linreg = sum(src,n)/n + (n·wma(src,n) − sum(src,n)) · C
+   *      C      = 6·((n−1)/2 − offset) / (n·(n−1))
+   *
+   *  and states it was *"verified against a direct least-squares fit over 600
+   *  random windows (n ∈ 2…200, offset ∈ 0…5): max relative error 6.0e-14"*.
+   *  `Inertia` is that value at the CURRENT bar, so offset = 0 and C collapses:
+   *
+   *      C = 6·((n−1)/2) / (n·(n−1)) = 3/n
+   *      ⇒ sum/n + 3·wma − 3·sum/n = 3·wma − 2·sum/n = 3·wma − 2·sma
+   *
+   *  — the least-squares endpoint identity. So this door inherits a measured
+   *  result instead of asserting a second one about the same maths, and the rail
+   *  checks the two doors against each other on real bars rather than re-deriving.
+   *
+   *  ⚠️ AND IT INHERITS THE WEIGHTING DEPENDENCY WITH IT. The identity holds only
+   *  if `wma` weights the NEWEST bar heaviest; the other way round the line leans
+   *  backwards on every chart and still plots. `pine.js` measured this engine's
+   *  `wma(close,3)` on a 1…5 ramp at 4.333 rather than 3.667, and the rail asserts
+   *  that direction rather than trusting the note.
+   *
+   *  ⛔ `length < 2` HAS NO LINE. Two points define one, one point does not, and
+   *  thinkorswim publishes no answer for a one-bar window. `3·wma − 2·sma` would
+   *  quietly return the bar's own value there — a number with no regression in it
+   *  — where Pine's spelling of the same maths divides by `n−1` and refuses. The
+   *  two doors say the same thing about the same window because the fact is about
+   *  the arithmetic, not about a vendor. */
+  inertia: (args, R, tok) => {
+    const [data, length] = args
+    const n = literalInteger(length.node)
+    if (n === null || n < 2) throw refuse('thinkscript:window', length.tok || tok)
+    return cOp('-', [
+      cOp('*', [{ type: 'num', value: 3 }, R.engineCall('wma', [data, length], tok)]),
+      cOp('*', [{ type: 'num', value: 2 }, R.engineCall('sma', [data, length], tok)]),
     ])
   },
 
@@ -3659,7 +3928,14 @@ class Resolver {
           locate(n.tok),
           // ⭐ AND THE CONVENTIONAL SPELLING RIDES ALONG, so the member can accept
           // it into their own source rather than being told to go and look it up.
-          blocked ? (TS_DOC_BLOCKED[blocked].suggest || null) : null)
+          blocked
+            ? personalisedSuggest(TS_DOC_BLOCKED[blocked].suggest, shape, slots)
+            : null,
+          // ⭐ AND WHICH CHARACTERS IT WOULD REPLACE. Without this the member has
+          // to find the call themselves, and `05-bollinger-rsi` has FOUR identical
+          // ones across two lines — a text search would hit the wrong one three
+          // times out of four.
+          n.tok && n.endTok ? [n.tok.index, n.endTok.index + 1] : null)
       }
     })
 

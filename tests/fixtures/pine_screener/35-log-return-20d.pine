@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(math.log(close / close[20]) > 0.1 ? 1 : 0)

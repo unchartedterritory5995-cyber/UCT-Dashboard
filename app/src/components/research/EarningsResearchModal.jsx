@@ -7,12 +7,13 @@
 // symbol so arrow-stepping cannot start a fetch storm. The banner's live price
 // is the one deliberate exception (controller amendment, P2 T6): it follows
 // the RAW un-debounced symbol so the header number never lags the header name.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import CompanyLogo from '../CompanyLogo'
 import TickerPopup from '../TickerPopup'
 import UIcon from '../ui/UIcon'
 import Sheet from '../mobile/Sheet'
+import useFocusTrap, { focusableWithin } from '../mobile/useFocusTrap'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import { IdentityBanner, VerdictChip } from '../research-kit'
 import { NOT_ADVICE, SETUP_GRADE_INFO } from '../../constants/disclaimer'
@@ -107,24 +108,29 @@ function gradeBreakdownText(grade) {
     .join('\n')}`
 }
 
-const FOCUSABLE = 'button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-
 /**
  * Pure: which two elements a Tab-trap should wrap focus between, given the
- * container and the currently-focused element. Extracted from `onTrapKey` so
- * the WRAP DECISION is unit-testable without a real browser layout engine —
- * jsdom never computes layout, so `offsetParent` is always `null` and a naive
- * DOM-level test can't tell a correct trap from a gutted one (review round 1,
- * item 1). Visibility is approximated via `offsetParent`, with the currently
- * active element always eligible (so at minimum the element that just
- * received focus is trap-able even under jsdom's null-everywhere default).
+ * container. Kept as a named export because it is the wrap DECISION and is
+ * unit-tested directly — but the focusable set and the visibility rule are no
+ * longer this file's: they come from `components/mobile/useFocusTrap`, the one
+ * copy `Sheet` also consumes.
+ *
+ * ⛔⛔ THIS USED TO FILTER ON `el.offsetParent !== null` AND THAT WAS A LIVE
+ * BUG, not a stylistic one. jsdom computes no layout, so `offsetParent` is
+ * ALWAYS null: the filter removed every candidate, `resolveTrapTargets`
+ * returned null, and `onTrapKey` returned without trapping — on every test in
+ * this repo. The tests compensated by stubbing
+ * `HTMLElement.prototype.offsetParent`, which is the tell: a test that can only
+ * see the behaviour by faking away the production predicate is not evidence
+ * about production. `focusableWithin` filters on explicit hiding instead
+ * (`hidden` / `aria-hidden` / inline display / visibility), which is what
+ * actually governs focusability and needs no layout pass.
+ *
  * Returns `null` when there is nothing to trap between.
  */
-export function resolveTrapTargets(container, activeElement) {
+export function resolveTrapTargets(container) {
   if (!container) return null
-  const items = [...container.querySelectorAll(FOCUSABLE)].filter(
-    (el) => el.offsetParent !== null || el === activeElement,
-  )
+  const items = focusableWithin(container)
   if (!items.length) return null
   return { first: items[0], last: items[items.length - 1], items }
 }
@@ -219,8 +225,7 @@ export default function EarningsResearchModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose, onStepNext, onStepPrev])
 
-  // ── Focus trap. Sheet focuses its panel but does NOT trap, so both paths
-  //    need this. Restores focus on unmount via the mount-time activeElement.
+  // ── Focus. Restores to the mount-time activeElement on unmount.
   useEffect(() => {
     const restore = document.activeElement
     const node = panelRef.current
@@ -228,14 +233,15 @@ export default function EarningsResearchModal({
     return () => { if (restore && typeof restore.focus === 'function') restore.focus() }
   }, [])
 
-  const onTrapKey = useCallback((e) => {
-    if (e.key !== 'Tab') return
-    const targets = resolveTrapTargets(panelRef.current, document.activeElement)
-    if (!targets) return
-    const { first, last } = targets
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
-  }, [])
+  // ── Focus trap — DESKTOP ONLY, and that asymmetry is the point.
+  //
+  // The phone branch renders inside a `Sheet`, which traps its own panel
+  // through the same `useFocusTrap` this line installs; running both would put
+  // two authorities on one wrap (the thing this change removes everywhere
+  // else). The desktop branch is a bare `role="dialog"` of this file's own —
+  // no Sheet, no trap — so it needs one, and it is the ONLY surface in the
+  // sweep that genuinely did.
+  useFocusTrap(!isPhone, panelRef)
 
   // ── Desktop body-scroll lock (review round 1, item 3). The phone branch
   //    gets this for free from Sheet's own `lockScroll` (default true) — it
@@ -371,7 +377,7 @@ export default function EarningsResearchModal({
              ariaLabel={`${sym} earnings report`} className={styles.sheet}>
         {/* Sheet's drag-to-dismiss is already confined to its grip element, so
             canvas scrolling never fights the gesture (§4.4). */}
-        <div ref={panelRef} tabIndex={-1} onKeyDown={onTrapKey} className={styles.phoneBody}
+        <div ref={panelRef} tabIndex={-1} className={styles.phoneBody}
              data-testid="erm-phone-body">
           {body}
         </div>
@@ -388,7 +394,6 @@ export default function EarningsResearchModal({
         aria-modal="true"
         aria-label={`${sym} earnings report`}
         tabIndex={-1}
-        onKeyDown={onTrapKey}
       >
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">×</button>
         {body}

@@ -1,0 +1,5 @@
+//@version=6
+indicator("screen")
+rsiLen = input.int(14, "RSI length")
+thresh = input.int(30, "Oversold below")
+plot(ta.rsi(close, rsiLen) < thresh ? 1 : 0)

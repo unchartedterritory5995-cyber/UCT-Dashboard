@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef, Fragment, lazy, Suspense } from 'react'
-import useSWR from 'swr'
+import useSWR, { useSWRConfig } from 'swr'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import styles from './Breadth.module.css'
 import CotData from './CotData'
@@ -17,6 +17,8 @@ import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
+import ScreenshotPopover from '../components/chart/ScreenshotPopover'
+import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
 import DailyOverview from './breadth/DailyOverview'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -982,6 +984,7 @@ export default function Breadth() {
 
   const customize = useBreadthCustomize()
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const toggleCol = key => {
     setCollapsedCols(prev => {
       const next = new Set(prev)
@@ -1068,9 +1071,43 @@ export default function Breadth() {
     monitorScrollTo(Math.max(0, monitorTopIndex + (dir < 0 ? 1 : -1)))
   }, [monitorTopIndex, monitorScrollTo])
 
+  // Jump straight back to the present day (index 0 = the latest/top row).
+  const onJumpToday = useCallback(() => monitorScrollTo(0), [monitorScrollTo])
+
+  // A shared snapshot link (`/breadth?d=YYYY-MM-DD`) teleports to that day once
+  // the timeline index is ready. Fires exactly once; a bad/missing param no-ops.
+  const deepLinkedRef = useRef(false)
+  useEffect(() => {
+    if (deepLinkedRef.current || activeTab !== 'breadth' || !grid.ready || !grid.count) return
+    deepLinkedRef.current = true
+    const d = new URLSearchParams(window.location.search).get('d')
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return
+    const id = requestAnimationFrame(() => monitorScrollTo(grid.indexOfDate(d)))
+    return () => cancelAnimationFrame(id)
+  }, [activeTab, grid.ready, grid.count, grid, monitorScrollTo])
+
+  // Manual refresh: revalidate every breadth-monitor SWR key (the live/today row,
+  // the timeline index, the Views window) AND re-pull the Monitor's visible block
+  // rows. The brief `refreshing` flag spins the icon for feedback.
+  const { mutate } = useSWRConfig()
+  const [refreshing, setRefreshing] = useState(false)
+  const onManualRefresh = useCallback(() => {
+    setRefreshing(true)
+    try { mutate((k) => typeof k === 'string' && k.startsWith('/api/breadth-monitor')) } catch { /* best-effort */ }
+    grid.refresh?.()
+    setTimeout(() => setRefreshing(false), 700)
+  }, [mutate, grid])
+
   const lastUpdated = storedRows[0]?._created_at
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
+
+  // ── Share: a branded UCT snapshot of the on-screen sheet. The capture target
+  //    is the scroll container (tableWrapRef), so it's exactly what's visible. ──
+  const shareSubtitle = lastUpdated ? `updated ${lastUpdated}` : ''
+  const onShareDownload = () => downloadBreadthSnapshot(tableWrapRef.current, shareSubtitle)
+  const onShareCopy = () => copyBreadthSnapshot(tableWrapRef.current, shareSubtitle)
+  const onShareUrl = () => copyBreadthShareUrl(monitorTopDate)
 
   const liveClock = liveBreadth.clock ?? 'LIVE'
   const liveTitle = liveBreadth.row
@@ -1143,46 +1180,40 @@ export default function Breadth() {
 
   return (
     <div className={styles.page}>
-      <PageHeader icon="breadth" title="Breadth">
-        <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        <span className={styles.meta}>
-          {isViewsTab
-            ? (rows.length > 0
-                ? (windowMismatch
-                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
-                : isLoading ? 'Loading…' : 'No data')
-            : (grid.count > 0
-                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : 'Loading…')}
-        </span>
-        {isViewsTab ? (
-          // Views keeps its window pills (a lens is defined by how many sessions
-          // it spans). The Monitor sheet instead scrolls freely across all time.
-          <div className={styles.daysPills}>
-            {VIEWS_DAY_CHOICES.map(d => (
-              <button
-                key={d}
-                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
-                onClick={() => setViewsDays(d)}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        ) : (
-          <BreadthDateNav
-            topDate={monitorTopDate}
-            minDate={grid.min}
-            maxDate={grid.max}
-            canForward={monitorTopIndex > 0}
-            onStep={onDateStep}
-            onPickDate={onDatePick}
-            onPickYear={onYearPick}
-          />
-        )}
-        {activeTab !== 'heatmap' && (
+      <PageHeader
+        icon="breadth"
+        title="Breadth"
+        right={activeTab !== 'heatmap' ? (
           <>
+            {/* Share (branded snapshot) · CSV · Customize — Customize pinned to
+                the far right of the bar, next to the help "?". */}
+            {activeTab === 'breadth' && (
+              <div className={customizeStyles.anchor}>
+                <button
+                  className={styles.hdrBtn}
+                  onClick={() => setShareOpen(o => !o)}
+                  title="Share a UCT Intelligence snapshot of the breadth sheet"
+                >
+                  <UIcon name="camera" size={13} /> Share
+                </button>
+                {shareOpen && (
+                  <ScreenshotPopover
+                    title="Share Breadth"
+                    onDownload={onShareDownload}
+                    onCopy={onShareCopy}
+                    onShare={onShareUrl}
+                    onClose={() => setShareOpen(false)}
+                  />
+                )}
+              </div>
+            )}
+            <button
+              className={styles.exportBtn}
+              onClick={() => exportCsv(rows, visibleCols)}
+              title="Download as CSV"
+            >
+              ↓ CSV
+            </button>
             {activeTab === 'breadth' && (
               <div className={customizeStyles.anchor}>
                 <button
@@ -1211,14 +1242,66 @@ export default function Breadth() {
                 )}
               </div>
             )}
+          </>
+        ) : null}
+      >
+        <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
+        {isViewsTab ? (
+          // Views keeps its window pills (a lens is defined by how many sessions
+          // it spans). The Monitor sheet instead scrolls freely across all time.
+          <div className={styles.daysPills}>
+            {VIEWS_DAY_CHOICES.map(d => (
+              <button
+                key={d}
+                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+                onClick={() => setViewsDays(d)}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        ) : (
+          // Monitor: the calendar comes right after the tabs, with a "Today"
+          // jump-to-present button beside it; the "updated" meta follows to its right.
+          <>
+            <BreadthDateNav
+              topDate={monitorTopDate}
+              minDate={grid.min}
+              maxDate={grid.max}
+              canForward={monitorTopIndex > 0}
+              onStep={onDateStep}
+              onPickDate={onDatePick}
+              onPickYear={onYearPick}
+            />
             <button
-              className={styles.exportBtn}
-              onClick={() => exportCsv(rows, visibleCols)}
-              title="Download as CSV"
+              className={styles.hdrBtn}
+              onClick={onJumpToday}
+              title="Jump to the present day (top of the sheet)"
             >
-              ↓ CSV
+              Today
             </button>
           </>
+        )}
+        <span className={styles.meta}>
+          {isViewsTab
+            ? (rows.length > 0
+                ? (windowMismatch
+                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
+                : isLoading ? 'Loading…' : 'No data')
+            : (grid.count > 0
+                ? `${grid.count.toLocaleString()} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
+                : grid.ready ? 'No data' : 'Loading…')}
+        </span>
+        {activeTab === 'breadth' && (
+          <button
+            className={`${styles.hdrBtn} ${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
+            onClick={onManualRefresh}
+            title="Refresh breadth data now"
+            aria-label="Refresh breadth data"
+          >
+            <UIcon name="refresh" size={13} />
+          </button>
         )}
       </PageHeader>
 
@@ -1292,7 +1375,7 @@ export default function Breadth() {
                   the DOM, so scrolling 18 years of sessions stays smooth. Spacer
                   rows hold the scroll height above and below the rendered window. */}
               {virtualItems.length > 0 && (
-                <tr aria-hidden="true">
+                <tr aria-hidden="true" data-snapshot-skip="">
                   <td colSpan={visibleCols.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
                 </tr>
               )}
@@ -1316,7 +1399,7 @@ export default function Breadth() {
                   )
                 }
                 return (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''} ${row._reconstructed ? styles.reconRow : ''}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
                   <td className={`${styles.td} ${styles.dateCell}`}>
                     {row._live
                       ? (
@@ -1325,17 +1408,7 @@ export default function Breadth() {
                           {liveClock}
                         </span>
                       )
-                      : row._reconstructed
-                        ? (
-                          <span
-                            className={styles.reconStamp}
-                            title="Reconstructed from historical price data (before the daily collector began, 2026-01-02). Percentage breadth is exact; count metrics are model estimates; sentiment/exposure appear only where a public archive covers this date."
-                          >
-                            <span className={styles.reconMark} aria-hidden="true">≈</span>
-                            {row.date}
-                          </span>
-                        )
-                        : row.date}
+                      : row.date}
                   </td>
                   {visibleCols.map(col => {
                     const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
@@ -1436,7 +1509,7 @@ export default function Breadth() {
                 )
               })}
               {virtualItems.length > 0 && (
-                <tr aria-hidden="true">
+                <tr aria-hidden="true" data-snapshot-skip="">
                   <td colSpan={visibleCols.length + 1} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
                 </tr>
               )}

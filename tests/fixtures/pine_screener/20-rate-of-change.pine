@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.roc(close, 10) > 5 ? 1 : 0)

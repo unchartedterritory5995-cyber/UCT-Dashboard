@@ -198,7 +198,7 @@ def test_a_ci_that_includes_zero_is_refused():
     # padded to the escalated trial count: this test is about the other
     # gates, not about trial depth, and publication now requires 30.
     out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS,
-                        deff=1.0)
+                        deff=1.0, expectancy_r=0.5)
     assert out["published"] is False
     assert any("includes zero" in r for r in out["reasons"])
 
@@ -222,15 +222,23 @@ def test_a_missing_null_is_a_refusal_never_a_pass():
     assert out["published"] is False
 
 
-# ⛔ WHY THESE PASS `deff=1.0`. `adjudicate` gained a fourth input on
+# ⛔ WHY THESE PASS `deff=1.0, expectancy_r=0.5`. `adjudicate` gained a fourth input on
 # 2026-09-01: the MEASURED same-date design effect. It fails CLOSED -- a row
 # whose anchor clustering was never measured is refused rather than published
 # on the ticker-only bootstrap's bound, which is known to be too narrow by an
-# unknown factor. `deff=1.0` is the neutral element ("measured, and it was
+# unknown factor. `deff=1.0, expectancy_r=0.5` is the neutral element ("measured, and it was
 # negligible"), so every test below still tests exactly the gate it names and
 # nothing else. The fail-closed default itself is pinned in
 # `tests/test_same_date_clustering_is_gated.py`, with a control proving the
 # same row publishes once a design effect is supplied.
+#
+# ⛔ AND `expectancy_r=0.5` FOR THE SAME REASON. Gate 5 (2026-09-01) refuses
+# a row whose expectancy was never measured, and refuses a NEGATIVE one
+# outright: a structure can beat its baseline's win rate and still lose
+# money on the bracket the lift is measured with, which is what took
+# `stage-4-breakdown` (-0.099R) and `climax-top` (-0.036R) out of the
+# published set. A comfortably positive value here keeps each test below
+# testing the one gate it names.
 
 
 def test_all_gates_passing_publishes_the_lift():
@@ -238,7 +246,7 @@ def test_all_gates_passing_publishes_the_lift():
            "rate": 0.37, "baseline": 0.28, "years": ["2021"]}
     # 30 trials, same three values repeated: this test is about the other
     # gates, and publication now requires an ESCALATED null.
-    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0] * 10, deff=1.0)
+    out = ll.adjudicate(res, nulls=[0.01, 0.02, 0.0] * 10, deff=1.0, expectancy_r=0.5)
     assert out["published"] is True
     assert out["lift"] == 0.09
 
@@ -262,7 +270,7 @@ def test_a_negative_lift_whose_ci_excludes_zero_is_still_refused():
     # padded to the escalated trial count: this test is about the other
     # gates, not about trial depth, and publication now requires 30.
     out = ll.adjudicate(res, nulls=[0.0] * ll.ESCALATED_NULL_TRIALS,
-                        deff=1.0)
+                        deff=1.0, expectancy_r=0.5)
     assert out["published"] is False
     assert any("random-data null" in r for r in out["reasons"])
 
@@ -294,7 +302,7 @@ def test_a_well_powered_lift_still_clears_the_same_null():
     """
     strong = {"lift": 0.0765, "ci_low": 0.0578, "ci_high": 0.0953, "n": 2625,
               "rate": 0.3467, "baseline": 0.2701, "years": ["2014", "2015"]}
-    out = ll.adjudicate(strong, deff=1.0,
+    out = ll.adjudicate(strong, deff=1.0, expectancy_r=0.5,
                         nulls=([-0.0057, 0.0231, 0.010, 0.0, 0.008]
                                        * 6))   # 30 trials, same values
     assert out["published"] is True
@@ -810,7 +818,7 @@ def test_the_sign_gate_does_not_block_a_genuine_positive():
         {"lift": 0.0735, "ci_low": 0.0678, "ci_high": 0.0796, "n": 24428,
          "rate": 0.3467, "baseline": 0.2732, "years": ["2020", "2021"]},
         [0.0110, 0.0090] * 15,   # 30 trials
-        deff=1.0)
+        deff=1.0, expectancy_r=0.5)
     assert verdict["published"] is True
 
 
@@ -858,7 +866,7 @@ def test_a_FIVE_trial_screen_can_screen_but_cannot_publish():
     assert any("only 5 null trials" in r for r in screened["reasons"])
 
     escalated = ll.adjudicate(strong, [0.0110] * ll.ESCALATED_NULL_TRIALS,
-                              deff=1.0)
+                              deff=1.0, expectancy_r=0.5)
     assert escalated["published"] is True, (
         "the same result must publish once it has been escalated, or the gate "
         "is refusing on trial count alone")
@@ -1070,3 +1078,70 @@ def test_member_visible_evidence_carries_its_DIRECTION():
     assert saw_short, (
         "no bearish structure is published -- this rail would not have "
         "exercised the case it exists for")
+
+
+# ─── the three-state outcome, and the binary one derived from it ────────────
+
+def _walk(seq, start=100.0):
+    """Bars from a list of daily closes, with high/low bracketing each close."""
+    out = []
+    for k, c in enumerate([start] + list(seq)):
+        out.append({"t": 20200101 + k, "o": c, "h": c * 1.001,
+                    "l": c * 0.999, "c": c, "v": 1000})
+    return out
+
+
+def test_the_three_states_are_distinguished():
+    """⭐ THE WHOLE POINT. The binary metric calls a stop-out and a drift-to-flat
+    the same thing, which is right for "did it work" and useless for an
+    expectancy."""
+    hit = _walk([101, 103, 111])            # +10% target reached
+    assert ll.outcome_detail(hit, 0, horizon=3)[0] == "target"
+    stopped = _walk([99, 97, 91])           # -8% stop reached
+    assert ll.outcome_detail(stopped, 0, horizon=3)[0] == "stop"
+    drift = _walk([100.5, 101, 101.5])      # neither level touched
+    state, r = ll.outcome_detail(drift, 0, horizon=3)
+    assert state == "unresolved"
+    assert abs(r - 0.015) < 1e-6
+
+
+def test_the_binary_metric_agrees_with_the_detail_on_every_walk():
+    """⛔⛔ ONE AUTHORITY. `outcome()` is derived from `outcome_detail()`; this
+    is the rail that would catch it being re-implemented alongside instead."""
+    import random
+    rng = random.Random(4)
+    for _ in range(400):
+        closes = [100.0]
+        for _ in range(25):
+            closes.append(max(1.0, closes[-1] * (1 + rng.gauss(0, 0.03))))
+        bars = _walk(closes[1:])
+        for direction in ("long", "short"):
+            b = ll.outcome(bars, 0, horizon=20, direction=direction)
+            d = ll.outcome_detail(bars, 0, horizon=20, direction=direction)
+            assert (b is None) == (d is None)
+            if d is not None:
+                assert b == (d[0] == "target")
+
+
+def test_an_unresolved_trade_is_marked_to_the_horizon_not_carried_forward():
+    """⛔ EXTENDING THE HORIZON FOR THE TRADES THAT NEEDED MORE TIME would
+    measure a longer strategy for exactly the subset that flatters it."""
+    late = _walk([100.5, 101, 101.5, 115])   # target only AFTER the horizon
+    state, r = ll.outcome_detail(late, 0, horizon=3)
+    assert state == "unresolved" and abs(r - 0.015) < 1e-6
+
+
+def test_a_bar_that_spans_both_levels_resolves_to_the_STOP():
+    """⛔ NO LOOK-AHEAD THAT ONLY EVER HELPS. Daily data cannot say which level
+    a single bar touched first, and crediting the target would inflate every
+    number in the ledger."""
+    bars = _walk([])          # just the entry bar, close 100
+    bars.append({"t": 20200103, "o": 100, "h": 111, "l": 91, "c": 100, "v": 1})
+    assert ll.outcome_detail(bars, 0, horizon=1)[0] == "stop"
+    assert ll.outcome(bars, 0, horizon=1) is False
+
+
+def test_the_short_side_mirrors_rather_than_reusing_the_long_test():
+    down = _walk([99, 97, 89])              # a 10% FALL is the short's target
+    assert ll.outcome_detail(down, 0, horizon=3, direction="short")[0] == "target"
+    assert ll.outcome_detail(down, 0, horizon=3, direction="long")[0] == "stop"

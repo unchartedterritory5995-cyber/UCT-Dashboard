@@ -78,7 +78,33 @@ _MAX_TROUGH_SIMILARITY = 0.04      # |t1 - t2| / t1 < 0.04
 _MIN_TROUGH_SPACING = 7            # t2_idx - t1_idx >= 7
 _MIN_RALLY_DEPTH = 0.05            # (peak - trough1)/trough1 >= 5%
 _MAX_RALLY_DEPTH = 0.25            # (peak - trough1)/trough1 <= 25%
-_MAX_TROUGH2_AGE = 30              # t2 within last 30 bars
+# ⛔⛔ 30 PUT THIS DETECTOR IN NOISE TERRITORY. Measured 2026-09-01 over
+# 650 tickers through `tools/base_coverage.coverage` -- the harness that
+# owns the threshold -- the shipped value fired on 45.8% of the universe
+# and `classify()` returned the verdict "noise", past the 35.0% NOISE_PCT
+# at which `Compression Bar (NR4)` was DELETED for carrying no
+# information. A label a third of the market wears is not a label.
+#
+# ⭐ THE RECENCY WINDOW IS THE RIGHT KNOB, not the depth or spacing ones.
+# One knob at a time, everything else shipped:
+#     _MAX_TROUGH2_AGE        30 -> 45.8%   20 -> 39.4%   10 -> 26.0%   5 -> 9.8%
+#     _MIN_RALLY_DEPTH      0.05 -> 45.8% 0.08 -> 44.2% 0.12 -> 30.9% 0.20 -> 10.2%
+#     _MAX_TROUGH_SIMILARITY 0.04 -> 45.8% 0.03 -> 41.2% 0.02 -> 36.9% 0.01 -> 24.3%
+#     _MIN_TROUGH_SPACING      7 -> 45.8%   12 -> 43.2%   20 -> 38.0%   30 -> 30.3%
+# Similarity and spacing cannot reach the band alone; depth only reaches it
+# by discarding two thirds of the pattern's own definition.
+#
+# ⭐ AND IT IS THE DEFENSIBLE ONE ON MEANING, not only on arithmetic. This
+# engine emits detections meant to be ACTIONABLE NOW. A second trough 30
+# bars old is a pattern that completed six weeks ago; telling a member it
+# is a live double bottom is the claim that was actually wrong. 10 bars is
+# two weeks -- recent enough that the level still matters.
+#
+# ⚠️ THIS IS MEMBER-VISIBLE. It removes roughly 43% of this detector's
+# output from `pattern_detections`, which Compass reads via
+# `find_patterns_on_ticker` / `scan_active_patterns`. Rail + the full
+# measurement: `tests/test_double_bottom_is_in_noise_territory.py`.
+_MAX_TROUGH2_AGE = 10              # t2 within last 10 bars (~2 weeks)
 _CONFIDENCE_FLOOR = 50.0
 
 

@@ -54,6 +54,7 @@ vi.mock('swr', () => ({
   default: (key) => (swrBlanks.has(String(key))
     ? { data: undefined, isLoading: true, error: null, mutate: () => {} }
     : { data: { rows: ROWS, days: 90 }, isLoading: false, error: null, mutate: () => {} }),
+  useSWRConfig: () => ({ mutate: () => {} }),
 }))
 
 import Breadth from '../Breadth'

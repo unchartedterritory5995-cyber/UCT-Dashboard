@@ -148,6 +148,18 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // written out as `floor(x + 0.5)` in the Python lane. No sign, no offset.
     hma: 'ta.hma — same composition of wma, same two derived windows',
     stdev: 'ta.stdev — same population divisor', dev: 'ta.dev — Pine ta.dev IS mean-absolute',
+    // ⭐⭐ `ta.pow` IS NOT A PINE NAME — the same ground `cumFrom` stands on below.
+    //   TradingView spells it `math.pow` and has no `ta.` form, so nobody can
+    //   PASTE real Pine containing `ta.pow` and get our maths under their name;
+    //   there is no published definition for this door to disagree with.
+    //   ⛔⛔ THE DOOR THAT MATTERS IS `math.pow`, AND ITS ORDER IS THE RISK, not
+    //   its existence. Two `series` slots made it fail closed until a measured
+    //   order was declared, and unlike `max`/`min` the order is not symmetric:
+    //   `pow(2, close)` is a different column from `pow(close, 2)` and nothing
+    //   downstream would refuse the wrong one. It is vetted against the MANIFEST'S
+    //   own sentence — "{0} raised to the power {1}", base then exponent — which
+    //   `pine.mathShapes.test.js` asserts rather than paraphrases.
+    pow: 'ta.pow — not a Pine name; math.pow is shape-mapped, order vetted',
     sum: 'ta.sum — same window sum', change: 'ta.change(src) 1-arg — the n-arg form is refused by arity',
     highest: 'ta.highest — a VALUE, so no offset convention to disagree about',
     lowest: 'ta.lowest — a VALUE, likewise',

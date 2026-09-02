@@ -18,6 +18,9 @@
 // `translateThinkScript(...)`'s; the read-back is `evaluateFormula(...).readback`;
 // the hash is `astHash(parseFormula(...).ast)`. Nothing here is a retyped string.
 
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -405,5 +408,162 @@ describe('🔴 a documentation-blocked study OFFERS the conventional call', () =
     await flush()
     await paste(TS_SCRIPT)
     expect(screen.queryByTestId('import-suggest')).toBe(null)
+  })
+})
+
+
+// --------------------------------------------------------------------------- //
+// ⭐⭐ ACCEPTING THE OFFERED CALL — the half the ruling described and nothing did
+// --------------------------------------------------------------------------- //
+//
+// `TS_DOC_BLOCKED` has always said the member APPLIES the suggestion: *"they
+// accept it, it lands in the script, and the formula read-back shows
+// `length = 14, price = close` in their own text."* There was no accepting it.
+// The box printed the call and the member retyped it — for this fixture, the same
+// call four times across two lines, and then a fifth for its RSI.
+//
+// ⛔ THE RULING IS UNCHANGED. Nothing is applied without the click, no unpublished
+// default is assumed, and the text lands in the textarea the member is looking at
+// where they can type over it. What moved is that accepting no longer means
+// retyping.
+//
+// ─── what this block can see, measured against `PineBox.jsx` ─────────────────
+//
+//   control  unmutated                                  exit 0   25 passed
+//   U1       button drops its `refusal.span` condition  exit 1    1 failed
+//   U2       the stale-source guard removed             exit 1    1 failed
+//   U3       splice by text search instead of by span   exit 1    1 failed
+//
+// ⚠️ U3 SURVIVED THE FIRST DRAFT AND THE FIXTURE IS WHY. On `05-bollinger-rsi` the
+// refusal names the FIRST of four identical calls, so a string search lands in the
+// same place a span does and the whole `parseCall`/`endTok`/`span` mechanism looks
+// unnecessary. The two-`def` case tells them apart, because resolution order is
+// not source order.
+
+const FIVE = readFileSync(path.resolve(process.cwd(), '..',
+  'tests/fixtures/thinkscript/05-bollinger-rsi-buy-arrow.ts'), 'utf8')
+
+const PINE_WMA = `//@version=5
+indicator("t")
+plot(ta.wma(close, 27.5))
+`
+
+describe('🔴 the offered call can be ACCEPTED from the box', () => {
+  it('the fixture is blocked, carries a span, and its own length is 30', () => {
+    // ⛔ NON-VACUITY FIRST. Every case below reads the box after a click; if this
+    // script translated on paste, or carried no span, they would pass against a
+    // box that renders no button at all.
+    const out = translateThinkScript(FIVE)
+    expect(out.ok).toBe(false)
+    expect(out.refusal.guard).toBe('thinkscript:arity')
+    expect(Array.isArray(out.refusal.span)).toBe(true)
+    expect(FIVE).toMatch(/input\s+BB_Length\s*=\s*30/)
+    // ⭐ AND THE FIXTURE REALLY DOES REPEAT THE CALL, which is what makes
+    // “replace the one the refusal names” a claim with something to get wrong.
+    expect((FIVE.match(/BollingerBands\(/g) || []).length).toBeGreaterThan(1)
+  })
+
+  it('⭐⭐ one click lands the call in their script, on THEIR number', async () => {
+    mount()
+    await paste(FIVE)
+    fireEvent.click(screen.getByTestId('import-suggest-apply'))
+    await settlePaste()
+
+    const now = pasteField().value
+    expect(now).toContain('length = BB_Length')
+    // ⚰️ THE DEFECT THIS WHOLE LANE EXISTS AGAINST: the registry's static call
+    // says `length = 20`, and this script's input is 30. A member accepting that
+    // would get a column that charts and screens and is wrong on every bar.
+    expect(now).not.toContain('length = 20')
+    // ⭐⭐ EXACTLY ONE OF THE IDENTICAL CALLS MOVED. A text search for the call
+    // would have hit the wrong one three times out of four; the span comes from
+    // the parser, which already decided which `)` closed which call.
+    expect((now.match(/BollingerBands\(price = close/g) || []).length).toBe(1)
+  })
+
+  it('⭐⭐ accepting every offer TRANSLATES the script — and on the member’s 30', async () => {
+    // ⚠️ “THE REFUSAL MOVED” IS NOT “THE MEMBER GAINED SOMETHING”, so this case
+    // clicks until the offers run out and then reads the COLUMN.
+    mount()
+    await paste(FIVE)
+    let clicks = 0
+    for (let i = 0; i < 12; i += 1) {
+      const btn = screen.queryByTestId('import-suggest-apply')
+      if (!btn) break
+      fireEvent.click(btn)
+      await settlePaste()
+      clicks += 1
+    }
+    expect(clicks).toBeGreaterThan(1)
+    expect(screen.queryByTestId('pine-refusal')).toBeNull()
+
+    const out = translateThinkScript(pasteField().value)
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    const formula = out.outputs.map((o) => o.formula || '').join(' ')
+    // ⭐⭐ THE ASSERTION THE OLD STATIC SUGGESTION WOULD HAVE FAILED. Same shape,
+    // same column count, no refusal — and a 20-bar band on a script that says 30.
+    expect(formula).toContain('sma(close, 30)')
+    expect(formula).not.toContain('sma(close, 20)')
+  })
+
+  it('⭐⭐ it edits the call the refusal NAMES, not the first one that matches', async () => {
+    // ⚰️ THE MUTATION THAT SURVIVED THE FIXTURE ABOVE. Replacing the call by
+    // SEARCHING for its text passes on `05-bollinger-rsi`, because there the
+    // refusal happens to name the first of the four identical calls — so that
+    // script cannot tell a span from a string search
+    // (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`).
+    //
+    // ⛔ RESOLUTION ORDER IS NOT SOURCE ORDER. Two `def`s holding the same call
+    // are resolved in the order the `plot` USES them, so here the refusal names
+    // line 2 while the first textual match is on line 1. A search-and-replace
+    // edits the wrong `def`: line 2 keeps refusing, and line 1 — which the member
+    // was never told about — silently becomes a different band.
+    const TWO_DEFS = `def a = BollingerBands(length = 20).LowerBand;
+def b = BollingerBands(length = 20).LowerBand;
+plot p = close > b and close < a;
+`;
+    mount()
+    await paste(TWO_DEFS)
+    fireEvent.click(screen.getByTestId('import-suggest-apply'))
+    await settlePaste()
+
+    const lines = pasteField().value.split(String.fromCharCode(10))
+    expect(lines[1]).toContain('price = close')
+    expect(lines[0]).toBe('def a = BollingerBands(length = 20).LowerBand;')
+  })
+
+  it('⛔⛔ it DECLINES while the box is one keystroke behind', async () => {
+    // ⚠️ THE OFFSETS ON SCREEN DESCRIBE THE TEXT THE ENGINE LAST READ, and
+    // `report` is debounced by `PINE_DEBOUNCE_MS`. Between a keystroke and the next
+    // inspection they are one edit old — and splicing stale offsets into the
+    // current text does not fail, it just cuts at the wrong characters and throws
+    // away whatever was typed in between.
+    mount()
+    await paste(FIVE)
+    const edited = FIVE + '# a note the member is midway through typing'
+    fireEvent.change(pasteField(), { target: { value: edited } })
+
+    // the button is still on screen: the refusal it belongs to has not been
+    // recomputed yet, which is exactly the window this guard exists for
+    fireEvent.click(screen.getByTestId('import-suggest-apply'))
+    expect(pasteField().value).toBe(edited)
+
+    // ⭐ AND IT COMES BACK LIVE ONE DEBOUNCE LATER, so declining is a pause and
+    // not a dead button.
+    await settlePaste()
+    fireEvent.click(screen.getByTestId('import-suggest-apply'))
+    await settlePaste()
+    expect(pasteField().value).toContain('length = BB_Length')
+    expect(pasteField().value).toContain('# a note the member is midway through typing')
+  })
+
+  it('⛔ the Pine door shows the offer and NO button — it cannot name the place', async () => {
+    // Pine carries `span: null`, so the button is absent rather than guessing at
+    // an offset. The OFFER is still there, which is what makes this a test of the
+    // button's condition rather than of whether suggestions reach Pine at all.
+    mount()
+    await paste(PINE_WMA)
+    expect(screen.getByTestId('import-suggest')).toBeTruthy()
+    expect(screen.queryByTestId('import-suggest-apply')).toBeNull()
   })
 })
