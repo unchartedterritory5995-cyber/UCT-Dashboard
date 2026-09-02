@@ -152,11 +152,32 @@ def test_count_notes_never_crosses_users(conn):
     assert svc.count_notes("u2", conn=conn) == 1
 
 
+def _note_with_embeds(conn, title, *symbols, user="u1", widget_id="chart"):
+    content = [{
+        "type": "widgetEmbed",
+        "attrs": {
+            "v": 1, "widgetId": widget_id, "mode": "snapshot",
+            "params": {"symbol": s, "tf": "D"},
+            "capturedAt": "2026-08-13T12:00:00Z",
+            "searchText": f"[chart: {s} D]",
+        },
+    } for s in symbols]
+    return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+
+
 def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
     """`list_notes` and `count_notes` share ONE WHERE-clause builder
     (`_notes_filter_sql`) precisely so they can never disagree about
-    membership — this pins that invariant across folder/ticker/tag/q, the
-    filters the notebook route actually exposes."""
+    membership — this pins that invariant across every filter the notebook
+    route exposes: folder/unfiled/ticker/tag/q AND the two embed dimensions
+    (`embed_symbol`/`embed_widget`), which read from the `j2_note_embeds`
+    sidecar rather than a column on `j2_notes`.
+
+    Fix-round-1 note: the embed cases were missing from the first version of
+    this test — a real gap (both dimensions the brief named), even though
+    both functions happened to share the identical `_notes_filter_sql` call
+    at the time, so a future edit that touched only ONE of the two embed
+    branches would have walked straight past this rail undetected."""
     f = svc.create_folder("u1", "Earnings", conn=conn)
     svc.create_note(
         "u1", {"title": "In folder", "folderId": f["id"], "ticker": "NVDA", "tags": ["earnings"]},
@@ -164,6 +185,11 @@ def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
     )
     svc.create_note("u1", {"title": "Unfiled NVDA", "ticker": "NVDA"}, conn=conn)
     svc.create_note("u1", {"title": "Unfiled AAPL", "ticker": "AAPL", "tags": ["macro"]}, conn=conn)
+    # Populate the j2_note_embeds sidecar for real — embed_symbol/embed_widget
+    # read it, not j2_notes, so a fixture with no embeds would let both cases
+    # "pass" by matching nothing on both sides, proving nothing either way.
+    _note_with_embeds(conn, "AMD chart embed", "AMD", widget_id="chart")
+    _note_with_embeds(conn, "NVDA breadth embed", "NVDA", widget_id="breadth")
 
     cases = [
         {},
@@ -172,23 +198,24 @@ def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
         {"ticker": "NVDA"},
         {"tag": "earnings"},
         {"q": "unfiled"},
+        {"embed_symbol": "AMD"},
+        {"embed_widget": "chart"},
     ]
     for kwargs in cases:
         listed = svc.list_notes("u1", limit=500, conn=conn, **kwargs)
         assert svc.count_notes("u1", conn=conn, **kwargs) == len(listed), kwargs
 
-
-def _note_with_embeds(conn, title, *symbols, user="u1"):
-    content = [{
-        "type": "widgetEmbed",
-        "attrs": {
-            "v": 1, "widgetId": "chart", "mode": "snapshot",
-            "params": {"symbol": s, "tf": "D"},
-            "capturedAt": "2026-08-13T12:00:00Z",
-            "searchText": f"[chart: {s} D]",
-        },
-    } for s in symbols]
-    return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+    # Each embed case must select a STRICT, non-empty, non-full subset of the
+    # 5 notes above — a filter matching 0 or all 5 would let a broken
+    # embed_symbol/embed_widget branch pass the agreement check vacuously
+    # (both sides could drift identically to "everything" or "nothing" and
+    # still agree with each other).
+    total_notes = svc.count_notes("u1", conn=conn)
+    assert total_notes == 5
+    embed_symbol_count = svc.count_notes("u1", embed_symbol="AMD", conn=conn)
+    embed_widget_count = svc.count_notes("u1", embed_widget="chart", conn=conn)
+    assert 0 < embed_symbol_count < total_notes
+    assert 0 < embed_widget_count < total_notes
 
 
 def test_backlinks_answer_which_entries_reference_a_ticker(conn):
