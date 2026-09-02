@@ -1375,7 +1375,7 @@ export default function Breadth() {
                   the DOM, so scrolling 18 years of sessions stays smooth. Spacer
                   rows hold the scroll height above and below the rendered window. */}
               {virtualItems.length > 0 && (
-                <tr aria-hidden="true">
+                <tr aria-hidden="true" data-snapshot-skip="">
                   <td colSpan={visibleCols.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
                 </tr>
               )}
@@ -1519,7 +1519,7 @@ export default function Breadth() {
                 )
               })}
               {virtualItems.length > 0 && (
-                <tr aria-hidden="true">
+                <tr aria-hidden="true" data-snapshot-skip="">
                   <td colSpan={visibleCols.length + 1} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
                 </tr>
               )}

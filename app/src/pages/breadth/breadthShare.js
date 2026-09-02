@@ -35,7 +35,18 @@ function loadImage(src) {
 export async function buildBreadthSnapshotCanvas(tableEl, { subtitle = '' } = {}) {
   if (!tableEl) return null
   const scale = 2
-  const inner = await domToCanvas(tableEl, { scale, backgroundColor: BG })
+  const inner = await domToCanvas(tableEl, {
+    scale,
+    backgroundColor: BG,
+    // The Monitor sheet is virtualized: two tall aria-hidden spacer rows hold the
+    // scroll height above/below the rendered window. modern-screenshot clones the
+    // scroll container and resets its scroll to 0, so the TOP spacer would push the
+    // visible rows out of the captured box (a header-only, blank-body snapshot when
+    // scrolled). Excluding both spacers makes the visible rows flow from the top of
+    // the clone, so the capture matches what's on screen at any scroll position.
+    filter: (node) =>
+      !(node instanceof Element && node.hasAttribute('data-snapshot-skip')),
+  })
   if (!inner || !inner.width) return null
 
   const pad = 24 * scale
@@ -91,6 +102,12 @@ export async function buildBreadthSnapshotCanvas(tableEl, { subtitle = '' } = {}
   return c
 }
 
+function todayLocal() {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 function canvasToBlob(canvas) {
   return new Promise((resolve) => {
     try { canvas.toBlob((b) => resolve(b), 'image/png') } catch { resolve(null) }
@@ -106,7 +123,7 @@ export async function downloadBreadthSnapshot(tableEl, subtitle) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `uct-breadth-${new Date().toISOString().slice(0, 10)}.png`
+  a.download = `uct-breadth-${todayLocal()}.png`
   a.click()
   URL.revokeObjectURL(url)
   return true
