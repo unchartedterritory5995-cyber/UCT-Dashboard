@@ -110,6 +110,7 @@ function readableError(err) {
 }
 
 function phaseLabel(phase) {
+  if (phase === 'convert') return 'Converting notes'
   if (phase === 'confirm') return 'Saving notes'
   if (phase === 'commit') return 'Uploading media & links'
   return 'Working'
@@ -285,26 +286,45 @@ export default function ImportWizard({ open, onClose, onImported }) {
       })
       if (cancelled()) return
 
+      // The preview only needs a title/folder/verdict per note — full HTML ->
+      // TipTap body conversion (`htmlToNote`, the real per-note cost: a
+      // DOMParser sanitize pass + `generateJSON`) is NOT one of those, and
+      // measured (profile below) it was the entire two-minute stall: a
+      // 5,000-note first-time import converted every body up front, before
+      // even asking the server which importKeys already exist. A 'create'
+      // verdict (no existing note to compare against — the common case for
+      // exactly the decade-of-history import this is about) needs no
+      // fingerprint at all; only a genuine re-import match needs the hash
+      // that `classifyDocs` computes FROM a converted body. So: check
+      // existing-ness first (importKey only, no bodyJson needed), convert
+      // ONLY the notes that need a hash to decide update-vs-unchanged, and
+      // leave the rest unconverted — `bodyJson` is filled in lazily, per
+      // visible note, right before confirm (see handleConfirm), so a note
+      // the member excludes on this screen never pays this cost at all.
+      const { checkExisting } = await import('../../../lib/importer/commit')
+      const { existing } = await checkExisting(rawDocs)
+      if (cancelled()) return
+
       const { htmlToNote } = await import('../../../lib/importer/convert')
       if (cancelled()) return
-      const converted = []
-      for (let i = 0; i < rawDocs.length; i++) {
-        const { bodyJson, bodyPlain } = htmlToNote(rawDocs[i].html)
-        converted.push({ ...rawDocs[i], bodyJson, bodyPlain })
-        if ((i + 1) % 10 === 0) {
-          setScanMessage(`Converting ${i + 1}/${rawDocs.length}…`)
+      const needsHash = rawDocs.filter((d) => existing[d.importKey]?.importHash)
+      let hashed = 0
+      for (const doc of needsHash) {
+        const { bodyJson, bodyPlain } = htmlToNote(doc.html)
+        doc.bodyJson = bodyJson
+        doc.bodyPlain = bodyPlain
+        hashed += 1
+        if (hashed % 10 === 0) {
+          setScanMessage(`Checking ${hashed}/${needsHash.length} against your existing notes…`)
           await new Promise((r) => setTimeout(r))
           if (cancelled()) return
         }
       }
 
-      const { checkExisting } = await import('../../../lib/importer/commit')
-      const { existing } = await checkExisting(converted)
-      if (cancelled()) return
-      const status = await classifyDocs(converted, existing)
+      const status = await classifyDocs(rawDocs, existing)
       if (cancelled()) return
 
-      setDocs(converted)
+      setDocs(rawDocs)
       setDocStatus(status)
       setWarnings([...expandWarnings, ...parseWarnings])
       setSourceLabel(adapter.label)
@@ -565,6 +585,33 @@ export default function ImportWizard({ open, onClose, onImported }) {
     await new Promise((r) => setTimeout(r, 0))
     if (cancelled()) return
     try {
+      // Bodies deferred out of the scan step (see beginScan) get converted
+      // here, lazily, over ONLY the notes the member is actually importing
+      // (`visibleDocs` — folder exclusion + per-note exclusion already
+      // applied). Anything excluded on the preview screen never pays this
+      // cost at all. Real, honest progress (not a spinner) for whatever
+      // conversion work is left — this is the "the wait is real" case: the
+      // server needs every imported note's bodyJson, so this cannot be
+      // skipped, only moved to the point it's actually needed.
+      const needsBody = visibleDocs.filter((d) => !d.bodyJson)
+      if (needsBody.length > 0) {
+        const { htmlToNote } = await import('../../../lib/importer/convert')
+        if (cancelled()) return
+        let done = 0
+        for (const doc of needsBody) {
+          const { bodyJson, bodyPlain } = htmlToNote(doc.html)
+          doc.bodyJson = bodyJson
+          doc.bodyPlain = bodyPlain
+          done += 1
+          if (done % 10 === 0 || done === needsBody.length) {
+            setProgress({ phase: 'convert', done, total: needsBody.length })
+            await new Promise((r) => setTimeout(r))
+            if (cancelled()) return
+          }
+        }
+        setProgress(null)
+      }
+
       const destFolderId = await resolveDestFolderId()
       if (cancelled()) return
       const { runImport } = await import('../../../lib/importer/commit')
