@@ -59,6 +59,12 @@ Assertions: `/api/health` → HTTP 200 and JSON `"status":"ok"`; `/calendar` →
 
 Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome tools, read-only): open `https://uctintelligence.com/calendar`; PASS when the page header shows the text "UCT Terminal" (from `app/src/pages/calendar/CalendarHeader.jsx` line 613) and the week view renders at least one day column with at least one earnings row for the current or next trading week. Never click Save, Delete, Send, or any mutating control during the smoke.
 
+## Master drift log (DL-011)
+
+| Read (UTC) | origin/master | Commits since start | Files | Touches Terminal-Current? |
+|---|---|---|---|---|
+| 2026-09-02 07:05 | `c9ae85fb6` | 6 (buzz digest board, indicator-endzone manifest, runbook, formula doc) | 11 (3 `app/src`, 2 `api/services`, tests, docs) | No |
+
 ## Run log
 
 | Run | Program day / checkpoint | (1) diff empty | (2) frontend | (2) backend | (3) HTTP | (3) browser | Result |

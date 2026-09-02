@@ -25,7 +25,7 @@ Level 1: Document A entire; preservation of Terminal-Current; evidence quality; 
 * The engine (`uct-intelligence`), bot (`uct_intelligence`), wire (`morning-wire`), and scans (`uct-sunday-scan`) repositories are READ-ONLY for this program. `C:\Users\Patrick\uct-dashboard` is a stale, parked checkout and is never used.
 * PROTECTION RAIL at every checkpoint, recorded in `protection-rail.md`: (1) application paths unchanged from the start SHA; (2) the calendar tests pass in the research worktree against a local backend; (3) production `/calendar` renders the expected content, read-only. A failed rail halts research.
 * Never run scripts, probes, profilers, or data jobs on the production pod or against the production volume (member-visible OOM outages have resulted). Never `railway ssh`, `railway run`, or any mutating Railway command. A locally running backend on port 8077 serves stale data convincingly; it is not truth.
-* `C:\data` is real on this box; the repo-root `conftest.py` pins the suite away from it. Never override those pins.
+* `C:\data` is real on this box; the repo-root `conftest.py` pins the suite away from it. Never override those pins. The documented local-backend recipes set neither `DATA_DIR` nor `AUTH_DB_PATH` (D-04), so a local backend started the documented way runs against live data: during Phase Zero, no local backend is started unless both are pinned to a sandbox derived from `conftest.SHARED_DATA_ENV_PINS`.
 
 ## 5. Partner-owned files (OWNER_SEED_FACTS §4) — do not touch without explicit acknowledgment
 
