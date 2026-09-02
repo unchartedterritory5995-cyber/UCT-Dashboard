@@ -1,8 +1,9 @@
 // app/src/pages/BuzzRender.jsx — headless, token-gated /buzz board export.
 //
 // Renders the Discord `/buzz` board image: the top tickers with full
-// treatment (rank/count/magnitude bar/people/sparkline/heat), and the
-// receding tail (2+ mentions as chips, once-mentioned names as one dim line).
+// treatment (rank/count/magnitude bar/people/heat), and the tail — 2+ mentions
+// and once-named alike — as READABLE chips. The tail is not decoration: the
+// owner asked specifically to see the 1-3 mention names (2026-09-02).
 // ⛔ NO PROSE LEAD — the owner reviewed a rendered board with a two-sentence
 // derived lead at the top and rejected it (2026-09-01). Do not re-add one.
 // A headless browser (chart-renderer) navigates to /r/buzz, waits for
@@ -77,26 +78,13 @@ const EXPORT_STYLE = {
   WebkitFontSmoothing: 'antialiased',
 }
 
-// The sparkline's floor keeps a near-silent bucket visibly present (a literal
-// 0% bar is invisible and unmeasurable) — a quiet stretch should still read
-// as a flat line, not a gap.
-const SPARK_FLOOR_PCT = 6
-
-function Spark({ values, hot }) {
-  const vals = values || []
-  const max = Math.max(1, ...vals) // always >= 1, so a bucket's % is always well-defined
-  return (
-    <span className={styles.sp}>
-      {vals.map((v, i) => (
-        <i
-          key={i}
-          className={hot ? `${styles.s} ${styles.hot}` : styles.s}
-          style={{ height: `${Math.max(SPARK_FLOOR_PCT, Math.round((100 * v) / max))}%` }}
-        />
-      ))}
-    </span>
-  )
-}
+// ⚰️ The Spark component and SPARK_FLOOR_PCT lived here until 2026-09-02.
+// The owner called the board "clogged" and asked for "less of the trend and
+// data crap and more of the stock selection stuff": a 26-bucket intra-day
+// micro-histogram was the widest column on the board and the least
+// decision-shaped thing on it. The payload still carries `spark` -- cheap,
+// and the shape may earn its way back on a taller surface -- but nothing
+// draws it. Do not re-add it to this board without asking.
 
 export default function BuzzRender() {
   const [data, setData] = useState(null)
@@ -215,7 +203,6 @@ export default function BuzzRender() {
               <span className={styles.hN}>MENTIONS</span>
               <span>SHARE OF THE CHATTER</span>
               <span className={styles.hPpl}>PEOPLE</span>
-              <span>SESSION SHAPE</span>
               <span className={styles.hHeat}>TODAY VS 30D</span>
             </div>
           )}
@@ -237,7 +224,6 @@ export default function BuzzRender() {
                 />
               </span>
               <span className={styles.ppl}>{r.people}</span>
-              <Spark values={r.spark} hot={r.hot != null} />
               <span className={styles.hcell}>
                 {r.hot != null && <b className={styles.pill}>{`▲ ${r.hot}×`}</b>}
               </span>
@@ -259,8 +245,12 @@ export default function BuzzRender() {
 
           {singles.length > 0 && (
             <>
-              <div className={styles.lbl}>ONCE EACH</div>
-              <div className={styles.once}>{singles.join(' · ')}</div>
+              <div className={styles.lbl}>NAMED ONCE</div>
+              <div className={styles.singles}>
+                {singles.map((t) => (
+                  <span key={t} className={styles.one}>{t}</span>
+                ))}
+              </div>
             </>
           )}
         </div>

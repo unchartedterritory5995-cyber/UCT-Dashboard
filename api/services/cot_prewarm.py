@@ -182,7 +182,9 @@ def _bars_in_process(ticker: str) -> list:
     # Every query param passed explicitly: called directly, an omitted one is the
     # `Query(...)` FieldInfo object, which is TRUTHY and would route the call into
     # the replay (`to`) branch.
-    resp = bars_router.get_bars(ticker, tf="W", bars=BARS_COUNT, since="", to="", warm=0)
+    # serve_bars = the LOCAL serve core; get_bars is now an async route (Path B Phase 2
+    # proxy). In-process callers use the core directly and never touch the proxy path.
+    resp = bars_router.serve_bars(ticker, "W", BARS_COUNT, "", "", 0)
     status = getattr(resp, "status_code", 200)
     payload = _payload_of(resp)
     if status >= 400:

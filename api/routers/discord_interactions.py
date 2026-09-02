@@ -38,7 +38,9 @@ def fetch_bars(ticker: str, tf: str, n: int) -> list[dict] | None:
     parameter is passed explicitly because the function's Query(...) defaults
     only resolve over HTTP. Only a 200 with a non-empty `bars` list counts."""
     from api.routers import bars as bars_router
-    resp = bars_router.get_bars(ticker, tf, n, "", "", 0)
+    # serve_bars = the LOCAL serve core (get_bars is now an async route with a proxy
+    # path; in-process callers must hit the core directly, not the proxy).
+    resp = bars_router.serve_bars(ticker, tf, n, "", "", 0)
     if getattr(resp, "status_code", 200) != 200:
         return None
     body = getattr(resp, "body", b"") or b""

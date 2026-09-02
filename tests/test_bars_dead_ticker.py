@@ -42,7 +42,8 @@ def nothing_anywhere(monkeypatch):
 
 
 def _get(ticker, tf="5"):
-    return bars.get_bars(ticker, tf=tf, bars=600, since="", to="")
+    # serve_bars = the local serve core (get_bars is now an async proxy route).
+    return bars.serve_bars(ticker, tf=tf, bars=600, since="", to="")
 
 
 def test_a_symbol_we_DO_NOT_CARRY_answers_200_no_data_not_503(nothing_anywhere):

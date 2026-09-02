@@ -101,8 +101,16 @@ def _conn() -> sqlite3.Connection:
         #    blew straight past the timeout → ~155 "database is locked"
         #    per 45s, each a wasted Massive fetch + a slower warm. The
         #    worker should simply WAIT it out and succeed.
+        #  • BARS-API (dedicated serving tier, BARS_API_ENABLED): worker-LIKE.
+        #    Its cold-fetch CACHE write runs on a BACKGROUND pool (off the anyio
+        #    request thread), it does NOT run the web pod's reconciliation/audit
+        #    writers, and it has 32GB headroom. At the web 2s timeout every
+        #    cold-fetch write LOST its collision with the 30s R2-merge and failed
+        #    "database is locked" → obscure long-tail tickers never cached (17-20s
+        #    on every view, forever). It must WAIT the merge out and succeed.
         _is_worker = os.environ.get("WORKER_ENABLED") == "1"
-        _busy_ms = 30000 if _is_worker else 2000
+        _bg_tier = _is_worker or os.environ.get("BARS_API_ENABLED") == "1"
+        _busy_ms = 30000 if _bg_tier else 2000
         c.execute(f"PRAGMA busy_timeout={_busy_ms}")
         # Per-connection page cache is CONTEXT-AWARE (2026-07-03):
         #  • WEB serves requests on up to 64 anyio threads, each with its own
@@ -113,7 +121,7 @@ def _conn() -> sqlite3.Connection:
         #    warm read latency is unchanged while RSS pressure drops ~4×.
         #  • WORKER (few long-lived prewarm threads, more headroom, heavy writes)
         #    keeps the larger 8 MB cache.
-        c.execute(f"PRAGMA cache_size={-8192 if _is_worker else -2048}")
+        c.execute(f"PRAGMA cache_size={-8192 if _bg_tier else -2048}")
         # Memory-map the DB so reads fault pages straight from the OS page cache
         # instead of per-read read() syscalls into the per-connection cache. On a
         # multi-GB bars.db this materially cuts read latency and lets the smaller
@@ -287,6 +295,63 @@ def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
         out["minmax_error"] = str(e)
     out["start_window"] = _window(start_ymd)
     out["end_window"] = _window(end_ymd)
+    return out
+
+
+_COVERAGE_CACHE = {"ts": 0.0, "data": None}
+
+
+def coverage_stats(sample: list[str] | None = None, universe: list[str] | None = None,
+                   *, fresh_within_days: int = 5, n: int = 400) -> dict:
+    """Universe-WARMTH snapshot — the ground-truth measure of "how much of the
+    universe is instant on first view". SAMPLE-BASED and FAST by design: a
+    COUNT(DISTINCT ticker) walks 100M+ rows on the multi-GB db (>55s, RAM-heavy),
+    so instead we probe a random N of each passed list via the PK-indexed
+    get_last_ts (~1ms each) and report the % with a RECENT daily bar. `sample` =
+    the liquid set (cap_universe); `universe` = the full long-tail set — the
+    long-tail % is the real "are obscure movers warm" number. Cached 5min. READ-ONLY."""
+    import time as _t
+    now = _t.time()
+    cached = _COVERAGE_CACHE["data"]
+    if cached and now - _COVERAGE_CACHE["ts"] < 300:
+        return cached
+    from datetime import datetime, timedelta
+    import random
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+    out = {"path": _DB_PATH, "at": int(now)}
+
+    def _probe(syms, label):
+        try:
+            pool = list({s for s in syms if s})
+            if not pool:
+                return
+            picked = random.sample(pool, min(n, len(pool)))
+            t0 = _t.time()
+            have = fresh = 0
+            for s in picked:
+                lt = get_last_ts(s, "D")
+                if lt:
+                    have += 1
+                    if int(lt) >= cutoff:
+                        fresh += 1
+            k = len(picked)
+            out[f"{label}_n"] = k
+            out[f"{label}_have_pct"] = round(100.0 * have / k, 1) if k else 0.0
+            out[f"{label}_fresh_pct"] = round(100.0 * fresh / k, 1) if k else 0.0  # % WARM
+            out[f"{label}_ms"] = round((_t.time() - t0) * 1000)
+        except Exception as e:  # noqa: BLE001
+            out[f"{label}_error"] = str(e)
+
+    if sample:
+        _probe(sample, "cap")
+    if universe:
+        _probe(universe, "univ")
+        # extrapolate an approximate warm-ticker count for the whole universe
+        fp = out.get("univ_fresh_pct")
+        if fp is not None:
+            out["univ_size"] = len({s for s in universe if s})
+            out["est_warm_tickers"] = int(round(out["univ_size"] * fp / 100.0))
+    _COVERAGE_CACHE.update(ts=now, data=out)
     return out
 
 

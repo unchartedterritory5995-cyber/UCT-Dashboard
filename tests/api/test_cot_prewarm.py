@@ -369,12 +369,13 @@ def test_fetch_proxy_bars_reads_the_in_process_bars_response(monkeypatch):
     seen = {}
     series = [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]
 
-    def _get_bars(ticker, **kw):
-        seen.update(ticker=ticker, **kw)
-        return ORJSONResponse(content={"ticker": ticker, "tf": kw["tf"], "bars": series})
-    monkeypatch.setattr(bars_router, "get_bars", _get_bars)
+    def _serve_bars(ticker, tf, bars, since, to, warm):
+        seen.update(ticker=ticker, tf=tf, bars=bars, since=since, to=to, warm=warm)
+        return ORJSONResponse(content={"ticker": ticker, "tf": tf, "bars": series})
+    # In-process callers use serve_bars (the local core) — get_bars is now an async
+    # proxy route (Path B Phase 2). Every param passed positionally + explicitly.
+    monkeypatch.setattr(bars_router, "serve_bars", _serve_bars)
     assert cp.fetch_proxy_bars("spy") == series
-    # every query param explicit -- an omitted one is a truthy Query() object
     assert seen == {"ticker": "SPY", "tf": "W", "bars": cp.BARS_COUNT, "since": "", "to": "", "warm": 0}
 
 
@@ -382,18 +383,18 @@ def test_fetch_proxy_bars_is_empty_on_a_503_and_on_a_double_failure(monkeypatch)
     import requests
     from fastapi.responses import ORJSONResponse
     from api.routers import bars as bars_router
-    monkeypatch.setattr(bars_router, "get_bars", lambda ticker, **kw: ORJSONResponse(
+    monkeypatch.setattr(bars_router, "serve_bars", lambda ticker, *a, **kw: ORJSONResponse(
         status_code=503, content={"ticker": ticker, "tf": "W", "bars": [], "error": "transient"}))
     assert cp.fetch_proxy_bars("SPY") == []
 
-    def _crash(ticker, **kw):
+    def _crash(ticker, *a, **kw):
         raise RuntimeError("store gone")
     http = []
 
     def _get(url, timeout=None):
         http.append((url, timeout))
         raise ConnectionError("refused")
-    monkeypatch.setattr(bars_router, "get_bars", _crash)
+    monkeypatch.setattr(bars_router, "serve_bars", _crash)
     monkeypatch.setattr(requests, "get", _get)
     monkeypatch.setenv("PORT", "8123")
     assert cp.fetch_proxy_bars("SPY") == []
