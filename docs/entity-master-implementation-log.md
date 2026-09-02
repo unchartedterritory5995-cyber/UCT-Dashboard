@@ -824,3 +824,73 @@ short-circuits).
 **Tests run:** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — 70/70 passed before the real dry run/write; re-run after — still 70/70 (`test_reconciliation.py`'s 11 tests are counted in this total, added this checkpoint).
 
 ---
+
+## Checkpoint 8 — Full adversarial validation (2026-09-02)
+
+Explicit validation of all 14 items the authorization named, at REAL
+observed scale (32,660 entities), not an assumed smaller one.
+
+| # | Item | Evidence |
+|---|---|---|
+| 1 | Stale-delisted source vs current live security | `test_stale_delisted_registry_record_cannot_affect_reconciliation` (Ch.7) + the corrected Finding A investigation (Ch.7's own section) + real data: reconciliation's dry run and write were unaffected by either static file's staleness, both proven by direct root-cause verification against Massive's live API, not assumption. |
+| 2 | Large index universe (real: 13,322) | `test_large_index_population_does_not_degrade_resolve_correctness`, `test_entity_type_index_is_not_assumed_small_by_any_primitive` (new, Ch.8) — 2,000-entity synthetic population (the real run already proved correctness at the full 13,322 scale in Ch.4/6); no primitive special-cases position or population size. |
+| 3 | Missing FIGI | `test_cold_start_returns_not_found_never_raises` (Ch.2), `test_fmp_vendor_has_no_mapping_by_design_and_returns_none` (Ch.5) + real data: 59.8% of real entities carry zero FIGI rows and all resolve/alias/vendor-map identically (Ch.5's FIGI-coverage section). |
+| 4 | Identical symbol / different venue | `test_venue_is_not_modeled_same_symbol_string_is_one_entity_by_design` (new, Ch.8) — Entity Master deliberately does not model venue (spec §2.1: stays with `ticker_meta`); a second `new_entity` for an identical alias string is correctly rejected as an ordinary collision. Documented explicitly here as a boundary, not a gap. |
+| 5 | Provider-ID conflicts | `test_vendor_symbol_conflicting_value_is_rejected_not_silently_applied`, `test_figi_change_is_detected_and_applied` (Ch.5) — the real gap Ch.5 found and fixed (see that section). |
+| 6 | Repeat seed idempotency | `test_real_run_creates_entities_and_is_idempotent`, `test_delisted_reseed_is_fully_idempotent_stats_included`, `test_delisted_reseed_idempotent_when_window_is_zero_length` (the last two new, Ch.8) + **real data: seed script re-run THREE times today against the real, now-32,660-entity database — 0 new entities each time, entity/alias/event counts byte-identical.** A real reporting bug found and fixed along the way (below). |
+| 7 | Repeat reconciliation idempotency | `test_reconciliation_idempotent_across_repeated_passes` (Ch.7) + real data: second real reconciliation run same day, `created:0, delisted:0` (Ch.7's own section). |
+| 8 | Hyphen/dot symbol normalization | `test_massive_dot_form_and_cap_universe_hyphen_form_merge_to_one_entity`, `test_canonicalization_matches_seed_script` (Ch.6/7) — the real bug Ch.6 found and fixed, confirmed from reconciliation's side too. |
+| 9 | Provider mappings | Full Checkpoint 5 section — Massive (built + verified), FMP (investigated, confirmed not applicable), no other provider in scope. |
+| 10 | Canonical ID stability | `test_provider_mapping_writes_never_touch_canonical_identity` (Ch.5, provider-write path) + `test_canonical_id_survives_a_reconciliation_driven_delisting` (new, Ch.8, reconciliation-write path) + real data: `AL`'s `entity_id` identical before/after the real reconciliation write. |
+| 11 | Compatibility with current calendar/news/security behavior | The full FastAPI app (`api.main:app`, the real production entrypoint) imports cleanly with every change from this build present: **1,188 routes, 4.5s, zero errors.** `/api/ticker-search`, `/api/calendar/*`, and news-adjacent routes all confirmed present and unaffected in the same import. Calendar/news code itself was never touched (category C, Ch.6's classification table). |
+| 12 | Migration/rollback behavior | Ch.1's schema tests (idempotent `init_db()`, no destructive migration) + Ch.6's `test_entity_master_unavailable_degrades_to_none_never_raises` (the app's one integration point degrades gracefully if Entity Master's database is missing/corrupt — the practical shape "rollback" takes here: deleting `entity_master.db` cannot break `ticker_search_index.py`). No existing store was migrated (spec §13, unchanged) — there is nothing else to roll back. |
+| 13 | Application health | Same full-app import as #11 — the definitive check. No new background job registered in `api/main.py` (reconciliation stays unwired, Ch.7), so there is no new scheduled behavior for a boot to fail on either. |
+| 14 | Performance sanity at real scale | Measured directly against the real 32,660-entity database: **cold `resolve()` (first call, triggers a full cache load) 19.6ms; warm `resolve()` 5.9 microseconds/call average over 1,000 calls** — ~1,700× under spec §14's sub-10ms target. Seed re-run at full scale: 3.2s. Reconciliation dry run at full scale: 2.8s. `ticker_search_index.build_index()` at full scale: 3.2s for 26,613 rows. |
+
+### A real bug found and fixed while validating item 6 at real scale
+
+Re-running the seed script a THIRD time against the real database (to
+directly prove idempotency at scale, not just infer it from synthetic
+tests) surfaced a genuine bug: `delisted_entities_created` reported
+**6,060** on a run that wrote **zero** new rows. Root cause: the
+re-seed-detection check used `resolve(ticker, as_of=last_date)`, but
+`last_date` IS the alias's own `valid_to`, and the interval is exclusive
+at that boundary (`valid_to > as_of`, not `>=`) — so the check could
+NEVER match an already-seeded delisted entity, on every single re-run.
+**The underlying data was never at risk** — `apply_event`'s `dedup_key`
+mechanism made every actual write a genuine no-op regardless (confirmed
+directly: entity/alias/event counts identical before and after the
+buggy re-run) — but the STAT was actively misleading, and a misleading
+idempotency report is exactly the kind of thing that hides a REAL
+problem on some future run. Fixed two ways: switched the temporal check
+to `as_of=valid_from` (always inside the window, unlike the boundary
+date), and added a new store primitive, `alias_row_exists()` — a direct
+EXISTENCE check (not a temporal membership check), needed because even
+`as_of=valid_from` cannot represent a zero-length window
+(`first_date == last_date`, a real edge case in source data). Both
+changes are regression-tested
+(`test_delisted_reseed_is_fully_idempotent_stats_included`,
+`test_delisted_reseed_idempotent_when_window_is_zero_length`) and
+re-verified on the real database (a fourth real seed re-run now
+correctly reports `entities_created: 0, delisted_entities_created: 0`).
+
+### Regressions discovered and fixed across all of Checkpoints 5-8
+
+For the final report's own accounting: four real bugs were found DURING
+this validation work (none were present at the Checkpoint 4 owner
+review) and all four are fixed, tested, and re-verified on real data:
+1. Silent conflict-swallowing in `upsert_vendor_symbol`/`upsert_figi` (Ch.5).
+2. The dot/hyphen duplicate-entity bug in the seed script (Ch.6).
+3. The dict-comprehension ambiguity-collapse bug in `open_aliases_with_lifecycle` (Ch.7).
+4. The `delisted_entities_created` re-seed miscount (Ch.8, above).
+
+Plus one **documentation correction** (not a code bug): Finding A's
+original root-cause diagnosis was backwards (blamed
+`delisted_tickers_bulk.json`; the actually-stale file is
+`cap_universe.json`) — corrected in place in both this log and the
+`terminal-research` program's `RESEARCH_GAPS.md` (RG-33), rather than
+left standing.
+
+**Tests run (final):** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — **76/76 passed** (72 from Checkpoints 1-7 + 4 new in `test_adversarial_checkpoint8.py`).
+
+---

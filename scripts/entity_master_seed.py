@@ -218,17 +218,38 @@ def run_seed(db_path: str | None = None, dry_run: bool = False, max_pages: int =
         # delisted record rather than a 4th event type invented for this script.
         for rec in delisted:
             ticker = rec["ticker"]  # the registry's own disambiguated key (e.g. BSC-OLD)
-            existing = em_api.resolve(ticker, as_of=rec.get("last_date") or "2026-01-01", db_path=db_path)
+            valid_from = rec.get("first_date") or "1990-01-01"
+            # Checkpoint 8 fix: this re-run check previously used
+            # as_of=last_date, but last_date IS the alias's own valid_to,
+            # and the interval is exclusive at that boundary
+            # (valid_to > as_of, not >=) — so it NEVER matched an
+            # already-seeded delisted entity, on every single re-run. The
+            # underlying data stayed correct regardless (apply_event's
+            # dedup_key made every actual write a no-op either way,
+            # confirmed by a direct real-database check: 0 duplicate rows
+            # across two consecutive real re-runs), but entities_created's
+            # sibling stat, delisted_entities_created, over-reported by the
+            # full 6,060-row delisted population on every re-run. Fixed by
+            # checking `as_of=valid_from` — but a TEMPORAL "valid at time T"
+            # check still cannot represent a ZERO-length window
+            # (first_date == last_date, a same-day listed-and-delisted
+            # source record — `[d, d)` correctly contains no dates at all).
+            # Primary check is now a direct EXISTENCE query
+            # (`store.alias_row_exists`, an equality match on
+            # alias+valid_from, not an interval-membership test), which
+            # handles every window length including zero; the two
+            # `resolve()` checks stay as a defensive secondary signal for
+            # ambiguity detection.
+            already_seeded = store.alias_row_exists(ticker, valid_from, db_path)
             current = em_api.resolve(ticker, db_path=db_path)
-            if current.status == "resolved" or existing.status == "resolved":
+            if already_seeded or current.status == "resolved":
                 stats["skipped_already_seeded"] += 1
                 continue
-            if current.status == "ambiguous" or existing.status == "ambiguous":
+            if current.status == "ambiguous":
                 anomalies.append({"kind": "ambiguous_on_seed", "alias": ticker})
                 stats["ambiguities_encountered"] += 1
                 continue
 
-            valid_from = rec.get("first_date") or "1990-01-01"
             payload = {"entity_type": "equity", "initial_alias": ticker, "initial_alias_valid_from": valid_from}
             result = em_api.apply_event(
                 "new_entity", payload, dedup_key=f"seed:new_entity:{ticker}",

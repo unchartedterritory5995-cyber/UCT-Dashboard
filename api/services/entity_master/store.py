@@ -191,6 +191,23 @@ def alias_candidates_as_of(alias: str, as_of: str, db_path: str | None = None) -
     return [r[0] for r in rows]
 
 
+def alias_row_exists(alias: str, valid_from: str, db_path: str | None = None) -> bool:
+    """Checkpoint 8: EXISTENCE check (any row with this exact alias +
+    valid_from, open OR closed), not a temporal "is this valid at time T"
+    membership check — `alias_candidates_as_of` cannot represent a
+    zero-length window (`valid_from == valid_to`, e.g. a same-day
+    listed-and-delisted record in a source dataset), since a half-open
+    interval `[d, d)` correctly contains no dates at all. This is what
+    `scripts/entity_master_seed.py`'s delisted-population re-seed check
+    needs: "did I already write this exact row?", not "was it valid on
+    some particular day.\""""
+    conn = _conn(db_path)
+    return conn.execute(
+        "SELECT 1 FROM entity_aliases WHERE alias = ? AND valid_from = ?",
+        (alias, valid_from),
+    ).fetchone() is not None
+
+
 def open_aliases_with_lifecycle(db_path: str | None = None) -> dict[str, list[tuple[str, str]]]:
     """Checkpoint 7: every currently-open (`valid_to IS NULL`) alias, joined
     to its entity's `lifecycle_state` — `{alias: [(entity_id, lifecycle_state), ...]}`.

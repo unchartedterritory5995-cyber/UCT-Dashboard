@@ -256,3 +256,52 @@ def test_hyphenated_symbol_with_no_massive_dot_row_still_gets_derived_mapping(mo
         "SELECT source FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
     ).fetchone()
     assert vs_source == ("derived:dot_notation",)
+
+
+def test_delisted_reseed_is_fully_idempotent_stats_included(monkeypatch, db_path):
+    """Checkpoint 8 regression test: re-running the seed script against an
+    already-seeded delisted population must report ZERO new
+    delisted_entities_created, not just leave the underlying data
+    unduplicated (which the dedup_key mechanism already guaranteed) — the
+    STAT must be trustworthy too, not just the data. Found on real data:
+    the original as_of=last_date check hit the interval's exclusive
+    boundary and never matched, so every re-run mis-reported the full
+    delisted population as freshly "created" even though zero rows were
+    actually written twice."""
+    _patch_sources(
+        monkeypatch,
+        delisted=[{
+            "ticker": "BSC-OLD", "provider_symbol": "BSC", "name": "Bear Stearns",
+            "first_date": "1985-10-01", "last_date": "2008-05-30",
+            "delisted_date": "2008-05-30",
+        }],
+    )
+    r1 = seed.run_seed(db_path=db_path)
+    assert r1["stats"]["delisted_entities_created"] == 1
+
+    r2 = seed.run_seed(db_path=db_path)
+    assert r2["stats"]["delisted_entities_created"] == 0
+    assert r2["stats"]["skipped_already_seeded"] == 1
+
+    conn = store._conn(db_path)
+    assert conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM entity_events").fetchone()[0] == 3  # unchanged from r1
+
+
+def test_delisted_reseed_idempotent_when_window_is_zero_length(monkeypatch, db_path):
+    """Edge case the fix explicitly targets: first_date == last_date (a
+    single-day-listed delisted record). Must still be detected as
+    already-seeded on a re-run, not just on a normal multi-day window."""
+    _patch_sources(
+        monkeypatch,
+        delisted=[{
+            "ticker": "FLASH-OLD", "provider_symbol": "FLASH", "name": "Flash Co",
+            "first_date": "2020-01-01", "last_date": "2020-01-01",
+            "delisted_date": "2020-01-01",
+        }],
+    )
+    seed.run_seed(db_path=db_path)
+    r2 = seed.run_seed(db_path=db_path)
+    assert r2["stats"]["delisted_entities_created"] == 0
+    conn = store._conn(db_path)
+    assert conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0] == 1
