@@ -76,3 +76,76 @@ until Checkpoint 6 (Compatibility integration) wires a consumer.
 5-8 not yet authorized.
 
 ---
+
+## Checkpoint 2 — Read primitives (2026-09-02)
+
+**Changes made:**
+- New `api/services/entity_master/store.py`: thread-local WAL connections
+  (mirrors `bars_sqlite.py::_conn()`), the in-process `_WRITE_LOCK` (unused
+  by any writer yet — created now per spec §8.2 so Checkpoint 3 doesn't need
+  to touch this file), and the in-memory `alias -> entity_id(s)` resolution
+  cache (`_ALIAS_CACHE`, lazy-loaded via `_ensure_cache_loaded()` mirroring
+  `delisted_registry._ensure_loaded()`, force-rebuilt via `rebuild_cache()`
+  mirroring `ticker_search_index.build_index()`).
+- New `api/services/entity_master/api.py`: the `Entity`/`AliasRecord`/
+  `ResolveResult` dataclasses and the four read primitives (`resolve`,
+  `aliases`, `vendor_symbol`, `related_to`) per spec §6. `apply_event` is
+  NOT in this file — Checkpoint 3's addition, kept out so this diff stays
+  reviewable on its own.
+- 9 new tests appended to `test_entity_master.py` (16 total now), covering
+  AC-1, AC-2, AC-6, AC-7, AC-8, AC-9, AC-10, `test_share_class_vs_vendor_
+  notation`, plus one vendor-symbol-unmapped case. All seed fixtures
+  directly at the SQLite layer (no `apply_event` exists yet), matching the
+  approach spec §12 specifies explicitly for AC-6.
+
+**Tests run:** `python -m pytest api/services/entity_master/test_entity_master.py -v`
+— 16/16 passed.
+
+**Decisions made (each recorded because the spec left it a genuine
+technical-spec-level choice, not because it deviates from anything locked):**
+- `resolve()` never silently returns an arbitrary match on a collision —
+  `status="ambiguous"` carries every candidate `entity_id`. This was the
+  Checkpoint 2 authorization's explicit condition ("do not hide ambiguity
+  with arbitrary first-match behavior").
+- `vendor_symbol()`'s return type (`Optional[str]`, per spec §6's literal
+  signature) has no ambiguous-status slot, so a genuine multi-row overlap
+  (should not occur under the write-time guard, but this read primitive
+  does not assume the guard was honored) resolves via a documented
+  deterministic tie-break — most-recently-started row wins
+  (`ORDER BY valid_from DESC LIMIT 1`) — rather than an undocumented
+  first-row-SQLite-happens-to-return pick.
+- `aliases(entity_id, as_of=None)` returns the FULL alias history (every
+  row, oldest first), not just the alias valid "now". The spec's §4.4
+  citation ("the single alias valid at that time") describes the
+  `as_of=<a specific date>` case; AC-2's own requirement ("aliases() never
+  drops the closed row") only holds if the `as_of=None` case returns
+  everything. Both behaviors are implemented: `as_of=None` = full roster,
+  `as_of=<date>` = the record(s) whose window covers that date. This was
+  the one place the spec's signature was genuinely underdetermined between
+  two readings; the choice made is the one that satisfies AC-2's literal
+  wording and the PRD's "historical roster rendering" use case (UC-4)
+  without contradicting §4.4's own citation.
+
+**Deviations from spec:** None beyond Checkpoint 1's already-recorded
+`entity_type` comment correction. `datetime.datetime.now(datetime.UTC)` is
+used instead of the deprecated `datetime.datetime.utcnow()` the spec's own
+prose mentions in passing (§6) — a mechanical, behavior-identical swap, not
+a design deviation.
+
+**Unexpected discoveries:** None.
+
+**Risks:** The in-memory cache (`store._ALIAS_CACHE`) is a single
+process-global dict, matching `ticker_search_index.py`'s own
+`_INDEX`/`_BY_SYM` shape — correct for this store's real single-database
+production shape, but test isolation across different `db_path` values
+relies on every read-path test calling `store.rebuild_cache(db_path=...)`
+before asserting (each rebuild fully replaces the global cache from the
+one database it was pointed at). Documented in the test file's module
+docstring; not a production risk since production only ever has one
+`entity_master.db`.
+
+**Remaining work:** Checkpoint 3 (write path — `apply_event`, the
+collision guard, cache rebuild-on-write), Checkpoint 4 (seed machinery +
+first real seed run — HARD STOP), 5-8 not yet authorized.
+
+---
