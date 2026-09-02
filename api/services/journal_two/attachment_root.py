@@ -47,6 +47,22 @@ def attachment_root() -> Path:
 def read_candidates(rel: Path) -> list[Path]:
     """Absolute paths to try, in order, for a relative attachment path.
     Primary first, then the legacy tree (dedup'd when they coincide)."""
-    primary = attachment_root() / rel
-    legacy = LEGACY_ATTACHMENT_ROOT / rel
-    return [primary] if primary == legacy else [primary, legacy]
+    return [path for _, path in read_candidates_with_roots(rel)]
+
+
+def read_candidates_with_roots(rel: Path) -> list[tuple[Path, Path]]:
+    """Like `read_candidates`, but paired with the ROOT each candidate was
+    built from: `(primary_root, primary_root/rel)`, then, unless it coincides,
+    `(LEGACY_ATTACHMENT_ROOT, LEGACY_ATTACHMENT_ROOT/rel)`.
+
+    A caller doing path-containment must check a resolved candidate against
+    the root it actually came from — never against `root/rel` itself, since
+    `rel` can carry caller-supplied segments (e.g. user_id/note_id) that a
+    containment check anchored on `root/rel` would silently trust."""
+    primary_root = attachment_root()
+    legacy_root = LEGACY_ATTACHMENT_ROOT
+    primary = primary_root / rel
+    legacy = legacy_root / rel
+    if primary == legacy:
+        return [(primary_root, primary)]
+    return [(primary_root, primary), (legacy_root, legacy)]

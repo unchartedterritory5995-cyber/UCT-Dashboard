@@ -30,6 +30,7 @@ MAX_FOLDER_DEPTH = 6
 
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
+    read_candidates_with_roots as _read_candidates_with_roots,
 )
 from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
@@ -1351,6 +1352,14 @@ async def save_note_attachment(
     )
 
 
+def _is_safe_path_segment(value: str) -> bool:
+    """One path segment, same axis `filename` is already checked on below: no
+    separators (so it can't smuggle extra path components) and no leading
+    dot (so it can't be `.`/`..`). Empty is also unsafe — `Path("") / "x"`
+    silently collapses to `"x"`, which is not the segment the caller named."""
+    return bool(value) and "/" not in value and "\\" not in value and not value.startswith(".")
+
+
 def serve_note_image_path(
     user_id: str,
     note_id: str,
@@ -1359,16 +1368,32 @@ def serve_note_image_path(
 ) -> Path | None:
     if sub not in ("hero", "inline", "file"):
         return None
+    # Cheap, precise layer: user_id/note_id/filename must each be a single
+    # path segment. This alone would have caught the historical bug, but it
+    # is NOT the only guard — see the root-anchored check below.
+    if not _is_safe_path_segment(user_id) or not _is_safe_path_segment(note_id):
+        return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
     rel = Path(user_id) / "notes" / note_id / sub
-    # Primary root first, then the LEGACY repo-relative tree — a box that still
-    # holds files in the old location keeps serving them after the root moved.
-    # The traversal guard is re-applied per candidate, never skipped.
-    for base in _read_candidates(rel):
+    # Structural layer: containment is checked against the ATTACHMENT ROOT
+    # itself (primary or legacy — whichever root this candidate came from),
+    # never against `base` (= root/user_id/notes/note_id/sub). `base` is
+    # built FROM caller-supplied user_id/note_id, so a containment check
+    # anchored on `base` only proves the target sits inside a directory the
+    # caller helped construct — it says nothing about the real root. Anchoring
+    # on the root is what still holds even if a future caller (e.g. one
+    # reading user_id/note_id out of a DB row instead of a validated URL path)
+    # skips the segment check above.
+    #
+    # Primary root first, then the LEGACY repo-relative tree — a box that
+    # still holds files in the old location keeps serving them after the
+    # root moved. The containment guard is re-applied per candidate, never
+    # skipped.
+    for root, base in _read_candidates_with_roots(rel):
         target = (base / filename).resolve()
         try:
-            target.relative_to(base.resolve())
+            target.relative_to(root.resolve())
         except ValueError:
             continue
         if target.exists():

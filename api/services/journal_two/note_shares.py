@@ -150,7 +150,13 @@ def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[st
 def resolve_share_attachment(token: str, sub: str, filename: str,
                              conn: sqlite3.Connection | None = None):
     """Filesystem path for a token-scoped attachment — images only ('file'
-    attachments stay private), path-traversal guarded by serve_note_image_path."""
+    attachments stay private). `row["user_id"]`/`row["note_id"]` come from a
+    DB row here, not a validated URL segment, so this call cannot rely on a
+    router having already checked them. What actually holds: `serve_note_image_path`
+    validates user_id/note_id/filename as single path segments AND independently
+    anchors containment on the real attachment root (never on a directory built
+    from those same values) — either guard alone would refuse a malformed row,
+    and losing one still leaves the other."""
     if sub not in ("inline", "hero"):
         return None
     owned = conn is None
