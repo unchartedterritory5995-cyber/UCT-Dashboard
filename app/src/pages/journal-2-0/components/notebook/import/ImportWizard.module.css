@@ -207,20 +207,23 @@
   cursor: pointer;
 }
 .bulkBtn:hover { background: var(--bg-hover, #2a2d24); }
+/* Fixed max-height + overflow-y: auto make this the virtualizer's scroll
+   element (`getScrollElement`, ImportWizard.jsx) — position: relative so its
+   absolutely-positioned rows (each a virtual item) anchor here rather than
+   the Sheet's own scrolling `.body`. Rows are NOT flex/gap children of this
+   element any more (a decade-of-Evernote import can carry thousands of
+   them — every row used to mount unconditionally, which stalled every
+   checkbox click for seconds; see Task 3 of
+   2026-09-02-closing-the-transfer-gap.md) — only the ones scrolled into view
+   ever exist in the DOM.
+*/
 .notesList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  position: relative;
   max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--border, #2e3127);
   border-radius: var(--radius-md, 6px);
   padding: 10px;
-}
-.notesGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 .notesGroupHeader {
   display: flex;
@@ -258,6 +261,15 @@
   font-size: 13px;
   color: var(--text-bright, #e0dac8);
   padding: 2px 0;
+}
+/* Single line, always — a wrapped title would make this row's real height
+   disagree with the virtualizer's fixed NOTE_ROW_H estimate (ImportWizard.jsx)
+   and rows would start overlapping. */
+.noteTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .warningsList {
