@@ -8,7 +8,7 @@ const fetcher = (url) =>
   })
 
 export default function useJ2Notes({
-  folderId, tag, ticker, q, sort = 'updated',
+  folderId, tag, ticker, q, sort = 'updated', limit, enabled = true,
 } = {}) {
   const params = new URLSearchParams()
   if (folderId) params.set('folder_id', folderId)
@@ -16,15 +16,21 @@ export default function useJ2Notes({
   if (ticker) params.set('ticker', ticker)
   if (q) params.set('q', q)
   if (sort) params.set('sort', sort)
+  if (limit) params.set('limit', String(limit))
   const qs = params.toString()
   const url = `/api/j2/notes${qs ? `?${qs}` : ''}`
-  const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
+  // `enabled=false` passes SWR a null key, which skips the fetch entirely —
+  // callers that only sometimes need this data (e.g. a search panel that
+  // shouldn't hit the default list on every render) pass this instead of
+  // calling the hook conditionally (not allowed — same hook, every render).
+  const { data, error, isLoading, isValidating, mutate } = useSWR(enabled ? url : null, fetcher, {
     revalidateOnFocus: true,
     shouldRetryOnError: false,
   })
   return {
     notes: data?.notes ?? [],
     isLoading,
+    isValidating,
     error,
     refresh: () => mutate(),
     // Raw SWR mutate for optimistic cache writes (instant new-note + live title

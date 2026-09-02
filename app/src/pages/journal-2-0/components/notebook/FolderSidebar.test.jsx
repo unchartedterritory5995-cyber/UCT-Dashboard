@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FolderSidebar, { buildFolderTree } from './FolderSidebar'
 
@@ -15,6 +15,20 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({
     create: vi.fn(), rename: vi.fn(), remove: removeMock, refresh: vi.fn(),
   }),
 }))
+
+// The panel's search view is wired to this hook (Task 7 — server-backed
+// search over the FULL note body, not a client-side filter over one loaded,
+// SQL-truncated page). Mocked so every test controls exactly what "the
+// server" returns and can inspect what FolderSidebar actually asked for.
+const useJ2NotesMock = vi.fn(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
+vi.mock('../../hooks/useJ2Notes', () => ({
+  default: (...args) => useJ2NotesMock(...args),
+}))
+
+beforeEach(() => {
+  useJ2NotesMock.mockReset()
+  useJ2NotesMock.mockImplementation(() => ({ notes: [], isLoading: false, isValidating: false, error: null }))
+})
 
 describe('folder tree', () => {
   it('buildFolderTree nests children under parents (orphans become roots)', () => {
@@ -67,33 +81,142 @@ describe('header toolbar — collapse + search mode', () => {
     expect(onToggle).toHaveBeenCalled()
   })
 
-  it('Search mode filters notes by title/body and opening a result calls onOpenNote', () => {
-    const onOpenNote = vi.fn()
-    render(<FolderSidebar
-      notes={[
-        { id: 'n1', title: 'SNDK Investor Day', bodyPlain: 'memory names', folderId: 'a', tags: [] },
-        { id: 'n2', title: 'AMD earnings', bodyPlain: 'chips', folderId: null, tags: [] },
-      ]}
-      activeFolderId={null} onSelectFolder={() => {}}
-      activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
-    // Enter search mode → the folder tree is replaced by the search box.
+  it('entering search mode with no query never fetches (gated — no redundant request)', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
     fireEvent.click(screen.getByLabelText('Search notes'))
-    const input = screen.getByPlaceholderText(/search notes/i)
-    fireEvent.change(input, { target: { value: 'sndk' } })
-    expect(screen.getByText('SNDK Investor Day')).toBeInTheDocument()
-    expect(screen.queryByText('AMD earnings')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByText('SNDK Investor Day'))
-    expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'n1' }))
+    // The hook is still invoked every render (React's rule — hooks can't be
+    // called conditionally), but it must never be asked to fetch while there
+    // is nothing to search for.
+    expect(useJ2NotesMock.mock.calls.length).toBeGreaterThan(0)
+    for (const [opts] of useJ2NotesMock.mock.calls) {
+      expect(opts?.enabled).toBe(false)
+    }
+  })
+})
+
+describe('search panel — server-backed (Task 7: migrated-scale correctness)', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('body-text search matches a note whose title does not', () => {
-    render(<FolderSidebar
-      notes={[{ id: 'n1', title: 'Untitled', bodyPlain: 'the semiconductor supercycle', folderId: null, tags: [] }]}
-      activeFolderId={null} onSelectFolder={() => {}}
-      activeTag={null} onSelectTag={() => {}} />)
+  function typeQuery(value) {
     fireEvent.click(screen.getByLabelText('Search notes'))
-    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'supercycle' } })
-    expect(screen.getByText('1 result')).toBeInTheDocument()
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value } })
+  }
+
+  it('debounces the query ~250ms before asking the server, and gates the call while nothing is pending', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+
+    // Immediately after typing (debounce still pending) the hook must not yet
+    // be enabled for THIS query — firing on every keystroke is exactly the
+    // per-render redundant request the gate exists to prevent.
+    const beforeDebounce = useJ2NotesMock.mock.calls.at(-1)[0]
+    expect(beforeDebounce.enabled).toBe(false)
+
+    act(() => { vi.advanceTimersByTime(249) })
+    expect(useJ2NotesMock.mock.calls.at(-1)[0].enabled).toBe(false)
+
+    act(() => { vi.advanceTimersByTime(2) }) // crosses the 250ms mark
+    const afterDebounce = useJ2NotesMock.mock.calls.at(-1)[0]
+    expect(afterDebounce.enabled).toBe(true)
+    expect(afterDebounce.q).toBe('sndk')
+  })
+
+  it('shows "Searching…" while the debounce is pending — never a bare "no results" moment', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    // Debounce hasn't fired yet — nothing resolved, so this must read as
+    // "still working", not as an answer of zero.
+    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
+  })
+
+  it('shows "Searching…" while the server request itself is in flight, after the debounce settles', () => {
+    useJ2NotesMock.mockImplementation((opts) => ({
+      notes: [],
+      isLoading: Boolean(opts?.enabled),
+      isValidating: false,
+      error: null,
+    }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    settle()
+    expect(screen.getByRole('status').textContent).toBe('Searching…')
+    expect(screen.queryByText(/No notes match/)).not.toBeInTheDocument()
+  })
+
+  it('renders the SERVER result, not a client-side filter over the loaded page — would fail if the panel still filtered `notes` locally', () => {
+    // The loaded page (`notes` prop) holds a note whose VISIBLE bodyPlain does
+    // NOT contain the search term — a client-side filter over this array can
+    // never match it. The mocked "server" returns a wholly different note
+    // that DOES contain the term (standing in for text past the 400-char SQL
+    // truncation of `bodyPlain`, findable only through the real FTS5 index).
+    const localNote = { id: 'local1', title: 'Local Only Note', bodyPlain: 'nothing to do with the term', folderId: null, tags: [] }
+    const serverNote = { id: 'server1', title: 'Server Only Note', bodyPlain: 'deep-cycle content containing zzterm', folderId: null, tags: [] }
+
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return { notes: [serverNote], isLoading: false, isValidating: false, error: null }
+    })
+
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[localNote]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    typeQuery('zzterm')
+    settle()
+
+    expect(screen.getByText('Server Only Note')).toBeInTheDocument()
+    expect(screen.queryByText('Local Only Note')).not.toBeInTheDocument()
+
+    // Assert on the mock's call record directly (outside any fetch/json
+    // callback) — the wiring itself, not a value read back through a promise
+    // whose rejection a `.catch` would otherwise swallow.
+    const calls = useJ2NotesMock.mock.calls
+    expect(calls.some(([opts]) => opts?.enabled === true && opts?.q === 'zzterm')).toBe(true)
+
+    fireEvent.click(screen.getByText('Server Only Note'))
+    expect(onOpenNote).toHaveBeenCalledWith(expect.objectContaining({ id: 'server1' }))
+  })
+
+  it('requests the limit the panel displays', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    settle()
+    const enabledCall = useJ2NotesMock.mock.calls.find(([opts]) => opts?.enabled)
+    expect(enabledCall[0].limit).toBe(100)
+  })
+
+  it('says so when nothing matches, once the query has actually settled', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('nothingmatchesthis')
+    settle()
+    expect(screen.getByText(/No notes match/)).toBeInTheDocument()
+  })
+
+  it('leaving search mode without a query never enables the fetch', () => {
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    settle()
+    for (const [opts] of useJ2NotesMock.mock.calls) {
+      expect(opts?.enabled).toBe(false)
+    }
   })
 })
 
