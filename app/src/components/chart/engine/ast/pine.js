@@ -1681,6 +1681,16 @@ function dmiParts(toks, close, names, env, first) {
  *
  *  ⚠️ THE NAMESPACED SPELLINGS ARE DELIBERATE. `ta.sma`, `ta.stdev` and `ta.ema`
  *  cannot be shadowed by a member's own binding the way a bare name can. */
+/** ⭐ WHAT TO SAY WHEN A CALL HAS THE RIGHT NAME AND THE WRONG COUNT, keyed by
+ *  the bare Pine name. Only entries where an EXACT alternative TRANSLATES belong
+ *  here — a hint that sends a member to something which also refuses is worse
+ *  than the bare count. */
+const ARITY_HINTS = Object.freeze({
+  change: 'TO UNBLOCK: Pine defines `ta.change(source, length)` and '
+    + '`ta.mom(source, length)` as the same difference, `source - source[length]`, '
+    + 'and this engine translates the `ta.mom` spelling',
+})
+
 const PINE_TUPLE_BUILTINS = Object.freeze({
   bb: {
     arity: 3,
@@ -4899,10 +4909,21 @@ class Resolver {
           locate(tok))
       }
       if (args.length !== declaredArgs.length) {
+        // ⭐⭐ A COUNT MISMATCH WITH A KNOWN WAY ROUND IT SAYS SO. `ta.change(src)`
+        // is declared and `ta.change(src, n)` is not — recorded in
+        // `pine.derived.test.js::TA_VETTED` as *"the n-arg form is refused by
+        // arity"*. That was the whole story until `ta.mom` landed: Pine defines
+        // both as `source - source[length]`, so the two-argument change now HAS an
+        // exact spelling that translates, and a member hitting this wall should be
+        // told it rather than left to find it.
+        // ⛔ IT IS A SENTENCE, NOT AN AUTO-REWRITE. This door has no span to
+        // replace and no business renaming a member call.
+        const hint = own(ARITY_HINTS, bare) ? ' — ' + ARITY_HINTS[bare] : ''
         throw new PineRefusal('pine:arity',
-          `${REFUSALS['pine:arity']} — \`${pineName}\` was given ${args.length} `
-          + `argument${args.length === 1 ? '' : 's'}; this table takes `
-          + `${declaredArgs.length} — ${signatureOf(key, spec)}`, locate(tok))
+          REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given '
+          + args.length + ' argument' + (args.length === 1 ? '' : 's')
+          + '; this table takes ' + declaredArgs.length + ' — '
+          + signatureOf(key, spec) + hint, locate(tok))
       }
       plan = declaredArgs.map((_, i) => ({ pine: i }))
     }
