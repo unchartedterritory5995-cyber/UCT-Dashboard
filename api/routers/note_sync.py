@@ -22,6 +22,7 @@ import asyncio
 import base64
 import hashlib
 import hmac as _hmac
+import json
 import logging
 import os
 import secrets
@@ -30,20 +31,23 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from api.middleware.auth_middleware import (
     PAID_PLANS,
     get_current_user,
     get_current_user_optional,
+    is_paid_user,
     require_plan,
 )
-from api.services import crypto_box
+from api.services import auth_service, crypto_box
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
-from api.services.journal_two.note_connectors import connections, engine, errors, oauth, registry
+from api.services.journal_two.note_connectors import (
+    connections, engine, errors, obsidian_link, obsidian_staging, oauth, registry,
+)
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
 
 log = logging.getLogger("note_connectors.router")
@@ -750,3 +754,125 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
         return {"rows": [dict(r) for r in rows]}
     finally:
         conn.close()
+
+
+# ── POST /obsidian/ingest (Obsidian plugin push transport, Task 3) ───────────
+#
+# Obsidian is local-first — the plugin PUSHES; the sync engine only PULLS from
+# providers (spec §7.2). This endpoint writes ONLY to the staging tables
+# (`obsidian_staging.ingest_batch`) — ⛔ NEVER to `j2_notes`. Writing notes
+# directly here would duplicate the conflict ratchet, delete detection, media
+# phase and import-hash logic that `note_connectors/engine.py` already owns,
+# and the copies would drift ("four readers of one envelope, three of them
+# wrong" — this repo has paid for that shape once). Task 4's provider reads
+# staging and satisfies the ordinary `NoteProvider` contract instead, so the
+# engine's convert -> upsert -> conflict -> media path is inherited unchanged.
+
+_MAX_OBSIDIAN_INGEST_BYTES = 2_000_000  # ~2MB per push. Declared Content-Length
+# is checked BEFORE the body is read (mirrors community.py's image-upload
+# guard, "reject oversize up front ... so we never buffer a huge body"); the
+# actual byte length is re-checked after reading in case Content-Length lied.
+# Either path refuses with a clean 4xx — never a 500.
+
+
+class ObsidianNoteItem(BaseModel):
+    vault_path: str
+    content_hash: str
+    body_md: str
+    updated_at: str
+
+
+class ObsidianIngestBody(BaseModel):
+    """Wire shape the (out-of-repo, Wave 3b) Obsidian plugin pushes.
+    `consent` mirrors `ConnectBody.consent` above — the SAME gate, not a
+    second scheme (task brief: "paid-gated and consent-gated like the other
+    connector endpoints"). Deliberately carries NO `user_id`/`vault_id`
+    field: those two values come EXCLUSIVELY from the authenticated device
+    (`_authenticate_obsidian_device`) — a same-named field in the body is
+    silently ignored by pydantic, never read, so a forged one cannot steer
+    a write to a different tenant."""
+    consent: bool = False
+    notes: list[ObsidianNoteItem] = []
+    manifest: list[str] | None = None
+    final: bool = False
+
+
+def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
+    """Device-token auth (Task 2's `obsidian_link.authenticate_device`) — the
+    same `Authorization: Bearer <token>` idiom every other bearer-token
+    endpoint in this codebase uses (`push.py`, `desk_zoom_webhook.py`).
+    Raises 401 for a missing/malformed header or any token
+    `authenticate_device` doesn't recognize; that function itself never
+    raises for a bad/garbage token, so this can't turn a malicious or
+    malfunctioning plugin push into a 500."""
+    auth = request.headers.get("authorization") or ""
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    raw_token = auth[len("Bearer "):].strip()
+    device = obsidian_link.authenticate_device(raw_token)
+    if device is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return device
+
+
+def _require_paid_device_user(user_id: str) -> None:
+    """The SAME predicate `_paid`/`require_plan(list(PAID_PLANS))` enforces
+    on every other connector endpoint (admin, OR a PAID_PLANS plan, OR
+    'comped', OR an active trial) — reimplemented as a plain call rather than
+    a `Depends` only because `require_plan`'s dependency chain resolves the
+    caller from the SESSION COOKIE (`get_current_user_with_plan`), and a
+    device push carries no session to read one from. The identity itself
+    still comes from ONLY the already-authenticated device — this never
+    reads a user id out of the request."""
+    user = auth_service.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(status_code=403, detail="Upgrade required")
+    user = dict(user)
+    user["plan"] = auth_service.get_user_plan(user_id)
+    if user.get("role") == "admin" or user["plan"] == "comped" or is_paid_user(user):
+        return
+    raise HTTPException(status_code=403, detail="Upgrade required")
+
+
+@router.post("/obsidian/ingest")
+async def obsidian_ingest(request: Request) -> dict[str, Any]:
+    """Batch push from the Obsidian plugin. Body: `{consent, notes:
+    [{vault_path, content_hash, body_md, updated_at}], manifest?, final?}`.
+    `manifest` — the vault's COMPLETE path list — is only applied to
+    `j2_obsidian_manifest` when `final` is true (see
+    `obsidian_staging.ingest_batch`'s docstring for why a partial push must
+    never touch it)."""
+    device = _authenticate_obsidian_device(request)
+    _require_paid_device_user(device["user_id"])
+
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except (TypeError, ValueError):
+        declared = 0
+    if declared > _MAX_OBSIDIAN_INGEST_BYTES:
+        raise HTTPException(status_code=400, detail="batch too large")
+    raw = await request.body()
+    if len(raw) > _MAX_OBSIDIAN_INGEST_BYTES:
+        raise HTTPException(status_code=400, detail="batch too large")
+
+    try:
+        payload = json.loads(raw or b"{}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    try:
+        body = ObsidianIngestBody(**payload)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not body.consent:
+        raise HTTPException(status_code=400, detail="Consent is required to sync from Obsidian.")
+
+    return obsidian_staging.ingest_batch(
+        user_id=device["user_id"],
+        vault_id=device["vault_id"],
+        notes=[n.model_dump() for n in body.notes],
+        manifest=body.manifest,
+        final=body.final,
+    )
