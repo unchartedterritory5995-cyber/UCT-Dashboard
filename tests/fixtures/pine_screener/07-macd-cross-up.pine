@@ -1,0 +1,4 @@
+//@version=6
+indicator("screen")
+[m, sig, hist] = ta.macd(close, 12, 26, 9)
+plot(ta.crossover(m, sig) ? 1 : 0)

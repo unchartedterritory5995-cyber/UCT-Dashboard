@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.cci(hlc3, 20) < -100 ? 1 : 0)

@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(close > ta.sma(close, 200) and ta.rsi(close, 2) < 10 ? 1 : 0)

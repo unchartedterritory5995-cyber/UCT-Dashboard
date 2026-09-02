@@ -1,0 +1,4 @@
+//@version=6
+indicator("screen")
+f_oversold(src, n) => ta.rsi(src, n) < 30
+plot(f_oversold(close, 14) ? 1 : 0)

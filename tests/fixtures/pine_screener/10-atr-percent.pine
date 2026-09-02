@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.atr(14) / close > 0.03 ? 1 : 0)

@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(ta.stoch(close, high, low, 14) < 20 ? 1 : 0)

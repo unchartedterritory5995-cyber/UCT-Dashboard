@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(open > close[1] * 1.03 and close > open ? 1 : 0)

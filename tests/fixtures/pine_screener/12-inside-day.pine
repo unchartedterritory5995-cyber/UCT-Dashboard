@@ -1,0 +1,3 @@
+//@version=6
+indicator("screen")
+plot(high < high[1] and low > low[1] ? 1 : 0)

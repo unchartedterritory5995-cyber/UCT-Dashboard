@@ -1,0 +1,5 @@
+//@version=6
+indicator("screen")
+trendUp = close > ta.sma(close, 200)
+volOk   = volume > ta.sma(volume, 20)
+plot(trendUp and volOk ? 1 : 0)

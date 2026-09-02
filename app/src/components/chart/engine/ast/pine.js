@@ -899,6 +899,30 @@ const BUILTIN_CALL_TREE = Object.freeze({
     const prev = { type: 'offset', value: a[1].value, args: [a[0]] }
     return cOp('/', [cOp('*', [cNum(100), cOp('-', [a[0], prev])]), prev])
   },
+  // ⚰️⚰️ AND THIS MAP IS ONLY REACHED FOR NAMES THE TABLE DOES **NOT** DECLARE.
+  // Measured 2026-09-01 by writing three entries here that never fired:
+  // `ta.cci(hlc3, 20)`, `ta.mfi(hlc3, 14)` and `ta.vwap(hlc3)` all still refused,
+  // because `cci`, `mfi` and `vwap` ARE table functions, so resolution takes the
+  // table path and never asks this map. `mom` and `roc` fire precisely because
+  // the table declares neither.
+  //
+  // ⭐ THAT MATTERS FOR THE THREE ADAPTERS THAT ARE STILL WANTED. Pine passes a
+  // SOURCE where this table takes price fields, and the shipped implementations
+  // all read the typical price — `computeCCI` and `computeMFI` both open with
+  // `tp[i] = (h + l + c) / 3`, `computeVWAP` weights by the same — so when the
+  // source IS `hlc3` the four-field call is exactly the same column, and when it
+  // is not (`ta.cci(close, 20)` is a real and different indicator) it must
+  // refuse. A `PINE_CALL_SHAPES` entry cannot say that: its `build` is a static
+  // plan and would DROP the source argument silently. What it needs is a
+  // shape-level `sourceMustBe` checked where `plan = shape.build` is assigned —
+  // and the open question there is speculative resolution, since that argument
+  // appears in no slot and would otherwise never be resolved at all.
+  //
+  // ⭐ `ta.mom(source, length)` IS `roc`'S OWN NUMERATOR. Pine's reference calls it
+  // "the difference between the current price and the price `length` bars ago",
+  // which is the `source - source[length]` already sitting inside the line above
+  // — so this costs the table nothing and cannot disagree with `roc`.
+  mom: (a) => cOp('-', [a[0], { type: 'offset', value: a[1].value, args: [a[0]] }]),
   // ta.avg(a, b, ...) is the mean OF ITS ARGUMENTS, not a rolling window. ⛔ Not
   // `sma`: reading it as one would turn a two-series average into a 2-bar average
   // of the first, which parses, scans and is wrong on every bar.
