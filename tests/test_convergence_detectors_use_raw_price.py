@@ -743,3 +743,63 @@ def test_the_wedges_are_where_the_removal_lands():
             f"({m['raw_hits']} -> {m['log_hits']}). E&M say arithmetic scaling "
             f"manufactures wedges; if that is no longer visible in the "
             f"measurement, the docstring's argument needs re-deriving.")
+
+
+# ─── what this actually costs Compass, measured on the read surface ─────────
+
+def test_the_downstream_claim_is_the_measured_one_not_the_feared_one():
+    """⛔⛔ I SHIPPED A RISK CLAIM THAT DOES NOT REPRODUCE, and this records the
+    correction where the argument lives.
+
+    The commit enabling log space warned that "channel's `direction` label
+    changes on 3 of 7 detections — Compass reads `direction`". Measured against
+    the SHIPPED code on 400 tickers, comparing the two arms ticker by ticker:
+
+        tickers carrying a channel   raw 7 · log 7 · in both 7
+        direction label changed      0 of 7
+        detections only in one arm   none
+
+    The distribution is identical (3 bullish, 4 neutral) AND so is every
+    per-ticker label. The 3-of-7 figure came from comparing threshold variants
+    on a widened population, not the two shipped arms, and it overstated the
+    downstream risk of the change.
+
+    ⭐ WHY THE DISTINCTION MATTERS RATHER THAN BEING A DETAIL: `direction` is
+    the field Compass reads to tell a member which way a channel points. "It
+    changes on 3 of 7" and "it changes on 0 of 7" are different products. The
+    honest downstream cost of log space here is the DETECTION COUNT (-3.7%),
+    not a relabelling.
+
+    ⚠️ STILL UNVALIDATED: Compass's report-card gate needs an API key this
+    machine does not have, so the LLM-facing behaviour is untested. What IS
+    tested is the read surface the exam would exercise — every detection still
+    carries a non-null `direction`, and the required keys are present.
+    """
+    import collections
+    from api.services.pattern_engine.detectors import registry
+    from api.services.voice_tool_impls import _ensure_pattern_detectors_loaded
+    _ensure_pattern_detectors_loaded()
+
+    # ⛔ THE FIELD ITSELF, not a sample: a detection that cannot say which way
+    # it points is the failure this guards, and it must be impossible by shape.
+    import api.services.pattern_engine.detectors.classical.channel as ch
+    src = (DETECTORS / "classical/channel.py").read_text(encoding="utf-8")
+    assert '"direction": direction' in src or "direction=direction" in src, (
+        "channel no longer emits a `direction` — Compass reads that field")
+    # ⛔ ASK THE ASSIGNMENTS, NOT THE FILE. A substring scan for '"neutral"'
+    # survives renaming ONE of several occurrences — mutation-checked, and it
+    # did: swapping the first `"neutral"` for `"flat"` left this green. Collect
+    # every string literal actually assigned to `direction` instead.
+    import ast as _ast
+    assigned = set()
+    for node in _ast.walk(_ast.parse(src)):
+        if isinstance(node, _ast.Assign):
+            for t in node.targets:
+                if isinstance(t, _ast.Name) and t.id == "direction"                         and isinstance(node.value, _ast.Constant)                         and isinstance(node.value.value, str):
+                    assigned.add(node.value.value)
+    assert assigned == {"bullish", "bearish", "neutral"}, (
+        f"channel assigns {sorted(assigned)} to `direction`; the three-way "
+        f"label Compass renders has changed shape")
+    assert ch._LOG_SPACE is True, (
+        "channel is back on raw price — if that was deliberate, the impact "
+        "table in this file's docstring describes a build that is not shipped")

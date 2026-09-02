@@ -1,0 +1,16 @@
+{
+  "amazon": "AMZN", "apple": "AAPL", "nvidia": "NVDA", "tesla": "TSLA",
+  "microsoft": "MSFT", "google": "GOOGL", "alphabet": "GOOGL", "meta": "META",
+  "netflix": "NFLX", "dell": "DELL", "broadcom": "AVGO", "palantir": "PLTR",
+  "coinbase": "COIN", "robinhood": "HOOD", "micron": "MU", "intel": "INTC",
+  "boeing": "BA", "disney": "DIS", "walmart": "WMT", "costco": "COST",
+  "starbucks": "SBUX", "uber": "UBER", "lyft": "LYFT", "airbnb": "ABNB",
+  "shopify": "SHOP", "salesforce": "CRM", "oracle": "ORCL", "adobe": "ADBE",
+  "qualcomm": "QCOM", "arm": "ARM", "supermicro": "SMCI", "smci": "SMCI",
+  "moderna": "MRNA", "pfizer": "PFE", "lilly": "LLY", "novo": "NVO",
+  "rocket lab": "RKLB", "rocketlab": "RKLB", "crowdstrike": "CRWD",
+  "snowflake": "SNOW", "datadog": "DDOG", "cloudflare": "NET",
+  "opendoor": "OPEN", "carvana": "CVNA", "affirm": "AFRM", "sofi": "SOFI",
+  "spotify": "SPOT", "roku": "ROKU", "pinterest": "PINS", "snapchat": "SNAP",
+  "reddit": "RDDT", "draftkings": "DKNG", "chipotle": "CMG", "nike": "NKE"
+}

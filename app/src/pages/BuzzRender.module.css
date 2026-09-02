@@ -1,0 +1,368 @@
+/* BuzzRender.module.css — headless /r/buzz board.
+ *
+ * Lifted 1:1 from the owner-reviewed reference
+ * (docs/superpowers/design/2026-09-01-buzz-board-reference.html), which is
+ * the authority here — not this file's own judgment. Instrument Sans /
+ * Instrument Sans Tab are already self-hosted app-wide (app/index.html); this
+ * module does not redeclare @font-face.
+ * (⚠️ this comment previously named a "-v4-" filename that does not exist on
+ * disk — corrected 2026-09-01 during the brand-treatment port, see
+ * task-8-brand-port-report.md.)
+ *
+ * ── v6 structure pass (owner, 2026-09-01: "cleaner and clearer while also
+ * popping"). Five changes, in order of how much they buy:
+ *   1. A COLUMN HEADER ROW. Every number on the board was unlabeled — a
+ *      reader had to infer that the gold figure was mentions and the dim one
+ *      was people. Naming the columns once also deletes the repeated word
+ *      "people" from all eight rows.
+ *   2. A MAGNITUDE BAR fills what was a ~380px DEAD COLUMN: the v4 grid
+ *      (74px 44px 190px 1fr 82px 62px) spent a whole `1fr` on an EMPTY
+ *      spacer, so the sparkline stopped at x≈305 and the people count floated
+ *      at x≈700 with nothing between them. The bar answers "how much" at a
+ *      glance — the one question ordering alone cannot.
+ *   3. RANK NUMERALS. The board is a ranking and never said so.
+ *   4. A STAT STRIP replaces the 11.5px grey sentence — same three facts,
+ *      read as numbers.
+ *   5. People is the RANKING KEY (the board orders by distinct people) and
+ *      was the dimmest thing on the row. It reads like a key now.
+ * The flair rides on elements that were already earning their space (bars,
+ * heat pills, the rule under the masthead) rather than new ones competing
+ * with the eight names that matter — that is the standing answer to the
+ * owner's earlier "noisy" note.
+ */
+:root {
+  --buzz-gold: #c9a84c;
+  --buzz-green: #2faf68;
+  --buzz-cream: #d4c9a8;
+  --buzz-page: #0a0a0a;
+  --buzz-chrome: #161616;
+  --buzz-chrometext: #888;
+  --buzz-muted: #9aa08f;
+  --buzz-ink: #e8e6e1;
+  --buzz-rule: #1e1e1e;
+}
+
+.wrap {
+  background: #000;
+}
+
+/* ⛔ THERE IS NO `#buzz-export` RULE HERE, AND THERE CANNOT BE ONE.
+ * This is a CSS MODULE, and css-modules scopes bare *id* selectors exactly
+ * like classes — `#buzz-export{...}` compiles to `#_buzz-export_1ey3r_1` and
+ * matches nothing, because the JSX id is a literal string (buzz_image.py
+ * screenshots `{"selector": "#buzz-export"}`). That rule DID live here and
+ * was inert in every build: `width:1000px`, `position:relative`,
+ * `overflow:hidden`, the page background and the font stack were all silently
+ * dropped, so the posted PNG stretched to chart-renderer's 1400px viewport
+ * instead of the reviewed 1000px board. Nothing could see it — jsdom computes
+ * no layout, and the render probe counts rows, which still existed.
+ * The geometry now lives INLINE in BuzzRender.jsx (`EXPORT_STYLE`), matching
+ * ChartRender / MoversRender / CatalystsRender. Railed by BuzzRender.test.jsx.
+ * `:root` custom properties below are NOT scoped and do resolve. */
+
+/* Every numeric column shares one face + tabular figures, so a 9 and a 47
+   occupy the same column positions down the whole board. */
+.mono {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* chrome bar — same geometry as the chart export */
+.chrome {
+  height: 40px;
+  background: var(--buzz-chrome);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: var(--buzz-chrometext);
+  font-size: 14px;
+  position: relative;
+  z-index: 3;
+}
+/* The flat 1px gold border under the chrome became a gradient that starts at
+   the masthead and fades out past the window label — it reads as light coming
+   off "READ THE ROOM" rather than as a second horizontal rule competing with
+   the stat strip's own divider 90px below it. */
+.chrome::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(201, 168, 76, .55), rgba(201, 168, 76, .14) 42%, rgba(201, 168, 76, 0));
+}
+.subject { color: var(--buzz-gold); font-weight: 700; font-size: 18px; letter-spacing: .2px; }
+/* .win used to sit 12px after the muted "(#main-chat)" span, which itself
+   sat 8px after .subject -- effectively a 20px+ gap once that span's own
+   text width is counted. With the channel context removed entirely (owner
+   call, 2026-09-01: the board is posted IN that channel, so naming it is
+   redundant), .win now abuts .subject directly. 12px read cramped next to
+   the longer "READ THE ROOM" label, so this reuses 16px -- the same rhythm
+   value already used for the chrome/foot horizontal padding below, rather
+   than inventing a new number -- to keep the gap deliberate. */
+.win { margin-left: 16px; }
+.lockup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.lockup img { height: 18px; opacity: .95; }
+.lockup span {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .6px;
+  background: linear-gradient(135deg, #a8823a 0%, #d4b25a 40%, #e8d18c 50%, #cba954 60%, #8f6f2c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 1.6px rgba(201, 168, 76, .32));
+}
+
+.body { padding: 26px 34px 26px; position: relative; z-index: 1; }
+.rose {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  height: 440px;
+  opacity: .07;
+  pointer-events: none;
+  z-index: 0;
+}
+/* A gold wash falling out of the masthead. Purely atmospheric — it sits at
+   z-index 0 behind everything and carries no information, so it is safe to
+   delete if it ever fights the rose. */
+.wash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 340px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(760px 300px at 50% -12%, rgba(201, 168, 76, .075), transparent 70%);
+}
+
+/* 4. the stat strip — the three totals as numbers, not a grey sentence.
+   ⛔ The first label MUST keep saying "with tickers": the store holds only
+   ticker-bearing messages, so a bare "MESSAGES" would claim the board counted
+   the whole room. Railed by BuzzRender.test.jsx. */
+.stats {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--buzz-rule);
+}
+.stat {
+  padding-right: 24px;
+  margin-right: 24px;
+  border-right: 1px solid #ffffff0f;
+}
+.stat:last-child { padding-right: 0; margin-right: 0; border-right: 0; }
+.statn {
+  font-size: 23px;
+  font-weight: 700;
+  color: var(--buzz-cream);
+  line-height: 1;
+  letter-spacing: -.4px;
+}
+.statl {
+  font-size: 8.5px;
+  letter-spacing: 1.7px;
+  color: var(--buzz-muted);
+  opacity: .42;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+/* 1. the header row — names every column exactly once. One grid definition
+   is shared by the header and the rows so they can never drift apart. */
+.grid {
+  display: grid;
+  grid-template-columns: 24px 76px 62px 1fr 70px 152px 76px;
+  align-items: center;
+  gap: 13px;
+}
+.hrow { padding: 15px 0 9px; border-bottom: 1px solid #ffffff0d; }
+.hrow span {
+  font-size: 8px;
+  letter-spacing: 1.35px;
+  font-weight: 700;
+  color: var(--buzz-muted);
+  opacity: .38;
+}
+.hRk, .hN, .hPpl, .hHeat { text-align: right; }
+
+.r { padding: 11px 0; border-bottom: 1px solid #ffffff08; }
+/* 3. rank numerals, zero-padded so 01..08 hold one column width. */
+.rk {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--buzz-muted);
+  opacity: .3;
+  text-align: right;
+}
+/* The leader gets ONE extra mark, not a treatment: its bar is already full
+   width by construction, so a gold rank numeral is enough to seat it. */
+.r.lead .rk { color: var(--buzz-gold); opacity: .75; }
+.sym {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 15.5px;
+  color: var(--buzz-cream);
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+.n {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 18px;
+  color: var(--buzz-gold);
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2. the magnitude bar — scaled to the LOUDEST row's mentions, which is not
+   necessarily the first row: the board ranks by distinct people, so a name
+   further down can carry more mentions. BuzzRender.jsx derives the maximum
+   across all rows rather than reading rows[0]. */
+.bar {
+  height: 7px;
+  border-radius: 4px;
+  background: #ffffff0a;
+  overflow: hidden;
+  display: block;
+}
+.bar .fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(201, 168, 76, .3), rgba(201, 168, 76, .82));
+  box-shadow: 0 0 10px rgba(201, 168, 76, .16);
+}
+.bar .fill.hot {
+  background: linear-gradient(90deg, rgba(47, 175, 104, .28), rgba(47, 175, 104, .9));
+  box-shadow: 0 0 10px rgba(47, 175, 104, .24);
+}
+
+/* 5. people is the ranking key — it reads like one now (was 12px at .62). */
+.ppl {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--buzz-ink);
+  opacity: .74;
+  text-align: right;
+  font-weight: 600;
+}
+
+.sp { display: flex; align-items: flex-end; gap: 1.5px; height: 22px; }
+.sp .s {
+  flex: 1;
+  min-width: 0;
+  background: var(--buzz-muted);
+  opacity: .26;
+  border-radius: 1px 1px 0 0;
+}
+.sp .s.hot { background: var(--buzz-green); opacity: .5; }
+
+.hcell { text-align: right; }
+/* The heat multiple was bare green text among five other numeric columns.
+   As a pill it is the one thing on the row that is not a column of figures,
+   which is the point: it marks the rows that are moving. */
+.pill {
+  display: inline-block;
+  padding: 2.5px 7px;
+  border-radius: 99px;
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #43c47d;
+  background: rgba(47, 175, 104, .12);
+  border: 1px solid rgba(47, 175, 104, .3);
+  text-shadow: 0 0 8px rgba(47, 175, 104, .3);
+}
+
+/* the tail RECEDES — chips read as chips, singles as a footnote */
+.lbl {
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9px;
+  letter-spacing: 1.9px;
+  color: var(--buzz-muted);
+  opacity: .5;
+  font-weight: 700;
+}
+.lbl::before {
+  content: '';
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--buzz-gold), rgba(201, 168, 76, 0));
+}
+.multi { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 7px; }
+.m {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .028);
+  border: 1px solid rgba(255, 255, 255, .05);
+}
+.m b {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 12px;
+  color: var(--buzz-cream);
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.m i {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--buzz-gold);
+  opacity: .72;
+  font-variant-numeric: tabular-nums;
+}
+.once {
+  margin-top: 11px;
+  padding-left: 13px;
+  border-left: 1px solid rgba(201, 168, 76, .2);
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 10.5px;
+  line-height: 1.95;
+  color: var(--buzz-muted);
+  opacity: .36;
+  letter-spacing: .25px;
+}
+
+/* footer bar — 20px, same as the chart export */
+.foot {
+  height: 20px;
+  background: var(--buzz-chrome);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: var(--buzz-chrometext);
+  font-size: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.fallback {
+  color: #888;
+  padding: 20px;
+  background: var(--buzz-page);
+}
