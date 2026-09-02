@@ -8,6 +8,8 @@ import io
 import sqlite3
 import zipfile
 
+import pytest
+
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.notes_export import (
     build_export_zip, tiptap_to_markdown,
@@ -293,3 +295,255 @@ def test_nested_bullet_list_indents_under_its_parent_item():
         ],
     }))
     assert md == "- Parent\n  - Child\n- Sibling"
+
+
+# ── Task 8: attachment bundling ──────────────────────────────────────────────
+# Task 3 shipped markdown whose image/attachment links still point at our own
+# authenticated `/api/j2/notes/attachments/...` route -- dead the moment a
+# member's account goes away. These tests plant real files under a temp
+# attachment root (mirroring exactly what notes.py::save_note_image_bytes /
+# save_note_attachment_bytes write) and assert the zip carries the bytes with
+# every markdown link rewritten to a portable relative path.
+
+def _image_node(src, alt=""):
+    return {"type": "image", "attrs": {"src": src, "alt": alt}}
+
+
+def _chip_node(href, name="file.pdf"):
+    return {"type": "attachmentChip", "attrs": {"href": href, "name": name}}
+
+
+def _plant(root, user_id, note_id, sub, filename, data=b"fake-bytes"):
+    p = root / user_id / "notes" / note_id / sub / filename
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(data)
+    return p
+
+
+@pytest.fixture
+def attach_root(tmp_path, monkeypatch):
+    root = tmp_path / "j2_attachments"
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(root))
+    return root
+
+
+def _insert_note(conn, nid, uid, title, doc, *, hero_image_url=None):
+    import json as _json
+    conn.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, hero_image_url, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        (nid, uid, title, _json.dumps(doc), "", "[]", hero_image_url,
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+
+
+def test_inline_image_is_bundled_and_link_rewritten(attach_root):
+    _plant(attach_root, "u1", "n1", "inline", "abc.png")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Cup and handle", _doc(
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/abc.png")))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "attachments/u1/n1/inline/abc.png" in zf.namelist()
+    body = zf.read("Cup and handle.md").decode("utf-8")
+    # Rewritten to a relative path -- no more authenticated server URL.
+    assert "/api/j2/notes/attachments/" not in body
+    assert "attachments/u1/n1/inline/abc.png" in body
+    assert zf.read("attachments/u1/n1/inline/abc.png") == b"fake-bytes"
+
+
+def test_attachment_chip_file_is_bundled(attach_root):
+    _plant(attach_root, "u1", "n1", "file", "report.pdf", b"%PDF-fake")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Notes", _doc(
+        _para("see attached"),
+        _chip_node("/api/j2/notes/attachments/u1/n1/file/report.pdf"),
+    ))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "attachments/u1/n1/file/report.pdf" in zf.namelist()
+    body = zf.read("Notes.md").decode("utf-8")
+    assert "attachments/u1/n1/file/report.pdf" in body
+
+
+def test_hero_image_is_bundled_and_front_matter_rewritten(attach_root):
+    _plant(attach_root, "u1", "n1", "hero", "hero.jpg")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(
+        c, "n1", "u1", "Cup and handle", _doc(_para("body")),
+        hero_image_url="/api/j2/notes/attachments/u1/n1/hero/hero.jpg",
+    )
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert "attachments/u1/n1/hero/hero.jpg" in zf.namelist()
+    body = zf.read("Cup and handle.md").decode("utf-8")
+    assert "hero_image: attachments/u1/n1/hero/hero.jpg" in body
+
+
+def test_external_image_url_is_left_completely_untouched(attach_root):
+    """A URL that is not our own attachments route (e.g. a pasted external
+    image) must round-trip byte-identical -- no bundling attempt, no crash,
+    no dependency on the file existing anywhere."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "External pic", _doc(
+        _image_node("https://cdn.example.com/chart.png")))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    body = zipfile.ZipFile(io.BytesIO(blob)).read("External pic.md").decode("utf-8")
+    assert "https://cdn.example.com/chart.png" in body
+
+
+def test_missing_attachment_file_is_skipped_not_fatal_and_reported(attach_root):
+    """A member whose volume lost one image must still get every other note
+    -- and this note's own text -- plus a named reason in the manifest, never
+    a broken/blank archive."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Missing pic", _doc(
+        _para("text survives"),
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/gone.png"),
+    ))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    body = zf.read("Missing pic.md").decode("utf-8")
+    assert "text survives" in body
+    # Original URL kept (nothing to link to locally) -- disclosed, not hidden.
+    assert "/api/j2/notes/attachments/u1/n1/inline/gone.png" in body
+    assert "EXPORT_ISSUES.txt" in zf.namelist()
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "gone.png" in issues
+    assert "Missing pic" in issues
+
+
+def test_cross_tenant_attachment_reference_is_never_bundled(attach_root):
+    """A note body is member-authored JSON. A crafted src naming ANOTHER
+    account's user_id must never be read or served, even though the file
+    genuinely exists on disk and export is read-only."""
+    _plant(attach_root, "u2", "n2", "inline", "secret.png", b"u2-private-bytes")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Snooping note", _doc(
+        _image_node("/api/j2/notes/attachments/u2/n2/inline/secret.png")))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    # u2's file must not appear anywhere in u1's export, by name or by bytes.
+    assert not any("secret.png" in n for n in zf.namelist())
+    assert not any(zf.read(n) == b"u2-private-bytes" for n in zf.namelist())
+    body = zf.read("Snooping note.md").decode("utf-8")
+    # Left unresolved -- the original (inert to this member) URL is kept.
+    assert "/api/j2/notes/attachments/u2/n2/inline/secret.png" in body
+
+
+def test_path_traversal_via_dotdot_note_id_is_rejected(attach_root, tmp_path):
+    """A crafted src with `..` standing in for note_id collapses (once
+    resolved) to `attachment_root()/u1/inline/gone.png` -- one level OUTSIDE
+    where any real note's files live but still INSIDE the attachment root.
+    It must resolve to nothing (no such file), never be treated as a hit,
+    and never crash the export."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Traversal via note_id", _doc(_image_node(
+        "/api/j2/notes/attachments/u1/../inline/gone.png"
+    )))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert not any(n.startswith("attachments/") for n in zf.namelist())
+    body = zf.read("Traversal via note_id.md").decode("utf-8")
+    assert "/api/j2/notes/attachments/u1/../inline/gone.png" in body
+
+
+def test_path_traversal_via_dotdot_filename_is_rejected(attach_root, tmp_path):
+    """`..` as the whole filename segment must be rejected before any
+    filesystem access is attempted, even though it can never coincide with a
+    real stored attachment (uploads are content-hash/uuid named)."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Traversal via filename", _doc(_image_node(
+        "/api/j2/notes/attachments/u1/n1/inline/.."
+    )))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert not any(n.startswith("attachments/") for n in zf.namelist())
+
+
+def test_same_attachment_referenced_twice_is_bundled_once(attach_root):
+    """One file referenced by two notes is stored once in the archive."""
+    _plant(attach_root, "u1", "n1", "inline", "shared.png")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    url = "/api/j2/notes/attachments/u1/n1/inline/shared.png"
+    _insert_note(c, "n1", "u1", "First", _doc(_image_node(url)))
+    _insert_note(c, "n2", "u1", "Second", _doc(_para("also links it"),
+                                                _image_node(url)))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    names = zipfile.ZipFile(io.BytesIO(blob)).namelist()
+    assert names.count("attachments/u1/n1/inline/shared.png") == 1
+
+
+def test_attachment_size_cap_leaves_extra_files_out_and_reports_it(
+        attach_root, monkeypatch):
+    """The cap is env-overridable and never silently truncates -- exceeding
+    it still returns the complete markdown, with the left-out file named in
+    EXPORT_ISSUES.txt and its original (now-broken-once-they-leave) link kept
+    rather than a dangling local reference."""
+    _plant(attach_root, "u1", "n1", "inline", "first.png", b"x" * 50)
+    _plant(attach_root, "u1", "n1", "inline", "second.png", b"y" * 50)
+    monkeypatch.setenv("NOTE_EXPORT_MAX_ATTACHMENT_BYTES", "60")
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Two images", _doc(
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/first.png"),
+        _image_node("/api/j2/notes/attachments/u1/n1/inline/second.png"),
+    ))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    bundled = [n for n in names if n.startswith("attachments/")]
+    assert len(bundled) == 1  # only the first fit under the 60-byte cap
+    body = zf.read("Two images.md").decode("utf-8")
+    assert "attachments/u1/n1/inline/first.png" in body
+    assert "/api/j2/notes/attachments/u1/n1/inline/second.png" in body  # left as-is
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "second.png" in issues
+    assert "cap" in issues.lower()
+
+
+def test_default_export_without_resolver_is_unaffected(attach_root):
+    """tiptap_to_markdown called the OLD way (no attachment_resolver kwarg)
+    renders image/attachmentChip URLs byte-identically to before bundling
+    existed -- callers outside build_export_zip see no behavior change."""
+    md = tiptap_to_markdown(_doc(_image_node("/api/j2/notes/attachments/u1/n1/inline/x.png")))
+    assert md == "![](/api/j2/notes/attachments/u1/n1/inline/x.png)"

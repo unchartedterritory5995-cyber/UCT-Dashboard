@@ -9,16 +9,29 @@ trust.
 ⛔ Never raises on an unknown node type. Export runs over content written by
 every editor version a member has ever used, and a 500 on one odd block
 would deny them the whole archive.
+
+Attachment bundling (Task 8): image/attachmentChip/hero URLs that point at our
+own authenticated `/api/j2/notes/attachments/...` route are copied INTO the
+archive and every markdown link is rewritten to a relative path alongside the
+.md file -- otherwise "export" is a member's text with every picture and file
+still living behind a login they are about to lose. A URL that is NOT one of
+ours (a plain external link) is left completely untouched.
 """
 from __future__ import annotations
 
 import io
 import json
+import os
+import posixpath
 import re
 import sqlite3
 import zipfile
 from datetime import datetime, timezone
 from typing import Any
+
+from api.services.journal_two.attachment_root import (
+    LEGACY_ATTACHMENT_ROOT, attachment_root,
+)
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -49,46 +62,189 @@ def _fmt_time(secs: Any) -> str:
     return f"{m}:{sec:02d}"
 
 
-def _text_with_marks(node: dict[str, Any]) -> str:
+# ── Attachment bundling ──────────────────────────────────────────────────────
+#
+# `save_note_image_bytes`/`save_note_attachment_bytes` (notes.py) write files to
+# `_ATTACHMENT_ROOT/{user_id}/notes/{note_id}/{sub}/{filename}` (sub is
+# "hero"|"inline"|"file") and stamp the note body with the URL
+# `/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{filename}` -- the exact
+# same shape whether it came from an inline image, a hero image, or a
+# non-image file (attachmentChip). This regex is the ONE place that URL shape
+# is parsed back apart; keep it byte-identical to the f-string that builds it.
+_ATTACHMENT_URL_RE = re.compile(
+    r"^/api/j2/notes/attachments/([^/]+)/([^/]+)/(hero|inline|file)/([^/]+)$"
+)
+
+# Default ceiling on TOTAL bundled attachment bytes per export. This is a
+# synchronous request on a single-replica pod (the whole zip is built in
+# memory before the response is returned), so it must be bounded independent
+# of how large one member's library gets. Per-file caps are already 5MB
+# (image) / 25MB (file) -- 200 MiB comfortably covers the large majority of
+# libraries (Task 4 measured the entire attachment volume at 6MB across every
+# user) while keeping the worst case small relative to a single pod's memory
+# under concurrent requests. Override with NOTE_EXPORT_MAX_ATTACHMENT_BYTES.
+_DEFAULT_ATTACHMENT_CAP_BYTES = 200 * 1024 * 1024
+
+
+def _attachment_cap_bytes() -> int:
+    override = os.environ.get("NOTE_EXPORT_MAX_ATTACHMENT_BYTES")
+    if override is not None:
+        try:
+            return int(override)
+        except ValueError:
+            pass
+    return _DEFAULT_ATTACHMENT_CAP_BYTES
+
+
+def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str):
+    """Member-controlled `note_id`/`filename` -> a real file INSIDE the
+    attachment root, or None. Resolve first, THEN containment-check against
+    the resolved root -- a bare prefix/string compare is defeated by `..`.
+    Belt: reject any segment that is itself `..` or contains a separator
+    before ever touching the filesystem. Suspenders: after resolving the
+    candidate, require it to still be `relative_to` the RESOLVED root (not
+    the unresolved one) -- this is what actually catches a `..` that
+    string-matching would miss. Checked against both the primary and the
+    legacy attachment root, mirroring `notes.py::serve_note_image_path`'s
+    read-fallback (a box that still has files in the old location)."""
+    if sub not in ("hero", "inline", "file"):
+        return None
+    for part in (note_id, filename):
+        if not part or part in (".", "..") or "/" in part or "\\" in part:
+            return None
+    if filename.startswith("."):
+        return None
+
+    roots = [attachment_root(), LEGACY_ATTACHMENT_ROOT]
+    for root in roots:
+        try:
+            root_resolved = root.resolve()
+            target = (root / user_id / "notes" / note_id / sub / filename).resolve()
+            target.relative_to(root_resolved)
+        except (OSError, ValueError):
+            continue
+        if target.is_file():
+            return target
+    return None
+
+
+def _zip_rel_for(user_id: str, note_id: str, sub: str, filename: str) -> str:
+    return f"attachments/{user_id}/{note_id}/{sub}/{filename}"
+
+
+def _relative_link(note_folder: str, zip_rel: str) -> str:
+    """A markdown link from a .md file living at `note_folder` (folder ONLY,
+    no filename -- '' means the archive root) to `zip_rel`, so the exported
+    archive is portable on its own (no server, no auth) rather than merely
+    accompanied by orphan binaries."""
+    return posixpath.relpath(zip_rel, note_folder or ".")
+
+
+def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
+                               note_title: str, state: dict):
+    """Returns a `resolver(url) -> str | None` closure bound to one note
+    (its folder, for computing a relative link back to `attachments/...`)
+    sharing one `state` dict across the WHOLE export, for:
+      - dedup: a file referenced by ten notes is copied into the zip once
+        (keyed on the deterministic zip-relative path).
+      - a running byte total against the cap, shared across every note.
+      - one issues list feeding the SAME EXPORT_ISSUES.txt manifest Task 3's
+        per-note guard already writes to -- no second reporting channel.
+    Never raises: a missing/oversized/foreign-tenant file is skipped and
+    recorded, exactly like the per-note markdown-conversion guard above."""
+
+    def resolve(url: str | None) -> str | None:
+        if not url:
+            return None
+        m = _ATTACHMENT_URL_RE.match(url)
+        if not m:
+            return None  # not one of ours -- leave external links untouched
+        url_user_id, note_ref_id, sub, filename = m.groups()
+        if url_user_id != user_id:
+            # A note body is member-authored JSON; a crafted `src` pointing
+            # at another account's attachment path must never be served
+            # through an export, even read-only. Silent skip + a report
+            # entry, same as any other unresolvable reference.
+            state["issues"].setdefault(
+                url, (note_title, "not part of your account"))
+            return None
+
+        zip_rel = _zip_rel_for(url_user_id, note_ref_id, sub, filename)
+        if zip_rel in state["written"]:
+            return _relative_link(note_folder, zip_rel)
+        if zip_rel in state["failed"]:
+            return None
+
+        path = _resolve_attachment_path(url_user_id, note_ref_id, sub, filename)
+        if path is None:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(
+                url, (note_title, "file missing on the attachment volume"))
+            return None
+        try:
+            size = path.stat().st_size
+            if state["used_bytes"] + size > state["cap_bytes"]:
+                state["failed"].add(zip_rel)
+                state["issues"].setdefault(
+                    url, (note_title,
+                          "left out: export attachment size cap reached"))
+                return None
+            data = path.read_bytes()
+        except OSError:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(
+                url, (note_title, "file could not be read"))
+            return None
+
+        state["zf"].writestr(zip_rel, data)
+        state["written"].add(zip_rel)
+        state["used_bytes"] += size
+        return _relative_link(note_folder, zip_rel)
+
+    return resolve
+
+
+def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     text = node.get("text") or ""
     for mark in node.get("marks") or []:
         mtype = mark.get("type")
         if mtype == "link":
             href = (mark.get("attrs") or {}).get("href") or ""
-            text = f"[{text}]({href})"
+            local = resolver(href) if resolver else None
+            text = f"[{text}]({local or href})"
         elif mtype in _INLINE_MARKS:
             open_, close = _INLINE_MARKS[mtype]
             text = f"{open_}{text}{close}"
     return text
 
 
-def _inline(nodes: list[dict[str, Any]] | None) -> str:
+def _inline(nodes: list[dict[str, Any]] | None, resolver=None) -> str:
     out = []
     for n in nodes or []:
         if n.get("type") == "text":
-            out.append(_text_with_marks(n))
+            out.append(_text_with_marks(n, resolver))
         elif n.get("type") == "hardBreak":
             out.append("\n")
         else:
-            out.append(_block(n))
+            out.append(_block(n, resolver))
     return "".join(out)
 
 
-def _list_block(node: dict[str, Any], depth: int = 0) -> str:
+def _list_block(node: dict[str, Any], depth: int = 0, resolver=None) -> str:
     """Dispatch for the three list node types, threading nesting `depth`
     through so a list-inside-a-listItem indents under its parent bullet
     instead of rendering as a flat sibling list (fix round 1, finding 4)."""
     ntype = node.get("type")
     if ntype == "bulletList":
-        return _list_items(node, lambda i: "-", depth)
+        return _list_items(node, lambda i: "-", depth, resolver)
     if ntype == "orderedList":
-        return _list_items(node, lambda i: f"{i + 1}.", depth)
+        return _list_items(node, lambda i: f"{i + 1}.", depth, resolver)
     if ntype == "taskList":
-        return _list_items(node, lambda i: "-", depth)
+        return _list_items(node, lambda i: "-", depth, resolver)
     return ""
 
 
-def _list_items(node: dict[str, Any], bullet, depth: int = 0) -> str:
+def _list_items(node: dict[str, Any], bullet, depth: int = 0, resolver=None) -> str:
     """Render one list's items at `depth` (0 = top level). A child
     bulletList/orderedList/taskList inside an item is rendered at depth+1 and
     appended as indented lines UNDER that item, rather than flattened to a
@@ -107,11 +263,11 @@ def _list_items(node: dict[str, Any], bullet, depth: int = 0) -> str:
         for c in item.get("content") or []:
             ctype = c.get("type") if isinstance(c, dict) else None
             if ctype in ("bulletList", "orderedList", "taskList"):
-                nested = _list_block(c, depth + 1)
+                nested = _list_block(c, depth + 1, resolver)
                 if nested:
                     nested_blocks.append(nested)
             else:
-                b = _block(c)
+                b = _block(c, resolver)
                 if b:
                     parts.append(b)
         inner = "\n".join(parts).strip()
@@ -125,11 +281,11 @@ def _list_items(node: dict[str, Any], bullet, depth: int = 0) -> str:
     return "\n".join(lines)
 
 
-def _table(node: dict[str, Any]) -> str:
+def _table(node: dict[str, Any], resolver=None) -> str:
     rows: list[list[str]] = []
     for row in node.get("content") or []:
         cells = [
-            "\n".join(_block(c) for c in (cell.get("content") or [])).strip()
+            "\n".join(_block(c, resolver) for c in (cell.get("content") or [])).strip()
             for cell in (row.get("content") or [])
         ]
         rows.append(cells)
@@ -142,37 +298,40 @@ def _table(node: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
-def _block(node: dict[str, Any]) -> str:
+def _block(node: dict[str, Any], resolver=None) -> str:
     ntype = node.get("type")
     attrs = node.get("attrs") or {}
     kids = node.get("content")
 
     if ntype == "text":
-        return _text_with_marks(node)
+        return _text_with_marks(node, resolver)
     if ntype == "paragraph":
-        return _inline(kids)
+        return _inline(kids, resolver)
     if ntype == "heading":
         level = int(attrs.get("level") or 1)
-        return f"{'#' * max(1, min(level, 6))} {_inline(kids)}"
+        return f"{'#' * max(1, min(level, 6))} {_inline(kids, resolver)}"
     if ntype in ("bulletList", "orderedList", "taskList"):
-        return _list_block(node, 0)
+        return _list_block(node, 0, resolver)
     if ntype == "listItem":
-        return "\n".join(_block(c) for c in (kids or []))
+        return "\n".join(_block(c, resolver) for c in (kids or []))
     if ntype == "blockquote":
-        inner = "\n".join(_block(c) for c in (kids or []))
+        inner = "\n".join(_block(c, resolver) for c in (kids or []))
         return "\n".join(f"> {ln}" for ln in inner.split("\n"))
     if ntype == "codeBlock":
         lang = attrs.get("language") or ""
-        return f"```{lang}\n{_inline(kids)}\n```"
+        return f"```{lang}\n{_inline(kids, resolver)}\n```"
     if ntype == "horizontalRule":
         return "---"
     if ntype == "hardBreak":
         return "\n"
     if ntype in ("image", "resizableImage"):
         src = attrs.get("src") or ""
-        return f"![{attrs.get('alt') or ''}]({src})"
+        local = resolver(src) if resolver else None
+        return f"![{attrs.get('alt') or ''}]({local or src})"
     if ntype == "attachmentChip":
-        return f"[{attrs.get('name') or 'attachment'}]({attrs.get('href') or ''})"
+        href = attrs.get("href") or ""
+        local = resolver(href) if resolver else None
+        return f"[{attrs.get('name') or 'attachment'}]({local or href})"
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -187,20 +346,26 @@ def _block(node: dict[str, Any]) -> str:
         label = attrs.get("searchText") or attrs.get("widgetId") or "widget"
         return f"> [{label}]"
     if ntype == "table":
-        return _table(node)
+        return _table(node, resolver)
 
     # Unknown node (a block added after this exporter was written): keep the
     # member's text rather than dropping it or raising.
     if kids:
-        return "\n".join(_block(c) for c in kids)
+        return "\n".join(_block(c, resolver) for c in kids)
     return ""
 
 
-def tiptap_to_markdown(doc: dict[str, Any] | None) -> str:
-    """TipTap document JSON -> markdown. Never raises on unknown nodes."""
+def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) -> str:
+    """TipTap document JSON -> markdown. Never raises on unknown nodes.
+
+    `attachment_resolver`, if given, is called with every image/attachmentChip/
+    link URL the walk encounters: `resolver(url) -> local_relative_path | None`.
+    A None return (not one of our attachment URLs, or unresolvable) leaves the
+    original URL untouched -- callers that don't pass a resolver see byte-
+    identical output to before attachment bundling existed."""
     if not isinstance(doc, dict):
         return ""
-    blocks = [_block(n) for n in (doc.get("content") or [])]
+    blocks = [_block(n, attachment_resolver) for n in (doc.get("content") or [])]
     return "\n\n".join(b for b in blocks if b != "").strip()
 
 
@@ -236,7 +401,7 @@ def _folder_path(folder_id: str | None, folders: dict[str, tuple[str, str]]) -> 
     return "/".join(parts)
 
 
-def _front_matter(row: sqlite3.Row) -> str:
+def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
     try:
         tags = json.loads(row["tags"] or "[]")
     except (ValueError, TypeError):
@@ -252,7 +417,11 @@ def _front_matter(row: sqlite3.Row) -> str:
     if tags:
         lines.append("tags: [" + ", ".join(str(t) for t in tags) + "]")
     if row["hero_image_url"]:
-        lines.append(f"hero_image: {row['hero_image_url']}")
+        # hero_local is the bundled-into-the-archive relative path when the
+        # hero URL was one of ours and resolved cleanly; otherwise (external
+        # URL, or unresolved -- already reported in EXPORT_ISSUES.txt) the
+        # original value is kept so the front matter never goes blank.
+        lines.append(f"hero_image: {hero_local or row['hero_image_url']}")
     lines.append(f"created: {row['created_at']}")
     lines.append(f"updated: {row['updated_at']}")
     lines.append("---")
@@ -286,13 +455,31 @@ def build_export_zip(
         used: set[str] = set()
         failures: list[tuple[str, str]] = []
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            # ONE dict shared across every note: dedup (a file ten notes
+            # reference is copied into the zip once), a running byte total
+            # against the shared cap, and one issues list feeding the SAME
+            # EXPORT_ISSUES.txt manifest the per-note guard below writes to.
+            attach_state: dict[str, Any] = {
+                "zf": zf, "written": set(), "failed": set(), "issues": {},
+                "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+            }
             for row in rows:
                 try:
                     doc = json.loads(row["body_json"] or "{}")
                 except (ValueError, TypeError):
                     doc = {}
+                # Folder is needed BEFORE walking the body, so the attachment
+                # resolver can compute a relative link from wherever this
+                # note's .md file will live back to the shared attachments/
+                # tree. It never changes below (only the leaf filename might,
+                # on a title collision), so this is stable to compute early.
+                folder = _folder_path(row["folder_id"], folders)
+                resolver = _make_attachment_resolver(
+                    user_id, folder, row["id"], row["title"] or "Untitled",
+                    attach_state,
+                )
                 try:
-                    body = tiptap_to_markdown(doc)
+                    body = tiptap_to_markdown(doc, attachment_resolver=resolver)
                 except Exception as exc:  # noqa: BLE001 -- deliberately broad.
                     # One malformed note (e.g. a non-dict entry in a content
                     # array) must never deny the member the rest of a
@@ -307,28 +494,51 @@ def build_export_zip(
                         "this repeats."
                     )
                     failures.append((row["id"], row["title"] or "Untitled"))
-                folder = _folder_path(row["folder_id"], folders)
+                hero_local = (
+                    resolver(row["hero_image_url"]) if row["hero_image_url"] else None
+                )
                 base = _safe_name(row["title"], row["id"])
                 path = f"{folder}/{base}" if folder else base
                 # Two notes may share a title; the id keeps them distinct.
                 if f"{path}.md" in used:
                     path = f"{path}-{row['id'][:8]}"
                 used.add(f"{path}.md")
-                zf.writestr(f"{path}.md", f"{_front_matter(row)}\n\n{body}\n")
+                zf.writestr(
+                    f"{path}.md",
+                    f"{_front_matter(row, hero_local)}\n\n{body}\n",
+                )
 
+            issue_lines: list[str] = []
             if failures:
                 # The archive tells the member itself -- a top-level manifest
                 # beside the per-file marker above, so a partial failure is
                 # never silent even if they never open the affected file.
-                lines = [
+                issue_lines += [
                     "The following notes could not be fully converted to "
                     "markdown during export. Each one still exported with "
                     "its title, tags and other front matter intact -- only "
                     "the body content was affected.",
                     "",
                 ]
-                lines += [f"- {title} (id: {nid})" for nid, title in failures]
-                zf.writestr("EXPORT_ISSUES.txt", "\n".join(lines) + "\n")
+                issue_lines += [f"- {title} (id: {nid})" for nid, title in failures]
+
+            if attach_state["issues"]:
+                if issue_lines:
+                    issue_lines.append("")
+                issue_lines += [
+                    "The following attachments could not be bundled into "
+                    "this archive. The note text above still links to them "
+                    "by their original in-app address, which stops working "
+                    "once the account is no longer active.",
+                    "",
+                ]
+                issue_lines += [
+                    f"- {url} (referenced by \"{title}\") -- {reason}"
+                    for url, (title, reason) in attach_state["issues"].items()
+                ]
+
+            if issue_lines:
+                zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return buf.getvalue(), f"uct-notebook-export-{stamp}.zip"
