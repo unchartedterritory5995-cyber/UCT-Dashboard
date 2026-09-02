@@ -35,22 +35,35 @@ function loadImage(src) {
 export async function buildBreadthSnapshotCanvas(tableEl, { subtitle = '' } = {}) {
   if (!tableEl) return null
   const scale = 2
-  // Capture the inner <table>, NOT the scroll container. The container
-  // (`.tableWrap`) is scrolled (scrollTop can be thousands of px) and carries
-  // `contain: layout paint`; capturing it while scrolled mis-paints the body
-  // (a header-only or color-band snapshot). The <table> itself is never scrolled,
-  // so with the virtualization spacer rows filtered out it lays out as thead +
-  // the rendered rows and rasterizes cleanly at any scroll position.
-  const target =
-    (tableEl.querySelector && tableEl.querySelector('table')) || tableEl
-  const inner = await domToCanvas(target, {
-    scale,
-    backgroundColor: BG,
-    // Two tall aria-hidden spacer rows hold the virtual scroll height above/below
-    // the rendered window; exclude them so only the real rows are captured.
-    filter: (node) =>
-      !(node instanceof Element && node.hasAttribute('data-snapshot-skip')),
-  })
+  // Rasterize a CLEAN OFF-SCREEN CLONE of the sheet, never the live table.
+  // The live `.tableWrap` is scrolled (scrollTop up to ~150k px) and carries
+  // `contain: layout paint`, and the live <table> holds two tall virtualization
+  // spacer rows — capturing either directly mis-paints the body (header-only or
+  // per-column colour bands) once you scroll off the top. Cloning the table,
+  // dropping the spacer rows, neutralizing the sticky header/date column, and
+  // laying it out off-screen in normal flow rasterizes exactly what's on screen
+  // at ANY scroll position (verified: the clone renders identically to the sheet).
+  const liveTable = (tableEl.querySelector && tableEl.querySelector('table')) || tableEl
+  if (!liveTable || liveTable.tagName !== 'TABLE') return null
+  const clone = liveTable.cloneNode(true)
+  clone.querySelectorAll('[data-snapshot-skip]').forEach((n) => n.remove())
+  clone.querySelectorAll('thead, [class*="dateCell"], [class*="dateCol"]')
+    .forEach((n) => { n.style.position = 'static' })
+  clone.style.width = `${liveTable.scrollWidth}px`
+
+  const holder = document.createElement('div')
+  holder.style.cssText =
+    `position:fixed;left:-100000px;top:0;z-index:-1;background:${BG};` +
+    `contain:none;pointer-events:none;`
+  holder.appendChild(clone)
+  document.body.appendChild(holder)
+
+  let inner
+  try {
+    inner = await domToCanvas(clone, { scale, backgroundColor: BG })
+  } finally {
+    holder.remove()
+  }
   if (!inner || !inner.width) return null
 
   const pad = 24 * scale
