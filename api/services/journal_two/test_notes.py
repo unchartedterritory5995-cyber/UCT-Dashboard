@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from api.services.journal_two import notes as svc
+from api.services.journal_two import notes_quota
 from api.services.journal_two.notes import (
     NoteValidationError, convert_playbook_to_tiptap, extract_plain_text,
 )
@@ -534,3 +535,55 @@ def test_capture_inbox_carries_capture_time_annotations(conn):
             {"widgetId": "chart", "annotations": [{"note": "x" * (300 * 1024)}]},
             conn=conn,
         )
+
+
+# ── Import headroom guard wiring (notes_quota.assert_import_headroom) ───────
+#
+# Both byte-level upload paths call assert_import_headroom() right beside
+# their existing size-cap checks (_MAX_IMAGE_BYTES / _MAX_FILE_BYTES) so a
+# volume-full condition is refused the same way an oversized file already is:
+# NoteValidationError, not a raw NoteQuotaExceeded leaking a different shape
+# to the router. Monkeypatch the seam (notes_quota._free_bytes) -- never fill
+# a real disk to exercise this.
+
+@pytest.fixture
+def attach_root(tmp_path, monkeypatch):
+    r = tmp_path / "j2_attachments"
+    monkeypatch.setattr(svc, "_ATTACHMENT_ROOT", r)
+    return r
+
+
+def test_save_note_image_bytes_refused_when_headroom_short(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 100)  # far below RESERVE_BYTES
+    with pytest.raises(NoteValidationError):
+        svc.save_note_image_bytes(
+            "u1", "n1", b"\x89PNG\r\n\x1a\n" + b"0" * 100, "pic.png", "image/png",
+        )
+    # Nothing was written to disk by the refused upload.
+    assert not any(attach_root.rglob("*")) if attach_root.exists() else True
+
+
+def test_save_note_image_bytes_succeeds_with_ample_room(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 500 * 1024**3)
+    out = svc.save_note_image_bytes(
+        "u1", "n1", b"\x89PNG\r\n\x1a\n" + b"0" * 100, "pic.png", "image/png",
+    )
+    assert out["url"].startswith("/api/j2/notes/attachments/u1/n1/inline/")
+
+
+def test_save_note_attachment_bytes_refused_when_headroom_short(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 100)  # far below RESERVE_BYTES
+    with pytest.raises(NoteValidationError):
+        svc.save_note_attachment_bytes(
+            "u1", "n1", b"%PDF-1.4 " + b"0" * 100, "doc.pdf", "application/pdf",
+        )
+    assert not any(attach_root.rglob("*")) if attach_root.exists() else True
+
+
+def test_save_note_attachment_bytes_succeeds_with_ample_room(attach_root, monkeypatch):
+    monkeypatch.setattr(notes_quota, "_free_bytes", lambda: 500 * 1024**3)
+    out = svc.save_note_attachment_bytes(
+        "u1", "n1", b"%PDF-1.4 " + b"0" * 100, "doc.pdf", "application/pdf",
+    )
+    assert out["url"].startswith("/api/j2/notes/attachments/u1/n1/file/")
+    assert out["name"] == "doc.pdf"

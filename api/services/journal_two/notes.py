@@ -31,6 +31,9 @@ MAX_FOLDER_DEPTH = 6
 from api.services.journal_two.attachment_root import (
     attachment_root as _attachment_root, read_candidates as _read_candidates,
 )
+from api.services.journal_two.notes_quota import (
+    NoteQuotaExceeded, assert_import_headroom,
+)
 from api.services.journal_two.notes_search import fts_match_expr
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
@@ -1221,6 +1224,10 @@ def save_note_image_bytes(
         raise NoteValidationError("Image must be < 5 MB")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
+    try:
+        assert_import_headroom(len(data))
+    except NoteQuotaExceeded as e:
+        raise NoteValidationError(str(e)) from e
 
     ext_map = {
         "image/png": ".png", "image/jpeg": ".jpg",
@@ -1274,6 +1281,10 @@ def save_note_attachment_bytes(
         raise NoteValidationError("File must be < 25 MB")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
+    try:
+        assert_import_headroom(len(data))
+    except NoteQuotaExceeded as e:
+        raise NoteValidationError(str(e)) from e
 
     # Fallback: empty filename becomes "attachment"
     filename = filename or "attachment"
