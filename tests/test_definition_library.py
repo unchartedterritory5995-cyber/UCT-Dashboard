@@ -77,7 +77,8 @@ def test_a_SHARED_definition_is_NOT_in_the_library_until_it_is_also_LISTED(store
 
     assert store.public_library()["entries"] == []
     assert store.listing_status(USER, "u_000000000001") == {
-        "def_id": "u_000000000001", "listed": False, "requested": False, "shared": True,
+        "def_id": "u_000000000001", "listed": False, "requested": False,
+        "shared": True, "stale_grammar": False,
     }
 
 
@@ -123,7 +124,7 @@ def test_revoking_the_LINK_removes_the_listing_with_no_second_write(store):
     state = store.listing_status(USER, "u_000000000001")
     # ⭐ AND THE PANEL CAN EXPLAIN WHY IT VANISHED: the owner still asked for it.
     assert state == {"def_id": "u_000000000001", "listed": False,
-                     "requested": True, "shared": False}
+                     "requested": True, "shared": False, "stale_grammar": False}
 
 
 def test_a_DELETED_definition_leaves_the_library_immediately(store):
@@ -270,3 +271,66 @@ def test_a_definition_that_was_never_saved_cannot_be_published(store):
 def test_unpublishing_something_never_published_says_so_rather_than_pretending(store):
     store.save(USER, "u_000000000001", defn())
     assert store.unpublish(USER, "u_000000000001") is False
+
+
+# --------------------------------------------------------------------------- #
+# ⚰️ A GRAMMAR BUMP EMPTIED THE LIBRARY AND TOLD EVERY OWNER IT WAS LISTED
+# --------------------------------------------------------------------------- #
+#
+# `public_library` skips any row whose `table_version` is not the current one,
+# and `resolve_share` refuses such a link outright with reason `table-version`.
+# `listing_status` derived from two facts and never asked the third, so after a
+# `tableVersion` bump — which `closedTable.json` records happening 1→2 on
+# 2026-08-26 — the library was EMPTY while every owner's panel still said
+# `listed: True`. Two authorities over one value, and the one a member can see
+# was the wrong one.
+
+
+def test_a_table_version_bump_unlists_it_AND_SAYS_SO(store, monkeypatch):
+    """⭐⭐ THE TWO READERS MUST AGREE, which is the whole defect.
+
+    Both go through `_current_table_version`, so moving that one function is a
+    faithful stand-in for a manifest bump and moves BOTH readers together — which
+    is the point: before the fix they disagreed while reading the same number.
+    """
+    _publish(store)
+    # Control: at the version it was minted against, it is listed and present.
+    assert len(store.public_library()["entries"]) == 1
+    before = store.listing_status(USER, "u_000000000001")
+    assert before["listed"] is True
+    assert before["stale_grammar"] is False
+
+    bumped = store._current_table_version() + 1
+    monkeypatch.setattr(store, "_current_table_version", lambda: bumped)
+
+    # The library drops it — this half always worked.
+    assert store.public_library()["entries"] == []
+    # ⛔ AND NOW THE OWNER IS TOLD. This is the assertion that was false.
+    after = store.listing_status(USER, "u_000000000001")
+    assert after["listed"] is False, "the panel still claims a listing the library dropped"
+    assert after["stale_grammar"] is True
+    # ⭐ THE REPAIRABLE PARTS ARE STILL TRUE: they did ask, and the link is live.
+    # "Not listed" with no reason is a dead end; these two say what to do.
+    assert after["requested"] is True
+    assert after["shared"] is True
+
+
+def test_listed_never_disagrees_with_the_library_it_describes(store, monkeypatch):
+    """⛔ THE INVARIANT, not the scenario: `listed` is true exactly when the row
+    is in `public_library`. Stated as a loop over both versions so a future third
+    fact added to one reader and not the other fails here."""
+    _publish(store)
+    # ⚠️ THE LIBRARY KEYS ENTRIES BY TOKEN, NOT `def_id` — so the identity used
+    # here is the share token this definition actually rides on, read from the
+    # store rather than assumed.
+    token = store.share_status(USER, "u_000000000001")["token"]
+    base = store._current_table_version()
+    for version in (base, base + 1):
+        monkeypatch.setattr(store, "_current_table_version", lambda v=version: v)
+        in_library = any(e["token"] == token
+                         for e in store.public_library()["entries"])
+        says_listed = store.listing_status(USER, "u_000000000001")["listed"]
+        assert says_listed == in_library, (
+            f"at table_version {version}: listing_status says {says_listed} "
+            f"and the library says {in_library}")
+
