@@ -37,6 +37,19 @@ def test_digest_refuses_to_post_while_disarmed(mods, monkeypatch):
     assert out["posted"] is False
 
 
+def test_armed_without_a_webhook_warns_rather_than_failing_silently(mods, monkeypatch, caplog):
+    """Armed + unconfigured must be distinguishable from a quiet day. Otherwise
+    a mistyped webhook produces the same silence as 'nothing to report' -- every
+    day, forever."""
+    _, _, digest = mods
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.delenv("BUZZ_DIGEST_WEBHOOK", raising=False)
+    with caplog.at_level("WARNING"):
+        out = digest.run_digest(now=1788300000)
+    assert out["reason"] == "no webhook"
+    assert any("BUZZ_DIGEST_WEBHOOK" in r.message for r in caplog.records)
+
+
 def test_digest_posts_once_per_day(mods, monkeypatch):
     store, _, digest = mods
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")

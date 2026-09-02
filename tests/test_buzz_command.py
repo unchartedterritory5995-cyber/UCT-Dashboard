@@ -105,3 +105,50 @@ def test_autocomplete_returns_at_most_25(mods):
     store.record_mentions([(str(i), CH, "a", f"T{i:03d}", i, "exact") for i in range(40)])
     from api.routers import discord_interactions as rt
     assert len(rt.buzz_ticker_choices("T")) <= 25
+
+
+# ── run_buzz_image_job: the ticker-less /buzz board image, defer-and-PATCH ──
+#
+# `BUZZ_IMAGE_ENABLED` defaults ON (gated only on CHART_RENDERER_URL, already
+# set in production for /chart) -- unlike the digest, this interaction path is
+# LIVE the moment this ships, not dark. Pin it directly: fake render_fn/edit_fn
+# capturing the call, across the three outcomes a background render can have.
+# The member must always end up with a resolved reply, never a stuck
+# "thinking...".
+
+def test_buzz_image_job_attaches_the_png_when_the_render_succeeds():
+    from api.routers import discord_interactions as rt
+    calls = []
+    rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
+                          render_fn=lambda w: b"\x89PNGdata",
+                          edit_fn=lambda *a, **kw: calls.append(kw))
+    assert len(calls) == 1, "the reply is resolved exactly once"
+    assert calls[0]["content"] == "board text"
+    assert calls[0]["png"] == b"\x89PNGdata"
+    assert calls[0]["filename"] == "buzz.png"
+
+
+def test_buzz_image_job_keeps_the_text_reply_when_the_render_is_empty():
+    from api.routers import discord_interactions as rt
+    calls = []
+    rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
+                          render_fn=lambda w: None,
+                          edit_fn=lambda *a, **kw: calls.append(kw))
+    assert len(calls) == 1, "text-only edit still resolves the reply"
+    assert calls[0]["content"] == "board text"
+    assert calls[0].get("png") is None
+
+
+def test_buzz_image_job_keeps_the_text_reply_when_the_render_raises():
+    from api.routers import discord_interactions as rt
+    calls = []
+
+    def boom(window):
+        raise RuntimeError("renderer is down")
+
+    rt.run_buzz_image_job("APP1", "TOK1", "board text", "open",
+                          render_fn=boom,
+                          edit_fn=lambda *a, **kw: calls.append(kw))
+    assert len(calls) == 1, "a render exception must not leave the reply stuck"
+    assert calls[0]["content"] == "board text"
+    assert calls[0].get("png") is None
