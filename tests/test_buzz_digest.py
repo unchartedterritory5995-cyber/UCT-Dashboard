@@ -479,3 +479,66 @@ def test_catch_up_is_actually_called_by_the_poll_job():
     # NON-VACUITY: the probe can see a sibling it is not looking for, so a
     # walker that returned everything (or nothing) cannot pass by accident.
     assert "poll_once" in called
+
+
+def test_a_missed_checkpoint_pages_a_human_not_just_the_log(mods, monkeypatch):
+    """⛔ A LOG LINE IS NOT A NOTIFICATION. This pod's log stream is flooded and
+    batched on ingest; nobody tails it. Detecting the miss and writing it to a
+    place no one reads would be the same silence one level up."""
+    store, _, digest = mods
+    from api.services import chart_health_alerts
+    chart_health_alerts.clear()
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    digest.catch_up(now=_at(17, 25), render_fn=lambda w: None, post_fn=lambda **k: True)
+    fired = chart_health_alerts.list_recent()
+    slot_alerts = [a for a in fired if a["alert_key"].startswith("buzz_slot_missed:")]
+    assert slot_alerts, "a dropped checkpoint raised no alert"
+    # CRITICAL is not drama: it is the only severity chart_health_alerts pages
+    # Discord on. Anything less dies in an in-memory deque with the pod.
+    assert all(a["severity"] == "critical" for a in slot_alerts)
+    # The slot has to be IN the message -- "a board was missed" sends someone
+    # hunting through seven of them.
+    assert any("16:15" in a["message"] for a in slot_alerts)
+
+
+def test_a_posted_checkpoint_pages_nobody(mods, monkeypatch):
+    """CONTROL. An alerter that fired on every run would pass the test above and
+    train the owner to ignore the channel."""
+    store, _, digest = mods
+    from api.services import chart_health_alerts
+    chart_health_alerts.clear()
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    # The real shape: a pod that restarted across ONE slot. Every earlier
+    # checkpoint already went out, so 16:15 is the only thing outstanding.
+    # (Without this the fixture describes a pod that was down all day, where
+    # five genuinely-missed slots SHOULD page -- a control that fails for the
+    # right reason is still not a control.)
+    for h, m in [(10, 0), (10, 30), (11, 30), (12, 30), (14, 0)]:
+        digest.mark_posted(f"2026-09-01 {digest.slot_label(h, m)}")
+    out = digest.catch_up(now=_at(16, 25), render_fn=lambda w: None,
+                          post_fn=lambda **k: True)
+    assert out["posted"] is True
+    assert [a for a in chart_health_alerts.list_recent()
+            if a["alert_key"].startswith("buzz_slot_missed:")] == []
+
+
+def test_an_alerting_failure_never_costs_the_room_its_ingest(mods, monkeypatch):
+    """The alert runs inside the 60s poll that also ingests mentions. If the
+    alerter throws, catch_up must still return normally -- losing the room's
+    message ingest over a failed notification is a far worse trade."""
+    store, _, digest = mods
+    from api.services import chart_health_alerts
+    _seed(store)
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "123")
+    def _boom(*a, **k):
+        raise RuntimeError("alerting is down")
+    monkeypatch.setattr(chart_health_alerts, "emit", _boom)
+    out = digest.catch_up(now=_at(17, 25), render_fn=lambda w: None,
+                          post_fn=lambda **k: True)
+    assert out["posted"] is False          # returned normally, did not propagate
+    assert "2026-09-01 16:15" in digest.missed_keys()   # and still recorded the miss

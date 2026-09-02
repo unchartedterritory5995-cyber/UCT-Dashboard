@@ -2217,6 +2217,105 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
   - 🎫 Support Ticket → navigates to `/support`
 - Backdrop click closes menu/form; Escape not wired (backdrop handles it)
 
+## Discord `/buzz` — ticker-mention board (LIVE in #main-chat, 2026-09-02)
+
+Counts ticker mentions in `#main-chat` and reports which names the room is
+actually talking about — on demand via `/buzz`, and on a schedule as a rendered
+board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
+
+- **Source:** `api/services/buzz_{store,extract,universe,boards,image,reply,ingest}.py`
+  + `api/services/discord_buzz_digest.py`; board page
+  `app/src/pages/BuzzRender.{jsx,module.css}` served headless at `/r/buzz`;
+  payload `GET /api/r/buzz` in `api/routers/render_panels.py`.
+- **Store:** `/data/buzz.db`, one row per (message × ticker). **It stores NO
+  message text** — `message_id` + `channel_id` reconstruct a jump link, which
+  stays true when a member edits or deletes; a stored copy would not. The
+  composite PK makes re-ingesting an overlapping window a no-op.
+- **Schedule:** `DEFAULT_TIMES` in `discord_buzz_digest.py` — 10:00, 10:30,
+  11:30, 12:30, 14:00, 16:15, 17:30 ET. ⛔ **Read it there.** `BUZZ_DIGEST_TIMES`
+  is deliberately UNSET in production so the schedule has ONE authority.
+  One `add_job` per slot: a CronTrigger with a list of times fires the cross
+  product, which is seven jobs' worth of posts per slot.
+- **Env (web):** `BUZZ_DIGEST_ENABLED=1` · `BUZZ_DIGEST_CHANNEL` (bot token, not
+  a webhook) · `BUZZ_CHANNELS`. Rollback is the flag alone. The **ingest poller
+  and `/buzz` are NOT gated on it** — turning posting off never stops counting.
+
+### LOCKED invariants — each of these was a shipped defect
+
+- ⛔⛔ **THE BAR DRAWS THE QUANTITY THE ROWS ARE SORTED BY.** Ranking is
+  MENTIONS-led with people as the tiebreak (owner, 2026-09-02). When the bar
+  came from a different number than the sort, the board stepped UP three times
+  in fourteen rows and the owner correctly read it as "the ranking is broken".
+  Mirrored in the image AND the text reply — `lesson_rail_the_mirror_not_just_the_lane`.
+- ⛔⛔ **`#buzz-export`'s geometry is INLINE and must stay inline.** This page's
+  stylesheet is a CSS module, and css-modules scopes bare `#id` selectors exactly
+  like classes, so `#buzz-export { width: 1000px }` compiles to
+  `#_buzz-export_<hash>` and matches nothing. It shipped that way for two days:
+  the board stretched to the renderer's 1400px viewport and every people/heat
+  cell sat ~800px from the count it annotates. `BOARD_W` is published as
+  `window.__buzzBoardW`; `buzz_image.PROBE_JS` reads it and discards a PNG whose
+  box disagrees. **Never restate 1000 in Python.**
+- ⛔ **The board is TWO COLUMNS because it is an ATTACHMENT.** A client fitting a
+  portrait image into a landscape box scales by HEIGHT — at 1000×1338 into
+  ~550×350 it renders 262px wide, ticker type at 4.1px. **Shorten, never widen:**
+  a height cut dominates (helps the fit-by-height case, neutral in fit-by-width);
+  widening helps one and hurts the other. Ranks read DOWN each column.
+- ⛔ **The tail is the point, not decoration.** The 1–3 mention names are what the
+  owner asked to see, and the once-named chips are the SAME chip as the 2+ names
+  — same box, size, weight and ink. That tier has been de-emphasised twice and
+  rejected twice; four ways of restoring the gap are railed in
+  `BuzzRender.test.jsx`.
+- ⛔ **A cashtag beats the symbol universe.** `$XYZ` is an explicit act of naming
+  a ticker; gating it on universe membership silently dropped real mentions.
+  Casing collisions are handled by a corpus-derived list plus a curated
+  `TICKER_DESPITE_LOWERCASE` — ⚰️ the general "trust the uppercase form" rule was
+  measured and thrown away (it recovered BE/NOW/SPOT but dragged in AM, ON, IT,
+  YOU, FOR). **Recall beats precision here** (owner): a false mention is cheap, a
+  missed one is the product failing.
+- ⛔ **Extraction is four-tier, lowest rank wins:** `cashtag > alias > exact >
+  contextual`. The collision list must be derived from `#main-chat`'s OWN corpus —
+  it was first derived from `#tsdr` and booked 1,059 junk mentions (7.7%), with
+  `EVER` ranking 10th on 48 people.
+- ⛔ **A missed checkpoint is caught up, then paged.** APScheduler's job store is
+  in-memory, so a pod restarting across a slot never SCHEDULES that fire and
+  `misfire_grace_time` cannot see it. `catch_up()` rides the 60s poll and posts a
+  slot up to 20 minutes late; past that it records the slot and raises a CRITICAL
+  `chart_health_alert` (the only severity that pages Discord). **20 minutes is an
+  honesty limit, not a retry budget** — the board says "since the open" and an
+  hour-late post is a different board wearing an old slot's label.
+- ⛔ **The design of record is a CAPTURE, not a copy.**
+  `tools/gen_buzz_board_reference.py` opens the running page and saves the real
+  `#buzz-export` subtree beside the real compiled stylesheet into
+  `docs/superpowers/design/2026-09-01-buzz-board-reference.html`. Do not hand-edit
+  it. The previous hand-written references carried a warning that they and the
+  component "MUST change in the same commit" — a second authority over one value
+  by construction, which silently overrode two rulings.
+- **Heat marks are `HEAT_MARKS` (4), in BOTH lanes.** The image once asked for 12
+  and the text for 4, so 11 of 14 rows wore a "hot" pill and the *normal* rows
+  read as the anomaly. Attention rotating is not news; only the extreme tail is.
+- **Backfill is resumable** via a watermark distinct from the forward cursor
+  (`_BACKFILL_SUFFIX`). It used to restart from the newest message every run — on
+  ~1,100 messages/day one rate limit at page 11 capped history at ~14 hours, and
+  four of five consecutive runs added nothing. ⛔ **Judge it by the SPAN of data,
+  never by the absence of a warning** — a run that dies prints nothing either.
+- **Renderer viewport** `BOARD_H=2400` (`buzz_image.py`). It was 1400 and the
+  board reached 1412 on day one; `_warn_if_capped` reads the returned PNG's IHDR
+  and logs if a shot comes back exactly viewport-tall. It never discards — whether
+  the renderer crops belongs to another service.
+
+### Ops
+- Activation + verification runbook: `docs/runbooks/buzz-activation.md`.
+- **Two instruments, and they answer different questions.**
+  `tools/buzz_derive_collisions.py` re-derives the casing-collision list from
+  `#main-chat`'s own corpus. `tools/buzz_audit_extraction.py` asks what the
+  extractor is getting WRONG on live chat — suppressed uppercase symbols, cashtags
+  that produced nothing, aliases that never fired. ⛔ Run the second one before
+  widening any matching rule: the day-one audit compared `extract(messages)` against
+  the store, and since BOTH sides ran the same extractor it proved ingest fidelity
+  and nothing about extraction quality — a token the extractor never recognises is
+  invisible to that check by construction. The independent audit is what found the
+  cashtag universe-gate bug. The corpus is the regression net, never a target.
+
 ## Morning Wire — Per-Segment Feedback (votes + notes)
 
 Owner/users rate the brief on the MorningWire tab. **The rundown is
