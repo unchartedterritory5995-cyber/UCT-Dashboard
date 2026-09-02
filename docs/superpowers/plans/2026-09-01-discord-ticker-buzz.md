@@ -1268,7 +1268,7 @@ git commit -m "feat(buzz): gap-free ingest poller + scheduler job"
 **Files:**
 - Create: `tools/buzz_perms.py`
 - Create: `tools/buzz_backfill.py`
-- Create: `tools/buzz_collisions.py`
+- ~~Create: `tools/buzz_collisions.py`~~ — **RETIRED 2026-09-01.** It was a manual "print the tiers, hand-add to `CHAT_WORDS`" loop. That whole workflow is obsolete: `tools/buzz_derive_collisions.py` derives the list from the corpus by measurement, so there is nothing left to hand-add. Do not build it.
 
 **Interfaces:**
 - Consumes: `buzz_ingest.backfill`, `buzz_store`, `buzz_extract`, `buzz_universe`
