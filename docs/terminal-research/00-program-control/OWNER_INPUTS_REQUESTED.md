@@ -27,6 +27,12 @@ Facts only the owner can supply. Each entry: question · why it matters (which d
 | OI-13 | Does GitHub branch protection or a required status check exist on `master` for the dashboard repository? (Not visible from the repo; `gh` is not installed on this box and the GitHub MCP server fails to connect.) | Deploy-gating reality for the rollout plan (D-07 found nothing gates a deploy). | No protection; push to master deploys unguarded. | rollout/rollback plan |
 | OI-11 | Naming during coexistence: any constraint on how a Terminal-Next beta may be labeled to members (e.g., is "Terminal Beta" acceptable alongside the surface now displayed as "UCT Terminal")? | Part CCXXXII; coexistence options; member communication. | Research decides; no member-visible naming until the coexistence decision. | coexistence plan (naming section) |
 
+## Batch 2 — Phase 2 close (2026-09-02). Seeded from READINESS_REVIEW_DAY1.md and the Phase 2 architecture pass.
+
+| ID | Question | Why it matters | Default in force | Stamped artifacts |
+|---|---|---|---|---|
+| OI-21 | Four read-only production telemetry queries against `auth.db`/`bars.db` (or a copy): `page_views` (which surfaces get used), `calendar_seen` (per-user read state), `calendar_alerts_fired` (alert volume), `ai_search_log` (AI lane usage); plus the `charts_workspace_layout` blob-size and shape distribution across users. None of these require code changes to run. | Sharpens S6 Personalization's build order (product-architecture.md §5-B.5), the workspace model's final lock (D1), and A8's curated-vs-browsable-feed posture (P-δ) — currently all designed on labeled assumptions, not measurements. | Assumptions stated explicitly wherever cited (e.g. cost models' "labeled assumption" framing); no system's baseline build is blocked by the absence of these numbers. | product-architecture.md, information-architecture.md, capability-infrastructure-matrix.md (all carry this as a named PROVISIONAL item) |
+
 ## Answered
 
 | ID | Answer (date) | Artifacts updated |
