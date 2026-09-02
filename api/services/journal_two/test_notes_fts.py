@@ -59,16 +59,37 @@ def test_raw_delete_removes_from_index():
     assert _fts_ids(c, "ephemeral") == set()
 
 
+def _fts_rowid(c, note_id):
+    row = c.execute(
+        "SELECT rowid FROM j2_notes_fts WHERE note_id = ?", (note_id,)).fetchone()
+    return row["rowid"] if row else None
+
+
 def test_bookkeeping_update_does_not_touch_the_index():
     """The sync engine writes tags/import_hash via raw SQL that deliberately
     preserves updated_at. Those columns are not indexed, so the trigger must
     not fire for them -- re-indexing every bookkeeping write would make a
-    nightly full pass rewrite the entire index."""
+    nightly full pass rewrite the entire index.
+
+    Content alone can't prove the trigger skipped firing: a delete+reinsert of
+    UNCHANGED title/body_plain is indistinguishable from a no-op by content --
+    an over-broad bare `AFTER UPDATE` (no column filter) would also leave "n1"
+    findable under "stable". A standalone FTS5 table assigns a NEW rowid on
+    reinsert, so the rowid is the observable discriminator content can't give
+    us. n2 is inserted afterward so n1 is never the table's max rowid --
+    otherwise a delete-then-reinsert of the LAST row can coincidentally be
+    handed back its own rowid (verified empirically), which would make this
+    assertion pass even under the bare trigger it's meant to catch."""
     c = _conn()
     _insert_note(c, "n1", body_plain="stable text")
+    _insert_note(c, "n2", body_plain="a later note, so n1 is never the max rowid")
+    rowid_before = _fts_rowid(c, "n1")
     c.execute("UPDATE j2_notes SET tags=? WHERE id=?", ('["a"]', "n1"))
     c.commit()
     assert _fts_ids(c, "stable") == {"n1"}
+    assert _fts_rowid(c, "n1") == rowid_before, (
+        "fts rowid changed on a tags-only write -- the trigger fired "
+        "(delete+reinsert) when it must not have")
 
 
 def test_migration_v4_backfills_rows_that_predate_the_index(tmp_path, monkeypatch):
