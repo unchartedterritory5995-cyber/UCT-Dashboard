@@ -298,6 +298,54 @@ def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
     return out
 
 
+_COVERAGE_CACHE = {"ts": 0.0, "data": None}
+
+
+def coverage_stats(sample: list[str] | None = None, *, fresh_within_days: int = 5) -> dict:
+    """Universe-WARMTH snapshot of the local bars.db — the ground-truth measure of
+    'how much of the universe is instant on first view'. Returns distinct ticker
+    counts per timeframe (how many tickers hold ANY bars = cached) plus, if a
+    `sample` universe is passed, a freshness sample (how many of a random 200 have
+    a RECENT daily bar = actually warm, not stale). Cached 5 min — the
+    COUNT(DISTINCT ticker) walk on a multi-GB db is not free. READ-ONLY."""
+    import time as _t
+    now = _t.time()
+    cached = _COVERAGE_CACHE["data"]
+    if cached and now - _COVERAGE_CACHE["ts"] < 300:
+        return cached
+    c = _conn()
+    out = {"path": _DB_PATH, "at": int(now)}
+    for tf in ("D", "W", "M"):
+        try:
+            t0 = _t.time()
+            n = c.execute("SELECT COUNT(DISTINCT ticker) FROM ohlcv WHERE tf=?", (tf,)).fetchone()[0]
+            out[f"{tf.lower()}_tickers"] = int(n or 0)
+            out[f"{tf.lower()}_ms"] = round((_t.time() - t0) * 1000)
+        except Exception as e:  # noqa: BLE001
+            out[f"{tf.lower()}_error"] = str(e)
+    if sample:
+        import random
+        from datetime import datetime, timedelta
+        try:
+            syms = random.sample(list(sample), min(200, len(sample)))
+            # daily ts are YYYYMMDD ints → "fresh" = a bar within N calendar days.
+            cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
+            have = fresh = 0
+            for s in syms:
+                lt = get_last_ts(s, "D")
+                if lt:
+                    have += 1
+                    if int(lt) >= cutoff:
+                        fresh += 1
+            out["sample_n"] = len(syms)
+            out["sample_have_daily"] = have    # cached at all (any daily bars)
+            out["sample_fresh_daily"] = fresh  # warm (recent daily bar)
+        except Exception as e:  # noqa: BLE001
+            out["sample_error"] = str(e)
+    _COVERAGE_CACHE.update(ts=now, data=out)
+    return out
+
+
 def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     """Delete rows by (ticker, tf). Either may be None to wildcard.
     Returns rows deleted."""
