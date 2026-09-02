@@ -124,7 +124,7 @@
   filter: drop-shadow(0 0 1.6px rgba(201, 168, 76, .32));
 }
 
-.body { padding: 26px 34px 26px; position: relative; z-index: 1; }
+.body { padding: 20px 34px 20px; position: relative; z-index: 1; }
 .rose {
   position: absolute;
   left: 50%;
@@ -157,7 +157,7 @@
 .stats {
   display: flex;
   align-items: flex-end;
-  padding-bottom: 20px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--buzz-rule);
 }
 .stat {
@@ -184,13 +184,37 @@
 
 /* 1. the header row — names every column exactly once. One grid definition
    is shared by the header and the rows so they can never drift apart. */
+/* ⛔ TWO COLUMNS, AND THE REASON IS DISCORD, NOT TASTE.
+ * The board is an ATTACHMENT, and a client that fits an image into a
+ * landscape box scales a PORTRAIT image by HEIGHT -- so a tall board loses
+ * most of its scale and leaves the width unused. Measured: at 1000x1338 a
+ * 550x350 box renders it 262px wide, putting ticker type at 4.1px and the
+ * tail at 3.1px -- below legibility no matter how bright it is. That is the
+ * likeliest cause of "cant see the bottom ones"; opacity was a symptom.
+ *
+ * ⛔ SHORTEN, DO NOT WIDEN. Reducing height at constant width DOMINATES: it
+ * improves the fit-by-height case and changes nothing in the fit-by-width
+ * case. Widening would help the first and HURT the second, so it is not a
+ * safe bet while the client's behaviour is unknown.
+ *
+ * The head rows were 697px of 1377 -- half the board -- at 50px each, while
+ * the bar had 541px of width it did not need. Two columns spend that width
+ * instead of that height: same 14 names, 1338px -> 812px, ticker 4.1 -> 6.7px
+ * in the box case, width case untouched.
+ */
+.cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }
 .grid {
   display: grid;
-  grid-template-columns: 26px 88px 60px 1fr 74px 78px;
+  /* ⛔ 78px on TICKER is MEASURED, not eyeballed. The column is FIXED and an
+   * overflowing text node is not clipped -- it draws straight over the
+   * mentions figure beside it. Widest real 5-char name (GOOGL) renders 63.4px
+   * at the 16.5px face; 74px left 10px of margin, 78px leaves 15 and covers a
+   * 6-char cashtag. The 4px comes out of the bar's 1fr, which has slack. */
+  grid-template-columns: 22px 78px 46px 1fr 44px 62px;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
 }
-.hrow { padding: 15px 0 9px; border-bottom: 1px solid #ffffff0d; }
+.hrow { padding: 12px 0 7px; border-bottom: 1px solid #ffffff0d; }
 .hrow span {
   font-size: 8px;
   letter-spacing: 1.35px;
@@ -200,7 +224,7 @@
 }
 .hRk, .hN, .hPpl, .hHeat { text-align: right; }
 
-.r { padding: 10px 0; border-bottom: 1px solid #ffffff08; }
+.r { padding: 7px 0; border-bottom: 1px solid #ffffff08; }
 /* 3. rank numerals, zero-padded so 01..08 hold one column width. */
 .rk {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
@@ -283,7 +307,7 @@
 
 /* the tail RECEDES — chips read as chips, singles as a footnote */
 .lbl {
-  margin-top: 26px;
+  margin-top: 20px;
   display: flex;
   align-items: center;
   gap: 9px;
