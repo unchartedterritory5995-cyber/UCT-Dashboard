@@ -45,6 +45,49 @@ def test_window_choices_cover_what_the_owner_asked_for():
     assert set(di.WINDOW_CHOICES) == {"open", "today", "noon", "week", "month"}
 
 
+def test_the_picker_cannot_offer_a_window_the_board_cannot_compute():
+    """⛔ There were THREE lists: this picker, buzz_boards.WINDOW_LABEL, and
+    window_bounds' if-chain -- and only the picker was pinned, by a HAND-TYPED
+    literal set. Adding "yesterday" to the picker would have turned that test
+    red, been "fixed" by editing the literal, and shipped a board headed
+    "Most talked about - yesterday" over TODAY's numbers, because
+    window_bounds' bare fallthrough returned today-since-the-open for anything
+    it did not recognise. Wrong data, confident label, nothing raised.
+
+    The picker now DERIVES from WINDOW_LABEL, and window_bounds refuses an
+    unknown name. This asserts all three agree by construction, so the test
+    above can stay a hand-typed statement of the owner's ask without being the
+    only thing standing between the picker and the bounds.
+    """
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    from api.services import buzz_boards, discord_interactions as di
+
+    # Mid-afternoon on a weekday, so every window's start is genuinely behind
+    # `now` (asking "since noon" at 11am is a legitimately empty range).
+    now = int(_dt.datetime(2026, 9, 21, 15, 0,
+                           tzinfo=ZoneInfo("America/New_York")).timestamp())
+    assert set(di.WINDOW_CHOICES) == set(buzz_boards.WINDOW_LABEL)
+    for name in di.WINDOW_CHOICES:
+        start, end = buzz_boards.window_bounds(name, now)   # must not raise
+        assert start < end == now
+        # And the picker's display form is the board's own label, so the two
+        # surfaces can never name one window two different ways.
+        assert di.WINDOW_CHOICES[name].lower() == buzz_boards.WINDOW_LABEL[name]
+
+
+def test_window_bounds_refuses_a_window_it_cannot_compute():
+    """A window with no branch must raise, not quietly serve today's numbers
+    under someone else's label."""
+    from api.services import buzz_boards
+    with pytest.raises(ValueError):
+        buzz_boards.window_bounds("yesterday", 1_800_000_000)
+    # The boundary that takes outside input coerces instead of raising, so the
+    # bounds and the label always answer the same question.
+    assert buzz_boards.normalize_window("yesterday") == buzz_boards.DEFAULT_WINDOW
+    assert buzz_boards.normalize_window("month") == "month"
+
+
 def test_every_choice_obeys_discord_limits():
     from api.services import discord_interactions as di
     cmd = next(c for c in di.build_commands() if c["name"] == "buzz")

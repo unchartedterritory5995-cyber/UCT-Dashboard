@@ -139,6 +139,16 @@ def count(ticker: str, start_ts: int, end_ts: int, channels) -> int:
     return connect().execute(sql, [ticker, start_ts, end_ts, *params]).fetchone()["n"]
 
 
+def total_in(start_ts: int, end_ts: int, channels) -> int:
+    """Every mention in the window, all tickers. Used to ask whether the ROOM
+    was active in a past session -- a market holiday and a session that
+    predates the store both look like "0 mentions" for any single ticker, and
+    counting either as a real zero drags a heat baseline toward zero."""
+    cl, params = _chan_clause(channels)
+    sql = "SELECT COUNT(*) AS n FROM mentions WHERE ts >= ? AND ts < ?" + cl
+    return connect().execute(sql, [start_ts, end_ts, *params]).fetchone()["n"]
+
+
 def series(ticker: str, start_ts: int, end_ts: int, buckets: int, channels) -> list[int]:
     out = [0] * buckets
     if end_ts <= start_ts or buckets <= 0:

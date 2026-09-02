@@ -29,7 +29,11 @@ def build_board_text(now: int, window: str = "open") -> str:
 
     heat = buzz_boards.heat_board(now)
     if heat:
-        lines.append("\U0001f525 **Heating up** — " +
+        # ⛔ "today" is load-bearing, not filler. heat_board is ALWAYS a
+        # today-vs-30-sessions measure, so on `/buzz month` this line sits
+        # under monthly totals; without the word, one header would cover
+        # two different denominators.
+        lines.append("\U0001f525 **Heating up today** — " +
                      " · ".join(f"{h['ticker']} {h['ratio']}x" for h in heat))
     lines.append(f"_{buzz_boards.coverage(now)}_")
     return "\n".join(lines)

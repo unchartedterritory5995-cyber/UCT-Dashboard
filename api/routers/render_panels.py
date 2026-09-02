@@ -127,10 +127,20 @@ def buzz_panel(token: str = "", window: str = "open"):
     import time
     from api.services import buzz_boards
     now = int(time.time())
+    # `window` arrives as a free-text query param. Normalizing HERE keeps the
+    # bounds and the label answering the same question -- window_bounds now
+    # refuses an unknown name outright rather than quietly serving today's.
+    window = buzz_boards.normalize_window(window)
     every = buzz_boards.full_board(window, now)        # EVERY ticker, ranked
     head, tail = every[:14], every[14:]
     multi, singles = buzz_boards.split_tail(tail)
-    hot = {h["ticker"]: h["ratio"] for h in buzz_boards.heat_board(now, limit=12)}
+    # ⛔ ONE heat computation per request. This called heat_board TWICE and
+    # threw one result away; it is by far the most expensive query on the
+    # branch (one COUNT per candidate per prior session -- measured 24ms vs
+    # 0.8ms for top_board on a 36.6k-row store, and it grows with room
+    # activity), and it runs on the anyio worker the render already holds.
+    heat = buzz_boards.heat_board(now, limit=12)
+    hot = {h["ticker"]: h["ratio"] for h in heat}
     for r in head:
         r["hot"] = hot.get(r["ticker"])
     return {
@@ -140,7 +150,7 @@ def buzz_panel(token: str = "", window: str = "open"):
         "tail":    [{"ticker": t["ticker"], "mentions": t["mentions"],
                      "hot": hot.get(t["ticker"])} for t in multi],
         "singles": singles,
-        "heat": buzz_boards.heat_board(now),
+        "heat": heat[:4],
         "totals": buzz_boards.totals(window, now),
         "coverage": buzz_boards.coverage(now),
         "asOf": now,

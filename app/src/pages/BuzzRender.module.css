@@ -186,7 +186,7 @@
    is shared by the header and the rows so they can never drift apart. */
 .grid {
   display: grid;
-  grid-template-columns: 24px 76px 62px 1fr 70px 172px 56px;
+  grid-template-columns: 24px 76px 62px 1fr 70px 152px 76px;
   align-items: center;
   gap: 13px;
 }

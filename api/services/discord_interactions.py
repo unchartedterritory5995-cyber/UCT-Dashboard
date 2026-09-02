@@ -314,13 +314,20 @@ MULTI_COMMAND = "charts"
 MULTI_MAX = 4
 
 BUZZ_COMMAND = "buzz"
-WINDOW_CHOICES = {
-    "open":  "Since the open",
-    "today": "Today",
-    "noon":  "Since noon",
-    "week":  "This week",
-    "month": "This month",
-}
+
+
+def _window_choices() -> dict[str, str]:
+    """The picker's options, DERIVED from buzz_boards.WINDOW_LABEL — the one
+    authority on which windows exist. A window added there appears here the
+    same day, and one that exists here but has no bounds cannot happen.
+    The display form is the prose label with its first letter raised
+    ("since the open" -> "Since the open"), so the picker and the board's own
+    header can never name the same window two different ways."""
+    from api.services import buzz_boards
+    return {k: v[:1].upper() + v[1:] for k, v in buzz_boards.WINDOW_LABEL.items()}
+
+
+WINDOW_CHOICES = _window_choices()
 
 
 def parse_charts_command(interaction: dict, default_tf: str = "D") -> list:

@@ -41,3 +41,64 @@ def test_empty_store_returns_an_empty_list_not_an_error(client):
     c, _ = client
     r = c.get("/api/r/buzz", params={"token": "secret-token"})
     assert r.status_code == 200 and r.json()["rows"] == []
+
+
+# ── The privacy contract. Until now it was a COMMENT in the handler's
+# docstring, and the assertions above name three fields they expect to find --
+# a test that lists what should be present cannot notice what should not be.
+#
+# The risk is concrete, not theoretical: `buzz_boards.ticker_detail`, in the
+# module this endpoint already imports, returns a `link` built from
+# channel_id + message_id. This endpoint's render token ships inside the
+# frontend JS bundle, so anything here is effectively public, and a jump link
+# identifies WHO said something and WHERE. This repo's own idiom for exactly
+# this shape is `test_the_live_payload_never_carries_drill_lists`: pin the KEY
+# SET so nobody can quietly inline them.
+_FORBIDDEN = {"author_id", "authorId", "message_id", "messageId",
+              "channel_id", "channelId", "link", "url", "jump", "jump_url"}
+
+
+def _all_keys(node):
+    """Every mapping key anywhere in the payload, at any depth."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            yield k
+            yield from _all_keys(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _all_keys(v)
+
+
+def test_the_payload_never_carries_member_identity_or_jump_links(client):
+    c, store = client
+    import time
+    ts = int(time.time()) - 60
+    store.record_mentions([(str(2000 + i), "CH1", f"u{i}", "NVDA", ts, "exact")
+                           for i in range(6)])
+    store.record_mentions([(str(3000 + i), "CH1", f"v{i}", "AMD", ts, "exact")
+                           for i in range(2)])
+    body = c.get("/api/r/buzz", params={"token": "secret-token",
+                                        "window": "today"}).json()
+
+    # The whole tree, not just the top level: rows, tail, heat and singles are
+    # where a per-message field would actually land.
+    leaked = _FORBIDDEN & set(_all_keys(body))
+    assert leaked == set(), f"identity fields in a public payload: {sorted(leaked)}"
+
+    # And the shape is pinned, so a NEW key has to be a deliberate edit here.
+    assert set(body) == {"window", "label", "rows", "tail", "singles",
+                         "heat", "totals", "coverage", "asOf"}
+    assert set(body["rows"][0]) == {"ticker", "mentions", "people", "spark", "hot"}
+
+
+def test_an_unknown_window_is_normalized_rather_than_mislabelled(client):
+    """window_bounds refuses a name it cannot compute. The boundary that takes
+    outside input coerces to the default FIRST, so the bounds and the label can
+    never describe different questions -- the failure this replaces served
+    today's numbers under the caller's own made-up label."""
+    c, _ = client
+    r = c.get("/api/r/buzz", params={"token": "secret-token", "window": "yesterday"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["window"] == "open"
+    assert body["label"] == "since the open"

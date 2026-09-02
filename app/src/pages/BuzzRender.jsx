@@ -207,7 +207,7 @@ export default function BuzzRender() {
               <span>SHARE OF THE CHATTER</span>
               <span className={styles.hPpl}>PEOPLE</span>
               <span>SESSION SHAPE</span>
-              <span className={styles.hHeat}>VS 30D</span>
+              <span className={styles.hHeat}>TODAY VS 30D</span>
             </div>
           )}
 

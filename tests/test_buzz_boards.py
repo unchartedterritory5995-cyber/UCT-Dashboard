@@ -142,16 +142,77 @@ def test_heat_volume_floor_rejects_a_loud_ratio_on_a_tiny_count(mods):
 def test_heat_baseline_floor_rejects_a_name_with_no_real_history(mods):
     """Clears the volume gate (8 today) but has almost no baseline: seen on
     only 6 of the last 30 sessions -> base 0.2, under MIN_BASELINE. '40x normal'
-    off a base that thin is an artifact, not a signal."""
+    off a base that thin is an artifact, not a signal.
+
+    ⛔ THE ROOM MUST BE SEEDED ON ALL 30 SESSIONS. This test used to seed THIN
+    alone, which made the other 24 sessions completely EMPTY -- and an empty
+    session is now dropped from the baseline (a day nobody spoke is not
+    evidence about a ticker). The fixture therefore could not tell "THIN
+    appeared on 6 of 30 BUSY days" (base 0.2, the case this test is about)
+    from "the store only has 6 days of history at all" (base 1.0, a different
+    bug, F9). It asserted the first while describing the second.
+    """
     store, boards = mods
     now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
     now = int(now_dt.timestamp())
 
-    mid = _seed_baseline(store, now_dt, "THIN", per_session=1, sessions=6)
+    # The room was busy on all 30 prior sessions...
+    mid = _seed_baseline(store, now_dt, "ROOM", per_session=4, sessions=30)
+    # ...THIN only showed up on 6 of them.
+    mid = _seed_baseline(store, now_dt, "THIN", per_session=1, sessions=6, mid=mid)
     for k in range(8):
         _put(store, _at(21, 9, 40), "THIN", f"t{k}", mid); mid += 1
 
     assert "THIN" not in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
+
+
+def test_a_session_the_room_never_spoke_in_does_not_dilute_the_baseline(mods):
+    """⛔ F9. A market holiday, an outage, and a day before this store existed
+    all look identical to a single ticker: zero mentions. Counting them as real
+    zeros drags every baseline toward zero and inflates every ratio.
+
+    STEADY says 3 on each of the 20 sessions the room was actually open, and 6
+    today. The two answers disagree by design:
+        sessions the room spoke in (correct):  6 / (60/20) = 2.0x
+        all 30 weekdays (the old behaviour):   6 / (60/30) = 3.0x
+    """
+    store, boards = mods
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
+    now = int(now_dt.timestamp())
+
+    # Only 20 of the last 30 weekdays have ANY traffic at all.
+    mid = _seed_baseline(store, now_dt, "STEADY", per_session=3, sessions=20)
+    for k in range(6):
+        _put(store, _at(21, 9, 40), "STEADY", f"s{k}", mid); mid += 1
+
+    rows = {r["ticker"]: r for r in boards.heat_board(now, sessions=30)}
+    assert "STEADY" in rows
+    assert rows["STEADY"]["ratio"] == 2.0
+
+
+def test_heat_is_suppressed_until_the_store_covers_enough_sessions(mods):
+    """⛔ F9, the cold-start half. Switch ingest on without a backfill (or let a
+    429 truncate one) and the board would call the room's most ORDINARY names
+    6x anomalies, every day, for six weeks -- MIN_BASELINE cannot catch it
+    because a diluted base still clears 1.0. Below MIN_SESSIONS of real
+    coverage the board publishes NOTHING rather than a confident wrong number.
+    """
+    store, boards = mods
+    now_dt = dt.datetime(2026, 9, 21, 9, 45, tzinfo=ET)
+    now = int(now_dt.timestamp())
+
+    # Three sessions of history: enough for a ratio to LOOK computable.
+    mid = _seed_baseline(store, now_dt, "NEW", per_session=4,
+                         sessions=boards.MIN_SESSIONS - 2)
+    for k in range(40):
+        _put(store, _at(21, 9, 40), "NEW", f"n{k}", mid); mid += 1
+
+    assert boards.heat_board(now, sessions=30) == []
+
+    # One more session past the floor and the same name is publishable.
+    _seed_baseline(store, now_dt, "NEW", per_session=4,
+                   sessions=boards.MIN_SESSIONS, mid=mid + 5000)
+    assert "NEW" in {r["ticker"] for r in boards.heat_board(now, sessions=30)}
 
 
 def test_a_hot_name_outside_the_top_40_is_still_found(mods):
