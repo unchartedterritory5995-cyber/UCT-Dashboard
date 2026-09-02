@@ -574,3 +574,111 @@ yfinance, or any other provider's symbol conventions was assumed without a
 citation.
 
 ---
+
+## Checkpoint 6 — Compatibility integration (2026-09-02)
+
+**Scope, per spec §2.2 (the only two "Modified" components in the whole
+technical spec):** `api/services/ticker_search_index.py::_collect_rows()`/
+`build_index()`/`_load_snapshot()`/`search()`, and `GET /api/ticker-search`'s
+three emit sites. Nothing else was touched. Per the authorization's "do not
+migrate unrelated consumers just because Entity Master now exists," calendar,
+news, watchlists, journal_two, and every other ticker-string-keyed store are
+category **C** below — deliberately untouched.
+
+### Changes made
+
+- `_collect_rows()`: each row gains `composite_figi`/`share_class_figi`/
+  `cik`/`list_date`/`delisted_utc` (retained from the raw Massive row,
+  available for a future consumer, not yet exposed through `search()`) and
+  `entity_id` (resolved via `entity_master.api.resolve()`, best-effort,
+  wrapped so an Entity Master failure degrades to `entity_id: None` for
+  every row rather than blanking the index — matches this file's own
+  pre-existing "a build failure keeps the prior index" discipline).
+- `build_index()`/`_load_snapshot()`: the disk snapshot format gained one
+  key (`"eid"`); an OLD snapshot on disk (written before this checkpoint)
+  loads exactly as before with `entity_id=None`, never a `KeyError`.
+- `search()`: every returned row gains `entity_id`. The ranking algorithm
+  itself — buckets, priority tiebreak, sort order — is byte-for-byte
+  unchanged; verified by a dedicated test that checks ranking ORDER, not
+  just the new field's presence.
+- `GET /api/ticker-search`: `entity_id` added to all three emit sites
+  (live/index rows carry a real value or `None`; breadth pseudo-tickers and
+  delisted rows carry `None`, per spec §2.2's own note — the delisted
+  branch COULD now resolve a real value, since Checkpoint 4's seed already
+  backfilled delisted entities, but this was deliberately deferred to keep
+  this checkpoint's diff minimal and spec-literal rather than expanding
+  scope beyond the exact citation).
+- 11 new tests (`api/services/test_ticker_search_entity_master_integration.py`):
+  entity_id attached/absent correctly, extra fields retained, additive
+  shape unchanged, ranking unaffected, snapshot round-trip (new and OLD
+  format), Entity-Master-unavailable degradation, and three router-level
+  tests (one per row-shape branch).
+
+### A real bug found and fixed during real-data verification
+
+Rebuilding the index against the REAL Checkpoint-4 database (not a
+synthetic fixture) surfaced a genuine defect, not in the integration code
+above but in the **seed script's own entity-assignment logic**:
+Massive's reference feed returns class-share tickers in DOT notation
+(`BRK.B`), while `cap_universe`/this codebase's canonical form is HYPHEN
+(`BRK-B`) — stated outright in `massive.py`'s own `to_polygon_symbol()`
+docstring ("storage/cache keys ... keep the canonical hyphen form"). The
+seed script's `active_symbols = set(universe) | set(ref_rows.keys())`
+treated these as two DIFFERENT strings, so **13 of cap_universe's 14
+hyphenated symbols got seeded as TWO separate entities each** for one real
+instrument (confirmed: `BRK-B` and `BRK.B` resolved to different
+`entity_id`s). This was NOT caught by Checkpoint 4's own validation
+(which checked collision/rejection/duplicate counts, but never
+cross-checked a symbol against its own dot-notation twin) — it surfaced
+only because Checkpoint 6 rebuilt the search index against real data and
+a human-legible symptom (BRK-B's search row had a blank `name`) prompted
+inspection.
+
+**Fixed at the root** (`scripts/entity_master_seed.py::_massive_reference_rows()`):
+any dot-containing Massive ticker is now re-keyed to its hyphen-equivalent
+BEFORE the union with `cap_universe`, so the two sources coalesce onto one
+canonical key. The row retains `_massive_native_ticker` (Massive's own
+exact string) so the vendor-symbol derivation step uses that directly
+(`source="massive_reference"`) instead of re-deriving it via a
+`.replace("-",".")` transform (`source="derived:dot_notation"`, kept as
+the fallback for a hyphenated symbol with no matching Massive row at all —
+confirmed real case: `CWEN-A`).
+
+**Real data was re-seeded** (`_local_seed_data/entity_master.db` deleted
+and regenerated) to correct the 13 duplicate entities before Checkpoint 7
+built on top of it. Second real run: **26,600 entities created** (13 fewer
+than the first run's 26,613 — exactly the fixed duplicate count),
+**141 vendor-symbol rows** (up from 14 — the fix also picked up
+class-share tickers Massive tracks that aren't in cap_universe's $300M+
+screen, a strictly more complete outcome), 0 rejected/ambiguous/
+normalization-anomaly, 8.8s. All 13 known dual-class pairs spot-checked:
+hyphen form resolves to one real entity, dot form correctly `not_found`
+(never itself a canonical alias). 2 new regression tests
+(`test_massive_dot_form_and_cap_universe_hyphen_form_merge_to_one_entity`,
+`test_hyphenated_symbol_with_no_massive_dot_row_still_gets_derived_mapping`).
+
+**This is separate from, and unrelated to, Finding A** (the stale
+`delisted_tickers_bulk.json`) — that finding is about a pre-existing file
+this build only reads; this one is a genuine bug in code THIS build wrote
+in Checkpoint 4, now fixed and re-verified.
+
+### Consumer classification (as required)
+
+| Consumer | Status | Why |
+|---|---|---|
+| `ticker_search_index.py` / `GET /api/ticker-search` | **B — compatibility bridge** | Carries `entity_id` additively; the merge logic, ranking, and every existing field are untouched. No caller is required to read the new field. |
+| `to_polygon_symbol()` | **C — intentionally still legacy** | Coexists per spec §9.2; a pure string transform, still correct for any ticker Entity Master hasn't backfilled. Not migrated. |
+| `delisted_registry.py` (+ its 3 data files) | **C — intentionally still legacy** | Entity Master's alias model subsumes its PURPOSE, but the running code (bars-serve path, the delisted branch of `/api/ticker-search`) stays live until each caller is migrated — not this build's scope (spec §2.1). |
+| `cap_universe.py` | **C — intentionally still legacy** | Pure seed input, unmodified, per spec §2.1. |
+| `watchlist_items.sym`, `journal_two`'s ticker-string columns, every other existing ticker-keyed store | **C — intentionally still legacy** | Explicit non-goal (spec §13, PRD §16 item 6): "No existing store is migrated by this build." |
+| Calendar, news, fundamentals, alerts, frontend security/entity context | **C — intentionally still legacy** | Never touched, never in scope for this build — the entire authorized integration surface is the one row above. |
+
+**Nothing is category A** ("now Entity-Master-native") yet, by design —
+the spec's own rollout order (§5.3) puts full-consumer migration after S4
+(Context Bus) exists, which is outside this build. Checkpoint 6's job was
+to make Entity Master *reachable* without a flag day, not to convert any
+consumer to depend on it.
+
+**Tests run:** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py api/services/test_ticker_search_entity_master_integration.py -q` — 59/59 passed, both before and after the dot/hyphen fix (before: fixture-based tests didn't exercise the real-data collision at all, which is exactly why it wasn't caught until real data was rebuilt against — recorded as a testing-methodology lesson, not just a code fix).
+
+---

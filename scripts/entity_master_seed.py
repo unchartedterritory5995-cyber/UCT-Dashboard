@@ -37,7 +37,26 @@ except ImportError:
 
 
 def _massive_reference_rows(max_pages: int) -> dict:
-    """Steps 2: read stocks + indices reference feed, keyed by ticker.
+    """Steps 2: read stocks + indices reference feed, keyed by CANONICAL
+    ticker — hyphen form for class shares.
+
+    Checkpoint 6 fix (found during real-data compatibility-integration
+    testing, not in the original Checkpoint 4 run): Massive's own reference
+    feed returns class-share tickers in DOT notation ('BRK.B'), but this
+    codebase's canonical form is HYPHEN ('BRK-B') — `massive.py`'s own
+    `to_polygon_symbol()` docstring states it outright: "storage/cache keys
+    ... keep the canonical hyphen form." The original version of this
+    function keyed rows by Massive's raw ticker string verbatim, so
+    `active_symbols = set(universe) | set(ref_rows.keys())` unioned
+    cap_universe's 'BRK-B' against Massive's own 'BRK.B' as two DISTINCT
+    strings — creating two entities for one real instrument. Confirmed on
+    real data: 13 of cap_universe's 14 hyphenated symbols had a live
+    Massive dot-form row and were double-entitied this way. Fixed by
+    re-keying any dot-containing Massive ticker to its hyphen form before
+    it is ever unioned with cap_universe, so the two sources coalesce onto
+    ONE canonical key. The row keeps `_massive_native_ticker` (the exact
+    string Massive itself returns) so vendor-symbol derivation (below) uses
+    Massive's own value rather than re-deriving it via a string transform.
 
     Mirrors ticker_search_index._collect_rows()'s own 'I:'-prefix handling
     for indices (spec §5.1 step 2 cites the same two calls that function
@@ -46,20 +65,30 @@ def _massive_reference_rows(max_pages: int) -> dict:
     from api.services import massive
 
     rows: dict = {}
+
+    def _add(raw_ticker: str, r: dict, market_tag: str | None = None) -> None:
+        canonical = raw_ticker.replace(".", "-") if "." in raw_ticker else raw_ticker
+        if canonical in rows:
+            return  # the first Massive row for this canonical instrument wins
+        r = dict(r)
+        if canonical != raw_ticker:
+            r["_massive_native_ticker"] = raw_ticker
+        if market_tag:
+            r["_market"] = market_tag
+        rows[canonical] = r
+
     for r in massive.list_reference_tickers(active=True, market="stocks", max_pages=max_pages):
         t = (r.get("ticker") or "").strip().upper()
         if not t or t.startswith("I:"):
             continue
-        rows[t] = r
+        _add(t, r)
     for r in massive.list_reference_tickers(active=True, market="indices", max_pages=max_pages):
         t = (r.get("ticker") or "").strip().upper()
         if t.startswith("I:"):
             t = t[2:]
         if not t:
             continue
-        r = dict(r)
-        r["_market"] = "indices"
-        rows.setdefault(t, r)
+        _add(t, r, market_tag="indices")
     return rows
 
 
@@ -159,11 +188,22 @@ def run_seed(db_path: str | None = None, dry_run: bool = False, max_pages: int =
                 stats["entities_created"] += 1
 
             if "-" in sym:
-                em_api.set_vendor_symbol(
-                    eid, "massive", sym.replace("-", "."), valid_from,
-                    "derived:dot_notation", db_path=db_path,
+                # Prefer Massive's OWN native ticker string (set by
+                # _massive_reference_rows' _add() above) when this entity's
+                # canonical alias actually matched a live Massive row — more
+                # robust than re-deriving via a blind hyphen->dot string
+                # transform, and the correct provenance to record.
+                native = ref.get("_massive_native_ticker") if ref else None
+                vendor_sym = native or sym.replace("-", ".")
+                source = "massive_reference" if native else "derived:dot_notation"
+                mr = em_api.set_vendor_symbol(
+                    eid, "massive", vendor_sym, valid_from, source, db_path=db_path,
                 )
-                stats["vendor_symbols_populated"] += 1
+                if mr.written:
+                    stats["vendor_symbols_populated"] += 1
+                elif mr.conflict:
+                    anomalies.append({"kind": "vendor_symbol_conflict", "alias": sym, "vendor_symbol": vendor_sym})
+                    stats["normalization_anomalies"] += 1
 
             if ref and ref.get("composite_figi"):
                 em_api.set_figi(

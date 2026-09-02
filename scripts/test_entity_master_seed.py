@@ -203,3 +203,56 @@ def test_rerun_after_partial_failure_recovers_cleanly(monkeypatch, db_path):
 
     assert em_api.resolve("AAA", db_path=db_path).entity.entity_id == first_entity_id
     assert em_api.resolve("BBB", db_path=db_path).status == "resolved"
+
+
+def test_massive_dot_form_and_cap_universe_hyphen_form_merge_to_one_entity(monkeypatch, db_path):
+    """Checkpoint 6 regression test for the real bug found during real-data
+    compatibility testing: Massive's own reference feed returns class-share
+    tickers as 'BRK.B' (dot); cap_universe carries 'BRK-B' (hyphen, this
+    codebase's canonical form). Before the fix, the seed script's
+    active_symbols union treated these as two DIFFERENT strings and created
+    TWO entities for the same real instrument. Must now be exactly ONE."""
+    _patch_sources(
+        monkeypatch,
+        symbols=["BRK-B"],
+        ref_rows=[{"ticker": "BRK.B", "type": "CS", "name": "Berkshire Hathaway Class B",
+                   "list_date": "1996-05-09"}],
+    )
+    r = seed.run_seed(db_path=db_path)
+    assert r["stats"]["entities_created"] == 1  # not 2
+    assert r["anomalies"] == []
+
+    conn = store._conn(db_path)
+    count = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+    assert count == 1
+
+    # Both spellings resolve to the SAME entity.
+    resolved_hyphen = em_api.resolve("BRK-B", db_path=db_path)
+    assert resolved_hyphen.status == "resolved"
+    resolved_dot = em_api.resolve("BRK.B", db_path=db_path)
+    assert resolved_dot.status == "not_found"  # 'BRK.B' is never itself a canonical alias
+
+    # The vendor mapping uses Massive's OWN native ticker string, not a
+    # re-derived one, and its provenance says so.
+    eid = resolved_hyphen.entity.entity_id
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+    vs_source = conn.execute(
+        "SELECT source FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchone()
+    assert vs_source == ("massive_reference",)
+
+
+def test_hyphenated_symbol_with_no_massive_dot_row_still_gets_derived_mapping(monkeypatch, db_path):
+    """A cap_universe hyphenated symbol Massive's feed does NOT carry under
+    either spelling (the CWEN-A case, confirmed on real data) must still
+    fall back to the string-transform derivation, sourced accordingly."""
+    _patch_sources(monkeypatch, symbols=["CWEN-A"], ref_rows=[])
+    r = seed.run_seed(db_path=db_path)
+    assert r["stats"]["entities_created"] == 1
+    eid = em_api.resolve("CWEN-A", db_path=db_path).entity.entity_id
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "CWEN.A"
+    conn = store._conn(db_path)
+    vs_source = conn.execute(
+        "SELECT source FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchone()
+    assert vs_source == ("derived:dot_notation",)
