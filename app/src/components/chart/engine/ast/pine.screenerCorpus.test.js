@@ -23,7 +23,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { translatePine } from './pine.js'
+import { translatePine, treeYieldsBool } from './pine.js'
 import { parseFormula } from './parse.js'
 
 const DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_screener')
@@ -98,6 +98,39 @@ describe('a member can write their own Pine screener', () => {
       const parsed = parseFormula(row.formula)
       expect(parsed.ok, `${r.name}: ${row.formula}`).toBe(true)
     }
+  })
+
+  it('⭐⭐ every one of them REACHES A SCREEN, not just a formula', () => {
+    // ⛔⛔ TRANSLATING IS NOT THE PRODUCT CLAIM. A column that yields a NUMBER
+    // cannot be screened honestly — `doorScorecard` records the defect it causes:
+    // the `yields` gate is "the one that stops a numeric column being screened as
+    // `!= 0` and returning the universe". Every fixture here plots `cond ? 1 : 0`,
+    // which is what a Pine author actually writes, so this asks the SHIPPED
+    // predicate whether that folds back to a boolean.
+    //
+    // ⭐ `treeYieldsBool` IS THE DOOR'S OWN, the same function `thinkscript.js`
+    // imports so both doors ask one question — not a second opinion written here.
+    const numeric = []
+    for (const r of RESULTS.filter((x) => x.out.ok)) {
+      const row = r.out.outputs[r.out.selected]
+      let bool = false
+      try { bool = !!treeYieldsBool(parseFormula(row.formula).ast) } catch (e) { bool = false }
+      if (!bool) numeric.push(`${r.name}: ${row.formula}`)
+    }
+    expect(numeric, 'these translate but cannot be screened').toEqual([])
+  })
+
+  it('⛔ …and the bool check can FAIL — a numeric column is caught', () => {
+    // ⚠️ WITHOUT THIS THE CASE ABOVE PASSES IF `treeYieldsBool` EVER RETURNED
+    // TRUTHY FOR EVERYTHING. A plain price plot is exactly the column the `yields`
+    // gate exists to stop, so it is the honest control.
+    const priced = translatePine(`//@version=6
+indicator("s")
+plot(ta.sma(close, 20))
+`)
+    expect(priced.ok).toBe(true)
+    const row = priced.outputs[priced.selected]
+    expect(!!treeYieldsBool(parseFormula(row.formula).ast)).toBe(false)
   })
 
   it('⛔ the corpus can DISTINGUISH — a broken script really does fail', () => {
