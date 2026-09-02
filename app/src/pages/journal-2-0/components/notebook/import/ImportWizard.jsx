@@ -174,6 +174,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const [docStatus, setDocStatus] = useState({})
   const [warnings, setWarnings] = useState([])
   const [excludedFolders, setExcludedFolders] = useState(() => new Set())
+  // Per-note exclusion — the finer-grained sibling of excludedFolders. Keyed
+  // by importKey (stable across a re-scan of the same source), holding the
+  // notes the member unchecked INSIDE a folder that is otherwise kept. Both
+  // sets are separate axes that meet in ONE place (`visibleDocs` below) —
+  // there is no second "what to send" payload anywhere downstream of it.
+  const [excludedNotes, setExcludedNotes] = useState(() => new Set())
   const [destChoice, setDestChoice] = useState('__new__')
 
   const [progress, setProgress] = useState(null)
@@ -204,6 +210,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setDocStatus({})
     setWarnings([])
     setExcludedFolders(new Set())
+    setExcludedNotes(new Set())
     setDestChoice('__new__')
     setProgress(null)
     setSummaryResult(null)
@@ -280,6 +287,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setWarnings([...expandWarnings, ...parseWarnings])
       setSourceLabel(adapter.label)
       setExcludedFolders(new Set())
+      setExcludedNotes(new Set())
       setStep('preview')
     } catch (err) {
       if (cancelled()) return
@@ -334,9 +342,21 @@ export default function ImportWizard({ open, onClose, onImported }) {
     return [...set].sort()
   }, [docs])
 
-  const visibleDocs = useMemo(
+  // Folder exclusion first (whole-folder axis) — this is what the "Skip
+  // folders" checkboxes drive.
+  const folderFilteredDocs = useMemo(
     () => docs.filter((d) => !(d.folderPath?.length && excludedFolders.has(d.folderPath[0]))),
     [docs, excludedFolders]
+  )
+
+  // The set that actually gets imported: folder exclusion AND per-note
+  // exclusion compose HERE, and only here. previewCounts/mediaCount/
+  // folderCount and the confirm payload (`handleConfirm` below) all read
+  // this same value, so there is exactly one definition of "what's
+  // excluded" for the whole preview step — never a second list to drift.
+  const visibleDocs = useMemo(
+    () => folderFilteredDocs.filter((d) => !excludedNotes.has(d.importKey)),
+    [folderFilteredDocs, excludedNotes]
   )
 
   const previewCounts = useMemo(() => {
@@ -382,6 +402,47 @@ export default function ImportWizard({ open, onClose, onImported }) {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
       else next.add(name)
+      return next
+    })
+  }
+
+  // Notes grouped for the per-note picker, built from `folderFilteredDocs`
+  // (NOT `docs`) — a note inside an already-excluded folder never shows up
+  // here at all, so there is only ever one control that can exclude it.
+  const noteGroups = useMemo(() => {
+    const map = new Map()
+    for (const d of folderFilteredDocs) {
+      const key = d.folderPath?.length ? d.folderPath.join('/') : '__unfiled__'
+      const label = d.folderPath?.length ? d.folderPath.join(' / ') : 'Unfiled'
+      if (!map.has(key)) map.set(key, { key, label, docs: [] })
+      map.get(key).docs.push(d)
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label))
+  }, [folderFilteredDocs])
+
+  const toggleExcludeNote = (importKey) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      if (next.has(importKey)) next.delete(importKey)
+      else next.add(importKey)
+      return next
+    })
+  }
+
+  const selectAllNotes = () => setExcludedNotes(new Set())
+  const selectNoNotes = () => setExcludedNotes(new Set(folderFilteredDocs.map((d) => d.importKey)))
+
+  const selectAllInGroup = (groupDocs) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      for (const d of groupDocs) next.delete(d.importKey)
+      return next
+    })
+  }
+  const selectNoneInGroup = (groupDocs) => {
+    setExcludedNotes((prev) => {
+      const next = new Set(prev)
+      for (const d of groupDocs) next.add(d.importKey)
       return next
     })
   }
@@ -623,6 +684,59 @@ export default function ImportWizard({ open, onClose, onImported }) {
                       {name}
                     </label>
                   ))}
+                </div>
+              )}
+
+              {folderFilteredDocs.length > 0 && (
+                <div className={styles.notesWrap}>
+                  <div className={styles.notesHeader}>
+                    <span className={styles.fieldLabel}>
+                      Notes to import ({visibleDocs.length} of {folderFilteredDocs.length} selected)
+                    </span>
+                    <div className={styles.notesBulkRow}>
+                      <button type="button" className={styles.bulkBtn} onClick={selectAllNotes}>
+                        <UIcon name="check" size={13} gold={false} />
+                        Select all
+                      </button>
+                      <button type="button" className={styles.bulkBtn} onClick={selectNoNotes}>
+                        <UIcon name="x" size={13} gold={false} />
+                        Select none
+                      </button>
+                    </div>
+                  </div>
+                  <div className={styles.notesList}>
+                    {noteGroups.map((group) => (
+                      <div key={group.key} className={styles.notesGroup}>
+                        <div className={styles.notesGroupHeader}>
+                          <span className={styles.notesGroupLabel}>{group.label}</span>
+                          <button
+                            type="button"
+                            className={styles.groupBulkBtn}
+                            onClick={() => selectAllInGroup(group.docs)}
+                          >
+                            All
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.groupBulkBtn}
+                            onClick={() => selectNoneInGroup(group.docs)}
+                          >
+                            None
+                          </button>
+                        </div>
+                        {group.docs.map((d) => (
+                          <label key={d.importKey} className={styles.noteRow}>
+                            <input
+                              type="checkbox"
+                              checked={!excludedNotes.has(d.importKey)}
+                              onChange={() => toggleExcludeNote(d.importKey)}
+                            />
+                            {d.title || 'Untitled'}
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
