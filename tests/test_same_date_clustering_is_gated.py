@@ -615,3 +615,39 @@ def test_every_published_row_makes_money_on_its_own_bracket():
             f"{key} publishes without a break-even cost — the corpus asks for "
             f"trades/year and break-even cost alongside every return number")
         assert row.get("trades_per_year") is not None
+
+
+# ── the universe behind every number, per LMW ───────────────────────────────
+
+def test_the_uncharacterised_universe_is_declared():
+    """⛔⛔ THE CORPUS'S STRONGEST PUBLISHED EVIDENCE IS THAT THIS MATTERS. LMW
+    ran the same ten detectors over the same 34 years and got 7 of 10
+    significant on NYSE/AMEX against 10 of 10 on Nasdaq — and 7 vs 5 depending
+    on which test, on the same data. Their instruction: "Store the universe and
+    the test with every published rate."
+
+    We store `sample_tickers`, a COUNT. What population it was drawn from is not
+    recorded, and cannot currently be derived — `market_cap` is null for every
+    row in the store. A published rate over a universe nobody can characterise
+    is weaker than it reads, and that has to travel with the numbers."""
+    lim = (ll.load().get("limitations") or "").lower()
+    assert "uncharacterised" in lim or "uncharacterized" in lim, (
+        "the ledger no longer declares that its universe is uncharacterised")
+    for must in ("store the universe and the test", "not computable from the data"):
+        assert must in lim, (
+            f"the note lost {must!r}: it must carry the SOURCE's instruction and "
+            f"the reason we cannot yet follow it — the instruction alone reads "
+            f"as an oversight rather than a blocked measurement")
+
+
+def test_the_ledger_still_only_records_a_COUNT_not_a_composition():
+    """⭐ POINTS BOTH WAYS. The day a row records which population it was
+    measured on, this rail goes red and the limitation above should be
+    rewritten rather than inherited."""
+    rows = _published()
+    assert rows, "nothing published"
+    for key, row in rows.items():
+        assert isinstance(row.get("sample_tickers"), int), key
+        assert not any(k for k in row if "tier" in k or "population" in k), (
+            f"{key} now records a population — update the limitation note, "
+            f"which says the composition is not stored")
