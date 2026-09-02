@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { registerTickers } from './livePriceStore'
 
 // ── Shared "instant scan" neighbor-warm ──────────────────────────────────────
 // The ONE step that makes arrow/click scanning through ANY ticker list paint the
@@ -30,11 +31,12 @@ import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
 // _idbSeen skips make an already-warm neighbor a no-op), so a churny reference
 // only costs a few Map lookups, never a duplicate fetch.
 export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } = {}) {
-  useEffect(() => {
-    if (!selectedSym || !orderedSymbols || orderedSymbols.length < 2) return
+  // The ±radius wrap-aware neighbors of the current selection, in list order.
+  const neighbors = useMemo(() => {
+    if (!selectedSym || !orderedSymbols || orderedSymbols.length < 2) return []
     const flat = orderedSymbols
     const idx = flat.indexOf(selectedSym)
-    if (idx < 0) return
+    if (idx < 0) return []
     const len = flat.length
     const around = new Set()
     for (let d = 1; d <= radius; d++) {
@@ -42,10 +44,29 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
       around.add(flat[(idx - d + len) % len])
     }
     around.delete(selectedSym)
-    const neighbors = [...around].filter(Boolean)
+    return [...around].filter(Boolean)
+  }, [orderedSymbols, selectedSym, radius])
+  const neighborsKey = neighbors.join(',')
+
+  // Warm the neighbors' BARS into sync-mem + IDB → same-frame HISTORY paint.
+  useEffect(() => {
     if (!neighbors.length) return
     const onTf = tf || 'D'
     warmMemFromIDB(neighbors, [onTf])                      // durable → sync mem (no network)
     prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
-  }, [orderedSymbols, selectedSym, tf, radius])
+  }, [neighborsKey, tf])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-poll the neighbors' LIVE PRICE (incl. day_open) into livePriceStore so that
+  // when the user arrows onto one, its developing "today" daily bar paints on the
+  // FIRST frame at the real-time price — instead of appearing ~1s later on the first
+  // live poll, which is what makes the chart shift back a bar + snap the candle body.
+  // registerTickers immediately polls new syms; its unregister cleanup keeps only the
+  // current ±radius window subscribed (bounded, no refcount leak). Debounced 200ms so
+  // fast scanning can't fire a /api/live-prices poll per keypress.
+  useEffect(() => {
+    if (!neighbors.length) return undefined
+    let unregister = null
+    const t = setTimeout(() => { unregister = registerTickers(neighbors) }, 200)
+    return () => { clearTimeout(t); if (unregister) unregister() }
+  }, [neighborsKey])  // eslint-disable-line react-hooks/exhaustive-deps
 }
