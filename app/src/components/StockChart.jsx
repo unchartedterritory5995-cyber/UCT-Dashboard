@@ -8646,15 +8646,22 @@ export default function StockChart({
       }
     }
 
-    // Now that the re-top has (if applicable) planted today's developing bar, record
-    // whether the SERIES holds MORE bars than the loaded set — the universal signal the
-    // framing uses to pin today's slot (index = filteredBars.length) at the anchor
-    // instead of yesterday's. A real length compare → correct regardless of which
-    // writer planted or the bar-time representation. Runs on commits (not per tick).
+    // ⭐ Decide whether to reserve today's slot at the anchor. TWO signals, OR'd:
+    //   (1) marketSession === 'rth' — during regular hours the SEALED daily history
+    //       ALWAYS ends at yesterday's close (today is never sealed yet), so a
+    //       developing today bar is ALWAYS expected. Reserve its slot UP-FRONT — before
+    //       today's bar even plants — so whether it arrives sync (re-top) or async (a
+    //       late live tick, cold ticker, typed symbol), it lands in the reserved anchor
+    //       slot instead of appending past the frame and shifting. No timing race, no
+    //       data-shape/date-field dependency. This is the universal fix.
+    //   (2) the SERIES already holds more bars than the loaded set — today is planted
+    //       beyond the yesterday-ending history. Covers pre/post and any off-hours
+    //       developing bar without over-reserving when the sealed tail already is today.
     try {
       const _sd = candleSeriesRef.current && typeof candleSeriesRef.current.data === 'function'
         ? candleSeriesRef.current.data() : null
-      _reserveTodaySlot = resolvedTf === 'D' && Array.isArray(_sd) && _sd.length > filteredBars.length
+      const _seriesExtra = Array.isArray(_sd) && _sd.length > filteredBars.length
+      _reserveTodaySlot = resolvedTf === 'D' && (marketSession === 'rth' || _seriesExtra)
     } catch { /* best-effort; false → prior behaviour */ }
 
     // ── THE INDICATOR ENGINE (Phase B) — what it owns, decided here ───────────
