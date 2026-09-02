@@ -27,10 +27,11 @@ import re
 import sqlite3
 import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from api.services.journal_two.attachment_root import (
-    LEGACY_ATTACHMENT_ROOT, attachment_root,
+    LEGACY_ATTACHMENT_ROOT, attachment_root, read_candidates,
 )
 
 _INLINE_MARKS = {
@@ -103,10 +104,12 @@ def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str
     Belt: reject any segment that is itself `..` or contains a separator
     before ever touching the filesystem. Suspenders: after resolving the
     candidate, require it to still be `relative_to` the RESOLVED root (not
-    the unresolved one) -- this is what actually catches a `..` that
-    string-matching would miss. Checked against both the primary and the
-    legacy attachment root, mirroring `notes.py::serve_note_image_path`'s
-    read-fallback (a box that still has files in the old location)."""
+    the unresolved one) -- this is what actually catches an escape (a `..`
+    segment, OR a symlink/junction under the root whose target lands outside
+    it) that string-matching would miss. Candidate paths come from
+    `attachment_root.read_candidates()` -- the SAME "where can attachments
+    live" list `notes.py::serve_note_image_path` uses -- so there is one
+    authority over primary-vs-legacy-root resolution, not two."""
     if sub not in ("hero", "inline", "file"):
         return None
     for part in (note_id, filename):
@@ -115,12 +118,12 @@ def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str
     if filename.startswith("."):
         return None
 
+    rel = Path(user_id) / "notes" / note_id / sub / filename
     roots = [attachment_root(), LEGACY_ATTACHMENT_ROOT]
-    for root in roots:
+    for root, candidate in zip(roots, read_candidates(rel)):
         try:
-            root_resolved = root.resolve()
-            target = (root / user_id / "notes" / note_id / sub / filename).resolve()
-            target.relative_to(root_resolved)
+            target = candidate.resolve()
+            target.relative_to(root.resolve())
         except (OSError, ValueError):
             continue
         if target.is_file():

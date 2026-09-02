@@ -5,6 +5,8 @@ a member checks whether their notes survived, and silently dropping a table
 or a task list is the failure that makes them keep paying for the old app.
 """
 import io
+import os
+import subprocess
 import sqlite3
 import zipfile
 
@@ -491,6 +493,70 @@ def test_path_traversal_via_dotdot_filename_is_rejected(attach_root, tmp_path):
     blob, _ = build_export_zip("u1", conn=c)  # must not raise
     zf = zipfile.ZipFile(io.BytesIO(blob))
     assert not any(n.startswith("attachments/") for n in zf.namelist())
+
+
+def _make_escape_link(link_path, target_dir):
+    """Point `link_path` (a normal-looking, single path segment -- no `..`,
+    no `/`, no `\\`) AT `target_dir`, which lives OUTSIDE the attachment
+    root. This is the one realistic way a single clean segment can still
+    resolve outside its parent: the belt checks in
+    `_resolve_attachment_path` reject '..'/'/'/'\\' by string content, and
+    those are the ONLY string-level tricks that exist -- a Windows
+    drive-relative segment like "C:evil" was verified (by hand, not in this
+    suite) to NOT trigger pathlib's absolute-path override the way
+    "C:\\evil" does, and "C:\\evil" already contains a rejected backslash.
+    So the only way left to defeat resolve-then-containment is a real
+    filesystem redirect. Tries a symlink first (works unprivileged on POSIX,
+    and on Windows with Developer Mode/admin), then a Windows directory
+    junction via `mklink /J` (no elevation required). Returns True on
+    success."""
+    link_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.symlink(str(target_dir), str(link_path), target_is_directory=True)
+        return True
+    except OSError:
+        pass
+    if os.name == "nt":
+        r = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link_path), str(target_dir)],
+            capture_output=True, text=True,
+        )
+        return r.returncode == 0 and link_path.exists()
+    return False
+
+
+def test_path_traversal_via_directory_junction_is_rejected(attach_root, tmp_path):
+    """The '..'/'/'/'\\' belt checks cannot catch THIS escape: `note_id`
+    here (`escape_link`) is a perfectly ordinary single path segment with
+    none of those characters, so it sails past the belt exactly like a
+    legitimate note_id would. It only fails to resolve inside the
+    attachment root because `escape_link` is a directory junction pointing
+    OUTSIDE the root -- which only the resolve-then-`relative_to` check (the
+    suspenders) can catch. A real file is planted at the resolved-but-
+    escaped location so this test can only pass because that check actually
+    ran, not because the input looked suspicious on its face."""
+    outside = tmp_path / "outside_vault"
+    (outside / "inline").mkdir(parents=True)
+    (outside / "inline" / "secret.png").write_bytes(b"escaped-bytes")
+
+    link = attach_root / "u1" / "notes" / "escape_link"
+    if not _make_escape_link(link, outside):
+        pytest.skip("no privilege to create a symlink/junction on this host")
+
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    _insert_note(c, "n1", "u1", "Junction escape", _doc(_image_node(
+        "/api/j2/notes/attachments/u1/escape_link/inline/secret.png"
+    )))
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)  # must not raise
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    assert not any(zf.read(n) == b"escaped-bytes" for n in zf.namelist())
+    assert not any(n.startswith("attachments/") for n in zf.namelist())
+    body = zf.read("Junction escape.md").decode("utf-8")
+    assert "/api/j2/notes/attachments/u1/escape_link/inline/secret.png" in body
 
 
 def test_same_attachment_referenced_twice_is_bundled_once(attach_root):
