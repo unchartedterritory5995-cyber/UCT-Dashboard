@@ -3629,7 +3629,23 @@ class Resolver {
       if (VALUE_NAMESPACES.has(ns)) {
         // `ta.vwap`, `ta.obv`, `ta.tr` are VARIABLES in Pine. They reach the table
         // as zero-argument calls, and the table decides whether that is a thing.
-        return this.resolveTableCall(name, name.slice(dot + 1), [], node.tok)
+        const short = name.slice(dot + 1)
+        // ⚰️⚰️ THE COMMENT ABOVE NAMED `ta.tr` AND `ta.tr` DID NOT WORK. Only the
+        // names the TABLE declares reached anything here; `tr` is not a table
+        // function, it is an exact EXPANSION in `BUILTIN_SERIES_TREE`, and that
+        // map was consulted on the BARE-name path forty lines below and nowhere
+        // else. So `tr` translated and `ta.tr` refused `pine:function` — and
+        // since v5 REQUIRES the namespace, the spelling that worked was the one
+        // no modern script is allowed to use
+        // (`lesson_a_comment_naming_a_mechanism_is_a_claim_about_a_run`).
+        //
+        // ⭐ IT IS ASKED HERE WITHOUT THE SHADOWING DANCE THE BARE PATH NEEDS. Down
+        // there the script's own bindings are checked first, because a member may
+        // define their own `tr` and Pine says their name wins. `ta.tr` is not a
+        // name a script can bind, so there is nothing to lose to and no order to
+        // get wrong.
+        if (own(BUILTIN_SERIES_TREE, short)) return BUILTIN_SERIES_TREE[short]()
+        return this.resolveTableCall(name, short, [], node.tok)
       }
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
