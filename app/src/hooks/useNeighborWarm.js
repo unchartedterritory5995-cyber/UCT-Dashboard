@@ -56,17 +56,23 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
     prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
   }, [neighborsKey, tf])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pre-poll the neighbors' LIVE PRICE (incl. day_open) into livePriceStore so that
-  // when the user arrows onto one, its developing "today" daily bar paints on the
-  // FIRST frame at the real-time price — instead of appearing ~1s later on the first
-  // live poll, which is what makes the chart shift back a bar + snap the candle body.
-  // registerTickers immediately polls new syms; its unregister cleanup keeps only the
-  // current ±radius window subscribed (bounded, no refcount leak). Debounced 200ms so
-  // fast scanning can't fire a /api/live-prices poll per keypress.
+  // Pre-poll the WHOLE list's LIVE PRICE (incl. day_open) into livePriceStore, keyed
+  // on the list itself (NOT the moving selection) so it registers ONCE when the list
+  // opens and stays put while you scroll — no per-keypress churn, no debounce needed.
+  // Why the whole list, not the ±radius window: a fast scan outran the moving window
+  // and reached a chart before its price arrived, so today's bar planted async and
+  // briefly shifted (HASI). With every list member's day_open already in the store,
+  // the developing "today" bar paints on the FIRST frame at the real-time price for
+  // ANY chart you land on — no shift, no snap — regardless of scan speed. Bounded to
+  // 120 (the rows a scan realistically reaches); registerTickers refcount-dedups and
+  // the cleanup unregisters, so the poll set stays bounded with no leak.
+  const listKey = useMemo(
+    () => (orderedSymbols || []).slice(0, 120).filter(Boolean).join(','),
+    [orderedSymbols],
+  )
   useEffect(() => {
-    if (!neighbors.length) return undefined
-    let unregister = null
-    const t = setTimeout(() => { unregister = registerTickers(neighbors) }, 200)
-    return () => { clearTimeout(t); if (unregister) unregister() }
-  }, [neighborsKey])  // eslint-disable-line react-hooks/exhaustive-deps
+    const top = listKey ? listKey.split(',') : []
+    if (!top.length) return undefined
+    return registerTickers(top)
+  }, [listKey])
 }

@@ -20,17 +20,11 @@ describe('useNeighborWarm', () => {
     registerTickers.mockClear()
   })
 
-  it('pre-registers the neighbors\' live prices after a debounce (for the developing bar)', () => {
-    vi.useFakeTimers()
-    try {
-      renderHook(() => useNeighborWarm(LIST, 'D', 'D', { radius: 2 }))
-      expect(registerTickers).not.toHaveBeenCalled()  // debounced — not immediate
-      vi.advanceTimersByTime(210)
-      expect(registerTickers).toHaveBeenCalledTimes(1)
-      expect([...registerTickers.mock.calls[0][0]].sort()).toEqual(['B', 'C', 'E', 'F'])
-    } finally {
-      vi.useRealTimers()
-    }
+  it('pre-registers the WHOLE list\'s live prices (once, for the developing bar)', () => {
+    renderHook(() => useNeighborWarm(LIST, 'D', 'D', { radius: 2 }))
+    // keyed on the list, not the selection → the entire list (bounded), not just ±radius
+    expect(registerTickers).toHaveBeenCalledTimes(1)
+    expect([...registerTickers.mock.calls[0][0]].sort()).toEqual([...LIST].sort())
   })
 
   it('warms the ±radius neighbors (wrap-aware, self excluded) into sync-mem AND IDB', () => {
