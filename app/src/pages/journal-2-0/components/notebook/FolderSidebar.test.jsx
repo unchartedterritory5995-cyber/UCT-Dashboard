@@ -86,10 +86,13 @@ describe('header toolbar — collapse + search mode', () => {
                           activeTag={null} onSelectTag={() => {}} />)
     fireEvent.click(screen.getByLabelText('Search notes'))
     // The hook is still invoked every render (React's rule — hooks can't be
-    // called conditionally), but it must never be asked to fetch while there
-    // is nothing to search for.
-    expect(useJ2NotesMock.mock.calls.length).toBeGreaterThan(0)
-    for (const [opts] of useJ2NotesMock.mock.calls) {
+    // called conditionally), but the SEARCH call — identified by its `q` key;
+    // FolderSidebar also calls this hook, unconditionally, for the honest
+    // unfiled-folder total (Task 11) — must never be asked to fetch while
+    // there is nothing to search for.
+    const searchCalls = useJ2NotesMock.mock.calls.filter(([opts]) => opts && 'q' in opts)
+    expect(searchCalls.length).toBeGreaterThan(0)
+    for (const [opts] of searchCalls) {
       expect(opts?.enabled).toBe(false)
     }
   })
@@ -193,7 +196,10 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
                           activeTag={null} onSelectTag={() => {}} />)
     typeQuery('sndk')
     settle()
-    const enabledCall = useJ2NotesMock.mock.calls.find(([opts]) => opts?.enabled)
+    // Scope to the SEARCH call (`q` key) — FolderSidebar's other, always-on
+    // useJ2Notes call (the honest unfiled-folder total, Task 11) is also
+    // enabled and has its own, unrelated `limit`.
+    const enabledCall = useJ2NotesMock.mock.calls.find(([opts]) => opts?.enabled && 'q' in opts)
     expect(enabledCall[0].limit).toBe(100)
   })
 
@@ -214,7 +220,9 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
                           activeTag={null} onSelectTag={() => {}} />)
     fireEvent.click(screen.getByLabelText('Search notes'))
     settle()
-    for (const [opts] of useJ2NotesMock.mock.calls) {
+    // Scope to the SEARCH call — see the note above.
+    const searchCalls = useJ2NotesMock.mock.calls.filter(([opts]) => opts && 'q' in opts)
+    for (const [opts] of searchCalls) {
       expect(opts?.enabled).toBe(false)
     }
   })
@@ -302,5 +310,50 @@ describe('tag cloud cap for migrated libraries', () => {
     expect(screen.getByText('#beta')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /show all tags/i })).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/filter tags/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('honest badges for a migrated library (Task 11)', () => {
+  // A member with 5,000 notes only ever gets ONE page (100) handed down as
+  // the `notes` prop — this is exactly the shape a migrated account renders
+  // with. Both badges below would read "1" against today's code (the length
+  // of this one-note page) if they still derived from `notes.length`.
+  const onePageOfNotes = [{ id: 'n1', title: 'Loaded page note', folderId: null, tags: [] }]
+
+  it('"All notes" renders the true total (`notesTotal`), not the loaded page length', () => {
+    render(<FolderSidebar notes={onePageOfNotes} notesTotal={5000} activeFolderId={null}
+                          onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
+    const allNotesRow = screen.getByText('All notes').closest('button')
+    expect(within(allNotesRow).getByText('5000')).toBeInTheDocument()
+    expect(within(allNotesRow).queryByText('1')).not.toBeInTheDocument()
+  })
+
+  it('"All notes" falls back to the page length only when no honest total is supplied', () => {
+    render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null}
+                          onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
+    const allNotesRow = screen.getByText('All notes').closest('button')
+    expect(within(allNotesRow).getByText('1')).toBeInTheDocument()
+  })
+
+  it('"Unfiled" renders the server-computed true total, not a client count over the loaded page', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (opts?.folderId === '__unfiled__') {
+        return { notes: [], isLoading: false, isValidating: false, error: null, total: 4321 }
+      }
+      return { notes: [], isLoading: false, isValidating: false, error: null }
+    })
+    render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null}
+                          onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
+    const unfiledRow = screen.getByText('Unfiled').closest('button')
+    expect(within(unfiledRow).getByText('4321')).toBeInTheDocument()
+    expect(within(unfiledRow).queryByText('1')).not.toBeInTheDocument()
+  })
+
+  it('"Unfiled" falls back to counting the loaded page when the server total is unavailable', () => {
+    // Default mock (from beforeEach) returns no `total` field at all.
+    render(<FolderSidebar notes={onePageOfNotes} activeFolderId={null}
+                          onSelectFolder={() => {}} activeTag={null} onSelectTag={() => {}} />)
+    const unfiledRow = screen.getByText('Unfiled').closest('button')
+    expect(within(unfiledRow).getByText('1')).toBeInTheDocument()
   })
 })

@@ -1370,7 +1370,16 @@ def list_notes_endpoint(
         embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset,
     )
-    return {"notes": rows}
+    # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+    # never the length of `rows` — a migrated library of thousands of notes must
+    # see its real count, not "however many fit on this page". Built from the
+    # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
+    # so the two can never disagree about which notes match.
+    total = notes_service.count_notes(
+        user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        embed_symbol=embed_symbol, embed_widget=embed_widget,
+    )
+    return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
 @router.get("/notes/backlinks")

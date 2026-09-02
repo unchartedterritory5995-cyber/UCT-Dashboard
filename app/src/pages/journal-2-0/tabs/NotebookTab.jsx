@@ -125,13 +125,28 @@ export default function NotebookTab() {
     return () => { window.removeEventListener('resize', fit); cancelAnimationFrame(raf) }
   }, [])
 
-  const { notes, isLoading, error, refresh } = useJ2Notes({
-    folderId, tag, sort,
-  })
+  // `total` is the TRUE count from SQL for this filter set (folder/tag), never
+  // the length of `notes` — a migrated library of thousands of notes must see
+  // its real count. `hasMore`/`loadMore` back the "Load more" control below:
+  // page size stays 100, and a click fetches+appends the next page rather
+  // than re-fetching everything already on screen.
+  const {
+    notes, isLoading, error, refresh, total, hasMore, loadMore, isLoadingMore,
+  } = useJ2Notes({ folderId, tag, sort })
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
-  // own search, so it needs the COMPLETE note set — not the filtered view above
-  // (which only holds the selected folder's notes). Separate unfiltered fetch.
-  const { notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes } = useJ2Notes({ sort: 'title' })
+  // own search, so it needs a note set covering every folder — not the
+  // filtered view above (which only holds the selected folder's notes).
+  // ⚠️ This is still only ONE PAGE (the same 100-row cap as the main list
+  // above), NOT the "complete note set" this comment used to claim — on a
+  // migrated library it undercounts exactly like the main list did. It stays
+  // capped on purpose (rendering thousands of leaf rows in a tree is its own,
+  // separately-tracked problem — see the tag-cloud cap note below for the
+  // sibling gap). What IS honest here is `allNotesTotal`: the true total for
+  // this same unfiltered fetch, handed to FolderSidebar for its "All notes"
+  // badge instead of `allNotes.length`.
+  const {
+    notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
+  } = useJ2Notes({ sort: 'title' })
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -294,6 +309,7 @@ export default function NotebookTab() {
           <FolderSidebar
             key={folderRefreshKey}
             notes={allNotes}
+            notesTotal={allNotesTotal}
             activeFolderId={folderId}
             onSelectFolder={handleSelectFolder}
             activeTag={tag}
@@ -422,11 +438,36 @@ export default function NotebookTab() {
             </div>
           </div>
         ) : (
-          <div className={styles.grid}>
-            {notes.map((n) => (
-              <NoteCard key={n.id} note={n} onOpen={openNote} />
-            ))}
-          </div>
+          <>
+            <div className={styles.grid}>
+              {notes.map((n) => (
+                <NoteCard key={n.id} note={n} onOpen={openNote} />
+              ))}
+            </div>
+            {/* Incremental loading over infinite scroll: simpler, testable,
+                and it never fights the page's own scroll container (`.main`
+                above scrolls internally — a scroll-triggered fetch bound to
+                the wrong element is a standing trap in this codebase). Page
+                size stays 100; this always shows how many of how many are
+                loaded so the honest total (above, in the sidebar badge) is
+                never contradicted by a grid that quietly stops at 100. */}
+            <div className={styles.loadMoreRow}>
+              <span className={styles.loadMoreCount}>
+                Showing {notes.length} of {total} note{total === 1 ? '' : 's'}
+              </span>
+              {hasMore && (
+                <button
+                  type="button"
+                  className={styles.loadMoreBtn}
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                >
+                  <UIcon name="chevronDown" size={14} gold={false} />
+                  {isLoadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              )}
+            </div>
+          </>
         )}
           </>
         )}

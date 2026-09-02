@@ -518,6 +518,65 @@ def _folder_depth(conn: sqlite3.Connection, user_id: str, folder_id: str) -> int
 
 # ── Notes CRUD ───────────────────────────────────────────────────────────────
 
+def _notes_filter_sql(
+    user_id: str,
+    *,
+    folder_id: str | None = None,
+    tag: str | None = None,
+    ticker: str | None = None,
+    q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
+) -> tuple[str, list[Any]]:
+    """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
+    for "which notes match this filter set". `list_notes` and `count_notes`
+    BOTH build off this ONE predicate — two independently-written WHERE
+    clauses for the same membership question is a defect shape this codebase
+    has been burned by repeatedly: the moment either copy learns a rule the
+    other doesn't, the count and the page it counts silently disagree."""
+    sql = " WHERE user_id = ?"
+    params: list[Any] = [user_id]
+    if folder_id == "__unfiled__":
+        sql += " AND folder_id IS NULL"
+    elif folder_id:
+        sql += " AND folder_id = ?"
+        params.append(folder_id)
+    if ticker:
+        sql += " AND ticker = ?"
+        params.append(ticker.strip().upper())
+    # Widget-embed filters ("every entry where I traded AMD" / "every entry
+    # with a breadth widget") — answered from the j2_note_embeds sidecar.
+    if embed_symbol:
+        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.symbol = ?)")
+        params.append(embed_symbol.strip().upper())
+    if embed_widget:
+        sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                " AND e.widget_id = ?)")
+        params.append(embed_widget.strip())
+    if tag:
+        # JSON LIKE — case-insensitive substring of any tag value.
+        sql += ' AND lower(tags) LIKE ?'
+        params.append(f'%"{tag.lower()}"%')
+    if q:
+        # FTS5 when the text yields a valid MATCH expression; the old
+        # LIKE scan remains the fallback so a query FTS cannot parse
+        # still returns results rather than an error. body_plain stays
+        # authoritative -- j2_notes_fts is a derived index (db.py).
+        expr = fts_match_expr(q)
+        if expr:
+            sql += (" AND id IN (SELECT note_id FROM j2_notes_fts"
+                    " WHERE j2_notes_fts MATCH ? AND user_id = ?)")
+            params.extend([expr, user_id])
+        else:
+            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
+            ql = f"%{q.lower()}%"
+            params.extend([ql, ql])
+    return sql, params
+
+
 def list_notes(
     user_id: str,
     *,
@@ -535,55 +594,53 @@ def list_notes(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes WHERE user_id = ?"
-        params: list[Any] = [user_id]
-        if folder_id == "__unfiled__":
-            sql += " AND folder_id IS NULL"
-        elif folder_id:
-            sql += " AND folder_id = ?"
-            params.append(folder_id)
-        if ticker:
-            sql += " AND ticker = ?"
-            params.append(ticker.strip().upper())
-        # Widget-embed filters ("every entry where I traded AMD" / "every entry
-        # with a breadth widget") — answered from the j2_note_embeds sidecar.
-        if embed_symbol:
-            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    " AND e.symbol = ?)")
-            params.append(embed_symbol.strip().upper())
-        if embed_widget:
-            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
-                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
-                    " AND e.widget_id = ?)")
-            params.append(embed_widget.strip())
-        if tag:
-            # JSON LIKE — case-insensitive substring of any tag value.
-            sql += ' AND lower(tags) LIKE ?'
-            params.append(f'%"{tag.lower()}"%')
-        if q:
-            # FTS5 when the text yields a valid MATCH expression; the old
-            # LIKE scan remains the fallback so a query FTS cannot parse
-            # still returns results rather than an error. body_plain stays
-            # authoritative -- j2_notes_fts is a derived index (db.py).
-            expr = fts_match_expr(q)
-            if expr:
-                sql += (" AND id IN (SELECT note_id FROM j2_notes_fts"
-                        " WHERE j2_notes_fts MATCH ? AND user_id = ?)")
-                params.extend([expr, user_id])
-            else:
-                sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ?)"
-                ql = f"%{q.lower()}%"
-                params.extend([ql, ql])
+        where_sql, params = _notes_filter_sql(
+            user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+        )
+        sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes" + where_sql
         order_col = {
             "updated": "updated_at DESC",
             "created": "created_at DESC",
             "title": "title COLLATE NOCASE ASC",
         }.get(sort, "updated_at DESC")
         sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
-        params.extend([max(1, min(limit, 500)), max(0, offset)])
+        params = params + [max(1, min(limit, 500)), max(0, offset)]
         rows = conn.execute(sql, params).fetchall()
         return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def count_notes(
+    user_id: str,
+    *,
+    folder_id: str | None = None,
+    tag: str | None = None,
+    ticker: str | None = None,
+    q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """The TRUE total behind `list_notes`'s same filter set — a real
+    ``SELECT COUNT(*)`` over the whole match, never the length of a
+    limit/offset page. Migrating a library of thousands of notes must never
+    make the member's honest count degrade to "however many fit on one
+    page" — that gap is what made a 5,000-note migration look like data
+    loss. Built from the SAME `_notes_filter_sql` predicate as `list_notes`
+    so the two can never disagree about which notes match."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        where_sql, params = _notes_filter_sql(
+            user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+            embed_symbol=embed_symbol, embed_widget=embed_widget,
+        )
+        sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
+        row = conn.execute(sql, params).fetchone()
+        return int(row["c"] or 0) if row else 0
     finally:
         if owned:
             conn.close()

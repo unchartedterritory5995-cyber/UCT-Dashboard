@@ -266,6 +266,12 @@ function FolderNode({
 
 export default function FolderSidebar({
   notes,
+  // The TRUE "All notes" total (from SQL, via the parent's unfiltered
+  // useJ2Notes call) — a migrated library's honest size, not the length of
+  // the `notes` page above. Optional so existing callers/tests that only
+  // pass `notes` still render (falls back to `notes.length`, the old,
+  // page-capped behavior) — see the badge below.
+  notesTotal,
   activeFolderId,
   onSelectFolder,
   activeTag,
@@ -321,6 +327,14 @@ export default function FolderSidebar({
     return m
   }, [notes])
 
+  // Honest "Unfiled" badge. `notes` (the prop) is one loaded page, so a
+  // client-side `.filter(n => !n.folderId).length` over it is capped the
+  // exact same way the old "All notes" badge was — a migrated library with
+  // more unfiled notes than fit on one page would undercount here too. Ask
+  // the server for the TRUE count instead (cheap: `limit: 1` means only
+  // `total` is read, the single row is discarded).
+  const { total: unfiledTotalFromServer } = useJ2Notes({ folderId: '__unfiled__', limit: 1 })
+
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
   // it client-side silently misses anything past that on a migrated library,
@@ -372,10 +386,13 @@ export default function FolderSidebar({
     return tagCounts.slice(0, TAG_CAP)
   }, [tagCounts, tagFilter, showAllTags, tagsOverCap])
 
-  const unfiledCount = useMemo(
+  // Fallback for tests/callers that pass `notes` without the server total —
+  // the honest `unfiledTotalFromServer` above wins whenever it's available.
+  const unfiledCountFromPage = useMemo(
     () => notes.filter((n) => !n.folderId).length,
     [notes],
   )
+  const unfiledCount = unfiledTotalFromServer ?? unfiledCountFromPage
 
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
@@ -557,7 +574,12 @@ export default function FolderSidebar({
                 onClick={() => { onSelectFolder(null); onSelectTag(null) }}
               >
                 <span>All notes</span>
-                <span className={styles.count}>{notes.length}</span>
+                {/* The TRUE total (from SQL), never `notes.length` — that page
+                    length is what capped this badge at 100 on a migrated
+                    library. `notesTotal` is optional so a caller/test that
+                    only supplies `notes` still renders (falls back to the old,
+                    page-capped number). */}
+                <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
             <div className={styles.rowWrap}>

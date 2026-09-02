@@ -5,6 +5,8 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from api.services.journal_two import notes as svc
 from api.services.journal_two import notes_quota
@@ -115,6 +117,65 @@ def test_list_notes_search_body(conn):
     svc.create_note("u1", {"title": "Y"}, conn=conn)
     rows = svc.list_notes("u1", q="powerplay", conn=conn)
     assert [n["id"] for n in rows] == [a["id"]]
+
+
+# ── count_notes — the true total behind a capped page (Task 11) ─────────────
+
+def test_count_notes_reflects_all_matches_not_the_page_size(conn):
+    """The migration defect this task exists to kill: a member with more
+    notes than one page must see an honest total, not `len(page)`. 120
+    notes, requested with a 100-row page — `count_notes` must still say 120,
+    not 100."""
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}"}, conn=conn)
+    page = svc.list_notes("u1", limit=100, conn=conn)
+    assert len(page) == 100
+    assert svc.count_notes("u1", conn=conn) == 120
+
+
+def test_count_notes_respects_the_folder_filter(conn):
+    """A folder's total must be that folder's count, not the library's."""
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    for i in range(3):
+        svc.create_note("u1", {"title": f"In folder {i}", "folderId": f["id"]}, conn=conn)
+    for i in range(2):
+        svc.create_note("u1", {"title": f"Unfiled {i}"}, conn=conn)
+    assert svc.count_notes("u1", conn=conn) == 5
+    assert svc.count_notes("u1", folder_id=f["id"], conn=conn) == 3
+    assert svc.count_notes("u1", folder_id="__unfiled__", conn=conn) == 2
+
+
+def test_count_notes_never_crosses_users(conn):
+    svc.create_note("u1", {"title": "Mine"}, conn=conn)
+    svc.create_note("u2", {"title": "Theirs"}, conn=conn)
+    assert svc.count_notes("u1", conn=conn) == 1
+    assert svc.count_notes("u2", conn=conn) == 1
+
+
+def test_count_notes_agrees_with_the_list_across_every_filter_dimension(conn):
+    """`list_notes` and `count_notes` share ONE WHERE-clause builder
+    (`_notes_filter_sql`) precisely so they can never disagree about
+    membership — this pins that invariant across folder/ticker/tag/q, the
+    filters the notebook route actually exposes."""
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    svc.create_note(
+        "u1", {"title": "In folder", "folderId": f["id"], "ticker": "NVDA", "tags": ["earnings"]},
+        conn=conn,
+    )
+    svc.create_note("u1", {"title": "Unfiled NVDA", "ticker": "NVDA"}, conn=conn)
+    svc.create_note("u1", {"title": "Unfiled AAPL", "ticker": "AAPL", "tags": ["macro"]}, conn=conn)
+
+    cases = [
+        {},
+        {"folder_id": f["id"]},
+        {"folder_id": "__unfiled__"},
+        {"ticker": "NVDA"},
+        {"tag": "earnings"},
+        {"q": "unfiled"},
+    ]
+    for kwargs in cases:
+        listed = svc.list_notes("u1", limit=500, conn=conn, **kwargs)
+        assert svc.count_notes("u1", conn=conn, **kwargs) == len(listed), kwargs
 
 
 def _note_with_embeds(conn, title, *symbols, user="u1"):
@@ -587,3 +648,81 @@ def test_save_note_attachment_bytes_succeeds_with_ample_room(attach_root, monkey
     )
     assert out["url"].startswith("/api/j2/notes/attachments/u1/n1/file/")
     assert out["name"] == "doc.pdf"
+
+
+# ── GET /api/j2/notes — the total actually reaches the JSON response ────────
+#
+# The repo's standing trap: a service can compute the right number and a
+# whitelist dict-rebuild between the service and the wire can still drop it,
+# leaving the reader at zero forever. This mounts the REAL router (not just
+# the service function) so the assertion is on what actually serializes over
+# the wire, not on an intermediate value.
+
+@pytest.fixture
+def route_client(monkeypatch, tmp_path):
+    """Minimal app mounting the real journal_two router, with get_current_user
+    overridden and the service DB pointed at a seeded temp file — mirrors
+    test_filters.py's `route_client` fixture for the trades additive envelope."""
+    from api.services import auth_db
+    from api.middleware.auth_middleware import get_current_user
+    from api.routers import journal_two
+
+    db_path = str(tmp_path / "j2_notes_route.db")
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    ensure_schema(conn)
+    for i in range(120):
+        svc.create_note("u1", {"title": f"Note {i}"}, conn=conn)
+    f = svc.create_folder("u1", "Earnings", conn=conn)
+    svc.create_note("u1", {"title": "Filed", "folderId": f["id"]}, conn=conn)
+    conn.commit()
+    conn.close()
+
+    # get_connection() reads the module-global _DB_PATH at call time.
+    monkeypatch.setattr(auth_db, "_DB_PATH", db_path)
+
+    app = FastAPI()
+    app.include_router(journal_two.router)
+    app.dependency_overrides[get_current_user] = lambda: {"id": "u1"}
+    client = TestClient(app)
+    client.folder_id = f["id"]
+    return client
+
+
+def test_route_total_reflects_the_full_library_not_the_page(route_client):
+    """121 notes exist (120 + 1 filed); the default page caps at 100. `total`
+    must be the honest 121, and it must be a SIBLING key next to `notes` —
+    not something the frontend has to derive from page length."""
+    r = route_client.get("/api/j2/notes")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["notes"]) == 100          # the page cap, unchanged
+    assert body["total"] == 121                # the TRUE total, not len(notes)
+    assert body["limit"] == 100
+    assert body["offset"] == 0
+
+
+def test_route_total_respects_the_folder_filter(route_client):
+    """A folder-scoped request's total must be that folder's count, not the
+    library's — proves the router wires the SAME filters into count_notes
+    that it uses for the list."""
+    r = route_client.get(f"/api/j2/notes?folder_id={route_client.folder_id}")
+    assert r.status_code == 200
+    body = r.json()
+    assert [n["title"] for n in body["notes"]] == ["Filed"]
+    assert body["total"] == 1
+
+
+def test_route_paginates_past_the_first_page_via_offset(route_client):
+    """The route already accepted limit/offset — this proves paging past the
+    100-row default actually surfaces the remaining rows via `offset`, and
+    that two consecutive pages together add up to the honest total with no
+    duplicates."""
+    first = route_client.get("/api/j2/notes?limit=100&offset=0").json()
+    second = route_client.get("/api/j2/notes?limit=100&offset=100").json()
+    assert len(first["notes"]) == 100
+    assert len(second["notes"]) == 21           # 121 total - 100 on page one
+    first_ids = {n["id"] for n in first["notes"]}
+    second_ids = {n["id"] for n in second["notes"]}
+    assert not (first_ids & second_ids)          # no overlap
+    assert len(first_ids | second_ids) == 121    # nothing dropped either
