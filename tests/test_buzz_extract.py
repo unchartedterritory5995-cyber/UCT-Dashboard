@@ -211,3 +211,43 @@ def test_urls_do_not_produce_tickers():
     _URL.sub() deleted and pinned nothing."""
     assert tickers("https://example.com/DELL/chart") == []
     assert "DELL" in tickers("DELL chart looks good")   # control: not blanket-blocked
+
+
+@pytest.mark.parametrize("text,want", [
+    ("$CBRS nice oops", "CBRS"),      # measured live 2026-09-02, was dropped
+    ("$SENS", "SENS"),                # same
+    ("watch $nvda", "NVDA"),          # lowercase cashtag still counts
+    ('($AAPL) and "$MSFT"', "AAPL"),  # punctuation on both sides
+])
+def test_a_cashtag_counts_even_when_the_universe_has_never_heard_of_it(text, want):
+    """⛔ `cap_universe.json` is a $300M+ EQUITY SCREEN, and the cashtag tier
+    used to require membership in it -- quietly contradicting this module's own
+    docstring ("cashtag ... beats every gate"). Measured on live #main-chat:
+    $CBRS (x2) and $SENS produced NOTHING.
+
+    A member typing the dollar sign has already told us it is a ticker.
+    Requiring an equity screen to agree overrules them on the one form that
+    leaves no doubt -- and small caps, new listings and non-equities are
+    exactly what a trading room surfaces first."""
+    assert want in tickers(text)
+
+
+@pytest.mark.parametrize("text", [
+    "email me at a$b",     # the $ must not be glued to a letter
+    "costs $5",            # digits are not a ticker
+    "$1.20 move",
+    "spend $ on it",
+])
+def test_a_dollar_sign_alone_is_not_a_cashtag(text):
+    """CONTROL for the test above. Widening the tier past the universe removed
+    the accidental backstop that membership provided, so the SHAPE is now the
+    only gate: $ + 1-6 letters, with a left boundary."""
+    assert tickers(text) == [], f"false cashtag: {extract(text)}"
+
+
+def test_a_cashtag_still_beats_the_collision_gate():
+    """The tier's whole purpose: AI is HOUSE_VOCAB and GOLD is a derived
+    collision, so neither counts bare -- but both count with a $."""
+    assert tickers("AI and GOLD chatter") == []
+    assert "AI" in tickers("$AI beats the gate")
+    assert "GOLD" in tickers("$GOLD miners")

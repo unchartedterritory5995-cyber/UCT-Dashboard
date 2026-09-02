@@ -24,7 +24,10 @@ from api.services import buzz_universe as uni
 _RANK = {"cashtag": 0, "alias": 1, "exact": 2, "contextual": 3}
 
 _URL = re.compile(r"https?://\S+|www\.\S+")
-_CASHTAG = re.compile(r"\$([A-Za-z]{1,6}(?:\.[A-Za-z]{1,2})?)\b")
+# ⛔ The `$` needs a LEFT boundary. Without the lookbehind, "a$b" and an
+# email or price glued to a letter book a cashtag -- which mattered little
+# while the universe gated this tier, and matters now that it does not.
+_CASHTAG = re.compile(r"(?<![A-Za-z0-9])\$([A-Za-z]{1,6}(?:\.[A-Za-z]{1,2})?)\b")
 _WORD = re.compile(r"\b[A-Za-z][A-Za-z.]{0,5}\b")
 
 
@@ -46,11 +49,23 @@ def extract(text: str | None) -> list[tuple[str, str]]:
     ambiguous = uni.ambiguous()
     found: dict[str, str] = {}
 
-    # Tier 1 -- cashtag. Beats every gate, including ambiguity.
+    # Tier 1 -- cashtag. Beats every gate, including ambiguity AND the symbol
+    # universe itself.
+    #
+    # ⛔ IT USED TO REQUIRE `sym in symbols`, which quietly contradicted the
+    # docstring above. `cap_universe.json` is a $300M+ EQUITY SCREEN, so a
+    # cashtag for anything smaller, newer or non-equity produced NOTHING.
+    # Measured on live #main-chat 2026-09-02: `$CBRS` (x2) and `$SENS` both
+    # dropped -- and `$` is the single most deliberate signal a member can
+    # send. A member typing the dollar sign has already told us it is a ticker;
+    # requiring an equity screen to agree is us overruling them on the one form
+    # that leaves no doubt. Recall beats precision here (owner ruling
+    # 2026-09-02), and this is the clearest case of it on the board.
+    #
+    # The shape is still the gate: `_CASHTAG` requires $ + 1-6 letters, so
+    # "$5", "$1.20" and "$" alone match nothing.
     for m in _CASHTAG.finditer(text):
-        sym = m.group(1).upper()
-        if sym in symbols:
-            _strongest(found, sym, "cashtag")
+        _strongest(found, m.group(1).upper(), "cashtag")
 
     # Tier 2 -- company aliases. Longest first so "rocket lab" wins over "lab".
     low = text.lower()
