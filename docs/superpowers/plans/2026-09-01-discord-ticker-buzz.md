@@ -332,7 +332,7 @@ def latest_ts(channels) -> int | None:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd /c/Users/Patrick/uct-worktrees/discord-buzz && python -m pytest tests/test_buzz_store.py -v`
-Expected: 9 passed. Read the summary line.
+Expected: 15 passed (the file grew when full_board/split_tail/totals were added). Read the summary line.
 
 - [ ] **Step 5: Commit**
 
@@ -1554,7 +1554,7 @@ git commit -m "feat(buzz): perms probe, backfill CLI, corpus-derived collision t
 **Interfaces:**
 - Consumes: `buzz_store`
 - Produces:
-  - `window_bounds(name: str, now: int, tz=_ET) -> tuple[int, int]` — names: `open` | `today` | `noon` | `week` | `month`
+  - `window_bounds(name: str, now: int) -> tuple[int, int]` — names: `open` | `today` | `noon` | `week` | `month`
   - `top_board(window: str, now: int, limit: int = 5) -> list[dict]` — `{"ticker","people","mentions","spark":[int]}`
   - `full_board(window: str, now: int) -> list[dict]` — **every** ticker in the window, ranked, no limit (owner: "honestly want every ticker mentioned")
   - `split_tail(rows: list[dict]) -> tuple[list[dict], list[str]]` — the tail after the ranked head, split into `(multi, singles)`: names mentioned 2+ times keep their counts, names mentioned exactly once return as bare tickers for a compressed final line
@@ -1907,7 +1907,15 @@ def heat_board(now: int, limit: int = 4, sessions: int = 30) -> list[dict]:
     chans = _channels()
     open_ts = _session_open(_et(now))
     elapsed = max(0, now - open_ts)
-    candidates = buzz_store.board(open_ts, now, chans, limit=40)
+    # ⛔ NOT a top-N by popularity. This board exists to surface names that are
+    # NOT already popular, so pre-filtering candidates by today's rank is a
+    # contradiction. MEASURED against the shipped code: a ticker at 20x its
+    # normal chatter was invisible because it ranked 51st by raw mentions, and
+    # heat_board rendered EMPTY while that move was happening. MIN_CURRENT is
+    # the correct gate and it is applied immediately below; the cost is bounded
+    # by that floor (10-30 names on a busy day), not by the ticker count.
+    candidates = [r for r in buzz_store.board(open_ts, now, chans, limit=10_000)
+                  if r["mentions"] >= MIN_CURRENT]
 
     out: list[dict] = []
     for row in candidates:
@@ -1930,10 +1938,17 @@ def heat_board(now: int, limit: int = 4, sessions: int = 30) -> list[dict]:
 def ticker_detail(ticker: str, window: str, now: int) -> dict:
     start, end = window_bounds(window, now)
     chans = _channels()
-    rows = buzz_store.board(start, end, chans, limit=200)
-    hit = next((r for r in rows if r["ticker"] == ticker.upper()), None)
-    mentions = hit["mentions"] if hit else 0
-    people = hit["people"] if hit else 0
+    # ⛔ Direct query, NOT a scan of a capped board. `spark` and `link` below are
+    # uncapped, so a capped lookup here returned "0 mentions" beside a non-empty
+    # sparkline and a working jump link -- a payload contradicting itself.
+    sym = ticker.upper()
+    cl0 = (" AND channel_id IN (%s)" % ",".join("?" * len(chans))) if chans else ""
+    row = buzz_store.connect().execute(
+        "SELECT COUNT(*) AS n, COUNT(DISTINCT author_id) AS p FROM mentions "
+        "WHERE ticker=? AND ts >= ? AND ts < ?" + cl0,
+        [sym, start, end, *chans],
+    ).fetchone()
+    mentions, people = row["n"], row["p"]
     c = buzz_store.connect()
     cl = " AND channel_id IN (%s)" % ",".join("?" * len(chans)) if chans else ""
     last = c.execute(
