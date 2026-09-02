@@ -1215,6 +1215,96 @@ git add app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx app/src/
 git commit -m "fix(notebook): sidebar search queries the server, not the truncated loaded page"
 ```
 
+---
+
+## Task 8: Export completeness — bundle the attachments, and rail the route
+
+> **Added mid-execution (Ruling 6 in the wave ledger).** Not in the original plan. Task 3's implementer correctly declined to expand its own scope and flagged both gaps instead.
+
+**Files:**
+- Modify: `api/services/journal_two/notes_export.py`
+- Modify: `api/services/journal_two/test_notes_export.py`
+- Create or extend: a route-level test for `GET /api/j2/notes/export` (place it beside the existing trades-export route test the Task 3 implementer found — read its report for the path)
+
+**Interfaces:**
+- Consumes: `build_export_zip(user_id, conn=None) -> tuple[bytes, str]` and `tiptap_to_markdown(doc)` from Task 3; `_attachment_root()` from `api/services/journal_two/attachment_root.py`
+- Produces: nothing other tasks consume
+
+**Why this task exists.** Task 3 ships an archive of markdown whose image and attachment links still point at authenticated URLs on our own server. The moment a member leaves, every one of those links is dead. "You can go, but your images stay with us" is not an exit, and the export exists precisely to buy the trust that makes someone willing to move a decade of notes IN. The spec's wording is "a markdown-plus-attachments zip"; Task 3 delivered the first half.
+
+There is also no committed test that the route itself works — Task 3 verified it with a throwaway manual check. The route is the actual door a member walks through.
+
+- [ ] **Step 1: Derive where note attachments actually live**
+
+Do not guess and do not trust this plan for the answer. Read, in order:
+- `api/services/journal_two/attachment_root.py` — what `_attachment_root()` returns
+- the upload handlers in `api/services/journal_two/notes.py` (around the `_MAX_IMAGE_BYTES` check near line 1209 and the `_MAX_FILE_BYTES` check near line 1262) — how a stored file is NAMED and what URL is handed back to the editor
+
+Write down in your report: the on-disk naming scheme, the URL form stored in the note body, and how you map one to the other. Everything below depends on that mapping being right.
+
+- [ ] **Step 2: Write the failing tests**
+
+Add to `test_notes_export.py`. Reuse the file's existing fixture helpers rather than inventing new ones.
+
+```python
+def test_zip_bundles_the_files_a_note_references():
+    """A markdown archive whose images still point at authenticated URLs on our
+    server is not an exit -- every link dies the moment the member leaves."""
+    # Arrange a note whose body references one stored attachment, with a real
+    # file on disk under a monkeypatched attachment root.
+    # Assert: the zip contains the binary, under a predictable archive path.
+
+
+def test_exported_markdown_points_at_the_bundled_copy():
+    """The rewrite is the half that makes bundling useful: a bundled file the
+    markdown still points away from is dead weight."""
+    # Assert the .md body references the relative archive path, not the
+    # original /api/... URL.
+
+
+def test_export_never_bundles_another_members_file():
+    """Tenancy, on the file path this time. The SQL scoping in Task 3 protects
+    rows; nothing yet protects the filesystem walk this task adds."""
+
+
+def test_a_referenced_file_that_is_missing_from_disk_does_not_abort_the_export():
+    """A member whose volume lost one image must still get the other 3,999
+    notes. Partial beats nothing, and silence beats a 500."""
+```
+
+- [ ] **Step 3: Run them to verify they fail**
+
+Run: `python -m pytest api/services/journal_two/test_notes_export.py -v`
+Expected: the four new tests FAIL; Task 3's existing tests stay green.
+
+- [ ] **Step 4: Implement bundling + rewriting**
+
+Collect each note's referenced attachments while walking its document (the walker already visits `resizableImage`, `image` and `attachmentChip` nodes, and the note row carries `hero_image_url` / `first_image_url`). For each reference that resolves to a real file belonging to **this user**, add the bytes to the zip under `attachments/<stored-filename>` and rewrite that node's URL to the relative archive path.
+
+Hard requirements:
+- **A missing or unreadable file is skipped, never fatal.** Record it and continue.
+- **Never read a path derived from note content without confirming it resolves inside `_attachment_root()`** — a crafted `src` must not be able to read arbitrary files off the volume. Resolve, then containment-check; do not merely string-match a prefix.
+- Deduplicate: one file referenced by ten notes is stored once.
+
+- [ ] **Step 5: Add a total-size guard**
+
+An export is a synchronous request on a single-replica pod. Cap the bundled bytes (env-overridable, e.g. `NOTE_EXPORT_MAX_ATTACHMENT_BYTES`). On exceeding it, still return the archive with the markdown complete, and include a `SKIPPED.txt` at the archive root naming what was left out and why. ⛔ Never silently truncate — an incomplete export the member believes is complete is worse than a refused one.
+
+- [ ] **Step 6: Run the tests to verify they pass**
+
+Run: `python -m pytest api/services/journal_two/test_notes_export.py -v`
+
+- [ ] **Step 7: Add the route rail**
+
+A committed test — not a manual check — asserting `GET /api/j2/notes/export` returns 200 with a zip content-type and an attachment `Content-Disposition`, requires authentication, and returns only the caller's notes. Mirror the existing trades-export route test's setup exactly.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add api/services/journal_two/notes_export.py api/services/journal_two/test_notes_export.py
+git commit -m "feat(notebook): bundle attachments into the export and rail the route"
+```
+
 ## Self-Review
 
 **Spec coverage (§4 + §8.2):**
