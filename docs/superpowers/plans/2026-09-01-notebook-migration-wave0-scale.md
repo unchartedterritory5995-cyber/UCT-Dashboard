@@ -1104,6 +1104,117 @@ git commit -m "test(notebook): large-library seeder for the scale gate"
 
 ---
 
+---
+
+## Task 7: Route the sidebar search panel to the server
+
+> **Added mid-execution (Ruling 3 in the wave ledger).** Not in the original plan.
+
+**Files:**
+- Modify: `app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx` (the `searchResults` memo, ~L296-308)
+- Test: `app/src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx` (append)
+
+**Interfaces:**
+- Consumes: the FTS5-backed `q` from Task 2, reached through the existing `GET /api/j2/notes?q=` route and the existing `useJ2Notes({ q })` hook — both already accept `q`, so no backend change belongs in this task.
+- Produces: nothing other tasks consume.
+
+**Why this task exists.** `FolderSidebar` runs a **second, independent search** — an Obsidian-style full-panel search that filters client-side over the `notes` prop:
+
+```js
+const hay = `${n.title || ''} ${n.bodyPlain || ''} ${(n.tags || []).join(' ')} ${n.ticker || ''}`.toLowerCase()
+return hay.includes(q)
+```
+
+Two things make that unsafe at migrated scale, and neither is visible on a hand-written library:
+
+1. `notes` is the **loaded page**, not the library.
+2. `n.bodyPlain` is truncated **in SQL** — `_NOTE_SUMMARY_COLS` selects `substr(coalesce(body_plain,''), 1, 400)`. Everything past character 400 of every note cannot be matched.
+
+So the surface an Obsidian or Evernote migrant reaches for first answers "no results" for text that is demonstrably in their library. A silent wrong answer is worse than the slow query Task 2 fixes, and Task 2 does not reach this code path at all.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `FolderSidebar.test.jsx`. Read the file's existing render helper and mocking style first and match it — in particular how `useJ2NoteFolders` is already mocked, since the component calls it internally.
+
+```jsx
+it('asks the server for search results instead of filtering the loaded page', async () => {
+  // The loaded page holds one note whose body preview does NOT contain the term.
+  // A client-side filter returns nothing; the server knows better.
+  const notes = [{ id: 'n1', title: 'Loaded', bodyPlain: 'preview only', tags: [], folderId: null }]
+  useJ2Notes.mockReturnValue({ notes: [{ id: 'n2', title: 'From server', bodyPlain: '', tags: [] }], isLoading: false })
+
+  render(<FolderSidebar notes={notes} onSelectFolder={() => {}} onSelectTag={() => {}} />)
+
+  await userEvent.click(screen.getByRole('button', { name: /search/i }))
+  await userEvent.type(screen.getByRole('textbox'), 'deepterm')
+
+  // The query reached the hook...
+  await waitFor(() => {
+    expect(useJ2Notes).toHaveBeenCalledWith(expect.objectContaining({ q: 'deepterm' }))
+  })
+  // ...and the server's answer is what renders, not the client-filtered empty set.
+  expect(await screen.findByText('From server')).toBeInTheDocument()
+})
+
+it('does not query the server for an empty search box', async () => {
+  render(<FolderSidebar notes={[]} onSelectFolder={() => {}} onSelectTag={() => {}} />)
+  await userEvent.click(screen.getByRole('button', { name: /search/i }))
+  expect(useJ2Notes).not.toHaveBeenCalledWith(expect.objectContaining({ q: expect.any(String) }))
+})
+```
+
+⚠️ Assert on `useJ2Notes.mock.calls` **outside** any mock callback. An assertion written inside a fetch mock's `json()` body is vacuous here — the caller's `.catch` swallows it and the test passes while the wire is cut.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run (from `app/`): `npx vitest run src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx`
+Expected: FAIL — the component never calls `useJ2Notes`, so the `toHaveBeenCalledWith` assertion fails.
+
+- [ ] **Step 3: Implement**
+
+Debounce the query (250 ms) and feed it to the existing hook. Keep the note-shape and the 100-row cap the panel already renders.
+
+```jsx
+import useJ2Notes from '../../hooks/useJ2Notes'
+
+// Debounced so typing does not fire a request per keystroke.
+const [debouncedQuery, setDebouncedQuery] = useState('')
+useEffect(() => {
+  const t = setTimeout(() => setDebouncedQuery(query.trim()), 250)
+  return () => clearTimeout(t)
+}, [query])
+
+// Server-side search. The client-side filter this replaced could only ever see
+// the loaded page, matched against a body_plain the LIST projection truncates to
+// 400 chars in SQL -- so text past that point silently returned "no results".
+// GET /api/j2/notes?q= runs the FTS5 index over the whole library.
+const { notes: serverResults = [], isLoading: searching } = useJ2Notes(
+  debouncedQuery ? { q: debouncedQuery, limit: 100 } : {},
+)
+const searchResults = debouncedQuery ? serverResults : []
+```
+
+Render a "Searching…" state while `searching && debouncedQuery`, so an empty moment is never mistaken for an empty result. Leave the tag cloud and folder tree untouched.
+
+⚠️ Check how `useJ2Notes` behaves when called with `{}` — if it fetches the default list unconditionally, gate the whole call rather than firing a redundant request. Read the hook before wiring it.
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run (from `app/`): `npx vitest run src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx`
+Expected: PASS, and the file's pre-existing tests stay green.
+
+- [ ] **Step 5: Run the notebook frontend suite**
+
+Run (from `app/`): `npx vitest run src/pages/journal-2-0`
+Expected: green. Read the summary line — its absence means the run did not finish.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx app/src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx
+git commit -m "fix(notebook): sidebar search queries the server, not the truncated loaded page"
+```
+
 ## Self-Review
 
 **Spec coverage (§4 + §8.2):**
