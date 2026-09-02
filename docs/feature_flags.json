@@ -743,6 +743,16 @@
         "(set on no service)"
       ],
       "note": "DELIBERATELY OFF, and the author said so in two places rather than one: the commit that added it (b6338dce) is titled \"after-close full-universe DAILY freshness sweep (dark)\", and the block comment in `api/services/bars_prewarm.py` reads \"Gated dark by PERMANENT_DAILY_FRESHNESS_ENABLED\". That agreement is why this is `dark` and not `pending` -- the intent is recorded, not inferred by me. ⚠️ WHAT IT DOES WHEN ARMED, because the blast radius is the reason it ships off: once per completed session the WORKER re-warms the WHOLE universe's daily bars (ticker_list ∪ _dwm_extra) off-peak, which is a full-universe fetch pass, a bars.db rewrite and a whole-db R2 snapshot. `_scan_stale` + `_boot_can_skip` make day-2 onward near-free (a 1-bar delta), so the cost is concentrated in the FIRST armed run. Buffer hour past the close is PERMANENT_FRESHNESS_HOUR_ET (default 17 = 5pm ET). ⛔ DECLARED BY A THIRD PARTY 2026-09-01: this entry was added by the pattern-library branch because the flag arrived undeclared through a master merge and turned `test_every_off_by_default_gate_is_declared` red. It records the AUTHOR'S stated intent and the code's own behaviour -- nothing about whether it should be armed, which is not this branch's call to make."
+    },
+    "BARS_API_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-02",
+      "note": "No rationale on record. Arrived with the same-day bars-api work (api/services/bars_sqlite.py); off by default and set on no service, so it is currently indistinguishable from forgotten. ⛔ Recorded as PENDING rather than dark ON PURPOSE: this file stores INTENT, and nobody outside that work knows whether these are deliberately off or simply undecided. Guessing an answer here is the exact defect the ledger exists to prevent. Decide: arm, or mark dark with the reason."
+    },
+    "BARS_PROXY_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-02",
+      "note": "No rationale on record. Arrived with the same-day bars-api work (api/routers/bars.py); off by default and set on no service, so it is currently indistinguishable from forgotten. ⛔ Recorded as PENDING rather than dark ON PURPOSE: this file stores INTENT, and nobody outside that work knows whether these are deliberately off or simply undecided. Guessing an answer here is the exact defect the ledger exists to prevent. Decide: arm, or mark dark with the reason."
     }
   }
 }

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.discord_harness import UT_GUILD, _app_client, _keypair, _post
+
 CH = "CH1"
 
 
@@ -232,3 +234,111 @@ def test_the_text_bars_never_step_up_below_a_higher_ranked_row(mods):
 # strictly stronger: a bar that overflows also breaks the ordering it belongs
 # to. Removed rather than left contradicting its replacement.
 
+
+# ── On-demand /buzz: EPHEMERAL and THROTTLED. Owner ruling 2026-09-02.
+#
+# The scheduled post and the member's own call are different doors on purpose:
+# the room gets the shared board seven times a session, and someone checking it
+# in between must not put a second copy in front of 750 people. These drive the
+# REAL route (signature, guild gate, dispatch) rather than the reply builder --
+# both behaviours are decided IN the route, so a test of the builder proves
+# nothing about what Discord is handed.
+
+EPHEMERAL = 64
+
+
+def _buzz(uid="900", ticker=None, window=None):
+    opts = []
+    if ticker is not None:
+        opts.append({"name": "ticker", "type": 3, "value": ticker})
+    if window is not None:
+        opts.append({"name": "window", "type": 3, "value": window})
+    return {"type": 2, "application_id": "123", "token": "tok", "guild_id": UT_GUILD,
+            "member": {"user": {"id": uid}},
+            "data": {"name": "buzz", "options": opts}}
+
+
+@pytest.fixture()
+def route(monkeypatch, tmp_path):
+    from api.services import discord_interactions as di, buzz_store
+    di.reset_rate_for_tests()
+    monkeypatch.setenv("BUZZ_DB_PATH", str(tmp_path / "buzz.db"))
+    monkeypatch.setenv("BUZZ_CHANNELS", CH)
+    buzz_store._reset_for_tests()
+    buzz_store.init_db()
+    sk, pk = _keypair()
+    monkeypatch.setenv("DISCORD_CHART_PUBLIC_KEY", pk)
+    client, rt = _app_client()
+    from api.services import buzz_image as bi
+    return client, sk, rt, bi
+
+
+def test_a_bare_buzz_defers_EPHEMERALLY(route, monkeypatch):
+    """⛔ THE FLAG MUST BE ON THE DEFER. Discord fixes a deferred reply's
+    visibility at type 5 and silently ignores flags on the later PATCH, so a
+    bare defer here would put the board in the channel for everyone -- the exact
+    thing this change exists to stop, and it would look fine in code review."""
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: True)
+    monkeypatch.setattr(rt, "run_buzz_image_job", lambda *a, **k: None)
+    r = _post(client, sk, _buzz()).json()
+    assert r["type"] == 5
+    assert r.get("data", {}).get("flags") == EPHEMERAL, "the board would have posted publicly"
+
+
+def test_a_ticker_lookup_replies_EPHEMERALLY(route, monkeypatch):
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    r = _post(client, sk, _buzz(ticker="NVDA")).json()
+    assert r["type"] == 4
+    assert r["data"]["flags"] == EPHEMERAL
+    assert r["data"]["content"]
+
+
+def test_the_text_only_board_replies_EPHEMERALLY(route, monkeypatch):
+    """The no-image path is a separate `return` and was a separate way to leak."""
+    client, sk, rt, bi = route
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    r = _post(client, sk, _buzz()).json()
+    assert r["type"] == 4 and r["data"]["flags"] == EPHEMERAL
+
+
+def test_a_member_is_throttled_and_no_render_is_scheduled(route, monkeypatch):
+    client, sk, rt, bi = route
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "2/60")
+    monkeypatch.setattr(bi, "image_enabled", lambda: True)
+    scheduled = []
+    monkeypatch.setattr(rt, "run_buzz_image_job", lambda *a, **k: scheduled.append(a))
+    assert _post(client, sk, _buzz()).json()["type"] == 5
+    assert _post(client, sk, _buzz()).json()["type"] == 5
+    r = _post(client, sk, _buzz()).json()
+    assert r["type"] == 4 and r["data"]["flags"] == EPHEMERAL
+    assert r["data"]["content"].startswith("Slow down")
+    # ⛔ The point of the throttle is the RENDER it prevents, not the message.
+    assert len(scheduled) == 2, "a throttled call still reached the renderer"
+    # Another member is unaffected -- the budget is per member, not global.
+    assert _post(client, sk, _buzz(uid="901")).json()["type"] == 5
+
+
+def test_the_throttle_message_does_not_call_a_board_a_chart(route, monkeypatch):
+    """The budget is shared with /chart, so the copy has to name what the member
+    actually ran or it reads as a bug in a different command."""
+    client, sk, rt, bi = route
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "1/60")
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    _post(client, sk, _buzz())
+    msg = _post(client, sk, _buzz()).json()["data"]["content"]
+    assert "boards" in msg and "charts" not in msg
+
+
+def test_the_budget_is_shared_with_chart_rather_than_a_second_allowance(route, monkeypatch):
+    """Both commands land on the same 4-slot render valve, so one per-member
+    budget is the honest model. Written down because a future reader could
+    reasonably assume /buzz has its own."""
+    from api.services import discord_interactions as di
+    client, sk, rt, bi = route
+    monkeypatch.setenv("DISCORD_CHART_USER_RATE", "1/60")
+    monkeypatch.setattr(bi, "image_enabled", lambda: False)
+    assert di.user_rate_check("955") == 0.0          # spends the member's one slot
+    r = _post(client, sk, _buzz(uid="955")).json()
+    assert r["data"]["content"].startswith("Slow down")

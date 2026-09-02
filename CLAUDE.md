@@ -2276,6 +2276,21 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   contextual`. The collision list must be derived from `#main-chat`'s OWN corpus —
   it was first derived from `#tsdr` and booked 1,059 junk mentions (7.7%), with
   `EVER` ranking 10th on 48 people.
+- ⛔⛔ **ON-DEMAND IS EPHEMERAL AND THROTTLED; THE SCHEDULED POST IS NEITHER.**
+  Owner ruling 2026-09-02. `/buzz` is open to every member with no role gate, so
+  a public reply meant one member could put a second board in front of 750
+  people at will. The interaction reply now carries `flags: 64` and the command
+  spends the same per-member budget as `/chart` (`DISCORD_CHART_USER_RATE`,
+  12/min — both land on the same 4-slot render valve, so one budget is the
+  honest model). ⛔ **The flag goes on the DEFER (`type: 5`), not the follow-up**
+  — Discord fixes a deferred reply's visibility at defer time and silently
+  ignores flags on the later PATCH, so a bare defer ships the board publicly and
+  looks correct in review. ⛔⛔ **The scheduled post must NEVER become
+  ephemeral** — it IS what the room is meant to see, and an ephemeral one would
+  leave every check green (job ran, `posted` stamped, attachment exists) while
+  seven boards a day reached nobody. They cannot collide today: the digest posts
+  through the bot token to `POST /channels/{id}/messages`, where message flags do
+  not apply. Railed in `test_buzz_digest.py::test_the_scheduled_post_is_never_ephemeral`.
 - ⛔ **A missed checkpoint is caught up, then paged.** APScheduler's job store is
   in-memory, so a pod restarting across a slot never SCHEDULES that fire and
   `misfire_grace_time` cannot see it. `catch_up()` rides the 60s poll and posts a
