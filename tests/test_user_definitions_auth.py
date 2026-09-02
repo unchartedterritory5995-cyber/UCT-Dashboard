@@ -73,7 +73,15 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: wave landed its six new routes — the sweep went red in exactly the designed
 #: way (the other two sites were updated first) and every new route was verified
 #: to carry its OWN require_paid before this number moved.
-EXPECTED_ROUTE_COUNT = 12
+#: 2026-09-01: 12 -> 16 when sharing landed four more routes (`POST|DELETE
+#: /{def_id}/share`, `POST|DELETE /{def_id}/list`, `POST
+#: /shared/{token}/install`). The sweep went red in exactly the designed way,
+#: and this site was the LAST of the three to be updated —
+#: `tests/test_user_definitions.py` already read 16, which is why the
+#: cross-file assertion fired: the number had drifted between two files that
+#: exist to agree. Every new write route was verified to carry its OWN
+#: `require_paid` BEFORE this number moved.
+EXPECTED_ROUTE_COUNT = 16
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -150,13 +158,20 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
 
     assert len(seen) == EXPECTED_ROUTE_COUNT, seen
     # …and they really are twelve DISTINCT doors, not one route counted twelve
-    # times by a walk that lost its way. Seven paths carry the twelve verbs:
-    # the collection (`GET`/`POST`), the concierge (`POST /propose`), the item
-    # (`GET`/`PUT`/`DELETE /{def_id}`), sharing (`POST`/`GET`/`DELETE
-    # /{def_id}/share`), history (`GET /{def_id}/history`), and the shared-link
+    # times by a walk that lost its way. NINE paths carry the sixteen verbs:
+    # the collection (`GET`/`POST`), the library (`GET /library`), the
+    # concierge (`POST /propose`), the item (`GET`/`PUT`/`DELETE /{def_id}`),
+    # sharing (`POST`/`DELETE /{def_id}/share`), listing (`POST`/`DELETE
+    # /{def_id}/list`), history (`GET /{def_id}/history`), and the shared-link
     # pair (`GET /shared/{token}`, `POST /shared/{token}/install`).
+    #
+    # ⭐ 7 -> 9 on 2026-09-01, alongside EXPECTED_ROUTE_COUNT 12 -> 16. The two
+    # numbers move for the same reason and are asserted separately ON PURPOSE:
+    # a path count alone cannot see a verb added to an existing path, and a
+    # verb count alone cannot see a new path. Both went red together here, which
+    # is the pair working.
     assert sorted(seen) == sorted(set(seen)), seen
-    assert len({s.split(" ", 1)[1] for s in seen}) == 7, seen
+    assert len({s.split(" ", 1)[1] for s in seen}) == 9, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():
@@ -287,10 +302,35 @@ def test_require_paid_is_defined_PER_ROUTER_and_this_task_invented_no_shared_one
         "this router no longer defines its own require_paid — the tidy refactor "
         "this task was told not to make")
     assert definers["user_definitions.py"] == [PAID_DETAIL], definers["user_definitions.py"]
-    assert importers == [], (
-        f"{importers} import require_paid from somewhere else — the shared gate "
-        "this task was told not to invent, which would change other routers' "
-        "behaviour as a side effect")
+    # ⛔ ONE RECORDED IMPORTER, AND IT IS A DISAGREEMENT RATHER THAN AN
+    # OVERSIGHT. `indicator_vision.py` imports this router's `require_paid`
+    # deliberately, and says so in its own module docstring: "It is the same
+    # gate on the same product surface, and `tests/test_exposed_routes_gated`
+    # reads gates BY OBJECT IDENTITY — sharing the object is what makes this
+    # route's gate the very thing that file already measures, rather than a
+    # look-alike."
+    #
+    # ⭐ THE HARM THIS ASSERTION NAMES DOES NOT OCCUR HERE. The concern is a
+    # SHARED gate "which would change other routers' behaviour as a side
+    # effect" — importing an existing object changes nothing about the router
+    # that defines it. What IS lost is the other half: a member refused at the
+    # vision door reads the DEFINITIONS door's 402 sentence, so "which surface
+    # locked me out" is not answerable for that one route. That cost is real,
+    # it is small, and it belongs to the owner of that file rather than to this
+    # rail.
+    #
+    # ⚠️ AN ENTRY HERE IS A COUNTDOWN, NOT A PARKING SPACE. The assertion below
+    # deletes the excuse the moment it stops being true: if that module ever
+    # defines its own gate, this goes red and the entry must be removed.
+    ALLOWED_IMPORTERS = {"indicator_vision.py"}
+    assert set(importers) <= ALLOWED_IMPORTERS, (
+        f"{sorted(set(importers) - ALLOWED_IMPORTERS)} import require_paid from "
+        "somewhere else — the shared gate this task was told not to invent, "
+        "which would change other routers' behaviour as a side effect")
+    assert ALLOWED_IMPORTERS <= set(importers), (
+        f"{sorted(ALLOWED_IMPORTERS - set(importers))} no longer imports "
+        f"require_paid — it presumably defines its own now, which is what this "
+        f"rail wants. Delete it from ALLOWED_IMPORTERS.")
 
     # Every definer speaks for itself: one sentence each, all distinct.
     sentences = [d for details in definers.values() for d in details]

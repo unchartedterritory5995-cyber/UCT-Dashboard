@@ -57,13 +57,7 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // 108 -> 111 on 2026-08-25: the three NUMERIC columns of the 8/24 candle
     // library (`candle_recent_bars_ago`, `avg_body`, `avg_range`) declared, all
     // `bars_asof` off the candle producer. Mirrored in `tests/test_ast_scalars.py`.
-    // ⭐ 111 -> 112 on 2026-09-01: `base_stage`, the IBD base count, written
-    // by `bases.classify`. SPARSE ON PURPOSE -- only `ema-crossback` rows
-    // carry a value, because that is the only structure whose stage effect
-    // was measured (+18.5pp early-over-late; darvas-box read -1.4pp, the
-    // wrong sign and not distinguishable from zero). Mirrored in
-    // `tests/test_ast_scalars.py`, which moved 111 -> 112 in the same commit.
-    expect(names.length).toBe(112)
+    expect(names.length).toBe(111)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')

@@ -256,18 +256,7 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # shape that hides a mistake: a retirement and an addition cancelling means
     # the pair moved for TWO reasons at once. Both are spelled out above so the
     # next reader does not have to reconstruct which.
-    # (111, 92) -> (112, 92) on 2026-09-01: `base_stage` DECLARED. The IBD base
-    # count is an INT and writeable, so it is a scalar rather than an exclusion
-    # — the same treatment `base_relation_count` got, and for the same reason:
-    # it is a countable thing the structure library produces.
-    #   declared  111 + 1 = 112  (`base_stage`, written by `bases.classify`)
-    #   excluded   92 + 0 =  92  (nothing retired, nothing reclassified)
-    # ⛔ IT IS SPARSE ON PURPOSE and the manifest sentence says so: only
-    # `ema-crossback` rows carry a value, because that is the only structure
-    # whose stage effect was measured (+18.5pp early-over-late; darvas-box read
-    # -1.4pp, the wrong sign and not distinguishable from zero). A NULL here
-    # means "not measured for this structure", never "stage 0".
-    assert (len(declared), len(excluded)) == (112, 92)
+    assert (len(declared), len(excluded)) == (111, 92)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -698,7 +687,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     changed and every stored `astHash` is unmoved. They sit inside the BAR floor
     because a clock value varies down the replay series exactly as `close` does, so
     the bar corpus OWES each one a case — thirteen were written and the frozen
-    digests were re-recorded with them. The scalar half was untouched at 111 there (112 since `base_stage`), which is
+    digests were re-recorded with them. The scalar half is untouched at 111, which is
     the whole point of the split: "which half moved" stays answerable at a glance.
     `tableVersion` went to 2 because `interpret` grew an ARGUMENT (`opts={tf}`), not
     because the vocabulary grew.
@@ -707,12 +696,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     in this table that read the BAR rather than a column their arguments name
     (`reads: "bars"`). Both bind the SHIPPED session accumulator, so the digest
     they owe the bar corpus is a cross-lane agreement about a TIMEZONE DATABASE
-    rather than about arithmetic. The scalar half is untouched there too (112 since `base_stage`)."""
+    rather than about arithmetic. The scalar half is untouched at 111 again."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
     # ⭐ 85 -> 90 (2026-08-26): the BOUNDED-STATE five (`barssince`, `valuewhen`,
-    # `highestbars`, `lowestbars`, `obvN`). The scalar half is untouched (112 since `base_stage`)
+    # `highestbars`, `lowestbars`, `obvN`). The scalar half is untouched at 111
     # for the tenth bump running -- a bounded-state entry rides the `call` node and
     # has nothing to say about a per-symbol column.
     # ⭐ 90 -> 92 (2026-08-27): the two pivots, the first member-reachable
@@ -728,11 +717,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # whole reason this assertion has two numbers in it rather than one total.
     # ⭐ 96 -> 97 IS `cumFrom`, THE ANCHORED RUNNING TOTAL, AND THE SCALAR HALF
     # IS UNTOUCHED AT 111 -- again the reason for two numbers rather than one.
-    # ⭐ 111 -> 112 on 2026-09-01 is `base_stage`, and the BAR half is
-    # untouched at 97 -- the same argument running the other way, which is
-    # what two numbers buy: a scalar added to the screener cannot hide
-    # inside a total that a new bar function also moves.
-    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 112
+    assert len(parts["bar"]) == 97 and len(parts["scalar"]) == 111
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
