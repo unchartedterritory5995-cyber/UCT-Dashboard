@@ -572,6 +572,49 @@ CREATE TABLE IF NOT EXISTS j2_note_remote_index (
     PRIMARY KEY(user_id, source_id, remote_id)
 );
 
+-- ── Obsidian ingest (Wave 3a) ───────────────────────────────────────────────
+-- A PUSH transport that reuses the PULL engine. The plugin writes staging
+-- rows; providers/obsidian.py reads them and satisfies the ordinary
+-- NoteProvider contract, so the engine's convert/upsert/conflict/media path
+-- and its delete detection are INHERITED, never re-implemented.
+CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    vault_id     TEXT NOT NULL,
+    token_enc    TEXT NOT NULL,
+    label        TEXT,
+    last_seen_at TEXT,
+    created_at   TEXT NOT NULL,
+    UNIQUE(user_id, vault_id)
+);
+CREATE INDEX IF NOT EXISTS idx_j2_obsidian_devices_user
+    ON j2_obsidian_devices(user_id);
+
+-- One row per vault file currently pushed. `content_hash` lets a re-push of
+-- an unchanged file be a no-op without re-converting it.
+CREATE TABLE IF NOT EXISTS j2_obsidian_staging (
+    user_id      TEXT NOT NULL,
+    vault_id     TEXT NOT NULL,
+    vault_path   TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    body_md      TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    received_at  TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
+-- The vault's COMPLETE file list at the last full push. This is what feeds
+-- the engine's existing optional `list_present_refs` hook, so a file deleted
+-- in the vault is detected by the SAME machinery that detects a deleted
+-- Notion page. Nothing bespoke.
+CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
+    user_id     TEXT NOT NULL,
+    vault_id    TEXT NOT NULL,
+    vault_path  TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, vault_id, vault_path)
+);
+
 -- ── Notebook widget-embed sidecar (Journal Widgets) ─────────────────────────
 -- One row per widgetEmbed node in a note's body_json, kept in sync on every
 -- note write by notes._sync_note_embeds (create/update/import/delete). This is
@@ -1161,6 +1204,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         run_notebook_migration_v5(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v5] aborted: {e}")
+
+    try:
+        run_notebook_migration_v6(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v6] aborted: {e}")
 
     # Note Connectors additive columns (Task 8): `miss_streak` on
     # j2_note_remote_index (2-strikes delete-detection counter) and
@@ -1782,4 +1830,102 @@ def run_notebook_migration_v5(conn: sqlite3.Connection) -> None:
         flag.parent.mkdir(parents=True, exist_ok=True)
         flag.touch()
     except Exception:
+        pass
+
+
+# Literal DDL, duplicated (not shared/interpolated) with the matching block in
+# _J2_SCHEMA -- same convention as _NOTE_CONNECTOR_TABLE_DDL above, so this
+# migration reads standalone.
+_OBSIDIAN_TABLE_DDL = {
+    "j2_obsidian_devices": """
+        CREATE TABLE IF NOT EXISTS j2_obsidian_devices (
+            id           TEXT PRIMARY KEY,
+            user_id      TEXT NOT NULL,
+            vault_id     TEXT NOT NULL,
+            token_enc    TEXT NOT NULL,
+            label        TEXT,
+            last_seen_at TEXT,
+            created_at   TEXT NOT NULL,
+            UNIQUE(user_id, vault_id)
+        )
+    """,
+    "j2_obsidian_staging": """
+        CREATE TABLE IF NOT EXISTS j2_obsidian_staging (
+            user_id      TEXT NOT NULL,
+            vault_id     TEXT NOT NULL,
+            vault_path   TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            body_md      TEXT NOT NULL,
+            updated_at   TEXT NOT NULL,
+            received_at  TEXT NOT NULL,
+            PRIMARY KEY (user_id, vault_id, vault_path)
+        )
+    """,
+    "j2_obsidian_manifest": """
+        CREATE TABLE IF NOT EXISTS j2_obsidian_manifest (
+            user_id     TEXT NOT NULL,
+            vault_id    TEXT NOT NULL,
+            vault_path  TEXT NOT NULL,
+            recorded_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, vault_id, vault_path)
+        )
+    """,
+}
+
+
+def run_notebook_migration_v6(conn: sqlite3.Connection) -> None:
+    """Creates the three Obsidian ingest tables (j2_obsidian_devices /
+    j2_obsidian_staging / j2_obsidian_manifest) for pre-existing DBs that ran
+    ensure_schema() under an older _J2_SCHEMA that didn't yet define them.
+    Idempotent via .notebook_migration_v6 flag file AND table probes + CREATE
+    TABLE IF NOT EXISTS, so re-running this (or running it against a DB that
+    already has the tables from the current _J2_SCHEMA) is always a no-op.
+    Safe to call on every startup.
+
+    No ALTERs -- these are brand-new tables, so like run_notebook_migration_v3
+    there is no existing-column state to probe; the table-existence probe
+    below is belt-and-suspenders redundancy with the CREATE TABLE IF NOT
+    EXISTS statements already in _J2_SCHEMA. Follows v3's shape exactly.
+
+    `j2_obsidian_staging` is the seam that lets a PUSH transport (the
+    Obsidian plugin) reuse the PULL-shaped sync engine: the plugin writes
+    here, a later task's provider reads here and satisfies the ordinary
+    NoteProvider contract, so the engine's convert/upsert/conflict/media path
+    never learns there was a difference. `j2_obsidian_manifest` holds the
+    vault's complete file list, feeding the engine's existing optional
+    `list_present_refs` hook so a vault deletion is detected by the same
+    machinery that detects a deleted Notion page.
+
+    Spec: .superpowers/sdd/2026-09-02-obsidian-ingest-server/task-1-brief.md
+    """
+    flag = _data_dir() / ".notebook_migration_v6"
+    if flag.exists():
+        return
+
+    existing = {
+        r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "('j2_obsidian_devices','j2_obsidian_staging','j2_obsidian_manifest')"
+        )
+    }
+    for table, ddl in _OBSIDIAN_TABLE_DDL.items():
+        if table not in existing:
+            conn.execute(ddl)
+
+    conn.commit()
+    try:
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        tmp = flag.with_suffix(".tmp")
+        tmp.write_bytes(b"1")
+        os.replace(tmp, flag)
+    except Exception:
+        # Encoding-safe flag write (tmp -> os.replace), with the mkdir an
+        # earlier migration in this repo omitted (see run_notebook_migration_v4's
+        # docstring): without it, a flag-write failure here falls through
+        # uncaught into ensure_schema's outer try/except (which prints and
+        # moves on) WITHOUT the flag ever landing -- and since the table
+        # creation above already committed, the data is fine, but the NEXT
+        # boot sees no flag and repeats the (here, cheap) table-existence
+        # probe on every boot forever. Caught here so a write failure is a
+        # no-op miss, not a silent permanent cost.
         pass
