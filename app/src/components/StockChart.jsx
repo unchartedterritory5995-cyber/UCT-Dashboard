@@ -488,7 +488,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
-import { isDailyTailStale, isIntradayTailStale } from '../utils/marketSession'
+import { isDailyTailStaleForPaint, isIntradayTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4738,9 +4738,17 @@ export default function StockChart({
   // is an ISO 'YYYY-MM-DD' string; reject it if it's older than the most recent
   // ET session that should be present. Weekend/pre-open aware (a rare holiday
   // only costs a brief spinner, never stale data).
+  // Uses the PAINT gate (open-anchored during RTH), NOT isDailyTailStale
+  // (close-anchored): /api/bars now server-includes today's developing daily bar,
+  // so a cache whose tail is only the last CLOSED session (yesterday) is stale mid-
+  // session — painting it provisionally frames yesterday, then the today-inclusive
+  // network response adds a bar and re-anchors (the "current candle loads one bar
+  // right then pops left" shift). Marking it stale skips the provisional so the
+  // network's today-inclusive set paints directly, framed correctly. See
+  // marketSession.isDailyTailStaleForPaint.
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && isDailyTailStale(idbSinceRef.current)
+    && isDailyTailStaleForPaint(idbSinceRef.current)
   // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
   // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
   // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
@@ -4762,7 +4770,7 @@ export default function StockChart({
   const _memTailStaleDaily = (arr) => (
     resolvedTf === 'D'
     && Array.isArray(arr) && arr.length
-    && isDailyTailStale(arr[arr.length - 1]?.t)
+    && isDailyTailStaleForPaint(arr[arr.length - 1]?.t)
   )
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
