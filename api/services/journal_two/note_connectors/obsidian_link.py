@@ -113,6 +113,37 @@ _CONNECT_CODE_TTL_SECONDS = 900
 # effectively zero (each nonce is a fresh `secrets.token_urlsafe(16)`).
 _used_connect_code_nonces: dict[str, float] = {}
 
+# I6 (2026-09-02 review): "a pre-disconnect code redeems afterward into a
+# full reconnection (device + connector + source)" -- single-use nonce
+# tracking alone does nothing for a code that was minted but never yet
+# redeemed at disconnect time. Process-local per-user epoch counter (same
+# accepted single-pod shape as `_used_connect_code_nonces` above): every
+# mint embeds the user's CURRENT epoch in the signed payload;
+# `invalidate_outstanding_codes` (called from `revoke_devices` below, on
+# every disconnect) bumps it. A code minted under an epoch that has since
+# been bumped fails `_verify_connect_code`'s epoch check even though its
+# HMAC/TTL/single-use checks all still pass on their own. Embedding the
+# epoch IN the signed payload (rather than comparing the code's mint
+# timestamp against a separately-tracked "disconnected at" wall-clock
+# value) makes this tamper-evident for free and immune to same-second
+# wall-clock ties a timestamp comparison would have to reason about.
+_connect_code_epoch: dict[str, int] = {}
+
+
+def _current_epoch(user_id: str) -> int:
+    return _connect_code_epoch.get(user_id, 0)
+
+
+def invalidate_outstanding_codes(user_id: str) -> None:
+    """Bumps `user_id`'s connect-code epoch so every code minted *before*
+    this call fails `_verify_connect_code`'s epoch check from now on, while
+    a code minted *after* this call (a genuine post-disconnect reconnect)
+    embeds the new epoch and verifies normally -- this closes the
+    redeem/revoke race without touching the redeem/reconnect path at all.
+    Idempotent-safe to call repeatedly (each call moves the epoch strictly
+    forward, so calling it twice in a row is harmless, just extra-safe)."""
+    _connect_code_epoch[user_id] = _current_epoch(user_id) + 1
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -147,11 +178,17 @@ def mint_connect_code(user_id: str) -> str:
     `user_id`. Shown to the member once; they paste it into the Obsidian
     plugin. Raises `errors.NoteConnNotConfigured` (fail closed) if no
     signing secret is configured -- never returns a code an attacker with
-    read access to this repo's source could forge."""
+    read access to this repo's source could forge.
+
+    Embeds `user_id`'s CURRENT connect-code epoch (I6, 2026-09-02 review) --
+    see `invalidate_outstanding_codes`'s docstring for why a disconnect
+    bumping this epoch makes every code minted before it permanently
+    unredeemable, with no wire-format ambiguity and no wall-clock race."""
     secret = _signing_secret()
     ts = str(int(time.time()))
     nonce = secrets.token_urlsafe(16)
-    payload = f"{user_id}:{ts}:{nonce}"
+    epoch = _current_epoch(user_id)
+    payload = f"{user_id}:{ts}:{nonce}:{epoch}"
     sig = hmac.new(secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
     raw = f"{payload}:{sig}"
     return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8")
@@ -160,22 +197,22 @@ def mint_connect_code(user_id: str) -> str:
 def _verify_connect_code(code: str) -> str:
     """Returns the embedded `user_id` on success. Raises
     `errors.NoteConnAuthError` on ANY failure -- malformed, bad signature,
-    expired, or already-used -- a single generic message so a probing
-    caller learns nothing about which check failed (mirrors
-    `note_sync.py::_verify_state`'s generic-failure discipline). Raises
-    `errors.NoteConnNotConfigured` when no signing secret is configured at
-    all -- a distinct, server-side-only signal, never confused with a
-    client-supplied bad code."""
+    expired, already-used, or minted under an epoch a disconnect has since
+    invalidated (I6) -- a single generic message so a probing caller learns
+    nothing about which check failed (mirrors `note_sync.py::_verify_state`'s
+    generic-failure discipline). Raises `errors.NoteConnNotConfigured` when
+    no signing secret is configured at all -- a distinct, server-side-only
+    signal, never confused with a client-supplied bad code."""
     bad = errors.NoteConnAuthError("invalid or expired connect code")
     try:
         raw = base64.urlsafe_b64decode(code.encode("utf-8")).decode("utf-8")
-        user_id, ts_str, nonce, sig = raw.split(":", 3)
+        user_id, ts_str, nonce, epoch_str, sig = raw.split(":", 4)
     except Exception:
         raise bad
     if not user_id or not nonce:
         raise bad
     secret = _signing_secret()  # NoteConnNotConfigured propagates uncaught
-    payload = f"{user_id}:{ts_str}:{nonce}"
+    payload = f"{user_id}:{ts_str}:{nonce}:{epoch_str}"
     expected = hmac.new(secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
     # BYTES, not str: `sig` was decoded from an attacker-controlled base64
     # blob via .decode("utf-8"), so it can legally contain non-ASCII
@@ -188,9 +225,16 @@ def _verify_connect_code(code: str) -> str:
         raise bad
     try:
         ts = int(ts_str)
+        epoch = int(epoch_str)
     except ValueError:
         raise bad
     if time.time() - ts > _CONNECT_CODE_TTL_SECONDS:
+        raise bad
+    if epoch != _current_epoch(user_id):
+        # I6: minted under an epoch a disconnect has since bumped past --
+        # dead on arrival, even though every other check above would have
+        # passed. A code minted AFTER the disconnect carries the new epoch
+        # and is unaffected.
         raise bad
     _prune_used_nonces()
     if nonce in _used_connect_code_nonces:
@@ -297,24 +341,48 @@ def revoke_devices(user_id: str) -> int:
     best-effort-revoke-before-purge shape, generalized to whichever
     provider owns an out-of-band credential store of its own).
 
+    ⛔ Extended twice more, 2026-09-02 review, on the SAME call site rather
+    than adding a parallel disconnect-time cleanup:
+
+      - **I5** — this used to stop at the device row. No code anywhere ever
+        ran `DELETE FROM j2_obsidian_staging`, so every markdown body a
+        member ever pushed sat in the shared DB forever after they
+        disconnected, and reconnecting the same `vault_id` silently
+        resurrected it (`ObsidianProvider._known_paths`/`list_changed`/
+        `list_present_refs` all read straight off these tables with no
+        concept of "was this vault ever disconnected"). Now purges
+        `j2_obsidian_staging` AND `j2_obsidian_manifest` for `user_id`
+        first, in the SAME transaction as the device-row delete below --
+        one commit, so a crash between the two can never leave staging
+        purged with devices still live or vice versa.
+      - **I6** — see `invalidate_outstanding_codes`: bumping the connect-
+        code epoch here means disconnect kills outstanding codes too, not
+        just already-issued devices, closing the redeem/revoke race where a
+        code minted moments before disconnect could still redeem into a
+        full reconnection afterward.
+
     Scoped to `user_id` alone, no `vault_id`/`device_id` filter: a member
     disconnecting Obsidian from Settings disconnects the WHOLE provider for
     their account -- exactly like every other provider's disconnect, not
-    one vault -- so every device this user ever redeemed a code for (one
-    per vault, `UNIQUE(user_id, vault_id)`) is revoked in one call. A
-    second user's rows are a disjoint set (`user_id` is part of every row)
-    and are never touched.
+    one vault -- so every device, staged body, manifest row, and
+    outstanding code for this user (across every vault they ever connected)
+    is revoked in one call. A second user's rows are a disjoint set
+    (`user_id` is part of every row) and are never touched.
 
-    Returns the number of rows removed (0 if none existed -- a safe,
+    Returns the number of DEVICE rows removed (0 if none existed -- a safe,
     idempotent no-op, matching `connections.delete_connector`'s own
-    "nothing to disconnect" case). Raises whatever the underlying DB call
-    raises rather than swallowing it: unlike Dropbox's best-effort revoke
-    of a THIRD PARTY's grant (harmless to leave dangling since it grants
-    nothing back to us), a failure here means the vulnerability this
+    "nothing to disconnect" case) -- unchanged return contract, existing
+    callers/tests key off this count alone. Raises whatever the underlying
+    DB call raises rather than swallowing it: unlike Dropbox's best-effort
+    revoke of a THIRD PARTY's grant (harmless to leave dangling since it
+    grants nothing back to us), a failure here means the vulnerability this
     function exists to close would still be open -- it must never look
     like it succeeded when it didn't."""
+    invalidate_outstanding_codes(user_id)  # I6 -- in-memory, never fails; do first
     conn = get_connection()
     try:
+        conn.execute("DELETE FROM j2_obsidian_staging WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM j2_obsidian_manifest WHERE user_id = ?", (user_id,))
         cur = conn.execute("DELETE FROM j2_obsidian_devices WHERE user_id = ?", (user_id,))
         conn.commit()
         return cur.rowcount
