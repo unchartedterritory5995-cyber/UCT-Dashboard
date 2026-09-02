@@ -683,16 +683,33 @@ def tag_counts(
     Scoped exactly like every other read here — `user_id` only, so a
     member never sees another member's tags. `json_each` over the JSON
     `tags` column is the same SQLite JSON1 idiom `filters.py` already uses
-    for the (unrelated) mistake/emotion tag facets."""
+    for the (unrelated) mistake/emotion tag facets.
+
+    ⛔ Second-C5 (B3): this used to `GROUP BY je.value` — case-SENSITIVE —
+    while the `tag=` filter (`_notes_filter_sql` above) matches via
+    `lower(tags) LIKE`, i.e. case-INSENSITIVE. 'Earnings'/'earnings'/
+    'EARNINGS' rendered as three chips of count 1, each opening a list of
+    all three: two authorities over one value, the exact shape this repo
+    keeps getting bitten by. The filter's case-insensitivity is the
+    member-facing intent (a member who typed 'Trading' and 'trading' means
+    one tag), so THIS query is the one that must fold to match it — never
+    the reverse (that would need every stored tag re-cased, and would not
+    fix a future note written with a fresh casing anyway). `LOWER(je.value)`
+    is the ONE grouping key, mirroring `_validate_tags`'s own per-note
+    dedup key (`t2.lower()`, above) and the filter's `tag.lower()` — three
+    call sites, one normalization rule. `MAX(je.value)` picks a single
+    display casing per group; which variant wins is not load-bearing
+    (matching is case-insensitive everywhere a tag is used), only that
+    there is exactly one row per case-insensitive tag."""
     owned = conn is None
     conn = conn or get_connection()
     try:
         rows = conn.execute(
-            "SELECT je.value AS tag, COUNT(*) AS c"
+            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS tag_key, COUNT(*) AS c"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
             " WHERE j2_notes.user_id = ?"
-            " GROUP BY je.value"
-            " ORDER BY c DESC, je.value ASC",
+            " GROUP BY LOWER(je.value)"
+            " ORDER BY c DESC, tag_key ASC",
             (user_id,),
         ).fetchall()
         return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]

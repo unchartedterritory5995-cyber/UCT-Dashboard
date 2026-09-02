@@ -239,6 +239,83 @@ describe('search panel — server-backed (Task 7: migrated-scale correctness)', 
   })
 })
 
+describe('search panel — the true total, not the length of the loaded page (B2)', () => {
+  // C2 made a real `total` available on the payload; the panel never read it
+  // and printed `serverSearchResults.length` (the SEARCH_RESULT_LIMIT=100
+  // page) as though it were the answer. A member with 340 matches was told
+  // there were 100 — the exact silent-truncation defect C2 was raised to fix,
+  // reopened one layer up. The fix follows NotebookTab's own pattern: an
+  // honest "Showing N of M" line + a "Load more" affordance fed by the same
+  // `total`/`hasMore`/`loadMore` shape `useJ2Notes` already returns.
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  function typeQuery(value) {
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value } })
+  }
+
+  it('renders the server TOTAL, not the length of the loaded page, when a migrated library has more matches than fit on one page', () => {
+    const results = Array.from({ length: 100 }, (_, i) => ({
+      id: `s${i}`, title: `Match ${i}`, bodyPlain: '', folderId: null, tags: [],
+    }))
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return {
+        notes: results, isLoading: false, isValidating: false, error: null,
+        total: 340, hasMore: true, loadMore: vi.fn(), isLoadingMore: false,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    settle()
+
+    expect(screen.getByText('Showing 100 of 340 notes')).toBeInTheDocument()
+    // The exact string the defect renders today — must be gone.
+    expect(screen.queryByText('100 results')).not.toBeInTheDocument()
+  })
+
+  it('offers a way to fetch the rest, mirroring the notebook archive\'s own Load-more control', () => {
+    const loadMore = vi.fn()
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return {
+        notes: [{ id: 's1', title: 'Match', bodyPlain: '', folderId: null, tags: [] }],
+        isLoading: false, isValidating: false, error: null,
+        total: 340, hasMore: true, loadMore, isLoadingMore: false,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    settle()
+
+    const btn = screen.getByRole('button', { name: /load more/i })
+    fireEvent.click(btn)
+    expect(loadMore).toHaveBeenCalled()
+  })
+
+  it('shows no Load-more control once every match is already on screen', () => {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return {
+        notes: [{ id: 's1', title: 'Match', bodyPlain: '', folderId: null, tags: [] }],
+        isLoading: false, isValidating: false, error: null,
+        total: 1, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
+      }
+    })
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    typeQuery('sndk')
+    settle()
+    expect(screen.getByText('Showing 1 of 1 note')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
+  })
+})
+
 describe('folder delete error surfacing', () => {
   beforeEach(() => {
     removeMock.mockReset()

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import useJ2Notes from '../../hooks/useJ2Notes'
 import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './FolderSidebar.module.css'
 
 // Debounce before the search query reaches the server (below) — short enough
@@ -353,6 +354,16 @@ export default function FolderSidebar({
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
+    // The TRUE match count (final-review C2 made this real on the payload;
+    // this panel just never read it — B2). `hasMore`/`loadMore` back the
+    // "Load more" control below, the SAME shape (and the SAME affordance)
+    // NotebookTab already uses for its own honest "Showing N of M" — one
+    // idiom for "there's more than fits on a page", not a second one invented
+    // here.
+    total: searchTotal,
+    hasMore: searchHasMore,
+    loadMore: searchLoadMore,
+    isLoadingMore: searchIsLoadingMore,
   } = useJ2Notes({ q: debouncedQuery || undefined, limit: SEARCH_RESULT_LIMIT, enabled: searchEnabled })
 
   // A query "in flight" — either still waiting out the debounce, or the fetch
@@ -559,8 +570,14 @@ export default function FolderSidebar({
             <div className={styles.searchEmpty}>Search failed — try again.</div>
           ) : serverSearchResults.length ? (
             <div className={styles.searchResults}>
+              {/* Honest "Showing N of M" — never the loaded page's length
+                  standing in for the answer (B2). `?? serverSearchResults.length`
+                  is defensive only: this branch can't actually reach `total ===
+                  undefined` (a non-empty `serverSearchResults` implies the
+                  response that produced it also carried `total`), mirroring
+                  NotebookTab's own comment on the identical fallback. */}
               <div className={styles.searchCount}>
-                {serverSearchResults.length} result{serverSearchResults.length === 1 ? '' : 's'}
+                Showing {serverSearchResults.length} of {searchTotal ?? serverSearchResults.length} note{(searchTotal ?? serverSearchResults.length) === 1 ? '' : 's'}
               </div>
               {serverSearchResults.map((n) => {
                 const title = n.title?.trim() || 'Untitled'
@@ -580,6 +597,17 @@ export default function FolderSidebar({
                   </button>
                 )
               })}
+              {searchHasMore && (
+                <button
+                  type="button"
+                  className={styles.searchLoadMoreBtn}
+                  onClick={searchLoadMore}
+                  disabled={searchIsLoadingMore}
+                >
+                  <UIcon name="chevronDown" size={14} gold={false} />
+                  {searchIsLoadingMore ? 'Loading…' : 'Load more'}
+                </button>
+              )}
             </div>
           ) : (
             <div className={styles.searchEmpty}>No notes match “{trimmedQuery}”.</div>

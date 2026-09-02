@@ -95,6 +95,27 @@
   padding: 2px 4px 4px;
 }
 .searchResults { display: flex; flex-direction: column; gap: 2px; }
+.searchLoadMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  background: transparent;
+  color: var(--color-text-primary, #e8eaed);
+  border: 1px solid var(--color-border, #232932);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  /* Base-rule floor (not scoped to a phone-only media query) — this repo's
+     `tapFloor.test.js` fails a finger target declared only under 640px; the
+     touch tier here is <=1024px, not <=640px. */
+  min-height: var(--tap-min, 44px);
+}
+.searchLoadMoreBtn:hover { background: var(--color-surface-hover, #1c2028); border-color: #dcbb5e; }
+.searchLoadMoreBtn:disabled { opacity: 0.6; cursor: default; }
 .searchResultRow {
   display: flex;
   align-items: flex-start;
