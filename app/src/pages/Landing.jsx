@@ -416,7 +416,7 @@ const INVENTORY = [
       'Theme Tracker — 111 themes, 12 sectors, 1,367 stocks',
       'LiveFlow — options tape, dark-pool prints, gamma exposure',
       'Flow scoreboard — who’s winning the tape today',
-      'Earnings & economic calendar with analyst-rating percentiles',
+      'UCT Terminal — earnings & economic calendar, analyst-rating percentiles',
       'Fundamentals snapshots on every chart',
       'Real-time news wire + curated tweet tape',
       'Live streaming across a 3,685-ticker universe',

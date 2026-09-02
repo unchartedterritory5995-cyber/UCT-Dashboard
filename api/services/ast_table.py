@@ -217,6 +217,19 @@ def scalar_cadence(name: str, manifest: Optional[Mapping[str, Any]] = None) -> s
     return m[SCALARS_SECTION][name]["cadence"]
 
 
+def live_cadence_functions(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """The declared functions whose answer is a LIVE, within-session accumulation.
+
+    ⭐ DERIVED FROM ``cadence``, NEVER HAND-LISTED — the sibling of
+    ``scalar_cadence`` one section over. The manifest already says which
+    functions these are; a list spelled here would be a second authority over a
+    declaration that is right beside the thing it describes.
+    """
+    m = manifest if manifest is not None else TABLE
+    return {name for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items()
+            if isinstance(spec, Mapping) and spec.get("cadence") == "live"}
+
+
 def excluded_columns(manifest: Optional[Mapping[str, Any]] = None) -> set:
     """The screener columns CONSIDERED and refused, each with a stated reason.
 
