@@ -321,6 +321,30 @@
 }
 .exportBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
 
+/* Small pill buttons in the Monitor header (Today jump + manual refresh) —
+   same language as .exportBtn. */
+.hdrBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hdrBtn:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+.refreshBtn { padding: 3px 7px; }
+.refreshBtn svg { display: block; }
+
+@keyframes hdrSpin { to { transform: rotate(360deg); } }
+.spinning svg { animation: hdrSpin 0.7s linear; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .spinning svg { animation: none; } }
+
 .sparkline { display: block; }
 .sparklineCell { padding: 2px 6px; text-align: center; min-width: 62px; }
 

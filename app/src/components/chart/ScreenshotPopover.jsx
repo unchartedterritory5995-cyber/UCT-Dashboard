@@ -3,7 +3,7 @@ import UIcon from '../ui/UIcon';
 import styles from './ScreenshotPopover.module.css';
 
 
-export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose }) {
+export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose, title = 'Share Chart' }) {
   const [status, setStatus] = useState('');  // 'copied', 'shared', 'copy-failed'
 
   async function handleCopy() {
@@ -28,7 +28,7 @@ export default function ScreenshotPopover({ onDownload, onCopy, onShare, onClose
   return (
     <div className={styles.popover}>
       <div className={styles.header}>
-        <span className={styles.title}>Share Chart</span>
+        <span className={styles.title}>{title}</span>
         <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
       </div>
 
