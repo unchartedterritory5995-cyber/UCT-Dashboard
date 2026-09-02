@@ -43,6 +43,31 @@ an opaque or absent assignment there is fine to leave as-is. See
 kept as permanent fixtures — and the "Containment-safety analysis" section below for the
 full mechanics.
 
+THE STATED LIMIT MUST BE THE REAL LIMIT (fix round 2): after round 1 shipped, a second
+reviewer pointed out that its disclosed gap ("a `for` loop iterating a single-element list
+holding `base`") understated the true scope — `_lookup_simple_assign` recognized ONLY a
+single-target `Name = <expr>` assign, so ANY other binding form was equally invisible to it,
+and an anchor bound that way, even when PROVABLY the same object as `base` at runtime, still
+read `"safe"`. A documented limit narrower than the real one is the same defect this whole
+file exists to fix, in the one artifact a future engineer reads to decide whether to trust
+the sweep. `_lookup_simple_assign` was widened to also recognize CHAINED assignment
+(`anchor = other = base`) and determinable-position TUPLE/LIST assignment
+(`anchor, other = base, base` — only when target and value are same-length literal
+tuples/lists with no starred element) — both common, cheap to recognize exactly, and
+covered by `test_tuple_assignment_indirection_is_now_detected` /
+`test_chained_assignment_indirection_is_now_detected`. THREE forms remain real, standing
+blind spots — not fixed, on purpose, per this task's own brief against general dataflow
+analysis: starred unpacking (`anchor, *rest = [base]`), `with ... as anchor:`, and a `for`
+target (`for anchor in [base]:`, used ON PURPOSE by every real fix's own `root`/`base` pair,
+so it can never simply be banned). An anchor disguised through any of these three still
+reads `"safe"` today. Each has a permanent PINNING fixture —
+`test_star_unpack_indirection_is_a_known_blind_spot`,
+`test_with_as_indirection_is_a_known_blind_spot`,
+`test_for_loop_single_value_indirection_is_a_known_blind_spot` — asserting that CURRENT
+`"safe"` result, so a future change that accidentally closes (or widens) any of them shows
+up as a test diff, never a silent surprise. See `_lookup_simple_assign`'s own docstring for
+the exact recognized/not-recognized boundary.
+
 WHY STATIC, NOT DYNAMIC: the task this sweep was written for asks for a sweep that "asserts
 each [discovered function] refuses a crafted traversal on every caller-supplied axis" — the
 natural first idea is to import each discovered function and CALL it with traversal payloads.
@@ -239,16 +264,64 @@ def _base_name_of_resolve_expr(expr: ast.AST) -> str | None:
 
 
 def _lookup_simple_assign(func: ast.AST, name: str) -> tuple[bool, ast.AST | None]:
-    """`(True, value)` for the first `name = <expr>` assignment in func,
-    else `(False, None)`. The `bool` matters: "no assignment found" (a
-    module-level global, or a `for x, y in ...:` unpacking target) and
-    "assigned to something this analysis can't see through" are DIFFERENT
-    facts — collapsing them into one `None` return was the bug."""
+    """`(True, value)` for the first binding of `name` this analysis can
+    positively resolve to a single value expression, else `(False, None)`.
+    The `bool` matters: "no assignment found" (a module-level global, or a
+    binding form below that is deliberately NOT recognized) and "assigned
+    to something this analysis can't see through" are DIFFERENT facts —
+    collapsing them into one `None` return was fix round 1's bug.
+
+    RECOGNIZED (fix round 2 widened this from single-target-only):
+      - `name = <expr>` — a single-target assign.
+      - `name = other = <expr>` — a CHAINED assign; every target in one
+        `Assign` node is bound to the SAME value, so `name` at ANY target
+        position resolves to that one `value`.
+      - `name, other = <expr1>, <expr2>` — a tuple/list assign, ONLY when
+        both the target and the value are literal `Tuple`/`List` nodes of
+        the SAME length with no starred element anywhere — so which value
+        goes with `name` is determinable by position alone, with no need
+        to evaluate anything.
+
+    When `name` sits in a tuple/list target whose value is NOT such a
+    matching literal (e.g. `a, b = some_call()`), this returns
+    `(True, None)` — "found, but the value can't be seen" — which the
+    anchor-side analysis (`_resolve_anchor_root`) treats exactly like any
+    other opaque expression: `indeterminate`, never a silent "free".
+
+    NOT RECOGNIZED — deliberately, per this task's brief (do not attempt
+    general dataflow analysis, do not contort this to chase these): a
+    `for x, y in ...:` loop target (used on PURPOSE by every real fix —
+    see module docstring), a `with ... as x:` target, and any tuple/list
+    target containing a starred element (`a, *rest = ...`). `found` is
+    `False` for a name bound ONLY one of these ways — which the
+    anchor-side analysis (wrongly, but knowingly) treats as "free /
+    independent" rather than "unknown". An anchor bound through any of
+    these forms that is PROVABLY the same object as the joined base at
+    runtime will still classify `"safe"`. This is a real, standing blind
+    spot, not a hypothetical one — pinned by
+    `test_star_unpack_indirection_is_a_known_blind_spot`,
+    `test_with_as_indirection_is_a_known_blind_spot`, and
+    `test_for_loop_single_value_indirection_is_a_known_blind_spot` below,
+    so a future change that accidentally closes (or widens) it shows up as
+    a test diff, not a surprise."""
     for node in ast.walk(func):
-        if isinstance(node, ast.Assign) and len(node.targets) == 1:
-            t = node.targets[0]
+        if not isinstance(node, ast.Assign):
+            continue
+        for t in node.targets:
             if isinstance(t, ast.Name) and t.id == name:
                 return True, node.value
+            if isinstance(t, (ast.Tuple, ast.List)):
+                if any(isinstance(e, ast.Starred) for e in t.elts):
+                    continue  # starred target — a documented blind spot, not chased
+                for i, elt in enumerate(t.elts):
+                    if not (isinstance(elt, ast.Name) and elt.id == name):
+                        continue
+                    val = node.value
+                    if (isinstance(val, (ast.Tuple, ast.List))
+                            and not any(isinstance(e, ast.Starred) for e in val.elts)
+                            and len(val.elts) == len(t.elts)):
+                        return True, val.elts[i]
+                    return True, None  # found, but position not determinable
     return False, None
 
 
@@ -268,25 +341,43 @@ def _resolve_receiver_alias(func: ast.AST, name: str, _seen: set[str] | None = N
     return name
 
 
-def _resolve_anchor_root(func: ast.AST, name: str, _seen: set[str] | None = None) -> str | None:
-    """Follow `name = other_bare_name` chains to a fixed point for the
-    ANCHOR — but FAIL (return `None`) the moment the chase hits anything
-    that isn't provably independent of the joined base: a helper call, a
-    lambda, an attribute chain, a subscript, a binop, anything. Only two
-    shapes count as proof of independence: a bare-name alias (chase
-    further) or NO local assignment at all (a module-level global, or a
-    `for x, y in ...:` tuple-unpack target — exactly what every real fix's
-    `root` is). This is the fail-safe half of the fix: the default is "not
-    proven", not "assumed safe"."""
+def _resolve_anchor_root(
+    func: ast.AST, name: str, target: str, _seen: set[str] | None = None,
+) -> str | None:
+    """Follow alias chains (bare-name, chained-assign, or determinable-position
+    tuple/list assign — see `_lookup_simple_assign`) toward one of three
+    outcomes for the ANCHOR, checked against `target` — the RECEIVER's own
+    (already-resolved) base name:
+
+      (a) `name` IS `target`, right now or after however many aliasing
+          steps — proof the anchor is the SAME thing as the joined base.
+          Returns `target`; the caller compares this back against `target`
+          and reports `vulnerable`. Checking equality FIRST, before asking
+          whether `name` even has a binding, is what lets this catch
+          `anchor, other = base, base` and `anchor = other = base`: the
+          chase lands on the literal name `"base"`, which IS `target`,
+          even though `"base"`'s OWN construction (a `/`-chain) would
+          otherwise look opaque to this analysis.
+      (b) `name` has NO local binding this analysis recognizes at all (a
+          module-level global, or one of `_lookup_simple_assign`'s
+          documented blind spots) and is NOT `target` — proof of
+          independence. Returns that name.
+      (c) anything else — an opaque expression (call, lambda, attribute,
+          subscript, binop) that is not itself `target` — returns `None`,
+          "cannot prove", which `analyze_containment` reports as
+          `indeterminate`, never `safe`. This is the fail-safe half of the
+          fix: the default is "not proven", not "assumed safe"."""
     seen = _seen if _seen is not None else set()
+    if name == target:
+        return name
     if name in seen:
         return None  # a cycle proves nothing
     seen.add(name)
     found, val = _lookup_simple_assign(func, name)
     if not found:
-        return name  # genuinely free: global constant, or for-loop-unpack target
+        return name  # genuinely free (or an unrecognized-binding blind spot), and != target
     if isinstance(val, ast.Name):
-        return _resolve_anchor_root(func, val.id, seen)
+        return _resolve_anchor_root(func, val.id, target, seen)
     return None  # opaque: call, lambda, attribute chain, binop, whatever
 
 
@@ -294,24 +385,18 @@ def analyze_containment(func: ast.AST) -> str:
     """'vulnerable' | 'safe' | 'indeterminate' for one already-shape-matched
     resolver. 'indeterminate' means either the static shape didn't fit the
     exact assign-then-check pattern this analysis understands, OR the
-    anchor's provenance could not be PROVEN independent of the joined base
-    (see `_resolve_anchor_root`). Both are treated as a FAILURE by the
-    real-code test below, never as a silent pass — 'safe' is now an
-    earned, positive result, not a default.
+    anchor's provenance could not be PROVEN either equal to, or independent
+    of, the joined base (see `_resolve_anchor_root`). Both are treated as a
+    FAILURE by the real-code test below, never as a silent pass — 'safe' is
+    an earned, positive result, not a default.
 
-    ORDER MATTERS HERE: the RAW names (straight off the `.resolve()` call
-    sites, before any tracing) are compared FIRST. If they are already
-    literally identical (`target.relative_to(base.resolve())` where `base`
-    is exactly the name `target` was joined from — the classic, undisguised
-    bug), that is `vulnerable` immediately, with no need to trace what
-    `base` itself was built from. Only when the raw names DIFFER does this
-    go on to ask whether the difference is real or a disguise — because
-    `base` is virtually always built via a `/`-chain (`_ATTACHMENT_ROOT /
-    user_id / ...`), and running the strict opaque-provenance proof against
-    THAT construction (rather than skipping it via the raw-equality
-    short-circuit) would wrongly call the classic bug `indeterminate`
-    instead of `vulnerable` — a real regression caught by re-running the
-    original control (`bad_resolver`) after the fail-safe rewrite below."""
+    The RECEIVER's base name is resolved first (`_resolve_receiver_alias` —
+    permissive; it is a LABEL, not a claim needing proof) and handed to
+    `_resolve_anchor_root` as the `target` to check the anchor against. The
+    classic, undisguised bug (`target.relative_to(base.resolve())`, the
+    exact same name on both sides) is caught by `_resolve_anchor_root`'s
+    own first check — `name == target` — with zero tracing needed, so no
+    separate raw-name short-circuit is required here."""
     calls = list(_relative_to_calls_in_value_error_try(func))
     if not calls:
         return "indeterminate"
@@ -333,18 +418,12 @@ def analyze_containment(func: ast.AST) -> str:
         if raw_receiver_base is None:
             return "indeterminate"
 
-        if raw_anchor_base == raw_receiver_base:
-            return "vulnerable"  # the classic, undisguised bug — no tracing needed
-
-        # Raw names differ. Before trusting that difference, PROVE the
-        # anchor is independent — fail safe (indeterminate) if we can't.
-        anchor_base = _resolve_anchor_root(func, raw_anchor_base)
+        receiver_base = _resolve_receiver_alias(func, raw_receiver_base)
+        anchor_base = _resolve_anchor_root(func, raw_anchor_base, receiver_base)
         if anchor_base is None:
             return "indeterminate"  # opaque anchor provenance — FAIL SAFE
-        receiver_base = _resolve_receiver_alias(func, raw_receiver_base)
-
-        if receiver_base == anchor_base:
-            return "vulnerable"  # resolved to the same thing after all
+        if anchor_base == receiver_base:
+            return "vulnerable"
     return "safe"
 
 
@@ -504,6 +583,197 @@ def test_lambda_indirection_is_not_trusted_as_safe():
     verdict = analyze_containment(fn)
     assert verdict != "safe"
     assert verdict == "indeterminate"
+
+
+# ── Fix round 2: the wider family of opaque-anchor disguises ────────────────
+#
+# A second reviewer pointed out that round 1's disclosed limitation ("a
+# for-loop iterating a single-element list containing base") understated the
+# real scope: `_lookup_simple_assign` only ever recognized a single-target
+# `Name = <expr>` assign, so ANY other binding form — tuple assignment,
+# chained assignment, starred unpacking, `with ... as`, a `for` target — was
+# equally invisible, and an anchor bound through any of them that is
+# PROVABLY the same object as `base` at runtime still classified `"safe"`.
+#
+# Per the task brief: chained assignment and determinable-position tuple
+# assignment are common and cheap to recognize, so `_lookup_simple_assign`
+# was widened to cover them (see its docstring). Starred unpacking, `with
+# ... as`, and `for` targets are NOT chased — general dataflow analysis is
+# out of scope, and `for` targets are used ON PURPOSE by every real fix.
+# Those three remain real, disclosed blind spots. Each gets a fixture below:
+# the two widened forms must now be DETECTED (not "safe"); the three
+# documented-limit forms must currently STILL read "safe" — pinning the
+# honest boundary so a future change to the recognizer shows up as a test
+# diff, not a rediscovery.
+
+_TUPLE_ASSIGN_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_tuple_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via a plain tuple assignment (no loop, no call) -- the
+    same object as base at runtime. WIDENED coverage: must now be caught."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor, other = base, base
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+_CHAINED_ASSIGN_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_chained_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via chained assignment -- the same object as base at
+    runtime. WIDENED coverage: must now be caught."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor = other = base
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+_STAR_UNPACK_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_star_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via starred tuple-unpack -- the same object as base at
+    runtime. DOCUMENTED LIMIT: not chased on purpose; still reads "safe"."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor, *_rest = [base]
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+_WITH_AS_INDIRECTION_SOURCE = '''
+import contextlib
+from pathlib import Path
+
+def sneaky_with_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via `with ... as` -- nullcontext just hands its argument
+    back, so this is the same object as base at runtime. DOCUMENTED LIMIT:
+    not chased on purpose; still reads "safe"."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    with contextlib.nullcontext(base) as anchor:
+        try:
+            target.relative_to(anchor.resolve())
+        except ValueError:
+            return None
+        if not target.exists():
+            return None
+        return target
+'''
+
+_FOR_LOOP_SINGLE_VALUE_SOURCE = '''
+from pathlib import Path
+
+def sneaky_for_loop_resolver(user_id: str, note_id: str, filename: str):
+    """Anchor bound via a for-loop iterating a single-element list holding
+    base -- the same object as base at runtime. DOCUMENTED LIMIT: for-loop
+    targets are deliberately never chased (every real fix's root/base pair
+    relies on exactly that); still reads "safe"."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    for anchor in [base]:
+        try:
+            target.relative_to(anchor.resolve())
+        except ValueError:
+            return None
+        if not target.exists():
+            return None
+        return target
+'''
+
+
+def test_tuple_assignment_indirection_is_now_detected():
+    """WIDENED coverage. Before fix round 2, `anchor, other = base, base`
+    was indistinguishable from a genuinely independent anchor and read
+    "safe" -- a real instance of the wider family the second reviewer
+    named. Must now fail the sweep."""
+    fn = _function_named(ast.parse(_TUPLE_ASSIGN_INDIRECTION_SOURCE), "sneaky_tuple_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    assert analyze_containment(fn) != "safe", (
+        "a tuple-assigned anchor (anchor, other = base, base) was accepted as "
+        "safe -- the widened recognizer regressed"
+    )
+
+
+def test_chained_assignment_indirection_is_now_detected():
+    """WIDENED coverage, same reasoning as the tuple-assign case above but
+    via `anchor = other = base`."""
+    fn = _function_named(ast.parse(_CHAINED_ASSIGN_INDIRECTION_SOURCE), "sneaky_chained_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    assert analyze_containment(fn) != "safe", (
+        "a chained-assigned anchor (anchor = other = base) was accepted as "
+        "safe -- the widened recognizer regressed"
+    )
+
+
+def test_star_unpack_indirection_is_a_known_blind_spot():
+    """PINS a documented, NOT-fixed limit (see `_lookup_simple_assign`'s
+    docstring). This must currently read "safe" — that is the honest
+    truth about the sweep's coverage, not a bug in this test. If this ever
+    starts failing because the recognizer now catches it, update
+    `_lookup_simple_assign`'s docstring (the blind-spot list) rather than
+    treating the new red as a regression to revert."""
+    fn = _function_named(ast.parse(_STAR_UNPACK_INDIRECTION_SOURCE), "sneaky_star_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    assert analyze_containment(fn) == "safe"
+
+
+def test_with_as_indirection_is_a_known_blind_spot():
+    """PINS a documented, NOT-fixed limit. See
+    `test_star_unpack_indirection_is_a_known_blind_spot`'s docstring —
+    same reasoning, different disguise."""
+    fn = _function_named(ast.parse(_WITH_AS_INDIRECTION_SOURCE), "sneaky_with_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    assert analyze_containment(fn) == "safe"
+
+
+def test_for_loop_single_value_indirection_is_a_known_blind_spot():
+    """PINS the exact blind spot disclosed (but not, at the time, given a
+    permanent fixture) in fix round 1's report — a `for` target is used ON
+    PURPOSE by every real fix's `root`/`base` pair, so this form is never
+    chased, and an anchor disguised this way still reads "safe"."""
+    fn = _function_named(ast.parse(_FOR_LOOP_SINGLE_VALUE_SOURCE), "sneaky_for_loop_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    assert analyze_containment(fn) == "safe"
 
 
 # ── The real sweep ────────────────────────────────────────────────────────
