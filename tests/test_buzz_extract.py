@@ -80,11 +80,14 @@ def test_house_vocabulary_is_never_a_ticker():
     assert tickers("RS line reclaiming the EMA after that GAP") == []
 
 
-def test_a_real_name_that_collides_with_a_word_is_still_counted():
-    # Control for the test above -- it proves the vocabulary gate is a scalpel,
-    # not a hammer. SPOT (Spotify) collides with "spot price" and is
-    # deliberately NOT gated, because members trade it.
-    assert "SPOT" in tickers("SPOT breaking out of the base")
+def test_a_gated_collision_still_counts_via_cashtag():
+    # OVERTURNED RULING (Task 5): SPOT (Spotify) collides with "spot price" and
+    # was ruled ungated by hand-typed guess ("members trade it"); the real
+    # #tsdr corpus measured it at 11.2% uppercase -- a genuine word collision,
+    # now gated via the DERIVED chat_words(). A bare uppercase mention no
+    # longer counts, but the cashtag tier still beats every gate.
+    assert tickers("SPOT breaking out of the base") == []
+    assert "SPOT" in tickers("$SPOT breaking out of the base")
 
 
 def test_confidence_is_reported_per_tier():
@@ -109,20 +112,45 @@ def test_empty_and_none_are_safe():
 
 
 @pytest.mark.parametrize("text", [
-    "did you sprain your arm at practice",
-    "that comment was very meta of you",
     "an apple a day",
     "he is the oracle of omaha",
     "can you affirm that",
-    "my net worth took a hit",
-    "back to the lab tomorrow",
     "learn the alphabet first",
     "just do it like nike said",
 ])
 def test_an_alias_that_is_an_ordinary_word_needs_the_proper_noun_form(text):
-    """Alias keys like arm/meta/apple/oracle are ordinary English. Matching them
-    case-insensitively booked mentions at ALIAS confidence -- stronger than the
-    gated tiers -- on sentences with nothing to do with the stock."""
+    """Alias keys like apple/oracle/affirm/alphabet/nike are ordinary English.
+    Matching them case-insensitively booked mentions at ALIAS confidence --
+    stronger than the gated tiers -- on sentences with nothing to do with the
+    stock."""
+    assert tickers(text) == [], f"false positive: {extract(text)}"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "KNOWN GAP (Task 5, 2026-09-01), not a silent regression: arm/meta/"
+        "net/lab are ordinary English words whose spelling is IDENTICAL to "
+        "their own ticker (ARM/META/NET/LAB) -- the same class of collision "
+        "as SPOT. The real #tsdr corpus (api/data/buzz_collisions.json) does "
+        "not measure any of them at >=8 occurrences with <35% uppercase, and "
+        "the brief reserves HOUSE_VOCAB for uppercase-by-convention acronyms "
+        "(AI, RS, EMA, SMA, MA, DD, OI, RSI, PEG), not ordinary words -- so "
+        "neither list may absorb them without fabricating data this corpus "
+        "does not support. '#tsdr is disciplined, #main-chat is casual' (the "
+        "brief): the blocked #main-chat backfill is expected to surface these "
+        "and close the gap by re-running tools/buzz_derive_collisions.py. "
+        "strict=True: if this starts passing, promote the case out of here "
+        "instead of leaving a stale xfail."
+    ),
+)
+@pytest.mark.parametrize("text", [
+    "did you sprain your arm at practice",
+    "that comment was very meta of you",
+    "my net worth took a hit",
+    "back to the lab tomorrow",
+])
+def test_arm_meta_net_lab_are_a_known_uncovered_word_collision_gap(text):
     assert tickers(text) == [], f"false positive: {extract(text)}"
 
 

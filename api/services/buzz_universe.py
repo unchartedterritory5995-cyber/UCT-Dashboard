@@ -27,16 +27,25 @@ _DATA = _HERE / "data"
 # candidate list against the real universe -- not typed from memory. Without
 # LINE, "RS line reclaiming the EMA" books a mention of LINE (a genuine ticker).
 #
-# ⛔ SPOT was in that derived intersection and is DELIBERATELY NOT HERE.
-# Spotify is a name this room actually trades; "spot" as a word is comparatively
-# rare in equity chat. Banishing a symbol members discuss deletes real mentions
-# permanently, which is the exact failure mode this whole module exists to
-# avoid. When a genuine name collides, tighten tier 4's context requirement --
-# never remove the symbol.
+# This is the ONE hand-curated collision list, and it stays narrow on purpose:
+# uppercase-by-convention ACRONYMS (AI, RS, EMA, SMA, MA, DD, OI, RSI, PEG ...)
+# that casing analysis structurally cannot separate -- this room writes them
+# uppercase whether it means the acronym or the ticker, so no corpus measurement
+# will ever push their upper_pct below the word threshold. Every ordinary
+# ENGLISH WORD collision (SPOT, IMO, BIT, LOT, WAY, POST, TWO, JAN, ...) belongs
+# in `chat_words()` / `api/data/buzz_collisions.json` instead, DERIVED from a
+# real corpus by `tools/buzz_derive_collisions.py`. Two different collision
+# mechanisms, two lists -- do not merge one into the other.
+#
+# ⛔ SPOT is DELIBERATELY NOT HERE. Spotify is a name this room actually trades,
+# and it was never wrong to refuse a hand-typed "SPOT is just a word" guess --
+# only real data could settle it. It has: the derived corpus measured SPOT at
+# 11.2% uppercase (308 word-uses vs 39 ticker-uses), well under the 35% word
+# threshold, so it IS now gated -- via `chat_words()`, not by adding it here.
 HOUSE_VOCAB = frozenset({
-    "RS", "EMA", "SMA", "MA", "GAP", "PEG", "EP", "ATH", "ATL", "IPO", "ETF",
-    "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI", "DD",
-    "LINE", "BAND", "BULL", "GAIN", "PUMP",
+    "AI", "RS", "EMA", "SMA", "MA", "GAP", "PEG", "EP", "ATH", "ATL", "IPO",
+    "ETF", "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI",
+    "DD", "LINE", "BAND", "BULL", "GAIN", "PUMP",
 })
 
 # Indices. cap_universe.json is an EQUITY SCREEN, so none of these are in it --
@@ -55,21 +64,10 @@ AMBIGUOUS_ALIASES = frozenset({
     "apple", "arm", "meta", "oracle", "affirm", "alphabet", "nike",
 })
 
-# Ordinary conversational English. Kept short on purpose: every entry must be a
-# word this room actually uses non-financially. `tools/buzz_collisions.py`
-# (Task 5) re-derives this from the real corpus and reports anything missing.
-# Entries that are NOT in the universe are harmless -- ambiguous() intersects,
-# so they simply drop out. They are kept as a guard in case the universe grows.
-CHAT_WORDS = frozenset({
-    "A", "ALL", "AM", "AN", "AND", "ANY", "ARE", "AS", "AT", "BE", "BIG", "BUT",
-    "BY", "CAN", "CASH", "DO", "EACH", "EV", "FOR", "FROM", "GO", "GOOD", "HAS",
-    "HE", "HOME", "HOPE", "HOW", "IF", "IN", "IS", "IT", "JUST", "KEY", "LOVE",
-    "LOW", "MY", "NEW", "NEXT", "NICE", "NO", "NOW", "OF", "OK", "OLD", "ON",
-    "ONE", "OPEN", "OR", "OUT", "OVER", "PLAY", "PLUS", "REAL", "RUN", "SAFE",
-    "SEE", "SO", "SOME", "STAY", "TAKE", "TELL", "THE", "TO", "TURN", "UP",
-    "US", "VERY", "WE", "WELL", "WHY", "WISH", "WORK", "YOU", "AI",
-    "NET", "ARM", "META", "LAB",
-})
+# Ordinary conversational English that also reads as a ticker. DERIVED, never
+# hand-typed -- see the module docstring and tools/buzz_derive_collisions.py.
+# `chat_words()` below is the loader; `api/data/buzz_collisions.json` is the
+# one file that regenerates from a real corpus and is the sole authority.
 
 
 def _load_json(name: str):
@@ -117,14 +115,28 @@ def aliases() -> dict[str, str]:
 
 
 @functools.lru_cache(maxsize=1)
+def chat_words() -> frozenset[str]:
+    """Ordinary English words that collide with a real ticker, DERIVED by
+    casing analysis over a genuine Discord corpus (see the module docstring +
+    `tools/buzz_derive_collisions.py`). Never hand-typed: this is a straight
+    load of `api/data/buzz_collisions.json`'s `tokens` keys. A missing or
+    malformed file degrades to an empty set rather than raising -- the same
+    fail-soft contract every loader in this module follows."""
+    payload = _load_json("buzz_collisions.json") or {}
+    tokens = payload.get("tokens") if isinstance(payload, dict) else None
+    return frozenset(str(k).strip().upper() for k in (tokens or {}))
+
+
+@functools.lru_cache(maxsize=1)
 def ambiguous() -> frozenset[str]:
     """Symbols that also read as ordinary chat. DERIVED by intersection, so it
     can only ever name things that are genuinely in the universe."""
-    return frozenset((CHAT_WORDS | HOUSE_VOCAB) & set(symbols()))
+    return frozenset((chat_words() | HOUSE_VOCAB) & set(symbols()))
 
 
 def _reset_caches_for_tests() -> None:
     """Drop the lru_caches so a test can change what the loaders see."""
     symbols.cache_clear()
     aliases.cache_clear()
+    chat_words.cache_clear()
     ambiguous.cache_clear()

@@ -76,18 +76,28 @@ def test_an_unrecognised_dict_shape_contributes_no_symbols():
     assert u._syms_from({"symbols": ["NVDA", "AMD"]}) == {"NVDA", "AMD"}
 
 
-def test_SPOT_is_deliberately_countable_despite_colliding_with_spot_price():
-    """SPOT came out of the same derived chart-vocabulary intersection as LINE,
-    BAND, BULL, GAIN and PUMP, and is deliberately NOT gated: Spotify is traded
-    here, and banishing a traded symbol deletes real mentions permanently while
-    a false positive is visible and cheap. If a future edit adds SPOT to
-    HOUSE_VOCAB, this must fail."""
+def test_SPOT_is_now_gated_by_measured_corpus_data_not_by_hand():
+    """OVERTURNED RULING (Task 5, 2026-09-01). This test used to assert SPOT
+    was deliberately ungated because "Spotify is a name this room trades" --
+    a hand-typed guess. Running the extractor over the real 7,766-message
+    #tsdr corpus measured SPOT at 11.2% uppercase (308 word-uses vs 39
+    ticker-uses), well under the 35% word threshold: it IS a genuine
+    collision, and only real data could show it. It is gated via the DERIVED
+    `chat_words()` (api/data/buzz_collisions.json), never by hand-adding it to
+    HOUSE_VOCAB -- that would collapse the two collision mechanisms into one."""
     assert "SPOT" in u.symbols()
-    assert "SPOT" not in u.ambiguous()
+    assert "SPOT" in u.chat_words()
+    assert "SPOT" in u.ambiguous()
     assert "SPOT" not in u.HOUSE_VOCAB
-    # control: the siblings it was derived alongside ARE gated
+    # control: the siblings it was originally compared against are still
+    # gated -- some (LINE, BULL, GAIN) happen to also appear in the derived
+    # file now, which is harmless (ambiguous() is a union); BAND and PUMP are
+    # gated ONLY through HOUSE_VOCAB, proving that mechanism still matters on
+    # its own.
     for gated in ("LINE", "BAND", "BULL", "GAIN", "PUMP"):
         assert gated in u.HOUSE_VOCAB
+    for hand_only in ("BAND", "PUMP"):
+        assert hand_only not in u.chat_words()
 
 
 def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path, monkeypatch):
