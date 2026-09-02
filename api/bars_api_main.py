@@ -243,14 +243,21 @@ def _build_app() -> FastAPI:
         # a freshness sample. This is how "instant everything" is MEASURED (watch
         # d_tickers climb toward the ~22-26k full universe) rather than hoped.
         from api.services import bars_sqlite
-        sample = None
+        sample = None       # liquid set (cap_universe)
+        universe = None     # full long-tail (reference feed) — the real "obscure movers" set
         try:
             from api.services import cap_universe
             sample = list(cap_universe.symbols())
         except Exception:  # noqa: BLE001
             pass
         try:
-            st = bars_sqlite.coverage_stats(sample=sample)
+            from api.services import massive
+            refs = massive.list_reference_tickers(active=True, market="stocks")
+            universe = [d.get("ticker") for d in (refs or []) if d.get("ticker")]
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            st = bars_sqlite.coverage_stats(sample=sample, universe=universe or None)
         except Exception as e:  # noqa: BLE001
             return {"service": "bars-api", "error": str(e)}
         st["service"] = "bars-api"

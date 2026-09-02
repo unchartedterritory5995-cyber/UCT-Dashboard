@@ -301,47 +301,56 @@ def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
 _COVERAGE_CACHE = {"ts": 0.0, "data": None}
 
 
-def coverage_stats(sample: list[str] | None = None, *, fresh_within_days: int = 5) -> dict:
-    """Universe-WARMTH snapshot of the local bars.db — the ground-truth measure of
-    'how much of the universe is instant on first view'. Returns distinct ticker
-    counts per timeframe (how many tickers hold ANY bars = cached) plus, if a
-    `sample` universe is passed, a freshness sample (how many of a random 200 have
-    a RECENT daily bar = actually warm, not stale). Cached 5 min — the
-    COUNT(DISTINCT ticker) walk on a multi-GB db is not free. READ-ONLY."""
+def coverage_stats(sample: list[str] | None = None, universe: list[str] | None = None,
+                   *, fresh_within_days: int = 5, n: int = 400) -> dict:
+    """Universe-WARMTH snapshot — the ground-truth measure of "how much of the
+    universe is instant on first view". SAMPLE-BASED and FAST by design: a
+    COUNT(DISTINCT ticker) walks 100M+ rows on the multi-GB db (>55s, RAM-heavy),
+    so instead we probe a random N of each passed list via the PK-indexed
+    get_last_ts (~1ms each) and report the % with a RECENT daily bar. `sample` =
+    the liquid set (cap_universe); `universe` = the full long-tail set — the
+    long-tail % is the real "are obscure movers warm" number. Cached 5min. READ-ONLY."""
     import time as _t
     now = _t.time()
     cached = _COVERAGE_CACHE["data"]
     if cached and now - _COVERAGE_CACHE["ts"] < 300:
         return cached
-    c = _conn()
+    from datetime import datetime, timedelta
+    import random
+    cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
     out = {"path": _DB_PATH, "at": int(now)}
-    for tf in ("D", "W", "M"):
+
+    def _probe(syms, label):
         try:
+            pool = list({s for s in syms if s})
+            if not pool:
+                return
+            picked = random.sample(pool, min(n, len(pool)))
             t0 = _t.time()
-            n = c.execute("SELECT COUNT(DISTINCT ticker) FROM ohlcv WHERE tf=?", (tf,)).fetchone()[0]
-            out[f"{tf.lower()}_tickers"] = int(n or 0)
-            out[f"{tf.lower()}_ms"] = round((_t.time() - t0) * 1000)
-        except Exception as e:  # noqa: BLE001
-            out[f"{tf.lower()}_error"] = str(e)
-    if sample:
-        import random
-        from datetime import datetime, timedelta
-        try:
-            syms = random.sample(list(sample), min(200, len(sample)))
-            # daily ts are YYYYMMDD ints → "fresh" = a bar within N calendar days.
-            cutoff = int((datetime.utcnow() - timedelta(days=fresh_within_days)).strftime("%Y%m%d"))
             have = fresh = 0
-            for s in syms:
+            for s in picked:
                 lt = get_last_ts(s, "D")
                 if lt:
                     have += 1
                     if int(lt) >= cutoff:
                         fresh += 1
-            out["sample_n"] = len(syms)
-            out["sample_have_daily"] = have    # cached at all (any daily bars)
-            out["sample_fresh_daily"] = fresh  # warm (recent daily bar)
+            k = len(picked)
+            out[f"{label}_n"] = k
+            out[f"{label}_have_pct"] = round(100.0 * have / k, 1) if k else 0.0
+            out[f"{label}_fresh_pct"] = round(100.0 * fresh / k, 1) if k else 0.0  # % WARM
+            out[f"{label}_ms"] = round((_t.time() - t0) * 1000)
         except Exception as e:  # noqa: BLE001
-            out["sample_error"] = str(e)
+            out[f"{label}_error"] = str(e)
+
+    if sample:
+        _probe(sample, "cap")
+    if universe:
+        _probe(universe, "univ")
+        # extrapolate an approximate warm-ticker count for the whole universe
+        fp = out.get("univ_fresh_pct")
+        if fp is not None:
+            out["univ_size"] = len({s for s in universe if s})
+            out["est_warm_tickers"] = int(round(out["univ_size"] * fp / 100.0))
     _COVERAGE_CACHE.update(ts=now, data=out)
     return out
 
