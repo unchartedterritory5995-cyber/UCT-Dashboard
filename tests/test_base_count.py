@@ -242,3 +242,60 @@ def test_the_measured_curve_travels_with_the_numbers():
         assert must in low, (
             f"the note lost {must!r}: it must carry the finding, the decision "
             f"it supports, AND the limit that could hide a real effect")
+
+
+# ─── the wiring: ema-crossback only, and it must stay that way ──────────────
+
+def test_the_stage_is_wired_for_ema_crossback_and_no_other_structure():
+    """⭐⭐ SCOPED TO WHAT WAS MEASURED. `bases.classify` populates `base_stage`
+    only when `ema-crossback` fired, because that is the only structure whose
+    stage effect we measured (+18.5pp early-over-late). darvas-box read -1.4pp
+    against a ~8.3pp standard error — the wrong sign and indistinguishable from
+    zero — so filling the column for it would ship IBD's blanket assertion in
+    place of our evidence."""
+    from api.services.screener import bases
+    src = (ROOT / "api/services/screener/bases.py").read_text(encoding="utf-8")
+    assert 'if "ema-crossback" in relation_keys' in src, (
+        "the base_stage computation is no longer scoped to ema-crossback — it "
+        "is either unwired or applied to structures it was never measured on")
+    assert "base_stage" in bases._NULL, (
+        "a refused classify() no longer carries the base_stage KEY; a missing "
+        "key and a null value are different facts downstream")
+
+
+def test_the_stage_needs_full_history_so_it_reads_bars_full():
+    """⛔ The count is stateful over a symbol's whole price history — a windowed
+    `detect()` cannot compute it from what it is given, which is exactly why
+    this lives in `classify` and takes `bars_full`."""
+    src = (ROOT / "api/services/screener/bases.py").read_text(encoding="utf-8")
+    assert "base_count.stage_at(bars_full or bars)" in src, (
+        "the stage is being computed from the working window instead of the "
+        "full series — it will silently under-count on every symbol")
+
+
+def test_the_column_and_the_filter_both_exist():
+    from api.services.screener import snapshot_db, filters
+    assert "base_stage" in snapshot_db.COLUMNS
+    assert "base_stage" in filters.FILTERS
+    assert "EMA Crossback" in filters.FILTERS["base_stage"]["label"], (
+        "the filter's label no longer names its scope. The column is null for "
+        "every other structure, so a member screening it on the whole universe "
+        "silently drops them — the label is where that is disclosed.")
+
+
+def test_the_stage_is_NOT_a_criterion_of_the_structure():
+    """⛔⛔ A REGRESSION THIS CAUGHT ONCE. IBD's stage preference is sourced, so
+    a criterion carrying it gets a `source_id` — and `structure_origin` keys on
+    source_id presence, which flipped EMA Crossback from OURS to PUBLISHED. It
+    is ours; a criterion in that same structure says no primary source exists
+    for any number in it.
+
+    ⭐ A criterion says what the structure IS. The stage says what we FILTER it
+    by. Only the first belongs in `criteria`."""
+    from api.services.screener import base_catalog as bcat
+    st = bcat.by_key("ema-crossback")
+    assert bcat.structure_origin(st) == "uct", (
+        f"EMA Crossback now reads as {bcat.structure_origin(st)!r}. Something "
+        f"gave one of its criteria a source_id — most likely IBD's stage "
+        f"preference, which is a filter we apply and not part of the "
+        f"structure's definition.")

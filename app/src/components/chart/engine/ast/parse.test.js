@@ -415,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 13 clock, 15 operators, 64 functions and 111 scalars — 208 names, one grammar', () => {
+  it('declares 5 series, 13 clock, 15 operators, 64 functions and 112 scalars — 209 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -522,7 +522,13 @@ describe('the manifest', () => {
     // precisely because it packs bars out of argument COLUMNS, so an entry with
     // no columns to pack is handed the real bars. Still no new node type and no
     // new argument kind, so `tableVersion` is unmoved at 2.
-    expect(Object.keys(TABLE.scalars)).toHaveLength(111)
+    // ⭐ 111 -> 112 on 2026-09-01: `base_stage`, the IBD base count, written
+    // by `bases.classify`. SPARSE ON PURPOSE -- only `ema-crossback` rows
+    // carry a value, because that is the only structure whose stage effect
+    // was measured (+18.5pp early-over-late; darvas-box read -1.4pp, the
+    // wrong sign and not distinguishable from zero). Mirrored in
+    // `tests/test_ast_scalars.py`, which moved 111 -> 112 in the same commit.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(112)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
       ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
@@ -553,7 +559,10 @@ describe('the manifest', () => {
     // untouched at 111.
     expect(bar.size).toBe(97)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(208)
+    // ⭐ 208 -> 209 with `base_stage`: the BAR half is unmoved at 97, so a
+    // scalar added to the screener cannot hide inside a combined total that
+    // a new bar function would also move. Both halves are asserted above.
+    expect(declared.size).toBe(209)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

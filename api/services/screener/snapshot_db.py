@@ -100,6 +100,12 @@ COLUMNS = [
     # box or a Power Play. See api/services/screener/base_catalog.py.
     "base_shape", "base_shape_label", "base_matches", "base_relation_count",
     "base_render",
+    # ⭐ THE IBD BASE STAGE, POPULATED ONLY FOR `ema-crossback` ROWS. Null
+    # everywhere else ON PURPOSE: measured on our universe the stage effect is
+    # structure-dependent (+18.5pp for ema-crossback, -1.4pp and the wrong sign
+    # for darvas-box), so filling it for every structure would ship IBD's
+    # blanket assertion rather than our measurement. See bases.classify.
+    "base_stage",
     # levels the LIVE tier reuses to classify the forming bar (see live_tier)
     "avg_body", "avg_range",
     # the WEEKLY bar's structure, resampled from the daily series

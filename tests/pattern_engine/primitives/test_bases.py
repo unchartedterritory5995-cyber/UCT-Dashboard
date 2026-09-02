@@ -25,7 +25,7 @@ def _from_closes(prices, spread=0.01):
 
 
 NULL_KEYS = {"base_shape", "base_shape_label", "base_matches",
-             "base_relation_count", "base_render"}
+             "base_relation_count", "base_render", "base_stage"}
 
 
 # ── the guard ──────────────────────────────────────────────────────────────

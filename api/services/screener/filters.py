@@ -445,6 +445,14 @@ FILTERS = dict([
           base_catalog.enum_options()),
     _open_range("base_relation_count", "Named Structures", "pattern",
                 "base_relation_count"),
+    # ⛔ SPARSE BY DESIGN, AND THE HELP SAYS SO. Only `ema-crossback` rows carry
+    # a stage, because that is the only structure whose stage effect we have
+    # MEASURED (+18.5pp early-over-late; darvas-box was -1.4pp and not
+    # distinguishable from zero). A member screening `base_stage <= 2` on the
+    # whole universe would silently drop every row of every other structure, so
+    # the label names the scope rather than leaving it to be discovered.
+    _open_range("base_stage", "Base Stage (EMA Crossback)", "pattern",
+                "base_stage"),
     # ── performance (Wave 1 — all bare; return thresholds are the owner's) ──
     _open_range("chg_pct_1d", "Change Today", "performance", "chg_pct_1d", unit="%"),
     _open_range("chg_pct_1w", "Change 1W", "performance", "chg_pct_1w", unit="%"),

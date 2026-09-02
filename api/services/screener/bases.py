@@ -31,6 +31,7 @@ from typing import List, Optional
 
 from api.services.pattern_engine.primitives import zigzag
 from api.services.screener import base_catalog
+from api.services.screener import base_count
 
 #: Below this we refuse rather than read a structure into noise. The segmenter
 #: itself needs `MIN_SIGMA_BARS + 2`; a structure needs enough swings on top of
@@ -41,6 +42,7 @@ _NULL = {
     "base_shape": None,
     "base_shape_label": None,
     "base_matches": None,
+    "base_stage": None,
     "base_relation_count": None,
     "base_render": None,
 }
@@ -229,7 +231,32 @@ def classify(bars, bars_full=None) -> dict:
     matches = [shape_key] + relation_keys
     shape = base_catalog.by_key(shape_key)
 
+    # ⭐⭐ THE BASE STAGE, AND ONLY WHERE IT WAS MEASURED TO MATTER. IBD's
+    # preference ("It's usually best to buy when a stock breaks out from a
+    # first-stage or second-stage base") is published as a blanket rule and
+    # quantified nowhere. Measured on our universe it is STRUCTURE-DEPENDENT:
+    # ema-crossback wins 44.8% early vs 26.3% late, a +18.5pp gap against a
+    # ~5.5pp standard error; darvas-box shows -1.4pp against ~8.3pp, which is
+    # indistinguishable from zero AND points the wrong way. Applying the filter
+    # to every structure would ship IBD's assertion, not our measurement.
+    #
+    # ⛔ IT NEEDS `bars_full`, WHICH IS WHY IT LIVES HERE AND NOT IN A DETECTOR.
+    # The count is stateful over a symbol's whole price history; a windowed
+    # `detect()` cannot compute it from what it is given. `_context` already
+    # holds the full series for Green Line Breakout's sake.
+    #
+    # ⛔ AND IT IS A NUMBER, NEVER A SCORE. IBD publishes no per-stage
+    # expectancy, so a weight would be invented. The column carries the stage;
+    # the member decides where to cut.
+    stage = None
+    if "ema-crossback" in relation_keys:
+        try:
+            stage = base_count.stage_at(bars_full or bars)
+        except Exception:                                      # noqa: BLE001
+            stage = None
+
     return {
+        "base_stage": stage,
         "base_shape": shape_key,
         "base_shape_label": shape.label if shape else None,
         # ⛔ wrapped at BOTH ends — see the module docstring.
