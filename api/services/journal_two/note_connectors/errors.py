@@ -76,3 +76,21 @@ class NoteConnUnsupported(NoteConnError):
     def __init__(self, message: str, *, reason: str | None = None, **kw):
         super().__init__(message, **kw)
         self.reason = reason if reason is not None else message
+
+
+class NoteConnValidationError(NoteConnError):
+    """A client-supplied payload violates a data-integrity or resource-bound
+    invariant this server enforces AT THE BOUNDARY — not an auth/config/
+    rate/transient issue, and not a provider talking back. Maps to HTTP 400
+    (`_raise_for_provider_error` in note_sync.py).
+
+    Introduced 2026-09-02 for the Obsidian ingest push transport's I3/I4/I7
+    findings: a `final` manifest padded with paths this vault never staged
+    (I3 — the only thing standing between that and mass delete-detection
+    tagging was the sync engine's own cardinality guard, which a padded
+    manifest sails past), an empty `final` manifest (I4 — "this vault has
+    zero files" is not a claim an honest plugin can back up, and relying on
+    the engine's guard to catch it downstream is the same mistake I3 made),
+    or a batch that would blow a per-vault resource cap (I7) are all
+    refused HERE, at ingest, rather than silently accepted and left for a
+    downstream guard to catch too late — or never."""

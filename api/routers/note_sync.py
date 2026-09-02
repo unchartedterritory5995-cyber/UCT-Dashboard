@@ -204,6 +204,11 @@ def _raise_for_provider_error(e: Exception) -> None:
         raise HTTPException(status_code=400, detail=str(e))
     if isinstance(e, errors.NoteConnTransient):
         raise HTTPException(status_code=503, detail=str(e))
+    if isinstance(e, errors.NoteConnValidationError):
+        # I3/I4/I7 (2026-09-02 review) -- a boundary-rejected payload
+        # (padded/empty manifest, an over-cap batch) is a client error, not
+        # a provider/config/rate/transient one.
+        raise HTTPException(status_code=400, detail=str(e))
     raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -892,9 +897,16 @@ def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
     """
     entry = registry.get_entry("obsidian")
     if not entry.configured():
-        # Mirrors `_mint_device_connect_code`'s own gate -- flipping
-        # `NOTE_SYNC_OBSIDIAN_ENABLED` off is the rollback lever, and it must
-        # stop a redemption in flight just as surely as it stops a new mint.
+        # Mirrors `_mint_device_connect_code`'s own gate -- stops a
+        # redemption in flight just as surely as it stops a new mint.
+        # ⛔ This comment used to go further and call the flag "the rollback
+        # lever" outright -- FALSE until 2026-09-02 (I2): a device that had
+        # ALREADY redeemed kept pushing to `/obsidian/ingest` with the flag
+        # off, because that endpoint had no `configured()` check of its own.
+        # Mint and redeem alone never made this a kill switch; `obsidian_
+        # ingest` (below) now checks independently, and NEITHER endpoint's
+        # comment should restate the other's guarantee as fact without
+        # actually checking it -- exactly how this one went unverified.
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
     vault_id = (body.vaultId or "").strip()
     if not body.code or not vault_id:
@@ -956,9 +968,37 @@ def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
 
 _MAX_OBSIDIAN_INGEST_BYTES = 2_000_000  # ~2MB per push. Declared Content-Length
 # is checked BEFORE the body is read (mirrors community.py's image-upload
-# guard, "reject oversize up front ... so we never buffer a huge body"); the
-# actual byte length is re-checked after reading in case Content-Length lied.
-# Either path refuses with a clean 4xx — never a 500.
+# guard, "reject oversize up front ... so we never buffer a huge body") as a
+# fast, cheap short-circuit for an HONEST client. It is NOT the real bound —
+# see `_read_bounded_body` below (I7, 2026-09-02 review) for the actual
+# enforcement, which holds even when Content-Length is absent, zero, or lies.
+
+
+async def _read_bounded_body(request: Request, limit: int) -> bytes:
+    """⛔⛔ I7 (2026-09-02 review): "the 2MB guard is bypassable via chunked/
+    absent Content-Length before `await request.body()`". That was literally
+    true — `await request.body()` reads the ENTIRE ASGI body stream into
+    memory REGARDLESS of size before any length check ever runs; the
+    post-read `len(raw) > limit` check this function replaces only fired
+    AFTER the attacker's full claimed body was already buffered. A request
+    with no (or a lying) Content-Length sailed past the declared-header
+    check above and got fully read into memory before being rejected —
+    exactly the resource-exhaustion blast radius the review named: a
+    single-replica pod whose volume is shared by 20+ SQLite databases.
+
+    This reads the body incrementally off `request.stream()` instead,
+    aborting the INSTANT the running total exceeds `limit` — at most one
+    extra chunk beyond `limit` is ever held (an ASGI receive() event is
+    typically tens of KB), never an attacker-controlled amount, regardless
+    of what Content-Length claims or omits."""
+    total = 0
+    chunks: list[bytes] = []
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > limit:
+            raise HTTPException(status_code=400, detail="batch too large")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 class ObsidianNoteItem(BaseModel):
@@ -1056,7 +1096,20 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
     `manifest` — the vault's COMPLETE path list — is only applied to
     `j2_obsidian_manifest` when `final` is true (see
     `obsidian_staging.ingest_batch`'s docstring for why a partial push must
-    never touch it)."""
+    never touch it).
+
+    ⛔⛔ I2 (2026-09-02 review): checks `registry.get_entry("obsidian").
+    configured()` FIRST, before even authenticating the device token --
+    this was previously missing, so `NOTE_SYNC_OBSIDIAN_ENABLED=0` stopped
+    NEW mints/redemptions (`_mint_device_connect_code`/`obsidian_redeem`
+    both gate on it) but did nothing to an ALREADY-connected device, which
+    kept pushing indefinitely. That gap made the flag a partial rollback at
+    best, not the kill switch its own name promises -- see the corrected
+    comment on `obsidian_redeem`'s identical check for the false claim this
+    replaces."""
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
     device = _authenticate_obsidian_device(request)
     _require_paid_device_user(device["user_id"])
 
@@ -1066,9 +1119,7 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
         declared = 0
     if declared > _MAX_OBSIDIAN_INGEST_BYTES:
         raise HTTPException(status_code=400, detail="batch too large")
-    raw = await request.body()
-    if len(raw) > _MAX_OBSIDIAN_INGEST_BYTES:
-        raise HTTPException(status_code=400, detail="batch too large")
+    raw = await _read_bounded_body(request, _MAX_OBSIDIAN_INGEST_BYTES)
 
     try:
         payload = json.loads(raw or b"{}")
@@ -1084,10 +1135,16 @@ async def obsidian_ingest(request: Request) -> dict[str, Any]:
     if not body.consent:
         raise HTTPException(status_code=400, detail="Consent is required to sync from Obsidian.")
 
-    return obsidian_staging.ingest_batch(
-        user_id=device["user_id"],
-        vault_id=device["vault_id"],
-        notes=[n.model_dump() for n in body.notes],
-        manifest=body.manifest,
-        final=body.final,
-    )
+    try:
+        return obsidian_staging.ingest_batch(
+            user_id=device["user_id"],
+            vault_id=device["vault_id"],
+            notes=[n.model_dump() for n in body.notes],
+            manifest=body.manifest,
+            final=body.final,
+        )
+    except errors.NoteConnError as e:
+        # I3/I4/I7 (2026-09-02 review): `ingest_batch` now raises
+        # `NoteConnValidationError` for a padded/empty manifest or an
+        # over-cap batch — mapped to a clean 400, never a 500.
+        _raise_for_provider_error(e)

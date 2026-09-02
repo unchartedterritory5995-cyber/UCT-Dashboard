@@ -22,7 +22,7 @@ from api.middleware import auth_middleware as authmw
 from api.routers import note_sync as note_sync_router
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
-from api.services.journal_two.note_connectors import connections, obsidian_link
+from api.services.journal_two.note_connectors import connections, obsidian_link, obsidian_staging
 from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
 
 _URL = "/api/j2/notes/connectors/obsidian/ingest"
@@ -59,9 +59,11 @@ def client(tmp_path, monkeypatch):
     # The redeem endpoint gates on the SAME registry `configured()` check
     # `/obsidian/connect` uses to decide whether to mint a code at all -- a
     # code that could never be minted with this flag off shouldn't be able
-    # to redeem with it off either. Ingest itself doesn't consult this flag
-    # (it only cares about a valid device token), so setting it here doesn't
-    # change any existing ingest test's behavior.
+    # to redeem with it off either. Ingest ALSO gates on it now (I2, 2026-09-
+    # 02 review -- it previously didn't, so an already-redeemed device kept
+    # pushing forever with the flag off; see `test_ingest_not_configured_
+    # returns_503_not_a_500` below), so every test in this file that expects
+    # a live ingest call to succeed needs this set -- which it is, here.
     monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
 
     app = FastAPI()
@@ -210,6 +212,39 @@ def test_consent_is_required(client):
     assert _staging_rows("user-a", "vault-1") == []
 
 
+# ── feature flag is a genuine kill switch (I2) ──────────────────────────────
+
+def test_ingest_not_configured_returns_503_not_a_500(client, monkeypatch):
+    """I2 (2026-09-02 review): `NOTE_SYNC_OBSIDIAN_ENABLED` is documented as
+    the rollback lever -- flipping it off must stop ingestion from an
+    ALREADY-connected device, not just refuse new mints/redemptions. The
+    device below redeems its token WHILE the flag is on (mirroring a real
+    member who connected before an incident), then the flag is turned off
+    -- exactly the "we need to turn this off without a deploy" scenario the
+    flag exists for."""
+    token = _device_token("user-a")
+    monkeypatch.delenv("NOTE_SYNC_OBSIDIAN_ENABLED", raising=False)
+    r = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("a.md", "h1")]},
+    )
+    assert r.status_code == 503, r.text
+    assert _staging_rows("user-a", "vault-1") == []
+
+
+def test_ingest_not_configured_is_refused_before_authenticating_the_device(client, monkeypatch):
+    """The kill switch must not depend on the device token being valid --
+    it is checked first, so even a garbage/unauthenticated request is
+    refused with the SAME 503 (not a 401), proving the check runs before
+    `_authenticate_obsidian_device`."""
+    monkeypatch.delenv("NOTE_SYNC_OBSIDIAN_ENABLED", raising=False)
+    r = client.post(
+        _URL, headers={"Authorization": "Bearer garbage"},
+        json={"consent": True, "notes": [_note("a.md", "h1")]},
+    )
+    assert r.status_code == 503, r.text
+
+
 # ── no-op on unchanged content_hash ──────────────────────────────────────────
 
 def test_an_unchanged_content_hash_is_a_no_op(client):
@@ -242,11 +277,21 @@ def test_an_unchanged_content_hash_is_a_no_op(client):
 # ── manifest replacement ──────────────────────────────────────────────────
 
 def test_a_manifest_replaces_the_prior_one_atomically_and_a_non_final_push_leaves_it(client):
+    # I3 (2026-09-02 review): a manifest may only name paths this vault has
+    # actually staged body content for at some point (see `obsidian_staging.
+    # ingest_batch`'s own docstring) -- "a.md"/"b.md" are pushed as real
+    # notes here, in the SAME call as the manifest that first names them,
+    # exactly like an honest plugin's first full sync would.
     token = _device_token("user-a")
 
     r1 = client.post(
         _URL, headers={"Authorization": f"Bearer {token}"},
-        json={"consent": True, "notes": [], "manifest": ["a.md", "b.md"], "final": True},
+        json={
+            "consent": True,
+            "notes": [_note("a.md", "h1"), _note("b.md", "h2")],
+            "manifest": ["a.md", "b.md"],
+            "final": True,
+        },
     )
     assert r1.status_code == 200
     assert r1.json()["manifestReplaced"] is True
@@ -274,9 +319,10 @@ def test_a_manifest_replaces_the_prior_one_atomically_and_a_non_final_push_leave
 
     # A final push with a genuinely new complete set replaces it atomically
     # -- old entries not in the new set are gone, new ones are present.
+    # "c.md" is staged in this SAME call before the manifest names it (I3).
     r4 = client.post(
         _URL, headers={"Authorization": f"Bearer {token}"},
-        json={"consent": True, "notes": [], "manifest": ["c.md"], "final": True},
+        json={"consent": True, "notes": [_note("c.md", "h3")], "manifest": ["c.md"], "final": True},
     )
     assert r4.status_code == 200
     assert r4.json()["manifestReplaced"] is True
@@ -294,6 +340,89 @@ def test_an_oversized_batch_is_refused_with_a_clean_4xx(client):
     )
     assert 400 <= r.status_code < 500, r.text
     assert _staging_rows("user-a", "vault-1") == []
+
+
+# ── `updated_at` is client input -- validated, and the cursor is immune (C1) ─
+
+def test_a_malformed_updated_at_is_clamped_not_stored_raw(client):
+    """`updated_at` is a plugin-read filesystem mtime -- client input, never
+    to be trusted as-is. A non-ISO-8601 garbage string must never land in
+    `j2_obsidian_staging.updated_at` verbatim, where `list_changed`'s cursor
+    comparison (a bare SQL string compare) would see it (2026-09-02 review,
+    C1 defense-in-depth). It is CLAMPED (the note still syncs) rather than
+    dropped or stored raw."""
+    from datetime import datetime
+
+    token = _device_token("user-a")
+    bad = {**_note("Notes/bad.md", "h1", "# Bad"), "updated_at": "not-a-timestamp"}
+    r = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [bad]},
+    )
+    assert r.status_code == 200, r.text
+    row = _staging_rows("user-a", "vault-1")[0]
+    assert row["updated_at"] != "not-a-timestamp"
+    datetime.fromisoformat(row["updated_at"])  # must parse cleanly -- not stored raw
+
+
+def test_an_implausibly_future_updated_at_is_clamped_to_received_at(client):
+    token = _device_token("user-a")
+    far_future = {**_note("Notes/future.md", "h1", "# Future"), "updated_at": "9999-12-31T23:59:59Z"}
+    r = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [far_future]},
+    )
+    assert r.status_code == 200, r.text
+    row = _staging_rows("user-a", "vault-1")[0]
+    assert row["updated_at"] == row["received_at"], \
+        "an implausible future updated_at must be clamped to this call's own received_at"
+    assert row["updated_at"] != "9999-12-31T23:59:59Z"
+
+
+async def test_an_absurd_future_updated_at_does_not_hide_subsequent_notes(client):
+    """C1 -- THE regression test. Reproduces the security review's exact
+    scenario end to end through the REAL router + staging + provider +
+    sync engine (none stubbed): one note pushed with `updated_at=
+    "9999-12-31T23:59:59Z"`, synced once, then a second, perfectly ordinary
+    note pushed afterward. Before the fix, `engine.py`'s cursor-advance
+    derived `max(ref.updated_at for ref in refs)` from the poisoned value,
+    which no real timestamp could ever exceed -- the second note would
+    never come back from `list_changed` on the next sync, forever, with
+    `status: ok` and no error. This must go RED against the pre-fix code."""
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-poison", "label": "Poison"})
+    assert r.status_code == 200, r.text
+    redeemed = r.json()
+    token = redeemed["token"]
+    source_id = redeemed["source"]["id"]
+
+    poisoned = {**_note("Ideas/poison.md", "h1", "# Poison"), "updated_at": "9999-12-31T23:59:59Z"}
+    ir1 = client.post(_URL, headers={"Authorization": f"Bearer {token}"},
+                       json={"consent": True, "notes": [poisoned]})
+    assert ir1.status_code == 200, ir1.text
+    # The absurd value must not even have reached storage verbatim.
+    assert _staging_rows("user-a", "vault-poison")[0]["updated_at"] != "9999-12-31T23:59:59Z"
+
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import engine as sync_engine
+
+    first = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert first["status"] == "ok", first
+    assert first["created"] == 1
+
+    later = _note("Ideas/later.md", "h2", "# Later")  # an ordinary, present-day timestamp
+    ir2 = client.post(_URL, headers={"Authorization": f"Bearer {token}"},
+                       json={"consent": True, "notes": [later]})
+    assert ir2.status_code == 200, ir2.text
+
+    second = await sync_engine.sync_source(source_id, full=False, manual=True)
+    assert second["status"] == "ok", second
+    assert second["created"] == 1, (
+        "the poisoned note's absurd updated_at must not have made this "
+        "genuinely later note invisible to the sync cursor"
+    )
+    titles = {n["title"] for n in notes_svc.list_notes("user-a")}
+    assert "Later" in titles
 
 
 # ── POST /obsidian/redeem (Task 5b) ─────────────────────────────────────────
@@ -476,6 +605,61 @@ async def test_mint_redeem_ingest_chain_is_visible_through_the_provider_for_that
     assert titles == {"One", "Two"}
 
 
+async def test_delete_detection_still_fires_through_the_real_sync_engine(client):
+    """Not a C1/I2 regression -- existing behaviour the fix must leave
+    alone. A vault_path dropped from a subsequent FINAL manifest still gets
+    tagged `source-deleted` after the ordinary 2-strike miss-streak
+    (`engine._run_delete_detection`, driven by `list_present_refs`, which
+    this change never touched -- only `list_changed`'s cursor column moved)."""
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-del", "label": "Del"})
+    assert r.status_code == 200, r.text
+    redeemed = r.json()
+    token = redeemed["token"]
+    source_id = redeemed["source"]["id"]
+
+    ir = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": [_note("a.md", "h1", "# A"), _note("b.md", "h2", "# B")],
+            "manifest": ["a.md", "b.md"],
+            "final": True,
+        },
+    )
+    assert ir.status_code == 200, ir.text
+
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import engine as sync_engine
+
+    def _tags_for(title: str) -> list:
+        note = next(n for n in notes_svc.list_notes("user-a") if n["title"] == title)
+        return note["tags"]
+
+    first = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert first["status"] == "ok", first
+    assert first["created"] == 2
+    assert "source-deleted" not in _tags_for("B")
+
+    # "b.md" is removed from the vault -- the next FINAL manifest no longer
+    # lists it (ingest_batch's atomic DELETE+INSERT replaces the whole set).
+    ir2 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [], "manifest": ["a.md"], "final": True},
+    )
+    assert ir2.status_code == 200, ir2.text
+
+    second = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert second["status"] == "ok", second
+    assert second["sourceDeleted"] == 0  # first miss -- streak 1, not severed yet
+    assert "source-deleted" not in _tags_for("B")
+
+    third = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert third["status"] == "ok", third
+    assert third["sourceDeleted"] == 1  # second consecutive miss -- severed
+    assert "source-deleted" in _tags_for("B")
+
+
 # ── DELETE /{provider} (disconnect) revokes the device token ────────────────
 #
 # Reported by the implementer who built the redeem flow: disconnecting
@@ -560,3 +744,282 @@ def test_reconnecting_after_disconnect_issues_a_new_token_not_the_revoked_one(cl
         json={"consent": True, "notes": [_note("after-reconnect.md", "h1")]},
     )
     assert post.status_code == 200, post.text
+
+
+# ── I3: a padded manifest defeats delete detection (2026-09-02 review) ──────
+#
+# Reviewer, verbatim: "engine.py:~636 guards on cardinality (len(seen_ids) <
+# prev_count*0.5), not overlap. Measured: 200 fake paths vs 100 notes -> all
+# 100 tagged over two passes." `engine.py` is shared by five other providers
+# and off limits -- the fix is at the ingest boundary: a manifest may only
+# name paths this vault has actually staged body content for.
+
+async def test_a_manifest_padded_with_fabricated_paths_is_refused_not_silently_stored(client):
+    """Reproduces the reviewer's measurement end to end through the REAL
+    router + staging + sync engine (nothing stubbed): 100 real notes synced
+    once, then a `final` manifest padded with 200 paths this vault never
+    staged -- exactly the reviewer's scratchpad probe. Must go RED against
+    current code: pre-fix, `ingest_batch` accepts the padded manifest
+    (`manifestReplaced: True`), `list_present_refs` hands it to the engine as
+    the complete remote set, and two full sync passes tag every one of the
+    100 real notes `source-deleted` (the engine's own <50% cardinality guard
+    never fires -- 200 seen ids is not fewer than 50, half of 100)."""
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-i3", "label": "I3"})
+    assert r.status_code == 200, r.text
+    redeemed = r.json()
+    token = redeemed["token"]
+    source_id = redeemed["source"]["id"]
+
+    real_notes = [_note(f"real-{i}.md", f"h{i}") for i in range(100)]
+    real_paths = [n["vault_path"] for n in real_notes]
+    r1 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": real_notes, "manifest": real_paths, "final": True},
+    )
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["manifestReplaced"] is True
+    assert _manifest_paths("user-a", "vault-i3") == set(real_paths)
+
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import engine as sync_engine
+
+    first = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert first["status"] == "ok", first
+    assert first["created"] == 100
+
+    # The attack: 200 fabricated paths, none of which were ever pushed to
+    # staging for this vault, replacing the honest 100-path manifest.
+    fake_paths = [f"fake-{i}.md" for i in range(200)]
+    r2 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [], "manifest": fake_paths, "final": True},
+    )
+    assert 400 <= r2.status_code < 500, (
+        f"expected the padded manifest to be refused with a clean 4xx, got "
+        f"{r2.status_code}: {r2.text}"
+    )
+    # The honest manifest must survive UNTOUCHED -- not replaced, not merged.
+    assert _manifest_paths("user-a", "vault-i3") == set(real_paths)
+
+    # Proof the exploit chain is actually closed, not just that the endpoint
+    # complained: run the real engine twice (the miss-streak needs two
+    # consecutive full passes) and confirm not one of the 100 real notes was
+    # ever tagged `source-deleted`.
+    for _ in range(2):
+        result = await sync_engine.sync_source(source_id, full=True, manual=True)
+        assert result["status"] == "ok", result
+        assert result.get("sourceDeleted", 0) == 0, result
+    tagged = [n for n in notes_svc.list_notes("user-a") if "source-deleted" in n["tags"]]
+    assert tagged == [], f"{len(tagged)} real notes were mass-tagged by the padded manifest"
+
+
+def test_a_manifest_may_name_a_path_staged_in_an_earlier_batch_not_just_this_one(client):
+    """The legitimate case I3's guard must NOT break: a vault file that
+    exists and was staged by an EARLIER batch (unchanged since, so this
+    batch doesn't re-push its body) must still be nameable in a later
+    batch's `final` manifest."""
+    token = _device_token("user-a")
+    r1 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("old.md", "h1")], "final": False},
+    )
+    assert r1.status_code == 200, r1.text
+
+    # A LATER, separate batch's manifest names "old.md" (staged earlier, not
+    # in THIS batch's notes) alongside a genuinely new file pushed here.
+    r2 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": [_note("new.md", "h2")],
+            "manifest": ["old.md", "new.md"],
+            "final": True,
+        },
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["manifestReplaced"] is True
+    assert _manifest_paths("user-a", "vault-1") == {"old.md", "new.md"}
+
+
+# ── I4: an empty final manifest is refused (2026-09-02 review) ─────────────
+
+def test_an_empty_final_manifest_is_refused_not_silently_applied(client):
+    """`manifest: [], final: true` used to sail through (`[] is not None`)
+    and wipe `j2_obsidian_manifest` (measured: `manifestReplaced: True`,
+    `list_present_refs` then returns 0 refs) -- the only thing that stopped
+    it mass-deleting downstream was the engine's OWN inherited <50% guard,
+    not anything this module did. An empty manifest is the plugin asserting
+    "this vault has zero files," which is refused outright here rather than
+    relying on that downstream guard a second time (I3 already showed relying
+    on it is how the padded case slipped through)."""
+    token = _device_token("user-a")
+    r1 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("a.md", "h1")], "manifest": ["a.md"], "final": True},
+    )
+    assert r1.status_code == 200, r1.text
+    assert _manifest_paths("user-a", "vault-1") == {"a.md"}
+
+    r2 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [], "manifest": [], "final": True},
+    )
+    assert 400 <= r2.status_code < 500, (
+        f"expected an empty final manifest to be refused, got {r2.status_code}: {r2.text}"
+    )
+    assert _manifest_paths("user-a", "vault-1") == {"a.md"}, \
+        "the honest manifest must survive an empty-manifest push untouched"
+
+
+# ── I5: disconnect purges staged bodies + the manifest (2026-09-02 review) ──
+
+async def test_disconnect_purges_staged_bodies_and_the_manifest_and_reconnect_does_not_resurrect_them(client):
+    """Verbatim finding: "no `DELETE FROM j2_obsidian_staging` exists
+    anywhere; disconnect leaves every pushed body forever, and reconnect
+    resurrects it." Extends `revoke_devices` -- the SAME call site
+    `disconnect` already uses for the device-token gap -- rather than a
+    parallel cleanup path. Must go RED against current code: pre-fix,
+    `j2_obsidian_staging`/`j2_obsidian_manifest` rows survive disconnect
+    untouched, and a reconnect on the same vault_id sees them again."""
+    token = _redeem_via_http(client, "user-a", vault_id="vault-i5")
+    r = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={
+            "consent": True,
+            "notes": [_note("secret.md", "h1", "# stale secret content")],
+            "manifest": ["secret.md"],
+            "final": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert _staging_rows("user-a", "vault-i5") != []
+    assert _manifest_paths("user-a", "vault-i5") == {"secret.md"}
+
+    _login_as(client, "user-a")
+    dr = client.delete("/api/j2/notes/connectors/obsidian")
+    assert dr.status_code == 200, dr.text
+
+    assert _staging_rows("user-a", "vault-i5") == [], \
+        "disconnect must purge staged note bodies, not just the device token"
+    assert _manifest_paths("user-a", "vault-i5") == set(), \
+        "disconnect must purge the manifest too"
+
+    # Reconnect the SAME vault_id -- a member who disconnected (possibly to
+    # sever a leaked token) expects a fresh, empty vault-side view, not a
+    # resurrection of whatever they pushed before.
+    code = obsidian_link.mint_connect_code("user-a")
+    rr = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-i5", "label": "Reconnected"})
+    assert rr.status_code == 200, rr.text
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-i5")
+    changed = await provider.list_changed({}, cursor=None)
+    present = await provider.list_present_refs({})
+    assert changed == [], "a reconnect must not resurrect the pre-disconnect note body"
+    assert present == [], "a reconnect must not resurrect the pre-disconnect manifest"
+
+
+# ── I6: disconnect invalidates outstanding connect codes (2026-09-02 review) ─
+
+def test_a_connect_code_minted_before_disconnect_does_not_redeem_after_it(client):
+    """Verbatim finding: "a pre-disconnect code redeems afterward into a
+    full reconnection (device + connector + source). The redeem/revoke race
+    is real." A member who disconnects expects it to be over -- a code
+    minted minutes earlier must not silently re-establish everything. Must
+    go RED against current code: pre-fix, `disconnect` revokes only ISSUED
+    device rows and never touches an outstanding, not-yet-redeemed code."""
+    _redeem_via_http(client, "user-a", vault_id="vault-i6")
+    pre_code = obsidian_link.mint_connect_code("user-a")  # minted BEFORE disconnect
+
+    _login_as(client, "user-a")
+    dr = client.delete("/api/j2/notes/connectors/obsidian")
+    assert dr.status_code == 200, dr.text
+
+    r = client.post(_REDEEM_URL, json={"code": pre_code, "vaultId": "vault-i6-reconnect"})
+    assert r.status_code == 400, (
+        f"a connect code minted before disconnect must not redeem after it, got "
+        f"{r.status_code}: {r.text}"
+    )
+    # No reconnection artifact of any kind (device row or note source) was
+    # created by the stale code.
+    assert connections.list_sources("user-a") == []
+    conn = auth_db.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_obsidian_devices WHERE user_id = ? AND vault_id = ?",
+            ("user-a", "vault-i6-reconnect"),
+        ).fetchall()
+    finally:
+        conn.close()
+    assert rows == []
+
+    # A genuinely NEW code, minted AFTER the disconnect, must still work --
+    # the fix must not lock the member out of a real reconnect.
+    post_code = obsidian_link.mint_connect_code("user-a")
+    r2 = client.post(_REDEEM_URL, json={"code": post_code, "vaultId": "vault-i6-reconnect"})
+    assert r2.status_code == 200, r2.text
+
+
+# ── I7: the body-size guard is bypassable (2026-09-02 review) ───────────────
+
+async def test_the_bounded_body_reader_aborts_without_draining_an_unbounded_stream(client):
+    """Verbatim finding: "the 2MB guard is bypassable via chunked/absent
+    Content-Length before `await request.body()`." The old code called
+    `await request.body()`, which reads the ENTIRE ASGI body stream into
+    memory regardless of size before any length check ever runs -- a
+    chunked/Content-Length-less request sails past the declared-header
+    check and gets fully buffered before the post-read check can reject it.
+    Drives `note_sync_router._read_bounded_body` directly against a stream
+    that would yield several gigabytes if ever fully drained, and proves it
+    aborts after pulling only a small, bounded number of chunks -- never
+    the whole thing. Must go RED against current code: the function does
+    not exist pre-fix (`AttributeError`)."""
+    chunk = b"x" * 65536  # 64KB -- a realistic single ASGI receive() chunk
+    pulled = 0
+
+    async def huge_stream():
+        nonlocal pulled
+        for _ in range(100_000):  # ~6.4GB if ever fully drained
+            pulled += 1
+            yield chunk
+
+    class FakeRequest:
+        def stream(self):
+            return huge_stream()
+
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        await note_sync_router._read_bounded_body(FakeRequest(), 2_000_000)
+    assert exc_info.value.status_code == 400
+    # The generator must have been abandoned almost immediately -- nowhere
+    # near its full 100,000-chunk length -- proving the reader never buffers
+    # anywhere close to the attacker's full claimed body.
+    assert pulled < 100, f"stream was drained far past the limit: {pulled} chunks pulled"
+
+
+def test_a_vault_that_would_exceed_the_staging_row_cap_is_refused(client, monkeypatch):
+    """I7's second half: "no staging/manifest caps" -- a leaked token cannot
+    reach another member's data, but can grow ONE vault's staging table
+    without bound on a single-replica pod whose volume is shared by 20+
+    SQLite databases. Monkeypatches the cap down to a small number so the
+    test is fast and deterministic rather than pushing tens of thousands of
+    rows. Must go RED against current code: no such cap exists pre-fix, so
+    this batch would simply succeed."""
+    monkeypatch.setattr(obsidian_staging, "_MAX_STAGING_ROWS_PER_VAULT", 2)
+    token = _device_token("user-a")
+    r1 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("a.md", "h1"), _note("b.md", "h2")]},
+    )
+    assert r1.status_code == 200, r1.text
+    assert len(_staging_rows("user-a", "vault-1")) == 2
+
+    r2 = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("c.md", "h3")]},
+    )
+    assert 400 <= r2.status_code < 500, r2.text
+    # The over-cap batch must not have partially landed.
+    assert len(_staging_rows("user-a", "vault-1")) == 2
+    assert {r["vault_path"] for r in _staging_rows("user-a", "vault-1")} == {"a.md", "b.md"}

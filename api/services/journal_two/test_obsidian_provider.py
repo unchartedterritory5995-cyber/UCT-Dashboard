@@ -35,7 +35,15 @@ def db(tmp_path, monkeypatch):
     return auth_db
 
 
-def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=None):
+def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=None, received_at=None):
+    """`received_at` defaults to `updated_at` (every pre-existing caller in
+    this file relies on that -- it's how those tests can drive the cursor
+    via a single timestamp) -- pass it explicitly to stage a row whose
+    CLIENT-supplied `updated_at` and SERVER-assigned `received_at` diverge,
+    which is exactly what the C1 cursor-poisoning test below needs: it
+    writes straight to the table, bypassing `obsidian_staging.ingest_batch`'s
+    own ingest-time clamp entirely, to prove the cursor fix holds even when
+    that OTHER layer is out of the picture."""
     conn = auth_db.get_connection()
     try:
         conn.execute(
@@ -45,7 +53,7 @@ def _stage(user_id, vault_id, vault_path, body_md, updated_at, *, content_hash=N
             (
                 user_id, vault_id, vault_path,
                 content_hash or f"h-{vault_path}-{updated_at}",
-                body_md, updated_at, updated_at,
+                body_md, updated_at, received_at if received_at is not None else updated_at,
             ),
         )
         conn.commit()
@@ -134,6 +142,47 @@ async def test_list_changed_returns_only_rows_newer_than_cursor_and_cursor_advan
     _stage("user-a", "vault-1", "c.md", "# C", T3)
     delta3 = await provider.list_changed({}, cursor=T2)
     assert [r.remote_id for r in delta3] == ["c.md"]
+
+
+async def test_list_changed_cursors_on_received_at_not_the_client_supplied_updated_at(db):
+    """C1 (2026-09-02 security review): a client-supplied `updated_at` must
+    never become the sync cursor -- `list_changed` filters/orders on
+    `received_at` (server-assigned) and publishes it via `opaque_cursor`
+    (`base.py`'s Dropbox-precedent extension point), which the engine
+    persists VERBATIM in place of its default `max(ref.updated_at)`
+    derivation. This stages the poisoned row directly (bypassing
+    `obsidian_staging.ingest_batch`'s own ingest-time clamp -- see
+    `test_obsidian_ingest.py` for that layer) so this test proves the
+    cursor mechanism itself holds independent of that other layer."""
+    _stage("user-a", "vault-1", "poison.md", "# Poison", "9999-12-31T23:59:59Z",
+           received_at=T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+
+    refs = await provider.list_changed({}, cursor=None)
+    assert {r.remote_id for r in refs} == {"poison.md"}
+    assert provider.opaque_cursor == T1, \
+        "the published cursor must be received_at, never the poisoned updated_at"
+
+    _stage("user-a", "vault-1", "later.md", "# Later", T2, received_at=T2)
+    delta = await provider.list_changed({}, cursor=provider.opaque_cursor)
+    assert {r.remote_id for r in delta} == {"later.md"}, (
+        "the poisoned row's absurd updated_at must not have poisoned the "
+        "cursor and hidden this genuinely later note"
+    )
+    assert provider.opaque_cursor == T2
+
+
+async def test_list_changed_republishes_the_same_cursor_when_nothing_is_newer(db):
+    """When no row is newer than `cursor`, `opaque_cursor` must still equal
+    `cursor` (not fall back to the class-level `None` default) -- otherwise
+    the engine's unconditional `update_cursor` call would silently revert
+    the source to "no sync has ever completed," re-triggering a full
+    re-list on the provider's next pass."""
+    _stage("user-a", "vault-1", "a.md", "# A", T1, received_at=T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    delta = await provider.list_changed({}, cursor=T2)  # nothing newer than T2
+    assert delta == []
+    assert provider.opaque_cursor == T2
 
 
 # ---------------------------------------------------------------------------
