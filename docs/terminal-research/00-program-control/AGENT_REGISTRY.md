@@ -230,5 +230,7 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | NOTE | 1b | — | — | — | All seven Bloomberg files carry mixed 🔴/🟡/🟢 with named ceilings (no uniform-green file). Shared observation: the session `WebSearch` cap (200) was exhausted by ~11:20 UTC; later roles use WebFetch + browser search (preamble updated). | — |
 | B-BBG-07 | 1b | dispatched (top-up, Opus) | 2026-09-02 10:58 | — | — | `contracts/B-BBG.md` §B-BBG-07 |
 | B-BBG-08 | 1b | dispatched (top-up, Opus) | 2026-09-02 11:20 | — | — | `contracts/B-BBG.md` §B-BBG-08 |
-| B-GDL-01 (Sonnet), B-UW-01, B-TV-01, B-KOY-01, B-BZ-01, B-AS-01, B-FC-01 (Opus) | 1b | dispatched (batch B) | 2026-09-02 11:45–11:55 | — | — | search fallback per preamble |
-| B-FDS-01, B-LSEG-01, B-SG-01, B-ADJ-01 (TIKR+YCharts+CIQ light), B-DESK-01..04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
+| B-GDL-01 | 1b | done | 11:45 | 12:10 (58 calls, 227k, Sonnet) | ACCEPT: Gödel = DL Software Inc. (2024, Shkreli; $7M raised through Jan 2026), browser-based command-driven Bloomberg alternative, $996/yr or $118/mo plus a $30/mo FINRA surcharge, self-labeled public beta, no confirmed public API; social/video tier thin (X unauthenticated; no transcripts) | `godel/01-evidence.md`; feeds B-GDL-02/03 in Wave 2 |
+| B-UW-01, B-TV-01, B-KOY-01, B-BZ-01, B-AS-01, B-FC-01 (Opus) | 1b | running (batch B) | 2026-09-02 11:45–11:55 | — | — | search fallback per preamble |
+| B-FDS-01 | 1b | dispatched (Opus) | 2026-09-02 12:15 | — | — | `contracts/B-DOSSIER.md` §B-FDS-01 |
+| B-LSEG-01, B-SG-01, B-ADJ-01 (TIKR+YCharts+CIQ light), B-DESK-01..04, C4-01, C5-01, C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
