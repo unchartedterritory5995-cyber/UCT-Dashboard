@@ -254,3 +254,5 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | C7-01 | 1b | queued (batch C, revised per DL-017) | — | — | — | top-up on completion | 2026-09-02 06:20 (batch 2, Opus; 17 in flight = measured step-up, DL-008) | — | — | contracts on disk |
 | E-05 | 2 | KILLED by 429 (nothing written); RE-DISPATCHED 16:10 (Fable) | 14:20 / 16:10 | — | — | `contracts/E-COST.md` §E-05 |
 | B-GDL-02 | 2 | KILLED by 429 (nothing written); RE-DISPATCHED 16:10 (Opus) | 14:20 / 16:10 | — | — | `contracts/B-GDL-W2.md` |
+| E-06 | 2 | dispatched (Fable) | 2026-09-02 16:15 | — | — | AI/infra cost model; `contracts/E-COST.md` §E-06 |
+| C6-01 | 2 | dispatched (Opus) | 2026-09-02 16:15 | — | — | AI-native tools survey; `contracts/C-WAVE2.md` §C6-01 |
