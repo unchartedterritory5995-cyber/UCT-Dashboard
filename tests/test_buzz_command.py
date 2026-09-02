@@ -195,3 +195,43 @@ def test_buzz_image_job_keeps_the_text_reply_when_the_render_raises():
     assert len(calls) == 1, "a render exception must not leave the reply stuck"
     assert calls[0]["content"] == "board text"
     assert calls[0].get("png") is None
+
+
+def test_no_bar_overflows_its_column_when_the_leader_is_not_the_loudest(mods):
+    """⛔ CAUGHT IN PRODUCTION, 2026-09-02, by reading the real reply rather
+    than the code. `_bar` scaled to rows[0]["mentions"], but the board ranks by
+    distinct PEOPLE -- so row 0 is not the mentions maximum, and every louder
+    row drew a bar past the column. Live: SNDK led on people with 25 mentions
+    while MU had 37, so MU rendered 27 blocks in an 18-wide column and the
+    block ran ragged.
+
+    ⚠️ The RENDERED board had the identical bug and was fixed there first; this
+    is the mirrored lane (lesson_rail_the_mirror_not_just_the_lane).
+
+    QUIET is the leader on people (4) with few mentions; LOUD has far more
+    mentions and fewer people, so the two answers disagree by construction.
+    """
+    store, reply = mods
+    import datetime as dt
+    ET = dt.timezone(dt.timedelta(hours=-4))
+    now = int(dt.datetime(2026, 9, 1, 15, 0, tzinfo=ET).timestamp())
+    ts = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
+    mid = 7000
+    # QUIET: 4 people, 4 mentions -> ranks first (people DESC)
+    for i in range(4):
+        store.record_mentions([(str(mid), CH, f"q{i}", "QUIET", ts, "exact")]); mid += 1
+    # LOUD: 2 people, 30 mentions -> ranks second but is the loudest
+    for i in range(30):
+        store.record_mentions([(str(mid), CH, f"l{i % 2}", "LOUD", ts, "exact")]); mid += 1
+
+    text = reply.build_board_text(now, "open")
+    rows = [ln for ln in text.splitlines() if ln.startswith(("QUIET", "LOUD"))]
+    assert len(rows) == 2, text
+    for ln in rows:
+        bars = ln.count("█")
+        assert 1 <= bars <= reply.BAR_W, f"bar overflowed its column: {bars} in {ln!r}"
+    # CONTROL: the loudest row must still be the LONGEST bar, or "no overflow"
+    # would also be satisfied by drawing every bar one block wide.
+    loud = next(l for l in rows if l.startswith("LOUD"))
+    quiet = next(l for l in rows if l.startswith("QUIET"))
+    assert loud.count("█") > quiet.count("█")
