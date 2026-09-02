@@ -780,6 +780,39 @@ def _discord_chart_hot_warm() -> None:
         log.exception("[discord-chart] hot warm cycle failed")
 
 
+BUZZ_POLL_INTERVAL_S = int(os.environ.get("BUZZ_POLL_INTERVAL_S", "60"))
+
+
+def _buzz_poll() -> None:
+    """Pull new #main-chat messages and record ticker mentions. Cheap: one HTTP
+    call per channel per minute, and the cursor makes it gap-free across a
+    deploy."""
+    log = logging.getLogger(__name__)
+    try:
+        from api.services import buzz_ingest, buzz_store
+        if not buzz_ingest.ingest_enabled():
+            return
+        buzz_store.init_db()
+        for ch in buzz_ingest.channels():
+            out = buzz_ingest.poll_once(ch)
+            if out["rows"]:
+                log.info("[buzz] %s: %d message(s), %d mention(s)",
+                         ch, out["fetched"], out["rows"])
+    except Exception as e:  # noqa: BLE001 - never take the scheduler down
+        log.warning("[buzz] poll error: %s", e)
+
+
+def _buzz_digest() -> None:
+    log = logging.getLogger(__name__)
+    try:
+        from api.services import discord_buzz_digest
+        out = discord_buzz_digest.run_digest()
+        if out.get("posted"):
+            log.info("[buzz] digest posted (image=%s)", out.get("had_image"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] digest error: %s", e)
+
+
 def _start_chart_renderer_warm_background(delay_seconds: int = 40) -> None:
     """Render one house chart shortly after boot so the FIRST Discord /chart
     after a deploy is not the cold one. Measured 2026-08-25: the first render
@@ -2609,6 +2642,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception(f"community store init failed: {e}")
 
+    # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
+    # It used to be created only inside _buzz_poll, AFTER its
+    # `if not ingest_enabled(): return` guard and only when this process holds
+    # the scheduler lock. Both are WRITER conditions, and every READER shares
+    # the table: with BUZZ_INGEST_ENABLED=0 (the obvious kill-switch for a
+    # poller that finds nothing today) `/api/r/buzz` answered 500 "no such
+    # table: mentions", `/buzz` answered "Could not read the counts right now"
+    # instead of the honest "No mentions counted yet", and an armed digest
+    # logged an error and posted nothing — indistinguishable from a quiet day,
+    # which is the exact failure run_digest's "armed but unconfigured" warning
+    # exists to prevent. Same hole for the first poll interval after any
+    # deploy onto a fresh volume. init_db is idempotent DDL.
+    try:
+        from api.services import buzz_store as _buzz_boot
+        _buzz_boot.init_db()
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"[buzz] store init skipped: {e}")
+
     # Live-chat presence: coalesced snapshot broadcast every ~8s (ephemeral frames).
     # Single web process → the in-memory chat hub needs no external pub/sub.
     try:
@@ -2829,6 +2880,19 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] bars_continuous_audit started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
+
+    # Start the bars.db WAL checkpointer (WEB pod). The web pod does continuous
+    # background WRITES into bars.db (R2 merge, barspack web-ingest, stale-swr
+    # bg-delta heals, reconciliation) with no dedicated checkpointer, so the WAL
+    # bloats and get_bars READS slow to 0.3-6.8s (root-caused via Server-Timing
+    # sub-metrics 2026-09-02). A PASSIVE checkpoint on a tight cadence keeps the
+    # WAL small so reads stay fast; PASSIVE never blocks a reader/writer. Gated
+    # BARS_WAL_CHECKPOINT_ENABLED (kill=0).
+    try:
+        from api.services import bars_wal_checkpointer
+        bars_wal_checkpointer.start_bars_wal_checkpointer()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] bars_wal_checkpointer start failed")
 
     # Start the reconciliation worker -- diffs SQLite vs Polygon canonical
     # periodically, auto-heals any drift. Structural safety net behind every
@@ -5225,6 +5289,42 @@ async def lifespan(app: FastAPI):
                   f"{DISCORD_CHART_WARM_INTERVAL_S}s, {DISCORD_CHART_WARM_BUDGET_S:.0f}s cycle budget)")
         except Exception as e:
             print(f"[scheduler] discord-chart hot-warm registration error: {e}")
+        try:
+            # ⛔ `max_instances=1` is load-bearing, not decoration. `buzz_store`
+            # caches ONE module-level connection, and `record_mentions` measures
+            # its insert count as a `total_changes` delta on that shared handle.
+            # Two overlapping poll runs would interleave on the same connection
+            # and corrupt each other's count. It is also the guard that keeps
+            # the poller the single sequential writer the store is designed
+            # around. The Task 1 reviewer flagged the unguarded delta; this is
+            # where it is actually solved -- a lock inside the store would
+            # serialise the arithmetic but still allow two concurrent polls to
+            # double-fetch the same window.
+            from apscheduler.triggers.interval import IntervalTrigger as _BuzzInterval
+            _scheduler.add_job(
+                _buzz_poll,
+                trigger=_BuzzInterval(seconds=BUZZ_POLL_INTERVAL_S),
+                id="buzz_poll", replace_existing=True, misfire_grace_time=60,
+                max_instances=1,
+            )
+            print(f"[startup] buzz poll scheduled (every {BUZZ_POLL_INTERVAL_S}s)")
+        except Exception as e:
+            print(f"[scheduler] buzz poll registration error: {e}")
+        try:
+            # The digest itself gates on BUZZ_DIGEST_ENABLED (default "0") -- the
+            # job always registers, same shape as the awareness-engine job, so a
+            # flag flip is the only lever, never a redeploy.
+            #
+            # `timezone=_ET` is load-bearing -- a naive trigger resolves tzlocal
+            # (UTC on Railway), which would fire this at 11:10 ET instead of 16:10.
+            _scheduler.add_job(
+                _buzz_digest,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=16, minute=10, timezone=_ET),
+                id="buzz_digest", replace_existing=True, misfire_grace_time=300,
+            )
+            print("[startup] buzz digest scheduled (mon-fri 16:10 ET)")
+        except Exception as e:
+            print(f"[scheduler] buzz digest registration error: {e}")
         if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
             try:
                 # 15-min refresh under theme_index's 30-min cache TTL; the

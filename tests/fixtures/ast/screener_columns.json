@@ -2452,6 +2452,88 @@
      }
     ]
    }
+  },
+  {
+   "id": "37-weekday-above-ma",
+   "source": "dayofweek != 7 && dayofweek != 1 && close > sma(close, 50) ? 1 : 0",
+   "ast": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "series",
+            "name": "dayofweek"
+           },
+           {
+            "type": "num",
+            "value": 7
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "series",
+            "name": "dayofweek"
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "call",
+          "name": "sma",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   }
   }
  ]
 }

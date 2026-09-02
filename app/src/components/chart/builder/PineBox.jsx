@@ -360,7 +360,7 @@ function memberSettings(settings) {
   return out
 }
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -512,6 +512,25 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
   // is asked to read "whatever this is" and the member has to be told what it
   // decided — a heading that still said "Pine" over a thinkScript paste would be
   // a sentence that is false about the text on screen.
+  /** ⭐⭐ THE ONLY WRITER OF `text`, so nothing can change the member's script
+   *  without the sheet above hearing about it.
+   *
+   *  ⛔⛔ THE TEXTAREA IS NOT THE ONLY WRITER — `applySuggestion` is the other,
+   *  and it is the one that would have been missed. A member who accepts an
+   *  offered call has just made the most valuable edit in the box; reporting only
+   *  keystrokes would have lost exactly that one
+   *  (`lesson_one_grammar_four_hand_written_copies`).
+   *
+   *  ⚠️ `setSettings({})` RIDES ALONG BECAUSE IT ALWAYS DID. The knob values a
+   *  member set belong to the script that was on screen; carrying them onto a
+   *  different script is how a length from the old text ends up folded into the
+   *  new one. */
+  const commitText = useCallback((next) => {
+    setText(next)
+    setSettings({})
+    if (onSourceChange) onSourceChange(next)
+  }, [onSourceChange])
+
   /** ⭐⭐ ACCEPT THE OFFERED CALL — splice it into the member's own source.
    *
    *  ⛔⛔ IT SPLICES `refusal.source`, NEVER `text`, AND THAT IS THE WHOLE SAFETY
@@ -536,9 +555,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
     if (typeof src !== 'string' || src !== text) return
     const [from, to] = refusal.span
     if (!(from >= 0 && to >= from && to <= src.length)) return
-    setText(src.slice(0, from) + refusal.suggest + src.slice(to))
-    setSettings({})
-  }, [text])
+    commitText(src.slice(0, from) + refusal.suggest + src.slice(to))
+  }, [text, commitText])
 
   const seen = report && report.dialect ? report.dialect : null
 
@@ -578,7 +596,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
         aria-label={anyDialect ? 'Script or formula' : 'Pine script'}
         disabled={disabled}
         value={text}
-        onChange={(e) => { setText(e.target.value); setSettings({}) }}
+        onChange={(e) => commitText(e.target.value)}
       />
 
       {report && (
@@ -975,14 +993,29 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect }) {
  * been churn in W1b's test file for no behaviour, and the hand-back stays the two
  * lines the brief asked for.
  */
-export function ImportBox({ onPick, disabled = false, initialSource = '', dialect = 'auto' }) {
+export function ImportBox({
+  onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
+}) {
   return (
-    <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} dialect={dialect} />
+    <PasteBox
+      onPick={onPick}
+      disabled={disabled}
+      initialSource={initialSource}
+      dialect={dialect}
+      onSourceChange={onSourceChange}
+    />
   )
 }
 
 /** The Pine-only box, byte-identical in behaviour to what it was: no `dialect`
  *  prop means `inspectPine`, the Pine heading and the Pine aria-label. */
-export default function PineBox({ onPick, disabled = false, initialSource = '' }) {
-  return <PasteBox onPick={onPick} disabled={disabled} initialSource={initialSource} />
+export default function PineBox({ onPick, disabled = false, initialSource = '', onSourceChange = null }) {
+  return (
+    <PasteBox
+      onPick={onPick}
+      disabled={disabled}
+      initialSource={initialSource}
+      onSourceChange={onSourceChange}
+    />
+  )
 }

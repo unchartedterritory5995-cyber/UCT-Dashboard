@@ -488,9 +488,16 @@ def get_bars(
         # one perf_counter diff + a thread-local read. `dur` is milliseconds.
         try:
             _dur_ms = (_time.perf_counter() - _t0) * 1000.0
-            response.headers["Server-Timing"] = (
-                f'bars;desc="{get_serve_layer()}";dur={_dur_ms:.1f}'
-            )
+            _st = f'bars;desc="{get_serve_layer()}";dur={_dur_ms:.1f}'
+            # Behavior-neutral phase sub-metrics (see bars_fetch._time_ck) so a slow
+            # first-view is localised to the exact phase in prod devtools/curl.
+            try:
+                from api.services.bars_fetch import get_serve_marks
+                for _lbl, _ms in get_serve_marks():
+                    _st += f', {_lbl};dur={_ms:.1f}'
+            except Exception:
+                pass
+            response.headers["Server-Timing"] = _st
         except Exception:
             pass
         return response

@@ -717,6 +717,20 @@ export default function BuilderSheet({
    *  fourth spelling of "the candles' scale" would need all three to learn it. */
   const [target, setTarget] = useState('pane')
   const [levelsText, setLevelsText] = useState('')
+  /** ⭐⭐ THE MEMBER'S PINE, HELD BY THE SHEET RATHER THAN BY THE BOX.
+   *
+   *  ⛔ `ImportBox` UNMOUNTS THE MOMENT `buildMode` CHANGES, and its textarea
+   *  lived only in `PasteBox`'s own `useState(initialSource)` with no production
+   *  caller passing anything in. So a member who pasted a script, glanced at
+   *  another tab and came back found the box EMPTY — and `dirty` never saw the
+   *  script at all, so Escape binned it with no confirm.
+   *
+   *  ⭐ THE REPO HAD ALREADY RULED THIS FOR THE SIBLING TAB.
+   *  `BuilderSheet.criteria.test.jsx` states it: *"A picker that cleared the box
+   *  on a mode switch would destroy the user's work to preserve its own
+   *  consistency."* Import was the one tab whose state was purely local, so it
+   *  was the one tab that broke the rule the others follow. */
+  const [pineText, setPineText] = useState('')
 
   /** Every plot row in document order — plot 1 first. */
   const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
@@ -962,7 +976,7 @@ export default function BuilderSheet({
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
-    setStoreError(null); setSavedRow(null); setCopied(false)
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -997,7 +1011,7 @@ export default function BuilderSheet({
     const src = compute.source
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
-    setStoreError(null); setSavedRow(null); setCopied(false)
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -1517,7 +1531,15 @@ export default function BuilderSheet({
   // needs `savedRow` to snapshot the whole shape at save time, which is a
   // bigger change than this round's fix; recorded rather than silently
   // claimed as solved.
-  const dirty = (source.trim() !== '' || name.trim() !== ''
+  // ⭐⭐ `pineText` IS IN `dirty`, AND THAT IS THE HALF THAT WAS LOSING WORK. A
+  // member with a full unsaved script pressed Escape, this predicate was false,
+  // and the sheet closed WITHOUT the confirm — in the sheet whose own comment
+  // says that gate exists for "the same loss … one field over".
+  // ⛔ AND IT COMPOUNDS WITH A REFUSING SCRIPT: while the translator refuses,
+  // `source` stays empty, so at the exact moment a member has the MOST unsaved
+  // work — a long script that does not translate yet — the old predicate saw
+  // nothing at all.
+  const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
@@ -1713,6 +1735,14 @@ export default function BuilderSheet({
             <ImportBox
               dialect="auto"
               disabled={saving}
+              // ⚠️ AN INITIAL VALUE, NOT A CONTROLLED ONE. `initialSource` seeds
+              // `PasteBox`'s own state on mount — and seeds `report`,
+              // `authorKnobs` and `lastTextRef` with it, which is why restoring
+              // through this seam brings the whole box back rather than just its
+              // characters. Passing it as a controlled value would fight the box
+              // for its own state on every keystroke.
+              initialSource={pineText}
+              onSourceChange={setPineText}
               onPick={(picked) => {
                 // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
                 // contract three lines down. Not the tree the translator built
