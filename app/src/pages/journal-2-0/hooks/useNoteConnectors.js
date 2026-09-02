@@ -40,11 +40,16 @@ import { useCallback } from 'react'
 import useSWR from 'swr'
 
 // Provider roster (spec §1/§7, widened to the Microsoft Graph wave in
-// Task 7). `tokenKind` decides which connect UI a tile opens: 'token' ->
+// Task 7, then to Obsidian's push transport in the 2026-09-02 plan's Task 5).
+// `tokenKind` decides which connect UI a tile opens: 'token' ->
 // ConnectTokenModal (paste fields), 'oauth' -> redirect to `redirectUrl`
-// from the connect endpoint. Order matches `registry.py`'s `_REGISTRY`
-// insertion order (the backend's own "stable order" contract) — not load-
-// bearing for correctness, just keeps the two sides from silently drifting.
+// from the connect endpoint, 'device' -> ObsidianConnectModal (mints a
+// connect code to paste into a locally-installed plugin — neither a paste
+// nor a redirect; mirrors the backend's `connect_kind` vocabulary in
+// `registry.py`, extended the same way and for the same reason). Order
+// matches `registry.py`'s `_REGISTRY` insertion order (the backend's own
+// "stable order" contract) — not load-bearing for correctness, just keeps
+// the two sides from silently drifting.
 export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'roam', label: 'Roam Research', tokenKind: 'token' },
   { key: 'craft', label: 'Craft', tokenKind: 'token' },
@@ -52,6 +57,7 @@ export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
   { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
   { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
+  { key: 'obsidian', label: 'Obsidian', tokenKind: 'device' },
 ]
 
 // Providers whose sync unit is a PICKED FOLDER, not a whole account —
@@ -134,9 +140,12 @@ function normalizeProvider(raw) {
 
 /**
  * Translate whatever `GET /status` returns into the stable shape every
- * component reads. Always returns all four wave-1 provider keys (a raw
- * payload missing a key, in ANY casing, still renders a "not configured"
- * tile rather than the component needing its own `|| {}` fallback).
+ * component reads. Always returns every key in `NOTE_CONNECTOR_PROVIDERS`
+ * above (a raw payload missing a key, in ANY casing, still renders a "not
+ * configured" tile rather than the component needing its own `|| {}`
+ * fallback) — read that array rather than a count typed here, which is
+ * exactly the kind of number this codebase has watched go stale beside the
+ * list it claims to describe.
  *
  * `enabled` (final-review Item B) — the router's `_sync_enabled()` gate
  * (`NOTE_SYNC_ENABLED` env var, default true) for whether the BACKGROUND
@@ -269,6 +278,28 @@ export default function useNoteConnectors() {
     return body
   }, [])
 
+  // Device providers (obsidian): POST {consent:true} -> {connectCode,
+  // expiresInSeconds}. Unlike `startOAuth`, this never navigates the
+  // browser away — minting creates no connector/source row on the backend
+  // (see `registry.py`'s own `connect_kind` docstring), so the caller (the
+  // Obsidian tile) is responsible for showing the code once and letting the
+  // member copy it into the locally-installed plugin themselves. `pick()`
+  // keeps this casing-tolerant like every other field in this hook.
+  const mintConnectCode = useCallback(async (provider) => {
+    const r = await fetch(`/api/j2/notes/connectors/${provider}/connect`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ consent: true }),
+    })
+    if (!r.ok) throw await readError(r, 'Could not generate a connect code.')
+    const body = await r.json().catch(() => ({}))
+    return {
+      connectCode: pick(body, 'connectCode', 'connect_code', ''),
+      expiresInSeconds: pick(body, 'expiresInSeconds', 'expires_in_seconds', 0),
+    }
+  }, [])
+
   const syncSource = useCallback(
     async (sourceId, { background = false } = {}) => {
       const qs = background ? '?background=1' : ''
@@ -358,6 +389,7 @@ export default function useNoteConnectors() {
     mutate,
     connectToken,
     startOAuth,
+    mintConnectCode,
     syncSource,
     updateSource,
     disconnect,

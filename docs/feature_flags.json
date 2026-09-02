@@ -534,6 +534,13 @@
       ],
       "note": ""
     },
+    "NOTE_SYNC_OBSIDIAN_ENABLED": {
+      "status": "dark",
+      "where": [
+        "(set on no service)"
+      ],
+      "note": "DELIBERATELY OFF. registry.py's obsidian entry (connect_kind='device') stays unconfigured until this is armed -- the Obsidian plugin is a separate, not-yet-published GitHub repo (2026-09-02 plan, Wave 3b) with no real vault to gate against, and the mock-plugin live-gate lifecycle test (that plan's Task 6) has not run yet. Arm after that test passes."
+    },
     "OI_MASSIVE_ENABLED": {
       "status": "armed",
       "where": [

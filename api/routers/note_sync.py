@@ -376,6 +376,26 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
     return {"connected": True, "accountLabel": info.label, "source": source}
 
 
+def _mint_device_connect_code(provider: str, user_id: str) -> dict[str, Any]:
+    """`connect_kind == "device"` (Obsidian, Task 5 of the 2026-09-02 plan)
+    — neither a synchronous credential POST (`"token"`) nor a redirect
+    (`"oauth"`). The member mints a short-lived, single-use code HERE and
+    pastes it into the locally-installed plugin, which exchanges it for a
+    device token on ITS OWN call into `obsidian_link.redeem_connect_code`
+    — entirely outside this router's `/connect`+`/callback` pair (see that
+    module's own docstring). Mirrors `_start_oauth`'s `entry.configured()`
+    gate: an unconfigured provider refuses with the same 503 shape rather
+    than minting a code nothing can ever redeem against."""
+    entry = registry.get_entry(provider)
+    if not entry.configured():
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    try:
+        code = obsidian_link.mint_connect_code(user_id)
+    except errors.NoteConnNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return {"connectCode": code, "expiresInSeconds": obsidian_link._CONNECT_CODE_TTL_SECONDS}
+
+
 def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
@@ -407,6 +427,8 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
     entry = registry.get_entry(provider)
     if entry.connect_kind == "oauth":
         return _start_oauth(provider, user["id"])
+    if entry.connect_kind == "device":
+        return _mint_device_connect_code(provider, user["id"])
     return await _connect_token_provider(provider, body, user["id"])
 
 

@@ -5,10 +5,12 @@ import {
 } from './useNoteConnectors'
 
 describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, corrected by Task 12b, widened to msgraph in Task 7)', () => {
-  it('always returns all six provider keys, even from an empty/undefined payload', () => {
+  it('always returns every registered provider key, even from an empty/undefined payload', () => {
     for (const raw of [undefined, null, {}, { providers: {} }]) {
       const out = normalizeStatus(raw)
-      expect(Object.keys(out.providers).sort()).toEqual(['craft', 'dropbox', 'notion', 'onedrive', 'onenote', 'roam'])
+      expect(Object.keys(out.providers).sort()).toEqual(
+        ['craft', 'dropbox', 'notion', 'obsidian', 'onedrive', 'onenote', 'roam']
+      )
       for (const p of NOTE_CONNECTOR_PROVIDERS) {
         expect(out.providers[p.key]).toEqual({
           configured: false, connected: false, connectKind: null, accountLabel: null, status: null, sources: [],
