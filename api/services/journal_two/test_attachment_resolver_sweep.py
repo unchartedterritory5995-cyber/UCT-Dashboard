@@ -20,11 +20,28 @@ historical bug had ANCHOR literally equal to BASE (`target.relative_to(base.reso
 tautological once the filename axis is clean, since `target` is always `base/filename`, so
 it is trivially "inside" itself. Every fix (and the independently-correct fourth instance)
 uses two DIFFERENT names — the pairing helper hands back `(root, base)` or `(root, candidate)`,
-and the check runs against `root`, never the joined `base`. So "is this function safe" reduces
-to a purely syntactic question: does the resolved BASE name equal the resolved ANCHOR name?
-That is checked here with simple assignment-tracing (`_base_name_of_resolve_expr` +
-`_resolve_alias`) — no need to know what a "root" or a "user_id" IS, only whether the same
-name was used on both sides of the check.
+and the check runs against `root`, never the joined `base`.
+
+THE ANCHOR MUST BE PROVEN, NOT ASSUMED (fix round 1): the first version of this file reduced
+"is this function safe" to "does the resolved BASE name equal the resolved ANCHOR name",
+resolving trivial aliases (`anchor = base`) but falling back to treating ANY other
+assignment shape as an independent, trustworthy leaf. A reviewer built
+`anchor = _passthrough_anchor(base)` (an identity helper — the same object as `base` at
+runtime) and the sweep called it `"safe"`: the exact tautology bug, laundered through one
+level of indirection the old alias-resolver couldn't see through. The classifier's DEFAULT
+was backwards — it reached `"safe"` unless it could show otherwise, when a static analyser
+must do the opposite. `_resolve_anchor_root` now reaches `"safe"` ONLY when the anchor's
+provenance is a bare-name alias chain or has NO local assignment at all (a module-level
+global, or a `for x, y in ...:` tuple-unpack target — the exact shape every real fix uses).
+Anything else the anchor passes through — a helper call, a lambda, an attribute chain, a
+subscript, a binop — is now `indeterminate`, which fails the sweep rather than passing it.
+The RECEIVER's base name (`_resolve_receiver_alias`) keeps the old, permissive tracing: it
+is a LABEL for the known-tainted side of the comparison, not a claim that needs proving, so
+an opaque or absent assignment there is fine to leave as-is. See
+`test_identity_helper_indirection_is_not_trusted_as_safe` and
+`test_lambda_indirection_is_not_trusted_as_safe` for the reviewer's exact adversarial shape,
+kept as permanent fixtures — and the "Containment-safety analysis" section below for the
+full mechanics.
 
 WHY STATIC, NOT DYNAMIC: the task this sweep was written for asks for a sweep that "asserts
 each [discovered function] refuses a crafted traversal on every caller-supplied axis" — the
@@ -48,8 +65,10 @@ SCOPE: every non-test `.py` file directly under `api/services/journal_two/` (whe
 whole attachment-resolver family lives, per CLAUDE.md's Journal 2.0 section) plus the sibling
 `api/j2_attachments_backup.py`. Grepping the wider `api/` tree for `.relative_to(` turned up
 only files inside this scope, `api/services/feature_flag_index.py` (an unrelated `relative_to`
-used to build a report path, no try/except at all — correctly excluded by the shape
-predicate below), and this package's own test files (excluded by name).
+inside its own `try`/`except ValueError`, used to build a repo-relative report path — but
+with no `.resolve()` call and no reachable `return None` anywhere in the function, so the
+shape predicate correctly excludes it for those two reasons, not for lacking a `try`/`except`
+at all), and this package's own test files (excluded by name).
 
 THE CONTROL: `test_the_sweep_can_actually_see_a_planted_resolver` builds two synthetic
 functions from source text — one reproducing the exact historical bug, one fixed — and
@@ -84,6 +103,20 @@ def _iter_functions(tree: ast.AST):
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             yield node
+
+
+def _function_named(tree: ast.AST, name: str) -> ast.AST:
+    """The FunctionDef called `name` in `tree`, by NAME — never `next(...)`
+    on `_iter_functions` alone. `ast.walk` is breadth-first over the whole
+    module, so a fixture source that defines a helper function BEFORE the
+    resolver under test (e.g. `_IDENTITY_HELPER_SOURCE` below, which needs
+    `_passthrough_anchor` defined first) would hand `next()` the helper,
+    not the resolver — a real ordering bug caught here while writing the
+    adversarial fixtures, not a hypothetical one."""
+    for fn in _iter_functions(tree):
+        if fn.name == name:
+            return fn
+    raise AssertionError(f"no function named {name!r} in the parsed fixture source")
 
 
 # ── Shape predicate: "looks like an attachment path resolver" ───────────────
@@ -151,6 +184,41 @@ def is_attachment_resolver_shape(func: ast.AST) -> bool:
 
 
 # ── Containment-safety analysis: is BASE the same name as ANCHOR? ───────────
+#
+# FAIL-SAFE BY CONSTRUCTION (fix round 1 — see module docstring's "THE
+# ANCHOR MUST BE PROVEN, NOT ASSUMED" section): the two sides of the
+# comparison below are deliberately asymmetric.
+#
+#   - The RECEIVER's base name (what `target` was joined from) is just a
+#     LABEL — we don't need to prove anything about it; it's the known-
+#     tainted side by definition. `_resolve_receiver_alias` follows only
+#     bare-name aliases and otherwise returns the name unchanged, including
+#     when the name has no local assignment at all (free — a for-loop
+#     tuple-unpack target) or an assignment to something else entirely (a
+#     `/`-chain, which is the NORMAL, transparent shape `base` always has).
+#
+#   - The ANCHOR name must be PROVEN independent of the receiver's base
+#     before this analysis calls a resolver `safe`. `_resolve_anchor_root`
+#     accepts exactly two shapes as proof: (a) a bare-name-to-bare-name
+#     alias chain, or (b) a name with NO local assignment at all (a
+#     module-level global like `_ATTACHMENT_ROOT`, or a for-loop
+#     tuple-unpack target like the `root` in `for root, base in
+#     read_candidates_with_roots(rel):` — the exact shape every real fix
+#     uses). ANYTHING ELSE the anchor's provenance passes through — a
+#     helper call, a lambda, an attribute chain, a subscript, a binop —
+#     returns `None` ("cannot prove"), which `analyze_containment` treats
+#     as `indeterminate`, never `safe`.
+#
+# This closes the exact hole a reviewer found in round 1: `anchor =
+# _passthrough_anchor(base)` (an identity helper — the same object as
+# `base` at runtime) used to slip through as `"safe"` because the old,
+# single `_resolve_alias` gave up on non-bare-Name assignments by silently
+# treating the name as a trustworthy independent leaf — the same fallback
+# for "truly free" and "assigned to something opaque" alike. Now only the
+# first is trusted; the second fails the sweep. See
+# `test_identity_helper_indirection_is_not_trusted_as_safe` and
+# `test_lambda_indirection_is_not_trusted_as_safe` below — both are the
+# reviewer's exact adversarial shape, kept as permanent regression fixtures.
 
 def _leftmost_name_or_bare(expr: ast.AST) -> str | None:
     """For a `/`-chain (`a / b / c`, left-associative BinOp Div), the
@@ -170,41 +238,80 @@ def _base_name_of_resolve_expr(expr: ast.AST) -> str | None:
     return _leftmost_name_or_bare(expr.func.value)
 
 
-def _find_simple_assign_value(func: ast.AST, name: str) -> ast.AST | None:
-    """The value of the first `name = <expr>` assignment in func, else None.
-    Deliberately does NOT look inside `for x, y in ...:` unpacking — a name
-    bound that way (both fix's `root`/`base` pairs, and the pre-fix bug's
-    `base`) has no simple-assign value, and is left as an opaque leaf name
-    for the comparison below, which is exactly the right behavior: we don't
-    need to know what `root` unpacks to, only whether it's the SAME name as
-    whatever `target` was joined from."""
+def _lookup_simple_assign(func: ast.AST, name: str) -> tuple[bool, ast.AST | None]:
+    """`(True, value)` for the first `name = <expr>` assignment in func,
+    else `(False, None)`. The `bool` matters: "no assignment found" (a
+    module-level global, or a `for x, y in ...:` unpacking target) and
+    "assigned to something this analysis can't see through" are DIFFERENT
+    facts — collapsing them into one `None` return was the bug."""
     for node in ast.walk(func):
         if isinstance(node, ast.Assign) and len(node.targets) == 1:
             t = node.targets[0]
             if isinstance(t, ast.Name) and t.id == name:
-                return node.value
-    return None
+                return True, node.value
+    return False, None
 
 
-def _resolve_alias(func: ast.AST, name: str, _seen: set[str] | None = None) -> str:
-    """Follow `name = other_bare_name` chains to a fixed point, so a trivial
-    rename (`anchor = base; ...relative_to(anchor.resolve())`) can't dodge
-    the comparison below by looking like a different name."""
+def _resolve_receiver_alias(func: ast.AST, name: str, _seen: set[str] | None = None) -> str:
+    """Follow `name = other_bare_name` chains to a fixed point for the
+    RECEIVER's base name. This side is a LABEL, not a safety claim — an
+    opaque or absent assignment is fine to leave as-is; we only need a
+    stable name to compare against a PROVEN anchor (see
+    `_resolve_anchor_root`)."""
     seen = _seen if _seen is not None else set()
     if name in seen:
         return name
     seen.add(name)
-    val = _find_simple_assign_value(func, name)
-    if isinstance(val, ast.Name):
-        return _resolve_alias(func, val.id, seen)
+    found, val = _lookup_simple_assign(func, name)
+    if found and isinstance(val, ast.Name):
+        return _resolve_receiver_alias(func, val.id, seen)
     return name
+
+
+def _resolve_anchor_root(func: ast.AST, name: str, _seen: set[str] | None = None) -> str | None:
+    """Follow `name = other_bare_name` chains to a fixed point for the
+    ANCHOR — but FAIL (return `None`) the moment the chase hits anything
+    that isn't provably independent of the joined base: a helper call, a
+    lambda, an attribute chain, a subscript, a binop, anything. Only two
+    shapes count as proof of independence: a bare-name alias (chase
+    further) or NO local assignment at all (a module-level global, or a
+    `for x, y in ...:` tuple-unpack target — exactly what every real fix's
+    `root` is). This is the fail-safe half of the fix: the default is "not
+    proven", not "assumed safe"."""
+    seen = _seen if _seen is not None else set()
+    if name in seen:
+        return None  # a cycle proves nothing
+    seen.add(name)
+    found, val = _lookup_simple_assign(func, name)
+    if not found:
+        return name  # genuinely free: global constant, or for-loop-unpack target
+    if isinstance(val, ast.Name):
+        return _resolve_anchor_root(func, val.id, seen)
+    return None  # opaque: call, lambda, attribute chain, binop, whatever
 
 
 def analyze_containment(func: ast.AST) -> str:
     """'vulnerable' | 'safe' | 'indeterminate' for one already-shape-matched
-    resolver. 'indeterminate' means the static shape didn't fit the exact
-    assign-then-check pattern this analysis understands — treated as a
-    FAILURE by the real-code test below, never as a silent pass."""
+    resolver. 'indeterminate' means either the static shape didn't fit the
+    exact assign-then-check pattern this analysis understands, OR the
+    anchor's provenance could not be PROVEN independent of the joined base
+    (see `_resolve_anchor_root`). Both are treated as a FAILURE by the
+    real-code test below, never as a silent pass — 'safe' is now an
+    earned, positive result, not a default.
+
+    ORDER MATTERS HERE: the RAW names (straight off the `.resolve()` call
+    sites, before any tracing) are compared FIRST. If they are already
+    literally identical (`target.relative_to(base.resolve())` where `base`
+    is exactly the name `target` was joined from — the classic, undisguised
+    bug), that is `vulnerable` immediately, with no need to trace what
+    `base` itself was built from. Only when the raw names DIFFER does this
+    go on to ask whether the difference is real or a disguise — because
+    `base` is virtually always built via a `/`-chain (`_ATTACHMENT_ROOT /
+    user_id / ...`), and running the strict opaque-provenance proof against
+    THAT construction (rather than skipping it via the raw-equality
+    short-circuit) would wrongly call the classic bug `indeterminate`
+    instead of `vulnerable` — a real regression caught by re-running the
+    original control (`bad_resolver`) after the fail-safe rewrite below."""
     calls = list(_relative_to_calls_in_value_error_try(func))
     if not calls:
         return "indeterminate"
@@ -215,21 +322,29 @@ def analyze_containment(func: ast.AST) -> str:
         if not call.args:
             return "indeterminate"
 
-        anchor_base = _base_name_of_resolve_expr(call.args[0])
-        if anchor_base is None:
+        raw_anchor_base = _base_name_of_resolve_expr(call.args[0])
+        if raw_anchor_base is None:
             return "indeterminate"
-        anchor_base = _resolve_alias(func, anchor_base)
 
-        receiver_value = _find_simple_assign_value(func, receiver.id)
+        receiver_value = _lookup_simple_assign(func, receiver.id)[1]
         if receiver_value is None:
             return "indeterminate"
-        receiver_base = _base_name_of_resolve_expr(receiver_value)
-        if receiver_base is None:
+        raw_receiver_base = _base_name_of_resolve_expr(receiver_value)
+        if raw_receiver_base is None:
             return "indeterminate"
-        receiver_base = _resolve_alias(func, receiver_base)
+
+        if raw_anchor_base == raw_receiver_base:
+            return "vulnerable"  # the classic, undisguised bug — no tracing needed
+
+        # Raw names differ. Before trusting that difference, PROVE the
+        # anchor is independent — fail safe (indeterminate) if we can't.
+        anchor_base = _resolve_anchor_root(func, raw_anchor_base)
+        if anchor_base is None:
+            return "indeterminate"  # opaque anchor provenance — FAIL SAFE
+        receiver_base = _resolve_receiver_alias(func, raw_receiver_base)
 
         if receiver_base == anchor_base:
-            return "vulnerable"
+            return "vulnerable"  # resolved to the same thing after all
     return "safe"
 
 
@@ -277,8 +392,8 @@ def test_the_sweep_can_actually_see_a_planted_resolver():
     function, every assertion below (and in the real sweep) would pass for
     the wrong reason — a sweep that matches nothing reads as coverage while
     proving nothing (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`)."""
-    bad_fn = next(_iter_functions(ast.parse(_BAD_SOURCE)))
-    good_fn = next(_iter_functions(ast.parse(_GOOD_SOURCE)))
+    bad_fn = _function_named(ast.parse(_BAD_SOURCE), "bad_resolver")
+    good_fn = _function_named(ast.parse(_GOOD_SOURCE), "good_resolver")
 
     assert is_attachment_resolver_shape(bad_fn) is True, (
         "the shape predicate did not see the planted BAD resolver — "
@@ -292,6 +407,103 @@ def test_the_sweep_can_actually_see_a_planted_resolver():
     # And it must tell them apart, not just detect "something relative_to-shaped".
     assert analyze_containment(bad_fn) == "vulnerable"
     assert analyze_containment(good_fn) == "safe"
+
+
+# ── The reviewer's adversarial cases: opaque anchor indirection ─────────────
+#
+# THE FALSE-SAFE FOUND IN ROUND 1: `analyze_containment`'s first version
+# reduced "is this safe" to "does the resolved BASE name equal the resolved
+# ANCHOR name", but its alias-follower gave up on any non-bare-Name
+# assignment by silently treating the name as an independent, trustworthy
+# leaf — exactly the same fallback used for a genuinely free name (a
+# module global, a for-loop tuple-unpack target). A reviewer exploited that
+# conflation: `anchor = _passthrough_anchor(base)` is a helper call that
+# hands back the SAME object as `base` at runtime, but the old resolver
+# couldn't see through the call, gave up, and reported `"safe"` — the exact
+# historical tautology bug, laundered through one level of indirection.
+#
+# These two fixtures are that adversarial shape, kept as PERMANENT
+# regression tests (not exploratory — they must always fail the sweep).
+# `_resolve_anchor_root` fixes this by inverting the fallback: an opaque
+# assignment on the anchor side now returns `None` ("cannot prove"), which
+# `analyze_containment` reports as `"indeterminate"` — a sweep failure, not
+# a silent pass.
+
+_IDENTITY_HELPER_SOURCE = '''
+from pathlib import Path
+
+def _passthrough_anchor(x):
+    """Looks like it might do something. Returns its argument, unchanged."""
+    return x
+
+def sneaky_resolver(user_id: str, note_id: str, filename: str):
+    """The reviewer's exact adversarial case: anchor is base, laundered
+    through an identity helper call the old analysis couldn't see through."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor = _passthrough_anchor(base)
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+_LAMBDA_INDIRECTION_SOURCE = '''
+from pathlib import Path
+
+def sneaky_lambda_resolver(user_id: str, note_id: str, filename: str):
+    """Same shape, via a lambda instead of a named helper — a different
+    syntactic disguise for the identical runtime identity."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    anchor = (lambda x: x)(base)
+    try:
+        target.relative_to(anchor.resolve())
+    except ValueError:
+        return None
+    if not target.exists():
+        return None
+    return target
+'''
+
+
+def test_identity_helper_indirection_is_not_trusted_as_safe():
+    """The reviewer's exact finding, kept as a permanent regression fixture.
+    Before the fix, this asserted `analyze_containment(fn) == "safe"` — a
+    demonstrably wrong verdict for a function with the exact historical bug.
+    It must now be `"indeterminate"` (a sweep failure), never `"safe"`."""
+    fn = _function_named(ast.parse(_IDENTITY_HELPER_SOURCE), "sneaky_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    verdict = analyze_containment(fn)
+    assert verdict != "safe", (
+        "an anchor whose provenance passes through an identity HELPER CALL "
+        "was accepted as safe — this is the exact false-negative a reviewer "
+        "found: anchor and base are the same object at runtime, disguised "
+        "behind one level of indirection the analysis must not trust"
+    )
+    assert verdict == "indeterminate"
+
+
+def test_lambda_indirection_is_not_trusted_as_safe():
+    """Same adversarial shape via a lambda instead of a named function —
+    proves the fix isn't keyed to `_passthrough_anchor`'s specific name or
+    call shape, but to "any opaque expression" generically."""
+    fn = _function_named(ast.parse(_LAMBDA_INDIRECTION_SOURCE), "sneaky_lambda_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "the shape predicate did not even see the planted adversarial resolver"
+    )
+    verdict = analyze_containment(fn)
+    assert verdict != "safe"
+    assert verdict == "indeterminate"
 
 
 # ── The real sweep ────────────────────────────────────────────────────────
