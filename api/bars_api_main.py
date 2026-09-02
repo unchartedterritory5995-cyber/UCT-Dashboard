@@ -61,7 +61,40 @@ def _ensure_local_db_installed() -> None:
     """
     from api.services import data_sync
     import sqlite3
+    import shutil
     p = os.path.join(_DATA_DIR, "bars.db")
+    # ⭐ Clear stale temp from interrupted prior installs FIRST. A redeploy mid-download
+    # leaves download_snapshot's tmpdir uncleaned; across many deploys these accumulated
+    # in /data/tmp and filled the 50GB volume → "[Errno 28] No space left on device".
+    # Start each boot with a clean temp dir so a clean install fits. Never touches bars.db.
+    try:
+        du = shutil.disk_usage(_DATA_DIR)
+        _log.info("[bars-api] volume %s: %.1fGB used / %.1fGB total (%.1fGB free) BEFORE cleanup",
+                  _DATA_DIR, (du.used) / 1e9, du.total / 1e9, du.free / 1e9)
+        # Log the biggest offenders on /data so we KNOW what filled it (not guess).
+        for name in sorted(os.listdir(_DATA_DIR)):
+            fp = os.path.join(_DATA_DIR, name)
+            try:
+                if os.path.isfile(fp):
+                    sz = os.path.getsize(fp)
+                else:
+                    sz = sum(os.path.getsize(os.path.join(r, f))
+                             for r, _, fs in os.walk(fp) for f in fs
+                             if os.path.exists(os.path.join(r, f)))
+                if sz > 50e6:
+                    _log.info("[bars-api]   /data/%s = %.2fGB", name, sz / 1e9)
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] disk-usage probe failed (non-fatal): %s", e)
+    try:
+        _tmp = os.path.join(_DATA_DIR, "tmp")
+        if os.path.isdir(_tmp):
+            shutil.rmtree(_tmp, ignore_errors=True)
+        os.makedirs(_tmp, exist_ok=True)
+        _log.info("[bars-api] cleared stale temp dir %s before install", _tmp)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] temp cleanup failed (non-fatal): %s", e)
     try:
         populated = False
         if os.path.exists(p):
