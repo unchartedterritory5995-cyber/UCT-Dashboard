@@ -36,7 +36,24 @@ import re
 import sys
 
 MIN_SEEN = 8
-MAX_UPPER_PCT = 35.0
+# ⛔ 10%, NOT 35%. OWNER RULING 2026-09-02: "there is probably a decent bit of
+# false mentions but that is fine as long as intended ticker mentions are
+# captured and highlighted." Recall beats precision here, so a token only gets
+# gated when its uppercase use is NEGLIGIBLE.
+#
+# At 35% the gate ate real tickers. Measured on 32,890 #main-chat messages, the
+# 10-35% band holds ETSY (3 uppercase / 6 lowercase), COST (Costco, 5/38), UPS
+# (3/26), BROS (Dutch Bros, 7/33), BILL (4/16), DTE (12/35), SGOV (12/28), AG,
+# FLY, AIR, PAY, BETA -- every one a name this room genuinely trades, typed
+# lowercase out of laziness rather than because it is an English word. Below
+# 10% the picture flips completely: it is BE, ON, IT, FOR, YOU, EVER, BRO, THO,
+# GOLD, SPOT -- words, with a rounding error of ticker use.
+#
+# What this deliberately gives up: uppercase-by-convention ACRONYMS (EMA, IMO,
+# BULL) now sit above the line, so they move back to buzz_universe.HOUSE_VOCAB,
+# which is exactly the category that list exists for -- casing cannot separate
+# them, so no threshold ever will.
+MAX_UPPER_PCT = 10.0
 DEFAULT_CORPUS = "uct_intelligence/data/processed/processed_messages.json"
 DEFAULT_OUT = "api/data/buzz_collisions.json"
 
