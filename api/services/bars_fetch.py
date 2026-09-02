@@ -58,6 +58,31 @@ def get_serve_layer() -> str:
     return getattr(_serve_diag, "layer", "unknown")
 
 
+# ── Fine-grained serve-phase timing (Server-Timing sub-metrics) ───────────────
+# BEHAVIOR-NEUTRAL diagnostic: records elapsed-ms checkpoints inside the serve
+# path so a slow first-view (the "obscure long tail takes 2-5s" report) can be
+# localised to the exact phase — SQLite read vs synchronous provider fetch vs
+# format vs bg-spawn — instead of guessed at. Thread-local, reset at inner entry,
+# emitted by the router on the Server-Timing header. No control-flow effect.
+def _time_reset() -> None:
+    _serve_diag.t0 = _time.perf_counter()
+    _serve_diag.marks = []
+
+
+def _time_ck(label: str) -> None:
+    t0 = getattr(_serve_diag, "t0", None)
+    if t0 is None:
+        return
+    try:
+        _serve_diag.marks.append((label, (_time.perf_counter() - t0) * 1000.0))
+    except Exception:
+        pass
+
+
+def get_serve_marks() -> list:
+    return list(getattr(_serve_diag, "marks", []))
+
+
 # ── Stored price precision ────────────────────────────────────────────────────
 # 🔴 EVERY STORED PRICE WAS ROUNDED TO 2 DECIMALS, AT SEVEN PROVIDER BOUNDARIES,
 # AND ON A SUB-DOLLAR NAME THAT IS THE DOMINANT ERROR. Confirmed in the artifact
@@ -2667,6 +2692,7 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
 
 def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _mark_serve("miss")  # default; each serve path below overwrites it
+    _time_reset()        # behavior-neutral phase timing (Server-Timing sub-metrics)
     ticker_up = ticker.upper()
     # Market indices (^IXIC etc.) live only in yfinance — short-circuit the
     # whole Massive/SQLite path. Used by the Model Book index-comparison pane.
@@ -2690,8 +2716,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         )
 
     # ── Layer 2: SQLite persistent store (<5 ms) ──────────────────────────────
+    _time_ck("pre_sqlite")
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
+    _time_ck("last_ts")
     stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+    _time_ck("get_bars")
 
     # SQLite has fresh data AND enough rows for this request count.
     # The "len(stored_rows) >= bars * 0.9" check catches the case where SQLite
@@ -2978,6 +3007,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _inflight.pop(cache_key, None)
 
         _mark_serve("stale-swr")
+        _time_ck("stale_return")
         return JSONResponse(
             content=stale_payload,
             headers={"Cache-Control": "public, max-age=5"},
@@ -3167,6 +3197,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         except Exception:
             pass  # breaker unavailable → fall through to the normal empty 200
 
+    _time_ck("layer4_return")
     return JSONResponse(
         content=payload,
         headers={"Cache-Control": f"public, max-age={ttl}"},
