@@ -1,0 +1,20 @@
+# CRITICAL PATH — the questions that block major decisions
+
+Format (Document A): question · decision it blocks · owning role · current confidence · what evidence would close it. Tier 1 = must know before product decisions begin (Document B §27A gate). Updated at every checkpoint.
+
+| ID | Tier | Question | Blocks | Owner | Confidence | Closing evidence |
+|---|---|---|---|---|---|---|
+| CP-01 | 1 | What exactly is Terminal-Current — every view, API, persisted key, embed, inbound link, job — and what would users lose if it changed? | coexistence architecture, legacy parity matrix, first slice | D-09, D-08 | 🔴 not yet mapped (Wave 1 running) | `01-existing-system/terminal-current-map.md` accepted; `10-roadmap/coexistence-current-mechanisms.md` accepted |
+| CP-02 | 1 | Which providers do we already license and actually call (status ≥ OBSERVED-CALLED), per data class, and which keys are dead? | data architecture, cost model, every "we need vendor X" claim, Q16–18 | D-03, D-14 → F-03b | 🔴 | `02-data-providers/provider-ledger.md` with evidence per row; OWNER_INPUTS on contract status |
+| CP-03 | 1 | Can member-facing display, storage, derived use, and AI processing of FMP / Massive / Finviz / news data be classified above Unknown? | MVP member scope, licensing register, cost model, Q19 | E-01, E-03, E-04 → E-02 → F-04 | 🔴 (default Unknown until owner answers) | vendor-terms evidence + owner answers OI-03/OI-09 |
+| CP-04 | 1 | Does the existing `/charts` workspace (react-grid-layout, `charts_workspace_layout`, widget registry) constitute a reusable workspace primitive, and what state model exists? | fixed / modular / hybrid decision (Part XXI), Tier S eligibility of any workspace primitive, Q21–25 | D-06, D-11 → C5-01 → C5-03 | 🔴 | `current-ui-architecture.md`, `state-persistence-and-workspaces.md`, then `fixed-modular-hybrid.md` red-teamed |
+| CP-05 | 1 | What real-time and load envelope can the single-replica web pod sustain for a multi-panel, long-lived terminal client? | real-time architecture, performance budget, scope of live features | D-05 → C7-01 → ARCH-07 | 🔴 | `current-performance-and-realtime.md` with measured baselines; a protocol for Part CXX |
+| CP-06 | 1 | Which workflows does the desk run daily, and which external tools does it still open (Q1, Q6–Q10)? | MVP workflow selection, desk-tool benchmark slots, first slice | D-13, D-14, B-DESK-01..04, owner input OI-06 | 🔴 | proprietary inventory + desk-tool reconstructions + owner answer |
+| CP-07 | 1 | Which proprietary assets have enough volume and quality to be the differentiator (H4)? | product philosophy, Tier S, moat (Q3, Q35, Q40) | D-13 → F-05 | 🔴 | `proprietary-advantage-inventory.md` with counts and code refs |
+| CP-08 | 1 | Is the flag/entitlement mechanism sufficient for a dark Terminal-Next beta with per-user targeting? | coexistence Stage 1–3, rollout plan | D-10, D-08 | 🔴 | `flags-and-entitlements.md` requirements table |
+| CP-09 | 2 | How deep can Bloomberg workflow research go from accessible evidence, and where is the ceiling? | gate item 7, benchmark credibility | B-BBG-01..08 (Day 1b) | 🔴 (not started; external research awaits approval) | eight workflow files with named ceilings; owner answer OI-08 on access |
+| CP-10 | 1 | What AI grounding infrastructure exists (retrieval, budget guard, lanes) and what member-facing AI is permitted under the cost doctrine? | AI architecture, Q31–35, cost model | D-12 → C6 → ARCH-05 | 🔴 | `existing-ai-systems.md` + licensing (CP-03) |
+| CP-11 | 2 | Which of the ~36 PC-scheduled jobs feed surfaces a terminal would depend on, and what is the single-point-of-failure exposure of the owner's PC? | reliability architecture, dependency graph, risk register | D-14 | 🔴 | `ecosystem-cartography.md` scheduler appendix |
+| CP-12 | 2 | Is there a benchmark product materially more relevant than the candidate list (options-flow terminals, AI-native tools) given UCT's options-heavy desk? | benchmark universe (gate 6) | B-VAL-01 (Day 1b) | 🔴 | `benchmark-universe.md` |
+
+Gate status (B §27A): NOT OPEN — all Tier-1 questions are 🔴 pending Wave 1.
