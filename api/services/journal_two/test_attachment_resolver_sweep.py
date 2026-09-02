@@ -99,6 +99,32 @@ test's floor (`len(found) >= 3`) traced to a stale count from before the fourth 
 after — a fifth resolver quietly going missing would have stayed green. It is now
 `_KNOWN_RESOLVERS`, a named watermark checked by identity, not a bare number.
 
+THE HANDLER-REFUSAL WALK MUST RESPECT SCOPE (fix round 4): a second review of round 3
+found the SAME row-1 defect (the check computes something and the failure is discarded)
+reachable through a scope the fix did not anticipate. `_handler_refuses` walked the
+handler with unscoped `ast.walk`, which does not distinguish "this `return`/`continue`
+belongs to the handler" from "this belongs to a function or loop NESTED inside the
+handler". A handler shaped like `except ValueError: def _unrelated_helper(): return
+None 
+ return _FALLBACK` used to read `"safe"` — the nested function's `return None`
+was walked and counted as the handler's own, even though the handler's REAL behavior
+(`return _FALLBACK`) refuses nothing. Same result with a throwaway inner `for _ in
+range(1): continue` in place of the nested function. Fixed by `_statements_refuse`,
+which walks STATEMENTS (never `ast.walk`) and explicitly does not descend into a nested
+`FunctionDef`/`AsyncFunctionDef`/`ClassDef`, and treats a `continue` reached only via a
+loop DEFINED INSIDE the handler as applying to that inner loop, not to whatever encloses
+the handler. Pinned by `test_nested_function_in_handler_is_not_a_refusal` and
+`test_nested_loop_in_handler_is_not_a_refusal`. A related, narrower gap was found and
+left DOCUMENTED rather than fixed, per this round's own brief: a bare `except:` (no
+named exception) also catches `ValueError` at runtime but is invisible to
+`_value_error_handlers` entirely, making that resolver invisible to DISCOVERY, not
+merely misclassified — see that function's own docstring for why this one was left
+open. As the task itself put it: nobody writes a nested unreachable function in an
+exception handler by accident — this sweep's threat model is an engineer accidentally
+writing a wrong resolver, not an adversary hiding one. The reason to fix it anyway is
+that the module's stated limits must match its real ones, which has been this
+artifact's whole lesson across every round.
+
 WHY STATIC, NOT DYNAMIC: the task this sweep was written for asks for a sweep that "asserts
 each [discovered function] refuses a crafted traversal on every caller-supplied axis" — the
 natural first idea is to import each discovered function and CALL it with traversal payloads.
@@ -179,7 +205,24 @@ def _function_named(tree: ast.AST, name: str) -> ast.AST:
 
 def _value_error_handlers(try_node: ast.Try) -> list[ast.ExceptHandler]:
     """The handlers on `try_node` that catch `ValueError` (bare or in a
-    tuple with other exception types)."""
+    tuple with other exception types).
+
+    KNOWN, UNDOCUMENTED-UNTIL-NOW GAP (fix round 4 / C6 continued): an
+    unnamed handler (a bare `except:`, `h.type is None`) also catches
+    `ValueError` at runtime, but this function does not recognize it — a
+    `try` whose ONLY handler is a bare `except:` returns an empty list
+    here, which makes `_relative_to_calls_in_value_error_try` skip that
+    `try` entirely. The resolver is then INVISIBLE to discovery, not
+    merely misclassified — a stricter defect than anything else in this
+    file (everywhere else, a shape this analysis cannot verify degrades to
+    `indeterminate`; here it degrades to not being looked at at all).
+    Deliberately not fixed in this round — recognizing `except:` safely
+    would need to confirm no OTHER, narrower handler on the same `try`
+    already claims the exception first (handler order matters at
+    runtime), which is more analysis than this file's brief calls for
+    right now. Documented here, per this task's own recurring lesson, so
+    the stated limit matches the real one rather than being silently
+    narrower than it."""
     out = []
     for h in try_node.handlers:
         t = h.type
@@ -191,28 +234,88 @@ def _value_error_handlers(try_node: ast.Try) -> list[ast.ExceptHandler]:
     return out
 
 
+def _statements_refuse(stmts: list[ast.stmt], in_nested_loop: bool = False) -> bool:
+    """True if a refusal is reachable AS the surrounding control flow of
+    this statement list — not merely present SOMEWHERE inside it. Used by
+    `_handler_refuses` to walk a handler's body scoped correctly, closing
+    a second-review finding: unscoped `ast.walk(handler)` misattributed a
+    `return None`/`continue` buried in a NESTED, unreachable function or
+    loop to the handler itself, letting a handler that actually computes
+    nothing and returns a truthy fallback read `safe`.
+
+      def _unrelated_helper():
+          return None      # walked and counted, but never executed
+      return _FALLBACK     # the handler's REAL behavior: no refusal
+
+    Two rules, applied by walking STATEMENTS only (never `ast.walk`, which
+    does not distinguish scopes):
+      - A `FunctionDef`/`AsyncFunctionDef`/`ClassDef` starts a NEW scope —
+        do not descend into it. A `return` inside a nested function belongs
+        to THAT function, not to the handler. (A `lambda` cannot contain a
+        `return`/`continue` statement at all — Python's grammar restricts a
+        lambda body to a single expression — so it needs no special case.)
+      - A `For`/`While`/`AsyncFor` starts a NEW loop — descending into its
+        body still looks for a `return` (which always bubbles to the
+        enclosing FUNCTION regardless of loop nesting), but a bare
+        `continue` found there applies to THAT inner loop, not to whatever
+        loop encloses the handler itself, so it does NOT count as a
+        refusal once `in_nested_loop` is `True`."""
+    for stmt in stmts:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue  # a new scope — its body is not the handler's control flow
+        if isinstance(stmt, ast.Return):
+            # Only a `return None` (or bare `return`) is a REFUSAL — a
+            # `return` with any other value (`return _FALLBACK`, `return
+            # target`) is the success/fallback path, not a refusal, and
+            # must not short-circuit the search the way an unconditional
+            # `return True` here would (that was a bug introduced while
+            # adding scope-awareness: it made ANY `return`, including a
+            # truthy fallback, read as a refusal).
+            if stmt.value is None:
+                return True
+            if isinstance(stmt.value, ast.Constant) and stmt.value.value is None:
+                return True
+            continue
+        if isinstance(stmt, ast.Continue):
+            if not in_nested_loop:
+                return True
+            continue
+        if isinstance(stmt, (ast.For, ast.AsyncFor, ast.While)):
+            if _statements_refuse(stmt.body, in_nested_loop=True):
+                return True
+            if _statements_refuse(stmt.orelse, in_nested_loop=in_nested_loop):
+                return True
+            continue
+        if isinstance(stmt, ast.Try):
+            for h in stmt.handlers:
+                if _statements_refuse(h.body, in_nested_loop=in_nested_loop):
+                    return True
+        for field in ("body", "orelse", "finalbody"):
+            substmts = getattr(stmt, field, None)
+            if substmts and _statements_refuse(substmts, in_nested_loop=in_nested_loop):
+                return True
+    return False
+
+
 def _handler_refuses(handler: ast.ExceptHandler) -> bool:
     """True if THIS handler's own body actually refuses — a `return None`
     (or bare `return`) directly, or a `continue` (valid because every real
     resolver's loop falls through to a `return None` after the loop, which
     `is_attachment_resolver_shape` separately requires via
-    `_returns_none_somewhere`).
+    `_returns_none_somewhere`) — reachable AS the handler's own control
+    flow (see `_statements_refuse`), not merely present anywhere inside it.
 
     A handler that computes containment and then does NOTHING with the
     failure (`except ValueError: pass`) is not a refusal — a traversal
     that raises `ValueError` (i.e. genuinely escapes) falls straight
     through to whatever runs after the `try`, unrefused. This is exactly
     the defect this sweep exists to catch, wearing an intact-looking
-    `try`/`except` as a disguise (fix round 3 / C6, row 1)."""
-    for node in ast.walk(handler):
-        if isinstance(node, ast.Continue):
-            return True
-        if isinstance(node, ast.Return):
-            if node.value is None:
-                return True
-            if isinstance(node.value, ast.Constant) and node.value.value is None:
-                return True
-    return False
+    `try`/`except` as a disguise (fix round 3 / C6, row 1) — and, as a
+    second review found, the SAME defect wearing a second disguise: a
+    nested unreachable function or a throwaway inner loop whose own
+    `return`/`continue` gets misattributed to the handler by a walk that
+    does not respect scope (fix round 4)."""
+    return _statements_refuse(handler.body)
 
 
 def _relative_to_calls_in_value_error_try(func: ast.AST):
@@ -1045,6 +1148,111 @@ def test_zero_arg_root_provider_call_classifies_safe():
     assert analyze_containment(fn) == "safe", (
         "a zero-argument call to a root provider must be trusted as "
         "independent — it structurally cannot hand back `base`"
+    )
+
+
+# ── Fix round 4: the handler-refusal walk must respect scope ────────────────
+#
+# A second review of fix round 3 found the SAME defect (C6 row 1: the check
+# computes something and the failure is discarded) reachable through a scope
+# the fix did not anticipate. `_handler_refuses` walked the handler with
+# unscoped `ast.walk(handler)`, which does not distinguish "this return
+# belongs to the handler" from "this return belongs to a function/loop
+# NESTED inside the handler". A handler shaped like:
+#
+#     except ValueError:
+#         def _unrelated_helper():
+#             return None      # walked and counted, but never executed
+#         return _FALLBACK     # the handler's REAL behavior: no refusal
+#
+# ...used to read `"safe"`, because the nested function's `return None` was
+# walked and counted as if it were the handler's own. Same result with a
+# throwaway inner `for _ in range(1): continue` in place of the nested
+# function. `_statements_refuse` (see its own docstring) fixes this by
+# walking STATEMENTS with explicit scope tracking instead of `ast.walk`.
+#
+# Nobody writes a nested unreachable function in an exception handler BY
+# ACCIDENT — this sweep's threat model is an engineer accidentally writing a
+# wrong resolver, not an adversary hiding one. The reason to fix it anyway:
+# the module's stated limits must match its real ones, which has been this
+# artifact's whole lesson across every prior round.
+
+_NESTED_FUNCTION_BYPASS_SOURCE = '''
+from pathlib import Path
+
+_FALLBACK = "not-a-real-path"
+
+def sneaky_nested_function_resolver(user_id: str, note_id: str, filename: str):
+    """The nested function's `return None` is walked and counted by an
+    unscoped walk, but the handler's REAL behavior is `return _FALLBACK` --
+    no refusal at all. Fix round 4."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    try:
+        target.relative_to(_ROOT.resolve())
+    except ValueError:
+        def _unrelated_helper():
+            return None
+        return _FALLBACK
+    if not target.exists():
+        return None
+    return target
+'''
+
+_NESTED_LOOP_BYPASS_SOURCE = '''
+from pathlib import Path
+
+_FALLBACK = "not-a-real-path"
+
+def sneaky_nested_loop_resolver(user_id: str, note_id: str, filename: str):
+    """The inner loop's `continue` is walked and counted by an unscoped
+    walk, but the handler's REAL behavior is `return _FALLBACK` -- no
+    refusal at all. Fix round 4."""
+    if "/" in filename or "\\\\" in filename or filename.startswith("."):
+        return None
+    base = _ROOT / user_id / "notes" / note_id
+    target = (base / filename).resolve()
+    try:
+        target.relative_to(_ROOT.resolve())
+    except ValueError:
+        for _ in range(1):
+            continue
+        return _FALLBACK
+    if not target.exists():
+        return None
+    return target
+'''
+
+
+def test_nested_function_in_handler_is_not_a_refusal():
+    """The reviewer's exact round-4 finding. Before the fix this read
+    "safe" -- a nested, unreachable function's `return None` was walked
+    and counted as the handler's own. Must now fail the sweep."""
+    fn = _function_named(ast.parse(_NESTED_FUNCTION_BYPASS_SOURCE), "sneaky_nested_function_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "discovery must still find this — excluding it would make the "
+        "defect invisible instead of caught"
+    )
+    assert analyze_containment(fn) == "vulnerable", (
+        "a nested function's return None must not be attributed to the "
+        "handler — the handler's REAL behavior (return _FALLBACK) is no "
+        "refusal at all"
+    )
+
+
+def test_nested_loop_in_handler_is_not_a_refusal():
+    """Same finding, via a throwaway inner loop instead of a nested
+    function."""
+    fn = _function_named(ast.parse(_NESTED_LOOP_BYPASS_SOURCE), "sneaky_nested_loop_resolver")
+    assert is_attachment_resolver_shape(fn) is True, (
+        "discovery must still find this — excluding it would make the "
+        "defect invisible instead of caught"
+    )
+    assert analyze_containment(fn) == "vulnerable", (
+        "a nested loop's continue must not be attributed to the handler — "
+        "it applies to that inner loop, not to whatever encloses the try"
     )
 
 
