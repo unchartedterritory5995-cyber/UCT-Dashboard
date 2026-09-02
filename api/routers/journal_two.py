@@ -426,6 +426,27 @@ def export_trades(
     return Response(content=buf.getvalue(), media_type="text/csv", headers=headers)
 
 
+# ROUTE ORDER: `/notes/export` MUST be registered BEFORE `/notes/{note_id}`
+# (declared further below), or FastAPI matches "export" as a note_id. Placed
+# here, beside `/trades/export`, for the same reason.
+@router.get("/notes/export")
+def export_notes(user: dict = Depends(get_current_user)) -> Response:
+    """Download every note as markdown + front matter in a zip.
+
+    Deliberately unpaginated and synchronous: it is a rare, member-initiated
+    action, and a partial export is worse than a slow one. If large libraries
+    make this slow enough to matter, move it behind the job runner -- do not
+    silently truncate it."""
+    from api.services.journal_two.notes_export import build_export_zip
+
+    blob, filename = build_export_zip(user["id"])
+    return Response(
+        content=blob,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/trades/{trade_id}")
 def get_trade_detail(
     trade_id: str,
