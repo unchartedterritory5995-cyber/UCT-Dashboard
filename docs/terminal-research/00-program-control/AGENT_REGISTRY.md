@@ -196,7 +196,8 @@ Role-slot count: A6 + D14 + E6 + B(1+8+1+3+1+33+11+4)=62 + C21 + F9 + G6 + ARCH8
 | ID | Wave | Status | Dispatched (UTC) | Returned | QC (ACCEPT / ACCEPT WITH GAPS / RESEARCH AGAIN / DISCARD) | Notes |
 |---|---|---|---|---|---|---|
 | PROBE-01..10 | probe | done | 2026-09-02 05:39 | 05:42 | ACCEPT | see §1 |
-| D-01..D-05, D-08, D-09 | 1 | running | 2026-09-02 06:02 (batch 1, Opus) | — | — | contracts in `contracts/D-0x.md` |
+| D-08 | 1 | done | 06:02 | 06:55 (72 calls, 284k) | ACCEPT — coexistence mechanisms with four precedents and the replace-cost inventory (5 persisted prefs, 1 widget-type key, 2 embed hosts, 3 external consumers, free-tier deep-link path); corrects the rename SHA and the `/r/calendar` consumer (morning-wire + Sunday Scan screenshots, not the chart renderer) | `10-roadmap/coexistence-current-mechanisms.md`; cohort gap → RG-04 |
+| D-01..D-05, D-09 | 1 | running | 2026-09-02 06:02 (batch 1, Opus) | — | — | contracts in `contracts/D-0x.md` |
 | D-06 | 1 | done | 06:02 | 06:42 (81 tool calls, 311k tokens) | ACCEPT — 77 KB, 13 sections, GAPS + NOT INSPECTED present; static read only (🟡 runtime) | `07-technical-architecture/current-ui-architecture.md`; open qs → RG-05..07 |
 | D-07 | 1 | done | 06:02 | 06:38 (58 calls, 267k) | ACCEPT — 75 KB; both rail commands executed green; found the rail's substring-filter fragility and the missing CI gate | `01-existing-system/testing-reliability-observability.md`; → DL-009, RG-01/02 |
 | D-10 | 1 | done | 06:02 | 06:38 (62 calls, 270k) | ACCEPT — 66 KB, 10 sections; corrected two contract KNOWN FACTS (paywall inverted; `tier` enforced server-side) | `01-existing-system/flags-and-entitlements.md`; → DL-010, OI-12, RG-03/04 |

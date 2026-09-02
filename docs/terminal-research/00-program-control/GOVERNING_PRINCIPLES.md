@@ -4,7 +4,7 @@ Compact refresh of the non-negotiable rules. The charter (Documents A, B, C and 
 
 ## 1. Vocabulary (Document B §5) — mandatory in every artifact, contract, and report
 
-* **TERMINAL-CURRENT** = the existing surface at route `/calendar`, display-named "UCT Terminal" since 2026-09-01 (commit `88b87a32b`). The rename was display-only: the route, the dashboard door key `calendar`, widget keys, `/api/calendar/*`, filenames, and CSS classes are unchanged. Searching the code for "terminal" finds the label, not the feature. Terminal-Current is not modified during Phase Zero.
+* **TERMINAL-CURRENT** = the existing surface at route `/calendar`, display-named "UCT Terminal" since 2026-09-01 (rename commits `b958aefb4` + `7c8d89581`; `88b87a32b` is the merge that carried them — D-08). The rename was display-only: the route, the dashboard door key `calendar`, widget keys, `/api/calendar/*`, filenames, and CSS classes are unchanged. Searching the code for "terminal" finds the label, not the feature. Terminal-Current is not modified during Phase Zero.
 * **TERMINAL-NEXT** = the next-generation product this program designs.
 * Never write "UCT Terminal" without one of these qualifiers in program artifacts. Brand: UT is the parent, UCT Intelligence is the product.
 
