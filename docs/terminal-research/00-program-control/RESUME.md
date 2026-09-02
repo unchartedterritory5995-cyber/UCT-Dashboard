@@ -1,13 +1,13 @@
 # RESUME — cold-start entry point (Document B §3A)
 
-Read in this order before doing anything: this file → `GOVERNING_PRINCIPLES.md` → `PROGRAM_STATUS.md` → `CRITICAL_PATH.md` → `OWNER_DECISIONS.md` → `AGENT_REGISTRY.md` (current wave) → the charter in `charter/` if any requirement is in doubt.
+**READ `SESSION_HANDOFF.md` FIRST if it is newer than this file's last-updated line below** — it is the authoritative recovery checkpoint after the third session-limit pause and supersedes the dispatch state described here. Otherwise read in this order: this file -> `GOVERNING_PRINCIPLES.md` -> `PROGRAM_STATUS.md` -> `CRITICAL_PATH.md` -> `OWNER_DECISIONS.md` -> `AGENT_REGISTRY.md` (current wave) -> the charter in `charter/` if any requirement is in doubt.
 
 ## Where we are
 
 * **Program day:** 1 · **Phase:** Day 1b (external landscape research). Owner proceed received 2026-09-02 10:41 UTC.
 * **Worktree:** `C:\Users\Patrick\uct-worktrees\terminal-research`, branch `terminal-research`, start SHA `9c3df14b9`. Never push master. Push this branch to `origin/terminal-research` at checkpoints.
 * **Orchestrator:** the only committer. Commit with `git add docs/terminal-research` (scoped; never `-A`).
-* **Last updated:** 2026-09-02 16:15 UTC.
+* **Last updated:** 2026-09-02 (recovery checkpoint; see SESSION_HANDOFF.md for the full state -- this file's dispatch section below is now stale).
 
 ## What is dispatched (see `AGENT_REGISTRY.md` §5)
 

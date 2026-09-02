@@ -64,10 +64,13 @@ Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome to
 | Read (UTC) | origin/master | Commits since start | Files | Touches Terminal-Current? |
 |---|---|---|---|---|
 | 2026-09-02 07:05 | `c9ae85fb6` | 6 (buzz digest board, indicator-endzone manifest, runbook, formula doc) | 11 (3 `app/src`, 2 `api/services`, tests, docs) | No |
-| 2026-09-02 16:06 | `2b34fee4e` | further commits by another session (not inspected yet; touched files listed at the Day 1 checkpoint) | — | to be checked at the checkpoint |
+| 2026-09-02 (checkpoint) | `dd57711f0` | 54 commits total since start SHA `9c3df14b9` (superseding the `2b34fee4e` reading below); touched dirs by count: `api/services` (26), `app/src` (20), `api/routers` (5), plus test/docs/tools files | Notably `api/services/journal_two/calendar.py` + its test -- this is the JOURNAL 2.0 CALENDAR TAB (a distinct feature per the system map), NOT the `/api/calendar/*` Terminal-Current router or `app/src/pages/calendar/*`; no path under `app/src/pages/calendar/`, `app/src/pages/Calendar.jsx`, or `api/routers/calendar.py` appears in the diff | No -- confirmed by path; Terminal-Current itself untouched. Flagged for a quick double-check next session since the naming collision ("calendar" in two features) is exactly the kind of thing that has caused confusion before in this codebase. |
+| 2026-09-02 16:06 | `2b34fee4e` | (superseded by the `dd57711f0` row above) | — | — |
 | 2026-09-02 08:05 | `e41d0dcfa` | +1 (notebook handler-refusal walk fix); production redeployed (uptime 109 s at 08:05) | notebook code + tests | No |
 
 ## Run log
+
+| R1 | Recovery checkpoint, 2026-09-02 (after third pause) | PASS (`git diff --stat 9c3df14b9 -- . ':(exclude)docs/terminal-research'` empty) | PASS -- 31 files, `Test Files 31 passed (31)` | PASS -- 374 passed, 0 failed, 14.5s | PASS (`/api/health` 200 `status: ok`, uptime 558s -- production redeployed since R0, consistent with 54 commits on origin/master since the start SHA) | not re-run this checkpoint (unauthenticated HTTP checks sufficient; last browser check at R0 still valid, header/week-strip/roster line unchanged in structure) | **PASS** |
 
 | Run | Program day / checkpoint | (1) diff empty | (2) frontend | (2) backend | (3) HTTP | (3) browser | Result |
 |---|---|---|---|---|---|---|---|
