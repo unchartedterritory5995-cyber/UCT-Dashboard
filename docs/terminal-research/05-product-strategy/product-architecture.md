@@ -625,7 +625,7 @@ Rows call columns. `●` permitted (a contract edge); `○` permitted only throu
 | **Applications** | ○ manifest | ○ register | ● | ● | ● typed | ● | ○ register | ● | ● | ● | ● | ● | ✗ | ● | ● | ● | ● | ✗ (peer apps: through D2 or S4 only) | ○ tools |
 | **I1 Intelligence** | ✗ | ✗ | ✗ | ● | ✗ | ✗ | ○ insight | ● | ● | ✗ | ● | ● | ✗ | ● | ✗ | ✗ | ✗ | ○ tools only | — |
 
-Three edges deserve a sentence. **Applications ✗ Applications**: an application never imports another (the `embedded`-prop pattern and the eleven `StockChart` importers are the debt this prevents); shared data goes through D2, shared context through S4. **Applications ✗ D1**: no application calls a vendor (66 modules build vendor URLs today — TD-29); it asks D2/D4, which asks D1. **I1 ○ Apps (tools only)**: the AI reads an application only through a registered tool with a declared provenance shape — the one door that keeps six lanes from becoming twelve.
+Three edges deserve a sentence. **Applications ✗ Applications**: an application never imports another (the `embedded`-prop pattern and the eleven `StockChart` importers are the debt this prevents); shared data goes through D2, shared context through S4. **Applications ✗ D1**: no application calls a vendor (66 modules build vendor URLs today — TD-29); it asks D2/D4, which asks D1. **Time-boxed build-out exception (added during Phase 3 validation, see §10's new reversibility-ledger row):** relaxed to Applications ○ D1(adapter-module-only) until D2 (Canonical Data Model) exists — new application call sites may call a D1 adapter module (e.g. `fmp_client.py`) directly during this window, never a raw vendor URL, and every such call site is a tracked debt item to re-point at D2 once it ships. **I1 ○ Apps (tools only)**: the AI reads an application only through a registered tool with a declared provenance shape — the one door that keeps six lanes from becoming twelve.
 
 ## 9. The six questions, per system
 
@@ -668,6 +668,7 @@ The table is the check against conflation. A proposal that says "we have breadth
 | **OI-17 / OQ-13 / OQ-15 / OQ-16** open-endpoint intent | S9, A1, A5, A10 | ARCH-06 assumes auth on every route TERMINAL-NEXT uses; production untouched | Treat as unintended; no program change |
 | **OQ-14** canonical earnings-date authority | A5 | One adapter conforms the bot; no application depends on the choice | `/api/calendar` canonical |
 | **OI-15** #tsdr corpus consent | A13, I1 | Desk-only tool allowlist row | Internal-only |
+| **Applications ✗ D1 build-out exception** (added Phase 3, `provider-abstraction-spec.md` §7.2) | §3's boundary matrix, D1 (Provider Abstraction) | New call sites use a named D1 adapter module only, never a raw vendor URL; each is logged so it can be re-pointed at D2 the day D2 ships — the boundary relaxes to a tracked debt list, not an open door | Relaxed (adapter-module-only) until D2 exists; reverts to the strict rule automatically once D2 ships |
 | **OI-08 / OI-18** Bloomberg seat, Gödel trial | Validation only | No design rests solely on either (Review §3 D) | Ceilings recorded |
 
 None of these is inferred from silence. Each stays open until the owner answers.

@@ -124,13 +124,43 @@ which no research pass has found.
 
 ## D13 — Regime-classifier authority
 
-**Status: OPEN, not yet decided.** Two regime classifiers exist in the estate today (the engine's
-`market_regimes` table and the dashboard's own classifier, per H6 of the hypothesis register).
-product-architecture.md's A11 (Breadth/Regime/Positioning) requires exactly ONE to be the
-authority for both the regime read and the verdict gate, but Phase 2 did not resolve which. *This
-is a technical-discovery item, not a research item* — a direct code/data comparison of the two
-classifiers' outputs on the same dates would settle it, and belongs in the narrow technical-
-discovery list (see the Phase 2 Integration Synthesis §7), not a new research wave.
+**Status: LOCKED (resolved 2026-09-02, Phase 3).** `voice_regime_classifier.get_current_regime()`
+(the dashboard's own 5-way breadth/VIX/MA/distribution-days/exposure heuristic) is the single live
+authority — grep-verified wiring into `grade_ticker`'s verdict gate, the Awareness Engine's R4
+regime-flip alert rule, and `brain_service`'s regime fallback. The engine's `market_regimes` table
+has exactly one dashboard reader (`/api/risk-summary`) and that route has zero frontend callers —
+confirmed dead code, not a competing authority. No reconciliation work is needed; `/api/risk-summary`
+is a candidate for formal retirement (a normal-operations item, not a Terminal-Next task).
+
+**A genuine, related finding surfaced during this investigation, tracked separately as RG-32
+(reported, not program-owned):** a third "regime" surface, `journal_two/regime.py`, buckets the
+UCT Exposure Rating score alone under the same word and is what Compass text chat shows ambiently
+— while its own `get_regime` tool call returns the real 5-way classifier's answer. A member can see
+two different regime words in one Compass conversation today. This does not affect S7's design
+(the alerts-monitoring spec correctly used the D13 finding, not the journal_two surface) but is
+worth the owner's attention as a normal-operations fix.
+
+## D14 — Applications ✗ D1 build-out exception
+
+**Status: RECOMMENDED, REVERSIBLE, self-expiring (Phase 3).** The boundary matrix's unconditional
+"no application calls a vendor" rule cannot hold before D2 (Canonical Data Model) and D1 (Provider
+Abstraction Layer) both exist — found by Phase 3's own adversarial validation when the Provider
+Abstraction Layer's technical spec needed to design real call sites today. Resolution: new
+application call sites may call a named D1 adapter module directly (never construct a raw vendor
+URL) during this window; every such call site is tracked and re-pointed at D2 once it ships. The
+exception is named in both `product-architecture.md`'s boundary matrix and reversibility ledger,
+and in `provider-abstraction-spec.md` §7.2, so it reads as a tracked decision, not a local
+rationalization. *What would change it:* nothing — it self-expires the day D2 ships.
+
+## D15 — Entity Master interim reconciliation job
+
+**Status: RECOMMENDED, REVERSIBLE, self-expiring (Phase 3).** Without an ongoing feed, the Entity
+Master (S3) goes stale the day after its one-time seed — before D5 (Reference & Corporate-Actions
+Data) exists to supply that feed. Resolution: S3's technical spec may build a narrow interim
+reconciliation job detecting new listings and delistings only — **never renames**, which needs D5's
+real corporate-action feed to do responsibly — explicitly authorized by the entity-master PRD §9.5.1
+with a named sunset condition (retire the day D5 ships). *What would change it:* nothing — it
+self-expires the day D5 ships.
 
 ---
 
@@ -150,4 +180,6 @@ discovery list (see the Phase 2 Integration Synthesis §7), not a new research w
 | D10 | Packs vs. tools | **Locked** | — |
 | D11 | Canonical model migration scope | Recommended, reversible | future evidence |
 | D12 | Canonical earnings-date authority | Recommended, reversible | future evidence |
-| D13 | Regime-classifier authority | **Open** | targeted technical discovery |
+| D13 | Regime-classifier authority | **Locked** | — |
+| D14 | Applications ✗ D1 build-out exception (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D2 ships |
+| D15 | Entity Master interim reconciliation job (Phase 3) | Recommended, reversible, self-expiring | reverts automatically when D5 ships |
