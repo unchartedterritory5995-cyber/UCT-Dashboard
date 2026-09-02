@@ -1,0 +1,162 @@
+/* BuzzRender.module.css — headless /r/buzz board.
+ *
+ * Lifted 1:1 from the owner-reviewed v4 reference
+ * (docs/superpowers/design/2026-09-01-buzz-board-v4-reference.html), which is
+ * the authority here — not this file's own judgment. Instrument Sans /
+ * Instrument Sans Tab are already self-hosted app-wide (app/index.html); this
+ * module does not redeclare @font-face.
+ */
+:root {
+  --buzz-gold: #c9a84c;
+  --buzz-page: #0a0a0a;
+  --buzz-chrome: #161616;
+  --buzz-chrometext: #888;
+  --buzz-muted: #9aa08f;
+  --buzz-ink: #e8e6e1;
+  --buzz-rule: #1e1e1e;
+}
+
+.wrap {
+  background: #000;
+}
+
+#buzz-export {
+  width: 1000px;
+  background: var(--buzz-page);
+  font-family: 'Instrument Sans', -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* chrome bar — same geometry as the chart export */
+.chrome {
+  height: 40px;
+  background: var(--buzz-chrome);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: var(--buzz-chrometext);
+  font-size: 14px;
+  position: relative;
+}
+.subject { color: var(--buzz-gold); font-weight: 700; font-size: 18px; }
+.where { margin-left: 8px; color: var(--buzz-muted); font-size: 13px; }
+.win { margin-left: 12px; }
+.lockup {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.lockup img { height: 18px; opacity: .95; }
+.lockup span { color: var(--buzz-gold); font-weight: 700; font-size: 13px; letter-spacing: .6px; }
+
+.body { padding: 30px 34px 26px; }
+.lead { font-size: 19px; line-height: 1.5; color: var(--buzz-ink); max-width: 76%; letter-spacing: -.15px; }
+.lead b { color: var(--buzz-gold); font-weight: 600; }
+.lead p + p { margin-top: 5px; }
+.meta {
+  margin-top: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--buzz-rule);
+  font-size: 11.5px;
+  color: var(--buzz-muted);
+  opacity: .72;
+  letter-spacing: .25px;
+}
+
+.r {
+  display: grid;
+  grid-template-columns: 74px 44px 190px 1fr 82px 62px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #ffffff08;
+}
+.sym {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 15.5px;
+  color: var(--buzz-ink);
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+.n {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 18px;
+  color: var(--buzz-gold);
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sp { display: flex; align-items: flex-end; gap: 1.5px; height: 24px; }
+.sp .s {
+  flex: 1;
+  min-width: 0;
+  background: var(--buzz-muted);
+  opacity: .28;
+  border-radius: 1px 1px 0 0;
+}
+.sp .s.hot { background: var(--buzz-gold); opacity: .6; }
+.ppl {
+  font-size: 12px;
+  color: var(--buzz-muted);
+  opacity: .62;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.hot {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 12px;
+  color: var(--buzz-gold);
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lbl {
+  margin-top: 24px;
+  font-size: 9.5px;
+  letter-spacing: 1.9px;
+  color: var(--buzz-muted);
+  opacity: .45;
+  font-weight: 700;
+}
+.multi { margin-top: 11px; display: flex; flex-wrap: wrap; column-gap: 20px; row-gap: 8px; }
+.m {
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 12.5px;
+  color: var(--buzz-muted);
+  opacity: .8;
+  font-variant-numeric: tabular-nums;
+}
+.m b { color: var(--buzz-ink); font-weight: 700; opacity: .9; margin-right: 5px; }
+.once {
+  margin-top: 9px;
+  font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
+  font-size: 10.5px;
+  line-height: 1.9;
+  color: var(--buzz-muted);
+  opacity: .34;
+  letter-spacing: .2px;
+}
+
+/* footer bar — 20px, same as the chart export */
+.foot {
+  height: 20px;
+  background: var(--buzz-chrome);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  color: var(--buzz-chrometext);
+  font-size: 10px;
+}
+
+.fallback {
+  color: #888;
+  padding: 20px;
+  background: var(--buzz-page);
+}

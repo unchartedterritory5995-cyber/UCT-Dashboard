@@ -110,6 +110,43 @@ def _rev_m(v):
     return v / 1e6 if abs(v) >= 1e6 else v
 
 
+@router.get("/r/buzz")
+def buzz_panel(token: str = "", window: str = "open"):
+    """Discord `/buzz` board data — token-gated public read over the buzz
+    ticker-mention store. Serves the headless `/r/buzz` React page that
+    chart-renderer screenshots for the Discord board image.
+
+    ⛔ PRIVACY: never add author_id, message_id, or jump links to this payload.
+    Those identify a member and belong only in the authenticated `/buzz`
+    command reply, answered inside the member's own server. This endpoint's
+    render token ships inside the frontend JS bundle (see module docstring),
+    so anything returned here is effectively public — aggregate counts and
+    tickers only.
+    """
+    _check_token(token)  # already calls _rate_limit() internally, like every other /r/* handler in this file
+    import time
+    from api.services import buzz_boards
+    now = int(time.time())
+    every = buzz_boards.full_board(window, now)        # EVERY ticker, ranked
+    head, tail = every[:14], every[14:]
+    multi, singles = buzz_boards.split_tail(tail)
+    hot = {h["ticker"]: h["ratio"] for h in buzz_boards.heat_board(now, limit=12)}
+    for r in head:
+        r["hot"] = hot.get(r["ticker"])
+    return {
+        "window": window,
+        "label": buzz_boards.WINDOW_LABEL.get(window, window),
+        "rows": head,
+        "tail":    [{"ticker": t["ticker"], "mentions": t["mentions"],
+                     "hot": hot.get(t["ticker"])} for t in multi],
+        "singles": singles,
+        "heat": buzz_boards.heat_board(now),
+        "totals": buzz_boards.totals(window, now),
+        "coverage": buzz_boards.coverage(now),
+        "asOf": now,
+    }
+
+
 @router.get("/r/earnings-history")
 def render_earnings_history(token: str = "", syms: str = ""):
     """Per-ticker last-reported-quarter ACTUALS + upcoming-quarter estimate & projected
