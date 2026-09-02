@@ -240,3 +240,22 @@ def is_early_stage(stage: Optional[int]) -> Optional[bool]:
     if stage is None:
         return None
     return stage <= 2
+
+
+# ⛔⛔ A FAST WHOLE-HISTORY TIMELINE WAS BUILT HERE AND DELETED. `stage_at`
+# re-segments `bars[:i+1]` on every call, so walking every anchor of a series is
+# quadratic — 33x slower than one full-series pass, which is why the
+# lift-by-stage measurement never finished. The obvious fix is to segment once
+# and index the result.
+#
+# It is wrong, and quietly. `zigzag` scales its threshold to the series' own
+# return sigma, so segmenting `bars[:i+1]` does not produce a prefix of
+# segmenting `bars` — it produces a DIFFERENT segmentation, computed on less
+# data, which is exactly what a live system would have had. Measured on a
+# 1,500-bar series the one-pass version reported stage 2 at bars where the
+# truncating version still said stage 1: it LEADS, which is look-ahead, in the
+# one direction that flatters a late-stage filter.
+#
+# So the slow path is the correct one and the measurement must pay for it.
+# Anyone reaching for the fast version again: the disagreement is not a rounding
+# artefact of the confirmation rule, it is the sigma window.
