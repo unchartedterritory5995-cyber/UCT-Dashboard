@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import styles from './FolderSidebar.module.css'
 
+// A migrated library (a decade of Evernote tags, say) can hand the tag cloud
+// hundreds of distinct tags. The cloud already sorts by count descending
+// (below) — that sort is the existing decision, kept as-is. This just caps
+// how many render by default, with a "Show all tags" affordance + a filter
+// input so a specific low-frequency tag stays reachable.
+const TAG_CAP = 40
+
 /**
  * Nest a flat folder list into a tree. A folder whose `parentId` doesn't
  * resolve to another folder in the set (null, or pointing at something
@@ -270,6 +277,8 @@ export default function FolderSidebar({
   const [mode, setMode] = useState('folders')
   const [query, setQuery] = useState('')
   const searchInputRef = useRef(null)
+  const [tagFilter, setTagFilter] = useState('')
+  const [showAllTags, setShowAllTags] = useState(false)
 
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
@@ -306,7 +315,12 @@ export default function FolderSidebar({
       .slice(0, 100)
   }, [notes, query])
 
-  // Tag cloud from current note list (counts).
+  // Tag cloud from current note list (counts), sorted by count descending —
+  // that sort is the pre-existing decision; TAG_CAP + the filter below are
+  // additive. NOTE: this is derived only from `notes` (the loaded page), so
+  // at migrated scale the counts are partial — a related, separately-tracked
+  // gap (also affects search). The cap here doesn't make that worse: it only
+  // trims how many of these (already partial) counts render.
   const tagCounts = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
@@ -314,6 +328,17 @@ export default function FolderSidebar({
     }
     return [...c.entries()].sort((a, b) => b[1] - a[1])
   }, [notes])
+
+  const tagsOverCap = tagCounts.length > TAG_CAP
+
+  // A filter match searches the FULL tag list (not just the capped slice) so
+  // a low-frequency tag pushed off the visible cap is still reachable by name.
+  const visibleTagCounts = useMemo(() => {
+    const q = tagFilter.trim().toLowerCase()
+    if (q) return tagCounts.filter(([t]) => t.toLowerCase().includes(q))
+    if (showAllTags || !tagsOverCap) return tagCounts
+    return tagCounts.slice(0, TAG_CAP)
+  }, [tagCounts, tagFilter, showAllTags, tagsOverCap])
 
   const unfiledCount = useMemo(
     () => notes.filter((n) => !n.folderId).length,
@@ -561,7 +586,17 @@ export default function FolderSidebar({
           {tagCounts.length > 0 && (
             <div className={styles.section}>
               <div className={styles.sectionLabel}>Tags</div>
-              {tagCounts.map(([t, c]) => (
+              {tagsOverCap && (
+                <input
+                  type="text"
+                  className={styles.tagFilterInput}
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  placeholder="Filter tags…"
+                  aria-label="Filter tags"
+                />
+              )}
+              {visibleTagCounts.map(([t, c]) => (
                 <button
                   key={t}
                   type="button"
@@ -572,6 +607,18 @@ export default function FolderSidebar({
                   <span className={styles.count}>{c}</span>
                 </button>
               ))}
+              {tagFilter.trim() && visibleTagCounts.length === 0 && (
+                <div className={styles.searchEmpty}>No tags match “{tagFilter.trim()}”.</div>
+              )}
+              {tagsOverCap && !showAllTags && !tagFilter.trim() && (
+                <button
+                  type="button"
+                  className={styles.addBtn}
+                  onClick={() => setShowAllTags(true)}
+                >
+                  Show all tags ({tagCounts.length})
+                </button>
+              )}
             </div>
           )}
         </>

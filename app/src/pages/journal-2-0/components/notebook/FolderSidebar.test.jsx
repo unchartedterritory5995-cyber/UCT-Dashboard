@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import FolderSidebar, { buildFolderTree } from './FolderSidebar'
 
 const removeMock = vi.fn()
@@ -115,5 +116,68 @@ describe('folder delete error surfacing', () => {
 
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
     expect(removeMock).toHaveBeenCalledWith('c')
+  })
+})
+
+describe('tag cloud cap for migrated libraries', () => {
+  // Tag `t{i}` ends up in count = (120 - i) notes: note j (0..119) carries
+  // tags t0..tj, so tag ti appears in every note j >= i. That gives 120
+  // distinct tags with strictly descending counts (t0=120 highest, t119=1
+  // lowest) — the shape a decade of Evernote tags lands on one page as, and
+  // exactly the sort order tagCounts already used before this change.
+  function buildNotesWithManyTags() {
+    const notes = []
+    for (let j = 0; j < 120; j += 1) {
+      const tags = []
+      for (let i = 0; i <= j; i += 1) tags.push(`t${i}`)
+      notes.push({ id: `n${j}`, title: `Note ${j}`, folderId: null, tags })
+    }
+    return notes
+  }
+
+  it('caps the tag list to the top 40 by count and reveals the rest via "Show all tags"', async () => {
+    const user = userEvent.setup()
+    const notes = buildNotesWithManyTags()
+    render(<FolderSidebar notes={notes} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+
+    // t0 (count 120, the highest) is within the cap; t119 (count 1, the
+    // lowest) is capped out until "Show all tags" is used.
+    expect(screen.getByText('#t0')).toBeInTheDocument()
+    expect(screen.queryByText('#t119')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /show all tags/i }))
+
+    expect(screen.getByText('#t119')).toBeInTheDocument()
+    // Once every tag renders, the "show all" affordance itself goes away.
+    expect(screen.queryByRole('button', { name: /show all tags/i })).not.toBeInTheDocument()
+  })
+
+  it('the filter input reaches a specific low-frequency tag without expanding the whole cloud', async () => {
+    const user = userEvent.setup()
+    const notes = buildNotesWithManyTags()
+    render(<FolderSidebar notes={notes} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+
+    expect(screen.queryByText('#t119')).not.toBeInTheDocument()
+
+    await user.type(screen.getByPlaceholderText(/filter tags/i), 't119')
+
+    expect(screen.getByText('#t119')).toBeInTheDocument()
+    // The filter narrows to matches only.
+    expect(screen.queryByText('#t0')).not.toBeInTheDocument()
+  })
+
+  it('a tag set at or under the cap renders with no cap affordances', () => {
+    const notes = [
+      { id: 'n1', title: 'One', folderId: null, tags: ['alpha', 'beta'] },
+      { id: 'n2', title: 'Two', folderId: null, tags: ['alpha'] },
+    ]
+    render(<FolderSidebar notes={notes} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    expect(screen.getByText('#alpha')).toBeInTheDocument()
+    expect(screen.getByText('#beta')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /show all tags/i })).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/filter tags/i)).not.toBeInTheDocument()
   })
 })
