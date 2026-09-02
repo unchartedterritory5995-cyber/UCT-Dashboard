@@ -336,3 +336,68 @@ async def test_disconnect_before_first_chunk_leaves_the_slot_held_until_self_hea
         path.unlink(missing_ok=True)
     except OSError:
         pass
+
+
+# ── Lease retirement order ───────────────────────────────────────────────────
+# The self-healing lease (A3 corrective) made the slot recoverable, but left
+# `release_export_slot()` retiring the NEWEST lease (`list.pop()`). Leases are
+# fungible only for COUNTING; for EXPIRY they are not, and the direction
+# matters. Retiring the newest keeps the SHORTEST-lived entry behind, so every
+# still-running export ends up represented by a lease that expires before its
+# own would have -- and the reclaim then frees a slot while its export is
+# still streaming. Retiring the SOONEST-expiring entry is the safe direction:
+# whatever is still running is always covered by a lease at least as long as
+# its own.
+#
+# Invisible at the default limit of 1 (one lease at a time), which is exactly
+# why it needs a rail: `NOTE_EXPORT_MAX_CONCURRENT` exists to be raised.
+
+
+@pytest.fixture(autouse=True)
+def _clear_export_leases():
+    """Lease state is module-global. Every test here happened to release what
+    it acquired, so the file was independent by luck rather than by design;
+    one early return would have leaked a lease into every later test."""
+    from api.services.journal_two import notes_export
+
+    notes_export._EXPORT_LEASES.clear()
+    yield
+    notes_export._EXPORT_LEASES.clear()
+
+
+def test_releasing_one_of_two_slots_retires_the_soonest_expiring_lease(
+    monkeypatch,
+):
+    """A release must never shorten the cover of an export still streaming."""
+    from api.services.journal_two import notes_export
+
+    clock = _FakeMonotonic()
+    monkeypatch.setattr(notes_export, "time", clock, raising=False)
+    monkeypatch.setenv("NOTE_EXPORT_MAX_CONCURRENT", "2")
+    monkeypatch.setenv("NOTE_EXPORT_LEASE_TTL_SECONDS", "1000")
+
+    assert notes_export.acquire_export_slot()      # export A, expires t=1000
+    clock.advance(100)
+    assert notes_export.acquire_export_slot()      # export B, expires t=1100
+
+    # A finishes and releases; B is still streaming.
+    notes_export.release_export_slot()
+
+    assert notes_export._EXPORT_LEASES == [1100.0], (
+        "release retired the wrong lease: the entry left behind must be the "
+        "LONGEST-lived one, since the export still running is covered by it. "
+        f"got {notes_export._EXPORT_LEASES!r}"
+    )
+
+    # The consequence, stated on observable behaviour rather than internals:
+    # at t=1001 the retired lease's expiry has passed but B's has not, so
+    # exactly ONE of the two slots may be handed out.
+    clock.advance(901)                             # now t=1001
+    assert notes_export.acquire_export_slot(), (
+        "the free slot should still be available -- A really did finish"
+    )
+    assert not notes_export.acquire_export_slot(), (
+        "B's slot was reclaimed while B is still streaming: the limit of 2 "
+        "is now serving 3 concurrent exports on a single-replica pod with "
+        "OOM history, which is the failure the limit exists to prevent"
+    )

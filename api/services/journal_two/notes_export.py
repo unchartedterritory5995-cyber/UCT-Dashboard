@@ -813,11 +813,12 @@ def _export_lease_ttl_seconds() -> float:
 
 
 # Each entry is one held slot's expiry, as a `time.monotonic()` timestamp.
-# Leases are fungible -- only the COUNT of unexpired entries matters, never
-# which particular entry a given `release_export_slot()` call removes (there
-# is no per-caller lease id to thread through `stream_export_file(path)` or
-# the router's bare `release_export_slot()` without changing their call
-# signatures, which are relied on outside this file).
+# There is no per-caller lease id (none can be threaded through
+# `stream_export_file(path)` or the router's bare `release_export_slot()`
+# without changing signatures used outside this file), so a release cannot
+# name ITS OWN lease. That makes leases fungible for COUNTING -- but NOT for
+# expiry, so the entry a release retires still has to be chosen, not taken
+# arbitrarily: see `release_export_slot`, which retires the minimum.
 _EXPORT_LEASES: list[float] = []
 _EXPORT_LEASES_LOCK = threading.Lock()
 
@@ -859,7 +860,16 @@ def release_export_slot() -> None:
     new way to leak a slot."""
     with _EXPORT_LEASES_LOCK:
         if _EXPORT_LEASES:
-            _EXPORT_LEASES.pop()
+            # Retire the SOONEST-expiring entry, never `pop()`'s newest one.
+            # Leases are fungible for COUNTING but not for EXPIRY: dropping
+            # the newest leaves the shortest-lived entry standing in for an
+            # export that is still streaming, so the reclaim above frees its
+            # slot early and the limit briefly serves limit+1. Dropping the
+            # minimum is the safe direction -- whatever is still running is
+            # always covered by a lease at least as long as its own.
+            # `min` rather than `pop(0)` so this holds even if the list is
+            # unsorted (the TTL is read from the environment per call).
+            _EXPORT_LEASES.remove(min(_EXPORT_LEASES))
 
 
 def stream_export_file(path: Path):
