@@ -1845,7 +1845,7 @@ CLOSE_H, CLOSE_M = 16, 0
 
 MIN_CURRENT = int(os.environ.get("BUZZ_HEAT_MIN_CURRENT", "5"))
 MIN_BASELINE = float(os.environ.get("BUZZ_HEAT_MIN_BASELINE", "1.0"))
-SPARK_BUCKETS = 8
+SPARK_BUCKETS = 26
 
 WINDOW_LABEL = {
     "open": "since the open", "today": "today", "noon": "since noon",
