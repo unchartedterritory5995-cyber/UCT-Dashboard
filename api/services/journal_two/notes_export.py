@@ -30,9 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from api.services.journal_two.attachment_root import (
-    LEGACY_ATTACHMENT_ROOT, attachment_root, read_candidates,
-)
+from api.services.journal_two.attachment_root import read_candidates_with_roots
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -106,10 +104,12 @@ def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str
     candidate, require it to still be `relative_to` the RESOLVED root (not
     the unresolved one) -- this is what actually catches an escape (a `..`
     segment, OR a symlink/junction under the root whose target lands outside
-    it) that string-matching would miss. Candidate paths come from
-    `attachment_root.read_candidates()` -- the SAME "where can attachments
-    live" list `notes.py::serve_note_image_path` uses -- so there is one
-    authority over primary-vs-legacy-root resolution, not two."""
+    it) that string-matching would miss. Candidate/root PAIRS come from
+    `attachment_root.read_candidates_with_roots()` -- the SAME pairing
+    `notes.py::serve_note_image_path` uses -- so there is one authority over
+    both "where can attachments live" AND which root each candidate must be
+    checked against; this function adds nothing but its own (stricter)
+    containment check per pair."""
     if sub not in ("hero", "inline", "file"):
         return None
     for part in (note_id, filename):
@@ -119,8 +119,7 @@ def _resolve_attachment_path(user_id: str, note_id: str, sub: str, filename: str
         return None
 
     rel = Path(user_id) / "notes" / note_id / sub / filename
-    roots = [attachment_root(), LEGACY_ATTACHMENT_ROOT]
-    for root, candidate in zip(roots, read_candidates(rel)):
+    for root, candidate in read_candidates_with_roots(rel):
         try:
             target = candidate.resolve()
             target.relative_to(root.resolve())

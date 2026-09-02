@@ -541,7 +541,12 @@ def test_path_traversal_via_directory_junction_is_rejected(attach_root, tmp_path
 
     link = attach_root / "u1" / "notes" / "escape_link"
     if not _make_escape_link(link, outside):
-        pytest.skip("no privilege to create a symlink/junction on this host")
+        pytest.skip(
+            "attachment path-traversal containment was NOT exercised on this "
+            "host: no privilege to create a symlink/junction, so the "
+            "filesystem-redirect escape this test proves against could not "
+            "be constructed here"
+        )
 
     c = sqlite3.connect(":memory:")
     c.row_factory = sqlite3.Row
