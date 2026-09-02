@@ -778,6 +778,133 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
         conn.close()
 
 
+# ── POST /obsidian/redeem (device connect-code exchange, Task 5b) ───────────
+#
+# The other half of the "device" `connect_kind` flow `_mint_device_connect_
+# code` above started: the member copied a connect code off the dashboard
+# (behind a real session + the paid gate, at MINT time); the Obsidian plugin
+# POSTs it here to trade it for a long-lived device token. Called by the
+# PLUGIN, not a browser -- same reasoning as `/obsidian/ingest` below, this
+# endpoint takes NO `Depends(get_current_user)` / session dependency at all.
+# Until this existed, a minted code had nothing to redeem against and
+# minting never created a `j2_note_sources` row, so nothing ever drove
+# `engine.sync_source` for Obsidian -- this closes both gaps in one endpoint.
+
+class ObsidianRedeemBody(BaseModel):
+    """Wire shape the (out-of-repo) Obsidian plugin POSTs to trade a connect
+    code for a device token. No `consent` field here: consent was already
+    given at MINT time (`ConnectBody.consent`, enforced in `connect()`
+    before `_mint_device_connect_code` ever runs, behind the session + paid
+    gate) -- redeeming is the plugin completing a flow the member already
+    consented to at the browser, not a second consent surface with nobody
+    at a browser to click it."""
+    code: str
+    vaultId: str
+    label: str | None = None
+
+
+@router.post("/obsidian/redeem")
+def obsidian_redeem(body: ObsidianRedeemBody) -> dict[str, Any]:
+    """Exchanges a connect code for a device token + creates (or reuses) the
+    `j2_note_sources` row that makes the sync engine pull this vault.
+
+    ⛔ No session cookie: the Obsidian plugin runs outside any browser, so
+    gating this like every other `/connect` call would make the flow
+    unreachable by construction. The connect code itself -- HMAC-signed,
+    embeds the minting user_id, single-use, 15-minute TTL, verified INSIDE
+    `redeem_connect_code` before this handler does anything else
+    (`obsidian_link.py`'s own module docstring) -- IS the credential, the
+    same shape `/obsidian/ingest` below already relies on for its own
+    device-token auth, one step earlier in the chain.
+
+    What stops an attacker from grinding codes (the task brief's own
+    question): this is not a short guessable PIN. A code is
+    base64(user_id:ts:nonce:sig) where `sig` is a FULL 256-bit HMAC-SHA256
+    digest over the rest, keyed by `PUSH_SECRET`/`VOICE_ACTION_SECRET`.
+    Forging a valid one without that secret is a 2^256 search, not a
+    rate-limitable few-thousand-guess space, so this is deliberately
+    resistant-by-entropy rather than `@limiter.limit`-decorated like
+    `auth.py`'s login/signup: this module carries `from __future__ import
+    annotations`, and slowapi's `functools.wraps`-based decorator resolves a
+    wrapped endpoint's string annotations against ITS OWN module globals
+    (`slowapi.extension`, where `ObsidianRedeemBody` does not exist), not
+    `note_sync`'s -- confirmed by reproduction: decorating this endpoint
+    made FastAPI stop recognizing `body` as a JSON payload at all and treat
+    it as a required, always-missing QUERY parameter, 422 on every call.
+    Rather than strip the future-annotations import repo-wide (out of this
+    task's scope, and every other endpoint here already depends on it) or
+    invent a bespoke, POST-body-agnostic per-IP counter no other connector
+    endpoint has, the fix is that a rate limiter is redundant here: the
+    15-minute TTL plus the single-use nonce
+    (`obsidian_link._used_connect_code_nonces`) already close the replay
+    window even if one code ever leaked, and entropy alone already makes
+    brute-forcing a valid signature computationally infeasible regardless of
+    how many requests per minute are allowed.
+
+    Never logs `raw_token` -- it is returned in the response body exactly
+    once and nowhere else (mirrors `redeem_connect_code`'s own docstring:
+    "the ONLY point the plaintext secret exists outside this call's stack
+    frame").
+
+    Idempotent per (user_id, vault_id): `connections.create_source` already
+    returns the existing row on a second redemption for the same vault
+    (Task 11's own idiom, reused verbatim here) -- a plugin reinstall or a
+    stale second `redeem` call never creates a duplicate `j2_note_sources`
+    row, exactly like `redeem_connect_code` itself rotates rather than
+    duplicates the device row.
+    """
+    entry = registry.get_entry("obsidian")
+    if not entry.configured():
+        # Mirrors `_mint_device_connect_code`'s own gate -- flipping
+        # `NOTE_SYNC_OBSIDIAN_ENABLED` off is the rollback lever, and it must
+        # stop a redemption in flight just as surely as it stops a new mint.
+        raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
+    vault_id = (body.vaultId or "").strip()
+    if not body.code or not vault_id:
+        raise HTTPException(status_code=400, detail="code and vaultId are required")
+
+    try:
+        device_id, raw_token = obsidian_link.redeem_connect_code(body.code, vault_id, body.label)
+    except errors.NoteConnError as e:
+        _raise_for_provider_error(e)
+
+    device = obsidian_link.get_device(device_id)
+    if device is None:
+        # Defensive only -- redeem_connect_code just wrote/rotated this
+        # exact row with this exact device_id; a None here would mean the
+        # write inside that call itself failed, which would already have
+        # raised rather than returning.
+        raise HTTPException(status_code=503, detail="Obsidian device could not be verified after redemption")
+    _require_paid_device_user(device["user_id"])  # same re-check /obsidian/ingest performs on every push
+
+    # ⛔ The `j2_note_sources` row alone is NOT enough to make
+    # `engine.sync_source` actually run: `_do_sync` calls
+    # `_resolve_credentials(user_id, "obsidian")` unconditionally and RAISES
+    # `NoteConnNotConfigured` (aborting the sync before `list_changed` is
+    # ever called) the moment that returns `None` -- and it returns `None`
+    # whenever no `j2_note_connectors` row exists for (user_id, provider),
+    # regardless of whether a source does. Every other provider's connect
+    # path (`_connect_token_provider` above) writes BOTH rows for exactly
+    # this reason; Obsidian has no real credential to store (push
+    # transport -- `ObsidianProvider` never reads `credentials` at all, see
+    # its own module docstring), so this upserts an empty placeholder blob
+    # purely to satisfy that unconditional resolution step. Reusing
+    # `_upsert_connector_or_503` (not a bare `connections.upsert_connector`
+    # call) keeps the SAME 503-not-a-traceback behavior every other
+    # provider gets if `NOTE_ENCRYPTION_KEY` is missing -- already a
+    # prerequisite here regardless, since `redeem_connect_code` itself just
+    # encrypted the device secret with the same key.
+    _upsert_connector_or_503(device["user_id"], "obsidian", {}, account_label=device["label"])
+
+    display_label = device["label"] or f"Vault ({vault_id})"
+    dest_folder_id = _default_dest_folder_id(device["user_id"], f"{entry.label} — {display_label}")
+    source = connections.create_source(
+        device["user_id"], "obsidian", vault_id,
+        display_name=device["label"], dest_folder_id=dest_folder_id,
+    )
+    return {"deviceId": device_id, "token": raw_token, "vaultId": vault_id, "source": source}
+
+
 # ── POST /obsidian/ingest (Obsidian plugin push transport, Task 3) ───────────
 #
 # Obsidian is local-first — the plugin PUSHES; the sync engine only PULLS from

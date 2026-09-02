@@ -252,6 +252,36 @@ def redeem_connect_code(
     return device_id, f"{device_id}:{secret_part}"
 
 
+def get_device(device_id: str) -> dict[str, Any] | None:
+    """Read-only device metadata lookup by id -- `{device_id, user_id,
+    vault_id, label}`, or `None` if no such row exists. Unlike
+    `authenticate_device`, this never touches the encrypted secret, never
+    updates `last_seen_at`, and is NOT an authentication check: it is meant
+    for a caller that already trusts `device_id` some other way -- Task 5b's
+    redeem endpoint calls this immediately after `redeem_connect_code`
+    returns, with the `device_id` THAT SAME CALL just wrote/rotated (our own
+    server-produced value at that point, not attacker input), purely to
+    recover `user_id`/`label` for creating the vault's `j2_note_sources`
+    row. Comparing a secret here would be pointless work against a value
+    nothing supplied from outside this request."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT id, user_id, vault_id, label FROM j2_obsidian_devices WHERE id = ?",
+            (device_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return None
+    return {
+        "device_id": row["id"],
+        "user_id": row["user_id"],
+        "vault_id": row["vault_id"],
+        "label": row["label"],
+    }
+
+
 def authenticate_device(raw_token: str) -> dict[str, Any] | None:
     """Returns `{device_id, user_id, vault_id, label}` for a currently
     valid device token, or `None` for anything else -- malformed input, an

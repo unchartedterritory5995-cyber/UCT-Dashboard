@@ -1,5 +1,7 @@
-"""HTTP-level tests for `POST /api/j2/notes/connectors/obsidian/ingest` --
-the Obsidian plugin's push transport (Task 3).
+"""HTTP-level tests for the Obsidian device push transport's two endpoints:
+`POST /api/j2/notes/connectors/obsidian/redeem` (Task 5b -- exchanges a
+connect code for a device token + creates the vault's `j2_note_sources`
+row) and `POST .../obsidian/ingest` (Task 3 -- the plugin's push transport).
 
 Spins up a minimal FastAPI app with just the note_sync router (mirrors
 `tests/test_note_sync_router.py`'s pattern) against a temp auth.db, and
@@ -19,9 +21,11 @@ from fastapi.testclient import TestClient
 from api.routers import note_sync as note_sync_router
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
-from api.services.journal_two.note_connectors import obsidian_link
+from api.services.journal_two.note_connectors import connections, obsidian_link
+from api.services.journal_two.note_connectors.providers.obsidian import ObsidianProvider
 
 _URL = "/api/j2/notes/connectors/obsidian/ingest"
+_REDEEM_URL = "/api/j2/notes/connectors/obsidian/redeem"
 
 
 def _seed_user(conn, user_id: str, *, plan: str | None = "pro", status: str = "active") -> None:
@@ -51,6 +55,13 @@ def client(tmp_path, monkeypatch):
 
     monkeypatch.setenv("PUSH_SECRET", "test-push-secret")
     monkeypatch.setenv("NOTE_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    # The redeem endpoint gates on the SAME registry `configured()` check
+    # `/obsidian/connect` uses to decide whether to mint a code at all -- a
+    # code that could never be minted with this flag off shouldn't be able
+    # to redeem with it off either. Ingest itself doesn't consult this flag
+    # (it only cares about a valid device token), so setting it here doesn't
+    # change any existing ingest test's behavior.
+    monkeypatch.setenv("NOTE_SYNC_OBSIDIAN_ENABLED", "1")
 
     app = FastAPI()
     app.include_router(note_sync_router.router)
@@ -251,3 +262,183 @@ def test_an_oversized_batch_is_refused_with_a_clean_4xx(client):
     )
     assert 400 <= r.status_code < 500, r.text
     assert _staging_rows("user-a", "vault-1") == []
+
+
+# ── POST /obsidian/redeem (Task 5b) ─────────────────────────────────────────
+
+def test_redeem_with_a_valid_code_returns_a_token_and_creates_exactly_one_source(client):
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(
+        _REDEEM_URL, json={"code": code, "vaultId": "vault-1", "label": "My Vault"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["deviceId"]
+    assert body["token"]
+    assert body["vaultId"] == "vault-1"
+    assert body["source"]["provider"] == "obsidian"
+    assert body["source"]["remoteId"] == "vault-1"
+
+    # The handed-back token actually authenticates as the redeeming user.
+    device = obsidian_link.authenticate_device(body["token"])
+    assert device is not None
+    assert device["user_id"] == "user-a"
+    assert device["vault_id"] == "vault-1"
+
+    sources = [s for s in connections.list_sources("user-a") if s["provider"] == "obsidian"]
+    assert len(sources) == 1
+    assert sources[0]["remoteId"] == "vault-1"
+
+
+def test_redeem_does_not_require_a_session_cookie(client):
+    """This router mounts with no session middleware/dependency override at
+    all in this fixture, so if `obsidian_redeem` accidentally depended on
+    `get_current_user` this call would fail (missing session), not succeed.
+    The plugin has no browser to hold a cookie in -- the connect code IS the
+    credential."""
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"}, cookies={})
+    assert r.status_code == 200, r.text
+
+
+def test_redeem_with_a_garbage_code_fails_cleanly_not_a_500(client):
+    r = client.post(_REDEEM_URL, json={"code": "not-a-real-code", "vaultId": "vault-1"})
+    assert r.status_code == 400, r.text
+    assert connections.list_sources("user-a") == []
+
+
+def test_redeem_with_an_expired_code_fails_cleanly(client):
+    import base64
+    import hashlib
+    import hmac
+    import time as _time
+
+    ts = str(int(_time.time()) - obsidian_link._CONNECT_CODE_TTL_SECONDS - 60)
+    nonce = "expired-test-nonce"
+    payload = f"user-a:{ts}:{nonce}"
+    sig = hmac.new(
+        obsidian_link._signing_secret(), payload.encode("utf-8"), hashlib.sha256
+    ).hexdigest()
+    code = base64.urlsafe_b64encode(f"{payload}:{sig}".encode("utf-8")).decode("utf-8")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"})
+    assert r.status_code == 400, r.text
+    assert connections.list_sources("user-a") == []
+
+
+def test_redeem_with_an_already_used_code_fails_cleanly(client):
+    code = obsidian_link.mint_connect_code("user-a")
+    r1 = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"})
+    assert r1.status_code == 200, r1.text
+    r2 = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"})
+    assert r2.status_code == 400, r2.text
+    # The rejected replay created nothing beyond the first, legitimate source.
+    assert len(connections.list_sources("user-a")) == 1
+
+
+def test_redeem_missing_code_or_vault_id_400(client):
+    r1 = client.post(_REDEEM_URL, json={"code": "", "vaultId": "vault-1"})
+    assert r1.status_code == 400
+    code = obsidian_link.mint_connect_code("user-a")
+    r2 = client.post(_REDEEM_URL, json={"code": code, "vaultId": "   "})
+    assert r2.status_code == 400
+    assert connections.list_sources("user-a") == []
+
+
+def test_redeem_not_configured_returns_503_not_a_500(client, monkeypatch):
+    monkeypatch.delenv("NOTE_SYNC_OBSIDIAN_ENABLED", raising=False)
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1"})
+    assert r.status_code == 503, r.text
+
+
+def test_redeem_free_plan_user_is_paid_gated(client):
+    code = obsidian_link.mint_connect_code("user-free")
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-free"})
+    assert r.status_code == 403, r.text
+    assert connections.list_sources("user-free") == []
+
+
+def test_reredeeming_the_same_vault_does_not_duplicate_the_source_row(client):
+    code1 = obsidian_link.mint_connect_code("user-a")
+    r1 = client.post(
+        _REDEEM_URL, json={"code": code1, "vaultId": "vault-1", "label": "My Vault"},
+    )
+    assert r1.status_code == 200, r1.text
+    device_id1, token1 = r1.json()["deviceId"], r1.json()["token"]
+
+    # A reinstall/reconnect for the SAME vault -- redeem_connect_code
+    # ROTATES the existing device row rather than refusing (Task 2's own
+    # contract); the source row must likewise stay singular, never duplicate.
+    code2 = obsidian_link.mint_connect_code("user-a")
+    r2 = client.post(_REDEEM_URL, json={"code": code2, "vaultId": "vault-1"})
+    assert r2.status_code == 200, r2.text
+    device_id2, token2 = r2.json()["deviceId"], r2.json()["token"]
+    assert device_id2 == device_id1
+
+    sources = [s for s in connections.list_sources("user-a")
+               if s["provider"] == "obsidian" and s["remoteId"] == "vault-1"]
+    assert len(sources) == 1
+
+    # The OLD token from the first redemption no longer authenticates --
+    # rotation, not an additional live credential.
+    assert obsidian_link.authenticate_device(token1) is None
+    assert obsidian_link.authenticate_device(token2) is not None
+
+
+# ── end-to-end: mint -> redeem -> ingest -> visible through the provider ────
+
+async def test_mint_redeem_ingest_chain_is_visible_through_the_provider_for_that_user_only(client):
+    """The test that proves the chain is actually connected, in one function:
+    mint a code, redeem it over HTTP, push a small final batch with a
+    manifest over HTTP, then read it back through `providers/obsidian.py`'s
+    OWN `list_changed`/`list_present_refs` -- the SAME hooks
+    `engine.sync_source` calls -- for the redeeming user, confirm a
+    different user sees nothing, and (the strongest proof available) run
+    the REAL sync engine over the created source end to end."""
+    code = obsidian_link.mint_connect_code("user-a")
+    r = client.post(
+        _REDEEM_URL, json={"code": code, "vaultId": "vault-e2e", "label": "E2E Vault"},
+    )
+    assert r.status_code == 200, r.text
+    redeemed = r.json()
+    token = redeemed["token"]
+
+    ingest_body = {
+        "consent": True,
+        "notes": [
+            _note("Ideas/one.md", "h1", "# One"),
+            {**_note("Ideas/two.md", "h2", "# Two"), "updated_at": "2026-09-02T00:00:01Z"},
+        ],
+        "manifest": ["Ideas/one.md", "Ideas/two.md"],
+        "final": True,
+    }
+    ir = client.post(_URL, headers={"Authorization": f"Bearer {token}"}, json=ingest_body)
+    assert ir.status_code == 200, ir.text
+    assert ir.json()["written"] == 2
+
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-e2e")
+    changed = await provider.list_changed({}, cursor=None)
+    assert {ref.remote_id for ref in changed} == {"Ideas/one.md", "Ideas/two.md"}
+    present = await provider.list_present_refs({})
+    assert {ref.remote_id for ref in present} == {"Ideas/one.md", "Ideas/two.md"}
+
+    # A different user's provider over the SAME vault_id sees nothing --
+    # nothing about the mint -> redeem -> ingest chain leaked cross-tenant.
+    other = ObsidianProvider(user_id="user-b", vault_id="vault-e2e")
+    assert await other.list_changed({}, cursor=None) == []
+    assert await other.list_present_refs({}) == []
+
+    # Strongest proof of all: the REAL sync engine, over the REAL source
+    # `redeem` created, actually completes -- this is exactly the path that
+    # was unreachable before `obsidian_redeem` also wrote a `j2_note_
+    # connectors` row (without one, `engine._resolve_credentials` returns
+    # None and `_do_sync` raises before `list_changed` is ever called).
+    from api.services.journal_two import notes as notes_svc
+    from api.services.journal_two.note_connectors import engine as sync_engine
+
+    source_id = redeemed["source"]["id"]
+    result = await sync_engine.sync_source(source_id, full=True, manual=True)
+    assert result["status"] == "ok", result
+    assert result["created"] == 2
+    titles = {n["title"] for n in notes_svc.list_notes("user-a")}
+    assert titles == {"One", "Two"}
