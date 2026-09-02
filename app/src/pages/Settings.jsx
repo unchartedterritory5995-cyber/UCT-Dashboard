@@ -1931,7 +1931,7 @@ export default function Settings() {
                 <ul className={styles.proList}>
                   <li>Morning Wire — daily pre-market brief &amp; top picks</li>
                   <li>Screener &amp; Patterns — the setup scanner + pattern engine</li>
-                  <li>UCT 20 leadership, Theme Tracker &amp; Calendar</li>
+                  <li>UCT 20 leadership, Theme Tracker &amp; UCT Terminal</li>
                   <li>Research dossiers — fundamentals, analyst &amp; ownership depth</li>
                   <li>Compass — AI coaching, voice &amp; pre-trade verdicts</li>
                 </ul>

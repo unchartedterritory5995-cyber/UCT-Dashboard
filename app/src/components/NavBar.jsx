@@ -20,7 +20,7 @@ export const NAV_ITEMS = [
   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
-  { to: '/calendar',     label: 'Calendar',      icon: 'calendar' },
+  { to: '/calendar',     label: 'UCT Terminal',  icon: 'calendar' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
