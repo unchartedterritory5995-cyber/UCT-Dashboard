@@ -197,41 +197,38 @@ def test_buzz_image_job_keeps_the_text_reply_when_the_render_raises():
     assert calls[0].get("png") is None
 
 
-def test_no_bar_overflows_its_column_when_the_leader_is_not_the_loudest(mods):
-    """⛔ CAUGHT IN PRODUCTION, 2026-09-02, by reading the real reply rather
-    than the code. `_bar` scaled to rows[0]["mentions"], but the board ranks by
-    distinct PEOPLE -- so row 0 is not the mentions maximum, and every louder
-    row drew a bar past the column. Live: SNDK led on people with 25 mentions
-    while MU had 37, so MU rendered 27 blocks in an 18-wide column and the
-    block ran ragged.
-
-    ⚠️ The RENDERED board had the identical bug and was fixed there first; this
-    is the mirrored lane (lesson_rail_the_mirror_not_just_the_lane).
-
-    QUIET is the leader on people (4) with few mentions; LOUD has far more
-    mentions and fewer people, so the two answers disagree by construction.
-    """
+def test_the_text_bars_never_step_up_below_a_higher_ranked_row(mods):
+    """⛔ THE BOARD MUST NOT CONTRADICT ITS OWN ORDER. Bars drew MENTIONS while
+    the board ranks by PEOPLE, so the widest element on each row came from a
+    different number than the sort. Measured live 2026-09-02 12:56p: three of
+    fourteen rows stepped UP, e.g. DELL (8 people / 18 mentions) below COIN
+    (9 / 9) with nearly double the bar. A reader takes the long bar as the
+    rank. Drawing people makes it monotonic BY CONSTRUCTION."""
     store, reply = mods
     import datetime as dt
     ET = dt.timezone(dt.timedelta(hours=-4))
     now = int(dt.datetime(2026, 9, 1, 15, 0, tzinfo=ET).timestamp())
     ts = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
-    mid = 7000
-    # QUIET: 4 people, 4 mentions -> ranks first (people DESC)
-    for i in range(4):
-        store.record_mentions([(str(mid), CH, f"q{i}", "QUIET", ts, "exact")]); mid += 1
-    # LOUD: 2 people, 30 mentions -> ranks second but is the loudest
-    for i in range(30):
-        store.record_mentions([(str(mid), CH, f"l{i % 2}", "LOUD", ts, "exact")]); mid += 1
+    mid = 9000
+    # BROAD leads on people with few mentions; LOUD has far more mentions and
+    # fewer people -- the exact shape that made the old bars step up.
+    for i in range(9):
+        store.record_mentions([(str(mid), CH, f"b{i}", "BROAD", ts, "exact")]); mid += 1
+    for i in range(20):
+        store.record_mentions([(str(mid), CH, f"l{i % 4}", "LOUD", ts, "exact")]); mid += 1
 
     text = reply.build_board_text(now, "open")
-    rows = [ln for ln in text.splitlines() if ln.startswith(("QUIET", "LOUD"))]
-    assert len(rows) == 2, text
-    for ln in rows:
-        bars = ln.count("█")
-        assert 1 <= bars <= reply.BAR_W, f"bar overflowed its column: {bars} in {ln!r}"
-    # CONTROL: the loudest row must still be the LONGEST bar, or "no overflow"
-    # would also be satisfied by drawing every bar one block wide.
-    loud = next(l for l in rows if l.startswith("LOUD"))
-    quiet = next(l for l in rows if l.startswith("QUIET"))
-    assert loud.count("█") > quiet.count("█")
+    bars = [ln.count("█") for ln in text.splitlines() if ln.startswith(("BROAD", "LOUD"))]
+    assert len(bars) == 2, text
+    assert bars == sorted(bars, reverse=True), f"bar stepped up below a higher row: {bars}"
+    assert all(1 <= b <= reply.BAR_W for b in bars)
+
+
+# ⚰️ test_no_bar_overflows_its_column_when_the_leader_is_not_the_loudest lived
+# here until 2026-09-02. It asserted the LOUDEST row draws the longest bar,
+# which was right while bars drew mentions and is wrong now that they draw
+# PEOPLE -- the quantity the board is actually ranked by. Its real content
+# (no bar exceeds BAR_W) is carried by the monotonicity rail above, which is
+# strictly stronger: a bar that overflows also breaks the ordering it belongs
+# to. Removed rather than left contradicting its replacement.
+

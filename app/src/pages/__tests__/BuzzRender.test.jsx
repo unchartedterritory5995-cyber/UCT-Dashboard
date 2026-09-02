@@ -73,35 +73,40 @@ describe('BuzzRender', () => {
     expect(await screen.findByText(/messages with tickers/i)).toBeInTheDocument()
   })
 
-  it('scales the magnitude bar to the loudest row, not the first one', async () => {
-    // The board ranks by DISTINCT PEOPLE, so the top row is not necessarily
-    // the one with the most mentions — three people saying a name forty times
-    // outranks nobody. Reading rows[0].mentions as the maximum would render a
-    // bar WIDER THAN ITS TRACK on exactly the rows the board exists to
-    // surface. This payload puts the loudest row second on purpose.
+  it('never draws a bar that steps up below a higher-ranked row', async () => {
+    // ⛔ THE BOARD MUST NOT CONTRADICT ITS OWN ORDER. Bars drew MENTIONS while
+    // the board ranks by PEOPLE, so the widest element on each row came from a
+    // different number than the sort — measured live 2026-09-02, three of
+    // fourteen rows stepped UP (DELL 8 people/18 mentions sat below COIN 9/9
+    // with nearly double the bar). Drawing people makes it monotonic BY
+    // CONSTRUCTION. This payload puts the loudest row second on purpose.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
         window: 'open', label: 'since the open',
         rows: [
-          { ticker: 'AAAA', people: 14, mentions: 10, spark: [1], hot: null },
-          { ticker: 'BBBB', people: 5, mentions: 40, spark: [1], hot: null },
+          { ticker: 'BROAD', people: 9, mentions: 9, spark: [1], hot: null },
+          { ticker: 'LOUD', people: 4, mentions: 40, spark: [1], hot: null },
         ],
         coverage: 'counted through 3:58p', asOf: 1,
       }),
     })))
     const { container } = render(<BuzzRender />)
-    await screen.findByText('AAAA')
-    const bars = container.querySelectorAll('[data-buzz-bar]')
-    expect(bars).toHaveLength(2)
-    // Assert the RATIO and the unit separately: jsdom re-serializes CSS, so
-    // the "100.0%" the component writes reads back as "100%". Pinning the
-    // literal string would be a test of jsdom's serializer, not of the
-    // scaling. The unit check keeps a px regression from passing on the float.
-    expect(bars[0].style.width.endsWith('%')).toBe(true)
-    expect(parseFloat(bars[1].style.width)).toBe(100)
-    expect(parseFloat(bars[0].style.width)).toBe(25)
+    await screen.findByText('BROAD')
+    const widths = [...container.querySelectorAll('[data-buzz-bar]')]
+      .map((el) => parseFloat(el.style.width))
+    expect(widths).toHaveLength(2)
+    // The higher-ranked row must not have the shorter bar.
+    expect(widths[0]).toBeGreaterThan(widths[1])
+    expect(Math.max(...widths)).toBe(100)
   })
+
+  // ⚰️ "scales the magnitude bar to the loudest row" lived here until
+  // 2026-09-02. It asserted bars scale to max MENTIONS, which was right while
+  // bars drew mentions and is wrong now that they draw PEOPLE -- the quantity
+  // the board is ranked by. Its content is carried by the monotonicity rail
+  // above, which is strictly stronger: a bar scaled to the wrong quantity
+  // shows up as an ordering break. Removed rather than left contradicting it.
 
   // ── The export container's geometry. Both halves of one guard.
   //
