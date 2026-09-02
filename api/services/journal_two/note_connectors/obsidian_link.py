@@ -177,7 +177,14 @@ def _verify_connect_code(code: str) -> str:
     secret = _signing_secret()  # NoteConnNotConfigured propagates uncaught
     payload = f"{user_id}:{ts_str}:{nonce}"
     expected = hmac.new(secret, payload.encode("utf-8"), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, sig):
+    # BYTES, not str: `sig` was decoded from an attacker-controlled base64
+    # blob via .decode("utf-8"), so it can legally contain non-ASCII
+    # characters. hmac.compare_digest raises TypeError (not a False result)
+    # when handed two `str` and either contains a non-ASCII character --
+    # measured, not assumed (see authenticate_device's fix below for the
+    # reproduction). Encoding both sides first makes a garbage `sig` compare
+    # false like any other mismatch, never crash the caller.
+    if not hmac.compare_digest(expected.encode("utf-8"), sig.encode("utf-8")):
         raise bad
     try:
         ts = int(ts_str)
@@ -250,7 +257,15 @@ def authenticate_device(raw_token: str) -> dict[str, Any] | None:
     valid device token, or `None` for anything else -- malformed input, an
     unknown device_id, or a secret that doesn't match. NEVER raises for a
     bad/garbage token (a malicious or malfunctioning plugin push must not
-    be able to crash the ingest path); a genuine server misconfiguration
+    be able to crash the ingest path) -- ⛔ this was FALSE until the fix
+    below: `hmac.compare_digest` on two `str` raises `TypeError` (not a
+    False result) the moment either side contains a non-ASCII character,
+    and the Authorization header is latin-1 decoded upstream, so a single
+    raw byte >= 0x80 in the device's secret half reached here as a
+    non-ASCII `str` and turned into a 500 on the live ingest auth path
+    (measured, not assumed). Comparing BYTES instead -- `.encode("utf-8")`
+    on both sides right before `compare_digest` -- makes that same input
+    compare false like any other mismatch. A genuine server misconfiguration
     (`NOTE_ENCRYPTION_KEY` unset, so no stored secret can be decrypted) is
     indistinguishable from "no valid device" here BY DESIGN -- failing
     closed (nothing authenticates) is the safe direction, the read-side
@@ -281,7 +296,10 @@ def authenticate_device(raw_token: str) -> dict[str, Any] | None:
             stored_secret = crypto_box.NoteBox.decrypt(row["token_enc"])
         except crypto_box.CryptoBoxError:
             return None
-        if not hmac.compare_digest(stored_secret, secret_part):
+        # BYTES, not str -- see the docstring above. A non-ASCII secret_part
+        # (one raw header byte >= 0x80, latin-1 decoded upstream) must
+        # compare false here, never raise TypeError into the ingest path.
+        if not hmac.compare_digest(stored_secret.encode("utf-8"), secret_part.encode("utf-8")):
             return None
         conn.execute(
             "UPDATE j2_obsidian_devices SET last_seen_at = ? WHERE id = ?",

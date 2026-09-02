@@ -39,7 +39,7 @@ from api.middleware.auth_middleware import (
     PAID_PLANS,
     get_current_user,
     get_current_user_optional,
-    is_paid_user,
+    meets_plan_gate,
     require_plan,
 )
 from api.services import auth_service, crypto_box
@@ -782,6 +782,20 @@ class ObsidianNoteItem(BaseModel):
     updated_at: str
 
 
+# The ingest batch's top-level notes-array key -- PINNED. This name is a wire
+# contract with the out-of-repo Obsidian plugin (Wave 3b): nothing upstream
+# of this router enforces that the plugin actually names its field this way.
+# `ObsidianIngestBody.notes` is declared REQUIRED (no `= []` default) so a
+# batch that sends the notes array under a different or misspelled key
+# fails LOUDLY here -- a 400 naming exactly which field pydantic couldn't
+# find -- instead of pydantic silently filling in an empty list and the
+# endpoint returning a 200 with `written: 0` that reads as a successful,
+# merely-empty push. `manifest`/`final` stay genuinely optional (the router
+# docstring below already marks them `manifest?`/`final?`); only the notes
+# key is load-bearing enough to pin this way.
+OBSIDIAN_INGEST_NOTES_FIELD = "notes"
+
+
 class ObsidianIngestBody(BaseModel):
     """Wire shape the (out-of-repo, Wave 3b) Obsidian plugin pushes.
     `consent` mirrors `ConnectBody.consent` above — the SAME gate, not a
@@ -790,9 +804,12 @@ class ObsidianIngestBody(BaseModel):
     field: those two values come EXCLUSIVELY from the authenticated device
     (`_authenticate_obsidian_device`) — a same-named field in the body is
     silently ignored by pydantic, never read, so a forged one cannot steer
-    a write to a different tenant."""
+    a write to a different tenant. Unrecognized EXTRA fields (e.g. a
+    same-named-but-irrelevant `user_id`) are likewise silently ignored --
+    deliberately: only `OBSIDIAN_INGEST_NOTES_FIELD` itself is pinned, see
+    above."""
     consent: bool = False
-    notes: list[ObsidianNoteItem] = []
+    notes: list[ObsidianNoteItem]
     manifest: list[str] | None = None
     final: bool = False
 
@@ -802,9 +819,18 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
     same `Authorization: Bearer <token>` idiom every other bearer-token
     endpoint in this codebase uses (`push.py`, `desk_zoom_webhook.py`).
     Raises 401 for a missing/malformed header or any token
-    `authenticate_device` doesn't recognize; that function itself never
-    raises for a bad/garbage token, so this can't turn a malicious or
-    malfunctioning plugin push into a 500."""
+    `authenticate_device` doesn't recognize.
+
+    ⛔ That "never raises for a bad/garbage token" claim about
+    `authenticate_device` was FALSE until obsidian_link.py's
+    `compare_digest` calls were fixed to compare BYTES: headers are
+    latin-1 decoded, so a raw byte >= 0x80 in the token's secret half
+    reached `hmac.compare_digest` as a non-ASCII `str` and raised
+    `TypeError` -- a 500 on this exact auth path, not the clean 401 above
+    (measured, not assumed). Restated here as its own claim, not a
+    cross-reference, is how it went unverified for two files at once;
+    read `authenticate_device`'s own docstring for the mechanism, not this
+    comment."""
     auth = request.headers.get("authorization") or ""
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -816,20 +842,23 @@ def _authenticate_obsidian_device(request: Request) -> dict[str, Any]:
 
 
 def _require_paid_device_user(user_id: str) -> None:
-    """The SAME predicate `_paid`/`require_plan(list(PAID_PLANS))` enforces
-    on every other connector endpoint (admin, OR a PAID_PLANS plan, OR
-    'comped', OR an active trial) — reimplemented as a plain call rather than
-    a `Depends` only because `require_plan`'s dependency chain resolves the
-    caller from the SESSION COOKIE (`get_current_user_with_plan`), and a
-    device push carries no session to read one from. The identity itself
-    still comes from ONLY the already-authenticated device — this never
-    reads a user id out of the request."""
+    """Calls the SAME predicate — `auth_middleware.meets_plan_gate` — that
+    `_paid`/`require_plan(list(PAID_PLANS))` enforces on every other
+    connector endpoint (admin, OR a PAID_PLANS plan, OR 'comped', OR an
+    active trial). Not a `Depends` because `require_plan`'s dependency chain
+    resolves the caller from the SESSION COOKIE (`get_current_user_with_
+    plan`), and a device push carries no session to read one from — but the
+    entitlement RULE itself is not reimplemented here, only the plumbing
+    that gets a user dict without a cookie. One predicate, two ways of
+    reaching it, so the cookie path and the device path can never drift.
+    The identity itself still comes from ONLY the already-authenticated
+    device — this never reads a user id out of the request."""
     user = auth_service.get_user_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=403, detail="Upgrade required")
     user = dict(user)
     user["plan"] = auth_service.get_user_plan(user_id)
-    if user.get("role") == "admin" or user["plan"] == "comped" or is_paid_user(user):
+    if meets_plan_gate(user, list(PAID_PLANS)):
         return
     raise HTTPException(status_code=403, detail="Upgrade required")
 

@@ -79,13 +79,26 @@ def _table_names(conn):
 
 
 def test_ensure_schema_upgrades_a_pre_v6_shaped_db_and_is_idempotent(tmp_path, monkeypatch):
-    """THE load-bearing case. Build a pre-v6-shaped DB (current _J2_SCHEMA minus
-    the 3 new Obsidian tables, dropped after creation — same technique
-    test_note_connectors_db.py uses for its v3 precedent), seed a row in an
-    unrelated existing table, drive ensure_schema() itself (never
-    run_notebook_migration_v6 directly), and confirm: the three tables appear,
-    the seeded row survives untouched, and a second ensure_schema() call is a
-    clean no-op."""
+    """THE load-bearing case.
+
+    ⛔ Review-1 finding: the current `_J2_SCHEMA` (the module constant this
+    test builds the "pre-v6" DB from) already defines all three Obsidian
+    tables via `CREATE TABLE IF NOT EXISTS`, and `ensure_schema()`
+    unconditionally executes the FULL current `_J2_SCHEMA` as its very first
+    statement -- before `run_notebook_migration_v6` ever runs. So dropping
+    the tables and calling `ensure_schema()` proved nothing about the
+    migration: the fresh-schema step recreates them regardless of what the
+    migration does. Measured, not assumed -- stubbing
+    `run_notebook_migration_v6` to a no-op left the old version of this test
+    GREEN.
+
+    The fix: `_J2_SCHEMA` is patched, for this call only, to a version with
+    the Obsidian block stripped out -- a state the REAL, current
+    `_J2_SCHEMA` cannot reach on its own -- so `ensure_schema()`'s own
+    fresh-schema step genuinely cannot create the three tables, and only
+    `run_notebook_migration_v6` can. THAT is what makes a no-op stub of the
+    migration go red here.
+    """
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     c = sqlite3.connect(str(tmp_path / "pre_v6.db"))
     c.row_factory = sqlite3.Row
@@ -103,6 +116,20 @@ def test_ensure_schema_upgrades_a_pre_v6_shaped_db_and_is_idempotent(tmp_path, m
     )
     c.commit()
 
+    # Neuter the fresh-schema path for the ensure_schema() calls below: strip
+    # the Obsidian block (3 CREATE TABLEs + 1 CREATE INDEX) out of the
+    # `_J2_SCHEMA` string ensure_schema() executes first, so it genuinely
+    # cannot recreate the three tables -- only run_notebook_migration_v6 can.
+    start_marker = "-- ── Obsidian ingest (Wave 3a)"
+    end_marker = "-- ── Notebook widget-embed sidecar (Journal Widgets)"
+    start = j2db._J2_SCHEMA.index(start_marker)
+    end = j2db._J2_SCHEMA.index(end_marker)
+    assert start < end, "the Obsidian schema block markers moved — update this test"
+    schema_without_obsidian = j2db._J2_SCHEMA[:start] + j2db._J2_SCHEMA[end:]
+    for t in _OBSIDIAN_TABLES:
+        assert t not in schema_without_obsidian, f"{t} DDL survived the strip"
+    monkeypatch.setattr(j2db, "_J2_SCHEMA", schema_without_obsidian)
+
     j2db.ensure_schema(c)
 
     tables = _table_names(c)
@@ -112,7 +139,10 @@ def test_ensure_schema_upgrades_a_pre_v6_shaped_db_and_is_idempotent(tmp_path, m
     folder = c.execute("SELECT * FROM j2_note_folders WHERE id='f1'").fetchone()
     assert folder is not None and folder["name"] == "Ideas"
 
-    # Idempotent second run — no crash, seeded row intact.
+    # Idempotent second run — no crash, seeded row intact. Still under the
+    # patched (Obsidian-stripped) schema, so this call also depends on the
+    # migration's OWN idempotency (table-existence probe + CREATE TABLE IF
+    # NOT EXISTS + the .notebook_migration_v6 flag), not on the schema script.
     j2db.ensure_schema(c)
     assert _table_names(c) >= set(_OBSIDIAN_TABLES)
     assert c.execute("SELECT COUNT(*) FROM j2_note_folders").fetchone()[0] == 1
@@ -309,6 +339,26 @@ def test_reconnecting_the_same_vault_rotates_the_token_rather_than_refusing(env)
     assert result2 is not None
     assert result2["user_id"] == "user-a"
     assert result2["label"] == "My Vault", "a None label on reconnect preserves the prior label"
+
+
+def test_authenticate_device_fails_closed_on_a_non_ascii_secret_half(env):
+    """`hmac.compare_digest` raises `TypeError` (never a `False` result) the
+    moment either side is a `str` containing a non-ASCII character --
+    confirmed directly above (not assumed): `hmac.compare_digest('short',
+    b'\\xff'.decode('latin-1'))` raises. The Authorization header a real
+    request carries is latin-1 decoded upstream
+    (note_sync.py::_authenticate_obsidian_device), so a single raw byte
+    >= 0x80 in the token's secret half reaches `authenticate_device` as a
+    non-ASCII `str`. Before comparing BYTES, that TypeError propagated past
+    this function's None-or-dict contract -- a malformed/malicious plugin
+    push turned into a 500 on the live ingest auth path instead of the
+    clean auth failure this test pins. Must fail (raise) against the
+    unfixed code."""
+    code = obsidian_link.mint_connect_code("user-a")
+    device_id, _ = obsidian_link.redeem_connect_code(code, "vault-1", "My Vault")
+    non_ascii_secret = b"\xff".decode("latin-1")
+    forged = f"{device_id}:{non_ascii_secret}"
+    assert obsidian_link.authenticate_device(forged) is None
 
 
 def test_minting_fails_closed_with_no_signing_secret(env, monkeypatch):
