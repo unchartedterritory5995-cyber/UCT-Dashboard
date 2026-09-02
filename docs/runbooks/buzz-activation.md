@@ -29,20 +29,30 @@ reversible; Step 4 is the one members can see.
 | `DISCORD_BOT_TOKEN` | the poller, the backfill, `tools/buzz_perms.py` | **reading** `#main-chat` |
 | `DISCORD_CHART_BOT_TOKEN` | `tools/discord_chart_commands.py` | **registering** the slash command (Step 4) |
 
-⚠️ **`DISCORD_BOT_TOKEN` has no other consumer anywhere in this app**, so unless
-you set it for something else it is almost certainly unset on Railway today. It
-is the single most likely thing to miss, which is why it is Step 0.
+**Measured 2026-09-01, not assumed:**
 
-The bot this token belongs to is the one that needs the channel permission in
-Step 1 — grant it to *that* bot's role, not whichever bot you registered the
-chart commands under (they may be the same app; check before assuming).
+- `DISCORD_BOT_TOKEN` is **NOT SET** on Railway `web` (read live via
+  `railway variables --service web --kv`; 203 vars, this is not one of them).
+- The value already exists on the dev box at
+  **`C:\Users\Patrick\uct_intelligence\.env`** — the RAG bot's repo. That bot is
+  **"UCT Intelligence"**, application id `1474900505917653142`, and it is already
+  a member of the guild (`882293203485720596`), where it can see 85 channels.
+- ⛔ **That is a DIFFERENT application from the one serving the slash commands**
+  (`DISCORD_CHART_APP_ID = 1541909310588719104`). Two apps, two tokens. The chart
+  app's bot token is on **no** machine here — it is only needed for Step 4.
+
+So Step 0 is a copy, not a hunt:
 
 ```bash
-railway variables --service web --set DISCORD_BOT_TOKEN=<bot-token>
+railway variables --service web --set DISCORD_BOT_TOKEN=<value from uct_intelligence/.env>
 ```
 
-Put the same value in your local `.env` — Steps 1 and 3 run tools that read it
-from there.
+Put the same value in this repo's local `.env` — Steps 1 and 3 run tools that
+read it from there.
+
+> The bot this token belongs to ("UCT Intelligence") is the one that needs the
+> channel permission in Step 1. Grant it to **that** bot's role — not the chart
+> app, which never reads messages.
 
 > Don't redeploy yet; you will set `BUZZ_CHANNELS` in Step 2 and redeploy once.
 
@@ -69,6 +79,12 @@ the `UCT Intelligence` role, on that one channel:
 
 Discord → **Server Settings → Channels → `#main-chat` → Permissions →
 Add members or roles → `UCT Intelligence`** → enable both.
+
+**Measured 2026-09-01:** `#main-chat` is id **`1216816863313657886`**, and the
+`UCT Intelligence` bot is currently **BLIND** on it — and on every other
+main/general/chat/trading channel in the guild. It is not a guild admin and holds
+no `MANAGE_ROLES`, so **it cannot grant itself access**: this step is a human
+action in the Discord UI and nothing can automate it.
 
 > ⛔ **Do not click "Sync Now"** on that channel. Sync replaces the channel's own
 > overrides with its category's, which silently removes the grant you just made.
@@ -186,8 +202,16 @@ The tool prints pages, messages and mentions as it walks. At the end:
 
 This is the step members can see.
 
+⛔ **This needs the CHART app's bot token** (`DISCORD_CHART_APP_ID =
+1541909310588719104`), which is **not on this machine** — checked every `.env`
+under `uct-dashboard`, `uct_intelligence`, `uct-intelligence`, `morning-wire` and
+the worktrees. Fetch it from the Discord Developer Portal for that application.
+The `UCT Intelligence` bot token from Step 0 is a **different app** and must not
+be used here: it would register the commands against the wrong application.
+
 ```bash
-python tools/discord_chart_commands.py register --guild <GUILD_ID>
+DISCORD_CHART_BOT_TOKEN=<chart app bot token> \
+  python tools/discord_chart_commands.py register --guild 882293203485720596
 ```
 
 > **Registration is all-or-nothing.** `build_commands()` returns
