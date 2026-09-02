@@ -373,3 +373,28 @@ def test_redeeming_fails_closed_with_no_encryption_key(env, monkeypatch):
     monkeypatch.delenv("NOTE_ENCRYPTION_KEY", raising=False)
     with pytest.raises(errors.NoteConnNotConfigured):
         obsidian_link.redeem_connect_code(code, "vault-1", "My Vault")
+
+
+# ── revoke_devices (disconnect gap fix, 2026-09-02) ──────────────────────────
+
+def test_revoke_devices_deletes_every_row_for_that_user_only(env):
+    code_a1 = obsidian_link.mint_connect_code("user-a")
+    _, token_a1 = obsidian_link.redeem_connect_code(code_a1, "vault-1", "Vault 1")
+    code_a2 = obsidian_link.mint_connect_code("user-a")
+    _, token_a2 = obsidian_link.redeem_connect_code(code_a2, "vault-2", "Vault 2")
+    code_b = obsidian_link.mint_connect_code("user-b")
+    _, token_b = obsidian_link.redeem_connect_code(code_b, "vault-1", "B's Vault")
+
+    removed = obsidian_link.revoke_devices("user-a")
+    assert removed == 2
+
+    assert obsidian_link.authenticate_device(token_a1) is None
+    assert obsidian_link.authenticate_device(token_a2) is None
+    # A different user's device (even over the SAME vault_id) is untouched.
+    device_b = obsidian_link.authenticate_device(token_b)
+    assert device_b is not None
+    assert device_b["user_id"] == "user-b"
+
+
+def test_revoke_devices_is_a_safe_no_op_when_none_exist(env):
+    assert obsidian_link.revoke_devices("nobody-has-ever-connected") == 0

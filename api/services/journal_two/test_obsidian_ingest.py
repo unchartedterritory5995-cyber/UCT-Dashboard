@@ -18,6 +18,7 @@ from cryptography.fernet import Fernet
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from api.middleware import auth_middleware as authmw
 from api.routers import note_sync as note_sync_router
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
@@ -96,6 +97,37 @@ def _manifest_paths(user_id: str, vault_id: str) -> set[str]:
         return {r["vault_path"] for r in rows}
     finally:
         conn.close()
+
+
+def _login_as(client, user_id: str, *, plan: str = "pro") -> None:
+    """`DELETE /{provider}` (disconnect) is session-cookie gated
+    (`Depends(_paid)` -> `get_current_user_with_plan` -> `get_current_user`)
+    -- unlike redeem/ingest, which authenticate off the device token alone.
+    This fixture's `client` has no login flow, so disconnect tests override
+    the two cookie-reading dependencies directly (mirrors
+    `tests/test_note_sync_router.py`'s `_free_user` helper), pointed at a
+    user already seeded (by `_seed_user`) in THIS test's real `users`/
+    `subscriptions` tables -- the device-auth path's own `_require_paid_
+    device_user` reads those tables directly and is untouched by this
+    override, so the two auth paths stay independently exercised."""
+    client.app.dependency_overrides[authmw.get_current_user] = \
+        lambda: {"id": user_id, "role": "member"}
+    client.app.dependency_overrides[authmw.get_current_user_with_plan] = \
+        lambda: {"id": user_id, "plan": plan, "role": "member"}
+
+
+def _redeem_via_http(client, user_id: str, vault_id: str = "vault-1", label: str | None = "My Vault") -> str:
+    """Like `_device_token`, but through the REAL `/obsidian/redeem` HTTP
+    endpoint rather than calling `obsidian_link.redeem_connect_code`
+    directly -- the disconnect tests below need the `j2_note_connectors`
+    row `obsidian_redeem` also writes (Task 5b's own `_upsert_connector_
+    or_503` call), since `connections.delete_connector` 404s with nothing
+    to disconnect otherwise. `_device_token`'s bare `redeem_connect_code`
+    call is fine for ingest-only tests, which never touch that row."""
+    code = obsidian_link.mint_connect_code(user_id)
+    r = client.post(_REDEEM_URL, json={"code": code, "vaultId": vault_id, "label": label})
+    assert r.status_code == 200, r.text
+    return r.json()["token"]
 
 
 def _note(vault_path: str, content_hash: str, body_md: str = "# body") -> dict:
@@ -442,3 +474,89 @@ async def test_mint_redeem_ingest_chain_is_visible_through_the_provider_for_that
     assert result["created"] == 2
     titles = {n["title"] for n in notes_svc.list_notes("user-a")}
     assert titles == {"One", "Two"}
+
+
+# ── DELETE /{provider} (disconnect) revokes the device token ────────────────
+#
+# Reported by the implementer who built the redeem flow: disconnecting
+# Obsidian via the standard `DELETE /{provider}` didn't clean up the
+# `j2_obsidian_devices` row -- so `authenticate_device` (which reads that
+# table alone, independent of the `j2_note_connectors` row disconnect
+# removes) kept authenticating the plugin's OLD token after a member
+# disconnected in the UI. Reproduced (pre-fix) with exactly the sequence
+# below: redeem -> disconnect -> ingest with the old token succeeded (200)
+# instead of being refused.
+
+def test_disconnect_revokes_the_device_token_so_a_post_disconnect_ingest_is_refused(client):
+    token = _redeem_via_http(client, "user-a", vault_id="vault-1")
+    # Prove the token is live BEFORE disconnecting -- otherwise a 401 below
+    # would prove nothing.
+    pre = client.post(_URL, headers={"Authorization": f"Bearer {token}"},
+                       json={"consent": True, "notes": [_note("a.md", "h1")]})
+    assert pre.status_code == 200, pre.text
+
+    _login_as(client, "user-a")
+    r = client.delete("/api/j2/notes/connectors/obsidian")
+    assert r.status_code == 200, r.text
+    assert r.json()["disconnected"] is True
+
+    # The device row is gone -- authenticate_device (the ingest endpoint's
+    # ONLY auth check) must now return None for this exact token.
+    assert obsidian_link.authenticate_device(token) is None
+
+    post = client.post(
+        _URL, headers={"Authorization": f"Bearer {token}"},
+        json={"consent": True, "notes": [_note("b.md", "h2")]},
+    )
+    assert post.status_code == 401, post.text
+
+
+def test_disconnect_does_not_revoke_a_different_members_device(client):
+    token_a = _redeem_via_http(client, "user-a", vault_id="vault-1")
+    token_b = _redeem_via_http(client, "user-b", vault_id="vault-1")  # different user, same vault_id
+
+    _login_as(client, "user-a")
+    r = client.delete("/api/j2/notes/connectors/obsidian")
+    assert r.status_code == 200, r.text
+
+    assert obsidian_link.authenticate_device(token_a) is None
+    # user-b's device is a disjoint row (user_id is part of the primary
+    # lookup) -- disconnecting user-a must never touch it.
+    device_b = obsidian_link.authenticate_device(token_b)
+    assert device_b is not None
+    assert device_b["user_id"] == "user-b"
+
+    post_b = client.post(
+        _URL, headers={"Authorization": f"Bearer {token_b}"},
+        json={"consent": True, "notes": [_note("still-mine.md", "h1")]},
+    )
+    assert post_b.status_code == 200, post_b.text
+
+
+def test_reconnecting_after_disconnect_issues_a_new_token_not_the_revoked_one(client):
+    old_token = _redeem_via_http(client, "user-a", vault_id="vault-1", label="My Vault")
+
+    _login_as(client, "user-a")
+    r = client.delete("/api/j2/notes/connectors/obsidian")
+    assert r.status_code == 200, r.text
+    assert obsidian_link.authenticate_device(old_token) is None
+
+    # Reconnect: mint + redeem a fresh code for the same user/vault.
+    code = obsidian_link.mint_connect_code("user-a")
+    rr = client.post(_REDEEM_URL, json={"code": code, "vaultId": "vault-1", "label": "My Vault"})
+    assert rr.status_code == 200, rr.text
+    new_token = rr.json()["token"]
+
+    assert new_token != old_token
+    # The OLD token must stay dead -- a reconnect must never resurrect it.
+    assert obsidian_link.authenticate_device(old_token) is None
+    new_device = obsidian_link.authenticate_device(new_token)
+    assert new_device is not None
+    assert new_device["user_id"] == "user-a"
+    assert new_device["vault_id"] == "vault-1"
+
+    post = client.post(
+        _URL, headers={"Authorization": f"Bearer {new_token}"},
+        json={"consent": True, "notes": [_note("after-reconnect.md", "h1")]},
+    )
+    assert post.status_code == 200, post.text
