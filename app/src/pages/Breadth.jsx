@@ -17,6 +17,8 @@ import { drillTarget } from './breadth/liveDrill'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
+import ScreenshotPopover from '../components/chart/ScreenshotPopover'
+import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
 import DailyOverview from './breadth/DailyOverview'
 import CustomizePanel from './breadth/CustomizePanel'
 import customizeStyles from './breadth/CustomizePanel.module.css'
@@ -982,6 +984,7 @@ export default function Breadth() {
 
   const customize = useBreadthCustomize()
   const [customizeOpen, setCustomizeOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const toggleCol = key => {
     setCollapsedCols(prev => {
       const next = new Set(prev)
@@ -1071,6 +1074,18 @@ export default function Breadth() {
   // Jump straight back to the present day (index 0 = the latest/top row).
   const onJumpToday = useCallback(() => monitorScrollTo(0), [monitorScrollTo])
 
+  // A shared snapshot link (`/breadth?d=YYYY-MM-DD`) teleports to that day once
+  // the timeline index is ready. Fires exactly once; a bad/missing param no-ops.
+  const deepLinkedRef = useRef(false)
+  useEffect(() => {
+    if (deepLinkedRef.current || activeTab !== 'breadth' || !grid.ready || !grid.count) return
+    deepLinkedRef.current = true
+    const d = new URLSearchParams(window.location.search).get('d')
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return
+    const id = requestAnimationFrame(() => monitorScrollTo(grid.indexOfDate(d)))
+    return () => cancelAnimationFrame(id)
+  }, [activeTab, grid.ready, grid.count, grid, monitorScrollTo])
+
   // Manual refresh: revalidate every breadth-monitor SWR key (the live/today row,
   // the timeline index, the Views window) AND re-pull the Monitor's visible block
   // rows. The brief `refreshing` flag spins the icon for feedback.
@@ -1086,6 +1101,13 @@ export default function Breadth() {
   const lastUpdated = storedRows[0]?._created_at
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
+
+  // ── Share: a branded UCT snapshot of the on-screen sheet. The capture target
+  //    is the scroll container (tableWrapRef), so it's exactly what's visible. ──
+  const shareSubtitle = lastUpdated ? `updated ${lastUpdated}` : ''
+  const onShareDownload = () => downloadBreadthSnapshot(tableWrapRef.current, shareSubtitle)
+  const onShareCopy = () => copyBreadthSnapshot(tableWrapRef.current, shareSubtitle)
+  const onShareUrl = () => copyBreadthShareUrl(monitorTopDate)
 
   const liveClock = liveBreadth.clock ?? 'LIVE'
   const liveTitle = liveBreadth.row
@@ -1163,8 +1185,28 @@ export default function Breadth() {
         title="Breadth"
         right={activeTab !== 'heatmap' ? (
           <>
-            {/* CSV sits to the LEFT of Customize; Customize is pinned to the far
-                right of the bar, next to the help "?". */}
+            {/* Share (branded snapshot) · CSV · Customize — Customize pinned to
+                the far right of the bar, next to the help "?". */}
+            {activeTab === 'breadth' && (
+              <div className={customizeStyles.anchor}>
+                <button
+                  className={styles.hdrBtn}
+                  onClick={() => setShareOpen(o => !o)}
+                  title="Share a UCT Intelligence snapshot of the breadth sheet"
+                >
+                  <UIcon name="camera" size={13} /> Share
+                </button>
+                {shareOpen && (
+                  <ScreenshotPopover
+                    title="Share Breadth"
+                    onDownload={onShareDownload}
+                    onCopy={onShareCopy}
+                    onShare={onShareUrl}
+                    onClose={() => setShareOpen(false)}
+                  />
+                )}
+              </div>
+            )}
             <button
               className={styles.exportBtn}
               onClick={() => exportCsv(rows, visibleCols)}
