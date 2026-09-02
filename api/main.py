@@ -2830,6 +2830,19 @@ async def lifespan(app: FastAPI):
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_continuous_audit start failed")
 
+    # Start the bars.db WAL checkpointer (WEB pod). The web pod does continuous
+    # background WRITES into bars.db (R2 merge, barspack web-ingest, stale-swr
+    # bg-delta heals, reconciliation) with no dedicated checkpointer, so the WAL
+    # bloats and get_bars READS slow to 0.3-6.8s (root-caused via Server-Timing
+    # sub-metrics 2026-09-02). A PASSIVE checkpoint on a tight cadence keeps the
+    # WAL small so reads stay fast; PASSIVE never blocks a reader/writer. Gated
+    # BARS_WAL_CHECKPOINT_ENABLED (kill=0).
+    try:
+        from api.services import bars_wal_checkpointer
+        bars_wal_checkpointer.start_bars_wal_checkpointer()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] bars_wal_checkpointer start failed")
+
     # Start the reconciliation worker -- diffs SQLite vs Polygon canonical
     # periodically, auto-heals any drift. Structural safety net behind every
     # chart correctness invariant. Runs HERE on the web pod (on by default;
