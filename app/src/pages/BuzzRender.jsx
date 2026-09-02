@@ -8,11 +8,13 @@
 // A headless browser (chart-renderer) navigates to /r/buzz, waits for
 // window.__buzzReady, and screenshots #buzz-export.
 //
-// Design is LOCKED to the owner-reviewed v4 reference —
-// docs/superpowers/design/2026-09-01-buzz-board-v4-reference.html — not
+// Design is LOCKED to the owner-reviewed reference —
+// docs/superpowers/design/2026-09-01-buzz-board-reference.html — not
 // reinvented here. See task-8-report.md for the handful of places that file
 // and the task brief's own prose disagree (this component follows the
-// rendered reference).
+// rendered reference). (⚠️ this comment previously named a "-v4-" filename
+// that does not exist on disk — corrected 2026-09-01 during the
+// brand-treatment port, see task-8-brand-port-report.md.)
 //
 // Public route (no AuthGuard). Data comes from /api/r/buzz?token= (a
 // token-gated public read over the buzz store — aggregate counts/tickers
@@ -107,14 +109,30 @@ export default function BuzzRender() {
     <div className={styles.wrap}>
       <div id="buzz-export" ref={exportRef}>
         <div className={styles.chrome}>
-          <span className={styles.subject}>THE ROOM</span>
-          <span className={styles.where}>(#main-chat)</span>
+          <span className={styles.subject}>READ THE ROOM</span>
           <span className={styles.win}>{data.label}</span>
           <span className={styles.lockup}>
             <img src={uctLogo} alt="" />
             <span>UCT INTELLIGENCE</span>
           </span>
         </div>
+
+        <svg className={styles.rose} viewBox="0 0 100 100" aria-hidden="true">
+          <g fill="none" stroke="#2faf68" strokeWidth="4.2" opacity=".5">
+            <circle cx="50" cy="50" r="27.5" strokeWidth="8"
+                    strokeDasharray="34 5.5" strokeDashoffset="8" />
+          </g>
+          <g fill="#2faf68" opacity=".55">
+            <path d="M50 1.75 L55 22 L50 27 L45 22 Z" />
+            <path d="M98.25 50 L78 55 L73 50 L78 45 Z" />
+            <path d="M50 98.25 L45 78 L50 73 L55 78 Z" />
+            <path d="M1.75 50 L22 45 L27 50 L22 55 Z" />
+          </g>
+          <g opacity=".6">
+            <rect x="49.2" y="30" width="1.6" height="41" fill="#2faf68" />
+            <rect x="42.9" y="33.5" width="14.2" height="34.2" fill="#2faf68" />
+          </g>
+        </svg>
 
         <div className={styles.body}>
           <div className={styles.meta}>

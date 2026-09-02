@@ -1,13 +1,18 @@
 /* BuzzRender.module.css — headless /r/buzz board.
  *
- * Lifted 1:1 from the owner-reviewed v4 reference
- * (docs/superpowers/design/2026-09-01-buzz-board-v4-reference.html), which is
+ * Lifted 1:1 from the owner-reviewed reference
+ * (docs/superpowers/design/2026-09-01-buzz-board-reference.html), which is
  * the authority here — not this file's own judgment. Instrument Sans /
  * Instrument Sans Tab are already self-hosted app-wide (app/index.html); this
  * module does not redeclare @font-face.
+ * (⚠️ this comment previously named a "-v4-" filename that does not exist on
+ * disk — corrected 2026-09-01 during the brand-treatment port, see
+ * task-8-brand-port-report.md.)
  */
 :root {
   --buzz-gold: #c9a84c;
+  --buzz-green: #2faf68;
+  --buzz-cream: #d4c9a8;
   --buzz-page: #0a0a0a;
   --buzz-chrome: #161616;
   --buzz-chrometext: #888;
@@ -25,6 +30,8 @@
   background: var(--buzz-page);
   font-family: 'Instrument Sans', -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  overflow: hidden;
 }
 
 /* chrome bar — same geometry as the chart export */
@@ -37,10 +44,19 @@
   color: var(--buzz-chrometext);
   font-size: 14px;
   position: relative;
+  z-index: 2;
+  border-bottom: 1px solid rgba(201, 168, 76, .22);
 }
 .subject { color: var(--buzz-gold); font-weight: 700; font-size: 18px; }
-.where { margin-left: 8px; color: var(--buzz-muted); font-size: 13px; }
-.win { margin-left: 12px; }
+/* .win used to sit 12px after the muted "(#main-chat)" span, which itself
+   sat 8px after .subject -- effectively a 20px+ gap once that span's own
+   text width is counted. With the channel context removed entirely (owner
+   call, 2026-09-01: the board is posted IN that channel, so naming it is
+   redundant), .win now abuts .subject directly. 12px read cramped next to
+   the longer "READ THE ROOM" label, so this reuses 16px -- the same rhythm
+   value already used for the chrome/foot horizontal padding below, rather
+   than inventing a new number -- to keep the gap deliberate. */
+.win { margin-left: 16px; }
 .lockup {
   position: absolute;
   left: 0;
@@ -52,9 +68,29 @@
   pointer-events: none;
 }
 .lockup img { height: 18px; opacity: .95; }
-.lockup span { color: var(--buzz-gold); font-weight: 700; font-size: 13px; letter-spacing: .6px; }
+.lockup span {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .6px;
+  background: linear-gradient(135deg, #a8823a 0%, #d4b25a 40%, #e8d18c 50%, #cba954 60%, #8f6f2c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 1.6px rgba(201, 168, 76, .32));
+}
 
-.body { padding: 30px 34px 26px; }
+.body { padding: 30px 34px 26px; position: relative; z-index: 1; }
+.rose {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  height: 440px;
+  opacity: .07;
+  pointer-events: none;
+  z-index: 0;
+}
 /* .meta is now the FIRST thing in .body (the prose lead that used to sit above
    it was removed 2026-09-01, owner call). A bare 15px margin-top read as
    cramped directly under the 40px chrome bar -- the board's whole answer to
@@ -82,7 +118,7 @@
 .sym {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
   font-size: 15.5px;
-  color: var(--buzz-ink);
+  color: var(--buzz-cream);
   font-weight: 700;
   letter-spacing: .4px;
 }
@@ -102,7 +138,7 @@
   opacity: .28;
   border-radius: 1px 1px 0 0;
 }
-.sp .s.hot { background: var(--buzz-gold); opacity: .6; }
+.sp .s.hot { background: var(--buzz-green); opacity: .5; }
 .ppl {
   font-size: 12px;
   color: var(--buzz-muted);
@@ -113,7 +149,8 @@
 .hot {
   font-family: 'Instrument Sans Tab', 'Instrument Sans', monospace;
   font-size: 12px;
-  color: var(--buzz-gold);
+  color: var(--buzz-green);
+  text-shadow: 0 0 6px rgba(47, 175, 104, .26);
   font-weight: 700;
   text-align: right;
   font-variant-numeric: tabular-nums;
