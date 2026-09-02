@@ -2277,6 +2277,45 @@ git commit -m "feat(buzz): /buzz command, data-backed autocomplete, text boards"
 
 The page sets `window.__buzzReady = true` once every row **and** every tail chip has laid out.
 
+## The board's visual design — SETTLED by four rendered iterations, do not re-derive
+
+Four versions were built and shown to the owner. **Read this before writing a line of `BuzzRender.jsx`** — each rule below cost an iteration to learn.
+
+### Brand — lifted from `app/src/pages/ChartRender.jsx`, not invented
+
+The board sits beside `/chart` images in the same Discord channel, so it must be the *same product*, not a lookalike. Copy these exactly:
+
+| | |
+|---|---|
+| Font | **Instrument Sans**, self-hosted. ⛔ `app/index.html` explicitly forbids putting it back on `fonts.googleapis.com` — lightweight-charts bakes the face in. Use the **`-tab`** face for every numeric column so counts align. |
+| Chrome bar | `height:40px; background:#161616; padding:0 16px; font-size:14px; color:#888` |
+| Subject | gold **`#c9a84c`**, `font-weight:700; font-size:18px` (where the chart puts its ticker) |
+| Context | `#9aa08f`, 13px (where the chart puts the company name) |
+| Lockup | `compass-mark.png` at `height:18px; opacity:.95` + `UCT INTELLIGENCE` in gold `13px/700`, `letter-spacing:.6px` — **absolutely centred** in the chrome bar via `position:absolute; left:0; right:0` |
+| Page | `#0a0a0a` |
+| Footer bar | `height:20px; background:#161616; font-size:10px; color:#888` |
+| Muted ink | `#9aa08f` |
+
+⛔⛔ **The export gold is `#c9a84c`, NOT `--ut-gold #dcbb5e`.** Both are real and both are correct — `#dcbb5e` is the in-app dark-theme token, `#c9a84c` is what rendered images use. Three iterations of this board used the app token on an export surface and read subtly wrong beside a real chart. `tokens.css` is not the authority here; `ChartRender.jsx` is.
+
+⛔ **No emoji anywhere** (`feedback_no_generic_emoji`). The heat marker is a `▲` glyph, not a flame.
+
+### Layout — three tiers, because "every ticker" and "not noisy" pull against each other
+
+The owner asked for **every** ticker and then said the result was **noisy**. Both are right: the noise was never the ticker *count*, it was giving a name mentioned once the same visual weight as one mentioned 47 times.
+
+1. **A prose lead, before any data.** Two sentences, derived deterministically from the rows — no LLM, nothing to hallucinate. *"NVDA owned the room — 14 of 63 people talking. PLTR was quiet all morning, then woke up after lunch — 6.3× its normal chatter."* ⭐ This is the single highest-impact element: a board that opens with rows is a spreadsheet; one that opens with a sentence is a briefing.
+2. **Eight featured rows** with symbol · count · sparkline · people · heat multiplier. Not fourteen — fourteen crowded, eight breathes.
+3. **The tail recedes in two steps:** names with 2+ mentions as plain text (`AVGO 8  RKLB 7 …`, no chips, no borders), then once-mentioned names as one dim comma line at ~34% opacity. Every ticker is present and findable; only the informative ones ask for the eye.
+
+⛔ **NOT grouped by theme** — see the owner decision below.
+⛔ **No bar track behind the count.** It duplicates the number beside it; ordering plus the figure already carries magnitude. Removing it was a measurable de-noise.
+
+### Two format rules found only by rendering
+
+- **Width 1000px, tall rather than wide.** Discord scales an image to ~550px in the message column, so the 1400px version previewed as a 550×247 strip nobody would click. Tall-and-narrow survives the scale-down.
+- **The sparkline needs ~26 slices in a FIXED ~190px box.** Seven bars across a flexible `1fr` column rendered as fat blocks that read as a *second bar chart* competing with the count. 26 fifteen-minute slices at `gap:1.5px` is what makes it read as shape.
+
 **⭐ OWNER DIRECTION 2026-09-01: the board shows EVERY ticker, not a top 5.** *"I think we can significantly improve that rendered image to be much more detailed and longer and more insightful. Honestly want every ticker mentioned."*
 
 Layout, validated by rendering a 77-ticker mockup at 1400px:
