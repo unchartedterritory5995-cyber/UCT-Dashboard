@@ -28,7 +28,7 @@ None for internal work. External research awaits approval. Owner inputs batch 1 
 
 ### Findings for a normal operations session (outside program scope)
 * Four PC-scheduled jobs failing silently: flow-corpus archive empty since 2026-08-09; breadth-live monitor 'could not check' 52 runs since 2026-08-10 (D-14).
-* Catalyst cost guard mis-prices Sonnet 5 (D-12); five clause-vs-code licensing collisions (E-04); local-backend recipes run against live `C:\data` (D-04); several real-time endpoints reported unauthenticated (E-03, verification pending).
+* Catalyst cost guard mis-prices Sonnet 5 (D-12); five clause-vs-code licensing collisions (E-04); local-backend recipes run against live `C:\data` (D-04); three real-time endpoints CONFIRMED unauthenticated (`/api/live-prices`, `/api/snapshot/{sym}`, `/api/movers`; R-17).
 
 ### Agent allocation
 Wave 1: 17 internal/licensing tasks. Next: on approval, Wave 1b external landscape (28 tasks in three batches).
