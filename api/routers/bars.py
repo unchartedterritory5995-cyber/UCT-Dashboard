@@ -10,6 +10,8 @@ import threading as _threading
 import time as _time
 from datetime import datetime
 
+import orjson
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
@@ -412,6 +414,45 @@ async def get_bars(
     return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
 
 
+def _augment_daily_with_today(response, ticker: str):
+    """Append today's DEVELOPING daily bar to a 200 daily-bars response so the
+    served payload always ends at the current session.
+
+    Returns the (possibly rebuilt) response; on ANY problem returns the original
+    untouched — this must never turn a good chart serve into a bad one. The
+    caller has already excluded index/breadth/delisted/replay paths, so this
+    only runs on the live equity/ETF daily serve.
+
+    Behaviour:
+      • no open session (pre-market / weekend / holiday) → helper returns None →
+        response unchanged.
+      • tail already IS today (same-session evolving daily already in the store)
+        → skip; the client's live writers own that bar and a second copy dups it.
+      • tail is a FUTURE/newer date than today → skip (defensive; never reorder).
+      • otherwise (tail is a prior closed session, OR an empty `since`-delta) →
+        append today's bar.
+    """
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    bars = payload.get("bars")
+    if not isinstance(bars, list):
+        return response
+    from api.services import massive
+    today_bar = massive.todays_daily_bar(ticker)
+    if not today_bar:
+        return response
+    today_t = today_bar.get("t")
+    if bars and isinstance(bars[-1], dict):
+        last_t = bars[-1].get("t")
+        # Already carries today, or somehow ahead of it → don't touch the tail.
+        if isinstance(last_t, str) and last_t >= today_t:
+            return response
+    payload["bars"] = bars + [today_bar]
+    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+
+
 def serve_bars(
     ticker: str,
     tf: str,
@@ -443,6 +484,12 @@ def serve_bars(
     _mark_serve("entry")
     response = None
     crashed = False
+    # Path classification for the "server-include today's daily bar" append
+    # below. Initialized here so the guard is safe even if the inner try raises
+    # before these are assigned (a crash path serves a fault response, not a
+    # daily payload, so the append is skipped anyway).
+    _is_breadth = False
+    _drec = None
     try:
         try:
             # Schwab /pricehistory doesn't serve cash-settled indexes — silently
@@ -577,6 +624,27 @@ def serve_bars(
             _log.info("[bars] %s tf=%s: no data and not a carried symbol — "
                       "200 no_data instead of a transient 503", ticker, tf)
             response = _no_data_response(ticker, tf)
+
+        # ── SERVER-INCLUDE TODAY'S DEVELOPING DAILY BAR (equity/ETF only) ────
+        # The sealed daily history from the fetch/cache paths ends at the last
+        # CLOSED session; today's forming daily bar is otherwise a SEPARATE
+        # client-side append that lands a beat later and trips Lightweight
+        # Charts' shift-on-new-bar — the "current candle loads one bar to the
+        # right, then pops left" bug on nearly every switch/scroll. Making today
+        # part of the /api/bars DATA means the client's `filteredBars` ALWAYS
+        # contains it, so all 30+ framing sites frame for it with no client
+        # timing/prewarm/reserve hack. Restricted to the live equity/ETF path:
+        # index/breadth/delisted/replay(`to`) are left untouched, and the
+        # snapshot helper self-limits to an OPEN regular session (returns None
+        # pre-market / weekend / holiday) with a per-ticker ~8s TTL, so a
+        # scan/warm storm can't fan out one provider call per request.
+        if (tf == "D" and not to and not _is_breadth and _drec is None
+                and not is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_daily_with_today(response, ticker)
+            except Exception:
+                pass  # never let the developing-bar append break a real serve
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
