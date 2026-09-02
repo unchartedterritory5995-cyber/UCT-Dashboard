@@ -673,3 +673,138 @@ def test_bulk_mode_rebuilds_even_if_the_block_raises(db_path):
     # The cache was still rebuilt on the way out despite the exception, so
     # whatever DID get committed before the failure is visible afterward.
     assert em_api.resolve("BULK2", db_path=db_path).status == "resolved"
+
+
+# ─── Checkpoint 5 — Provider mapping ────────────────────────────────────────
+
+def test_vendor_symbol_identical_repeat_is_a_true_noop(db_path):
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    r1 = em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert r1.written and not r1.conflict
+    r2 = em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert not r2.written and not r2.conflict
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+
+
+def test_vendor_symbol_conflicting_value_is_rejected_not_silently_applied(db_path):
+    """Checkpoint 5: a genuine conflicting value at the same
+    (entity_id, vendor, valid_from) key must be REJECTED and reported, never
+    silently dropped (the pre-fix behavior) or silently applied."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+
+    r = em_api.set_vendor_symbol(eid, "massive", "WRONG.VALUE", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    assert not r.written
+    assert r.conflict
+    # The original value must survive untouched.
+    assert em_api.vendor_symbol(eid, "massive", db_path=db_path) == "BRK.B"
+    conn = store._conn(db_path)
+    rows = conn.execute(
+        "SELECT vendor_symbol FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchall()
+    assert rows == [("BRK.B",)]  # never two rows, never the wrong value
+
+
+def test_vendor_symbol_correction_via_new_valid_from_is_allowed(db_path):
+    """A genuine correction is expressed as a NEW valid_from (dating the
+    change), not an overwrite of the old row — this must succeed cleanly."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    r = em_api.set_vendor_symbol(eid, "massive", "BRK.B2", "2026-01-01", "admin_manual", db_path=db_path)
+    assert r.written and not r.conflict
+
+
+def test_figi_change_is_detected_and_applied(db_path):
+    """entity_figi IS a current-snapshot table — a genuine value change
+    legitimately overwrites, but `changed` must correctly flag it."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("AAPL"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    r1 = em_api.set_figi(eid, "BBG000B9XRY4", None, "massive_reference", db_path=db_path)
+    assert r1.written and not r1.changed  # brand new row: written, but not a "change" from a prior value
+
+    r2 = em_api.set_figi(eid, "BBG000B9XRY4", None, "massive_reference", db_path=db_path)
+    assert not r2.written and not r2.changed  # identical repeat
+
+    r3 = em_api.set_figi(eid, "BBG_DIFFERENT_VALUE", None, "massive_reference", db_path=db_path)
+    assert r3.written and r3.changed  # genuine update
+
+    conn = store._conn(db_path)
+    row = conn.execute("SELECT composite_figi FROM entity_figi WHERE entity_id=?", (eid,)).fetchone()
+    assert row == ("BBG_DIFFERENT_VALUE",)
+
+
+def test_provider_mapping_writes_never_touch_canonical_identity(db_path):
+    """Checkpoint 5 "canonical identity stability": repeated vendor/FIGI
+    writes — including a rejected conflict and a genuine change — must
+    never alter entity_id, the entity's alias, or its lifecycle_state."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    before = em_api.resolve("BRK-B", db_path=db_path).entity
+
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_vendor_symbol(eid, "massive", "CONFLICTING", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+    em_api.set_figi(eid, "BBG_CHANGED", "BBG001S5PQL7", "massive_reference", db_path=db_path)
+
+    after = em_api.resolve("BRK-B", db_path=db_path).entity
+    assert before == after  # entity_id, entity_type, lifecycle_state, lifecycle_since all unchanged
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert len(roster) == 1 and roster[0].alias == "BRK-B"  # alias history untouched
+
+
+def test_mapping_provenance_is_recorded_and_readable(db_path):
+    """Checkpoint 5 "mapping provenance": the source of a vendor/FIGI row
+    is stored and independently verifiable (not just trusted from memory)."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    em_api.set_vendor_symbol(eid, "massive", "BRK.B", "1996-05-09", "derived:dot_notation", db_path=db_path)
+    em_api.set_figi(eid, "BBG000BLNNH6", None, "massive_reference", db_path=db_path)
+
+    conn = store._conn(db_path)
+    vs_source = conn.execute(
+        "SELECT source FROM entity_vendor_symbols WHERE entity_id=? AND vendor='massive'", (eid,)
+    ).fetchone()
+    figi_source = conn.execute("SELECT source FROM entity_figi WHERE entity_id=?", (eid,)).fetchone()
+    assert vs_source == ("derived:dot_notation",)
+    assert figi_source == ("massive_reference",)
+
+
+def test_fmp_vendor_has_no_mapping_by_design_and_returns_none(db_path):
+    """Checkpoint 5 finding, grounded in `massive.py`'s own docstring
+    ("FMP/yfinance fallbacks keep the canonical hyphen form") and
+    `fmp_bulk.py`'s plain-passthrough symbol handling (no transform):
+    FMP needs NO entity_vendor_symbols row for any entity, because its
+    symbol convention already matches the canonical alias byte-for-byte.
+    vendor_symbol(entity_id, "fmp") legitimately returns None always,
+    a valid outcome (spec §9.2) — this test pins that as intentional,
+    not a gap."""
+    schema.init_db(db_path=db_path)
+    created = em_api.apply_event(
+        "new_entity", _new_entity_payload("BRK-B", "1996-05-09"), "d1", "admin_manual", db_path=db_path
+    )
+    eid = created.entity_id
+    assert em_api.vendor_symbol(eid, "fmp", db_path=db_path) is None
+    # The canonical alias IS what FMP expects — no derivation needed.
+    roster = em_api.aliases(eid, db_path=db_path)
+    assert roster[0].alias == "BRK-B"

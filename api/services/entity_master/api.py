@@ -355,20 +355,51 @@ def _apply_domain_mutation(
 # neither function accepts anything but an existing entity_id, a vendor
 # name, and vendor-sourced values — "provider data maps INTO canonical
 # identity, never silently BECOMES it."
+#
+# Boundary (Checkpoint 5): Entity Master owns the canonical mapping FROM an
+# entity TO a provider's symbol for that provider — enough for any caller to
+# resolve a provider record back to canonical identity. It does NOT own
+# broader provider routing, request construction, response normalization,
+# rate limiting, or failover — that is the not-yet-built Provider
+# Abstraction Layer's job (D1, product-architecture.md §4.2), which this
+# build does not implement. `vendor` here is an opaque string key (matches
+# whatever D1's eventual adapter registry will use — spec §4.2's own
+# comment: "D1's adapter registry keys") — Entity Master does not validate
+# it against a fixed provider list, since owning that list is D1's job too.
+
+@dataclass(frozen=True)
+class MappingResult:
+    written: bool
+    conflict: bool = False  # vendor_symbol only: a DIFFERENT value already existed at this exact key
+    changed: bool = False   # figi only: an existing value was replaced by a genuinely different one
+
 
 def set_vendor_symbol(
     entity_id: str, vendor: str, vendor_symbol: str, valid_from: str, source: str,
     *, db_path: str | None = None,
-) -> None:
+) -> MappingResult:
+    """Idempotent on an identical repeat. A genuine value conflict at the
+    same (entity_id, vendor, valid_from) is REJECTED (the original value is
+    kept — `entity_vendor_symbols` is a dated history, spec §8.1's "no
+    update-in-place on a historical fact"; a real correction needs a NEW
+    valid_from). Never silently applies either the old or the new value on
+    conflict without telling the caller which happened."""
     with store._WRITE_LOCK:
-        store.upsert_vendor_symbol(entity_id, vendor, vendor_symbol, valid_from, source, db_path)
+        written, conflict = store.upsert_vendor_symbol(entity_id, vendor, vendor_symbol, valid_from, source, db_path)
         store._conn(db_path).commit()
+    return MappingResult(written=written, conflict=conflict)
 
 
 def set_figi(
     entity_id: str, composite_figi: Optional[str], share_class_figi: Optional[str], source: str,
     *, db_path: str | None = None,
-) -> None:
+) -> MappingResult:
+    """`entity_figi` is a current-snapshot table (PK on entity_id, no dated
+    history) — unlike vendor symbols above, a new value legitimately
+    OVERWRITES the old one (that is the point of the table). `changed`
+    reports whether this call actually replaced a different prior value, so
+    a caller/log can distinguish a real FIGI update from a no-op re-run."""
     with store._WRITE_LOCK:
-        store.upsert_figi(entity_id, composite_figi, share_class_figi, source, db_path)
+        written, changed = store.upsert_figi(entity_id, composite_figi, share_class_figi, source, db_path)
         store._conn(db_path).commit()
+    return MappingResult(written=written, changed=changed)

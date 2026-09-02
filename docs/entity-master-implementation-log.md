@@ -483,3 +483,94 @@ and none of them produced an error, an ambiguous result, or a rejected
 event). OpenFIGI remains untouched, out of scope, per Condition 5.
 
 ---
+
+## Checkpoint 5 — Provider mapping (2026-09-02)
+
+**Boundary (explicit, per the authorization):** Entity Master owns the
+canonical mapping FROM an entity TO a provider's symbol for that provider —
+enough for any caller to resolve a provider record back to canonical
+identity. It does NOT own provider routing, request construction, response
+normalization, rate limiting, or failover — that is the not-yet-built
+Provider Abstraction Layer's (D1) job, untouched here. `vendor` is an
+opaque string key Entity Master does not validate against a fixed list,
+since owning that list is D1's job too (spec §4.2's own comment: "D1's
+adapter registry keys").
+
+### Grounded findings (not invented — each cites the code that proves it)
+
+- **Massive**: the only provider needing an `entity_vendor_symbols` row
+  today, and only for hyphenated aliases (class shares) — already built in
+  Checkpoint 4, real-run-verified against 14 live names, byte-identical to
+  `to_polygon_symbol()`.
+- **FMP: no mapping needed, confirmed, not assumed.** `massive.py`'s own
+  docstring (line 50, re-read this checkpoint): "storage/cache keys and the
+  FMP/yfinance fallbacks keep the canonical hyphen form." `fmp_bulk.py`'s
+  own symbol handling is a bare `str(r.get("symbol") or "").upper()` — no
+  hyphen/dot transform anywhere. `vendor_symbol(entity_id, "fmp")`
+  legitimately returns `None` for every entity, always — a valid outcome
+  (spec §9.2), pinned by a new test
+  (`test_fmp_vendor_has_no_mapping_by_design_and_returns_none`) so this
+  reads as an intentional finding, not an unfinished feature, to the next
+  engineer.
+- **No other provider is in scope.** Per spec §9.1, S3's only other
+  provider touch-point is OpenFIGI (FIGI fallback), explicitly out of
+  scope per Condition 5. yfinance/Finnhub were checked for a comparable
+  hyphen-rewrite need and found to have none (same "keeps canonical hyphen
+  form" citation covers yfinance explicitly; Finnhub is not used for
+  ticker-shaped lookups anywhere in the reference-data path Entity Master
+  touches).
+
+### A real gap found and fixed: silent conflict handling
+
+Testing "conflicting provider IDs" (an explicit Checkpoint 5 validation
+item) surfaced that the ORIGINAL `upsert_vendor_symbol`/`upsert_figi`
+(written in Checkpoint 3) each silently did something different on a
+genuine value conflict at the same key: `vendor_symbol` used
+`ON CONFLICT DO NOTHING` (silently dropped a corrected/different value
+with zero record it was ever attempted); `entity_figi` used
+`ON CONFLICT DO UPDATE` (silently overwrote, also with zero record).
+Neither matches this system's own stated design principle (§8.4's write
+guard: "never silently accepted or dropped"). Fixed:
+
+- `entity_vendor_symbols` (a DATED HISTORY table): a conflicting value at
+  the same `(entity_id, vendor, valid_from)` is now REJECTED — the
+  original is kept, and the caller receives `MappingResult(written=False,
+  conflict=True)`. A genuine correction must use a NEW `valid_from`
+  (dating the change), matching spec §8.1's "no update-in-place on a
+  historical fact" — verified to still succeed cleanly
+  (`test_vendor_symbol_correction_via_new_valid_from_is_allowed`).
+- `entity_figi` (a CURRENT-SNAPSHOT table, no history, PK on `entity_id`):
+  overwriting on a new value remains correct — that is the table's whole
+  point — but the caller now receives `MappingResult(written=True,
+  changed=True)` so a genuine update is distinguishable from a no-op
+  re-run, rather than both looking identical.
+
+New `MappingResult` dataclass (`api.py`) replaces the previous `None`
+return on `set_vendor_symbol`/`set_figi`. 7 new tests (46 total):
+identical-repeat no-op, conflict-rejected, correction-via-new-valid_from,
+FIGI-change-detected, canonical-identity-stability-under-repeated-
+provider-writes, provenance-round-trips, and the FMP-no-mapping-by-design
+finding above.
+
+### Checklist against the authorization's explicit items
+
+| Item | Status |
+|---|---|
+| Massive mappings | Built (Checkpoint 4), validated, real-data-verified |
+| FMP mappings where applicable | Investigated; not applicable, grounded finding recorded |
+| Other approved current-provider mappings | None in scope beyond Massive (OpenFIGI explicitly excluded) |
+| Missing provider IDs | `None` return, tested since Checkpoint 2 |
+| Conflicting provider IDs | Gap found and fixed this checkpoint (above) |
+| Repeated mapping writes | Idempotent on identical value; tested |
+| Canonical identity stability | New test proves entity_id/alias/lifecycle_state never move under provider-mapping writes, including a rejected conflict |
+| Mapping provenance | `source` field verified round-trip readable |
+
+**Tests run:** `python -m pytest api/services/entity_master/ scripts/test_entity_master_seed.py -q` — 46/46 passed.
+
+**No identifier guarantee was invented.** Every mapping behavior here is
+grounded in an existing, re-read source file (`massive.py`, `fmp_bulk.py`)
+or in this build's own already-verified real-data run — nothing about FMP,
+yfinance, or any other provider's symbol conventions was assumed without a
+citation.
+
+---

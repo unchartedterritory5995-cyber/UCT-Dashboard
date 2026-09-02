@@ -306,27 +306,56 @@ def entity_exists(entity_id: str, db_path: str | None = None) -> bool:
 def upsert_vendor_symbol(
     entity_id: str, vendor: str, vendor_symbol: str, valid_from: str, source: str,
     db_path: str | None = None,
-) -> None:
-    """Idempotent: the UNIQUE index on (entity_id, vendor, valid_from) makes
-    a re-run of the same seed/reconciliation input a no-op, never a
-    duplicate row (spec §5.1 step 7's idempotency requirement)."""
+) -> tuple[bool, bool]:
+    """Returns (written, conflict).
+
+    Checkpoint 5 fix: the original `ON CONFLICT DO NOTHING` silently
+    swallowed a genuine value CHANGE at the same (entity_id, vendor,
+    valid_from) key — a re-run with the identical value (the intended,
+    idempotent case) and a re-run with a DIFFERENT value (a genuine
+    provider-mapping conflict) were indistinguishable, both silently
+    producing "no-op." This table is a dated history (unlike
+    `entity_figi`), so per spec §8.1's "no update-in-place on a historical
+    fact," a real correction belongs at a NEW `valid_from`, not an
+    overwrite of this one — so a conflicting value is REJECTED, not
+    silently applied either way, and the caller is told which case
+    occurred instead of finding out never."""
     conn = _conn(db_path)
+    existing = conn.execute(
+        "SELECT vendor_symbol FROM entity_vendor_symbols "
+        "WHERE entity_id = ? AND vendor = ? AND valid_from = ?",
+        (entity_id, vendor, valid_from),
+    ).fetchone()
+    if existing is not None:
+        if existing[0] == vendor_symbol:
+            return False, False  # identical repeat — true idempotent no-op
+        return False, True  # genuine conflict — rejected, original kept
     conn.execute(
         "INSERT INTO entity_vendor_symbols(entity_id, vendor, vendor_symbol, valid_from, valid_to, source, created_at) "
-        "VALUES (?,?,?,?,NULL,?,?) "
-        "ON CONFLICT(entity_id, vendor, valid_from) DO NOTHING",
+        "VALUES (?,?,?,?,NULL,?,?)",
         (entity_id, vendor, vendor_symbol, valid_from, source, now_iso()),
     )
+    return True, False
 
 
 def upsert_figi(
     entity_id: str, composite_figi: str | None, share_class_figi: str | None, source: str,
     db_path: str | None = None,
-) -> None:
-    """Upsert (entity_figi.entity_id is a PRIMARY KEY — a current-snapshot
-    table, not a dated history, per spec §4.2). A re-run refreshes the
-    value rather than duplicating a row."""
+) -> tuple[bool, bool]:
+    """Returns (written, changed). `entity_figi` IS a current-snapshot table
+    (PK on entity_id, no dated history, per spec §4.2), so — unlike vendor
+    symbols above — overwriting on a new value is the CORRECT behavior here
+    (the point of the table is "the latest known FIGI"), not a rejected
+    conflict. `changed` distinguishes a genuine value update from a
+    byte-identical re-run, so a caller/log can note when a FIGI actually
+    moved rather than treating every call as equally uneventful."""
     conn = _conn(db_path)
+    existing = conn.execute(
+        "SELECT composite_figi, share_class_figi FROM entity_figi WHERE entity_id = ?",
+        (entity_id,),
+    ).fetchone()
+    changed = existing is not None and existing != (composite_figi, share_class_figi)
+    written = existing is None or changed
     conn.execute(
         "INSERT INTO entity_figi(entity_id, composite_figi, share_class_figi, source, updated_at) "
         "VALUES (?,?,?,?,?) "
@@ -335,3 +364,4 @@ def upsert_figi(
         "source=excluded.source, updated_at=excluded.updated_at",
         (entity_id, composite_figi, share_class_figi, source, now_iso()),
     )
+    return written, changed
