@@ -6,7 +6,7 @@
 // first causes the "current candle loads one bar right, then pops left" shift.
 // Time-mocked (EDT = UTC-4 in Sep 2026). Wed 2026-09-02, prior sessions Mon 8/31 + Tue 9/1.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { isDailyTailStaleForPaint, isDailyTailStale } from './marketSession'
+import { isDailyTailStaleForPaint, isDailyTailStale, isDailyTodayCloseProvisionalForPaint } from './marketSession'
 
 describe('isDailyTailStaleForPaint', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -54,5 +54,33 @@ describe('isDailyTailStaleForPaint', () => {
     expect(isDailyTailStaleForPaint(null)).toBe(false)
     expect(isDailyTailStaleForPaint('')).toBe(false)
     expect(isDailyTailStaleForPaint(undefined)).toBe(false)
+  })
+})
+
+describe('isDailyTodayCloseProvisionalForPaint (after-hours sealed-close flicker)', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('post-close (Wed 16:30): a TODAY tail is provisional → defer to the sealed close', () => {
+    vi.setSystemTime(new Date('2026-09-02T20:30:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02')).toBe(true)
+    // a yesterday tail is NOT this case (the date gate owns it), and a non-today date is false
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-01')).toBe(false)
+  })
+
+  it('during RTH (Wed 11:00): a TODAY tail is NOT provisional — the bar legitimately evolves', () => {
+    vi.setSystemTime(new Date('2026-09-02T15:00:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02')).toBe(false)
+  })
+
+  it('pre-open (Wed 08:00): not post-close → false', () => {
+    vi.setSystemTime(new Date('2026-09-02T12:00:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint('2026-09-02')).toBe(false)
+  })
+
+  it('null / empty tail → false', () => {
+    vi.setSystemTime(new Date('2026-09-02T20:30:00Z'))
+    expect(isDailyTodayCloseProvisionalForPaint(null)).toBe(false)
+    expect(isDailyTodayCloseProvisionalForPaint('')).toBe(false)
   })
 })
