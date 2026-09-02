@@ -78,7 +78,17 @@ _SHARED_ROOT_CANDIDATES = ("C:/data", "/data")
 
 
 def _norm(p: str) -> str:
-    return os.path.normcase(os.path.abspath(p))
+    # `os.path.realpath`, NOT `os.path.abspath` — `abspath` only joins with
+    # the cwd and collapses `.`/`..`; it does not follow a symlink or a
+    # Windows directory junction (`mklink /J`), so a "safe-looking" path
+    # whose middle component is a junction into the shared root sailed
+    # through this check textually while every write still landed inside
+    # the real root. `realpath` resolves the reparse point to its true
+    # target before the containment check below ever runs. Applied via this
+    # one function to BOTH the candidate and the hardcoded root literals in
+    # `_shared_root_hit` — resolving only one side would just move the hole
+    # to whichever side stayed unresolved.
+    return os.path.normcase(os.path.realpath(p))
 
 
 def _shared_root_hit(path: str) -> str | None:
