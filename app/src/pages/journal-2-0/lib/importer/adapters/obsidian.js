@@ -16,10 +16,26 @@
  *    the whole scan must never reject.
  *
  * Parse: every `.md` file in the vault becomes a doc (skipping `.obsidian/`
- * and `.trash/`). Frontmatter (`--- ... ---` at byte 0) is parsed for
- * `tags` (bracketed list, comma string, or YAML `- item` list) and
- * `created`/`date` (created wins when both are present) and stripped from
- * the body before markdown conversion.
+ * and `.trash/`). Frontmatter (`--- ... ---` at byte 0, parsed by the
+ * shared `../frontmatter` module also used by the generic adapter) is
+ * stripped from the body before markdown conversion; `tags` (bracketed
+ * list, comma string, or YAML `- item` list, all quote-aware — a quoted
+ * item containing a literal comma, e.g. `[swing, "reclaim, tight"]`, no
+ * longer gets mis-split on that inner comma), `created`/`date` (created
+ * wins) and `updated`/`modified` (updated wins) feed the doc directly;
+ * `title`/`subtitle`/`ticker` feed the doc when present (an explicit
+ * front-matter `title:` wins over an inferred `<h1>`); a `hero_image:`
+ * pointing at a real file in the vault is surfaced as an actual leading
+ * image in the body rather than left as inert YAML text with its file an
+ * orphan in the archive.
+ *
+ * Ordinary CommonMark `![alt](path)` / `[text](path)` attachment references
+ * (not just `![[wiki-embeds]]`) are resolved too, via the SAME
+ * `resolveRelativeMedia` pass `generic.js` uses — real vaults mix both
+ * forms (wiki-links are a per-vault Obsidian SETTING, not a guarantee; a
+ * vault with "Use [[Wikilinks]]" turned off, or content pasted in from
+ * elsewhere, links images the plain markdown way), and a vault fed through
+ * this adapter used to drop every one of those silently.
  *
  * Wiki-syntax is pre-processed with regex passes BEFORE `mdToHtml`, applied
  * only OUTSIDE code — both fenced (```) blocks AND inline (`) spans (the raw
@@ -51,11 +67,11 @@
  * (`Vault/`) isn't part of the written target.
  */
 
-import { mdToHtml } from './generic'
+import { mdToHtml, resolveRelativeMedia, dedupeMedia } from './generic'
+import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
-const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
 // Fence alternative MUST come first — at a run of 3+ backticks it has to win
 // over the inline-span alternative, or the inline pattern would consume just
 // the fence's opening backticks and mis-split its content.
@@ -137,105 +153,45 @@ async function parse(vfiles, opts = {}) {
 
 async function makeDoc(vfile, vfiles, byPath, basenameMap) {
   const raw = await readText(vfile)
-  const { tags, createdAt, body } = extractFrontmatter(raw)
+  const { fields, tags, body } = extractFrontmatter(raw)
 
   const media = []
   const links = []
   const ctx = { vfiles, byPath, basenameMap, media, links }
   const processed = preprocessWikiSyntax(body, ctx)
-  const html = mdToHtml(processed)
+  let html = mdToHtml(processed)
+  if (fields.hero_image) {
+    // Same reasoning as generic.js's identical block: a front-matter cover
+    // image is real authored content, not metadata to discard. Prepending
+    // it lets it ride the SAME resolveRelativeMedia pass below as every
+    // other image, rather than inventing a second resolution path.
+    html = `<p><img src="${escapeAttr(fields.hero_image)}"></p>\n${html}`
+  }
 
   const dir = dirOf(vfile.path)
-  const title = extractH1Title(html) || filenameSansExt(basename(vfile.path))
+  // Wiki-embeds (`![[chart.png]]`) are already resolved above by
+  // transformEmbeds; this second pass catches ordinary CommonMark
+  // `![alt](path)` / `[text](path)` references (our own export's shape,
+  // and plenty of real vaults') that the wiki-syntax pass never touches.
+  // Anything already rewritten to `import-ref://...` is skipped by
+  // resolveRelativeMedia's own absolute-scheme check, so this can't
+  // double-resolve or duplicate a media entry.
+  const resolved = resolveRelativeMedia(html, dir, byPath)
+  const allMedia = dedupeMedia([...media, ...resolved.media])
+  const title = fields.title || extractH1Title(resolved.html) || filenameSansExt(basename(vfile.path))
 
   return {
     importKey: `obsidian:${vfile.path}`,
     title,
-    html,
+    html: resolved.html,
     tags,
+    subtitle: fields.subtitle,
+    ticker: fields.ticker,
     folderPath: dir ? dir.split('/') : [],
-    media,
+    media: allMedia,
     links,
-    ...computeDates(createdAt, vfile.lastModified),
+    ...frontmatterDates(fields, vfile.lastModified),
   }
-}
-
-// ---------------------------------------------------------------------------
-// frontmatter
-// ---------------------------------------------------------------------------
-
-/**
- * Extracts a `--- ... ---` frontmatter block anchored at byte 0 (the `^`
- * anchor with no 'm' flag matches only the very start of the string).
- * Returns `{tags, createdAt, body}` — `body` is the file text with the
- * frontmatter block (delimiters included) removed. Absent frontmatter
- * yields `{tags: [], createdAt: null, body: <original text>}`.
- */
-function extractFrontmatter(text) {
-  const match = FRONTMATTER_RE.exec(text)
-  if (!match) return { tags: [], createdAt: null, body: text }
-  const { tags, createdAt } = parseFrontmatterBlock(match[1])
-  return { tags, createdAt, body: text.slice(match[0].length) }
-}
-
-function parseFrontmatterBlock(block) {
-  const lines = block.split(/\r?\n/)
-  let tags = []
-  let createdAt = null
-  let dateAt = null
-
-  for (let i = 0; i < lines.length; i++) {
-    const m = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(lines[i])
-    if (!m) continue
-    const key = m[1].toLowerCase()
-    const rawValue = m[2].trim()
-
-    if (key === 'tags') {
-      if (rawValue.startsWith('[') && rawValue.endsWith(']')) {
-        tags = rawValue
-          .slice(1, -1)
-          .split(',')
-          .map((s) => unquote(s.trim()))
-          .filter(Boolean)
-      } else if (rawValue) {
-        tags = rawValue
-          .split(',')
-          .map((s) => unquote(s.trim()))
-          .filter(Boolean)
-      } else {
-        // YAML list form: `tags:` followed by `  - item` lines.
-        const collected = []
-        let j = i + 1
-        while (j < lines.length && /^\s*-\s+/.test(lines[j])) {
-          collected.push(unquote(lines[j].replace(/^\s*-\s+/, '').trim()))
-          j++
-        }
-        tags = collected.filter(Boolean)
-        i = j - 1
-      }
-    } else if (key === 'created') {
-      createdAt = unquote(rawValue) || createdAt
-    } else if (key === 'date') {
-      dateAt = unquote(rawValue) || dateAt
-    }
-  }
-
-  return { tags, createdAt: createdAt || dateAt || null }
-}
-
-function unquote(s) {
-  if (!s) return s
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    return s.slice(1, -1)
-  }
-  return s
-}
-
-/** Frontmatter `created`/`date` wins over `lastModified`; `updatedAt` (when derivable) still comes from `lastModified`. */
-function computeDates(frontmatterCreatedAt, lastModified) {
-  const fromModified = datesFromLastModified(lastModified)
-  if (frontmatterCreatedAt) return { ...fromModified, createdAt: frontmatterCreatedAt }
-  return fromModified
 }
 
 // ---------------------------------------------------------------------------
@@ -408,12 +364,6 @@ function extractH1Title(html) {
   const h1 = doc.querySelector('h1')
   const text = h1?.textContent?.trim()
   return text || null
-}
-
-function datesFromLastModified(lastModified) {
-  if (lastModified == null) return {}
-  const iso = new Date(lastModified).toISOString()
-  return { createdAt: iso, updatedAt: iso }
 }
 
 function escapeHtml(s) {

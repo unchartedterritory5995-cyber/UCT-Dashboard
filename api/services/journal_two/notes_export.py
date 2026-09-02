@@ -3,26 +3,35 @@
 The exported archive is one .md per note with YAML front matter, folders as
 directories -- a format meant to be readable by any Markdown-aware tool.
 
-⛔ It does NOT currently round-trip back into this product, though an earlier
-version of this docstring claimed it did ("the SAME shape the
-generic/Obsidian importer already ingests ... a member can round-trip out
-and back in"). Measured against the real `detectAdapter()` + adapter
-`parse()` path (`app/src/pages/journal-2-0/lib/importer/`): a real export zip
-built by this module is claimed by the GENERIC adapter (detect score ~0.1),
-never Obsidian (0) -- and `generic.js` has no YAML front-matter stripping at
-all, so the front-matter block re-renders as a visible CommonMark heading and
-every field in it (tags, subtitle, ticker, hero_image, the real created/
-updated dates) is lost on import. Forcing the Obsidian adapter instead
-recovers most of that metadata but drops every bundled attachment (its
-`parse()` never reads the `attachments/` tree this module writes) and
-mis-splits a quoted flow-sequence tag list on bare commas. No single importer
-adapter in this repo can ingest this export's shape today.
-TODO(round-trip gap): needs frontend importer-adapter work -- teach
-`generic.js` to strip/honor YAML front matter, and/or give `obsidian.js`
-attachment support plus a quote-aware flow-sequence parser -- before this
-docstring, or any member-facing copy that echoes its claim, can honestly
-promise a round trip. Out of scope for this fix (backend export code only);
-tracked as a follow-up for whoever owns the importer adapters.
+✅ It DOES round-trip back into this product now (fixed 2026-09-02, same
+adversarial-audit finding A4 that first measured the gap below). Measured
+against the real `detectAdapter()` + adapter `parse()` path
+(`app/src/pages/journal-2-0/lib/importer/`): a real export zip built by this
+module is now claimed by a dedicated `uctAdapter` (detect score 0.97, keyed
+off an unconditional `UCT_NOTEBOOK_EXPORT.json` manifest this module writes
+into every archive) and imports with title, subtitle, ticker, tags (including
+a quoted flow-sequence item containing a literal comma), hero image, inline
+image, file attachment, and both real created/updated dates all intact --
+proven by a real round trip, not an isolated unit test on either side:
+`app/src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js` builds an
+archive through this module's own `build_export_zip` (via the
+`roundtrip_export_fixture.py` CLI bridge, since the export is Python and the
+importer is JS) and feeds it through the real detect+parse path.
+
+The three underlying defects this found are fixed in the SHARED adapters, not
+behind the new marker: `generic.js` now strips/honors YAML front matter
+(title/subtitle/ticker/tags/hero_image/dates) instead of re-rendering it as a
+visible CommonMark heading; `obsidian.js` now resolves ordinary CommonMark
+`![alt](path)`/`[text](path)` attachment references the same way `generic.js`
+does (not just `![[wiki-embeds]]`), so its `attachments/` support helps a real
+vault that has "Use Wikilinks" turned off, not just this export; and its
+flow-sequence tag parser is quote-aware, so `[swing, "reclaim, tight"]` no
+longer mis-splits on the comma inside the quotes. A member who drops in a
+SUBSET of an export (a few .md files, no manifest, no attachments/ tree)
+therefore still imports sensibly via the ordinary generic/obsidian path --
+the manifest only sharpens detection of a WHOLE, unmodified export; see
+`app/src/pages/journal-2-0/lib/importer/adapters/uct.js`'s own docstring for
+the full reasoning on why detection is deliberately not marker-only.
 
 ⛔ Never raises on an unknown node type. Export runs over content written by
 every editor version a member has ever used, and a 500 on one odd block
@@ -449,8 +458,9 @@ def _folder_path(folder_id: str | None, folders: dict[str, tuple[str, str]]) -> 
 #
 # Front matter is real YAML -- Obsidian (and any other tool a member points at
 # this export) parses it as such, and this app's OWN importer strips it with a
-# YAML-shaped regex too (app/src/pages/journal-2-0/lib/importer/adapters/
-# obsidian.js `FRONTMATTER_RE` + `parseFrontmatterBlock`). Before this fix
+# YAML-shaped regex too (the shared `app/src/pages/journal-2-0/lib/importer/
+# frontmatter.js` module's `FRONTMATTER_RE` + `parseFrontmatterBlock`, used by
+# both `generic.js` and `obsidian.js`). Before this fix
 # every value was interpolated bare: `f"title: {row['title']}"`. A title
 # containing a colon ("Setup: NVDA reclaim" -- an entirely ordinary title, not
 # an edge case) puts a SECOND colon on the `title:` line, which a compliant
@@ -536,12 +546,37 @@ def _front_matter(row: sqlite3.Row, hero_local: str | None = None) -> str:
     return "\n".join(lines)
 
 
+#
+# Round-trip self-identification (2026-09-02 adversarial audit, finding A4).
+#
+# `EXPORT_ISSUES.txt` is written ONLY when something was skipped, so it
+# cannot double as "this zip came from us" -- most exports never write it.
+# `_EXPORT_MANIFEST_NAME` is written UNCONDITIONALLY on every export instead,
+# purely so the frontend importer's `detectAdapter()` can recognize a whole,
+# untouched archive from this product at high confidence (the dedicated
+# `uctAdapter` in `app/src/pages/journal-2-0/lib/importer/adapters/uct.js`)
+# and label it honestly instead of guessing "Obsidian" or "Files".
+#
+# This is deliberately NOT the only way an export round-trips: a member who
+# pulls a handful of .md files out of an export (dropping the manifest and
+# the attachments/ tree with them) has no marker left to find, so detection
+# falls through to the generic adapter same as any other loose markdown --
+# which is exactly why the front-matter/attachment/hero-image fixes in this
+# same audit finding live in the SHARED `generic.js`/`obsidian.js` adapters
+# rather than only behind this marker. The manifest makes the common case
+# (a whole, unmodified export) unambiguous; it is not load-bearing for the
+# subset case to still import sensibly.
+_EXPORT_MANIFEST_NAME = "UCT_NOTEBOOK_EXPORT.json"
+_EXPORT_MANIFEST_VERSION = 1
+
+
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
 ) -> None:
     """Writes every note `user_id` owns -- markdown + front matter + bundled
-    attachments -- into an already-open `zf`, plus EXPORT_ISSUES.txt when
-    anything was skipped. Shared by both `build_export_zip` (in-memory,
+    attachments -- into an already-open `zf`, plus the unconditional
+    `_EXPORT_MANIFEST_NAME` self-identification marker and EXPORT_ISSUES.txt
+    when anything was skipped. Shared by both `build_export_zip` (in-memory,
     BytesIO-backed -- kept for this file's own direct unit testing of archive
     content) and `build_export_zip_to_tempfile` (disk-backed -- what the
     export ROUTE actually uses); the archive-building logic itself must be
@@ -559,6 +594,13 @@ def _write_notes_archive(
         " hero_image_url, created_at, updated_at FROM j2_notes"
         " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
     ).fetchall()
+
+    zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
+        "product": "uct-notebook-export",
+        "manifest_version": _EXPORT_MANIFEST_VERSION,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "note_count": len(rows),
+    }))
 
     used: set[str] = set()
     failures: list[tuple[str, str]] = []

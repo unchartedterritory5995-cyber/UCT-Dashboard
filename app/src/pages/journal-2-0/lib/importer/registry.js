@@ -2,12 +2,18 @@ import { genericAdapter } from './adapters/generic'
 import { notionAdapter } from './adapters/notion'
 import { obsidianAdapter } from './adapters/obsidian'
 import { evernoteAdapter } from './adapters/evernote'
+import { uctAdapter } from './adapters/uct'
 
 // Order matters: it is the tie-break when two adapters score the same
-// confidence (see detectAdapter below). Evernote's .enex signal is
-// unambiguous so it goes first; generic is the catch-all floor so it goes
-// last.
-export const ADAPTERS = [evernoteAdapter, notionAdapter, obsidianAdapter, genericAdapter]
+// confidence (see detectAdapter below). uctAdapter goes first — its
+// unconditional manifest marker (`UCT_NOTEBOOK_EXPORT.json`) is even more
+// unambiguous than a file extension or a directory name a general-purpose
+// tool might reuse, since nothing but our own exporter ever writes it.
+// Evernote's .enex signal is unambiguous too, so it's next; generic is the
+// catch-all floor so it goes last. ⛔ evernote > notion > obsidian > generic
+// is load-bearing (railed in registry.test.js) — adding uctAdapter ahead of
+// all four does not change any of THEIR relative order.
+export const ADAPTERS = [uctAdapter, evernoteAdapter, notionAdapter, obsidianAdapter, genericAdapter]
 
 /**
  * Scores every registered adapter against the dropped file set and returns
