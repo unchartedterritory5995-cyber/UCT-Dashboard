@@ -1,5 +1,5 @@
 # tests/test_buzz_digest.py
-"""Buzz image + digest: blank guard, disarmed default, one post per day, lock."""
+"""Buzz image + digest: blank guard, disarmed default, one post per SLOT, lock."""
 from __future__ import annotations
 
 import datetime as dt
@@ -37,17 +37,21 @@ def test_digest_refuses_to_post_while_disarmed(mods, monkeypatch):
     assert out["posted"] is False
 
 
-def test_armed_without_a_webhook_warns_rather_than_failing_silently(mods, monkeypatch, caplog):
+def test_armed_without_a_destination_warns_rather_than_failing_silently(mods, monkeypatch, caplog):
     """Armed + unconfigured must be distinguishable from a quiet day. Otherwise
-    a mistyped webhook produces the same silence as 'nothing to report' -- every
-    day, forever."""
+    a mistyped destination produces the same silence as 'nothing to report' --
+    every slot, forever. The warning must name BOTH ways to fix it, since a
+    reader who only knows about the webhook cannot tell that a channel id would
+    also do."""
     _, _, digest = mods
     monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
     monkeypatch.delenv("BUZZ_DIGEST_WEBHOOK", raising=False)
+    monkeypatch.delenv("BUZZ_DIGEST_CHANNEL", raising=False)
     with caplog.at_level("WARNING"):
         out = digest.run_digest(now=1788300000)
-    assert out["reason"] == "no webhook"
+    assert out["reason"] == "no destination"
     assert any("BUZZ_DIGEST_WEBHOOK" in r.message for r in caplog.records)
+    assert any("BUZZ_DIGEST_CHANNEL" in r.message for r in caplog.records)
 
 
 def test_digest_posts_once_per_day(mods, monkeypatch):
@@ -157,3 +161,168 @@ def test_a_ready_and_drawn_board_is_kept(mods, monkeypatch):
             return FakeResp()
 
     assert image.render_board_png("open", client=FakeClient()) == b"\x89PNGdata"
+
+
+def _arm(monkeypatch):
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_WEBHOOK", "https://example.invalid/hook")
+
+
+def _seed(store, day=1, hour=9, minute=45, n=6, sym="NVDA", start=5000):
+    ts = int(dt.datetime(2026, 9, day, hour, minute, tzinfo=ET).timestamp())
+    store.record_mentions([(str(start + i), "CH1", f"u{i}", sym, ts, "exact") for i in range(n)])
+
+
+def test_a_later_slot_is_NOT_blocked_by_an_earlier_one(mods, monkeypatch):
+    """⛔ THE REGRESSION THIS CADENCE CREATED. The dedup was a single
+    last-posted DAY, which is correct for one post a day and silently wrong for
+    seven: the 10:00 post would stamp the day and every later slot would find
+    it and skip -- one post instead of seven, with "already posted today" in
+    the log looking entirely reasonable."""
+    store, _, digest = mods
+    _arm(monkeypatch)
+    _seed(store)
+    posts = []
+
+    def post(**kw):
+        posts.append(kw)
+        return True
+
+    for h, m in [(10, 0), (10, 30), (11, 30), (12, 30), (14, 0), (16, 15), (17, 30)]:
+        now = int(dt.datetime(2026, 9, 1, h, m, tzinfo=ET).timestamp())
+        out = digest.run_digest(now=now, slot=digest.slot_label(h, m),
+                                render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+        assert out["posted"] is True, f"{h:02d}:{m:02d} was blocked: {out}"
+    assert len(posts) == 7
+
+    # ...and each one is still individually idempotent.
+    now = int(dt.datetime(2026, 9, 1, 11, 30, tzinfo=ET).timestamp())
+    again = digest.run_digest(now=now, slot="11:30",
+                              render_fn=lambda w: b"\x89PNGdata", post_fn=post)
+    assert again["posted"] is False
+    assert len(posts) == 7
+
+
+def test_the_owner_cadence_is_the_default(mods, monkeypatch):
+    """Seven slots through the session (owner, 2026-09-02), not one at the close."""
+    _, _, digest = mods
+    monkeypatch.delenv("BUZZ_DIGEST_TIMES", raising=False)
+    assert digest.digest_times() == ((10, 0), (10, 30), (11, 30), (12, 30),
+                                     (14, 0), (16, 15), (17, 30))
+
+
+def test_a_malformed_times_list_posts_NOTHING_rather_than_falling_back(mods, monkeypatch, caplog):
+    """⛔ Falling back to the default on a typo would post at times the owner
+    never asked for AND make the typo invisible. Empty + a warning is the
+    honest failure -- same contract as armed-but-unconfigured."""
+    import logging
+    _, _, digest = mods
+    monkeypatch.setenv("BUZZ_DIGEST_TIMES", "banana, 99:99, :")
+    with caplog.at_level(logging.WARNING):
+        assert digest.digest_times() == ()
+    assert "BUZZ_DIGEST_TIMES" in caplog.text
+    # CONTROL: a good list still parses, so this is not just "always empty".
+    monkeypatch.setenv("BUZZ_DIGEST_TIMES", "09:30, 16:00")
+    assert digest.digest_times() == ((9, 30), (16, 0))
+
+
+def test_a_quiet_slot_does_not_cancel_the_next_one(mods, monkeypatch):
+    """"Nothing to say" must NOT mark the slot posted. At 10:00 the room may
+    genuinely have said nothing; that cannot be allowed to consume 10:30."""
+    store, _, digest = mods
+    _arm(monkeypatch)
+    posts = []
+    quiet = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
+    out = digest.run_digest(now=quiet, slot="10:00", post_fn=lambda **kw: posts.append(kw) or True)
+    assert out["posted"] is False and out["reason"] == "nothing to say"
+    assert digest.already_posted("2026-09-01 10:00") is False
+
+    # The room speaks, and the SAME slot can still post later in its window.
+    _seed(store)
+    out2 = digest.run_digest(now=quiet + 300, slot="10:00",
+                             render_fn=lambda w: None, post_fn=lambda **kw: posts.append(kw) or True)
+    assert out2["posted"] is True and len(posts) == 1
+
+
+def test_a_late_misfire_dedups_against_the_slot_it_was_meant_to_be(mods, monkeypatch):
+    """APScheduler fires within misfire_grace_time, so a run can land minutes
+    late. Without slot mapping it would key off the wall clock ("16:18") and
+    post a second time next to the real 16:15."""
+    store, _, digest = mods
+    _arm(monkeypatch)
+    _seed(store)
+    posts = []
+
+    def post(**kw):
+        posts.append(kw)
+        return True
+
+    on_time = int(dt.datetime(2026, 9, 1, 16, 15, tzinfo=ET).timestamp())
+    assert digest.run_digest(now=on_time, slot="16:15",
+                             render_fn=lambda w: None, post_fn=post)["posted"] is True
+    late = int(dt.datetime(2026, 9, 1, 16, 18, tzinfo=ET).timestamp())
+    out = digest.run_digest(now=late, render_fn=lambda w: None, post_fn=post)  # no slot passed
+    assert out["slot"] == "16:15", out
+    assert out["posted"] is False
+    assert len(posts) == 1
+
+
+def test_a_channel_id_posts_as_the_bot_and_needs_no_webhook(mods, monkeypatch):
+    """⛔ Activating the digest should not require a human to create a webhook.
+    The bot already holds SEND_MESSAGES, so a channel id is a complete
+    destination. Asserts the ROUTE taken, not merely that something posted."""
+    store, _, digest = mods
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.delenv("BUZZ_DIGEST_WEBHOOK", raising=False)
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "1216816863313657886")
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "tok")
+    _seed(store)
+    seen = {}
+
+    def fake_bot_post(channel_id, content, png):
+        seen["channel"] = channel_id
+        seen["content"] = content
+        return True
+
+    monkeypatch.setattr(digest, "_post_as_bot", fake_bot_post)
+    monkeypatch.setattr(digest, "_post", lambda *a, **k: pytest.fail("webhook path must not run"))
+    now = int(dt.datetime(2026, 9, 1, 10, 0, tzinfo=ET).timestamp())
+    out = digest.run_digest(now=now, slot="10:00", render_fn=lambda w: None)
+    assert out["posted"] is True
+    assert seen["channel"] == "1216816863313657886"
+    assert "Most talked about" in seen["content"]
+
+
+def test_the_channel_wins_when_both_destinations_are_set(mods, monkeypatch):
+    """CONTROL for the test above -- and the tie-break has to be stated, or a
+    leftover webhook silently keeps winning after someone sets a channel."""
+    store, _, digest = mods
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_WEBHOOK", "https://example.invalid/hook")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "999")
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "tok")
+    _seed(store)
+    route = []
+    monkeypatch.setattr(digest, "_post_as_bot", lambda c, t, p: route.append("bot") or True)
+    monkeypatch.setattr(digest, "_post", lambda u, t, p: route.append("webhook") or True)
+    now = int(dt.datetime(2026, 9, 1, 12, 30, tzinfo=ET).timestamp())
+    assert digest.run_digest(now=now, slot="12:30", render_fn=lambda w: None)["posted"] is True
+    assert route == ["bot"]
+
+
+def test_a_channel_without_a_bot_token_fails_loudly_instead_of_posting(mods, monkeypatch, caplog):
+    """The digest can be armed independently of a working ingest, so the token
+    it borrows may be missing. That must be a named failure, not a silent one."""
+    import logging
+    store, _, digest = mods
+    monkeypatch.setenv("BUZZ_DIGEST_ENABLED", "1")
+    monkeypatch.setenv("BUZZ_DIGEST_CHANNEL", "999")
+    monkeypatch.delenv("BUZZ_DIGEST_WEBHOOK", raising=False)
+    monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+    _seed(store)
+    now = int(dt.datetime(2026, 9, 1, 14, 0, tzinfo=ET).timestamp())
+    with caplog.at_level(logging.WARNING):
+        out = digest.run_digest(now=now, slot="14:00", render_fn=lambda w: None)
+    assert out["posted"] is False
+    assert "DISCORD_BOT_TOKEN" in caplog.text
+    assert digest.already_posted("2026-09-01 14:00") is False, "a failed post must not consume the slot"

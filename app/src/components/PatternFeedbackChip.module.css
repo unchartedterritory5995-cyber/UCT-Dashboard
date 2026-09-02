@@ -39,3 +39,20 @@
   border: 1px solid var(--border, #2e3127); border-radius: var(--radius-md);
   padding: 2px 6px; font-size: 11px; width: 140px; min-height: 24px;
 }
+
+/* TOUCH (wave 17) — the tablet audit caught the thumbs at 25x20 and the ⋯ at
+   17x15 (phone hides the whole chip above; tablet shows it and an admin on an
+   iPad can't hit 20px). Hit-box expansion, not box growth: padding grows the
+   tappable box (h 20→46, 15→41), negative margins cancel the layout impact so
+   the nowrap dense rows don't move. `.compact .btn` must be named — its base
+   rule is (0,2,0) and would beat a bare `.btn` override at any source order. */
+@media (max-width: 1024px) {
+  .btn, .compact .btn, .link {
+    /* 16px vertical: the ⋯ link's intrinsic content is 13px, so 13 + 2×16 =
+       45 clears the 44 floor (13px padding left it at 39 — measured). */
+    padding: 16px 8px;
+    margin: -16px -6px;
+    position: relative;
+    z-index: 1;
+  }
+}

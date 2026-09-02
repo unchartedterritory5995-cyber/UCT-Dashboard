@@ -89,10 +89,19 @@ def test_SPOT_is_now_gated_by_measured_corpus_data_not_by_hand():
     assert "SPOT" in u.chat_words()
     assert "SPOT" in u.ambiguous()
     assert "SPOT" not in u.HOUSE_VOCAB
-    # control: LINE/BULL/GAIN were removed from HOUSE_VOCAB the same day this
-    # ruling was corrected, because the derived corpus already covers all
-    # three independently -- still gated, just no longer hand-typed.
-    for still_gated_via_derivation in ("LINE", "BULL", "GAIN"):
+    # control: LINE/GAIN were removed from HOUSE_VOCAB the same day this ruling
+    # was corrected, because the derived corpus already covers them -- still
+    # gated, just no longer hand-typed. Both measure 0% uppercase in real
+    # #main-chat, so no threshold reaches them.
+    # ⚠️ BULL LEFT THIS CONTROL on 2026-09-02. At 24.6% uppercase (33 caps uses
+    # against 101 lowercase) it rose above the new 10% bar, so it is countable
+    # again. That is the owner's ruling working as intended -- BULL is a real
+    # ticker, and "a decent bit of false mentions is fine as long as intended
+    # ticker mentions are captured". It is NOT hand-added to HOUSE_VOCAB: that
+    # list is for uppercase-by-convention ACRONYMS, and BULL is a word shouted
+    # for emphasis. Stretching the list to cover it is how hand-typed vocab
+    # grows back.
+    for still_gated_via_derivation in ("LINE", "GAIN"):
         assert still_gated_via_derivation in u.chat_words()
         assert still_gated_via_derivation in u.ambiguous()
         assert still_gated_via_derivation not in u.HOUSE_VOCAB
@@ -103,9 +112,9 @@ def test_SPOT_is_now_gated_by_measured_corpus_data_not_by_hand():
     # ⚠️ PUMP left this list on 2026-09-02. Re-deriving against 32,890 real
     # #main-chat messages MEASURED it -- 62 lowercase uses against ONE
     # uppercase -- so the derived chat_words() now covers it and it was dropped
-    # from WORD_FORMS: the same graduation LINE/BULL/GAIN made out of
-    # HOUSE_VOCAB, and for the same reason (two authorities over one token is
-    # the defect, not the redundancy). Asserted, not silently deleted.
+    # from WORD_FORMS: the same graduation LINE/GAIN made out of HOUSE_VOCAB,
+    # and for the same reason (two authorities over one token is the defect,
+    # not the redundancy). Asserted, not silently deleted.
     assert "PUMP" in u.chat_words()
     assert "pump" not in u.WORD_FORMS
     for word_form_only in ("BAND",):
@@ -141,26 +150,24 @@ def test_a_malformed_universe_file_degrades_to_empty_instead_of_raising(tmp_path
 
 
 def test_a_lowercase_typed_TICKER_is_not_gated_as_a_word():
-    """⛔ The casing rule assumes lowercase means "ordinary word". That holds
-    for 52 of the 53 collisions the real #main-chat corpus surfaced -- "ngl",
-    "ty", "bc", "0 dte", "nat gas", "wall st", an electric "bill" -- and even
-    "qs", which is this room's slang for QQQ rather than QuantumScape.
+    """⛔ The casing rule assumes lowercase means "ordinary word", and for a
+    ticker that is NOT an English word the lowercase hits are just people
+    typing it lazily -- "Watching sgov 5 minute", "buy back the sgov I sold".
+    Gating those DROPS REAL MENTIONS, which the owner ruled is the failure that
+    matters: "a decent bit of false mentions is fine as long as intended ticker
+    mentions are captured and highlighted."
 
-    SGOV is where it breaks: not an English word, just an ETF people type
-    casually ("Watching sgov 5 minute", "buy back the sgov I sold"). Gating it
-    would DROP REAL MENTIONS -- the other half of the brief, not noise.
-
-    The exception lives at LOAD (LOWERCASE_TICKERS), never in the JSON, so the
-    derived file stays a pure reproducible measurement."""
+    A 35% threshold ate SGOV, ETSY, COST, UPS, BROS, BILL and DTE for exactly
+    this reason. At 10% they are all countable again, while the tokens that are
+    genuinely words -- measured at 0-8% uppercase -- stay gated."""
     import json
     import pathlib
     u._reset_caches_for_tests()
-    derived = set(json.loads(
-        (pathlib.Path(u.__file__).resolve().parents[1] / "data" / "buzz_collisions.json")
-        .read_text(encoding="utf-8"))["tokens"])
-    # The measurement DID flag it -- the file is honest about what it saw.
-    assert "SGOV" in derived
-    # The runtime does not act on it.
+    # ⛔ Asserts the OUTCOME, not the mechanism. This briefly tested a
+    # LOWERCASE_TICKERS override; lowering the threshold to 10% made SGOV fall
+    # out on its own and the override was deleted as a second authority. What
+    # must stay true is that the ticker is countable -- by whatever means.
+    assert "SGOV" in u.symbols()
     assert "SGOV" not in u.chat_words()
     assert "SGOV" not in u.ambiguous()
     # CONTROL: the exception is a scalpel, not a blanket -- everything else the

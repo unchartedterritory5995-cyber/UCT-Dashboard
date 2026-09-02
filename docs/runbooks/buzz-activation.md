@@ -245,9 +245,35 @@ of members collapses to one render rather than 25.
 
 ---
 
-## Step 5 — arm the daily digest
+## Step 5 — arm the digest
 
-Posts the board once each weekday at **16:10 ET**.
+Posts the board **seven times each weekday**, through the session (owner,
+2026-09-02): **10:00 · 10:30 · 11:30 · 12:30 · 14:00 · 16:15 · 17:30**.
+
+Every post is the **"since the open"** board, so 10:00 is a 30-minute pulse and
+17:30 is the finished session.
+
+> Times are `America/New_York`, not a fixed offset. You said "EST", and in
+> September that is really EDT — using the zone means these track the wall
+> clock you mean on both sides of the DST change, with no edit in November.
+
+```bash
+railway variables --service web \
+  --set BUZZ_DIGEST_ENABLED=1 \
+  --set BUZZ_DIGEST_CHANNEL=<channel-id>
+railway redeploy --service web --yes
+```
+
+**That is option A — a channel id, no webhook to create.** The bot already holds
+`SEND_MESSAGES`, so a channel id is a complete destination.
+
+⚠️ It can only post where it can *see*. Measured 2026-09-02, the bot is postable
+in exactly ONE channel — `#main-chat` (`1216816863313657886`), the one granted
+in Step 1. For anywhere else, either grant it View Channel + Send Messages there
+too, or use option B.
+
+**Option B — a webhook.** Works for any channel, including ones the bot cannot
+see, but you create it by hand (the bot has no `MANAGE_WEBHOOKS`):
 
 ```bash
 railway variables --service web \
@@ -255,6 +281,20 @@ railway variables --service web \
   --set BUZZ_DIGEST_WEBHOOK=<webhook-url>
 railway redeploy --service web --yes
 ```
+
+If both are set the **channel wins** — it is the more specific instruction.
+
+Change the cadence with `BUZZ_DIGEST_TIMES` (comma-separated `HH:MM`, ET) —
+e.g. `--set BUZZ_DIGEST_TIMES=10:00,12:30,16:15` for three. One scheduler job
+is registered per slot, and boot prints the list it registered.
+
+> ⛔ A malformed `BUZZ_DIGEST_TIMES` posts **nothing** and warns — it does NOT
+> fall back to the default. Falling back would post at times you never asked
+> for and make a typo invisible. Check the boot line names the slots you meant.
+
+Each slot dedups independently: a quiet 10:00 never consumes 10:30, and a
+misfire a few minutes late still counts as its own slot rather than posting
+twice next to the real one.
 
 Rollback is the env var, not a deploy: set `BUZZ_DIGEST_ENABLED=0` and redeploy.
 

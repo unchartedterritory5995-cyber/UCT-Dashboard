@@ -55,6 +55,17 @@ HOUSE_VOCAB = frozenset({
     "AI", "RS", "SMA", "MA", "PEG", "EP", "ATH", "ATL", "IPO",
     "ETF", "RSI", "MACD", "VWAP", "HOD", "LOD", "PT", "TP", "SL", "IV", "OI",
     "DD",
+    # ⛔ EMA and IMO came BACK on 2026-09-02, and the round trip is the lesson.
+    # They were removed on 2026-09-01 because the derived list happened to
+    # cover them; then the gating threshold dropped from 35% to 10% (owner
+    # ruling: capture real mentions, tolerate false ones) and both rose above
+    # the line -- EMA is written uppercase 68 times in 30 days of #main-chat,
+    # IMO 50. That is precisely this list's definition: uppercase-by-convention
+    # tokens no casing threshold can ever separate. Coverage by the derived
+    # list was a COINCIDENCE OF THE THRESHOLD, not evidence they belonged
+    # there, and the moment the threshold moved for an unrelated reason the
+    # coincidence evaporated and "EMA reclaim" started booking a ticker.
+    "EMA", "IMO",
 })
 
 # Indices. cap_universe.json is an EQUITY SCREEN, so none of these are in it --
@@ -136,27 +147,16 @@ def aliases() -> dict[str, str]:
     return {str(k).lower(): str(v).upper() for k, v in payload.items()}
 
 
-# ⛔ The one place the casing rule is KNOWN to be wrong, with the evidence.
-#
-# The derivation assumes a token written mostly lowercase is an ordinary word.
-# That holds overwhelmingly -- re-derived against 32,890 real #main-chat
-# messages, 53 new collisions were found and hand-inspected, and 52 of them are
-# genuine: "ngl" (not gonna lie), "ty", "bc" (because), "0 dte", "nat gas",
-# "wall st", an electric "bill", "hardest to short stock ever". Even "qs" is
-# not QuantumScape -- it is the room's slang for QQQ ("729.36 on the qs"), so
-# gating it is right for a reason the rule never knew.
-#
-# SGOV is the exception: it is not an English word, and the lowercase hits are
-# people typing the ETF casually -- "Watching sgov 5 minute", "i should
-# probably buy back the sgov I sold". Gating it would DROP REAL MENTIONS, which
-# is the other half of the owner's brief ("things don't fall through the
-# cracks"), not just noise.
-#
-# This stays OUT of the derived JSON so that file remains a pure, reproducible
-# measurement -- the exception is applied here, at load, where it can carry its
-# evidence. Add to it only with quoted corpus lines, the same bar HOUSE_VOCAB
-# and WORD_FORMS hold.
-LOWERCASE_TICKERS = frozenset({"SGOV"})
+# ⚰️ LOWERCASE_TICKERS lived here for one hour on 2026-09-02. It carved SGOV
+# out of the derived list because a 35% threshold flagged it (12 uppercase
+# vs 28 lowercase) even though the lowercase hits were people typing the
+# ETF casually -- "Watching sgov 5 minute". Lowering the threshold to 10%
+# for the owner's recall ruling made SGOV fall out on its own, along with
+# ETSY, COST, UPS, BROS, BILL and DTE, which the same 35% bar had also been
+# eating. An override that duplicates what the threshold already does is a
+# second authority over one token, so it was removed rather than left as a
+# no-op. The RAIL it came with stays: it now asserts the OUTCOME (a
+# lowercase-typed ticker is still countable), not the mechanism.
 
 
 @functools.lru_cache(maxsize=1)
@@ -164,14 +164,12 @@ def chat_words() -> frozenset[str]:
     """Ordinary English words that collide with a real ticker, DERIVED by
     casing analysis over a genuine Discord corpus (see the module docstring +
     `tools/buzz_derive_collisions.py`). Never hand-typed: this is a straight
-    load of `api/data/buzz_collisions.json`'s `tokens` keys, minus the measured
-    exceptions in LOWERCASE_TICKERS. A missing or malformed file degrades to an
-    empty set rather than raising -- the same fail-soft contract every loader
-    in this module follows."""
+    load of `api/data/buzz_collisions.json`'s `tokens` keys. A missing or
+    malformed file degrades to an empty set rather than raising -- the same
+    fail-soft contract every loader in this module follows."""
     payload = _load_json("buzz_collisions.json") or {}
     tokens = payload.get("tokens") if isinstance(payload, dict) else None
-    derived = frozenset(str(k).strip().upper() for k in (tokens or {}))
-    return derived - LOWERCASE_TICKERS
+    return frozenset(str(k).strip().upper() for k in (tokens or {}))
 
 
 @functools.lru_cache(maxsize=1)
