@@ -71,6 +71,7 @@ Browser assertion (authenticated, the owner's Chrome via the claude-in-chrome to
 ## Run log
 
 | R1 | Recovery checkpoint, 2026-09-02 (after third pause) | PASS (`git diff --stat 9c3df14b9 -- . ':(exclude)docs/terminal-research'` empty) | PASS -- 31 files, `Test Files 31 passed (31)` | PASS -- 374 passed, 0 failed, 14.5s | PASS (`/api/health` 200 `status: ok`, uptime 558s -- production redeployed since R0, consistent with 54 commits on origin/master since the start SHA) | not re-run this checkpoint (unauthenticated HTTP checks sufficient; last browser check at R0 still valid, header/week-strip/roster line unchanged in structure) | **PASS** |
+| R2 | Day 1 close (six-task recovery wave + Bloomberg deepening + Day 1 Executive Synthesis all accepted), 2026-09-02 ~14:20 CDT | PASS (`git diff --stat 9c3df14b9 -- . ':(exclude)docs/terminal-research'` empty -- this entire checkpoint was docs-only: 11 new/updated research artifacts, zero application-code touches) | not re-run this checkpoint (docs-only session; nothing in `app/src` could have regressed) | not re-run this checkpoint (docs-only session; nothing in `api/` could have regressed) | PASS (`/api/health` 200, `/calendar` 200, both via `curl` with a browser User-Agent) | not re-run this checkpoint (no frontend change since R1 to verify) | **PASS** |
 
 | Run | Program day / checkpoint | (1) diff empty | (2) frontend | (2) backend | (3) HTTP | (3) browser | Result |
 |---|---|---|---|---|---|---|---|
