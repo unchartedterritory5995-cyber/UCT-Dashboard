@@ -161,3 +161,135 @@ def test_nested_folders_export_as_nested_directories():
     blob, _ = build_export_zip("u1", conn=c)
     names = zipfile.ZipFile(io.BytesIO(blob)).namelist()
     assert "Trading/Setups/Cup and handle.md" in names
+
+
+# ── Fix round 1 covering tests ───────────────────────────────────────────────
+# Review findings, all in the one defect class this export exists to prevent:
+# silently losing a member's content.
+
+
+def test_export_survives_a_malformed_node_and_keeps_other_notes_intact():
+    """Finding 1 (the worst of the four): tiptap_to_markdown wasn't
+    exception-guarded in the export loop, so one malformed node (a non-dict
+    entry in a content array) raised uncaught and would 500 the WHOLE
+    archive -- denying a member all 4,000 notes for one bad block in one of
+    them. The bad note must still export (front matter + a visible marker in
+    place of the body) and every OTHER note in the same export must be
+    completely unaffected."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Corrupt note",
+         # A null entry in "content" -- json.loads turns it into a bare
+         # `None`, and the walker calls `.get("type")` on it deep in the
+         # recursion, which raised AttributeError before this fix.
+         '{"type":"doc","content":[null]}', "",
+         "[]", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, body_plain,"
+        " tags, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+        ("n2", "u1", "Healthy note",
+         '{"type":"doc","content":[{"type":"paragraph","content":'
+         '[{"type":"text","text":"still here"}]}]}',
+         "still here", "[]", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+
+    # The call itself must not raise -- proving the export SURVIVES, not just
+    # that the happy path works.
+    blob, _ = build_export_zip("u1", conn=c)
+
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    names = zf.namelist()
+    md_files = [n for n in names if n.endswith(".md")]
+    assert len(md_files) == 2  # neither note vanished from the archive
+
+    corrupt_body = zf.read("Corrupt note.md").decode("utf-8")
+    assert "title: Corrupt note" in corrupt_body  # front matter intact
+    assert "could not be converted" in corrupt_body  # visible marker
+
+    healthy_body = zf.read("Healthy note.md").decode("utf-8")
+    assert "still here" in healthy_body  # the other note is untouched
+
+    # The archive tells the member what failed, not just the affected file.
+    assert "EXPORT_ISSUES.txt" in names
+    issues = zf.read("EXPORT_ISSUES.txt").decode("utf-8")
+    assert "Corrupt note" in issues
+
+
+def test_front_matter_includes_subtitle_and_hero_image():
+    """Finding 2: hero_image_url and subtitle are real j2_notes columns that
+    were never selected or exported. A subtitle is authored text and a hero
+    image is the note's headline visual -- dropping either is the kind of
+    loss a member notices immediately."""
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    c.execute(
+        "INSERT INTO j2_notes (id, user_id, title, subtitle, body_json,"
+        " body_plain, tags, hero_image_url, created_at, updated_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        ("n1", "u1", "Cup and handle", "A clean base-breakout setup",
+         '{"type":"doc","content":[]}', "", "[]",
+         "https://cdn.example.com/hero.jpg",
+         "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    )
+    c.commit()
+
+    blob, _ = build_export_zip("u1", conn=c)
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    body = zf.read("Cup and handle.md").decode("utf-8")
+    assert "subtitle: A clean base-breakout setup" in body
+    assert "hero_image: https://cdn.example.com/hero.jpg" in body
+
+
+def test_video_timestamp_zero_is_not_treated_as_absent():
+    """Finding 3: videoTimestamp only has a `seconds` attr (no `label` --
+    see videoTimestampNode.js), and the old `attrs.get('label') or
+    attrs.get('seconds') or 'timestamp'` chain swallowed a real 0-second
+    timestamp as if it were missing, because 0 is falsy in Python too."""
+    md = tiptap_to_markdown(_doc({
+        "type": "videoTimestamp", "attrs": {"seconds": 0},
+    }))
+    assert md == "[0:00]"
+
+
+def test_video_timestamp_matches_the_apps_own_mmss_format():
+    """Finding 3 continued: a nonzero value used to export as a raw int
+    (e.g. "[125]") instead of the app's own mm:ss rendering. This mirrors
+    app/src/components/video/playerUtils.js::fmtTime exactly -- the same
+    helper the editor's node view renders with."""
+    md = tiptap_to_markdown(_doc({
+        "type": "videoTimestamp", "attrs": {"seconds": 125},
+    }))
+    assert md == "[2:05]"
+
+    md_hours = tiptap_to_markdown(_doc({
+        "type": "videoTimestamp", "attrs": {"seconds": 3661},
+    }))
+    assert md_hours == "[1:01:01]"
+
+
+def test_nested_bullet_list_indents_under_its_parent_item():
+    """Finding 4: a list nested inside a listItem used to flatten to a
+    sibling flat list at the top level -- text survived, but the outline
+    hierarchy silently vanished. Outlines are a primary reason people keep
+    notes; this asserts the nested item renders INDENTED under its parent,
+    which fails outright on the old flattened output."""
+    md = tiptap_to_markdown(_doc({
+        "type": "bulletList",
+        "content": [
+            {"type": "listItem", "content": [
+                _para("Parent"),
+                {"type": "bulletList", "content": [
+                    {"type": "listItem", "content": [_para("Child")]},
+                ]},
+            ]},
+            {"type": "listItem", "content": [_para("Sibling")]},
+        ],
+    }))
+    assert md == "- Parent\n  - Child\n- Sibling"

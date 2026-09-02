@@ -28,6 +28,27 @@ _INLINE_MARKS = {
 }
 
 
+def _fmt_time(secs: Any) -> str:
+    """Port of app/src/components/video/playerUtils.js::fmtTime -- the exact
+    helper the editor's own videoTimestamp node view renders with, so an
+    exported timestamp reads identically to the app. `secs` may be
+    missing/None/NaN/non-numeric; those coerce to 0, matching JS's
+    `Number(secs) || 0`. But 0 is a real, valid timestamp (the very start of
+    the clip) -- it must come out as "0:00", never be treated as absent."""
+    try:
+        n = float(secs)
+        if n != n:  # NaN
+            n = 0.0
+    except (TypeError, ValueError):
+        n = 0.0
+    s = max(0, int(n))
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    if h > 0:
+        return f"{h}:{m:02d}:{sec:02d}"
+    return f"{m}:{sec:02d}"
+
+
 def _text_with_marks(node: dict[str, Any]) -> str:
     text = node.get("text") or ""
     for mark in node.get("marks") or []:
@@ -53,17 +74,54 @@ def _inline(nodes: list[dict[str, Any]] | None) -> str:
     return "".join(out)
 
 
-def _list_items(node: dict[str, Any], bullet) -> str:
+def _list_block(node: dict[str, Any], depth: int = 0) -> str:
+    """Dispatch for the three list node types, threading nesting `depth`
+    through so a list-inside-a-listItem indents under its parent bullet
+    instead of rendering as a flat sibling list (fix round 1, finding 4)."""
+    ntype = node.get("type")
+    if ntype == "bulletList":
+        return _list_items(node, lambda i: "-", depth)
+    if ntype == "orderedList":
+        return _list_items(node, lambda i: f"{i + 1}.", depth)
+    if ntype == "taskList":
+        return _list_items(node, lambda i: "-", depth)
+    return ""
+
+
+def _list_items(node: dict[str, Any], bullet, depth: int = 0) -> str:
+    """Render one list's items at `depth` (0 = top level). A child
+    bulletList/orderedList/taskList inside an item is rendered at depth+1 and
+    appended as indented lines UNDER that item, rather than flattened to a
+    sibling list at depth 0 -- outlines are a primary reason people keep
+    notes, and collapsing their hierarchy is content loss even though every
+    word of text survives (fix round 1, finding 4)."""
+    indent = "  " * depth
     lines = []
-    for i, item in enumerate(node.get("content") or []):
-        inner = "\n".join(
-            _block(c) for c in (item.get("content") or [])
-        ).strip()
+    i = 0  # ordinal among ITEMS (not output lines -- a nested list appends
+    # extra lines per item, which must never shift a later item's number)
+    for item in node.get("content") or []:
+        if not isinstance(item, dict):
+            continue
+        parts = []
+        nested_blocks = []
+        for c in item.get("content") or []:
+            ctype = c.get("type") if isinstance(c, dict) else None
+            if ctype in ("bulletList", "orderedList", "taskList"):
+                nested = _list_block(c, depth + 1)
+                if nested:
+                    nested_blocks.append(nested)
+            else:
+                b = _block(c)
+                if b:
+                    parts.append(b)
+        inner = "\n".join(parts).strip()
         if item.get("type") == "taskItem":
             box = "x" if (item.get("attrs") or {}).get("checked") else " "
-            lines.append(f"- [{box}] {inner}")
+            lines.append(f"{indent}- [{box}] {inner}")
         else:
-            lines.append(f"{bullet(i)} {inner}")
+            lines.append(f"{indent}{bullet(i)} {inner}")
+        lines.extend(nested_blocks)
+        i += 1
     return "\n".join(lines)
 
 
@@ -96,12 +154,8 @@ def _block(node: dict[str, Any]) -> str:
     if ntype == "heading":
         level = int(attrs.get("level") or 1)
         return f"{'#' * max(1, min(level, 6))} {_inline(kids)}"
-    if ntype == "bulletList":
-        return _list_items(node, lambda i: "-")
-    if ntype == "orderedList":
-        return _list_items(node, lambda i: f"{i + 1}.")
-    if ntype == "taskList":
-        return _list_items(node, lambda i: "-")
+    if ntype in ("bulletList", "orderedList", "taskList"):
+        return _list_block(node, 0)
     if ntype == "listItem":
         return "\n".join(_block(c) for c in (kids or []))
     if ntype == "blockquote":
@@ -120,7 +174,12 @@ def _block(node: dict[str, Any]) -> str:
     if ntype == "attachmentChip":
         return f"[{attrs.get('name') or 'attachment'}]({attrs.get('href') or ''})"
     if ntype == "videoTimestamp":
-        return f"[{attrs.get('label') or attrs.get('seconds') or 'timestamp'}]"
+        # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
+        # the same helper the editor's own node view renders with
+        # (videoTimestampNode.js has only a `seconds` attr, no `label`; an
+        # `or` chain here would swallow a real 0-second timestamp as if it
+        # were absent, per fix round 1 finding 3).
+        return f"[{_fmt_time(attrs.get('seconds'))}]"
     if ntype == "widgetEmbed":
         # A live widget cannot exist in markdown. Exporting nothing would make
         # the note look like it lost content, so emit the widget's own
@@ -183,10 +242,17 @@ def _front_matter(row: sqlite3.Row) -> str:
     except (ValueError, TypeError):
         tags = []
     lines = ["---", f"title: {row['title'] or 'Untitled'}"]
+    # subtitle (authored text) and hero_image_url (the note's headline visual)
+    # are real j2_notes columns -- dropping them from the archive is silent
+    # content loss a member notices immediately (fix round 1, finding 2).
+    if row["subtitle"]:
+        lines.append(f"subtitle: {row['subtitle']}")
     if row["ticker"]:
         lines.append(f"ticker: {row['ticker']}")
     if tags:
         lines.append("tags: [" + ", ".join(str(t) for t in tags) + "]")
+    if row["hero_image_url"]:
+        lines.append(f"hero_image: {row['hero_image_url']}")
     lines.append(f"created: {row['created_at']}")
     lines.append(f"updated: {row['updated_at']}")
     lines.append("---")
@@ -211,20 +277,36 @@ def build_export_zip(
                 (user_id,))
         }
         rows = conn.execute(
-            "SELECT id, title, body_json, tags, ticker, folder_id,"
-            " created_at, updated_at FROM j2_notes WHERE user_id = ?"
-            " ORDER BY updated_at DESC", (user_id,),
+            "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
+            " hero_image_url, created_at, updated_at FROM j2_notes"
+            " WHERE user_id = ? ORDER BY updated_at DESC", (user_id,),
         ).fetchall()
 
         buf = io.BytesIO()
         used: set[str] = set()
+        failures: list[tuple[str, str]] = []
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             for row in rows:
                 try:
                     doc = json.loads(row["body_json"] or "{}")
                 except (ValueError, TypeError):
                     doc = {}
-                body = tiptap_to_markdown(doc)
+                try:
+                    body = tiptap_to_markdown(doc)
+                except Exception as exc:  # noqa: BLE001 -- deliberately broad.
+                    # One malformed note (e.g. a non-dict entry in a content
+                    # array) must never deny the member the rest of a
+                    # 4,000-note archive. The note still exports -- front
+                    # matter intact, a visible marker in place of the body --
+                    # rather than vanishing silently or aborting the whole
+                    # run (fix round 1, finding 1).
+                    body = (
+                        "> ⚠ This note's content could not be converted "
+                        f"for export ({type(exc).__name__}). The original "
+                        "note is unaffected in the app -- contact support if "
+                        "this repeats."
+                    )
+                    failures.append((row["id"], row["title"] or "Untitled"))
                 folder = _folder_path(row["folder_id"], folders)
                 base = _safe_name(row["title"], row["id"])
                 path = f"{folder}/{base}" if folder else base
@@ -233,6 +315,20 @@ def build_export_zip(
                     path = f"{path}-{row['id'][:8]}"
                 used.add(f"{path}.md")
                 zf.writestr(f"{path}.md", f"{_front_matter(row)}\n\n{body}\n")
+
+            if failures:
+                # The archive tells the member itself -- a top-level manifest
+                # beside the per-file marker above, so a partial failure is
+                # never silent even if they never open the affected file.
+                lines = [
+                    "The following notes could not be fully converted to "
+                    "markdown during export. Each one still exported with "
+                    "its title, tags and other front matter intact -- only "
+                    "the body content was affected.",
+                    "",
+                ]
+                lines += [f"- {title} (id: {nid})" for nid, title in failures]
+                zf.writestr("EXPORT_ISSUES.txt", "\n".join(lines) + "\n")
 
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return buf.getvalue(), f"uct-notebook-export-{stamp}.zip"
