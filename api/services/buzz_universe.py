@@ -40,10 +40,11 @@ _DATA = _HERE / "data"
 # `api/data/buzz_collisions.json` instead, DERIVED from a real corpus by
 # `tools/buzz_derive_collisions.py`. A word whose LOWERCASE form is ordinary
 # English but that this corpus does not (yet) measure as a collision belongs
-# in `WORD_FORMS` below, with a fixture -- not here either (`BAND`/`PUMP`
-# moved there the same day, for the same reason `arm`/`meta`/`net`/`lab`
-# live there). Three different collision mechanisms, three lists -- do not
-# merge any two of them.
+# in `WORD_FORMS` below, with a fixture -- not here either (`BAND` moved there
+# the same day, for the same reason `arm`/`meta`/`net`/`lab` live there;
+# `PUMP` moved there too and then GRADUATED to the derived list on 2026-09-02
+# once a real #main-chat corpus measured it). Three different collision
+# mechanisms, three lists -- do not merge any two of them.
 #
 # ⛔ SPOT is DELIBERATELY NOT HERE. Spotify is a name this room actually trades,
 # and it was never wrong to refuse a hand-typed "SPOT is just a word" guess --
@@ -78,7 +79,12 @@ AMBIGUOUS_ALIASES = frozenset({
 # corpus (#tsdr) is a DISCIPLINED feed where "arm"/"meta" are ticker-dominant,
 # while in casual chat they are a body part and an adjective. A casing rule
 # cannot see that from #tsdr alone. Every entry needs a fixture sentence.
-WORD_FORMS = AMBIGUOUS_ALIASES | frozenset({"net", "lab", "band", "pump"})
+# "pump" was here until 2026-09-02, when re-deriving against real #main-chat
+# MEASURED it (62 lowercase vs 1 uppercase) and chat_words() started
+# covering it. Keeping both would put two authorities on one token, and the
+# derived one is stronger -- it also gates the uppercase form this room
+# never uses. Same graduation LINE/BULL/GAIN made out of HOUSE_VOCAB.
+WORD_FORMS = AMBIGUOUS_ALIASES | frozenset({"net", "lab", "band"})
 
 # Ordinary conversational English that also reads as a ticker. DERIVED, never
 # hand-typed -- see the module docstring and tools/buzz_derive_collisions.py.
@@ -130,17 +136,42 @@ def aliases() -> dict[str, str]:
     return {str(k).lower(): str(v).upper() for k, v in payload.items()}
 
 
+# ⛔ The one place the casing rule is KNOWN to be wrong, with the evidence.
+#
+# The derivation assumes a token written mostly lowercase is an ordinary word.
+# That holds overwhelmingly -- re-derived against 32,890 real #main-chat
+# messages, 53 new collisions were found and hand-inspected, and 52 of them are
+# genuine: "ngl" (not gonna lie), "ty", "bc" (because), "0 dte", "nat gas",
+# "wall st", an electric "bill", "hardest to short stock ever". Even "qs" is
+# not QuantumScape -- it is the room's slang for QQQ ("729.36 on the qs"), so
+# gating it is right for a reason the rule never knew.
+#
+# SGOV is the exception: it is not an English word, and the lowercase hits are
+# people typing the ETF casually -- "Watching sgov 5 minute", "i should
+# probably buy back the sgov I sold". Gating it would DROP REAL MENTIONS, which
+# is the other half of the owner's brief ("things don't fall through the
+# cracks"), not just noise.
+#
+# This stays OUT of the derived JSON so that file remains a pure, reproducible
+# measurement -- the exception is applied here, at load, where it can carry its
+# evidence. Add to it only with quoted corpus lines, the same bar HOUSE_VOCAB
+# and WORD_FORMS hold.
+LOWERCASE_TICKERS = frozenset({"SGOV"})
+
+
 @functools.lru_cache(maxsize=1)
 def chat_words() -> frozenset[str]:
     """Ordinary English words that collide with a real ticker, DERIVED by
     casing analysis over a genuine Discord corpus (see the module docstring +
     `tools/buzz_derive_collisions.py`). Never hand-typed: this is a straight
-    load of `api/data/buzz_collisions.json`'s `tokens` keys. A missing or
-    malformed file degrades to an empty set rather than raising -- the same
-    fail-soft contract every loader in this module follows."""
+    load of `api/data/buzz_collisions.json`'s `tokens` keys, minus the measured
+    exceptions in LOWERCASE_TICKERS. A missing or malformed file degrades to an
+    empty set rather than raising -- the same fail-soft contract every loader
+    in this module follows."""
     payload = _load_json("buzz_collisions.json") or {}
     tokens = payload.get("tokens") if isinstance(payload, dict) else None
-    return frozenset(str(k).strip().upper() for k in (tokens or {}))
+    derived = frozenset(str(k).strip().upper() for k in (tokens or {}))
+    return derived - LOWERCASE_TICKERS
 
 
 @functools.lru_cache(maxsize=1)
